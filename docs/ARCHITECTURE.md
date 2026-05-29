@@ -26,7 +26,7 @@ void-harness/
 │           ├── claude/skills/
 │           └── package.json
 ├── plans/                         # specs + ADRs of the harness itself
-│   └── skill-audits/              # one fiche per vendored skill
+│   └── skill-audits/              # one audit note per vendored skill
 ├── test/                          # automated skill tests (citypaul-style)
 ├── docs/                          # PHILOSOPHY, ARCHITECTURE, CONTRIBUTING, DECISIONS
 └── .changeset/                    # semantic versioning
@@ -37,6 +37,17 @@ void-harness/
 The harness assumes **TypeScript + web**. The core is not framework-agnostic across language families. See `docs/PHILOSOPHY.md` § "Stack assumption".
 
 A future Rust/Go/Python flavor lives in a sibling repo, reusing mechanics not skills.
+
+## Agent runtime parity (Claude Code + Codex)
+
+The harness targets two primary agent runtimes simultaneously: **Claude Code** (via `CLAUDE.md`) and **Codex CLI** (via `AGENTS.md`). Both files coexist at every level where one would: the repo root, each pack root, and every consumer project.
+
+Rules:
+
+- Doctrine in `CLAUDE.md` and `AGENTS.md` is identical. Only terminology adapts ("Claude Code" / "Skill tool" vs "Codex" / "tools / shell").
+- A pre-commit hook (`scripts/sync-agent-docs.sh`, Phase A deliverable) blocks a commit that modifies one without reflecting the change in the other beyond the known substitution set.
+- No file is auto-generated from the other. Auto-generation risks losing intentional adaptations. Manual authoring + mechanical gate is the safer trade-off.
+- The CLI command `npx @voidcorp/harness init` installs both files in consumer projects and wires the same sync hook into the consumer's pre-commit chain.
 
 ## Boundary principles
 
@@ -128,4 +139,4 @@ Each package versions independently. The CLI displays the active version of ever
 | Hook smoke tests | every PR | block PR (each hook runs on a sample repo) |
 | CLI integration tests | every PR | block PR (install on a fresh fixture works) |
 | Changeset present | every PR with code change | block PR (no untracked release) |
-| Anti-usine-à-gaz audit | every PR | warn at >300 lines, block at >400 lines per skill |
+| Anti-bloat audit | every PR | warn at >300 lines, block at >400 lines per skill |

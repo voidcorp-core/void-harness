@@ -1,14 +1,14 @@
-# CLAUDE.md — void-harness
+# AGENTS.md — void-harness
 
-> **Sister doc**: `AGENTS.md` is the Codex-flavored mirror of this file. The two are maintained in sync — any change to one MUST be reflected in the other in the same commit. A pre-commit hook (see `scripts/sync-agent-docs.sh`, Phase A) enforces this. Adapted terminology only (Claude/Skill tool ↔ Codex/tools); the doctrine is identical.
+> **Sister doc**: `CLAUDE.md` is the Claude Code-flavored mirror of this file. The two are maintained in sync — any change to one MUST be reflected in the other in the same commit. A pre-commit hook (see `scripts/sync-agent-docs.sh`, Phase A) enforces this. Adapted terminology only (Codex/tools ↔ Claude/Skill tool); the doctrine is identical.
 
-You are working inside the **void-harness** repo itself — the meta-repo that produces the harness (Claude Code + Codex) for every VoidCorp project. This file governs work **on the harness**, not work on projects that consume it.
+You are working inside the **void-harness** repo itself — the meta-repo that produces the harness (Codex + Claude Code) for every VoidCorp project. This file governs work **on the harness**, not work on projects that consume it.
 
 ## What this repo is
 
-A versioned package distributed via npm (`@voidcorp/harness`) that injects opinionated Claude Code configuration into any project:
+A versioned package distributed via npm (`@voidcorp/harness`) that injects opinionated agent configuration into any project:
 
-- **Core** (`packages/core/`) — universal craftsman skills, agents, hooks, CLAUDE.md modules
+- **Core** (`packages/core/`) — universal craftsman skills, agents, hooks, AGENTS.md / CLAUDE.md modules
 - **Packs** (`packages/packs/*`) — stack-specific add-ons activated per project
 - **CLI** (`packages/cli/`) — install / add / update / doctor commands
 
@@ -61,19 +61,19 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 - Removed concepts must be removed from the docs at the same time
 - Tests run via `pnpm test`; do not skip TDD when adding logic
 
-## Skill routing inside this repo
+## Tool routing inside this repo
 
-| Task | Skill / Tool |
+| Task | Tool / Pattern |
 |---|---|
-| Adding a skill | `superpowers:writing-skills` (for now — until we vendor our own) |
-| Brainstorming the next feature | `superpowers:brainstorming` (vendored target: `voidcorp:brainstorming`) |
-| Writing a plan | `superpowers:writing-plans` (vendored target: `voidcorp:writing-plans`) |
-| QA / design / ship | gstack (`/qa`, `/design-review`, `/ship`) |
+| Adding a skill | Author the SKILL.md by hand, run skill-test suite in `test/` |
+| Brainstorming the next feature | Codex consult mode (gstack `/codex` consult) — adapt the principles in `plans/` |
+| Writing a plan | Manual authoring against the template in `plans/2026-05-29-void-harness-design.md` |
+| QA / design / ship | gstack (`/qa`, `/design-review`, `/ship`) — Codex can invoke gstack commands via its shell tool |
 
-## On gstack and superpowers
+## On gstack and superpowers (Codex perspective)
 
-- **gstack** is and stays installed globally (`~/.claude/skills/gstack/`). It covers QA, design, browser, ship. The harness does **not** reinvent these workflows.
-- **superpowers** will be uninstalled from global once the harness's adapted versions of the essential skills are ready (`brainstorming`, `writing-plans`, `systematic-debugging`, `verification-before-completion`, `test-driven-development` already covered via DECLIK port). Until then, prefer the superpowers version and document the adaptation in `plans/skill-audits/`.
+- **gstack** is installed globally and provides slash commands callable from any agent shell. Use it for QA, design, browser, ship. The harness does **not** reinvent these workflows.
+- **superpowers** is a Claude Code-specific skill bundle. Codex consumers don't interact with it directly; the harness's adapted equivalents (`brainstorming`, `writing-plans`, `systematic-debugging`, `verification-before-completion`, `tdd`) target both runtimes. Document the adaptation in `plans/skill-audits/`.
 
 ## Self-evolution principle
 

@@ -19,7 +19,7 @@ The harness must:
 - Enforce craftsman discipline by default (TDD strict, TigerStyle hard rules, hexagonal/DDD, refactor discipline, security-aware)
 - Be modular: a **TypeScript/web-first** core (assumed, not agnostic) + pluggable packs per stack (Next.js PWA, monorepo, mobile in future). See Section 0bis for the stack assumption.
 - Be enforced mechanically with **explicit bypasses for legitimate exceptions** (refactor pur, deletion, config, fixtures, migrations, spikes, codemods). See Section 0bis.
-- Be measured: skill tests in CI, anti-usine-à-gaz hard limits
+- Be measured: skill tests in CI, anti-bloat hard limits
 - Improve over time via **a proposed-learnings queue** (`learnings/proposed/`) promoted to project doctrine only by explicit review — never auto-written into CLAUDE.md. See Section 0bis.
 
 ## Section 0bis — Critical-review intake (2026-05-29)
@@ -38,7 +38,7 @@ Pretending universal agnosticism would dilute the design. The honest framing:
 
 This is documented in `docs/PHILOSOPHY.md` and `docs/ARCHITECTURE.md` (to be amended in the same commit).
 
-### 0bis.2 — Skill decision matrix REQUIRED before per-skill fiches
+### 0bis.2 — Skill decision matrix REQUIRED before per-skill audit notes
 
 Functional, hexagonal, DDD, testing, refactoring, code-review, async-safety will overlap by default. A matrix is required **before** Section 11 (per-skill content), specifying for each skill:
 
@@ -88,7 +88,7 @@ Replaced with: **distillation + explicit adaptation per skill**. For each candid
 - Read the source
 - Extract the load-bearing principles (the "why it works")
 - Rewrite for void-harness, removing what doesn't fit, adding what's missing
-- Cite the source in the SKILL.md prologue + in the audit fiche
+- Cite the source in the SKILL.md prologue + in the audit note
 
 Skills that are 95% the same as the source remain valuable as "voidcorp's curated version" — but they are deliberately authored, not pasted.
 
@@ -120,6 +120,36 @@ The harness must evolve from real project usage. Two mechanisms, both strictly H
 - **Outbound audit**: same skill, mode `audit`. Triggered by `npx @voidcorp/harness audit`. Reads `~/.voidcorp/usage.log` (local instrumentation), scans upstream source deprecations, surfaces conflicts repeatedly fired in the decision matrix. Proposes deprecations / fusions / rewrites as PRs. Never auto-applied.
 
 This brings core skill count from 20 → **21**. Documented in `docs/PHILOSOPHY.md` § "Harness self-evolution" and in the decision matrix.
+
+### 0bis.10 — Codex parity: AGENTS.md mirror of CLAUDE.md (bi-directional sync)
+
+The harness targets **both Claude Code and Codex CLI** as primary runtimes. Codex uses the `AGENTS.md` convention; Claude Code uses `CLAUDE.md`. Both must coexist and stay in lockstep — modifying one without updating the other creates silent runtime drift.
+
+**Design**:
+
+- Both files live at the same level (root of repo for the meta-doc; root of each pack / consumer project for the deployed version).
+- Content is identical doctrine. Adapted terminology only: "Claude Code" ↔ "Codex", "Skill tool" ↔ "tools / shell", "skills" mostly unchanged but cross-references adjusted.
+- Source of truth: neither. Both files are authored deliberately; sync is enforced mechanically.
+
+**Sync mechanism (Phase A deliverable)**:
+
+- `scripts/sync-agent-docs.sh` — a pre-commit hook that:
+  1. Detects which of `CLAUDE.md` / `AGENTS.md` was modified.
+  2. Computes a semantic diff between the two (ignoring known terminology substitutions).
+  3. If they have diverged beyond the substitution set, **blocks the commit** with a clear message pointing to the diff.
+  4. The user manually replicates the change to the sister file; commit proceeds when both reflect the same doctrine.
+- A `scripts/diff-agent-docs.sh` helper produces the doctrine diff on demand for inspection.
+- No auto-generation. Auto-generating one from the other risks losing intentional adaptations (Codex doesn't use the Skill tool; certain sections rephrase). Manual edit with mechanical gate is the safer trade-off.
+
+**Deployed in consumer projects**:
+
+The CLI command `npx @voidcorp/harness init` installs both `CLAUDE.md` and `AGENTS.md` in the consumer project (composed from active core modules + active packs). The same sync hook is installed in the consumer's `.husky/` or `lefthook.yml`, so consumer projects also enforce parity.
+
+**Documented**:
+
+- This file (Section 0bis.10)
+- `docs/ARCHITECTURE.md` § "Agent runtime parity"
+- `CLAUDE.md` and `AGENTS.md` headers (cross-reference)
 
 ### 0bis.9 — Mobile-first, dual-quality target
 
@@ -171,7 +201,7 @@ CLI npm: `npx @voidcorp/harness install`. Versioned via changesets.
 - Uninstall `superpowers` from global once vendored skills are ready
 - Vendor **the essential ones** under `voidcorp:*` names (brainstorming, writing-plans, systematic-debugging, verification-before-completion, test-driven-development → already covered by DECLIK `tdd` skill, port it)
 - **Rule of thumb**: if a competitor skill exists that's better on the same step, prefer it; if none is better, vendor verbatim with `.source` attribution
-- Each vendored skill has a fiche in `plans/skill-audits/<name>.md`: need, audited sources, choice, improvements vs sources, what is kept verbatim
+- Each vendored skill has an audit note in `plans/skill-audits/<name>.md`: need, audited sources, choice, improvements vs sources, what is kept verbatim
 
 ### Section 6 — Skills priority list (VALIDATED — comes from prior session)
 
@@ -200,7 +230,7 @@ Process / workflow core (7 skills, **distilled and adapted** — no verbatim ven
 
 Hedges (6 skills the user validated for inclusion):
 
-- `observability` (logging structuré, trace IDs, error boundaries, Sentry, métriques) — priority high
+- `observability` (structured logging, trace IDs, error boundaries, Sentry, metrics) — priority high
 - `migrations-safety` (DB migrations Drizzle/Supabase) — priority high
 - `async-safety` (idempotency, retries, distributed locks, jobs/webhooks) — priority medium
 - `accessibility-first` (Radix + WCAG + keyboard nav) — priority medium
@@ -228,7 +258,7 @@ Edit-time / commit-time / PR-time gates that mechanically enforce skills:
 - `security-reviewer` — security-focused diff review
 - `architect-critic` — boundary / dependency / coupling review
 
-### Section 9 — Anti-usine-à-gaz discipline (VALIDATED)
+### Section 9 — Anti-bloat discipline (VALIDATED)
 
 Seven hard rules, encoded in `docs/CONTRIBUTING.md` (to write) + enforced in CI:
 
@@ -256,7 +286,7 @@ The brainstorming was paused before these sections were treated:
 
 ### [PENDING] Section 11 — Skill-by-skill content
 
-For each of the 20 skills: source retained, what is kept verbatim, what is improved, target file size, dependencies on other skills. To be produced as a tabular spec, then per-skill fiches in `plans/skill-audits/<name>.md`.
+For each of the 20 skills: source retained, what is kept verbatim, what is improved, target file size, dependencies on other skills. To be produced as a tabular spec, then per-skill audit notes in `plans/skill-audits/<name>.md`.
 
 ### [PENDING] Section 12 — Hooks detailed design
 
@@ -280,7 +310,7 @@ What each pack contains, how it extends core, how it composes with other packs.
 
 ### [PENDING] Section 17 — CI workflows
 
-GitHub Actions: lint, skill schema validation, skill tests, hook smoke tests, CLI integration tests, changeset gate, anti-usine-à-gaz audit.
+GitHub Actions: lint, skill schema validation, skill tests, hook smoke tests, CLI integration tests, changeset gate, anti-bloat audit.
 
 ### [PENDING] Section 18 — Migration plan (existing projects)
 
@@ -309,4 +339,4 @@ Resume at **Section 11 — Skill-by-skill content**, starting with the 8 code-di
 3. `docs/PHILOSOPHY.md` § "Stack assumption" — TS/web is the baseline, not agnosticism
 4. `docs/ARCHITECTURE.md` § "Boundary principles" — what `core/` may/may not assume
 
-Per-skill format for Section 11: short row in the master table (source retained, verbatim vs adapted, expected size), then full fiche in `plans/skill-audits/<skill-name>.md`. Refine the decision matrix as each skill is fleshed out — any ambiguity surfaced triggers an ADR in `docs/DECISIONS.md`.
+Per-skill format for Section 11: short row in the master table (source retained, verbatim vs adapted, expected size), then full audit note in `plans/skill-audits/<skill-name>.md`. Refine the decision matrix as each skill is fleshed out — any ambiguity surfaced triggers an ADR in `docs/DECISIONS.md`.

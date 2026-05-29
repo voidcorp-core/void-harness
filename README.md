@@ -24,7 +24,7 @@ Three non-negotiables, in order:
 
 Inspired by Wing Chun (economy of means), TigerStyle (TigerBeetle), Citypaul dotfiles, and the compound-engineering loop.
 
-> "Du vide naît la structure" — Build More. Move Fast. Be Better.
+> *"Du vide naît la structure"* (VoidCorp motto, kept in French by design) — Build More. Move Fast. Be Better.
 
 ## Architecture (target)
 
@@ -68,7 +68,7 @@ npx @voidcorp/harness update
 - [`voidcorp-core/void-starter`](https://github.com/voidcorp-core/void-starter) — Next.js template. Its CLAUDE.md will reference `@voidcorp/pack-nextjs-pwa` + `@voidcorp/pack-monorepo`.
 - [`voidcorp-core/voidcorp`](https://github.com/voidcorp-core/voidcorp) — marketing site, will use `@voidcorp/pack-marketing-site` (future).
 
-## Anti-usine-à-gaz discipline
+## Anti-bloat discipline
 
 Seven hard rules enforced on every PR (see `docs/CONTRIBUTING.md`):
 
