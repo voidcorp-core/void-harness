@@ -1,6 +1,6 @@
 ---
 name: harness-evolution
-description: Capture "the harness should have X" perceptions from real project work and feed them back to void-harness as PRs (mode feedback). Audit obsolescence — unused skills, deprecated upstream sources, repeated matrix conflicts (mode audit). HITL strict — never auto-write into doctrine. Use when noticing a harness gap or running periodic audit.
+description: Feed project gaps back as PRs (feedback mode). Audit obsolescence — unused skills, deprecated sources (audit mode). HITL strict, never auto-write doctrine. Use on harness gap or periodic audit.
 ---
 
 # harness-evolution — voidcorp craftsman edition

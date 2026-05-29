@@ -1,6 +1,6 @@
 ---
 name: typescript-strict
-description: TypeScript strict baseline for void-harness. Zero any budget, branded types for domain primitives, discriminated unions over enums, exhaustive switches via never, satisfies over as. The compiler is the first reviewer. Use whenever editing or adding TypeScript code.
+description: TS strict baseline. Zero any budget, branded types for domain primitives, discriminated unions over enums, exhaustive switches via never, satisfies over as. Use when editing TypeScript code.
 ---
 
 # typescript-strict — voidcorp craftsman edition

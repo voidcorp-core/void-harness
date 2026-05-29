@@ -1,6 +1,6 @@
 ---
 name: tdd
-description: Test-Driven Development for void-harness. Three modes (strict / souple / exploratory) auto-selected by path + override markers. Iron Law in strict. Mutation gate in strict. Anti-rustine integrated. Use whenever implementing any feature, bugfix, refactor, or behavior change.
+description: TDD with three modes (strict/souple/exploratory) auto-selected by path. Iron Law in strict (no prod code without a failing test), mutation gate, anti-rustine. Use for any feature, bugfix, refactor.
 ---
 
 # tdd — voidcorp craftsman edition

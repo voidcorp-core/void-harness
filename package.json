@@ -19,15 +19,21 @@
     "packages/packs/*"
   ],
   "scripts": {
-    "build": "echo 'TODO: turbo build'",
-    "test": "echo 'TODO: skill tests'",
-    "lint": "echo 'TODO: biome check'",
+    "build": "pnpm -r --filter '!void-harness' build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "pnpm -r --filter '!void-harness' lint",
+    "typecheck": "pnpm -r --filter '!void-harness' typecheck",
+    "anti-bloat:check": "bash scripts/anti-bloat-check.sh",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "changeset publish"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.27.0"
+    "@changesets/cli": "^2.27.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
   },
   "engines": {
     "node": ">=20",

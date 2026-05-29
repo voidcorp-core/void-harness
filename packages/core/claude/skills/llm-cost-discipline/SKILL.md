@@ -1,6 +1,6 @@
 ---
 name: llm-cost-discipline
-description: Sonnet by default (Opus only with justifying comment), prompt caching for >1024-token prompts at >1/hour rate, batch API for non-interactive, token budgets declared, retries max 3 with backoff+jitter, fallback model for critical paths, structured cost logs, never log full prompt content. Use whenever calling an LLM API.
+description: Sonnet default (Opus needs comment), prompt caching for >1024-token prompts, batch API for non-interactive, max_tokens declared, bounded retries, no full prompts in logs. Use on LLM API calls.
 ---
 
 # llm-cost-discipline — voidcorp craftsman edition

@@ -1,6 +1,6 @@
 ---
 name: functional
-description: Pure-by-default, errors as values (Result<T, E>), discriminated unions for state, immutability defaults, functional core / imperative shell. No Effect-TS / fp-ts by default. Side effects pushed to adapters. Use whenever shaping data flow, error modeling, or state.
+description: Pure-by-default, errors as values (Result<T, E>), discriminated unions for state, immutability defaults, functional core / imperative shell. Side effects at adapters. Use for data flow or state.
 ---
 
 # functional — voidcorp craftsman edition

@@ -1,6 +1,6 @@
 ---
 name: verification-before-completion
-description: Final pre-flight checklist before any "task complete" claim. Twelve items observed not assumed — typecheck, tests run after last change, hooks pass, mobile+desktop verified, observability/security in scope, commit why, review evidence, plan resume. Skipping requires stated reason. Use at the end of every task.
+description: Final pre-flight checklist. Twelve items observed (not assumed) — typecheck, tests, hooks, mobile+desktop, commit why, review evidence. Skipping requires reason. Use at end of every task.
 ---
 
 # verification-before-completion — voidcorp craftsman edition

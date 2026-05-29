@@ -15,9 +15,10 @@ export async function findCoreSource(): Promise<string> {
   const here = dirname(fileURLToPath(import.meta.url));
 
   const candidates = [
-    // 1. Published tarball (single package with bundled core)
-    resolve(here, '..', '..', 'core', 'claude'),
-    // 2. Monorepo workspace install (sibling package)
+    // 1. Published npm tarball (assets bundled at <pkg>/core-assets/claude)
+    resolve(here, '..', 'core-assets', 'claude'),
+    resolve(here, '..', '..', 'core-assets', 'claude'),
+    // 2. Monorepo workspace install (sibling @voidcorp/harness-core package)
     resolve(here, '..', '..', '..', 'core', 'claude'),
     // 3. Dev mode (running from packages/cli/dist)
     resolve(here, '..', '..', '..', '..', 'core', 'claude'),

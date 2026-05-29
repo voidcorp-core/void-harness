@@ -1,6 +1,6 @@
 ---
 name: domain-driven-design
-description: Bounded contexts as units of language. Aggregates as consistency boundaries. Value objects via branded types + smart constructors. Always-valid domain model. Ubiquitous language matches stakeholders' words. No CQRS, no event sourcing, no generic Repository<T> by default. Use whenever shaping the domain.
+description: Bounded contexts, aggregates as consistency boundaries, value objects as branded types, always-valid domain, ubiquitous language. No CQRS, event sourcing, or generic Repository<T>. Use on the domain.
 ---
 
 # domain-driven-design — voidcorp craftsman edition

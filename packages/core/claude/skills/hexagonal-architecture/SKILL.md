@@ -1,6 +1,6 @@
 ---
 name: hexagonal-architecture
-description: Ports + adapters boundary discipline. Domain owns interfaces; adapters implement at the edge; function-parameter injection only; no DI containers, no CQRS, no mediator. The domain is testable in isolation. Use whenever placing new code or moving code across module boundaries.
+description: Ports + adapters. Domain owns interfaces, adapters at the edge, function-parameter injection only, no DI / CQRS / mediator. Use when placing code or crossing module boundaries.
 ---
 
 # hexagonal-architecture — voidcorp craftsman edition

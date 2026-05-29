@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: Turn an approved spec into an executable plan. Each step has goal, dependencies, verification gate, TDD mode, expected commit messages. Resume point updated as steps complete. Linked to spec and to its execution. Use after brainstorming approves a spec.
+description: Turn an approved spec into an executable plan. Steps with goal, deps, verification gate, TDD mode per step, expected commits. Resume point updated. Use after brainstorming approves a spec.
 ---
 
 # writing-plans — voidcorp craftsman edition

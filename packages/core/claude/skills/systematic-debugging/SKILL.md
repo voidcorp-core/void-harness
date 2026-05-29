@@ -1,6 +1,6 @@
 ---
 name: systematic-debugging
-description: Four-phase root-cause discipline. Iron Law — no fix without a failing test that reproduces the bug AND a root cause the developer can explain. Bug fix commit pairs (test then fix). Root-cause section in PR body. Use whenever encountering any bug, test failure, or unexpected behavior.
+description: Four phases (investigate, analyze, hypothesize, implement). Iron Law: no fix without a failing test reproducing the bug AND a root cause. Bug fix commit pairs. Use on bug or test failure.
 ---
 
 # systematic-debugging — voidcorp craftsman edition

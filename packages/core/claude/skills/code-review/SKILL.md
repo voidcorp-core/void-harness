@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Pre-PR / pre-commit critical pass over a diff. Six dimensions in order (correctness, tests, security, structure, readability, performance). Two modes (strict pre-PR / souple in-progress). Compose with gstack /code-review effort levels and /codex review for second opinion. Use whenever reviewing a diff or preparing a PR.
+description: Pre-PR critical pass. Six dimensions (correctness, tests, security, structure, readability, perf). Two modes (strict/souple). Composes gstack /code-review and /codex review. Use on a diff.
 ---
 
 # code-review — voidcorp craftsman edition

@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: Explore intent before code. One question at a time, 2–3 approaches with trade-offs, design validated section-by-section, spec written to disk and approved, then mandatory transition to writing-plans. HARD GATE — no code until spec approved. Use at the start of any creative work.
+description: Explore intent before code. One question at a time, 2-3 approaches, design section-by-section, spec written and approved, transition to writing-plans. HARD GATE — no code until spec approved.
 ---
 
 # brainstorming — voidcorp craftsman edition

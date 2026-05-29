@@ -1,6 +1,6 @@
 ---
 name: refactoring
-description: Tidy-First refactoring discipline. Tidyings commit separately from behavior changes (Two-Hat principle). Named Fowler refactors only. Tests stay green at every step. Two modes (strict / souple) mirroring tdd. Use whenever improving structure without changing observable behavior.
+description: Tidy-First. Tidyings commit separately from behavior changes (Two-Hat). Named Fowler refactors only. Tests stay green. Two modes (strict/souple). Use when improving structure without behavior change.
 ---
 
 # refactoring — voidcorp craftsman edition

@@ -63,12 +63,12 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 
 ## Skill routing inside this repo
 
-| Task | Skill / Tool |
-|---|---|
-| Adding a skill | `superpowers:writing-skills` (for now — until we vendor our own) |
+| Task                           | Skill / Tool                                                            |
+| ------------------------------ | ----------------------------------------------------------------------- |
+| Adding a skill                 | `superpowers:writing-skills` (for now — until we vendor our own)        |
 | Brainstorming the next feature | `superpowers:brainstorming` (vendored target: `voidcorp:brainstorming`) |
-| Writing a plan | `superpowers:writing-plans` (vendored target: `voidcorp:writing-plans`) |
-| QA / design / ship | gstack (`/qa`, `/design-review`, `/ship`) |
+| Writing a plan                 | `superpowers:writing-plans` (vendored target: `voidcorp:writing-plans`) |
+| QA / design / ship             | gstack (`/qa`, `/design-review`, `/ship`)                               |
 
 ## On gstack and superpowers
 

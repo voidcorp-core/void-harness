@@ -1,6 +1,6 @@
 ---
 name: accessibility-first
-description: WCAG 2.2 AA floor for every UI. Radix primitives only (no hand-rolled a11y), touch targets ≥ 44×44, keyboard parity with touch, semantic HTML over ARIA, form labels associated, errors via aria-live, mobile-first dual-quality (both viewports verified). Use whenever building or modifying UI.
+description: WCAG 2.2 AA floor. Radix primitives only, touch >=44x44, keyboard parity, semantic HTML, form labels, aria-live errors, mobile-first dual-quality. Use when building or modifying UI.
 ---
 
 # accessibility-first — voidcorp craftsman edition

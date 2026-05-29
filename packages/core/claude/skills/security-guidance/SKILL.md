@@ -1,6 +1,6 @@
 ---
 name: security-guidance
-description: Default-secure patterns at trust boundaries. Zod at every external input, secrets only in env via @repo/core/env, SQL via parameterized queries (Drizzle), auth via Better-Auth (not hand-rolled), LLM input/output as untrusted by default. Compose with gstack /cso for full audits. Use whenever touching trust-boundary code.
+description: Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. Compose gstack /cso for full audits. Use on trust-boundary code.
 ---
 
 # security-guidance — voidcorp craftsman edition

@@ -1,6 +1,6 @@
 ---
 name: observability
-description: Structured logs only (no string interpolation), trace IDs propagated end-to-end, error boundaries at every async boundary, anonymized user scope, no PII or secrets in logs ever. Use @repo/core/logger, never console.log. Use whenever writing or modifying business code that runs in production.
+description: Structured logs (no string interp), trace IDs end-to-end, error boundaries at async boundaries, anonymized user scope, no PII/secrets ever. Use @repo/core/logger not console.log. Use for prod code.
 ---
 
 # observability — voidcorp craftsman edition

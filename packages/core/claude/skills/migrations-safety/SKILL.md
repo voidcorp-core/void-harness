@@ -1,6 +1,6 @@
 ---
 name: migrations-safety
-description: Zero-downtime Postgres migrations. Two-phase changes (nullable → backfill → constraint), batched backfills with progress logging, locking analysis required, banned DDL patterns (direct NOT NULL, RENAME, type change, DROP), CREATE INDEX CONCURRENTLY, Neon dev branch test before prod, immutable after merge. Use whenever changing DB schema.
+description: Zero-downtime Postgres migrations. Two-phase changes, batched backfills, locking analysis, banned DDL patterns, CONCURRENTLY indexes, dev branch test, immutable after merge. Use on DB schema changes.
 ---
 
 # migrations-safety — voidcorp craftsman edition

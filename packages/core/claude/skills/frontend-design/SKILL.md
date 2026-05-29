@@ -1,6 +1,6 @@
 ---
 name: frontend-design
-description: Anti-AI-slop UI discipline. Density first, 3-size type hierarchy, motion <250ms purpose-driven, components via @repo/ui (Radix/shadcn), mobile-first dual-quality (both viewports verified). Brand identity lives in DESIGN.md per project; this skill is generic. Use whenever building or modifying UI.
+description: Anti-AI-slop UI. Density first, 3-size hierarchy, motion <250ms, components via @repo/ui (Radix/shadcn), mobile-first dual-quality. Brand from DESIGN.md. Use when building or modifying UI.
 ---
 
 # frontend-design — voidcorp craftsman edition

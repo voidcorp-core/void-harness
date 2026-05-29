@@ -1,6 +1,6 @@
 ---
 name: testing
-description: How to write a good test. Behavior over implementation, real code over mocks, factories over beforeEach, pyramid respected (70/20/10), pristine output, no snapshot creep. Compose with tdd (when) and mutation-testing (validate). Use whenever writing or modifying tests.
+description: How to write a good test. Behavior over implementation, real code over mocks, factories over beforeEach, pyramid respected, pristine output, no snapshot creep. Use when writing or modifying tests.
 ---
 
 # testing — voidcorp craftsman edition

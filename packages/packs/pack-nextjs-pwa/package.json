@@ -1,0 +1,61 @@
+{
+  "name": "@voidcorp/pack-nextjs-pwa",
+  "version": "0.0.0",
+  "description": "Next.js 16 + PWA conventions for the void-harness. shadcn/Radix-based @repo/ui, Server Actions wrappers, Sentry init, Tappable, axe integration, withWebhookSafety/withJobSafety/withCronSafety wrappers, Tailwind preset with mobile-first dual-quality tokens.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./async": {
+      "import": "./dist/async/index.js",
+      "types": "./dist/async/index.d.ts"
+    },
+    "./ui": {
+      "import": "./dist/ui/index.js",
+      "types": "./dist/ui/index.d.ts"
+    },
+    "./claude/*": "./claude/*"
+  },
+  "files": [
+    "dist",
+    "claude",
+    "templates",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "lint": "biome check src",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@voidcorp/pack-monorepo": "workspace:*"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  },
+  "keywords": [
+    "voidcorp",
+    "claude-code",
+    "codex",
+    "nextjs",
+    "pwa",
+    "shadcn",
+    "radix",
+    "harness"
+  ]
+}

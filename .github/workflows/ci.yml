@@ -1,0 +1,56 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Anti-bloat — SKILL.md size cap (400 LOC)
+        run: |
+          OVERSIZE=$(find packages/core/claude/skills -name SKILL.md -exec wc -l {} \; | awk '$1 > 400 { print }')
+          if [ -n "$OVERSIZE" ]; then
+            echo "FAIL: SKILL.md exceeds 400 LOC cap:" >&2
+            echo "$OVERSIZE" >&2
+            exit 1
+          fi
+
+      - name: Anti-bloat — hooks size cap (100 LOC)
+        run: |
+          OVERSIZE=$(find packages/core/claude/hooks -name '*.sh' -exec wc -l {} \; | awk '$1 > 100 { print }')
+          if [ -n "$OVERSIZE" ]; then
+            echo "FAIL: hook exceeds 100 LOC cap:" >&2
+            echo "$OVERSIZE" >&2
+            exit 1
+          fi
+
+      - name: Shell syntax — all hooks
+        run: |
+          for f in packages/core/claude/hooks/*.sh; do
+            bash -n "$f" || { echo "FAIL: syntax in $f" >&2; exit 1; }
+          done
+
+      - name: Skill tests
+        run: pnpm vitest run
+
+      - name: TypeScript — typecheck packages
+        run: pnpm -r typecheck

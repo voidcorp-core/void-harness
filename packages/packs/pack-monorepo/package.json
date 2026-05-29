@@ -1,0 +1,65 @@
+{
+  "name": "@voidcorp/pack-monorepo",
+  "version": "0.0.0",
+  "description": "Turborepo + Bun monorepo conventions for the void-harness. Shared configs (tsconfig.strict, biome, vitest, lefthook, commitlint), @repo/core (env, logger, errors, Result, Option, pipe), domain_events outbox schema, IdempotencyStore port + Postgres adapter, hooks installation helpers.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./result": {
+      "import": "./dist/result.js",
+      "types": "./dist/result.d.ts"
+    },
+    "./option": {
+      "import": "./dist/option.js",
+      "types": "./dist/option.d.ts"
+    },
+    "./pipe": {
+      "import": "./dist/pipe.js",
+      "types": "./dist/pipe.d.ts"
+    },
+    "./tsconfig.strict.json": "./tsconfig.strict.json",
+    "./biome.json": "./biome.json",
+    "./claude/*": "./claude/*"
+  },
+  "files": [
+    "dist",
+    "claude",
+    "templates",
+    "tsconfig.strict.json",
+    "biome.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "lint": "biome check src",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  },
+  "keywords": [
+    "voidcorp",
+    "claude-code",
+    "codex",
+    "monorepo",
+    "turborepo",
+    "bun",
+    "harness"
+  ]
+}
