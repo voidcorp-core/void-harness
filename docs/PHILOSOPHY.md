@@ -79,6 +79,47 @@ If a credible alternative exists, it is logged in `docs/DECISIONS.md` with the r
 
 A change technically correct but below this bar is pushed back.
 
+## Mobile-first, dual-quality target
+
+Every UI — including web apps that are not primarily mobile — is designed **mobile-first** AND must reach **first-class quality on both mobile and desktop simultaneously**. Not "mobile-first then responsive afterthought." Not "desktop-first then squeeze for mobile." Both experiences are deliverables.
+
+Concrete invariants enforced by `frontend-design` + `accessibility-first` skills:
+
+- Layout designed at 360–390px first, then progressively enhanced to wider viewports — never the reverse
+- Touch targets ≥ 44×44px (Apple HIG) on every interactive element, regardless of viewport
+- Keyboard navigation works on desktop with the same completeness as touch on mobile (focus rings, skip links, escape closes modals)
+- Performance budget enforced for both : LCP < 2.5s on slow 4G mobile + on desktop fiber
+- No mobile-only nor desktop-only feature without an equivalent on the other surface (or an explicit, documented decision)
+- Both viewports are screenshotted in design review (mobile portrait + desktop) before any UI ships
+
+Source: Folpe operating principle. Translated into mechanical checks via `accessibility-first`, `frontend-design`, and `pack-nextjs-pwa` design-review hooks.
+
+## Harness self-evolution — feedback loop and obsolescence audit (HITL strict)
+
+The harness must evolve from real usage in real projects, like citypaul's dotfiles evolves from his daily work. Two complementary mechanisms, both **strict Human-In-The-Loop** (no automatic write into doctrine, ever):
+
+### Inbound — `harness-evolution` skill, mode `feedback`
+
+While coding in any project consuming the harness, when the model (or the user) perceives that something is missing, wrong, or worth a rule:
+
+1. The perception is captured to `.voidcorp/harness-feedback/proposed/YYYY-MM-DD-N.md` in the *current project repo* (not in void-harness). Format: trigger, observation, proposed change to harness, target (core / pack / module), confidence.
+2. Periodically (or on demand), `npx @voidcorp/harness feedback push` reads the proposed queue, walks each item with the user (promote / discard / defer), and opens a GitHub issue or PR on `voidcorp-core/void-harness` for the ones the user promotes.
+3. The void-harness PR carries the source project context as motivation. Nothing is merged without human review.
+
+### Outbound — `harness-evolution` skill, mode `audit`
+
+A recurring auto-evaluation that questions the harness's current surface:
+
+1. Each skill invocation logs to `~/.voidcorp/usage.log` (local, never shipped).
+2. `npx @voidcorp/harness audit` produces a report: skills never invoked in N days, skills whose upstream source has been deprecated/superseded, skills whose decision-matrix cell has fired conflicts repeatedly.
+3. The report **proposes** deprecations, fusions, or rewrites. Nothing is auto-applied. Each proposal becomes a PR after human review.
+
+### Why HITL is absolute here
+
+Auto-write into the harness's doctrine — even with good signals — would create silent drift, contradictions, and prompt bloat over time. The harness is the foundation; foundations don't shift without deliberate decision. The cost of a human review per change is the price of keeping the doctrine coherent.
+
+Source: citypaul's manual curation discipline; Boris Cherny's "compounding engineering" (adapted with the review gate); user's explicit project lead direction (2026-05-29).
+
 ## Compound engineering — via a proposed-learnings queue, NOT auto-write
 
 Each session can produce 0–N learnings. These are captured in `learnings/proposed/YYYY-MM-DD-N.md` of the project repo — **never written automatically to CLAUDE.md or any load-bearing doctrine file**.

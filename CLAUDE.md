@@ -29,14 +29,19 @@ Seven hard rules. **Any PR violating these is blocked.**
 6. **Agents have an explicit scope**. `senior-reviewer` reviews code — it does not also do QA, design, or shipping (those stay in gstack).
 7. **Skill tests pass in CI.** A broken skill blocks the release.
 
-## Vendoring discipline
+## Sourcing discipline (no verbatim vendoring)
 
-Many core skills are **distilled from external sources** (superpowers, citypaul, TigerStyle, etc.). When vendoring:
+Core skills are **distilled and adapted** from external sources (superpowers, citypaul, TigerStyle, etc.) — never copied verbatim. Verbatim vendoring was rejected: it freezes upstream bugs and creates a fork burden.
 
-- Add an attribution file `.source` next to the skill listing the inspirations
-- If the skill is vendored verbatim, mark it `verbatim: <source-url>` and note any minimal stack-agnostic adaptations
-- If the skill is improved, document the specific improvements in `plans/skill-audits/<skill-name>.md` (one fiche per skill, see template)
+For each skill:
+
+- Read the source, extract the load-bearing principles ("why it works")
+- Rewrite for void-harness, removing what doesn't fit, adding what's missing
+- Add a `.source` file next to the skill listing inspirations + URLs
+- Document the specific adaptations and rejections in `plans/skill-audits/<skill-name>.md` (one fiche per skill)
 - **Never reinvent without justified improvement.** YAGNI applies hardest here.
+
+A skill that ends up 95% the same as its source remains valuable as "voidcorp's deliberately authored version" — but it was rewritten, not pasted.
 
 ## Hard rules for any code added to this repo
 
@@ -66,4 +71,12 @@ Many core skills are **distilled from external sources** (superpowers, citypaul,
 ## On gstack and superpowers
 
 - **gstack** is and stays installed globally (`~/.claude/skills/gstack/`). It covers QA, design, browser, ship. The harness does **not** reinvent these workflows.
-- **superpowers** will be uninstalled from global once the harness vendors its essential skills (`brainstorming`, `writing-plans`, `systematic-debugging`, `verification-before-completion`, `test-driven-development`). Until then, prefer the superpowers version and document the migration in `plans/skill-audits/`.
+- **superpowers** will be uninstalled from global once the harness's adapted versions of the essential skills are ready (`brainstorming`, `writing-plans`, `systematic-debugging`, `verification-before-completion`, `test-driven-development` already covered via DECLIK port). Until then, prefer the superpowers version and document the adaptation in `plans/skill-audits/`.
+
+## Self-evolution principle
+
+The harness improves from real project usage, never auto-applied.
+
+- **Inbound**: while coding in a consumer project, captured perceptions of "the harness should have X" go to `.voidcorp/harness-feedback/proposed/` in that project. Promoted via `npx @voidcorp/harness feedback push` → issue or PR here.
+- **Outbound**: `npx @voidcorp/harness audit` reports skills not invoked recently, upstream deprecations, repeated matrix conflicts. Proposes deprecations as PRs.
+- **HITL is absolute**: no automatic write into doctrine, ever. Every change is a deliberate commit.

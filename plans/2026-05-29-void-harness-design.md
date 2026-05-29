@@ -112,6 +112,23 @@ Explicit project-lead decision: no metric-based kill criteria, no 2-week observa
 
 (Recorded for traceability. The risk is acknowledged: if the harness creates more friction than value, we will only learn from direct usage friction, not from numbers.)
 
+### 0bis.8 — Harness self-evolution (HITL strict)
+
+The harness must evolve from real project usage. Two mechanisms, both strictly Human-In-The-Loop:
+
+- **Inbound feedback**: a new `harness-evolution` skill (mode `feedback`) captures any perception (model or user) that something is missing/wrong/worth-a-rule into `.voidcorp/harness-feedback/proposed/` in the **consumer project**. The CLI command `npx @voidcorp/harness feedback push` walks each item with the user (promote / discard / defer) and opens an issue or PR on `voidcorp-core/void-harness` for promoted ones.
+- **Outbound audit**: same skill, mode `audit`. Triggered by `npx @voidcorp/harness audit`. Reads `~/.voidcorp/usage.log` (local instrumentation), scans upstream source deprecations, surfaces conflicts repeatedly fired in the decision matrix. Proposes deprecations / fusions / rewrites as PRs. Never auto-applied.
+
+This brings core skill count from 20 → **21**. Documented in `docs/PHILOSOPHY.md` § "Harness self-evolution" and in the decision matrix.
+
+### 0bis.9 — Mobile-first, dual-quality target
+
+Universal rule: every UI is designed mobile-first AND must reach first-class quality on both mobile and desktop simultaneously. Not afterthought-responsive in either direction.
+
+Enforced jointly by `frontend-design` (layout starts at 360–390px, progressive enhancement) and `accessibility-first` (touch targets ≥ 44×44px, keyboard nav parity). Both viewports screenshot-reviewed before any UI ships.
+
+Documented in `docs/PHILOSOPHY.md` § "Mobile-first, dual-quality target" and reflected in `frontend-design` + `accessibility-first` matrix entries.
+
 ---
 
 ## Decisions captured (validated)
@@ -171,14 +188,15 @@ Code-discipline core (8 skills) — sources already mapped:
 | 7 | `domain-driven-design` | none | citypaul + Evans (2003) + Vernon (2013) + Wlaschin + Stemmler |
 | 8 | `code-review` | strict / souple | citypaul/pr-reviewer + superpowers/requesting-code-review |
 
-Process / workflow core (6 skills, mostly vendored verbatim from superpowers):
+Process / workflow core (7 skills, **distilled and adapted** — no verbatim vendoring per Section 0bis.5):
 
-- `brainstorming` — vendored verbatim from superpowers
-- `writing-plans` — vendored verbatim from superpowers
+- `brainstorming` — adapted from superpowers
+- `writing-plans` — adapted from superpowers
 - `systematic-debugging` — superpowers OR gstack `/investigate` (TBD)
-- `verification-before-completion` — vendored verbatim from superpowers
+- `verification-before-completion` — adapted from superpowers
 - `security-guidance` — distilled from citypaul + gstack `/cso` lite
 - `commit-discipline` — slim, conventional commits + "always say why"
+- `harness-evolution` — two modes: `feedback` (inbound, from consumer projects) and `audit` (outbound, obsolescence detection). HITL strict. See Section 0bis.8.
 
 Hedges (6 skills the user validated for inclusion):
 
@@ -189,7 +207,7 @@ Hedges (6 skills the user validated for inclusion):
 - `llm-cost-discipline` (prompt caching, batch API, model selection, token budgets) — priority high (differentiator)
 - `frontend-design` — vendored from existing `frontend-design` skill, anti-AI-slop
 
-Total: **20 skills** in the core.
+Total: **21 skills** in the core.
 
 ### Section 7 — Hooks (VALIDATED, 8 total)
 

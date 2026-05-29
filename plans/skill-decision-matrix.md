@@ -123,6 +123,16 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 - **Cannot decide**: whether the change itself is correct.
 - **Composes with**: `verification-before-completion`.
 
+### `harness-evolution`
+
+Two modes: `feedback` (inbound suggestions captured from real project usage) and `audit` (outbound obsolescence detection).
+
+- **Wins (`feedback` mode)**: any moment, in any consumer project, when the model or user perceives a missing skill, missing rule, missing mention, or a hole in the harness coverage. Captured to `.voidcorp/harness-feedback/proposed/` in the *consumer project*.
+- **Wins (`audit` mode)**: triggered by `npx @voidcorp/harness audit`. Reads `~/.voidcorp/usage.log`, scans upstream sources for deprecation, surfaces conflicts in the decision matrix.
+- **Loses to**: nothing — it's a meta-skill operating on the harness itself, orthogonal to code-discipline and process skills.
+- **Cannot decide**: whether a proposed change is adopted (HITL only). Cannot write into harness doctrine — only opens issues/PRs.
+- **Composes with**: every skill (any skill can be the subject of feedback). Pairs naturally with `code-review` (a code review that surfaces a missing rule may generate a feedback item).
+
 ---
 
 ## Hedge skills (6)
@@ -150,10 +160,11 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 
 ### `accessibility-first`
 
-- **Wins**: any interactive UI. Keyboard nav, ARIA via Radix, contrast, semantic HTML.
+- **Wins**: any interactive UI. Keyboard nav, ARIA via Radix, contrast, semantic HTML, touch targets ≥ 44×44px, focus management.
 - **Loses to**: nothing on accessibility. It's the floor, not the ceiling.
 - **Cannot decide**: visual design (defers to design-consultation / design-shotgun in gstack).
-- **Composes with**: `frontend-design`.
+- **Composes with**: `frontend-design` (enforces mobile-first dual-quality jointly).
+- **Mobile-first dual-quality invariant**: every UI ships with verified keyboard nav AND verified touch interaction. Both pass the design-review skill before merge.
 
 ### `llm-cost-discipline`
 
@@ -164,10 +175,11 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 
 ### `frontend-design`
 
-- **Wins**: any new UI component or layout. Anti-AI-slop rules, density, hierarchy, motion discipline.
+- **Wins**: any new UI component or layout. Anti-AI-slop rules, density, hierarchy, motion discipline, mobile-first layout design.
 - **Loses to**: `design-consultation` (gstack) for design system creation. `design-review` (gstack) for live audits.
 - **Cannot decide**: brand identity (DESIGN.md owns it).
 - **Composes with**: `accessibility-first`, `typescript-strict`.
+- **Mobile-first dual-quality invariant**: layout starts at 360–390px and is progressively enhanced. No desktop-only layout shipped without an equivalent mobile experience (or an explicit documented decision). Both viewports screenshot-reviewed before merge.
 
 ---
 
