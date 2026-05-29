@@ -17,10 +17,102 @@ Build a Claude Code harness — distributed as `@voidcorp/harness` on npm — th
 The harness must:
 
 - Enforce craftsman discipline by default (TDD strict, TigerStyle hard rules, hexagonal/DDD, refactor discipline, security-aware)
-- Be modular: a core agnostic to stack + pluggable packs per stack (Next.js PWA, monorepo, mobile in future)
-- Be enforced mechanically: hooks at PreToolUse / PreCommit / Pre-PR levels, not just recommendations
+- Be modular: a **TypeScript/web-first** core (assumed, not agnostic) + pluggable packs per stack (Next.js PWA, monorepo, mobile in future). See Section 0bis for the stack assumption.
+- Be enforced mechanically with **explicit bypasses for legitimate exceptions** (refactor pur, deletion, config, fixtures, migrations, spikes, codemods). See Section 0bis.
 - Be measured: skill tests in CI, anti-usine-à-gaz hard limits
-- Auto-improve: compound-engineering loop captures learnings each session into project CLAUDE.md
+- Improve over time via **a proposed-learnings queue** (`learnings/proposed/`) promoted to project doctrine only by explicit review — never auto-written into CLAUDE.md. See Section 0bis.
+
+## Section 0bis — Critical-review intake (2026-05-29)
+
+The design was put under critical review on 2026-05-29. Seven hedges were raised. Six are integrated below; one was explicitly rejected by the project lead.
+
+### 0bis.1 — Stack assumption made explicit (was: "core agnostic")
+
+The core is **not stack-agnostic**. It assumes **TypeScript + web** by design: TS strict types, Zod at boundaries, React/Next mental model, `tsc --noEmit`, vitest-style test discovery, TigerStyle naming conventions adapted for typed languages.
+
+Pretending universal agnosticism would dilute the design. The honest framing:
+
+- **`core/`** = TypeScript + web first. Every skill in core may assume TS as the implementation language and a web app as the deployment target.
+- **`packs/`** = stack-specialization within that universe (Next.js PWA, monorepo with Bun/Turbo, future mobile with React Native).
+- **A future Rust/Go/Python core** would live in a sibling repo (`void-harness-rust`, etc.), reusing the harness mechanics but not the TS-specific skills.
+
+This is documented in `docs/PHILOSOPHY.md` and `docs/ARCHITECTURE.md` (to be amended in the same commit).
+
+### 0bis.2 — Skill decision matrix REQUIRED before per-skill fiches
+
+Functional, hexagonal, DDD, testing, refactoring, code-review, async-safety will overlap by default. A matrix is required **before** Section 11 (per-skill content), specifying for each skill:
+
+- **When does it win** (i.e. when is it the primary skill for the task?)
+- **When does it lose** (i.e. another skill takes precedence — which one and why?)
+- **What is it NOT allowed to decide** (boundaries it must defer to others)
+
+Delivered in `plans/skill-decision-matrix.md` (created with this commit, populated incrementally in Section 11).
+
+### 0bis.3 — tdd-guard legitimate bypasses
+
+A blanket "no production code without failing test" rule produces constant false positives. The skill `tdd` and the hook `tdd-guard` must declare explicit bypasses, NOT as escape hatches but as **bona fide cases where TDD does not apply**.
+
+Bypasses (initial list, to be refined in Section 12):
+
+| Case | Justification |
+|---|---|
+| **Pure refactor** | No behavior change. Tests already cover. Hook checks: `git diff` semantically equivalent (Move/Extract/Rename). |
+| **Code deletion** | No new behavior. Hook checks: only deletions, no additions. |
+| **Config & build files** | `package.json`, `tsconfig.json`, `vitest.config.ts`, etc. Hook checks: file path matches config glob. |
+| **Test fixtures & seed data** | Tests *of* tests. Hook checks: file path matches `tests/fixtures/**`. |
+| **DB migrations** | Tested via `migrations-safety` skill + integration tests, not unit TDD. Hook checks: path matches `migrations/**`. |
+| **Spikes** | Marked `// tdd-mode: exploratory` or path matches `**/scripts/spike-*`. |
+| **Codemods** | Verified by snapshot tests on the codebase, not classical TDD. Hook checks: path matches `**/codemods/**`. |
+| **Type-only changes** | `.d.ts` files, `type` exports. Hook checks: AST diff = types only. |
+| **Doc-only changes** | `*.md`, `docs/**`. Hook checks: path. |
+| **Generated code** | Files with `// @generated` header or under `**/__generated__/**`. |
+
+When in doubt, the hook **warns** instead of **blocks**, and asks the user to confirm. Blocking is reserved for clear violations (new function in `src/` without corresponding `.test.ts` change in the same commit).
+
+### 0bis.4 — Compound-engineering: proposed-learnings queue, NOT auto-write
+
+Auto-appending to project CLAUDE.md creates drift, noise, contradictions, and prompt bloat. Replaced with:
+
+- **Capture**: at session-end, the harness writes 0–N learnings to `learnings/proposed/YYYY-MM-DD-N.md` in the project repo. Format: trigger, observation, proposed rule, confidence level.
+- **Review**: explicit step — either manual user review, or a dedicated `voidcorp:learnings-promote` skill that consolidates proposals and asks the user "promote this to CLAUDE.md? to docs/? to a skill? discard?"
+- **Promotion**: only via a normal commit/PR with diff. Never written automatically to load-bearing doctrine.
+
+Doctrine evolves deliberately, not by accretion.
+
+### 0bis.5 — No verbatim vendoring of superpowers (or anything)
+
+Licensing-wise superpowers is MIT and verbatim copy with attribution is legal. But the maintenance argument stands: vendored verbatim = frozen bugs + fork burden.
+
+Replaced with: **distillation + explicit adaptation per skill**. For each candidate (brainstorming, writing-plans, systematic-debugging, verification-before-completion):
+
+- Read the source
+- Extract the load-bearing principles (the "why it works")
+- Rewrite for void-harness, removing what doesn't fit, adding what's missing
+- Cite the source in the SKILL.md prologue + in the audit fiche
+
+Skills that are 95% the same as the source remain valuable as "voidcorp's curated version" — but they are deliberately authored, not pasted.
+
+### 0bis.6 — Execution phasing (within v1.0)
+
+The project lead has rejected a reduced MVP scope (we ship v1.0 with all 20 skills, 8 hooks, 3 agents, 2 packs). To avoid a chaotic big-bang, internal execution is phased:
+
+| Phase | Content | Validation |
+|---|---|---|
+| **Phase A** | CLI scaffolding (`install`, `init`, `doctor`), `voidcorp.config.json` contract, repo CI baseline | CLI installs harness skeleton in a fresh project, doctor passes |
+| **Phase B** | Code-discipline foundation: skills `tdd`, `typescript-strict`, `testing`, `refactoring`, `code-review` + hooks `tdd-guard`, `tigerstyle-check`, `pre-commit typecheck+test` | These 5 skills + 3 hooks tested in the harness's own `test/` + dogfooded on a small VoidCorp repo |
+| **Phase C** | Architecture skills: `hexagonal-architecture`, `domain-driven-design`, `functional` + skill-decision matrix exercised end-to-end | Boundary conflicts surfaced; matrix refined |
+| **Phase D** | Hedge skills: `observability`, `migrations-safety`, `async-safety`, `accessibility-first`, `llm-cost-discipline`, `frontend-design`, `security-guidance`, `commit-discipline` + remaining hooks + 3 agents + compound-learnings queue | Full integration on `voidcorp`, `declik`, `solaar` |
+| **Phase E** | Packs `pack-nextjs-pwa`, `pack-monorepo` + npm release v1.0 | Public install works on a fresh Next.js project |
+
+Phases are internal milestones, not version bumps. v1.0 ships when Phase E is green.
+
+### 0bis.7 — Rejected hedge: kill criteria / 2-week trial
+
+Explicit project-lead decision: no metric-based kill criteria, no 2-week observation period. The harness is the foundation, it must be done right and shipped. If the framing turns out wrong at a structural level, we redesign — but we do not gate on adoption telemetry.
+
+(Recorded for traceability. The risk is acknowledged: if the harness creates more friction than value, we will only learn from direct usage friction, not from numbers.)
+
+---
 
 ## Decisions captured (validated)
 
@@ -190,4 +282,13 @@ Phase 0 = v0.1 internal only on `voidcorp` + `declik`. Phase 1 = v1.0 with pack-
 
 ## Next session restart point
 
-Resume at **Section 11 — Skill-by-skill content**, starting with the 8 code-discipline skills, then 6 process skills, then 6 hedges. Format: tabular spec first (one row per skill), then per-skill fiches.
+Resume at **Section 11 — Skill-by-skill content**, starting with the 8 code-discipline skills, then 6 process skills, then 6 hedges.
+
+**Read order before resuming**:
+
+1. This file's **Section 0bis** — critical-review intake (6 hedges integrated + 1 rejected)
+2. `plans/skill-decision-matrix.md` — when each skill wins/loses/cannot decide
+3. `docs/PHILOSOPHY.md` § "Stack assumption" — TS/web is the baseline, not agnosticism
+4. `docs/ARCHITECTURE.md` § "Boundary principles" — what `core/` may/may not assume
+
+Per-skill format for Section 11: short row in the master table (source retained, verbatim vs adapted, expected size), then full fiche in `plans/skill-audits/<skill-name>.md`. Refine the decision matrix as each skill is fleshed out — any ambiguity surfaced triggers an ADR in `docs/DECISIONS.md`.

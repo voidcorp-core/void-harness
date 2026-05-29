@@ -1,5 +1,15 @@
 # Philosophy
 
+## Stack assumption
+
+The harness assumes **TypeScript + web** as its baseline. The `core/` is *not* truly stack-agnostic: it imposes TS strict, Zod at boundaries, a React/Next mental model for UI concerns, `tsc`-style type checking, and TigerStyle naming adapted for typed languages.
+
+Pretending universal agnosticism would dilute the design. A future Rust/Go/Python flavor of the harness would live in a sibling repo (`void-harness-rust`, etc.), reusing the *mechanics* but not the TS-specific skills.
+
+`packs/` specialize *within* the TypeScript/web universe (Next.js PWA, monorepo with Bun/Turbo, future mobile React Native, etc.).
+
+## Three pillars
+
 Three non-negotiables, in order. **Safety > Performance > Developer Experience.**
 
 When two of these collide, the earlier wins. When all three agree, you have an opportunity to find the "super idea" — the simple, elegant move that advances all three simultaneously.
@@ -69,11 +79,18 @@ If a credible alternative exists, it is logged in `docs/DECISIONS.md` with the r
 
 A change technically correct but below this bar is pushed back.
 
-## Compound engineering
+## Compound engineering — via a proposed-learnings queue, NOT auto-write
 
-Every session produces 0–N learnings that flow back into project CLAUDE.md (and harness modules where applicable). The harness gets sharper over time, not just used more.
+Each session can produce 0–N learnings. These are captured in `learnings/proposed/YYYY-MM-DD-N.md` of the project repo — **never written automatically to CLAUDE.md or any load-bearing doctrine file**.
 
-Source: Kieran Klaassen (EveryInc/compound-engineering-plugin), Boris Cherny ("how Boris uses Claude Code").
+Promotion to project CLAUDE.md, `docs/*`, or a skill happens only via:
+
+- Explicit user review (manual edit), or
+- The dedicated `voidcorp:learnings-promote` skill that consolidates the queue and asks "promote / discard / file as ADR?" for each.
+
+Auto-append into CLAUDE.md was rejected: it creates drift, contradictions, prompt bloat. Doctrine evolves deliberately, not by accretion.
+
+Source: Kieran Klaassen (EveryInc/compound-engineering-plugin), Boris Cherny ("how Boris uses Claude Code"). Adapted — not vendored — to add the review gate.
 
 ## What this philosophy excludes
 

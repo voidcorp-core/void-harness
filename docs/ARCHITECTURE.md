@@ -32,19 +32,26 @@ void-harness/
 └── .changeset/                    # semantic versioning
 ```
 
+## Stack baseline
+
+The harness assumes **TypeScript + web**. The core is not framework-agnostic across language families. See `docs/PHILOSOPHY.md` § "Stack assumption".
+
+A future Rust/Go/Python flavor lives in a sibling repo, reusing mechanics not skills.
+
 ## Boundary principles
 
 ### Core vs Packs
 
 | Concern | Where |
 |---|---|
-| Universal craftsman discipline | `core/` |
-| Stack-agnostic process | `core/` |
+| TypeScript + web craftsman discipline (universal within that stack) | `core/` |
+| Process skills (brainstorming, planning, debugging) | `core/` |
 | Hooks that enforce universals | `core/hooks/` |
-| Stack-specific patterns | `packs/<pack>/` |
-| Stack-specific extensions of universals | `packs/<pack>/` (can extend, not override blindly) |
+| Framework-specific patterns (Next.js, React Native, etc.) | `packs/<pack>/` |
+| Framework-specific extensions of core skills | `packs/<pack>/` (can extend, not override blindly) |
+| Package-manager / monorepo-tool specifics (Bun, Turbo, pnpm) | `packs/pack-monorepo/` |
 
-**Rule**: a file in `core/` must never reference a specific framework, package manager, or stack. If it must (paths, commands), it reads from `voidcorp.config.json` of the consumer project.
+**Rule**: a file in `core/` may assume TypeScript, Zod, `tsc`, vitest-style discovery. It may NOT assume a specific framework (Next vs Remix vs SvelteKit), a specific runtime (Node vs Bun vs Deno), or specific monorepo tooling. Those decisions live in packs and are read from `voidcorp.config.json` at runtime.
 
 ### Pack independence
 
