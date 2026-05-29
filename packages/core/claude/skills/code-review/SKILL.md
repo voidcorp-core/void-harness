@@ -1,0 +1,212 @@
+---
+name: code-review
+description: Pre-PR / pre-commit critical pass over a diff. Six dimensions in order (correctness, tests, security, structure, readability, performance). Two modes (strict pre-PR / souple in-progress). Compose with gstack /code-review effort levels and /codex review for second opinion. Use whenever reviewing a diff or preparing a PR.
+---
+
+# code-review — voidcorp craftsman edition
+
+A review without a framework is "the first ten things I noticed." This skill provides the framework: six dimensions in order, blocker vs nit, evidence block in the PR body, two modes, explicit composition with gstack and specialized agents. The skill orchestrates; it does not duplicate the deep-pass agents.
+
+**Attribution**: see `.source` in this directory.
+
+---
+
+## Six dimensions, in order
+
+The order matters. A correctness issue blocks regardless of beautiful structure. A perf issue does not block if the first four dimensions are clean.
+
+1. **Correctness** — does it do what it claims? edge cases? error paths? composes with `tdd` (cycle evidence) and `systematic-debugging` (root cause for fixes).
+2. **Tests** — failing test before the code? real code over mocks? names describe behavior? composes with `testing`.
+3. **Security** — input validated at trust boundaries? secrets handled? SQL safe? LLM input untrusted? composes with `security-guidance` and the `security-reviewer` agent.
+4. **Structure** — boundaries respected (no domain importing infrastructure)? service/repository split? function lengths? composes with `hexagonal-architecture`, `domain-driven-design`, `refactoring`, and the `architect-critic` agent.
+5. **Readability** — names? exhaustive switches? `any` slips? `as` casts? composes with `typescript-strict`.
+6. **Performance** — obvious O(n²) inside loops? leaky reactive subscriptions? unbounded queries? composes with `benchmark` (gstack) for measured claims.
+
+A11y, observability, LLM cost discipline ride inside dimensions 1-6 (e.g. missing a11y is a Correctness issue at the UI boundary; missing structured log is a Structure issue at the service layer).
+
+---
+
+## Blocker vs nit
+
+Every comment is explicitly prefixed:
+
+- **`BLOCKER:`** — must be fixed before merge. Block the PR.
+- **`NIT:`** — suggestion. Author decides. Does NOT block.
+- **`QUESTION:`** — clarification request. May escalate to BLOCKER if answer reveals a defect.
+- **`PRAISE:`** — explicit acknowledgement of good code (rare, but valued).
+
+Style / naming / minor structure: `NIT:`. Correctness / missing test / security / boundary violation: `BLOCKER:`.
+
+A review that does not use the prefixes is incomplete. The companion hook `blocker-prefix-grep` produces the BLOCKER/NIT count for the evidence block.
+
+---
+
+## PR body — review evidence
+
+Every PR in strict mode includes a Review Evidence block:
+
+```markdown
+## Review Evidence
+
+- **Mode**: strict
+- **Composed with**: gstack /code-review medium, /codex review (second opinion)
+- **Dimensions covered**:
+  - [x] Correctness — tdd evidence verified (RED commit c925187, GREEN 5e0055b)
+  - [x] Tests — 4/4 passing, mutation score 94%, no business mocks
+  - [x] Security — trust boundary validated via Zod at /api/checkout
+  - [x] Structure — services do not touch DB (repository pattern verified)
+  - [x] Readability — typescript-strict clean (no any, no rogue as)
+  - [x] Performance — no measured claim, no obvious smell
+- **Blockers raised**: 0
+- **Nits raised**: 2 (variable rename suggestion, helper extraction suggestion)
+- **Claude vs Codex disagreement**: none
+- **Skipped dimension**: none
+```
+
+If a dimension is skipped, the reason is explicit. If Claude and Codex disagree, the deltas are surfaced — not silently arbitrated.
+
+The companion hook `pre-PR-review-evidence` warns if the PR body lacks this block (strict mode).
+
+---
+
+## CL Size discipline
+
+PRs larger than ~400 LOC of diff should either:
+
+- Be split into multiple PRs each focused on one concern
+- Or include a `large-cl-justification: <reason>` marker in the PR body
+
+Review quality decays after ~400 LOC. The companion hook `large-cl-grep` warns on PRs exceeding the threshold without the justification marker.
+
+---
+
+## Modes
+
+| Mode | Trigger | Posture |
+|---|---|---|
+| **strict** | PR targeting `main` / `develop` / release branches. Pre-PR final pass. | All six dimensions checked. Blockers fail. Evidence block REQUIRED. Default gstack effort: `/code-review medium`, escalate to `ultra` for high-stakes diffs. Optional Codex second opinion. |
+| **souple** | In-progress feedback on a feature branch during work. WIP commits. | Dimensions checked at user discretion. No evidence block required. Default gstack effort: `/code-review low` or `medium`. |
+
+---
+
+## Composition with specialized agents and tools
+
+| Dimension | Composed with |
+|---|---|
+| Correctness, Tests | `tdd` skill (verify cycle), `testing` skill (verify quality), `senior-reviewer` agent (deep multi-aspect) |
+| Security | `security-guidance` skill, `security-reviewer` agent, `cso` (gstack — only at user request for full audit) |
+| Structure | `hexagonal-architecture` skill, `domain-driven-design` skill, `architect-critic` agent (for cross-package diffs) |
+| Readability | `typescript-strict` skill, Biome (formatter) |
+| Performance | `benchmark` (gstack) for measured claims; this skill flags only obvious smells |
+| Independent second opinion | gstack `/codex review` (different model family, catches different bug classes) |
+| Diff analysis at high effort | gstack `/code-review medium` / `high` / `ultra` |
+
+The skill is the orchestration. Specialized agents and gstack commands do the heavy work.
+
+---
+
+## Operating procedure
+
+### Pre-condition (strict mode)
+
+- The PR's HEAD has been built and tested locally / in CI. No build errors, no failing tests, no lint warnings.
+- Pristine output verified (no `console.log` in production code, no leaked warnings).
+- The PR description includes a clear "what" and "why."
+
+If any pre-condition fails, the review pauses — fix the pre-condition first.
+
+### Pass
+
+1. Run gstack `/code-review <effort>` to enumerate findings.
+2. Walk the six dimensions in order. For each:
+   - Compose with the specialized skill / agent if applicable.
+   - Tag findings as `BLOCKER:` / `NIT:` / `QUESTION:` / `PRAISE:`.
+3. If strict mode and high stakes: invoke gstack `/codex review` for an independent pass. Surface disagreements explicitly.
+4. Compose the Review Evidence block.
+5. If blockers remain: PR is not ready to merge. Author addresses.
+6. If only nits: PR can merge once author has read the nits (no obligation to address each).
+
+### Author response (Google practices)
+
+- Address every BLOCKER (fix or reasoned pushback).
+- Read every NIT. Address those you agree with; ignore the rest.
+- Treat QUESTION as a thinking prompt — answer or escalate.
+- Push back when you disagree. Reviewer may hold ground with a clear "why."
+
+---
+
+## Banned
+
+### "LGTM" reviews
+
+A review that does not list the dimensions checked is not a review. Even "everything looks fine" requires the evidence block in strict mode.
+
+### File-by-file linear walk
+
+Default to dimension-by-dimension across the whole diff. Linear walk misses cross-file issues (service change without its repository update, schema change without its consumer update).
+
+### Style / naming bikeshedding marked as BLOCKER
+
+Style is solved by Biome + `typescript-strict`, not by reviewer preference. Anything stylistic is `NIT:` at most.
+
+### Architectural-rewrite suggestions inside the PR
+
+If the diff reveals a structural problem larger than the diff, add a `QUESTION:` comment + suggest a follow-up issue. Do not block on "rewrite this PR." Scope creep at review time tanks velocity.
+
+### Silent disagreement between Claude and Codex
+
+Disagreements are surfaced. Not averaged. The user decides.
+
+---
+
+## Composition summary
+
+- **Upstream**: `verification-before-completion` (the author claims the code is ready before review starts).
+- **Downstream**: `commit-discipline` (the merge commit follows conventional commit + always-say-why), `ship` (gstack — actually lands the PR).
+- **Side-by-side**: `senior-reviewer`, `security-reviewer`, `architect-critic` agents.
+
+---
+
+## Companion hooks
+
+- **`pre-PR-review-evidence`** (pre-push) — warn if PR body lacks the Review Evidence block (strict mode)
+- **`large-cl-grep`** (pre-push) — warn if PR contains > 400 LOC of diff without `large-cl-justification:` marker
+- **`blocker-prefix-grep`** (post-review) — informational: count BLOCKER vs NIT comments for the evidence block
+
+See `../../hooks/`.
+
+---
+
+## Anti-rules
+
+- MUST NOT decide whether to ship — user owns the merge decision.
+- MUST NOT block on style / naming (Biome + `typescript-strict` jobs).
+- MUST NOT suggest scope expansion inside the PR — escalate to follow-up.
+- MUST NOT duplicate `security-reviewer` / `architect-critic` work — delegate.
+- MUST NOT silently arbitrate Claude-vs-Codex disagreements — surface them.
+- MUST NOT mark style nit as BLOCKER.
+- MUST NOT pass a review when the test suite has not been observed passing on the PR's HEAD.
+
+---
+
+## When you are stuck
+
+| Problem | Solution |
+|---|---|
+| Review feels shallow | You skipped a dimension. Walk all six in order. |
+| Cannot tell BLOCKER from NIT | Correctness / security / missing test / boundary violation = BLOCKER. Everything else = NIT. |
+| Diff is too large to review | Ask the author to split, or invoke `large-cl-justification:` if truly atomic. |
+| Found a structural rot beyond the diff | `QUESTION:` + suggest follow-up issue. Do not block this PR on it. |
+| Claude and Codex disagree | Surface the delta. Let the author/user decide. |
+| Cannot reach pristine output | Pre-condition failed. Pause the review until fixed. |
+
+---
+
+## Final rule
+
+```
+A review → six dimensions in order, blockers explicit, evidence in PR body (strict), delegated where deep.
+Otherwise → it is not a voidcorp code-review.
+```
+
+The review is the second pair of eyes. Two model families is two thirds. The author owns the code.

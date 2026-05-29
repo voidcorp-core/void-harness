@@ -1,0 +1,32 @@
+{
+  "name": "@voidcorp/harness",
+  "version": "0.0.0",
+  "description": "Void-harness CLI — install core skills/agents/hooks into ~/.claude/voidcorp/, init a consumer project, doctor health-check.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "voidcorp-harness": "./bin/voidcorp-harness.mjs"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "test": "vitest run",
+    "lint": "biome check src"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  }
+}
