@@ -1,0 +1,246 @@
+---
+name: async-safety
+description: Idempotency by design. Webhooks/jobs/cron at-least-once with consumer dedup. Signature verify before mutate, replay window enforced, idempotency keys with TTL, outbox for DB+notify, bounded retries with backoff and jitter, dead-letter on exhaustion. Use whenever writing async / concurrent / webhook / job code.
+---
+
+# async-safety — voidcorp craftsman edition
+
+The network is unreliable. Webhooks redeliver. Jobs restart mid-run. Crons stack when one runs slow. Without idempotency by design, every re-delivery becomes a corruption risk. This skill codifies the patterns so handlers are safe by construction.
+
+**Attribution**: see `.source`. Foundation: Stripe webhook patterns + Outbox pattern (Microservices.io) + Pat Helland "Life Beyond Distributed Transactions" + Bryan Cantrill on distributed failure modes.
+
+---
+
+## At-least-once is the default
+
+Assume every message can be delivered N times. The consumer handles dedup.
+
+Exactly-once delivery requires two-phase commits across systems — extreme effort, rarely worth it. At-least-once + consumer dedup covers > 99% of real cases at a fraction of the cost.
+
+---
+
+## Webhook safety — the canonical pattern
+
+Every webhook handler does FOUR things, IN THIS ORDER:
+
+1. **Verify signature** (HMAC + timestamp window)
+2. **Check idempotency key** (claim atomically; if already processed, return success without re-processing)
+3. **Handle the event** (business logic)
+4. **Mark idempotency key as completed** (or release on failure for retry)
+
+The `pack-nextjs-pwa` provides a `withWebhookSafety()` wrapper:
+
+```typescript
+import { withWebhookSafety } from '@repo/async';
+
+export const POST = withWebhookSafety({
+  verify: (req) => verifyStripeSignature(req, env.STRIPE_WEBHOOK_SECRET),
+  dedupKey: (event) => event.id,                  // Stripe event ID
+  replayWindowMs: 5 * 60 * 1000,                  // 5 minutes
+  store: stripeIdempotencyStore,                  // injected
+  handler: async (event) => handleStripeEvent(deps, event),
+});
+```
+
+The wrapper enforces the order. Business handler stays pure.
+
+### Replay window enforcement
+
+Reject events older than the configured window (default 5 minutes). Stripe and most webhook sources include a timestamp; the wrapper checks it. Composes with `security-guidance` (replay attack protection).
+
+### Banned
+
+- State mutation BEFORE signature verification.
+- Hand-rolled signature check (use the wrapper / the provider's official lib).
+- In-memory `Set` for dedup (lost on process restart).
+- No replay window (forever-replayable).
+
+---
+
+## Idempotency keys — port + store
+
+`IdempotencyStore` is a port (composes with `hexagonal-architecture`):
+
+```typescript
+interface IdempotencyStore {
+  tryClaim(key: string, ttl: Duration): Promise<Result<'claimed' | 'already-processed', StoreError>>;
+  markCompleted(key: string): Promise<Result<void, StoreError>>;
+  release(key: string): Promise<Result<void, StoreError>>;
+}
+```
+
+Adapters (provided by packs):
+
+- **Redis adapter** — high volume, low latency
+- **Postgres adapter** — default for low-volume webhooks (uses `INSERT ... ON CONFLICT DO NOTHING` for atomic claim)
+- **In-memory adapter** — tests only (composes with `testing` nullable infrastructure)
+
+The store is the consumer dedup substrate. Process restart does not lose claims.
+
+### Default TTL: 7 days
+
+Long enough for most provider retry windows. Override per handler.
+
+---
+
+## Outbox pattern — for "DB write + external notification"
+
+When a business operation must (a) update the DB AND (b) notify an external system, doing them in sequence creates an inconsistency window:
+
+```typescript
+// banned (without outbox)
+await db.transaction(async (tx) => {
+  await tx.insert(orders).values(order);
+});
+await stripe.refunds.create({ charge: order.chargeId });
+// if Stripe call fails, DB has the refund record but Stripe doesn't
+```
+
+### With outbox
+
+The DB write AND the "event to publish" sit in the SAME transaction:
+
+```typescript
+await db.transaction(async (tx) => {
+  await tx.insert(orders).values(order);
+  await tx.insert(domain_events).values({
+    aggregate_id: order.id,
+    event_type: 'OrderRefunded',
+    payload: { chargeId: order.chargeId, amount: order.amount },
+  });
+});
+
+// later: a background dispatcher reads domain_events and publishes
+//        (composes with the outbox dispatcher in pack-monorepo / pack-nextjs-pwa)
+```
+
+If the transaction commits, the event is durable. If it fails, neither happened. The dispatcher retries the publish until success.
+
+The `domain_events` table schema lives in `pack-monorepo` (composes with `migrations-safety`).
+
+---
+
+## Job safety — the canonical pattern
+
+Same shape as webhooks, with explicit state machine (composes with `functional` discriminated unions):
+
+```typescript
+type JobState =
+  | { kind: 'queued'; id: JobId; payload: unknown; queuedAt: IsoDate }
+  | { kind: 'in-flight'; id: JobId; startedAt: IsoDate; attempt: number }
+  | { kind: 'completed'; id: JobId; completedAt: IsoDate; result: unknown }
+  | { kind: 'failed'; id: JobId; failedAt: IsoDate; attempt: number; lastError: string }
+  | { kind: 'dead-lettered'; id: JobId; finalError: string; attempts: number };
+```
+
+Transitions are explicit. No "did it succeed? unclear" state.
+
+`pack-nextjs-pwa` provides `withJobSafety()` wrapper:
+
+```typescript
+export const refundOrderJob = withJobSafety({
+  dedupKey: (input) => `refund:${input.orderId}`,
+  maxAttempts: 5,
+  backoff: 'exponential-with-jitter',
+  store: jobIdempotencyStore,
+  handler: async (input) => refundOrder(deps, input),
+});
+```
+
+---
+
+## Retries — exponential backoff + jitter
+
+```
+attempt 1: 1s + jitter(0–1s)
+attempt 2: 2s + jitter(0–2s)
+attempt 3: 4s + jitter(0–4s)
+attempt 4: 8s + jitter(0–8s)
+attempt 5: 16s + jitter(0–16s)
+DLQ
+```
+
+Jitter prevents thundering herd (multiple jobs failing simultaneously and retrying in sync).
+
+### Max attempts default: 3–5
+
+After exhaustion, dead-letter and alert. Beyond that, the failure is structural; a human must look.
+
+### Banned
+
+- Unbounded retries
+- Custom retry loops in business code (use the queue library's semantics)
+- Catching exceptions and silently retrying
+
+---
+
+## Cron safety — overlap protection
+
+```typescript
+export const dailyReportCron = withCronSafety({
+  name: 'daily-report',
+  overlapStrategy: 'skip-if-running',  // or 'queue-up'
+  handler: async () => generateDailyReport(deps),
+});
+```
+
+The wrapper acquires a Postgres advisory lock keyed by cron name. If the previous run is still in flight, skip with a structured log entry. Composes with `observability`.
+
+### Banned
+
+- Cron jobs that take longer than the cron interval without overlap protection — they will stack and crash the workers.
+
+---
+
+## Composition with other skills
+
+- **With `observability`**: trace propagates across job / webhook / queue boundaries via the message envelope. Job lifecycle events (queued / in-flight / completed / failed / dead-lettered) are structured logs.
+- **With `security-guidance`**: signature verification + replay window + signed message envelopes.
+- **With `migrations-safety`**: `domain_events` outbox table schema goes through the migrations discipline.
+- **With `tdd`**: idempotency is testable. Test: same event delivered twice → same final state. Test: signature missing → reject.
+- **With `hexagonal-architecture`**: webhook handler at adapter boundary, business logic in use-case. `IdempotencyStore` as port.
+- **With `functional`**: job state as discriminated union. `Result<JobOutcome, JobError>` everywhere.
+- **With `code-review`**: flags missing signature verification, missing idempotency check, save-then-publish without outbox, custom retry loops in business code.
+- **With `commit-discipline`**: webhook handler commits' "why" mentions the provider + the idempotency strategy.
+
+---
+
+## Companion hooks
+
+None directly in core. The discipline is encoded in `pack-monorepo` / `pack-nextjs-pwa` wrappers (`withWebhookSafety`, `withJobSafety`, `withCronSafety`) and surfaced via `code-review` flags.
+
+---
+
+## Anti-rules
+
+- MUST NOT decide queue technology (pack concern — BullMQ vs Inngest vs Trigger.dev vs Vercel Cron).
+- MUST NOT decide alerting thresholds (ops concern).
+- MUST NOT silently allow non-idempotent handlers.
+- MUST NOT skip signature verification.
+- MUST NOT use in-memory dedup that loses state on restart.
+- MUST NOT permit unbounded retries.
+- MUST NOT skip the outbox pattern when DB + external are both modified.
+
+---
+
+## When you are stuck
+
+| Problem | Solution |
+|---|---|
+| Same Stripe event processed twice | Idempotency key not stored, or check happens after mutation. Order: verify → dedup → handle. |
+| Webhook handler slow → timeout → retry → duplicate work | Make handler fast: enqueue a job and return 200 immediately. The job handles idempotency. |
+| Job lost after worker crash | Queue lib should re-deliver. Verify your queue is durable (BullMQ default is durable). |
+| Cron stacking | `withCronSafety()` with skip-if-running. |
+| External call fails after DB commit | Outbox pattern. Both in one transaction. |
+| Need exactly-once | You probably don't. At-least-once + dedup covers the case. If truly required, consult the queue library's two-phase commit story. |
+
+---
+
+## Final rule
+
+```
+Every async boundary → verify, dedup, handle, mark. Outbox for DB+notify. Bounded retries with backoff+jitter. DLQ on exhaustion.
+Otherwise → it is not voidcorp async-safety.
+```
+
+The network does not care about your assumptions. Code as if every message arrives N times.

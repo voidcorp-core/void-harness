@@ -1,0 +1,14 @@
+Sources for `frontend-design` skill (see plans/skill-audits/frontend-design.md for full audit):
+
+- Vercel `frontend-design` plugin (installed globally as `frontend-design:frontend-design`) — https://github.com/vercel-labs/agent-skills — vendored with void-harness additions (mobile-first dual-quality, matrix integration, shadcn composition)
+- citypaul/.dotfiles UI patterns — density, hierarchy notes
+- Refactoring UI (Adam Wathan + Steve Schoger) — book — foundation, density, hierarchy, motion principles
+- Apple HIG visual design chapter — https://developer.apple.com/design/human-interface-guidelines — mobile layout heuristics
+- Folpe DESIGN.md convention (per-project) — brand identity belongs in consumer DESIGN.md
+- pbakaus/impeccable-design — referenced by citypaul
+
+Strategy: vendor-plugin. Fork Vercel plugin to add the load-bearing void-harness invariant (mobile-first dual-quality) + matrix integration + ground rules in shadcn/Tailwind.
+
+Companion hooks: viewport-screenshot-gate (shared with accessibility-first), anti-ai-slop-grep.
+
+Stack-specific @repo/ui + design system tokens + Tailwind config in pack-nextjs-pwa.
