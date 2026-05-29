@@ -284,9 +284,73 @@ Companion hook: `tdd-guard` (nizos), wired to materialize the discipline mechani
 
 The brainstorming was paused before these sections were treated:
 
-### [PENDING] Section 11 — Skill-by-skill content
+### Section 11 — Skill-by-skill master table (IN PROGRESS)
 
-For each of the 20 skills: source retained, what is kept verbatim, what is improved, target file size, dependencies on other skills. To be produced as a tabular spec, then per-skill audit notes in `plans/skill-audits/<name>.md`.
+Each of the 21 skills declares its primary source, audited alternatives, adaptation strategy, target file size, hard dependencies on other skills, and the audit note path. Full audit notes live in `plans/skill-audits/<skill>.md` (one file per skill). The template is `plans/skill-audits/TEMPLATE.md`.
+
+**Adaptation strategies**
+
+- `port-DECLIK` — the DECLIK version is already top-5%, we lift it with minimal stack-agnostic adaptations
+- `distill` — extract load-bearing principles from named sources, rewrite from scratch with attribution
+- `compose-gstack` — wrap or compose existing gstack commands (do not reinvent QA / design / ship)
+- `original` — no credible source exists, we author from first principles
+- `vendor-plugin` — re-publish a third-party plugin as a void-harness skill, with explicit attribution and our matrix integration
+
+**Target file size**
+
+Anti-bloat hard cap is 400 lines per skill. Targets below are budgets; exceeding the target triggers a split.
+
+#### 11.A — Code-discipline skills (8)
+
+| # | Skill | Strategy | Primary source | Audited alternatives | Target LOC | Depends on | Audit note |
+|---|---|---|---|---|---|---|---|
+| 1 | `tdd` | `port-DECLIK` | DECLIK `.claude/skills/tdd/SKILL.md` (377 LOC, three modes, mutation gate) | superpowers/test-driven-development, citypaul/tdd, nizos/tdd-guard (companion hook) | 400 | `testing`, `refactoring`, `mutation-testing` | `tdd.md` |
+| 2 | `typescript-strict` | `distill` | citypaul tsconfig stance + Hejlsberg TypeScript handbook + tkdodo "you might not need TypeScript any" | matt-pocock TS book, type-fest patterns | 300 | none (baseline) | `typescript-strict.md` |
+| 3 | `functional` | `distill` | Wlaschin "Domain Modeling Made Functional" + Mark Seemann "Code That Fits in Your Head" | citypaul fp notes, fp-ts patterns | 350 | `typescript-strict` (ADT machinery), `domain-driven-design` (boundaries) | `functional.md` |
+| 4 | `refactoring` | `distill` | Kent Beck "Tidy First?" 2023 + Fowler "Refactoring" 2018 | citypaul refactor notes | 400 | `tdd` (R step delegates here), `testing` (must stay green) | `refactoring.md` |
+| 5 | `testing` | `distill` | Kent C. Dodds "Common Testing Mistakes" + James Shore "Art of Agile Development" | citypaul testing notes, superpowers test patterns | 400 | `tdd` (cycle), `mutation-testing` (quality signal) | `testing.md` |
+| 6 | `hexagonal-architecture` | `distill` | Cockburn "Hexagonal" 2005 + Pierrain & Boucard "DDD with Hexagonal" + Graca "Explicit Architecture" | citypaul hex notes | 350 | `domain-driven-design`, `functional` | `hexagonal-architecture.md` |
+| 7 | `domain-driven-design` | `distill` | Evans "DDD" 2003 + Vernon "Implementing DDD" 2013 + Wlaschin | Stemmler practical DDD, citypaul DDD notes | 400 | `hexagonal-architecture`, `functional` | `domain-driven-design.md` |
+| 8 | `code-review` | `distill` | citypaul `pr-reviewer` skill + superpowers/requesting-code-review | gstack `/code-review`, `/codex` review mode | 350 | every other skill (composes) | `code-review.md` |
+
+#### 11.B — Process / workflow skills (7)
+
+| # | Skill | Strategy | Primary source | Audited alternatives | Target LOC | Depends on | Audit note |
+|---|---|---|---|---|---|---|---|
+| 9 | `brainstorming` | `distill` | superpowers/brainstorming (hard gate, one-question, 2-3 approaches, spec-write) | gstack `/office-hours` (upstream, different niche), compound-engineering plan phase | 350 | `writing-plans` (downstream) | `brainstorming.md` |
+| 10 | `writing-plans` | `distill` | superpowers/writing-plans | citypaul plan templates, gstack `/autoplan` (different niche: review of existing plan) | 300 | `brainstorming` (upstream), `executing-plans` (downstream — kept in gstack/superpowers) | `writing-plans.md` |
+| 11 | `systematic-debugging` | `compose-gstack` + `distill` | gstack `/investigate` (4 phases, root-cause Iron Law) | superpowers/systematic-debugging | 250 | `tdd` (reproduce as failing test), `observability` (visibility first) | `systematic-debugging.md` |
+| 12 | `verification-before-completion` | `distill` | superpowers/verification-before-completion | citypaul completion checklists | 200 | every skill (runs after) | `verification-before-completion.md` |
+| 13 | `security-guidance` | `compose-gstack` + `distill` | gstack `/cso` lite-mode + citypaul security stance | OWASP cheat sheets, semgrep rule packs | 400 | `hexagonal-architecture` (boundary discipline), `typescript-strict` | `security-guidance.md` |
+| 14 | `commit-discipline` | `original` | Conventional Commits spec + Folpe "always say why" rule | citypaul commit guidance | 200 | `verification-before-completion` | `commit-discipline.md` |
+| 15 | `harness-evolution` | `original` | new mechanism (inbound feedback + outbound audit) — see Section 0bis.8 | none — no existing precedent | 350 | none (meta-skill, orthogonal) | `harness-evolution.md` |
+
+#### 11.C — Hedge skills (6)
+
+| # | Skill | Strategy | Primary source | Audited alternatives | Target LOC | Depends on | Audit note |
+|---|---|---|---|---|---|---|---|
+| 16 | `observability` | `distill` | pino docs + OpenTelemetry semantic conventions + Charity Majors "Observability Engineering" | citypaul observability notes (light) | 350 | `security-guidance` (no PII in logs) | `observability.md` |
+| 17 | `migrations-safety` | `original` | Drizzle migrations docs + GoCardless "Zero-Downtime Postgres Migrations" + Strong Migrations (Rails) ported to TS | Neon branching docs, Supabase migration patterns | 400 | `tdd` (test the migration), `observability` (log changes) | `migrations-safety.md` |
+| 18 | `async-safety` | `distill` | Stripe "Designing robust webhook handlers" + Bryan Cantrill "Idempotency in distributed systems" + outbox pattern | n8n retry semantics, BullMQ patterns | 400 | `observability` (traces), `security-guidance` (replay attacks) | `async-safety.md` |
+| 19 | `accessibility-first` | `distill` | WCAG 2.2 AA + Radix UI patterns + Apple HIG touch targets + Folpe mobile-first dual-quality | citypaul a11y notes, frontend-design skill | 300 | `frontend-design` | `accessibility-first.md` |
+| 20 | `llm-cost-discipline` | `original` + adapt | Anthropic prompt-caching docs + batch API + model-selection guidance (existing `claude-api` skill) | OpenAI batch docs, model-router patterns | 350 | existing `claude-api` skill | `llm-cost-discipline.md` |
+| 21 | `frontend-design` | `vendor-plugin` | Vercel `frontend-design` plugin (already installed as `frontend-design:frontend-design`) — re-publish with our matrix integration + mobile-first dual-quality | citypaul UI patterns | 350 | `accessibility-first` | `frontend-design.md` |
+
+#### 11.D — Boundaries reaffirmed
+
+The decision matrix (`plans/skill-decision-matrix.md`) is the authoritative document for "when does each skill win/lose/cannot decide." The table above is the inventory. Per-skill audit notes flesh out the content.
+
+#### 11.E — What is NOT in the core (intentional exclusions)
+
+- **QA workflows** — stay in gstack (`/qa`, `/qa-only`, `/health`)
+- **Design system creation** — stays in gstack (`/design-consultation`, `/design-shotgun`, `/design-html`)
+- **Shipping / deploying** — stays in gstack (`/ship`, `/land-and-deploy`, `/canary`)
+- **Browser interaction / scraping** — stays in gstack (`/browse`, `/scrape`, `/skillify`)
+- **Product strategy reviews** — stay in gstack (`/office-hours`, `/plan-ceo-review`, `/autoplan`)
+- **Skill execution chaining** — stays in superpowers (`executing-plans`, `subagent-driven-development`) until a clear void-harness improvement is identified
+- **Mutation testing** — stays as standalone skill (already exists as `mutation-testing`); referenced by `tdd` and `testing` but not re-implemented
+
+Anything in this list moving INTO the core requires an ADR in `docs/DECISIONS.md`.
 
 ### [PENDING] Section 12 — Hooks detailed design
 
