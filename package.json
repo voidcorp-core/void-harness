@@ -1,0 +1,48 @@
+{
+  "name": "void-harness",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Production-grade Claude Code harness for VoidCorp. Core craftsman skills + pluggable stack packs.",
+  "license": "MIT",
+  "author": "Florent Pellegrin <florent.pellegrin@volpio.com>",
+  "homepage": "https://github.com/voidcorp-core/void-harness",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/voidcorp-core/void-harness.git"
+  },
+  "bugs": {
+    "url": "https://github.com/voidcorp-core/void-harness/issues"
+  },
+  "workspaces": [
+    "packages/cli",
+    "packages/core",
+    "packages/packs/*"
+  ],
+  "scripts": {
+    "build": "echo 'TODO: turbo build'",
+    "test": "echo 'TODO: skill tests'",
+    "lint": "echo 'TODO: biome check'",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.0"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "keywords": [
+    "claude-code",
+    "anthropic",
+    "harness",
+    "skills",
+    "agents",
+    "tdd",
+    "tigerstyle",
+    "craftsman",
+    "voidcorp"
+  ]
+}
