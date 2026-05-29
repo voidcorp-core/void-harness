@@ -13,11 +13,6 @@
   "bugs": {
     "url": "https://github.com/voidcorp-core/void-harness/issues"
   },
-  "workspaces": [
-    "packages/cli",
-    "packages/core",
-    "packages/packs/*"
-  ],
   "scripts": {
     "build": "pnpm -r --filter '!void-harness' build",
     "test": "vitest run",

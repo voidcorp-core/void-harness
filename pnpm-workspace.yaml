@@ -1,0 +1,8 @@
+# Workspaces for pnpm.
+#
+# packages/core/ is intentionally NOT a workspace: it holds static assets
+# (claude/{skills,agents,hooks,modules}) consumed by the CLI at install time,
+# not a published npm package.
+packages:
+  - 'packages/cli'
+  - 'packages/packs/*'
