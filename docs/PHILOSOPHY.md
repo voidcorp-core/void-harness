@@ -79,6 +79,28 @@ If a credible alternative exists, it is logged in `docs/DECISIONS.md` with the r
 
 A change technically correct but below this bar is pushed back.
 
+## Anti-rustine — only state of the art
+
+Before any fix, read the official documentation of the SDK / framework / tool concerned. A quick patch to make the test pass at the wrong level of abstraction is rejected. The first implementation that comes to mind is often a patch (tokenize a string where the API expects a typed schema, mock a field where the real adapter does not provide it, disable a flag instead of understanding why it blocks). That is a STOP signal: refactor the approach at the right level.
+
+A throwaway implementation is not an acceptable initial state. It is debt that has not exploded yet. A V0 mock must mirror the signature of the real adapter cible (Graph API, Dropbox v2, etc.), not a comfort signature.
+
+## Universal hard rules
+
+These rules apply to ALL my projects regardless of stack. Project-specific exceptions go in `.voidcorp/PROJECT-DOCTRINE.md` with an ADR.
+
+- **No `console.log` in committed business code.** Use the project logger (`@repo/core/logger` via `pack-monorepo`). Enforced by `no-console-log-grep` hook + `observability` skill.
+- **No em dashes, no emojis in code, docs, or commits.** ASCII-only keeps grep / git log queryable across editors. Enforced by `no-emdash-no-emoji-in-commit-msg` hook + `commit-discipline` skill.
+- **No `process.env.*` directly in business code.** Use Zod-validated `@repo/core/env` (`security-guidance` skill).
+- **Read the official documentation of any third-party tool BEFORE writing its config or wrapping its SDK.** Shortcuts based on assumed semantics produce subtle bugs that take hours to find. (Anti-rustine, formalized.)
+- **Match file naming exactly** per the convention of the active pack (e.g. `Name.tsx`, `Name.helper.ts`, `Name.test.ts`).
+- **No `any` in committed TypeScript.** `unknown` + narrowing is the escape valve. Enforced by `no-any-grep` hook + `typescript-strict` skill.
+- **No raw SQL string concatenation.** Parameterized queries via Drizzle. (`security-guidance` skill.)
+- **Auth via Better-Auth (or Clerk opt-in).** Never hand-rolled password hashing, session tokens, or CSRF.
+- **Server Actions live in `apps/<app>/src/actions/`** (or framework equivalent). Never in shared packages.
+
+Each rule has its enforcement mechanism listed. Rules without enforcement should NOT be added to this file — they belong in `PROJECT-DOCTRINE.md` (project taste) or in a skill (with its own hook).
+
 ## Mobile-first, dual-quality target
 
 Every UI — including web apps that are not primarily mobile — is designed **mobile-first** AND must reach **first-class quality on both mobile and desktop simultaneously**. Not "mobile-first then responsive afterthought." Not "desktop-first then squeeze for mobile." Both experiences are deliverables.

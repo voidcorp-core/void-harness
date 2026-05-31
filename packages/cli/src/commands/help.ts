@@ -1,28 +1,45 @@
-// `voidcorp-harness help` / no-args — print the command reference.
+// `void-harness help` / no-args — print the command reference.
 
 export function printHelp(): void {
   const text = `
-voidcorp-harness — opinionated Claude Code + Codex harness for VoidCorp projects.
+void-harness — wire your project to the VoidCorp Claude Code marketplace.
+
+The harness is a multi-plugin marketplace hosted at
+voidcorp-core/void-harness on GitHub. Skills are auto-loaded by Claude
+Code as /void:<name> (core) and /void-<stack>:<name> (packs).
 
 Usage:
-  npx @voidcorp/harness <command> [args]
+  void-harness <command> [options]
 
 Commands:
-  install                  Install core skills/agents/hooks into ~/.claude/voidcorp/.
-                           Idempotent. Detects an existing install and updates.
-  init [--pack <name>]     Initialize the current project: create .voidcorp/config.json,
-                           install CLAUDE.md + AGENTS.md (sister docs), wire pre-commit
-                           hooks. Optional --pack to activate a stack pack.
-  doctor                   Health-check: verify harness install integrity, config
-                           validity, sister-doc parity, hook executability.
+  init [--pack <name>] [--all-packs] [--no-interactive] [--force]
+                           Wire the CURRENT project. Without flags, runs an
+                           interactive prompt with auto-detection. With
+                           --pack flags, activates exactly those packs
+                           non-interactively.
+
+  add <pack-name>          Activate a pack in the current project.
+  remove <pack-name>       Deactivate a pack (core cannot be removed).
+  list                     Show active and available packs.
+
+  doctor                   Health-check the project setup.
+  install --global         Escape hatch (rare); see install --help.
+
   help                     Print this message.
 
-Examples:
-  npx @voidcorp/harness install
-  npx @voidcorp/harness init --pack pack-nextjs-pwa
-  npx @voidcorp/harness doctor
+Pack names (current marketplace):
+  void           core — universal craftsman skills (always active)
+  void-monorepo  Turborepo + Bun conventions
+  void-nextjs    Next.js 16 + PWA conventions
 
-Docs: https://github.com/voidcorp-core/void-harness
+Examples:
+  void-harness init                                  # interactive
+  void-harness init --pack nextjs --pack monorepo    # script-friendly
+  void-harness init --all-packs                      # activate everything
+  void-harness add nextjs                            # add a pack later
+  void-harness list                                  # see what's active
+
+Marketplace: https://github.com/voidcorp-core/void-harness
 `.trimStart();
   process.stdout.write(text);
 }

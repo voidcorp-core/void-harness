@@ -1,11 +1,11 @@
 {
   "name": "@voidcorp/harness",
   "version": "0.0.0",
-  "description": "Void-harness CLI — install core skills/agents/hooks into ~/.claude/voidcorp/, init a consumer project, doctor health-check.",
+  "description": "void-harness CLI — install the void plugin into a project, configure marketplace + settings, manage doctrine.",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "voidcorp-harness": "./bin/voidcorp-harness.mjs"
+    "void-harness": "./bin/void-harness.mjs"
   },
   "files": [
     "bin",
@@ -35,5 +35,8 @@
     "tsup": "^8.0.0",
     "typescript": "^5.6.0",
     "vitest": "^2.0.0"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.5.0"
   }
 }

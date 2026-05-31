@@ -1,11 +1,12 @@
-// Locate the void-harness `core/claude` source tree.
+// Locate the void-harness `packages/core` source tree (after the marketplace
+// restructure of 2026-05-30). Used by the CLI for read-only operations like
+// listing available skills/hooks; the actual plugin installation is now done
+// by Claude Code via the marketplace mechanism (see init.ts).
 //
 // Strategy:
-//  1. If we are running inside the installed npm package, the core lives at
-//     `<package_root>/../core/claude` (assuming workspace layout) OR at
-//     `<package_root>/core/claude` when published as a single tarball.
-//  2. If we are running from the void-harness monorepo (dev mode), use
-//     `packages/core/claude` relative to the repo root.
+//  1. Published npm tarball — assets bundled at <pkg>/core-assets/
+//  2. Monorepo workspace install — sibling `core` package
+//  3. Dev mode — running from packages/cli/{dist,src}
 
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -15,22 +16,24 @@ export async function findCoreSource(): Promise<string> {
   const here = dirname(fileURLToPath(import.meta.url));
 
   const candidates = [
-    // 1. Published npm tarball (assets bundled at <pkg>/core-assets/claude)
-    resolve(here, '..', 'core-assets', 'claude'),
-    resolve(here, '..', '..', 'core-assets', 'claude'),
-    // 2. Monorepo workspace install (sibling @voidcorp/harness-core package)
-    resolve(here, '..', '..', '..', 'core', 'claude'),
+    // 1. Published npm tarball
+    resolve(here, '..', 'core-assets'),
+    resolve(here, '..', '..', 'core-assets'),
+    // 2. Monorepo workspace install (sibling `core` package)
+    resolve(here, '..', '..', '..', 'core'),
     // 3. Dev mode (running from packages/cli/dist)
-    resolve(here, '..', '..', '..', '..', 'core', 'claude'),
+    resolve(here, '..', '..', '..', '..', 'core'),
     // 4. Dev mode (running from packages/cli/src via tsx, etc.)
-    resolve(here, '..', '..', '..', 'packages', 'core', 'claude'),
+    resolve(here, '..', '..', '..', 'packages', 'core'),
   ];
 
   for (const candidate of candidates) {
-    if (existsSync(join(candidate, 'skills'))) return candidate;
+    if (existsSync(join(candidate, 'skills')) && existsSync(join(candidate, '.claude-plugin'))) {
+      return candidate;
+    }
   }
 
   throw new Error(
-    `findCoreSource: could not locate core/claude tree. Searched:\n${candidates.map((c) => `  - ${c}`).join('\n')}`,
+    `findCoreSource: could not locate core source tree. Searched:\n${candidates.map((c) => `  - ${c}`).join('\n')}`,
   );
 }

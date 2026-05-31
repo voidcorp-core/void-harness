@@ -12,8 +12,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SOURCE = resolve(HERE, '..', '..', 'core', 'claude');
-const TARGET = resolve(HERE, '..', 'core-assets', 'claude');
+const SOURCE = resolve(HERE, '..', '..', 'core');
+const TARGET = resolve(HERE, '..', 'core-assets');
 
 try {
   await stat(SOURCE);

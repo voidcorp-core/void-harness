@@ -1,143 +1,130 @@
-// `voidcorp-harness doctor` — health-check the harness install and the
-// current project's wiring.
+// `void-harness doctor` — health-check the project's harness setup.
 //
-// Checks:
-//  1. ~/.claude/voidcorp/ exists and contains skills/agents/hooks subtrees
-//  2. .voidcorp/config.json exists (in cwd) and parses as valid JSON
-//  3. CLAUDE.md and AGENTS.md both exist and stay in sync (basic check:
-//     same headers, sister-doc reference present)
-//  4. Hook scripts are executable
-//  5. Reports a summary; exits 1 if any blocker.
+// Verifies:
+//   1. .void/config.json valid JSON
+//   2. .void/PHILOSOPHY.md + .void/PROJECT-DOCTRINE.md present
+//   3. .claude/settings.json has extraKnownMarketplaces.void-harness + at
+//      least void@void-harness in enabledPlugins
+//   4. CLAUDE.md contains the void-harness block
+//   5. gh CLI is available and authenticated (required for private repo
+//      marketplace fetch)
 
 import { existsSync } from 'node:fs';
-import { access, constants, readFile, readdir } from 'node:fs/promises';
-import { homedir } from 'node:os';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { execSync } from 'node:child_process';
+import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, enabledPluginsKey } from '../lib/packs.js';
+import { readSettings, settingsPathFor } from '../lib/settings.js';
 
 interface CheckResult {
   readonly name: string;
   readonly ok: boolean;
   readonly message: string;
+  readonly fix?: string;
 }
+
+const BEGIN_MARKER = '<!-- void-harness:begin -->';
 
 export async function doctor(_args: readonly string[]): Promise<void> {
   const checks: CheckResult[] = [];
+  const root = process.cwd();
 
-  // 1. Harness install
-  const installRoot = join(homedir(), '.claude', 'voidcorp');
-  if (!existsSync(installRoot)) {
-    checks.push({
-      name: 'harness install',
-      ok: false,
-      message: `~/.claude/voidcorp/ missing — run 'npx @voidcorp/harness install'`,
-    });
-  } else {
-    const subs = ['claude/skills', 'claude/agents', 'claude/hooks'];
-    const missing = subs.filter((s) => !existsSync(join(installRoot, s)));
-    if (missing.length > 0) {
-      checks.push({
-        name: 'harness install',
-        ok: false,
-        message: `missing subtrees in ~/.claude/voidcorp/: ${missing.join(', ')}`,
-      });
-    } else {
-      const skills = await readdir(join(installRoot, 'claude/skills'));
-      const hooks = (await readdir(join(installRoot, 'claude/hooks'))).filter((f) =>
-        f.endsWith('.sh'),
-      );
-      checks.push({
-        name: 'harness install',
-        ok: true,
-        message: `${skills.length} skills, ${hooks.length} hooks installed`,
-      });
-    }
-  }
-
-  // 2. Project config
-  const configPath = join(process.cwd(), '.voidcorp', 'config.json');
+  const configPath = join(root, '.void', 'config.json');
   if (!existsSync(configPath)) {
-    checks.push({
-      name: 'project config',
-      ok: false,
-      message: `.voidcorp/config.json missing — run 'voidcorp-harness init'`,
-    });
+    checks.push({ name: 'project config', ok: false, message: '.void/config.json missing', fix: 'void-harness init' });
   } else {
     try {
-      const raw = await readFile(configPath, 'utf8');
-      JSON.parse(raw);
+      JSON.parse(await readFile(configPath, 'utf8'));
       checks.push({ name: 'project config', ok: true, message: 'valid JSON' });
     } catch (err) {
-      checks.push({
-        name: 'project config',
-        ok: false,
-        message: `invalid JSON: ${(err as Error).message}`,
-      });
+      checks.push({ name: 'project config', ok: false, message: `invalid JSON: ${(err as Error).message}` });
     }
   }
 
-  // 3. Sister docs
-  const claudeMd = join(process.cwd(), 'CLAUDE.md');
-  const agentsMd = join(process.cwd(), 'AGENTS.md');
-  const haveBoth = existsSync(claudeMd) && existsSync(agentsMd);
-  if (!haveBoth) {
-    checks.push({
-      name: 'sister docs',
-      ok: false,
-      message: `CLAUDE.md and/or AGENTS.md missing — run 'voidcorp-harness init'`,
-    });
+  const philosophyPath = join(root, '.void', 'PHILOSOPHY.md');
+  const doctrinePath = join(root, '.void', 'PROJECT-DOCTRINE.md');
+  const havePhilo = existsSync(philosophyPath);
+  const haveDoctrine = existsSync(doctrinePath);
+  if (havePhilo && haveDoctrine) {
+    checks.push({ name: 'doctrine files', ok: true, message: 'PHILOSOPHY.md + PROJECT-DOCTRINE.md present' });
   } else {
-    const claudeText = await readFile(claudeMd, 'utf8');
-    const agentsText = await readFile(agentsMd, 'utf8');
-    const claudeRefsAgents = /AGENTS\.md/.test(claudeText);
-    const agentsRefsClaude = /CLAUDE\.md/.test(agentsText);
-    if (claudeRefsAgents && agentsRefsClaude) {
-      checks.push({ name: 'sister docs', ok: true, message: 'both present, cross-referenced' });
+    const missing = [!havePhilo && 'PHILOSOPHY.md', !haveDoctrine && 'PROJECT-DOCTRINE.md'].filter(Boolean).join(', ');
+    checks.push({ name: 'doctrine files', ok: false, message: `missing: ${missing}`, fix: 'void-harness init' });
+  }
+
+  const settingsPath = settingsPathFor(root);
+  if (!existsSync(settingsPath)) {
+    checks.push({ name: 'settings.json', ok: false, message: '.claude/settings.json missing', fix: 'void-harness init' });
+  } else {
+    const settings = await readSettings(settingsPath);
+    const markets = (settings.extraKnownMarketplaces ?? {}) as Record<string, unknown>;
+    const plugins = (settings.enabledPlugins ?? {}) as Record<string, unknown>;
+    const hasMarketplace = markets[MARKETPLACE_NAME] !== undefined;
+    const hasCore = plugins[enabledPluginsKey(CORE_PLUGIN_NAME)] === true;
+    if (hasMarketplace && hasCore) {
+      const activePlugins = Object.keys(plugins).filter((k) => plugins[k] === true).length;
+      checks.push({ name: 'settings.json', ok: true, message: `marketplace registered, ${activePlugins} plugin(s) enabled` });
     } else {
-      checks.push({
-        name: 'sister docs',
-        ok: false,
-        message: `CLAUDE.md and AGENTS.md exist but do not cross-reference each other`,
-      });
+      const missing = [
+        !hasMarketplace && `extraKnownMarketplaces.${MARKETPLACE_NAME}`,
+        !hasCore && `enabledPlugins["${enabledPluginsKey(CORE_PLUGIN_NAME)}"]`,
+      ].filter(Boolean).join(', ');
+      checks.push({ name: 'settings.json', ok: false, message: `missing: ${missing}`, fix: 'void-harness init' });
     }
   }
 
-  // 4. Hooks executable
-  if (existsSync(join(installRoot, 'claude/hooks'))) {
-    const hookFiles = (await readdir(join(installRoot, 'claude/hooks'))).filter((f) =>
-      f.endsWith('.sh'),
-    );
-    const notExec: string[] = [];
-    for (const f of hookFiles) {
-      try {
-        await access(join(installRoot, 'claude/hooks', f), constants.X_OK);
-      } catch {
-        notExec.push(f);
-      }
-    }
-    if (notExec.length > 0) {
-      checks.push({
-        name: 'hooks executable',
-        ok: false,
-        message: `not executable: ${notExec.join(', ')}`,
-      });
+  const claudeMd = join(root, 'CLAUDE.md');
+  if (!existsSync(claudeMd)) {
+    checks.push({ name: 'CLAUDE.md', ok: false, message: 'missing', fix: 'void-harness init' });
+  } else {
+    const text = await readFile(claudeMd, 'utf8');
+    if (text.includes(BEGIN_MARKER)) {
+      checks.push({ name: 'CLAUDE.md', ok: true, message: 'void-harness block present' });
     } else {
-      checks.push({
-        name: 'hooks executable',
-        ok: true,
-        message: `${hookFiles.length} hooks executable`,
-      });
+      checks.push({ name: 'CLAUDE.md', ok: false, message: 'void-harness block missing', fix: 'void-harness init' });
     }
   }
 
-  // Report
-  console.log(`voidcorp-harness doctor\n`);
+  checks.push(checkGh());
+
+  console.log(`void-harness doctor\n`);
   for (const c of checks) {
     const mark = c.ok ? '✓' : '✗';
-    console.log(`  ${mark} ${c.name.padEnd(22)} ${c.message}`);
+    console.log(`  ${mark} ${c.name.padEnd(20)} ${c.message}`);
+    if (!c.ok && c.fix) console.log(`    → fix: ${c.fix}`);
   }
 
   const blockers = checks.filter((c) => !c.ok).length;
   console.log(``);
-  console.log(blockers === 0 ? `all checks passed.` : `${blockers} check(s) failed.`);
-  if (blockers > 0) process.exit(1);
+  if (blockers === 0) {
+    console.log(`all checks passed.`);
+    console.log(`Restart Claude Code if needed. Skills appear as /void:<name> and /void-<stack>:<name>.`);
+  } else {
+    console.log(`${blockers} check(s) failed.`);
+    process.exit(1);
+  }
+}
+
+function checkGh(): CheckResult {
+  try {
+    execSync('gh --version', { stdio: 'ignore' });
+  } catch {
+    return {
+      name: 'gh CLI',
+      ok: false,
+      message: 'gh CLI not installed (required for private marketplace)',
+      fix: 'brew install gh OR https://cli.github.com',
+    };
+  }
+  try {
+    execSync('gh auth status', { stdio: 'ignore' });
+    return { name: 'gh CLI', ok: true, message: 'authenticated' };
+  } catch {
+    return {
+      name: 'gh CLI',
+      ok: false,
+      message: 'gh CLI not authenticated (required for private marketplace)',
+      fix: 'gh auth login',
+    };
+  }
 }

@@ -15,7 +15,7 @@ echo "anti-bloat-check"
 
 # Rule 1: SKILL.md ≤ 400 LOC
 echo "  rule 1: SKILL.md ≤ 400 LOC"
-OVERSIZE=$(find packages/core/claude/skills -name SKILL.md -exec wc -l {} \; 2>/dev/null | awk '$1 > 400 { print }')
+OVERSIZE=$(find packages/core/skills -name SKILL.md -exec wc -l {} \; 2>/dev/null | awk '$1 > 400 { print }')
 if [[ -n "$OVERSIZE" ]]; then
   echo "    FAIL: SKILL.md exceeds 400 LOC:" >&2
   echo "$OVERSIZE" >&2
@@ -24,7 +24,7 @@ fi
 
 # Rule 5: hooks ≤ 100 LOC
 echo "  rule 5: hooks ≤ 100 LOC"
-OVERSIZE_HOOKS=$(find packages/core/claude/hooks -name '*.sh' -exec wc -l {} \; 2>/dev/null | awk '$1 > 100 { print }')
+OVERSIZE_HOOKS=$(find packages/core/hooks -name '*.sh' -exec wc -l {} \; 2>/dev/null | awk '$1 > 100 { print }')
 if [[ -n "$OVERSIZE_HOOKS" ]]; then
   echo "    FAIL: hook exceeds 100 LOC:" >&2
   echo "$OVERSIZE_HOOKS" >&2
@@ -33,7 +33,7 @@ fi
 
 # Hook syntax
 echo "  shell syntax: all hooks"
-for f in packages/core/claude/hooks/*.sh; do
+for f in packages/core/hooks/*.sh; do
   if ! bash -n "$f" 2>/dev/null; then
     echo "    FAIL: syntax in $f" >&2
     FAILED=1
@@ -42,7 +42,7 @@ done
 
 # Frontmatter description ≤ 200 chars (rule 4)
 echo "  rule 4: frontmatter description ≤ 200 chars"
-for f in packages/core/claude/skills/*/SKILL.md; do
+for f in packages/core/skills/*/SKILL.md; do
   DESC=$(awk '/^description:/{ sub(/^description: */,""); print; exit }' "$f" 2>/dev/null || true)
   LEN=${#DESC}
   if [[ "$LEN" -gt 200 ]]; then

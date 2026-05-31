@@ -1,0 +1,11 @@
+Sources for `systematic-debugging` skill (see plans/skill-audits/systematic-debugging.md for full audit):
+
+- gstack /investigate — primary mechanism (four phases: investigate → analyze → hypothesize → implement, Iron Law).
+- superpowers/systematic-debugging — composed, similar discipline, cross-reference for anti-drift psychology.
+- "5 Whys" (Toyota / Taiichi Ohno) — questioning loop for the analyze phase.
+- Brian Kernighan "The Practice of Programming" debugging chapter — mental model: rubber duck, narrow search space.
+- Julia Evans "Debugging" zine + blog — https://jvns.ca — tactical tips for system debugging.
+
+Strategy: compose-gstack + distill. Wrap gstack /investigate as primary; add void-harness composition (TDD failing test before fix, root-cause section in PR body, observability-first when visibility is gap, refactoring composition for structural roots).
+
+No new companion hooks (composed with existing tdd-guard + code-review).

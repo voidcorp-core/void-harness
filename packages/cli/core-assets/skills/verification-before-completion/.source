@@ -1,0 +1,10 @@
+Sources for `verification-before-completion` skill (see plans/skill-audits/verification-before-completion.md for full audit):
+
+- superpowers/verification-before-completion — primary (checklist + observation discipline).
+- citypaul/.dotfiles completion checklists — TS-strict checklist items.
+- Atul Gawande "The Checklist Manifesto" — principle that checklists prevent omissions even for experts.
+- NASA Power of Ten (informal "if it cannot fail, document why").
+
+Strategy: distill. Slim skill. Adapted for void-harness's specific signal set (12 items, each mapped to a skill or hook).
+
+No new hooks (composes with all existing).

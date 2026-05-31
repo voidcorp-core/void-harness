@@ -1,76 +1,122 @@
-// `voidcorp-harness install` — install core skills/agents/hooks into ~/.claude/voidcorp/.
+// `void-harness install --global` — install the void harness as a
+// Claude Code plugin at the user-global level: ~/.claude-plugin/plugins/void/.
 //
-// Strategy: copy `packages/core/claude/**` from the installed npm package into
-// `~/.claude/voidcorp/`. Idempotent. If the target already exists, the install
-// is treated as an update (overwrite versioned content, preserve any user
-// additions detected via a marker file).
+// This is the ESCAPE HATCH. The recommended flow is `void-harness init`
+// which installs the same plugin locally inside <cwd>/.claude/plugins/.
 
-import { cp, mkdir, readdir, stat, writeFile, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { cp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { findCoreSource } from '../lib/paths.js';
 
 interface InstallOptions {
+  readonly global: boolean;
   readonly dryRun: boolean;
 }
 
 function parseArgs(args: readonly string[]): InstallOptions {
-  return { dryRun: args.includes('--dry-run') };
+  return {
+    global: args.includes('--global'),
+    dryRun: args.includes('--dry-run'),
+  };
 }
+
+// See packages/cli/src/commands/init.ts for the rationale on `void`.
+const PLUGIN_NAME = 'void';
+const PLUGIN_VERSION = '0.1.0';
 
 export async function install(args: readonly string[]): Promise<void> {
   const opts = parseArgs(args);
-  const targetRoot = join(homedir(), '.claude', 'voidcorp');
+
+  if (!opts.global) {
+    console.error(`void-harness install requires --global.`);
+    console.error(``);
+    console.error(`The default install is per-project. Run:`);
+    console.error(`  void-harness init`);
+    console.error(``);
+    console.error(`If you really want a global install (rare), run:`);
+    console.error(`  void-harness install --global`);
+    process.exit(2);
+  }
+
   const sourceRoot = await findCoreSource();
-
-  console.log(`voidcorp-harness install`);
-  console.log(`  source : ${sourceRoot}`);
-  console.log(`  target : ${targetRoot}`);
-  if (opts.dryRun) console.log(`  mode   : dry-run (no changes will be written)`);
-
   if (!existsSync(sourceRoot)) {
     throw new Error(`source not found: ${sourceRoot} (is the npm package installed?)`);
   }
 
+  const pluginRoot = join(homedir(), '.claude', 'plugins', PLUGIN_NAME);
+
+  console.log(`void-harness install --global`);
+  console.log(`  source : ${sourceRoot}`);
+  console.log(`  plugin : ${pluginRoot}`);
+  if (opts.dryRun) console.log(`  mode   : dry-run (no changes)`);
+
   if (!opts.dryRun) {
-    await mkdir(targetRoot, { recursive: true });
-    await cp(sourceRoot, targetRoot, { recursive: true });
-    await writeFile(
-      join(targetRoot, '.voidcorp-install-marker'),
-      JSON.stringify({ installedAt: new Date().toISOString() }, null, 2),
-    );
+    await rm(pluginRoot, { recursive: true, force: true });
+    await mkdir(pluginRoot, { recursive: true });
+
+    const skillsSrc = join(sourceRoot, 'skills');
+    const agentsSrc = join(sourceRoot, 'agents');
+    const hooksSrc = join(sourceRoot, 'hooks');
+    const modulesSrc = join(sourceRoot, 'modules');
+
+    if (existsSync(skillsSrc)) await cp(skillsSrc, join(pluginRoot, 'skills'), { recursive: true });
+    if (existsSync(agentsSrc)) await cp(agentsSrc, join(pluginRoot, 'agents'), { recursive: true });
+    if (existsSync(hooksSrc)) await cp(hooksSrc, join(pluginRoot, 'hooks'), { recursive: true });
+    if (existsSync(modulesSrc)) await cp(modulesSrc, join(pluginRoot, 'modules'), { recursive: true });
+
+    await writeManifest(pluginRoot);
   }
 
-  // Sanity: count what was installed.
-  const counted = await countSkillsAgentsHooks(opts.dryRun ? sourceRoot : targetRoot);
-  console.log(`  installed: ${counted.skills} skills, ${counted.agents} agents, ${counted.hooks} hooks`);
   console.log(`done.`);
+  console.log(``);
+  console.log(`Note: per-project layout is still preferred. Use 'void-harness init' in any project where you want isolation, pinning, or team sharing.`);
 }
 
-interface InstallCount {
-  readonly skills: number;
-  readonly agents: number;
-  readonly hooks: number;
-}
+async function writeManifest(pluginRoot: string): Promise<void> {
+  const manifestDir = join(pluginRoot, '.claude-plugin');
+  const manifestPath = join(manifestDir, 'plugin.json');
+  await mkdir(manifestDir, { recursive: true });
 
-async function countSkillsAgentsHooks(root: string): Promise<InstallCount> {
-  const count = async (sub: string): Promise<number> => {
-    const dir = join(root, 'claude', sub);
-    if (!existsSync(dir)) return 0;
-    const entries = await readdir(dir);
-    let n = 0;
-    for (const e of entries) {
-      const stats = await stat(join(dir, e));
-      if (stats.isDirectory()) n += 1;
-      else if (stats.isFile() && (e.endsWith('.sh') || e.endsWith('.md'))) n += 1;
-    }
-    return n;
+  const hooksDir = join(pluginRoot, 'hooks');
+  const hookFiles = existsSync(hooksDir)
+    ? (await readdir(hooksDir)).filter((f) => f.endsWith('.sh'))
+    : [];
+
+  const hookWiring: Record<string, { event: string; matcher?: string }> = {
+    'tdd-guard.sh': { event: 'PreToolUse', matcher: 'Edit|Write' },
+    'tsc-noemit-precommit.sh': { event: 'PreToolUse', matcher: 'Bash' },
+    'no-any-grep.sh': { event: 'PreToolUse', matcher: 'Edit|Write' },
+    'no-as-cast-grep.sh': { event: 'PreToolUse', matcher: 'Edit|Write' },
+    'no-only-no-skip.sh': { event: 'PreToolUse', matcher: 'Edit|Write' },
+    'no-null-grep.sh': { event: 'PreToolUse', matcher: 'Edit|Write' },
+    'no-console-log-grep.sh': { event: 'PreToolUse', matcher: 'Edit|Write' },
+    'boundary-direction-check.sh': { event: 'PreToolUse', matcher: 'Edit|Write' },
+    'test-name-lint.sh': { event: 'PreToolUse', matcher: 'Edit|Write' },
   };
-  return {
-    skills: await count('skills'),
-    agents: await count('agents'),
-    hooks: await count('hooks'),
+
+  const eventBuckets: Record<string, Array<{ matcher?: string; hooks: Array<{ type: 'command'; command: string }> }>> = {};
+  for (const file of hookFiles) {
+    const wiring = hookWiring[file];
+    if (!wiring) continue;
+    const bucket = (eventBuckets[wiring.event] ??= []);
+    bucket.push({
+      ...(wiring.matcher !== undefined ? { matcher: wiring.matcher } : {}),
+      hooks: [{ type: 'command', command: `\${CLAUDE_PLUGIN_ROOT}/hooks/${file}` }],
+    });
+  }
+
+  const manifest = {
+    name: PLUGIN_NAME,
+    version: PLUGIN_VERSION,
+    description: 'VoidCorp craftsman harness — opinionated skills, agents, and hooks for Claude Code projects.',
+    author: { name: 'VoidCorp', email: 'florent.pellegrin@voidcorp.io' },
+    homepage: 'https://github.com/voidcorp-core/void-harness',
+    license: 'MIT',
+    keywords: ['void', 'craftsman', 'tdd', 'tigerstyle', 'harness'],
+    ...(Object.keys(eventBuckets).length > 0 ? { hooks: eventBuckets } : {}),
   };
+
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 }

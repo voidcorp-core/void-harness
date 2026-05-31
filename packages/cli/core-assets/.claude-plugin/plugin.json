@@ -1,0 +1,64 @@
+{
+  "name": "void",
+  "version": "0.1.0",
+  "description": "VoidCorp universal craftsman skills (TDD strict, TypeScript strict, hexagonal, DDD, functional, code-review, observability, security-guidance, ...), 20 enforcement hooks, and core agents (senior-reviewer, security-reviewer, architect-critic).",
+  "author": {
+    "name": "VoidCorp",
+    "email": "florent.pellegrin@voidcorp.io"
+  },
+  "homepage": "https://github.com/voidcorp-core/void-harness",
+  "license": "MIT",
+  "keywords": ["voidcorp", "craftsman", "tdd", "tigerstyle", "harness"],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/tdd-guard.sh" }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-any-grep.sh" }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-as-cast-grep.sh" }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-console-log-grep.sh" }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-null-grep.sh" }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-only-no-skip.sh" }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/boundary-direction-check.sh" }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/test-name-lint.sh" }
+        ]
+      }
+    ]
+  }
+}

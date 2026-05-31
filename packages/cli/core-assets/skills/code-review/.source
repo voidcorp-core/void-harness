@@ -1,0 +1,12 @@
+Sources for `code-review` skill (see plans/skill-audits/code-review.md for full audit):
+
+- citypaul/.dotfiles pr-reviewer skill — dimensions list, blocker vs nit distinction
+- superpowers/requesting-code-review + receiving-code-review — request perspective + absorb-feedback discipline
+- Google "engineering practices" code review docs — https://google.github.io/eng-practices/review/reviewer/ — CL Size, How to handle pushback
+- gstack /code-review — composed at effort levels low/medium/high/max/ultra (diff analysis)
+- gstack /codex review — composed for independent second opinion (different model family)
+- gstack /review (PR review) — composed at PR level for SQL safety + LLM trust boundary
+
+Strategy: distill + compose-gstack. Skill orchestrates dimensions + composition; gstack does the diff analysis; specialized agents (senior-reviewer, security-reviewer, architect-critic) handle deep passes.
+
+Companion hooks: pre-PR-review-evidence, large-cl-grep, blocker-prefix-grep.

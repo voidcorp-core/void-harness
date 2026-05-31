@@ -1,5 +1,5 @@
 /**
- * Tests for packages/core/claude/hooks/tdd-guard.sh
+ * Tests for packages/core/hooks/tdd-guard.sh
  *
  * The hook is shell. Tests run it as a subprocess with controlled env vars
  * and inspect stdout / stderr / exit code.
@@ -27,7 +27,7 @@ import { join, resolve } from 'node:path';
 
 const HOOK = resolve(
   process.cwd(),
-  'packages/core/claude/hooks/tdd-guard.sh',
+  'packages/core/hooks/tdd-guard.sh',
 );
 
 function setupFixture(): string {

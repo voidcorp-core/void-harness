@@ -1,0 +1,243 @@
+---
+name: security-guidance
+description: Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. Compose gstack /cso for full audits. Use on trust-boundary code.
+---
+
+# security-guidance — voidcorp craftsman edition
+
+Security is not "I will think about it later." It is the defaults applied at every trust boundary. This skill codifies the everyday discipline: validate at the boundary, never log secrets, never hand-roll auth, treat LLM I/O as untrusted. Full audit work is delegated to `gstack:/cso`. This skill is the daily floor; cso is the periodic ceiling.
+
+**Attribution**: see `.source`. Composed with `gstack:/cso` (lite mode) + distilled from citypaul + OWASP cheat sheets.
+
+---
+
+## Trust boundaries — the unit of discipline
+
+A trust boundary is a place where data crosses from untrusted to trusted (or vice versa). Examples:
+
+- HTTP request → Server Action (untrusted body → typed command)
+- Webhook → handler (untrusted signed payload → typed event)
+- Form input → service (untrusted form → typed input)
+- Third-party SDK response → adapter (untrusted external data → domain type)
+- LLM response → consumer (untrusted text → typed output)
+- File upload → storage (untrusted bytes → validated content)
+
+At every trust boundary, validate. With Zod. Without exception.
+
+---
+
+## Input validation — Zod at every boundary
+
+```typescript
+const CheckoutInputSchema = z.object({
+  cartId: CartIdSchema,
+  paymentMethod: z.enum(['card', 'bank_transfer']),
+});
+
+export async function checkoutAction(formData: FormData) {
+  const raw = Object.fromEntries(formData);
+  const parsed = CheckoutInputSchema.safeParse(raw);
+  if (!parsed.success) return err({ kind: 'invalid_input', issues: parsed.error.issues });
+  return checkoutCart(deps, parsed.data);
+}
+```
+
+### Banned
+
+- `JSON.parse(req.body)` without schema validation
+- `req.body as MyType` type assertions
+- "Validation happens later in the service" — by the time the service runs, the boundary was crossed
+
+### Composes with `typescript-strict`
+
+The validated output is a typed value (often a branded type). No `as` cast required after `safeParse`.
+
+---
+
+## Secrets — env vars only, validated, never logged
+
+### Allowed
+
+```typescript
+// in @repo/core/env (or pack-monorepo provided env module)
+const env = createEnv({
+  server: {
+    STRIPE_SECRET_KEY: z.string().min(1),
+    DATABASE_URL: z.string().url(),
+  },
+  // ...
+});
+```
+
+### Banned
+
+- `process.env.STRIPE_SECRET_KEY` directly in business code (use `env.STRIPE_SECRET_KEY` instead)
+- Hardcoded secrets, even in fixtures
+- Secrets in commit messages, in logs, in error messages, in Sentry breadcrumbs
+- Secrets in `.env.local` files committed to git
+
+### Composes with
+
+- `observability` — secrets MUST NOT appear in logs. The logger config redacts known-secret keys.
+- `pack-monorepo` — provides the `env` module + `gitleaks` pre-commit hook.
+
+Companion hooks (in `pack-monorepo`):
+
+- `gitleaks-precommit` — already in void-starter
+- `no-process-env-grep` — fails if `process.env.` appears outside `env.mjs`
+
+---
+
+## SQL / DB — parameterized via Drizzle, no string concat
+
+```typescript
+// allowed
+const user = await db.select().from(users).where(eq(users.id, userId)).get();
+
+// banned
+const user = await db.execute(sql.raw(`SELECT * FROM users WHERE id = '${userId}'`));
+```
+
+Composes with `migrations-safety` for schema changes.
+
+### Raw queries
+
+Allowed only with explicit boundary review (a `BLOCKER:` review comment must be addressed). When unavoidable, parameterize:
+
+```typescript
+const result = await db.execute(sql`SELECT * FROM users WHERE id = ${userId}`);  // sql template literal — parameterized
+```
+
+---
+
+## Auth — Better-Auth (or Clerk opt-in), never hand-rolled
+
+Better-Auth is the default in `void-starter`. Clerk is the alternative (opt-in). Both handle:
+
+- Password hashing (argon2 / bcrypt)
+- Session token generation
+- CSRF protection
+- Cookie security (`HttpOnly`, `Secure`, `SameSite`)
+- Account lockout / rate limiting
+
+### Banned
+
+- Hand-rolled password hashing
+- Custom session token generation
+- Custom CSRF handling
+- "I just need a quick login for the demo" — use the real auth even for demos
+
+If a feature requires auth-related behavior that Better-Auth does not provide, that is a `brainstorming` discussion + an ADR — not a workaround.
+
+---
+
+## Cookies — defaults from pack-nextjs-pwa
+
+`HttpOnly`, `Secure`, `SameSite=Lax` (or `Strict` for sensitive cookies). Never set a cookie directly without these defaults — the helper in `pack-nextjs-pwa` enforces.
+
+---
+
+## LLM input is untrusted. LLM output is untrusted.
+
+### Input — prompt injection
+
+User-controlled text inside an LLM prompt is an attack vector. Treat it as data, not instructions.
+
+- Separate the system prompt from user input clearly.
+- Sanitize where appropriate (markdown stripping, URL blocking).
+- Defense in depth: if the LLM has tools, every tool invocation re-validates inputs at its boundary (do NOT trust because "the LLM checked").
+
+### Output — LLM hallucination as untrusted
+
+LLM responses are untrusted output. Validate with Zod if you parse structured data. Never `eval()` LLM output. Never pass LLM output directly into `dangerouslySetInnerHTML`, `innerHTML`, SQL, shell commands.
+
+### Composes with
+
+- `llm-cost-discipline` — cost rules and security rules co-evolve at LLM call sites
+- `pack-nextjs-pwa` — Server Actions wrapping LLM responses validate before returning
+
+---
+
+## Banned constructs
+
+- `eval()`, `new Function(...)`, `setTimeout(string, ...)`, `setInterval(string, ...)`
+- `dangerouslySetInnerHTML` (with allowlist for sanitized markdown rendering — explicit review)
+- `child_process.exec` with user-controlled input (use `execFile` with arg array)
+- `fs.readFileSync(userPath)` without path validation
+- `fetch(userUrl)` from server-side without URL allowlist (SSRF)
+
+The companion hook `no-eval-fn-grep` blocks `eval(`, `new Function(` in staged code.
+
+---
+
+## Logs — no PII, no secrets, ever
+
+```typescript
+// banned
+logger.info(`user ${user.email} signed in with password ${password}`);
+
+// allowed
+logger.info({ userId: user.id, event: 'sign_in_success' });
+```
+
+Composes with `observability` (structured logs only, never string interpolation).
+
+Logger config (in `pack-monorepo`) redacts known-secret keys (`password`, `apiKey`, `secret`, `token`) at the serialization layer as defense in depth.
+
+---
+
+## When to escalate to gstack `/cso`
+
+This skill is the daily floor. Escalate to `gstack:/cso` for:
+
+- Periodic deep audit (monthly): OWASP Top 10 walkthrough, dependency supply chain scan, threat model review, CI/CD pipeline security
+- High-stakes feature: payment surface, auth changes, PII handling
+- Pre-launch security gate
+- Incident response
+
+The `security-reviewer` agent (in void-harness) handles diff-level review during normal development. `cso` handles surface-level audits.
+
+---
+
+## Composition with other skills
+
+- **With `hexagonal-architecture`**: trust boundary = adapter ingress. Zod validation happens at the adapter.
+- **With `typescript-strict`**: validated input is a typed value (branded type for primitives). No `as` cast.
+- **With `observability`**: structured logs, no PII / secrets, breadcrumbs scoped with anonymized user ID.
+- **With `async-safety`**: webhook signature verification, replay protection.
+- **With `llm-cost-discipline`**: cost rules and security rules co-evolve at LLM call sites.
+- **With `code-review`**: dimension `security` is delegated. `security-reviewer` agent does the deep pass.
+- **With `gstack:/cso`**: full audit on demand. This skill is the daily; cso is the periodic.
+
+---
+
+## Companion hooks (in `pack-monorepo` per-stack)
+
+- `gitleaks-precommit` — secrets in staged diff
+- `no-process-env-grep` — `process.env.*` outside `env.mjs`
+- `no-eval-fn-grep` — `eval(`, `new Function(` in staged code
+
+(These live in `pack-monorepo` rather than `core/claude/hooks/` because they depend on the consumer having gitleaks installed and a specific `env.mjs` convention.)
+
+---
+
+## Anti-rules
+
+- MUST NOT replace `gstack:/cso` full-audit mode (different scope).
+- MUST NOT decide threat model boundaries (escalates to cso).
+- MUST NOT pretend LLM input/output is trusted.
+- MUST NOT hand-roll auth, sessions, password hashing.
+- MUST NOT bypass Zod validation at trust boundaries "for performance."
+- MUST NOT log PII or secrets, ever.
+
+---
+
+## Final rule
+
+```
+Trust boundary → Zod validation. Secrets → env. SQL → parameterized. Auth → Better-Auth.
+LLM I/O → untrusted. Logs → no PII no secrets.
+Otherwise → it is not voidcorp security-guidance.
+```
+
+Security defaults are like seat belts: uncomfortable at first, unimaginable to drive without.
