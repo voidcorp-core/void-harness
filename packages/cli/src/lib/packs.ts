@@ -2,7 +2,7 @@
 // lands in the marketplace. A future v0.2 may fetch this dynamically from the
 // marketplace.json.
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export interface PackDescriptor {
@@ -44,13 +44,11 @@ export const PACKS: readonly PackDescriptor[] = [
   },
 ];
 
-/** Reads package.json devDependencies + dependencies + peerDependencies. */
+/** Reads dependencies + devDependencies + peerDependencies from package.json. */
 function hasDepLike(root: string, pattern: RegExp): boolean {
   const pkgPath = join(root, 'package.json');
   if (!existsSync(pkgPath)) return false;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { readFileSync } = require('node:fs') as typeof import('node:fs');
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as {
       dependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;
