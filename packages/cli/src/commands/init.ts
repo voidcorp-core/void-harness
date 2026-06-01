@@ -28,6 +28,8 @@ import {
 import { mergeSettings, readSettings, settingsPathFor, writeSettings } from '../lib/settings.js';
 import { patchClaudeMd } from '../lib/claude-md.js';
 import { banner, blank, c, footer, glyph, line, meta } from '../lib/render.js';
+import { commandsFor, detectStack, type Stack } from '../lib/stack.js';
+import { fetchRemoteMarketplace } from '../lib/remote.js';
 
 interface InitOptions {
   readonly explicitPacks: readonly string[];
@@ -71,26 +73,30 @@ function parseArgs(args: readonly string[]): InitOptions {
   return { explicitPacks, allPacks, interactive, force, marketplaceRepo };
 }
 
-const DEFAULT_CONFIG = {
-  core: '^0.1.0',
-  packs: {} as Record<string, string>,
-  stack: { packageManager: 'bun', testRunner: 'vitest', e2eRunner: 'playwright' },
-  paths: {
-    business: 'apps/*/src/**',
-    tests: 'apps/*/src/**/*.test.{ts,tsx}',
-    spikes: 'apps/*/scripts/spike-*',
-    serverActions: 'apps/*/src/app/(api|actions)/**',
-    contracts: 'apps/*/src/lib/contracts/**',
-    e2e: 'apps/*/tests/e2e/**',
-  },
-  commands: {
-    typecheck: 'bunx tsc --noEmit',
-    testUnit: 'bunx vitest run',
-    testE2e: 'bunx playwright test',
-    mutation: 'bunx stryker run',
-  },
-  modes: { tdd: 'auto' as const, codeReview: 'auto' as const },
-} as const;
+interface ConfigSeed {
+  readonly pinVersion: string;
+  readonly stack: Stack;
+}
+
+function buildDefaultConfig(seed: ConfigSeed): Record<string, unknown> & { packs: Record<string, string> } {
+  return {
+    core: `^${seed.pinVersion}`,
+    packs: {} as Record<string, string>,
+    stack: { ...seed.stack },
+    paths: {
+      business: 'apps/*/src/**',
+      tests: 'apps/*/src/**/*.test.{ts,tsx}',
+      spikes: 'apps/*/scripts/spike-*',
+      serverActions: 'apps/*/src/app/(api|actions)/**',
+      contracts: 'apps/*/src/lib/contracts/**',
+      e2e: 'apps/*/tests/e2e/**',
+    },
+    commands: commandsFor(seed.stack),
+    modes: { tdd: 'auto', codeReview: 'auto' },
+  };
+}
+
+const FALLBACK_PIN = '0.1.0';
 
 export async function init(args: readonly string[]): Promise<void> {
   const opts = parseArgs(args);
@@ -99,6 +105,14 @@ export async function init(args: readonly string[]): Promise<void> {
   banner('init');
   meta('project', projectRoot);
   meta('marketplace', opts.marketplaceRepo);
+
+  // Resolve seed config: detect consumer's stack + fetch marketplace HEAD
+  // version. Both have fallbacks so init never fails for env reasons.
+  const stack = detectStack(projectRoot);
+  meta('stack', `${stack.packageManager} + ${stack.testRunner}${stack.e2eRunner !== 'none' ? ` + ${stack.e2eRunner}` : ''}`);
+
+  const pinVersion = await resolvePinVersion(opts.marketplaceRepo);
+  meta('pin', `^${pinVersion}${pinVersion === FALLBACK_PIN ? c.dim('  (fallback, remote unreachable)') : ''}`);
   blank();
 
   // Locate the harness source (for PHILOSOPHY.md + PROJECT-DOCTRINE template).
@@ -109,7 +123,7 @@ export async function init(args: readonly string[]): Promise<void> {
   const enabledPlugins = [CORE_PLUGIN_NAME, ...packs.map((pk) => pk.name)];
 
   // 2. Write .void/config.json
-  await writeConfig(projectRoot, packs, opts);
+  await writeConfig(projectRoot, packs, opts, { pinVersion, stack });
 
   // 3. Copy PHILOSOPHY.md + create PROJECT-DOCTRINE.md from template
   await installDoctrineFiles(projectRoot, sourceRoot);
@@ -178,20 +192,24 @@ async function choosePacks(projectRoot: string, opts: InitOptions): Promise<read
   return PACKS.filter((pack) => (selected as string[]).includes(pack.name));
 }
 
-async function writeConfig(projectRoot: string, packs: readonly PackDescriptor[], opts: InitOptions): Promise<void> {
+async function writeConfig(
+  projectRoot: string,
+  packs: readonly PackDescriptor[],
+  opts: InitOptions,
+  seed: ConfigSeed,
+): Promise<void> {
   const voidDir = join(projectRoot, '.void');
   const configPath = join(voidDir, 'config.json');
   await mkdir(voidDir, { recursive: true });
 
+  const pin = `^${seed.pinVersion}`;
   const tag = (status: string) =>
     line(`${c.green(glyph.check)}  ${c.dim('.void/config.json'.padEnd(18))}${status}`);
 
-  // --force OR first-time: write the full scaffold from DEFAULT_CONFIG.
+  // --force OR first-time: write the full scaffold seeded with detected stack.
   if (!existsSync(configPath) || opts.force) {
-    const config = structuredClone(DEFAULT_CONFIG) as Record<string, unknown> & {
-      packs: Record<string, string>;
-    };
-    for (const pack of packs) config.packs[`@voidcorp/${pack.name}`] = '^0.1.0';
+    const config = buildDefaultConfig(seed);
+    for (const pack of packs) config.packs[`@voidcorp/${pack.name}`] = pin;
     await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`);
     tag('written');
     return;
@@ -211,7 +229,7 @@ async function writeConfig(projectRoot: string, packs: readonly PackDescriptor[]
   for (const pack of packs) {
     const key = `@voidcorp/${pack.name}`;
     if (currentPacks[key] === undefined) {
-      currentPacks[key] = '^0.1.0';
+      currentPacks[key] = pin;
       added.push(pack.name);
     }
   }
@@ -221,7 +239,14 @@ async function writeConfig(projectRoot: string, packs: readonly PackDescriptor[]
   }
   const merged = { ...existing, packs: currentPacks };
   await writeFile(configPath, `${JSON.stringify(merged, null, 2)}\n`);
-  tag(`merged (added ${c.bold(added.join(', '))})`);
+  tag(`merged (added ${c.bold(added.join(', '))} at ${pin})`);
+}
+
+async function resolvePinVersion(repo: string): Promise<string> {
+  const remote = fetchRemoteMarketplace(repo);
+  if (!remote.ok) return FALLBACK_PIN;
+  // Lockstep model: every plugin shares one version. First plugin is canonical.
+  return remote.value.plugins[0]?.version ?? FALLBACK_PIN;
 }
 
 async function installDoctrineFiles(projectRoot: string, sourceRoot: string): Promise<void> {

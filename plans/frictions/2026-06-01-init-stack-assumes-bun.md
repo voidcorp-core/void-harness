@@ -3,7 +3,7 @@ date: 2026-06-01
 source: solaar (init test)
 kind: friction
 severity: minor
-status: proposed
+status: shipped (0.3.1)
 ---
 
 # `init` hardcodes `packageManager: "bun"` and `bunx` commands

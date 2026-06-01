@@ -158,6 +158,16 @@ async function checkRemoteVersions(root: string): Promise<CheckResult> {
   if (drifted.length === 0) {
     return { name: 'remote versions', ok: true, message: 'all plugins at remote HEAD' };
   }
+  // Summarize when many plugins drift (common after a lockstep bump); detailed
+  // enumeration belongs in `check`, not doctor.
+  if (drifted.length > 2) {
+    return {
+      name: 'remote versions',
+      ok: true,
+      message: `${drifted.length} plugins behind — run \`void-harness check\` for details`,
+      fix: '/plugin marketplace update (inside Claude Code)',
+    };
+  }
   return {
     name: 'remote versions',
     ok: true,

@@ -3,7 +3,7 @@ date: 2026-06-01
 source: solaar (init test after capability-first refactor)
 kind: bug
 severity: major
-status: proposed
+status: shipped (0.3.1)
 ---
 
 # Default plugin pin is hardcoded to `^0.1.0`

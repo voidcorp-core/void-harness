@@ -3,7 +3,7 @@ date: 2026-06-01
 source: solaar (doctor on 7-pack install)
 kind: friction
 severity: minor
-status: proposed
+status: shipped (0.3.1)
 ---
 
 # `doctor` "remote versions" line overflows when many plugins drift
