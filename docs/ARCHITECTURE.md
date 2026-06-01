@@ -12,7 +12,7 @@ void-harness/
 │   │   ├── .claude-plugin/        # plugin.json — wires hooks, declares the plugin
 │   │   ├── modules/               # 01-philosophy.md, 02-tdd.md, 03-tigerstyle.md...
 │   │   ├── skills/                # craftsman skills (TDD, refactor, hexagonal, ...)
-│   │   ├── agents/                # planned: senior-reviewer, security-reviewer, architect-critic
+│   │   ├── agents/                # doctrine-critic (read-only doctrine conformance review)
 │   │   └── hooks/                 # tdd-guard.sh, no-any-grep.sh, no-console-log-grep.sh
 │   └── packs/                     # one workspace + plugin per capability
 │       ├── pack-monorepo/         # @voidcorp/pack-monorepo  (plugin void-monorepo)

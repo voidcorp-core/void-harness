@@ -254,6 +254,12 @@ Edit-time / commit-time / PR-time gates that mechanically enforce skills:
 
 ### Section 8 — Agents (VALIDATED, 3 total)
 
+> **Superseded 2026-06-01** (DEV-363 agent audit): collapsed 3 → 1. The three
+> agents below overlapped existing capabilities 70-85% (anti-bloat rules 3, 6).
+> Shipped instead: a single read-only `doctrine-critic`. See
+> `docs/DECISIONS.md` and `plans/2026-06-01-doctrine-critic-agent.md`. The
+> original three-agent design is kept below as a historical record.
+
 - `senior-reviewer` — pre-commit critical review, scope strictly code quality (not QA / design / ship — those stay in gstack)
 - `security-reviewer` — security-focused diff review
 - `architect-critic` — boundary / dependency / coupling review

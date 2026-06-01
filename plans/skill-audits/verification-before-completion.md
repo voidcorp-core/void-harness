@@ -56,7 +56,7 @@ Adapted for the void-harness skill set. Each item maps to a specific skill or ho
 | 5 | Hooks pass (pre-commit dry-run on staged set) | All hooks (`tdd-guard`, `tigerstyle-check`, `no-any-grep`, etc.) |
 | 6 | UI changes verified in BOTH mobile and desktop viewports | `frontend-design` + `accessibility-first` |
 | 7 | Observability hooks present for new business logic | `observability` skill |
-| 8 | Security review check for any boundary / auth / secret change | `security-guidance` + `security-reviewer` agent |
+| 8 | Security review check for any boundary / auth / secret change | `security-guidance` + gstack `/cso` |
 | 9 | Documentation updated if any convention changed | `commit-discipline` "always say why" |
 | 10 | Commit message includes the why (not just what) | `commit-discipline` |
 | 11 | Review evidence block present in PR body (strict mode) | `code-review` |

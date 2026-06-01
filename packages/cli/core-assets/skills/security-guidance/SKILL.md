@@ -195,7 +195,7 @@ This skill is the daily floor. Escalate to `gstack:/cso` for:
 - Pre-launch security gate
 - Incident response
 
-The `security-reviewer` agent (in void-harness) handles diff-level review during normal development. `cso` handles surface-level audits.
+The `doctrine-critic` agent (in void-harness) flags trust-boundary code in a diff and routes the security pass to `cso`; `cso` handles surface-level and full audits.
 
 ---
 
@@ -206,7 +206,7 @@ The `security-reviewer` agent (in void-harness) handles diff-level review during
 - **With `observability`**: structured logs, no PII / secrets, breadcrumbs scoped with anonymized user ID.
 - **With `async-safety`**: webhook signature verification, replay protection.
 - **With `llm-cost-discipline`**: cost rules and security rules co-evolve at LLM call sites.
-- **With `code-review`**: dimension `security` is delegated. `security-reviewer` agent does the deep pass.
+- **With `code-review`**: dimension `security` is delegated. `doctrine-critic` flags boundaries and `cso` does the deep pass.
 - **With `gstack:/cso`**: full audit on demand. This skill is the daily; cso is the periodic.
 
 ---

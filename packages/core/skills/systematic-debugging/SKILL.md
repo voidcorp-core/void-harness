@@ -133,7 +133,7 @@ Guessing in the dark produces "fixes" that may move the bug rather than solve it
 If Phase 3 hypothesis is "the architecture allows this state to exist":
 
 - The fix is a refactor (composes with `refactoring` and `hexagonal-architecture` / `domain-driven-design`).
-- Invoke the `architect-critic` agent for the refactor plan.
+- Invoke the `doctrine-critic` agent to judge the structural root before the refactor.
 - Compose with `brainstorming` + `writing-plans` if the refactor is large enough to need a spec.
 - Two-Hat principle: the structural fix (refactor) and the bug close commit separately — though they live in the same PR with explicit ordering.
 
@@ -160,7 +160,7 @@ Retry-until-green is rejected.
 - **With `tdd`**: the reproducing test is written in strict mode. The fix follows the cycle.
 - **With `code-review`**: PR body includes the root-cause section. The reviewer verifies the test reproduces the bug before the fix.
 - **With `refactoring`**: structural fixes compose with refactoring's Two-Hat principle.
-- **With `architect-critic` agent**: for structural roots affecting multiple bugs of the same kind.
+- **With `doctrine-critic` agent**: for structural roots affecting multiple bugs of the same kind.
 - **With `commit-discipline`**: `fix:` commits include the "why" (root cause).
 - **With `gstack:/investigate`**: this skill IS the gstack `/investigate` discipline + harness-specific composition.
 

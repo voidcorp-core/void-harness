@@ -42,7 +42,8 @@ done
 
 # Frontmatter description ≤ 200 chars (rule 4)
 echo "  rule 4: frontmatter description ≤ 200 chars"
-for f in packages/core/skills/*/SKILL.md; do
+for f in packages/core/skills/*/SKILL.md packages/core/agents/*.md; do
+  [[ -e "$f" ]] || continue
   DESC=$(awk '/^description:/{ sub(/^description: */,""); print; exit }' "$f" 2>/dev/null || true)
   LEN=${#DESC}
   if [[ "$LEN" -gt 200 ]]; then

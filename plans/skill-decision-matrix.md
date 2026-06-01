@@ -73,7 +73,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 ### `code-review`
 
 - **Wins**: pre-commit / pre-PR critical pass over a diff. Defects, missing tests, structure issues, security flags.
-- **Loses to**: `senior-reviewer` (agent) for deep multi-aspect review. `security-reviewer` (agent) on security-specific concerns.
+- **Loses to**: `doctrine-critic` (agent) for doctrine-conformance review. gstack `/cso` on security-specific concerns.
 - **Cannot decide**: whether to ship (user). Architecture changes outside the diff scope.
 - **Composes with**: `tdd` (verifies the cycle was respected), `typescript-strict` (verifies types), all hedges.
 
@@ -112,7 +112,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 ### `security-guidance`
 
 - **Wins**: any trust-boundary code (input validation, auth, secrets, SQL, LLM input/output). Default-secure patterns.
-- **Loses to**: `cso` (gstack) for full audit mode. `security-reviewer` (agent) for diff-level review.
+- **Loses to**: `cso` (gstack) for full audit mode. `doctrine-critic` (agent) flags trust-boundary code in a diff.
 - **Cannot decide**: full threat model (escalates to `cso`).
 - **Composes with**: `hexagonal-architecture` (boundary discipline), `typescript-strict` (no untyped trust).
 

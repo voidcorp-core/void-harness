@@ -53,7 +53,7 @@ Without `systematic-debugging`, an LLM agent applies the first plausible fix and
 - **Root-cause analysis required in PR body**: every bug-fix PR includes a `## Root cause` section in the body. Format: symptom → narrowing steps → root cause → fix → prevention. Why: persists the reasoning for `git blame` archaeology.
 - **Composition with `observability` upstream**: if the root cause is "we cannot see what happened in prod," the FIRST fix is to add the observability (structured logs, breadcrumbs, traces) — THEN debug. Don't guess in the dark. Why: guessing produces "fixes" that may move the bug rather than solve it.
 - **Composition with `tdd` for the fix itself**: the reproducing test gets added in `strict` mode (Iron Law). The fix follows the cycle. Why: the bug fix is itself new behavior; treat it as such.
-- **Composition with `architect-critic` agent for structural bugs**: if the root cause is "the architecture allows this state to exist," the fix is structural — invoke the `architect-critic` agent for the refactor plan. Why: papering over structural rot creates more bugs of the same kind.
+- **Composition with `doctrine-critic` agent for structural bugs**: if the root cause is "the architecture allows this state to exist," the fix is structural — invoke the `doctrine-critic` agent to judge the structural root before the refactor. Why: papering over structural rot creates more bugs of the same kind.
 
 ## What we reject
 
@@ -88,7 +88,7 @@ None directly. The discipline is enforced via:
 - **Downstream — `tdd`**: the reproducing test is written in strict mode; the fix follows the cycle.
 - **With `code-review`**: PR body includes the root-cause analysis. The reviewer verifies the test reproduces the bug before the fix.
 - **With `refactoring`**: when the root cause is structural, the fix is a refactor — composes with refactoring's Two-Hat principle. The Tidying (refactor) and the Behavior Change (fix) commit separately.
-- **With `architect-critic` agent**: for structural roots that affect multiple bugs of the same kind.
+- **With `doctrine-critic` agent**: for structural roots that affect multiple bugs of the same kind.
 - **With `commit-discipline`**: `fix:` commits include the "why" (root cause description).
 
 ## Anti-rules (what this skill MUST NOT do)

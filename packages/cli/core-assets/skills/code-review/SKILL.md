@@ -17,8 +17,8 @@ The order matters. A correctness issue blocks regardless of beautiful structure.
 
 1. **Correctness** — does it do what it claims? edge cases? error paths? composes with `tdd` (cycle evidence) and `systematic-debugging` (root cause for fixes).
 2. **Tests** — failing test before the code? real code over mocks? names describe behavior? composes with `testing`.
-3. **Security** — input validated at trust boundaries? secrets handled? SQL safe? LLM input untrusted? composes with `security-guidance` and the `security-reviewer` agent.
-4. **Structure** — boundaries respected (no domain importing infrastructure)? service/repository split? function lengths? composes with `hexagonal-architecture`, `domain-driven-design`, `refactoring`, and the `architect-critic` agent.
+3. **Security** — input validated at trust boundaries? secrets handled? SQL safe? LLM input untrusted? composes with `security-guidance` (which routes deep audits to gstack `/cso`).
+4. **Structure** — boundaries respected (no domain importing infrastructure)? service/repository split? function lengths? composes with `hexagonal-architecture`, `domain-driven-design`, `refactoring`, and the `doctrine-critic` agent.
 5. **Readability** — names? exhaustive switches? `any` slips? `as` casts? composes with `typescript-strict`.
 6. **Performance** — obvious O(n²) inside loops? leaky reactive subscriptions? unbounded queries? composes with `benchmark` (gstack) for measured claims.
 
@@ -93,9 +93,9 @@ Review quality decays after ~400 LOC. The companion hook `large-cl-grep` warns o
 
 | Dimension | Composed with |
 |---|---|
-| Correctness, Tests | `tdd` skill (verify cycle), `testing` skill (verify quality), `senior-reviewer` agent (deep multi-aspect) |
-| Security | `security-guidance` skill, `security-reviewer` agent, `cso` (gstack — only at user request for full audit) |
-| Structure | `hexagonal-architecture` skill, `domain-driven-design` skill, `architect-critic` agent (for cross-package diffs) |
+| Correctness, Tests | `tdd` skill (verify cycle), `testing` skill (verify quality), `doctrine-critic` agent (doctrine conformance) |
+| Security | `security-guidance` skill, `doctrine-critic` agent (flags boundaries), `cso` (gstack — only at user request for full audit) |
+| Structure | `hexagonal-architecture` skill, `domain-driven-design` skill, `doctrine-critic` agent (boundary spirit) |
 | Readability | `typescript-strict` skill, Biome (formatter) |
 | Performance | `benchmark` (gstack) for measured claims; this skill flags only obvious smells |
 | Independent second opinion | gstack `/codex review` (different model family, catches different bug classes) |
@@ -163,7 +163,7 @@ Disagreements are surfaced. Not averaged. The user decides.
 
 - **Upstream**: `verification-before-completion` (the author claims the code is ready before review starts).
 - **Downstream**: `commit-discipline` (the merge commit follows conventional commit + always-say-why), `ship` (gstack — actually lands the PR).
-- **Side-by-side**: `senior-reviewer`, `security-reviewer`, `architect-critic` agents.
+- **Side-by-side**: the `doctrine-critic` agent (doctrine conformance, read-only).
 
 ---
 
@@ -182,7 +182,7 @@ See `../../hooks/`.
 - MUST NOT decide whether to ship — user owns the merge decision.
 - MUST NOT block on style / naming (Biome + `typescript-strict` jobs).
 - MUST NOT suggest scope expansion inside the PR — escalate to follow-up.
-- MUST NOT duplicate `security-reviewer` / `architect-critic` work — delegate.
+- MUST NOT duplicate `doctrine-critic` or gstack `/cso` work — delegate.
 - MUST NOT silently arbitrate Claude-vs-Codex disagreements — surface them.
 - MUST NOT mark style nit as BLOCKER.
 - MUST NOT pass a review when the test suite has not been observed passing on the PR's HEAD.

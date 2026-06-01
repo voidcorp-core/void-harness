@@ -15,12 +15,12 @@ auditor: Folpe + Claude Opus 4.7
 
 ## Need
 
-Without a structured review skill, "review my diff" produces style nits and maybe a bug — useful but shallow. An LLM agent asked to review code without a framework reads file-by-file, surfaces the first ten things it notices, and stops. `code-review` provides dimensions (correctness, tests, security, structure, readability, performance), an ordered checklist, two modes (strict gate vs souple feedback), and explicit composition with gstack (`/code-review`, `/codex review`) and the void-harness agents (`senior-reviewer`, `security-reviewer`).
+Without a structured review skill, "review my diff" produces style nits and maybe a bug — useful but shallow. An LLM agent asked to review code without a framework reads file-by-file, surfaces the first ten things it notices, and stops. `code-review` provides dimensions (correctness, tests, security, structure, readability, performance), an ordered checklist, two modes (strict gate vs souple feedback), and explicit composition with gstack (`/code-review`, `/codex review`) and the void-harness `doctrine-critic` agent.
 
 ## Decision matrix anchor
 
 - **Wins**: pre-commit / pre-PR critical pass over a diff. Defects, missing tests, structure issues, security flags, perf regressions, accessibility regressions
-- **Loses to**: `senior-reviewer` agent for deep multi-aspect review (composed). `security-reviewer` agent on security-specific concerns (composed). gstack `/codex review` for independent second opinion (composed)
+- **Loses to**: `doctrine-critic` agent for the doctrine-conformance deep pass (composed). gstack `/cso` on security-specific concerns (composed). gstack `/codex review` for independent second opinion (composed)
 - **Cannot decide**: whether to ship (user). Architecture changes outside the diff scope (escalate via comment, do not block)
 - **Composes with**: `tdd` (verifies the cycle was respected), `typescript-strict` (verifies types), every hedge skill (flags missing observability / cost discipline / a11y / etc.)
 
@@ -56,8 +56,8 @@ Without a structured review skill, "review my diff" produces style nits and mayb
 - **Composition with `/codex review` as second opinion**: at strict mode, optionally invoke `/codex review` for an independent pass. Disagreements between Claude and Codex are surfaced to user — not silently arbitrated. Why: leveraging two model families catches different bug classes; honesty about disagreement prevents false confidence.
 - **Dimension-specific delegation** to specialized skills/agents:
   - `correctness` + `tests` → `tdd` (verify cycle evidence) + `testing` (verify test quality)
-  - `security` → `security-reviewer` agent + `security-guidance` skill
-  - `structure` → `architect-critic` agent + `hexagonal-architecture` / `domain-driven-design`
+  - `security` → `security-guidance` skill + gstack `/cso` (`doctrine-critic` only flags trust-boundary code)
+  - `structure` → `doctrine-critic` agent + `hexagonal-architecture` / `domain-driven-design`
   - `readability` → `typescript-strict` + Biome
   - `performance` → `benchmark` (gstack) for measured perf claims; this skill flags only obvious O(n²) inside loops, leaky reactive subscriptions, etc.
   Why: avoid this skill becoming a kitchen sink. It orchestrates dimension specialists.
@@ -92,9 +92,7 @@ Without a structured review skill, "review my diff" produces style nits and mayb
 
 ## Composition with other skills and agents
 
-- **With `senior-reviewer` agent**: at strict mode, delegate the multi-dimensional deep pass to the agent. The agent uses this skill's checklist + dimensions.
-- **With `security-reviewer` agent**: dimension `security` is delegated. The agent uses `security-guidance` skill's hard rules.
-- **With `architect-critic` agent**: dimension `structure` is delegated when the diff crosses architectural boundaries (changes a port, adds a service, modifies a boundary). The agent uses `hexagonal-architecture` + `domain-driven-design`.
+- **With `doctrine-critic` agent**: at strict mode, delegate the doctrine-conformance deep pass to the agent (it uses this skill's checklist + dimensions, and judges the `structure` dimension when the diff crosses boundaries). It flags trust-boundary code and routes security to gstack `/cso`; line-level bugs route to gstack `/code-review`.
 - **With gstack `/code-review`**: this skill orchestrates; `/code-review` does the actual diff analysis at the chosen effort level. The skill picks the effort level based on mode + risk.
 - **With gstack `/codex review`**: optional second opinion in strict mode. The skill surfaces Claude vs Codex disagreements explicitly.
 - **With `tdd`**: verifies the strict-mode evidence (RED-GREEN cycle in commit history, or documented exception in PR body).
@@ -107,7 +105,7 @@ Without a structured review skill, "review my diff" produces style nits and mayb
 - MUST NOT decide whether to ship — user owns the merge decision.
 - MUST NOT block on style / naming (those are `typescript-strict` + Biome jobs).
 - MUST NOT suggest scope expansion ("rewrite this differently") inside a PR — escalate to follow-up issue.
-- MUST NOT duplicate `security-reviewer` / `architect-critic` work — delegate.
+- MUST NOT duplicate `doctrine-critic` or gstack `/cso` work — delegate.
 - MUST NOT silently arbitrate disagreements between Claude and Codex — surface them.
 - MUST NOT mark style nit as BLOCKER.
 - MUST NOT pass a review when test suite has not been observed passing on the PR's HEAD.
@@ -120,7 +118,7 @@ Without a structured review skill, "review my diff" produces style nits and mayb
 - [ ] Hooks drafted: `pre-PR-review-evidence`, `large-cl-grep`, `blocker-prefix-grep` — each ≤ 100 LOC, smoke-tested
 - [ ] Matrix row in `plans/skill-decision-matrix.md` matches this audit note
 - [ ] Skill tests in `test/code-review/` cover: missing evidence block warning, large-CL warning, blocker vs nit detection, dimension delegation routing
-- [ ] No overlap > 30% with `senior-reviewer` agent (skill orchestrates, agent executes deep)
+- [ ] No overlap > 30% with `doctrine-critic` agent (skill orchestrates, agent executes deep)
 - [ ] No overlap > 30% with gstack `/code-review` (skill is the discipline + composition; gstack is the diff analyzer)
 - [ ] Sister-doc parity: AGENTS.md flavor matches CLAUDE.md flavor (Codex uses `/codex review` natively, terminology adjusted)
 - [ ] Audit status moved from `reviewed` → `shipped` after first project consumes the skill
@@ -130,6 +128,6 @@ Without a structured review skill, "review my diff" produces style nits and mayb
 - **PR template enforcement**: pre-push hook warning vs `.github/pull_request_template.md` with the evidence block scaffolded vs both. Lean both.
 - **Default effort level mapping**: `strict` mode → `/code-review high` or `medium`? Lean `medium` by default (catches the common bugs without ultra cost), with `ultra` reserved for explicit user request on high-stakes PRs.
 - **Codex disagreement surface format**: a dedicated section in the evidence block listing Claude-vs-Codex deltas. Format TBD; defer to first 5 real Codex composed reviews.
-- **`architect-critic` agent trigger**: heuristic for "diff crosses architectural boundary" — file count > 5 in different packages? new export in a port file? Defer mechanics to Phase D.
+- **`doctrine-critic` agent trigger**: heuristic for "diff crosses architectural boundary" — file count > 5 in different packages? new export in a port file? Defer mechanics to Phase D.
 - **Solo-author reviewer**: how does this skill behave when the author IS the reviewer (solopreneur)? It still runs the dimensions + checks; the human-in-the-loop is the same human. Lean: no special-case, but the SKILL.md mentions that strict mode on your own PR is valuable precisely because the LLM reviewer is the "second pair of eyes."
 - **Review caching**: rerunning the review on the same SHA after no new commits — should it skip the analysis or re-confirm? Lean re-confirm with a fast path that checks if `gstack /code-review` cache is valid for the SHA. Defer mechanics.
