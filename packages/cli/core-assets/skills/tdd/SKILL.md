@@ -5,11 +5,11 @@ description: TDD with three modes (strict/souple/exploratory) auto-selected by p
 
 # tdd — voidcorp craftsman edition
 
-Curated aggregate of the best TDD practices for the TypeScript/web stack 2026. Ported from the DECLIK `tdd` skill (377 LOC, already top-5%), adapted to be stack-agnostic via `voidcorp.config.json`.
+Curated aggregate of the best TDD practices for the TypeScript/web stack 2026. Ported from the DECLIK `tdd` skill (377 LOC, already top-5%), adapted to be stack-agnostic via `.void/config.json`.
 
 **Attribution**: see `.source` in this directory. Primary sources: DECLIK port (which itself distills superpowers/test-driven-development + citypaul/tdd + nizos/tdd-guard). This skill **does not reinvent**; it composes at the right level for void-harness consumers.
 
-The companion hook `tdd-guard` (see `../../hooks/tdd-guard.sh`) materializes this discipline mechanically at the Edit/Write level.
+The companion hook `tdd-guard` (see `../../hooks/tdd-guard.sh`) materializes the structural floor of this discipline at the Edit/Write level: a sibling test file MUST exist before production code is edited. It does not run the suite, so the failing-first (RED) step in strict mode stays the engineer's discipline, not something the hook can verify.
 
 ---
 

@@ -28,7 +28,7 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@voidcorp/pack-monorepo": "workspace:*"
+    "@voidcorp/pack-monorepo": "workspace:^"
   },
   "engines": {
     "node": ">=20"

@@ -58,7 +58,7 @@ importers:
   packages/packs/pack-nextjs:
     dependencies:
       '@voidcorp/pack-monorepo':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../pack-monorepo
     devDependencies:
       '@types/node':

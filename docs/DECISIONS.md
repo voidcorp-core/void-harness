@@ -3,6 +3,20 @@
 Non-obvious decisions taken on the harness itself, where a credible alternative
 existed. One entry per decision. Newest first. See CLAUDE.md meta-rules.
 
+## 2026-06-01: pack peer deps use `workspace:^`, not `workspace:*` or a literal range
+
+Context: `pack-nextjs` peer-depends on `pack-monorepo`. With `workspace:*`, pnpm
+publishes the EXACT version (`0.5.4`); `npm pack` (which does not understand the
+workspace protocol) would leak `workspace:*` verbatim into the tarball.
+
+Decision: use `workspace:^`. pnpm publish/pack converts it to `^<version>`
+(`^0.5.4`), a lockstep-compatible range, and it auto-tracks the version. Publish
+must go through pnpm (RELEASING.md: `pnpm -r publish`), never `npm publish`.
+
+Alternative rejected: a literal `^0.5.4`. `scripts/bump-version.mjs` only rewrites
+each package's own `version`, not peer-dependency ranges, so a literal would go
+stale at the next bump. `workspace:^` needs no manual upkeep.
+
 ## 2026-06-01: .void/config.json pins marketplace plugins, not npm packages
 
 Context: the `packs` field in `.void/config.json` is written by `init` as

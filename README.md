@@ -46,23 +46,24 @@ void-harness/
 │       └── pack-mobile/           # Expo / React Native conventions
 ├── plans/                         # specs + skill audits
 ├── test/                          # automated skill tests
-├── docs/                          # PHILOSOPHY / ARCHITECTURE / CONTRIBUTING
-└── .changeset/                    # semantic versioning
+├── docs/                          # PHILOSOPHY / ARCHITECTURE / CONTRIBUTING / DECISIONS / RELEASING
+└── scripts/                       # bump-version, anti-bloat, copy-core-assets
 ```
 
-## Usage (target — not yet implemented)
+## Usage
 
 ```bash
-# Install harness core in ~/.claude/
-npx @voidcorp/harness install
+# One-time: install the harness core globally in ~/.claude/
+npx @voidcorp/harness install --global
 
-# In a new project, activate the packs you need
-cd my-new-project
-npx @voidcorp/harness init                # creates voidcorp.config.json
-npx @voidcorp/harness add pack-nextjs
+# In a project: scaffold .void/config.json and enable the packs you need
+cd my-project
+npx @voidcorp/harness init                # creates .void/config.json
+npx @voidcorp/harness add pack-nextjs      # also accepts void-nextjs or nextjs
 npx @voidcorp/harness add pack-monorepo
 
-# Update
+# Health check / update
+npx @voidcorp/harness doctor
 npx @voidcorp/harness update
 ```
 

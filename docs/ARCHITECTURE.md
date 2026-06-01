@@ -124,13 +124,16 @@ Skills and hooks read this file to adapt to the consumer's conventions without h
 
 ## Versioning
 
-Semantic versioning via [changesets](https://github.com/changesets/changesets).
+Lockstep: one number governs the CLI, the runtime npm packages, and the
+marketplace plugins. Bumped with `scripts/bump-version.mjs` (see RELEASING.md).
+Changesets were removed in v0.5.4 because independent per-package versions
+contradict the lockstep model.
 
 - **patch**: bug fix in a skill / hook, documentation, attribution updates
 - **minor**: new skill, new hook, new pack
-- **major**: breaking change in a skill's contract (renamed front-matter, removed flag), CLI interface change, restructured `voidcorp.config.json`
+- **major** (or any pre-1.0 minor): breaking change in a skill's contract (renamed front-matter, removed flag), CLI interface change, restructured `.void/config.json`
 
-Each package versions independently. The CLI displays the active version of every component on `doctor`.
+Every package shares the same number. The CLI displays the active version on `doctor`.
 
 ## CI gates
 
