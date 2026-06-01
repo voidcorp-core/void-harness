@@ -5,7 +5,7 @@ description: Create a Next.js 16 Server Action with the void-harness trust-bound
 
 # server-action
 
-Use when adding any `'use server'` function in a Next.js 16 app following the void-harness `pack-nextjs-pwa` conventions. Server Actions cross a trust boundary — the input came from a browser. Treat them like HTTP handlers, not like internal function calls.
+Use when adding any `'use server'` function (in Next.js, Hono, or any Server Action-capable runtime) following the void-harness `pack-server` conventions. Server Actions cross a trust boundary — the input came from a browser. Treat them like HTTP handlers, not like internal function calls.
 
 If the function is **not** marked `'use server'` (it's a normal service function in `src/services/`), use `void:tdd` directly and skip this skill.
 
@@ -126,7 +126,7 @@ Two flavors, pick by use case:
 ## Composition
 
 - `void:security-guidance` — Zod at every ingress; sensitive data redacted from logs; no PII in error messages returned to client.
-- `void:async-safety` — for webhooks (which look like actions but are POST endpoints), use `withWebhookSafety` from `@voidcorp/pack-nextjs-pwa` instead.
+- `void:async-safety` — for webhooks (which look like actions but are POST endpoints), use `withWebhookSafety` from `@voidcorp/pack-server` instead.
 - `void:observability` — `withTraceContext` propagates trace ID; Sentry user scope uses `hash(userId)`, never the raw ID.
 - `void:tdd` — souple mode on the action (boundary), strict on the underlying service. Auth/validation are tested at the action layer.
 - `void-monorepo:service-package` — when the service grows enough to deserve its own package, extract it (rare, but the path is there).

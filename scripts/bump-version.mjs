@@ -31,7 +31,11 @@ const MARKETPLACE = resolve(ROOT, '.claude-plugin/marketplace.json');
 const PLUGIN_MANIFESTS = [
   resolve(ROOT, 'packages/core/.claude-plugin/plugin.json'),
   resolve(ROOT, 'packages/packs/pack-monorepo/.claude-plugin/plugin.json'),
-  resolve(ROOT, 'packages/packs/pack-nextjs-pwa/.claude-plugin/plugin.json'),
+  resolve(ROOT, 'packages/packs/pack-react/.claude-plugin/plugin.json'),
+  resolve(ROOT, 'packages/packs/pack-nextjs/.claude-plugin/plugin.json'),
+  resolve(ROOT, 'packages/packs/pack-server/.claude-plugin/plugin.json'),
+  resolve(ROOT, 'packages/packs/pack-pwa/.claude-plugin/plugin.json'),
+  resolve(ROOT, 'packages/packs/pack-mobile/.claude-plugin/plugin.json'),
 ];
 
 function parseVersion(v) {
@@ -74,8 +78,11 @@ async function main() {
 
   const next = bump(current, arg);
   if (next === current) {
-    console.log(`already at ${current}, no-op`);
-    return;
+    // No-op for marketplace.json, but other manifests may still be drifted —
+    // fall through and re-sync them all.
+    console.log(`marketplace already at ${current}, ensuring plugin manifests are aligned`);
+  } else {
+    console.log(`bumping ${current} → ${next}`);
   }
 
   // Lockstep sanity check: warn if plugins disagree before bumping.

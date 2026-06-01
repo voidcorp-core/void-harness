@@ -2,7 +2,7 @@
 # no-db-in-components — PreToolUse hook for Edit/Write.
 # Blocks DB imports inside apps/<app>/src/components/ — components must go
 # through services. Composes with hexagonal-architecture and the
-# pack-nextjs-pwa convention "components/ is pure UI, no DB, no fetch".
+# void-react convention "components/ is pure UI, no DB, no fetch".
 #
 # Inputs (set by the void-harness hook runner):
 #   VOIDCORP_HOOK_FILE / VOIDCORP_HOOK_PHASE

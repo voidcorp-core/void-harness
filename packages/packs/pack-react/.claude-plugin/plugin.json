@@ -1,0 +1,22 @@
+{
+  "name": "void-react",
+  "version": "0.3.0",
+  "description": "React 19 conventions for the void-harness: component layer purity, shadcn/Radix primitives, mobile-first dual-quality tokens, Tappable touch targets, accessibility-first defaults.",
+  "author": {
+    "name": "VoidCorp",
+    "email": "florent.pellegrin@voidcorp.io"
+  },
+  "homepage": "https://github.com/voidcorp-core/void-harness",
+  "license": "MIT",
+  "keywords": ["voidcorp", "react", "shadcn", "radix", "accessibility"],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-db-in-components.sh" }
+        ]
+      }
+    ]
+  }
+}

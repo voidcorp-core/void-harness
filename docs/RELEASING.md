@@ -25,7 +25,11 @@ we switch to per-plugin versioning. Until then, lockstep.
 | `.claude-plugin/marketplace.json` | `plugins[].version` for each plugin. Source of truth read by Claude Code. |
 | `packages/core/.claude-plugin/plugin.json` | Core plugin manifest. |
 | `packages/packs/pack-monorepo/.claude-plugin/plugin.json` | Monorepo pack manifest. |
-| `packages/packs/pack-nextjs-pwa/.claude-plugin/plugin.json` | Next.js pack manifest. |
+| `packages/packs/pack-react/.claude-plugin/plugin.json` | React pack manifest. |
+| `packages/packs/pack-nextjs/.claude-plugin/plugin.json` | Next.js pack manifest. |
+| `packages/packs/pack-server/.claude-plugin/plugin.json` | Server-side pack manifest. |
+| `packages/packs/pack-pwa/.claude-plugin/plugin.json` | PWA pack manifest. |
+| `packages/packs/pack-mobile/.claude-plugin/plugin.json` | Mobile pack manifest. |
 
 `packages/cli/core-assets/.claude-plugin/plugin.json` is **generated** at
 `prepack` time from `packages/core/.claude-plugin/plugin.json` — do not edit.

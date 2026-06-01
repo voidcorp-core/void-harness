@@ -1,31 +1,12 @@
 {
   "name": "void-nextjs",
-  "version": "0.2.0",
-  "description": "Next.js 16 + PWA conventions for the void-harness: Server Actions wrappers (withWebhookSafety, withJobSafety, withCronSafety), shadcn/Radix @repo/ui primitives, Tappable helper, Sentry init, mobile-first dual-quality design tokens.",
+  "version": "0.3.0",
+  "description": "Next.js 16 App Router conventions for the void-harness: route groups (api|actions|app|marketing), Cache Components defaults, layout/page conventions, instrumentation.ts. Composes with void-react (components), void-server (Server Actions), void-pwa (offline).",
   "author": {
     "name": "VoidCorp",
     "email": "florent.pellegrin@voidcorp.io"
   },
   "homepage": "https://github.com/voidcorp-core/void-harness",
   "license": "MIT",
-  "keywords": [
-    "voidcorp",
-    "nextjs",
-    "pwa",
-    "shadcn",
-    "radix"
-  ],
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-db-in-components.sh"
-          }
-        ]
-      }
-    ]
-  }
+  "keywords": ["voidcorp", "nextjs", "app-router", "cache-components"]
 }

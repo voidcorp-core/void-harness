@@ -1,0 +1,12 @@
+{
+  "name": "void-pwa",
+  "version": "0.3.0",
+  "description": "Progressive Web App conventions for the void-harness: manifest.webmanifest, service worker registration, offline-first data patterns, install prompt UX, capture-queue + sync (Solaar-grade). Stack-agnostic.",
+  "author": {
+    "name": "VoidCorp",
+    "email": "florent.pellegrin@voidcorp.io"
+  },
+  "homepage": "https://github.com/voidcorp-core/void-harness",
+  "license": "MIT",
+  "keywords": ["voidcorp", "pwa", "offline-first", "service-worker"]
+}
