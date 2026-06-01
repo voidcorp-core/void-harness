@@ -15,7 +15,7 @@
 
 import * as p from '@clack/prompts';
 import { existsSync } from 'node:fs';
-import { cp, mkdir, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { findCoreSource } from '../lib/paths.js';
 import {
@@ -175,18 +175,44 @@ async function choosePacks(projectRoot: string, opts: InitOptions): Promise<read
 async function writeConfig(projectRoot: string, packs: readonly PackDescriptor[], opts: InitOptions): Promise<void> {
   const voidDir = join(projectRoot, '.void');
   const configPath = join(voidDir, 'config.json');
+  await mkdir(voidDir, { recursive: true });
 
-  if (existsSync(configPath) && !opts.force) {
-    p.log.info(`.void/config.json: already exists (use --force to overwrite)`);
+  // --force OR first-time: write the full scaffold from DEFAULT_CONFIG.
+  if (!existsSync(configPath) || opts.force) {
+    const config = structuredClone(DEFAULT_CONFIG) as Record<string, unknown> & {
+      packs: Record<string, string>;
+    };
+    for (const pack of packs) config.packs[`@voidcorp/${pack.name}`] = '^0.1.0';
+    await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`);
+    p.log.success(`.void/config.json: written`);
     return;
   }
-  await mkdir(voidDir, { recursive: true });
-  const config = structuredClone(DEFAULT_CONFIG) as Record<string, unknown> & {
-    packs: Record<string, string>;
-  };
-  for (const pack of packs) config.packs[`@voidcorp/${pack.name}`] = '^0.1.0';
-  await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`);
-  p.log.success(`.void/config.json: written`);
+
+  // Existing config: merge in any newly-selected packs without touching the
+  // user's hand-tuned paths/commands/modes or existing pack pins.
+  let existing: { packs?: Record<string, string> } & Record<string, unknown> = {};
+  try {
+    existing = JSON.parse(await readFile(configPath, 'utf8'));
+  } catch {
+    p.log.warn(`.void/config.json: unreadable, leaving untouched (use --force to overwrite)`);
+    return;
+  }
+  const currentPacks = { ...(existing.packs ?? {}) };
+  const added: string[] = [];
+  for (const pack of packs) {
+    const key = `@voidcorp/${pack.name}`;
+    if (currentPacks[key] === undefined) {
+      currentPacks[key] = '^0.1.0';
+      added.push(pack.name);
+    }
+  }
+  if (added.length === 0) {
+    p.log.info(`.void/config.json: already has selected packs, unchanged`);
+    return;
+  }
+  const merged = { ...existing, packs: currentPacks };
+  await writeFile(configPath, `${JSON.stringify(merged, null, 2)}\n`);
+  p.log.success(`.void/config.json: merged (added ${added.join(', ')})`);
 }
 
 async function installDoctrineFiles(projectRoot: string, sourceRoot: string): Promise<void> {
