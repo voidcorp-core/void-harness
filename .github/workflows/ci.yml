@@ -53,6 +53,12 @@ jobs:
       - name: Lint — Biome
         run: pnpm lint
 
+      - name: Build packages
+        # Build before typecheck: packs resolve cross-package imports
+        # (e.g. @voidcorp/pack-monorepo/result) through their dist exports,
+        # so the type declarations must exist first.
+        run: pnpm build
+
       - name: Skill tests
         run: pnpm vitest run
 
