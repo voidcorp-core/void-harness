@@ -5,7 +5,7 @@
 // which installs the same plugin locally inside <cwd>/.claude/plugins/.
 
 import { existsSync } from 'node:fs';
-import { cp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { findCoreSource } from '../lib/paths.js';
@@ -24,7 +24,24 @@ function parseArgs(args: readonly string[]): InstallOptions {
 
 // See packages/cli/src/commands/init.ts for the rationale on `void`.
 const PLUGIN_NAME = 'void';
-const PLUGIN_VERSION = '0.1.0';
+const FALLBACK_VERSION = '0.0.0';
+
+/**
+ * Read the canonical version from the bundled core plugin manifest. Falls
+ * back to FALLBACK_VERSION if missing — the marketplace.json version is
+ * the source of truth; this just mirrors it for the global install.
+ */
+async function readCoreVersion(sourceRoot: string): Promise<string> {
+  const manifestPath = join(sourceRoot, '.claude-plugin', 'plugin.json');
+  if (!existsSync(manifestPath)) return FALLBACK_VERSION;
+  try {
+    const raw = await readFile(manifestPath, 'utf8');
+    const parsed = JSON.parse(raw) as { version?: string };
+    return parsed.version ?? FALLBACK_VERSION;
+  } catch {
+    return FALLBACK_VERSION;
+  }
+}
 
 export async function install(args: readonly string[]): Promise<void> {
   const opts = parseArgs(args);
@@ -66,7 +83,8 @@ export async function install(args: readonly string[]): Promise<void> {
     if (existsSync(hooksSrc)) await cp(hooksSrc, join(pluginRoot, 'hooks'), { recursive: true });
     if (existsSync(modulesSrc)) await cp(modulesSrc, join(pluginRoot, 'modules'), { recursive: true });
 
-    await writeManifest(pluginRoot);
+    const version = await readCoreVersion(sourceRoot);
+    await writeManifest(pluginRoot, version);
   }
 
   console.log(`done.`);
@@ -74,7 +92,7 @@ export async function install(args: readonly string[]): Promise<void> {
   console.log(`Note: per-project layout is still preferred. Use 'void-harness init' in any project where you want isolation, pinning, or team sharing.`);
 }
 
-async function writeManifest(pluginRoot: string): Promise<void> {
+async function writeManifest(pluginRoot: string, version: string): Promise<void> {
   const manifestDir = join(pluginRoot, '.claude-plugin');
   const manifestPath = join(manifestDir, 'plugin.json');
   await mkdir(manifestDir, { recursive: true });
@@ -109,7 +127,7 @@ async function writeManifest(pluginRoot: string): Promise<void> {
 
   const manifest = {
     name: PLUGIN_NAME,
-    version: PLUGIN_VERSION,
+    version,
     description: 'VoidCorp craftsman harness — opinionated skills, agents, and hooks for Claude Code projects.',
     author: { name: 'VoidCorp', email: 'florent.pellegrin@voidcorp.io' },
     homepage: 'https://github.com/voidcorp-core/void-harness',

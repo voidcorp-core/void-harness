@@ -1,7 +1,7 @@
 {
-  "name": "@voidcorp/pack-nextjs-pwa",
+  "name": "@voidcorp/pack-nextjs",
   "version": "0.0.0",
-  "description": "Next.js 16 + PWA conventions for the void-harness. shadcn/Radix-based @repo/ui, Server Actions wrappers, Sentry init, Tappable, axe integration, withWebhookSafety/withJobSafety/withCronSafety wrappers, Tailwind preset with mobile-first dual-quality tokens.",
+  "description": "Next.js 16 App Router conventions for the void-harness — route groups, Cache Components, instrumentation. Composes with @voidcorp/pack-react (UI) and @voidcorp/pack-server (Server Actions, webhooks).",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -15,22 +15,16 @@
       "import": "./dist/async/index.js",
       "types": "./dist/async/index.d.ts"
     },
-    "./ui": {
-      "import": "./dist/ui/index.js",
-      "types": "./dist/ui/index.d.ts"
-    },
     "./claude/*": "./claude/*"
   },
   "files": [
     "dist",
     "claude",
-    "templates",
     "README.md"
   ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
-    "lint": "biome check src",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
@@ -51,11 +45,8 @@
   "keywords": [
     "voidcorp",
     "claude-code",
-    "codex",
     "nextjs",
-    "pwa",
-    "shadcn",
-    "radix",
+    "app-router",
     "harness"
   ]
 }

@@ -72,3 +72,20 @@ export async function writeSettings(settingsPath: string, value: ClaudeSettings)
 export function settingsPathFor(projectRoot: string): string {
   return join(projectRoot, '.claude', 'settings.json');
 }
+
+/**
+ * Read the marketplace repo from settings.json's extraKnownMarketplaces entry.
+ * Returns the fallback if not present — used so add/remove/check/update never
+ * silently re-pin a fork or private mirror to the default repo.
+ */
+export function marketplaceRepoFrom(
+  settings: ClaudeSettings,
+  fallback: string,
+): string {
+  const entry = (settings.extraKnownMarketplaces as Record<string, unknown> | undefined)?.[MARKETPLACE_NAME];
+  if (entry && typeof entry === 'object') {
+    const source = (entry as { source?: { repo?: string } }).source;
+    if (source?.repo) return source.repo;
+  }
+  return fallback;
+}

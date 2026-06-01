@@ -1,7 +1,7 @@
 {
   "name": "@voidcorp/pack-monorepo",
   "version": "0.0.0",
-  "description": "Turborepo + Bun monorepo conventions for the void-harness. Shared configs (tsconfig.strict, biome, vitest, lefthook, commitlint), @repo/core (env, logger, errors, Result, Option, pipe), domain_events outbox schema, IdempotencyStore port + Postgres adapter, hooks installation helpers.",
+  "description": "Turborepo + Bun monorepo conventions for the void-harness — shared tsconfig.strict, @repo/core helpers (Result, Option, pipe), package boundary discipline.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -24,21 +24,17 @@
       "types": "./dist/pipe.d.ts"
     },
     "./tsconfig.strict.json": "./tsconfig.strict.json",
-    "./biome.json": "./biome.json",
     "./claude/*": "./claude/*"
   },
   "files": [
     "dist",
     "claude",
-    "templates",
     "tsconfig.strict.json",
-    "biome.json",
     "README.md"
   ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
-    "lint": "biome check src",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
@@ -56,7 +52,6 @@
   "keywords": [
     "voidcorp",
     "claude-code",
-    "codex",
     "monorepo",
     "turborepo",
     "bun",

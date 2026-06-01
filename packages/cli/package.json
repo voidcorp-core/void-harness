@@ -19,7 +19,6 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "biome check src",
     "typecheck": "tsc --noEmit",
     "prepack": "pnpm run build && pnpm run build:assets",
     "release": "changeset publish"
