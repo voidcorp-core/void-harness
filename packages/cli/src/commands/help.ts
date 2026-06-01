@@ -27,9 +27,13 @@ Commands:
                            to skip).
   check [--doctrine]       Compare local plugin versions against the remote
                            marketplace. With --doctrine, also diff PHILOSOPHY.md.
-  update [--dry-run]       Sync .void/config.json pins to the current
-                           marketplace HEAD (after '/plugin marketplace
-                           update' in Claude Code). --dry-run previews.
+  update [--dry-run]       Refresh Claude Code's marketplace cache (git
+         [--pins-only]     pull) AND bump .void/config.json pins to the
+         [--cache-only]    new HEAD. One command replaces the
+                           "/plugin marketplace update" + restart dance.
+                           Restart Claude after to load the new plugin
+                           version. --dry-run previews; --pins-only skips
+                           the cache pull; --cache-only skips the pins.
   install --global         Escape hatch (rare); see install --help.
 
   help                     Print this message.
