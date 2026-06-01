@@ -20,8 +20,9 @@
     "lint": "biome lint",
     "typecheck": "pnpm -r --filter '!void-harness' typecheck",
     "anti-bloat:check": "bash scripts/anti-bloat-check.sh",
+    "check:publish": "node scripts/check-publish-safety.mjs",
     "bump": "node scripts/bump-version.mjs",
-    "release": "pnpm -r --filter './packages/**' publish"
+    "release": "node scripts/check-publish-safety.mjs && pnpm -r --filter './packages/**' publish"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",

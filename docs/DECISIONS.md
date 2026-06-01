@@ -3,19 +3,26 @@
 Non-obvious decisions taken on the harness itself, where a credible alternative
 existed. One entry per decision. Newest first. See CLAUDE.md meta-rules.
 
-## 2026-06-01: pack peer deps use `workspace:^`, not `workspace:*` or a literal range
+## 2026-06-01: pack peer deps use an explicit `^` range, not the workspace: protocol (supersedes the earlier workspace:^ entry)
 
-Context: `pack-nextjs` peer-depends on `pack-monorepo`. With `workspace:*`, pnpm
-publishes the EXACT version (`0.5.4`); `npm pack` (which does not understand the
-workspace protocol) would leak `workspace:*` verbatim into the tarball.
+Context: `pack-nextjs` peer-depends on `pack-monorepo`. An earlier decision kept
+`workspace:^` and relied on `pnpm publish` to rewrite it. But `npm pack` /
+`npm publish` do NOT understand the workspace protocol, so an accidental npm
+publish would ship `workspace:^` verbatim, a broken package. "Only ever publish
+with pnpm" is tribal knowledge that will eventually be violated.
 
-Decision: use `workspace:^`. pnpm publish/pack converts it to `^<version>`
-(`^0.5.4`), a lockstep-compatible range, and it auto-tracks the version. Publish
-must go through pnpm (RELEASING.md: `pnpm -r publish`), never `npm publish`.
+Decision: use an explicit `^<version>` range (`^0.5.4`). Verified empirically
+that pnpm still links the local workspace package for a plain semver peer dep
+(build + typecheck of pack-nextjs against `@voidcorp/pack-monorepo/result`
+pass), so dev ergonomics are unchanged. `scripts/bump-version.mjs` now rewrites
+internal `@voidcorp/*` ranges to `^<next>` on every bump (`alignInternalRanges`,
+unit-tested), so the range never goes stale. A CI + release gate
+(`scripts/check-publish-safety.mjs`) fails if the `workspace:` protocol reappears
+in any publishable `package.json`.
 
-Alternative rejected: a literal `^0.5.4`. `scripts/bump-version.mjs` only rewrites
-each package's own `version`, not peer-dependency ranges, so a literal would go
-stale at the next bump. `workspace:^` needs no manual upkeep.
+Why this supersedes workspace:^: the published artifact is now correct
+regardless of the publish tool, the "must use pnpm" constraint is removed, and
+the no-workspace invariant is machine-enforced rather than documented.
 
 ## 2026-06-01: .void/config.json pins marketplace plugins, not npm packages
 

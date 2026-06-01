@@ -67,13 +67,38 @@ async function writeJson(path, value) {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-async function setVersion(path, next, label) {
+const DEP_FIELDS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
+
+/**
+ * Rewrite every internal (@voidcorp/*) dependency range to `^<next>`, in place.
+ * Keeps lockstep ranges current so the published tarball never carries a stale
+ * pin. External deps are left untouched. Returns the number of ranges changed.
+ * Pure except for the in-place mutation of `json`; exported for testing.
+ */
+export function alignInternalRanges(json, next, isInternal = (name) => name.startsWith('@voidcorp/')) {
+  const wanted = `^${next}`;
+  let changed = 0;
+  for (const field of DEP_FIELDS) {
+    const deps = json[field];
+    if (!deps) continue;
+    for (const name of Object.keys(deps)) {
+      if (isInternal(name) && deps[name] !== wanted) {
+        deps[name] = wanted;
+        changed += 1;
+      }
+    }
+  }
+  return changed;
+}
+
+async function setVersion(path, next, label, { alignDeps = false } = {}) {
   if (!existsSync(path)) {
     console.warn(`  ! missing ${label}, skipped`);
     return;
   }
   const json = await readJson(path);
   json.version = next;
+  if (alignDeps) alignInternalRanges(json, next);
   await writeJson(path, json);
   console.log(`  ✓ ${label}`);
 }
@@ -109,9 +134,9 @@ async function main() {
     await setVersion(path, next, path.replace(ROOT + '/', ''));
   }
 
-  // 3. each npm package.json (CLI + runtime packs)
+  // 3. each npm package.json (CLI + runtime packs), aligning internal ranges
   for (const path of NPM_PACKAGES) {
-    await setVersion(path, next, path.replace(ROOT + '/', ''));
+    await setVersion(path, next, path.replace(ROOT + '/', ''), { alignDeps: true });
   }
 
   console.log('');
@@ -124,7 +149,13 @@ async function main() {
   console.log(`  6. Consumers refresh via void-harness update in their projects.`);
 }
 
-main().catch((err) => {
-  console.error(`bump-version: ${err.message}`);
-  process.exit(1);
-});
+// Only run when invoked directly (node scripts/bump-version.mjs ...), not when
+// imported by a test for the pure helpers above.
+const invokedDirectly =
+  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (invokedDirectly) {
+  main().catch((err) => {
+    console.error(`bump-version: ${err.message}`);
+    process.exit(1);
+  });
+}

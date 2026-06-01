@@ -66,6 +66,9 @@ jobs:
       - name: Lint — Biome
         run: pnpm lint
 
+      - name: Publish safety — no workspace: in npm packages
+        run: pnpm check:publish
+
       - name: Build packages
         # Build before typecheck: packs resolve cross-package imports
         # (e.g. @voidcorp/pack-monorepo/result) through their dist exports,
