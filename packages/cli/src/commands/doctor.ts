@@ -13,8 +13,10 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
-import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, enabledPluginsKey } from '../lib/packs.js';
+import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, PACKS, enabledPluginsKey } from '../lib/packs.js';
 import { readSettings, settingsPathFor } from '../lib/settings.js';
+import { fetchRemoteMarketplace } from '../lib/remote.js';
+import { compareVersions, normalizeVersion } from '../lib/version.js';
 
 interface CheckResult {
   readonly name: string;
@@ -25,7 +27,8 @@ interface CheckResult {
 
 const BEGIN_MARKER = '<!-- void-harness:begin -->';
 
-export async function doctor(_args: readonly string[]): Promise<void> {
+export async function doctor(args: readonly string[]): Promise<void> {
+  const skipRemote = args.includes('--no-remote');
   const checks: CheckResult[] = [];
   const root = process.cwd();
 
@@ -87,6 +90,10 @@ export async function doctor(_args: readonly string[]): Promise<void> {
 
   checks.push(checkGh());
 
+  if (!skipRemote) {
+    checks.push(await checkRemoteVersions(root));
+  }
+
   console.log(`void-harness doctor\n`);
   for (const c of checks) {
     const mark = c.ok ? '✓' : '✗';
@@ -103,6 +110,60 @@ export async function doctor(_args: readonly string[]): Promise<void> {
     console.log(`${blockers} check(s) failed.`);
     process.exit(1);
   }
+}
+
+async function checkRemoteVersions(root: string): Promise<CheckResult> {
+  const settings = await readSettings(settingsPathFor(root));
+  const entry = (settings.extraKnownMarketplaces as Record<string, unknown> | undefined)?.[MARKETPLACE_NAME];
+  const repo =
+    (entry && typeof entry === 'object' ? (entry as { source?: { repo?: string } }).source?.repo : undefined) ??
+    'voidcorp-core/void-harness';
+
+  const remote = fetchRemoteMarketplace(repo);
+  if (!remote.ok) {
+    return {
+      name: 'remote versions',
+      ok: true,
+      message: `skipped (could not fetch ${repo}: ${remote.error})`,
+    };
+  }
+
+  const configPath = join(root, '.void', 'config.json');
+  if (!existsSync(configPath)) {
+    return { name: 'remote versions', ok: true, message: 'skipped (no .void/config.json)' };
+  }
+  let local: { core?: string; packs?: Record<string, string> } = {};
+  try {
+    local = JSON.parse(await readFile(configPath, 'utf8'));
+  } catch {
+    return { name: 'remote versions', ok: true, message: 'skipped (invalid .void/config.json)' };
+  }
+
+  const localFor = (name: string): string | undefined =>
+    name === CORE_PLUGIN_NAME
+      ? local.core
+      : PACKS.some((p) => p.name === name)
+        ? local.packs?.[`@voidcorp/${name}`]
+        : undefined;
+
+  const drifted: string[] = [];
+  for (const plugin of remote.value.plugins) {
+    const declared = localFor(plugin.name);
+    if (!declared) continue;
+    if (compareVersions(normalizeVersion(declared), plugin.version) < 0) {
+      drifted.push(`${plugin.name} ${normalizeVersion(declared)} → ${plugin.version}`);
+    }
+  }
+
+  if (drifted.length === 0) {
+    return { name: 'remote versions', ok: true, message: 'all plugins at remote HEAD' };
+  }
+  return {
+    name: 'remote versions',
+    ok: true,
+    message: `update available: ${drifted.join(', ')}`,
+    fix: '/plugin marketplace update (inside Claude Code)',
+  };
 }
 
 function checkGh(): CheckResult {

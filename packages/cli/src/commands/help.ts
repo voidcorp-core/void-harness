@@ -22,7 +22,11 @@ Commands:
   remove <pack-name>       Deactivate a pack (core cannot be removed).
   list                     Show active and available packs.
 
-  doctor                   Health-check the project setup.
+  doctor [--no-remote]     Health-check the project setup. Includes a remote
+                           version check against the marketplace (--no-remote
+                           to skip).
+  check [--doctrine]       Compare local plugin versions against the remote
+                           marketplace. With --doctrine, also diff PHILOSOPHY.md.
   install --global         Escape hatch (rare); see install --help.
 
   help                     Print this message.
@@ -38,6 +42,8 @@ Examples:
   void-harness init --all-packs                      # activate everything
   void-harness add nextjs                            # add a pack later
   void-harness list                                  # see what's active
+  void-harness check                                 # remote version drift
+  void-harness check --doctrine                      # + PHILOSOPHY.md drift
 
 Marketplace: https://github.com/voidcorp-core/void-harness
 `.trimStart();
