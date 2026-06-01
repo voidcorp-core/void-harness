@@ -1,6 +1,6 @@
 {
   "name": "void-nextjs",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Next.js 16 + PWA conventions for the void-harness: Server Actions wrappers (withWebhookSafety, withJobSafety, withCronSafety), shadcn/Radix @repo/ui primitives, Tappable helper, Sentry init, mobile-first dual-quality design tokens.",
   "author": {
     "name": "VoidCorp",
@@ -8,5 +8,24 @@
   },
   "homepage": "https://github.com/voidcorp-core/void-harness",
   "license": "MIT",
-  "keywords": ["voidcorp", "nextjs", "pwa", "shadcn", "radix"]
+  "keywords": [
+    "voidcorp",
+    "nextjs",
+    "pwa",
+    "shadcn",
+    "radix"
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-db-in-components.sh"
+          }
+        ]
+      }
+    ]
+  }
 }

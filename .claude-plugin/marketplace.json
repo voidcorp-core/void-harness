@@ -10,25 +10,41 @@
       "name": "void",
       "source": "./packages/core",
       "description": "Universal craftsman skills (TDD strict, TypeScript strict, hexagonal, DDD, functional, code-review, ...) plus hooks (tdd-guard, no-any, no-console-log, ...) and agents (senior-reviewer, security-reviewer).",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "category": "best-practices",
-      "tags": ["tdd", "typescript", "hexagonal", "ddd", "craftsman", "tigerstyle"]
+      "tags": [
+        "tdd",
+        "typescript",
+        "hexagonal",
+        "ddd",
+        "craftsman",
+        "tigerstyle"
+      ]
     },
     {
       "name": "void-monorepo",
       "source": "./packages/packs/pack-monorepo",
       "description": "Turborepo + Bun monorepo conventions: shared tsconfig.strict.json, @repo/core (Result, Option, pipe), 5+5 service layout, ADR workflow.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "category": "stack",
-      "tags": ["turborepo", "bun", "monorepo"]
+      "tags": [
+        "turborepo",
+        "bun",
+        "monorepo"
+      ]
     },
     {
       "name": "void-nextjs",
       "source": "./packages/packs/pack-nextjs-pwa",
       "description": "Next.js 16 + PWA conventions: Server Actions wrappers, withWebhookSafety, shadcn/Radix @repo/ui, Tappable, Sentry init, mobile-first dual-quality tokens.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "category": "stack",
-      "tags": ["nextjs", "pwa", "shadcn", "radix"]
+      "tags": [
+        "nextjs",
+        "pwa",
+        "shadcn",
+        "radix"
+      ]
     }
   ]
 }
