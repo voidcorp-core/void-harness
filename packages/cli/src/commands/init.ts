@@ -27,6 +27,7 @@ import {
 } from '../lib/packs.js';
 import { mergeSettings, readSettings, settingsPathFor, writeSettings } from '../lib/settings.js';
 import { patchClaudeMd } from '../lib/claude-md.js';
+import { banner, blank, c, footer, glyph, line, meta } from '../lib/render.js';
 
 interface InitOptions {
   readonly explicitPacks: readonly string[];
@@ -95,9 +96,10 @@ export async function init(args: readonly string[]): Promise<void> {
   const opts = parseArgs(args);
   const projectRoot = process.cwd();
 
-  p.intro('void-harness init');
-  p.log.info(`project        : ${projectRoot}`);
-  p.log.info(`marketplace    : ${opts.marketplaceRepo}`);
+  banner('init');
+  meta('project', projectRoot);
+  meta('marketplace', opts.marketplaceRepo);
+  blank();
 
   // Locate the harness source (for PHILOSOPHY.md + PROJECT-DOCTRINE template).
   const sourceRoot = await findCoreSource();
@@ -105,7 +107,6 @@ export async function init(args: readonly string[]): Promise<void> {
   // 1. Choose packs
   const packs = await choosePacks(projectRoot, opts);
   const enabledPlugins = [CORE_PLUGIN_NAME, ...packs.map((pk) => pk.name)];
-  p.log.info(`plugins active : ${enabledPlugins.join(', ')}`);
 
   // 2. Write .void/config.json
   await writeConfig(projectRoot, packs, opts);
@@ -118,13 +119,15 @@ export async function init(args: readonly string[]): Promise<void> {
   const existing = await readSettings(settingsPath);
   const merged = mergeSettings(existing, { enabledPlugins, marketplaceRepo: opts.marketplaceRepo });
   await writeSettings(settingsPath, merged);
-  p.log.success(`settings.json  : merged (extraKnownMarketplaces.${MARKETPLACE_NAME} + enabledPlugins)`);
+  line(`${c.green(glyph.check)}  ${c.dim('settings.json'.padEnd(18))}extraKnownMarketplaces.${MARKETPLACE_NAME} + enabledPlugins merged`);
 
   // 5. Patch CLAUDE.md
   const claudeMdResult = await patchClaudeMd(projectRoot, { enabledPlugins, enabledPacks: packs });
-  p.log.success(`CLAUDE.md      : ${claudeMdResult}`);
+  line(`${c.green(glyph.check)}  ${c.dim('CLAUDE.md'.padEnd(18))}${claudeMdResult}`);
 
-  p.outro('Next: restart Claude Code. Skills appear as /void:tdd, /void-nextjs:..., etc.');
+  blank();
+  meta('plugins', enabledPlugins.join(', '));
+  footer(`restart Claude Code ${glyph.emdash} skills appear as ${c.bold('/void:<name>')}, ${c.bold('/void-<pack>:<name>')}`);
 }
 
 async function choosePacks(projectRoot: string, opts: InitOptions): Promise<readonly PackDescriptor[]> {
@@ -155,11 +158,14 @@ async function choosePacks(projectRoot: string, opts: InitOptions): Promise<read
 
   const selected = await p.multiselect({
     message: 'Activate packs (core is always active):',
-    options: PACKS.map((pack) => ({
-      value: pack.name,
-      label: pack.label,
-      hint: detected.has(pack.name) ? 'detected' : undefined,
-    })),
+    options: PACKS.map((pack) => {
+      const base: { value: string; label: string; hint?: string } = {
+        value: pack.name,
+        label: pack.label,
+      };
+      if (detected.has(pack.name)) base.hint = 'detected';
+      return base;
+    }),
     initialValues: PACKS.filter((pack) => detected.has(pack.name)).map((pk) => pk.name),
     required: false,
   });
@@ -177,6 +183,9 @@ async function writeConfig(projectRoot: string, packs: readonly PackDescriptor[]
   const configPath = join(voidDir, 'config.json');
   await mkdir(voidDir, { recursive: true });
 
+  const tag = (status: string) =>
+    line(`${c.green(glyph.check)}  ${c.dim('.void/config.json'.padEnd(18))}${status}`);
+
   // --force OR first-time: write the full scaffold from DEFAULT_CONFIG.
   if (!existsSync(configPath) || opts.force) {
     const config = structuredClone(DEFAULT_CONFIG) as Record<string, unknown> & {
@@ -184,7 +193,7 @@ async function writeConfig(projectRoot: string, packs: readonly PackDescriptor[]
     };
     for (const pack of packs) config.packs[`@voidcorp/${pack.name}`] = '^0.1.0';
     await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`);
-    p.log.success(`.void/config.json: written`);
+    tag('written');
     return;
   }
 
@@ -194,7 +203,7 @@ async function writeConfig(projectRoot: string, packs: readonly PackDescriptor[]
   try {
     existing = JSON.parse(await readFile(configPath, 'utf8'));
   } catch {
-    p.log.warn(`.void/config.json: unreadable, leaving untouched (use --force to overwrite)`);
+    line(`${c.yellow(glyph.up)}  ${c.dim('.void/config.json'.padEnd(18))}unreadable, leaving untouched (use --force to overwrite)`);
     return;
   }
   const currentPacks = { ...(existing.packs ?? {}) };
@@ -207,12 +216,12 @@ async function writeConfig(projectRoot: string, packs: readonly PackDescriptor[]
     }
   }
   if (added.length === 0) {
-    p.log.info(`.void/config.json: already has selected packs, unchanged`);
+    tag(c.dim('already has selected packs, unchanged'));
     return;
   }
   const merged = { ...existing, packs: currentPacks };
   await writeFile(configPath, `${JSON.stringify(merged, null, 2)}\n`);
-  p.log.success(`.void/config.json: merged (added ${added.join(', ')})`);
+  tag(`merged (added ${c.bold(added.join(', '))})`);
 }
 
 async function installDoctrineFiles(projectRoot: string, sourceRoot: string): Promise<void> {
@@ -222,14 +231,14 @@ async function installDoctrineFiles(projectRoot: string, sourceRoot: string): Pr
   const philosophyDst = join(voidDir, 'PHILOSOPHY.md');
   if (existsSync(philosophySrc)) {
     await cp(philosophySrc, philosophyDst);
-    p.log.success(`.void/PHILOSOPHY.md: written (managed)`);
+    line(`${c.green(glyph.check)}  ${c.dim('PHILOSOPHY.md'.padEnd(18))}written (managed)`);
   }
   const templateSrc = join(sourceRoot, 'PROJECT-DOCTRINE.template.md');
   const doctrineDst = join(voidDir, 'PROJECT-DOCTRINE.md');
   if (existsSync(doctrineDst)) {
-    p.log.info(`.void/PROJECT-DOCTRINE.md: exists (preserved)`);
+    line(`${c.dim(glyph.dot)}  ${c.dim('PROJECT-DOCTRINE'.padEnd(18))}${c.dim('exists (preserved)')}`);
   } else if (existsSync(templateSrc)) {
     await cp(templateSrc, doctrineDst);
-    p.log.success(`.void/PROJECT-DOCTRINE.md: created from template`);
+    line(`${c.green(glyph.check)}  ${c.dim('PROJECT-DOCTRINE'.padEnd(18))}created from template`);
   }
 }

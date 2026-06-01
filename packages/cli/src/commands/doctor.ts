@@ -17,6 +17,7 @@ import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, PACKS, enabledPluginsKey } from '..
 import { readSettings, settingsPathFor } from '../lib/settings.js';
 import { fetchRemoteMarketplace } from '../lib/remote.js';
 import { compareVersions, normalizeVersion } from '../lib/version.js';
+import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
 
 interface CheckResult {
   readonly name: string;
@@ -94,20 +95,19 @@ export async function doctor(args: readonly string[]): Promise<void> {
     checks.push(await checkRemoteVersions(root));
   }
 
-  console.log(`void-harness doctor\n`);
-  for (const c of checks) {
-    const mark = c.ok ? '✓' : '✗';
-    console.log(`  ${mark} ${c.name.padEnd(20)} ${c.message}`);
-    if (!c.ok && c.fix) console.log(`    → fix: ${c.fix}`);
+  banner('doctor');
+  blank();
+  for (const check of checks) {
+    const markFn = check.ok ? c.green(glyph.check) : c.red('x');
+    line(`${markFn}  ${c.dim(check.name.padEnd(18))}${check.message}`);
+    if (!check.ok && check.fix) line(c.dim(`     ${glyph.to} ${check.fix}`));
   }
 
-  const blockers = checks.filter((c) => !c.ok).length;
-  console.log(``);
+  const blockers = checks.filter((ck) => !ck.ok).length;
   if (blockers === 0) {
-    console.log(`all checks passed.`);
-    console.log(`Restart Claude Code if needed. Skills appear as /void:<name> and /void-<stack>:<name>.`);
+    footer(c.dim('all checks passed'));
   } else {
-    console.log(`${blockers} check(s) failed.`);
+    footer(c.red(`${blockers} check${blockers > 1 ? 's' : ''} failed`));
     process.exit(1);
   }
 }
