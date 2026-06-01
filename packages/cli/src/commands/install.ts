@@ -118,7 +118,11 @@ async function writeManifest(pluginRoot: string, version: string): Promise<void>
   for (const file of hookFiles) {
     const wiring = hookWiring[file];
     if (!wiring) continue;
-    const bucket = (eventBuckets[wiring.event] ??= []);
+    let bucket = eventBuckets[wiring.event];
+    if (!bucket) {
+      bucket = [];
+      eventBuckets[wiring.event] = bucket;
+    }
     bucket.push({
       ...(wiring.matcher !== undefined ? { matcher: wiring.matcher } : {}),
       hooks: [{ type: 'command', command: `\${CLAUDE_PLUGIN_ROOT}/hooks/${file}` }],

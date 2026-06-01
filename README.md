@@ -32,15 +32,18 @@ Inspired by Wing Chun (economy of means), TigerStyle (TigerBeetle), Citypaul dot
 void-harness/
 ├── packages/
 │   ├── cli/                       # @voidcorp/harness — CLI npm
-│   ├── core/                      # @voidcorp/harness-core
-│   │   └── claude/
-│   │       ├── skills/            # 20 craftsman skills
-│   │       ├── agents/            # senior-reviewer, security-reviewer, architect-critic
-│   │       ├── hooks/             # tdd-guard, tigerstyle-check, etc.
-│   │       └── modules/           # CLAUDE.md modules (composable)
+│   ├── core/                      # void plugin (static assets, not an npm package)
+│   │   ├── skills/                # craftsman skills
+│   │   ├── agents/                # planned: senior-reviewer, security-reviewer, architect-critic
+│   │   ├── hooks/                 # tdd-guard, no-any-grep, no-console-log-grep, etc.
+│   │   └── modules/               # CLAUDE.md modules (composable)
 │   └── packs/
-│       ├── pack-nextjs-pwa/       # Next.js 16 / Supabase / shadcn / PWA
-│       └── pack-monorepo/         # Turbo / Bun / ADR / 5+5 layout
+│       ├── pack-monorepo/         # Turbo / Bun / ADR / 5+5 layout
+│       ├── pack-react/            # React 19 component-layer purity
+│       ├── pack-nextjs/           # Next.js App Router conventions
+│       ├── pack-server/           # backend service conventions
+│       ├── pack-pwa/              # installable PWA conventions
+│       └── pack-mobile/           # Expo / React Native conventions
 ├── plans/                         # specs + skill audits
 ├── test/                          # automated skill tests
 ├── docs/                          # PHILOSOPHY / ARCHITECTURE / CONTRIBUTING
@@ -56,7 +59,7 @@ npx @voidcorp/harness install
 # In a new project, activate the packs you need
 cd my-new-project
 npx @voidcorp/harness init                # creates voidcorp.config.json
-npx @voidcorp/harness add pack-nextjs-pwa
+npx @voidcorp/harness add pack-nextjs
 npx @voidcorp/harness add pack-monorepo
 
 # Update
@@ -65,7 +68,7 @@ npx @voidcorp/harness update
 
 ## Relation to other VoidCorp repos
 
-- [`voidcorp-core/void-starter`](https://github.com/voidcorp-core/void-starter) — Next.js template. Its CLAUDE.md will reference `@voidcorp/pack-nextjs-pwa` + `@voidcorp/pack-monorepo`.
+- [`voidcorp-core/void-starter`](https://github.com/voidcorp-core/void-starter) — Next.js template. Its CLAUDE.md will reference `@voidcorp/pack-nextjs` + `@voidcorp/pack-monorepo`.
 - [`voidcorp-core/voidcorp`](https://github.com/voidcorp-core/voidcorp) — marketing site, will use `@voidcorp/pack-marketing-site` (future).
 
 ## Anti-bloat discipline

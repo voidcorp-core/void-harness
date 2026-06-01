@@ -17,7 +17,7 @@
     "build": "pnpm -r --filter '!void-harness' build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "pnpm -r --filter '!void-harness' lint",
+    "lint": "biome lint",
     "typecheck": "pnpm -r --filter '!void-harness' typecheck",
     "anti-bloat:check": "bash scripts/anti-bloat-check.sh",
     "changeset": "changeset",
@@ -25,6 +25,7 @@
     "release": "changeset publish"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.16",
     "@changesets/cli": "^2.27.0",
     "@types/node": "^22.0.0",
     "typescript": "^5.6.0",
@@ -34,7 +35,7 @@
     "node": ">=20",
     "pnpm": ">=9"
   },
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@9.15.9",
   "keywords": [
     "claude-code",
     "anthropic",

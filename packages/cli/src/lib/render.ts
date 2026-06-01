@@ -61,6 +61,7 @@ export function termWidth(): number {
 
 function pad(s: string, n: number): string {
   // Pad respecting visible length (strip ANSI for measurement).
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: matching the ANSI ESC (\x1b) is the whole point; we strip color codes to measure visible width.
   const visible = s.replace(/\x1b\[[0-9;]*m/g, '');
   const diff = n - visible.length;
   return diff > 0 ? s + ' '.repeat(diff) : s;

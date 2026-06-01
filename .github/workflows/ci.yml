@@ -13,9 +13,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup pnpm
+        # No `version:` here: action-setup reads it from packageManager in
+        # package.json (single source of truth). Specifying both errors with
+        # ERR_PNPM_BAD_PM_VERSION on action-setup@v4.
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -48,6 +49,9 @@ jobs:
           for f in packages/core/hooks/*.sh; do
             bash -n "$f" || { echo "FAIL: syntax in $f" >&2; exit 1; }
           done
+
+      - name: Lint — Biome
+        run: pnpm lint
 
       - name: Skill tests
         run: pnpm vitest run

@@ -1,86 +1,102 @@
 /**
  * Tests for packages/core/hooks/tdd-guard.sh
  *
- * The hook is shell. Tests run it as a subprocess with controlled env vars
- * and inspect stdout / stderr / exit code.
+ * The hook is a Claude Code PreToolUse hook: it reads the tool-call JSON
+ * from stdin (https://code.claude.com/docs/en/hooks) and inspects
+ * `.tool_name` + `.tool_input.file_path`. Tests run it as a subprocess,
+ * pipe that JSON in, and assert on exit code / stderr.
+ *
+ * Path contract: file_path is relative to the project root, and the hook
+ * runs with cwd = project root (matches the `apps/*​/src/**` business glob
+ * and the anchored regexes used by the sibling hooks).
  *
  * Cases (mapping to plans/skill-audits/tdd.md verification checklist):
- *   1. strict mode + production edit without sibling test → block (exit 1)
- *   2. strict mode + production edit with sibling test staged → allow (exit 0)
- *   3. souple mode + production edit without sibling test → warn (exit 2)
- *   4. exploratory mode (header marker) → allow (exit 0)
- *   5. doc-only bypass → allow (exit 0)
- *   6. config file bypass → allow (exit 0)
- *   7. test file itself bypass → allow (exit 0)
- *   8. type-only .d.ts bypass → allow (exit 0)
- *   9. spike path bypass → allow (exit 0)
- *   10. migration path bypass → allow (exit 0)
- *
- * These are smoke tests. Full fixture-based runs land in Phase E follow-up.
+ *   1. auto/strict + business edit WITHOUT sibling test  → block (exit 2)
+ *   2. auto/strict + business edit WITH sibling test      → allow (exit 0)
+ *   3. souple mode (header marker) + no sibling test       → warn  (exit 0)
+ *   4. exploratory mode (header marker)                    → allow (exit 0)
+ *   5. non-Edit/Write tool                                 → allow (exit 0)
+ *   6. doc-only bypass                                     → allow (exit 0)
+ *   7. test file itself bypass                             → allow (exit 0)
+ *   8. type-only .d.ts bypass                              → allow (exit 0)
+ *   9. outside business path bypass                        → allow (exit 0)
  */
 
 import { describe, expect, it } from 'vitest';
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
-const HOOK = resolve(
-  process.cwd(),
-  'packages/core/hooks/tdd-guard.sh',
-);
+const HOOK = resolve(process.cwd(), 'packages/core/hooks/tdd-guard.sh');
 
 function setupFixture(): string {
   const dir = mkdtempSync(join(tmpdir(), 'tdd-guard-test-'));
-  // initialize a throwaway git repo so the hook's `git diff --cached` calls work
+  // A throwaway git repo so any git-aware probing the hook does is satisfied.
   execSync('git init -q', { cwd: dir });
   execSync('git config user.email test@example.com', { cwd: dir });
   execSync('git config user.name Test', { cwd: dir });
   return dir;
 }
 
-function runHook(
-  cwd: string,
-  envOverrides: Record<string, string>,
-): { code: number; stdout: string; stderr: string } {
-  try {
-    const stdout = execSync(`bash ${HOOK}`, {
-      cwd,
-      env: { ...process.env, ...envOverrides },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    }).toString();
-    return { code: 0, stdout, stderr: '' };
-  } catch (e) {
-    const err = e as { status: number; stdout: Buffer; stderr: Buffer };
-    return {
-      code: err.status ?? 1,
-      stdout: err.stdout?.toString() ?? '',
-      stderr: err.stderr?.toString() ?? '',
-    };
-  }
+/** Write `content` to `relPath` under `dir`, creating parent dirs. */
+function place(dir: string, relPath: string, content: string): void {
+  const abs = join(dir, relPath);
+  mkdirSync(dirname(abs), { recursive: true });
+  writeFileSync(abs, content);
 }
 
-describe('tdd-guard.sh smoke tests', () => {
-  it('skips when VOIDCORP_HOOK_FILE is unset', () => {
+interface ToolCall {
+  readonly tool: string;
+  readonly file: string;
+  readonly content?: string;
+}
+
+/** Run the hook with the Claude Code tool-call JSON piped to stdin. */
+function runHook(
+  cwd: string,
+  call: ToolCall,
+): { code: number; stdout: string; stderr: string } {
+  const input = JSON.stringify({
+    tool_name: call.tool,
+    tool_input: { file_path: call.file, content: call.content ?? '' },
+  });
+  // spawnSync (not execSync) so stderr is captured even on a 0 exit: the
+  // souple-mode warning is written to stderr while the hook still allows.
+  const proc = spawnSync('bash', [HOOK], { cwd, input, encoding: 'utf8' });
+  return {
+    code: proc.status ?? 1,
+    stdout: proc.stdout ?? '',
+    stderr: proc.stderr ?? '',
+  };
+}
+
+describe('tdd-guard.sh', () => {
+  it('BLOCKS a business edit with no sibling test (auto mode → exit 2)', () => {
     const dir = setupFixture();
     try {
-      const result = runHook(dir, {});
-      expect(result.code).toBe(0);
+      place(dir, 'apps/web/src/feature.ts', 'export function f() {}');
+      const result = runHook(dir, {
+        tool: 'Edit',
+        file: 'apps/web/src/feature.ts',
+        content: 'export function f() {}',
+      });
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain('missing sibling test');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('bypasses doc-only changes (markdown)', () => {
+  it('allows a business edit when the sibling test exists (exit 0)', () => {
     const dir = setupFixture();
     try {
-      const file = join(dir, 'docs/README.md');
-      mkdirSync(join(dir, 'docs'));
-      writeFileSync(file, '# hello');
+      place(dir, 'apps/web/src/feature.ts', 'export function f() {}');
+      place(dir, 'apps/web/src/feature.test.ts', 'test("f", () => {});');
       const result = runHook(dir, {
-        VOIDCORP_HOOK_FILE: file,
-        VOIDCORP_HOOK_TOOL: 'Edit',
-        VOIDCORP_HOOK_PHASE: 'pre',
+        tool: 'Edit',
+        file: 'apps/web/src/feature.ts',
+        content: 'export function f() {}',
       });
       expect(result.code).toBe(0);
     } finally {
@@ -88,16 +104,30 @@ describe('tdd-guard.sh smoke tests', () => {
     }
   });
 
-  it('bypasses test files themselves', () => {
+  it('warns but allows in souple mode without a sibling test (exit 0)', () => {
     const dir = setupFixture();
     try {
-      const file = join(dir, 'apps/web/src/checkout.test.ts');
-      mkdirSync(join(dir, 'apps/web/src'), { recursive: true });
-      writeFileSync(file, 'test("x", () => {});');
+      place(dir, 'apps/web/src/feature.ts', '// tdd-mode: souple\nexport function f() {}');
       const result = runHook(dir, {
-        VOIDCORP_HOOK_FILE: file,
-        VOIDCORP_HOOK_TOOL: 'Edit',
-        VOIDCORP_HOOK_PHASE: 'pre',
+        tool: 'Edit',
+        file: 'apps/web/src/feature.ts',
+        content: 'export function f() {}',
+      });
+      expect(result.code).toBe(0);
+      expect(result.stderr).toContain('warning');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('bypasses files with the explicit exploratory marker (exit 0)', () => {
+    const dir = setupFixture();
+    try {
+      place(dir, 'apps/web/src/spike.ts', '// tdd-mode: exploratory\nexport function f() {}');
+      const result = runHook(dir, {
+        tool: 'Edit',
+        file: 'apps/web/src/spike.ts',
+        content: 'export function f() {}',
       });
       expect(result.code).toBe(0);
     } finally {
@@ -105,16 +135,24 @@ describe('tdd-guard.sh smoke tests', () => {
     }
   });
 
-  it('bypasses .d.ts type-only files', () => {
+  it('ignores tools other than Edit/Write (exit 0)', () => {
     const dir = setupFixture();
     try {
-      const file = join(dir, 'apps/web/src/types.d.ts');
-      mkdirSync(join(dir, 'apps/web/src'), { recursive: true });
-      writeFileSync(file, 'export type X = string;');
+      place(dir, 'apps/web/src/feature.ts', 'export function f() {}');
+      const result = runHook(dir, { tool: 'Read', file: 'apps/web/src/feature.ts' });
+      expect(result.code).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('bypasses doc-only changes (markdown, exit 0)', () => {
+    const dir = setupFixture();
+    try {
       const result = runHook(dir, {
-        VOIDCORP_HOOK_FILE: file,
-        VOIDCORP_HOOK_TOOL: 'Edit',
-        VOIDCORP_HOOK_PHASE: 'pre',
+        tool: 'Edit',
+        file: 'docs/README.md',
+        content: '# hello',
       });
       expect(result.code).toBe(0);
     } finally {
@@ -122,16 +160,13 @@ describe('tdd-guard.sh smoke tests', () => {
     }
   });
 
-  it('bypasses files with explicit exploratory marker', () => {
+  it('bypasses test files themselves (exit 0)', () => {
     const dir = setupFixture();
     try {
-      const file = join(dir, 'apps/web/src/feature.ts');
-      mkdirSync(join(dir, 'apps/web/src'), { recursive: true });
-      writeFileSync(file, '// tdd-mode: exploratory\nexport function f() {}');
       const result = runHook(dir, {
-        VOIDCORP_HOOK_FILE: file,
-        VOIDCORP_HOOK_TOOL: 'Edit',
-        VOIDCORP_HOOK_PHASE: 'pre',
+        tool: 'Edit',
+        file: 'apps/web/src/checkout.test.ts',
+        content: 'test("x", () => {});',
       });
       expect(result.code).toBe(0);
     } finally {
@@ -139,17 +174,13 @@ describe('tdd-guard.sh smoke tests', () => {
     }
   });
 
-  it('skips when not in a business path (no config, default glob does not match)', () => {
+  it('bypasses .d.ts type-only files (exit 0)', () => {
     const dir = setupFixture();
     try {
-      // tools/ is outside the default business glob apps/*/src/**
-      const file = join(dir, 'tools/build.ts');
-      mkdirSync(join(dir, 'tools'));
-      writeFileSync(file, 'export function build() {}');
       const result = runHook(dir, {
-        VOIDCORP_HOOK_FILE: file,
-        VOIDCORP_HOOK_TOOL: 'Edit',
-        VOIDCORP_HOOK_PHASE: 'pre',
+        tool: 'Edit',
+        file: 'apps/web/src/types.d.ts',
+        content: 'export type X = string;',
       });
       expect(result.code).toBe(0);
     } finally {
@@ -157,7 +188,22 @@ describe('tdd-guard.sh smoke tests', () => {
     }
   });
 
-  it('hook script exists and is executable', () => {
+  it('skips files outside the business glob (exit 0)', () => {
+    const dir = setupFixture();
+    try {
+      // tools/ is outside the default business glob apps/*​/src/**
+      const result = runHook(dir, {
+        tool: 'Edit',
+        file: 'tools/build.ts',
+        content: 'export function build() {}',
+      });
+      expect(result.code).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('hook script exists', () => {
     expect(existsSync(HOOK)).toBe(true);
   });
 });

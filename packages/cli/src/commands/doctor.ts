@@ -8,6 +8,8 @@
 //   4. CLAUDE.md contains the void-harness block
 //   5. gh CLI is available and authenticated (required for private repo
 //      marketplace fetch)
+//   6. jq is available (required by the PreToolUse + pre-commit hooks, which
+//      parse the Claude Code tool-call JSON from stdin)
 
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -90,6 +92,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
   }
 
   checks.push(checkGh());
+  checks.push(checkJq());
 
   if (!skipRemote) {
     checks.push(await checkRemoteVersions(root));
@@ -196,6 +199,23 @@ function checkGh(): CheckResult {
       ok: false,
       message: 'gh CLI not authenticated (required for private marketplace)',
       fix: 'gh auth login',
+    };
+  }
+}
+
+function checkJq(): CheckResult {
+  // Every PreToolUse hook (tdd-guard, no-any, boundary-direction-check, ...)
+  // parses the Claude Code tool-call JSON from stdin with jq. Without it the
+  // hooks fail open and silently stop enforcing anything.
+  try {
+    execSync('jq --version', { stdio: 'ignore' });
+    return { name: 'jq', ok: true, message: 'available (required by hooks)' };
+  } catch {
+    return {
+      name: 'jq',
+      ok: false,
+      message: 'jq not installed: enforcement hooks will not run',
+      fix: 'brew install jq OR https://jqlang.github.io/jq/download/',
     };
   }
 }

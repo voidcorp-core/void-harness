@@ -75,16 +75,16 @@ export function detectPackageManager(root: string, pkg = readPkg(root)): Package
 
 export function detectTestRunner(root: string, pkg = readPkg(root)): TestRunner {
   const deps = allDeps(pkg);
-  if (deps['vitest'] !== undefined) return 'vitest';
-  if (deps['jest'] !== undefined || deps['@jest/core'] !== undefined) return 'jest';
+  if (deps.vitest !== undefined) return 'vitest';
+  if (deps.jest !== undefined || deps['@jest/core'] !== undefined) return 'jest';
   // bun test is built-in; no dep needed
   return 'vitest';
 }
 
 export function detectE2ERunner(root: string, pkg = readPkg(root)): E2ERunner {
   const deps = allDeps(pkg);
-  if (deps['@playwright/test'] !== undefined || deps['playwright'] !== undefined) return 'playwright';
-  if (deps['cypress'] !== undefined) return 'cypress';
+  if (deps['@playwright/test'] !== undefined || deps.playwright !== undefined) return 'playwright';
+  if (deps.cypress !== undefined) return 'cypress';
   return 'none';
 }
 
