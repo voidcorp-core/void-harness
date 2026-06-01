@@ -3,26 +3,28 @@
 Non-obvious decisions taken on the harness itself, where a credible alternative
 existed. One entry per decision. Newest first. See CLAUDE.md meta-rules.
 
-## 2026-06-01: pack peer deps use an explicit `^` range, not the workspace: protocol (supersedes the earlier workspace:^ entry)
+## 2026-06-01: keep `workspace:^` for internal deps, guard the packed tarball in CI
 
-Context: `pack-nextjs` peer-depends on `pack-monorepo`. An earlier decision kept
-`workspace:^` and relied on `pnpm publish` to rewrite it. But `npm pack` /
-`npm publish` do NOT understand the workspace protocol, so an accidental npm
-publish would ship `workspace:^` verbatim, a broken package. "Only ever publish
-with pnpm" is tribal knowledge that will eventually be violated.
+Context: `pack-nextjs` peer-depends on `pack-monorepo`. The risk flagged by audit:
+`npm pack`/`npm publish` do not understand the workspace protocol, so `workspace:^`
+would leak verbatim into a tarball published with npm.
 
-Decision: use an explicit `^<version>` range (`^0.5.4`). Verified empirically
-that pnpm still links the local workspace package for a plain semver peer dep
-(build + typecheck of pack-nextjs against `@voidcorp/pack-monorepo/result`
-pass), so dev ergonomics are unchanged. `scripts/bump-version.mjs` now rewrites
-internal `@voidcorp/*` ranges to `^<next>` on every bump (`alignInternalRanges`,
-unit-tested), so the range never goes stale. A CI + release gate
-(`scripts/check-publish-safety.mjs`) fails if the `workspace:` protocol reappears
-in any publishable `package.json`.
+Attempt rejected: switch to an explicit `^<version>` range so the source is
+npm-safe. Verified empirically that this BREAKS: `pack-monorepo` is not published
+to npm, and pnpm 9 defaults to `link-workspace-packages=false`, so a plain range
+resolves against the registry and `pnpm install --frozen-lockfile` fails with
+`ERR_PNPM_OUTDATED_LOCKFILE` / unresolved package. The workspace: protocol is
+therefore REQUIRED for unpublished internal deps; the earlier "use a literal
+range" idea (and a bump-version range-rewriter) was reverted.
 
-Why this supersedes workspace:^: the published artifact is now correct
-regardless of the publish tool, the "must use pnpm" constraint is removed, and
-the no-workspace invariant is machine-enforced rather than documented.
+Decision: keep `workspace:^` in source. pnpm pack/publish rewrites it to
+`^<version>` (verified: the packed tarball carries `^0.5.4`). A CI + release gate
+(`scripts/check-publish-safety.mjs`) packs each npm package with pnpm and fails
+if a `workspace:` specifier survives into the tarball. This verifies the artifact
+we actually ship and catches a conversion regression (bad `.npmrc`, pnpm change).
+It does NOT, and cannot, stop a manual `npm publish` that bypasses our tooling:
+RELEASING.md mandates `pnpm -r publish`, and that process rule is the boundary of
+what an in-repo check can enforce.
 
 ## 2026-06-01: .void/config.json pins marketplace plugins, not npm packages
 

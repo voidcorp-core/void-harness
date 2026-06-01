@@ -1,17 +1,22 @@
 #!/usr/bin/env node
-// Publish safety: fail if any publishable package.json uses the `workspace:`
-// protocol in a dependency field.
+// Release safety: verify the artifact pnpm actually publishes carries no
+// `workspace:` specifier.
 //
-// Internal @voidcorp/* deps must use explicit ^ ranges (kept current by
-// bump-version.mjs) so the published npm tarball is correct regardless of the
-// publish tool. `npm pack`/`npm publish` do NOT rewrite the workspace protocol,
-// so a leaked `workspace:` would ship a broken package. This gate makes that a
-// hard failure instead of a runtime surprise for consumers.
+// Internal packages MUST use the workspace: protocol in source: they are not on
+// npm, so pnpm has to link them locally (a plain ^range would resolve against
+// the registry and fail). pnpm pack/publish rewrites `workspace:^` to a real
+// range (^x.y.z) at pack time. This script packs each publishable package the
+// same way `pnpm publish` would and fails if a `workspace:` specifier survives
+// into the tarball — that would ship a broken package to npm consumers.
 //
-// Run by the `release` script (before publish) and in CI.
+// It catches a regression in the conversion (a bad .npmrc, a pnpm version
+// change), not a manual `npm publish` (which bypasses our tooling entirely;
+// RELEASING.md mandates pnpm). Run by the `release` script and in CI.
 
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { execSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -29,21 +34,31 @@ const DEP_FIELDS = ['dependencies', 'devDependencies', 'peerDependencies', 'opti
 const failures = [];
 
 for (const rel of PACKAGES) {
-  const pkg = JSON.parse(readFileSync(resolve(ROOT, rel, 'package.json'), 'utf8'));
-  for (const field of DEP_FIELDS) {
-    for (const [name, range] of Object.entries(pkg[field] ?? {})) {
-      if (String(range).startsWith('workspace:')) {
-        failures.push(`${rel}: ${field}.${name} = "${range}"`);
+  const dir = resolve(ROOT, rel);
+  const out = mkdtempSync(join(tmpdir(), 'publish-check-'));
+  try {
+    execSync(`pnpm pack --pack-destination "${out}"`, { cwd: dir, stdio: 'ignore' });
+    const tgz = readdirSync(out).find((f) => f.endsWith('.tgz'));
+    if (!tgz) throw new Error(`no tarball produced for ${rel}`);
+    execSync(`tar -xzf "${join(out, tgz)}" -C "${out}" package/package.json`, { stdio: 'ignore' });
+    const pkg = JSON.parse(readFileSync(join(out, 'package', 'package.json'), 'utf8'));
+    for (const field of DEP_FIELDS) {
+      for (const [name, range] of Object.entries(pkg[field] ?? {})) {
+        if (String(range).startsWith('workspace:')) {
+          failures.push(`${rel}: ${field}.${name} = "${range}"`);
+        }
       }
     }
+  } finally {
+    rmSync(out, { recursive: true, force: true });
   }
 }
 
 if (failures.length > 0) {
-  console.error('check-publish-safety: workspace: protocol found in a publishable package.json:');
+  console.error('check-publish-safety: a workspace: specifier survived into a packed tarball:');
   for (const f of failures) console.error(`  ${f}`);
-  console.error('Use an explicit ^ range (bump-version.mjs keeps it current); workspace: leaks to npm.');
+  console.error('pnpm rewrites workspace:^ at pack time; publish via pnpm, never npm publish.');
   process.exit(1);
 }
 
-console.log(`check-publish-safety: ${PACKAGES.length} package(s) clean, no workspace: protocol.`);
+console.log(`check-publish-safety: ${PACKAGES.length} packed tarball(s) clean (workspace:^ correctly rewritten).`);
