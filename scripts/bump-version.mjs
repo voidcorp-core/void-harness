@@ -1,23 +1,20 @@
 #!/usr/bin/env node
-// Lockstep version bumper for the void-harness marketplace.
+// Lockstep version bumper for void-harness. Pre-1.0, ONE version governs
+// everything: marketplace.json, each plugin's plugin.json, each npm package
+// in packages/. CLI, runtime helpers, and Claude Code skills ship together.
 //
-// Reads the current version from .claude-plugin/marketplace.json (first
-// plugin, which we treat as the source of truth) and writes a new version
-// into every file that carries a plugin version:
-//
+// Files touched (any that exist):
 //   - .claude-plugin/marketplace.json                          (every plugin)
 //   - packages/core/.claude-plugin/plugin.json
-//   - packages/packs/pack-monorepo/.claude-plugin/plugin.json
-//   - packages/packs/pack-nextjs-pwa/.claude-plugin/plugin.json
+//   - packages/packs/<pack>/.claude-plugin/plugin.json         (six packs)
+//   - packages/cli/package.json                                (npm)
+//   - packages/packs/<pack>/package.json                       (npm — three current)
 //
 // Usage:
 //   node scripts/bump-version.mjs patch
 //   node scripts/bump-version.mjs minor
 //   node scripts/bump-version.mjs major
-//   node scripts/bump-version.mjs 0.2.0   (explicit)
-//
-// CLI package (`packages/cli/package.json`) is versioned independently via
-// changesets — this script does NOT touch it.
+//   node scripts/bump-version.mjs 0.6.0   (explicit)
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -28,6 +25,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
 
 const MARKETPLACE = resolve(ROOT, '.claude-plugin/marketplace.json');
+
 const PLUGIN_MANIFESTS = [
   resolve(ROOT, 'packages/core/.claude-plugin/plugin.json'),
   resolve(ROOT, 'packages/packs/pack-monorepo/.claude-plugin/plugin.json'),
@@ -36,6 +34,14 @@ const PLUGIN_MANIFESTS = [
   resolve(ROOT, 'packages/packs/pack-server/.claude-plugin/plugin.json'),
   resolve(ROOT, 'packages/packs/pack-pwa/.claude-plugin/plugin.json'),
   resolve(ROOT, 'packages/packs/pack-mobile/.claude-plugin/plugin.json'),
+];
+
+const NPM_PACKAGES = [
+  resolve(ROOT, 'packages/cli/package.json'),
+  resolve(ROOT, 'packages/packs/pack-monorepo/package.json'),
+  resolve(ROOT, 'packages/packs/pack-nextjs/package.json'),
+  // pack-react / pack-server / pack-pwa / pack-mobile are skill-only packs
+  // (no npm package.json yet). When they grow runtime code, add them here.
 ];
 
 function parseVersion(v) {
@@ -49,8 +55,7 @@ function bump(current, kind) {
   if (kind === 'major') return `${maj + 1}.0.0`;
   if (kind === 'minor') return `${maj}.${min + 1}.0`;
   if (kind === 'patch') return `${maj}.${min}.${patch + 1}`;
-  // Explicit version
-  parseVersion(kind);
+  parseVersion(kind);   // validate explicit version
   return kind;
 }
 
@@ -60,6 +65,17 @@ async function readJson(path) {
 
 async function writeJson(path, value) {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+async function setVersion(path, next, label) {
+  if (!existsSync(path)) {
+    console.warn(`  ! missing ${label}, skipped`);
+    return;
+  }
+  const json = await readJson(path);
+  json.version = next;
+  await writeJson(path, json);
+  console.log(`  ✓ ${label}`);
 }
 
 async function main() {
@@ -78,39 +94,24 @@ async function main() {
 
   const next = bump(current, arg);
   if (next === current) {
-    // No-op for marketplace.json, but other manifests may still be drifted —
-    // fall through and re-sync them all.
-    console.log(`marketplace already at ${current}, ensuring plugin manifests are aligned`);
+    console.log(`marketplace already at ${current}, ensuring all manifests aligned`);
   } else {
     console.log(`bumping ${current} → ${next}`);
   }
 
-  // Lockstep sanity check: warn if plugins disagree before bumping.
-  const disagree = marketplace.plugins.filter((p) => p.version !== current);
-  if (disagree.length > 0) {
-    console.warn(
-      `warning: marketplace plugins disagree on version. Forcing all to ${next}. Mismatched:`,
-    );
-    for (const p of disagree) console.warn(`  ${p.name}: ${p.version}`);
-  }
-
-  console.log(`bumping ${current} → ${next}`);
-
-  // 1. marketplace.json
+  // 1. marketplace.json (all plugins entries)
   for (const plugin of marketplace.plugins) plugin.version = next;
   await writeJson(MARKETPLACE, marketplace);
-  console.log(`  ✓ ${MARKETPLACE.replace(ROOT + '/', '')}`);
+  console.log(`  ✓ .claude-plugin/marketplace.json`);
 
-  // 2. each plugin.json
+  // 2. each plugin manifest
   for (const path of PLUGIN_MANIFESTS) {
-    if (!existsSync(path)) {
-      console.warn(`  ! missing ${path}, skipped`);
-      continue;
-    }
-    const manifest = await readJson(path);
-    manifest.version = next;
-    await writeJson(path, manifest);
-    console.log(`  ✓ ${path.replace(ROOT + '/', '')}`);
+    await setVersion(path, next, path.replace(ROOT + '/', ''));
+  }
+
+  // 3. each npm package.json (CLI + runtime packs)
+  for (const path of NPM_PACKAGES) {
+    await setVersion(path, next, path.replace(ROOT + '/', ''));
   }
 
   console.log('');
@@ -119,7 +120,8 @@ async function main() {
   console.log(`  2. Commit: git commit -am "chore: release v${next}"`);
   console.log(`  3. Tag: git tag v${next}`);
   console.log(`  4. Push: git push && git push --tags`);
-  console.log(`  5. Consumers refresh via /plugin marketplace update in Claude Code.`);
+  console.log(`  5. (when npm publishing) pnpm -r --filter './packages/**' publish`);
+  console.log(`  6. Consumers refresh via void-harness update in their projects.`);
 }
 
 main().catch((err) => {
