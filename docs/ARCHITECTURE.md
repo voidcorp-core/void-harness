@@ -141,6 +141,7 @@ Implemented today in `.github/workflows/ci.yml` (all block the PR on failure):
 | Anti-bloat: SKILL.md size | fails if any `SKILL.md` exceeds 400 LOC |
 | Anti-bloat: hook size | fails if any `hooks/*.sh` exceeds 100 LOC |
 | Shell syntax | `bash -n` on every hook |
+| core-assets sync | regenerates `core-assets` and fails if it drifted from `packages/core` |
 | Lint | `pnpm lint` (Biome) over first-party TypeScript |
 | Build | `pnpm build` (packs must build before typecheck resolves their exports) |
 | Skill tests | `pnpm vitest run` |
