@@ -57,45 +57,60 @@ Pick one strategy per app, stick with it. The differences in practice:
 
 The void-harness default is **sliding window** via Upstash Redis or Vercel KV (`@upstash/ratelimit`). Token bucket only when burst is the intended UX.
 
-## Implementation
-
-`void-server` `defineAction` accepts a `rateLimit` option:
+## Implementation (Upstash example, no wrapper)
 
 ```ts
-export const createNote = defineAction({
-  name: 'note.create',
-  auth: 'required',
-  input: NoteInput,
-  rateLimit: { window: '1 min', max: 30 },        // per-user; key auto-derived from auth
-  handler: async ({ input, user }) => { ... },
-});
+// apps/web/src/adapters/ratelimit.ts
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
+import { env } from '@repo/core';
+
+const redis = Redis.fromEnv();
+
+export const ratelimit = {
+  perUser: new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(30, '1 m'),
+    prefix: 'rl:user',
+  }),
+  perIp: new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(5, '5 m'),
+    prefix: 'rl:ip',
+  }),
+  auth: new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(5, '5 m'),
+    prefix: 'rl:auth',
+  }),
+};
 ```
 
-For per-IP or custom keys (login, etc.):
+Use in a Server Action:
 
 ```ts
-export const login = defineFormAction({
-  name: 'auth.login',
-  auth: 'public',
-  input: LoginInput,
-  rateLimit: {
-    window: '5 min',
-    max: 5,
-    key: ({ input, headers }) => `login:${input.email}:${getClientIp(headers)}`,
-  },
-  handler: async ({ input }) => { ... },
-});
+// inside an action handler, after auth resolves session
+const { success } = await ratelimit.perUser.limit(`${session.userId}:note.create`);
+if (!success) return { ok: false as const, error: 'rate-limited' };
 ```
 
-Webhook handlers use `withWebhookSafety`'s own rate limit:
+For per-IP or composite keys (login: both IP and email):
 
 ```ts
-withWebhookSafety({
-  source: 'stripe',
-  rateLimit: { window: '1 min', max: 1000 },     // permissive; key = `source:stripe`
-  ...
-});
+const ip = headers().get('x-forwarded-for')?.split(',')[0] ?? 'unknown';
+const { success: ipOk } = await ratelimit.auth.limit(`ip:${ip}:login`);
+const { success: emailOk } = await ratelimit.auth.limit(`email:${input.email}:login`);
+if (!ipOk || !emailOk) return { ok: false as const, error: 'rate-limited' };
 ```
+
+Webhook handlers rate-limit per-source:
+
+```ts
+const { success } = await ratelimit.perUser.limit(`webhook:stripe`);
+if (!success) return NextResponse.json({ error: 'rate-limited' }, { status: 429 });
+```
+
+If you DRY this into a `defineAction` helper (recommended once the pattern repeats), the helper accepts a `rateLimit` option and applies the same primitive under the hood.
 
 ## Escalation: progressive lockout
 
@@ -125,10 +140,10 @@ Not all limiters support this natively; if your stack doesn't, implement at the 
 
 Surface 429 responses in your dashboard. Sudden spikes = either an attack OR a UX bug (unintended retries from the client). Both need attention.
 
-## Composition
+## Composition (informational)
 
 - `void:security-guidance` — rate limit is a security control; Zod is the schema control; both at every boundary.
 - `void:async-safety` — webhook + background-job retry semantics interact with rate limits.
-- `void-server:server-action` — actions accept rate limit config via `defineAction`.
-- `void-server:webhook-handler-pattern` — webhook rate limits use a different key (per-source).
+- `void-server:server-action` — actions apply rate limit before service call (layer 3 of 5).
+- `void-server:webhook-handler-pattern` — webhook rate limits use a per-source key.
 - `void:llm-cost-discipline` — LLM call rate limits are cost-control, more conservative than CPU-control limits.

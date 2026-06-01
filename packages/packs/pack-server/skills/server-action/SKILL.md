@@ -31,54 +31,88 @@ Server Actions **never** live inside `packages/`. Packages own services (pure-by
 Every Server Action goes through these layers, top to bottom, **always**:
 
 ```
-1. Auth          — defineAction or defineFormAction from @repo/auth
+1. Auth          — verify session; reject unauthenticated requests
 2. Zod ingress   — schema validates the input object (no untyped formData)
-3. Rate limit    — per-user or per-IP via @repo/auth
-4. Observability — withTraceContext + Sentry user scope (anonymized)
+3. Rate limit    — per-user or per-IP (see rate-limit-strategy)
+4. Observability — trace ID, Sentry user scope (anonymized via hash)
 5. Service call  — pure domain logic in src/services/<feature>/
 ```
 
 Skipping any of these is a security or operability bug. There are no "internal" Server Actions — anything `'use server'` is reachable from the public internet via a forged request.
 
-## Canonical skeleton
+## Canonical skeleton (vanilla — no wrapper assumed)
 
 ```ts
 // apps/web/src/actions/billing/cancel-subscription.ts
 'use server';
 
 import { z } from 'zod';
-import { defineAction } from '@repo/auth';
-import { logger } from '@repo/core/logger';
+import { cookies } from 'next/headers';
+import { logger, env } from '@repo/core';
+import * as Sentry from '@sentry/nextjs';
+import { ratelimit } from '@/adapters/ratelimit';
+import { getSession } from '@/services/auth';
 import { cancelSubscription as cancelSubscriptionService } from '@/services/billing/cancel';
-import { Result } from '@repo/core';
 
 const Input = z.object({
   subscriptionId: z.string().uuid(),
   reason: z.string().min(1).max(500).optional(),
 });
 
+export async function cancelSubscription(raw: unknown) {
+  // 1. Auth
+  const session = await getSession(cookies());
+  if (!session) return { ok: false as const, error: 'unauthenticated' };
+
+  // 2. Zod ingress
+  const parsed = Input.safeParse(raw);
+  if (!parsed.success) return { ok: false as const, error: 'invalid-input' };
+  const input = parsed.data;
+
+  // 3. Rate limit (per-user)
+  const rl = await ratelimit.check(`user:${session.userId}:billing.cancel`, { window: '1 min', max: 5 });
+  if (!rl.ok) return { ok: false as const, error: 'rate-limited' };
+
+  // 4. Observability — trace context + Sentry scope (hashed user)
+  Sentry.setUser({ id: hashUserId(session.userId) });
+  const traceId = crypto.randomUUID();
+  logger.info({ traceId, userId: session.userId, action: 'billing.cancelSubscription' }, 'start');
+
+  // 5. Service call — pure
+  const result = await cancelSubscriptionService({
+    subscriptionId: input.subscriptionId,
+    userId: session.userId,
+    reason: input.reason,
+  });
+
+  if (!result.ok) {
+    logger.warn({ traceId, error: result.error }, 'cancelSubscription failed');
+    return { ok: false as const, error: result.error.code };
+  }
+  return { ok: true as const, data: result.value };
+}
+```
+
+40 lines. The 5 layers are explicit and a reviewer can audit at a glance.
+
+## Optional: `defineAction` helper
+
+If your project repeats the 5 layers in every action (it will), DRY them into a `defineAction` helper. This is a project-side convention many void-harness monorepos add in `@repo/auth` or `@repo/server`:
+
+```ts
+// Equivalent action using a project-side defineAction helper
 export const cancelSubscription = defineAction({
   name: 'billing.cancelSubscription',
-  auth: 'required',                                   // 1. Auth
-  input: Input,                                       // 2. Zod ingress
-  rateLimit: { window: '1 min', max: 5 },             // 3. Rate limit
-  handler: async ({ input, user, trace }) => {        // 4. Observability via trace
-    logger.info({ trace, userId: user.id, action: 'billing.cancelSubscription' }, 'start');
-
-    const result = await cancelSubscriptionService({  // 5. Service call (pure)
-      subscriptionId: input.subscriptionId,
-      userId: user.id,
-      reason: input.reason,
-    });
-
-    if (Result.isErr(result)) {
-      logger.warn({ trace, error: result.error }, 'cancelSubscription failed');
-      return { ok: false as const, error: result.error.code };
-    }
-    return { ok: true as const, data: result.value };
+  auth: 'required',
+  input: Input,
+  rateLimit: { window: '1 min', max: 5 },
+  handler: async ({ input, user, traceId }) => {
+    /* just the service call + result mapping */
   },
 });
 ```
+
+The helper is convenience — the 5 layers below it are the substance. Build it once when the pattern repeats 3+ times; not before.
 
 ## Return type discipline
 
@@ -106,27 +140,28 @@ type ActionResult<T> =
 
 Two flavors, pick by use case:
 
-| Use | Wrapper | Input |
+| Use | Action signature | Input source |
 |---|---|---|
-| Submit-on-click button / typed payload | `defineAction` | Object (Zod object schema) |
-| HTML form with `<form action={action}>` | `defineFormAction` | FormData (Zod transforms entries) |
+| Submit-on-click button / typed payload | `async function(input: T)` | Object (Zod object schema) |
+| HTML form with `<form action={action}>` | `async function(formData: FormData)` | FormData (Zod transforms entries) |
 
-`defineFormAction` parses `FormData` for you — never reach into FormData manually with `.get()` casts.
+For the FormData variant, always parse via Zod (`z.object({ field: z.string() }).parse(Object.fromEntries(formData))`) — never reach into FormData manually with `.get()` casts.
 
 ## Workflow
 
 1. **Define the service first**, in `src/services/<feature>/<verb>.ts`. Pure-by-default; deps injected; tested in strict TDD mode.
 2. **Write the Zod input schema** in the action file. Aim for the smallest possible surface; reject unknown keys.
-3. **Pick the wrapper**: `defineAction` for typed inputs, `defineFormAction` for HTML forms.
-4. **Decide auth posture**: `'required'` (logged-in user), `'optional'` (passes user if present), `'public'` (no user) — `'public'` requires explicit justification in a comment.
-5. **Set the rate limit**. Default to per-user 30/min for mutations, 100/min for reads. Stricter on auth-adjacent actions (password reset: 3/hour).
-6. **Wire trace + Sentry scope** via the handler context (the wrapper does this for you when used correctly).
+3. **Pick the action shape**: object input (typed payload) or FormData input (HTML form). Parse FormData via Zod, not raw `.get()` casts.
+4. **Decide auth posture**: logged-in required, optional, or public (`public` requires explicit justification in a comment).
+5. **Set the rate limit**. Default per-user 30/min for mutations, 100/min for reads. Stricter on auth-adjacent actions (see `rate-limit-strategy`).
+6. **Wire trace + Sentry scope** explicitly in the handler (until you extract a `defineAction` helper).
 7. **Write the action test** in `<verb>.test.ts` next to the action — assert auth, validation, rate limit, and happy path. Service tests already cover the domain.
 
-## Composition
+## Composition (informational)
 
 - `void:security-guidance` — Zod at every ingress; sensitive data redacted from logs; no PII in error messages returned to client.
-- `void:async-safety` — for webhooks (which look like actions but are POST endpoints), use `withWebhookSafety` from `@voidcorp/pack-server` instead.
-- `void:observability` — `withTraceContext` propagates trace ID; Sentry user scope uses `hash(userId)`, never the raw ID.
-- `void:tdd` — souple mode on the action (boundary), strict on the underlying service. Auth/validation are tested at the action layer.
+- `void-server:webhook-handler-pattern` — webhooks share the 5-layer pattern; same Zod discipline, different transport.
+- `void-server:rate-limit-strategy` — preset windows/max per action class.
+- `void:observability` — trace ID + Sentry user scope (hashed); same pattern across actions, webhooks, jobs.
+- `void:tdd` — souple mode on the action (boundary), strict on the underlying service.
 - `void-monorepo:service-package` — when the service grows enough to deserve its own package, extract it (rare, but the path is there).

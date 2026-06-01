@@ -1,13 +1,11 @@
 ---
 name: webhook-handler-pattern
-description: Build a webhook handler with signature verification, idempotency, and dead-letter routing using withWebhookSafety. Per-source patterns (Stripe, Resend, GitHub). Composes with async-safety and server-action.
+description: Build a webhook handler with signature verification, idempotency, and dead-letter routing. Per-source patterns (Stripe, Resend, GitHub). Self-contained — no harness wrappers required.
 ---
 
 # webhook-handler-pattern
 
 Use when adding any inbound webhook endpoint (Stripe, Resend, GitHub, custom). Webhooks are **untrusted POST endpoints** that fire from external systems — every wrong handler is either a security breach (forged events accepted), a duplicate-charge bug (no idempotency), or a silent failure (no dead-letter).
-
-This skill is the void-harness operational form for webhooks. Composes with `void:async-safety` (the doctrine) and `void:security-guidance` (Zod trust boundary).
 
 ## Location
 
@@ -27,79 +25,106 @@ One folder per source. Path stable (external systems POST to a fixed URL — nev
 5. Acknowledgment          — return 2xx on success; specific codes on failure
 ```
 
-Skipping ANY of these is a Sev-2 waiting. There are no exceptions.
+Skipping ANY of these is a Sev-2 waiting. The pattern below shows the 5 layers explicit — no wrapper assumed.
 
-## Canonical handler
+## Canonical handler (explicit, self-contained)
 
 ```ts
 // apps/web/src/app/api/webhooks/stripe/route.ts
-import { withWebhookSafety } from '@voidcorp/pack-server';
-import { stripe } from '@/adapters/stripe';
-import { logger, env } from '@repo/core';
-import { handleStripeEvent } from '@/services/billing/stripe';
+import { NextRequest, NextResponse } from 'next/server';
+import Stripe from 'stripe';
 import { z } from 'zod';
+import { db } from '@/adapters/db';
+import { env, logger } from '@repo/core';
+import * as Sentry from '@sentry/nextjs';
+import { handleStripeEvent } from '@/services/billing/stripe';
 
-// 1. Schema validates the EVENT object after Stripe parses it.
-const Event = z.object({
+const stripe = new Stripe(env.STRIPE_SECRET_KEY);
+
+// 3. Zod schema for the parsed Stripe event (defense in depth — Stripe's
+//    own parser is trusted, but we re-shape to our service contract).
+const EventSchema = z.object({
   id: z.string(),
   type: z.string(),
   data: z.object({ object: z.unknown() }),
   livemode: z.boolean(),
 });
 
-export const POST = withWebhookSafety({
-  source: 'stripe',
-  // 1. Signature verification (Stripe-specific)
-  verify: async (req) => {
-    const sig = req.headers.get('stripe-signature');
-    const body = await req.text();
-    return stripe.webhooks.constructEvent(body, sig!, env.STRIPE_WEBHOOK_SECRET);
-  },
-  // 2. Idempotency key extraction (Stripe's event.id is globally unique)
-  idempotencyKey: (event) => `stripe:${event.id}`,
-  // 3. Zod re-validation (defense in depth)
-  schema: Event,
-  // 4. Handler — pure dispatch into services/
-  handler: async ({ event, log }) => {
-    log.info({ event: 'webhook.received', source: 'stripe', type: event.type, eventId: event.id });
-    await handleStripeEvent(event);   // service does the work
-    return { ok: true };
-  },
-});
+export async function POST(req: NextRequest) {
+  const sig = req.headers.get('stripe-signature');
+  const body = await req.text();
+  const idempotencyKey = `stripe:${req.headers.get('stripe-signature')?.slice(0, 16) ?? ''}`;
+
+  let stripeEvent: Stripe.Event;
+  try {
+    // 1. Signature verification (Stripe-specific)
+    if (!sig) {
+      return NextResponse.json({ error: 'missing signature' }, { status: 401 });
+    }
+    stripeEvent = stripe.webhooks.constructEvent(body, sig, env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    logger.warn({ event: 'webhook.signature_invalid', source: 'stripe' });
+    return NextResponse.json({ error: 'invalid signature' }, { status: 401 });
+  }
+
+  // 2. Idempotency — Stripe's event.id is globally unique
+  const inboxKey = `stripe:${stripeEvent.id}`;
+  const inserted = await db
+    .insert(webhookInbox)
+    .values({ key: inboxKey, source: 'stripe', eventType: stripeEvent.type, payload: stripeEvent })
+    .onConflictDoNothing()
+    .returning();
+
+  if (inserted.length === 0) {
+    // Already seen — return 2xx to stop Stripe retrying
+    logger.info({ event: 'webhook.duplicate', source: 'stripe', eventId: stripeEvent.id });
+    return NextResponse.json({ ok: true, duplicate: true });
+  }
+
+  // 3. Re-validate with our schema
+  const event = EventSchema.parse(stripeEvent);
+
+  // 4. Service call — pure dispatch
+  logger.info({ event: 'webhook.received', source: 'stripe', type: event.type, eventId: event.id });
+  try {
+    await handleStripeEvent(event);
+    await db.update(webhookInbox).set({ committedAt: new Date() }).where(eq(webhookInbox.key, inboxKey));
+    // 5. Ack
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    Sentry.captureException(err, { tags: { webhook: 'stripe', eventType: event.type } });
+    // Retryable: return 5xx so Stripe retries with backoff
+    return NextResponse.json({ ok: false }, { status: 500 });
+  }
+}
 ```
 
-`withWebhookSafety` wraps:
-
-- Signature verification (calls `verify`, throws 401 if failed)
-- Idempotency check via inbox table (key = `idempotencyKey(event)`)
-- Zod re-parse
-- Trace context (Sentry breadcrumb, OTel span)
-- Acknowledgment (2xx success, 4xx for permanent failures, 5xx for retryable)
+The 5 layers are explicit. No wrapper is required. If your project ships its own `withWebhookSafety` helper that bundles these 5, that's a convenience — but the pattern is the substance, and it's the same.
 
 ## Per-source notes
 
 ### Stripe
 
-- Signature: `stripe-signature` header, verified via `stripe.webhooks.constructEvent`
+- Signature: `stripe-signature` header → `stripe.webhooks.constructEvent`
 - Idempotency: `event.id` is the canonical key
 - Retry: Stripe retries failed webhooks with exponential backoff for up to 3 days
-- Test mode: separate `STRIPE_WEBHOOK_SECRET_TEST` env
+- Test mode: separate `STRIPE_WEBHOOK_SECRET_TEST` env var
 
-### Resend
+### Resend (via svix)
 
-- Signature: `svix-signature` header, verified via `Webhook.verify` from `svix`
+- Signature: `svix-id`, `svix-timestamp`, `svix-signature` headers → `new Webhook(secret).verify(body, headers)` from `svix` package
 - Idempotency: `svix-id` header
 - Retry: Svix retries automatically; you only see the first failure if your endpoint returns 5xx
 
 ### GitHub
 
-- Signature: `x-hub-signature-256` header (HMAC SHA-256)
+- Signature: `x-hub-signature-256` header (HMAC SHA-256 of the body with your secret)
 - Idempotency: `x-github-delivery` header (UUID)
 - Retry: GitHub does NOT auto-retry. If you return 5xx, the event is lost. Make sure dead-letter is robust.
 
 ### Custom (internal services calling each other)
 
-- Signature: HMAC SHA-256 with a shared secret (`@voidcorp/pack-server` exports `verifyHmac`)
+- Signature: HMAC SHA-256 with a shared secret. Use Node's `crypto.timingSafeEqual` for the compare (constant-time, no early-exit on mismatch).
 - Idempotency: caller-generated UUID v7 in `x-idempotency-key`
 - Retry: caller's responsibility; receiver acknowledges with 2xx + the key it already saw
 
@@ -119,26 +144,27 @@ CREATE TABLE webhook_inbox (
 CREATE INDEX idx_webhook_inbox_received ON webhook_inbox (received_at);
 ```
 
-On webhook receive: `INSERT ON CONFLICT DO NOTHING`. If the insert returned a row, this is a NEW event → process it. If not, it's a re-delivery → return 2xx with the cached response.
-
-Migration safely via `void-server:drizzle-migration-safe`.
+Migration follows the safe-migration pattern (see `drizzle-migration-safe` skill).
 
 ## Dead-letter routing
 
-When the handler throws an unrecoverable error (data shape unexpected, downstream service permanently broken):
+When the handler decides the error is permanent (validation failure, downstream API said 4xx):
 
 ```ts
-handler: async ({ event }) => {
-  try {
-    await processEvent(event);
-  } catch (err) {
-    if (isPermanentFailure(err)) {
-      await deadLetter.enqueue({ key, source, error: err.message, payload: event });
-      return { ok: false, retry: false };   // tell sender "don't retry, we got it but rejected"
-    }
-    throw err;                              // retryable — let sender retry
+catch (err) {
+  if (isPermanentFailure(err)) {
+    await db.insert(webhookDeadLetter).values({
+      key: inboxKey,
+      source: 'stripe',
+      error: err.message,
+      payload: event,
+      receivedAt: new Date(),
+    });
+    return NextResponse.json({ ok: false, retry: false }, { status: 400 });
+    // 4xx tells Stripe "permanent — stop retrying"
   }
-};
+  throw err;   // retryable — let the 5xx propagate
+}
 ```
 
 Dead letter = a queue/table the team reviews. UI: `Settings → Webhook DLQ`. Never silently drop.
@@ -158,9 +184,10 @@ NEVER return 200 to a malformed event (you'd accept invalid data). 4xx with a lo
 
 - ✗ **No signature verification** — anyone with the URL can forge events
 - ✗ **Idempotency key = `Date.now()`** — re-delivery NOT detected; double-charges
-- ✗ **Calling services synchronously for slow work** — if the handler takes > 10s, the sender retries. Enqueue background jobs for slow work.
+- ✗ **Calling services synchronously for slow work** — if the handler takes > 10s, the sender retries. Enqueue background jobs for slow work (see `background-job-pattern`).
 - ✗ **Returning 5xx to "make sender retry" without enqueueing** — sender's backoff is unpredictable; use your own queue
 - ✗ **One handler for all sources** (`/api/webhooks/route.ts` switching on `source`) — different signatures, different idempotency keys, different retry semantics. One folder per source.
+- ✗ **`==` for HMAC comparison** — use `crypto.timingSafeEqual`. Constant-time compare prevents timing attacks.
 
 ## Testing
 
@@ -168,11 +195,11 @@ NEVER return 200 to a malformed event (you'd accept invalid data). 4xx with a lo
 - Integration-test by running the handler against a captured event JSON
 - E2E: use Stripe CLI / Svix CLI / ngrok to deliver real webhooks to a dev endpoint
 
-## Composition
+## Composition (informational)
 
-- `void:async-safety` — doctrine on retry, idempotency, dead-letter (this skill is the webhook concretization).
-- `void-server:server-action` — Server Actions and webhooks both cross trust boundaries; same Zod discipline.
-- `void-server:drizzle-migration-safe` — the inbox table migration follows this pattern.
+- `void:async-safety` — generic retry, idempotency, dead-letter doctrine.
+- `void-server:server-action` — both cross trust boundaries; same Zod discipline.
+- `void-server:drizzle-migration-safe` — inbox table migration follows the safe pattern.
 - `void-server:env-validation` — webhook secrets validated in `@repo/core/env`.
-- `void:observability` — trace context per webhook receive; Sentry breadcrumb.
-- `void:security-guidance` — Zod re-validation IS the trust boundary.
+- `void:observability` — trace context per receive; Sentry breadcrumb.
+- `void:security-guidance` — Zod re-validation IS the trust boundary; HMAC compare with constant-time.

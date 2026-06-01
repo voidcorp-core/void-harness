@@ -10,7 +10,7 @@
       "name": "void",
       "source": "./packages/core",
       "description": "Universal craftsman skills (TDD strict, TypeScript strict, hexagonal, DDD, functional, code-review, ...) plus hooks (tdd-guard, no-any, no-console-log, ...) and agents (senior-reviewer, security-reviewer, architect-critic).",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "category": "best-practices",
       "tags": [
         "tdd",
@@ -25,7 +25,7 @@
       "name": "void-monorepo",
       "source": "./packages/packs/pack-monorepo",
       "description": "Turborepo + Bun monorepo conventions: shared tsconfig.strict.json, @repo/core (Result, Option, pipe), 5+5 service layout, ADR workflow.",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "category": "stack",
       "tags": [
         "turborepo",
@@ -37,7 +37,7 @@
       "name": "void-react",
       "source": "./packages/packs/pack-react",
       "description": "React 19 conventions: component layer purity (no DB, no fetch), shadcn/Radix primitives, mobile-first dual-quality tokens, Tappable touch targets, accessibility-first defaults.",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "category": "stack",
       "tags": [
         "react",
@@ -50,7 +50,7 @@
       "name": "void-nextjs",
       "source": "./packages/packs/pack-nextjs",
       "description": "Next.js 16 App Router conventions: route groups, Cache Components defaults, instrumentation. Composes with void-react, void-server, void-pwa.",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "category": "stack",
       "tags": [
         "nextjs",
@@ -62,7 +62,7 @@
       "name": "void-server",
       "source": "./packages/packs/pack-server",
       "description": "Server-side conventions: Server Actions trust boundary (defineAction, defineFormAction), withWebhookSafety, Zod ingress, rate limit, Drizzle migrations. Works across Next.js, Hono, standalone Bun/Node.",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "category": "stack",
       "tags": [
         "server-actions",
@@ -75,7 +75,7 @@
       "name": "void-pwa",
       "source": "./packages/packs/pack-pwa",
       "description": "Progressive Web App conventions: manifest, service worker, offline-first patterns, install prompt UX, capture-queue + sync (Solaar-grade). Stack-agnostic.",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "category": "stack",
       "tags": [
         "pwa",
@@ -87,7 +87,7 @@
       "name": "void-mobile",
       "source": "./packages/packs/pack-mobile",
       "description": "Mobile conventions: Expo + React Native, EAS Build, native module integration, safe-area, touch + gesture patterns. Composes with void-react.",
-      "version": "0.5.0",
+      "version": "0.5.1",
       "category": "stack",
       "tags": [
         "expo",

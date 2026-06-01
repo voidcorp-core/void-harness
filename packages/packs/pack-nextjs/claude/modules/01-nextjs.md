@@ -23,7 +23,7 @@ apps/<app>/src/
 - `(api|actions)`: every file is a trust boundary — composes with `void-server:server-action`.
 - `(marketing)`: public, statically rendered by default, no auth.
 - `(app)`: authenticated, requires middleware gate.
-- `api/webhooks/<source>`: webhook handlers, always use `withWebhookSafety`.
+- `api/webhooks/<source>`: webhook handlers — see `void-server:webhook-handler-pattern` for the 5-layer pattern (signature, idempotency, Zod, service, ack).
 
 ## Cache Components (Next 16)
 

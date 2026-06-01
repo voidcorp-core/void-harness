@@ -35,12 +35,13 @@ Match the strategy to the **freshness vs availability** trade-off of each resour
 | Manifest | `NetworkOnly` | Browser handles caching natively |
 | `/api/health` | `NetworkOnly` | Should always reflect server reality |
 
-## Canonical Serwist config (Next 16)
+## Canonical Serwist config sketch (Next 16)
+
+> Serwist evolves quickly; the **strategy-per-resource-class principles** below are the substance. The exact config shape may differ per Serwist version — always cross-reference the current Serwist docs when scaffolding.
 
 ```ts
-// apps/web/app/sw.ts
-import { defaultCache } from '@serwist/next/worker';
-import { Serwist } from 'serwist';
+// apps/web/app/sw.ts (shape — confirm against current Serwist version)
+import { Serwist, NetworkFirst, CacheFirst, NetworkOnly } from 'serwist';
 
 const SW_VERSION = '__BUILD_HASH__';   // injected by build
 
@@ -52,37 +53,36 @@ const serwist = new Serwist({
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: [
+    // HTML pages: prefer fresh, fall back to cache after 3s on slow networks
     {
       matcher: ({ request }) => request.destination === 'document',
-      handler: 'NetworkFirst',
-      options: {
+      handler: new NetworkFirst({
         cacheName: `html-${SW_VERSION}`,
         networkTimeoutSeconds: 3,
-        expiration: { maxEntries: 30, maxAgeSeconds: 24 * 60 * 60 },
-      },
+      }),
     },
+    // JS/CSS: hashed filenames are immutable; cache forever
     {
       matcher: ({ request }) => request.destination === 'script' || request.destination === 'style',
-      handler: 'CacheFirst',
-      options: { cacheName: `static-${SW_VERSION}` },
+      handler: new CacheFirst({ cacheName: `static-${SW_VERSION}` }),
     },
+    // Images: cache for 30 days, cap at 60 entries
     {
       matcher: ({ request }) => request.destination === 'image',
-      handler: 'CacheFirst',
-      options: {
-        cacheName: `images-${SW_VERSION}`,
-        expiration: { maxEntries: 60, maxAgeSeconds: 30 * 24 * 60 * 60 },
-      },
+      handler: new CacheFirst({ cacheName: `images-${SW_VERSION}` }),
     },
+    // API: never cache; let the network speak
     {
       matcher: ({ url }) => url.pathname.startsWith('/api/'),
-      handler: 'NetworkOnly',
+      handler: new NetworkOnly(),
     },
   ],
 });
 
 serwist.addEventListeners();
 ```
+
+`vite-plugin-pwa` exposes the same strategies under Workbox names (`NetworkFirst`, etc.) with slightly different option keys. The **what** (per-resource strategy + version cacheName + max age) transfers; the **how** (exact constructor call) is library-specific.
 
 ## Cache versioning — the critical detail
 

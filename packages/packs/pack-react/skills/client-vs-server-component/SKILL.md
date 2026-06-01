@@ -71,7 +71,7 @@ The pattern: **client wraps server children**. Server Component as child of Clie
 | Persistent server-side data | Server (DB / cache) | Server Component fetching directly |
 | Transient UI state (open/closed, focus, input value) | Client (`useState`) | Client Component |
 | Cross-component client state | Client (URL > Zustand > Context) | Client provider tree |
-| Optimistic updates | Client (capture-queue) | Client component using `useOfflineMutation` |
+| Optimistic updates | Client (capture-queue, see `offline-first-mutation`) | Client component |
 
 When in doubt, ask: "does this state need to survive a hard refresh?" If yes → server (or URL). If no → client.
 

@@ -40,7 +40,7 @@ UI write → captureQueue.enqueue(intent) → optimistic update → sync()
 - `sync()` retries with exponential backoff, marks intents as committed/failed.
 - Conflict resolution: server is source of truth; local optimistic state is overwritten on conflict.
 
-This pack ships `@voidcorp/pack-pwa/offline` exporting `captureQueue`, `sync`, `useOfflineMutation`.
+The capture-queue + sync pattern is small (~100 lines) — consumers own it directly in their codebase. See `offline-first-mutation` skill for the canonical implementation.
 
 ## Install prompt UX
 

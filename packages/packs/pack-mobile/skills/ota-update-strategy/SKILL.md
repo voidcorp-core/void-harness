@@ -21,9 +21,14 @@ Use when planning to ship a change to an Expo app already in users' hands. The f
 
 When in doubt: if the change touches `plugins:` or `ios:`/`android:` config in `app.config.ts`, it needs a rebuild.
 
-## Channels
+## Branches and channels (mental model)
 
-OTA channels map to EAS build profiles (see `void-mobile:eas-build-profile`):
+EAS Update splits the publishing target in two layers:
+
+- **Branch** — where you PUBLISH an update (`eas update --branch production`)
+- **Channel** — what the BUILD reads from (declared in `eas.json` per profile)
+
+Builds read from a channel; channels point at branches; you publish to branches.
 
 ```jsonc
 // eas.json
@@ -33,21 +38,23 @@ OTA channels map to EAS build profiles (see `void-mobile:eas-build-profile`):
 }
 ```
 
-Then OTA updates:
+This build is on channel `production`. By default, channel `production` points at branch `production`. To re-point: `eas channel:edit production --branch <other>`.
+
+Publish to the production branch (so the production channel picks it up):
 
 ```bash
-eas update --channel production --message "Fix avatar crash on iOS"
+eas update --branch production --message "Fix avatar crash on iOS"
 ```
 
-A user on the "production" channel build pulls this update on next app launch (or on background fetch if configured).
+A user with a production-channel build pulls this update on next app launch.
 
 Pre-launch / staging:
 
 ```bash
-eas update --branch preview --channel preview
+eas update --branch preview --message "..."
 ```
 
-Users with a preview build get this update; production users don't see it.
+Users with a preview-channel build get this update; production users don't see it (different channel → different branch).
 
 ## Runtime versions — the critical detail
 
@@ -109,18 +116,24 @@ Show a confirmation UI before forced reload — don't yank the user out of their
 If an update is broken, deploy a fixed one — there's no "delete" for OTA updates, but newer wins.
 
 ```bash
-eas update --channel production --message "Revert: avatar crash fix had its own bug"
+eas update --branch production --message "Revert: avatar crash fix had its own bug"
 ```
 
 The new update reverts the change in code. Users get it on next check.
 
-For a hard halt of bad updates:
+For a hard halt of bad updates, republish a known-good update at the head of the branch:
 
 ```bash
-eas update:republish --channel production --group <previous-good-update-id>
+eas update:republish --branch production --group <previous-good-update-id>
 ```
 
-This re-publishes a known-good update at the front of the channel queue.
+Or re-point the production channel at a known-good branch:
+
+```bash
+eas channel:edit production --branch production-stable
+```
+
+This shifts every production-channel build to read the alternate branch.
 
 ## Testing updates before production
 

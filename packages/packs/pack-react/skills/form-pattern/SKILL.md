@@ -92,12 +92,13 @@ export const ContactSchema = z.object({
 // app/(actions)/contact.ts
 'use server';
 import { ContactSchema } from '@/schemas/contact';
-import { defineAction } from '@repo/auth';
-export const saveContact = defineAction({
-  name: 'contact.save',
-  input: ContactSchema,    // ← same schema
-  handler: async ({ input }) => { /* ... */ },
-});
+
+export async function saveContact(input: unknown) {
+  const parsed = ContactSchema.safeParse(input);  // ← same schema
+  if (!parsed.success) return { ok: false, error: 'invalid-input' };
+  /* ... service call ... */
+  return { ok: true };
+}
 
 // components/ContactForm.tsx
 import { ContactSchema } from '@/schemas/contact';
