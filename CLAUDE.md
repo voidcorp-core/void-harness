@@ -50,7 +50,7 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 - Match file naming exactly per convention (`Name.ts`, `Name.test.ts`, etc.)
 - Pure helpers: no I/O, no side effects
 - No `console.log` in committed code — use the project logger
-- No em dashes, no emojis in code/docs/commits
+- No em dashes or emojis as AI-slop filler. Both are allowed where they carry meaning (typographic separators in prose, glyphs in code such as the render layer); just do not sprinkle them decoratively. Not a hard CI gate.
 - Read the official documentation of any third-party tool **before** writing its config
 - Conventional commits, every message ends with **why**, not just **what**
 

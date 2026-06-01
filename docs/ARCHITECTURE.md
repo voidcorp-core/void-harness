@@ -127,12 +127,19 @@ Each package versions independently. The CLI displays the active version of ever
 
 ## CI gates
 
-| Gate | When | Effect |
-|---|---|---|
-| Lint | every commit | block PR |
-| Skill metadata schema | every commit | block PR (front-matter must match spec) |
-| Skill tests | every PR | block PR (skills must produce expected output on fixtures) |
-| Hook smoke tests | every PR | block PR (each hook runs on a sample repo) |
-| CLI integration tests | every PR | block PR (install on a fresh fixture works) |
-| Changeset present | every PR with code change | block PR (no untracked release) |
-| Anti-bloat audit | every PR | warn at >300 lines, block at >400 lines per skill |
+Implemented today in `.github/workflows/ci.yml` (all block the PR on failure):
+
+| Gate | What it runs |
+|---|---|
+| Anti-bloat: SKILL.md size | fails if any `SKILL.md` exceeds 400 LOC |
+| Anti-bloat: hook size | fails if any `hooks/*.sh` exceeds 100 LOC |
+| Shell syntax | `bash -n` on every hook |
+| Lint | `pnpm lint` (Biome) over first-party TypeScript |
+| Build | `pnpm build` (packs must build before typecheck resolves their exports) |
+| Skill tests | `pnpm vitest run` |
+| Typecheck | `pnpm -r typecheck` |
+
+Roadmap (documented intent, not yet wired): skill front-matter schema check,
+per-hook smoke tests on a sample repo, CLI integration tests on a fresh fixture.
+Releases are cut with `scripts/bump-version.mjs` (lockstep), not changesets; the
+`.changeset/` directory is unused.

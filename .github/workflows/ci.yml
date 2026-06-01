@@ -10,17 +10,17 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup pnpm
         # No `version:` here: action-setup reads it from packageManager in
         # package.json (single source of truth). Specifying both errors with
-        # ERR_PNPM_BAD_PM_VERSION on action-setup@v4.
-        uses: pnpm/action-setup@v4
+        # ERR_PNPM_BAD_PM_VERSION on action-setup.
+        uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - name: Install
