@@ -19,14 +19,35 @@ case "$TOOL" in Edit|Write) ;; *) exit 0 ;; esac
 # Match `null` as identifier
 re_null='\bnull\b'
 
-HITS=$(printf "%s" "$NEW" | grep -nE "$re_null" | grep -vE '// *allow-null:' || true)
+# Filter false positives at library boundaries (whole-content escape hatch).
+if printf "%s" "$NEW" | grep -qE 'from .drizzle-orm|JSON\.(stringify|parse)|typeof.*=== .null'; then
+  exit 0
+fi
+
+# Match `null` per line on a comment- and string-stripped view, so the literal
+# substring `null` inside a `//` comment, a `/* */` block, or a quoted string
+# is not flagged. This is a line-oriented heuristic, not an AST: a `null` inside
+# a multi-line block comment or template literal split across the edit chunk may
+# still be reported — tag such a line with `// allow-null:` to override.
+# The override is checked on the RAW line (stripping would erase the tag).
+HITS=""
+lineno=0
+while IFS= read -r line || [[ -n "$line" ]]; do
+  lineno=$((lineno + 1))
+  printf "%s" "$line" | grep -qE '// *allow-null:' && continue
+  code=$(printf "%s" "$line" | sed -E \
+    -e 's@"([^"\\]|\\.)*"@@g' \
+    -e "s@'([^'\\\\]|\\\\.)*'@@g" \
+    -e 's@`[^`]*`@@g' \
+    -e 's@/\*.*\*/@@g' \
+    -e 's@//.*@@')
+  if printf "%s" "$code" | grep -qE "$re_null"; then
+    HITS+="${lineno}:${line}"$'\n'
+  fi
+done < <(printf "%s" "$NEW")
 
 if [[ -n "$HITS" ]]; then
-  # Filter false positives at library boundaries
-  if printf "%s" "$NEW" | grep -qE 'from .drizzle-orm|JSON\.(stringify|parse)|typeof.*=== .null'; then
-    exit 0
-  fi
-  printf "no-null-grep: 'null' literal in %s\n%s\n\n" "$FILE" "$HITS" >&2
+  printf "no-null-grep: 'null' literal in %s\n%s\n" "$FILE" "$HITS" >&2
   printf "Prefer undefined or Option<T>. See void:functional.\n" >&2
   printf "Override (library boundary): tag the line '// allow-null: <reason>'.\n" >&2
   exit 2
