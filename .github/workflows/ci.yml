@@ -26,29 +26,12 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Anti-bloat — SKILL.md size cap (400 LOC)
-        run: |
-          OVERSIZE=$(find packages/core/skills -name SKILL.md -exec wc -l {} \; | awk '$1 > 400 { print }')
-          if [ -n "$OVERSIZE" ]; then
-            echo "FAIL: SKILL.md exceeds 400 LOC cap:" >&2
-            echo "$OVERSIZE" >&2
-            exit 1
-          fi
-
-      - name: Anti-bloat — hooks size cap (100 LOC)
-        run: |
-          OVERSIZE=$(find packages/core/hooks -name '*.sh' -exec wc -l {} \; | awk '$1 > 100 { print }')
-          if [ -n "$OVERSIZE" ]; then
-            echo "FAIL: hook exceeds 100 LOC cap:" >&2
-            echo "$OVERSIZE" >&2
-            exit 1
-          fi
-
-      - name: Shell syntax — all hooks
-        run: |
-          for f in packages/core/hooks/*.sh; do
-            bash -n "$f" || { echo "FAIL: syntax in $f" >&2; exit 1; }
-          done
+      - name: Anti-bloat checks
+        # Single source of truth: scripts/anti-bloat-check.sh enforces the size
+        # caps (skills ≤400, hooks ≤100), hook shell syntax, AND the frontmatter
+        # description ≤200 cap across skills + agents. Inlining a subset here let
+        # the agent description cap go unenforced in CI (it only ran locally).
+        run: pnpm anti-bloat:check
 
       - name: core-assets in sync with core
         # The CLI bundles packages/core as packages/cli/core-assets via

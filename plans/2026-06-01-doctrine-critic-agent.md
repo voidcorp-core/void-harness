@@ -1,6 +1,6 @@
 # Spec — `doctrine-critic` agent
 
-Status: **designed, not implemented**. Rescopes DEV-363 (3 agents → 1).
+Status: **shipped** (this PR). Rescopes DEV-363 (3 agents → 1).
 Decision record: `docs/DECISIONS.md` § "one `doctrine-critic` agent, not the three originally planned".
 
 This is the implementation contract for the single core agent the harness ships.
@@ -52,10 +52,11 @@ Notes:
   TypeScript strictness, testing patterns, code quality") so auto-discovery does
   not route generic review requests here. It claims only the doctrine-judgment
   niche and explicitly disclaims generic/security review.
-- **`tools` is read-only by construction**: `Read, Grep, Glob, Bash`. No `Edit`,
-  `Write`, or `NotebookEdit` — the agent physically cannot mutate the tree. `Bash`
-  is for *observation only* (`git diff`, `git log`, `typecheck`, `test`), never
-  edits. This read-only guarantee is value the in-context skills cannot offer.
+- **`tools` omits every first-class write tool**: `Read, Grep, Glob, Bash`. No
+  `Edit`, `Write`, or `NotebookEdit`. `Bash` stays for *observation only*
+  (`git diff`, `git log`, `typecheck`, `test`); it can technically mutate, so the
+  agent prose forbids it (read-only by convention). The structural value over an
+  in-context skill is the isolated context, not the tool list.
 - **No Skill / nested-agent invocation.** The agent does not run `/cso` or
   `/code-review` itself (nested agents are heavy and gstack may be absent in a
   consumer). It *names the handoff* in its output and lets the main thread run it.
@@ -136,8 +137,9 @@ verdict is auditable, not vibes.
 ## Files to produce when implementing (per DEV-363 + sourcing discipline)
 
 - `packages/core/agents/doctrine-critic.md` — the agent (this spec, realised).
-- `packages/cli/core-assets/agents/doctrine-critic.md` — mirror; confirm
-  `scripts/copy-core-assets.mjs` copies `agents/`.
+- `packages/cli/core-assets/agents/doctrine-critic.md` — mirror, produced by
+  `packages/cli/scripts/copy-core-assets.mjs` (via the `pnpm --filter
+  @voidcorp/harness build:assets` task, which `cp -r`s all of `core/`).
 - `packages/core/agents/doctrine-critic.source` — inspirations + URLs
   (`pr-reviewer-citypaul`, superpowers `code-reviewer`, the harness `code-review`
   and `security-guidance` skills it composes around).
@@ -152,10 +154,14 @@ verdict is auditable, not vibes.
 - Tests: frontmatter validity (read-only `tools`, description ≤ 200 chars) + the
   manifest wires the agent. The "3 agents" assertions become "1 agent".
 
-## Open question for implementation
+## Resolved: plugin agent-declaration shape
 
-Verify the exact Claude Code **plugin** manifest shape for declaring an agent
-(does `plugin.json` reference `agents/` by directory, or list files?) **before**
-wiring — CLAUDE.md hard rule: read the third-party docs first, do not guess the
-schema. The frontmatter above follows the standalone-agent convention observed in
-`~/.claude/agents/pr-reviewer-citypaul.md`; confirm it is identical inside a plugin.
+Per the official Claude Code docs (plugins-reference + sub-agents), plugin agents
+are **auto-discovered from the `agents/` directory** — there is **no
+agent-declaration field in `plugin.json`** (skills work the same way). So "wiring"
+is just the file in `agents/` plus honest manifest prose; nothing to add to the
+JSON. Frontmatter requires only `name` + `description`; `tools` is a
+comma-separated allowlist; read-only = omit `Edit`/`Write`/`NotebookEdit`. The
+standalone-agent convention in `~/.claude/agents/pr-reviewer-citypaul.md` holds
+inside a plugin. (DEV-363 confirmed this before wiring, per the CLAUDE.md
+read-docs-first rule.)

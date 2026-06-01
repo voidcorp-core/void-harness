@@ -63,8 +63,10 @@ It carries no security engine (→ `/cso`) and no bug-finder (→ `/code-review`
   agent removes the overlap and the routing non-determinism of three thin wrappers
   competing with the global agents already in a consumer session. Full rationale:
   `docs/DECISIONS.md`.
-- **Read-only by construction.** `tools: Read, Grep, Glob, Bash` — no write tools.
-  The in-context skills cannot offer this guarantee; the isolated agent can.
+- **No first-class write tools.** `tools: Read, Grep, Glob, Bash` — Edit / Write /
+  NotebookEdit are omitted; `Bash` is allowed for observation, read-only by
+  convention (it can technically mutate, so the prose forbids it). The real
+  structural delta over an in-context skill is the isolated context, not Bash.
 - **Routes, never re-implements.** Security and bug review name a handoff in the
   verdict instead of being performed, so overlap with `/cso` and `/code-review`
   stays well under the 30% anti-bloat ceiling.
