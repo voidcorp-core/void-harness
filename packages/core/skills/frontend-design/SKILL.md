@@ -86,7 +86,7 @@ Generic AI output over-uses whitespace ("looks clean!") and under-uses density. 
 
 ## Type hierarchy: 3 sizes max + weight + color
 
-The design system tokens (in `pack-nextjs-pwa`) expose exactly 3 type sizes:
+The design system tokens (in `pack-nextjs`) expose exactly 3 type sizes:
 
 | Token | Use |
 |---|---|
@@ -133,7 +133,7 @@ Motion communicates state change. Not entertainment. Reserve for:
 - Affordance feedback (button press)
 - State transition (success, error)
 
-Duration: < 250ms. Easing: `ease-out` for entry, `ease-in` for exit. The design system (`pack-nextjs-pwa`) provides default tokens.
+Duration: < 250ms. Easing: `ease-out` for entry, `ease-in` for exit. The design system (`pack-nextjs`) provides default tokens.
 
 `prefers-reduced-motion` respected — composes with `accessibility-first`. The design system handles by default.
 
@@ -158,7 +158,7 @@ import { Button } from '@repo/ui';
 <Button variant="primary" onClick={...}>Submit</Button>
 ```
 
-`@repo/ui` is shadcn-style — Radix base + Tailwind tokens + design system extension. Provided by `pack-nextjs-pwa`.
+`@repo/ui` is shadcn-style — Radix base + Tailwind tokens + design system extension. Provided by `pack-nextjs`.
 
 ---
 
@@ -167,7 +167,7 @@ import { Button } from '@repo/ui';
 - **With `accessibility-first`**: a11y is a precondition. Shared mobile-first dual-quality invariant. Shared `viewport-screenshot-gate` hook.
 - **With `typescript-strict`**: component props strongly typed; discriminated unions for variants; no `any` in UI.
 - **With `code-review`**: dimensions `readability` and `correctness` include UI quality flags.
-- **With `pack-nextjs-pwa`**: provides `@repo/ui` + design system tokens + Tailwind config + shadcn preset matching this discipline.
+- **With `pack-nextjs`**: provides `@repo/ui` + design system tokens + Tailwind config + shadcn preset matching this discipline.
 - **With `gstack:/design-consultation`**: design system creation (DESIGN.md) is UPSTREAM. This skill consumes.
 - **With `gstack:/design-review`**: live audit on URLs is DOWNSTREAM. This skill prevents the issues design-review would otherwise catch.
 - **With `gstack:/design-shotgun`**: design variant exploration is UPSTREAM.

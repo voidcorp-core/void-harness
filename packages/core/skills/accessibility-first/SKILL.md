@@ -65,7 +65,7 @@ ARIA is the escape hatch for cases semantic HTML cannot express. The rule of lea
 | Large text (18pt+ or 14pt+ bold) | 3:1 |
 | UI components / graphical objects | 3:1 |
 
-The design system palette (in `pack-nextjs-pwa`) documents contrast ratios for every token combination. Tokens that fail AA are marked and not used for text.
+The design system palette (in `pack-nextjs`) documents contrast ratios for every token combination. Tokens that fail AA are marked and not used for text.
 
 The companion hook `axe-precommit` runs axe-core on staged UI changes and flags AA violations.
 
@@ -84,7 +84,7 @@ Every interactive element ≥ **44×44px**, regardless of viewport. Small icons 
 // Tappable enforces min-h-11 min-w-11 (44px) regardless of icon size
 ```
 
-The `Tappable` helper (provided by `pack-nextjs-pwa`) enforces minimum dimensions via Tailwind classes.
+The `Tappable` helper (provided by `pack-nextjs`) enforces minimum dimensions via Tailwind classes.
 
 ---
 
@@ -210,7 +210,7 @@ The companion `viewport-screenshot-gate` hook (shared with `frontend-design`) fa
 }
 ```
 
-The design system handles this by default in `pack-nextjs-pwa`. Specific animations may override with a reduced-motion variant.
+The design system handles this by default in `pack-nextjs`. Specific animations may override with a reduced-motion variant.
 
 ---
 
@@ -237,7 +237,7 @@ The design system handles this by default in `pack-nextjs-pwa`. Specific animati
 
 - **With `frontend-design`**: shared mobile-first dual-quality invariant. `frontend-design` decides density / hierarchy / motion; this skill enforces a11y across them.
 - **With `code-review`**: dimension `correctness` includes a11y at the UI surface.
-- **With `pack-nextjs-pwa`**: provides `@repo/ui` (Radix-wrapped) + `Tappable` + axe-core integration + design system palette tokens.
+- **With `pack-nextjs`**: provides `@repo/ui` (Radix-wrapped) + `Tappable` + axe-core integration + design system palette tokens.
 - **With `gstack:/design-review`**: deeper visual a11y audit on live URLs.
 - **With `gstack:/design-consultation`**: design system creation incorporates a11y constraints.
 

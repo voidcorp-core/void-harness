@@ -114,7 +114,7 @@ Concrete invariants enforced by `frontend-design` + `accessibility-first` skills
 - No mobile-only nor desktop-only feature without an equivalent on the other surface (or an explicit, documented decision)
 - Both viewports are screenshotted in design review (mobile portrait + desktop) before any UI ships
 
-Source: Folpe operating principle. Translated into mechanical checks via `accessibility-first`, `frontend-design`, and `pack-nextjs-pwa` design-review hooks.
+Source: Folpe operating principle. Translated into mechanical checks via `accessibility-first`, `frontend-design`, and `pack-nextjs` design-review hooks.
 
 ## Harness self-evolution — feedback loop and obsolescence audit (HITL strict)
 

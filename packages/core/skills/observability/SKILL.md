@@ -55,7 +55,7 @@ logger.error({ err, orderId }, 'payment_failed');
 A user request crosses HTTP → service → DB → external API → response. The trace ID follows.
 
 ```typescript
-// in pack-nextjs-pwa Server Action wrapper
+// in pack-nextjs Server Action wrapper
 import { withTraceContext } from '@repo/observability';
 
 export const checkoutAction = withTraceContext(async (input: CheckoutInput) => {
@@ -139,13 +139,13 @@ The cost is small. The benefit during investigation is "I can filter to the exac
 | Queue depth / lag (jobs, webhooks) | Backlog detection |
 | Cost per business event (LLM tokens, third-party calls) | Composes with `llm-cost-discipline` |
 
-The skill mandates WHAT. The pack (`pack-nextjs-pwa`) provides HOW (Vercel Analytics + Sentry + custom emitters).
+The skill mandates WHAT. The pack (`pack-nextjs`) provides HOW (Vercel Analytics + Sentry + custom emitters).
 
 ---
 
 ## Sentry integration (default)
 
-Provided by `pack-nextjs-pwa`. Defaults:
+Provided by `pack-nextjs`. Defaults:
 
 - `Sentry.setUser({ id: hash(userId) })` — anonymized scope
 - `Sentry.addBreadcrumb` at every business event
@@ -208,7 +208,7 @@ Defense in depth. The discipline says "don't log it." The config says "even if y
 
 - `no-console-log-grep` (pre-commit) — fails if `console.log` / `console.error` / `console.warn` in staged business code. Allowed in `scripts/`, `**/*.test.{ts,tsx}` (with explicit allowlist marker). See `../../hooks/`.
 
-(Sentry / pino / OTel integration code lives in `pack-nextjs-pwa` because stack-specific.)
+(Sentry / pino / OTel integration code lives in `pack-nextjs` because stack-specific.)
 
 ---
 

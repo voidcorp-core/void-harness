@@ -4,7 +4,7 @@
 # Runs axe-core static analysis on staged UI changes. Blocks on WCAG AA
 # violations. Composed with the `accessibility-first` skill.
 #
-# Requires axe-core CLI installed via pack-nextjs-pwa devDependencies.
+# Requires axe-core CLI installed via pack-nextjs devDependencies.
 # Reads the command from .void/config.json .commands.axeStatic
 # (defaults to `npx axe-static --staged --rules wcag2a,wcag2aa`).
 #

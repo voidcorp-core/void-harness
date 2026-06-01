@@ -131,9 +131,9 @@ If a feature requires auth-related behavior that Better-Auth does not provide, t
 
 ---
 
-## Cookies — defaults from pack-nextjs-pwa
+## Cookies — defaults from pack-nextjs
 
-`HttpOnly`, `Secure`, `SameSite=Lax` (or `Strict` for sensitive cookies). Never set a cookie directly without these defaults — the helper in `pack-nextjs-pwa` enforces.
+`HttpOnly`, `Secure`, `SameSite=Lax` (or `Strict` for sensitive cookies). Never set a cookie directly without these defaults — the helper in `pack-nextjs` enforces.
 
 ---
 
@@ -154,7 +154,7 @@ LLM responses are untrusted output. Validate with Zod if you parse structured da
 ### Composes with
 
 - `llm-cost-discipline` — cost rules and security rules co-evolve at LLM call sites
-- `pack-nextjs-pwa` — Server Actions wrapping LLM responses validate before returning
+- `pack-nextjs` — Server Actions wrapping LLM responses validate before returning
 
 ---
 

@@ -233,7 +233,7 @@ logger.info({
 
 NEVER log the full prompt content (PII / secret risk, composes with `security-guidance`).
 
-The Sentry / Vercel Analytics integration in `pack-nextjs-pwa` aggregates cache hit rate, model mix, cost-per-endpoint into a cost dashboard.
+The Sentry / Vercel Analytics integration in `pack-nextjs` aggregates cache hit rate, model mix, cost-per-endpoint into a cost dashboard.
 
 ---
 

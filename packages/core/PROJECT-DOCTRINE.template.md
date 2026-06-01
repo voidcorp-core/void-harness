@@ -76,7 +76,7 @@ Format per rule:
   - **Why** : incident 2026-04-12 — a replayed webhook re-credited an
     account. Composes with `void:async-safety`.
   - **Enforced by** : `withWebhookSafety` wrapper from
-    `@voidcorp/pack-nextjs-pwa/async` + code review.
+    `@voidcorp/pack-nextjs/async` + code review.
 
 ---
 

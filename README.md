@@ -53,18 +53,18 @@ void-harness/
 ## Usage
 
 ```bash
-# One-time: install the harness core globally in ~/.claude/
-npx @voidcorp/harness install --global
-
-# In a project: scaffold .void/config.json and enable the packs you need
+# Recommended flow: per-project. Enables the void core plugin plus the packs
+# you pick, scaffolds .void/config.json, and patches CLAUDE.md / AGENTS.md.
 cd my-project
-npx @voidcorp/harness init                # creates .void/config.json
-npx @voidcorp/harness add pack-nextjs      # also accepts void-nextjs or nextjs
-npx @voidcorp/harness add pack-monorepo
+npx @voidcorp/harness init --pack pack-nextjs --pack pack-monorepo
+# (pack names also accept void-nextjs or nextjs)
 
 # Health check / update
 npx @voidcorp/harness doctor
 npx @voidcorp/harness update
+
+# Escape hatch (rare): install the core plugin globally instead of per-project
+npx @voidcorp/harness install --global
 ```
 
 ## Relation to other VoidCorp repos

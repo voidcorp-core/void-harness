@@ -53,7 +53,7 @@ Write a proposal to `.void/harness-feedback/proposed/YYYY-MM-DD-N.md` in the **c
 date: YYYY-MM-DD
 trigger: <one sentence — what happened>
 observation: <what was felt missing / wrong>
-target: <core | pack-nextjs-pwa | pack-monorepo | matrix | hook | ...>
+target: <core | pack-nextjs | pack-monorepo | matrix | hook | ...>
 component: <skill name | hook name | docs section>
 confidence: <low | medium | high>
 ---

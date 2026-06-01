@@ -28,7 +28,7 @@ Every webhook handler does FOUR things, IN THIS ORDER:
 3. **Handle the event** (business logic)
 4. **Mark idempotency key as completed** (or release on failure for retry)
 
-The `pack-nextjs-pwa` provides a `withWebhookSafety()` wrapper:
+The `pack-nextjs` provides a `withWebhookSafety()` wrapper:
 
 ```typescript
 import { withWebhookSafety } from '@repo/async';
@@ -111,7 +111,7 @@ await db.transaction(async (tx) => {
 });
 
 // later: a background dispatcher reads domain_events and publishes
-//        (composes with the outbox dispatcher in pack-monorepo / pack-nextjs-pwa)
+//        (composes with the outbox dispatcher in pack-monorepo / pack-nextjs)
 ```
 
 If the transaction commits, the event is durable. If it fails, neither happened. The dispatcher retries the publish until success.
@@ -135,7 +135,7 @@ type JobState =
 
 Transitions are explicit. No "did it succeed? unclear" state.
 
-`pack-nextjs-pwa` provides `withJobSafety()` wrapper:
+`pack-nextjs` provides `withJobSafety()` wrapper:
 
 ```typescript
 export const refundOrderJob = withJobSafety({
@@ -207,7 +207,7 @@ The wrapper acquires a Postgres advisory lock keyed by cron name. If the previou
 
 ## Companion hooks
 
-None directly in core. The discipline is encoded in `pack-monorepo` / `pack-nextjs-pwa` wrappers (`withWebhookSafety`, `withJobSafety`, `withCronSafety`) and surfaced via `code-review` flags.
+None directly in core. The discipline is encoded in `pack-monorepo` / `pack-nextjs` wrappers (`withWebhookSafety`, `withJobSafety`, `withCronSafety`) and surfaced via `code-review` flags.
 
 ---
 
