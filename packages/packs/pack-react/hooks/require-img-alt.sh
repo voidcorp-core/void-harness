@@ -1,45 +1,36 @@
 #!/usr/bin/env bash
-# require-img-alt — PreToolUse hook for Edit/Write.
-# Blocks `<img ...>` and `<Image ...>` tags without an `alt` attribute in
-# .tsx files under apps/*/src/components/ or packages/ui/. Composes with
-# the void-react:accessibility-check skill (point 2: labels and names).
-#
-# Inputs (set by the void-harness hook runner):
-#   VOIDCORP_HOOK_FILE / VOIDCORP_HOOK_PHASE
-# Exit codes: 0 allow, 1 block.
+# require-img-alt — PreToolUse hook. Reads Claude Code JSON from stdin.
+# Blocks <img> and <Image> tags without an alt= attribute in tsx component
+# files. Composes with void-react:accessibility-check (manual gate).
+# Exit codes: 0 allow, 2 block.
 
 set -euo pipefail
 
-FILE="${VOIDCORP_HOOK_FILE:-}"
-PHASE="${VOIDCORP_HOOK_PHASE:-pre}"
-[[ -z "$FILE" || "$PHASE" != "pre" ]] && exit 0
+INPUT=$(cat)
+TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty')
+FILE=$(printf "%s" "$INPUT" | jq -r '.tool_input.file_path // empty')
+NEW=$(printf "%s" "$INPUT" | jq -r '.tool_input.content // .tool_input.new_string // empty')
 
-# Only check tsx/jsx files in component-shaped paths.
+case "$TOOL" in Edit|Write) ;; *) exit 0 ;; esac
+[[ -z "$FILE" || -z "$NEW" ]] && exit 0
+
+# Only tsx/jsx in component paths
 re_path='apps/[^/]+/src/components/|packages/[^/]+/src/'
 [[ "$FILE" =~ $re_path ]] || exit 0
 [[ "$FILE" =~ \.(tsx|jsx)$ ]] || exit 0
-[[ -f "$FILE" ]] || exit 0
+[[ "$FILE" =~ \.(test|spec|stories)\.(tsx|jsx)$|\.mdx$ ]] && exit 0
 
-# Skip tests / stories / mdx.
-re_skip='\.(test|spec|stories)\.(tsx|jsx)$|\.mdx$'
-[[ "$FILE" =~ $re_skip ]] && exit 0
+# Match `<img ...` or `<Image ...` (self-closing or block — any closing)
+re_tag='<(img|Image)\b'
 
-# Match opening `<img ... >` or `<Image ... >` (next/image, react-native Image).
-# Two passes:
-#   1. Find any opening tag that doesn't already contain `alt=`.
-#   2. Allow lines tagged `// allow-no-alt: <reason>` (rare: decorative,
-#      with aria-hidden="true" nearby).
-re_tag='<(img|Image)([[:space:]>][^/>]*)?>'
-
-# Pull lines with an opening tag.
-HITS=$(grep -nE "$re_tag" "$FILE" | grep -vE 'alt[[:space:]]*=' | grep -vE '// *allow-no-alt:' || true)
+# Hits = lines with the tag but without alt= attribute
+HITS=$(printf "%s" "$NEW" | grep -nE "$re_tag" | grep -vE 'alt[[:space:]]*=' | grep -vE '// *allow-no-alt:' || true)
 
 if [[ -n "$HITS" ]]; then
-  printf "require-img-alt: <img> or <Image> without an alt attribute in:\n  %s\n" "$FILE" >&2
-  printf "%s\n" "$HITS" >&2
-  printf "\nEvery image needs an alt — descriptive for content, alt=\"\" for purely decorative.\n" >&2
-  printf "Override (rare, decorative + aria-hidden): tag the line '// allow-no-alt: <reason>'.\n" >&2
-  exit 1
+  printf "require-img-alt: <img>/<Image> without alt in %s\n%s\n\n" "$FILE" "$HITS" >&2
+  printf "Every image needs an alt — descriptive for content, alt=\"\" for decorative.\n" >&2
+  printf "Override (decorative + aria-hidden): tag the line '// allow-no-alt: <reason>'.\n" >&2
+  exit 2
 fi
 
 exit 0

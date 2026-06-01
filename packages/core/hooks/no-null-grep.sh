@@ -1,41 +1,35 @@
 #!/usr/bin/env bash
-# no-null-grep — pre-commit hook
-#
-# Warns (does NOT block) on `null` literals introduced in domain code.
-# Composed with the `functional` skill (banned by default).
-#
-# Whitelist:
-#   - lines tagged `// allow-null: <reason>`
-#   - JSON parsing / external schema files (paths containing /__schemas__/)
-#
-# Exit codes: 0 allow, 2 warn.
+# no-null-grep — PreToolUse hook. Reads Claude Code JSON from stdin.
+# Blocks edits introducing `null` in business code. Prefer `undefined` or
+# Option<T>. Composes with void:functional and void:typescript-strict.
+# Exit codes: 0 allow, 2 block.
 
 set -euo pipefail
 
-CONFIG="${VOIDCORP_CONFIG:-.void/config.json}"
-DOMAIN_GLOB=$(jq -r '.paths.domain // "**/{domain,services/business}/**"' "$CONFIG" 2>/dev/null)
+INPUT=$(cat)
+TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty')
+FILE=$(printf "%s" "$INPUT" | jq -r '.tool_input.file_path // empty')
+NEW=$(printf "%s" "$INPUT" | jq -r '.tool_input.content // .tool_input.new_string // empty')
 
-STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|tsx)$' || true)
-[[ -z "$STAGED" ]] && exit 0
+case "$TOOL" in Edit|Write) ;; *) exit 0 ;; esac
+[[ -z "$FILE" || -z "$NEW" ]] && exit 0
+[[ "$FILE" =~ \.(ts|tsx)$ ]] || exit 0
+[[ "$FILE" =~ \.(test|spec)\.(ts|tsx)$|\.d\.ts$|/__generated__/ ]] && exit 0
 
-WARNINGS=""
-for FILE in $STAGED; do
-  case "$FILE" in
-    $DOMAIN_GLOB) ;;
-    *) continue ;;
-  esac
-  [[ "$FILE" =~ /__schemas__/ ]] && continue
+# Match `null` as identifier
+re_null='\bnull\b'
 
-  ADDED=$(git diff --cached -- "$FILE" | grep -E '^\+' | grep -v '^+++' | grep -vE '// *allow-null:' || true)
-  HITS=$(printf "%s" "$ADDED" | grep -nE '\bnull\b' || true)
-  if [[ -n "$HITS" ]]; then
-    WARNINGS="${WARNINGS}\n  $FILE:\n$HITS"
+HITS=$(printf "%s" "$NEW" | grep -nE "$re_null" | grep -vE '// *allow-null:' || true)
+
+if [[ -n "$HITS" ]]; then
+  # Filter false positives at library boundaries
+  if printf "%s" "$NEW" | grep -qE 'from .drizzle-orm|JSON\.(stringify|parse)|typeof.*=== .null'; then
+    exit 0
   fi
-done
-
-if [[ -n "$WARNINGS" ]]; then
-  printf "no-null-grep (warn): 'null' literals detected in domain code:" >&2
-  printf "%b\n" "$WARNINGS" >&2
-  printf "\nUse 'T | undefined' or Option<T>. Tag '// allow-null: <reason>' for surgical exceptions.\n" >&2
+  printf "no-null-grep: 'null' literal in %s\n%s\n\n" "$FILE" "$HITS" >&2
+  printf "Prefer undefined or Option<T>. See void:functional.\n" >&2
+  printf "Override (library boundary): tag the line '// allow-null: <reason>'.\n" >&2
   exit 2
 fi
+
+exit 0

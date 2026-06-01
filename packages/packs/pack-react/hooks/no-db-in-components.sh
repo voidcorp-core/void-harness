@@ -1,47 +1,42 @@
 #!/usr/bin/env bash
-# no-db-in-components — PreToolUse hook for Edit/Write.
-# Blocks DB imports inside apps/<app>/src/components/ — components must go
-# through services. Composes with hexagonal-architecture and the
-# void-react convention "components/ is pure UI, no DB, no fetch".
+# no-db-in-components — PreToolUse hook. Reads Claude Code JSON from stdin.
+# https://code.claude.com/docs/en/hooks
 #
-# Inputs (set by the void-harness hook runner):
-#   VOIDCORP_HOOK_FILE / VOIDCORP_HOOK_PHASE
-# Exit codes: 0 allow, 1 block.
+# Blocks DB imports inside apps/<app>/src/components/ — components must
+# call services, not query the DB directly. Composes with the
+# void-react conventions (components are pure UI).
+#
+# Exit codes: 0 allow, 2 block.
 
 set -euo pipefail
 
-FILE="${VOIDCORP_HOOK_FILE:-}"
-PHASE="${VOIDCORP_HOOK_PHASE:-pre}"
-[[ -z "$FILE" || "$PHASE" != "pre" ]] && exit 0
+INPUT=$(cat)
+TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty')
+FILE=$(printf "%s" "$INPUT" | jq -r '.tool_input.file_path // empty')
+NEW=$(printf "%s" "$INPUT" | jq -r '.tool_input.content // .tool_input.new_string // empty')
 
-# Only check files under apps/<app>/src/components/
+case "$TOOL" in Edit|Write) ;; *) exit 0 ;; esac
+[[ -z "$FILE" || -z "$NEW" ]] && exit 0
+
+# Only files under apps/<app>/src/components/
 re_components='apps/[^/]+/src/components/'
 [[ "$FILE" =~ $re_components ]] || exit 0
 
-# Allow .test / .stories / .mdx files
-re_skip='\.(test|spec|stories)\.(ts|tsx|js|jsx)$|\.mdx$'
-[[ "$FILE" =~ $re_skip ]] && exit 0
-
-# Only consider .ts / .tsx
+# Skip tests / stories / mdx
+[[ "$FILE" =~ \.(test|spec|stories)\.(ts|tsx|js|jsx)$|\.mdx$ ]] && exit 0
 [[ "$FILE" =~ \.(ts|tsx)$ ]] || exit 0
-[[ -f "$FILE" ]] || exit 0
 
-# Forbidden imports in components:
-#   - @repo/db / @/db
-#   - drizzle-orm (direct, not behind an adapter)
-#   - any path containing /db/ at import time (e.g. '@/lib/db')
-re_db_import='from[[:space:]]+['"'"'"](@repo/db|@/db|@/lib/db|drizzle-orm)([/'"'"'"]|$)'
+# Forbidden imports
+re_db_import="from[[:space:]]+['\"](@repo/db|@/db|@/lib/db|drizzle-orm)([/'\"]|$)"
 
-HITS=$(grep -nE "$re_db_import" "$FILE" || true)
+HITS=$(printf "%s" "$NEW" | grep -nE "$re_db_import" | grep -vE '// *allow-db:' || true)
+
 if [[ -n "$HITS" ]]; then
-  printf "no-db-in-components: DB import detected in a component file:\n  %s\n" "$FILE" >&2
-  printf "%s\n" "$HITS" >&2
-  printf "\nComponents must call a service. Move the query into apps/<app>/src/services/, then have the component receive the data via props or call a Server Action.\n" >&2
-  printf "Override (rare, justify in PR): tag the import line '// allow-db: <reason>'.\n" >&2
-  # Allow surgical exception with explicit tag on the import line
-  CLEAN=$(grep -nE "$re_db_import" "$FILE" | grep -vE "// *allow-db:" || true)
-  [[ -z "$CLEAN" ]] && exit 0
-  exit 1
+  printf "no-db-in-components: DB import in component file %s\n%s\n\n" "$FILE" "$HITS" >&2
+  printf "Components must call a service. Move the query into services/, then have\n" >&2
+  printf "the component receive data via props or call a Server Action.\n" >&2
+  printf "Override (rare, justified): tag the import line '// allow-db: <reason>'.\n" >&2
+  exit 2
 fi
 
 exit 0

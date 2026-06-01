@@ -1,61 +1,47 @@
 #!/usr/bin/env bash
-# boundary-direction-check — pre-commit hook
-#
-# Blocks commits that violate the hexagonal-architecture dependency direction:
-# domain code MUST NOT import from infrastructure / adapters / framework runtime.
-#
-# Composed with the `hexagonal-architecture` skill.
-#
-# Configuration via .void/config.json:
-#   paths.domain        — domain code (forbidden to import from infra)
-#   paths.adapters      — adapter implementations (allowed to import infra)
-#   paths.infrastructure — raw infrastructure (drizzle config, sdk clients)
-#
-# Default forbidden patterns for files matching $DOMAIN:
-#   - import from a path containing /infrastructure/
-#   - import from a path containing /adapters/
-#   - import from a framework runtime (next/server, drizzle-orm, stripe, ...)
-#
-# Exit codes: 0 allow, 1 block.
+# boundary-direction-check — PreToolUse hook. Reads Claude Code JSON from stdin.
+# Enforces @repo/* import direction in a Turborepo workspace:
+#   @repo/<X> (in packages/<X>/) may ONLY import from @repo/core.
+# Composes with void-monorepo:dependency-direction.
+# Exit codes: 0 allow, 2 block.
 
 set -euo pipefail
 
-CONFIG="${VOIDCORP_CONFIG:-.void/config.json}"
-DOMAIN_GLOB=$(jq -r '.paths.domain // "**/{domain,services/business}/**"' "$CONFIG" 2>/dev/null)
-INFRA_PATTERNS=$(jq -r '.boundary.forbiddenInfraImports[]? // empty' "$CONFIG" 2>/dev/null)
-[[ -z "$INFRA_PATTERNS" ]] && INFRA_PATTERNS=$'/infrastructure/\n/adapters/\nnext/server\ndrizzle-orm\nstripe\n@anthropic-ai/sdk\nopenai\nresend'
+INPUT=$(cat)
+TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty')
+FILE=$(printf "%s" "$INPUT" | jq -r '.tool_input.file_path // empty')
+NEW=$(printf "%s" "$INPUT" | jq -r '.tool_input.content // .tool_input.new_string // empty')
 
-STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|tsx)$' || true)
-[[ -z "$STAGED" ]] && exit 0
+case "$TOOL" in Edit|Write) ;; *) exit 0 ;; esac
+[[ -z "$FILE" || -z "$NEW" ]] && exit 0
 
+# Only files inside packages/<X>/ (NOT apps/, NOT packages/core/)
+[[ "$FILE" =~ ^packages/[^/]+/ ]] || exit 0
+[[ "$FILE" =~ ^packages/core/ ]] && exit 0
+[[ "$FILE" =~ \.(test|spec)\.(ts|tsx)$|\.d\.ts$|/__generated__/ ]] && exit 0
+
+PKG=$(printf "%s" "$FILE" | sed -E 's|^packages/([^/]+)/.*|\1|')
+
+re_import="from[[:space:]]+['\"]@repo/([a-zA-Z0-9-]+)"
+
+# Find lines with @repo/* imports, then check if target is forbidden
 VIOLATIONS=""
-for FILE in $STAGED; do
-  case "$FILE" in
-    $DOMAIN_GLOB) ;;
-    *) continue ;;
-  esac
-
-  ADDED=$(git diff --cached -- "$FILE" | grep -E '^\+' | grep -v '^+++' || true)
-  IMPORT_LINES=$(printf "%s" "$ADDED" | grep -E "^\+.*(import |from ['\"])" || true)
-  [[ -z "$IMPORT_LINES" ]] && continue
-
-  while IFS= read -r PATTERN; do
-    [[ -z "$PATTERN" ]] && continue
-    MATCH=$(printf "%s" "$IMPORT_LINES" | grep -F "$PATTERN" || true)
-    if [[ -n "$MATCH" ]]; then
-      VIOLATIONS="${VIOLATIONS}\n  $FILE imports '$PATTERN':\n$MATCH"
-    fi
-  done <<< "$INFRA_PATTERNS"
-done
+while IFS= read -r line; do
+  IMPORT=$(printf "%s" "$line" | grep -oE '@repo/[a-zA-Z0-9-]+' | head -1)
+  TARGET=$(printf "%s" "$IMPORT" | sed 's|@repo/||')
+  if [[ "$TARGET" != "core" && "$TARGET" != "$PKG" ]]; then
+    VIOLATIONS="${VIOLATIONS}${line}\n"
+  fi
+done < <(printf "%s" "$NEW" | grep -nE "$re_import" | grep -vE '// *allow-boundary:' || true)
 
 if [[ -n "$VIOLATIONS" ]]; then
-  cat >&2 <<EOF
-boundary-direction-check: forbidden imports in domain code:
-$(printf "%b" "$VIOLATIONS")
-
-The hexagonal-architecture skill says: domain code MUST NOT import from
-infrastructure or adapters. Move the I/O into an adapter behind a port
-owned by the domain, then inject the port at the use-case boundary.
-EOF
-  exit 1
+  printf "boundary-direction-check: forbidden @repo/* import from packages/%s/\n" "$PKG" >&2
+  printf "%b\n" "$VIOLATIONS" >&2
+  printf "Packages may only import from @repo/core. For cross-package deps,\n" >&2
+  printf "define a port in this package and wire the adapter in the consuming app.\n" >&2
+  printf "See void-monorepo:dependency-direction.\n" >&2
+  printf "Override (documented): tag the import line '// allow-boundary: <reason>'.\n" >&2
+  exit 2
 fi
+
+exit 0

@@ -1,34 +1,29 @@
 #!/usr/bin/env bash
-# no-only-no-skip — pre-commit hook
-#
-# Blocks commits with `.only` / `.skip` / `fdescribe` / `xit` / `xdescribe`
-# in test files. They mean "I will not run this." Use `it.todo('description')`
-# instead.
-#
-# Whitelist: **/__skip-on-purpose__/** (rare, justified).
-# Composed with the `testing` skill.
-#
-# Exit codes: 0 allow, 1 block.
+# no-only-no-skip — PreToolUse hook. Reads Claude Code JSON from stdin.
+# Blocks edits introducing it.only / describe.only / it.skip / xit / xdescribe
+# in test files. These accidentally ship and silently disable test coverage.
+# Exit codes: 0 allow, 2 block.
 
 set -euo pipefail
 
-STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(test|spec)\.(ts|tsx|js|jsx)$' || true)
-[[ -z "$STAGED" ]] && exit 0
+INPUT=$(cat)
+TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty')
+FILE=$(printf "%s" "$INPUT" | jq -r '.tool_input.file_path // empty')
+NEW=$(printf "%s" "$INPUT" | jq -r '.tool_input.content // .tool_input.new_string // empty')
 
-VIOLATIONS=""
-for FILE in $STAGED; do
-  [[ "$FILE" =~ /__skip-on-purpose__/ ]] && continue
+case "$TOOL" in Edit|Write) ;; *) exit 0 ;; esac
+[[ -z "$FILE" || -z "$NEW" ]] && exit 0
+[[ "$FILE" =~ \.(test|spec)\.(ts|tsx|js|jsx)$ ]] || exit 0
 
-  ADDED=$(git diff --cached -- "$FILE" | grep -E '^\+' | grep -v '^+++' || true)
-  HITS=$(printf "%s" "$ADDED" | grep -nE '\b(describe|it|test)\.only\b|\.skip\b|\bfdescribe\b|\bxit\b|\bxdescribe\b' || true)
-  if [[ -n "$HITS" ]]; then
-    VIOLATIONS="${VIOLATIONS}\n  $FILE:\n$HITS"
-  fi
-done
+re_focus='\b(it|test|describe)\.only\b|\b(it|test)\.skip\b|\bxit\b|\bxdescribe\b'
 
-if [[ -n "$VIOLATIONS" ]]; then
-  printf "no-only-no-skip: focused or skipped tests detected:" >&2
-  printf "%b\n" "$VIOLATIONS" >&2
-  printf "\nUse 'it.todo(...)' for placeholders. Remove '.only'/'.skip' before committing.\n" >&2
-  exit 1
+HITS=$(printf "%s" "$NEW" | grep -nE "$re_focus" || true)
+
+if [[ -n "$HITS" ]]; then
+  printf "no-only-no-skip: focused/skipped test in %s\n%s\n\n" "$FILE" "$HITS" >&2
+  printf "These accidentally land in main and silently drop coverage.\n" >&2
+  printf "Use it.todo for known-pending tests; .only is debugging-only, never commit.\n" >&2
+  exit 2
 fi
+
+exit 0
