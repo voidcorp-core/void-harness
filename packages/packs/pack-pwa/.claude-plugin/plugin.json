@@ -1,6 +1,6 @@
 {
   "name": "void-pwa",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Progressive Web App conventions for the void-harness: manifest.webmanifest, service worker registration, offline-first data patterns, install prompt UX, capture-queue + sync (Solaar-grade). Stack-agnostic.",
   "author": {
     "name": "VoidCorp",
