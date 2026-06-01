@@ -87,7 +87,7 @@ A throwaway implementation is not an acceptable initial state. It is debt that h
 
 ## Universal hard rules
 
-These rules apply to ALL my projects regardless of stack. Project-specific exceptions go in `.voidcorp/PROJECT-DOCTRINE.md` with an ADR.
+These rules apply to ALL my projects regardless of stack. Project-specific exceptions go in `.void/PROJECT-DOCTRINE.md` with an ADR.
 
 - **No `console.log` in committed business code.** Use the project logger (`@repo/core/logger` via `pack-monorepo`). Enforced by `no-console-log-grep` hook + `observability` skill.
 - **No em dashes, no emojis in code, docs, or commits.** ASCII-only keeps grep / git log queryable across editors. Enforced by `no-emdash-no-emoji-in-commit-msg` hook + `commit-discipline` skill.
@@ -124,7 +124,7 @@ The harness must evolve from real usage in real projects, like citypaul's dotfil
 
 While coding in any project consuming the harness, when the model (or the user) perceives that something is missing, wrong, or worth a rule:
 
-1. The perception is captured to `.voidcorp/harness-feedback/proposed/YYYY-MM-DD-N.md` in the *current project repo* (not in void-harness). Format: trigger, observation, proposed change to harness, target (core / pack / module), confidence.
+1. The perception is captured to `.void/harness-feedback/proposed/YYYY-MM-DD-N.md` in the *current project repo* (not in void-harness). Format: trigger, observation, proposed change to harness, target (core / pack / module), confidence.
 2. Periodically (or on demand), `npx @voidcorp/harness feedback push` reads the proposed queue, walks each item with the user (promote / discard / defer), and opens a GitHub issue or PR on `voidcorp-core/void-harness` for the ones the user promotes.
 3. The void-harness PR carries the source project context as motivation. Nothing is merged without human review.
 
@@ -132,7 +132,7 @@ While coding in any project consuming the harness, when the model (or the user) 
 
 A recurring auto-evaluation that questions the harness's current surface:
 
-1. Each skill invocation logs to `~/.voidcorp/usage.log` (local, never shipped).
+1. Each skill invocation logs to `~/.void/usage.log` (local, never shipped).
 2. `npx @voidcorp/harness audit` produces a report: skills never invoked in N days, skills whose upstream source has been deprecated/superseded, skills whose decision-matrix cell has fired conflicts repeatedly.
 3. The report **proposes** deprecations, fusions, or rewrites. Nothing is auto-applied. Each proposal becomes a PR after human review.
 

@@ -127,8 +127,8 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 
 Two modes: `feedback` (inbound suggestions captured from real project usage) and `audit` (outbound obsolescence detection).
 
-- **Wins (`feedback` mode)**: any moment, in any consumer project, when the model or user perceives a missing skill, missing rule, missing mention, or a hole in the harness coverage. Captured to `.voidcorp/harness-feedback/proposed/` in the *consumer project*.
-- **Wins (`audit` mode)**: triggered by `npx @voidcorp/harness audit`. Reads `~/.voidcorp/usage.log`, scans upstream sources for deprecation, surfaces conflicts in the decision matrix.
+- **Wins (`feedback` mode)**: any moment, in any consumer project, when the model or user perceives a missing skill, missing rule, missing mention, or a hole in the harness coverage. Captured to `.void/harness-feedback/proposed/` in the *consumer project*.
+- **Wins (`audit` mode)**: triggered by `npx @voidcorp/harness audit`. Reads `~/.void/usage.log`, scans upstream sources for deprecation, surfaces conflicts in the decision matrix.
 - **Loses to**: nothing — it's a meta-skill operating on the harness itself, orthogonal to code-discipline and process skills.
 - **Cannot decide**: whether a proposed change is adopted (HITL only). Cannot write into harness doctrine — only opens issues/PRs.
 - **Composes with**: every skill (any skill can be the subject of feedback). Pairs naturally with `code-review` (a code review that surfaces a missing rule may generate a feedback item).

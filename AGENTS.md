@@ -79,6 +79,6 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 
 The harness improves from real project usage, never auto-applied.
 
-- **Inbound**: while coding in a consumer project, captured perceptions of "the harness should have X" go to `.voidcorp/harness-feedback/proposed/` in that project. Promoted via `npx @voidcorp/harness feedback push` → issue or PR here.
+- **Inbound**: while coding in a consumer project, captured perceptions of "the harness should have X" go to `.void/harness-feedback/proposed/` in that project. Promoted via `npx @voidcorp/harness feedback push` → issue or PR here.
 - **Outbound**: `npx @voidcorp/harness audit` reports skills not invoked recently, upstream deprecations, repeated matrix conflicts. Proposes deprecations as PRs.
 - **HITL is absolute**: no automatic write into doctrine, ever. Every change is a deliberate commit.
