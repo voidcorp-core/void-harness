@@ -34,7 +34,7 @@ void-harness/
 │   ├── cli/                       # @voidcorp/harness — CLI npm
 │   ├── core/                      # void plugin (static assets, not an npm package)
 │   │   ├── skills/                # craftsman skills
-│   │   ├── agents/                # planned: senior-reviewer, security-reviewer, architect-critic
+│   │   ├── agents/                # doctrine-critic (read-only doctrine conformance review)
 │   │   ├── hooks/                 # tdd-guard, no-any-grep, no-console-log-grep, etc.
 │   │   └── modules/               # CLAUDE.md modules (composable)
 │   └── packs/

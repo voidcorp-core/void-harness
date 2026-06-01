@@ -1,7 +1,7 @@
 {
   "name": "void",
   "version": "0.5.4",
-  "description": "VoidCorp universal craftsman skills (TDD strict, TypeScript strict, hexagonal, DDD, functional, code-review, observability, security-guidance, ...) plus 8 PreToolUse enforcement hooks (tdd-guard, no-any, no-console-log, ...) and pre-commit/CI hooks. Review agents (senior-reviewer, security-reviewer, architect-critic) are on the roadmap.",
+  "description": "VoidCorp universal craftsman skills (TDD strict, TypeScript strict, hexagonal, DDD, functional, code-review, observability, security-guidance, ...) plus 8 PreToolUse enforcement hooks (tdd-guard, no-any, no-console-log, ...) and pre-commit/CI hooks, plus the read-only doctrine-critic review agent (judges doctrine conformance; routes security to /cso and bugs to /code-review).",
   "author": {
     "name": "VoidCorp",
     "email": "florent.pellegrin@voidcorp.io"

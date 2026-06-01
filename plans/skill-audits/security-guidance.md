@@ -20,7 +20,7 @@ Without `security-guidance`, security is "I'll think about it later" — except 
 ## Decision matrix anchor
 
 - **Wins**: any trust-boundary code (input validation, auth, secrets, SQL, LLM input/output). Default-secure patterns
-- **Loses to**: gstack `/cso` for full audit mode. `security-reviewer` agent for diff-level review
+- **Loses to**: gstack `/cso` for full audit mode. `doctrine-critic` agent flags trust-boundary code in a diff
 - **Cannot decide**: full threat model (escalates to `cso`)
 - **Composes with**: `hexagonal-architecture` (boundary discipline), `typescript-strict` (no untyped trust)
 

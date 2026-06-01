@@ -9,7 +9,7 @@
     {
       "name": "void",
       "source": "./packages/core",
-      "description": "Universal craftsman skills (TDD strict, TypeScript strict, hexagonal, DDD, functional, code-review, ...) plus enforcement hooks (tdd-guard, no-any, no-console-log, ...). Review agents (senior-reviewer, security-reviewer, architect-critic) are on the roadmap.",
+      "description": "Universal craftsman skills (TDD strict, TypeScript strict, hexagonal, DDD, functional, code-review, ...) plus enforcement hooks (tdd-guard, no-any, no-console-log, ...), plus the read-only doctrine-critic review agent.",
       "version": "0.5.4",
       "category": "best-practices",
       "tags": [
