@@ -1,8 +1,13 @@
 // Static list of packs the CLI knows about. Bumped manually when a new pack
-// lands in the marketplace. A future v0.x may fetch this dynamically from the
-// marketplace.json. Order in PACKS controls display order in `list` and `init`.
+// lands in the marketplace. Order in PACKS controls display order in `list`
+// and `init`.
+//
+// Detection walks monorepo workspaces (pnpm-workspace.yaml, package.json
+// "workspaces", bun workspaces) so packs whose stack lives in sub-packages
+// (apps/web/package.json with "next", apps/mobile/package.json with "expo")
+// are still discovered.
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 export interface PackDescriptor {
@@ -56,17 +61,15 @@ export const PACKS: readonly PackDescriptor[] = [
       hasDepLike(root, /^next$/) ||
       hasDepLike(root, /^(hono|@hono\/)/) ||
       hasDepLike(root, /^drizzle-orm$/) ||
-      existsSync(join(root, 'drizzle.config.ts')) ||
-      existsSync(join(root, 'drizzle.config.js')),
+      anyWorkspaceFile(root, ['drizzle.config.ts', 'drizzle.config.js']),
   },
   {
     name: 'void-pwa',
     label: 'void-pwa',
     description: 'PWA manifest, service worker, offline-first',
     detect: (root) =>
-      existsSync(join(root, 'public', 'manifest.webmanifest')) ||
-      existsSync(join(root, 'public', 'manifest.json')) ||
-      hasDepLike(root, /(next-pwa|workbox-window|@serwist\/)/),
+      anyWorkspaceFile(root, ['public/manifest.webmanifest', 'public/manifest.json']) ||
+      hasDepLike(root, /(next-pwa|workbox-window|@serwist\/|serwist)/),
   },
   {
     name: 'void-mobile',
@@ -74,30 +77,121 @@ export const PACKS: readonly PackDescriptor[] = [
     description: 'Expo + React Native + native modules',
     detect: (root) =>
       hasDepLike(root, /^(expo|react-native)$/) ||
-      existsSync(join(root, 'app.config.ts')) ||
-      existsSync(join(root, 'app.json')),
+      anyWorkspaceFile(root, ['app.config.ts', 'app.json']),
   },
 ];
 
-/** Reads dependencies + devDependencies + peerDependencies from package.json. */
-function hasDepLike(root: string, pattern: RegExp): boolean {
-  const pkgPath = join(root, 'package.json');
-  if (!existsSync(pkgPath)) return false;
+interface RawPkg {
+  readonly name?: string;
+  readonly dependencies?: Record<string, string>;
+  readonly devDependencies?: Record<string, string>;
+  readonly peerDependencies?: Record<string, string>;
+  readonly workspaces?: readonly string[] | { packages?: readonly string[] };
+}
+
+function readPkg(dir: string): RawPkg | undefined {
+  const path = join(dir, 'package.json');
+  if (!existsSync(path)) return undefined;
   try {
-    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as {
-      dependencies?: Record<string, string>;
-      devDependencies?: Record<string, string>;
-      peerDependencies?: Record<string, string>;
-    };
+    return JSON.parse(readFileSync(path, 'utf8')) as RawPkg;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Resolve workspace globs (apps/*, packages/*) to actual sub-directories one level deep. */
+function expandGlob(root: string, pattern: string): string[] {
+  // We only support trailing /* — the common workspace pattern. Anything more
+  // exotic (apps/**, packages/*/src) is rejected to avoid recursion surprises.
+  if (pattern.endsWith('/*')) {
+    const base = join(root, pattern.slice(0, -2));
+    if (!existsSync(base)) return [];
+    try {
+      return readdirSync(base)
+        .map((name) => join(base, name))
+        .filter((p) => statSync(p).isDirectory());
+    } catch {
+      return [];
+    }
+  }
+  // Bare path (no glob): take as-is if it's a directory.
+  const direct = join(root, pattern);
+  if (existsSync(direct)) {
+    try {
+      if (statSync(direct).isDirectory()) return [direct];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function workspaceGlobsFrom(root: string, pkg: RawPkg | undefined): readonly string[] {
+  // package.json:workspaces (npm/yarn/bun)
+  const ws = pkg?.workspaces;
+  if (Array.isArray(ws)) return ws;
+  if (ws !== undefined) {
+    // ws is the object form { packages?: string[] } here
+    const packages = (ws as { packages?: readonly string[] }).packages;
+    if (Array.isArray(packages)) return packages;
+  }
+  // pnpm-workspace.yaml: minimal parser, just pull `- 'apps/*'` lines.
+  const pnpmPath = join(root, 'pnpm-workspace.yaml');
+  if (existsSync(pnpmPath)) {
+    try {
+      const text = readFileSync(pnpmPath, 'utf8');
+      const globs: string[] = [];
+      for (const raw of text.split('\n')) {
+        const m = /^\s*-\s*['"]?([^'"\s]+)['"]?/.exec(raw);
+        if (m && m[1] !== undefined) globs.push(m[1]);
+      }
+      if (globs.length > 0) return globs;
+    } catch {
+      // ignore
+    }
+  }
+  return [];
+}
+
+function workspacePkgs(root: string): readonly RawPkg[] {
+  const rootPkg = readPkg(root);
+  const result: RawPkg[] = [];
+  if (rootPkg) result.push(rootPkg);
+  for (const glob of workspaceGlobsFrom(root, rootPkg)) {
+    for (const dir of expandGlob(root, glob)) {
+      const sub = readPkg(dir);
+      if (sub) result.push(sub);
+    }
+  }
+  return result;
+}
+
+/** True if any workspace package.json (root + apps/* + packages/*) declares a matching dep. */
+function hasDepLike(root: string, pattern: RegExp): boolean {
+  for (const pkg of workspacePkgs(root)) {
     const all = {
       ...(pkg.dependencies ?? {}),
       ...(pkg.devDependencies ?? {}),
       ...(pkg.peerDependencies ?? {}),
     };
-    return Object.keys(all).some((dep) => pattern.test(dep));
-  } catch {
-    return false;
+    if (Object.keys(all).some((dep) => pattern.test(dep))) return true;
   }
+  return false;
+}
+
+/** True if any workspace dir (root + apps/* + packages/*) contains one of the listed files. */
+function anyWorkspaceFile(root: string, relativePaths: readonly string[]): boolean {
+  const dirs: string[] = [root];
+  const rootPkg = readPkg(root);
+  for (const glob of workspaceGlobsFrom(root, rootPkg)) {
+    dirs.push(...expandGlob(root, glob));
+  }
+  for (const dir of dirs) {
+    for (const rel of relativePaths) {
+      if (existsSync(join(dir, rel))) return true;
+    }
+  }
+  return false;
 }
 
 /** Resolve a pack name (with or without `void-` prefix) to a descriptor. */

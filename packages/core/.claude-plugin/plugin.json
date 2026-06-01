@@ -1,6 +1,6 @@
 {
   "name": "void",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "VoidCorp universal craftsman skills (TDD strict, TypeScript strict, hexagonal, DDD, functional, code-review, observability, security-guidance, ...), 20 enforcement hooks, and core agents (senior-reviewer, security-reviewer, architect-critic).",
   "author": {
     "name": "VoidCorp",
