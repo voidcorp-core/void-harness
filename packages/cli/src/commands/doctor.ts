@@ -6,10 +6,10 @@
 //   3. .claude/settings.json has extraKnownMarketplaces.void-harness + at
 //      least void@void-harness in enabledPlugins
 //   4. CLAUDE.md contains the void-harness block
-//   5. gh CLI is available and authenticated (required for private repo
-//      marketplace fetch)
-//   6. jq is available (required by the PreToolUse + pre-commit hooks, which
-//      parse the Claude Code tool-call JSON from stdin)
+//   5. jq is available (required by the PreToolUse + pre-commit hooks, which
+//      parse the Claude Code tool-call JSON from stdin) — always checked
+//   6. gh CLI is available and authenticated (required for the private repo
+//      marketplace fetch) — only when remote checks run; --no-remote skips it
 
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -91,10 +91,13 @@ export async function doctor(args: readonly string[]): Promise<void> {
     }
   }
 
-  checks.push(checkGh());
+  // jq is needed by the local enforcement hooks, so it is always checked.
+  // gh only matters for fetching the private marketplace, so it is gated
+  // behind the remote checks: --no-remote is a fully offline run.
   checks.push(checkJq());
 
   if (!skipRemote) {
+    checks.push(checkGh());
     checks.push(await checkRemoteVersions(root));
   }
 

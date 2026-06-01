@@ -194,9 +194,14 @@ function anyWorkspaceFile(root: string, relativePaths: readonly string[]): boole
   return false;
 }
 
-/** Resolve a pack name (with or without `void-` prefix) to a descriptor. */
+/**
+ * Resolve a pack name to its descriptor. Accepts every form a user might type:
+ * the bare stack (`nextjs`), the plugin name (`void-nextjs`), and the npm /
+ * directory form documented in the README (`pack-nextjs`).
+ */
 export function findPack(name: string): PackDescriptor | undefined {
-  const normalized = name.startsWith('void-') ? name : `void-${name}`;
+  const stack = name.replace(/^(void-|pack-)/, '');
+  const normalized = `void-${stack}`;
   return PACKS.find((p) => p.name === normalized || p.name === name);
 }
 

@@ -93,6 +93,24 @@ describe('detection: workspace file presence', () => {
   });
 });
 
+describe('findPack name resolution', () => {
+  it('resolves the bare stack name (nextjs)', () => {
+    expect(findPack('nextjs')?.name).toBe('void-nextjs');
+  });
+
+  it('resolves the plugin name (void-nextjs)', () => {
+    expect(findPack('void-nextjs')?.name).toBe('void-nextjs');
+  });
+
+  it('resolves the npm/directory form (pack-nextjs) shown in the README', () => {
+    expect(findPack('pack-nextjs')?.name).toBe('void-nextjs');
+  });
+
+  it('returns undefined for an unknown pack', () => {
+    expect(findPack('pack-svelte')).toBeUndefined();
+  });
+});
+
 describe('PACKS ordering', () => {
   it('exposes monorepo first, then react, then framework-specific packs', () => {
     const names = PACKS.map((p) => p.name);

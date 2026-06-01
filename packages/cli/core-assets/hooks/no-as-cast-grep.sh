@@ -1,42 +1,32 @@
 #!/usr/bin/env bash
-# no-as-cast-grep — pre-commit hook
-#
-# Warns (does NOT block) on `as <Type>` casts outside the allowed set:
-#   - `as const` (always allowed)
-#   - `as unknown` (allowed as narrowing stepping stone)
-#   - `as React.ReactNode` (common JSX pattern)
-#   - Smart-constructor returns (lines marked `// allow-as: smart-constructor`)
-#
-# Composed with the `typescript-strict` skill. Warns because false positives
-# are common; the author confirms or refactors.
-#
-# Exit codes: 0 allow, 2 warn.
+# no-as-cast-grep — PreToolUse hook. Reads Claude Code JSON from stdin.
+# Blocks `as Foo` and `as unknown as Foo` casts in business TS.
+# Allowed: `as const`, `as readonly` (idiomatic, not casts).
+# Exit codes: 0 allow, 2 block.
 
 set -euo pipefail
 
-STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|tsx)$' || true)
-[[ -z "$STAGED" ]] && exit 0
+INPUT=$(cat)
+TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty')
+FILE=$(printf "%s" "$INPUT" | jq -r '.tool_input.file_path // empty')
+NEW=$(printf "%s" "$INPUT" | jq -r '.tool_input.content // .tool_input.new_string // empty')
 
-WARNINGS=""
-for FILE in $STAGED; do
-  [[ "$FILE" =~ /__fixtures__/ || "$FILE" =~ /__tests__/ ]] && continue
+case "$TOOL" in Edit|Write) ;; *) exit 0 ;; esac
+[[ -z "$FILE" || -z "$NEW" ]] && exit 0
+[[ "$FILE" =~ \.(ts|tsx)$ ]] || exit 0
+[[ "$FILE" =~ \.(test|spec)\.(ts|tsx)$|\.d\.ts$|/__generated__/ ]] && exit 0
 
-  ADDED=$(git diff --cached -- "$FILE" | grep -E '^\+' | grep -v '^+++' || true)
-  HITS=$(printf "%s" "$ADDED" \
-    | grep -nE '\bas\s+[A-Z][A-Za-z0-9_]*' \
-    | grep -vE '\bas\s+(const|unknown)\b' \
-    | grep -vE '\bas\s+React\.' \
-    | grep -vE '// *allow-as:' \
-    || true)
-  if [[ -n "$HITS" ]]; then
-    WARNINGS="${WARNINGS}\n  $FILE:\n$HITS"
-  fi
-done
+# `as <Identifier>` excluding const/readonly. Use grep -P for negative lookahead.
+re_cast='\bas[[:space:]]+(?!const\b|readonly\b)[A-Z][A-Za-z0-9_]*'
 
-if [[ -n "$WARNINGS" ]]; then
-  printf "no-as-cast-grep (warn): unusual 'as <Type>' casts detected:" >&2
-  printf "%b\n" "$WARNINGS" >&2
-  printf "\nPrefer 'satisfies', 'schema.parse()', or smart constructors.\n" >&2
-  printf "If intentional, tag the line with '// allow-as: <reason>'.\n" >&2
+HITS=$(printf "%s" "$NEW" | grep -nP "$re_cast" 2>/dev/null | grep -vE '// *allow-as-cast:' || true)
+
+if [[ -n "$HITS" ]]; then
+  printf "no-as-cast-grep: 'as <Type>' cast detected in %s\n%s\n\n" "$FILE" "$HITS" >&2
+  printf "Prefer: type guards, generics, narrowing, or Zod parse at the boundary.\n" >&2
+  printf "'as const' / 'as readonly' are allowed (literal narrowing, not casts).\n" >&2
+  printf "Override (rare): tag the line '// allow-as-cast: <reason>'.\n" >&2
   exit 2
 fi
+
+exit 0

@@ -72,9 +72,10 @@ MSG="tdd-guard: missing sibling test for production file
   Expected test:  $TEST_TS  (or .test.tsx)
   Mode:           $MODE
 
-  Iron Law of void:tdd — no line of production code without a failing
-  test that requested it. Create the test file first (RED), then the
-  production code (GREEN).
+  void:tdd: a test must drive every production change. This hook enforces
+  the structural floor only: a sibling test file must EXIST. It does not run
+  the suite, so writing a genuinely failing test first (RED) then the code
+  (GREEN) stays your responsibility, not the hook's.
 
   Override (rare): add '// tdd-mode: exploratory' as the first line of $FILE."
 

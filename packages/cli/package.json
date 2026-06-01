@@ -20,8 +20,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "prepack": "pnpm run build && pnpm run build:assets",
-    "release": "changeset publish"
+    "prepack": "pnpm run build && pnpm run build:assets"
   },
   "engines": {
     "node": ">=20"

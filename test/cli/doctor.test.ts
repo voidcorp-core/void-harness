@@ -55,10 +55,10 @@ describe('doctor', () => {
     expect(out).toContain('failed');
   });
 
-  it('checks for both gh and jq (the hook runtime dependency)', async () => {
+  it('always checks jq but skips the gh check under --no-remote (fully offline)', async () => {
     const out = await runDoctor();
-    expect(out).toContain('gh CLI');
     expect(out).toContain('jq');
+    expect(out).not.toContain('gh CLI');
   });
 
   it('accepts a valid .void/config.json', async () => {

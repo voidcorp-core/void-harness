@@ -1,37 +1,34 @@
 #!/usr/bin/env bash
-# no-any-grep — pre-commit hook
+# no-any-grep — PreToolUse hook. Reads Claude Code JSON from stdin.
+# https://code.claude.com/docs/en/hooks
 #
-# Blocks commits that introduce `: any` or `as any` in TypeScript files
-# outside the whitelist (test fixtures + magic-comment allowlist).
-# Composed with the `typescript-strict` skill (zero `any` budget).
+# Blocks edits introducing `: any` or `<any>` in business TS code.
+# Composes with the void:typescript-strict skill.
 #
-# Whitelist:
-#   - **/__fixtures__/**
-#   - **/__tests__/** (test helpers can use any for setup)
-#   - Lines tagged `// allow-any: <reason>` (surgical exception)
-#
-# Exit codes: 0 allow, 1 block.
+# Exit codes: 0 allow, 2 block.
 
 set -euo pipefail
 
-STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|tsx)$' || true)
-[[ -z "$STAGED" ]] && exit 0
+INPUT=$(cat)
+TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty')
+FILE=$(printf "%s" "$INPUT" | jq -r '.tool_input.file_path // empty')
+NEW=$(printf "%s" "$INPUT" | jq -r '.tool_input.content // .tool_input.new_string // empty')
 
-VIOLATIONS=""
-for FILE in $STAGED; do
-  [[ "$FILE" =~ /__fixtures__/ || "$FILE" =~ /__tests__/ ]] && continue
+case "$TOOL" in Edit|Write) ;; *) exit 0 ;; esac
+[[ -z "$FILE" || -z "$NEW" ]] && exit 0
+[[ "$FILE" =~ \.(ts|tsx)$ ]] || exit 0
+[[ "$FILE" =~ \.(test|spec)\.(ts|tsx)$|\.d\.ts$|/__generated__/ ]] && exit 0
 
-  # Grep added lines for `: any` or `as any`, excluding allow-any tagged lines
-  ADDED=$(git diff --cached -- "$FILE" | grep -E '^\+' | grep -v '^+++' | grep -vE '// *allow-any:' || true)
-  HITS=$(printf "%s" "$ADDED" | grep -nE ':\s*any\b|\bas\s+any\b' || true)
-  if [[ -n "$HITS" ]]; then
-    VIOLATIONS="${VIOLATIONS}\n  $FILE:\n$HITS"
-  fi
-done
+# Match `: any`, `<any>`, or `as any`
+re_any=':[[:space:]]*any\b|<any>|\bas[[:space:]]+any\b'
 
-if [[ -n "$VIOLATIONS" ]]; then
-  printf "no-any-grep: forbidden 'any' usage detected:" >&2
-  printf "%b\n" "$VIOLATIONS" >&2
-  printf "\nFix with 'unknown' + narrowing, or tag the line with '// allow-any: <reason>' if surgical.\n" >&2
-  exit 1
+HITS=$(printf "%s" "$NEW" | grep -nE "$re_any" | grep -vE '// *allow-any:' || true)
+
+if [[ -n "$HITS" ]]; then
+  printf "no-any-grep: 'any' detected in %s\n%s\n\n" "$FILE" "$HITS" >&2
+  printf "Use a precise type, unknown + narrow, or generic. See void:typescript-strict.\n" >&2
+  printf "Override (rare, documented): tag the line '// allow-any: <reason>'.\n" >&2
+  exit 2
 fi
+
+exit 0
