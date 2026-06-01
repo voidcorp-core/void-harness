@@ -7,6 +7,7 @@ import { remove } from './commands/remove.js';
 import { list } from './commands/list.js';
 import { doctor } from './commands/doctor.js';
 import { check } from './commands/check.js';
+import { update } from './commands/update.js';
 import { printHelp } from './commands/help.js';
 
 export async function main(argv: readonly string[]): Promise<void> {
@@ -32,6 +33,9 @@ export async function main(argv: readonly string[]): Promise<void> {
       return;
     case 'check':
       await check(rest);
+      return;
+    case 'update':
+      await update(rest);
       return;
     case 'install':
       await install(rest);

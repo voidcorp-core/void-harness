@@ -27,6 +27,9 @@ Commands:
                            to skip).
   check [--doctrine]       Compare local plugin versions against the remote
                            marketplace. With --doctrine, also diff PHILOSOPHY.md.
+  update [--dry-run]       Sync .void/config.json pins to the current
+                           marketplace HEAD (after '/plugin marketplace
+                           update' in Claude Code). --dry-run previews.
   install --global         Escape hatch (rare); see install --help.
 
   help                     Print this message.
@@ -44,6 +47,8 @@ Examples:
   void-harness list                                  # see what's active
   void-harness check                                 # remote version drift
   void-harness check --doctrine                      # + PHILOSOPHY.md drift
+  void-harness update                                # sync pins to remote HEAD
+  void-harness update --dry-run                      # preview the diff
 
 Marketplace: https://github.com/voidcorp-core/void-harness
 `.trimStart();
