@@ -66,7 +66,7 @@ jobs:
       - name: Lint — Biome
         run: pnpm lint
 
-      - name: Publish safety — no workspace: in npm packages
+      - name: Publish safety (no workspace protocol in npm packages)
         run: pnpm check:publish
 
       - name: Build packages
