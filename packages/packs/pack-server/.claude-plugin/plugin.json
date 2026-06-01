@@ -15,5 +15,18 @@
     "drizzle",
     "zod",
     "trust-boundary"
-  ]
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-process-env-in-app.sh"
+          }
+        ]
+      }
+    ]
+  }
 }
