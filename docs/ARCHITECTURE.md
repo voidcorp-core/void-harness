@@ -41,9 +41,9 @@ The harness targets two primary agent runtimes simultaneously: **Claude Code** (
 Rules:
 
 - Doctrine in `CLAUDE.md` and `AGENTS.md` is identical. Only terminology adapts ("Claude Code" / "Skill tool" vs "Codex" / "tools / shell").
-- A pre-commit hook (`scripts/sync-agent-docs.sh`, Phase A deliverable) blocks a commit that modifies one without reflecting the change in the other beyond the known substitution set.
+- `scripts/sync-agent-docs.sh` enforces parity on the harness repo itself: `--staged` (a commit touching one sister doc must touch the other) via `.githooks/pre-commit` (`git config core.hooksPath .githooks`), and section-heading parity in CI (`pnpm sync:docs`).
 - No file is auto-generated from the other. Auto-generation risks losing intentional adaptations. Manual authoring + mechanical gate is the safer trade-off.
-- The CLI command `npx @voidcorp/harness init` installs both files in consumer projects and wires the same sync hook into the consumer's pre-commit chain.
+- The CLI command `npx @voidcorp/harness init` (and `add` / `remove`) patches both files in consumer projects, keeping them in parity. It does not install the harness's own pre-commit hook into the consumer — the parity gate is a harness-repo concern; a consumer that wants it opts in by pointing `core.hooksPath` at the shipped `.githooks/`.
 
 ## Agent model tiers
 

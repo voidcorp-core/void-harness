@@ -86,7 +86,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 
 ---
 
-## Process skills (13)
+## Process skills (14)
 
 ### `brainstorming`
 
@@ -139,6 +139,13 @@ Two modes: `feedback` (inbound suggestions captured from real project usage) and
 - **Loses to**: nothing — it's a meta-skill operating on the harness itself, orthogonal to code-discipline and process skills.
 - **Cannot decide**: whether a proposed change is adopted (HITL only). Cannot write into harness doctrine — only opens issues/PRs.
 - **Composes with**: every skill (any skill can be the subject of feedback). Pairs naturally with `code-review` (a code review that surfaces a missing rule may generate a feedback item).
+
+### `capture-rule`
+
+- **Wins**: the user states a durable project-specific rule, preference, or constraint to remember. Captures it into `.void/PROJECT-DOCTRINE.md` under strict HITL (propose, wait, write, confirm).
+- **Loses to**: `harness-evolution` when the rule is universal (applies to all the user's projects) — that routes to a harness PR, not PROJECT-DOCTRINE.md.
+- **Cannot decide**: whether a rule is correct (the user owns it); whether to apply it without confirmation (never — HITL absolute).
+- **Composes with**: `harness-evolution` (universal split), `compounding` (routes a learned pattern here), `claude-md-authoring` (governs the doc the rule lands in).
 
 ### `source-driven-development`
 
