@@ -88,6 +88,25 @@ for f in packages/core/skills/*/SKILL.md packages/packs/*/skills/*/SKILL.md; do
   fi
 done
 
+# Sourcing discipline: every skill (core + packs) ships a co-located `.source`
+# (provenance that travels with the distributed skill) AND has an audit note in
+# plans/skill-audits/ (the repo-side reasoning). Both are required by the
+# sourcing rule in CLAUDE.md/AGENTS.md; without a gate the rule rots silently.
+echo "  sourcing: .source + audit note per skill"
+while IFS= read -r f; do
+  [[ -n "$f" && -e "$f" ]] || continue
+  DIR=$(dirname "$f")
+  NAME=$(basename "$DIR")
+  if [[ ! -f "$DIR/.source" ]]; then
+    echo "    FAIL: $f has no co-located .source" >&2
+    FAILED=1
+  fi
+  if [[ ! -f "plans/skill-audits/$NAME.md" ]]; then
+    echo "    FAIL: skill '$NAME' has no plans/skill-audits/$NAME.md audit note" >&2
+    FAILED=1
+  fi
+done <<<"$SKILL_FILES"
+
 if [[ "$FAILED" -eq 0 ]]; then
   echo "anti-bloat-check: all checks passed."
 else
