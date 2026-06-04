@@ -33,6 +33,13 @@ jobs:
         # locally; CI enforces structural parity statelessly.
         run: pnpm sync:docs
 
+      - name: Version lockstep
+        # Every version-carrying manifest (marketplace, 7 plugin.json, the
+        # core-assets mirror, the 3 npm package.json) must equal the canonical
+        # marketplace version. Catches any miss by the release automation, the
+        # manual bumper, or a hand-edit before it ships a skewed install.
+        run: pnpm version:check
+
       - name: Anti-bloat checks
         # Single source of truth: scripts/anti-bloat-check.sh enforces the size
         # caps (skills ≤400, hooks ≤100), hook shell syntax, AND the frontmatter

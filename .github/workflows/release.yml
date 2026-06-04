@@ -1,0 +1,32 @@
+name: release
+
+# Automated, lockstep releasing driven by Conventional Commits (which this repo
+# already enforces). On every push to main, release-please maintains a single
+# "release PR" that bumps the canonical version across ALL manifests (via
+# extra-files in release-please-config.json) and writes the changelog. Merging
+# that PR tags `vX.Y.Z` and cuts a GitHub release. No one hand-bumps a version.
+#
+# HITL is preserved: the version is computed automatically, but the release only
+# happens when a human merges the release PR. Pre-1.0 policy (config):
+# feat -> minor, fix -> patch, breaking -> minor (bump-minor-pre-major).
+#
+# npm publish is intentionally NOT wired here yet (the package is not published).
+# When ready, add a step gated on `steps.release.outputs.release_created`.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
