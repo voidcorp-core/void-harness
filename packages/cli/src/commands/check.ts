@@ -49,8 +49,8 @@ export async function check(args: readonly string[]): Promise<void> {
   if (drift > 0) {
     footer(
       `${c.yellow(`${drift} plugin${drift > 1 ? 's' : ''} behind`)} ${glyph.emdash} run ${c.bold(
-        '/plugin marketplace update',
-      )} in Claude Code`,
+        'void-harness update',
+      )} ${c.dim('(refreshes the plugin cache + bumps the pins this check measures), then restart Claude Code')}`,
     );
   } else {
     footer(c.dim('all up to date'));
