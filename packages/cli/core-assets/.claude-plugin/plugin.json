@@ -1,7 +1,7 @@
 {
   "name": "void",
   "version": "0.5.4",
-  "description": "VoidCorp universal craftsman skills (TDD strict, TypeScript strict, hexagonal, DDD, functional, code-review, api-and-interface-design, source-driven-development, context-management, compounding, adr-workflow, observability, security-guidance, ...) plus 10 PreToolUse enforcement hooks (tdd-guard, no-any, no-console-log, protect-sensitive-files, block-dangerous-bash, ...) and pre-commit/CI hooks, plus the read-only doctrine-critic agent (judges doctrine conformance; routes security to /cso and bugs to /code-review).",
+  "description": "VoidCorp universal craftsman skills (TDD strict, TypeScript strict, hexagonal, DDD, functional, code-review, api-and-interface-design, source-driven-development, context-management, compounding, adr-workflow, claude-md-authoring, observability, security-guidance, ...) plus 12 PreToolUse enforcement hooks (tdd-guard, no-any, protect-sensitive-files, block-dangerous-bash, no-ai-design-slop, ...) and PostToolUse/SessionStart/PreCompact lifecycle hooks, read-only agents (doctrine-critic, silent-failure-hunter, type-design-analyzer, code-explorer, migration-planner), and /void-feedback, /void-doctor, /void-audit commands.",
   "author": {
     "name": "VoidCorp",
     "email": "florent.pellegrin@voidcorp.io"
@@ -104,6 +104,55 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/block-dangerous-bash.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-ai-design-slop.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/skill-usage-meter.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/auto-format.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/sessionstart-context.sh"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/precompact-doctrine.sh"
           }
         ]
       }
