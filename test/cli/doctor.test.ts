@@ -74,4 +74,12 @@ describe('doctor', () => {
     const out = await runDoctor();
     expect(out).toContain('invalid JSON');
   });
+
+  it('checks AGENTS.md (Codex sister doc), not only CLAUDE.md', async () => {
+    // CLAUDE.md present with the block, AGENTS.md absent -> AGENTS.md must fail.
+    writeFileSync(join(dir, 'CLAUDE.md'), '# CLAUDE.md\n<!-- void-harness:begin -->\nx\n<!-- void-harness:end -->\n');
+    const out = await runDoctor();
+    expect(out).toContain('AGENTS.md');
+    expect(out).toContain('missing');
+  });
 });

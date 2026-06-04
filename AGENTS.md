@@ -79,6 +79,10 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 
 The harness improves from real project usage, never auto-applied.
 
-- **Inbound**: while coding in a consumer project, captured perceptions of "the harness should have X" go to `.voidcorp/harness-feedback/proposed/` in that project. Promoted via `npx @voidcorp/harness feedback push` → issue or PR here.
+- **Inbound**: while coding in a consumer project, captured perceptions of "the harness should have X" go to `.void/harness-feedback/proposed/` in that project. Promoted via `npx @voidcorp/harness feedback push` → issue or PR here.
 - **Outbound**: `npx @voidcorp/harness audit` reports skills not invoked recently, upstream deprecations, repeated matrix conflicts. Proposes deprecations as PRs.
 - **HITL is absolute**: no automatic write into doctrine, ever. Every change is a deliberate commit.
+
+## Autonomous mode (opt-in)
+
+`autonomous-backlog-loop` (core skill) drains a curated Linear backlog ticket by ticket, each in a fresh headless agent session. It is **never a default** — it runs only when a human launches `packages/core/skills/autonomous-backlog-loop/scripts/autonomous-backlog.sh`. HITL is preserved at the boundaries: the human curates the backlog (acceptance criteria = the approved spec) and owns the PR merge (no auto-merge unless `AUTO_MERGE=1` + green CI). The security hooks (`protect-sensitive-files`, `block-dangerous-bash`) stay live and skip-permissions full-auto is sandbox-gated. The distilled Ralph principles (deterministic backpressure, disposable-but-persistent plan, fresh context per ticket, don't-assume-not-implemented) live in the skill. See `docs/DECISIONS.md` (2026-06-04).

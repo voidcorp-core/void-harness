@@ -1,0 +1,11 @@
+Sources for `autonomous-backlog-loop` skill (see plans/skill-audits/autonomous-backlog-loop.md for full audit):
+
+- ghuntley, "how to build a coding agent / ralph" — https://ghuntley.com/ralph/ — the disposable-plan + fresh-context + deterministic-backpressure loop. We keep the principles, reject the unsupervised `--dangerously-skip-permissions` while-loop.
+- shanraisshan/ralph-wiggum-self-evolving-loop — https://github.com/shanraisshan/ralph-wiggum-self-evolving-loop — orchestrator + fresh subagents + commit-per-iteration pattern (generalization of Ralph).
+- gsd-build/get-shit-done — https://github.com/gsd-build/get-shit-done — "fresh context per task, thin orchestrator, state on the filesystem" (anti-context-rot).
+- Anthropic, "Claude Code best practices" — https://code.claude.com/docs/en/best-practices — the runnable-check self-verification loop, Stop hooks ("keep going until done"), scoped `--allowedTools` for unattended runs, `claude -p` headless.
+- Boris Cherny / Cat Wu interviews ("a session you can walk away from", Stop hooks, parallel agents) — The Pragmatic Engineer, Every "Secrets of Claude Code".
+
+Strategy: original (distilled). No single source ships a HITL-safe, Linear-driven backlog loop. We assembled the Ralph principles, the harness craftsman cycle, and the harness's existing security hooks into a supervised-autonomous orchestrator. The human gates sit at the boundaries (backlog curation + PR merge); the loop never auto-merges to a protected branch by default and never disables the security floor.
+
+Composes with: brainstorming, source-driven-development, adr-workflow, writing-plans, tdd, verification-before-completion, commit-discipline, compounding, context-management. Pairs with gstack ticket-craft (upstream) and /ship + /code-review (downstream, human-owned merge).

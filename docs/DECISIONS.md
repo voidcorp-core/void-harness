@@ -3,6 +3,314 @@
 Non-obvious decisions taken on the harness itself, where a credible alternative
 existed. One entry per decision. Newest first. See CLAUDE.md meta-rules.
 
+## 2026-06-04: review fixes round 3 + honest reframe of the "safety floor"
+
+Context: a multi-agent review of the PR found real holes, three of which were the
+same systemic defect: a control duplicated across two representations where one
+copy was updated and the mirror forgotten.
+
+Confirmed-live fixes:
+- **block-dangerous-bash** missed capital `-R` (`rm -Rf /`, `rm -R ~`) because the
+  recursive clause matched lowercase `r` only while chmod used `[rR]`. Now `[rR]`.
+- **protect-sensitive-files** let Codex's `shell` argv-array payload through (only
+  a string command was handled, though its sibling block-dangerous-bash already
+  handled arrays). Now joins arrays before scanning, and matches filenames
+  case-insensitively (`.ENV`, `Credentials`, `.KEY` on a case-insensitive FS).
+- **install --global** built the global manifest from a hardcoded 9-hook map that
+  had drifted from plugin.json (shipping a global install with none of the new
+  hooks). Now derives the hook wiring verbatim from the committed plugin.json
+  (commands already use ${CLAUDE_PLUGIN_ROOT}), so it can never lag again.
+- **autonomous-backlog render_prompt** used `sed s|...|$VALUE|`, which a `|`/`&`
+  in a free-text config value (LINEAR_SCOPE) would corrupt, silently
+  circuit-breaking the loop. Switched to bash parameter-expansion replacement
+  (values treated literally).
+- **doctor** now checks AGENTS.md, not only CLAUDE.md (the PR made AGENTS.md a
+  maintained sister doc).
+
+Design reframe (the important one):
+- **block-dangerous-bash is reframed from "non-skippable safety floor" to a
+  best-effort guardrail.** A regex blocklist of catastrophe shapes will never be
+  complete (three review rounds found $HOME, -R, find -delete, git push +) and
+  gives false confidence. The real deny-by-default floor for unattended runs is
+  the scoped allowlist + sandbox (settings.autonomous.json). The hook is the
+  secondary tripwire. docs/CODEX.md and the autonomous skill now say so.
+
+Removed as inert:
+- **precompact-doctrine hook deleted.** PreCompact has no decision control and
+  cannot inject additionalContext (per the hooks docs), so the re-injection never
+  happened. SessionStart fires with source `compact` after a compaction and DOES
+  support additionalContext, so sessionstart-context already covers it. Shipping
+  an inert hook is the same "documented fiction" anti-pattern we keep removing.
+
+Alternatives rejected:
+- Extend install.ts's hardcoded hook map instead of deriving from plugin.json:
+  keeps the duplication that caused the drift. Derive from the single source.
+- Keep block-dangerous-bash labeled a "floor": dishonest about a leaky blocklist;
+  trains operators to keep the all-or-nothing override on.
+
+## 2026-06-04: resolve the pack .source debt (backfill all + gate it)
+
+Context: 27 pack skills lacked a co-located `.source`, leaving the "one .source
+per skill" rule violated and unenforced — the same rules-rot pattern as the
+sync-agent-docs fiction.
+
+Decision: chose backfill-all over exempting packs. The load-bearing reason: a
+`.source` ships with the skill (it lives under packages/**/skills/<name>/ and is
+distributed via the marketplace), whereas the audit note in plans/ does not. So
+`.source` is the *provenance that travels to consumers* — pack skills ship too,
+so exempting them would ship skills without provenance. A uniform rule also
+avoids an asterisk in the doctrine.
+
+- Backfilled all 27 pack `.source` files, derived strictly from each skill's
+  existing audit note (no fabricated URLs). Finding: most pack audits, unlike
+  core, have no "Sources audited" table — those skills are genuinely `native`
+  concretizations of a pack module, recorded honestly as such.
+- Added an anti-bloat gate: every skill (core + packs) must have a co-located
+  `.source` AND a plans/skill-audits/<name>.md note. Verified fail-closed.
+
+Alternatives rejected:
+- Exempt pack skills from `.source` (audit-note-only): ships pack skills without
+  travelling provenance, and adds a special-case to the rule.
+- Auto-generate `.source` without reading the audits: risks fabricated
+  attributions. Derived from the real audit content instead.
+
+Follow-up (optional): pack audit notes lack the "Sources audited" table the core
+notes use; backfilling those tables with real upstream doc URLs would enrich the
+provenance further. Not blocking.
+
+## 2026-06-04: review fixes round 2 — $HOME rm/chmod, add/remove parity, doc honesty
+
+Context: a second self-review found more real defects.
+
+Decisions:
+- **block-dangerous-bash** missed home-rooted targets. Factored shared target
+  patterns: HOME_ROOT `(/ ~ $HOME ${HOME})` each with an optional trailing `/`
+  and/or `*`, so `$HOME/`, `${HOME}/`, `~/*`, `$HOME/*` and the chmod/chown
+  equivalents now block, while `$HOME/projects`, `~/.cache/x`, `/tmp/x`, `build/*`
+  still pass. Tests added for each; the chmod check now requires a recursive flag
+  AND a home/root target.
+- **add / remove** patched only CLAUDE.md, leaving AGENTS.md stale and breaking
+  the sister-doc parity rule. Both now call patchAgentsMd too. Regression test
+  added (`test/cli/add-remove-parity.test.ts`).
+- **ARCHITECTURE.md** overclaimed that `init` wires the sync pre-commit hook into
+  consumer projects (it does not). Reworded: the parity gate is a harness-repo
+  concern (`.githooks/` + CI); `init`/`add`/`remove` keep the two consumer docs in
+  parity, and a consumer opts into the hook by pointing `core.hooksPath` at the
+  shipped `.githooks/`.
+- **capture-rule** shipped without an audit note (violating "one audit note per
+  skill"); backfilled `plans/skill-audits/capture-rule.md` and added its
+  decision-matrix row.
+
+Known debt (NOT fixed this round, tracked): 27 pack skills lack a co-located
+`.source` file. Their sourcing is recorded in their `plans/skill-audits/*.md`
+notes. Resolution pending a deliberate choice: backfill each `.source` from its
+audit note, or amend the sourcing rule to make `.source` mandatory for core
+skills + agents and satisfied-by-audit-note for pack skills. Not auto-generated to
+avoid fabricated attributions.
+
+## 2026-06-04: review fixes — Codex shell gating, rm variants, anti-bloat scope, agent .source
+
+Context: a self-review found real defects in the round-2 work.
+
+Decisions:
+- **block-dangerous-bash** now gates Codex's `shell` tool (was `Bash`-only, so the
+  Codex hooks.json routing was inert) and reads an argv-array command. Its rm
+  detection was rewritten to a (recursive-flag AND catastrophic-target) pair on a
+  quote-stripped command, covering `rm -rf -- /`, `rm -rf "$HOME"`, `${HOME}`,
+  `.`, `./`, `./*`, `*`, `~`/`~/` — while still allowing `./dist`, `build/*`,
+  `~/.cache/x`, `/tmp/x`. Tests added for each.
+- **anti-bloat-check** now scans pack skills/hooks too (was core-only), matching
+  what ARCHITECTURE.md already claimed ("any SKILL.md / any hooks/*.sh"). This
+  immediately caught 8 pack skill descriptions over the 200-char cap; trimmed.
+- **Sourcing discipline applies to agents, not just skills.** doctrine-critic
+  already carried a `.source`; the four new agents now do too. The CLAUDE.md
+  sourcing rule is read as covering any authored doctrine artifact (skill or
+  agent), since both are distilled from external sources.
+- Refreshed the marketplace manifest (`.claude-plugin/marketplace.json`): the
+  `void` plugin now lists the five agents + lifecycle hooks; void-monorepo drops
+  the "ADR workflow" line (adr-workflow was promoted to core).
+
+Alternatives rejected:
+- A full shell-AST parse for rm safety: too heavy for a <100-line hook. The
+  quote-strip + anchored-target regex covers the catastrophic forms deterministically;
+  the override env var handles the rare legitimate case.
+
+## 2026-06-04: CLAUDE.md <-> AGENTS.md parity gate made real (was documented fiction)
+
+Context: CLAUDE.md, AGENTS.md, ARCHITECTURE.md and the design plan all cited
+`scripts/sync-agent-docs.sh` as a live pre-commit gate enforcing sister-doc
+parity. The file did not exist, and there was no git-hook tooling at all
+(no husky/lefthook/prepare). The parity claim was unenforced.
+
+Decision: write `scripts/sync-agent-docs.sh` with two modes — `--staged`
+(pre-commit XOR: a change touching one sister doc must touch the other) and the
+default structure mode (section-heading parity after normalizing the known
+terminology variants, stateless so it runs in CI). Wire it via `.githooks/pre-commit`
+(opt-in `git config core.hooksPath .githooks`) and a CI step (`pnpm sync:docs`).
+Tested in `test/sync-agent-docs/`.
+
+Alternatives rejected:
+- A full semantic doctrine-diff: the routing tables legitimately differ in
+  content (not just terminology), so a content diff would false-positive.
+  Heading parity + the both-or-neither rule is what the headers actually promise.
+- Deleting the claim from the docs instead of implementing it: cheaper, but the
+  parity rule is worth keeping; make it true rather than drop it.
+
+## 2026-06-04: Codex parity — real doctrine + safety floor, honest about what is pending
+
+Context: the doctrine layer (AGENTS.md) was a real mirror, but the mechanical
+layer was Claude-only: `init` never emitted AGENTS.md, and the hooks were Claude
+PreToolUse format. A consumer running `init` got a Claude-only harness.
+
+Decision: (1) `init` now patches both CLAUDE.md and AGENTS.md from one runtime-aware
+`harnessBlock` (Claude uses `@imports`, Codex lists files to read — Codex has no
+`@import`). (2) `protect-sensitive-files` is runtime-aware: it reads
+`.tool_input.file_path` (Claude) and scans `apply_patch` envelope headers (Codex),
+unit-tested. (3) Ship `packages/core/codex/hooks.json` + `docs/CODEX.md` documenting
+the opt-in Codex wiring; `block-dangerous-bash` matches Codex's `shell` tool 1:1.
+
+Honest status logged in docs/CODEX.md: verified = sync gate, AGENTS.md emission,
+hook payload parsing. Pending a real-Codex run = end-to-end `.codex/hooks.json`
+firing, and a `RUNTIME=codex` (`codex exec`) backend for autonomous-backlog-loop.
+
+Alternatives rejected:
+- Auto-write `.codex/hooks.json` + copy hook scripts into every consumer now:
+  duplicates the marketplace delivery model and the firing path is unverified
+  without a real Codex run. Ship the template + doc; wire deliberately.
+
+## 2026-06-04: lifecycle hooks beyond PreToolUse + plugin slash commands
+
+Context: the plugin wired only PreToolUse hooks and shipped zero slash commands,
+leaving the rest of the lifecycle (and in-session ergonomics) unused.
+
+Decision: add `auto-format` (PostToolUse, non-blocking Biome format — repairs
+instead of refusing, fails open if Biome absent), `precompact-doctrine`
+(PreCompact — re-injects the non-negotiable floor before context loss),
+`sessionstart-context` (SessionStart — per-session floor reminder + version), and
+`skill-usage-meter` (PreToolUse on Skill — appends to `.void/usage.log` so the
+outbound `audit` has real data). Ship `/void-feedback`, `/void-doctor`,
+`/void-audit` slash commands so the self-evolution loop is invocable in-session.
+
+Alternatives rejected:
+- A UserPromptSubmit hook: overlaps skill auto-discovery and risks noise.
+- Making auto-format blocking: formatting must never block a turn; PostToolUse
+  non-blocking is the right shape.
+
+## 2026-06-04: claude-md-authoring skill, four scoped agents, no-ai-design-slop, doctrine edits
+
+Context: a deeper pass over the best-practice corpus surfaced gaps not covered by
+the existing skills/agents.
+
+Decision: add the `claude-md-authoring` skill (the harness produces CLAUDE.md
+files; this governs writing them: length budget, no style rules -> linters,
+`file:line` over snippets, progressive disclosure). Add four read-only,
+model-tiered, narrow-scope agents — `silent-failure-hunter` (sonnet),
+`type-design-analyzer` (opus), `code-explorer` (sonnet), `migration-planner`
+(opus) — each routing out of scope, none overlapping doctrine-critic or gstack.
+Add the `no-ai-design-slop` PreToolUse hook (deterministic regex for AI visual
+tells; static gate, complements frontend-design without touching /design-review).
+Distil doctrine into existing skills: vertical-slice planning (writing-plans),
+frequent-intentional-compaction + leverage hierarchy (context-management,
+code-review), and the agent model-tier convention (ARCHITECTURE.md).
+
+Alternatives rejected:
+- Stack-specific reviewer agents (per ECC/wshobson): those are pack concerns, not
+  core; rejected to hold the anti-bloat line.
+- Cryptographic review-surface receipts (wshobson governance): over-engineered;
+  the HITL gate is the load-bearing part, not signed receipts.
+
+## 2026-06-04: opt-in autonomous-backlog-loop (Ralph distilled, HITL at the boundaries)
+
+Context: the harness wanted a way to drain a curated Linear backlog unattended,
+with full craftsman discipline, without adopting the unsupervised Ralph loop
+(`while :; do cat PROMPT | claude --dangerously-skip-permissions; done`) which is
+the antithesis of the harness's HITL-absolute principle.
+
+Decision: ship `autonomous-backlog-loop` as an explicitly-launched skill (core,
+never a default). One FRESH `claude -p` process per ticket (true context reset),
+state in Linear + on-disk plan files. The human gates move to the boundaries —
+backlog curation (acceptance criteria = approved spec) and PR merge — instead of a
+per-action prompt. Default `AUTO_MERGE=0` (PRs, human merges). Full-auto
+(`--dangerously-skip-permissions`) is gated behind `UNSAFE_FULL_AUTO=1` + a required
+`VOID_SANDBOX` marker. The security hooks stay live; the orchestrator refuses to
+start with `VOID_HARNESS_ALLOW_*` set or on a dirty tree.
+
+Alternatives rejected:
+- Unsupervised Ralph loop as default: no review, no floor, no sandbox. Rejected;
+  offered only as an explicit sandboxed opt-in.
+- Auto-merge by default: review is where correctness is owned. Default to PRs.
+- Self-judged completion: the test suite is the gate, not the model's self-report.
+- A `/clear`-only loop (single long session): context rot degrades quality silently;
+  a fresh process per ticket is the stronger anti-context-rot.
+
+## 2026-06-04: two security hooks shipped default-on (protect-sensitive-files, block-dangerous-bash)
+
+Context: the harness shipped quality hooks but no safety floor for destructive
+actions, and nothing protecting secrets/lockfiles from accidental edits. This is
+the prerequisite for any unattended run and a general improvement.
+
+Decision: add `protect-sensitive-files` (PreToolUse Edit|Write — blocks `.env*`
+secrets, private keys, credential files, lockfiles, `.git/` internals) and
+`block-dangerous-bash` (PreToolUse Bash — blocks recursive root delete, fork bomb,
+raw-device writes, force-push without `--force-with-lease`, destructive SQL). Each
+has a single deliberate-override env var (`VOID_HARNESS_ALLOW_SECRET_EDIT`,
+`VOID_HARNESS_ALLOW_DANGEROUS`) so legitimate cases are unblocked explicitly while
+the default is safe. Wired into the core plugin PreToolUse (now 10 hooks).
+
+Alternatives rejected:
+- Warning-only (non-blocking): a destructive command warned-but-allowed is not a
+  floor. These are irreversible; they block.
+- No override: would force users to disable the hook entirely for a one-off
+  legitimate edit. A scoped env override is safer than an all-or-nothing toggle.
+
+## 2026-06-04: adr-workflow promoted from pack-monorepo to core
+
+Context: `adr-workflow` lived in pack-monorepo, but ADRs are a universal craftsman
+concern and the repo meta-rule already mandates logging non-obvious decisions.
+
+Decision: move the skill to `packages/core/skills/adr-workflow`, generalize the
+"monorepo" wording to "codebase", add the missing `.source`, and drop "ADR workflow"
+from the pack-monorepo manifest description. Audit note updated (pack → core).
+
+Alternatives rejected:
+- Leave it in pack-monorepo: consumers without the monorepo pack would lack a
+  universal discipline the meta-rules assume exists.
+
+## 2026-06-04: skill name == folder + naming gate added to anti-bloat-check
+
+Context: the Agent Skills spec requires `name` to equal the parent directory and to
+match `^[a-z0-9]+(-[a-z0-9]+)*$`; a mismatch breaks auto-discovery silently. The
+harness promised "skill tests pass in CI" but had no structural validation.
+
+Decision: extend `scripts/anti-bloat-check.sh` (the single source of truth, already
+run in CI) with a name==folder + naming-convention check across core and pack
+skills. Cheap, deterministic, closes the structural half of the CI promise.
+
+Alternatives rejected:
+- A separate `skills-ref validate` dependency: adds an external tool for a check
+  that is a few lines of shell. Kept it inline in the existing script.
+
+## 2026-06-04: four new core skills + the Rationalizations/Verification section standard
+
+Context: research across anthropics/skills, the Claude Code creators' interviews, and
+the best-practice corpus surfaced gaps not yet covered by the 22 core skills.
+
+Decision: add `source-driven-development` (read official docs for the installed
+version before writing config; cite the source), `context-management` (the window is
+the core constraint: clear, compact, two-correction reset, fresh-context subagents,
+state on disk), `compounding` (end-of-cycle ritual: name the reusable pattern and
+route it via capture-rule / harness-evolution), and `api-and-interface-design`
+(contract-first public interfaces, minimal surface, versioning). New skills adopt a
+`## Rationalizations` table (pre-empts the model's excuses to skip the skill) and a
+`## Verification` proof-gate as the standard anatomy.
+
+Alternatives rejected:
+- Retrofit the Rationalizations/Verification sections into all 22 existing skills
+  now: large diff, rewrites authored voice broadly. Set the standard in new skills;
+  backfill opportunistically.
+- A full `writing-skills`/skill-creator port (to replace the superpowers pointer):
+  high value but a larger effort; deferred as a tracked follow-up.
+
 ## 2026-06-01: no-null-grep matches on a comment/string-stripped view (heuristic, not AST)
 
 Context: field feedback from a consumer monorepo — `no-null-grep.sh` blocked a

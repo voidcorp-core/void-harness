@@ -5,14 +5,14 @@ description: Capture architecture decisions as ADRs (decisions/0001-NNNN.md) —
 
 # adr-workflow
 
-Use when making a structural choice that **changes how future code is written** in this monorepo and where a future contributor (or future-you) would otherwise ask "why did we do it this way?". ADRs are scoped to the monorepo; for cross-org or product strategy, use a different tool (Notion, Linear).
+Use when making a structural choice that **changes how future code is written** in this codebase and where a future contributor (or future-you) would otherwise ask "why did we do it this way?". ADRs are scoped to the codebase; for cross-org or product strategy, use a different tool (Notion, Linear).
 
 Composes with `void:writing-plans` (which is plan-the-work-before-coding); ADRs document the **decisions** behind that work, persistent in the repo.
 
 ## When to write an ADR
 
 - Choosing a library that pins the project (Drizzle vs Prisma, tRPC vs GraphQL, Zustand vs Jotai)
-- Naming or layout convention with monorepo-wide impact (5+5 service layout, `(actions)` route group placement)
+- Naming or layout convention with codebase-wide impact (5+5 service layout, `(actions)` route group placement)
 - Boundary decisions (which package owns X, where the trust boundary lives)
 - Performance trade-offs accepted explicitly (RSC vs Client default, caching policy)
 - Reversal of a previous ADR (creates a new ADR superseding the old)

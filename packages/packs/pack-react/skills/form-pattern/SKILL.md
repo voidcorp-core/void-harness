@@ -1,6 +1,6 @@
 ---
 name: form-pattern
-description: Build forms with react-hook-form + Zod resolver as the void-harness default. Validation, error UX, submit flow integrated with Server Actions. Composes with void-server:server-action for the action side.
+description: Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with void-server:server-action.
 ---
 
 # form-pattern

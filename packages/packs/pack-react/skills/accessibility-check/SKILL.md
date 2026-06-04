@@ -1,6 +1,6 @@
 ---
 name: accessibility-check
-description: Per-component accessibility checklist (semantic HTML, ARIA, keyboard, focus, contrast, touch targets). Auto-applies when creating or editing any React component. Composes with void:accessibility-first for principles, this skill is the operational gate.
+description: Per-component accessibility checklist: semantic HTML, ARIA, keyboard, focus, contrast, touch targets. Auto-applies on any React component edit. Composes with void:accessibility-first.
 ---
 
 # accessibility-check

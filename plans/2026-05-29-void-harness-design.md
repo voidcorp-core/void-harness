@@ -116,8 +116,8 @@ Explicit project-lead decision: no metric-based kill criteria, no 2-week observa
 
 The harness must evolve from real project usage. Two mechanisms, both strictly Human-In-The-Loop:
 
-- **Inbound feedback**: a new `harness-evolution` skill (mode `feedback`) captures any perception (model or user) that something is missing/wrong/worth-a-rule into `.voidcorp/harness-feedback/proposed/` in the **consumer project**. The CLI command `npx @voidcorp/harness feedback push` walks each item with the user (promote / discard / defer) and opens an issue or PR on `voidcorp-core/void-harness` for promoted ones.
-- **Outbound audit**: same skill, mode `audit`. Triggered by `npx @voidcorp/harness audit`. Reads `~/.voidcorp/usage.log` (local instrumentation), scans upstream source deprecations, surfaces conflicts repeatedly fired in the decision matrix. Proposes deprecations / fusions / rewrites as PRs. Never auto-applied.
+- **Inbound feedback**: a new `harness-evolution` skill (mode `feedback`) captures any perception (model or user) that something is missing/wrong/worth-a-rule into `.void/harness-feedback/proposed/` in the **consumer project**. The CLI command `npx @voidcorp/harness feedback push` walks each item with the user (promote / discard / defer) and opens an issue or PR on `voidcorp-core/void-harness` for promoted ones.
+- **Outbound audit**: same skill, mode `audit`. Triggered by `npx @voidcorp/harness audit`. Reads `~/.void/usage.log` (local instrumentation), scans upstream source deprecations, surfaces conflicts repeatedly fired in the decision matrix. Proposes deprecations / fusions / rewrites as PRs. Never auto-applied.
 
 This brings core skill count from 20 → **21**. Documented in `docs/PHILOSOPHY.md` § "Harness self-evolution" and in the decision matrix.
 

@@ -4,12 +4,12 @@ The harness improves from real project usage, never auto-applied. Two directions
 
 ## Inbound (consumer project → harness)
 
-While coding in a consumer project, perceptions of "the harness should have X" are captured as **friction notes** in the consumer's `.voidcorp/harness-feedback/proposed/` directory.
+While coding in a consumer project, perceptions of "the harness should have X" are captured as **friction notes** in the consumer's `.void/harness-feedback/proposed/` directory.
 
 ### Convention
 
 ```
-<consumer-project>/.voidcorp/harness-feedback/proposed/
+<consumer-project>/.void/harness-feedback/proposed/
 ├── 2026-06-01-default-pin-is-stale.md
 ├── 2026-06-01-init-assumes-bun.md
 └── ...
@@ -31,7 +31,7 @@ Body: 5-15 lines describing the friction, with concrete evidence (transcript sni
 
 ### Promotion
 
-Currently manual: review accumulated `.voidcorp/harness-feedback/proposed/` files when you next touch the harness, file each as an issue or PR on `voidcorp-core/void-harness`. A `void-harness feedback push` CLI command is on the backlog to automate this (creates GitHub issue via `gh api`).
+Currently manual: review accumulated `.void/harness-feedback/proposed/` files when you next touch the harness, file each as an issue or PR on `voidcorp-core/void-harness`. A `void-harness feedback push` CLI command is on the backlog to automate this (creates GitHub issue via `gh api`).
 
 ## Outbound (harness → consumers)
 

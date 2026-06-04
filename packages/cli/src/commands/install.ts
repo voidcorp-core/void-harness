@@ -5,7 +5,7 @@
 // which installs the same plugin locally inside <cwd>/.claude/plugins/.
 
 import { existsSync } from 'node:fs';
-import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { findCoreSource } from '../lib/paths.js';
@@ -26,20 +26,30 @@ function parseArgs(args: readonly string[]): InstallOptions {
 const PLUGIN_NAME = 'void';
 const FALLBACK_VERSION = '0.0.0';
 
+interface CoreManifest {
+  readonly version: string;
+  readonly hooks?: unknown;
+}
+
 /**
- * Read the canonical version from the bundled core plugin manifest. Falls
- * back to FALLBACK_VERSION if missing — the marketplace.json version is
- * the source of truth; this just mirrors it for the global install.
+ * Read the bundled core plugin manifest. The committed packages/core
+ * plugin.json is the single source of truth for BOTH the version and the hook
+ * wiring; the global install mirrors it verbatim (hook commands already use
+ * ${CLAUDE_PLUGIN_ROOT}, which resolves under the global plugin root too). This
+ * is deliberately NOT a hand-maintained copy — a second copy drifts (it once
+ * shipped a global install missing every new hook).
  */
-async function readCoreVersion(sourceRoot: string): Promise<string> {
+async function readCoreManifest(sourceRoot: string): Promise<CoreManifest> {
   const manifestPath = join(sourceRoot, '.claude-plugin', 'plugin.json');
-  if (!existsSync(manifestPath)) return FALLBACK_VERSION;
+  if (!existsSync(manifestPath)) return { version: FALLBACK_VERSION };
   try {
-    const raw = await readFile(manifestPath, 'utf8');
-    const parsed = JSON.parse(raw) as { version?: string };
-    return parsed.version ?? FALLBACK_VERSION;
+    const parsed = JSON.parse(await readFile(manifestPath, 'utf8')) as {
+      version?: string;
+      hooks?: unknown;
+    };
+    return { version: parsed.version ?? FALLBACK_VERSION, hooks: parsed.hooks };
   } catch {
-    return FALLBACK_VERSION;
+    return { version: FALLBACK_VERSION };
   }
 }
 
@@ -83,8 +93,8 @@ export async function install(args: readonly string[]): Promise<void> {
     if (existsSync(hooksSrc)) await cp(hooksSrc, join(pluginRoot, 'hooks'), { recursive: true });
     if (existsSync(modulesSrc)) await cp(modulesSrc, join(pluginRoot, 'modules'), { recursive: true });
 
-    const version = await readCoreVersion(sourceRoot);
-    await writeManifest(pluginRoot, version);
+    const core = await readCoreManifest(sourceRoot);
+    await writeManifest(pluginRoot, core);
   }
 
   console.log(`done.`);
@@ -92,52 +102,24 @@ export async function install(args: readonly string[]): Promise<void> {
   console.log(`Note: per-project layout is still preferred. Use 'void-harness init' in any project where you want isolation, pinning, or team sharing.`);
 }
 
-async function writeManifest(pluginRoot: string, version: string): Promise<void> {
+async function writeManifest(pluginRoot: string, core: CoreManifest): Promise<void> {
   const manifestDir = join(pluginRoot, '.claude-plugin');
   const manifestPath = join(manifestDir, 'plugin.json');
   await mkdir(manifestDir, { recursive: true });
 
-  const hooksDir = join(pluginRoot, 'hooks');
-  const hookFiles = existsSync(hooksDir)
-    ? (await readdir(hooksDir)).filter((f) => f.endsWith('.sh'))
-    : [];
-
-  const hookWiring: Record<string, { event: string; matcher?: string }> = {
-    'tdd-guard.sh': { event: 'PreToolUse', matcher: 'Edit|Write' },
-    'tsc-noemit-precommit.sh': { event: 'PreToolUse', matcher: 'Bash' },
-    'no-any-grep.sh': { event: 'PreToolUse', matcher: 'Edit|Write' },
-    'no-as-cast-grep.sh': { event: 'PreToolUse', matcher: 'Edit|Write' },
-    'no-only-no-skip.sh': { event: 'PreToolUse', matcher: 'Edit|Write' },
-    'no-null-grep.sh': { event: 'PreToolUse', matcher: 'Edit|Write' },
-    'no-console-log-grep.sh': { event: 'PreToolUse', matcher: 'Edit|Write' },
-    'boundary-direction-check.sh': { event: 'PreToolUse', matcher: 'Edit|Write' },
-    'test-name-lint.sh': { event: 'PreToolUse', matcher: 'Edit|Write' },
-  };
-
-  const eventBuckets: Record<string, Array<{ matcher?: string; hooks: Array<{ type: 'command'; command: string }> }>> = {};
-  for (const file of hookFiles) {
-    const wiring = hookWiring[file];
-    if (!wiring) continue;
-    let bucket = eventBuckets[wiring.event];
-    if (!bucket) {
-      bucket = [];
-      eventBuckets[wiring.event] = bucket;
-    }
-    bucket.push({
-      ...(wiring.matcher !== undefined ? { matcher: wiring.matcher } : {}),
-      hooks: [{ type: 'command', command: `\${CLAUDE_PLUGIN_ROOT}/hooks/${file}` }],
-    });
-  }
-
+  // Mirror the source manifest's hook wiring verbatim. The source hook commands
+  // already use ${CLAUDE_PLUGIN_ROOT}, which resolves under the global plugin
+  // root, so no rewriting is needed and the global install can never lag behind
+  // the committed plugin.json.
   const manifest = {
     name: PLUGIN_NAME,
-    version,
+    version: core.version,
     description: 'VoidCorp craftsman harness — opinionated skills, agents, and hooks for Claude Code projects.',
     author: { name: 'VoidCorp', email: 'florent.pellegrin@voidcorp.io' },
     homepage: 'https://github.com/voidcorp-core/void-harness',
     license: 'MIT',
     keywords: ['void', 'craftsman', 'tdd', 'tigerstyle', 'harness'],
-    ...(Object.keys(eventBuckets).length > 0 ? { hooks: eventBuckets } : {}),
+    ...(core.hooks !== undefined ? { hooks: core.hooks } : {}),
   };
 
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);

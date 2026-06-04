@@ -13,44 +13,99 @@ FAILED=0
 
 echo "anti-bloat-check"
 
-# Rule 1: SKILL.md ≤ 400 LOC
+# Discover skill + hook files across core AND packs (the published surface),
+# excluding node_modules, build output, and the cli core-assets mirror.
+FIND_EXCL=(-not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/core-assets/*')
+SKILL_FILES=$(find packages/core packages/packs -path '*/skills/*/SKILL.md' "${FIND_EXCL[@]}" 2>/dev/null || true)
+HOOK_FILES=$(find packages/core packages/packs -path '*/hooks/*.sh' "${FIND_EXCL[@]}" 2>/dev/null || true)
+
+# Rule 1: SKILL.md ≤ 400 LOC (core + packs)
 echo "  rule 1: SKILL.md ≤ 400 LOC"
-OVERSIZE=$(find packages/core/skills -name SKILL.md -exec wc -l {} \; 2>/dev/null | awk '$1 > 400 { print }')
-if [[ -n "$OVERSIZE" ]]; then
-  echo "    FAIL: SKILL.md exceeds 400 LOC:" >&2
-  echo "$OVERSIZE" >&2
-  FAILED=1
+if [[ -n "$SKILL_FILES" ]]; then
+  OVERSIZE=$(printf "%s\n" "$SKILL_FILES" | xargs wc -l 2>/dev/null | awk '$1 > 400 && $2 != "total" { print }')
+  if [[ -n "$OVERSIZE" ]]; then
+    echo "    FAIL: SKILL.md exceeds 400 LOC:" >&2
+    echo "$OVERSIZE" >&2
+    FAILED=1
+  fi
 fi
 
-# Rule 5: hooks ≤ 100 LOC
+# Rule 5: hooks ≤ 100 LOC (core + packs)
 echo "  rule 5: hooks ≤ 100 LOC"
-OVERSIZE_HOOKS=$(find packages/core/hooks -name '*.sh' -exec wc -l {} \; 2>/dev/null | awk '$1 > 100 { print }')
-if [[ -n "$OVERSIZE_HOOKS" ]]; then
-  echo "    FAIL: hook exceeds 100 LOC:" >&2
-  echo "$OVERSIZE_HOOKS" >&2
-  FAILED=1
+if [[ -n "$HOOK_FILES" ]]; then
+  OVERSIZE_HOOKS=$(printf "%s\n" "$HOOK_FILES" | xargs wc -l 2>/dev/null | awk '$1 > 100 && $2 != "total" { print }')
+  if [[ -n "$OVERSIZE_HOOKS" ]]; then
+    echo "    FAIL: hook exceeds 100 LOC:" >&2
+    echo "$OVERSIZE_HOOKS" >&2
+    FAILED=1
+  fi
 fi
 
-# Hook syntax
+# Hook syntax (core + packs)
 echo "  shell syntax: all hooks"
-for f in packages/core/hooks/*.sh; do
+while IFS= read -r f; do
+  [[ -n "$f" ]] || continue
   if ! bash -n "$f" 2>/dev/null; then
     echo "    FAIL: syntax in $f" >&2
     FAILED=1
   fi
-done
+done <<<"$HOOK_FILES"
 
-# Frontmatter description ≤ 200 chars (rule 4)
+# Frontmatter description ≤ 200 chars (rule 4): skills (core + packs) + agents
 echo "  rule 4: frontmatter description ≤ 200 chars"
-for f in packages/core/skills/*/SKILL.md packages/core/agents/*.md; do
-  [[ -e "$f" ]] || continue
+DESC_FILES=$(printf "%s\n" "$SKILL_FILES"; ls packages/core/agents/*.md 2>/dev/null || true)
+while IFS= read -r f; do
+  [[ -n "$f" && -e "$f" ]] || continue
   DESC=$(awk '/^description:/{ sub(/^description: */,""); print; exit }' "$f" 2>/dev/null || true)
   LEN=${#DESC}
   if [[ "$LEN" -gt 200 ]]; then
     echo "    FAIL: $f description is $LEN chars (cap 200): $DESC" >&2
     FAILED=1
   fi
+done <<<"$DESC_FILES"
+
+# Skill name convention (Anthropic Agent Skills spec): the frontmatter `name`
+# must equal the parent directory name and match ^[a-z0-9]+(-[a-z0-9]+)*$
+# (lowercase, hyphen-separated, no leading/trailing/double hyphen). A mismatch
+# breaks auto-discovery silently, so it is a hard gate.
+echo "  skill name == folder + naming convention"
+for f in packages/core/skills/*/SKILL.md packages/packs/*/skills/*/SKILL.md; do
+  [[ -e "$f" ]] || continue
+  DIR=$(basename "$(dirname "$f")")
+  NAME=$(awk '/^name:/{ sub(/^name: */,""); print; exit }' "$f" 2>/dev/null || true)
+  if [[ -z "$NAME" ]]; then
+    echo "    FAIL: $f has no frontmatter 'name:'" >&2
+    FAILED=1
+    continue
+  fi
+  if [[ "$NAME" != "$DIR" ]]; then
+    echo "    FAIL: $f name '$NAME' != folder '$DIR'" >&2
+    FAILED=1
+  fi
+  if [[ ! "$NAME" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+    echo "    FAIL: $f name '$NAME' violates ^[a-z0-9]+(-[a-z0-9]+)*\$" >&2
+    FAILED=1
+  fi
 done
+
+# Sourcing discipline: every skill (core + packs) ships a co-located `.source`
+# (provenance that travels with the distributed skill) AND has an audit note in
+# plans/skill-audits/ (the repo-side reasoning). Both are required by the
+# sourcing rule in CLAUDE.md/AGENTS.md; without a gate the rule rots silently.
+echo "  sourcing: .source + audit note per skill"
+while IFS= read -r f; do
+  [[ -n "$f" && -e "$f" ]] || continue
+  DIR=$(dirname "$f")
+  NAME=$(basename "$DIR")
+  if [[ ! -f "$DIR/.source" ]]; then
+    echo "    FAIL: $f has no co-located .source" >&2
+    FAILED=1
+  fi
+  if [[ ! -f "plans/skill-audits/$NAME.md" ]]; then
+    echo "    FAIL: skill '$NAME' has no plans/skill-audits/$NAME.md audit note" >&2
+    FAILED=1
+  fi
+done <<<"$SKILL_FILES"
 
 if [[ "$FAILED" -eq 0 ]]; then
   echo "anti-bloat-check: all checks passed."

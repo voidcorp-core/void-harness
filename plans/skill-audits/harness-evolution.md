@@ -21,7 +21,7 @@ Without `harness-evolution`, the harness ossifies. Real friction discovered in c
 
 Two modes: `feedback` (inbound suggestions from consumer projects) and `audit` (outbound obsolescence detection).
 
-- **Wins (`feedback` mode)**: any moment, in any consumer project, when the model or user perceives a missing skill, missing rule, missing mention, or a hole in coverage. Captured to `.voidcorp/harness-feedback/proposed/`
+- **Wins (`feedback` mode)**: any moment, in any consumer project, when the model or user perceives a missing skill, missing rule, missing mention, or a hole in coverage. Captured to `.void/harness-feedback/proposed/`
 - **Wins (`audit` mode)**: triggered by `npx @voidcorp/harness audit`. Reads usage logs, scans upstream sources for deprecation, surfaces matrix conflicts
 - **Loses to**: nothing — it's a meta-skill, orthogonal
 - **Cannot decide**: whether a proposed change is adopted (HITL only). Cannot write into harness doctrine — only opens issues/PRs
@@ -44,14 +44,14 @@ Two modes: `feedback` (inbound suggestions from consumer projects) and `audit` (
 ### Mode `feedback` (inbound)
 
 - Trigger: model perceives gap during work in a consumer project ("the harness should have a `<X>` skill / rule / hook")
-- Action: write a proposal to `.voidcorp/harness-feedback/proposed/YYYY-MM-DD-N.md` in the CONSUMER project (never in void-harness)
+- Action: write a proposal to `.void/harness-feedback/proposed/YYYY-MM-DD-N.md` in the CONSUMER project (never in void-harness)
 - Format: trigger context, observation, proposed change (skill / pack / hook / rule), target component, confidence (low/medium/high)
 - Promotion: `npx @voidcorp/harness feedback push` walks each item with user (promote / discard / defer)
 - Promoted items become issues or PRs on `voidcorp-core/void-harness` via `gh` — never direct writes
 
 ### Mode `audit` (outbound)
 
-- Each skill invocation logs to `~/.voidcorp/usage.log` (local instrumentation, never shipped or telemetered)
+- Each skill invocation logs to `~/.void/usage.log` (local instrumentation, never shipped or telemetered)
 - `npx @voidcorp/harness audit` reads the log, scans upstream sources, surfaces matrix conflicts
 - Output: report (markdown) listing skills not invoked in N days, skills whose upstream was deprecated/superseded, matrix conflicts repeatedly fired
 - Proposed actions (deprecate / fuse / rewrite) become PRs after human review
@@ -91,5 +91,5 @@ Two modes: `feedback` (inbound suggestions from consumer projects) and `audit` (
 ## Open questions
 
 - N days inactivity threshold default — 30, 60, 90? Defer to first 6 months of usage data
-- Privacy of `~/.voidcorp/usage.log` — confirm gitignored everywhere, document the log format
+- Privacy of `~/.void/usage.log` — confirm gitignored everywhere, document the log format
 - Feedback PR template — link to spec / matrix / source project context
