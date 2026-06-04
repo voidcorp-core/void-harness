@@ -1,6 +1,6 @@
 ---
 name: client-vs-server-component
-description: Decide which components run on the server vs client in a React 19 / Next.js app. Place the 'use client' boundary correctly. Most components should be Server Components by default; client is the exception.
+description: Decide which components run on server vs client in a React 19 / Next.js app and place the 'use client' boundary correctly. Server Components by default; client is the exception.
 ---
 
 # client-vs-server-component

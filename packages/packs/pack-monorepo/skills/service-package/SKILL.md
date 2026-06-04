@@ -1,6 +1,6 @@
 ---
 name: service-package
-description: Create or extend a packages/<name>/ service in a void-monorepo workspace. Enforces the 5+5 file layout, @repo/* boundaries, and ports-and-adapters direction. Composes with hexagonal-architecture, domain-driven-design, functional.
+description: Create or extend a packages/<name>/ service in a void-monorepo workspace: the 5+5 file layout, @repo/* boundaries, ports-and-adapters direction. Composes with hexagonal-architecture, DDD.
 ---
 
 # service-package

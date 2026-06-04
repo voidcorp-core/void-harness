@@ -13,44 +13,56 @@ FAILED=0
 
 echo "anti-bloat-check"
 
-# Rule 1: SKILL.md ≤ 400 LOC
+# Discover skill + hook files across core AND packs (the published surface),
+# excluding node_modules, build output, and the cli core-assets mirror.
+FIND_EXCL=(-not -path '*/node_modules/*' -not -path '*/dist/*' -not -path '*/core-assets/*')
+SKILL_FILES=$(find packages/core packages/packs -path '*/skills/*/SKILL.md' "${FIND_EXCL[@]}" 2>/dev/null || true)
+HOOK_FILES=$(find packages/core packages/packs -path '*/hooks/*.sh' "${FIND_EXCL[@]}" 2>/dev/null || true)
+
+# Rule 1: SKILL.md ≤ 400 LOC (core + packs)
 echo "  rule 1: SKILL.md ≤ 400 LOC"
-OVERSIZE=$(find packages/core/skills -name SKILL.md -exec wc -l {} \; 2>/dev/null | awk '$1 > 400 { print }')
-if [[ -n "$OVERSIZE" ]]; then
-  echo "    FAIL: SKILL.md exceeds 400 LOC:" >&2
-  echo "$OVERSIZE" >&2
-  FAILED=1
+if [[ -n "$SKILL_FILES" ]]; then
+  OVERSIZE=$(printf "%s\n" "$SKILL_FILES" | xargs wc -l 2>/dev/null | awk '$1 > 400 && $2 != "total" { print }')
+  if [[ -n "$OVERSIZE" ]]; then
+    echo "    FAIL: SKILL.md exceeds 400 LOC:" >&2
+    echo "$OVERSIZE" >&2
+    FAILED=1
+  fi
 fi
 
-# Rule 5: hooks ≤ 100 LOC
+# Rule 5: hooks ≤ 100 LOC (core + packs)
 echo "  rule 5: hooks ≤ 100 LOC"
-OVERSIZE_HOOKS=$(find packages/core/hooks -name '*.sh' -exec wc -l {} \; 2>/dev/null | awk '$1 > 100 { print }')
-if [[ -n "$OVERSIZE_HOOKS" ]]; then
-  echo "    FAIL: hook exceeds 100 LOC:" >&2
-  echo "$OVERSIZE_HOOKS" >&2
-  FAILED=1
+if [[ -n "$HOOK_FILES" ]]; then
+  OVERSIZE_HOOKS=$(printf "%s\n" "$HOOK_FILES" | xargs wc -l 2>/dev/null | awk '$1 > 100 && $2 != "total" { print }')
+  if [[ -n "$OVERSIZE_HOOKS" ]]; then
+    echo "    FAIL: hook exceeds 100 LOC:" >&2
+    echo "$OVERSIZE_HOOKS" >&2
+    FAILED=1
+  fi
 fi
 
-# Hook syntax
+# Hook syntax (core + packs)
 echo "  shell syntax: all hooks"
-for f in packages/core/hooks/*.sh; do
+while IFS= read -r f; do
+  [[ -n "$f" ]] || continue
   if ! bash -n "$f" 2>/dev/null; then
     echo "    FAIL: syntax in $f" >&2
     FAILED=1
   fi
-done
+done <<<"$HOOK_FILES"
 
-# Frontmatter description ≤ 200 chars (rule 4)
+# Frontmatter description ≤ 200 chars (rule 4): skills (core + packs) + agents
 echo "  rule 4: frontmatter description ≤ 200 chars"
-for f in packages/core/skills/*/SKILL.md packages/core/agents/*.md; do
-  [[ -e "$f" ]] || continue
+DESC_FILES=$(printf "%s\n" "$SKILL_FILES"; ls packages/core/agents/*.md 2>/dev/null || true)
+while IFS= read -r f; do
+  [[ -n "$f" && -e "$f" ]] || continue
   DESC=$(awk '/^description:/{ sub(/^description: */,""); print; exit }' "$f" 2>/dev/null || true)
   LEN=${#DESC}
   if [[ "$LEN" -gt 200 ]]; then
     echo "    FAIL: $f description is $LEN chars (cap 200): $DESC" >&2
     FAILED=1
   fi
-done
+done <<<"$DESC_FILES"
 
 # Skill name convention (Anthropic Agent Skills spec): the frontmatter `name`
 # must equal the parent directory name and match ^[a-z0-9]+(-[a-z0-9]+)*$

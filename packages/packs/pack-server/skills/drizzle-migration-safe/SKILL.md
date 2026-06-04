@@ -1,6 +1,6 @@
 ---
 name: drizzle-migration-safe
-description: Write Drizzle migrations that are safe under concurrent traffic. Zero-downtime patterns for adding/renaming columns, indexes, FKs, enums. Composes with void:migrations-safety for the generic discipline.
+description: Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. Composes with void:migrations-safety for the generic discipline.
 ---
 
 # drizzle-migration-safe
