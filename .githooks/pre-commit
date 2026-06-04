@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# void-harness pre-commit hook. Enable once per clone:
+#   git config core.hooksPath .githooks
+#
+# Enforces the two repo-local invariants before a commit lands:
+#   1. CLAUDE.md <-> AGENTS.md sister-doc parity (both-or-neither staged).
+#   2. The seven anti-bloat rules (size caps, frontmatter, skill name==folder).
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+bash "$ROOT/scripts/sync-agent-docs.sh" --staged
+bash "$ROOT/scripts/anti-bloat-check.sh"
