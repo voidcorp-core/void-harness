@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# sessionstart-context — SessionStart hook. Injects a short reminder that the
-# void doctrine and its non-skippable safety floor are in effect, plus the
-# installed harness version, so a fresh session starts with the harness in mind.
-# Static doctrine stays in CLAUDE.md; this is the dynamic, per-session nudge.
+# sessionstart-context — SessionStart hook. Injects a short reminder of the void
+# doctrine + the installed harness version so a session starts with it in mind.
+# SessionStart fires with source `compact` after a compaction, so this also
+# re-establishes the doctrine post-compaction (PreCompact cannot inject context,
+# so there is no separate PreCompact hook). Static doctrine stays in CLAUDE.md;
+# this is the dynamic, per-session nudge.
 #
 # Emits additionalContext via JSON on stdout. Exit code: always 0.
 

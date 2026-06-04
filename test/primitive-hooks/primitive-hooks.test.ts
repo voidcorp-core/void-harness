@@ -2,8 +2,8 @@
  * Tests for the lifecycle-event hooks added beyond PreToolUse:
  *   - auto-format.sh        (PostToolUse, non-blocking, fail-open)
  *   - skill-usage-meter.sh  (PreToolUse on Skill, telemetry for `audit`)
- *   - sessionstart-context.sh (SessionStart, injects additionalContext)
- *   - precompact-doctrine.sh  (PreCompact, re-injects the floor)
+ *   - sessionstart-context.sh (SessionStart, injects additionalContext; also
+ *                              covers post-compaction via source=compact)
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -66,11 +66,4 @@ describe('context-injecting hooks', () => {
     expect(out.hookSpecificOutput.additionalContext).toContain('floor');
   });
 
-  it('precompact re-injects the floor', () => {
-    const r = run('precompact-doctrine.sh', '{}');
-    expect(r.code).toBe(0);
-    const out = JSON.parse(r.stdout);
-    expect(out.hookSpecificOutput.hookEventName).toBe('PreCompact');
-    expect(out.hookSpecificOutput.additionalContext).toContain('Safety');
-  });
 });
