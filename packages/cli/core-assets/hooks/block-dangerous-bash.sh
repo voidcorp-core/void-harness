@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # block-dangerous-bash — PreToolUse hook. Reads the agent's tool-call JSON from
-# stdin. Blocks catastrophic, irreversible shell commands (the kind no diff
-# review can undo). Deterministic, non-skippable counterpart to gstack /careful,
-# and the safety floor for unattended / autonomous runs. Runtime-agnostic:
-# matches Claude's "Bash" tool and Codex's "shell" tool (command as string or
-# argv array).
+# stdin. A BEST-EFFORT guardrail against the most common catastrophic shell
+# footguns (recursive root/home deletes, fork bombs, raw-device writes,
+# force-push, destructive SQL). It is NOT a complete safety boundary: it is a
+# pattern blocklist and will miss novel forms. The real floor for unattended /
+# autonomous runs is the scoped allowlist + sandbox (see settings.autonomous.json
+# and docs/CODEX.md), which is deny-by-default. This hook is the secondary
+# tripwire. Runtime-agnostic: Claude "Bash" + Codex "shell" (string or argv array).
 #
 # Override (a deliberate, reviewed command): export VOID_HARNESS_ALLOW_DANGEROUS=1
 # for the single run. The autonomous loops deliberately leave it unset.
@@ -40,7 +42,7 @@ NORM=$(printf "%s" "$CMD" | tr -d "\"'")
 
 # Recursive delete of a root-ish path: an rm with a recursive flag AND a
 # catastrophic target immediately after the flags.
-if printf "%s" "$NORM" | grep -qE '(^|[;&|[:space:]])rm([[:space:]]+(-[a-zA-Z]+|--[a-z-]+))*[[:space:]]+(-[a-zA-Z]*r|--recursive)' \
+if printf "%s" "$NORM" | grep -qE '(^|[;&|[:space:]])rm([[:space:]]+(-[a-zA-Z]+|--[a-z-]+))*[[:space:]]+(-[a-zA-Z]*[rR]|--recursive)' \
   && printf "%s" "$NORM" | grep -qE "(^|[;&|[:space:]])rm([[:space:]]+[a-zA-Z-]+)*[[:space:]]+(--[[:space:]]+)?${RM_TARGET}([[:space:]]|$)"; then
   block "recursive delete of a root path"
 fi

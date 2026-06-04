@@ -92,6 +92,19 @@ describe('block-dangerous-bash.sh', () => {
   it('BLOCKS rm -fr ~ (exit 2)', () => {
     expect(runHook('rm -fr ~').code).toBe(2);
   });
+  // Capital -R is a valid recursive flag (GNU + BSD); must not bypass.
+  it('BLOCKS rm -Rf / (exit 2)', () => {
+    expect(runHook('rm -Rf /').code).toBe(2);
+  });
+  it('BLOCKS rm -R / (exit 2)', () => {
+    expect(runHook('rm -R /').code).toBe(2);
+  });
+  it('BLOCKS rm -Rf ~ (exit 2)', () => {
+    expect(runHook('rm -Rf ~').code).toBe(2);
+  });
+  it('BLOCKS rm -Rf $HOME (exit 2)', () => {
+    expect(runHook('rm -Rf $HOME').code).toBe(2);
+  });
 
   // Non-catastrophic recursive deletes must still pass.
   it('allows rm -rf ~/.cache/app (exit 0)', () => {

@@ -95,4 +95,21 @@ describe('protect-sensitive-files.sh', () => {
     const patch = '*** Begin Patch\n*** Add File: src/feature.ts\n+export const x = 1;\n*** End Patch';
     expect(runPatch(patch)).toBe(0);
   });
+
+  // Codex's shell tool passes the command as an argv ARRAY, not a string.
+  it('BLOCKS a Codex shell argv-array apply_patch touching .env (exit 2)', () => {
+    const input = JSON.stringify({
+      tool_name: 'shell',
+      tool_input: { command: ['apply_patch', '*** Begin Patch\n*** Update File: apps/web/.env\n+S=1\n*** End Patch'] },
+    });
+    expect(spawnSync('bash', [HOOK], { input, encoding: 'utf8' }).status ?? 1).toBe(2);
+  });
+
+  // Case-insensitive: uppercase secret/key names must not slip through.
+  it('BLOCKS an uppercase .ENV file (exit 2)', () => {
+    expect(runHook({ tool: 'Write', file: 'config/.ENV' }).code).toBe(2);
+  });
+  it('BLOCKS a Credentials.ts file regardless of case (exit 2)', () => {
+    expect(runHook({ tool: 'Write', file: 'src/Credentials.ts' }).code).toBe(2);
+  });
 });

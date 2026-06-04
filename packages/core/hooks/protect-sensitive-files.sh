@@ -2,8 +2,10 @@
 # protect-sensitive-files — PreToolUse hook. Reads the agent's tool-call JSON
 # from stdin. Blocks edits to files that should never be hand-edited by the
 # agent: private keys, credential files, lockfiles, and anything under .git/.
-# This is the safety floor for unattended / autonomous runs (blast-radius
-# control), and works for both runtimes:
+# This is a deny-list guardrail (an enumerable set of never-edit files), not the
+# whole safety boundary: the deny-by-default floor for unattended runs is the
+# scoped allowlist + sandbox (settings.autonomous.json, docs/CODEX.md). It works
+# for both runtimes:
 #   - Claude Code: Edit|Write -> .tool_input.file_path
 #   - Codex:       apply_patch -> the patch envelope's "*** (Add|Update|Delete)
 #                  File: <path>" headers (scanned from the raw payload)
@@ -25,8 +27,10 @@ case "$TOOL" in Edit|Write|apply_patch|shell|Bash) ;; *) exit 0 ;; esac
 # Candidate target paths: the explicit file_path (Claude) plus any apply_patch
 # headers (Codex). The patch text is JSON-encoded (newlines as literal \n), so
 # decode the likely fields with jq first, then scan for the envelope headers.
+# Codex's shell tool passes the command as an argv ARRAY, so join arrays to
+# newline-joined strings before scanning (else the headers stay JSON-wrapped).
 PATCH=$(printf "%s" "$INPUT" \
-  | jq -r '[.tool_input.content, .tool_input.command, .tool_input.input, .tool_input.patch] | map(select(. != null)) | .[]' 2>/dev/null || true)
+  | jq -r '[.tool_input.content, .tool_input.command, .tool_input.input, .tool_input.patch] | map(select(. != null)) | map(if type == "array" then join("\n") else . end) | .[]' 2>/dev/null || true)
 CANDIDATES=$(
   { [[ -n "$FILE" ]] && printf "%s\n" "$FILE"
     printf "%s" "$PATCH" | grep -oE '^\*\*\* (Add|Update|Delete) File: .+' \
@@ -36,7 +40,10 @@ CANDIDATES=$(
 if [[ -z "$CANDIDATES" ]]; then exit 0; fi
 
 reason_for() {
-  local base; base=$(basename "$1")
+  # Match case-insensitively: on a case-insensitive filesystem (macOS default)
+  # .ENV and .env are the same file, and .KEY / Credentials are legitimate casings.
+  local base lpath; base=$(basename "$1" | tr '[:upper:]' '[:lower:]')
+  lpath=$(printf "%s" "$1" | tr '[:upper:]' '[:lower:]')
   if [[ "$base" =~ ^\.env(\..+)?$ ]] && [[ ! "$base" =~ \.(example|sample|template|dist)$ ]]; then
     printf "environment file with secrets"; return; fi
   if [[ "$base" =~ \.(pem|key|p12|pfx|keystore|jks|asc)$ || "$base" =~ ^id_(rsa|ed25519|ecdsa|dsa)$ ]]; then
@@ -44,10 +51,10 @@ reason_for() {
   if [[ "$base" =~ (secret|credential|\.npmrc$|\.netrc$|\.pgpass$) ]]; then
     printf "credential file"; return; fi
   case "$base" in
-    package-lock.json|pnpm-lock.yaml|yarn.lock|bun.lockb|Cargo.lock|poetry.lock|composer.lock)
+    package-lock.json|pnpm-lock.yaml|yarn.lock|bun.lockb|cargo.lock|poetry.lock|composer.lock)
       printf "lockfile (regenerate via the package manager, do not hand-edit)"; return ;;
   esac
-  [[ "$1" =~ (^|/)\.git/ ]] && { printf "internal git metadata"; return; }
+  [[ "$lpath" =~ (^|/)\.git/ ]] && { printf "internal git metadata"; return; }
   return 0
 }
 
