@@ -1,0 +1,9 @@
+Sources for `adr-workflow` skill (see plans/skill-audits/adr-workflow.md for full audit):
+
+- Michael Nygard, "Documenting Architecture Decisions" (2011) — https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions — the original ADR format (Context / Decision / Consequences) and the immutable-record lifecycle.
+- adr.github.io / Markdown Architectural Decision Records (MADR) — https://adr.github.io/ — sequential numbering, "superseded by" links, status field.
+- joelparkerhenderson/architecture-decision-record — https://github.com/joelparkerhenderson/architecture-decision-record — templates surveyed; the terse ~50-line shape kept, heavier templates rejected.
+
+Strategy: native (no single source is top-5% for our terseness + reversal-cost emphasis; distilled the load-bearing format and added the "name a rejected alternative or it is not an ADR" gate and explicit reversal-cost field).
+
+Promoted from pack-monorepo to core on 2026-06-04: ADRs are a universal craftsman concern, not monorepo-specific, and the repo meta-rule already mandates logging non-obvious decisions. Composes with void:writing-plans, void:commit-discipline, void:source-driven-development (alternatives cite official docs), void:harness-evolution.

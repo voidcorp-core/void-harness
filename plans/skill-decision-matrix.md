@@ -19,7 +19,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 
 ---
 
-## Code-discipline skills (8)
+## Code-discipline skills (9)
 
 ### `tdd`
 
@@ -77,9 +77,16 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 - **Cannot decide**: whether to ship (user). Architecture changes outside the diff scope.
 - **Composes with**: `tdd` (verifies the cycle was respected), `typescript-strict` (verifies types), all hedges.
 
+### `api-and-interface-design`
+
+- **Wins**: designing the contract of any public interface — package exports, HTTP/REST, RPC/tRPC, SDK, module boundary consumed by others. Surface shape, stability, versioning, error contract.
+- **Loses to**: `hexagonal-architecture` on boundary placement and dependency direction. `domain-driven-design` on the vocabulary and aggregate model. `typescript-strict` on type-expression details.
+- **Cannot decide**: internal implementation behind the contract; which transport/framework to use (pack concern); whether a breaking change is worth its cost (user / ADR).
+- **Composes with**: `hexagonal-architecture` (draws the domain's ports well, seen from outside), `typescript-strict` (boundary types), `functional` (`Result` at the boundary), `security-guidance` (input validation), `async-safety` (idempotency, pagination), `domain-driven-design` (ubiquitous names in the contract).
+
 ---
 
-## Process skills (6)
+## Process skills (11)
 
 ### `brainstorming`
 
@@ -132,6 +139,34 @@ Two modes: `feedback` (inbound suggestions captured from real project usage) and
 - **Loses to**: nothing — it's a meta-skill operating on the harness itself, orthogonal to code-discipline and process skills.
 - **Cannot decide**: whether a proposed change is adopted (HITL only). Cannot write into harness doctrine — only opens issues/PRs.
 - **Composes with**: every skill (any skill can be the subject of feedback). Pairs naturally with `code-review` (a code review that surfaces a missing rule may generate a feedback item).
+
+### `source-driven-development`
+
+- **Wins**: before writing any config or usage of a third-party tool, framework, library, or API. Grounds the decision in the official docs for the *installed* version, not training memory; cites the reference.
+- **Loses to**: `brainstorming` / `adr-workflow` on *which* tool to choose (this skill grounds *how to use* the chosen one).
+- **Cannot decide**: tool selection; the design (defers to `writing-plans`); business logic.
+- **Composes with**: `writing-plans` (grounds stack decisions), `commit-discipline` (the "why" carries the source citation), `adr-workflow` (rejected alternatives cite official docs), `context-management` (delegate heavy doc-reading to a fresh-context subagent).
+
+### `context-management`
+
+- **Wins**: managing the context window — `/clear` between unrelated tasks, `/compact <focus>` on long sessions, the two-correction reset, delegating heavy investigation to fresh-context subagents, keeping task state on disk.
+- **Loses to**: `systematic-debugging` on the investigation *method* (this skill owns *where* the investigation runs, not how).
+- **Cannot decide**: the task content; the investigation's conclusions.
+- **Composes with**: `systematic-debugging`, `writing-plans` (plan state persisted on disk), `dispatching-parallel-agents` / `subagent-driven-development` (vendored targets).
+
+### `compounding`
+
+- **Wins**: the end-of-cycle ritual — after a merged unit of work, name the reusable *pattern* learned, triage its scope, and route it.
+- **Loses to**: `harness-evolution` on the feedback *mechanism* itself; `capture-rule` on *writing* a known project rule.
+- **Cannot decide**: whether a proposed capture is adopted (HITL only); cannot auto-write doctrine.
+- **Composes with**: `capture-rule` (routes project rules), `harness-evolution` (routes harness gaps), `commit-discipline`.
+
+### `adr-workflow`
+
+- **Wins**: documenting a structural decision that changes how future code is written, with a credible rejected alternative. ADR format, numbering, and lifecycle (proposed → accepted → superseded). Promoted from pack-monorepo to core on 2026-06-04.
+- **Loses to**: `writing-plans` on the *work* plan (an ADR records the *decision*, not the steps).
+- **Cannot decide**: product / org strategy (Notion, Linear); the work sequencing (`writing-plans`).
+- **Composes with**: `writing-plans`, `commit-discipline` (a one-paragraph "why" should become an ADR), `source-driven-development` (alternatives cite docs), `harness-evolution` (harness ADRs live in this repo).
 
 ---
 
@@ -206,4 +241,4 @@ When two skills both claim "I win":
 
 ## Status
 
-Skeleton populated for the 20 planned skills. To be refined as each skill's content is written in Section 11. Any cell that becomes ambiguous in practice triggers an ADR in `docs/DECISIONS.md`.
+Skeleton populated for the core skills (27 as of 2026-06-04, including `source-driven-development`, `context-management`, `compounding`, `api-and-interface-design`, and `adr-workflow` promoted from pack-monorepo). To be refined as each skill's content evolves. Any cell that becomes ambiguous in practice triggers an ADR in `docs/DECISIONS.md`.
