@@ -86,7 +86,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 
 ---
 
-## Process skills (12)
+## Process skills (13)
 
 ### `brainstorming`
 
@@ -168,6 +168,13 @@ Two modes: `feedback` (inbound suggestions captured from real project usage) and
 - **Cannot decide**: product / org strategy (Notion, Linear); the work sequencing (`writing-plans`).
 - **Composes with**: `writing-plans`, `commit-discipline` (a one-paragraph "why" should become an ADR), `source-driven-development` (alternatives cite docs), `harness-evolution` (harness ADRs live in this repo).
 
+### `claude-md-authoring`
+
+- **Wins**: writing or auditing a project CLAUDE.md / AGENTS.md. Length budget, what belongs vs what goes to hooks/linters, `file:line` over snippets, progressive disclosure, runnable-first-try.
+- **Loses to**: `capture-rule` on writing an individual project rule (this skill governs the *document*, not the single rule). `harness-evolution` on harness-level doctrine.
+- **Cannot decide**: the project's actual rules (the user owns content); deterministic enforcement (that belongs in hooks/settings, which is precisely the point).
+- **Composes with**: `context-management` (the doc is part of the context budget), `source-driven-development`, `capture-rule` (where a rule lands), `harness-evolution` (the harness produces consumer CLAUDE.md files).
+
 ### `autonomous-backlog-loop`
 
 - **Wins**: an explicitly launched unattended run that implements a curated Linear backlog, one fresh session per ticket. Opt-in only; never a default.
@@ -248,4 +255,4 @@ When two skills both claim "I win":
 
 ## Status
 
-Skeleton populated for the core skills (28 as of 2026-06-04, including `source-driven-development`, `context-management`, `compounding`, `api-and-interface-design`, `adr-workflow` promoted from pack-monorepo, and the opt-in `autonomous-backlog-loop`). To be refined as each skill's content evolves. Any cell that becomes ambiguous in practice triggers an ADR in `docs/DECISIONS.md`.
+Skeleton populated for the core skills (29 as of 2026-06-04, including `source-driven-development`, `context-management`, `compounding`, `api-and-interface-design`, `adr-workflow` promoted from pack-monorepo, the opt-in `autonomous-backlog-loop`, and `claude-md-authoring`). To be refined as each skill's content evolves. Any cell that becomes ambiguous in practice triggers an ADR in `docs/DECISIONS.md`.

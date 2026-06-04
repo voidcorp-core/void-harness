@@ -52,6 +52,23 @@ This is the cure for "infinite exploration," where the agent keeps reading more 
 
 Vendored targets: `superpowers:dispatching-parallel-agents` (fan out several investigations at once) and `superpowers:subagent-driven-development` (run independent plan steps in subagents). Until vendored, use those directly.
 
+A subagent must return a **compacted structured summary** — findings, the answer, the relevant file:line pointers — never the raw bytes it read. Raw output dumped back into the main window defeats the delegation.
+
+---
+
+## Frequent intentional compaction
+
+Treat context usage like a gauge you keep in a healthy band, not a tank you fill to the brim. Aim to keep effective usage around **40–60%**; a window run to the limit reasons worse long before it errors.
+
+- After each verified phase, compact the status **into the plan file on disk** (resume point + what changed), then trim the chat. The disk is the durable record; the window is working memory.
+- Compaction is a deliberate move you schedule, not an emergency you react to. Do it at clean boundaries (phase done, gate passed), where the summary is easy to write and nothing in flight is lost.
+
+## Leverage hierarchy
+
+Errors compound asymmetrically by stage. A bad research conclusion cascades into thousands of wrong lines; a bad plan into hundreds; a bad line of code stays mostly local and isolated.
+
+So concentrate human review and verification **upstream**: research > plan > code. The cheapest place to catch a mistake is the research summary, the next-cheapest is the plan, and the most expensive is after it is coded. Spend scrutiny where leverage is highest, not evenly.
+
 ---
 
 ## Anti-context-rot: state lives on the filesystem

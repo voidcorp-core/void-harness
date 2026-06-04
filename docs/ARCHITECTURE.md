@@ -45,6 +45,19 @@ Rules:
 - No file is auto-generated from the other. Auto-generation risks losing intentional adaptations. Manual authoring + mechanical gate is the safer trade-off.
 - The CLI command `npx @voidcorp/harness init` installs both files in consumer projects and wires the same sync hook into the consumer's pre-commit chain.
 
+## Agent model tiers
+
+Every agent declares an explicit `model:` in its frontmatter, chosen by the work's leverage, not by default. The tiering (distilled from `wshobson/agents`):
+
+| Tier | Use for |
+|---|---|
+| **opus** | Architecture, security, critical review, production-coding — high-leverage work where a wrong call cascades |
+| **sonnet** | Documentation, test authoring, debugging, codebase exploration — substantial but bounded reasoning |
+| **haiku** | Mechanical, fast ops — formatting, simple lookups, deterministic transforms |
+| **inherit** | Work whose complexity varies run to run; let the calling session's model carry through |
+
+**Rule**: any new agent MUST declare an explicit `model:` per this tiering. The existing `doctrine-critic` agent (read-only doctrine conformance) is the canonical example: it runs on `sonnet`.
+
 ## Boundary principles
 
 ### Core vs Packs

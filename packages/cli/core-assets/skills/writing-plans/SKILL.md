@@ -82,6 +82,20 @@ The gate is observable. The user sees the output before the next step begins.
 
 ---
 
+## Vertical slices over horizontal phases
+
+Slice the plan into **vertical tranches** that cut through every layer (UI → domain → persistence) and deliver one end-to-end testable behavior. Do NOT phase horizontally — "first the whole schema, then the whole API, then the whole UI."
+
+Why vertical wins:
+
+- A vertical slice is verifiable and mergeable on its own: it produces working, demonstrable value at each step.
+- Horizontal phasing accumulates undeliverable work and hides integration errors until the final wiring step, exactly when they are most expensive to fix.
+- Each slice exercises the seams between layers early, so contract mismatches surface in step 1, not step 8.
+
+Prefer "checkout one item, end to end" then "checkout many items" over "all models, then all ports, then all UI." Each step in the plan should name the thin slice it ships.
+
+---
+
 ## Review checkpoints
 
 For non-trivial plans (≥ 5 steps), declare 1–2 explicit checkpoints where the user reviews work-to-date.

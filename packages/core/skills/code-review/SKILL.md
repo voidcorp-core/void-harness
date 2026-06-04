@@ -24,6 +24,12 @@ The order matters. A correctness issue blocks regardless of beautiful structure.
 
 A11y, observability, LLM cost discipline ride inside dimensions 1-6 (e.g. missing a11y is a Correctness issue at the UI boundary; missing structured log is a Structure issue at the service layer).
 
+### Leverage hierarchy in review
+
+Spend attention where defects cost the most. An upstream design or contract flaw (Correctness, Structure) cascades through everything downstream; a code-detail nit (Readability) stays local. Surface the high-leverage defects first, and weight scrutiny toward them.
+
+Do not over-engineer the review itself: report only what touches correctness or the stated requirements, not every possible finding. A reviewer who flags every theoretical improvement buries the one BLOCKER that matters. When in doubt, the bar is "would shipping this without the fix be wrong?" — if not, it is at most a `NIT:`.
+
 ---
 
 ## Blocker vs nit
