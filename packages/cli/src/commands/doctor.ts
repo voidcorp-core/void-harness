@@ -79,15 +79,19 @@ export async function doctor(args: readonly string[]): Promise<void> {
     }
   }
 
-  const claudeMd = join(root, 'CLAUDE.md');
-  if (!existsSync(claudeMd)) {
-    checks.push({ name: 'CLAUDE.md', ok: false, message: 'missing', fix: 'void-harness init' });
-  } else {
-    const text = await readFile(claudeMd, 'utf8');
+  // CLAUDE.md (Claude Code) and AGENTS.md (Codex) are sister docs that init /
+  // add / remove keep in parity; verify both carry the harness block.
+  for (const doc of ['CLAUDE.md', 'AGENTS.md']) {
+    const docPath = join(root, doc);
+    if (!existsSync(docPath)) {
+      checks.push({ name: doc, ok: false, message: 'missing', fix: 'void-harness init' });
+      continue;
+    }
+    const text = await readFile(docPath, 'utf8');
     if (text.includes(BEGIN_MARKER)) {
-      checks.push({ name: 'CLAUDE.md', ok: true, message: 'void-harness block present' });
+      checks.push({ name: doc, ok: true, message: 'void-harness block present' });
     } else {
-      checks.push({ name: 'CLAUDE.md', ok: false, message: 'void-harness block missing', fix: 'void-harness init' });
+      checks.push({ name: doc, ok: false, message: 'void-harness block missing', fix: 'void-harness init' });
     }
   }
 
