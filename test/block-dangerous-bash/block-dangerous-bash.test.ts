@@ -23,9 +23,58 @@ function runHook(command: string, env?: Record<string, string>): { code: number;
   return { code: proc.status ?? 1, stderr: proc.stderr ?? '' };
 }
 
+/** Codex routes its shell tool here; tool_name is "shell", not "Bash". */
+function runShell(command: string): number {
+  const input = JSON.stringify({ tool_name: 'shell', tool_input: { command } });
+  return spawnSync('bash', [HOOK], { input, encoding: 'utf8' }).status ?? 1;
+}
+
 describe('block-dangerous-bash.sh', () => {
   it('BLOCKS rm -rf / (exit 2)', () => {
     expect(runHook('rm -rf /').code).toBe(2);
+  });
+
+  // Codex parity: the shell tool must be gated identically to Bash.
+  it('BLOCKS rm -rf / via the Codex shell tool (exit 2)', () => {
+    expect(runShell('rm -rf /')).toBe(2);
+  });
+
+  it('allows a safe command via the Codex shell tool (exit 0)', () => {
+    expect(runShell('pnpm test')).toBe(0);
+  });
+
+  // rm -rf variants that a naive regex misses.
+  it('BLOCKS rm -rf -- / (exit 2)', () => {
+    expect(runHook('rm -rf -- /').code).toBe(2);
+  });
+  it('BLOCKS rm -rf "$HOME" (exit 2)', () => {
+    expect(runHook('rm -rf "$HOME"').code).toBe(2);
+  });
+  it('BLOCKS rm -rf ${HOME} (exit 2)', () => {
+    expect(runHook('rm -rf ${HOME}').code).toBe(2);
+  });
+  it('BLOCKS rm -rf ./ (exit 2)', () => {
+    expect(runHook('rm -rf ./').code).toBe(2);
+  });
+  it('BLOCKS rm -rf ./* (exit 2)', () => {
+    expect(runHook('rm -rf ./*').code).toBe(2);
+  });
+  it('BLOCKS rm -rf * (exit 2)', () => {
+    expect(runHook('rm -rf *').code).toBe(2);
+  });
+  it('BLOCKS rm -fr ~ (exit 2)', () => {
+    expect(runHook('rm -fr ~').code).toBe(2);
+  });
+
+  // Non-catastrophic recursive deletes must still pass.
+  it('allows rm -rf ~/.cache/app (exit 0)', () => {
+    expect(runHook('rm -rf ~/.cache/app').code).toBe(0);
+  });
+  it('allows rm -rf "$HOME"/tmp (exit 0)', () => {
+    expect(runHook('rm -rf "$HOME"/tmp').code).toBe(0);
+  });
+  it('allows rm -rf build/* (exit 0)', () => {
+    expect(runHook('rm -rf build/*').code).toBe(0);
   });
 
   it('BLOCKS rm -rf ~ (exit 2)', () => {
