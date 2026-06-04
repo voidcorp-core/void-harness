@@ -3,6 +3,98 @@
 Non-obvious decisions taken on the harness itself, where a credible alternative
 existed. One entry per decision. Newest first. See CLAUDE.md meta-rules.
 
+## 2026-06-04: opt-in autonomous-backlog-loop (Ralph distilled, HITL at the boundaries)
+
+Context: the harness wanted a way to drain a curated Linear backlog unattended,
+with full craftsman discipline, without adopting the unsupervised Ralph loop
+(`while :; do cat PROMPT | claude --dangerously-skip-permissions; done`) which is
+the antithesis of the harness's HITL-absolute principle.
+
+Decision: ship `autonomous-backlog-loop` as an explicitly-launched skill (core,
+never a default). One FRESH `claude -p` process per ticket (true context reset),
+state in Linear + on-disk plan files. The human gates move to the boundaries —
+backlog curation (acceptance criteria = approved spec) and PR merge — instead of a
+per-action prompt. Default `AUTO_MERGE=0` (PRs, human merges). Full-auto
+(`--dangerously-skip-permissions`) is gated behind `UNSAFE_FULL_AUTO=1` + a required
+`VOID_SANDBOX` marker. The security hooks stay live; the orchestrator refuses to
+start with `VOID_HARNESS_ALLOW_*` set or on a dirty tree.
+
+Alternatives rejected:
+- Unsupervised Ralph loop as default: no review, no floor, no sandbox. Rejected;
+  offered only as an explicit sandboxed opt-in.
+- Auto-merge by default: review is where correctness is owned. Default to PRs.
+- Self-judged completion: the test suite is the gate, not the model's self-report.
+- A `/clear`-only loop (single long session): context rot degrades quality silently;
+  a fresh process per ticket is the stronger anti-context-rot.
+
+## 2026-06-04: two security hooks shipped default-on (protect-sensitive-files, block-dangerous-bash)
+
+Context: the harness shipped quality hooks but no safety floor for destructive
+actions, and nothing protecting secrets/lockfiles from accidental edits. This is
+the prerequisite for any unattended run and a general improvement.
+
+Decision: add `protect-sensitive-files` (PreToolUse Edit|Write — blocks `.env*`
+secrets, private keys, credential files, lockfiles, `.git/` internals) and
+`block-dangerous-bash` (PreToolUse Bash — blocks recursive root delete, fork bomb,
+raw-device writes, force-push without `--force-with-lease`, destructive SQL). Each
+has a single deliberate-override env var (`VOID_HARNESS_ALLOW_SECRET_EDIT`,
+`VOID_HARNESS_ALLOW_DANGEROUS`) so legitimate cases are unblocked explicitly while
+the default is safe. Wired into the core plugin PreToolUse (now 10 hooks).
+
+Alternatives rejected:
+- Warning-only (non-blocking): a destructive command warned-but-allowed is not a
+  floor. These are irreversible; they block.
+- No override: would force users to disable the hook entirely for a one-off
+  legitimate edit. A scoped env override is safer than an all-or-nothing toggle.
+
+## 2026-06-04: adr-workflow promoted from pack-monorepo to core
+
+Context: `adr-workflow` lived in pack-monorepo, but ADRs are a universal craftsman
+concern and the repo meta-rule already mandates logging non-obvious decisions.
+
+Decision: move the skill to `packages/core/skills/adr-workflow`, generalize the
+"monorepo" wording to "codebase", add the missing `.source`, and drop "ADR workflow"
+from the pack-monorepo manifest description. Audit note updated (pack → core).
+
+Alternatives rejected:
+- Leave it in pack-monorepo: consumers without the monorepo pack would lack a
+  universal discipline the meta-rules assume exists.
+
+## 2026-06-04: skill name == folder + naming gate added to anti-bloat-check
+
+Context: the Agent Skills spec requires `name` to equal the parent directory and to
+match `^[a-z0-9]+(-[a-z0-9]+)*$`; a mismatch breaks auto-discovery silently. The
+harness promised "skill tests pass in CI" but had no structural validation.
+
+Decision: extend `scripts/anti-bloat-check.sh` (the single source of truth, already
+run in CI) with a name==folder + naming-convention check across core and pack
+skills. Cheap, deterministic, closes the structural half of the CI promise.
+
+Alternatives rejected:
+- A separate `skills-ref validate` dependency: adds an external tool for a check
+  that is a few lines of shell. Kept it inline in the existing script.
+
+## 2026-06-04: four new core skills + the Rationalizations/Verification section standard
+
+Context: research across anthropics/skills, the Claude Code creators' interviews, and
+the best-practice corpus surfaced gaps not yet covered by the 22 core skills.
+
+Decision: add `source-driven-development` (read official docs for the installed
+version before writing config; cite the source), `context-management` (the window is
+the core constraint: clear, compact, two-correction reset, fresh-context subagents,
+state on disk), `compounding` (end-of-cycle ritual: name the reusable pattern and
+route it via capture-rule / harness-evolution), and `api-and-interface-design`
+(contract-first public interfaces, minimal surface, versioning). New skills adopt a
+`## Rationalizations` table (pre-empts the model's excuses to skip the skill) and a
+`## Verification` proof-gate as the standard anatomy.
+
+Alternatives rejected:
+- Retrofit the Rationalizations/Verification sections into all 22 existing skills
+  now: large diff, rewrites authored voice broadly. Set the standard in new skills;
+  backfill opportunistically.
+- A full `writing-skills`/skill-creator port (to replace the superpowers pointer):
+  high value but a larger effort; deferred as a tracked follow-up.
+
 ## 2026-06-01: no-null-grep matches on a comment/string-stripped view (heuristic, not AST)
 
 Context: field feedback from a consumer monorepo — `no-null-grep.sh` blocked a
