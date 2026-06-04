@@ -68,6 +68,14 @@ describe('autonomous-backlog.sh', () => {
     expect(r.stdout).toContain('0 completed');
   });
 
+  it('survives a config value containing a pipe (no sed corruption)', () => {
+    // LINEAR_SCOPE is free text; a `|` would break sed-based templating.
+    writeFakeClaude('echo "VOID_AUTONOMOUS_RESULT: NO_TICKETS"');
+    const r = run({ MAX_ITERATIONS: '3', LINEAR_SCOPE: 'team A | team B & co' });
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain('0 completed');
+  });
+
   it('refuses to start on a dirty working tree (exit 1)', () => {
     writeFakeClaude('echo "VOID_AUTONOMOUS_RESULT: NO_TICKETS"');
     writeFileSync(join(dir, 'README.md'), '# dirty\n');

@@ -19,17 +19,22 @@ Skill content is runtime-agnostic prose and applies to both. Claude Code
 auto-discovers the void plugin's skills from the marketplace; a Codex user reads
 the same doctrine via `AGENTS.md` + the `.void/` files.
 
-## The hooks (safety floor)
+## The hooks (guardrails, not the floor)
 
-Codex's hook system mirrors Claude's: same event names (`PreToolUse`, …), same
-`hooks.json` schema, same "exit 2 blocks" convention. So the void hook scripts
-run on Codex unchanged, with two notes:
+The safety *floor* for an unattended run is the deny-by-default permission scope
+(`.codex/hooks.json` allow/deny + a sandbox), not the blocklist hooks. The hooks
+are guardrails on top. Codex's hook system mirrors Claude's: same event names
+(`PreToolUse`, …), same `hooks.json` schema, same "exit 2 blocks" convention, so
+the void hook scripts run on Codex unchanged:
 
-- `block-dangerous-bash.sh` matches Codex's `shell` tool 1:1 (it reads
-  `.tool_input.command`). Zero changes.
-- `protect-sensitive-files.sh` is runtime-aware: it reads `.tool_input.file_path`
-  (Claude `Edit`/`Write`) **and** scans the `apply_patch` envelope headers
-  (`*** Update File: <path>`) that Codex produces. Covered by tests.
+- `block-dangerous-bash.sh` is a **best-effort** blocklist of common footguns
+  (recursive root/home deletes, force-push, raw-device writes, destructive SQL).
+  It reads Codex's `shell` command as a string or an argv array. It will miss
+  novel forms — treat it as a tripwire, not a boundary.
+- `protect-sensitive-files.sh` is a deny-list of never-edit files. It reads
+  `.tool_input.file_path` (Claude `Edit`/`Write`) **and** scans `apply_patch`
+  envelope headers (`*** Update File: <path>`), handling Codex's string or
+  argv-array command shape, case-insensitively. Covered by tests.
 
 ### Wiring the Codex floor (opt-in)
 

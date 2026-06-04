@@ -83,14 +83,16 @@ and only offers full-auto behind an explicit sandbox flag.
 
 ## Safety (read before running)
 
-- **Permission floor stays on.** The void security hooks `protect-sensitive-files`
-  and `block-dangerous-bash` gate every run; the orchestrator refuses to start if
-  their overrides (`VOID_HARNESS_ALLOW_*`) are set.
-- **Scoped allowlist.** Runs load `scripts/settings.autonomous.json` — a curated
-  `allow`/`deny` profile so a supervised run proceeds without prompts while
-  destructive commands stay denied. Tune `allow` to your toolchain; never widen
-  `deny`. This is the permissions doctrine: pre-allow the safe, deny the
-  irreversible, let hooks be the non-skippable floor.
+- **The floor is the allowlist + sandbox, not the hooks.** Runs load
+  `scripts/settings.autonomous.json` — a curated `allow`/`deny` profile so a
+  supervised run proceeds without prompts while everything unlisted is denied by
+  default. This deny-by-default permission scope is the real safety boundary. Tune
+  `allow` to your toolchain; never widen `deny`.
+- **Hooks are guardrails on top.** `protect-sensitive-files` (deny-list of
+  never-edit files) and `block-dangerous-bash` (best-effort blocklist of common
+  footguns — it will miss novel forms, do not rely on it as the boundary) run on
+  every call; the orchestrator refuses to start if their overrides
+  (`VOID_HARNESS_ALLOW_*`) are set.
 - **Clean tree required.** The orchestrator refuses to start on a dirty working tree.
 - **Circuit breakers.** `MAX_ITERATIONS` caps tickets per run; `MAX_FAILURES`
   consecutive errors stop the loop.

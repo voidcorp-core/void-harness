@@ -73,13 +73,18 @@ LOG="$RUN_DIR/$(git -C "$ROOT" rev-parse --short HEAD)-$$.log"
 log() { printf "[%s] %s\n" "$(date -u +%H:%M:%S 2>/dev/null || echo run)" "$1" | tee -a "$LOG" >&2; }
 
 PROMPT_TEMPLATE="$SCRIPT_DIR/iteration-prompt.md"
+# Bash parameter-expansion replacement, NOT sed: the config values are free text
+# (LINEAR_SCOPE is a human description) and must not be interpreted. With sed,
+# a value containing the delimiter (|), & or \N would corrupt or silently
+# mis-substitute the template. ${tpl//'{{KEY}}'/$VALUE} treats VALUE literally.
 render_prompt() {
-  sed -e "s|{{LINEAR_SCOPE}}|$LINEAR_SCOPE|g" \
-      -e "s|{{TARGET_STATE}}|$TARGET_STATE|g" \
-      -e "s|{{REVIEW_STATE}}|$REVIEW_STATE|g" \
-      -e "s|{{BRANCH_PREFIX}}|$BRANCH_PREFIX|g" \
-      -e "s|{{AUTO_MERGE}}|$AUTO_MERGE|g" \
-      "$PROMPT_TEMPLATE"
+  local tpl; tpl=$(cat "$PROMPT_TEMPLATE")
+  tpl=${tpl//'{{LINEAR_SCOPE}}'/$LINEAR_SCOPE}
+  tpl=${tpl//'{{TARGET_STATE}}'/$TARGET_STATE}
+  tpl=${tpl//'{{REVIEW_STATE}}'/$REVIEW_STATE}
+  tpl=${tpl//'{{BRANCH_PREFIX}}'/$BRANCH_PREFIX}
+  tpl=${tpl//'{{AUTO_MERGE}}'/$AUTO_MERGE}
+  printf '%s\n' "$tpl"
 }
 
 # Classify the worker's machine-readable last line.
