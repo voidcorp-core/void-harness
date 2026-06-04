@@ -86,7 +86,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 
 ---
 
-## Process skills (11)
+## Process skills (12)
 
 ### `brainstorming`
 
@@ -168,6 +168,13 @@ Two modes: `feedback` (inbound suggestions captured from real project usage) and
 - **Cannot decide**: product / org strategy (Notion, Linear); the work sequencing (`writing-plans`).
 - **Composes with**: `writing-plans`, `commit-discipline` (a one-paragraph "why" should become an ADR), `source-driven-development` (alternatives cite docs), `harness-evolution` (harness ADRs live in this repo).
 
+### `autonomous-backlog-loop`
+
+- **Wins**: an explicitly launched unattended run that implements a curated Linear backlog, one fresh session per ticket. Opt-in only; never a default.
+- **Loses to**: every normal interactive session. Human judgment on scope (the backlog) and on merge (the PR) always wins.
+- **Cannot decide**: whether a ticket's scope is right (human-approved criteria are the spec); whether to merge to a protected branch (human, unless `AUTO_MERGE=1` + green CI).
+- **Composes with**: the full craftsman cycle invoked inside each session (`brainstorming`, `source-driven-development`, `adr-workflow`, `writing-plans`, `tdd`, `verification-before-completion`, `commit-discipline`, `compounding`, `context-management`); gstack `ticket-craft` upstream, `/ship` + `/code-review` downstream (human-owned merge).
+
 ---
 
 ## Hedge skills (6)
@@ -241,4 +248,4 @@ When two skills both claim "I win":
 
 ## Status
 
-Skeleton populated for the core skills (27 as of 2026-06-04, including `source-driven-development`, `context-management`, `compounding`, `api-and-interface-design`, and `adr-workflow` promoted from pack-monorepo). To be refined as each skill's content evolves. Any cell that becomes ambiguous in practice triggers an ADR in `docs/DECISIONS.md`.
+Skeleton populated for the core skills (28 as of 2026-06-04, including `source-driven-development`, `context-management`, `compounding`, `api-and-interface-design`, `adr-workflow` promoted from pack-monorepo, and the opt-in `autonomous-backlog-loop`). To be refined as each skill's content evolves. Any cell that becomes ambiguous in practice triggers an ADR in `docs/DECISIONS.md`.
