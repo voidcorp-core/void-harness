@@ -78,4 +78,21 @@ describe('protect-sensitive-files.sh', () => {
   it('ignores non-edit tools (exit 0)', () => {
     expect(runHook({ tool: 'Read', file: '.env' }).code).toBe(0);
   });
+
+  // Codex parity: edits arrive via apply_patch, the path is in the patch
+  // envelope, not file_path.
+  function runPatch(patch: string): number {
+    const input = JSON.stringify({ tool_name: 'apply_patch', tool_input: { content: patch } });
+    return spawnSync('bash', [HOOK], { input, encoding: 'utf8' }).status ?? 1;
+  }
+
+  it('BLOCKS a Codex apply_patch touching .env (exit 2)', () => {
+    const patch = '*** Begin Patch\n*** Update File: apps/web/.env\n+SECRET=1\n*** End Patch';
+    expect(runPatch(patch)).toBe(2);
+  });
+
+  it('allows a Codex apply_patch on a normal file (exit 0)', () => {
+    const patch = '*** Begin Patch\n*** Add File: src/feature.ts\n+export const x = 1;\n*** End Patch';
+    expect(runPatch(patch)).toBe(0);
+  });
 });

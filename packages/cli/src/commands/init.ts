@@ -7,7 +7,8 @@
 //   3. Create .void/PROJECT-DOCTRINE.md from template if it does not exist
 //   4. Merge `.claude/settings.json` with `extraKnownMarketplaces.void-harness`
 //      pointing to the GitHub repo, and `enabledPlugins` for the chosen packs
-//   5. Patch CLAUDE.md with the void-harness block (@imports + skill summary)
+//   5. Patch CLAUDE.md (and its Codex sister AGENTS.md) with the void-harness
+//      block (doctrine imports + skill summary)
 //
 // This command does NOT copy skills/agents/hooks — Claude Code fetches the
 // plugin from the marketplace on session start. Skills appear as
@@ -26,7 +27,7 @@ import {
   type PackDescriptor,
 } from '../lib/packs.js';
 import { mergeSettings, readSettings, settingsPathFor, writeSettings } from '../lib/settings.js';
-import { patchClaudeMd } from '../lib/claude-md.js';
+import { patchClaudeMd, patchAgentsMd } from '../lib/claude-md.js';
 import { banner, blank, c, footer, glyph, line, meta } from '../lib/render.js';
 import { commandsFor, detectStack, type Stack } from '../lib/stack.js';
 import { fetchRemoteMarketplace } from '../lib/remote.js';
@@ -135,9 +136,11 @@ export async function init(args: readonly string[]): Promise<void> {
   await writeSettings(settingsPath, merged);
   line(`${c.green(glyph.check)}  ${c.dim('settings.json'.padEnd(18))}extraKnownMarketplaces.${MARKETPLACE_NAME} + enabledPlugins merged`);
 
-  // 5. Patch CLAUDE.md
+  // 5. Patch CLAUDE.md and its Codex sister AGENTS.md (one doctrine, two runtimes)
   const claudeMdResult = await patchClaudeMd(projectRoot, { enabledPlugins, enabledPacks: packs });
   line(`${c.green(glyph.check)}  ${c.dim('CLAUDE.md'.padEnd(18))}${claudeMdResult}`);
+  const agentsMdResult = await patchAgentsMd(projectRoot, { enabledPlugins, enabledPacks: packs });
+  line(`${c.green(glyph.check)}  ${c.dim('AGENTS.md'.padEnd(18))}${agentsMdResult}`);
 
   blank();
   meta('plugins', enabledPlugins.join(', '));
