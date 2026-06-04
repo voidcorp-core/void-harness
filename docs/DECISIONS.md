@@ -3,6 +3,90 @@
 Non-obvious decisions taken on the harness itself, where a credible alternative
 existed. One entry per decision. Newest first. See CLAUDE.md meta-rules.
 
+## 2026-06-04: CLAUDE.md <-> AGENTS.md parity gate made real (was documented fiction)
+
+Context: CLAUDE.md, AGENTS.md, ARCHITECTURE.md and the design plan all cited
+`scripts/sync-agent-docs.sh` as a live pre-commit gate enforcing sister-doc
+parity. The file did not exist, and there was no git-hook tooling at all
+(no husky/lefthook/prepare). The parity claim was unenforced.
+
+Decision: write `scripts/sync-agent-docs.sh` with two modes — `--staged`
+(pre-commit XOR: a change touching one sister doc must touch the other) and the
+default structure mode (section-heading parity after normalizing the known
+terminology variants, stateless so it runs in CI). Wire it via `.githooks/pre-commit`
+(opt-in `git config core.hooksPath .githooks`) and a CI step (`pnpm sync:docs`).
+Tested in `test/sync-agent-docs/`.
+
+Alternatives rejected:
+- A full semantic doctrine-diff: the routing tables legitimately differ in
+  content (not just terminology), so a content diff would false-positive.
+  Heading parity + the both-or-neither rule is what the headers actually promise.
+- Deleting the claim from the docs instead of implementing it: cheaper, but the
+  parity rule is worth keeping; make it true rather than drop it.
+
+## 2026-06-04: Codex parity — real doctrine + safety floor, honest about what is pending
+
+Context: the doctrine layer (AGENTS.md) was a real mirror, but the mechanical
+layer was Claude-only: `init` never emitted AGENTS.md, and the hooks were Claude
+PreToolUse format. A consumer running `init` got a Claude-only harness.
+
+Decision: (1) `init` now patches both CLAUDE.md and AGENTS.md from one runtime-aware
+`harnessBlock` (Claude uses `@imports`, Codex lists files to read — Codex has no
+`@import`). (2) `protect-sensitive-files` is runtime-aware: it reads
+`.tool_input.file_path` (Claude) and scans `apply_patch` envelope headers (Codex),
+unit-tested. (3) Ship `packages/core/codex/hooks.json` + `docs/CODEX.md` documenting
+the opt-in Codex wiring; `block-dangerous-bash` matches Codex's `shell` tool 1:1.
+
+Honest status logged in docs/CODEX.md: verified = sync gate, AGENTS.md emission,
+hook payload parsing. Pending a real-Codex run = end-to-end `.codex/hooks.json`
+firing, and a `RUNTIME=codex` (`codex exec`) backend for autonomous-backlog-loop.
+
+Alternatives rejected:
+- Auto-write `.codex/hooks.json` + copy hook scripts into every consumer now:
+  duplicates the marketplace delivery model and the firing path is unverified
+  without a real Codex run. Ship the template + doc; wire deliberately.
+
+## 2026-06-04: lifecycle hooks beyond PreToolUse + plugin slash commands
+
+Context: the plugin wired only PreToolUse hooks and shipped zero slash commands,
+leaving the rest of the lifecycle (and in-session ergonomics) unused.
+
+Decision: add `auto-format` (PostToolUse, non-blocking Biome format — repairs
+instead of refusing, fails open if Biome absent), `precompact-doctrine`
+(PreCompact — re-injects the non-negotiable floor before context loss),
+`sessionstart-context` (SessionStart — per-session floor reminder + version), and
+`skill-usage-meter` (PreToolUse on Skill — appends to `.void/usage.log` so the
+outbound `audit` has real data). Ship `/void-feedback`, `/void-doctor`,
+`/void-audit` slash commands so the self-evolution loop is invocable in-session.
+
+Alternatives rejected:
+- A UserPromptSubmit hook: overlaps skill auto-discovery and risks noise.
+- Making auto-format blocking: formatting must never block a turn; PostToolUse
+  non-blocking is the right shape.
+
+## 2026-06-04: claude-md-authoring skill, four scoped agents, no-ai-design-slop, doctrine edits
+
+Context: a deeper pass over the best-practice corpus surfaced gaps not covered by
+the existing skills/agents.
+
+Decision: add the `claude-md-authoring` skill (the harness produces CLAUDE.md
+files; this governs writing them: length budget, no style rules -> linters,
+`file:line` over snippets, progressive disclosure). Add four read-only,
+model-tiered, narrow-scope agents — `silent-failure-hunter` (sonnet),
+`type-design-analyzer` (opus), `code-explorer` (sonnet), `migration-planner`
+(opus) — each routing out of scope, none overlapping doctrine-critic or gstack.
+Add the `no-ai-design-slop` PreToolUse hook (deterministic regex for AI visual
+tells; static gate, complements frontend-design without touching /design-review).
+Distil doctrine into existing skills: vertical-slice planning (writing-plans),
+frequent-intentional-compaction + leverage hierarchy (context-management,
+code-review), and the agent model-tier convention (ARCHITECTURE.md).
+
+Alternatives rejected:
+- Stack-specific reviewer agents (per ECC/wshobson): those are pack concerns, not
+  core; rejected to hold the anti-bloat line.
+- Cryptographic review-surface receipts (wshobson governance): over-engineered;
+  the HITL gate is the load-bearing part, not signed receipts.
+
 ## 2026-06-04: opt-in autonomous-backlog-loop (Ralph distilled, HITL at the boundaries)
 
 Context: the harness wanted a way to drain a curated Linear backlog unattended,
