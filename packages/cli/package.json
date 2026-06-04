@@ -1,6 +1,6 @@
 {
   "name": "@voidcorp/harness",
-  "version": "0.5.4",
+  "version": "0.6.0",
   "description": "void-harness CLI — install the void plugin into a project, configure marketplace + settings, manage doctrine.",
   "license": "MIT",
   "type": "module",
