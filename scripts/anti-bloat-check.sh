@@ -52,6 +52,30 @@ for f in packages/core/skills/*/SKILL.md packages/core/agents/*.md; do
   fi
 done
 
+# Skill name convention (Anthropic Agent Skills spec): the frontmatter `name`
+# must equal the parent directory name and match ^[a-z0-9]+(-[a-z0-9]+)*$
+# (lowercase, hyphen-separated, no leading/trailing/double hyphen). A mismatch
+# breaks auto-discovery silently, so it is a hard gate.
+echo "  skill name == folder + naming convention"
+for f in packages/core/skills/*/SKILL.md packages/packs/*/skills/*/SKILL.md; do
+  [[ -e "$f" ]] || continue
+  DIR=$(basename "$(dirname "$f")")
+  NAME=$(awk '/^name:/{ sub(/^name: */,""); print; exit }' "$f" 2>/dev/null || true)
+  if [[ -z "$NAME" ]]; then
+    echo "    FAIL: $f has no frontmatter 'name:'" >&2
+    FAILED=1
+    continue
+  fi
+  if [[ "$NAME" != "$DIR" ]]; then
+    echo "    FAIL: $f name '$NAME' != folder '$DIR'" >&2
+    FAILED=1
+  fi
+  if [[ ! "$NAME" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+    echo "    FAIL: $f name '$NAME' violates ^[a-z0-9]+(-[a-z0-9]+)*\$" >&2
+    FAILED=1
+  fi
+done
+
 if [[ "$FAILED" -eq 0 ]]; then
   echo "anti-bloat-check: all checks passed."
 else
