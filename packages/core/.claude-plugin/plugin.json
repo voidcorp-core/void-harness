@@ -1,7 +1,7 @@
 {
   "name": "void",
   "version": "0.5.4",
-  "description": "VoidCorp universal craftsman skills (TDD strict, TypeScript strict, hexagonal, DDD, functional, code-review, observability, security-guidance, ...) plus 8 PreToolUse enforcement hooks (tdd-guard, no-any, no-console-log, ...) and pre-commit/CI hooks, plus the read-only doctrine-critic agent (judges doctrine conformance; routes security to /cso and bugs to /code-review).",
+  "description": "VoidCorp universal craftsman skills (TDD strict, TypeScript strict, hexagonal, DDD, functional, code-review, observability, security-guidance, ...) plus 10 PreToolUse enforcement hooks (tdd-guard, no-any, no-console-log, protect-sensitive-files, block-dangerous-bash, ...) and pre-commit/CI hooks, plus the read-only doctrine-critic agent (judges doctrine conformance; routes security to /cso and bugs to /code-review).",
   "author": {
     "name": "VoidCorp",
     "email": "florent.pellegrin@voidcorp.io"
@@ -86,6 +86,24 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/test-name-lint.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/protect-sensitive-files.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/block-dangerous-bash.sh"
           }
         ]
       }
