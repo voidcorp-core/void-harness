@@ -28,15 +28,20 @@ block() {
   exit 2
 }
 
-# Recursive delete of a root-ish path. Two conditions, both required:
-#   (a) an rm with a recursive flag (-r / -R / -rf / -fr / --recursive)
-#   (b) a catastrophic target. Quotes are stripped first so "$HOME" and '/' are
-#       seen; the target must immediately follow the flags and terminate, so
-#       rm -rf ./dist, /tmp/x, ~/.cache/x, build/* are NOT matched.
-# Covers: / /* ~ ~/ $HOME ${HOME} . ./ ./* * (with optional -- and quotes).
+# Catastrophic target patterns (quotes stripped first so "$HOME" and '/' are
+# seen). Each root may carry an optional trailing "/" and/or "*", so $HOME/,
+# ${HOME}/*, ~/* and /* are all caught, while $HOME/projects, ~/.cache/x,
+# /tmp/x and build/* are NOT (the target must terminate at the root).
+#   HOME_ROOT: filesystem root / home only (for chmod/chown).
+#   RM_TARGET: HOME_ROOT plus cwd-wiping forms (. ./ ./* .* *) for rm.
+HOME_ROOT='(/\*?|~/?\*?|\$HOME/?\*?|\$\{HOME\}/?\*?)'
+RM_TARGET='('"$HOME_ROOT"'|\./?\*?|\*)'
 NORM=$(printf "%s" "$CMD" | tr -d "\"'")
+
+# Recursive delete of a root-ish path: an rm with a recursive flag AND a
+# catastrophic target immediately after the flags.
 if printf "%s" "$NORM" | grep -qE '(^|[;&|[:space:]])rm([[:space:]]+(-[a-zA-Z]+|--[a-z-]+))*[[:space:]]+(-[a-zA-Z]*r|--recursive)' \
-  && printf "%s" "$NORM" | grep -qE '(^|[;&|[:space:]])rm([[:space:]]+[a-zA-Z-]+)*[[:space:]]+(--[[:space:]]+)?(/|/\*|~|~/|\$HOME|\$\{HOME\}|\.|\./|\./\*|\*)([[:space:]]|$)'; then
+  && printf "%s" "$NORM" | grep -qE "(^|[;&|[:space:]])rm([[:space:]]+[a-zA-Z-]+)*[[:space:]]+(--[[:space:]]+)?${RM_TARGET}([[:space:]]|$)"; then
   block "recursive delete of a root path"
 fi
 
@@ -48,9 +53,12 @@ printf "%s" "$CMD" | grep -qE ':\(\)[[:space:]]*\{[[:space:]]*:[[:space:]]*\|[[:
 printf "%s" "$CMD" | grep -qE '\bmkfs(\.[a-z0-9]+)?\b|\bdd\b[^|]*\bof=/dev/|>[[:space:]]*/dev/(sd|nvme|hd|disk)' \
   && block "filesystem / raw-device write"
 
-# chmod/chown -R on a root-ish path.
-printf "%s" "$NORM" | grep -qE '\bch(mod|own)[[:space:]]+-[a-zA-Z]*R[a-zA-Z]*[[:space:]]+[^[:space:]]*[[:space:]]*(/|~|\$HOME)([[:space:]]|$)' \
-  && block "recursive permission/ownership change on a root path"
+# chmod/chown -R on the filesystem root or home: recursive flag AND a HOME_ROOT
+# target anywhere in the command (chmod -R 777 $HOME/ , chown -R ~ , ...).
+if printf "%s" "$NORM" | grep -qE 'ch(mod|own)([[:space:]]+[a-zA-Z0-9-]+)*[[:space:]]+(-[a-zA-Z]*R|--recursive)' \
+  && printf "%s" "$NORM" | grep -qE "[[:space:]](--[[:space:]]+)?${HOME_ROOT}([[:space:]]|$)"; then
+  block "recursive permission/ownership change on a root path"
+fi
 
 # Force-push without the safe --force-with-lease variant.
 if printf "%s" "$CMD" | grep -qE '\bgit[[:space:]]+push\b' \

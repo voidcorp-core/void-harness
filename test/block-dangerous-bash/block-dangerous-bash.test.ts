@@ -50,8 +50,35 @@ describe('block-dangerous-bash.sh', () => {
   it('BLOCKS rm -rf "$HOME" (exit 2)', () => {
     expect(runHook('rm -rf "$HOME"').code).toBe(2);
   });
-  it('BLOCKS rm -rf ${HOME} (exit 2)', () => {
-    expect(runHook('rm -rf ${HOME}').code).toBe(2);
+  // Built by concatenation so the source has no ${...} literal (Biome
+  // noTemplateCurlyInString) while the runtime command still contains it.
+  const BRACE_HOME = `$${'{'}HOME}`;
+  it('BLOCKS rm -rf with a braced HOME variable (exit 2)', () => {
+    expect(runHook(`rm -rf ${BRACE_HOME}`).code).toBe(2);
+  });
+  it('BLOCKS rm -rf $HOME/ (exit 2)', () => {
+    expect(runHook('rm -rf $HOME/').code).toBe(2);
+  });
+  it('BLOCKS rm -rf with a braced HOME variable + slash (exit 2)', () => {
+    expect(runHook(`rm -rf ${BRACE_HOME}/`).code).toBe(2);
+  });
+  it('BLOCKS rm -rf "$HOME/" (exit 2)', () => {
+    expect(runHook('rm -rf "$HOME/"').code).toBe(2);
+  });
+  it('BLOCKS rm -rf $HOME/* (exit 2)', () => {
+    expect(runHook('rm -rf $HOME/*').code).toBe(2);
+  });
+  it('BLOCKS rm -rf ~/* (exit 2)', () => {
+    expect(runHook('rm -rf ~/*').code).toBe(2);
+  });
+  it('BLOCKS chmod -R 777 $HOME/ (exit 2)', () => {
+    expect(runHook('chmod -R 777 $HOME/').code).toBe(2);
+  });
+  it('BLOCKS chmod -R 777 ~/ (exit 2)', () => {
+    expect(runHook('chmod -R 777 ~/').code).toBe(2);
+  });
+  it('allows rm -rf $HOME/projects (exit 0)', () => {
+    expect(runHook('rm -rf $HOME/projects').code).toBe(0);
   });
   it('BLOCKS rm -rf ./ (exit 2)', () => {
     expect(runHook('rm -rf ./').code).toBe(2);
