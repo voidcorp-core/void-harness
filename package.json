@@ -21,6 +21,7 @@
     "typecheck": "pnpm -r --filter '!void-harness' typecheck",
     "anti-bloat:check": "bash scripts/anti-bloat-check.sh",
     "sync:docs": "bash scripts/sync-agent-docs.sh",
+    "version:check": "node scripts/check-version-lockstep.mjs",
     "check:publish": "node scripts/check-publish-safety.mjs",
     "bump": "node scripts/bump-version.mjs",
     "release": "node scripts/check-publish-safety.mjs && pnpm -r --filter './packages/**' publish"
