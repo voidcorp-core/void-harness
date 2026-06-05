@@ -1,6 +1,6 @@
 {
   "name": "void-nextjs",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Next.js 16 App Router conventions for the void-harness: route groups (api|actions|app|marketing), Cache Components defaults, layout/page conventions, instrumentation.ts. Composes with void-react (components), void-server (Server Actions), void-pwa (offline).",
   "author": {
     "name": "VoidCorp",
