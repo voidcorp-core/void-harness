@@ -60,6 +60,7 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 - Any non-obvious decision (where a credible alternative exists) MUST be logged in `docs/DECISIONS.md`
 - Removed concepts must be removed from the docs at the same time
 - Tests run via `pnpm test`; do not skip TDD when adding logic
+- Versions are never hand-edited: release-please bumps every manifest in lockstep from Conventional Commits, and `pnpm version:check` fails CI on any drift (see `docs/RELEASING.md`)
 
 ## Skill routing inside this repo
 
