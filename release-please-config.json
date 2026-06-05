@@ -4,10 +4,9 @@
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": false,
   "include-component-in-tag": false,
-  "separate-pull-requests": false,
+  "pull-request-title-pattern": "chore: release ${version}",
   "packages": {
     ".": {
-      "component": "void-harness",
       "extra-files": [
         { "type": "json", "path": ".claude-plugin/marketplace.json", "jsonpath": "$.plugins[*].version" },
         { "type": "json", "path": "packages/core/.claude-plugin/plugin.json", "jsonpath": "$.version" },
