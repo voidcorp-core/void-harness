@@ -11,13 +11,12 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { CORE_PLUGIN_NAME, MARKETPLACE_NAME } from '../lib/packs.js';
+import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO } from '../lib/packs.js';
 import { readSettings, settingsPathFor } from '../lib/settings.js';
-import { fetchRemoteMarketplace } from '../lib/remote.js';
+import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { compareVersions, normalizeVersion } from '../lib/version.js';
 import { banner, blank, c, footer, glyph, line, meta, row, status } from '../lib/render.js';
 
-const DEFAULT_MARKETPLACE_REPO = 'voidcorp-core/void-harness';
 
 interface LocalConfig {
   core?: string;
@@ -54,12 +53,14 @@ export async function update(args: readonly string[]): Promise<void> {
     status(`could not fetch marketplace: ${remote.error}`, 'err');
     process.exit(1);
   }
-  const head = remote.value.plugins[0]?.version;
-  if (!head) {
+  const core = remote.value.plugins.find((p) => p.name === CORE_PLUGIN_NAME);
+  const headFetch = core ? fetchPinnedPluginVersion(core) : undefined;
+  if (!headFetch?.ok) {
     blank();
-    status('marketplace.json has no plugins[0].version', 'err');
+    status(`could not resolve the pinned ${CORE_PLUGIN_NAME} version: ${headFetch?.error ?? 'entry missing from catalog'}`, 'err');
     process.exit(1);
   }
+  const head = headFetch.value;
   meta('remote', head);
   blank();
 
@@ -196,5 +197,5 @@ async function resolveMarketplaceRepo(projectRoot: string): Promise<string> {
     const source = (entry as { source?: { repo?: string } }).source;
     if (source?.repo) return source.repo;
   }
-  return DEFAULT_MARKETPLACE_REPO;
+  return MARKETPLACE_REPO;
 }

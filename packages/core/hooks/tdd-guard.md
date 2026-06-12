@@ -1,6 +1,6 @@
 # `tdd-guard` hook
 
-PreToolUse hook on `Edit` / `Write`. Materializes the `void:tdd` skill's Iron Law mechanically: blocks edits to production paths that add behavior without a corresponding test change in the same staged change set, unless a legitimate bypass applies.
+PreToolUse hook on `Edit` / `Write`. Materializes the `harness:tdd` skill's Iron Law mechanically: blocks edits to production paths that add behavior without a corresponding test change in the same staged change set, unless a legitimate bypass applies.
 
 In `strict` mode: blocks (exit 1).
 In `souple` mode: warns (exit 2).

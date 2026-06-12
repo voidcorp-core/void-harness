@@ -1,6 +1,6 @@
 ---
 skill: service-package
-pack: void-monorepo
+pack: harness-monorepo
 status: shipped
 strategy: native
 target_loc: 200
@@ -11,7 +11,7 @@ audit_date: 2026-06-01
 auditor: Folpe + Claude Opus 4.7
 ---
 
-# Skill audit: `void-monorepo:service-package`
+# Skill audit: `harness-monorepo:service-package`
 
 ## Need
 
@@ -25,7 +25,7 @@ Creating a new `packages/<name>/` package in a Turborepo + Bun workspace is a re
 
 ## Loses to
 
-- App-internal services (in `apps/<app>/src/services/`). Those use `void:tdd` directly; the package-extraction question doesn't apply.
+- App-internal services (in `apps/<app>/src/services/`). Those use `harness:tdd` directly; the package-extraction question doesn't apply.
 
 ## Composes with
 

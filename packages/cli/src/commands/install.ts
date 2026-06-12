@@ -22,8 +22,8 @@ function parseArgs(args: readonly string[]): InstallOptions {
   };
 }
 
-// See packages/cli/src/commands/init.ts for the rationale on `void`.
-const PLUGIN_NAME = 'void';
+// See packages/cli/src/commands/init.ts for the rationale on `harness`.
+const PLUGIN_NAME = 'harness';
 const FALLBACK_VERSION = '0.0.0';
 
 interface CoreManifest {
@@ -118,7 +118,7 @@ async function writeManifest(pluginRoot: string, core: CoreManifest): Promise<vo
     author: { name: 'VoidCorp', email: 'florent.pellegrin@voidcorp.io' },
     homepage: 'https://github.com/voidcorp-core/void-harness',
     license: 'MIT',
-    keywords: ['void', 'craftsman', 'tdd', 'tigerstyle', 'harness'],
+    keywords: ['voidcorp', 'craftsman', 'tdd', 'tigerstyle', 'harness'],
     ...(core.hooks !== undefined ? { hooks: core.hooks } : {}),
   };
 

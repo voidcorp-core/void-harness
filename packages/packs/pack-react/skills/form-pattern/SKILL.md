@@ -1,6 +1,6 @@
 ---
 name: form-pattern
-description: Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with void-server:server-action.
+description: Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with harness-server:server-action.
 ---
 
 # form-pattern
@@ -14,7 +14,7 @@ For a single-field action (search input, toggle, "delete" button), use a Server 
 - `react-hook-form` — form state, registration, validation orchestration
 - `@hookform/resolvers/zod` — bridge to Zod
 - `zod` — schema (single source of truth: same schema validates client AND server)
-- Server Action (`void-server:server-action`) — the submit target
+- Server Action (`harness-server:server-action`) — the submit target
 
 ## Canonical skeleton
 
@@ -144,12 +144,12 @@ Never duplicate the schema in the client and server. Always import from one loca
 
 - Use `inputMode="email"` / `inputMode="numeric"` / `inputMode="decimal"` to surface the right mobile keyboard.
 - `autoComplete="email"` / `"current-password"` / `"one-time-code"` for the right autofill behavior. Skip = bad UX.
-- Touch targets ≥ 44×44 (composes with `void-react:accessibility-check`).
+- Touch targets ≥ 44×44 (composes with `harness-react:accessibility-check`).
 
 ## Composition
 
-- `void-server:server-action` — the submit target; shares the Zod schema.
-- `void:security-guidance` — Zod schema is the trust boundary; server-side re-validates identically.
-- `void-react:state-architecture` — form state IS local state; lives in the form component, never lifted.
-- `void-react:accessibility-check` — labels, role="alert", focus management on error.
-- `void:tdd` — form components get `@testing-library/user-event` tests asserting validation + submit + error display.
+- `harness-server:server-action` — the submit target; shares the Zod schema.
+- `harness:security-guidance` — Zod schema is the trust boundary; server-side re-validates identically.
+- `harness-react:state-architecture` — form state IS local state; lives in the form component, never lifted.
+- `harness-react:accessibility-check` — labels, role="alert", focus management on error.
+- `harness:tdd` — form components get `@testing-library/user-event` tests asserting validation + submit + error display.

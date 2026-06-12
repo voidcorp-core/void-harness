@@ -232,7 +232,7 @@ Before reporting "captured":
 ```
 User states a persistent rule → propose verbatim → wait for explicit yes →
 write to PROJECT-DOCTRINE.md in the right section → confirm in chat.
-Otherwise → it is not void:capture-rule.
+Otherwise → it is not harness:capture-rule.
 ```
 
 The doctrine evolves deliberately, one explicit step at a time. That is the whole point of HITL.

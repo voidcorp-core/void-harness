@@ -1,11 +1,11 @@
 ---
 name: drizzle-migration-safe
-description: Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. Composes with void:migrations-safety for the generic discipline.
+description: Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. Composes with harness:migrations-safety for the generic discipline.
 ---
 
 # drizzle-migration-safe
 
-Use when adding, modifying, or removing anything in a Drizzle schema that will be deployed to a production database with concurrent traffic. Composes with `void:migrations-safety` (the generic doctrine); this skill ships the concrete Drizzle patterns.
+Use when adding, modifying, or removing anything in a Drizzle schema that will be deployed to a production database with concurrent traffic. Composes with `harness:migrations-safety` (the generic doctrine); this skill ships the concrete Drizzle patterns.
 
 If you are working on a fresh schema before any prod deployment, this skill does not apply — use raw `drizzle-kit generate` and `drizzle-kit push`. The discipline starts at the first paid user.
 
@@ -133,7 +133,7 @@ Postgres enums are awkward to change. Use this checklist:
 
 ## Composition
 
-- `void:migrations-safety` — generic doctrine (this skill is the Drizzle concretization).
-- `void-server:server-action` — service code calling the schema must handle nullable-then-not-null gracefully during the intermediate deploy.
-- `void:observability` — log migration start/end with row counts; surface long-running ones in Sentry.
-- `void:async-safety` — backfills that touch >100k rows should batch (LIMIT + LOOP), not one statement.
+- `harness:migrations-safety` — generic doctrine (this skill is the Drizzle concretization).
+- `harness-server:server-action` — service code calling the schema must handle nullable-then-not-null gracefully during the intermediate deploy.
+- `harness:observability` — log migration start/end with row counts; surface long-running ones in Sentry.
+- `harness:async-safety` — backfills that touch >100k rows should batch (LIMIT + LOOP), not one statement.

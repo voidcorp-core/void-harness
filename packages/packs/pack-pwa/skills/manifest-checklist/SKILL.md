@@ -198,7 +198,7 @@ Browser DevTools → Application → Manifest:
 
 ## Composition
 
-- `void-pwa:install-prompt-ux` — installability depends on manifest being valid
-- `void-pwa:service-worker-strategy` — SW + manifest are the two PWA artifacts; both required for install prompt
-- `void-react:accessibility-check` — `lang` + `dir` are a11y signals
-- `void:frontend-design` — theme_color and icon design should match the brand
+- `harness-pwa:install-prompt-ux` — installability depends on manifest being valid
+- `harness-pwa:service-worker-strategy` — SW + manifest are the two PWA artifacts; both required for install prompt
+- `harness-react:accessibility-check` — `lang` + `dir` are a11y signals
+- `harness:frontend-design` — theme_color and icon design should match the brand

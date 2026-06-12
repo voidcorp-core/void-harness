@@ -30,7 +30,7 @@ The principle: **group by trust boundary and rendering model, not by visual sect
 
 ## Why these specific groups
 
-- `(api|actions)` — every file inside is a trust boundary. The skill `void-server:server-action` applies. The "no fetch in components" rule applies in reverse: these files MUST fetch / mutate.
+- `(api|actions)` — every file inside is a trust boundary. The skill `harness-server:server-action` applies. The "no fetch in components" rule applies in reverse: these files MUST fetch / mutate.
 - `(marketing)` — statically renderable (Cache Components opted in by default), no auth, indexable by search engines. Different layout (marketing nav vs app shell).
 - `(app)` — authenticated. Layout checks session, redirects to login if absent. All routes inside trust the layout's auth gate.
 - `api/webhooks/<source>/` — NOT in a route group because the convention is path-stable for external systems. Stripe sends to `/api/webhooks/stripe`, period.
@@ -79,7 +79,7 @@ If root layout grows past 40 lines, you have layout-creep — push down.
 
 ## Parallel routes and intercepting routes — separate concept
 
-`@modal`, `(.)`, `(..)`, `(..)(..)`, `(...)` are **NOT** route groups. They're parallel/intercepting routes. See `void-nextjs:parallel-routes-slots` for that pattern.
+`@modal`, `(.)`, `(..)`, `(..)(..)`, `(...)` are **NOT** route groups. They're parallel/intercepting routes. See `harness-nextjs:parallel-routes-slots` for that pattern.
 
 A route group is `(name)` (parentheses around a folder). Don't confuse them.
 
@@ -97,11 +97,11 @@ A route group is `(name)` (parentheses around a folder). Don't confuse them.
 2. **Identify the trust posture.** Public? Authed? Trust boundary? That picks the group.
 3. **Check existing groups.** Does one fit? If yes, use it. Don't create new groups for routes that fit.
 4. **Layout content:** what's truly shared between these routes? That's the layout. Everything else is page-specific.
-5. **If creating a new group**, write an ADR (`void-monorepo:adr-workflow`). Group convention drift is annoying to undo.
+5. **If creating a new group**, write an ADR (`harness-monorepo:adr-workflow`). Group convention drift is annoying to undo.
 
 ## Composition
 
-- `void-nextjs:cache-component-pattern` — `(marketing)` is cache-by-default; `(app)` mostly `'use no cache'`.
-- `void-server:server-action` — `(actions)/` is where Server Actions live.
-- `void-monorepo:adr-workflow` — adding/renaming groups is ADR-worthy.
-- `void:security-guidance` — `(app)/layout.tsx` is the auth boundary; redirects centralized here.
+- `harness-nextjs:cache-component-pattern` — `(marketing)` is cache-by-default; `(app)` mostly `'use no cache'`.
+- `harness-server:server-action` — `(actions)/` is where Server Actions live.
+- `harness-monorepo:adr-workflow` — adding/renaming groups is ADR-worthy.
+- `harness:security-guidance` — `(app)/layout.tsx` is the auth boundary; redirects centralized here.

@@ -138,7 +138,7 @@ EAS Build embeds an `updates.channel` per build profile:
 }
 ```
 
-`expo-updates` then fetches OTA updates from the matching channel. See `void-mobile:ota-update-strategy` for the full pattern.
+`expo-updates` then fetches OTA updates from the matching channel. See `harness-mobile:ota-update-strategy` for the full pattern.
 
 ## Anti-patterns
 
@@ -158,7 +158,7 @@ If local build succeeds, EAS will too. If it fails, the error is identical — d
 
 ## Composition
 
-- `void-mobile:expo-config-plugins` — plugins define what's IN the binary; profiles define HOW it's built
-- `void-mobile:ota-update-strategy` — channel-based OTA aligns with profile names
-- `void-mobile:expo-router-pattern` — expo-router needs `developmentClient: true` in dev profile
-- `void-server:env-validation` — runtime env via `extra` validated with same Zod discipline
+- `harness-mobile:expo-config-plugins` — plugins define what's IN the binary; profiles define HOW it's built
+- `harness-mobile:ota-update-strategy` — channel-based OTA aligns with profile names
+- `harness-mobile:expo-router-pattern` — expo-router needs `developmentClient: true` in dev profile
+- `harness-server:env-validation` — runtime env via `extra` validated with same Zod discipline

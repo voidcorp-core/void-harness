@@ -4,10 +4,21 @@
 
 import { execFileSync } from 'node:child_process';
 
+export interface RemotePluginSource {
+  readonly source: string;
+  readonly repo?: string;
+  readonly url?: string;
+  readonly path?: string;
+  readonly ref?: string;
+  readonly sha?: string;
+}
+
 export interface RemotePlugin {
   readonly name: string;
-  readonly version: string;
+  /** Absent in the void-plugins catalog: the pinned plugin.json is the version of truth. */
+  readonly version?: string;
   readonly description?: string;
+  readonly source?: string | RemotePluginSource;
 }
 
 export interface RemoteMarketplace {
@@ -48,6 +59,57 @@ export function fetchRemoteMarketplace(repo: string): RemoteFetch<RemoteMarketpl
   }
 }
 
-export function fetchRemotePhilosophy(repo: string): RemoteFetch<string> {
-  return ghFetchRaw(repo, 'packages/core/PHILOSOPHY.md');
+/**
+ * Resolve where a catalog entry's pinned content lives: which repo, under
+ * which base path, at which ref. The sha wins over the ref (it is the
+ * effective pin); string sources are repo-local and have no remote pin.
+ */
+export function pinnedCoordinates(
+  source: RemotePlugin['source'],
+): { repo: string; basePath: string; ref: string } | undefined {
+  if (!source || typeof source === 'string') return undefined;
+  const ref = source.sha ?? source.ref ?? 'HEAD';
+  if (source.source === 'github' && source.repo) {
+    return { repo: source.repo, basePath: '', ref };
+  }
+  const match = source.url?.match(/github\.com[/:]([^/]+\/[^/]+?)(?:\.git)?$/);
+  if (!match?.[1]) return undefined;
+  return { repo: match[1], basePath: source.path ? `${source.path}/` : '', ref };
+}
+
+/**
+ * Remote version of a catalog entry, read from the product repo's
+ * plugin.json at the pinned commit. Falls back to the catalog version
+ * field for legacy entries that still carry one.
+ */
+export function fetchPinnedPluginVersion(plugin: RemotePlugin): RemoteFetch<string> {
+  const coords = pinnedCoordinates(plugin.source);
+  if (!coords) {
+    return plugin.version
+      ? { ok: true, value: plugin.version }
+      : { ok: false, error: `${plugin.name}: catalog entry has neither a pinned source nor a version` };
+  }
+  const raw = ghFetchRaw(coords.repo, `${coords.basePath}.claude-plugin/plugin.json`, coords.ref);
+  if (!raw.ok) return raw;
+  try {
+    const version = (JSON.parse(raw.value) as { version?: string }).version;
+    return version
+      ? { ok: true, value: version }
+      : { ok: false, error: `${plugin.name}: pinned plugin.json has no version` };
+  } catch (err) {
+    return { ok: false, error: `${plugin.name}: plugin.json parse error: ${(err as Error).message}` };
+  }
+}
+
+/**
+ * PHILOSOPHY.md lives next to the core plugin in the product repo, so its
+ * location follows the core entry's pin instead of the catalog repo.
+ */
+export function fetchRemotePhilosophy(market: RemoteMarketplace, corePluginName: string): RemoteFetch<string> {
+  const core = market.plugins.find((p) => p.name === corePluginName);
+  const coords = pinnedCoordinates(core?.source);
+  if (!coords) {
+    return { ok: false, error: `catalog has no pinned source for plugin "${corePluginName}"` };
+  }
+  return ghFetchRaw(coords.repo, `${coords.basePath}PHILOSOPHY.md`, coords.ref);
 }

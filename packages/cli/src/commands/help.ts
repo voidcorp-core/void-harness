@@ -4,9 +4,9 @@ export function printHelp(): void {
   const text = `
 void-harness — wire your project to the VoidCorp Claude Code marketplace.
 
-The harness is a multi-plugin marketplace hosted at
-voidcorp-core/void-harness on GitHub. Skills are auto-loaded by Claude
-Code as /void:<name> (core) and /void-<stack>:<name> (packs).
+The harness plugins live in voidcorp-core/void-harness and are distributed
+through the voidcorp marketplace (voidcorp-core/void-plugins). Skills are auto-loaded by Claude
+Code as /harness:<name> (core) and /harness-<stack>:<name> (packs).
 
 Usage:
   void-harness <command> [options]
@@ -40,8 +40,8 @@ Commands:
 
 Pack names (current marketplace):
   void           core — universal craftsman skills (always active)
-  void-monorepo  Turborepo + Bun conventions
-  void-nextjs    Next.js 16 + PWA conventions
+  harness-monorepo  Turborepo + Bun conventions
+  harness-nextjs    Next.js 16 + PWA conventions
 
 Examples:
   void-harness init                                  # interactive
@@ -54,7 +54,7 @@ Examples:
   void-harness update                                # sync pins to remote HEAD
   void-harness update --dry-run                      # preview the diff
 
-Marketplace: https://github.com/voidcorp-core/void-harness
+Marketplace: https://github.com/voidcorp-core/void-plugins
 `.trimStart();
   process.stdout.write(text);
 }

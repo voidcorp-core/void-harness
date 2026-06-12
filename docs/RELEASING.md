@@ -6,7 +6,7 @@ How to ship a new version. One model, one number — everything moves together.
 
 While the harness is pre-1.0, **one version governs everything**:
 
-- Marketplace plugin manifests (`marketplace.json` + each `plugin.json`)
+- Plugin manifests (each `plugin.json`; the catalog lives in voidcorp-core/void-plugins)
 - CLI npm package (`@voidcorp/harness`)
 - Runtime npm packages (`@voidcorp/pack-monorepo`, `@voidcorp/pack-nextjs`, …)
 
@@ -28,7 +28,6 @@ The bump script touches **all of these**. Don't edit them by hand.
 
 | File | What it's for |
 |---|---|
-| `.claude-plugin/marketplace.json` | `plugins[].version` for each plugin. Source of truth read by Claude Code. |
 | `packages/core/.claude-plugin/plugin.json` | Core plugin manifest. |
 | `packages/packs/<pack>/.claude-plugin/plugin.json` (6 files) | Each pack's plugin manifest. |
 | `packages/cli/package.json` | CLI npm package version. |

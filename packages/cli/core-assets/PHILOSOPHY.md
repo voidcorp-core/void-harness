@@ -149,7 +149,7 @@ Each session can produce 0–N learnings. These are captured in `learnings/propo
 Promotion to project CLAUDE.md, `docs/*`, or a skill happens only via:
 
 - Explicit user review (manual edit), or
-- The dedicated `void:learnings-promote` skill that consolidates the queue and asks "promote / discard / file as ADR?" for each.
+- The dedicated `harness:learnings-promote` skill that consolidates the queue and asks "promote / discard / file as ADR?" for each.
 
 Auto-append into CLAUDE.md was rejected: it creates drift, contradictions, prompt bloat. Doctrine evolves deliberately, not by accretion.
 

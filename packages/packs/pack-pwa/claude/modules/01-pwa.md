@@ -50,7 +50,7 @@ The capture-queue + sync pattern is small (~100 lines) — consumers own it dire
 
 ## Composition
 
-- `void-react` — components subscribe to capture-queue state via hooks.
-- `void-server` — Server Actions are the sync target; their idempotency-key handling pairs with capture-queue keys.
-- `void-nextjs` — Serwist plugin in `next.config.ts`, manifest in `app/manifest.ts`.
-- `void:async-safety` — sync engine retries are bounded, dead-letter routing on permanent failure.
+- `harness-react` — components subscribe to capture-queue state via hooks.
+- `harness-server` — Server Actions are the sync target; their idempotency-key handling pairs with capture-queue keys.
+- `harness-nextjs` — Serwist plugin in `next.config.ts`, manifest in `app/manifest.ts`.
+- `harness:async-safety` — sync engine retries are bounded, dead-letter routing on permanent failure.

@@ -146,8 +146,8 @@ Lighthouse → PWA category → "Installable" should be green; otherwise read th
 
 ## Composition
 
-- `void-pwa:manifest-checklist` — installability requires a valid manifest first
-- `void-pwa:service-worker-strategy` — installability requires SW registered
-- `void-react:accessibility-check` — install button is interactive; needs label, focus ring
-- `void:observability` — track install events (`window.addEventListener('appinstalled', ...)`) for conversion measurement
-- `void:frontend-design` — when to show, where to place — UX trade-offs covered here
+- `harness-pwa:manifest-checklist` — installability requires a valid manifest first
+- `harness-pwa:service-worker-strategy` — installability requires SW registered
+- `harness-react:accessibility-check` — install button is interactive; needs label, focus ring
+- `harness:observability` — track install events (`window.addEventListener('appinstalled', ...)`) for conversion measurement
+- `harness:frontend-design` — when to show, where to place — UX trade-offs covered here

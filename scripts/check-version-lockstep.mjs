@@ -41,10 +41,10 @@ async function readVersionField(root, rel) {
 }
 
 export async function collect(root) {
-  const market = JSON.parse(await readFile(resolve(root, '.claude-plugin/marketplace.json'), 'utf8'));
-  const canonical = market.plugins?.[0]?.version;
+  // The catalog lives in voidcorp-core/void-plugins; in this repo the core
+  // plugin manifest is the canonical version.
+  const canonical = await readVersionField(root, PLUGIN_MANIFESTS[0]);
   const entries = [];
-  market.plugins?.forEach((p, i) => entries.push({ file: `marketplace.json#plugins[${i}] (${p.name})`, version: p.version }));
   for (const rel of [...PLUGIN_MANIFESTS, ...NPM_PACKAGES]) {
     const v = await readVersionField(root, rel);
     if (v !== undefined) entries.push({ file: rel, version: v });
@@ -56,7 +56,7 @@ async function main() {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
   const { canonical, entries } = await collect(root);
   if (!canonical) {
-    console.error('check-version-lockstep: marketplace.json plugins[0].version missing');
+    console.error('check-version-lockstep: packages/core plugin.json version missing');
     process.exit(1);
   }
   const drift = findDrift(canonical, entries);

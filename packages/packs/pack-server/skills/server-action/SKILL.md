@@ -7,7 +7,7 @@ description: Create a Next.js 16 Server Action with the void trust-boundary chec
 
 Use when adding any `'use server'` function (in Next.js, Hono, or any Server Action-capable runtime) following the void-harness `pack-server` conventions. Server Actions cross a trust boundary — the input came from a browser. Treat them like HTTP handlers, not like internal function calls.
 
-If the function is **not** marked `'use server'` (it's a normal service function in `src/services/`), use `void:tdd` directly and skip this skill.
+If the function is **not** marked `'use server'` (it's a normal service function in `src/services/`), use `harness:tdd` directly and skip this skill.
 
 ## When this skill triggers
 
@@ -159,9 +159,9 @@ For the FormData variant, always parse via Zod (`z.object({ field: z.string() })
 
 ## Composition (informational)
 
-- `void:security-guidance` — Zod at every ingress; sensitive data redacted from logs; no PII in error messages returned to client.
-- `void-server:webhook-handler-pattern` — webhooks share the 5-layer pattern; same Zod discipline, different transport.
-- `void-server:rate-limit-strategy` — preset windows/max per action class.
-- `void:observability` — trace ID + Sentry user scope (hashed); same pattern across actions, webhooks, jobs.
-- `void:tdd` — souple mode on the action (boundary), strict on the underlying service.
-- `void-monorepo:service-package` — when the service grows enough to deserve its own package, extract it (rare, but the path is there).
+- `harness:security-guidance` — Zod at every ingress; sensitive data redacted from logs; no PII in error messages returned to client.
+- `harness-server:webhook-handler-pattern` — webhooks share the 5-layer pattern; same Zod discipline, different transport.
+- `harness-server:rate-limit-strategy` — preset windows/max per action class.
+- `harness:observability` — trace ID + Sentry user scope (hashed); same pattern across actions, webhooks, jobs.
+- `harness:tdd` — souple mode on the action (boundary), strict on the underlying service.
+- `harness-monorepo:service-package` — when the service grows enough to deserve its own package, extract it (rare, but the path is there).

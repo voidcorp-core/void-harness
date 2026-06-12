@@ -124,7 +124,7 @@ Step 4 of plan `2026-06-01-checkout-flow-plan.md` complete. Verification:
 11. ✅ Review evidence block prepared (waiting for code-review run)
 12. ✅ Plan resume point updated to Step 5
 
-Next: invoke `void:code-review` for the Step 4 commits.
+Next: invoke `harness:code-review` for the Step 4 commits.
 ```
 
 ---

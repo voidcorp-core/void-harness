@@ -154,7 +154,7 @@ For each state you're about to add:
 
 ## Composition
 
-- `void-react:client-vs-server-component` — server state lives in Server Components, client state lives in Client Components.
-- `void-react:form-pattern` — react-hook-form handles form state; this skill says it's local.
-- `void-pwa:offline-first-mutation` — capture-queue uses IndexedDB for offline writes (a 7th tier above Zustand, scoped to writes-pending-sync).
-- `void-nextjs:cache-component-pattern` — server data caching strategy.
+- `harness-react:client-vs-server-component` — server state lives in Server Components, client state lives in Client Components.
+- `harness-react:form-pattern` — react-hook-form handles form state; this skill says it's local.
+- `harness-pwa:offline-first-mutation` — capture-queue uses IndexedDB for offline writes (a 7th tier above Zustand, scoped to writes-pending-sync).
+- `harness-nextjs:cache-component-pattern` — server data caching strategy.

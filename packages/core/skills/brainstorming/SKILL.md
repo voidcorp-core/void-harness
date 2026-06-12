@@ -5,7 +5,7 @@ description: Explore intent before code. One question at a time, 2-3 approaches,
 
 # brainstorming — voidcorp craftsman edition
 
-Start by understanding the project context. Then ask questions one at a time to refine the idea. Once you understand what is being built, present the design in sections, get approval, write the spec to `docs/specs/`, and transition to `void:writing-plans`. **No implementation skill, no code, no scaffolding until the spec is written and approved.**
+Start by understanding the project context. Then ask questions one at a time to refine the idea. Once you understand what is being built, present the design in sections, get approval, write the spec to `docs/specs/`, and transition to `harness:writing-plans`. **No implementation skill, no code, no scaffolding until the spec is written and approved.**
 
 **Attribution**: see `.source`. Primary source: superpowers/brainstorming, adapted for void-harness.
 
@@ -112,7 +112,7 @@ Ask the user to review the spec file before proceeding:
 
 Wait for the user's response. If they request changes, make them and re-run self-review. Only proceed once the user approves.
 
-### Step 10 — Transition to `void:writing-plans`
+### Step 10 — Transition to `harness:writing-plans`
 
 The ONLY post-brainstorming transition. Invoke writing-plans. Do not invoke any other skill (frontend-design, mcp-builder, etc.).
 
@@ -166,7 +166,7 @@ Smaller, well-bounded units are easier to work with — easier for the agent to 
 ## Composition with other skills
 
 - **Upstream — `gstack:/office-hours`**: when the user describes a new product idea ("I have an idea..."), invoke `/office-hours` first to validate the idea. Once validated, this skill covers the implementation design.
-- **Downstream — `void:writing-plans`**: the ONLY post-brainstorming transition.
+- **Downstream — `harness:writing-plans`**: the ONLY post-brainstorming transition.
 - **With `tdd`**: the spec declares the TDD mode for each major implementation step. Plans then uses this.
 - **With `hexagonal-architecture` + `domain-driven-design`**: these skills inform the design's structure (bounded contexts, ports, aggregates). Brainstorming consumes their vocabulary; does not duplicate their decisions.
 - **With `code-review`**: a PR that introduces features without a linked spec gets flagged.
@@ -180,7 +180,7 @@ Smaller, well-bounded units are easier to work with — easier for the agent to 
 - MUST NOT decide implementation details (those go to plans).
 - MUST NOT decide product strategy / scope ambition (those go to office-hours / plan-ceo-review).
 - MUST NOT skip the spec-write step "because the conversation is clear."
-- MUST NOT transition to any skill other than `void:writing-plans` post-approval.
+- MUST NOT transition to any skill other than `harness:writing-plans` post-approval.
 
 ---
 

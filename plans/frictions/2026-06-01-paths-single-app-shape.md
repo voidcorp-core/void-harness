@@ -36,7 +36,7 @@ A is simpler to implement but ties consumer to a flatter mental model; B mirrors
 
 ## Why this matters
 
-The capability-first plugin split assumes consumers compose packs to match their stack — but a Next+Expo monorepo wants `void-nextjs` rules ONLY in `apps/web/` and `void-mobile` rules ONLY in `apps/mobile/`. Without per-app paths, both rule sets fire on both apps and the consumer has to choose: ignore false-positives (erodes trust) or scope manually (defeats the harness).
+The capability-first plugin split assumes consumers compose packs to match their stack — but a Next+Expo monorepo wants `harness-nextjs` rules ONLY in `apps/web/` and `harness-mobile` rules ONLY in `apps/mobile/`. Without per-app paths, both rule sets fire on both apps and the consumer has to choose: ignore false-positives (erodes trust) or scope manually (defeats the harness).
 
 ## Decision
 

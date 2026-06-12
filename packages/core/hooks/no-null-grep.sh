@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # no-null-grep — PreToolUse hook. Reads Claude Code JSON from stdin.
 # Blocks edits introducing `null` in business code. Prefer `undefined` or
-# Option<T>. Composes with void:functional and void:typescript-strict.
+# Option<T>. Composes with harness:functional and harness:typescript-strict.
 # Exit codes: 0 allow, 2 block.
 
 set -euo pipefail
@@ -48,7 +48,7 @@ done < <(printf "%s" "$NEW")
 
 if [[ -n "$HITS" ]]; then
   printf "no-null-grep: 'null' literal in %s\n%s\n" "$FILE" "$HITS" >&2
-  printf "Prefer undefined or Option<T>. See void:functional.\n" >&2
+  printf "Prefer undefined or Option<T>. See harness:functional.\n" >&2
   printf "Override (library boundary): tag the line '// allow-null: <reason>'.\n" >&2
   exit 2
 fi

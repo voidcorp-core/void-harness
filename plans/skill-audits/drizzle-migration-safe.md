@@ -1,6 +1,6 @@
 ---
 skill: drizzle-migration-safe
-pack: void-server
+pack: harness-server
 status: shipped
 strategy: native
 target_loc: 300
@@ -11,11 +11,11 @@ audit_date: 2026-06-01
 auditor: Folpe + Claude Opus 4.7
 ---
 
-# Skill audit: `void-server:drizzle-migration-safe`
+# Skill audit: `harness-server:drizzle-migration-safe`
 
 ## Need
 
-`void:migrations-safety` (generic doctrine) covers principles: small steps, nullable-then-not-null, online index creation. It does NOT cover Drizzle Kit's specific gotchas: `drizzle-kit generate` not emitting `CONCURRENTLY`, schema declarations that must reflect end state, the `pgEnum` regeneration trap. Solaar uses Drizzle and would hit each of these on the first production migration.
+`harness:migrations-safety` (generic doctrine) covers principles: small steps, nullable-then-not-null, online index creation. It does NOT cover Drizzle Kit's specific gotchas: `drizzle-kit generate` not emitting `CONCURRENTLY`, schema declarations that must reflect end state, the `pgEnum` regeneration trap. Solaar uses Drizzle and would hit each of these on the first production migration.
 
 This skill is the Drizzle concretization — same principles, concrete SQL and code samples a consumer can copy.
 
@@ -32,10 +32,10 @@ This skill is the Drizzle concretization — same principles, concrete SQL and c
 
 ## Composes with
 
-- `void:migrations-safety` — the doctrine; this skill is the operational form for Drizzle.
-- `void-server:server-action` — services must handle intermediate states (nullable column during step 1 → step 3).
-- `void:observability` — log migration timing + row counts; backfills appear as instrumentation events.
-- `void:async-safety` — large backfills MUST batch (LIMIT + LOOP), not single statements.
+- `harness:migrations-safety` — the doctrine; this skill is the operational form for Drizzle.
+- `harness-server:server-action` — services must handle intermediate states (nullable column during step 1 → step 3).
+- `harness:observability` — log migration timing + row counts; backfills appear as instrumentation events.
+- `harness:async-safety` — large backfills MUST batch (LIMIT + LOOP), not single statements.
 
 ## Rejected ideas
 

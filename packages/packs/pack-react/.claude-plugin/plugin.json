@@ -1,5 +1,5 @@
 {
-  "name": "void-react",
+  "name": "harness-react",
   "version": "0.6.1",
   "description": "React 19 conventions for the void-harness: component layer purity, shadcn/Radix primitives, mobile-first dual-quality tokens, Tappable touch targets, accessibility-first defaults.",
   "author": {

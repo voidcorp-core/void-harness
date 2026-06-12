@@ -47,9 +47,9 @@ A `void-harness audit` CLI command is on the backlog. For now this is manual via
 
 - No automatic write into doctrine, ever.
 - Every harness change is a deliberate commit with a "why" line.
-- `capture-rule` (`void:capture-rule`) handles the human ↔ AI conversation when a new rule is captured.
+- `capture-rule` (`harness:capture-rule`) handles the human ↔ AI conversation when a new rule is captured.
 
 ## See also
 
-- `void:harness-evolution` skill — the in-Claude workflow for capturing a friction during a coding session.
+- `harness:harness-evolution` skill — the in-Claude workflow for capturing a friction during a coding session.
 - `plans/frictions/` — historical frictions before the consumer-side convention shipped.

@@ -3,7 +3,7 @@
 # https://code.claude.com/docs/en/hooks
 #
 # Blocks edits introducing `: any` or `<any>` in business TS code.
-# Composes with the void:typescript-strict skill.
+# Composes with the harness:typescript-strict skill.
 #
 # Exit codes: 0 allow, 2 block.
 
@@ -26,7 +26,7 @@ HITS=$(printf "%s" "$NEW" | grep -nE "$re_any" | grep -vE '// *allow-any:' || tr
 
 if [[ -n "$HITS" ]]; then
   printf "no-any-grep: 'any' detected in %s\n%s\n\n" "$FILE" "$HITS" >&2
-  printf "Use a precise type, unknown + narrow, or generic. See void:typescript-strict.\n" >&2
+  printf "Use a precise type, unknown + narrow, or generic. See harness:typescript-strict.\n" >&2
   printf "Override (rare, documented): tag the line '// allow-any: <reason>'.\n" >&2
   exit 2
 fi

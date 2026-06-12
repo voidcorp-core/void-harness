@@ -139,7 +139,7 @@ If two apps need the same code, that code goes in a `@repo/*` package. There is 
 
 ## When you genuinely need cross-package access
 
-You don't. Re-read the section on ports. If after that you still think you do, write an ADR (`void-monorepo:adr-workflow`) documenting the exception with the reversal cost. 90% of "I need this" turns out to be "I forgot to define the port".
+You don't. Re-read the section on ports. If after that you still think you do, write an ADR (`harness-monorepo:adr-workflow`) documenting the exception with the reversal cost. 90% of "I need this" turns out to be "I forgot to define the port".
 
 ## Mechanical enforcement
 
@@ -154,7 +154,7 @@ The `boundary-direction-check` hook (core) blocks Edit/Write that introduces a f
 
 ## Composition
 
-- `void:hexagonal-architecture` — doctrine on ports + adapters direction (core).
+- `harness:hexagonal-architecture` — doctrine on ports + adapters direction (core).
 - `boundary-direction-check` hook (core) — mechanical gate.
-- `void-monorepo:package-extraction` — most boundary problems come from premature extraction.
-- `void-monorepo:service-package` — the 5+5 layout includes a `<name>.types.ts` precisely for owning your own types.
+- `harness-monorepo:package-extraction` — most boundary problems come from premature extraction.
+- `harness-monorepo:service-package` — the 5+5 layout includes a `<name>.types.ts` precisely for owning your own types.

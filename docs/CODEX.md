@@ -16,7 +16,7 @@ no `@import`).
 ## The skills
 
 Skill content is runtime-agnostic prose and applies to both. Claude Code
-auto-discovers the void plugin's skills from the marketplace; a Codex user reads
+auto-discovers the harness plugin's skills from the marketplace; a Codex user reads
 the same doctrine via `AGENTS.md` + the `.void/` files.
 
 ## The hooks (guardrails, not the floor)

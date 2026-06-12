@@ -2,7 +2,7 @@
 # tdd-guard — PreToolUse hook for Edit|Write.
 # https://code.claude.com/docs/en/hooks — reads JSON from stdin.
 #
-# Enforces the Iron Law of void:tdd (strict mode):
+# Enforces the Iron Law of harness:tdd (strict mode):
 #   ZERO LINE OF PRODUCTION CODE WITHOUT A FAILING TEST THAT REQUESTED IT.
 #
 # Mechanics: before editing/creating a business-code file, the sibling
@@ -72,7 +72,7 @@ MSG="tdd-guard: missing sibling test for production file
   Expected test:  $TEST_TS  (or .test.tsx)
   Mode:           $MODE
 
-  void:tdd: a test must drive every production change. This hook enforces
+  harness:tdd: a test must drive every production change. This hook enforces
   the structural floor only: a sibling test file must EXIST. It does not run
   the suite, so writing a genuinely failing test first (RED) then the code
   (GREEN) stays your responsibility, not the hook's.

@@ -22,6 +22,6 @@ auditor: Folpe + Claude Opus 4.8
 
 **Loses to.** Bugfixes, refactors, personal opinions, anything already in PHILOSOPHY/PROJECT-DOCTRINE. Single-app projects (no monorepo scale).
 
-**Composes with.** `void:writing-plans` (plans = work, ADRs = decisions). `void-monorepo:dependency-direction` (boundary choices are ADR-worthy). `void:commit-discipline` (paragraph-long commit "why" should become an ADR).
+**Composes with.** `harness:writing-plans` (plans = work, ADRs = decisions). `harness-monorepo:dependency-direction` (boundary choices are ADR-worthy). `harness:commit-discipline` (paragraph-long commit "why" should become an ADR).
 
 **Why not in core.** ADRs as practiced here are scoped to monorepo conventions (file naming, `@repo/*` boundaries). Single-app or non-monorepo projects use other patterns (Notion, Linear).

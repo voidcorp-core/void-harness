@@ -68,10 +68,11 @@ describe('doctrine-critic agent', () => {
 });
 
 describe('manifests and docs no longer advertise the three roadmap agents', () => {
+  // The marketplace catalog moved to voidcorp-core/void-plugins; only the
+  // plugin manifests of this repo advertise agents now.
   const manifests = [
     'packages/core/.claude-plugin/plugin.json',
     'packages/cli/core-assets/.claude-plugin/plugin.json',
-    '.claude-plugin/marketplace.json',
   ];
   const docs = ['README.md', 'docs/ARCHITECTURE.md'];
 

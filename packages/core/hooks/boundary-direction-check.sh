@@ -2,7 +2,7 @@
 # boundary-direction-check — PreToolUse hook. Reads Claude Code JSON from stdin.
 # Enforces @repo/* import direction in a Turborepo workspace:
 #   @repo/<X> (in packages/<X>/) may ONLY import from @repo/core.
-# Composes with void-monorepo:dependency-direction.
+# Composes with harness-monorepo:dependency-direction.
 # Exit codes: 0 allow, 2 block.
 
 set -euo pipefail
@@ -39,7 +39,7 @@ if [[ -n "$VIOLATIONS" ]]; then
   printf "%b\n" "$VIOLATIONS" >&2
   printf "Packages may only import from @repo/core. For cross-package deps,\n" >&2
   printf "define a port in this package and wire the adapter in the consuming app.\n" >&2
-  printf "See void-monorepo:dependency-direction.\n" >&2
+  printf "See harness-monorepo:dependency-direction.\n" >&2
   printf "Override (documented): tag the import line '// allow-boundary: <reason>'.\n" >&2
   exit 2
 fi

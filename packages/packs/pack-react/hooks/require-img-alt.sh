@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # require-img-alt — PreToolUse hook. Reads Claude Code JSON from stdin.
 # Blocks <img> and <Image> tags without an alt= attribute in tsx component
-# files. Composes with void-react:accessibility-check (manual gate).
+# files. Composes with harness-react:accessibility-check (manual gate).
 # Exit codes: 0 allow, 2 block.
 
 set -euo pipefail

@@ -1,13 +1,13 @@
 ---
 skill: parallel-routes-slots
-pack: void-nextjs
+pack: harness-nextjs
 status: shipped
 strategy: distill
 target_loc: 250
 audit_date: 2026-06-01
 ---
 
-# Audit: void-nextjs:parallel-routes-slots
+# Audit: harness-nextjs:parallel-routes-slots
 
 **Need.** `@slot` and `(.)foo` are Next features that solve real problems (independent navigation, deep-linkable modals) but are easy to over-apply. Dev sees the feature, tries to use it for transient modals → architecture grows complex for no UX gain.
 
@@ -15,6 +15,6 @@ audit_date: 2026-06-01
 
 **Loses to.** Transient modals (useState + Radix Dialog). Mobile-first apps where slots collapse to stack. Non-route modals (delete confirm).
 
-**Composes with.** `void-nextjs:route-group-decision` (slots live inside groups). `void-nextjs:cache-component-pattern` (each slot has cache scope). `void-nextjs:loading-error-boundaries` (per-slot loading.tsx). `void-react:state-architecture` (when to use state vs route for modals).
+**Composes with.** `harness-nextjs:route-group-decision` (slots live inside groups). `harness-nextjs:cache-component-pattern` (each slot has cache scope). `harness-nextjs:loading-error-boundaries` (per-slot loading.tsx). `harness-react:state-architecture` (when to use state vs route for modals).
 
 **Why not in core.** Next-specific routing primitives.

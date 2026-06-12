@@ -11,7 +11,7 @@
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { MARKETPLACE_NAME, type PackDescriptor } from './packs.js';
+import { MARKETPLACE_NAME, MARKETPLACE_REPO, type PackDescriptor } from './packs.js';
 
 const BEGIN_MARKER = '<!-- void-harness:begin -->';
 const END_MARKER = '<!-- void-harness:end -->';
@@ -41,7 +41,7 @@ export function harnessBlock(input: ClaudeMdBlockInputs, runtime: Runtime = 'cla
     '',
     `## void-harness (managed by \`void-harness init\`)`,
     '',
-    `Marketplace: \`${MARKETPLACE_NAME}\` (https://github.com/voidcorp-core/void-harness). ${runtimeName} doctrine active in this project:`,
+    `Marketplace: \`${MARKETPLACE_NAME}\` (https://github.com/${MARKETPLACE_REPO}). ${runtimeName} doctrine active in this project:`,
     '',
     `- \`void\` — universal craftsman skills (TDD, TypeScript strict, hexagonal, DDD, ...)`,
     ...packLines,

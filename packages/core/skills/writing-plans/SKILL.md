@@ -13,7 +13,7 @@ The spec answers "what should we build." This skill answers "in what order, with
 
 ## When to invoke
 
-Invoke immediately after `void:brainstorming` approves a spec. The plan is the next deliverable before any code.
+Invoke immediately after `harness:brainstorming` approves a spec. The plan is the next deliverable before any code.
 
 Do NOT invoke without an approved spec. If you find yourself wanting to plan without a spec, that means brainstorming was skipped — go back.
 
@@ -105,7 +105,7 @@ For non-trivial plans (≥ 5 steps), declare 1–2 explicit checkpoints where th
 
 User reviews the domain layer (Steps 1–4) before proceeding to the adapters layer.
 
-Stop here. Run `void:verification-before-completion`. Wait for user signal to proceed.
+Stop here. Run `harness:verification-before-completion`. Wait for user signal to proceed.
 ```
 
 Checkpoints prevent "I shipped 10 steps before you noticed step 3 was wrong."

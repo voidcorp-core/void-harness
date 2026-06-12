@@ -123,7 +123,7 @@ The dots count is **route-segment** counts, not file-path. Easy to miscount.
 
 ## Composition
 
-- `void-nextjs:route-group-decision` — slots and intercepting routes live within route groups.
-- `void-nextjs:cache-component-pattern` — each slot has its own cache scope.
-- `void-nextjs:loading-error-boundaries` — slots can have their own `loading.tsx`, `error.tsx`.
-- `void-react:state-architecture` — transient modals use `useState`, not routes.
+- `harness-nextjs:route-group-decision` — slots and intercepting routes live within route groups.
+- `harness-nextjs:cache-component-pattern` — each slot has its own cache scope.
+- `harness-nextjs:loading-error-boundaries` — slots can have their own `loading.tsx`, `error.tsx`.
+- `harness-react:state-architecture` — transient modals use `useState`, not routes.

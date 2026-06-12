@@ -16,7 +16,7 @@ apps/<app>/
 │   ├── (tabs)/                  # Tab navigation root
 │   ├── (modal)/                 # Modal screens
 │   └── _layout.tsx
-├── components/                  # See void-react (same purity rules)
+├── components/                  # See harness-react (same purity rules)
 ├── services/                    # Domain logic (shared with web if monorepo)
 ├── adapters/                    # Native module wrappers
 └── app.config.ts                # Expo config (NEVER app.json — config.ts is typed)
@@ -45,6 +45,6 @@ apps/<app>/
 
 ## Composition
 
-- `void-react` — same component purity, same primitives (Tappable, tokens).
-- `void:accessibility-first` — VoiceOver/TalkBack labels, focus order, dynamic type.
-- `void-server` — mobile app talks to the same Server Actions as the web app; share the action schemas via `@repo/api-types`.
+- `harness-react` — same component purity, same primitives (Tappable, tokens).
+- `harness:accessibility-first` — VoiceOver/TalkBack labels, focus order, dynamic type.
+- `harness-server` — mobile app talks to the same Server Actions as the web app; share the action schemas via `@repo/api-types`.

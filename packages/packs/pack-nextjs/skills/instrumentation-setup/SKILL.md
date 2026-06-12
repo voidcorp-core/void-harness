@@ -7,7 +7,7 @@ description: Wire instrumentation.ts in Next.js 16 — Sentry, pino logger, Open
 
 Use when setting up observability in a fresh Next.js app, OR when adding a new instrumentation tool (Sentry → +OTel, +Datadog, etc.). The pattern: ONE `instrumentation.ts` at the project root, conditionally initializes per runtime.
 
-Composes with `void:observability` (the doctrine: pino, structured logs, Sentry user scope). This skill is the Next-specific wiring.
+Composes with `harness:observability` (the doctrine: pino, structured logs, Sentry user scope). This skill is the Next-specific wiring.
 
 ## File location
 
@@ -155,7 +155,7 @@ After setup, in dev:
 
 ## Composition
 
-- `void:observability` — pino + Sentry doctrine (this skill is the Next wiring).
-- `void:security-guidance` — Sentry user scope MUST be hashed; no PII in event payloads.
-- `void-server:env-validation` — `SENTRY_DSN`, `OTEL_EXPORTER_OTLP_ENDPOINT` validated via Zod in `@repo/core/env`.
-- `void-nextjs:loading-error-boundaries` — `error.tsx` uses Sentry.captureException; this skill ensures Sentry is initialized when that fires.
+- `harness:observability` — pino + Sentry doctrine (this skill is the Next wiring).
+- `harness:security-guidance` — Sentry user scope MUST be hashed; no PII in event payloads.
+- `harness-server:env-validation` — `SENTRY_DSN`, `OTEL_EXPORTER_OTLP_ENDPOINT` validated via Zod in `@repo/core/env`.
+- `harness-nextjs:loading-error-boundaries` — `error.tsx` uses Sentry.captureException; this skill ensures Sentry is initialized when that fires.

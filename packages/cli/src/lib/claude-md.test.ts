@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { harnessBlock, patchClaudeMd, patchAgentsMd } from './claude-md.js';
 
-const input = { enabledPlugins: ['void'], enabledPacks: [] as never[] };
+const input = { enabledPlugins: ['harness'], enabledPacks: [] as never[] };
 
 describe('harnessBlock', () => {
   it('uses @imports for the Claude runtime', () => {

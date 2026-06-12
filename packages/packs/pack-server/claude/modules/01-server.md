@@ -8,15 +8,15 @@ Every endpoint that receives data from outside the process is a **trust boundary
 
 1. **Auth** — verify session before doing anything else
 2. **Zod ingress** — schema validates the input object (no untyped `formData.get()`)
-3. **Rate limit** — per-user or per-IP (see `void-server:rate-limit-strategy`)
+3. **Rate limit** — per-user or per-IP (see `harness-server:rate-limit-strategy`)
 4. **Observability** — trace ID + Sentry user scope (hashed)
 5. **Service call** — pure domain logic in `src/services/`
 
-The skill `void-server:server-action` ships the executable pattern for these layers; this module is the orientation reference.
+The skill `harness-server:server-action` ships the executable pattern for these layers; this module is the orientation reference.
 
 ## Webhook handlers
 
-Live at `apps/<app>/src/app/api/webhooks/<source>/route.ts`. The 5-layer pattern (signature verification, idempotency, Zod re-validation, service call, ack) is documented in `void-server:webhook-handler-pattern` with per-source examples (Stripe, Resend, GitHub, custom HMAC).
+Live at `apps/<app>/src/app/api/webhooks/<source>/route.ts`. The 5-layer pattern (signature verification, idempotency, Zod re-validation, service call, ack) is documented in `harness-server:webhook-handler-pattern` with per-source examples (Stripe, Resend, GitHub, custom HMAC).
 
 No wrapper required — the pattern is short enough to inline. If your project repeats it 3+ times, DRY into a project-side helper.
 
@@ -24,14 +24,14 @@ No wrapper required — the pattern is short enough to inline. If your project r
 
 - Event-driven: Inngest / Trigger.dev / Cloudflare Queues
 - Scheduled: Vercel Cron / Inngest schedule
-- Pattern: `void-server:background-job-pattern` (5 layers: validate / idempotent / observable / work / classify retries)
+- Pattern: `harness-server:background-job-pattern` (5 layers: validate / idempotent / observable / work / classify retries)
 
 ## Drizzle migrations safety
 
 - Migrations live at `apps/<app>/db/migrations/` (Drizzle default).
 - New columns: NULL or DEFAULT first, then backfill, then NOT NULL (no exclusive locks on prod tables).
 - Index creation: `CREATE INDEX CONCURRENTLY` on Postgres.
-- Composes with `void:migrations-safety` (generic) + `void-server:drizzle-migration-safe` (Drizzle-specific).
+- Composes with `harness:migrations-safety` (generic) + `harness-server:drizzle-migration-safe` (Drizzle-specific).
 
 ## Server Actions vs route handlers
 
@@ -44,8 +44,8 @@ No wrapper required — the pattern is short enough to inline. If your project r
 
 ## Composition (informational)
 
-- `void-react` — components call Server Actions, not the DB.
-- `void-nextjs` — Server Actions in `app/(actions)/`, webhooks in `app/api/webhooks/`.
-- `void:async-safety` — generic retry/idempotency/dead-letter doctrine.
-- `void:security-guidance` — Zod at ingress, no PII in returned errors.
-- `void:observability` — trace + Sentry on every handler.
+- `harness-react` — components call Server Actions, not the DB.
+- `harness-nextjs` — Server Actions in `app/(actions)/`, webhooks in `app/api/webhooks/`.
+- `harness:async-safety` — generic retry/idempotency/dead-letter doctrine.
+- `harness:security-guidance` — Zod at ingress, no PII in returned errors.
+- `harness:observability` — trace + Sentry on every handler.

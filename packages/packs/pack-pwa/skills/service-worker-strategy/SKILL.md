@@ -171,8 +171,8 @@ DevTools → Application → Cache Storage:
 
 ## Composition
 
-- `void-pwa:manifest-checklist` — manifest declares the SW scope; service worker honors it.
-- `void-pwa:install-prompt-ux` — SW must be registered before install prompt fires.
-- `void-pwa:offline-first-mutation` — capture-queue lives alongside SW; SW handles GET caching, capture-queue handles mutations.
-- `void-nextjs:cache-component-pattern` — Next's server-side cache is independent of SW; both layers compose.
-- `void:async-safety` — SW activation race conditions are timing bugs; bounded retries on update apply.
+- `harness-pwa:manifest-checklist` — manifest declares the SW scope; service worker honors it.
+- `harness-pwa:install-prompt-ux` — SW must be registered before install prompt fires.
+- `harness-pwa:offline-first-mutation` — capture-queue lives alongside SW; SW handles GET caching, capture-queue handles mutations.
+- `harness-nextjs:cache-component-pattern` — Next's server-side cache is independent of SW; both layers compose.
+- `harness:async-safety` — SW activation race conditions are timing bugs; bounded retries on update apply.

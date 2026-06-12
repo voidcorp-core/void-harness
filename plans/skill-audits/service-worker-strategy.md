@@ -1,13 +1,13 @@
 ---
 skill: service-worker-strategy
-pack: void-pwa
+pack: harness-pwa
 status: shipped
 strategy: distill
 target_loc: 300
 audit_date: 2026-06-01
 ---
 
-# Audit: void-pwa:service-worker-strategy
+# Audit: harness-pwa:service-worker-strategy
 
 **Need.** Service worker caching strategy is rediscovered badly per project. Wrong strategy = stale HTML after deploy, missing offline, infinite spinner. Cache versioning omitted = orphan caches growing forever. This skill ships the canonical per-resource-class strategy table + Serwist config.
 
@@ -15,6 +15,6 @@ audit_date: 2026-06-01
 
 **Loses to.** Apps without offline requirements (skip SW entirely). Apps where Vercel/CDN edge caching is sufficient (no PWA install goal).
 
-**Composes with.** `void-pwa:manifest-checklist` (SW + manifest = installable). `void-pwa:install-prompt-ux` (SW registered first). `void-pwa:offline-first-mutation` (capture-queue handles mutations; SW handles GET caching). `void-nextjs:cache-component-pattern` (server cache vs SW cache layers).
+**Composes with.** `harness-pwa:manifest-checklist` (SW + manifest = installable). `harness-pwa:install-prompt-ux` (SW registered first). `harness-pwa:offline-first-mutation` (capture-queue handles mutations; SW handles GET caching). `harness-nextjs:cache-component-pattern` (server cache vs SW cache layers).
 
 **Why not in core.** PWA-specific machinery.

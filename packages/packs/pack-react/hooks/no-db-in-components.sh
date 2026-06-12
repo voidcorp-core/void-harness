@@ -4,7 +4,7 @@
 #
 # Blocks DB imports inside apps/<app>/src/components/ — components must
 # call services, not query the DB directly. Composes with the
-# void-react conventions (components are pure UI).
+# harness-react conventions (components are pure UI).
 #
 # Exit codes: 0 allow, 2 block.
 

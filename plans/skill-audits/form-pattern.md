@@ -1,13 +1,13 @@
 ---
 skill: form-pattern
-pack: void-react
+pack: harness-react
 status: shipped
 strategy: distill
 target_loc: 200
 audit_date: 2026-06-01
 ---
 
-# Audit: void-react:form-pattern
+# Audit: harness-react:form-pattern
 
 **Need.** Forms are a recurring "where does the validation live, who handles errors, how does submit interact with Server Actions" question. Default stack (react-hook-form + Zod resolver + shared schema with Server Action) eliminates the question.
 
@@ -15,7 +15,7 @@ audit_date: 2026-06-01
 
 **Loses to.** Single-field forms (use native HTML + Server Action). File-only uploads. Multi-step wizards (consider state machine).
 
-**Composes with.** `void-server:server-action` (submit target; shared schema). `void:security-guidance` (Zod = trust boundary). `void-react:state-architecture` (form state is local). `void-react:accessibility-check` (labels, role=alert, focus).
+**Composes with.** `harness-server:server-action` (submit target; shared schema). `harness:security-guidance` (Zod = trust boundary). `harness-react:state-architecture` (form state is local). `harness-react:accessibility-check` (labels, role=alert, focus).
 
 **Why not in core.** react-hook-form is React-specific. Server-side form handling (Server Actions) is server-pack concern; client UX orchestration is react-pack concern.
 
