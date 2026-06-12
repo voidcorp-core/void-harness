@@ -172,7 +172,7 @@ Dev + staging + prod variants installed side-by-side on a single device thanks t
 
 ## Composition
 
-- `void-mobile:eas-build-profile` — config plugins + build profiles together define what binary ships
-- `void-mobile:ota-update-strategy` — JS-only changes don't need a rebuild; native config changes do
-- `void-react:state-architecture` — share state architecture with web siblings; only native deps differ
-- `void-server:env-validation` — env reaches the app via `extra` or EAS Build env; validate with same schema discipline
+- `harness-mobile:eas-build-profile` — config plugins + build profiles together define what binary ships
+- `harness-mobile:ota-update-strategy` — JS-only changes don't need a rebuild; native config changes do
+- `harness-react:state-architecture` — share state architecture with web siblings; only native deps differ
+- `harness-server:env-validation` — env reaches the app via `extra` or EAS Build env; validate with same schema discipline

@@ -4,7 +4,7 @@
 //   1. .void/config.json valid JSON
 //   2. .void/PHILOSOPHY.md + .void/PROJECT-DOCTRINE.md present
 //   3. .claude/settings.json has extraKnownMarketplaces.void-harness + at
-//      least void@void-harness in enabledPlugins
+//      least harness@voidcorp in enabledPlugins
 //   4. CLAUDE.md contains the void-harness block
 //   5. jq is available (required by the PreToolUse + pre-commit hooks, which
 //      parse the Claude Code tool-call JSON from stdin) — always checked
@@ -15,9 +15,9 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
-import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, PACKS, enabledPluginsKey } from '../lib/packs.js';
+import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO, PACKS, enabledPluginsKey } from '../lib/packs.js';
 import { readSettings, settingsPathFor } from '../lib/settings.js';
-import { fetchRemoteMarketplace } from '../lib/remote.js';
+import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { compareVersions, normalizeVersion } from '../lib/version.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
 
@@ -127,7 +127,7 @@ async function checkRemoteVersions(root: string): Promise<CheckResult> {
   const entry = (settings.extraKnownMarketplaces as Record<string, unknown> | undefined)?.[MARKETPLACE_NAME];
   const repo =
     (entry && typeof entry === 'object' ? (entry as { source?: { repo?: string } }).source?.repo : undefined) ??
-    'voidcorp-core/void-harness';
+    MARKETPLACE_REPO;
 
   const remote = fetchRemoteMarketplace(repo);
   if (!remote.ok) {
@@ -160,8 +160,10 @@ async function checkRemoteVersions(root: string): Promise<CheckResult> {
   for (const plugin of remote.value.plugins) {
     const declared = localFor(plugin.name);
     if (!declared) continue;
-    if (compareVersions(normalizeVersion(declared), plugin.version) < 0) {
-      drifted.push(`${plugin.name} ${normalizeVersion(declared)} → ${plugin.version}`);
+    const pinned = fetchPinnedPluginVersion(plugin);
+    if (!pinned.ok) continue;
+    if (compareVersions(normalizeVersion(declared), pinned.value) < 0) {
+      drifted.push(`${plugin.name} ${normalizeVersion(declared)} → ${pinned.value}`);
     }
   }
 

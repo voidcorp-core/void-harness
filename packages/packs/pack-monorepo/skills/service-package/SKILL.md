@@ -1,6 +1,6 @@
 ---
 name: service-package
-description: Create or extend a packages/<name>/ service in a void-monorepo workspace: the 5+5 file layout, @repo/* boundaries, ports-and-adapters direction. Composes with hexagonal-architecture, DDD.
+description: Create or extend a packages/<name>/ service in a harness-monorepo workspace: the 5+5 file layout, @repo/* boundaries, ports-and-adapters direction. Composes with hexagonal-architecture, DDD.
 ---
 
 # service-package
@@ -98,7 +98,7 @@ If you find yourself needing to import another `@repo/*`, you are blurring layer
 1. **Confirm the boundary first.** Before any file, write one line in the PR description: *"This package owns X, exposes Y, and is consumed by Z."* If you cannot, the package is premature.
 2. **Create the directory + `package.json` + `tsconfig.json`** (extends `../../tsconfig.strict.json`).
 3. **Write the types file first** (`<name>.types.ts`): Zod schemas + inferred types. Tests assert that invalid payloads parse to errors.
-4. **Write the service.test.ts** describing the public behavior, then `service.ts` to make it pass (TDD strict, see `void:tdd`).
+4. **Write the service.test.ts** describing the public behavior, then `service.ts` to make it pass (TDD strict, see `harness:tdd`).
 5. **Write the helper + helper.test.ts** as pure-function tests (table-driven).
 6. **Write the repository port** (`repository.ts`): just the interface and a default in-memory implementation. Real DB adapter lives in the consuming app.
 7. **Export from `index.ts`** only what consumers must touch. No re-exports of internal helpers.
@@ -115,8 +115,8 @@ If you find yourself needing to import another `@repo/*`, you are blurring layer
 
 ## Composition
 
-- `void:hexagonal-architecture` — port direction enforced. Service defines port; adapter is in app, not package.
-- `void:domain-driven-design` — name the package per aggregate or capability, not per technical concern.
-- `void:functional` — `helper.ts` is pure; pass time, randomness, and side effects as parameters.
-- `void:tdd` — strict on `service.ts` and `helper.ts`; souple on `repository.ts` if it only forwards.
-- `void:typescript-strict` — `tsconfig.strict.json` is mandatory; no `any`, no `as` casts in committed code.
+- `harness:hexagonal-architecture` — port direction enforced. Service defines port; adapter is in app, not package.
+- `harness:domain-driven-design` — name the package per aggregate or capability, not per technical concern.
+- `harness:functional` — `helper.ts` is pure; pass time, randomness, and side effects as parameters.
+- `harness:tdd` — strict on `service.ts` and `helper.ts`; souple on `repository.ts` if it only forwards.
+- `harness:typescript-strict` — `tsconfig.strict.json` is mandatory; no `any`, no `as` casts in committed code.

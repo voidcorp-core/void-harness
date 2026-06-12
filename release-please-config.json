@@ -8,18 +8,61 @@
   "packages": {
     ".": {
       "extra-files": [
-        { "type": "json", "path": ".claude-plugin/marketplace.json", "jsonpath": "$.plugins[*].version" },
-        { "type": "json", "path": "packages/core/.claude-plugin/plugin.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "packages/packs/pack-monorepo/.claude-plugin/plugin.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "packages/packs/pack-react/.claude-plugin/plugin.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "packages/packs/pack-nextjs/.claude-plugin/plugin.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "packages/packs/pack-server/.claude-plugin/plugin.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "packages/packs/pack-pwa/.claude-plugin/plugin.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "packages/packs/pack-mobile/.claude-plugin/plugin.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "packages/cli/core-assets/.claude-plugin/plugin.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "packages/cli/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "packages/packs/pack-monorepo/package.json", "jsonpath": "$.version" },
-        { "type": "json", "path": "packages/packs/pack-nextjs/package.json", "jsonpath": "$.version" }
+        {
+          "type": "json",
+          "path": "packages/core/.claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/packs/pack-monorepo/.claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/packs/pack-react/.claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/packs/pack-nextjs/.claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/packs/pack-server/.claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/packs/pack-pwa/.claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/packs/pack-mobile/.claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/cli/core-assets/.claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/cli/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/packs/pack-monorepo/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/packs/pack-nextjs/package.json",
+          "jsonpath": "$.version"
+        }
       ]
     }
   }

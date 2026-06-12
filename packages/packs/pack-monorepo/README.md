@@ -17,7 +17,7 @@ Turborepo + Bun monorepo conventions for the [void-harness](https://github.com/v
 
 ### Claude / Codex modules (`@voidcorp/pack-monorepo/claude/*`)
 
-- **`modules/`** — CLAUDE.md / AGENTS.md fragments that explain the void-monorepo conventions to the agent (Turbo task graph, Bun workspaces, `@repo/*` package boundaries, ADR workflow, 5+5 service layout).
+- **`modules/`** — CLAUDE.md / AGENTS.md fragments that explain the harness-monorepo conventions to the agent (Turbo task graph, Bun workspaces, `@repo/*` package boundaries, ADR workflow, 5+5 service layout).
 - **`skills/`** — pack-specific skills that EXTEND core skills with monorepo conventions (e.g., the path defaults used by `tdd-guard`).
 - **`hooks/`** — pack-installed hooks (commitlint, gitleaks, etc.) that the consumer's lefthook.yml composes.
 

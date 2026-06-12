@@ -7,7 +7,7 @@ description: Capture architecture decisions as ADRs (decisions/0001-NNNN.md) —
 
 Use when making a structural choice that **changes how future code is written** in this codebase and where a future contributor (or future-you) would otherwise ask "why did we do it this way?". ADRs are scoped to the codebase; for cross-org or product strategy, use a different tool (Notion, Linear).
 
-Composes with `void:writing-plans` (which is plan-the-work-before-coding); ADRs document the **decisions** behind that work, persistent in the repo.
+Composes with `harness:writing-plans` (which is plan-the-work-before-coding); ADRs document the **decisions** behind that work, persistent in the repo.
 
 ## When to write an ADR
 
@@ -98,6 +98,6 @@ Reversal = new ADR. Editing an accepted ADR's "Decision" field is forbidden — 
 
 ## Composition
 
-- `void:writing-plans` — plans cover the WORK; ADRs cover the DECISIONS behind the work.
-- `void:commit-discipline` — "why" lines in commits often surface ADR-worthy decisions. If a commit's "why" is one paragraph long, it should be an ADR.
-- `void:harness-evolution` — ADRs about the harness itself live in this repo's `decisions/`, not in consumer projects.
+- `harness:writing-plans` — plans cover the WORK; ADRs cover the DECISIONS behind the work.
+- `harness:commit-discipline` — "why" lines in commits often surface ADR-worthy decisions. If a commit's "why" is one paragraph long, it should be an ADR.
+- `harness:harness-evolution` — ADRs about the harness itself live in this repo's `decisions/`, not in consumer projects.

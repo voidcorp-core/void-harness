@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 // Lockstep version bumper for void-harness. Pre-1.0, ONE version governs
-// everything: marketplace.json, each plugin's plugin.json, each npm package
+// everything: each plugin's plugin.json, each npm package
 // in packages/. CLI, runtime helpers, and Claude Code skills ship together.
 //
 // Files touched (any that exist):
-//   - .claude-plugin/marketplace.json                          (every plugin)
 //   - packages/core/.claude-plugin/plugin.json
 //   - packages/packs/<pack>/.claude-plugin/plugin.json         (six packs)
 //   - packages/cli/package.json                                (npm)
@@ -24,7 +23,6 @@ import { fileURLToPath } from 'node:url';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
 
-const MARKETPLACE = resolve(ROOT, '.claude-plugin/marketplace.json');
 
 const PLUGIN_MANIFESTS = [
   resolve(ROOT, 'packages/core/.claude-plugin/plugin.json'),
@@ -85,31 +83,23 @@ async function main() {
     process.exit(2);
   }
 
-  const marketplace = await readJson(MARKETPLACE);
-  if (!Array.isArray(marketplace.plugins) || marketplace.plugins.length === 0) {
-    throw new Error('marketplace.json has no plugins[]');
-  }
-  const current = marketplace.plugins[0].version;
-  if (!current) throw new Error('marketplace.json plugins[0].version is missing');
+  const core = await readJson(PLUGIN_MANIFESTS[0]);
+  const current = core.version;
+  if (!current) throw new Error('packages/core plugin.json version is missing');
 
   const next = bump(current, arg);
   if (next === current) {
-    console.log(`marketplace already at ${current}, ensuring all manifests aligned`);
+    console.log(`already at ${current}, ensuring all manifests aligned`);
   } else {
     console.log(`bumping ${current} → ${next}`);
   }
 
-  // 1. marketplace.json (all plugins entries)
-  for (const plugin of marketplace.plugins) plugin.version = next;
-  await writeJson(MARKETPLACE, marketplace);
-  console.log(`  ✓ .claude-plugin/marketplace.json`);
-
-  // 2. each plugin manifest
+  // 1. each plugin manifest
   for (const path of PLUGIN_MANIFESTS) {
     await setVersion(path, next, path.replace(ROOT + '/', ''));
   }
 
-  // 3. each npm package.json (CLI + runtime packs)
+  // 2. each npm package.json (CLI + runtime packs)
   for (const path of NPM_PACKAGES) {
     await setVersion(path, next, path.replace(ROOT + '/', ''));
   }
@@ -121,7 +111,7 @@ async function main() {
   console.log(`  3. Tag: git tag v${next}`);
   console.log(`  4. Push: git push && git push --tags`);
   console.log(`  5. (when npm publishing) pnpm -r --filter './packages/**' publish`);
-  console.log(`  6. Consumers refresh via void-harness update in their projects.`);
+  console.log(`  6. Merge the sha-bump PR in voidcorp-core/void-plugins, then consumers refresh via void-harness update.`);
 }
 
 main().catch((err) => {

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # no-console-log-grep — PreToolUse hook. Reads Claude Code JSON from stdin.
 # Blocks edits introducing console.{log,error,warn,info,debug} in business code.
-# Use the project logger (@repo/core/logger via pino) instead. See void:observability.
+# Use the project logger (@repo/core/logger via pino) instead. See harness:observability.
 # Exit codes: 0 allow, 2 block.
 
 set -euo pipefail
@@ -24,7 +24,7 @@ HITS=$(printf "%s" "$NEW" | grep -nE "$re_console" | grep -vE '// *allow-console
 
 if [[ -n "$HITS" ]]; then
   printf "no-console-log-grep: console.* in %s\n%s\n\n" "$FILE" "$HITS" >&2
-  printf "Use @repo/core/logger (pino) instead. See the void:observability skill.\n" >&2
+  printf "Use @repo/core/logger (pino) instead. See the harness:observability skill.\n" >&2
   printf "Override (rare): tag the line '// allow-console: <reason>'.\n" >&2
   exit 2
 fi

@@ -199,7 +199,7 @@ Decisions:
   sourcing rule is read as covering any authored doctrine artifact (skill or
   agent), since both are distilled from external sources.
 - Refreshed the marketplace manifest (`.claude-plugin/marketplace.json`): the
-  `void` plugin now lists the five agents + lifecycle hooks; void-monorepo drops
+  `harness` plugin now lists the five agents + lifecycle hooks; harness-monorepo drops
   the "ADR workflow" line (adr-workflow was promoted to core).
 
 Alternatives rejected:
@@ -499,7 +499,7 @@ what an in-repo check can enforce.
 ## 2026-06-01: .void/config.json pins marketplace plugins, not npm packages
 
 Context: the `packs` field in `.void/config.json` is written by `init` as
-`@voidcorp/<plugin-name>` (e.g. `@voidcorp/void-nextjs`) and read back by
+`@voidcorp/<plugin-name>` (e.g. `@voidcorp/harness-nextjs`) and read back by
 `doctor` in the same shape. The docs example instead showed `@voidcorp/pack-nextjs`
 (the npm package name), mixing two vocabularies for the same field.
 

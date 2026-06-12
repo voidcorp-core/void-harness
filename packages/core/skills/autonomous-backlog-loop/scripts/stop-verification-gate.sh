@@ -4,7 +4,7 @@
 # "keeps going until done" (the creators' named mechanism for autonomous work).
 #
 # This is deliberately NOT wired into the core plugin: the harness default keeps
-# the human in the loop (see void:verification-before-completion). Enable it only
+# the human in the loop (see harness:verification-before-completion). Enable it only
 # for an autonomous run, by adding it to a Stop matcher in the run's settings:
 #   "hooks": { "Stop": [ { "hooks": [ { "type": "command",
 #     "command": "<abs-path>/stop-verification-gate.sh" } ] } ] }

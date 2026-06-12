@@ -20,7 +20,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 export interface SettingsMutation {
   /** Plugin names to enable (without marketplace suffix). Always includes core. */
   readonly enabledPlugins: readonly string[];
-  /** GitHub repo for the marketplace, e.g. `voidcorp-core/void-harness`. */
+  /** GitHub repo for the marketplace, e.g. `voidcorp-core/void-plugins`. */
   readonly marketplaceRepo: string;
 }
 

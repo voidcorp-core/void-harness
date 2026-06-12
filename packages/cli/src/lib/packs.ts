@@ -25,15 +25,18 @@ export interface PackDescriptor {
 }
 
 /** Marketplace name used in `extraKnownMarketplaces` and `enabledPlugins`. */
-export const MARKETPLACE_NAME = 'void-harness';
+export const MARKETPLACE_NAME = 'voidcorp';
+
+/** Dedicated catalog repo (pure marketplace, products live in their own repos). */
+export const MARKETPLACE_REPO = 'voidcorp-core/void-plugins';
 
 /** Core plugin name (always activated). */
-export const CORE_PLUGIN_NAME = 'void';
+export const CORE_PLUGIN_NAME = 'harness';
 
 export const PACKS: readonly PackDescriptor[] = [
   {
-    name: 'void-monorepo',
-    label: 'void-monorepo',
+    name: 'harness-monorepo',
+    label: 'harness-monorepo',
     description: 'Turborepo + Bun monorepo conventions',
     detect: (root) =>
       existsSync(join(root, 'turbo.json')) ||
@@ -42,20 +45,20 @@ export const PACKS: readonly PackDescriptor[] = [
       hasDepLike(root, /^bun$/),
   },
   {
-    name: 'void-react',
-    label: 'void-react',
+    name: 'harness-react',
+    label: 'harness-react',
     description: 'React 19 + shadcn/Radix + accessibility-first',
     detect: (root) => hasDepLike(root, /^(react|react-dom)$/),
   },
   {
-    name: 'void-nextjs',
-    label: 'void-nextjs',
+    name: 'harness-nextjs',
+    label: 'harness-nextjs',
     description: 'Next.js 16 App Router conventions',
     detect: (root) => hasDepLike(root, /^next$/),
   },
   {
-    name: 'void-server',
-    label: 'void-server',
+    name: 'harness-server',
+    label: 'harness-server',
     description: 'Server Actions, webhooks, Drizzle, Zod boundaries',
     detect: (root) =>
       hasDepLike(root, /^next$/) ||
@@ -64,16 +67,16 @@ export const PACKS: readonly PackDescriptor[] = [
       anyWorkspaceFile(root, ['drizzle.config.ts', 'drizzle.config.js']),
   },
   {
-    name: 'void-pwa',
-    label: 'void-pwa',
+    name: 'harness-pwa',
+    label: 'harness-pwa',
     description: 'PWA manifest, service worker, offline-first',
     detect: (root) =>
       anyWorkspaceFile(root, ['public/manifest.webmanifest', 'public/manifest.json']) ||
       hasDepLike(root, /(next-pwa|workbox-window|@serwist\/|serwist)/),
   },
   {
-    name: 'void-mobile',
-    label: 'void-mobile',
+    name: 'harness-mobile',
+    label: 'harness-mobile',
     description: 'Expo + React Native + native modules',
     detect: (root) =>
       hasDepLike(root, /^(expo|react-native)$/) ||
@@ -196,12 +199,12 @@ function anyWorkspaceFile(root: string, relativePaths: readonly string[]): boole
 
 /**
  * Resolve a pack name to its descriptor. Accepts every form a user might type:
- * the bare stack (`nextjs`), the plugin name (`void-nextjs`), and the npm /
+ * the bare stack (`nextjs`), the plugin name (`harness-nextjs`), and the npm /
  * directory form documented in the README (`pack-nextjs`).
  */
 export function findPack(name: string): PackDescriptor | undefined {
-  const stack = name.replace(/^(void-|pack-)/, '');
-  const normalized = `void-${stack}`;
+  const stack = name.replace(/^(harness-|void-|pack-)/, '');
+  const normalized = `harness-${stack}`;
   return PACKS.find((p) => p.name === normalized || p.name === name);
 }
 

@@ -4,17 +4,17 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, PACKS } from '../lib/packs.js';
+import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO, PACKS } from '../lib/packs.js';
 import { readSettings, settingsPathFor } from '../lib/settings.js';
 import {
   fetchRemoteMarketplace,
+  fetchPinnedPluginVersion,
   fetchRemotePhilosophy,
   type RemoteMarketplace,
 } from '../lib/remote.js';
 import { compareVersions, normalizeVersion } from '../lib/version.js';
 import { banner, blank, c, footer, glyph, line, meta, row, status } from '../lib/render.js';
 
-const DEFAULT_MARKETPLACE_REPO = 'voidcorp-core/void-harness';
 
 interface LocalConfig {
   readonly core?: string;
@@ -43,7 +43,7 @@ export async function check(args: readonly string[]): Promise<void> {
 
   if (doctrine) {
     blank();
-    await reportDoctrineDrift(projectRoot, repo);
+    await reportDoctrineDrift(projectRoot, remote.value);
   }
 
   if (drift > 0) {
@@ -64,7 +64,7 @@ async function resolveMarketplaceRepo(projectRoot: string): Promise<string> {
     const source = (entry as { source?: { repo?: string } }).source;
     if (source?.repo) return source.repo;
   }
-  return DEFAULT_MARKETPLACE_REPO;
+  return MARKETPLACE_REPO;
 }
 
 async function readLocalConfig(projectRoot: string): Promise<LocalConfig> {
@@ -90,7 +90,12 @@ function reportVersionDrift(local: LocalConfig, remote: RemoteMarketplace): numb
   for (const plugin of remote.plugins) {
     const declaredRaw = localVersions[plugin.name];
     const localStr = declaredRaw ? normalizeVersion(declaredRaw) : glyph.emdash;
-    const remoteStr = plugin.version;
+    const remoteFetch = fetchPinnedPluginVersion(plugin);
+    if (!remoteFetch.ok) {
+      row({ mark: 'info', label: plugin.name, versions: [localStr, glyph.emdash], suffix: c.dim(remoteFetch.error) });
+      continue;
+    }
+    const remoteStr = remoteFetch.value;
 
     if (!declaredRaw) {
       row({
@@ -120,14 +125,14 @@ function reportVersionDrift(local: LocalConfig, remote: RemoteMarketplace): numb
   return drift;
 }
 
-async function reportDoctrineDrift(projectRoot: string, repo: string): Promise<void> {
+async function reportDoctrineDrift(projectRoot: string, market: RemoteMarketplace): Promise<void> {
   const localPath = join(projectRoot, '.void', 'PHILOSOPHY.md');
   if (!existsSync(localPath)) {
     status('PHILOSOPHY.md missing locally — run `void-harness init` to install.', 'warn');
     return;
   }
   const localText = await readFile(localPath, 'utf8');
-  const remote = fetchRemotePhilosophy(repo);
+  const remote = fetchRemotePhilosophy(market, CORE_PLUGIN_NAME);
   if (!remote.ok) {
     status(`could not fetch remote PHILOSOPHY.md: ${remote.error}`, 'warn');
     return;

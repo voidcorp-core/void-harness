@@ -10,7 +10,7 @@ import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as p from '@clack/prompts';
-import { CORE_PLUGIN_NAME, findPack, PACKS } from '../lib/packs.js';
+import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, findPack, PACKS } from '../lib/packs.js';
 import {
   marketplaceRepoFrom,
   mergeSettings,
@@ -21,7 +21,6 @@ import {
 import { patchClaudeMd, patchAgentsMd } from '../lib/claude-md.js';
 import { enabledPluginsKey } from '../lib/packs.js';
 
-const DEFAULT_MARKETPLACE_REPO = 'voidcorp-core/void-harness';
 
 export async function add(args: readonly string[]): Promise<void> {
   if (args.length === 0) {
@@ -34,7 +33,7 @@ export async function add(args: readonly string[]): Promise<void> {
   const settingsPath = settingsPathFor(projectRoot);
   const existing = await readSettings(settingsPath);
   const currentEnabled = (existing.enabledPlugins ?? {}) as Record<string, unknown>;
-  const marketplaceRepo = marketplaceRepoFrom(existing, DEFAULT_MARKETPLACE_REPO);
+  const marketplaceRepo = marketplaceRepoFrom(existing, MARKETPLACE_REPO);
 
   const newlyAdded: string[] = [];
   for (const name of args) {

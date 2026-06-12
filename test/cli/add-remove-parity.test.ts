@@ -25,17 +25,17 @@ afterEach(() => {
 
 describe('add / remove keep the sister docs in parity', () => {
   it('add patches both CLAUDE.md and AGENTS.md', async () => {
-    await add(['void-nextjs']);
+    await add(['harness-nextjs']);
     expect(existsSync(join(dir, 'CLAUDE.md'))).toBe(true);
     expect(existsSync(join(dir, 'AGENTS.md'))).toBe(true);
-    expect(readFileSync(join(dir, 'AGENTS.md'), 'utf8')).toContain('void-nextjs');
-    expect(readFileSync(join(dir, 'CLAUDE.md'), 'utf8')).toContain('void-nextjs');
+    expect(readFileSync(join(dir, 'AGENTS.md'), 'utf8')).toContain('harness-nextjs');
+    expect(readFileSync(join(dir, 'CLAUDE.md'), 'utf8')).toContain('harness-nextjs');
   });
 
   it('remove drops the pack from both docs', async () => {
-    await add(['void-nextjs']);
-    await remove(['void-nextjs']);
-    expect(readFileSync(join(dir, 'AGENTS.md'), 'utf8')).not.toContain('void-nextjs');
-    expect(readFileSync(join(dir, 'CLAUDE.md'), 'utf8')).not.toContain('void-nextjs');
+    await add(['harness-nextjs']);
+    await remove(['harness-nextjs']);
+    expect(readFileSync(join(dir, 'AGENTS.md'), 'utf8')).not.toContain('harness-nextjs');
+    expect(readFileSync(join(dir, 'CLAUDE.md'), 'utf8')).not.toContain('harness-nextjs');
   });
 });

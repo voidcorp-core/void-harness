@@ -1,6 +1,6 @@
 # `@voidcorp/harness`
 
-CLI for the [void-harness](https://github.com/voidcorp-core/void-harness): register the marketplace, enable the `void` core plugin plus the stack packs a project needs, and health-check the setup.
+CLI for the [void-harness](https://github.com/voidcorp-core/void-harness): register the marketplace, enable the `harness` core plugin plus the stack packs a project needs, and health-check the setup.
 
 ## Quick start
 
@@ -15,7 +15,7 @@ npx @voidcorp/harness init --pack pack-nextjs --pack pack-monorepo
 npx @voidcorp/harness doctor
 ```
 
-Pack names accept any form: `pack-nextjs`, `void-nextjs`, or `nextjs`.
+Pack names accept any form: `pack-nextjs`, `harness-nextjs`, or `nextjs`.
 
 ## Commands
 
@@ -24,14 +24,14 @@ Pack names accept any form: `pack-nextjs`, `void-nextjs`, or `nextjs`.
 Sets up the current project:
 
 - Creates `.void/config.json` (pinned plugin versions, stack, paths, TDD modes)
-- Registers the marketplace in `.claude/settings.json` and enables `void` plus the chosen packs
+- Registers the marketplace in `.claude/settings.json` and enables `harness` plus the chosen packs
 - Patches `CLAUDE.md` / `AGENTS.md` (sister docs, cross-referenced)
 
 ```
 npx @voidcorp/harness init [--pack <name>...] [--all-packs] [--force]
 ```
 
-After `init`, restart Claude Code; skills appear as `/void:<name>` and `/void-<pack>:<name>`.
+After `init`, restart Claude Code; skills appear as `/harness:<name>` and `/void-<pack>:<name>`.
 
 ### `add` / `remove`
 
@@ -56,7 +56,7 @@ npx @voidcorp/harness doctor [--no-remote]
 
 ### `install --global`
 
-Escape hatch (rare): installs the `void` plugin at the user-global level (`~/.claude-plugin/plugins/void/`) instead of per-project. The recommended flow is `init`.
+Escape hatch (rare): installs the `harness` plugin at the user-global level (`~/.claude-plugin/plugins/harness/`) instead of per-project. The recommended flow is `init`.
 
 ```
 npx @voidcorp/harness install --global [--dry-run]

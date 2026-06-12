@@ -1,6 +1,6 @@
 ---
 skill: server-action
-pack: void-server
+pack: harness-server
 status: shipped
 strategy: native
 target_loc: 250
@@ -11,7 +11,7 @@ audit_date: 2026-06-01
 auditor: Folpe + Claude Opus 4.7
 ---
 
-# Skill audit: `void-server:server-action`
+# Skill audit: `harness-server:server-action`
 
 ## Need
 
@@ -27,7 +27,7 @@ This skill encodes the **five non-negotiable layers** (auth, Zod, rate limit, ob
 
 ## Loses to
 
-- Server functions that are NOT `'use server'`. Those are normal service functions in `src/services/` → use `void:tdd` directly.
+- Server functions that are NOT `'use server'`. Those are normal service functions in `src/services/` → use `harness:tdd` directly.
 - Webhook handlers (POST endpoints, not buttons-triggered). Use `withWebhookSafety` instead — see `pack-server/01-server.md`.
 
 ## Composes with
@@ -44,7 +44,7 @@ Native — distilled from Next.js 16 docs (`'use server'`, `defineAction` semant
 
 ## Rejected ideas
 
-- **A `void-server:server-action-strict` mode** that fails CI if any of the 5 layers is absent. Considered but rejected for now — would require deeper static analysis (e.g., AST walk for `auth: 'required'`). Capture as a hook proposal in `harness-evolution` if frictions accumulate.
+- **A `harness-server:server-action-strict` mode** that fails CI if any of the 5 layers is absent. Considered but rejected for now — would require deeper static analysis (e.g., AST walk for `auth: 'required'`). Capture as a hook proposal in `harness-evolution` if frictions accumulate.
 - **Auto-generating return types from Zod input**: the action return is a discriminated union shaped by the *handler*, not the input. Coupling them would be wrong.
 
 ## Open questions

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # test-name-lint — PreToolUse hook. Reads Claude Code JSON from stdin.
-# Lints test names for the void:testing convention:
+# Lints test names for the harness:testing convention:
 #   - it('does X when Y')  — observable behavior, not "should ..."
 # Blocks generic / template names. Exit codes: 0 allow, 2 block.
 

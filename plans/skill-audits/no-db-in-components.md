@@ -1,6 +1,6 @@
 ---
 skill: no-db-in-components
-pack: void-react
+pack: harness-react
 status: shipped
 strategy: native-hook
 target_loc: 50
@@ -11,7 +11,7 @@ audit_date: 2026-06-01
 auditor: Folpe + Claude Opus 4.7
 ---
 
-# Hook audit: `void-react:no-db-in-components`
+# Hook audit: `harness-react:no-db-in-components`
 
 ## Need
 
@@ -26,7 +26,7 @@ Blocks imports matching `(@repo/db|@/db|@/lib/db|drizzle-orm)` inside files unde
 ## Wins
 
 - Catches the violation at edit time, not at code review.
-- Zero config (no per-project setup beyond enabling `void-react`).
+- Zero config (no per-project setup beyond enabling `harness-react`).
 - ASCII-only output, exit codes (0/1) — works in any hook runner.
 
 ## Loses to
@@ -36,13 +36,13 @@ Blocks imports matching `(@repo/db|@/db|@/lib/db|drizzle-orm)` inside files unde
 
 ## Composes with
 
-- `void:hexagonal-architecture` — components → services → adapters → infrastructure. Components stay at the top, far from DB.
-- `void-react:01-react.md` — module declares the rule; this hook enforces it.
-- `void:frontend-design` — purity of components is a design discipline as much as architectural.
+- `harness:hexagonal-architecture` — components → services → adapters → infrastructure. Components stay at the top, far from DB.
+- `harness-react:01-react.md` — module declares the rule; this hook enforces it.
+- `harness:frontend-design` — purity of components is a design discipline as much as architectural.
 
 ## Rejected variants
 
-- **Hook in `void-monorepo`**: tempting because the path `apps/*/src/components/` is monorepo-shaped. Rejected because the *concern* is React (component purity), not monorepo (workspace layout). A single-app Vite project would still want this enforcement.
+- **Hook in `harness-monorepo`**: tempting because the path `apps/*/src/components/` is monorepo-shaped. Rejected because the *concern* is React (component purity), not monorepo (workspace layout). A single-app Vite project would still want this enforcement.
 - **Block ALL imports starting with `@/`**: too broad. We only care about DB-shaped imports.
 - **Block `await db.…` patterns instead of imports**: harder to grep reliably (multi-line), and an unused import is still a signal of intent.
 

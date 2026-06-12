@@ -1,6 +1,6 @@
 ---
 skill: offline-first-mutation
-pack: void-pwa
+pack: harness-pwa
 status: shipped
 strategy: distill
 target_loc: 350
@@ -11,7 +11,7 @@ audit_date: 2026-06-01
 auditor: Folpe + Claude Opus 4.7
 ---
 
-# Skill audit: `void-pwa:offline-first-mutation`
+# Skill audit: `harness-pwa:offline-first-mutation`
 
 ## Need
 
@@ -34,11 +34,11 @@ Solaar already implements this pattern in `@solaar/ui/offline`. This skill codif
 
 ## Composes with
 
-- `void-server:server-action` — Server Actions are the sync target; they must honor `idempotencyKey`.
-- `void:async-safety` — backoff schedule, dead-letter, bounded retry semantics live here.
-- `void-server:drizzle-migration-safe` — the inbox column + unique index migration pattern.
-- `void-react:01-react.md` — `useOfflineMutation` hook is the consumer-side primitive.
-- `void:observability` — sync logs are correlated by idempotency key.
+- `harness-server:server-action` — Server Actions are the sync target; they must honor `idempotencyKey`.
+- `harness:async-safety` — backoff schedule, dead-letter, bounded retry semantics live here.
+- `harness-server:drizzle-migration-safe` — the inbox column + unique index migration pattern.
+- `harness-react:01-react.md` — `useOfflineMutation` hook is the consumer-side primitive.
+- `harness:observability` — sync logs are correlated by idempotency key.
 
 ## Sources audited
 

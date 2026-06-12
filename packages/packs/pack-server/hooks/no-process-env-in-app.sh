@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # no-process-env-in-app — PreToolUse hook. Reads Claude Code JSON from stdin.
 # Blocks `process.env.X` in apps/*/src/** files, forcing imports from
-# @repo/core/env. Composes with void-server:env-validation.
+# @repo/core/env. Composes with harness-server:env-validation.
 # Exit codes: 0 allow, 2 block.
 
 set -euo pipefail
@@ -27,7 +27,7 @@ HITS=$(printf "%s" "$NEW" | grep -nE "$re_proc" | grep -vE '// *allow-process-en
 if [[ -n "$HITS" ]]; then
   printf "no-process-env-in-app: process.env.X in %s\n%s\n\n" "$FILE" "$HITS" >&2
   printf "Import from @repo/core/env (validated, typed) instead.\n" >&2
-  printf "See void-server:env-validation for the pattern.\n" >&2
+  printf "See harness-server:env-validation for the pattern.\n" >&2
   printf "Override (rare, justified): tag the line '// allow-process-env: <reason>'.\n" >&2
   exit 2
 fi

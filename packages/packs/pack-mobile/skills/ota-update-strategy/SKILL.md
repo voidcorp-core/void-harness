@@ -188,7 +188,7 @@ This logs which update the user is currently on. Useful in a debug screen for QA
 
 ## Composition
 
-- `void-mobile:eas-build-profile` — channel names map to build profile names
-- `void-mobile:expo-config-plugins` — plugin changes invalidate runtime versions
-- `void:observability` — log `Updates.updateId` in every Sentry event so you can correlate "which JS is running"
-- `void:async-safety` — `Updates.checkForUpdateAsync()` failures should not block app launch; timeout + fallback to cached
+- `harness-mobile:eas-build-profile` — channel names map to build profile names
+- `harness-mobile:expo-config-plugins` — plugin changes invalidate runtime versions
+- `harness:observability` — log `Updates.updateId` in every Sentry event so you can correlate "which JS is running"
+- `harness:async-safety` — `Updates.checkForUpdateAsync()` failures should not block app launch; timeout + fallback to cached

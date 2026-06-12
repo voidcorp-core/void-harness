@@ -1,6 +1,6 @@
 # `@voidcorp/pack-nextjs`
 
-Next.js 16 conventions for the [void-harness](https://github.com/voidcorp-core/void-harness). Marketplace plugin name: `void-nextjs`.
+Next.js 16 conventions for the [void-harness](https://github.com/voidcorp-core/void-harness). Marketplace plugin name: `harness-nextjs`.
 
 ## Two delivery channels
 
@@ -9,7 +9,7 @@ This pack ships through two channels, and it matters which artifact carries what
 - **npm package `@voidcorp/pack-nextjs`** — runtime code you `import`. The
   published tarball contains `dist/` (the async wrappers) and `claude/modules/`
   (CLAUDE.md / AGENTS.md fragments). It does NOT contain skills or hooks.
-- **Marketplace plugin `void-nextjs`** — the Claude Code / Codex plugin. Skills
+- **Marketplace plugin `harness-nextjs`** — the Claude Code / Codex plugin. Skills
   (`skills/`), hooks (`hooks/`) and the plugin manifest (`.claude-plugin/`) are
   delivered here, via the GitHub marketplace, not via npm.
 
@@ -33,12 +33,12 @@ CLAUDE.md / AGENTS.md fragments for Next 16 / RSC / Server Actions / Cache Compo
 
 ### Skills and hooks — marketplace plugin only
 
-Pack-specific skills (extending core skills with Next.js context) and hooks (e.g. axe-precommit) ship with the `void-nextjs` plugin from the marketplace. They are not in the npm tarball.
+Pack-specific skills (extending core skills with Next.js context) and hooks (e.g. axe-precommit) ship with the `harness-nextjs` plugin from the marketplace. They are not in the npm tarball.
 
 ## Install
 
 ```bash
-# Via the void-harness CLI (accepts pack-nextjs, void-nextjs, or nextjs)
+# Via the void-harness CLI (accepts pack-nextjs, harness-nextjs, or nextjs)
 npx @voidcorp/harness init --pack pack-monorepo --pack pack-nextjs
 ```
 

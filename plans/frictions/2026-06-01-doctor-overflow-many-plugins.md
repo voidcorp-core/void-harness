@@ -11,7 +11,7 @@ status: shipped (0.3.1)
 ## What I saw
 
 ```
-✓  remote versions   update available: void 0.1.0 → 0.3.0, void-monorepo 0.1.0 → 0.3.0, void-react 0.1.0 → 0.3.0, void-nextjs 0.1.0 → 0.3.0, void-server 0.1.0 → 0.3.0, void-pwa 0.1.0 → 0.3.0, void-mobile 0.1.0 → 0.3.0
+✓  remote versions   update available: void 0.1.0 → 0.3.0, harness-monorepo 0.1.0 → 0.3.0, harness-react 0.1.0 → 0.3.0, harness-nextjs 0.1.0 → 0.3.0, harness-server 0.1.0 → 0.3.0, harness-pwa 0.1.0 → 0.3.0, harness-mobile 0.1.0 → 0.3.0
 ```
 
 One CheckResult.message stuffs all drifted plugins into a single line. Wraps awkwardly at 200+ chars on narrow terminals.

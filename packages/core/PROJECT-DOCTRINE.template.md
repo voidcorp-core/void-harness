@@ -2,12 +2,12 @@
 
 > **This file is YOURS.** `void-harness init` creates it once with the
 > template below. Subsequent runs of `init` will NEVER overwrite it.
-> Edit freely. The `void:capture-rule` skill appends to it (HITL strict).
+> Edit freely. The `harness:capture-rule` skill appends to it (HITL strict).
 
 This file holds **project-specific** rules and context only. **Universal**
 rules (your global coding philosophy) live in `.void/PHILOSOPHY.md`
 (managed by void-harness — to change them, propose a PR on the void-harness
-repo via the `void:harness-evolution` skill).
+repo via the `harness:harness-evolution` skill).
 
 The two files are imported into every Claude Code session via the
 `@.void/PHILOSOPHY.md` and `@.void/PROJECT-DOCTRINE.md` references
@@ -33,7 +33,7 @@ to calibrate decisions.
 ## Domain language (ubiquitous vocabulary)
 
 If the team uses specific terms for domain concepts, list them here so the
-agent uses the same wording (composes with `void:domain-driven-design`).
+agent uses the same wording (composes with `harness:domain-driven-design`).
 
 | Term | Meaning in this project |
 |---|---|
@@ -74,7 +74,7 @@ Format per rule:
 - **Stripe webhook signature verification** : every Stripe webhook handler
   verifies the signature AND the timestamp window (≤ 5 minutes).
   - **Why** : incident 2026-04-12 — a replayed webhook re-credited an
-    account. Composes with `void:async-safety`.
+    account. Composes with `harness:async-safety`.
   - **Enforced by** : `withWebhookSafety` wrapper from
     `@voidcorp/pack-nextjs/async` + code review.
 
@@ -100,11 +100,11 @@ Override default skill behavior for THIS project.
 Examples:
 
 - **Strict TDD on payment surface** : any change to `apps/checkout/` or
-  `apps/billing/` triggers `void:tdd` in **strict** mode even if the
+  `apps/billing/` triggers `harness:tdd` in **strict** mode even if the
   path heuristic would say souple.
 - **LLM-cost gate on agent calls** : any LLM call in `apps/agents/` must
   include `// using <model> because <why>` if it uses Opus —
-  composes with `void:llm-cost-discipline`.
+  composes with `harness:llm-cost-discipline`.
 
 (Add your own routing overrides or delete if no project-specific routing
 is required.)

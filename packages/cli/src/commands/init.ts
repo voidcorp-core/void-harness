@@ -12,7 +12,7 @@
 //
 // This command does NOT copy skills/agents/hooks — Claude Code fetches the
 // plugin from the marketplace on session start. Skills appear as
-// /void:tdd, /void-nextjs:..., etc.
+// /harness:tdd, /harness-nextjs:..., etc.
 
 import * as p from '@clack/prompts';
 import { existsSync } from 'node:fs';
@@ -23,6 +23,7 @@ import {
   PACKS,
   CORE_PLUGIN_NAME,
   MARKETPLACE_NAME,
+  MARKETPLACE_REPO,
   findPack,
   type PackDescriptor,
 } from '../lib/packs.js';
@@ -40,14 +41,12 @@ interface InitOptions {
   readonly marketplaceRepo: string;
 }
 
-const DEFAULT_MARKETPLACE_REPO = 'voidcorp-core/void-harness';
-
 function parseArgs(args: readonly string[]): InitOptions {
   const explicitPacks: string[] = [];
   let allPacks = false;
   let interactive = true;
   let force = false;
-  let marketplaceRepo = DEFAULT_MARKETPLACE_REPO;
+  let marketplaceRepo = MARKETPLACE_REPO;
 
   for (let i = 0; i < args.length; i += 1) {
     const a = args[i] ?? '';
@@ -144,7 +143,7 @@ export async function init(args: readonly string[]): Promise<void> {
 
   blank();
   meta('plugins', enabledPlugins.join(', '));
-  footer(`restart Claude Code ${glyph.emdash} skills appear as ${c.bold('/void:<name>')}, ${c.bold('/void-<pack>:<name>')}`);
+  footer(`restart Claude Code ${glyph.emdash} skills appear as ${c.bold('/harness:<name>')}, ${c.bold('/void-<pack>:<name>')}`);
 }
 
 async function choosePacks(projectRoot: string, opts: InitOptions): Promise<readonly PackDescriptor[]> {

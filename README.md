@@ -32,7 +32,7 @@ Inspired by Wing Chun (economy of means), TigerStyle (TigerBeetle), Citypaul dot
 void-harness/
 ├── packages/
 │   ├── cli/                       # @voidcorp/harness — CLI npm
-│   ├── core/                      # void plugin (static assets, not an npm package)
+│   ├── core/                      # harness plugin (static assets, not an npm package)
 │   │   ├── skills/                # craftsman skills
 │   │   ├── agents/                # doctrine-critic (read-only doctrine conformance review)
 │   │   ├── hooks/                 # tdd-guard, no-any-grep, no-console-log-grep, etc.
@@ -53,11 +53,11 @@ void-harness/
 ## Usage
 
 ```bash
-# Recommended flow: per-project. Enables the void core plugin plus the packs
+# Recommended flow: per-project. Enables the harness core plugin plus the packs
 # you pick, scaffolds .void/config.json, and patches CLAUDE.md / AGENTS.md.
 cd my-project
 npx @voidcorp/harness init --pack pack-nextjs --pack pack-monorepo
-# (pack names also accept void-nextjs or nextjs)
+# (pack names also accept harness-nextjs or nextjs)
 
 # Health check / update
 npx @voidcorp/harness doctor
@@ -67,8 +67,23 @@ npx @voidcorp/harness update
 npx @voidcorp/harness install --global
 ```
 
+## Distribution
+
+The plugins of this repo are distributed through the **voidcorp** marketplace,
+whose catalog lives in [`voidcorp-core/void-plugins`](https://github.com/voidcorp-core/void-plugins)
+(pure catalog, pinned by commit sha). Manual install:
+
+```
+/plugin marketplace add voidcorp-core/void-plugins
+/plugin install harness@voidcorp
+```
+
+`npx @voidcorp/harness init` does this wiring per-project for you.
+
 ## Relation to other VoidCorp repos
 
+- [`voidcorp-core/void-plugins`](https://github.com/voidcorp-core/void-plugins) — the voidcorp marketplace catalog (harness, packs, forge).
+- [`voidcorp-core/forge`](https://github.com/voidcorp-core/forge) — ideation pipeline plugin, distributed as `forge@voidcorp`.
 - [`voidcorp-core/void-starter`](https://github.com/voidcorp-core/void-starter) — Next.js template. Its CLAUDE.md will reference `@voidcorp/pack-nextjs` + `@voidcorp/pack-monorepo`.
 - [`voidcorp-core/voidcorp`](https://github.com/voidcorp-core/voidcorp) — marketing site, will use `@voidcorp/pack-marketing-site` (future).
 
