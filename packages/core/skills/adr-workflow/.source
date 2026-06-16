@@ -6,4 +6,4 @@ Sources for `adr-workflow` skill (see plans/skill-audits/adr-workflow.md for ful
 
 Strategy: native (no single source is top-5% for our terseness + reversal-cost emphasis; distilled the load-bearing format and added the "name a rejected alternative or it is not an ADR" gate and explicit reversal-cost field).
 
-Promoted from pack-monorepo to core on 2026-06-04: ADRs are a universal craftsman concern, not monorepo-specific, and the repo meta-rule already mandates logging non-obvious decisions. Composes with void:writing-plans, void:commit-discipline, void:source-driven-development (alternatives cite official docs), void:harness-evolution.
+Promoted from pack-monorepo to core on 2026-06-04: ADRs are a universal craftsman concern, not monorepo-specific, and the repo meta-rule already mandates logging non-obvious decisions. Composes with harness:writing-plans, harness:commit-discipline, harness:source-driven-development (alternatives cite official docs), harness:harness-evolution.
