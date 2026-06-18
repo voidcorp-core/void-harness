@@ -52,6 +52,12 @@ describe('prCreateArgs', () => {
   });
 });
 
+describe('mergeArgs', () => {
+  it('arms squash auto-merge for the branch (remote still gates)', () => {
+    expect(mergeArgs('auto/DEV-42')).toEqual(['pr', 'merge', 'auto/DEV-42', '--squash', '--auto']);
+  });
+});
+
 describe('parsePrFile', () => {
   it('reads the first non-empty line as title and the rest as body', () => {
     expect(parsePrFile('feat: rate limiter\n\nWhy: protects the API.\n')).toEqual({
