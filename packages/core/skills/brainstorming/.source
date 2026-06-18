@@ -7,7 +7,7 @@ Sources for `brainstorming` skill (see plans/skill-audits/brainstorming.md for f
 
 Strategy: distill. Three deliberate changes from superpowers:
 1. Spec location: docs/specs/YYYY-MM-DD-<topic>.md (consumer convention)
-2. Transition target: void:writing-plans (vendored equivalent)
+2. Transition target: harness:writing-plans (vendored equivalent)
 3. No trigger filter on activation (per Section 0bis hedge resolution)
 
 No companion hooks; the gate is a process discipline enforced via code-review flags downstream.

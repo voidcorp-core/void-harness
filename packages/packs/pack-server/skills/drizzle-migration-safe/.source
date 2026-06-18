@@ -1,6 +1,6 @@
 Sources for `drizzle-migration-safe` skill (see plans/skill-audits/drizzle-migration-safe.md for the full audit):
 
-- No external source audited — native Drizzle concretization of the `void:migrations-safety` doctrine.
+- No external source audited — native Drizzle concretization of the `harness:migrations-safety` doctrine.
 - Tooling referenced (not vendored): Drizzle Kit (drizzle-kit generate/push), Postgres CONCURRENTLY / NOT VALID semantics.
 
-Strategy: native. Same principles as void:migrations-safety, rewritten as concrete Drizzle SQL and code samples; no upstream skill was copied.
+Strategy: native. Same principles as harness:migrations-safety, rewritten as concrete Drizzle SQL and code samples; no upstream skill was copied.
