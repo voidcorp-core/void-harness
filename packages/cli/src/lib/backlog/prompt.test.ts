@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BacklogConfig } from './config.js';
-import { AUTONOMOUS_SETTINGS, buildClaudeArgs } from './prompt.js';
+import { AUTONOMOUS_SETTINGS, autonomousSettings, buildClaudeArgs } from './prompt.js';
 
 const baseCfg: BacklogConfig = {
   linearScope: 'sesame',
@@ -40,6 +40,23 @@ describe('AUTONOMOUS_SETTINGS', () => {
     expect(allow).not.toContain('Bash(gh pr:*)');
     expect(allow.some((a) => a.startsWith('Bash(git push'))).toBe(false);
     expect(allow.some((a) => a.startsWith('Bash(gh pr'))).toBe(false);
+  });
+});
+
+describe('autonomousSettings', () => {
+  const hookPath = '/abs/core/hooks/block-protected-push.sh';
+  const settings = autonomousSettings(hookPath);
+
+  it('keeps the scoped permission allowlist', () => {
+    expect(settings.permissions).toBe(AUTONOMOUS_SETTINGS.permissions);
+  });
+
+  // Issue #17 cluster A (A1): the block-protected-push net is wired into the run
+  // settings as a PreToolUse Bash hook pointing at its resolved bundled path.
+  it('wires block-protected-push as a PreToolUse Bash hook', () => {
+    const entry = settings.hooks.PreToolUse[0];
+    expect(entry?.matcher).toBe('Bash');
+    expect(entry?.hooks[0]?.command).toBe(hookPath);
   });
 });
 
