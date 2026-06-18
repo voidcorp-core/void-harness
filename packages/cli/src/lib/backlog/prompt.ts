@@ -1,9 +1,11 @@
 // The worker iteration prompt + spawn parameters, embedded in the CLI so the
 // orchestrator is self-contained (no plugin-cache path resolution). The worker
-// emits machine-readable markers the parser turns into the live flux:
-//   VOID_EVENT: PHASE <pick|brainstorm|plan|execute|verify|ship|compound>
+// is COMMIT-ONLY (issue #17 cluster A, A1): it commits on its branch and reports
+// it; the trusted orchestrator pushes + opens the PR. It emits machine-readable
+// markers the parser turns into the live flux:
+//   VOID_EVENT: PHASE <pick|brainstorm|plan|execute|verify|handoff|compound>
 //   VOID_EVENT: DECISION <one line>
-//   VOID_EVENT: PR <ref>
+//   VOID_EVENT: BRANCH <branch-name>
 //   VOID_AUTONOMOUS_RESULT: <COMPLETED|BLOCKED|NO_TICKETS> [ticket] [detail]
 
 import type { BacklogConfig } from './config.js';
@@ -139,21 +141,29 @@ export function buildClaudeArgs(
 
 /** The single-ticket worker prompt, parameterised by the run config. */
 export function renderPrompt(cfg: BacklogConfig): string {
-  const autoMerge = cfg.autoMerge ? '1' : '0';
   return `You are ONE iteration of an autonomous backlog loop. You have a FRESH context and
 will handle exactly ONE Linear ticket end to end, then exit. Keep durable state
 in Linear and in on-disk plan files; assume no memory from a previous ticket.
 
+You are COMMIT-ONLY. You commit on your branch and report it; the trusted
+orchestrator pushes the branch and opens the PR. You have NO \`git push\` and NO
+\`gh pr\` — do not attempt them, and do not try to work around a PreToolUse hook.
+
 Emit these machine-readable markers on their own line as you progress (the
 orchestrator renders them as the live flux and the final summary):
-- \`VOID_EVENT: PHASE <pick|brainstorm|plan|execute|verify|ship|compound>\` when you enter that phase.
+- \`VOID_EVENT: PHASE <pick|brainstorm|plan|execute|verify|handoff|compound>\` when you enter that phase.
 - \`VOID_EVENT: DECISION <one line>\` for each structural decision (with the rejected alternative).
-- \`VOID_EVENT: PR <number-or-url>\` right after you open the pull request.
+- \`VOID_EVENT: BRANCH <branch-name>\` once, after you create your branch.
 End with exactly one \`VOID_AUTONOMOUS_RESULT:\` line (see below).
 
 Invoke the relevant void skills (installed): brainstorming, source-driven-development,
 adr-workflow, writing-plans, tdd, verification-before-completion, commit-discipline,
-compounding, context-management. Let the PreToolUse hooks gate you; do not work around them.
+compounding, context-management.
+
+If a PreToolUse hook blocks a command (e.g. block-protected-push), that is
+TERMINAL for this ticket: do NOT retry it and do NOT try to work around it.
+Post the reason as a Linear comment, move the ticket to blocked, and output
+\`VOID_AUTONOMOUS_RESULT: BLOCKED <ticket-id> hook blocked: <one-line reason>\` then stop.
 
 ## Step 1 — Pick (emit \`VOID_EVENT: PHASE pick\`)
 Using the Linear MCP, find eligible tickets in: ${cfg.linearScope}, in state
@@ -163,7 +173,8 @@ most important one: explicit priority, then board order, then dependency order.
 - Ambiguous / missing acceptance criteria → add a Linear comment asking for them, move
   the ticket out of "${cfg.targetState}" (label \`needs-criteria\`), output
   \`VOID_AUTONOMOUS_RESULT: BLOCKED <ticket-id> missing acceptance criteria\` and stop.
-Otherwise move the ticket to "In Progress" and create branch \`${cfg.branchPrefix}<ticket-id>\`.
+Otherwise move the ticket to "In Progress", then create your branch with
+\`git switch -c ${cfg.branchPrefix}<ticket-id>\` and emit \`VOID_EVENT: BRANCH ${cfg.branchPrefix}<ticket-id>\`.
 
 ## Step 2 — Don't assume it is unimplemented
 Search the codebase first; build on what exists, never duplicate.
@@ -179,19 +190,20 @@ Write the executable plan to \`.void/autonomous-runs/<ticket-id>.plan.md\` (dura
 
 ## Step 5 — Execute (emit \`VOID_EVENT: PHASE execute\`)
 Implement test-first (tdd). Stay in scope. Atomic commits with "why" (commit-discipline).
+Never edit secrets or lockfiles by hand.
 
 ## Step 6 — Verify (emit \`VOID_EVENT: PHASE verify\`)
 Run the project checks (tests, typecheck, lint, build). Tests are the only judge. If you
-cannot get green after a genuine effort, do NOT fake completion: post the failure evidence
-as a Linear comment, move the ticket to blocked, push your WIP branch, and output
+cannot get green after a genuine effort, do NOT fake completion: commit your WIP on the
+branch, post the failure evidence as a Linear comment, move the ticket to blocked, and output
 \`VOID_AUTONOMOUS_RESULT: BLOCKED <ticket-id> verification red: <one-line reason>\` then stop.
 
-## Step 7 — Ship (emit \`VOID_EVENT: PHASE ship\`)
-Open a PR (never push --force, never edit secrets or lockfiles by hand). Emit
-\`VOID_EVENT: PR <number-or-url>\`. Then:
-- If AUTO_MERGE is "${autoMerge}" and equals 1: wait for CI green, merge, move the ticket to "Done".
-  If CI is red, treat as Step 6 failure (BLOCKED).
-- Otherwise: leave the PR open and move the ticket to "${cfg.reviewState}". The human owns the merge.
+## Step 7 — Hand off (emit \`VOID_EVENT: PHASE handoff\`)
+You do NOT push or open the PR — the orchestrator does. Instead:
+- Ensure every change is committed on your branch (the orchestrator pushes exactly what you committed).
+- Write the PR description to \`.void/autonomous-runs/<ticket-id>.pr.md\`: the FIRST line is the
+  PR title (Conventional Commit style), then a blank line, then the body (what + why + how verified).
+- Move the ticket to "${cfg.reviewState}". The human owns the merge${cfg.autoMerge ? ' (the orchestrator arms auto-merge; the remote still gates on protection)' : ''}.
 
 ## Step 8 — Compound (emit \`VOID_EVENT: PHASE compound\`)
 If this ticket taught a reusable pattern, route it (capture-rule / .void/harness-feedback/proposed/).
