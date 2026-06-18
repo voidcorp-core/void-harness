@@ -41,6 +41,11 @@ Commands:
                            summary. Subscription-billed. See
                            backlog-loop --help. Opt-in; never a default.
 
+  backlog-batch plan       Deterministic planner for the attended parallel mode
+                           (/harness:backlog-batch). Reads tickets+estimates
+                           JSON on stdin, prints the parallel/sequential plan.
+                           See backlog-batch --help.
+
   help                     Print this message.
 
 Pack names (current marketplace):
