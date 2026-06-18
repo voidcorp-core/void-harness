@@ -25,9 +25,17 @@ import {
   parseFlags,
   resolveConfig,
 } from '../lib/backlog/config.js';
+import {
+  branchFromEvents,
+  type IntegrateRun,
+  integrateTicket,
+  type PrSpec,
+  parsePrFile,
+} from '../lib/backlog/integrate.js';
 import { hasLinearMcpServer } from '../lib/backlog/mcp.js';
 import { type IterationResult, runIteration, runLoop } from '../lib/backlog/orchestrator.js';
 import { AUTONOMOUS_SETTINGS, buildClaudeArgs, renderPrompt } from '../lib/backlog/prompt.js';
+import type { Write } from '../lib/backlog/render.js';
 import { renderSummary } from '../lib/backlog/summary.js';
 import { hasConfig, runWizard, wizardShouldRun } from '../lib/backlog/wizard.js';
 import { banner, blank, c, divider, footer, line, meta, status } from '../lib/render.js';
@@ -258,6 +266,56 @@ function preflight(cfg: BacklogConfig, env: NodeJS.ProcessEnv, root: string): vo
   assertBaseBranchProtected(root);
 }
 
+/** Spawn-backed command runner for the orchestrator's push + PR steps. */
+const spawnRunner: IntegrateRun = (cmd, args, cwd) => {
+  const p = spawnSync(cmd, [...args], { cwd, encoding: 'utf8' });
+  return { ok: p.status === 0, stdout: p.stdout ?? '', stderr: p.stderr ?? '' };
+};
+
+/** Read the worker-written PR description, or undefined to let `gh --fill`. */
+function loadPrSpec(workdir: string, ticket: string): PrSpec | undefined {
+  const path = join(workdir, '.void', 'autonomous-runs', `${ticket}.pr.md`);
+  if (!existsSync(path)) return undefined;
+  return parsePrFile(readFileSync(path, 'utf8'));
+}
+
+/**
+ * The trusted orchestrator's half of A1: on a COMPLETED ticket, push the
+ * worker's branch (explicit refspec, no force) and open its PR. The worker is
+ * commit-only, so this is the ONLY path to the remote. `workdir` is where the
+ * worker committed (the run root today; the per-ticket worktree after Step 3).
+ */
+function integrateCompleted(
+  result: IterationResult,
+  workdir: string,
+  base: string,
+  cfg: BacklogConfig,
+  out: Write,
+): void {
+  const ticket = result.ticket;
+  if (ticket === undefined) {
+    out(c.yellow('  ! completed without a ticket id — skipping push/PR.'));
+    return;
+  }
+  const branch = branchFromEvents(result.events, `${cfg.branchPrefix}${ticket}`);
+  const prSpec = loadPrSpec(workdir, ticket);
+  const outcome = integrateTicket({
+    branch,
+    base,
+    cwd: workdir,
+    ...(prSpec !== undefined ? { prSpec } : {}),
+    ...(cfg.autoMerge ? { autoMerge: true } : {}),
+    run: spawnRunner,
+  });
+  if (!outcome.pushed) {
+    out(c.red(`  ✗ push of ${branch} failed: ${outcome.error ?? 'unknown error'}`));
+    return;
+  }
+  if (outcome.prRef !== undefined) out(c.green(`  ✓ PR opened: ${outcome.prRef}`));
+  if (outcome.error !== undefined) out(c.yellow(`  ! PR/merge step: ${outcome.error}`));
+  if (outcome.autoMergeRequested === true) out(c.dim('  · auto-merge armed (remote gates).'));
+}
+
 async function runBacklog(cfg: BacklogConfig, root: string): Promise<void> {
   const runDir = join(root, '.void', 'autonomous-runs');
   mkdirSync(runDir, { recursive: true });
@@ -275,12 +333,13 @@ async function runBacklog(cfg: BacklogConfig, root: string): Promise<void> {
   const out = (l: string) => process.stdout.write(`${l}\n`);
   const claudeArgs = buildClaudeArgs(settingsPath, join(root, MCP_REL), cfg);
   const prompt = renderPrompt(cfg);
+  const base = baseBranch(root);
 
   blank();
-  const iterate = (i: number): Promise<IterationResult> => {
+  const iterate = async (i: number): Promise<IterationResult> => {
     divider();
     line(c.dim(`iteration ${i}/${cfg.maxIterations} (fresh session)`));
-    return runIteration({
+    const result = await runIteration({
       command: 'claude',
       claudeArgs,
       prompt,
@@ -291,6 +350,9 @@ async function runBacklog(cfg: BacklogConfig, root: string): Promise<void> {
       write: out,
       onRaw: (raw) => logStream.write(raw.endsWith('\n') ? raw : `${raw}\n`),
     });
+    // The worker is commit-only; the trusted orchestrator pushes + opens the PR.
+    if (result.status === 'completed') integrateCompleted(result, root, base, cfg, out);
+    return result;
   };
 
   const summary = await runLoop({

@@ -42,6 +42,8 @@ export function formatEvent(event: BacklogEvent): string | undefined {
       return row('tool', event.name);
     case 'decision':
       return row('decision', c.yellow(clip(event.text)));
+    case 'branch':
+      return row('branch', event.name);
     case 'result':
       return formatResult(event);
     case 'session-end':

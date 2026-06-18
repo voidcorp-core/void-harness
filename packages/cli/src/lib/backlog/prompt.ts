@@ -42,11 +42,14 @@ export const AUTONOMOUS_SETTINGS = {
       'Bash(git checkout:*)',
       'Bash(git switch:*)',
       'Bash(git branch:*)',
-      'Bash(git push:*)',
+      // No `git push` / `gh pr`: the worker is commit-only. Pushing the branch
+      // and opening the PR belong to the TRUSTED orchestrator (see integrate.ts).
+      // An agent with arbitrary code execution can bypass a string-matching push
+      // hook (node -e "git push ..."), so the capability is removed, not gated.
+      // (Issue #17 cluster A, A1.)
       'Bash(git pull:*)',
       'Bash(git fetch:*)',
       'Bash(git restore:*)',
-      'Bash(gh pr:*)',
       'Bash(gh issue:*)',
       'Bash(gh run:*)',
       'Bash(ls:*)',
