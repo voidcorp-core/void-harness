@@ -3,6 +3,45 @@
 Non-obvious decisions taken on the harness itself, where a credible alternative
 existed. One entry per decision. Newest first. See CLAUDE.md meta-rules.
 
+## 2026-06-18: backlog-batch — attended parallel drain via Workflow + worktree subagents
+
+Context: `autonomous-backlog-loop` covers the sequential walk-away case; it does
+not cover "drain a few independent tickets in parallel, attended, without
+breaking anything". Spec/plan:
+`docs/specs/2026-06-18-backlog-batch-parallel.md`,
+`plans/2026-06-18-backlog-batch-parallel-plan.md`.
+
+Decision: ship a **sister** skill `backlog-batch` (not a mode of the loop). A
+two-layer design: an **in-session launcher** selects an independent eligible
+batch (Linear MCP), estimates each ticket's file footprint (a lightweight
+estimator subagent), partitions **parallel (low overlap) vs sequential (overlap
+/ lockfile / migrations)**, and — after **human confirmation** — invokes a
+deterministic **Workflow** that fans out one **worktree-isolated subagent** per
+ticket, then a **reconciliation subagent** merges the green branches into **one
+integration PR gated by the full suite**. The deterministic core (selection,
+partition, plan) lives in the CLI (`void-harness backlog-batch plan`,
+vitest-tested); the MCP gathering, estimation, and fan-out are in-session /
+Workflow. Subagents inherit the parent auth → subscription billing.
+
+Alternatives rejected:
+- **A mode of `autonomous-backlog-loop`.** Different orchestration (Workflow
+  subagent vs CLI process), risk model (parallel vs sequential), and output
+  (integration PR vs PR/ticket). Sister skill keeps each single-subject
+  (anti-bloat rule 2); shared selection/worker vocabulary, < 30 % overlap.
+- **An LLM session as orchestrator.** A long parent that fans out + reconciles
+  accumulates context (rot) and drives the loop non-deterministically. The
+  Workflow tool gives deterministic JS orchestration of subagents.
+- **Process-parallelism (`claude -p` in worktrees) instead of subagents.** Loses
+  tool/MCP inheritance, native observability, and inherited subscription billing
+  — the reasons to prefer subagents for an *attended* burst.
+- **Blind parallelism / clever overlap graph-coloring.** Naive parallel corrupts
+  one shared tree; graph-coloring is YAGNI. Conservative "parallel only if
+  isolated", with the reconciliation subagent + full suite as backstop.
+- **Live multi-agent smoke on void-harness.** Worktree isolation targets the
+  current repo, so a real run here would create worktrees/an integration branch/a
+  PR on the harness itself. The live smoke is a consumer-project dogfood; the
+  deterministic CLI layers carry the unit-tested confidence.
+
 ## 2026-06-18: backlog-loop worker reaches Linear via project .mcp.json only
 
 Context: the loop's worker prompt (Step 1) tells each `claude -p` session to use
