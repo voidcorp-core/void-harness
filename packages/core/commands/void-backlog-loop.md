@@ -1,10 +1,12 @@
 ---
 description: Launch the void-harness autonomous backlog loop (one fresh session per Linear ticket, live flux, subscription-billed). Opt-in, never a default.
 argument-hint: "[--max N] [--target State] [--scope ...] [--auto-merge] [--dry-run]"
-allowed-tools: Bash(npx:*)
+allowed-tools: Bash(void-harness:*), Bash(npx:*)
 ---
 
-Run `npx @voidcorp/harness backlog-loop $ARGUMENTS` in the project root.
+Run `void-harness backlog-loop $ARGUMENTS` in the project root (fall back to
+`npx @voidcorp/harness backlog-loop $ARGUMENTS` only if the `void-harness` CLI is
+not on PATH).
 
 This drains a curated Linear backlog one ticket at a time, each in a fresh
 `claude -p` session (true context reset), with a live append-only flux and a
