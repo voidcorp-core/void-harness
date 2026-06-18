@@ -129,16 +129,16 @@ L'utilisateur voit le premier bout-en-bout : un ticket exécuté avec flux live 
 
 ## Resume point
 
-**Next step**: Step 1 (Command skeleton + config resolution + dry-run)
+**Next step**: Step 6 (Wizard premier run) — pending Checkpoint B sign-off
 
-**Completed**: —
+**Completed**:
+- ✅ Step 1: Command skeleton + config + dry-run (`feat(cli): backlog-loop config resolution`, `feat(cli): backlog-loop command skeleton with --help and --dry-run`)
+- ✅ Step 2: Billing guard (`feat(cli): subscription billing guard for backlog-loop`)
+- ✅ Step 3: Stream parser (`feat(cli): backlog-loop stream-json parser to domain events`)
+- ✅ Step 4: Orchestrateur 1-itération + render (`feat(cli): single-iteration orchestrator + live append-only renderer`) — **Checkpoint A**
+- ✅ Step 5: Boucle + circuit-break + résumé + câblage commande (`feat(cli): backlog-loop run loop, circuit-break, and dense summary`, `feat(cli): wire backlog-loop command to the live loop`) — **Checkpoint B**. Note: prompt + settings embarqués dans le CLI (Step 7 partiellement absorbé : le worker émet déjà PHASE/DECISION/PR).
 
 **Pending**:
-- ⏳ Step 1: Command skeleton + config + dry-run
-- ⏳ Step 2: Billing guard
-- ⏳ Step 3: Stream parser
-- ⏳ Step 4: Orchestrateur 1-itération + render (Checkpoint A)
-- ⏳ Step 5: Boucle complète + résumé (Checkpoint B)
 - ⏳ Step 6: Wizard premier run
-- ⏳ Step 7: Worker événements sémantiques + décisions
+- ⏳ Step 7: Worker événements sémantiques + décisions (reste : réconcilier/supprimer l'ancien iteration-prompt.md au Step 8)
 - ⏳ Step 8: Slash-command + suppression bash + docs/sync

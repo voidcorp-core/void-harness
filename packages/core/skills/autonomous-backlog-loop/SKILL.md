@@ -12,8 +12,9 @@ distilled, HITL-safe answer to the "Ralph loop" (ghuntley) and to Boris Cherny's
 "a session you can walk away from."
 
 **This is never a default.** It runs only when a human launches
-`scripts/autonomous-backlog.sh`. The harness default keeps the human in the loop
-(see `verification-before-completion`). Read the Safety section before the first run.
+`void-harness backlog-loop` (or the `/void-backlog-loop` command inside Claude
+Code). The harness default keeps the human in the loop (see
+`verification-before-completion`). Read the Safety section before the first run.
 
 **Attribution**: see `.source`.
 
@@ -55,7 +56,7 @@ make it safe and durable:
 5. **Execute** test-first (`tdd`), atomic commits with "why" (`commit-discipline`).
 6. **Verify** (`verification-before-completion`): green or blocked, never half.
 7. **Ship**: open a PR. Move the ticket to the review state (human merges), or — only
-   if `AUTO_MERGE=1` — merge after CI is green and move to Done.
+   if `--auto-merge` — merge after CI is green and move to Done.
 8. **Compound** (`compounding`): route any reusable lesson to feedback. Non-blocking.
 
 ---
@@ -83,26 +84,31 @@ and only offers full-auto behind an explicit sandbox flag.
 
 ## Safety (read before running)
 
-- **The floor is the allowlist + sandbox, not the hooks.** Runs load
-  `scripts/settings.autonomous.json` — a curated `allow`/`deny` profile so a
-  supervised run proceeds without prompts while everything unlisted is denied by
-  default. This deny-by-default permission scope is the real safety boundary. Tune
-  `allow` to your toolchain; never widen `deny`.
+- **The floor is the allowlist + sandbox, not the hooks.** Each worker runs under a
+  curated `allow`/`deny` permission profile (written to a temp settings file by the
+  orchestrator) so a supervised run proceeds without prompts while everything unlisted
+  is denied by default. This deny-by-default permission scope is the real safety
+  boundary. The profile lives in the CLI (`packages/cli/src/lib/backlog/prompt.ts`,
+  `AUTONOMOUS_SETTINGS`); tune `allow` to your toolchain there, never widen `deny`.
 - **Hooks are guardrails on top.** `protect-sensitive-files` (deny-list of
   never-edit files) and `block-dangerous-bash` (best-effort blocklist of common
   footguns — it will miss novel forms, do not rely on it as the boundary) run on
   every call; the orchestrator refuses to start if their overrides
   (`VOID_HARNESS_ALLOW_*`) are set.
+- **Subscription-billed, never the API.** The orchestrator strips `ANTHROPIC_API_KEY`
+  / `ANTHROPIC_AUTH_TOKEN` from each worker's env so usage bills your Claude
+  subscription, and refuses to start if a cloud-provider routing var would bill
+  elsewhere (unless `--allow-api` is an explicit opt-in).
 - **Clean tree required.** The orchestrator refuses to start on a dirty working tree.
-- **Circuit breakers.** `MAX_ITERATIONS` caps tickets per run; `MAX_FAILURES`
-  consecutive errors stop the loop.
-- **Full-auto is sandbox-only.** `UNSAFE_FULL_AUTO=1` (which passes
+- **Circuit breakers.** `--max` caps tickets per run; `--max-failures` consecutive
+  errors stop the loop.
+- **Full-auto is sandbox-only.** `--full-auto` (which passes
   `--dangerously-skip-permissions`) refuses to run unless `VOID_SANDBOX` is set. Run
   it in a disposable container with minimal credentials and restricted network. The
   question is not *if* an autonomous agent does something unintended, but what the
   blast radius is when it does.
-- **No auto-merge by default.** `AUTO_MERGE=0` leaves every change as a PR for human
-  review. Set `AUTO_MERGE=1` only when CI is a trustworthy gate and the work is
+- **No auto-merge by default.** Without `--auto-merge`, every change is left as a PR for
+  human review. Use `--auto-merge` only when CI is a trustworthy gate and the work is
   low-stakes.
 
 ---
@@ -110,20 +116,29 @@ and only offers full-auto behind an explicit sandbox flag.
 ## Running it
 
 ```bash
-# Supervised-autonomous (safe default): watch it work, it opens PRs.
-bash <plugin>/skills/autonomous-backlog-loop/scripts/autonomous-backlog.sh
+# Supervised-autonomous (safe default): watch the live flux, it opens PRs.
+void-harness backlog-loop
 
 # Constrain the run:
-MAX_ITERATIONS=5 TARGET_STATE=Todo bash .../autonomous-backlog.sh
+void-harness backlog-loop --max 5 --target Todo
+
+# Preview without spawning anything:
+void-harness backlog-loop --dry-run
 
 # Full auto, sandbox only:
-VOID_SANDBOX=1 UNSAFE_FULL_AUTO=1 AUTO_MERGE=1 bash .../autonomous-backlog.sh
+VOID_SANDBOX=1 void-harness backlog-loop --full-auto --auto-merge
 ```
 
-Config resolves from env vars, then `.void/autonomous.json`, then defaults
-(`linearScope`, `targetState`, `reviewState`, `branchPrefix`, `maxIterations`,
-`maxFailures`, `autoMerge`, `model`). The Linear interaction happens inside each
-worker session via the Linear MCP, so that MCP must be connected.
+Or from inside Claude Code: `/void-backlog-loop --max 5`.
+
+Config resolves from flags, then env vars (`LINEAR_SCOPE`, `TARGET_STATE`, ...),
+then `.void/autonomous.json`, then defaults (`linearScope`, `targetState`,
+`reviewState`, `branchPrefix`, `maxIterations`, `maxFailures`, `autoMerge`,
+`model`). On a first run with no config file, an interactive wizard offers to
+create one. The Linear interaction happens inside each worker session via the
+Linear MCP, so that MCP must be connected. The orchestrator lives in the CLI
+(`packages/cli/src/lib/backlog/`), streaming each worker's `stream-json` into a
+live append-only flux and ending on a dense summary.
 
 Optional turn-level backpressure: wire `scripts/stop-verification-gate.sh` as a Stop
 hook in the run's settings (see the file header). It is intentionally not in the
@@ -150,11 +165,11 @@ Before trusting an autonomous run, confirm:
 
 - [ ] Backlog tickets have clear acceptance criteria (the approved spec).
 - [ ] The Linear MCP is connected and scoped to the intended team/project.
-- [ ] `scripts/settings.autonomous.json` `allow` matches the project's real commands.
+- [ ] The `AUTONOMOUS_SETTINGS` `allow` profile (in the CLI) matches the project's real commands.
 - [ ] Working tree is clean; you are not on a protected branch you fear to dirty.
-- [ ] `MAX_ITERATIONS` / `MAX_FAILURES` are set for the run's risk appetite.
+- [ ] `--max` / `--max-failures` are set for the run's risk appetite.
 - [ ] Full-auto, if used, is inside a sandbox (`VOID_SANDBOX`) with minimal creds.
-- [ ] After the run: every PR is reviewed by a human before merge (unless `AUTO_MERGE=1` was a deliberate choice).
+- [ ] After the run: every PR is reviewed by a human before merge (unless `--auto-merge` was a deliberate choice).
 
 ---
 
@@ -173,7 +188,7 @@ Before trusting an autonomous run, confirm:
 ## Anti-rules
 
 - MUST NOT run as a default or unprompted behaviour.
-- MUST NOT merge to a protected branch without an explicit `AUTO_MERGE=1` + green CI.
+- MUST NOT merge to a protected branch without an explicit `--auto-merge` + green CI.
 - MUST NOT close a ticket whose checks are red — block it with evidence instead.
 - MUST NOT invent acceptance criteria — ask and move on.
 - MUST NOT disable the security hooks or run full-auto outside a sandbox.
@@ -187,7 +202,7 @@ Before trusting an autonomous run, confirm:
 |---|---|
 | Loop exits immediately with NO_TICKETS | No ticket in `TARGET_STATE`, or all are blocked by open tickets. Check the Linear view + scope. |
 | A ticket keeps getting blocked | Read the Linear comment evidence. Fix the upstream cause (criteria, a guardrail, a missing rule), not the prompt. |
-| Run stalls waiting on a permission prompt | A needed command is not in the allowlist. Add it to `settings.autonomous.json` `allow`. |
+| Run stalls waiting on a permission prompt | A needed command is not in the allowlist. Add it to `AUTONOMOUS_SETTINGS` `allow` in `packages/cli/src/lib/backlog/prompt.ts`. |
 | It edited something it should not have | The allowlist is too wide or a hook is missing. Tighten `deny`; never set `VOID_HARNESS_ALLOW_*`. |
 
 ---

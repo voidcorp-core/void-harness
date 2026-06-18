@@ -96,10 +96,10 @@ the harness security hooks. No single source ships a HITL-safe, Linear-driven lo
 
 ## Verification checklist for shipping this skill
 
-- [x] SKILL.md ≤ 400 LOC (199)
+- [x] SKILL.md ≤ 400 LOC (216)
 - [x] Frontmatter `description` ≤ 200 chars
 - [x] `.source` lists every audited source with URL
-- [x] Companion scripts syntax-check; settings JSON valid
+- [x] Orchestrator + CLI surface unit/integration-tested (`packages/cli/src/lib/backlog/`)
 - [x] Matrix row added in `plans/skill-decision-matrix.md#autonomous-backlog-loop`
 - [x] Orchestrator integration test (NO_TICKETS drain, dirty-tree refusal, circuit breaker)
 - [x] No overlap > 30% (it orchestrates other skills; it does not duplicate them)
@@ -108,7 +108,36 @@ the harness security hooks. No single source ships a HITL-safe, Linear-driven lo
 
 ## Open questions
 
-- Should a `npx @voidcorp/harness autonomous` CLI wrapper become the ergonomic entry
-  point (vs invoking the script from the plugin dir)? Likely yes; follow-up.
+- ~~Should a CLI wrapper become the ergonomic entry point?~~ **Resolved 2026-06-18**:
+  yes. See the refactor note below.
 - Linear ordering: rely on the worker session to rank, or query Linear ordering
   deterministically in the orchestrator? Currently the worker ranks.
+
+## Refactor 2026-06-18 — observability + CLI orchestrator
+
+Spec `docs/specs/2026-06-18-backlog-loop-observability.md`, plan
+`plans/2026-06-18-backlog-loop-observability-plan.md`.
+
+The bash orchestrator was a black box: each `claude -p` worker's output went only to
+a log file, the terminal showed `[HH:MM:SS] iteration N/M`, and decisions were never
+surfaced. It was launched via a hardcoded plugin-cache path + env vars.
+
+Rewritten as a TypeScript orchestrator in `packages/cli/src/lib/backlog/`, exposed as
+`void-harness backlog-loop` (flags + first-run wizard) and `/void-backlog-loop`:
+
+- **Live append-only flux** — each worker's `--output-format stream-json` is parsed
+  (`stream.ts`) into domain events the renderer (`render.ts`) appends as a tree;
+  mechanical signal (tool_use) comes free, semantic signal (phase/decision/PR) from
+  worker-emitted `VOID_EVENT` markers. Append-only (not a redraw TUI) so it reads in
+  both a terminal and the `/void-backlog-loop` transcript.
+- **Dense final summary** (`summary.ts`) — tickets, decisions/ADRs, PRs to merge,
+  blockers; the single HITL recap at merge time.
+- **Subscription billing guaranteed** (`billing.ts`) — strips `ANTHROPIC_API_KEY` /
+  `ANTHROPIC_AUTH_TOKEN` from the worker env; refuses cloud-provider routing vars
+  unless `--allow-api`.
+- The worker prompt and the `AUTONOMOUS_SETTINGS` allowlist are **embedded in the CLI**
+  (`prompt.ts`), so the orchestrator is self-contained. The bash script,
+  `iteration-prompt.md`, and `settings.autonomous.json` were **deleted** (no other
+  user; no shim). `stop-verification-gate.sh` remains as the opt-in Stop hook.
+
+Decision logged in `docs/DECISIONS.md` (2026-06-18).
