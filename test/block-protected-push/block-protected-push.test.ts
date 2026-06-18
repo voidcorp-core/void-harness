@@ -84,6 +84,14 @@ describe('block-protected-push.sh — explicit protected targets', () => {
     expect(runHook('git status && pnpm test').code).toBe(0);
   });
 
+  // Under set -e, an unguarded jq on malformed stdin would exit non-0/non-2,
+  // which the hook runner treats as an error that lets the call through. The
+  // guard must make malformed input a deterministic allow (exit 0), not a crash.
+  it('fails safe to exit 0 on malformed JSON, not a non-2 crash', () => {
+    const proc = spawnSync('bash', [HOOK], { input: '{not valid json', encoding: 'utf8' });
+    expect(proc.status ?? 1).toBe(0);
+  });
+
   it('prints the exact block template to stderr', () => {
     const { stderr } = runHook('git push origin HEAD:main');
     expect(stderr).toContain('block-protected-push: refusing a push to a protected branch (main/master).');

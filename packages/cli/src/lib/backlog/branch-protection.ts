@@ -6,19 +6,13 @@
 // Parse is STRICT so a confirmed-unprotected base is refused; an indeterminate
 // result (no auth, gh missing, network) degrades to a warning, never a pass.
 
+import type { RunResult } from './run.js';
+
 /** Outcome of probing `gh api repos/{owner}/{repo}/branches/<base>/protection`. */
 export type ProtectionStatus =
   | { readonly kind: 'protected' }
   | { readonly kind: 'unprotected' }
   | { readonly kind: 'unknown'; readonly reason: string };
-
-/** The slice of a finished `gh api` invocation this decision needs. */
-export interface GhResult {
-  /** Process exit code was 0. */
-  readonly ok: boolean;
-  readonly stdout: string;
-  readonly stderr: string;
-}
 
 /** GitHub's exact 404 body/message when a branch exists but has no protection. */
 const NOT_PROTECTED = /branch not protected/i;
@@ -28,7 +22,7 @@ function looksUnprotected(text: string): boolean {
 }
 
 /** Decide protection status from a finished `gh api` call (pure, strict). */
-export function evaluateBranchProtection(result: GhResult): ProtectionStatus {
+export function evaluateBranchProtection(result: RunResult): ProtectionStatus {
   if (result.ok) {
     let parsed: unknown;
     try {

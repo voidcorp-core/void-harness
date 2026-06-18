@@ -10,13 +10,7 @@
 // ignores it) — it is a narrow safety net, not the boundary.
 
 import { join } from 'node:path';
-
-/** One spawned git command's result (the slice this module needs). */
-export interface RunResult {
-  readonly ok: boolean;
-  readonly stdout: string;
-  readonly stderr: string;
-}
+import type { RunResult } from './run.js';
 
 /** Injected git runner so the lifecycle is testable with real or fake git. */
 export type GitRun = (args: readonly string[], cwd: string) => RunResult;
@@ -51,7 +45,11 @@ export function addWorktree(run: GitRun, repoRoot: string, path: string): void {
   run(['config', 'push.default', 'current'], path);
 }
 
-/** Remove a worktree (force: drop even with untracked/modified files in it). */
-export function removeWorktree(run: GitRun, repoRoot: string, path: string): void {
-  run(['worktree', 'remove', '--force', path], repoRoot);
+/**
+ * Remove a worktree (force: drop even with untracked/modified files in it).
+ * Returns the runner result so the caller can surface a failed cleanup — a
+ * leaked worktree dir is not fatal but must not disappear silently.
+ */
+export function removeWorktree(run: GitRun, repoRoot: string, path: string): RunResult {
+  return run(['worktree', 'remove', '--force', path], repoRoot);
 }

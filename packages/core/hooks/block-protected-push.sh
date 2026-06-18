@@ -15,7 +15,11 @@
 set -euo pipefail
 
 INPUT=$(cat)
-TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty')
+# Guard the jq calls: under `set -e`, malformed JSON on stdin would otherwise
+# exit non-0/non-2, which the hook runner treats as an error that lets the call
+# through. Empty TOOL → the case below exits 0 (allow + no-op), a deterministic
+# fail-safe for this secondary net (the real boundary is server-side).
+TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null || true)
 CMD=$(printf "%s" "$INPUT" | jq -r 'if (.tool_input.command? | type) == "array" then (.tool_input.command | join(" ")) else (.tool_input.command // empty) end' 2>/dev/null || true)
 
 case "$TOOL" in Bash | shell) ;; *) exit 0 ;; esac

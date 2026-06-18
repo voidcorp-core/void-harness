@@ -169,6 +169,15 @@ describe('integrateTicket', () => {
     expect(outcome.autoMergeRequested).toBeUndefined();
   });
 
+  it('surfaces an error when gh pr create exits 0 but returns no URL', () => {
+    const run: IntegrateRun = (cmd) =>
+      cmd === 'gh' ? { ok: true, stdout: '\n', stderr: '' } : ok;
+    const outcome = integrateTicket({ branch: 'auto/DEV-2', base: 'main', cwd: '/wt', run });
+    expect(outcome.pushed).toBe(true);
+    expect(outcome.prRef).toBeUndefined();
+    expect(outcome.error).toMatch(/no PR URL/);
+  });
+
   it('does NOT open a PR when the push fails', () => {
     const calls: string[] = [];
     const run: IntegrateRun = (cmd) => {

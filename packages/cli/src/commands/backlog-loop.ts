@@ -309,11 +309,11 @@ function integrateCompleted(
   base: string,
   cfg: BacklogConfig,
   out: Write,
-): void {
+): string | undefined {
   const ticket = result.ticket;
   if (ticket === undefined) {
     out(c.yellow('  ! completed without a ticket id — skipping push/PR.'));
-    return;
+    return undefined;
   }
   const branch = branchFromEvents(result.events, `${cfg.branchPrefix}${ticket}`);
   const prSpec = loadPrSpec(workdir, ticket);
@@ -327,11 +327,14 @@ function integrateCompleted(
   });
   if (!outcome.pushed) {
     out(c.red(`  ✗ push of ${branch} failed: ${outcome.error ?? 'unknown error'}`));
-    return;
+    return undefined;
   }
   if (outcome.prRef !== undefined) out(c.green(`  ✓ PR opened: ${outcome.prRef}`));
   if (outcome.error !== undefined) out(c.yellow(`  ! PR/merge step: ${outcome.error}`));
   if (outcome.autoMergeRequested === true) out(c.dim('  · auto-merge armed (remote gates).'));
+  // Returned so the caller can fold the PR url back into the iteration events —
+  // the worker no longer emits VOID_EVENT: PR, so the summary recap depends on it.
+  return outcome.prRef;
 }
 
 async function runBacklog(cfg: BacklogConfig, root: string): Promise<void> {
@@ -392,11 +395,21 @@ async function runBacklog(cfg: BacklogConfig, root: string): Promise<void> {
         onRaw: (raw) => logStream.write(raw.endsWith('\n') ? raw : `${raw}\n`),
       });
       // The worker is commit-only; the orchestrator pushes + opens the PR from
-      // the worktree (where the branch and the .pr.md were written).
-      if (result.status === 'completed') integrateCompleted(result, wt, base, cfg, out);
-      return result;
+      // the worktree (where the branch and the .pr.md were written). Fold the PR
+      // url back into the events so the end-of-run recap can show it (the worker
+      // no longer emits VOID_EVENT: PR).
+      if (result.status !== 'completed') return result;
+      const prRef = integrateCompleted(result, wt, base, cfg, out);
+      return prRef !== undefined
+        ? { ...result, events: [...result.events, { kind: 'pr', ref: prRef }] }
+        : result;
     } finally {
-      removeWorktree(gitRun, root, wt);
+      // Surface a failed cleanup: a leaked worktree dir under .void/worktrees/ is
+      // not fatal (the next run prunes records), but it must not vanish silently.
+      const removed = removeWorktree(gitRun, root, wt);
+      if (!removed.ok) {
+        out(c.yellow(`  ! could not remove worktree ${wt}: ${(removed.stderr || removed.stdout).trim()}`));
+      }
     }
   };
 

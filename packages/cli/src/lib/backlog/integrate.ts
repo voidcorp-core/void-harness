@@ -4,19 +4,13 @@
 // the remote. The capability lives here instead, behind an explicit, non-force
 // refspec. Pure builders + an injected-runner orchestration keep it testable.
 
+import type { RunResult } from './run.js';
 import type { BacklogEvent } from './stream.js';
 
 /** A PR title + body the worker reported (via a `.pr.md` file in its worktree). */
 export interface PrSpec {
   readonly title: string;
   readonly body: string;
-}
-
-/** Result of one spawned command (the slice this module needs). */
-export interface RunResult {
-  readonly ok: boolean;
-  readonly stdout: string;
-  readonly stderr: string;
 }
 
 /** Injected command runner so the orchestration is testable without spawning. */
@@ -108,7 +102,12 @@ export function integrateTicket(opts: IntegrateOptions): IntegrateOutcome {
     return { pushed: true, error: (pr.stderr || pr.stdout).trim() };
   }
   const prRef = pr.stdout.trim().split('\n').filter((l) => l.trim() !== '').pop();
-  const base: IntegrateOutcome = prRef !== undefined && prRef !== '' ? { pushed: true, prRef } : { pushed: true };
+  // gh prints the PR url to stdout on success; if it exits 0 with none, surface
+  // it rather than silently reporting a PR with no reference to review.
+  if (prRef === undefined || prRef === '') {
+    return { pushed: true, error: 'gh pr create succeeded but returned no PR URL' };
+  }
+  const base: IntegrateOutcome = { pushed: true, prRef };
 
   if (opts.autoMerge !== true) return base;
   // A3: an open source-debt blocks auto-merge — the config was authored offline
