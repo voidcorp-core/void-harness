@@ -27,13 +27,32 @@ export const meta = {
   ],
 }
 
-const plan = args || {}
+// The Workflow runtime delivers `args` as a JSON STRING, not a parsed object
+// (issue #21). Without parsing, plan.parallel / plan.sequential are undefined,
+// both lists collapse to [] and the batch silently no-ops (a false "nothing to
+// do"). Parse a string; use an object as-is; surface a malformed payload loudly.
+function resolvePlan(raw) {
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw) || {}
+    } catch (err) {
+      throw new Error(`backlog-batch: args is not valid JSON: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+  return raw || {}
+}
+
+const plan = resolvePlan(args)
 const parallelTickets = Array.isArray(plan.parallel) ? plan.parallel : []
 const sequentialTickets = Array.isArray(plan.sequential) ? plan.sequential : []
 const branchPrefix = plan.branchPrefix || 'auto/'
 const verifyCmd = plan.verifyCmd || 'pnpm -s test'
 const batchId = plan.batchId || 'batch'
 const reviewState = plan.reviewState || 'In Review'
+
+// Make the fan-out size visible so an empty batch reads as a real signal, not a
+// silent 19 ms no-op (issue #21).
+log(`backlog-batch "${batchId}": ${parallelTickets.length} parallel + ${sequentialTickets.length} sequential ticket(s)`)
 
 const WORKER_SCHEMA = {
   type: 'object',
