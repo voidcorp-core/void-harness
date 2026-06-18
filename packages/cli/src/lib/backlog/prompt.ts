@@ -42,6 +42,14 @@ export const AUTONOMOUS_SETTINGS = {
       'Bash(git checkout:*)',
       'Bash(git switch:*)',
       'Bash(git branch:*)',
+      // A4 (UC1): the narrow non-destructive history subset only. cherry-pick
+      // and rebase --onto graft commits; `git apply` (arbitrary write past the
+      // Edit/Write gate), format-patch, and merge --no-ff were dropped. The
+      // command-exec rebase flags (--exec, --rebase-merges, --strategy-option)
+      // and --unsafe-paths are blocked by block-dangerous-bash (deny patterns
+      // are prefix-only and cannot catch a mid-command flag).
+      'Bash(git cherry-pick:*)',
+      'Bash(git rebase --onto:*)',
       // No `git push` / `gh pr`: the worker is commit-only. Pushing the branch
       // and opening the PR belong to the TRUSTED orchestrator (see integrate.ts).
       // An agent with arbitrary code execution can bypass a string-matching push
@@ -61,6 +69,13 @@ export const AUTONOMOUS_SETTINGS = {
     deny: [
       'Bash(git push --force:*)',
       'Bash(git push -f:*)',
+      // Prefix-matchable dangerous push forms (the block-protected-push hook is
+      // the second layer; it also covers the non-prefix forms: :main, sha:main,
+      // bare-push-on-main). `git -c` is denied wholesale — an inline config
+      // override (e.g. -c push.default) is never needed by the worker.
+      'Bash(git push --mirror:*)',
+      'Bash(git push --all:*)',
+      'Bash(git -c:*)',
       'Bash(git reset --hard:*)',
       'Bash(rm -rf /:*)',
       'Bash(rm -rf ~:*)',

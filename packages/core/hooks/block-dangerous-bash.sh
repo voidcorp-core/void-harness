@@ -69,6 +69,16 @@ if printf "%s" "$CMD" | grep -qE '\bgit[[:space:]]+push\b' \
   block "git push --force (use --force-with-lease)"
 fi
 
+# git history-rewrite flags that execute arbitrary commands or write outside the
+# working tree. The autonomous profile allows `git rebase --onto`; --exec turns
+# that into code execution, --unsafe-paths lets `git apply` write anywhere, and
+# --rebase-merges / --strategy-option widen the blast radius. Scoped to the
+# relevant subcommands so a commit/merge message mentioning the flag is not hit.
+if printf "%s" "$CMD" | grep -qE '\bgit\b([[:space:]]+-[^[:space:]]+)*[[:space:]]+(rebase|am|apply|cherry-pick)\b' \
+  && printf "%s" "$CMD" | grep -qE '(--exec([[:space:]=]|$)|--rebase-merges|--strategy-option|--unsafe-paths)'; then
+  block "git command-execution / unsafe-path flag"
+fi
+
 # Destructive SQL against a live database.
 printf "%s" "$CMD" | grep -qiE '\b(drop[[:space:]]+(database|table|schema)|truncate[[:space:]]+table)\b' \
   && block "destructive SQL (DROP / TRUNCATE)"
