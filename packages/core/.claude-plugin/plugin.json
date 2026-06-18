@@ -1,6 +1,6 @@
 {
   "name": "harness",
-  "version": "0.8.2",
+  "version": "0.9.0",
   "description": "VoidCorp universal craftsman skills (TDD strict, TypeScript strict, hexagonal, DDD, functional, code-review, api-and-interface-design, source-driven-development, context-management, compounding, adr-workflow, claude-md-authoring, observability, security-guidance, ...) plus 12 PreToolUse enforcement hooks (tdd-guard, no-any, protect-sensitive-files, block-dangerous-bash, no-ai-design-slop, ...) and PostToolUse/SessionStart lifecycle hooks, read-only agents (doctrine-critic, silent-failure-hunter, type-design-analyzer, code-explorer, migration-planner), and /void-feedback, /void-doctor, /void-audit commands.",
   "author": {
     "name": "VoidCorp",
