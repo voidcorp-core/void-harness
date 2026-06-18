@@ -30,6 +30,17 @@ describe('AUTONOMOUS_SETTINGS', () => {
   it('does not allow every MCP server', () => {
     expect(AUTONOMOUS_SETTINGS.permissions.allow).not.toContain('mcp__*');
   });
+
+  // Issue #17 cluster A (A1): the worker is commit-only. Pushing the branch and
+  // opening the PR belong to the trusted orchestrator (integrate.ts), so the
+  // worker must not be granted git push or gh pr at all.
+  it('does NOT grant the worker git push or gh pr (orchestrator owns those)', () => {
+    const allow = AUTONOMOUS_SETTINGS.permissions.allow as readonly string[];
+    expect(allow).not.toContain('Bash(git push:*)');
+    expect(allow).not.toContain('Bash(gh pr:*)');
+    expect(allow.some((a) => a.startsWith('Bash(git push'))).toBe(false);
+    expect(allow.some((a) => a.startsWith('Bash(gh pr'))).toBe(false);
+  });
 });
 
 describe('buildClaudeArgs', () => {
