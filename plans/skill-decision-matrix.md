@@ -189,6 +189,13 @@ Two modes: `feedback` (inbound suggestions captured from real project usage) and
 - **Cannot decide**: whether a ticket's scope is right (human-approved criteria are the spec); whether to merge to a protected branch (human, unless `AUTO_MERGE=1` + green CI).
 - **Composes with**: the full craftsman cycle invoked inside each session (`brainstorming`, `source-driven-development`, `adr-workflow`, `writing-plans`, `tdd`, `verification-before-completion`, `commit-discipline`, `compounding`, `context-management`); gstack `ticket-craft` upstream, `/ship` + `/code-review` downstream (human-owned merge).
 
+### `backlog-batch`
+
+- **Wins**: an explicitly launched **attended** burst implementing several **independent** Linear tickets **in parallel**, each in its own worktree subagent, reconciled into one integration PR. Opt-in only; needs the Workflow tool.
+- **Loses to**: `autonomous-backlog-loop` for unattended/sequential/walk-away drains; any single-ticket interactive session; human judgment on the plan and on merge.
+- **Cannot decide**: whether two tickets truly overlap (the footprint is *estimated*; the reconciliation subagent + full suite are the backstop); whether to merge the integration PR (human).
+- **Composes with**: the Workflow tool (substrate), `using-git-worktrees`, the craftsman cycle inside each worker; sister of `autonomous-backlog-loop` (process vs subagent, sequential vs risk-routed parallel).
+
 ---
 
 ## Hedge skills (6)

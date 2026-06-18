@@ -43,14 +43,14 @@ le launcher, et la réconciliation.
 - **Goal**: un script Workflow qui prend un plan codé en dur (`parallel:[T1,T2]`), lance 2 subagents worktree triviaux, merge les branches sur `integration/<batch>`, ouvre 1 PR.
 - **Depends on**: none
 - **TDD mode**: souple (orchestration ; pas de surface vitest)
-- **Verification gate**: smoke run sur un dépôt git jouet (agents à prompt trivial, ex. créer un fichier distinct chacun) → branche `integration/*` contenant les 2 commits + 1 PR ouverte ; vue `/workflows` montre les 2 agents parallèles.
+- **Verification gate**: syntaxe valide (`node --check`) + revue structurelle de l'orchestration. **Le smoke live multi-agents est différé** : `isolation:"worktree"` cible le repo courant, donc un vrai run ici polluerait void-harness (worktrees, branche d'intégration, PR). Le seam Workflow→worktree→PR sera exercé en **dogfood dans un projet consommateur** (décision 2026-06-18, option A).
 - **Expected commits**:
   - `feat: backlog-batch workflow spine (parallel worktree fan-out to integration PR)`
-- **Notes**: prouve le seam le plus risqué (Workflow + `isolation:"worktree"` + merge git + PR) avant toute logique. Agents triviaux pour borner le coût.
+- **Notes**: pure orchestration ; pas de logique testable ici. Réordonné : on construit d'abord les couches déterministes (Steps 2-4) qui portent la confiance bon marché.
 
-### Checkpoint A — après Step 1
+### Checkpoint A — DIFFÉRÉ en dogfood
 
-L'utilisateur voit le spine : 2 subagents parallèles isolés en worktree → 1 PR d'intégration. Stop, `harness:verification-before-completion`, attendre le signal avant d'enrichir.
+Le smoke live (2 subagents worktree → PR) se fait dans un vrai projet consommateur, pas sur void-harness. Reporté hors de la séquence d'implémentation locale.
 
 ### Step 2 — Partition (pure, CLI)
 
@@ -142,16 +142,16 @@ Flux attended complet visible (sélection → estimation → partition → confi
 
 ## Resume point
 
-**Next step**: Step 1 (Workflow spine)
+**Next step**: Steps 5-8 (estimator + launcher skill + reconciliation note + docs)
 
-**Completed**: —
+**Completed**:
+- ✅ Step 1: Workflow spine authored (`feat(backlog-batch): workflow spine ...`) — live smoke deferred to consumer-project dogfood (Checkpoint A deferred)
+- ✅ Step 2: Partition pure (`feat(cli): backlog-batch risk-aware partition`)
+- ✅ Step 3: Sélection indépendants pure (`feat(cli): backlog-batch independent-ticket selection`)
+- ✅ Step 4: Commande `backlog-batch plan` (`feat(cli): backlog-batch plan subcommand`)
 
 **Pending**:
-- ⏳ Step 1: Workflow spine (Checkpoint A)
-- ⏳ Step 2: Partition (pure)
-- ⏳ Step 3: Sélection indépendants (pure)
-- ⏳ Step 4: Commande `backlog-batch plan`
-- ⏳ Step 5: Estimateur d'empreinte
-- ⏳ Step 6: Launcher + confirmation (Checkpoint B)
-- ⏳ Step 7: Réconciliation + gate suite + exclusion bloqués
-- ⏳ Step 8: Skill, frontière, docs & sync
+- ⏳ Step 5: Estimateur d'empreinte (prompt, dans la skill launcher)
+- ⏳ Step 6: Launcher skill + `/harness:backlog-batch` + confirmation (Checkpoint B)
+- ⏳ Step 7: Réconciliation — déjà dans le spine ; vérifier la couverture (conflits + gate suite + exclusion bloqués)
+- ⏳ Step 8: Skill frontière, .source, audit, DECISIONS, CLAUDE/AGENTS sync, help, core-assets

@@ -16,6 +16,14 @@ distilled, HITL-safe answer to the "Ralph loop" (ghuntley) and to Boris Cherny's
 Code). The harness default keeps the human in the loop (see
 `verification-before-completion`). Read the Safety section before the first run.
 
+**Sister mode — `backlog-batch`.** This loop is the **sequential, walk-away,
+unattended** drain: one fresh **process** per ticket, one PR per ticket. Its
+sibling `backlog-batch` is the **attended, parallel** burst: several *independent*
+tickets at once, each in a worktree **subagent**, reconciled into **one integration
+PR**. Pick this loop for an overnight drain; pick `backlog-batch` when you are
+present and the tickets are independent. Full boundary table in `backlog-batch`'s
+SKILL.md.
+
 **Attribution**: see `.source`.
 
 ---
