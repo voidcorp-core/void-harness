@@ -16,6 +16,7 @@ import { type BillingPreflight, assertSubscription } from '../lib/backlog/billin
 import { type IterationResult, runIteration, runLoop } from '../lib/backlog/orchestrator.js';
 import { renderSummary } from '../lib/backlog/summary.js';
 import { AUTONOMOUS_SETTINGS, buildClaudeArgs, renderPrompt } from '../lib/backlog/prompt.js';
+import { hasConfig, runWizard, wizardShouldRun } from '../lib/backlog/wizard.js';
 
 const CONFIG_REL = '.void/autonomous.json';
 
@@ -76,6 +77,7 @@ Options:
   --auto-merge          Merge the PR after green CI + close the ticket.
   --allow-api           Do NOT strip API creds (allows pay-per-token billing).
   --no-stream           Disable the live flux (plain text fallback).
+  --no-interactive      Skip the first-run wizard (use defaults/env/flags).
   --full-auto           Pass --dangerously-skip-permissions (sandbox only).
   --dry-run             Resolve + print config and exit, spawning nothing.
   --help, -h            Print this message.
@@ -95,7 +97,14 @@ export async function backlogLoop(args: readonly string[]): Promise<void> {
 
   const cwd = process.cwd();
   const flags = parseFlags(args);
-  const file = loadFileConfig(cwd);
+
+  // First-run wizard: offer to create .void/autonomous.json when none exists,
+  // at an interactive terminal, unless --no-interactive was passed.
+  let file = loadFileConfig(cwd);
+  if (file === undefined && wizardShouldRun(hasConfig(cwd), process.stdin.isTTY === true, !args.includes('--no-interactive'))) {
+    file = await runWizard(cwd);
+  }
+
   const cfg = resolveConfig({ flags, env: process.env, file });
   const billing = assertSubscription(process.env, cfg.allowApi);
 
