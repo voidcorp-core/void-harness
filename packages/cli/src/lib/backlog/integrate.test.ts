@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   branchFromEvents,
+  hasUnresolvedSourceDebt,
   type IntegrateRun,
   integrateTicket,
   mergeArgs,
@@ -49,6 +50,18 @@ describe('prCreateArgs', () => {
   it('falls back to --fill (PR body from commits) when the worker reported none', () => {
     const args = prCreateArgs('main', 'auto/DEV-42', undefined);
     expect(args).toEqual(['pr', 'create', '--base', 'main', '--head', 'auto/DEV-42', '--fill']);
+  });
+});
+
+describe('hasUnresolvedSourceDebt', () => {
+  it('detects an unchecked source-debt checkbox', () => {
+    expect(hasUnresolvedSourceDebt('- [ ] source-debt: vite@7 verified vs docs')).toBe(true);
+  });
+  it('treats a checked source-debt checkbox as resolved', () => {
+    expect(hasUnresolvedSourceDebt('- [x] source-debt: vite@7 verified vs docs')).toBe(false);
+  });
+  it('is false when there is no source-debt at all', () => {
+    expect(hasUnresolvedSourceDebt('feat: x\n\nWhy: ...')).toBe(false);
   });
 });
 
@@ -124,6 +137,29 @@ describe('integrateTicket', () => {
     expect(outcome.pushed).toBe(true);
     expect(outcome.autoMergeRequested).toBe(true);
     expect(cmds).toEqual(['git push', 'gh pr', 'gh pr']); // push, pr create, pr merge
+  });
+
+  it('refuses to arm auto-merge while the PR body has an open source-debt (A3)', () => {
+    const cmds: string[] = [];
+    const run: IntegrateRun = (cmd, args) => {
+      cmds.push(`${cmd} ${args[0] ?? ''}`);
+      if (cmd === 'gh' && args[1] === 'create') {
+        return { ok: true, stdout: 'https://github.com/o/r/pull/9\n', stderr: '' };
+      }
+      return ok;
+    };
+    const outcome = integrateTicket({
+      branch: 'auto/DEV-9',
+      base: 'main',
+      cwd: '/wt',
+      autoMerge: true,
+      prSpec: { title: 'feat: x', body: '- [ ] source-debt: vite@7 verified vs docs' },
+      run,
+    });
+    expect(outcome.pushed).toBe(true);
+    expect(outcome.autoMergeRequested).toBeUndefined();
+    expect(outcome.error).toMatch(/source-debt/);
+    expect(cmds).toEqual(['git push', 'gh pr']); // push, pr create — NO merge
   });
 
   it('does not request auto-merge by default', () => {
