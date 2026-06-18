@@ -1,7 +1,7 @@
 ---
 title: backlog-batch attended parallel drain
 date: 2026-06-18
-status: in-progress
+status: done
 spec: docs/specs/2026-06-18-backlog-batch-parallel.md
 author: Florent Pellegrin + Claude
 high_risk: false
@@ -142,16 +142,16 @@ Flux attended complet visible (sélection → estimation → partition → confi
 
 ## Resume point
 
-**Next step**: Steps 5-8 (estimator + launcher skill + reconciliation note + docs)
+**Next step**: — implémentation locale terminée. Reste : **dogfood live** dans un projet consommateur (Checkpoint A différé).
 
 **Completed**:
-- ✅ Step 1: Workflow spine authored (`feat(backlog-batch): workflow spine ...`) — live smoke deferred to consumer-project dogfood (Checkpoint A deferred)
-- ✅ Step 2: Partition pure (`feat(cli): backlog-batch risk-aware partition`)
-- ✅ Step 3: Sélection indépendants pure (`feat(cli): backlog-batch independent-ticket selection`)
-- ✅ Step 4: Commande `backlog-batch plan` (`feat(cli): backlog-batch plan subcommand`)
+- ✅ Step 1: Workflow spine authored — live smoke deferred (Checkpoint A)
+- ✅ Step 2: Partition pure
+- ✅ Step 3: Sélection indépendants pure
+- ✅ Step 4: Commande `backlog-batch plan`
+- ✅ Step 5: Estimateur d'empreinte (prompt dans la skill launcher)
+- ✅ Step 6: Launcher skill + `/harness:backlog-batch` + gate confirmation
+- ✅ Step 7: Réconciliation (couverte par le spine : conflits + gate suite + exclusion bloqués)
+- ✅ Step 8: Skill frontière, .source, audit, matrice, DECISIONS, CLAUDE/AGENTS sync, help, core-assets
 
-**Pending**:
-- ⏳ Step 5: Estimateur d'empreinte (prompt, dans la skill launcher)
-- ⏳ Step 6: Launcher skill + `/harness:backlog-batch` + confirmation (Checkpoint B)
-- ⏳ Step 7: Réconciliation — déjà dans le spine ; vérifier la couverture (conflits + gate suite + exclusion bloqués)
-- ⏳ Step 8: Skill frontière, .source, audit, DECISIONS, CLAUDE/AGENTS sync, help, core-assets
+**Pending**: dogfood live multi-agents dans un vrai projet consommateur (worktrees + PR sur le repo cible, pas sur void-harness).
