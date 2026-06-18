@@ -62,9 +62,14 @@ make it safe and durable:
 4. **Plan** (`writing-plans`) to `.void/autonomous-runs/<id>.plan.md` — disposable,
    durable state on disk (`context-management`).
 5. **Execute** test-first (`tdd`), atomic commits with "why" (`commit-discipline`).
+   The worker runs in its own detached **git worktree**, so its branch never moves
+   the main checkout's HEAD.
 6. **Verify** (`verification-before-completion`): green or blocked, never half.
-7. **Ship**: open a PR. Move the ticket to the review state (human merges), or — only
-   if `--auto-merge` — merge after CI is green and move to Done.
+7. **Hand off** (commit-only): the worker commits its branch, reports it, and writes
+   the PR description to `<id>.pr.md`. It does NOT push or open the PR — the trusted
+   orchestrator pushes the branch (explicit refspec, no force) and opens the PR,
+   arming auto-merge only with `--auto-merge` (and never while a `source-debt` is
+   open). The ticket moves to the review state (human merges).
 8. **Compound** (`compounding`): route any reusable lesson to feedback. Non-blocking.
 
 ---
@@ -103,6 +108,19 @@ and only offers full-auto behind an explicit sandbox flag.
   footguns — it will miss novel forms, do not rely on it as the boundary) run on
   every call; the orchestrator refuses to start if their overrides
   (`VOID_HARNESS_ALLOW_*`) are set.
+- **The push boundary is server-side, not a hook.** The worker is **commit-only**:
+  `git push` and `gh pr` are removed from its allowlist, so it physically cannot
+  write to the remote. The trusted orchestrator pushes the branch + opens the PR.
+  The durable protection is **branch protection on the base** (`main`/`master`),
+  required at preflight — the remote refuses a direct push regardless of what the
+  worker runs. `block-protected-push` is only a SECONDARY net (a string-matching
+  hook is bypassable by an agent with code execution), so it backstops a
+  regression; it is not the boundary. These changes **reduce false blocks, not the
+  blast radius** — the worker simply can no longer reach the remote unsupervised.
+- **Rollback tripwire.** If another direct-push-to-a-protected-branch incident
+  occurs despite this, treat the unattended mode as unsafe outside a sandbox:
+  require `VOID_SANDBOX` (a disposable container with a scoped token) for every run
+  until the gap is closed.
 - **Subscription-billed, never the API.** The orchestrator strips `ANTHROPIC_API_KEY`
   / `ANTHROPIC_AUTH_TOKEN` from each worker's env so usage bills your Claude
   subscription, and refuses to start if a cloud-provider routing var would bill
@@ -212,6 +230,9 @@ Before trusting an autonomous run, confirm:
 | A ticket keeps getting blocked | Read the Linear comment evidence. Fix the upstream cause (criteria, a guardrail, a missing rule), not the prompt. |
 | Run stalls waiting on a permission prompt | A needed command is not in the allowlist. Add it to `AUTONOMOUS_SETTINGS` `allow` in `packages/cli/src/lib/backlog/prompt.ts`. |
 | It edited something it should not have | The allowlist is too wide or a hook is missing. Tighten `deny`; never set `VOID_HARNESS_ALLOW_*`. |
+| Preflight refuses: base branch not protected | The base (`main`/`master`) has no server-side branch protection. Protect it (GitHub Settings → Branches: require a PR before merging), then rerun. This is the durable A1 boundary, not optional. |
+| A worker's git op is blocked (`block-protected-push`) | A push resolved to a protected branch — terminal for that ticket (the worker is commit-only; the orchestrator pushes). Do not work around it; read the Linear block reason. Override only with `--auto-merge` (sets `AUTO_MERGE=1`) for a deliberate, reviewed run. |
+| Stale worktree dir left after a crash | `.void/worktrees/<sha>-<pid>/` survived a hard kill. The next run prunes stale worktrees at start; to clean now: `git worktree prune` then remove the dir. |
 
 ---
 
