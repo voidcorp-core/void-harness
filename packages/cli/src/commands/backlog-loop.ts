@@ -10,6 +10,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { banner, blank, c, footer, line, meta, status } from '../lib/render.js';
 import { type BacklogConfig, type FileConfig, parseFlags, resolveConfig } from '../lib/backlog/config.js';
+import { type BillingPreflight, assertSubscription } from '../lib/backlog/billing.js';
 
 const CONFIG_REL = '.void/autonomous.json';
 
@@ -25,7 +26,13 @@ function loadFileConfig(root: string): FileConfig | undefined {
   }
 }
 
-function printConfig(cfg: BacklogConfig): void {
+function billingLabel(cfg: BacklogConfig, billing: BillingPreflight): string {
+  if (cfg.allowApi) return c.yellow('API allowed (--allow-api)');
+  if (billing.stripped.length > 0) return `subscription (stripping ${billing.stripped.join(', ')})`;
+  return 'subscription';
+}
+
+function printConfig(cfg: BacklogConfig, billing: BillingPreflight): void {
   meta('scope', cfg.linearScope);
   meta('target', cfg.targetState);
   meta('review', cfg.reviewState);
@@ -34,7 +41,7 @@ function printConfig(cfg: BacklogConfig): void {
   meta('max-fail', String(cfg.maxFailures));
   meta('model', cfg.model ?? c.dim('(CLI default)'));
   meta('auto-merge', cfg.autoMerge ? 'yes' : 'no');
-  meta('billing', cfg.allowApi ? c.yellow('API allowed (--allow-api)') : 'subscription');
+  meta('billing', billingLabel(cfg, billing));
   meta('stream', cfg.stream ? 'live' : 'text (--no-stream)');
   if (cfg.fullAuto) meta('full-auto', c.yellow('yes (sandbox-gated)'));
 }
@@ -85,9 +92,17 @@ export async function backlogLoop(args: readonly string[]): Promise<void> {
   const flags = parseFlags(args);
   const file = loadFileConfig(root);
   const cfg = resolveConfig({ flags, env: process.env, file });
+  const billing = assertSubscription(process.env, cfg.allowApi);
 
   banner('backlog-loop');
-  printConfig(cfg);
+  printConfig(cfg, billing);
+
+  if (!billing.ok) {
+    blank();
+    status(billing.reason ?? 'billing pre-flight failed.', 'err');
+    process.exitCode = 1;
+    return;
+  }
 
   if (cfg.dryRun) {
     footer('dry-run: no session launched.');
