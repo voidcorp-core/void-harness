@@ -7,18 +7,32 @@
 // docs/specs/2026-06-18-backlog-loop-observability.md.
 
 import { execFileSync } from 'node:child_process';
-import { createWriteStream, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { banner, blank, c, divider, footer, line, meta, status } from '../lib/render.js';
-import { type BacklogConfig, type FileConfig, parseFlags, resolveConfig } from '../lib/backlog/config.js';
+import {
+  type BacklogConfig,
+  type FileConfig,
+  parseFlags,
+  resolveConfig,
+} from '../lib/backlog/config.js';
 import { type BillingPreflight, assertSubscription } from '../lib/backlog/billing.js';
 import { type IterationResult, runIteration, runLoop } from '../lib/backlog/orchestrator.js';
 import { renderSummary } from '../lib/backlog/summary.js';
 import { AUTONOMOUS_SETTINGS, buildClaudeArgs, renderPrompt } from '../lib/backlog/prompt.js';
+import { hasLinearMcpServer } from '../lib/backlog/mcp.js';
 import { hasConfig, runWizard, wizardShouldRun } from '../lib/backlog/wizard.js';
 
 const CONFIG_REL = '.void/autonomous.json';
+const MCP_REL = '.mcp.json';
 
 /** Read `.void/autonomous.json`, or undefined if missing/invalid. */
 function loadFileConfig(root: string): FileConfig | undefined {
@@ -85,6 +99,22 @@ Options:
 Config resolves from flags, then env vars (LINEAR_SCOPE, TARGET_STATE, ...),
 then .void/autonomous.json, then defaults. With no config file, a first-run
 wizard offers to create one.
+
+Linear access: the worker reaches Linear ONLY through a project .mcp.json
+server keyed "linear", authenticated by a token from the environment (the
+interactive claude.ai connector is not available in a headless worker). The
+worker is bound to that file with --strict-mcp-config, so it never sees your
+other connected servers. Declare it before running, e.g.:
+
+  // .mcp.json
+  { "mcpServers": { "linear": { "type": "http",
+      "url": "https://mcp.linear.app/mcp",
+      "headers": { "Authorization": "Bearer \${LINEAR_API_KEY}" } } } }
+
+then export LINEAR_API_KEY (a restricted Linear API key) in the shell that
+launches the loop. To keep the token out of the environment entirely, use a
+"headersHelper" command instead that reads it from a secret store (OS keychain,
+vault) at session start. backlog-loop fails loud if this server is missing.
 `.trimStart(),
   );
 }
@@ -101,7 +131,14 @@ export async function backlogLoop(args: readonly string[]): Promise<void> {
   // First-run wizard: offer to create .void/autonomous.json when none exists,
   // at an interactive terminal, unless --no-interactive was passed.
   let file = loadFileConfig(cwd);
-  if (file === undefined && wizardShouldRun(hasConfig(cwd), process.stdin.isTTY === true, !args.includes('--no-interactive'))) {
+  if (
+    file === undefined &&
+    wizardShouldRun(
+      hasConfig(cwd),
+      process.stdin.isTTY === true,
+      !args.includes('--no-interactive'),
+    )
+  ) {
     file = await runWizard(cwd);
   }
 
@@ -140,9 +177,14 @@ function gitRoot(): string {
 /** Run-time safety gate (the security floor is the allowlist + hooks, not this). */
 function preflight(cfg: BacklogConfig, env: NodeJS.ProcessEnv, root: string): void {
   if (env.VOID_HARNESS_ALLOW_DANGEROUS === '1' || env.VOID_HARNESS_ALLOW_SECRET_EDIT === '1') {
-    throw new Error('refusing to run with VOID_HARNESS_ALLOW_* set — the security floor must stay on.');
+    throw new Error(
+      'refusing to run with VOID_HARNESS_ALLOW_* set — the security floor must stay on.',
+    );
   }
-  const dirty = execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim();
+  const dirty = execFileSync('git', ['status', '--porcelain'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).trim();
   if (dirty !== '') {
     throw new Error('working tree is dirty. Commit or stash before an autonomous run.');
   }
@@ -152,14 +194,30 @@ function preflight(cfg: BacklogConfig, env: NodeJS.ProcessEnv, root: string): vo
     throw new Error("the 'claude' CLI is not on PATH.");
   }
   if (cfg.fullAuto && (env.VOID_SANDBOX === undefined || env.VOID_SANDBOX === '')) {
-    throw new Error('--full-auto requires VOID_SANDBOX to be set (run inside a disposable container).');
+    throw new Error(
+      '--full-auto requires VOID_SANDBOX to be set (run inside a disposable container).',
+    );
+  }
+  // The worker reaches Linear only through a project `.mcp.json` server keyed
+  // "linear" (token-authenticated, see docs). Fail loud here rather than spawn a
+  // worker that can never pick a ticket.
+  const mcpPath = join(root, MCP_REL);
+  const mcpRaw = existsSync(mcpPath) ? readFileSync(mcpPath, 'utf8') : undefined;
+  if (!hasLinearMcpServer(mcpRaw)) {
+    throw new Error(
+      `${MCP_REL} must declare a "linear" MCP server (token-authenticated) so the ` +
+        'worker can reach the backlog. See backlog-loop --help.',
+    );
   }
 }
 
 async function runBacklog(cfg: BacklogConfig, root: string): Promise<void> {
   const runDir = join(root, '.void', 'autonomous-runs');
   mkdirSync(runDir, { recursive: true });
-  const sha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+  const sha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).trim();
   const logPath = join(runDir, `${sha}-${process.pid}.log`);
   const logStream = createWriteStream(logPath, { flags: 'a' });
 
@@ -168,7 +226,7 @@ async function runBacklog(cfg: BacklogConfig, root: string): Promise<void> {
   writeFileSync(settingsPath, JSON.stringify(AUTONOMOUS_SETTINGS, null, 2));
 
   const out = (l: string) => process.stdout.write(`${l}\n`);
-  const claudeArgs = buildClaudeArgs(settingsPath, cfg);
+  const claudeArgs = buildClaudeArgs(settingsPath, join(root, MCP_REL), cfg);
   const prompt = renderPrompt(cfg);
 
   blank();
@@ -188,7 +246,11 @@ async function runBacklog(cfg: BacklogConfig, root: string): Promise<void> {
     });
   };
 
-  const summary = await runLoop({ maxIterations: cfg.maxIterations, maxFailures: cfg.maxFailures, iterate });
+  const summary = await runLoop({
+    maxIterations: cfg.maxIterations,
+    maxFailures: cfg.maxFailures,
+    iterate,
+  });
   renderSummary(summary, out);
   logStream.end();
   footer(c.dim(`raw log: ${logPath}`));

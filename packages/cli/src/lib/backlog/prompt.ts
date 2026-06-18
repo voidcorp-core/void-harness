@@ -23,6 +23,12 @@ export const AUTONOMOUS_SETTINGS = {
       'Glob',
       'Grep',
       'Skill',
+      // Step 1 of the worker prompt requires the Linear MCP. acceptEdits does
+      // NOT auto-approve MCP tools (only file edits), so the pick phase is
+      // denied unattended without this. Scoped to the project's "linear"
+      // server only (see hasLinearMcpServer) — never widen to `mcp__*`, which
+      // would expose every connected server to an unattended worker.
+      'mcp__linear__*',
       'Bash(pnpm:*)',
       'Bash(npm:*)',
       'Bash(bun:*)',
@@ -64,8 +70,17 @@ export const AUTONOMOUS_SETTINGS = {
   },
 } as const;
 
-/** Claude Code args for one headless worker session. */
-export function buildClaudeArgs(settingsPath: string, cfg: BacklogConfig): string[] {
+/**
+ * Claude Code args for one headless worker session. `mcpConfigPath` points at
+ * the project's `.mcp.json`; `--strict-mcp-config` makes the worker use ONLY
+ * those servers, ignoring the developer's interactive connectors (claude.ai,
+ * Gmail, ...) that are absent or unauthorized in a headless process anyway.
+ */
+export function buildClaudeArgs(
+  settingsPath: string,
+  mcpConfigPath: string,
+  cfg: BacklogConfig,
+): string[] {
   const args = [
     '-p',
     '--output-format',
@@ -75,6 +90,9 @@ export function buildClaudeArgs(settingsPath: string, cfg: BacklogConfig): strin
     'acceptEdits',
     '--settings',
     settingsPath,
+    '--mcp-config',
+    mcpConfigPath,
+    '--strict-mcp-config',
   ];
   if (cfg.model !== undefined) args.push('--model', cfg.model);
   if (cfg.fullAuto) args.push('--dangerously-skip-permissions');
