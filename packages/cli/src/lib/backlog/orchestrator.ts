@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process';
 import { subscriptionEnv } from './billing.js';
 import { renderEvent, type Write } from './render.js';
 import { type BacklogEvent, parseLine, type ResultStatus } from './stream.js';
+import { type RunSummary, type StopReason, buildSummary } from './summary.js';
 
 export type IterationStatus = ResultStatus | 'failed';
 
@@ -99,4 +100,41 @@ export function runIteration(opts: RunIterationOptions): Promise<IterationResult
 
     child.stdin.end(opts.prompt);
   });
+}
+
+export interface RunLoopOptions {
+  readonly maxIterations: number;
+  readonly maxFailures: number;
+  /** Run one iteration; injected so the loop is testable without spawning. */
+  readonly iterate: (iteration: number) => Promise<IterationResult>;
+  /** Observe each iteration's result (e.g. for inter-ticket flux separators). */
+  readonly onIteration?: (iteration: number, result: IterationResult) => void;
+}
+
+/**
+ * Drive iterations until the backlog drains, the iteration cap is hit, or the
+ * circuit breaker trips on consecutive failures. A clean outcome
+ * (completed/blocked) resets the failure streak; only 'failed' increments it.
+ */
+export async function runLoop(opts: RunLoopOptions): Promise<RunSummary> {
+  const results: IterationResult[] = [];
+  let failures = 0;
+  let stopReason: StopReason = 'max-iterations';
+
+  for (let i = 1; i <= opts.maxIterations; i++) {
+    if (failures >= opts.maxFailures) {
+      stopReason = 'circuit-break';
+      break;
+    }
+    const result = await opts.iterate(i);
+    opts.onIteration?.(i, result);
+    if (result.status === 'no_tickets') {
+      stopReason = 'drained';
+      break;
+    }
+    results.push(result);
+    failures = result.status === 'failed' ? failures + 1 : 0;
+  }
+
+  return buildSummary(results, stopReason);
 }

@@ -36,6 +36,8 @@ export function formatEvent(event: BacklogEvent): string | undefined {
       return row('run', event.command !== undefined ? clip(event.command) : '');
     case 'commit':
       return row('commit', event.subject ?? '');
+    case 'pr':
+      return row('pr', c.cyan(event.ref));
     case 'tool':
       return row('tool', event.name);
     case 'decision':

@@ -38,6 +38,11 @@ describe('parseLine', () => {
     expect(parseLine(line)).toEqual([{ kind: 'decision', text: 'use a queue' }]);
   });
 
+  it('extracts a PR marker from assistant text', () => {
+    const line = '{"type":"assistant","message":{"content":[{"type":"text","text":"VOID_EVENT: PR #128"}]}}';
+    expect(parseLine(line)).toEqual([{ kind: 'pr', ref: '#128' }]);
+  });
+
   it('maps a Skill tool_use to a skill event', () => {
     const line = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"command":"harness:tdd"}}]}}';
     expect(parseLine(line)).toEqual([{ kind: 'skill', name: 'harness:tdd' }]);

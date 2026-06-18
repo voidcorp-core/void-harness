@@ -24,6 +24,7 @@ export type BacklogEvent =
   | { readonly kind: 'edit'; readonly path?: string }
   | { readonly kind: 'bash'; readonly command?: string }
   | { readonly kind: 'commit'; readonly subject?: string }
+  | { readonly kind: 'pr'; readonly ref: string }
   | { readonly kind: 'tool'; readonly name: string }
   | { readonly kind: 'result'; readonly status: ResultStatus; readonly ticket?: string; readonly detail?: string }
   | { readonly kind: 'session-end'; readonly isError: boolean; readonly costUsd?: number }
@@ -66,6 +67,12 @@ function eventsFromText(text: string): BacklogEvent[] {
     const decision = /^VOID_EVENT:\s*DECISION\s+(.+)$/.exec(lineText);
     if (decision?.[1] !== undefined) {
       out.push({ kind: 'decision', text: decision[1].trim() });
+      continue;
+    }
+
+    const pr = /^VOID_EVENT:\s*PR\s+(.+)$/.exec(lineText);
+    if (pr?.[1] !== undefined) {
+      out.push({ kind: 'pr', ref: pr[1].trim() });
       continue;
     }
 
