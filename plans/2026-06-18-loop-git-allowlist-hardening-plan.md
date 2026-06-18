@@ -1,7 +1,7 @@
 ---
 title: harden the backlog-loop git + allowlist gates (issue #17 cluster A)
 date: 2026-06-18
-status: in-progress
+status: done
 spec: docs/specs/2026-06-18-loop-git-allowlist-hardening.md
 author: Florent Pellegrin + Claude
 high_risk: true
@@ -228,20 +228,24 @@ This reframes A1. Surfaced to the user as a second gate before execution.
 
 ## Resume point
 
-**Next step**: exécuter les **Revised steps** (Step 1 = pré-flight branch protection). Spec à
-réaligner sur l'archi orchestrateur-push au début de l'exécution (l'A1 de la spec décrit encore
-le modèle hook-centric — superseded par le rapport autoplan + Revised steps).
+**Next step**: cluster A **complet et mergé-ready** sur `feat/loop-git-allowlist-hardening`.
+Per UC4 : faire **C1 (feedback tooling) avant le Cluster B**. Aussi : promouvoir la note
+`.void/harness-feedback/proposed/2026-06-19-1.md` (trou Bash-write de `protect-sensitive-files`)
+en issue à part, et poster le commentaire de clôture cluster A sur l'issue #17 (à la main /
+après merge de la PR).
 
-**État**: autoplan terminé (4 voix : 3 Claude + Codex), plan **révisé** (archi A1 changée :
-frontière serveur + push orchestrateur). Implémentation pas commencée.
+**État**: **Revised steps 1-8 tous livrés** (TDD, paires test→feat). Checkpoint A validé par
+l'utilisateur. Gate final vert (test/typecheck/lint/version:check/sync:docs/anti-bloat/doctor).
+Bonus hors-plan : fix issue #21 (backlog-batch `args` JSON string).
 
-**Completed**: —
+**Completed**:
+- ✅ Step 1: pré-flight branch protection serveur (refus si base non-protégée)
+- ✅ Step 2: push + PR par l'orchestrateur (worker commit-only, allowlist trim push/gh pr)
+- ✅ Step 3: worktree par ticket (détaché, prune+cleanup, push.default, .gitignore) — Checkpoint A
+- ✅ Step 4: hook block-protected-push (filet secondaire) + tests adverses + AUTO_MERGE dérivé
+- ✅ Step 5: allowlist A4 (cherry-pick + rebase --onto) + deny push variants + ban exec flags
+- ✅ Step 6: prompt worker commit-only (switch -c, BRANCH, blocage terminal)
+- ✅ Step 7: source-driven offline + source-debt bloquant l'auto-merge
+- ✅ Step 8: docs/DECISIONS/CLAUDE+AGENTS/core-assets + note feedback trou pré-existant
 
-**Pending**:
-- ⏳ Step 1: Hook block-protected-push + test (A1)
-- ⏳ Step 2: Worktree par ticket (A2) + push.default (A1)
-- ⏳ Step 3: Câbler le hook dans les settings du run (A1) — Checkpoint A
-- ⏳ Step 4: Allowlist sous-ensemble git non-destructif (A4)
-- ⏳ Step 5: Prompt worker branche/push sûrs (A1)
-- ⏳ Step 6: source-driven-development branche offline (A3)
-- ⏳ Step 7: Docs, sync, clôture partielle #17
+**Pending**: —
