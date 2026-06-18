@@ -107,3 +107,17 @@ None in v1. Citation is prose-level discipline carried by `commit-discipline`. A
 - **`unsourced-config-grep` hook**: worth a post-commit informational hook that flags a config-file diff whose commit body lacks a doc URL? Risk: high false-positive rate (not every config line is third-party). Lean: defer; revisit after real usage.
 - **Defining "non-obvious config"**: where is the line below which a citation is not required? Lean: any option whose name/default a reviewer could not predict from the field alone. Refine with examples after first 5 real uses.
 - **Codex parity for `/defuddle`**: confirm the AGENTS.md flavor names Codex's equivalent clean-read path and does not hard-depend on the gstack skill.
+
+## Revision 2026-06-19 — offline / no-network branch + `source-debt` (issue #17 cluster A, A3)
+
+The autonomous loop runs a sandboxed worker that may have **no egress**. Without a branch for that case, the skill is unsatisfiable offline and the worker either stalls or (worse) silently writes config from memory — the exact failure this skill exists to prevent.
+
+Added an **Offline / no-network** section, NOT an egress widening (decision A3 keeps egress at zero):
+
+- **Inject the doc, do not fetch it.** The version-matched reference becomes an input (a port), validated at the boundary with Zod. Functional core / imperative shell: fetching is the adapter's job; the decision logic takes the doc as data. Composes with `hexagonal-architecture` + `security-guidance`.
+- **`source-debt`** — a deliberate, tracked IOU when no version-matched doc is reachable: a `source-debt` label, a mandatory PR-body checkbox a reviewer clears by doing the read, and a commit-body note of what is unverified. The honest alternative to a silent guess.
+- **Auto-merge is refused while a `source-debt` checkbox is open.** Enforced mechanically in the loop (`integrate.ts: hasUnresolvedSourceDebt` → withhold `gh pr merge --auto`). The offline bypass is for *authoring*, never for *shipping* unverified config.
+
+**Rejected**: requiring an ADR for each source-debt (fails `adr-workflow`'s own rejected-alternative test — a deferred verification is not an architecture decision). The label + PR checkbox + commit note is the right-weight artifact.
+
+SKILL.md grew from 145 → ~163 LOC (still well under the 400 cap; description unchanged, ≤ 200 chars).

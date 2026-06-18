@@ -56,6 +56,15 @@ export function parsePrFile(content: string): PrSpec {
   return { title, body };
 }
 
+/**
+ * True when the PR body carries an unchecked `source-debt` checkbox (A3): config
+ * authored offline without the version-matched docs, not yet verified by a human.
+ * The loop refuses to arm auto-merge in that state — see source-driven-development.
+ */
+export function hasUnresolvedSourceDebt(prBody: string): boolean {
+  return /-\s*\[\s\]\s*source-debt/i.test(prBody);
+}
+
 /** The last branch the worker reported, or the fallback if it reported none. */
 export function branchFromEvents(events: readonly BacklogEvent[], fallback: string): string {
   for (let i = events.length - 1; i >= 0; i--) {
@@ -102,6 +111,11 @@ export function integrateTicket(opts: IntegrateOptions): IntegrateOutcome {
   const base: IntegrateOutcome = prRef !== undefined && prRef !== '' ? { pushed: true, prRef } : { pushed: true };
 
   if (opts.autoMerge !== true) return base;
+  // A3: an open source-debt blocks auto-merge — the config was authored offline
+  // and must be verified against the version-matched docs by a human first.
+  if (opts.prSpec !== undefined && hasUnresolvedSourceDebt(opts.prSpec.body)) {
+    return { ...base, error: 'auto-merge withheld: unresolved source-debt in the PR body' };
+  }
   const merge = opts.run('gh', mergeArgs(opts.branch), opts.cwd);
   return merge.ok
     ? { ...base, autoMergeRequested: true }
