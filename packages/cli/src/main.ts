@@ -9,6 +9,7 @@ import { doctor } from './commands/doctor.js';
 import { check } from './commands/check.js';
 import { update } from './commands/update.js';
 import { backlogLoop } from './commands/backlog-loop.js';
+import { backlogBatch } from './commands/backlog-batch.js';
 import { printHelp } from './commands/help.js';
 
 export async function main(argv: readonly string[]): Promise<void> {
@@ -43,6 +44,9 @@ export async function main(argv: readonly string[]): Promise<void> {
       return;
     case 'backlog-loop':
       await backlogLoop(rest);
+      return;
+    case 'backlog-batch':
+      await backlogBatch(rest);
       return;
     case 'help':
     case '--help':
