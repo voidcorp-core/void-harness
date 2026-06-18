@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BacklogConfig } from './config.js';
-import { AUTONOMOUS_SETTINGS, autonomousSettings, buildClaudeArgs } from './prompt.js';
+import { AUTONOMOUS_SETTINGS, autonomousSettings, buildClaudeArgs, renderPrompt } from './prompt.js';
 
 const baseCfg: BacklogConfig = {
   linearScope: 'sesame',
@@ -87,6 +87,36 @@ describe('autonomousSettings', () => {
     const entry = settings.hooks.PreToolUse[0];
     expect(entry?.matcher).toBe('Bash');
     expect(entry?.hooks[0]?.command).toBe(hookPath);
+  });
+});
+
+describe('renderPrompt — commit-only worker (A1)', () => {
+  const prompt = renderPrompt(baseCfg);
+
+  it('creates the branch with git switch -c and the configured prefix', () => {
+    expect(prompt).toContain(`git switch -c ${baseCfg.branchPrefix}`);
+  });
+
+  it('reports the branch via a VOID_EVENT: BRANCH marker', () => {
+    expect(prompt).toContain('VOID_EVENT: BRANCH');
+  });
+
+  it('writes the PR description to a .pr.md file (orchestrator opens the PR)', () => {
+    expect(prompt).toContain('.pr.md');
+  });
+
+  // The worker is commit-only: it must not be given an actual push/PR command,
+  // though it may be TOLD it has none. Assert the framing + absence of commands.
+  it('frames the worker as commit-only with no push/PR command', () => {
+    expect(prompt).toContain('COMMIT-ONLY');
+    expect(prompt).not.toMatch(/git push (origin|-u)/);
+    expect(prompt).not.toMatch(/gh pr create/);
+  });
+
+  // A PreToolUse block (e.g. block-protected-push) is terminal for the ticket.
+  it('treats a blocked git operation as terminal, no retry', () => {
+    expect(prompt.toLowerCase()).toContain('do not retry');
+    expect(prompt).toContain('VOID_AUTONOMOUS_RESULT: BLOCKED');
   });
 });
 
