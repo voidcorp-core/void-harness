@@ -41,6 +41,36 @@ describe('AUTONOMOUS_SETTINGS', () => {
     expect(allow.some((a) => a.startsWith('Bash(git push'))).toBe(false);
     expect(allow.some((a) => a.startsWith('Bash(gh pr'))).toBe(false);
   });
+
+  // A4 (UC1): grant ONLY the narrow non-destructive history ops. cherry-pick and
+  // rebase --onto graft commits without rewriting an arbitrary tree; git apply
+  // (arbitrary file write, bypasses the Edit/Write protect-sensitive-files gate),
+  // format-patch, and merge --no-ff were deliberately dropped.
+  it('grants only the narrow non-destructive git subset (A4)', () => {
+    const allow = AUTONOMOUS_SETTINGS.permissions.allow as readonly string[];
+    expect(allow).toContain('Bash(git cherry-pick:*)');
+    expect(allow).toContain('Bash(git rebase --onto:*)');
+    expect(allow).not.toContain('Bash(git apply:*)');
+    expect(allow).not.toContain('Bash(git format-patch:*)');
+    expect(allow).not.toContain('Bash(git merge --no-ff:*)');
+    // Never a bare `git rebase` / `git reset` / `git config`.
+    expect(allow).not.toContain('Bash(git rebase:*)');
+    expect(allow).not.toContain('Bash(git reset:*)');
+    expect(allow).not.toContain('Bash(git config:*)');
+  });
+
+  // Two-layer cover for the push hole: the prefix-matchable dangerous push forms
+  // are denied here; delete-refspec / bare-push-on-main (not prefix-matchable)
+  // are caught by the block-protected-push hook.
+  it('denies the prefix-matchable dangerous push + git -c forms', () => {
+    const deny = AUTONOMOUS_SETTINGS.permissions.deny as readonly string[];
+    expect(deny).toContain('Bash(git push --mirror:*)');
+    expect(deny).toContain('Bash(git push --all:*)');
+    expect(deny).toContain('Bash(git -c:*)');
+    // Pre-existing destructive denies must remain.
+    expect(deny).toContain('Bash(git push --force:*)');
+    expect(deny).toContain('Bash(git reset --hard:*)');
+  });
 });
 
 describe('autonomousSettings', () => {
