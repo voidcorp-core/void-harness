@@ -39,3 +39,10 @@ Thumbs.db
 
 # Changesets
 # (keep the .changeset/ dir tracked, only ignore status)
+
+# Autonomous backlog-loop run artifacts (logs, plan files, PR drafts) and
+# per-ticket git worktrees. Run-scoped only — keep the rest of .void/ tracked
+# (harness-feedback/, usage.log). These must stay ignored so a run's own output
+# does not trip the next run's clean-tree preflight (issue #17 cluster A, A2).
+.void/autonomous-runs/
+.void/worktrees/

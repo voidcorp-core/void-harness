@@ -38,6 +38,14 @@ import { AUTONOMOUS_SETTINGS, buildClaudeArgs, renderPrompt } from '../lib/backl
 import type { Write } from '../lib/backlog/render.js';
 import { renderSummary } from '../lib/backlog/summary.js';
 import { hasConfig, runWizard, wizardShouldRun } from '../lib/backlog/wizard.js';
+import {
+  addWorktree,
+  type GitRun,
+  iterationWorktree,
+  pruneWorktrees,
+  removeWorktree,
+  worktreeRoot,
+} from '../lib/backlog/worktree.js';
 import { banner, blank, c, divider, footer, line, meta, status } from '../lib/render.js';
 
 const CONFIG_REL = '.void/autonomous.json';
@@ -335,33 +343,53 @@ async function runBacklog(cfg: BacklogConfig, root: string): Promise<void> {
   const prompt = renderPrompt(cfg);
   const base = baseBranch(root);
 
+  // Per-ticket worktree isolation (A2): each iteration's worker runs in its own
+  // detached worktree, so its `git switch -c` never moves the main HEAD. Stale
+  // records from a crashed run are pruned first; live worktrees are removed in a
+  // per-iteration finally and any survivor is swept after the loop.
+  const gitRun: GitRun = (args, cwd) => spawnRunner('git', args, cwd);
+  pruneWorktrees(gitRun, root);
+  const wtRoot = worktreeRoot(root, sha, process.pid);
+  mkdirSync(wtRoot, { recursive: true });
+
   blank();
   const iterate = async (i: number): Promise<IterationResult> => {
     divider();
     line(c.dim(`iteration ${i}/${cfg.maxIterations} (fresh session)`));
-    const result = await runIteration({
-      command: 'claude',
-      claudeArgs,
-      prompt,
-      cwd: root,
-      env: process.env,
-      allowApi: cfg.allowApi,
-      stream: cfg.stream,
-      write: out,
-      onRaw: (raw) => logStream.write(raw.endsWith('\n') ? raw : `${raw}\n`),
-    });
-    // The worker is commit-only; the trusted orchestrator pushes + opens the PR.
-    if (result.status === 'completed') integrateCompleted(result, root, base, cfg, out);
-    return result;
+    const wt = iterationWorktree(wtRoot, i);
+    addWorktree(gitRun, root, wt);
+    try {
+      const result = await runIteration({
+        command: 'claude',
+        claudeArgs,
+        prompt,
+        cwd: wt,
+        env: process.env,
+        allowApi: cfg.allowApi,
+        stream: cfg.stream,
+        write: out,
+        onRaw: (raw) => logStream.write(raw.endsWith('\n') ? raw : `${raw}\n`),
+      });
+      // The worker is commit-only; the orchestrator pushes + opens the PR from
+      // the worktree (where the branch and the .pr.md were written).
+      if (result.status === 'completed') integrateCompleted(result, wt, base, cfg, out);
+      return result;
+    } finally {
+      removeWorktree(gitRun, root, wt);
+    }
   };
 
-  const summary = await runLoop({
-    maxIterations: cfg.maxIterations,
-    maxFailures: cfg.maxFailures,
-    iterate,
-  });
-  renderSummary(summary, out);
-  logStream.end();
-  footer(c.dim(`raw log: ${logPath}`));
-  process.exitCode = summary.blocked + summary.failed;
+  try {
+    const summary = await runLoop({
+      maxIterations: cfg.maxIterations,
+      maxFailures: cfg.maxFailures,
+      iterate,
+    });
+    renderSummary(summary, out);
+    process.exitCode = summary.blocked + summary.failed;
+  } finally {
+    pruneWorktrees(gitRun, root);
+    logStream.end();
+    footer(c.dim(`raw log: ${logPath}`));
+  }
 }
