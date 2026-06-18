@@ -34,7 +34,7 @@ import {
 } from '../lib/backlog/integrate.js';
 import { hasLinearMcpServer } from '../lib/backlog/mcp.js';
 import { type IterationResult, runIteration, runLoop } from '../lib/backlog/orchestrator.js';
-import { AUTONOMOUS_SETTINGS, buildClaudeArgs, renderPrompt } from '../lib/backlog/prompt.js';
+import { autonomousSettings, buildClaudeArgs, renderPrompt } from '../lib/backlog/prompt.js';
 import type { Write } from '../lib/backlog/render.js';
 import { renderSummary } from '../lib/backlog/summary.js';
 import { hasConfig, runWizard, wizardShouldRun } from '../lib/backlog/wizard.js';
@@ -46,6 +46,7 @@ import {
   removeWorktree,
   worktreeRoot,
 } from '../lib/backlog/worktree.js';
+import { findCoreSource } from '../lib/paths.js';
 import { banner, blank, c, divider, footer, line, meta, status } from '../lib/render.js';
 
 const CONFIG_REL = '.void/autonomous.json';
@@ -243,6 +244,15 @@ function preflight(cfg: BacklogConfig, env: NodeJS.ProcessEnv, root: string): vo
       'refusing to run with VOID_HARNESS_ALLOW_* set — the security floor must stay on.',
     );
   }
+  // AUTO_MERGE is the protected-push hook's bypass lever. It must be derived from
+  // --auto-merge alone; an inherited AUTO_MERGE=1 that config did not turn into
+  // auto-merge would silently enable the bypass. Refuse the divergence.
+  if (env.AUTO_MERGE === '1' && !cfg.autoMerge) {
+    throw new Error(
+      'inherited AUTO_MERGE=1 diverges from the resolved auto-merge setting (off). Unset it; ' +
+        'the loop derives the protected-push bypass from --auto-merge alone.',
+    );
+  }
   const dirty = execFileSync('git', ['status', '--porcelain'], {
     cwd: root,
     encoding: 'utf8',
@@ -334,14 +344,25 @@ async function runBacklog(cfg: BacklogConfig, root: string): Promise<void> {
   const logPath = join(runDir, `${sha}-${process.pid}.log`);
   const logStream = createWriteStream(logPath, { flags: 'a' });
 
+  // Wire the secondary block-protected-push net from the bundled core assets
+  // (npm tarball: core-assets/; monorepo: packages/core). Fail loud if missing —
+  // a worker without the net must not run silently unprotected.
+  const hookPath = join(await findCoreSource(), 'hooks', 'block-protected-push.sh');
+  if (!existsSync(hookPath)) {
+    throw new Error(`block-protected-push hook not found at ${hookPath} (run build:assets?).`);
+  }
   const settingsDir = mkdtempSync(join(tmpdir(), 'void-backlog-'));
   const settingsPath = join(settingsDir, 'settings.autonomous.json');
-  writeFileSync(settingsPath, JSON.stringify(AUTONOMOUS_SETTINGS, null, 2));
+  writeFileSync(settingsPath, JSON.stringify(autonomousSettings(hookPath), null, 2));
 
   const out = (l: string) => process.stdout.write(`${l}\n`);
   const claudeArgs = buildClaudeArgs(settingsPath, join(root, MCP_REL), cfg);
   const prompt = renderPrompt(cfg);
   const base = baseBranch(root);
+  // The hook's bypass lever (AUTO_MERGE) is derived from cfg.autoMerge alone —
+  // the single source of truth — not whatever AUTO_MERGE the parent inherited
+  // (preflight already refused a divergent ambient value).
+  const workerEnv = { ...process.env, AUTO_MERGE: cfg.autoMerge ? '1' : '0' };
 
   // Per-ticket worktree isolation (A2): each iteration's worker runs in its own
   // detached worktree, so its `git switch -c` never moves the main HEAD. Stale
@@ -364,7 +385,7 @@ async function runBacklog(cfg: BacklogConfig, root: string): Promise<void> {
         claudeArgs,
         prompt,
         cwd: wt,
-        env: process.env,
+        env: workerEnv,
         allowApi: cfg.allowApi,
         stream: cfg.stream,
         write: out,

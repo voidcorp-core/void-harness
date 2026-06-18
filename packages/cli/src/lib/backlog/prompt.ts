@@ -74,6 +74,26 @@ export const AUTONOMOUS_SETTINGS = {
 } as const;
 
 /**
+ * Build the run settings written to disk for a worker session: the scoped
+ * permission allowlist plus the `block-protected-push` PreToolUse net wired to
+ * its resolved path. The hook is a SECONDARY defense (the worker has no
+ * `git push`); it backstops a regression, it is not the A1 boundary.
+ */
+export function autonomousSettings(blockProtectedPushHook: string) {
+  return {
+    permissions: AUTONOMOUS_SETTINGS.permissions,
+    hooks: {
+      PreToolUse: [
+        {
+          matcher: 'Bash',
+          hooks: [{ type: 'command', command: blockProtectedPushHook }],
+        },
+      ],
+    },
+  } as const;
+}
+
+/**
  * Claude Code args for one headless worker session. `mcpConfigPath` points at
  * the project's `.mcp.json`; `--strict-mcp-config` makes the worker use ONLY
  * those servers, ignoring the developer's interactive connectors (claude.ai,
