@@ -6,11 +6,16 @@
 // prints the config without spawning anything. See
 // docs/specs/2026-06-18-backlog-loop-observability.md.
 
-import { existsSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { createWriteStream, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { banner, blank, c, footer, line, meta, status } from '../lib/render.js';
+import { banner, blank, c, divider, footer, line, meta, status } from '../lib/render.js';
 import { type BacklogConfig, type FileConfig, parseFlags, resolveConfig } from '../lib/backlog/config.js';
 import { type BillingPreflight, assertSubscription } from '../lib/backlog/billing.js';
+import { type IterationResult, runIteration, runLoop } from '../lib/backlog/orchestrator.js';
+import { renderSummary } from '../lib/backlog/summary.js';
+import { AUTONOMOUS_SETTINGS, buildClaudeArgs, renderPrompt } from '../lib/backlog/prompt.js';
 
 const CONFIG_REL = '.void/autonomous.json';
 
@@ -88,9 +93,9 @@ export async function backlogLoop(args: readonly string[]): Promise<void> {
     return;
   }
 
-  const root = process.cwd();
+  const cwd = process.cwd();
   const flags = parseFlags(args);
-  const file = loadFileConfig(root);
+  const file = loadFileConfig(cwd);
   const cfg = resolveConfig({ flags, env: process.env, file });
   const billing = assertSubscription(process.env, cfg.allowApi);
 
@@ -109,8 +114,74 @@ export async function backlogLoop(args: readonly string[]): Promise<void> {
     return;
   }
 
-  // The orchestrator (spawn + live stream + summary) lands in a later slice.
-  // Until then, --dry-run is the only supported path.
+  const root = gitRoot(); // throws with a clear message if outside a repo
+  preflight(cfg, process.env, root);
+  await runBacklog(cfg, root);
+}
+
+/** The git toplevel, or throw a clear error if not in a repository. */
+function gitRoot(): string {
+  try {
+    return execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+  } catch {
+    throw new Error('backlog-loop must run inside a git repository.');
+  }
+}
+
+/** Run-time safety gate (the security floor is the allowlist + hooks, not this). */
+function preflight(cfg: BacklogConfig, env: NodeJS.ProcessEnv, root: string): void {
+  if (env.VOID_HARNESS_ALLOW_DANGEROUS === '1' || env.VOID_HARNESS_ALLOW_SECRET_EDIT === '1') {
+    throw new Error('refusing to run with VOID_HARNESS_ALLOW_* set — the security floor must stay on.');
+  }
+  const dirty = execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim();
+  if (dirty !== '') {
+    throw new Error('working tree is dirty. Commit or stash before an autonomous run.');
+  }
+  try {
+    execFileSync('claude', ['--version'], { stdio: 'ignore' });
+  } catch {
+    throw new Error("the 'claude' CLI is not on PATH.");
+  }
+  if (cfg.fullAuto && (env.VOID_SANDBOX === undefined || env.VOID_SANDBOX === '')) {
+    throw new Error('--full-auto requires VOID_SANDBOX to be set (run inside a disposable container).');
+  }
+}
+
+async function runBacklog(cfg: BacklogConfig, root: string): Promise<void> {
+  const runDir = join(root, '.void', 'autonomous-runs');
+  mkdirSync(runDir, { recursive: true });
+  const sha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+  const logPath = join(runDir, `${sha}-${process.pid}.log`);
+  const logStream = createWriteStream(logPath, { flags: 'a' });
+
+  const settingsDir = mkdtempSync(join(tmpdir(), 'void-backlog-'));
+  const settingsPath = join(settingsDir, 'settings.autonomous.json');
+  writeFileSync(settingsPath, JSON.stringify(AUTONOMOUS_SETTINGS, null, 2));
+
+  const out = (l: string) => process.stdout.write(`${l}\n`);
+  const claudeArgs = buildClaudeArgs(settingsPath, cfg);
+  const prompt = renderPrompt(cfg);
+
   blank();
-  status('orchestrator not wired yet — re-run with --dry-run.', 'warn');
+  const iterate = (i: number): Promise<IterationResult> => {
+    divider();
+    line(c.dim(`iteration ${i}/${cfg.maxIterations} (fresh session)`));
+    return runIteration({
+      command: 'claude',
+      claudeArgs,
+      prompt,
+      cwd: root,
+      env: process.env,
+      allowApi: cfg.allowApi,
+      stream: cfg.stream,
+      write: out,
+      onRaw: (raw) => logStream.write(raw.endsWith('\n') ? raw : `${raw}\n`),
+    });
+  };
+
+  const summary = await runLoop({ maxIterations: cfg.maxIterations, maxFailures: cfg.maxFailures, iterate });
+  renderSummary(summary, out);
+  logStream.end();
+  footer(c.dim(`raw log: ${logPath}`));
+  process.exitCode = summary.blocked + summary.failed;
 }
