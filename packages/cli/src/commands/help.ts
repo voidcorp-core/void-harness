@@ -36,6 +36,11 @@ Commands:
                            the cache pull; --cache-only skips the pins.
   install --global         Escape hatch (rare); see install --help.
 
+  backlog-loop [options]   Drain a Linear backlog autonomously, one fresh
+                           session per ticket, with a live flux + final
+                           summary. Subscription-billed. See
+                           backlog-loop --help. Opt-in; never a default.
+
   help                     Print this message.
 
 Pack names (current marketplace):

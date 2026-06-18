@@ -1,0 +1,14 @@
+{"type":"system","subtype":"init","session_id":"sess-1","model":"claude-opus-4-8","cwd":"/repo","tools":["Bash","Edit","Write","Skill"]}
+{"type":"system","subtype":"hook_started","hook_name":"PreToolUse","session_id":"sess-1"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"VOID_EVENT: PHASE pick\nPicking the highest-priority eligible ticket."}]},"session_id":"sess-1"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"Skill","input":{"command":"harness:brainstorming"}}]},"session_id":"sess-1"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"VOID_EVENT: PHASE plan"},{"type":"tool_use","id":"t2","name":"Write","input":{"file_path":".void/autonomous-runs/DEV-42.plan.md"}}]},"session_id":"sess-1"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t3","name":"Edit","input":{"file_path":"src/rate-limit.ts"}}]},"session_id":"sess-1"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t3","content":"ok"}]},"session_id":"sess-1"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"VOID_EVENT: DECISION token bucket over sliding window (ADR-0007)"}]},"session_id":"sess-1"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t4","name":"Bash","input":{"command":"git commit -m \"feat: add rate limiter\""}}]},"session_id":"sess-1"}
+{"type":"rate_limit_event","rate_limit_info":{"status":"allowed"}}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"VOID_AUTONOMOUS_RESULT: COMPLETED DEV-42"}]},"session_id":"sess-1"}
+{"type":"result","subtype":"success","is_error":false,"result":"VOID_AUTONOMOUS_RESULT: COMPLETED DEV-42","total_cost_usd":0.12,"num_turns":7}
+this is not json at all
+{"type":"some_future_event_type","payload":{"foo":1}}

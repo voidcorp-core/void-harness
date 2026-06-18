@@ -8,6 +8,7 @@ import { list } from './commands/list.js';
 import { doctor } from './commands/doctor.js';
 import { check } from './commands/check.js';
 import { update } from './commands/update.js';
+import { backlogLoop } from './commands/backlog-loop.js';
 import { printHelp } from './commands/help.js';
 
 export async function main(argv: readonly string[]): Promise<void> {
@@ -39,6 +40,9 @@ export async function main(argv: readonly string[]): Promise<void> {
       return;
     case 'install':
       await install(rest);
+      return;
+    case 'backlog-loop':
+      await backlogLoop(rest);
       return;
     case 'help':
     case '--help':
