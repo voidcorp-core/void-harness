@@ -6,7 +6,7 @@
 // prints the config without spawning anything. See
 // docs/specs/2026-06-18-backlog-loop-observability.md.
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import {
   createWriteStream,
   existsSync,
@@ -17,19 +17,20 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { banner, blank, c, divider, footer, line, meta, status } from '../lib/render.js';
+import { assertSubscription, type BillingPreflight } from '../lib/backlog/billing.js';
+import { baseBranchFromSymbolicRef, evaluateBranchProtection } from '../lib/backlog/branch-protection.js';
 import {
   type BacklogConfig,
   type FileConfig,
   parseFlags,
   resolveConfig,
 } from '../lib/backlog/config.js';
-import { type BillingPreflight, assertSubscription } from '../lib/backlog/billing.js';
-import { type IterationResult, runIteration, runLoop } from '../lib/backlog/orchestrator.js';
-import { renderSummary } from '../lib/backlog/summary.js';
-import { AUTONOMOUS_SETTINGS, buildClaudeArgs, renderPrompt } from '../lib/backlog/prompt.js';
 import { hasLinearMcpServer } from '../lib/backlog/mcp.js';
+import { type IterationResult, runIteration, runLoop } from '../lib/backlog/orchestrator.js';
+import { AUTONOMOUS_SETTINGS, buildClaudeArgs, renderPrompt } from '../lib/backlog/prompt.js';
+import { renderSummary } from '../lib/backlog/summary.js';
 import { hasConfig, runWizard, wizardShouldRun } from '../lib/backlog/wizard.js';
+import { banner, blank, c, divider, footer, line, meta, status } from '../lib/render.js';
 
 const CONFIG_REL = '.void/autonomous.json';
 const MCP_REL = '.mcp.json';
@@ -165,6 +166,51 @@ export async function backlogLoop(args: readonly string[]): Promise<void> {
   await runBacklog(cfg, root);
 }
 
+/** Resolve the remote's default branch (the PR base), defaulting to `main`. */
+function baseBranch(root: string): string {
+  const probe = spawnSync('git', ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  return baseBranchFromSymbolicRef(probe.stdout ?? '') ?? 'main';
+}
+
+/**
+ * The durable A1 boundary: server-side branch protection on the base branch.
+ * The remote refuses non-PR pushes regardless of what the worker runs, so a
+ * confirmed-unprotected base is a hard refusal. An indeterminate probe (no
+ * admin rights, gh missing, offline) only warns — it must not silently pass,
+ * but it also must not block an operator who simply lacks the admin API scope.
+ */
+function assertBaseBranchProtected(root: string): void {
+  const base = baseBranch(root);
+  const probe = spawnSync(
+    'gh',
+    ['api', `repos/{owner}/{repo}/branches/${base}/protection`],
+    { cwd: root, encoding: 'utf8' },
+  );
+  if (probe.error !== undefined) {
+    status(`could not probe branch protection for "${base}" (gh: ${probe.error.message}).`, 'warn');
+    return;
+  }
+  const verdict = evaluateBranchProtection({
+    ok: probe.status === 0,
+    stdout: probe.stdout ?? '',
+    stderr: probe.stderr ?? '',
+  });
+  if (verdict.kind === 'unprotected') {
+    throw new Error(
+      `base branch "${base}" is NOT protected on the remote. The autonomous loop relies ` +
+        'on server-side branch protection as the durable boundary against a direct push to ' +
+        `the base. Protect "${base}" (GitHub Settings -> Branches: require a PR before ` +
+        'merging) before an unattended run.',
+    );
+  }
+  if (verdict.kind === 'unknown') {
+    status(`branch protection for "${base}" could not be confirmed: ${verdict.reason}.`, 'warn');
+  }
+}
+
 /** The git toplevel, or throw a clear error if not in a repository. */
 function gitRoot(): string {
   try {
@@ -209,6 +255,7 @@ function preflight(cfg: BacklogConfig, env: NodeJS.ProcessEnv, root: string): vo
         'worker can reach the backlog. See backlog-loop --help.',
     );
   }
+  assertBaseBranchProtected(root);
 }
 
 async function runBacklog(cfg: BacklogConfig, root: string): Promise<void> {
