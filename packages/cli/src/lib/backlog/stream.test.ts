@@ -43,6 +43,13 @@ describe('parseLine', () => {
     expect(parseLine(line)).toEqual([{ kind: 'pr', ref: '#128' }]);
   });
 
+  it('extracts a BRANCH marker from assistant text', () => {
+    // The worker is commit-only; it reports the branch it committed to so the
+    // trusted orchestrator can push it. (Issue #17 cluster A, A1.)
+    const line = '{"type":"assistant","message":{"content":[{"type":"text","text":"VOID_EVENT: BRANCH auto/DEV-42"}]}}';
+    expect(parseLine(line)).toEqual([{ kind: 'branch', name: 'auto/DEV-42' }]);
+  });
+
   it('maps a Skill tool_use to a skill event', () => {
     const line = '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"command":"harness:tdd"}}]}}';
     expect(parseLine(line)).toEqual([{ kind: 'skill', name: 'harness:tdd' }]);

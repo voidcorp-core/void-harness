@@ -6,7 +6,7 @@
 // prints the config without spawning anything. See
 // docs/specs/2026-06-18-backlog-loop-observability.md.
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import {
   createWriteStream,
   existsSync,
@@ -17,19 +17,37 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { banner, blank, c, divider, footer, line, meta, status } from '../lib/render.js';
+import { assertSubscription, type BillingPreflight } from '../lib/backlog/billing.js';
+import { baseBranchFromSymbolicRef, evaluateBranchProtection } from '../lib/backlog/branch-protection.js';
 import {
   type BacklogConfig,
   type FileConfig,
   parseFlags,
   resolveConfig,
 } from '../lib/backlog/config.js';
-import { type BillingPreflight, assertSubscription } from '../lib/backlog/billing.js';
-import { type IterationResult, runIteration, runLoop } from '../lib/backlog/orchestrator.js';
-import { renderSummary } from '../lib/backlog/summary.js';
-import { AUTONOMOUS_SETTINGS, buildClaudeArgs, renderPrompt } from '../lib/backlog/prompt.js';
+import {
+  branchFromEvents,
+  type IntegrateRun,
+  integrateTicket,
+  type PrSpec,
+  parsePrFile,
+} from '../lib/backlog/integrate.js';
 import { hasLinearMcpServer } from '../lib/backlog/mcp.js';
+import { type IterationResult, runIteration, runLoop } from '../lib/backlog/orchestrator.js';
+import { autonomousSettings, buildClaudeArgs, renderPrompt } from '../lib/backlog/prompt.js';
+import type { Write } from '../lib/backlog/render.js';
+import { renderSummary } from '../lib/backlog/summary.js';
 import { hasConfig, runWizard, wizardShouldRun } from '../lib/backlog/wizard.js';
+import {
+  addWorktree,
+  type GitRun,
+  iterationWorktree,
+  pruneWorktrees,
+  removeWorktree,
+  worktreeRoot,
+} from '../lib/backlog/worktree.js';
+import { findCoreSource } from '../lib/paths.js';
+import { banner, blank, c, divider, footer, line, meta, status } from '../lib/render.js';
 
 const CONFIG_REL = '.void/autonomous.json';
 const MCP_REL = '.mcp.json';
@@ -165,6 +183,51 @@ export async function backlogLoop(args: readonly string[]): Promise<void> {
   await runBacklog(cfg, root);
 }
 
+/** Resolve the remote's default branch (the PR base), defaulting to `main`. */
+function baseBranch(root: string): string {
+  const probe = spawnSync('git', ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  return baseBranchFromSymbolicRef(probe.stdout ?? '') ?? 'main';
+}
+
+/**
+ * The durable A1 boundary: server-side branch protection on the base branch.
+ * The remote refuses non-PR pushes regardless of what the worker runs, so a
+ * confirmed-unprotected base is a hard refusal. An indeterminate probe (no
+ * admin rights, gh missing, offline) only warns — it must not silently pass,
+ * but it also must not block an operator who simply lacks the admin API scope.
+ */
+function assertBaseBranchProtected(root: string): void {
+  const base = baseBranch(root);
+  const probe = spawnSync(
+    'gh',
+    ['api', `repos/{owner}/{repo}/branches/${base}/protection`],
+    { cwd: root, encoding: 'utf8' },
+  );
+  if (probe.error !== undefined) {
+    status(`could not probe branch protection for "${base}" (gh: ${probe.error.message}).`, 'warn');
+    return;
+  }
+  const verdict = evaluateBranchProtection({
+    ok: probe.status === 0,
+    stdout: probe.stdout ?? '',
+    stderr: probe.stderr ?? '',
+  });
+  if (verdict.kind === 'unprotected') {
+    throw new Error(
+      `base branch "${base}" is NOT protected on the remote. The autonomous loop relies ` +
+        'on server-side branch protection as the durable boundary against a direct push to ' +
+        `the base. Protect "${base}" (GitHub Settings -> Branches: require a PR before ` +
+        'merging) before an unattended run.',
+    );
+  }
+  if (verdict.kind === 'unknown') {
+    status(`branch protection for "${base}" could not be confirmed: ${verdict.reason}.`, 'warn');
+  }
+}
+
 /** The git toplevel, or throw a clear error if not in a repository. */
 function gitRoot(): string {
   try {
@@ -179,6 +242,15 @@ function preflight(cfg: BacklogConfig, env: NodeJS.ProcessEnv, root: string): vo
   if (env.VOID_HARNESS_ALLOW_DANGEROUS === '1' || env.VOID_HARNESS_ALLOW_SECRET_EDIT === '1') {
     throw new Error(
       'refusing to run with VOID_HARNESS_ALLOW_* set — the security floor must stay on.',
+    );
+  }
+  // AUTO_MERGE is the protected-push hook's bypass lever. It must be derived from
+  // --auto-merge alone; an inherited AUTO_MERGE=1 that config did not turn into
+  // auto-merge would silently enable the bypass. Refuse the divergence.
+  if (env.AUTO_MERGE === '1' && !cfg.autoMerge) {
+    throw new Error(
+      'inherited AUTO_MERGE=1 diverges from the resolved auto-merge setting (off). Unset it; ' +
+        'the loop derives the protected-push bypass from --auto-merge alone.',
     );
   }
   const dirty = execFileSync('git', ['status', '--porcelain'], {
@@ -209,6 +281,60 @@ function preflight(cfg: BacklogConfig, env: NodeJS.ProcessEnv, root: string): vo
         'worker can reach the backlog. See backlog-loop --help.',
     );
   }
+  assertBaseBranchProtected(root);
+}
+
+/** Spawn-backed command runner for the orchestrator's push + PR steps. */
+const spawnRunner: IntegrateRun = (cmd, args, cwd) => {
+  const p = spawnSync(cmd, [...args], { cwd, encoding: 'utf8' });
+  return { ok: p.status === 0, stdout: p.stdout ?? '', stderr: p.stderr ?? '' };
+};
+
+/** Read the worker-written PR description, or undefined to let `gh --fill`. */
+function loadPrSpec(workdir: string, ticket: string): PrSpec | undefined {
+  const path = join(workdir, '.void', 'autonomous-runs', `${ticket}.pr.md`);
+  if (!existsSync(path)) return undefined;
+  return parsePrFile(readFileSync(path, 'utf8'));
+}
+
+/**
+ * The trusted orchestrator's half of A1: on a COMPLETED ticket, push the
+ * worker's branch (explicit refspec, no force) and open its PR. The worker is
+ * commit-only, so this is the ONLY path to the remote. `workdir` is where the
+ * worker committed (the run root today; the per-ticket worktree after Step 3).
+ */
+function integrateCompleted(
+  result: IterationResult,
+  workdir: string,
+  base: string,
+  cfg: BacklogConfig,
+  out: Write,
+): string | undefined {
+  const ticket = result.ticket;
+  if (ticket === undefined) {
+    out(c.yellow('  ! completed without a ticket id — skipping push/PR.'));
+    return undefined;
+  }
+  const branch = branchFromEvents(result.events, `${cfg.branchPrefix}${ticket}`);
+  const prSpec = loadPrSpec(workdir, ticket);
+  const outcome = integrateTicket({
+    branch,
+    base,
+    cwd: workdir,
+    ...(prSpec !== undefined ? { prSpec } : {}),
+    ...(cfg.autoMerge ? { autoMerge: true } : {}),
+    run: spawnRunner,
+  });
+  if (!outcome.pushed) {
+    out(c.red(`  ✗ push of ${branch} failed: ${outcome.error ?? 'unknown error'}`));
+    return undefined;
+  }
+  if (outcome.prRef !== undefined) out(c.green(`  ✓ PR opened: ${outcome.prRef}`));
+  if (outcome.error !== undefined) out(c.yellow(`  ! PR/merge step: ${outcome.error}`));
+  if (outcome.autoMergeRequested === true) out(c.dim('  · auto-merge armed (remote gates).'));
+  // Returned so the caller can fold the PR url back into the iteration events —
+  // the worker no longer emits VOID_EVENT: PR, so the summary recap depends on it.
+  return outcome.prRef;
 }
 
 async function runBacklog(cfg: BacklogConfig, root: string): Promise<void> {
@@ -221,38 +347,83 @@ async function runBacklog(cfg: BacklogConfig, root: string): Promise<void> {
   const logPath = join(runDir, `${sha}-${process.pid}.log`);
   const logStream = createWriteStream(logPath, { flags: 'a' });
 
+  // Wire the secondary block-protected-push net from the bundled core assets
+  // (npm tarball: core-assets/; monorepo: packages/core). Fail loud if missing —
+  // a worker without the net must not run silently unprotected.
+  const hookPath = join(await findCoreSource(), 'hooks', 'block-protected-push.sh');
+  if (!existsSync(hookPath)) {
+    throw new Error(`block-protected-push hook not found at ${hookPath} (run build:assets?).`);
+  }
   const settingsDir = mkdtempSync(join(tmpdir(), 'void-backlog-'));
   const settingsPath = join(settingsDir, 'settings.autonomous.json');
-  writeFileSync(settingsPath, JSON.stringify(AUTONOMOUS_SETTINGS, null, 2));
+  writeFileSync(settingsPath, JSON.stringify(autonomousSettings(hookPath), null, 2));
 
   const out = (l: string) => process.stdout.write(`${l}\n`);
   const claudeArgs = buildClaudeArgs(settingsPath, join(root, MCP_REL), cfg);
   const prompt = renderPrompt(cfg);
+  const base = baseBranch(root);
+  // The hook's bypass lever (AUTO_MERGE) is derived from cfg.autoMerge alone —
+  // the single source of truth — not whatever AUTO_MERGE the parent inherited
+  // (preflight already refused a divergent ambient value).
+  const workerEnv = { ...process.env, AUTO_MERGE: cfg.autoMerge ? '1' : '0' };
+
+  // Per-ticket worktree isolation (A2): each iteration's worker runs in its own
+  // detached worktree, so its `git switch -c` never moves the main HEAD. Stale
+  // records from a crashed run are pruned first; live worktrees are removed in a
+  // per-iteration finally and any survivor is swept after the loop.
+  const gitRun: GitRun = (args, cwd) => spawnRunner('git', args, cwd);
+  pruneWorktrees(gitRun, root);
+  const wtRoot = worktreeRoot(root, sha, process.pid);
+  mkdirSync(wtRoot, { recursive: true });
 
   blank();
-  const iterate = (i: number): Promise<IterationResult> => {
+  const iterate = async (i: number): Promise<IterationResult> => {
     divider();
     line(c.dim(`iteration ${i}/${cfg.maxIterations} (fresh session)`));
-    return runIteration({
-      command: 'claude',
-      claudeArgs,
-      prompt,
-      cwd: root,
-      env: process.env,
-      allowApi: cfg.allowApi,
-      stream: cfg.stream,
-      write: out,
-      onRaw: (raw) => logStream.write(raw.endsWith('\n') ? raw : `${raw}\n`),
-    });
+    const wt = iterationWorktree(wtRoot, i);
+    addWorktree(gitRun, root, wt);
+    try {
+      const result = await runIteration({
+        command: 'claude',
+        claudeArgs,
+        prompt,
+        cwd: wt,
+        env: workerEnv,
+        allowApi: cfg.allowApi,
+        stream: cfg.stream,
+        write: out,
+        onRaw: (raw) => logStream.write(raw.endsWith('\n') ? raw : `${raw}\n`),
+      });
+      // The worker is commit-only; the orchestrator pushes + opens the PR from
+      // the worktree (where the branch and the .pr.md were written). Fold the PR
+      // url back into the events so the end-of-run recap can show it (the worker
+      // no longer emits VOID_EVENT: PR).
+      if (result.status !== 'completed') return result;
+      const prRef = integrateCompleted(result, wt, base, cfg, out);
+      return prRef !== undefined
+        ? { ...result, events: [...result.events, { kind: 'pr', ref: prRef }] }
+        : result;
+    } finally {
+      // Surface a failed cleanup: a leaked worktree dir under .void/worktrees/ is
+      // not fatal (the next run prunes records), but it must not vanish silently.
+      const removed = removeWorktree(gitRun, root, wt);
+      if (!removed.ok) {
+        out(c.yellow(`  ! could not remove worktree ${wt}: ${(removed.stderr || removed.stdout).trim()}`));
+      }
+    }
   };
 
-  const summary = await runLoop({
-    maxIterations: cfg.maxIterations,
-    maxFailures: cfg.maxFailures,
-    iterate,
-  });
-  renderSummary(summary, out);
-  logStream.end();
-  footer(c.dim(`raw log: ${logPath}`));
-  process.exitCode = summary.blocked + summary.failed;
+  try {
+    const summary = await runLoop({
+      maxIterations: cfg.maxIterations,
+      maxFailures: cfg.maxFailures,
+      iterate,
+    });
+    renderSummary(summary, out);
+    process.exitCode = summary.blocked + summary.failed;
+  } finally {
+    pruneWorktrees(gitRun, root);
+    logStream.end();
+    footer(c.dim(`raw log: ${logPath}`));
+  }
 }

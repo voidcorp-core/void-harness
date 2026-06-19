@@ -78,6 +78,23 @@ A config line a reviewer cannot trace to a source is a config line written from 
 
 ---
 
+## Offline / no-network
+
+Some runs have no egress: a sandboxed autonomous worker, an air-gapped CI step. You still must not write config from memory. Two moves keep the rule intact without opening the network:
+
+1. **Inject the doc, do not fetch it.** Treat the version-matched reference as an *input*, not a side effect: pass the doc text (or a curated, version-pinned excerpt committed to the repo) into the decision as a parameter — a port — and validate its shape at the boundary with Zod before you trust it (e.g. assert the option you are about to set actually appears in the supplied reference). This is functional core / imperative shell: fetching is an adapter concern, the choice logic takes the doc as data. It composes with `hexagonal-architecture` and `security-guidance` (untrusted input is validated at the edge).
+
+2. **If no version-matched doc is reachable, incur a `source-debt`.** A `source-debt` is a deliberate, tracked IOU: "this config was authored offline, without the version-matched source; a human must verify it against the real docs before it ships." It is the honest alternative to guessing silently. Record all three:
+   - a **`source-debt` label** on the PR (and the Linear ticket),
+   - a **mandatory PR-body checkbox**: `- [ ] source-debt: <tool@version + option> verified against the version-matched official docs`, which a reviewer clears only by doing the read,
+   - a **commit-body note** naming exactly what is unverified.
+
+**Do not auto-merge while a `source-debt` checkbox is unchecked.** The offline bypass is for *authoring* without egress, never for *shipping* unverified config. The autonomous loop enforces this: it refuses to arm auto-merge when the PR body carries an open `source-debt`.
+
+This widens egress by **zero** (decision A3): offline work defers the verification behind an explicit, reviewable IOU; it never reaches for the network it was denied.
+
+---
+
 ## Composition
 
 - **Upstream of `writing-plans`** — stack decisions in a plan must be grounded in current official docs, not remembered defaults. A plan step that pins a library cites the doc that justifies the choice.

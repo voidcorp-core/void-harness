@@ -20,6 +20,7 @@ export type BacklogEvent =
   | { readonly kind: 'init'; readonly model?: string }
   | { readonly kind: 'phase'; readonly phase: string }
   | { readonly kind: 'decision'; readonly text: string }
+  | { readonly kind: 'branch'; readonly name: string }
   | { readonly kind: 'skill'; readonly name: string }
   | { readonly kind: 'edit'; readonly path?: string }
   | { readonly kind: 'bash'; readonly command?: string }
@@ -67,6 +68,12 @@ function eventsFromText(text: string): BacklogEvent[] {
     const decision = /^VOID_EVENT:\s*DECISION\s+(.+)$/.exec(lineText);
     if (decision?.[1] !== undefined) {
       out.push({ kind: 'decision', text: decision[1].trim() });
+      continue;
+    }
+
+    const branch = /^VOID_EVENT:\s*BRANCH\s+(.+)$/.exec(lineText);
+    if (branch?.[1] !== undefined) {
+      out.push({ kind: 'branch', name: branch[1].trim() });
       continue;
     }
 
