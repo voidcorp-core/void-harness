@@ -31,7 +31,7 @@ Body: 5-15 lines describing the friction, with concrete evidence (transcript sni
 
 ### Promotion
 
-Currently manual: review accumulated `.void/harness-feedback/proposed/` files when you next touch the harness, file each as an issue or PR on `voidcorp-core/void-harness`. A `void-harness feedback push` CLI command is on the backlog to automate this (creates GitHub issue via `gh api`).
+`void-harness feedback push` automates this: it reads the accumulated `.void/harness-feedback/proposed/` notes and previews them; run with `--open` (optionally scoped to specific files) to file each as a GitHub issue on `voidcorp-core/void-harness` via `gh` and move it to `pushed/`. Previewing by default keeps the promotion deliberate.
 
 ## Outbound (harness → consumers)
 
@@ -41,7 +41,7 @@ Periodically the harness should audit itself:
 - Upstream tooling deprecations (e.g., a library a skill references getting deprecated)
 - Repeated matrix conflicts in `plans/skill-decision-matrix.md` → boundaries need reshaping
 
-A `void-harness audit` CLI command is on the backlog. For now this is manual via `gh api` over consumer telemetry (TBD).
+`void-harness audit` reports this from `.void/usage.log` (written by the `skill-usage-meter` hook): harness skills that are active, stale (`--stale-days <n>`, default 30), or never fired — the never/stale lists being the deprecation candidates. It reports only; deprecation PRs stay hand-authored (HITL). Upstream-tooling deprecation and matrix-conflict detection are a planned extension of the same command.
 
 ## HITL is absolute
 
