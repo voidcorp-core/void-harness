@@ -132,7 +132,7 @@ A markdown report saved to `~/.void/audit/YYYY-MM-DD.md` listing:
 
 The report PROPOSES — it does not act. For each proposal, the user can:
 
-- Open a PR on void-harness to deprecate / fuse / rewrite (CLI helper: `npx @voidcorp/harness audit propose-pr <item>`)
+- Open a PR on void-harness to deprecate / fuse / rewrite (hand-authored — `audit` reports, it does not open PRs)
 - Discard the proposal (mark in the report)
 - Ignore for now
 
@@ -152,8 +152,8 @@ All require explicit human review.
 
 ## Privacy guarantees
 
-- `~/.void/usage.log` is **LOCAL only**. The `audit` reads it. No telemetry endpoint exists. No network call sends usage data anywhere.
-- The log format is documented (one line per invocation: `<timestamp>\t<skill>\t<mode>\t<project-hash>`). The project name is hashed (sha256 first 8 chars) so the log itself does not leak project names — but the user can disable logging via `.void/config.json` setting `instrumentation: false`.
+- `.void/usage.log` (project-local) is **LOCAL only**. The `audit` reads it. No telemetry endpoint exists. No network call sends usage data anywhere.
+- The log format is one line per Skill invocation: `<timestamp>\t<skill>` (written by the `skill-usage-meter` PreToolUse hook). It records only the skill name and time, never project contents.
 - `.void/harness-feedback/` in consumer projects is committed; it contains intentional contributions, not telemetry.
 - Promoted feedback PRs to void-harness may reference the consumer project. The user controls what is shared.
 
@@ -161,11 +161,9 @@ All require explicit human review.
 
 ## Companion hooks / CLI helpers
 
-- `usage-log-instrumentation` — a shared util at `packages/core/claude/lib/usage-log.ts` (≤ 30 LOC) imported by every skill invocation. Writes a line to `~/.void/usage.log` if instrumentation is enabled.
-- `feedback-push` — CLI subcommand `npx @voidcorp/harness feedback push` (in `packages/cli/`)
-- `audit` — CLI subcommand `npx @voidcorp/harness audit` (in `packages/cli/`)
-
-(These are Phase D / Phase E deliverables. The skill ships ahead of the CLI tooling so the discipline is documented even before the helpers exist; in the interim, users can manually create PRs and run audits.)
+- `skill-usage-meter` — a PreToolUse hook on the Skill tool (`packages/core/hooks/skill-usage-meter.sh`) that appends `<timestamp>\t<skill>` to `.void/usage.log` on every invocation. Observation only; never blocks.
+- `feedback push` — CLI subcommand `void-harness feedback push` (in `packages/cli/`): previews the inbound queue, `--open` files each note as a GitHub issue on the harness repo and moves it to `pushed/`.
+- `audit` — CLI subcommand `void-harness audit` (in `packages/cli/`): reports skills that are active / stale / never-fired from `.void/usage.log` (MVP). Upstream-deprecation and decision-matrix-conflict detection are a planned extension.
 
 ---
 
