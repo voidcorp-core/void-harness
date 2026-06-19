@@ -125,7 +125,7 @@ The harness must evolve from real usage in real projects, like citypaul's dotfil
 While coding in any project consuming the harness, when the model (or the user) perceives that something is missing, wrong, or worth a rule:
 
 1. The perception is captured to `.void/harness-feedback/proposed/YYYY-MM-DD-N.md` in the *current project repo* (not in void-harness). Format: trigger, observation, proposed change to harness, target (core / pack / module), confidence.
-2. Periodically (or on demand), `npx @voidcorp/harness feedback push` reads the proposed queue, walks each item with the user (promote / discard / defer), and opens a GitHub issue or PR on `voidcorp-core/void-harness` for the ones the user promotes.
+2. Periodically (or on demand), `void-harness feedback push` reads the proposed queue and previews it; with `--open` it files each note as a GitHub issue on `voidcorp-core/void-harness` and moves it to `pushed/`. Previewing by default keeps the promotion deliberate (HITL).
 3. The void-harness PR carries the source project context as motivation. Nothing is merged without human review.
 
 ### Outbound — `harness-evolution` skill, mode `audit`
@@ -133,7 +133,7 @@ While coding in any project consuming the harness, when the model (or the user) 
 A recurring auto-evaluation that questions the harness's current surface:
 
 1. Each skill invocation logs to `~/.void/usage.log` (local, never shipped).
-2. `npx @voidcorp/harness audit` produces a report: skills never invoked in N days, skills whose upstream source has been deprecated/superseded, skills whose decision-matrix cell has fired conflicts repeatedly.
+2. `void-harness audit` produces a report: skills that are active, stale, or never invoked (per the local usage log). Upstream-source deprecation and decision-matrix-conflict detection are a planned extension of the same command.
 3. The report **proposes** deprecations, fusions, or rewrites. Nothing is auto-applied. Each proposal becomes a PR after human review.
 
 ### Why HITL is absolute here
