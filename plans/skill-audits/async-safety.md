@@ -128,3 +128,7 @@ None directly. The discipline is encoded in `pack-monorepo` / `pack-nextjs-pwa` 
 - **Webhook replay window default**: 5 minutes (Stripe default) vs longer (some sources delay re-delivery). Lean 5 minutes default; override per webhook source.
 - **Dead-letter handling**: automatic alert via Sentry vs separate DLQ surface. Lean Sentry alert + DLQ table (queryable post-incident).
 - **Cron overlap protection mechanism**: Postgres advisory locks vs Redis SETNX. Lean Postgres advisory (no Redis dependency).
+
+## Revision 2026-06-19 — fail-soft outbound HTTP (issue #17 cluster B, B1)
+
+The skill covered the outbox (a write that must eventually happen) and inbound webhook safety, but not the mirror case: a synchronous OUTBOUND call to a third party on the request path. Added a "Fail-soft outbound HTTP" section — bound the time (`AbortSignal.timeout`), retry only idempotent reads with a cap, and decide critical (surface) vs degradable (cached/default fallback + structured warn) up front. Composes with observability + functional (outcome as a value, not an escaping throw). Plus an anti-rule and a stuck-table row.

@@ -62,10 +62,13 @@ if printf "%s" "$NORM" | grep -qE 'ch(mod|own)([[:space:]]+[a-zA-Z0-9-]+)*[[:spa
   block "recursive permission/ownership change on a root path"
 fi
 
-# Force-push without the safe --force-with-lease variant.
-if printf "%s" "$CMD" | grep -qE '\bgit[[:space:]]+push\b' \
-  && printf "%s" "$CMD" | grep -qE '(--force([^-]|$)|[[:space:]]-f([[:space:]]|$))' \
-  && ! printf "%s" "$CMD" | grep -qE '--force-with-lease'; then
+# Force-push without the safe --force-with-lease variant. The force flag must
+# follow `git push` within the SAME command segment ([^&|;]*), so an unrelated
+# `rm -f` or `git add -f` elsewhere in a compound command is not misread as a
+# force-push. --force-with-lease is allowed for free: `--force([^-]|$)` does not
+# match the `-with-lease` suffix (a dash follows `force`), so no separate
+# (and previously broken: `--` parsed as a grep option) negative check is needed.
+if printf "%s" "$CMD" | grep -qE 'git[[:space:]]+push\b[^&|;]*[[:space:]](--force([^-]|$)|-f([[:space:]]|$))'; then
   block "git push --force (use --force-with-lease)"
 fi
 

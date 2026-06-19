@@ -50,3 +50,7 @@ Native — distilled from Next.js 16 docs (`'use server'`, `defineAction` semant
 ## Open questions
 
 - The skill mentions `defineAction`/`defineFormAction` from `@repo/auth`. The pack itself doesn't ship these — they're expected from `pack-monorepo`'s `@repo/auth` package. Should the wrappers be moved to `@voidcorp/pack-server` so the skill stands alone? Decision deferred until we see a non-monorepo consumer of this skill.
+
+## Revision 2026-06-19 — multi-value FormData (issue #17 cluster B, B2)
+
+The skill taught `Object.fromEntries(formData)` as the FormData→Zod bridge. That collapses a repeated field (multi-select, checkbox group, `<input multiple>`) to its last value — a silent data-loss bug, observed in a consumer project. Fixed the guidance: read repeatable fields with `formData.getAll(name)` and validate with `z.array(...)`; `Object.fromEntries` is acceptable only for known single-value forms. Companion note added to `pack-react:form-pattern` (the native-form path).

@@ -20,3 +20,7 @@ audit_date: 2026-06-01
 **Why not in core.** react-hook-form is React-specific. Server-side form handling (Server Actions) is server-pack concern; client UX orchestration is react-pack concern.
 
 **Sources.** react-hook-form docs, @hookform/resolvers Zod adapter, distilled by repeated form bugs on real projects.
+
+## Revision 2026-06-19 — repeatable-field caution (issue #17 cluster B, B2)
+
+Added a caution to the native-`<form action>` path: when the Server Action reads FormData directly, repeatable fields must use `getAll` + `z.array`, never `Object.fromEntries` (drops all but the last value). The canonical fix lives in `harness-server:server-action`; this is the cross-reference from the component side.

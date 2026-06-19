@@ -145,6 +145,19 @@ describe('block-dangerous-bash.sh', () => {
     expect(runHook('git push -f').code).toBe(2);
   });
 
+  // Regression (issue #17 cluster B): the force flag must belong to `git push`,
+  // not to an unrelated command sharing one compound line. An `rm -f` or
+  // `git add -f` next to a plain `git push` must NOT be read as a force-push.
+  it('allows git push when an unrelated rm -f precedes it (exit 0)', () => {
+    expect(runHook('rm -rf ./dist && git push origin main').code).toBe(0);
+  });
+  it('allows git push when an unrelated rm -f follows it (exit 0)', () => {
+    expect(runHook('git push origin main && rm -f /tmp/x').code).toBe(0);
+  });
+  it('allows git push when a -f belongs to git add, not push (exit 0)', () => {
+    expect(runHook('git add -f file && git push origin main').code).toBe(0);
+  });
+
   it('BLOCKS DROP TABLE (exit 2)', () => {
     expect(runHook('psql -c "DROP TABLE users"').code).toBe(2);
   });

@@ -143,15 +143,29 @@ Two flavors, pick by use case:
 | Use | Action signature | Input source |
 |---|---|---|
 | Submit-on-click button / typed payload | `async function(input: T)` | Object (Zod object schema) |
-| HTML form with `<form action={action}>` | `async function(formData: FormData)` | FormData (Zod transforms entries) |
+| HTML form with `<form action={action}>` | `async function(formData: FormData)` | FormData (Zod parses entries; `getAll` for repeated fields) |
 
-For the FormData variant, always parse via Zod (`z.object({ field: z.string() }).parse(Object.fromEntries(formData))`) — never reach into FormData manually with `.get()` casts.
+For the FormData variant, always parse via Zod — never reach into FormData manually with raw `.get()` casts. But `Object.fromEntries(formData)` is **not** a safe default: it keeps only the **last** value of a repeated field, so a multi-select, a checkbox group, or `<input multiple>` is silently truncated to one entry. Read any field that can repeat with `getAll` and validate it as an array:
+
+```ts
+const schema = z.object({
+  title: z.string().min(1),
+  tagIds: z.array(z.string()).default([]),   // repeated field
+});
+// Single-value fields via .get(); repeated fields via .getAll().
+const input = schema.parse({
+  title: formData.get('title'),
+  tagIds: formData.getAll('tagId'),
+});
+```
+
+`Object.fromEntries(formData)` is fine only when every field is known-single-valued — and that assumption breaks the day someone adds a multi-select. Prefer the explicit shape above for any form with a repeatable input.
 
 ## Workflow
 
 1. **Define the service first**, in `src/services/<feature>/<verb>.ts`. Pure-by-default; deps injected; tested in strict TDD mode.
 2. **Write the Zod input schema** in the action file. Aim for the smallest possible surface; reject unknown keys.
-3. **Pick the action shape**: object input (typed payload) or FormData input (HTML form). Parse FormData via Zod, not raw `.get()` casts.
+3. **Pick the action shape**: object input (typed payload) or FormData input (HTML form). Parse FormData via Zod; use `getAll` + `z.array` for any repeatable field (never `Object.fromEntries`, which drops all but the last value).
 4. **Decide auth posture**: logged-in required, optional, or public (`public` requires explicit justification in a comment).
 5. **Set the rate limit**. Default per-user 30/min for mutations, 100/min for reads. Stricter on auth-adjacent actions (see `rate-limit-strategy`).
 6. **Wire trace + Sentry scope** explicitly in the handler (until you extract a `defineAction` helper).
