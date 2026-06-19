@@ -30,3 +30,16 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      # When a release is actually cut, tell the downstream marketplace to
+      # refresh its pinned shas. void-plugins groups the bumps by upstream repo,
+      # so this opens a single consolidated PR there (merged manually). Needs a
+      # fine-grained PAT scoped to voidcorp-core/void-plugins with
+      # "Actions: read and write", stored as the VOID_PLUGINS_DISPATCH_TOKEN secret.
+      - name: Trigger downstream pin bump (void-plugins)
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.VOID_PLUGINS_DISPATCH_TOKEN }}
+        run: |
+          gh workflow run bump-shas.yml -R voidcorp-core/void-plugins
+          echo "Triggered void-plugins/bump-shas for ${{ steps.release.outputs.tag_name }}"
