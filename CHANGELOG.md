@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.11.0](https://github.com/voidcorp-core/void-harness/compare/v0.10.0...v0.11.0) (2026-06-19)
+
+
+### Features
+
+* implement void-harness audit + feedback push (issue [#17](https://github.com/voidcorp-core/void-harness/issues/17) cluster C) ([5fc5d5b](https://github.com/voidcorp-core/void-harness/commit/5fc5d5b186219734e5d5718c5ea6264872dc1c37))
+* **pack-server:** testing-server-modules skill (issue [#17](https://github.com/voidcorp-core/void-harness/issues/17) B3) ([f3e10d5](https://github.com/voidcorp-core/void-harness/commit/f3e10d5c44e0325b4ad3fc5a3f33a88a7c5827a6))
+* trigger void-plugins pin bump on release ([ddf883a](https://github.com/voidcorp-core/void-harness/commit/ddf883a53e50bc876c1154ba69f86a7cb86be484))
+* trigger void-plugins pin bump on release ([b3e0de2](https://github.com/voidcorp-core/void-harness/commit/b3e0de28368611aafff3e70ef483a6716dd63c1e))
+* void-harness audit + feedback push CLI (issue [#17](https://github.com/voidcorp-core/void-harness/issues/17) cluster C) ([2d4105c](https://github.com/voidcorp-core/void-harness/commit/2d4105c20b110c66ad38fb09559254b550a37318))
+
+
+### Bug Fixes
+
+* **block-dangerous-bash:** scope force-push match to the push command ([b0a87c5](https://github.com/voidcorp-core/void-harness/commit/b0a87c575bf3d060c20bb798cb18e8ede817a016))
+* issue [#17](https://github.com/voidcorp-core/void-harness/issues/17) cluster B — FormData, fail-soft HTTP, server-only testing (guidance) ([27019ee](https://github.com/voidcorp-core/void-harness/commit/27019ee9d862254db7b9202ce40d74678d2881e1))
+* **server-action,form-pattern:** multi-value FormData guidance (issue [#17](https://github.com/voidcorp-core/void-harness/issues/17) B2) ([f8c67d1](https://github.com/voidcorp-core/void-harness/commit/f8c67d1aa5497d58d62539842fe720ecfdfa99f4))
+
 ## [0.10.0](https://github.com/voidcorp-core/void-harness/compare/v0.9.0...v0.10.0) (2026-06-19)
 
 

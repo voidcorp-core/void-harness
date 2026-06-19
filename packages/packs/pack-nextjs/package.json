@@ -1,6 +1,6 @@
 {
   "name": "@voidcorp/pack-nextjs",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Next.js 16 App Router conventions for the void-harness — route groups, Cache Components, instrumentation. Composes with @voidcorp/pack-react (UI) and @voidcorp/pack-server (Server Actions, webhooks).",
   "license": "MIT",
   "type": "module",
