@@ -120,6 +120,39 @@ The `domain_events` table schema lives in `pack-monorepo` (composes with `migrat
 
 ---
 
+## Fail-soft outbound HTTP — for a third party you don't control
+
+The outbox is for a write that **must** eventually happen. The mirror case is a **read** on the request path that you can survive without: an FX rate, a recommendation, an enrichment lookup. A synchronous call to a vendor you don't control must never be allowed to hang or fail the whole request when that vendor is slow or down.
+
+```typescript
+// banned: no timeout, no fallback — a flaky vendor takes down your request
+const rates = await fetch('https://fx.example/rates').then((r) => r.json());
+
+// fail-soft: bounded time + graceful degrade
+async function getRates(cache: RatesCache): Promise<Rates> {
+  try {
+    const res = await fetch('https://fx.example/rates', { signal: AbortSignal.timeout(2000) });
+    if (!res.ok) throw new Error(`fx ${res.status}`);
+    const rates = parseRates(await res.json());
+    await cache.set(rates); // refresh the fallback for next time
+    return rates;
+  } catch (err) {
+    logger.warn('fx rates degraded, serving last-known', { err }); // observable, not silent
+    return cache.getLastKnown() ?? DEFAULT_RATES; // degrade, do not fail the request
+  }
+}
+```
+
+Three rules:
+
+1. **Always bound the time** — `AbortSignal.timeout(ms)`. An unbounded `fetch` inherits the vendor's worst day.
+2. **Retry only idempotent reads, with a cap** — a bounded retry (2-3, with backoff) for a GET; never auto-retry a non-idempotent POST (that is the outbox's job, with a dedup key).
+3. **Decide critical vs degradable up front.** Critical (payment authorize) → surface the failure to the caller, do not fake success. Degradable (rates, recommendations) → fall back to a cached/default value and log the degradation. The failure mode is a deliberate choice, never an unhandled throw.
+
+This composes with `observability` (the degradation is a structured warn, never swallowed) and `functional` (the outcome is a value — `Rates` or the fallback — not an exception that escapes the boundary).
+
+---
+
 ## Job safety — the canonical pattern
 
 Same shape as webhooks, with explicit state machine (composes with `functional` discriminated unions):
@@ -220,6 +253,7 @@ None directly in core. The discipline is encoded in `pack-monorepo` / `pack-next
 - MUST NOT use in-memory dedup that loses state on restart.
 - MUST NOT permit unbounded retries.
 - MUST NOT skip the outbox pattern when DB + external are both modified.
+- MUST NOT call an outbound third party on the request path without a timeout and a decided failure mode (surface if critical, degrade if not).
 
 ---
 
@@ -229,6 +263,7 @@ None directly in core. The discipline is encoded in `pack-monorepo` / `pack-next
 |---|---|
 | Same Stripe event processed twice | Idempotency key not stored, or check happens after mutation. Order: verify → dedup → handle. |
 | Webhook handler slow → timeout → retry → duplicate work | Make handler fast: enqueue a job and return 200 immediately. The job handles idempotency. |
+| A vendor API call sometimes hangs and stalls the whole request | Bound it with `AbortSignal.timeout`; decide critical (surface) vs degradable (cached/default fallback + a warn log). See "Fail-soft outbound HTTP". |
 | Job lost after worker crash | Queue lib should re-deliver. Verify your queue is durable (BullMQ default is durable). |
 | Cron stacking | `withCronSafety()` with skip-if-running. |
 | External call fails after DB commit | Outbox pattern. Both in one transaction. |
