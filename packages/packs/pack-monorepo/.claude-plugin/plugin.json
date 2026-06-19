@@ -1,6 +1,6 @@
 {
   "name": "harness-monorepo",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Turborepo + Bun monorepo conventions for the void-harness: shared tsconfig.strict.json, @repo/core (Result, Option, pipe), 5+5 service layout, package boundary discipline.",
   "author": {
     "name": "VoidCorp",
