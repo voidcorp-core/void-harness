@@ -129,6 +129,8 @@ Never duplicate the schema in the client and server. Always import from one loca
 
 - **File upload only** — use `<input type="file">` + Server Action; the form library adds no value.
 
+> **Repeatable fields in a native form**: when the Server Action reads `FormData` directly (the paths above — multi-select, a checkbox group, `<input multiple>`), do **not** `Object.fromEntries(formData)`: it keeps only the last value and silently drops the rest. Read repeatable fields with `formData.getAll(name)` and validate them with `z.array(...)` in the shared schema. See `harness-server:server-action`.
+
 - **Wizard / multi-step** — react-hook-form's `Controller` works but consider XState or a similar state machine for complex flows.
 
 ## Anti-patterns
