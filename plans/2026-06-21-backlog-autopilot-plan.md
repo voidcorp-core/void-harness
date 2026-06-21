@@ -241,6 +241,7 @@ consommateur recommandé avant de considérer la skill « done ».
 
 **En cours (P2 — clustering)**:
 - ✅ Step 4 — `cluster-detect.ts` : détection de clusters gatée par overlap de footprint (M4), cap + split par retrait de tier faible, flag `oversized`. 13 tests, suite 302 verte, tsc clean. (Mutation : Stryker non installé dans le repo → passe mutation manuelle.)
+- ✅ Step 5 — `cluster-order.ts` : tri topologique (Kahn) + cycle, isolation T2 (worktree per-ticket en parallèle, worktree de cluster en séquentiel), compose `partition`. 7 tests, suite 309 verte, tsc clean.
 
 **Pending**:
 - ⏳ Step 2 — Renommer backlog-batch → backlog-autopilot
