@@ -230,11 +230,14 @@ consommateur recommandé avant de considérer la skill « done ».
 
 ## Resume point
 
-**Next step**: Step 3 (Journaliser les décisions dans docs/DECISIONS.md)
+**Next step**: Checkpoint A (revue utilisateur de P1) → puis Step 4 (Détection de cluster)
 
-**Completed**:
+**Completed (P1 — consolidation)**:
 - ✅ Step 1 — Supprimer autonomous-backlog-loop (commit `1901539`) ; protocole `VOID_EVENT` extrait dans `events.ts` ; suite 290 verte. Déviation : `summary.ts`/`wizard.ts` supprimés (loop-shaped), reconstruits en P2/P4.
-- ✅ Step 2 — Rename backlog-batch → backlog-autopilot (skill + commande + CLI + workflow + core-assets régénéré + docs CLAUDE/AGENTS unifiés + skill-audit + decision-matrix). Suite 290 verte, anti-bloat + parité OK.
+- ✅ Step 2 — Rename backlog-batch → backlog-autopilot (commit `7c5365d` ; skill + commande + CLI + workflow + core-assets régénéré + docs CLAUDE/AGENTS unifiés + skill-audit + decision-matrix). Suite 290 verte, anti-bloat + parité OK.
+- ✅ Step 3 — DECISIONS.md : 2 entrées 2026-06-21 (consolidation + orchestrateur hybride + auto-détection + Opus ; auto-merge risk-gated séquentiel post-autoplan).
+
+**→ Checkpoint A : P1 livré (consolidation). Arrêt pour revue avant P2 (clustering).**
 
 **Pending**:
 - ⏳ Step 2 — Renommer backlog-batch → backlog-autopilot
