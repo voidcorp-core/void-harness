@@ -237,7 +237,10 @@ consommateur recommandé avant de considérer la skill « done ».
 - ✅ Step 2 — Rename backlog-batch → backlog-autopilot (commit `7c5365d` ; skill + commande + CLI + workflow + core-assets régénéré + docs CLAUDE/AGENTS unifiés + skill-audit + decision-matrix). Suite 290 verte, anti-bloat + parité OK.
 - ✅ Step 3 — DECISIONS.md : 2 entrées 2026-06-21 (consolidation + orchestrateur hybride + auto-détection + Opus ; auto-merge risk-gated séquentiel post-autoplan).
 
-**→ Checkpoint A : P1 livré (consolidation). Arrêt pour revue avant P2 (clustering).**
+**P1 livré (Checkpoint A franchi, revue OK — "on continue").**
+
+**En cours (P2 — clustering)**:
+- ✅ Step 4 — `cluster-detect.ts` : détection de clusters gatée par overlap de footprint (M4), cap + split par retrait de tier faible, flag `oversized`. 13 tests, suite 302 verte, tsc clean. (Mutation : Stryker non installé dans le repo → passe mutation manuelle.)
 
 **Pending**:
 - ⏳ Step 2 — Renommer backlog-batch → backlog-autopilot
