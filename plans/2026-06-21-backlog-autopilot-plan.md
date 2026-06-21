@@ -243,6 +243,9 @@ consommateur recommandé avant de considérer la skill « done ».
 - ✅ Step 4 — `cluster-detect.ts` : détection de clusters gatée par overlap de footprint (M4), cap + split par retrait de tier faible, flag `oversized`. 13 tests, suite 302 verte, tsc clean. (Mutation : Stryker non installé dans le repo → passe mutation manuelle.)
 - ✅ Step 5 — `cluster-order.ts` : tri topologique (Kahn) + cycle, isolation T2 (worktree per-ticket en parallèle, worktree de cluster en séquentiel), compose `partition`. 7 tests, suite 309 verte, tsc clean.
 - ✅ Step 6 — Workflow `backlog-autopilot.workflow.js` : itère sur des **clusters** (une PR par cluster `cluster/<id>`, ordre topo via `order`), back-compat batch-de-4 comme cluster implicite. Worktree par worker (T2 « worktree always »). Syntaxe validée (wrap async), core-assets régénéré, suite 309 verte. (Non unit-testable : runtime Workflow + dogfood consommateur différé.)
+- ✅ Step 7 — Launcher : `autopilot-plan.ts` (`buildAutopilotPlan` compose cluster-detect + cluster-order + batch-de-4, **défaut 4** M8) ; commande CLI `plan` câblée + contrat/help ; smoke bout-en-bout OK. 5 tests, suite 314 verte, tsc clean. **Resequencing noté** : sous-commandes opérateur `status/resume/explain-blocked/abort` déplacées en P4 (elles lisent l'état machine du Step 13).
+
+**→ Checkpoint B : P2 livré (clustering + launcher). P3 ensuite (pipeline qualité adaptatif).**
 
 **Pending**:
 - ⏳ Step 2 — Renommer backlog-batch → backlog-autopilot

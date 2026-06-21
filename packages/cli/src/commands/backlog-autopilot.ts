@@ -5,9 +5,11 @@
 // sequential plan it shows the human before invoking the Workflow.
 //
 // The CLI deliberately does only the deterministic computation — it has no MCP
-// and spawns no agents. Selection + partition are the unit-tested core.
+// and spawns no agents. Cluster detection, ordering and partition are the
+// unit-tested core; the launcher shows the plan (a --dry-run preview by default)
+// and confirms with the human before any fan-out.
 
-import { type BatchPlan, type PlanInput, buildPlan } from '../lib/backlog/batch-plan.js';
+import { type AutopilotPlan, type AutopilotPlanInput, buildAutopilotPlan } from '../lib/backlog/autopilot-plan.js';
 
 function readStdin(): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -34,29 +36,36 @@ Usage:
 
 stdin JSON:
   {
-    "tickets":   [{ "id", "priority", "boardOrder", "blockedByOpen", "dependsOn": [] }],
+    "tickets":   [{ "id", "priority", "boardOrder", "blockedByOpen",
+                    "dependsOn": [], "parentId"?, "labels"?: [] }],
     "estimates": [{ "id", "areas": [], "highRisk": false, "confidence": 0..1 }],
-    "k":             3,     // optional batch size (default 3)
-    "minConfidence": 0.5    // optional; below it, route sequential
+    "batchSize":      4,    // optional independent-leftover batch size (default 4)
+    "maxClusterSize": 6,    // optional cap before a cluster is split
+    "minConfidence":  0.5   // optional; below it, route sequential
   }
 
 stdout JSON:
-  { "parallel": [ids], "sequential": [ids], "excluded": [ids] }
+  {
+    "clusters": [{ "id", "tickets": [], "reason", "confidence", "oversized",
+                   "parallel": [], "sequential": [], "order": [] }],
+    "batch":    { "parallel": [ids], "sequential": [ids] },
+    "excluded": [ids]
+  }
 `.trimStart(),
   );
 }
 
 async function planCmd(): Promise<void> {
   const raw = await readStdin();
-  let input: PlanInput;
+  let input: AutopilotPlanInput;
   try {
-    input = JSON.parse(raw) as PlanInput;
+    input = JSON.parse(raw) as AutopilotPlanInput;
   } catch {
     process.stderr.write('backlog-autopilot plan: stdin is not valid JSON.\n');
     process.exitCode = 2;
     return;
   }
-  const plan: BatchPlan = buildPlan(input);
+  const plan: AutopilotPlan = buildAutopilotPlan(input);
   process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
 }
 
