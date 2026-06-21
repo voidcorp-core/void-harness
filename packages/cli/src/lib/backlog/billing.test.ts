@@ -1,28 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assertSubscription, subscriptionEnv } from './billing.js';
-
-describe('subscriptionEnv', () => {
-  it('strips ANTHROPIC_API_KEY and ANTHROPIC_AUTH_TOKEN', () => {
-    const out = subscriptionEnv(
-      { ANTHROPIC_API_KEY: 'sk-x', ANTHROPIC_AUTH_TOKEN: 'tok', PATH: '/bin' },
-      false,
-    );
-    expect(out.ANTHROPIC_API_KEY).toBeUndefined();
-    expect(out.ANTHROPIC_AUTH_TOKEN).toBeUndefined();
-    expect(out.PATH).toBe('/bin');
-  });
-
-  it('keeps API creds when allowApi is true', () => {
-    const out = subscriptionEnv({ ANTHROPIC_API_KEY: 'sk-x' }, true);
-    expect(out.ANTHROPIC_API_KEY).toBe('sk-x');
-  });
-
-  it('does not mutate the input env', () => {
-    const input = { ANTHROPIC_API_KEY: 'sk-x' };
-    subscriptionEnv(input, false);
-    expect(input.ANTHROPIC_API_KEY).toBe('sk-x');
-  });
-});
+import { assertSubscription } from './billing.js';
 
 describe('assertSubscription', () => {
   it('is ok with no special vars', () => {

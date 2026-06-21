@@ -22,6 +22,6 @@ Follow the skill's Layer 1 exactly:
    reconciles the green branches into a single integration PR gated by the full suite.
 
 Remind the user this is opt-in and that they own the integration PR merge. Requires
-the Workflow tool (deterministic multi-agent orchestration); if unavailable, suggest
-`/harness:backlog-loop` (sequential) instead. Relay the final result: the integration
-PR, the included tickets, and any excluded or blocked ones. Do not merge anything.
+the Workflow tool (deterministic multi-agent orchestration); if it is unavailable,
+say so and stop. Relay the final result: the integration PR, the included tickets,
+and any excluded or blocked ones. Do not merge anything.

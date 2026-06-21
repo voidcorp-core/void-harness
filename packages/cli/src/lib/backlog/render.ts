@@ -1,12 +1,12 @@
-// Append-only live renderer for the backlog-loop flux.
+// Append-only live renderer for the backlog-autopilot flux.
 //
 // Deliberately append-only: each event adds one line, never redraws in place.
-// An in-place TUI is illegible in the Claude Code transcript where the loop is
-// also driven via /void-backlog-loop. `formatEvent` is pure (returns the line
-// or undefined); `renderEvent` is the thin imperative writer.
+// An in-place TUI is illegible in the Claude Code transcript where the run is
+// driven. `formatEvent` is pure (returns the line or undefined); `renderEvent`
+// is the thin imperative writer.
 
 import { c, glyph } from '../render.js';
-import type { BacklogEvent } from './stream.js';
+import type { BacklogEvent } from './events.js';
 
 export type Write = (line: string) => void;
 

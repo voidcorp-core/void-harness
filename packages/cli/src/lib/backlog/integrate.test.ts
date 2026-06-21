@@ -9,7 +9,7 @@ import {
   prCreateArgs,
   pushArgs,
 } from './integrate.js';
-import type { BacklogEvent } from './stream.js';
+import type { BacklogEvent } from './events.js';
 
 // The worker is commit-only (issue #17 cluster A, A1): it physically cannot
 // push (git push / gh pr removed from its allowlist). The TRUSTED orchestrator
