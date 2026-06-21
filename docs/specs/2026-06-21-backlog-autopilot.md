@@ -258,3 +258,40 @@ Atomique, sans casser les références :
 - 2026-06-21 — Auto-détection cluster vs batch-de-4.
 - 2026-06-21 — Auto-merge cascade sur PR stackées (base `develop`/`main`).
 - 2026-06-21 — Opus partout (dérogation justifiée à `llm-cost-discipline`).
+
+## Révision post-autoplan (2026-06-21) — changements liants
+
+Revue `/autoplan` (CEO + Eng + DX, doubles voix Claude + Codex). Corrections retenues,
+qui **remplacent** les passages correspondants ci-dessus :
+
+- **Auto-merge — pas de « cascade déterministe sans conflit ».** Mécanisme infaisable
+  sur des stacks **squash-mergées** (`--squash` change le SHA du parent ; GitHub ne
+  re-targete pas sans suppression de branche ; le `reconcile` LLM n'est pas
+  déterministe). Remplacé par : **merge stacké strictement séquentiel** (attendre le
+  parent mergé, rebaser le seul enfant suivant, **gate humain sur conflit**) + machine
+  d'états qui **classifie** (conflit/stale/protection/CI/merge-queue) et **bloque
+  proprement**. Le mot « garantie » est retiré.
+- **Auto-merge risk-gated (UC2).** `--auto-merge` vers `develop`/`main` ne s'arme que
+  pour un cluster **low-risk** (petit diff, hors UI/sécurité/migration, chemins possédés,
+  pas une racine de stack) ; sinon **PR à merger à la main**. Protection de branche
+  **inconnue = FATALE** sous `--auto-merge`.
+- **Worktree (T2).** Pas « seulement si parallèle » : **toujours un worktree** — un de
+  cluster en séquentiel, un par ticket en parallèle (sûreté crash/dirty-state).
+- **Cluster.** Un lien de graphe Linear ne suffit pas à fusionner : exiger un **overlap
+  de footprint fichiers** corroborant + cap de taille + score de confiance + split.
+- **Crash-resume.** Écritures **atomiques** + **réconciliation de l'état distant**
+  (`gh pr list`, SHA, PR, base, checks) au lieu de rejouer le curseur ; actions externes
+  idempotentes.
+- **Orchestrateur mince.** Contrat **machine-readable** des sorties worker (protocole
+  `VOID_EVENT` **porté** de `stream.ts`, pas supprimé sèchement) + **compaction
+  explicite** entre clusters + **circuit breaker** budget (tokens/rate-limit/temps).
+- **DX opérateur.** Contrat de commande concret (sources de pool, `--dry-run` défaut,
+  preview avant `--auto-merge`) + sous-commandes `status`/`resume`/`explain-blocked`/
+  `abort` + schéma de rapport « blocked ».
+- **Headless différé (UC1).** Le vieux `claude -p` hors-session est supprimé, mais un
+  **mode headless futur** de `backlog-autopilot` est inscrit (même skill, même contrat
+  worker) pour ne pas jeter la capacité walk-away/cron.
+- **Premisse (note ouverte).** Le vrai goulot peut être la bande passante de **revue**,
+  pas le débit de PR. Kill-criterion suggéré : si le temps de revue par PR ne baisse pas,
+  la feature est net-négative — à mesurer après P3.
+- **Batch défaut = 4** (le code est à `k=3`, à aligner).
