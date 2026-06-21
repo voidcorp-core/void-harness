@@ -1,4 +1,4 @@
-// backlog-batch — deterministic Workflow that drains a CONFIRMED batch of Linear
+// backlog-autopilot — deterministic Workflow that drains a CONFIRMED batch of Linear
 // tickets, each ticket worked end-to-end by a worktree-isolated subagent, then
 // reconciles the green branches into ONE integration PR gated by the full suite.
 //
@@ -19,7 +19,7 @@
 //   }
 
 export const meta = {
-  name: 'backlog-batch',
+  name: 'backlog-autopilot',
   description: 'Drain a confirmed batch of Linear tickets in parallel worktrees, reconcile to one integration PR',
   phases: [
     { title: 'Workers', detail: 'one worktree subagent per ticket (parallel group, then sequential queue)' },
@@ -36,7 +36,7 @@ function resolvePlan(raw) {
     try {
       return JSON.parse(raw) || {}
     } catch (err) {
-      throw new Error(`backlog-batch: args is not valid JSON: ${err instanceof Error ? err.message : String(err)}`)
+      throw new Error(`backlog-autopilot: args is not valid JSON: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
   return raw || {}
@@ -52,7 +52,7 @@ const reviewState = plan.reviewState || 'In Review'
 
 // Make the fan-out size visible so an empty batch reads as a real signal, not a
 // silent 19 ms no-op (issue #21).
-log(`backlog-batch "${batchId}": ${parallelTickets.length} parallel + ${sequentialTickets.length} sequential ticket(s)`)
+log(`backlog-autopilot "${batchId}": ${parallelTickets.length} parallel + ${sequentialTickets.length} sequential ticket(s)`)
 
 const WORKER_SCHEMA = {
   type: 'object',

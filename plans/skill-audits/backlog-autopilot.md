@@ -1,24 +1,26 @@
 ---
-skill: backlog-batch
+skill: backlog-autopilot
 status: draft
 strategy: original
 target_loc: 200
-matrix_row: plans/skill-decision-matrix.md#backlog-batch
+matrix_row: plans/skill-decision-matrix.md#backlog-autopilot
 audit_date: 2026-06-18
 auditor: Folpe + Claude Opus 4.8
 ---
 
-# Skill audit: `backlog-batch`
+# Skill audit: `backlog-autopilot`
 
 ## What it is
 
-The attended, parallel sibling of `autonomous-backlog-loop`. The human is present and
-wants a handful of **independent** Linear tickets done **now, in parallel, without
-breakage**, returned as **one PR**. Each ticket is worked by a worktree-isolated subagent;
-the green branches are reconciled into a single integration PR gated by the full suite.
+The single in-session backlog drainer, consolidating the former `backlog-batch` and the
+deleted `autonomous-backlog-loop`. Stable core today: the attended, parallel burst — a
+handful of **independent** Linear tickets done **now, in parallel, without breakage**,
+returned as **one PR**. Each ticket is worked by a worktree-isolated subagent; the green
+branches are reconciled into a single integration PR gated by the full suite.
 
-Spec `docs/specs/2026-06-18-backlog-batch-parallel.md`, plan
-`plans/2026-06-18-backlog-batch-parallel-plan.md`.
+Original (batch) spec `docs/specs/2026-06-18-backlog-batch-parallel.md`. Consolidation spec
+`docs/specs/2026-06-21-backlog-autopilot.md`, plan
+`plans/2026-06-21-backlog-autopilot-plan.md`.
 
 ## Adaptation strategy
 
@@ -57,12 +59,13 @@ ships an attended, risk-routed, parallel ticket drain reconciled into one integr
 - A combined live smoke on void-harness itself — worktree isolation targets the current
   repo; the live multi-agent smoke is a consumer-project dogfood (decision 2026-06-18).
 
-## Boundary vs `autonomous-backlog-loop` (anti-bloat rule 3)
+## Consolidation (anti-bloat rule 3)
 
-Distinct subjects, < 30 % overlap. Shared: Linear selection vocabulary, the craftsman
-worker cycle. Different: orchestration (CLI process vs Workflow subagent), risk model
-(sequential vs risk-routed parallel), output (PR/ticket vs integration PR/batch),
-attendance (walk-away vs attended). The boundary table is restated in both SKILL.md.
+`autonomous-backlog-loop` and `backlog-batch` were two overlapping skills; they are now one
+`backlog-autopilot`. The loop's out-of-session `claude -p` lost the in-session MCP /
+subscription inheritance, so its Linear-selection vocabulary, craftsman worker cycle, and
+commit-only / branch-protection boundaries were folded in. No residual >30 % overlap: a
+single backlog skill remains.
 
 ## Verification checklist for shipping this skill
 
@@ -70,8 +73,8 @@ attendance (walk-away vs attended). The boundary table is restated in both SKILL
 - [x] Frontmatter `description` ≤ 200 chars
 - [x] `.source` lists every audited source
 - [x] Deterministic core unit-tested in the CLI (`selectIndependent`, `partition`, `buildPlan`)
-- [x] Matrix row added in `plans/skill-decision-matrix.md#backlog-batch`
-- [x] No overlap > 30 % with `autonomous-backlog-loop` (boundary table in both)
+- [x] Matrix row added in `plans/skill-decision-matrix.md#backlog-autopilot`
+- [x] No residual backlog-skill overlap — consolidated into one `backlog-autopilot`
 - [ ] Live multi-agent dogfood in a consumer project (deferred — worktree isolation targets cwd)
 - [ ] Status moved draft → reviewed after user review
 

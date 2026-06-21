@@ -36,10 +36,10 @@ Commands:
                            the cache pull; --cache-only skips the pins.
   install --global         Escape hatch (rare); see install --help.
 
-  backlog-batch plan       Deterministic planner for the attended parallel mode
-                           (/harness:backlog-batch). Reads tickets+estimates
+  backlog-autopilot plan       Deterministic planner for the attended parallel mode
+                           (/harness:backlog-autopilot). Reads tickets+estimates
                            JSON on stdin, prints the parallel/sequential plan.
-                           See backlog-batch --help.
+                           See backlog-autopilot --help.
 
   audit [--stale-days <n>] Outbound self-evolution audit: read .void/usage.log
                            and report harness skills that are active, stale, or

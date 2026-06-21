@@ -1,5 +1,5 @@
-// `void-harness backlog-batch` — the deterministic planning surface for the
-// attended parallel batch mode. The in-session launcher (the /harness:backlog-batch
+// `void-harness backlog-autopilot` — the deterministic planning surface for the
+// attended parallel batch mode. The in-session launcher (the /harness:backlog-autopilot
 // skill) gathers Linear tickets via the MCP and footprint estimates via the
 // estimator subagent, pipes them here as JSON, and gets back the parallel /
 // sequential plan it shows the human before invoking the Workflow.
@@ -24,13 +24,13 @@ function readStdin(): Promise<string> {
 function printHelp(): void {
   process.stdout.write(
     `
-void-harness backlog-batch — deterministic planning for the attended parallel mode.
+void-harness backlog-autopilot — deterministic planning for the attended parallel mode.
 
-This is invoked by the /harness:backlog-batch launcher, not usually by hand. It
+This is invoked by the /harness:backlog-autopilot launcher, not usually by hand. It
 reads a JSON plan input on stdin and prints the parallel/sequential plan as JSON.
 
 Usage:
-  echo '<json>' | void-harness backlog-batch plan
+  echo '<json>' | void-harness backlog-autopilot plan
 
 stdin JSON:
   {
@@ -52,7 +52,7 @@ async function planCmd(): Promise<void> {
   try {
     input = JSON.parse(raw) as PlanInput;
   } catch {
-    process.stderr.write('backlog-batch plan: stdin is not valid JSON.\n');
+    process.stderr.write('backlog-autopilot plan: stdin is not valid JSON.\n');
     process.exitCode = 2;
     return;
   }
@@ -60,7 +60,7 @@ async function planCmd(): Promise<void> {
   process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
 }
 
-export async function backlogBatch(args: readonly string[]): Promise<void> {
+export async function backlogAutopilot(args: readonly string[]): Promise<void> {
   const [sub] = args;
   switch (sub) {
     case 'plan':
@@ -73,7 +73,7 @@ export async function backlogBatch(args: readonly string[]): Promise<void> {
       printHelp();
       return;
     default:
-      process.stderr.write(`backlog-batch: unknown subcommand '${sub}'\n\n`);
+      process.stderr.write(`backlog-autopilot: unknown subcommand '${sub}'\n\n`);
       printHelp();
       process.exitCode = 2;
   }

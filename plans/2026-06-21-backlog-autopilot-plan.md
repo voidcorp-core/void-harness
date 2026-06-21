@@ -230,12 +230,13 @@ consommateur recommandé avant de considérer la skill « done ».
 
 ## Resume point
 
-**Next step**: Step 1 (Supprimer autonomous-backlog-loop)
+**Next step**: Step 3 (Journaliser les décisions dans docs/DECISIONS.md)
 
-**Completed**: —
+**Completed**:
+- ✅ Step 1 — Supprimer autonomous-backlog-loop (commit `1901539`) ; protocole `VOID_EVENT` extrait dans `events.ts` ; suite 290 verte. Déviation : `summary.ts`/`wizard.ts` supprimés (loop-shaped), reconstruits en P2/P4.
+- ✅ Step 2 — Rename backlog-batch → backlog-autopilot (skill + commande + CLI + workflow + core-assets régénéré + docs CLAUDE/AGENTS unifiés + skill-audit + decision-matrix). Suite 290 verte, anti-bloat + parité OK.
 
 **Pending**:
-- ⏳ Step 1 — Supprimer autonomous-backlog-loop
 - ⏳ Step 2 — Renommer backlog-batch → backlog-autopilot
 - ⏳ Step 3 — Journaliser les décisions
 - ⏳ Step 4 — Détection de cluster
