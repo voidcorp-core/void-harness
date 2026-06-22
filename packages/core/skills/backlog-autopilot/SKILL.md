@@ -78,14 +78,19 @@ You (the main session) run this. It ends at the human confirmation gate; it neve
 `workflows/backlog-autopilot.workflow.js`. Pure orchestration of the confirmed plan; it never
 prompts the human:
 
-- `parallel()` the parallel group, then the sequential queue one-by-one — each ticket an
-  `isolation:"worktree"` subagent running the full craftsman cycle (pick → plan → tdd →
-  **verify** → commit), green-or-blocked. Workers do **not** open PRs.
-- **Blocked tickets (verify red) are excluded** from integration, branch preserved, reported.
-- A **reconciliation subagent** creates `integration/<batchId>`, merges the green branches
-  (resolving conflicts **keeping both tickets' intent**), and runs the **full suite**. Green
-  → one integration PR referencing every ticket + decisions, tickets moved to the review
-  state. Red → batch **blocked** with evidence, no PR, branches preserved.
+- `parallel()` the parallel group, then the sequential queue in topological order — each
+  ticket an `isolation:"worktree"` subagent running the **adaptive per-ticket cycle**:
+  **triage** (trivial / standard / risky) → **brainstorm autonomously** (risky only, the
+  top-5% choice journaled as DECISION lines) → **plan** → **TDD** → **static UX/UI pass**
+  (only if it touches UI) → **level-1 self code-review** → **verify**. Green-or-blocked;
+  workers do **not** open PRs.
+- **Red-ticket handling is adaptive**: a blocked ticket is excluded with its dependents; if
+  the red was a depended-upon root, the whole cluster is blocked (no PR), branches preserved.
+- A **reconciliation subagent** creates `cluster/<id>`, merges the green branches
+  (conflicts resolved **keeping both tickets' intent**), runs the **full suite**, then a
+  **level-2 code-review** with a bounded review→fix loop (max 3 passes). Converged → one PR
+  per cluster referencing every ticket + decisions, tickets moved to the review state. Not
+  converged → **blocked** with the outstanding findings, no PR, branches preserved.
 
 ---
 

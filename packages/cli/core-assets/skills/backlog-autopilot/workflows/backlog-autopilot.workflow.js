@@ -106,15 +106,41 @@ Do NOT open a pull request — reconciliation opens one PR for the whole cluster
 
 Ticket: ${ticket.id} — ${ticket.title || ''}
 
-1. Move ${ticket.id} to "In Progress" (Linear MCP). Create/use branch \`${branchPrefix}${ticket.id}\`.
-2. Don't assume it is unimplemented — search first, build on what exists.
-3. Use the void skills: brainstorming, source-driven-development, writing-plans, tdd,
-   commit-discipline. Stay strictly within this ticket's scope. Atomic commits with "why".
-4. Verify: run \`${verifyCmd}\` (plus typecheck/lint if defined). Tests are the only judge.
-   - Green → commit everything, leave the branch ready for integration.
+0. Move ${ticket.id} to "In Progress" (Linear MCP). Use branch \`${branchPrefix}${ticket.id}\`.
+   Don't assume it is unimplemented — search first, build on what exists.
+
+1. TRIAGE the ticket into one depth and emit \`VOID_EVENT: DECISION triage=<level>\`:
+   - trivial  (rename, copy, dep bump, one-liner, fully specified) → plan lightly.
+   - standard (clear feature/fix with acceptance criteria) → plan it.
+   - risky    (ambiguous, OR touches migration/lockfile/security/a module boundary,
+              OR acceptance criteria are missing) → brainstorm first.
+   Signals: description completeness, acceptance criteria, estimated footprint, whether it
+   touches UI, and risk surface.
+
+2. If risky → BRAINSTORM (skill: brainstorming) AUTONOMOUSLY: explore 2-3 approaches and
+   pick the ONE that clears a top-5% quality bar yourself (zero human in the loop). Record
+   the chosen option AND the rejected alternatives as \`VOID_EVENT: DECISION ...\` lines —
+   that journal is what the human reviews after the run.
+
+3. PLAN (skill: writing-plans for standard/risky; a short note for trivial). Ground any
+   third-party API/config in its official docs (skill: source-driven-development).
+
+4. IMPLEMENT in TDD (skill: tdd; mode auto by path, strict on business logic). Tests are
+   the only judge. Atomic commits, each with a "why" (skill: commit-discipline). Stay
+   strictly within this ticket's scope.
+
+5. If the ticket TOUCHES UI → static UX/UI pass: apply frontend-design (anti-AI-slop,
+   density, 3-size hierarchy, motion < 250ms) and accessibility-first (WCAG 2.2 AA,
+   keyboard parity, touch >= 44px). No live browser — that is opt-in, never in an
+   autonomous run.
+
+6. SELF-REVIEW (skill: code-review, level 1) and fix what it finds before handoff. The
+   cluster-level review (level 2) runs at reconciliation.
+
+7. VERIFY: run \`${verifyCmd}\` (plus typecheck/lint if defined).
+   - Green → commit everything; leave the branch ready for integration.
    - Cannot reach green after a genuine effort → do NOT fake it: post failure evidence as a
      Linear comment, push the WIP branch, and report status "blocked" with the reason.
-5. Emit a DECISION line for each structural choice (with the rejected alternative).
 
 Return: { ticket: "${ticket.id}", status, branch: "${branchPrefix}${ticket.id}", detail, decisions }.`
 }
@@ -132,12 +158,16 @@ Steps:
 1. Create branch \`cluster/${clusterId}\` from the base branch.
 2. Merge each green branch into it, in the listed order. On a conflict, resolve it KEEPING
    BOTH tickets' intent (never drop one side's work). Watch lockfiles and migration numbering.
-3. Run the FULL suite: \`${verifyCmd}\` (plus typecheck/lint). This is the judge.
-   - Green → open ONE pull request from \`cluster/${clusterId}\`, body referencing every
-     ticket (${green.map((g) => g.ticket).join(', ')}) and the decisions taken. Move those
-     tickets to "${reviewState}". Report status "opened" with the PR number/url.
-   - Red → do NOT open a PR. Report status "blocked" with the failing evidence; preserve
-     all branches for the human.
+3. Run the FULL suite: \`${verifyCmd}\` (plus typecheck/lint). This is the judge. Red → do
+   NOT open a PR; report status "blocked" with the failing evidence; preserve all branches.
+4. LEVEL-2 REVIEW (skill: code-review) on \`cluster/${clusterId}\`. Address the findings and
+   re-review in a BOUNDED loop — at most 3 passes. Keep the suite green after each fix.
+   - Converged (review clean, suite green) → open ONE pull request from
+     \`cluster/${clusterId}\`, body referencing every ticket
+     (${green.map((g) => g.ticket).join(', ')}) and the decisions taken. Move those tickets
+     to "${reviewState}". Report status "opened" with the PR number/url.
+   - Not converged in 3 passes → do NOT open a PR; report status "blocked" with the
+     outstanding findings; preserve all branches.
 
 Return: { status, pr, conflictsResolved, detail }.`
 }
