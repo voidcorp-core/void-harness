@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.12.0](https://github.com/voidcorp-core/void-harness/compare/v0.11.0...v0.12.0) (2026-06-22)
+
+
+### Features
+
+* **cli:** autopilot long-run loop, budget breaker and operator subcommands ([b2046c5](https://github.com/voidcorp-core/void-harness/commit/b2046c554c7b70bc23ad10b1a56b6a681a64e6ac))
+* **cli:** base detection and per-cluster stacked branch base ([b306b49](https://github.com/voidcorp-core/void-harness/commit/b306b49113c505d77b188efa693582c3b1c57736))
+* **cli:** cluster-aware autopilot plan with batch-of-4 default ([f1095db](https://github.com/voidcorp-core/void-harness/commit/f1095dbfa729d822ec6cdaaa6c1b9cfafe6dd2a7))
+* **cli:** cluster-detect with footprint corroboration, size cap and split ([dd9c7b0](https://github.com/voidcorp-core/void-harness/commit/dd9c7b067549cca0ea7835e8db901928bf6df7c7))
+* **cli:** cluster-order with topological sort and T2 worktree isolation ([0dad969](https://github.com/voidcorp-core/void-harness/commit/0dad969df04d9ee87121af520e79826c67245791))
+* **cli:** durable run state with atomic writes and remote reconciliation ([fb71a9d](https://github.com/voidcorp-core/void-harness/commit/fb71a9d5b9d041f5cf9f4eb692f0193169324218))
+* **cli:** red-handling excludes a red ticket and its dependents ([40898e1](https://github.com/voidcorp-core/void-harness/commit/40898e1bc1848c6fdf6317e359531056da641e5d))
+* **cli:** risk-gated sequential stacked auto-merge state machine ([968f6c2](https://github.com/voidcorp-core/void-harness/commit/968f6c2f7be19327245348a8ecc361f1219dd581))
+* consolidate backlog skills into backlog-autopilot ([d74fd2b](https://github.com/voidcorp-core/void-harness/commit/d74fd2bc15d60b866d4aa56d087b5291d5eb6fdc))
+* **skills:** adaptive per-ticket quality cycle and two-level review ([e471536](https://github.com/voidcorp-core/void-harness/commit/e4715367cb0357945ae242493bec1dd4a8aa110c))
+* **skills:** cluster engine in the backlog-autopilot Workflow ([717e976](https://github.com/voidcorp-core/void-harness/commit/717e976e7a247bffc76044e88e57258818ca6916))
+
 ## [0.11.0](https://github.com/voidcorp-core/void-harness/compare/v0.10.0...v0.11.0) (2026-06-19)
 
 
