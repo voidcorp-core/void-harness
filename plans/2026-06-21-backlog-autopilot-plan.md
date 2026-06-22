@@ -230,7 +230,7 @@ consommateur recommandé avant de considérer la skill « done ».
 
 ## Resume point
 
-**Next step**: Checkpoint A (revue utilisateur de P1) → puis Step 4 (Détection de cluster)
+**Next step**: Step 11 (Détection base develop/main + branche par cluster) — début de P4
 
 **Completed (P1 — consolidation)**:
 - ✅ Step 1 — Supprimer autonomous-backlog-loop (commit `1901539`) ; protocole `VOID_EVENT` extrait dans `events.ts` ; suite 290 verte. Déviation : `summary.ts`/`wizard.ts` supprimés (loop-shaped), reconstruits en P2/P4.
