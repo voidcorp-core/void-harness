@@ -245,7 +245,13 @@ consommateur recommandé avant de considérer la skill « done ».
 - ✅ Step 6 — Workflow `backlog-autopilot.workflow.js` : itère sur des **clusters** (une PR par cluster `cluster/<id>`, ordre topo via `order`), back-compat batch-de-4 comme cluster implicite. Worktree par worker (T2 « worktree always »). Syntaxe validée (wrap async), core-assets régénéré, suite 309 verte. (Non unit-testable : runtime Workflow + dogfood consommateur différé.)
 - ✅ Step 7 — Launcher : `autopilot-plan.ts` (`buildAutopilotPlan` compose cluster-detect + cluster-order + batch-de-4, **défaut 4** M8) ; commande CLI `plan` câblée + contrat/help ; smoke bout-en-bout OK. 5 tests, suite 314 verte, tsc clean. **Resequencing noté** : sous-commandes opérateur `status/resume/explain-blocked/abort` déplacées en P4 (elles lisent l'état machine du Step 13).
 
-**→ Checkpoint B : P2 livré (clustering + launcher). P3 ensuite (pipeline qualité adaptatif).**
+**Checkpoint B franchi (P2 livré).**
+
+**En cours (P3 — pipeline qualité adaptatif)**:
+- ✅ Step 8-9 — Cycle adaptatif dans le prompt worker : triage (trivial/standard/risqué) → brainstorm autonome top-5% journalisé → plan → TDD → passe UX statique (si UI) → review niv.1. SKILL.md aligné, core-assets régénéré. (Prompt, non unit-testable.)
+- ✅ Step 10 — Review niv.2 bornée (3 passes) dans le reconcile + `red-handling.ts` pur (exclusion rouge + dépendants transitifs, cluster bloqué si racine). 7 tests, suite 321 verte, tsc clean.
+
+**→ Checkpoint C : P3 livré (qualité adaptative). P4 ensuite (autonomie longue + auto-merge).**
 
 **Pending**:
 - ⏳ Step 2 — Renommer backlog-batch → backlog-autopilot
