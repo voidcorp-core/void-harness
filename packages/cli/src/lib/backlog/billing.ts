@@ -1,15 +1,16 @@
-// Subscription-billing guard for the backlog-loop worker sessions.
+// Subscription-billing preflight for backlog-autopilot.
 //
 // Claude Code's auth precedence (official): cloud-provider vars >
 // ANTHROPIC_AUTH_TOKEN > ANTHROPIC_API_KEY > apiKeyHelper >
-// CLAUDE_CODE_OAUTH_TOKEN > /login OAuth. In headless `-p`, a present
-// ANTHROPIC_API_KEY is used WITHOUT a prompt → pay-per-token API billing.
+// CLAUDE_CODE_OAUTH_TOKEN > /login OAuth. A present ANTHROPIC_API_KEY routes to
+// pay-per-token API billing rather than the user's subscription.
 //
-// The loop must bill the user's subscription. So the worker is spawned with an
-// env that has the API credentials removed, falling back to the stored OAuth
-// (subscription) credentials. Cloud-provider routing vars cannot be silently
-// dropped without breaking a deliberate setup, so we refuse the run instead —
-// unless the user opts into API billing with --allow-api.
+// backlog-autopilot runs in session: its subagents inherit the parent's auth,
+// so there is no worker subprocess env to strip. This guard is the preflight —
+// it refuses to start when a cloud-provider routing var would silently bill
+// away from the subscription, and reports any API credential vars that the
+// session would otherwise use, unless the user opts into API billing with
+// --allow-api.
 
 /** API credential vars that, if present, route to pay-per-token billing. */
 const API_CRED_VARS = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN'] as const;
@@ -22,18 +23,6 @@ const CLOUD_ROUTING_VARS = [
 ] as const;
 
 type Env = Record<string, string | undefined>;
-
-/**
- * Env for a worker subprocess that bills the subscription. With `allowApi`,
- * the env is returned unchanged (caller opted into API billing); otherwise the
- * API credential vars are removed so Claude Code falls back to OAuth.
- */
-export function subscriptionEnv(env: Env, allowApi: boolean): Env {
-  const copy: Env = { ...env };
-  if (allowApi) return copy;
-  for (const key of API_CRED_VARS) delete copy[key];
-  return copy;
-}
 
 export interface BillingPreflight {
   /** False means the run must not proceed (see `reason`). */

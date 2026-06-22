@@ -1,4 +1,4 @@
-// Risk-aware partition for backlog-batch: decide which tickets may run in
+// Risk-aware partition for backlog-autopilot: decide which tickets may run in
 // parallel and which must run sequentially, from their estimated file
 // footprints. Pure and table-tested; the in-session launcher feeds it the
 // estimates and passes the result (plus the human's confirmation) to the

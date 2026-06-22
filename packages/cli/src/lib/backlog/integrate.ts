@@ -4,8 +4,8 @@
 // the remote. The capability lives here instead, behind an explicit, non-force
 // refspec. Pure builders + an injected-runner orchestration keep it testable.
 
+import type { BacklogEvent } from './events.js';
 import type { RunResult } from './run.js';
-import type { BacklogEvent } from './stream.js';
 
 /** A PR title + body the worker reported (via a `.pr.md` file in its worktree). */
 export interface PrSpec {

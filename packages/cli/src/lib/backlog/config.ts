@@ -1,4 +1,4 @@
-// Resolved configuration for `void-harness backlog-loop`.
+// Resolved configuration for `void-harness backlog-autopilot`.
 //
 // Precedence is `flags > env > .void/autonomous.json > defaults`, resolved
 // field by field. The merge (`resolveConfig`) is pure and table-tested; I/O

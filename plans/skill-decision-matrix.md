@@ -182,19 +182,14 @@ Two modes: `feedback` (inbound suggestions captured from real project usage) and
 - **Cannot decide**: the project's actual rules (the user owns content); deterministic enforcement (that belongs in hooks/settings, which is precisely the point).
 - **Composes with**: `context-management` (the doc is part of the context budget), `source-driven-development`, `capture-rule` (where a rule lands), `harness-evolution` (the harness produces consumer CLAUDE.md files).
 
-### `autonomous-backlog-loop`
+### `backlog-autopilot`
 
-- **Wins**: an explicitly launched unattended run that implements a curated Linear backlog, one fresh session per ticket. Opt-in only; never a default.
-- **Loses to**: every normal interactive session. Human judgment on scope (the backlog) and on merge (the PR) always wins.
-- **Cannot decide**: whether a ticket's scope is right (human-approved criteria are the spec); whether to merge to a protected branch (human, unless `AUTO_MERGE=1` + green CI).
-- **Composes with**: the full craftsman cycle invoked inside each session (`brainstorming`, `source-driven-development`, `adr-workflow`, `writing-plans`, `tdd`, `verification-before-completion`, `commit-discipline`, `compounding`, `context-management`); gstack `ticket-craft` upstream, `/ship` + `/code-review` downstream (human-owned merge).
+The single in-session backlog drainer; consolidates the former `backlog-batch` and the deleted `autonomous-backlog-loop`.
 
-### `backlog-batch`
-
-- **Wins**: an explicitly launched **attended** burst implementing several **independent** Linear tickets **in parallel**, each in its own worktree subagent, reconciled into one integration PR. Opt-in only; needs the Workflow tool.
-- **Loses to**: `autonomous-backlog-loop` for unattended/sequential/walk-away drains; any single-ticket interactive session; human judgment on the plan and on merge.
-- **Cannot decide**: whether two tickets truly overlap (the footprint is *estimated*; the reconciliation subagent + full suite are the backstop); whether to merge the integration PR (human).
-- **Composes with**: the Workflow tool (substrate), `using-git-worktrees`, the craftsman cycle inside each worker; sister of `autonomous-backlog-loop` (process vs subagent, sequential vs risk-routed parallel).
+- **Wins**: an explicitly launched run draining a Linear pool into clean PRs — today the **attended** parallel burst (several **independent** tickets, each in its own worktree subagent, reconciled into one integration PR); cluster auto-detection, an adaptive per-ticket cycle, multi-cluster autonomy and risk-gated auto-merge are being added. Opt-in only; needs the Workflow tool.
+- **Loses to**: any single-ticket interactive session; human judgment on the plan and on merge.
+- **Cannot decide**: whether two tickets truly overlap (the footprint is *estimated*; the reconciliation subagent + full suite are the backstop); whether to merge a risky cluster or a stack root (human, unless `--auto-merge` + green CI on a low-risk cluster).
+- **Composes with**: the Workflow tool (substrate), `using-git-worktrees`, the craftsman cycle inside each worker (`brainstorming`, `source-driven-development`, `writing-plans`, `tdd`, `verification-before-completion`, `commit-discipline`, `compounding`, `context-management`); gstack `ticket-craft` upstream, `/code-review` + `/ship` downstream (human-owned merge).
 
 ---
 

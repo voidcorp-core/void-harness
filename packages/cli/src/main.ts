@@ -8,8 +8,7 @@ import { list } from './commands/list.js';
 import { doctor } from './commands/doctor.js';
 import { check } from './commands/check.js';
 import { update } from './commands/update.js';
-import { backlogLoop } from './commands/backlog-loop.js';
-import { backlogBatch } from './commands/backlog-batch.js';
+import { backlogAutopilot } from './commands/backlog-autopilot.js';
 import { audit } from './commands/audit.js';
 import { feedback } from './commands/feedback.js';
 import { printHelp } from './commands/help.js';
@@ -44,11 +43,8 @@ export async function main(argv: readonly string[]): Promise<void> {
     case 'install':
       await install(rest);
       return;
-    case 'backlog-loop':
-      await backlogLoop(rest);
-      return;
-    case 'backlog-batch':
-      await backlogBatch(rest);
+    case 'backlog-autopilot':
+      await backlogAutopilot(rest);
       return;
     case 'audit':
       await audit(rest);
