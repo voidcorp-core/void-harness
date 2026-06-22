@@ -19,6 +19,8 @@ export interface ClusterState {
   readonly branch: string;
   readonly base: string;
   readonly pr?: string;
+  /** For a blocked cluster: why (shown by `explain-blocked`). */
+  readonly detail?: string;
 }
 
 export interface RunState {

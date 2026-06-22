@@ -1,7 +1,7 @@
 ---
 title: backlog-autopilot — plan d'implémentation phasé
 date: 2026-06-21
-status: executing
+status: done
 spec: docs/specs/2026-06-21-backlog-autopilot.md
 author: Florent Pellegrin + Claude
 high_risk: true  # auto-merge sur branches protégées + automatisation git/PR/merge
@@ -230,7 +230,7 @@ consommateur recommandé avant de considérer la skill « done ».
 
 ## Resume point
 
-**Next step**: Step 11 (Détection base develop/main + branche par cluster) — début de P4
+**Next step**: — plan complet (14/14). Reste hors plan : dogfood live en projet consommateur (jamais sur void-harness).
 
 **Completed (P1 — consolidation)**:
 - ✅ Step 1 — Supprimer autonomous-backlog-loop (commit `1901539`) ; protocole `VOID_EVENT` extrait dans `events.ts` ; suite 290 verte. Déviation : `summary.ts`/`wizard.ts` supprimés (loop-shaped), reconstruits en P2/P4.
@@ -251,7 +251,15 @@ consommateur recommandé avant de considérer la skill « done ».
 - ✅ Step 8-9 — Cycle adaptatif dans le prompt worker : triage (trivial/standard/risqué) → brainstorm autonome top-5% journalisé → plan → TDD → passe UX statique (si UI) → review niv.1. SKILL.md aligné, core-assets régénéré. (Prompt, non unit-testable.)
 - ✅ Step 10 — Review niv.2 bornée (3 passes) dans le reconcile + `red-handling.ts` pur (exclusion rouge + dépendants transitifs, cluster bloqué si racine). 7 tests, suite 321 verte, tsc clean.
 
-**→ Checkpoint C : P3 livré (qualité adaptative). P4 ensuite (autonomie longue + auto-merge).**
+**Checkpoint C franchi (P3 livré).**
+
+**Livré (P4 — autonomie longue)**:
+- ✅ Step 11 — `cluster-branch.ts` : base develop/main + branche stackée par cluster (commit `b306b49`). 9 tests.
+- ✅ Step 12 — `auto-merge.ts` (RISQUE #1) : gate de risque UC2 + gate de protection M2 (inconnu fatal) + machine d'états M1 (merge/rebase/wait/block) + **test d'intégration real-git** prouvant le conflit du rebase stacké (commit `968f6c2`). 22 tests.
+- ✅ Step 13 — `run-state.ts` : état `.void/autopilot/<runId>/` + écritures atomiques + réconciliation distante M3 (commit `fb71a9d`). 9 tests.
+- ✅ Step 14 — `autopilot-run.ts` (circuit breaker budget + vues opérateur) + sous-commandes CLI `status/resume/explain-blocked/abort` + doctrine SKILL.md autonomie longue. 7 tests, suite 368 verte.
+
+**→ Plan terminé (14/14). Dogfood live en projet consommateur recommandé avant "done" opérationnel.**
 
 **Pending**:
 - ⏳ Step 2 — Renommer backlog-batch → backlog-autopilot

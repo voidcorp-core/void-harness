@@ -9,7 +9,10 @@
 // unit-tested core; the launcher shows the plan (a --dry-run preview by default)
 // and confirms with the human before any fan-out.
 
+import { join } from 'node:path';
 import { type AutopilotPlan, type AutopilotPlanInput, buildAutopilotPlan } from '../lib/backlog/autopilot-plan.js';
+import { blockedClusters, summarizeRun } from '../lib/backlog/autopilot-run.js';
+import { type RunState, nextPending, readState } from '../lib/backlog/run-state.js';
 
 function readStdin(): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -33,6 +36,14 @@ reads a JSON plan input on stdin and prints the parallel/sequential plan as JSON
 
 Usage:
   echo '<json>' | void-harness backlog-autopilot plan
+  void-harness backlog-autopilot status <runId>
+  void-harness backlog-autopilot resume <runId>
+  void-harness backlog-autopilot explain-blocked <runId>
+  void-harness backlog-autopilot abort <runId>
+
+Operator subcommands read .void/autopilot/<runId>/state.json (status, the resume
+cursor, blocked clusters + reasons). They never spawn agents; the actual resume
+drives the Workflow in session.
 
 stdin JSON:
   {
@@ -69,11 +80,72 @@ async function planCmd(): Promise<void> {
   process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
 }
 
+function runDir(runId: string): string {
+  return join(process.cwd(), '.void', 'autopilot', runId);
+}
+
+/** Read a run's state, or write an error and return undefined. */
+function loadRun(runId: string | undefined): RunState | undefined {
+  if (runId === undefined) {
+    process.stderr.write('backlog-autopilot: a <runId> is required.\n');
+    process.exitCode = 2;
+    return undefined;
+  }
+  const state = readState(runDir(runId));
+  if (state === undefined) {
+    process.stderr.write(`backlog-autopilot: no run '${runId}' under .void/autopilot/.\n`);
+    process.exitCode = 2;
+    return undefined;
+  }
+  return state;
+}
+
+function emit(value: unknown): void {
+  process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+}
+
+function statusCmd(runId: string | undefined): void {
+  const state = loadRun(runId);
+  if (state !== undefined) emit({ runId: state.runId, base: state.base, ...summarizeRun(state) });
+}
+
+function explainBlockedCmd(runId: string | undefined): void {
+  const state = loadRun(runId);
+  if (state !== undefined) emit({ runId: state.runId, blocked: blockedClusters(state) });
+}
+
+function resumeCmd(runId: string | undefined): void {
+  const state = loadRun(runId);
+  if (state === undefined) return;
+  // The actual resume drives the Workflow in session; the CLI reports readiness.
+  const next = nextPending(state);
+  emit({ runId: state.runId, base: state.base, next: next?.id ?? null, summary: summarizeRun(state) });
+}
+
+function abortCmd(runId: string | undefined): void {
+  const state = loadRun(runId);
+  if (state !== undefined) {
+    emit({ runId: state.runId, aborted: true, note: 'state preserved for inspection; no branches deleted' });
+  }
+}
+
 export async function backlogAutopilot(args: readonly string[]): Promise<void> {
-  const [sub] = args;
+  const [sub, runId] = args;
   switch (sub) {
     case 'plan':
       await planCmd();
+      return;
+    case 'status':
+      statusCmd(runId);
+      return;
+    case 'resume':
+      resumeCmd(runId);
+      return;
+    case 'explain-blocked':
+      explainBlockedCmd(runId);
+      return;
+    case 'abort':
+      abortCmd(runId);
       return;
     case 'help':
     case '--help':

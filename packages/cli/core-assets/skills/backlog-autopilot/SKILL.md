@@ -94,6 +94,27 @@ prompts the human:
 
 ---
 
+## Long-run autonomy (multi-cluster)
+
+Beyond a single burst, the launcher drains a pool over hours, **one cluster at a time**:
+
+- **Base**: `develop` if it exists, else `main`. A cluster that depends on an earlier,
+  unmerged cluster branches from **that cluster's branch** (a stacked PR); independent
+  clusters branch from the base.
+- **Risk-gated auto-merge** (`--auto-merge`, opt-in): arms `gh pr merge --auto --squash`
+  **only** for a low-risk cluster (small diff, non-UI/security/migration, not a stack root).
+  Risky clusters and stack roots get a PR for a human to merge. Indeterminate branch
+  protection is **fatal** under `--auto-merge`. Stacked merges are **strictly sequential**:
+  wait for the parent to fully merge, rebase the single next child, **block on conflict**
+  (never a silent resolution) — there is no conflict-free cascade.
+- **Durable state**: `.void/autopilot/<runId>/` (atomic writes; the cluster statuses are
+  the resume cursor). On resume the launcher **reconciles against the remote** (open PRs),
+  not a replayed cursor. A **budget circuit breaker** (tokens / time) stops the run cleanly.
+- **Operator subcommands**: `status`, `resume`, `explain-blocked`, `abort` over a run id.
+- **Thin orchestrator**: the launcher never reads implementation files; it re-reads the
+  state and compacts between clusters, so it does not rot over a long run. A `/context-save`
+  closes the run for the human.
+
 ## Single skill, in session
 
 `backlog-autopilot` is one skill: the deleted `autonomous-backlog-loop` ran an out-of-session
