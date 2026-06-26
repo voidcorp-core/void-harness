@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.1](https://github.com/voidcorp-core/void-harness/compare/v0.12.0...v0.12.1) (2026-06-26)
+
+
+### Bug Fixes
+
+* **backlog:** configurable autopilot auto-merge method, default merge ([8622076](https://github.com/voidcorp-core/void-harness/commit/8622076942a571814e9e2ec93e8d65714a2873ca))
+* **backlog:** make autopilot auto-merge method configurable, default merge ([381a713](https://github.com/voidcorp-core/void-harness/commit/381a713aa468d44ff04fbff3315afb99f4ca922e)), closes [#31](https://github.com/voidcorp-core/void-harness/issues/31)
+
 ## [0.12.0](https://github.com/voidcorp-core/void-harness/compare/v0.11.0...v0.12.0) (2026-06-22)
 
 
