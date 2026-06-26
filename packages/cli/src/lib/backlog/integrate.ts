@@ -4,6 +4,7 @@
 // the remote. The capability lives here instead, behind an explicit, non-force
 // refspec. Pure builders + an injected-runner orchestration keep it testable.
 
+import type { MergeMethod } from './config.js';
 import type { BacklogEvent } from './events.js';
 import type { RunResult } from './run.js';
 
@@ -30,15 +31,6 @@ export function prCreateArgs(base: string, head: string, spec: PrSpec | undefine
   if (spec === undefined) return [...head_, '--fill'];
   return [...head_, '--title', spec.title, '--body', spec.body];
 }
-
-/**
- * The GitHub merge strategy `gh pr merge` may arm, one per `--<method>` flag.
- * The integration PR bundles N tickets, each carrying its own `test:`/`fix:`
- * commits and "why" bodies; `merge` (a merge commit) preserves that per-ticket
- * history, so it is the default. `squash` would collapse the cluster into one
- * commit — directly against commit-discipline's "the git log is documentation".
- */
-export type MergeMethod = 'merge' | 'squash' | 'rebase';
 
 /**
  * Request GitHub auto-merge for a branch's PR. `--auto` arms the merge for when

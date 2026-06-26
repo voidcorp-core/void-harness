@@ -189,7 +189,14 @@ describe('integrateTicket', () => {
       if (cmd === 'gh' && args[1] === 'merge') mergeCalls.push(args);
       return ok;
     };
-    integrateTicket({ branch: 'auto/DEV-9', base: 'main', cwd: '/wt', autoMerge: true, run });
+    const outcome = integrateTicket({
+      branch: 'auto/DEV-9',
+      base: 'main',
+      cwd: '/wt',
+      autoMerge: true,
+      run,
+    });
+    expect(outcome.autoMergeRequested).toBe(true);
     expect(mergeCalls).toEqual([['pr', 'merge', 'auto/DEV-9', '--merge', '--auto']]);
   });
 

@@ -5,7 +5,15 @@
 // (reading the file) lives in the command, and the interactive wizard
 // (Step 6) writes the file — neither belongs here.
 
-import type { MergeMethod } from './integrate.js';
+/**
+ * The GitHub merge strategy backlog-autopilot may arm for an integration PR.
+ * `merge` (a merge commit) preserves the cluster's per-ticket history, so it is
+ * the default; `squash` would collapse N tickets into one commit, against
+ * commit-discipline's "the git log is documentation". This is a configuration
+ * value (set by flag/env/file), so it lives in the config layer; the execution
+ * layer (`integrate.ts`) imports it from here.
+ */
+export type MergeMethod = 'merge' | 'squash' | 'rebase';
 
 const MERGE_METHODS: readonly MergeMethod[] = ['merge', 'squash', 'rebase'];
 
