@@ -32,12 +32,22 @@ export function prCreateArgs(base: string, head: string, spec: PrSpec | undefine
 }
 
 /**
- * Request GitHub auto-merge (squash) for a branch's PR. `--auto` arms the merge
- * for when required checks pass; it does not poll or merge a red PR. The remote
- * still enforces branch protection, so this cannot bypass required reviews.
+ * The GitHub merge strategy `gh pr merge` may arm, one per `--<method>` flag.
+ * The integration PR bundles N tickets, each carrying its own `test:`/`fix:`
+ * commits and "why" bodies; `merge` (a merge commit) preserves that per-ticket
+ * history, so it is the default. `squash` would collapse the cluster into one
+ * commit — directly against commit-discipline's "the git log is documentation".
  */
-export function mergeArgs(branch: string): string[] {
-  return ['pr', 'merge', branch, '--squash', '--auto'];
+export type MergeMethod = 'merge' | 'squash' | 'rebase';
+
+/**
+ * Request GitHub auto-merge for a branch's PR. `--auto` arms the merge for when
+ * required checks pass; it does not poll or merge a red PR. The remote still
+ * enforces branch protection, so this cannot bypass required reviews. Defaults
+ * to a merge commit to preserve the cluster's per-ticket history (issue #31).
+ */
+export function mergeArgs(branch: string, method: MergeMethod = 'merge'): string[] {
+  return ['pr', 'merge', branch, `--${method}`, '--auto'];
 }
 
 /** First non-empty line = PR title; the remainder (trimmed) = PR body. */
@@ -76,6 +86,8 @@ export interface IntegrateOptions {
   readonly prSpec?: PrSpec;
   /** Arm GitHub auto-merge for the PR (HITL escape hatch; remote still gates). */
   readonly autoMerge?: boolean;
+  /** Merge strategy when auto-merge is armed; defaults to a merge commit. */
+  readonly autoMergeMethod?: MergeMethod;
   readonly run: IntegrateRun;
 }
 
@@ -115,7 +127,7 @@ export function integrateTicket(opts: IntegrateOptions): IntegrateOutcome {
   if (opts.prSpec !== undefined && hasUnresolvedSourceDebt(opts.prSpec.body)) {
     return { ...base, error: 'auto-merge withheld: unresolved source-debt in the PR body' };
   }
-  const merge = opts.run('gh', mergeArgs(opts.branch), opts.cwd);
+  const merge = opts.run('gh', mergeArgs(opts.branch, opts.autoMergeMethod), opts.cwd);
   return merge.ok
     ? { ...base, autoMergeRequested: true }
     : { ...base, autoMergeRequested: false, error: (merge.stderr || merge.stdout).trim() };

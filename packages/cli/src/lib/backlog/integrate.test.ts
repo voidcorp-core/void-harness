@@ -66,8 +66,28 @@ describe('hasUnresolvedSourceDebt', () => {
 });
 
 describe('mergeArgs', () => {
-  it('arms squash auto-merge for the branch (remote still gates)', () => {
-    expect(mergeArgs('auto/DEV-42')).toEqual(['pr', 'merge', 'auto/DEV-42', '--squash', '--auto']);
+  it('defaults to a merge commit, preserving the cluster per-ticket history (issue #31)', () => {
+    expect(mergeArgs('auto/DEV-42')).toEqual(['pr', 'merge', 'auto/DEV-42', '--merge', '--auto']);
+  });
+
+  it('arms a squash merge when asked', () => {
+    expect(mergeArgs('auto/DEV-42', 'squash')).toEqual([
+      'pr',
+      'merge',
+      'auto/DEV-42',
+      '--squash',
+      '--auto',
+    ]);
+  });
+
+  it('arms a rebase merge when asked', () => {
+    expect(mergeArgs('auto/DEV-42', 'rebase')).toEqual([
+      'pr',
+      'merge',
+      'auto/DEV-42',
+      '--rebase',
+      '--auto',
+    ]);
   });
 });
 
@@ -137,6 +157,40 @@ describe('integrateTicket', () => {
     expect(outcome.pushed).toBe(true);
     expect(outcome.autoMergeRequested).toBe(true);
     expect(cmds).toEqual(['git push', 'gh pr', 'gh pr']); // push, pr create, pr merge
+  });
+
+  it('threads the configured merge method into the gh pr merge call', () => {
+    const mergeCalls: Array<readonly string[]> = [];
+    const run: IntegrateRun = (cmd, args) => {
+      if (cmd === 'gh' && args[1] === 'create') {
+        return { ok: true, stdout: 'https://github.com/o/r/pull/9\n', stderr: '' };
+      }
+      if (cmd === 'gh' && args[1] === 'merge') mergeCalls.push(args);
+      return ok;
+    };
+    const outcome = integrateTicket({
+      branch: 'auto/DEV-9',
+      base: 'main',
+      cwd: '/wt',
+      autoMerge: true,
+      autoMergeMethod: 'squash',
+      run,
+    });
+    expect(outcome.autoMergeRequested).toBe(true);
+    expect(mergeCalls).toEqual([['pr', 'merge', 'auto/DEV-9', '--squash', '--auto']]);
+  });
+
+  it('arms a merge commit by default when no method is configured (issue #31)', () => {
+    const mergeCalls: Array<readonly string[]> = [];
+    const run: IntegrateRun = (cmd, args) => {
+      if (cmd === 'gh' && args[1] === 'create') {
+        return { ok: true, stdout: 'https://github.com/o/r/pull/9\n', stderr: '' };
+      }
+      if (cmd === 'gh' && args[1] === 'merge') mergeCalls.push(args);
+      return ok;
+    };
+    integrateTicket({ branch: 'auto/DEV-9', base: 'main', cwd: '/wt', autoMerge: true, run });
+    expect(mergeCalls).toEqual([['pr', 'merge', 'auto/DEV-9', '--merge', '--auto']]);
   });
 
   it('refuses to arm auto-merge while the PR body has an open source-debt (A3)', () => {

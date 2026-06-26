@@ -101,8 +101,12 @@ Beyond a single burst, the launcher drains a pool over hours, **one cluster at a
 - **Base**: `develop` if it exists, else `main`. A cluster that depends on an earlier,
   unmerged cluster branches from **that cluster's branch** (a stacked PR); independent
   clusters branch from the base.
-- **Risk-gated auto-merge** (`--auto-merge`, opt-in): arms `gh pr merge --auto --squash`
+- **Risk-gated auto-merge** (`--auto-merge`, opt-in): arms `gh pr merge --auto --merge`
   **only** for a low-risk cluster (small diff, non-UI/security/migration, not a stack root).
+  The strategy is `--auto-merge-method=merge|squash|rebase` (env `AUTO_MERGE_METHOD`, default
+  `merge`): the integration PR bundles N tickets, each with its own `test:`/`fix:` commits and
+  "why" bodies, so a merge commit preserves that per-ticket history — squashing would collapse
+  the cluster into one commit, against `commit-discipline`'s "the git log is documentation".
   Risky clusters and stack roots get a PR for a human to merge. Indeterminate branch
   protection is **fatal** under `--auto-merge`. Stacked merges are **strictly sequential**:
   wait for the parent to fully merge, rebase the single next child, **block on conflict**
