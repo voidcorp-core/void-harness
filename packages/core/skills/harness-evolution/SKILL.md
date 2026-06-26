@@ -1,6 +1,6 @@
 ---
 name: harness-evolution
-description: Feed project gaps back as PRs (feedback mode). Audit obsolescence — unused skills, deprecated sources (audit mode). HITL strict, never auto-write doctrine. Use on harness gap or periodic audit.
+description: File project gaps as void-harness issues (feedback mode). Audit obsolescence — unused skills, deprecated sources (audit mode). HITL strict, never auto-writes doctrine. Use on harness gap or audit.
 ---
 
 # harness-evolution — voidcorp craftsman edition
@@ -15,7 +15,7 @@ The harness improves from real project usage, like citypaul's dotfiles improve f
 
 | Mode | Trigger | Direction |
 |---|---|---|
-| **feedback** | While coding in a consumer project, you perceive a harness gap or improvement | Inbound — capture in consumer project, promote via PR to void-harness |
+| **feedback** | While coding in a consumer project, you perceive a harness gap or improvement | Inbound — file a void-harness issue directly from the consumer project |
 | **audit** | On demand: `npx @voidcorp/harness audit` | Outbound — read usage logs + upstream deprecations, propose deprecations as PRs |
 
 ---
@@ -33,7 +33,7 @@ Why: auto-writing into the harness's doctrine creates silent drift, contradictio
 
 ## Mode `feedback` — inbound from consumer projects
 
-### When to capture
+### When to file
 
 While coding in any consumer project, if you (the agent or the user) perceive:
 
@@ -44,62 +44,37 @@ While coding in any consumer project, if you (the agent or the user) perceive:
 - A pack is missing a primitive (the stack needs Z)
 - Two skills overlap badly (real conflict observed)
 
-### How to capture
+### The filing bar (load-bearing)
 
-Write a proposal to `.void/harness-feedback/proposed/YYYY-MM-DD-N.md` in the **consumer project repo** (NOT in void-harness):
+Feedback goes **straight to a void-harness issue** — there is no per-project `proposed/` queue to pre-filter noise. That pre-filter now lives in your judgment, *before* you open the issue. File ONLY when the item clears BOTH tests:
 
-```markdown
----
-date: YYYY-MM-DD
-trigger: <one sentence — what happened>
-observation: <what was felt missing / wrong>
-target: <core | pack-nextjs | pack-monorepo | matrix | hook | ...>
-component: <skill name | hook name | docs section>
-confidence: <low | medium | high>
----
+- **Agnostic** — it would help any consumer of the harness, not just this one project. A project-specific rule belongs in that project's `.void/PROJECT-DOCTRINE.md` via `capture-rule`, never on this tracker.
+- **Harness-worthy** — it would change a skill, hook, pack, CLI, or doctrine line. Not a one-off preference; not something an existing skill already covers.
 
-# Trigger
+Calibrate against the ADR sweep behind issue #34: a full audit that correctly rejected everything except one narrow rule correction. Match that selectivity. When in doubt, do NOT file — a quiet, closeable tracker beats one buried in project-flavored noise.
 
-<paragraph — what were you doing, what would have helped>
+### How to file
 
-# Observation
-
-<paragraph — what is the gap, what is the fix shape>
-
-# Proposed change
-
-<paragraph — concrete change to the harness>
-
-# Rationale
-
-<paragraph — why this is worth a permanent rule>
-```
-
-The `.void/harness-feedback/proposed/` directory is committed to the consumer project (the proposal lives with the project context that triggered it).
-
-### How to promote
-
-Run from the consumer project root:
+When a gap clears the bar, draft the issue, show it to the user, and on confirmation open it directly on `voidcorp-core/void-harness`:
 
 ```bash
-npx @voidcorp/harness feedback push
+gh issue create --repo voidcorp-core/void-harness \
+  --title "<area>: <concise gap>" \
+  --label enhancement \
+  --body "<body with source-project context>"
 ```
 
-The CLI:
+The body carries the source-project context for traceability: consumer repo, commit SHA, file path, and the motivation (what you were doing, what would have helped, the shape of the fix). Confirm with the user before creating — opening the issue is the visible HITL step, even though an issue is only a proposal, not a doctrine write.
 
-1. Lists every proposal in `.void/harness-feedback/proposed/`
-2. For each, walks the user: `promote` / `discard` / `defer`
-3. For promoted proposals, opens a GitHub issue or PR on `voidcorp-core/void-harness` via `gh`, with:
-   - The proposal content
-   - A link to the consumer project context (commit SHA, file path) for traceability
-   - The user's commentary
-4. Moves the proposal from `proposed/` to `promoted/` (or `discarded/` / `deferred/`) so the queue clears
+### Triage on the tracker, not in a queue
 
-The PR carries source-project context as motivation. Nothing is merged without human review.
+The GitHub issue tracker **is** the triage zone:
 
-### What lands in void-harness
+- Taking the issue = promoting it.
+- Closing it without action = declining it.
+- No separate `promoted/` / `discarded/` / `deferred/` bookkeeping, and no `feedback push` step.
 
-Promoted feedback becomes a normal PR — usually a new audit note + SKILL.md update + matrix row change. The audit note cites the originating consumer project (anonymized if needed) so reviewers see the real-usage motivation.
+A promoted issue becomes a normal PR — usually an audit note + SKILL.md update + matrix row change — citing the originating consumer project so reviewers see the real-usage motivation. Nothing is merged without human review.
 
 ---
 
@@ -154,15 +129,15 @@ All require explicit human review.
 
 - `.void/usage.log` (project-local) is **LOCAL only**. The `audit` reads it. No telemetry endpoint exists. No network call sends usage data anywhere.
 - The log format is one line per Skill invocation: `<timestamp>\t<skill>` (written by the `skill-usage-meter` PreToolUse hook). It records only the skill name and time, never project contents.
-- `.void/harness-feedback/` in consumer projects is committed; it contains intentional contributions, not telemetry.
-- Promoted feedback PRs to void-harness may reference the consumer project. The user controls what is shared.
+- Feedback goes straight to a void-harness issue; no per-project queue is committed to consumer repos.
+- A filed issue may reference the consumer project (repo, SHA, path). The user confirms the draft before it is opened and controls what is shared.
 
 ---
 
 ## Companion hooks / CLI helpers
 
 - `skill-usage-meter` — a PreToolUse hook on the Skill tool (`packages/core/hooks/skill-usage-meter.sh`) that appends `<timestamp>\t<skill>` to `.void/usage.log` on every invocation. Observation only; never blocks.
-- `feedback push` — CLI subcommand `void-harness feedback push` (in `packages/cli/`): previews the inbound queue, `--open` files each note as a GitHub issue on the harness repo and moves it to `pushed/`.
+- `gh issue create` — feedback is filed with the GitHub CLI directly against `voidcorp-core/void-harness`; there is no bespoke CLI subcommand for it (the tracker is the queue).
 - `audit` — CLI subcommand `void-harness audit` (in `packages/cli/`): reports skills that are active / stale / never-fired from `.void/usage.log` (MVP). Upstream-deprecation and decision-matrix-conflict detection are a planned extension.
 
 ---
@@ -188,9 +163,9 @@ All require explicit human review.
 ## Final rule
 
 ```
-Gap perceived → captured to .void/harness-feedback/proposed/ → promoted via CLI to void-harness PR.
+Gap perceived → clears the agnostic + harness-worthy bar → filed directly as a void-harness issue (with source-project context).
 Audit run → report with proposals → user decides PR by PR.
-HITL is absolute. No auto-write into doctrine.
+HITL is absolute. No auto-write into doctrine. Triage by closing the issue, not by a per-project queue.
 Otherwise → it is not voidcorp harness-evolution.
 ```
 

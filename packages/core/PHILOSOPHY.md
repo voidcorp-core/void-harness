@@ -124,9 +124,9 @@ The harness must evolve from real usage in real projects, like citypaul's dotfil
 
 While coding in any project consuming the harness, when the model (or the user) perceives that something is missing, wrong, or worth a rule:
 
-1. The perception is captured to `.void/harness-feedback/proposed/YYYY-MM-DD-N.md` in the *current project repo* (not in void-harness). Format: trigger, observation, proposed change to harness, target (core / pack / module), confidence.
-2. Periodically (or on demand), `npx @voidcorp/harness feedback push` reads the proposed queue, walks each item with the user (promote / discard / defer), and opens a GitHub issue or PR on `voidcorp-core/void-harness` for the ones the user promotes.
-3. The void-harness PR carries the source project context as motivation. Nothing is merged without human review.
+1. The perception is filed **directly as a GitHub issue** on `voidcorp-core/void-harness` (not captured to a per-project queue). The body carries source-project context: repo, commit SHA, file path, and the motivation. The agent drafts it and confirms with the user before opening it.
+2. The filing bar is load-bearing: open an issue only when the gap is both *agnostic* (helps any consumer, not just this project) and *harness-worthy* (changes a skill, hook, pack, CLI, or doctrine line). A project-specific rule goes to `.void/PROJECT-DOCTRINE.md` via `capture-rule` instead. When in doubt, do not file.
+3. The issue tracker is the triage zone: taking the issue promotes it, closing it declines it — no `proposed/` queue, no `feedback push` step. A promoted issue becomes a void-harness PR carrying the source-project context as motivation. Nothing is merged without human review.
 
 ### Outbound — `harness-evolution` skill, mode `audit`
 
