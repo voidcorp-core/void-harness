@@ -67,8 +67,9 @@ You (the main session) run this. It ends at the human confirmation gate; it neve
    `void-harness backlog-autopilot plan` → `{ parallel, sequential, excluded }`. (Selection and
    the risk partition are the unit-tested CLI core; this step is not vibes.)
 4. **Show the plan and CONFIRM with the human** — the parallel group, the sequential queue
-   (with the reason: overlap / high-risk / low-confidence), and the excluded tickets. The
-   human can drop a ticket or move one between groups. **No fan-out before confirmation.**
+   (with the reason: overlap / high-risk / low-confidence), the excluded tickets, **and the
+   `verifyCmd`** (which must mirror CI — see below). The human can drop a ticket, move one
+   between groups, or correct `verifyCmd`. **No fan-out before confirmation.**
 5. **Invoke the Workflow** with the confirmed plan as `args` (parallel list, sequential
    list, batchId, branchPrefix, reviewState, verifyCmd, autoMerge). Run
    `workflows/backlog-autopilot.workflow.js`.
@@ -91,6 +92,25 @@ prompts the human:
   **level-2 code-review** with a bounded review→fix loop (max 3 passes). Converged → one PR
   per cluster referencing every ticket + decisions, tickets moved to the review state. Not
   converged → **blocked** with the outstanding findings, no PR, branches preserved.
+
+### `verifyCmd` must mirror CI, not a subset
+
+"The full suite is the judge" only holds when `verifyCmd` **equals the project's CI gate**.
+For an **app workspace** (Next.js especially) `test` + `type-check` is *not* the gate: it is
+blind to build- and run-time integration failures that a clean git auto-merge cannot see —
+
+- **client/server boundary** breaks (a `'use client'` import pulling a `server-only` module
+  into the client graph) surface only under `build` (Next's client/server graph analysis);
+- **route-tree conflicts** (clashing dynamic slug names at one path position) can pass the
+  production build yet crash `next dev` — the Playwright `webServer` — on boot;
+- **migration / seed gaps** FK-violate the first authed write only once the e2e suite runs
+  against a migrated *and seeded* database.
+
+So when an app is in scope, default `verifyCmd` to the full CI gate — include `build` and the
+e2e/integration suite when one exists (e.g. `pnpm build && pnpm test && pnpm test:e2e`) — or
+prompt the human to set it to the project's gate. The **same** `verifyCmd` runs in the
+per-ticket worker and in reconciliation, so a green batch means a green CI by construction; a
+subset command produces the green-batch / red-CI divergence this skill exists to prevent.
 
 ---
 
@@ -136,7 +156,8 @@ is reserved and deferred, not the deleted loop.
 - **Subscription-billed.** Subagents inherit the parent session's auth → the subscription;
   nothing to strip. The security hooks stay live inside every worktree.
 - **The full suite is the judge.** It runs on the integration branch (sequential → no
-  port/DB collision). A green auto-merge that breaks the build is caught here.
+  port/DB collision), and `verifyCmd` must mirror CI (build + e2e, not just test +
+  type-check). A green auto-merge that breaks the build is caught here.
 - **Conservative routing.** Unknown footprint, low confidence, lockfile, migrations → always
   sequential. A wrong "parallel" call costs a conflict; a wrong "sequential" call costs only
   time.

@@ -49,6 +49,11 @@ function resolvePlan(raw) {
 
 const plan = resolvePlan(args)
 const branchPrefix = plan.branchPrefix || 'auto/'
+// `verifyCmd` is the SAME gate for the per-ticket worker and reconciliation, so a green
+// batch equals a green CI. The launcher (Layer 1) MUST set it to mirror the project's CI
+// gate — for an app workspace that means `build` + e2e, not just `test` + `type-check`,
+// which are blind to client/server-boundary, route-tree, and migration/seed failures (#28).
+// The bare-`test` fallback is only a last resort for a project with no richer gate.
 const verifyCmd = plan.verifyCmd || 'pnpm -s test'
 const reviewState = plan.reviewState || 'In Review'
 
@@ -137,7 +142,9 @@ Ticket: ${ticket.id} — ${ticket.title || ''}
 6. SELF-REVIEW (skill: code-review, level 1) and fix what it finds before handoff. The
    cluster-level review (level 2) runs at reconciliation.
 
-7. VERIFY: run \`${verifyCmd}\` (plus typecheck/lint if defined).
+7. VERIFY: run \`${verifyCmd}\` (the CI-mirroring gate; for an app that includes build + e2e,
+   not just test + type-check, which miss client/server-boundary, route-tree, and
+   migration/seed failures).
    - Green → commit everything; leave the branch ready for integration.
    - Cannot reach green after a genuine effort → do NOT fake it: post failure evidence as a
      Linear comment, push the WIP branch, and report status "blocked" with the reason.
@@ -158,8 +165,9 @@ Steps:
 1. Create branch \`cluster/${clusterId}\` from the base branch.
 2. Merge each green branch into it, in the listed order. On a conflict, resolve it KEEPING
    BOTH tickets' intent (never drop one side's work). Watch lockfiles and migration numbering.
-3. Run the FULL suite: \`${verifyCmd}\` (plus typecheck/lint). This is the judge. Red → do
-   NOT open a PR; report status "blocked" with the failing evidence; preserve all branches.
+3. Run the FULL suite: \`${verifyCmd}\` — the SAME CI-mirroring gate the workers ran (build +
+   e2e for an app, not a test-only subset). This is the judge. Red → do NOT open a PR; report
+   status "blocked" with the failing evidence; preserve all branches.
 4. LEVEL-2 REVIEW (skill: code-review) on \`cluster/${clusterId}\`. Address the findings and
    re-review in a BOUNDED loop — at most 3 passes. Keep the suite green after each fix.
    - Converged (review clean, suite green) → open ONE pull request from

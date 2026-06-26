@@ -34,7 +34,8 @@ ships an attended, risk-routed, parallel ticket drain reconciled into one integr
 - Deterministic orchestrator (Workflow JS), not a long LLM session. Source: Ralph "thin
   orchestrator", the Workflow tool.
 - Fresh context per unit of work — here a worktree subagent, not a process. Source: Ralph/GSD.
-- Tests are the only judge — the full suite gates the integration PR. Source: Ralph.
+- Tests are the only judge — the full suite gates the integration PR, and `verifyCmd` must
+  mirror CI (build + e2e, not a test + type-check subset; #28). Source: Ralph.
 - HITL at the edges — human confirms the plan, owns the merge. Source: harness doctrine.
 
 ## What we adapt
