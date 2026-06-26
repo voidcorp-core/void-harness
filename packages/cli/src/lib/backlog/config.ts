@@ -5,6 +5,23 @@
 // (reading the file) lives in the command, and the interactive wizard
 // (Step 6) writes the file — neither belongs here.
 
+/**
+ * The GitHub merge strategy backlog-autopilot may arm for an integration PR.
+ * `merge` (a merge commit) preserves the cluster's per-ticket history, so it is
+ * the default; `squash` would collapse N tickets into one commit, against
+ * commit-discipline's "the git log is documentation". This is a configuration
+ * value (set by flag/env/file), so it lives in the config layer; the execution
+ * layer (`integrate.ts`) imports it from here.
+ */
+export type MergeMethod = 'merge' | 'squash' | 'rebase';
+
+const MERGE_METHODS: readonly MergeMethod[] = ['merge', 'squash', 'rebase'];
+
+/** Narrow an arbitrary string to a MergeMethod, or undefined when unrecognized. */
+export function parseMergeMethod(raw: string | undefined): MergeMethod | undefined {
+  return MERGE_METHODS.includes(raw as MergeMethod) ? (raw as MergeMethod) : undefined;
+}
+
 export interface BacklogConfig {
   /** Human description of the eligible Linear view (team/project/cycle). */
   readonly linearScope: string;
@@ -22,6 +39,8 @@ export interface BacklogConfig {
   readonly model: string | undefined;
   /** Merge the PR after green CI + close the ticket (HITL escape hatch). */
   readonly autoMerge: boolean;
+  /** Strategy for the armed auto-merge; `merge` keeps per-ticket history (#31). */
+  readonly autoMergeMethod: MergeMethod;
   /** Opt-in: do NOT strip API creds, allowing pay-per-token billing. */
   readonly allowApi: boolean;
   /** Render the live append-only flux (false → `--no-stream` text fallback). */
@@ -42,6 +61,7 @@ export interface FlagConfig {
   readonly maxFailures?: number;
   readonly model?: string;
   readonly autoMerge?: boolean;
+  readonly autoMergeMethod?: MergeMethod;
   readonly allowApi?: boolean;
   readonly stream?: boolean;
   readonly dryRun?: boolean;
@@ -58,6 +78,7 @@ export interface FileConfig {
   readonly maxFailures?: number;
   readonly model?: string;
   readonly autoMerge?: boolean;
+  readonly autoMergeMethod?: MergeMethod;
 }
 
 export interface ConfigSources {
@@ -74,6 +95,7 @@ const DEFAULTS = {
   maxIterations: 20,
   maxFailures: 2,
   autoMerge: false,
+  autoMergeMethod: 'merge',
 } as const;
 
 /** Extract `--name value` or `--name=value`; undefined if absent. */
@@ -121,6 +143,9 @@ export function parseFlags(args: readonly string[]): FlagConfig {
   setInt('maxIterations', 'max');
   setInt('maxFailures', 'max-failures');
   setStr('model', 'model');
+
+  const method = parseMergeMethod(flagValue(args, 'auto-merge-method'));
+  if (method !== undefined) flags.autoMergeMethod = method;
 
   if (args.includes('--auto-merge')) flags.autoMerge = true;
   if (args.includes('--allow-api')) flags.allowApi = true;
@@ -172,6 +197,11 @@ export function resolveConfig({ flags, env, file }: ConfigSources): BacklogConfi
     maxFailures: pickInt(flags.maxFailures, env.MAX_FAILURES, f.maxFailures, DEFAULTS.maxFailures),
     model: model === '' ? undefined : model,
     autoMerge: pickBool(flags.autoMerge, env.AUTO_MERGE, f.autoMerge, DEFAULTS.autoMerge),
+    autoMergeMethod:
+      flags.autoMergeMethod ??
+      parseMergeMethod(env.AUTO_MERGE_METHOD) ??
+      f.autoMergeMethod ??
+      DEFAULTS.autoMergeMethod,
     allowApi: flags.allowApi ?? false,
     stream: flags.stream ?? true,
     dryRun: flags.dryRun ?? false,

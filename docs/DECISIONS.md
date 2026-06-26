@@ -3,7 +3,29 @@
 Non-obvious decisions taken on the harness itself, where a credible alternative
 existed. One entry per decision. Newest first. See CLAUDE.md meta-rules.
 
-## 2026-06-18: backlog-batch — attended parallel drain via Workflow + worktree subagents
+## 2026-06-26: backlog-autopilot auto-merge method configurable, default merge commit
+
+Context: the risk-gated `--auto-merge` path hardcoded `gh pr merge --auto
+--squash` (issue #31). A squash collapses an integration PR that bundles N
+tickets — each with its own `test:`/`fix:` commits and "why" bodies — into a
+single commit, against `commit-discipline`'s "the git log is documentation", and
+it silently overrides a downstream repo whose convention is merge commits.
+
+Decision: make the strategy a validated enum, `--auto-merge-method=merge|squash|
+rebase` (env `AUTO_MERGE_METHOD`, file `autoMergeMethod`, same flags > env > file
+> default precedence as the rest of `BacklogConfig`), **default `merge`**.
+`mergeArgs(branch, method)` builds `--<method>`; an unrecognized value narrows to
+undefined and falls through to the next source, so a typo never silently arms an
+unexpected strategy.
+
+Alternatives rejected:
+- **Minimal: hardcode `--merge`.** Fixes the per-ticket-history loss but still
+  imposes one strategy on every consumer; a repo standardized on squash would be
+  forced off-convention, the symmetric version of the bug being fixed.
+- **Auto-detect the repo's allowed/conventional method.** Requires a `gh`/API
+  probe of branch settings at plan time (I/O in the pure config layer) for a
+  guess that can still be wrong; an explicit flag with a safe default is simpler
+  and deterministic. Deferred as YAGNI until a consumer asks.
 
 Context: `autonomous-backlog-loop` covers the sequential walk-away case; it does
 not cover "drain a few independent tickets in parallel, attended, without

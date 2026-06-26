@@ -28,6 +28,16 @@ describe('parseFlags', () => {
     expect(flags.fullAuto).toBe(true);
   });
 
+  it('parses --auto-merge-method as a validated enum (issue #31)', () => {
+    expect(parseFlags(['--auto-merge-method', 'squash']).autoMergeMethod).toBe('squash');
+    expect(parseFlags(['--auto-merge-method=rebase']).autoMergeMethod).toBe('rebase');
+    expect(parseFlags(['--auto-merge-method', 'merge']).autoMergeMethod).toBe('merge');
+  });
+
+  it('ignores an unrecognized --auto-merge-method value', () => {
+    expect(parseFlags(['--auto-merge-method', 'octopus']).autoMergeMethod).toBeUndefined();
+  });
+
   it('ignores a non-numeric value for a numeric flag', () => {
     expect(parseFlags(['--max', 'lots']).maxIterations).toBeUndefined();
   });
@@ -47,6 +57,7 @@ describe('resolveConfig precedence flags > env > file > defaults', () => {
       maxFailures: 2,
       model: undefined,
       autoMerge: false,
+      autoMergeMethod: 'merge',
       allowApi: false,
       stream: true,
       dryRun: false,
@@ -93,6 +104,30 @@ describe('resolveConfig precedence flags > env > file > defaults', () => {
   it('reads AUTO_MERGE=1 from env as true', () => {
     expect(resolveConfig({ flags: {}, env: { AUTO_MERGE: '1' }, file: undefined }).autoMerge).toBe(true);
     expect(resolveConfig({ flags: {}, env: { AUTO_MERGE: '0' }, file: undefined }).autoMerge).toBe(false);
+  });
+
+  it('resolves autoMergeMethod with flags > env > file > default (issue #31)', () => {
+    expect(resolveConfig({ flags: {}, env: {}, file: { autoMergeMethod: 'squash' } }).autoMergeMethod).toBe(
+      'squash',
+    );
+    expect(
+      resolveConfig({ flags: {}, env: { AUTO_MERGE_METHOD: 'rebase' }, file: { autoMergeMethod: 'squash' } })
+        .autoMergeMethod,
+    ).toBe('rebase');
+    expect(
+      resolveConfig({
+        flags: { autoMergeMethod: 'merge' },
+        env: { AUTO_MERGE_METHOD: 'rebase' },
+        file: { autoMergeMethod: 'squash' },
+      }).autoMergeMethod,
+    ).toBe('merge');
+  });
+
+  it('falls through an invalid AUTO_MERGE_METHOD env to the file value', () => {
+    expect(
+      resolveConfig({ flags: {}, env: { AUTO_MERGE_METHOD: 'octopus' }, file: { autoMergeMethod: 'squash' } })
+        .autoMergeMethod,
+    ).toBe('squash');
   });
 
   it('maps UNSAFE_FULL_AUTO=1 from env to fullAuto', () => {
