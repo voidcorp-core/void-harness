@@ -41,7 +41,7 @@ Without `security-guidance`, security is "I'll think about it later" — except 
 ## Hard rules (draft)
 
 - All external input validated with Zod at the trust boundary. No raw `JSON.parse` of untrusted bytes
-- Secrets via env vars, validated by `@repo/core/env` (Zod). No `process.env.*` directly in business code
+- Secrets via env vars, validated by `@repo/core/env` (Zod). No `process.env.*` directly in business code. Exception: a customer-provided credential (BYO key) is application data, not the app's own infra secret — store it encrypted at rest per tenant (AES-256-GCM), master key in env, never returned to a client (masked last-four). Added 2026-06-26 (issue #34, sourced from sesame ADR 57).
 - SQL via ORM (Drizzle) with parameterized queries. No string concatenation. No raw queries without explicit boundary review
 - Auth via Better-Auth (default in void-starter) or Clerk (opt-in). Never hand-rolled
 - LLM input is untrusted. LLM output is untrusted. Treat both as user-controlled data crossing trust boundaries

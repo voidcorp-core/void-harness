@@ -91,7 +91,7 @@ These rules apply to ALL my projects regardless of stack. Project-specific excep
 
 - **No `console.log` in committed business code.** Use the project logger (`@repo/core/logger` via `pack-monorepo`). Enforced by `no-console-log-grep` hook + `observability` skill.
 - **No em dashes, no emojis in code, docs, or commits.** ASCII-only keeps grep / git log queryable across editors. Enforced by `no-emdash-no-emoji-in-commit-msg` hook + `commit-discipline` skill.
-- **No `process.env.*` directly in business code.** Use Zod-validated `@repo/core/env` (`security-guidance` skill).
+- **No `process.env.*` directly in business code.** Use Zod-validated `@repo/core/env` (`security-guidance` skill). This governs the app's OWN secrets; a customer-provided credential (BYO key) is application data — store it encrypted at rest per tenant (master key in env), not in env itself.
 - **Read the official documentation of any third-party tool BEFORE writing its config or wrapping its SDK.** Shortcuts based on assumed semantics produce subtle bugs that take hours to find. (Anti-rustine, formalized.)
 - **Match file naming exactly** per the convention of the active pack (e.g. `Name.tsx`, `Name.helper.ts`, `Name.test.ts`).
 - **No `any` in committed TypeScript.** `unknown` + narrowing is the escape valve. Enforced by `no-any-grep` hook + `typescript-strict` skill.

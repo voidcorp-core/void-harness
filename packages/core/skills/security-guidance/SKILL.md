@@ -76,6 +76,18 @@ const env = createEnv({
 - Secrets in commit messages, in logs, in error messages, in Sentry breadcrumbs
 - Secrets in `.env.local` files committed to git
 
+### Exception — customer-provided credentials (BYO key)
+
+"Secrets via env" governs the application's OWN secrets (its Anthropic key, its master encryption key, its data-source keys). A credential supplied by a customer (a BYO API key, e.g. a per-tenant data-source key) is application **data**, not the app's infra secret. Env does not fit: it holds one value, not one-per-tenant, and a multi-tenant app cannot scale a customer key into env.
+
+Store a customer-provided credential as data:
+
+- **Encrypted at rest in the DB, scoped per tenant** (AES-256-GCM), never plaintext — a DB dump must not leak every customer's credential.
+- **The master encryption key stays in env** (validated `@repo/core/env`). The per-tenant ciphertext lives in the DB.
+- **Never returned to a client surface** — expose a masked last-four only, never the full value.
+
+This narrows the rule; it does not weaken it. The app's own secrets still go in env, never the DB.
+
 ### Composes with
 
 - `observability` — secrets MUST NOT appear in logs. The logger config redacts known-secret keys.
