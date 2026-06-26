@@ -109,35 +109,24 @@ Ticket: ${ticket.id} — ${ticket.title || ''}
 0. Move ${ticket.id} to "In Progress" (Linear MCP). Use branch \`${branchPrefix}${ticket.id}\`.
    Don't assume it is unimplemented — search first, build on what exists.
 
-1. TRIAGE the ticket into one depth and emit \`VOID_EVENT: DECISION triage=<level>\`:
-   - trivial  (rename, copy, dep bump, one-liner, fully specified) → plan lightly.
-   - standard (clear feature/fix with acceptance criteria) → plan it.
-   - risky    (ambiguous, OR touches migration/lockfile/security/a module boundary,
-              OR acceptance criteria are missing) → brainstorm first.
-   Signals: description completeness, acceptance criteria, estimated footprint, whether it
-   touches UI, and risk surface.
+1. Run the harness:ticket-runner cycle for ${ticket.id}: it is the single canonical
+   per-ticket expert cycle. ingest + completeness gate, architecture (if it touches a
+   boundary / data model / public types), TDD implementation, E2E (if a user-facing flow),
+   static UX/UI pass (if a UI surface; no live browser in an autonomous run), security
+   (always, deep if a trust boundary), then a level-1 self code-review. Triage by predicate
+   keeps trivial tickets fast.
+   - Emit \`VOID_EVENT: DECISION triage=<level>\` for the depth, and on risky tickets emit
+     \`VOID_EVENT: DECISION ...\` for the chosen approach AND the rejected alternatives.
+     That journal is what the human reviews after the run.
+   - Ground any third-party API/config in its official docs (skill: source-driven-development).
+   - Atomic commits, each with a "why" (skill: commit-discipline). Stay strictly within this
+     ticket's scope.
 
-2. If risky → BRAINSTORM (skill: brainstorming) AUTONOMOUSLY: explore 2-3 approaches and
-   pick the ONE that clears a top-5% quality bar yourself (zero human in the loop). Record
-   the chosen option AND the rejected alternatives as \`VOID_EVENT: DECISION ...\` lines —
-   that journal is what the human reviews after the run.
+2. STOP before ticket-runner's ship step: do NOT open a PR and do NOT move the ticket to
+   Done. The worker hands off green-or-blocked; reconciliation owns the single cluster PR,
+   and the cluster-level review (level 2) runs there.
 
-3. PLAN (skill: writing-plans for standard/risky; a short note for trivial). Ground any
-   third-party API/config in its official docs (skill: source-driven-development).
-
-4. IMPLEMENT in TDD (skill: tdd; mode auto by path, strict on business logic). Tests are
-   the only judge. Atomic commits, each with a "why" (skill: commit-discipline). Stay
-   strictly within this ticket's scope.
-
-5. If the ticket TOUCHES UI → static UX/UI pass: apply frontend-design (anti-AI-slop,
-   density, 3-size hierarchy, motion < 250ms) and accessibility-first (WCAG 2.2 AA,
-   keyboard parity, touch >= 44px). No live browser — that is opt-in, never in an
-   autonomous run.
-
-6. SELF-REVIEW (skill: code-review, level 1) and fix what it finds before handoff. The
-   cluster-level review (level 2) runs at reconciliation.
-
-7. VERIFY: run \`${verifyCmd}\` (plus typecheck/lint if defined).
+3. VERIFY: run \`${verifyCmd}\` (plus typecheck/lint if defined).
    - Green → commit everything; leave the branch ready for integration.
    - Cannot reach green after a genuine effort → do NOT fake it: post failure evidence as a
      Linear comment, push the WIP branch, and report status "blocked" with the reason.
