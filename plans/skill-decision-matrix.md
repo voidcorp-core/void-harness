@@ -134,7 +134,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 
 Two modes: `feedback` (inbound suggestions captured from real project usage) and `audit` (outbound obsolescence detection).
 
-- **Wins (`feedback` mode)**: any moment, in any consumer project, when the model or user perceives a missing skill, missing rule, missing mention, or a hole in the harness coverage. Captured to `.void/harness-feedback/proposed/` in the *consumer project*.
+- **Wins (`feedback` mode)**: any moment, in any consumer project, when the model or user perceives a missing skill, missing rule, missing mention, or a hole in the harness coverage. Filed directly as a GitHub issue on `voidcorp-core/void-harness` (with source-project context) once it clears the agnostic + harness-worthy bar — no per-project `proposed/` queue.
 - **Wins (`audit` mode)**: triggered by `npx @voidcorp/harness audit`. Reads `~/.void/usage.log`, scans upstream sources for deprecation, surfaces conflicts in the decision matrix.
 - **Loses to**: nothing — it's a meta-skill operating on the harness itself, orthogonal to code-discipline and process skills.
 - **Cannot decide**: whether a proposed change is adopted (HITL only). Cannot write into harness doctrine — only opens issues/PRs.

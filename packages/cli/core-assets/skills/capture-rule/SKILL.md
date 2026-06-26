@@ -206,7 +206,7 @@ If the user picks Replace, write a small diff to chat showing the removal + addi
 
 ## Composition with other skills
 
-- **`harness-evolution`** — if the rule applies BEYOND this project (e.g., "every voidcorp project should ban X"), the user can promote it from PROJECT-DOCTRINE.md to a void-harness feedback proposal via `void-harness feedback push`. This skill handles the per-project capture; `harness-evolution` handles the cross-project promotion.
+- **`harness-evolution`** — if the rule applies BEYOND this project (e.g., "every voidcorp project should ban X"), the user can promote it from PROJECT-DOCTRINE.md by filing a GitHub issue directly on `voidcorp-core/void-harness` (via `harness-evolution` mode `feedback`). This skill handles the per-project capture; `harness-evolution` handles the cross-project promotion.
 - **`commit-discipline`** — captured rules should be committed with a `chore(doctrine):` or `docs(doctrine):` commit. The skill mentions this in the confirmation message but does not commit automatically.
 - **`code-review`** — the reviewer can flag PRs that violate freshly added rules. The Review Evidence block should mention compliance with PROJECT-DOCTRINE.
 

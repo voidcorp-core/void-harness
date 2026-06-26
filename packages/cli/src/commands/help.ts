@@ -45,11 +45,6 @@ Commands:
                            and report harness skills that are active, stale, or
                            never fired (deprecation candidates). HITL, report-only.
 
-  feedback push [--open]   Promote the inbound queue
-                [file ...] (.void/harness-feedback/proposed/*.md) to GitHub issues
-                           on the harness repo. Previews by default; --open files
-                           them and moves each to pushed/. HITL.
-
   help                     Print this message.
 
 Pack names (current marketplace):

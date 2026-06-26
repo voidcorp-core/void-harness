@@ -4,34 +4,29 @@ The harness improves from real project usage, never auto-applied. Two directions
 
 ## Inbound (consumer project → harness)
 
-While coding in a consumer project, perceptions of "the harness should have X" are captured as **friction notes** in the consumer's `.void/harness-feedback/proposed/` directory.
+While coding in a consumer project, when you perceive "the harness should have X", file it **directly as a GitHub issue** on `voidcorp-core/void-harness`. There is no per-project `proposed/` queue and no `feedback push` step: the issue tracker is the native triage primitive — visible across all consumers, labelable, linkable, closeable — and a per-repo markdown queue was a strictly worse reimplementation of it.
 
-### Convention
+### The filing bar
 
+Going direct-to-issue moves the pre-filter from "before the note exists" to "triage by close on the tracker". For a single-maintainer repo that is cheap, but it makes the filing bar load-bearing. Open an issue ONLY when the gap clears BOTH tests:
+
+- **Agnostic** — it helps any consumer of the harness, not just this project. A project-specific rule belongs in that project's `.void/PROJECT-DOCTRINE.md` (via `harness:capture-rule`), not on this tracker.
+- **Harness-worthy** — it would change a skill, hook, pack, CLI, or doctrine line; not a one-off preference, not already covered by an existing skill.
+
+Calibrate against the ADR sweep behind issue #34: a full audit that rejected everything except one narrow rule correction. When in doubt, do not file.
+
+### How to file
+
+Draft the issue, confirm it with the user, then open it with `gh`:
+
+```bash
+gh issue create --repo voidcorp-core/void-harness \
+  --title "<area>: <concise gap>" \
+  --label enhancement \
+  --body "<5-15 lines: what happened, evidence, source context, what would unblock me>"
 ```
-<consumer-project>/.void/harness-feedback/proposed/
-├── 2026-06-01-default-pin-is-stale.md
-├── 2026-06-01-init-assumes-bun.md
-└── ...
-```
 
-Each note is a markdown file with this frontmatter:
-
-```yaml
----
-date: 2026-06-01
-source: solaar                          # which consumer surfaced it
-kind: bug | friction | feature-request | doctrine-drift
-severity: critical | major | minor
-status: proposed | accepted | rejected | shipped
----
-```
-
-Body: 5-15 lines describing the friction, with concrete evidence (transcript snippet, error output, command that produced it). End with **What would unblock me**.
-
-### Promotion
-
-`void-harness feedback push` automates this: it reads the accumulated `.void/harness-feedback/proposed/` notes and previews them; run with `--open` (optionally scoped to specific files) to file each as a GitHub issue on `voidcorp-core/void-harness` via `gh` and move it to `pushed/`. Previewing by default keeps the promotion deliberate.
+The body carries source-project context (repo, commit SHA, file path) for traceability. Opening the issue is the visible HITL step — an issue is a proposal, not a doctrine write. Taking the issue promotes it; closing it without action declines it. No `promoted/` / `discarded/` / `deferred/` bookkeeping.
 
 ## Outbound (harness → consumers)
 
@@ -51,5 +46,5 @@ Periodically the harness should audit itself:
 
 ## See also
 
-- `harness:harness-evolution` skill — the in-Claude workflow for capturing a friction during a coding session.
+- `harness:harness-evolution` skill — the in-Claude workflow for filing a friction as a void-harness issue during a coding session.
 - `plans/frictions/` — historical frictions before the consumer-side convention shipped.

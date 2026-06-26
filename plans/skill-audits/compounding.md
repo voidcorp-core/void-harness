@@ -55,7 +55,7 @@ These cells govern. If the per-skill content drifts from the matrix, fix one or 
 ## What we reject
 
 - **The `/ce-*` command namespace**: rejected. Why: void-harness relies on skill auto-discovery from the frontmatter `description`, not a bespoke command prefix. A `/ce-*` namespace would be a parallel invocation convention that contradicts the harness's routing model.
-- **A per-cycle `STRATEGY.md` artifact**: rejected. Why: void-harness already routes durable lessons to `.void/PROJECT-DOCTRINE.md` (project) or `.void/harness-feedback/proposed/` (harness). A third `STRATEGY.md` store would duplicate those, drift from them, and bloat the doctrine — exactly the anti-bloat failure the repo guards against.
+- **A per-cycle `STRATEGY.md` artifact**: rejected. Why: void-harness already routes durable lessons to `.void/PROJECT-DOCTRINE.md` (project) or a GitHub issue on `voidcorp-core/void-harness` (harness). A third `STRATEGY.md` store would duplicate those, drift from them, and bloat the doctrine — exactly the anti-bloat failure the repo guards against.
 - **Auto-applying captured lessons**: rejected. Why: HITL is absolute across the harness. Every capture passes a human gate in its owner skill.
 
 ## Hard rules surfaced by this skill
