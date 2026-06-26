@@ -43,7 +43,7 @@ Ask the same question `capture-rule` asks: *"If I started a new unrelated projec
 | Answer | Scope | Destination |
 |---|---|---|
 | No — only this codebase | **Project rule** | `.void/PROJECT-DOCTRINE.md` |
-| Yes — every voidcorp project | **Harness gap** | `.void/harness-feedback/proposed/` |
+| Yes — every voidcorp project | **Harness gap** | a GitHub issue on `voidcorp-core/void-harness` |
 | It is true but trivial / one-off | **Disposable** | nowhere |
 
 When the scope is genuinely ambiguous, surface the doubt to the user rather than guessing (see `capture-rule`'s "when in doubt" prompt). Do not route on a coin flip.
@@ -53,7 +53,7 @@ When the scope is genuinely ambiguous, surface the doubt to the user rather than
 This skill writes nothing to doctrine. It delegates:
 
 - **Project rule** → invoke **`capture-rule`**. It proposes the wording, waits for explicit confirmation, and writes to `.void/PROJECT-DOCTRINE.md`. The HITL gate lives there.
-- **Harness gap** → follow **`harness-evolution`** mode `feedback`: write a proposal to `.void/harness-feedback/proposed/YYYY-MM-DD-N.md` in the *consumer project*, using that skill's frontmatter format. Promotion to a void-harness PR happens via `npx @voidcorp/harness feedback push` — owned by `harness-evolution`, not here.
+- **Harness gap** → follow **`harness-evolution`** mode `feedback`: once it clears that skill's agnostic + harness-worthy bar, file it directly as a GitHub issue on `voidcorp-core/void-harness` (drafted, confirmed, then `gh issue create`). The tracker is the triage zone — owned by `harness-evolution`, not here.
 - **Disposable** → nothing. A throwaway note in chat is fine; the doctrine stays clean.
 
 ### Step 4 — HITL is absolute

@@ -3,6 +3,73 @@
 Non-obvious decisions taken on the harness itself, where a credible alternative
 existed. One entry per decision. Newest first. See CLAUDE.md meta-rules.
 
+## 2026-06-26: "secrets via env" carves out customer-provided (BYO) credentials
+
+Context: an ADR audit of a consumer project (sesame, multi-tenant) surfaced a case
+the doctrine handled wrong (issue #34). `PHILOSOPHY.md` and `security-guidance`
+stated "secrets via env / no secret in the DB" without qualification. That is
+correct for the app's OWN infra secrets, but wrong for a credential the customer
+provides (a BYO API key, e.g. a per-tenant data-source key): env holds one value,
+not one-per-tenant, so the absolute rule pushes a developer to either jam a key
+into env (does not scale past one tenant) or store it plaintext (a DB dump leaks
+every customer's credential).
+
+Decision: add a single narrowly-scoped exception (not a new skill, not a mode). A
+customer-provided credential is application **data** — store it encrypted at rest
+per tenant (AES-256-GCM), keep the master key in env, never return it to a client
+(masked last-four). The app's own secrets still go in env, never the DB. Recorded
+in `PHILOSOPHY.md` (the hard rule), the `security-guidance` skill (a Secrets
+subsection), and the skill audit.
+
+Alternatives rejected: (a) leave the rule absolute — keeps it wrong for a real,
+recurring multi-tenant case; (b) a dedicated "secret storage" skill — anti-bloat
+overkill for a one-clause carve-out that belongs next to the rule it qualifies.
+
+Why: a rule stated more absolutely than it is true trains developers to either
+break it or mis-apply it; the carve-out is sourced from a validated PROJECT-DOCTRINE
+rule (sesame ADR 57), so it is doctrine earning its way up, not speculation.
+## 2026-06-26: file harness feedback directly as issues, drop the in-project `proposed/` queue (issue #35)
+
+Context: `harness-evolution` (feedback mode) captured a perceived harness gap to
+`.void/harness-feedback/proposed/YYYY-MM-DD-N.md` **inside the consumer project
+repo**, then required a second step (`void-harness feedback push`, shipped
+2026-06-19, cluster C) to walk the queue and file each note as a GitHub issue on
+this repo. This put harness concerns in the wrong repo's git history and
+duplicated a triage system that already exists: the GitHub issue tracker. A
+per-repo markdown queue is a strictly worse reimplementation of an issue tracker
+(no labels, no cross-project visibility, buried in each consumer's `.void/`).
+
+Decision: replace the queue with **direct issue creation** on
+`voidcorp-core/void-harness`.
+- The skill / `/void-feedback` command drafts an issue, confirms it with the
+  user, then opens it with `gh issue create` (label `enhancement`), carrying
+  source-project context (repo, SHA, file path, motivation).
+- The tracker is the triage zone: taking the issue promotes it, closing it
+  declines it. No `proposed/` / `promoted/` / `discarded/` / `deferred/`
+  bookkeeping, no `feedback push` step.
+- Removed: the `feedback` CLI command (`packages/cli/src/commands/feedback.ts`),
+  its pure builders (`lib/feedback.ts` + test), the `HARNESS_REPO` const (its
+  only consumer), the help entry, and the `.void/harness-feedback/proposed/`
+  convention from the skill and docs.
+
+Why this preserves HITL: an issue is a proposal, not a doctrine write. HITL is
+about not auto-MERGING a PR, not about not opening an issue, so creating the
+issue directly does not weaken the gate. This reverses the 2026-06-19 decision to
+*implement* `feedback push`: that command made the then-documented two-step real,
+but the two-step itself was the misplaced ceremony.
+
+The one caveat (deliberate discipline shift): the queue's only real value was a
+pre-filter against noise in this tracker. Going direct moves that filter from
+"before the issue exists" to "triage by close". Cheap for a single-maintainer
+repo, but it makes the agent's **filing bar load-bearing**: file only when the
+item is both *agnostic* (helps any consumer) and *harness-worthy* (changes a
+skill / hook / pack / CLI / doctrine line); project-specific rules go to
+`.void/PROJECT-DOCTRINE.md` via `capture-rule`. The reference bar is the #34 ADR
+sweep, which rejected everything except one narrow correction. The skill codifies
+this bar so the tracker does not fill with project-flavored noise.
+
+Source: maintainer direction while auditing a consumer project (sesame).
+
 ## 2026-06-26: backlog-autopilot auto-merge method configurable, default merge commit
 
 Context: the risk-gated `--auto-merge` path hardcoded `gh pr merge --auto

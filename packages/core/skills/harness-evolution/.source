@@ -6,8 +6,12 @@ Sources for `harness-evolution` skill (see plans/skill-audits/harness-evolution.
 
 Strategy: original. No existing precedent for this exact mechanism (inbound feedback + outbound audit, HITL strict). Author from first principles.
 
-Companion CLI subcommands (Phase D / E deliverables):
-- npx @voidcorp/harness feedback push
+Inbound feedback files a GitHub issue directly via `gh issue create` (no bespoke
+CLI subcommand; the issue tracker is the queue). See issue #35 / docs/DECISIONS.md
+(2026-06-26) for why the `.void/harness-feedback/proposed/` queue + `feedback push`
+were dropped.
+
+Companion CLI subcommand:
 - npx @voidcorp/harness audit
 
 Shared util: packages/core/claude/lib/usage-log.ts (≤ 30 LOC, local-only logging).

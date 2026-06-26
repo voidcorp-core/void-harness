@@ -21,7 +21,7 @@ Without `harness-evolution`, the harness ossifies. Real friction discovered in c
 
 Two modes: `feedback` (inbound suggestions from consumer projects) and `audit` (outbound obsolescence detection).
 
-- **Wins (`feedback` mode)**: any moment, in any consumer project, when the model or user perceives a missing skill, missing rule, missing mention, or a hole in coverage. Captured to `.void/harness-feedback/proposed/`
+- **Wins (`feedback` mode)**: any moment, in any consumer project, when the model or user perceives a missing skill, missing rule, missing mention, or a hole in coverage. Filed directly as a GitHub issue on `voidcorp-core/void-harness` once it clears the agnostic + harness-worthy bar (no per-project `proposed/` queue)
 - **Wins (`audit` mode)**: triggered by `npx @voidcorp/harness audit`. Reads usage logs, scans upstream sources for deprecation, surfaces matrix conflicts
 - **Loses to**: nothing — it's a meta-skill, orthogonal
 - **Cannot decide**: whether a proposed change is adopted (HITL only). Cannot write into harness doctrine — only opens issues/PRs
@@ -44,10 +44,10 @@ Two modes: `feedback` (inbound suggestions from consumer projects) and `audit` (
 ### Mode `feedback` (inbound)
 
 - Trigger: model perceives gap during work in a consumer project ("the harness should have a `<X>` skill / rule / hook")
-- Action: write a proposal to `.void/harness-feedback/proposed/YYYY-MM-DD-N.md` in the CONSUMER project (never in void-harness)
-- Format: trigger context, observation, proposed change (skill / pack / hook / rule), target component, confidence (low/medium/high)
-- Promotion: `npx @voidcorp/harness feedback push` walks each item with user (promote / discard / defer)
-- Promoted items become issues or PRs on `voidcorp-core/void-harness` via `gh` — never direct writes
+- Filing bar (load-bearing, since there is no `proposed/` pre-filter): file only when the gap is both *agnostic* (helps any consumer) and *harness-worthy* (changes a skill / hook / pack / CLI / doctrine line). Project-specific rules go to `.void/PROJECT-DOCTRINE.md` via `capture-rule`. Calibrate against the #34 ADR sweep (rejected all but one narrow correction)
+- Action: draft a GitHub issue, confirm with the user, then `gh issue create --repo voidcorp-core/void-harness --label enhancement` with source-project context (repo, SHA, file path, motivation)
+- Triage: the tracker is the triage zone — taking the issue promotes it, closing it declines it; no `proposed/`/`promoted/`/`discarded/` bookkeeping and no `feedback push` step
+- Note (2026-06-26, issue #35): the original draft used a `.void/harness-feedback/proposed/` queue promoted by `void-harness feedback push`; that queue was a strictly worse reimplementation of the issue tracker and was dropped. See `docs/DECISIONS.md`
 
 ### Mode `audit` (outbound)
 
@@ -71,7 +71,7 @@ Two modes: `feedback` (inbound suggestions from consumer projects) and `audit` (
 ## Companion hooks
 
 - `usage-log-instrumentation` — every skill invocation emits a log line via a shared util (in `packages/core/claude/lib/usage-log.ts`, ≤ 30 LOC)
-- `feedback-push-cli` — CLI command `npx @voidcorp/harness feedback push` (in `packages/cli/`)
+- inbound feedback: `gh issue create` directly against `voidcorp-core/void-harness` (no bespoke CLI; dropped in issue #35)
 - `audit-cli` — CLI command `npx @voidcorp/harness audit` (in `packages/cli/`)
 
 ## Composition

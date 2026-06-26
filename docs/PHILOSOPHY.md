@@ -91,7 +91,7 @@ These rules apply to ALL my projects regardless of stack. Project-specific excep
 
 - **No `console.log` in committed business code.** Use the project logger (`@repo/core/logger` via `pack-monorepo`). Enforced by `no-console-log-grep` hook + `observability` skill.
 - **No em dashes, no emojis in code, docs, or commits.** ASCII-only keeps grep / git log queryable across editors. Enforced by `no-emdash-no-emoji-in-commit-msg` hook + `commit-discipline` skill.
-- **No `process.env.*` directly in business code.** Use Zod-validated `@repo/core/env` (`security-guidance` skill).
+- **No `process.env.*` directly in business code.** Use Zod-validated `@repo/core/env` (`security-guidance` skill). This governs the app's OWN secrets; a customer-provided credential (BYO key) is application data — store it encrypted at rest per tenant (master key in env), not in env itself.
 - **Read the official documentation of any third-party tool BEFORE writing its config or wrapping its SDK.** Shortcuts based on assumed semantics produce subtle bugs that take hours to find. (Anti-rustine, formalized.)
 - **Match file naming exactly** per the convention of the active pack (e.g. `Name.tsx`, `Name.helper.ts`, `Name.test.ts`).
 - **No `any` in committed TypeScript.** `unknown` + narrowing is the escape valve. Enforced by `no-any-grep` hook + `typescript-strict` skill.
@@ -124,9 +124,9 @@ The harness must evolve from real usage in real projects, like citypaul's dotfil
 
 While coding in any project consuming the harness, when the model (or the user) perceives that something is missing, wrong, or worth a rule:
 
-1. The perception is captured to `.void/harness-feedback/proposed/YYYY-MM-DD-N.md` in the *current project repo* (not in void-harness). Format: trigger, observation, proposed change to harness, target (core / pack / module), confidence.
-2. Periodically (or on demand), `void-harness feedback push` reads the proposed queue and previews it; with `--open` it files each note as a GitHub issue on `voidcorp-core/void-harness` and moves it to `pushed/`. Previewing by default keeps the promotion deliberate (HITL).
-3. The void-harness PR carries the source project context as motivation. Nothing is merged without human review.
+1. The perception is filed **directly as a GitHub issue** on `voidcorp-core/void-harness` (not captured to a per-project queue). The body carries source-project context: repo, commit SHA, file path, and the motivation. The agent drafts it and confirms with the user before opening it.
+2. The filing bar is load-bearing: open an issue only when the gap is both *agnostic* (helps any consumer, not just this project) and *harness-worthy* (changes a skill, hook, pack, CLI, or doctrine line). A project-specific rule goes to `.void/PROJECT-DOCTRINE.md` via `capture-rule` instead. When in doubt, do not file.
+3. The issue tracker is the triage zone: taking the issue promotes it, closing it declines it — no `proposed/` queue, no `feedback push` step. A promoted issue becomes a void-harness PR carrying the source-project context as motivation. Nothing is merged without human review.
 
 ### Outbound — `harness-evolution` skill, mode `audit`
 
