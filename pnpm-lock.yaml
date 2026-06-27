@@ -26,6 +26,9 @@ importers:
       '@clack/prompts':
         specifier: ^1.5.0
         version: 1.5.0
+      '@voidcorp/harness-graph':
+        specifier: workspace:*
+        version: link:../harness-graph
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
