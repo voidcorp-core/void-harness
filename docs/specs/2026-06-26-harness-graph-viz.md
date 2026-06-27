@@ -107,7 +107,7 @@ Honnêteté : overlap et trous sont **heuristiques** (lexical, pas sémantique-v
 présentés comme « signaux à arbitrer ». Seuls les détecteurs sûrs (routes cassées)
 deviennent une **gate CI bloquante**.
 
-## 7. Vue 3D mainteneur (`apps/graph-studio`)
+## 7. Vue 3D mainteneur (`apps/graph-studio`) -- IMPLEMENTED (Plan B, M4+M5)
 
 - **Stack** : Vite + TS, **3d-force-graph** (Three.js + d3-force), **GSAP** (caméra,
   bursts de particules, transitions de calques). Charge `model.json` + résumé `usage.log`,

@@ -963,3 +963,30 @@ Why: build- and run-time integration failures (client/server boundaries, route
 trees, migrations/seed) are invisible to `test` + `type-check`; aligning the judge
 to CI is the cheapest place to catch them. Guidance change only (skill + workflow
 prompt text); no new CLI surface.
+
+## 2026-06-26: graph-studio consumes the kernel via a static prebuild, not a runtime import
+
+**Decision:** `apps/graph-studio` does not import `@voidcorp/harness-graph` into
+the browser bundle. A Node prebuild (`scripts/prepare-data.ts`, run by tsx) reads
+`model.json` + `.void/usage.log`, runs the kernel's `analyze()`, and writes four
+static JSON blobs the browser renders.
+
+**Why:** keeps `node:fs` (the kernel's `derive/` adapter) out of the bundle, keeps
+analysis single-sourced in the kernel (no duplicated detector logic), and requires
+zero edits to the already-merged kernel package (no browser-safe subpath export).
+The cost -- findings are computed at build time, not live -- is acceptable for the
+P1 static maintainer view; the live consumer surface is P2.
+
+**Alternative rejected:** a browser-safe `@voidcorp/harness-graph/analyze` subpath
+export imported at runtime. Cleaner data freshness, but edits a merged package and
+risks bundling the fs adapter.
+
+## 2026-06-26: prior art reviewed: patoles/agent-flow (mined for P2, not P1)
+
+**Decision:** agent-flow (live runtime agent visualizer, React/Next + 2D canvas +
+SSE hook server) was reviewed. Borrowed for Plan B: its render decomposition into
+small focused draw-modules and isolated camera/interaction/particles concerns.
+Deferred to P2 as reference: its JSONL event schema (parentId/runtime/sessionId ->
+our `activations.jsonl`), its HTTP-hook -> SSE transport (-> `graph live`), and its
+timeline/scrubber (-> replay). Its 2D-canvas/React stack and run-physics data model
+were not adopted (we are locked on 3D / 3d-force-graph and a structural model).
