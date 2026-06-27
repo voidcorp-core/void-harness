@@ -18,12 +18,12 @@
     "3d-force-graph": "^1.73.0",
     "d3-scale": "^4.0.2",
     "gsap": "^3.12.5",
-    "three": "^0.171.0"
+    "three": "^0.185.0"
   },
   "devDependencies": {
     "@types/d3-scale": "^4.0.8",
     "@types/node": "^22.0.0",
-    "@types/three": "^0.171.0",
+    "@types/three": "^0.185.0",
     "@voidcorp/harness-graph": "workspace:*",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
