@@ -48,7 +48,7 @@ export function renderPanel(host: HTMLElement, model: GraphModel, overlays: Over
   const link = document.createElement('a');
   link.href = `${GITHUB_BASE}${node.source}`;
   link.target = '_blank';
-  link.rel = 'noreferrer';
+  link.rel = 'noopener noreferrer';
   link.textContent = node.source;
   host.append(link);
 }

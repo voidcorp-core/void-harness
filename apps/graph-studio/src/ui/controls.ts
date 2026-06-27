@@ -51,6 +51,13 @@ export function renderControls(host: HTMLElement, opts: ControlsOptions): void {
     play.textContent = 'Play flow';
     play.addEventListener('click', () => opts.onPlayFlow());
     host.append(play);
+
+    // Restore focus and cursor position when a query is active
+    if (state.search !== '') {
+      search.focus();
+      const end = search.value.length;
+      search.setSelectionRange(end, end);
+    }
   }
 
   draw();
