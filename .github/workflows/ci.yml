@@ -72,6 +72,9 @@ jobs:
         # so the type declarations must exist first.
         run: pnpm build
 
+      - name: Graph integrity (model drift + broken routes)
+        run: pnpm graph:check
+
       - name: Skill tests
         run: pnpm vitest run
 

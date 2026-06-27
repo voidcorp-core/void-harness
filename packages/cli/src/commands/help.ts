@@ -41,6 +41,10 @@ Commands:
                            JSON on stdin, prints the parallel/sequential plan.
                            See backlog-autopilot --help.
 
+  graph [build|check|audit] build/gate/report the skill-agent graph. build writes
+                           harness-graph/model.json; check gates CI on drift +
+                           broken routes; audit reports all findings (HITL).
+
   audit [--stale-days <n>] Outbound self-evolution audit: read .void/usage.log
                            and report harness skills that are active, stale, or
                            never fired (deprecation candidates). HITL, report-only.

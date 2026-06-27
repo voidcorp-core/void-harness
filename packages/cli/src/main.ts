@@ -9,6 +9,7 @@ import { doctor } from './commands/doctor.js';
 import { check } from './commands/check.js';
 import { update } from './commands/update.js';
 import { backlogAutopilot } from './commands/backlog-autopilot.js';
+import { graph } from './commands/graph.js';
 import { audit } from './commands/audit.js';
 import { printHelp } from './commands/help.js';
 
@@ -44,6 +45,9 @@ export async function main(argv: readonly string[]): Promise<void> {
       return;
     case 'backlog-autopilot':
       await backlogAutopilot(rest);
+      return;
+    case 'graph':
+      await graph(rest);
       return;
     case 'audit':
       await audit(rest);
