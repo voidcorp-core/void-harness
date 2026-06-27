@@ -21,6 +21,7 @@ void-harness/
 │       ├── pack-server/           # @voidcorp/pack-server     (plugin harness-server)
 │       ├── pack-pwa/              # @voidcorp/pack-pwa        (plugin harness-pwa)
 │       └── pack-mobile/           # @voidcorp/pack-mobile     (plugin harness-mobile)
+├── apps/                          # private, unpublished surfaces (graph-studio)
 ├── plans/                         # specs + ADRs of the harness itself
 │   └── skill-audits/              # one audit note per vendored skill
 ├── test/                          # automated skill tests (citypaul-style)
