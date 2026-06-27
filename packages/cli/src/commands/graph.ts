@@ -73,7 +73,19 @@ export async function graph(args: readonly string[]): Promise<void> {
     const blocking = blockingFindings(analyze(model, ctxFor()));
     banner('graph check');
     blank();
-    if (drift) line(`  ${c.red('model.json is stale')} — run \`void-harness graph build\` and commit.`);
+    if (drift) {
+      line(`  ${c.red('model.json is stale')} -- run \`void-harness graph build\` and commit.`);
+      const fresh = serializeModel(model).split('\n');
+      const old = onDisk.split('\n');
+      let shown = 0;
+      for (let i = 0; i < Math.max(fresh.length, old.length) && shown < 6; i += 1) {
+        if (fresh[i] !== old[i]) {
+          line(`    L${i + 1} committed: ${c.dim((old[i] ?? '<missing>').trim())}`);
+          line(`    L${i + 1} rebuilt:   ${c.dim((fresh[i] ?? '<missing>').trim())}`);
+          shown += 1;
+        }
+      }
+    }
     for (const f of blocking) line(`  ${c.red('error')} ${f.kind}: ${f.evidence}`);
     if (drift || blocking.length > 0) {
       footer(c.red('graph check failed.'));
