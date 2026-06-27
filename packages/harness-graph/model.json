@@ -267,7 +267,7 @@
       "type": "hook",
       "name": "skill-usage-meter",
       "description": "",
-      "lines": 22,
+      "lines": 35,
       "pack": null,
       "source": "packages/core/hooks/skill-usage-meter.sh"
     },
