@@ -1,5 +1,6 @@
 import { loadData } from './data/load.js';
 import { createGraph } from './render/graph.js';
+import { playFlow } from './render/flow.js';
 import { buildOverlays } from './scene/overlays.js';
 import { defaultViewState } from './scene/select.js';
 import { renderControls } from './ui/controls.js';
@@ -29,6 +30,7 @@ renderControls(controls, {
     handle.setView(next);
   },
   onPlayFlow: () => {
-    // Implemented in Task 10.
+    const start = data.model.nodes.find((n) => n.id === 'skill:brainstorming') ?? data.model.nodes[0];
+    if (start !== undefined) playFlow(handle.graph, data.model, start.id);
   },
 });
