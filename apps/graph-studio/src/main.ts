@@ -1,15 +1,34 @@
 import { loadData } from './data/load.js';
 import { createGraph } from './render/graph.js';
+import { buildOverlays } from './scene/overlays.js';
 import { defaultViewState } from './scene/select.js';
+import { renderControls } from './ui/controls.js';
+import { renderPanel } from './ui/panel.js';
 
-const el = document.getElementById('scene');
-if (!el) throw new Error('graph-studio: #scene container missing');
+const scene = document.getElementById('scene');
+if (!scene) throw new Error('graph-studio: #scene container missing');
 
 const data = loadData();
-const handle = createGraph(el, data.model);
-handle.setView(defaultViewState());
-handle.onNodeClick((node) => {
-  // Side panel arrives in Task 8; reflect the click in the title so the path is
-  // observable without a console statement (repo norm: no console in committed code).
-  document.title = `graph studio // ${node.id}`;
+const overlays = buildOverlays(data.findings, data.model.edges);
+
+const panel = document.createElement('div');
+panel.className = 'panel';
+const controls = document.createElement('div');
+controls.className = 'controls';
+document.body.append(panel, controls);
+
+let state = defaultViewState();
+const handle = createGraph(scene, data.model);
+handle.setView(state);
+handle.onNodeClick((node) => renderPanel(panel, data.model, overlays, node));
+
+renderControls(controls, {
+  state,
+  onChange: (next) => {
+    state = next;
+    handle.setView(next);
+  },
+  onPlayFlow: () => {
+    // Implemented in Task 10.
+  },
 });
