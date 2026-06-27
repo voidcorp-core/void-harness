@@ -169,15 +169,15 @@ Biome's `files.includes` currently only matches `packages/**`. Add the apps sour
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "3d-force-graph": "^1.73.0",
+    "3d-force-graph": "^1.80.0",
     "d3-scale": "^4.0.2",
     "gsap": "^3.12.5",
-    "three": "^0.171.0"
+    "three": "^0.185.0"
   },
   "devDependencies": {
     "@types/d3-scale": "^4.0.8",
     "@types/node": "^22.0.0",
-    "@types/three": "^0.171.0",
+    "@types/three": "^0.185.0",
     "@voidcorp/harness-graph": "workspace:*",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
@@ -187,7 +187,7 @@ Biome's `files.includes` currently only matches `packages/**`. Add the apps sour
 }
 ```
 
-Note: the exact patch versions resolve at install. If pnpm reports a peer conflict between `vite@5` and `vitest@2`, keep `vite@^5` (vitest 2 pairs with vite 5). Consult each package's README after install (source-driven).
+Note: the exact patch versions resolve at install. If pnpm reports a peer conflict between `vite@5` and `vitest@2`, keep `vite@^5` (vitest 2 pairs with vite 5). Consult each package's README after install (source-driven). **`three` is pinned to `^0.185.0` to match the `three` version `3d-force-graph@^1.80.0` resolves internally** (via `three-forcegraph` / `three-render-objects`, peer `three >= 0.179`): a single deduped three.js copy is required or `instanceof` checks across the two copies fail silently. Keep `@types/three` on the same minor. If a future `3d-force-graph` bump changes its internal three, re-align both here.
 
 - [ ] **Step 5: Write `apps/graph-studio/tsconfig.json`**
 
