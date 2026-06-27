@@ -27,3 +27,9 @@ Composes with: brainstorming, source-driven-development, writing-plans, tdd,
 commit-discipline, verification-before-completion, using-git-worktrees. Consolidates the
 former backlog-batch + autonomous-backlog-loop; downstream merge is human-owned
 (code-review / ship).
+
+Per-ticket cycle: each worker now runs the dedicated `ticket-runner` skill (single source
+of truth) instead of an inline cycle, so improving the expert cycle improves both the
+attended drain and interactive single-ticket work. Tickets are authored upstream by
+`ticket-writer`. Worker still stops green-or-blocked and never opens a PR (reconciliation
+owns the cluster PR).
