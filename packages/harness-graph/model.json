@@ -420,7 +420,7 @@
       "type": "skill",
       "name": "backlog-autopilot",
       "description": "Opt-in skill draining independent Linear tickets in parallel, each in its own worktree subagent, reconciled into one integration PR gated by the full suite. Cluster mode + long-run autonomy incoming.",
-      "lines": 198,
+      "lines": 200,
       "pack": null,
       "source": "packages/core/skills/backlog-autopilot/SKILL.md"
     },
@@ -864,6 +864,24 @@
       "lines": 277,
       "pack": null,
       "source": "packages/core/skills/testing/SKILL.md"
+    },
+    {
+      "id": "skill:ticket-runner",
+      "type": "skill",
+      "name": "ticket-runner",
+      "description": "Use when taking a single ticket from ready through shipped at expert-team quality. Triggers on starting a ticket, taking an issue, or picking up a backlog item to execute.",
+      "lines": 84,
+      "pack": null,
+      "source": "packages/core/skills/ticket-runner/SKILL.md"
+    },
+    {
+      "id": "skill:ticket-writer",
+      "type": "skill",
+      "name": "ticket-writer",
+      "description": "Use when turning a finished brainstorm, plan, or design decision into a tracker ticket. Triggers on creating a ticket or issue, logging work, or breaking an approved spec into tickets.",
+      "lines": 95,
+      "pack": null,
+      "source": "packages/core/skills/ticket-writer/SKILL.md"
     },
     {
       "id": "skill:typescript-strict",
