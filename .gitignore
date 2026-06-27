@@ -46,3 +46,5 @@ Thumbs.db
 # does not trip the next run's clean-tree preflight (issue #17 cluster A, A2).
 .void/autonomous-runs/
 .void/worktrees/
+# Enriched activation telemetry log (local, runtime-only; analyzed in Phase 2).
+.void/activations.jsonl

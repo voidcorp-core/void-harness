@@ -55,6 +55,33 @@ describe('skill-usage-meter.sh', () => {
     });
     expect(existsSync(join(dir, '.void', 'usage.log'))).toBe(false);
   });
+
+  it('appends one valid JSON event to activations.jsonl', () => {
+    const payload = JSON.stringify({
+      tool_name: 'Skill',
+      tool_input: { skill: 'harness:tdd' },
+      hook_event_name: 'PreToolUse',
+      session_id: 'test-session-1',
+    });
+    const r = run('skill-usage-meter.sh', payload, { CLAUDE_PROJECT_DIR: dir });
+    expect(r.code).toBe(0);
+    const jsonlPath = join(dir, '.void', 'activations.jsonl');
+    expect(existsSync(jsonlPath)).toBe(true);
+    const lines = readFileSync(jsonlPath, 'utf8').trim().split('\n');
+    expect(lines).toHaveLength(1);
+    const ev = JSON.parse(lines[0] ?? '{}');
+    expect(ev).toMatchObject({ kind: 'skill', name: 'harness:tdd', event: 'PreToolUse' });
+    expect(typeof ev.ts).toBe('string');
+  });
+
+  it('exits 0 even when .void dir is unwritable (best-effort)', () => {
+    const r = run(
+      'skill-usage-meter.sh',
+      '{"tool_name":"Skill","tool_input":{"skill":"harness:tdd"}}',
+      { CLAUDE_PROJECT_DIR: '/dev/null/nonexistent' },
+    );
+    expect(r.code).toBe(0);
+  });
 });
 
 describe('context-injecting hooks', () => {
