@@ -1,0 +1,20 @@
+Sources for `ticket-runner` skill (see plans/skill-audits/ticket-runner.md for full audit):
+
+- Original void-harness composition skill. No single external source: it is the
+  canonical "execute one ticket end-to-end" conductor that the harness lacked.
+- harness:backlog-autopilot — had an INLINE per-ticket cycle (plan -> TDD ->
+  static UX/UI pass -> ...). That cycle is extracted here so there is one
+  definition; backlog-autopilot now delegates per ticket. Removes responsibility
+  overlap.
+- Composes (does not reimplement): harness:tdd, harness:testing,
+  harness:hexagonal-architecture, harness:domain-driven-design,
+  harness:frontend-design, harness:accessibility-first, harness:security-guidance,
+  harness:code-review, harness:verification-before-completion,
+  harness:commit-discipline; agents type-design-analyzer, doctrine-critic,
+  silent-failure-hunter; gstack /design-review, /qa, /cso; the `impeccable`
+  frontend skill when installed.
+
+Strategy: author. The load-bearing idea is the predicate-keyed triage: speed
+comes from skipping passes whose trigger is false, never from skipping an
+ALWAYS pass. This is the "an expert team would cover all of it" guarantee made
+operational, and the anti-loophole against "go fast" pressure.

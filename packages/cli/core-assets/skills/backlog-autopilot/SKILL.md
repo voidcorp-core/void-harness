@@ -12,10 +12,11 @@ review. Each ticket is worked end-to-end by a **worktree-isolated subagent**; th
 branches are reconciled into a single **integration PR** gated by the full suite.
 
 > **Consolidation in progress.** `backlog-autopilot` replaces the former `backlog-batch` and
-> the deleted `autonomous-backlog-loop`. The cluster auto-detection, adaptive per-ticket
-> quality cycle, multi-cluster long-run autonomy and risk-gated auto-merge are being added
-> per `docs/specs/2026-06-21-backlog-autopilot.md`. The attended batch below is the stable
-> core they build on.
+> the deleted `autonomous-backlog-loop`. The cluster auto-detection, multi-cluster long-run
+> autonomy and risk-gated auto-merge are being added per
+> `docs/specs/2026-06-21-backlog-autopilot.md`. The per-ticket quality cycle is now the
+> dedicated `harness:ticket-runner` skill (single source of truth), which each worker runs.
+> The attended batch below is the stable core they build on.
 
 **This is never a default.** It runs only when a human launches `/harness:backlog-autopilot`.
 It requires the **Workflow** tool (deterministic multi-agent orchestration) to be available
@@ -80,11 +81,12 @@ You (the main session) run this. It ends at the human confirmation gate; it neve
 prompts the human:
 
 - `parallel()` the parallel group, then the sequential queue in topological order — each
-  ticket an `isolation:"worktree"` subagent running the **adaptive per-ticket cycle**:
-  **triage** (trivial / standard / risky) → **brainstorm autonomously** (risky only, the
-  top-5% choice journaled as DECISION lines) → **plan** → **TDD** → **static UX/UI pass**
-  (only if it touches UI) → **level-1 self code-review** → **verify**. Green-or-blocked;
-  workers do **not** open PRs.
+  ticket an `isolation:"worktree"` subagent running the **`harness:ticket-runner` cycle**
+  for that ticket. ticket-runner is the single canonical per-ticket expert cycle (ingest +
+  completeness gate, architecture, TDD, E2E, UX/UI, security, review, verify), with its
+  passes triaged by observable predicate so trivial tickets stay fast. The worker stops
+  **green-or-blocked** and does **not** open a PR: ticket-runner's final ship step is owned
+  by the reconciliation subagent here, not the worker.
 - **Red-ticket handling is adaptive**: a blocked ticket is excluded with its dependents; if
   the red was a depended-upon root, the whole cluster is blocked (no PR), branches preserved.
 - A **reconciliation subagent** creates `cluster/<id>`, merges the green branches
