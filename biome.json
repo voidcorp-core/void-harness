@@ -10,10 +10,14 @@
     "includes": [
       "packages/**/src/**/*.ts",
       "packages/**/*.config.ts",
+      "apps/**/src/**/*.ts",
+      "apps/**/scripts/**/*.ts",
+      "apps/**/*.config.ts",
       "test/**/*.ts",
       "!**/node_modules",
       "!**/dist",
       "!**/templates",
+      "!**/generated",
       "!**/*.d.ts"
     ]
   },

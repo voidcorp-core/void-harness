@@ -7,3 +7,4 @@ packages:
   - 'packages/cli'
   - 'packages/packs/*'
   - 'packages/harness-graph'
+  - 'apps/*'
