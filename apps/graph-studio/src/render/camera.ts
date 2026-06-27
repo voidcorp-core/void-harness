@@ -20,7 +20,7 @@ export function focusNode(graph: CameraGraph, node: GraphNode & Positioned): voi
     duration: 0.8,
     ease: 'power2.out',
     onUpdate: () => {
-      const ratio = 1 + state.d / Math.hypot(x, y, z || 1);
+      const ratio = 1 + state.d / (Math.hypot(x, y, z) || 1);
       graph.cameraPosition({ x: x * ratio, y: y * ratio, z: z * ratio }, { x, y, z }, 0);
     },
   });
