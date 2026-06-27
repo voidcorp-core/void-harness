@@ -1,5 +1,5 @@
 import { type GraphEdge, type GraphNode, nodeId } from '../model/types.js';
-import type { SourceTree } from './nodes.js';
+import { cmp, type SourceTree } from './nodes.js';
 
 export function deriveEdges(tree: SourceTree, nodes: readonly GraphNode[]): GraphEdge[] {
   const edges: GraphEdge[] = [];
@@ -58,5 +58,5 @@ function escapeRe(s: string): string {
 }
 
 export function byEdge(a: GraphEdge, b: GraphEdge): number {
-  return a.from.localeCompare(b.from) || a.to.localeCompare(b.to) || a.kind.localeCompare(b.kind);
+  return cmp(a.from, b.from) || cmp(a.to, b.to) || cmp(a.kind, b.kind);
 }

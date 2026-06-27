@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { type GraphNode, type NodeType, nodeId } from '../model/types.js';
 import { countLines, readFrontmatter } from './read-frontmatter.js';
 
@@ -31,6 +31,11 @@ function toNode(type: NodeType, e: SourceEntry): GraphNode {
   };
 }
 
+/** Locale-independent code-unit comparison for deterministic, ICU-stable sorts. */
+export function cmp(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 /** Pure: assemble nodes from an in-memory tree (inject in tests). */
 export function deriveNodes(tree: SourceTree): GraphNode[] {
   return [
@@ -40,11 +45,16 @@ export function deriveNodes(tree: SourceTree): GraphNode[] {
     ...tree.commands.map((e) => toNode('command', e)),
     ...tree.packs.map((e) => toNode('pack', e)),
     ...tree.workflowDefs.map((e) => toNode('workflow-def', e)),
-  ].sort((a, b) => a.id.localeCompare(b.id));
+  ].sort((a, b) => cmp(a.id, b.id));
 }
 
 /** Filesystem adapter: read the real repo into a SourceTree. */
 export function scanSourceTree(coreDir: string, packsDir: string): SourceTree {
+  // Repo root is the parent of packages/ — coreDir is <repo>/packages/core.
+  const repoRoot = resolve(coreDir, '..', '..');
+  // Produce a repo-relative, forward-slash path stable across any clone dir name.
+  const rel = (abs: string): string => relative(repoRoot, abs).replace(/\\/g, '/');
+
   const skills: SourceEntry[] = [];
   const skillsDir = join(coreDir, 'skills');
   if (existsSync(skillsDir)) {
@@ -53,9 +63,9 @@ export function scanSourceTree(coreDir: string, packsDir: string): SourceTree {
       if (existsSync(f)) skills.push({ name, pack: null, source: rel(f), text: readFileSync(f, 'utf8') }); // allow-null: core skills have no pack
     }
   }
-  const agents = readMdDir(join(coreDir, 'agents'));
-  const hooks = readDir(join(coreDir, 'hooks'), '.sh');
-  const commands = readMdDir(join(coreDir, 'commands'));
+  const agents = readMdDir(join(coreDir, 'agents'), rel);
+  const hooks = readDir(join(coreDir, 'hooks'), '.sh', rel);
+  const commands = readMdDir(join(coreDir, 'commands'), rel);
   const packs: SourceEntry[] = [];
   const workflowDefs: SourceEntry[] = [];
   if (existsSync(packsDir)) {
@@ -85,10 +95,10 @@ export function scanSourceTree(coreDir: string, packsDir: string): SourceTree {
   return { skills, agents, hooks, commands, packs, workflowDefs };
 }
 
-function readMdDir(dir: string): SourceEntry[] {
-  return readDir(dir, '.md');
+function readMdDir(dir: string, rel: (abs: string) => string): SourceEntry[] {
+  return readDir(dir, '.md', rel);
 }
-function readDir(dir: string, ext: string): SourceEntry[] {
+function readDir(dir: string, ext: string, rel: (abs: string) => string): SourceEntry[] {
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
     .filter((f) => f.endsWith(ext))
@@ -96,9 +106,4 @@ function readDir(dir: string, ext: string): SourceEntry[] {
       const full = join(dir, f);
       return { name: f.slice(0, -ext.length), source: rel(full), text: readFileSync(full, 'utf8') };
     });
-}
-function rel(abs: string): string {
-  const marker = '/void-harness/';
-  const i = abs.lastIndexOf(marker);
-  return i >= 0 ? abs.slice(i + marker.length) : abs;
 }
