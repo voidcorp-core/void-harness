@@ -61,7 +61,7 @@ export function scanSourceTree(coreDir: string, packsDir: string): SourceTree {
   if (existsSync(packsDir)) {
     for (const pack of readdirSync(packsDir)) {
       packs.push({ name: pack, pack: null, source: rel(join(packsDir, pack)), text: '' }); // allow-null: pack nodes are not scoped to a pack themselves
-      const packSkillsDir = join(packsDir, pack, 'claude', 'skills');
+      const packSkillsDir = join(packsDir, pack, 'skills');
       if (existsSync(packSkillsDir)) {
         for (const name of readdirSync(packSkillsDir)) {
           const f = join(packSkillsDir, name, 'SKILL.md');

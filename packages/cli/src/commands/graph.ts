@@ -51,7 +51,10 @@ function ctxFor(): { usedSkillNames: Set<string> } {
 
 export async function graph(args: readonly string[]): Promise<void> {
   const sub = args[0] ?? 'build';
-  const coreSource = await findCoreSource();
+  // Prefer the real source when running in the void-harness workspace itself;
+  // fall back to the bundled core-assets for installed (consumer) invocations.
+  const pkgsCoreDir = join(PKGS_ROOT, 'core');
+  const coreSource = existsSync(pkgsCoreDir) ? pkgsCoreDir : await findCoreSource();
 
   if (sub === 'build') {
     const model = await loadModel(coreSource);
