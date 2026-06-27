@@ -1,6 +1,9 @@
 import { loadData } from './data/load.js';
+import { type CameraGraph, focusNode } from './render/camera.js';
 import { createGraph } from './render/graph.js';
 import { playFlow } from './render/flow.js';
+import { type IntroGraph, playIntro } from './render/intro.js';
+import { createReticle, moveReticleTo, type ReticleGraph } from './render/reticle.js';
 import { buildOverlays } from './scene/overlays.js';
 import { defaultViewState } from './scene/select.js';
 import { workflowView } from './scene/workflow-view.js';
@@ -21,9 +24,14 @@ controls.className = 'controls';
 document.body.append(panel, controls);
 
 let state = defaultViewState();
-const handle = createGraph(scene, data.model, overlays);
+const handle = createGraph(scene, data.model, overlays, data.usage);
 handle.setView(state);
+
+// Lock-on reticle: snaps onto the selected node, frames the camera, opens the HUD.
+const reticle = createReticle(handle.graph as unknown as ReticleGraph);
 handle.onNodeClick((node) => {
+  moveReticleTo(reticle, node);
+  focusNode(handle.graph as unknown as CameraGraph, node);
   if (node.type === 'workflow-def') {
     const meta = data.workflows[node.id] ?? { phases: [] };
     renderWorkflowView(panel, workflowView(data.model, node, meta));
@@ -43,3 +51,6 @@ renderControls(controls, {
     if (start !== undefined) playFlow(handle.graph, data.model, start.id);
   },
 });
+
+// One-time boot intro (camera sweep + "SYSTEM ONLINE" overlay); skipped under reduced-motion.
+playIntro(handle.graph as unknown as IntroGraph);

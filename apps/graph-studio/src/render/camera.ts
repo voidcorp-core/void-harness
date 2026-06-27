@@ -4,7 +4,7 @@ import type { GraphNode } from '@voidcorp/harness-graph';
 // A 3d-force-graph node carries its simulated position once the engine ticks.
 interface Positioned { x?: number; y?: number; z?: number }
 
-interface CameraGraph {
+export interface CameraGraph {
   cameraPosition(pos: { x: number; y: number; z: number }, lookAt: { x: number; y: number; z: number }, ms: number): void;
 }
 
