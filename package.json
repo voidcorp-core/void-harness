@@ -24,7 +24,8 @@
     "version:check": "node scripts/check-version-lockstep.mjs",
     "check:publish": "node scripts/check-publish-safety.mjs",
     "bump": "node scripts/bump-version.mjs",
-    "release": "node scripts/check-publish-safety.mjs && pnpm -r --filter './packages/**' publish"
+    "release": "node scripts/check-publish-safety.mjs && pnpm -r --filter './packages/**' publish",
+    "graph:check": "pnpm --filter @voidcorp/harness-graph build && node packages/cli/bin/void-harness.mjs graph check"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
