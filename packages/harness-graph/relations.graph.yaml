@@ -1,0 +1,334 @@
+# Declared semantic edges — routing / composition / conflict.
+# These cannot be derived mechanically from file metadata.
+# Every edge carries evidence: the verbatim phrase that justifies it.
+# Regenerate model.json after editing: `void-harness graph build`.
+# Only kinds routes-to, composes, conflicts, and overlaps are allowed here.
+edges:
+  # --- Routing (sequential handoff required by the skill prose) ---
+  - from: skill:brainstorming
+    to: skill:writing-plans
+    kind: routes-to
+    evidence: "brainstorming SKILL.md: MUST NOT transition to any skill other than harness:writing-plans post-approval"
+
+  # --- brainstorming compositions ---
+  - from: skill:brainstorming
+    to: skill:tdd
+    kind: composes
+    evidence: "brainstorming SKILL.md: TDD mode per implementation phase (strict / souple / exploratory — composes with tdd skill)"
+
+  # --- writing-plans compositions ---
+  - from: skill:writing-plans
+    to: skill:tdd
+    kind: composes
+    evidence: "writing-plans SKILL.md: With tdd: per-step mode selection lives in the plan."
+
+  - from: skill:writing-plans
+    to: skill:migrations-safety
+    kind: composes
+    evidence: "writing-plans SKILL.md: Production data migration (composes with migrations-safety)"
+
+  - from: skill:writing-plans
+    to: skill:security-guidance
+    kind: composes
+    evidence: "writing-plans SKILL.md: LLM call sites with user-controlled input (composes with security-guidance LLM section)"
+
+  # --- adr-workflow ---
+  - from: skill:adr-workflow
+    to: skill:writing-plans
+    kind: composes
+    evidence: "adr-workflow SKILL.md: Composes with harness:writing-plans (which is plan-the-work-before-coding)"
+
+  # --- api-and-interface-design ---
+  - from: skill:api-and-interface-design
+    to: skill:typescript-strict
+    kind: composes
+    evidence: "api-and-interface-design SKILL.md: The best contract makes the invalid call fail to compile, not fail at runtime. Composes with typescript-strict."
+
+  - from: skill:api-and-interface-design
+    to: skill:security-guidance
+    kind: composes
+    evidence: "api-and-interface-design SKILL.md: External input is untrusted; parse it into the boundary type... Composes with security-guidance."
+
+  - from: skill:api-and-interface-design
+    to: skill:functional
+    kind: composes
+    evidence: "api-and-interface-design SKILL.md: return Result<T, E> where E is a closed, named set of failures. Composes with functional."
+
+  - from: skill:api-and-interface-design
+    to: skill:async-safety
+    kind: composes
+    evidence: "api-and-interface-design SKILL.md: two contract terms earn their place when relevant. Composes with async-safety."
+
+  # --- async-safety ---
+  - from: skill:async-safety
+    to: skill:security-guidance
+    kind: composes
+    evidence: "async-safety SKILL.md: Reject events older than the configured window... Composes with security-guidance (replay attack protection)."
+
+  - from: skill:async-safety
+    to: skill:hexagonal-architecture
+    kind: composes
+    evidence: "async-safety SKILL.md: IdempotencyStore is a port (composes with hexagonal-architecture)"
+
+  - from: skill:async-safety
+    to: skill:migrations-safety
+    kind: composes
+    evidence: "async-safety SKILL.md: The domain_events table schema... (composes with migrations-safety)."
+
+  - from: skill:async-safety
+    to: skill:observability
+    kind: composes
+    evidence: "async-safety SKILL.md: composes with observability (the degradation is a structured warn, never swallowed)"
+
+  - from: skill:async-safety
+    to: skill:functional
+    kind: composes
+    evidence: "async-safety SKILL.md: functional (the outcome is a value — Rates or the fallback — not an exception that escapes the boundary)"
+
+  # --- code-review ---
+  - from: skill:code-review
+    to: skill:tdd
+    kind: composes
+    evidence: "code-review SKILL.md: Correctness — composes with tdd (cycle evidence) and systematic-debugging"
+
+  - from: skill:code-review
+    to: skill:testing
+    kind: composes
+    evidence: "code-review SKILL.md: Tests — failing test before the code? real code over mocks? names describe behavior? composes with testing."
+
+  - from: skill:code-review
+    to: skill:security-guidance
+    kind: composes
+    evidence: "code-review SKILL.md: Security — input validated at trust boundaries? composes with security-guidance"
+
+  - from: skill:code-review
+    to: skill:hexagonal-architecture
+    kind: composes
+    evidence: "code-review SKILL.md: Structure — boundaries respected? composes with hexagonal-architecture, domain-driven-design, refactoring"
+
+  - from: skill:code-review
+    to: skill:typescript-strict
+    kind: composes
+    evidence: "code-review SKILL.md: Readability — names? exhaustive switches? any slips? composes with typescript-strict."
+
+  # --- commit-discipline ---
+  - from: skill:commit-discipline
+    to: skill:systematic-debugging
+    kind: composes
+    evidence: "commit-discipline SKILL.md: fix: Bug fix. Composes with systematic-debugging (the why = the root cause)"
+
+  - from: skill:commit-discipline
+    to: skill:refactoring
+    kind: composes
+    evidence: "commit-discipline SKILL.md: refactor: Structural change without behavior change. Composes with refactoring (named Fowler move)"
+
+  # --- context-management ---
+  - from: skill:context-management
+    to: skill:writing-plans
+    kind: composes
+    evidence: "context-management SKILL.md: composes with writing-plans — the plan file is the source of truth, not the chat log."
+
+  # --- domain-driven-design ---
+  - from: skill:domain-driven-design
+    to: skill:typescript-strict
+    kind: composes
+    evidence: "domain-driven-design SKILL.md: Composes with typescript-strict exhaustive switches and functional ADTs."
+
+  - from: skill:domain-driven-design
+    to: skill:functional
+    kind: composes
+    evidence: "domain-driven-design SKILL.md: Composes with typescript-strict exhaustive switches and functional ADTs."
+
+  - from: skill:domain-driven-design
+    to: skill:hexagonal-architecture
+    kind: composes
+    evidence: "domain-driven-design SKILL.md: Aggregates collect events; use-cases dispatch via EventBusPort. Composes with hexagonal-architecture (event bus as a port)."
+
+  # --- functional ---
+  - from: skill:functional
+    to: skill:typescript-strict
+    kind: composes
+    evidence: "functional SKILL.md: Composes with typescript-strict exhaustive-switch enforcement and domain-driven-design aggregate state machines."
+
+  - from: skill:functional
+    to: skill:domain-driven-design
+    kind: composes
+    evidence: "functional SKILL.md: Composes with typescript-strict exhaustive-switch enforcement and domain-driven-design aggregate state machines."
+
+  # --- hexagonal-architecture ---
+  - from: skill:hexagonal-architecture
+    to: skill:functional
+    kind: composes
+    evidence: "hexagonal-architecture SKILL.md: Returns Result<Output, Error> (composes with functional)"
+
+  - from: skill:hexagonal-architecture
+    to: skill:domain-driven-design
+    kind: composes
+    evidence: "hexagonal-architecture SKILL.md: Split ports align with one bounded-context capability. Composes with domain-driven-design"
+
+  - from: skill:hexagonal-architecture
+    to: skill:testing
+    kind: composes
+    evidence: "hexagonal-architecture SKILL.md: No mocking framework. The shape of in-memory matches the shape of production. Composes with testing skill's nullable infrastructure pattern."
+
+  # --- llm-cost-discipline ---
+  - from: skill:llm-cost-discipline
+    to: skill:security-guidance
+    kind: composes
+    evidence: "llm-cost-discipline SKILL.md: Content containing user PII without explicit per-user scoping (composes with security-guidance)"
+
+  - from: skill:llm-cost-discipline
+    to: skill:observability
+    kind: composes
+    evidence: "llm-cost-discipline SKILL.md: // composes with observability (cost tracking at LLM call sites)"
+
+  # --- migrations-safety ---
+  - from: skill:migrations-safety
+    to: skill:observability
+    kind: composes
+    evidence: "migrations-safety SKILL.md: Progress logged via structured logger (composes with observability)."
+
+  - from: skill:migrations-safety
+    to: skill:tdd
+    kind: composes
+    evidence: "migrations-safety SKILL.md: integration test the migration (composes with tdd)"
+
+  # --- observability ---
+  - from: skill:observability
+    to: skill:async-safety
+    kind: composes
+    evidence: "observability SKILL.md: Composes with async-safety — the trace propagates across job / webhook / queue boundaries via the message envelope."
+
+  - from: skill:observability
+    to: skill:llm-cost-discipline
+    kind: composes
+    evidence: "observability SKILL.md: Cost per business event (LLM tokens, third-party calls) | Composes with llm-cost-discipline"
+
+  - from: skill:observability
+    to: skill:security-guidance
+    kind: composes
+    evidence: "observability SKILL.md: No PII, no secrets, ever (composes with security-guidance)"
+
+  # --- refactoring ---
+  - from: skill:refactoring
+    to: skill:typescript-strict
+    kind: composes
+    evidence: "refactoring SKILL.md: Replace Primitive with Branded Type | Composes with typescript-strict."
+
+  # --- security-guidance ---
+  - from: skill:security-guidance
+    to: skill:observability
+    kind: composes
+    evidence: "security-guidance SKILL.md: secrets MUST NOT appear in logs. Composes with observability — secrets MUST NOT appear in logs."
+
+  - from: skill:security-guidance
+    to: skill:migrations-safety
+    kind: composes
+    evidence: "security-guidance SKILL.md: Composes with migrations-safety for schema changes."
+
+  - from: skill:security-guidance
+    to: skill:llm-cost-discipline
+    kind: composes
+    evidence: "security-guidance SKILL.md: Composes with llm-cost-discipline — cost rules and security rules co-evolve at LLM call sites"
+
+  # --- source-driven-development ---
+  - from: skill:source-driven-development
+    to: skill:commit-discipline
+    kind: composes
+    evidence: "source-driven-development SKILL.md: composes with commit-discipline — the 'why' carries the source"
+
+  - from: skill:source-driven-development
+    to: skill:hexagonal-architecture
+    kind: composes
+    evidence: "source-driven-development SKILL.md: pass the doc text as a parameter — a port. Composes with hexagonal-architecture and security-guidance."
+
+  # --- systematic-debugging ---
+  - from: skill:systematic-debugging
+    to: skill:commit-discipline
+    kind: composes
+    evidence: "systematic-debugging SKILL.md: Commit: fix: <root cause description>. Composes with commit-discipline (the 'why' is the root cause)."
+
+  - from: skill:systematic-debugging
+    to: skill:refactoring
+    kind: composes
+    evidence: "systematic-debugging SKILL.md: The fix is a refactor (composes with refactoring and hexagonal-architecture / domain-driven-design)."
+
+  # --- verification-before-completion ---
+  - from: skill:verification-before-completion
+    to: skill:writing-plans
+    kind: composes
+    evidence: "verification-before-completion SKILL.md: For multi-step plans (composes with writing-plans): update the plan's Resume point section"
+
+  - from: skill:verification-before-completion
+    to: skill:code-review
+    kind: composes
+    evidence: "verification-before-completion SKILL.md: For PRs (composes with code-review): the checklist feeds the Review Evidence block"
+
+  # --- pack-monorepo ---
+  - from: skill:pack-monorepo/dependency-direction
+    to: skill:hexagonal-architecture
+    kind: composes
+    evidence: "pack-monorepo/dependency-direction SKILL.md description: Composes with core:hexagonal-architecture and the boundary-direction-check hook."
+
+  - from: skill:pack-monorepo/package-extraction
+    to: skill:pack-monorepo/service-package
+    kind: composes
+    evidence: "pack-monorepo/package-extraction SKILL.md: Composes with harness-monorepo:service-package (which is the creation workflow once you've decided yes)."
+
+  - from: skill:pack-monorepo/service-package
+    to: skill:hexagonal-architecture
+    kind: composes
+    evidence: "pack-monorepo/service-package SKILL.md description: Composes with hexagonal-architecture, DDD."
+
+  - from: skill:pack-monorepo/service-package
+    to: skill:domain-driven-design
+    kind: composes
+    evidence: "pack-monorepo/service-package SKILL.md description: Composes with hexagonal-architecture, DDD."
+
+  # --- pack-nextjs ---
+  - from: skill:pack-nextjs/instrumentation-setup
+    to: skill:observability
+    kind: composes
+    evidence: "pack-nextjs/instrumentation-setup SKILL.md: Composes with harness:observability (the doctrine: pino, structured logs, Sentry user scope)."
+
+  - from: skill:pack-nextjs/loading-error-boundaries
+    to: skill:observability
+    kind: composes
+    evidence: "pack-nextjs/loading-error-boundaries SKILL.md: Log to Sentry (composes with harness:observability)"
+
+  # --- pack-react ---
+  - from: skill:pack-react/accessibility-check
+    to: skill:accessibility-first
+    kind: composes
+    evidence: "pack-react/accessibility-check SKILL.md: Composes with harness:accessibility-first (the generic doctrine and Radix-as-primitive philosophy)."
+
+  - from: skill:pack-react/form-pattern
+    to: skill:pack-server/server-action
+    kind: composes
+    evidence: "pack-react/form-pattern SKILL.md description: Build forms with react-hook-form + Zod resolver... Composes with harness-server:server-action."
+
+  - from: skill:pack-react/form-pattern
+    to: skill:pack-react/accessibility-check
+    kind: composes
+    evidence: "pack-react/form-pattern SKILL.md: Touch targets >= 44x44 (composes with harness-react:accessibility-check)."
+
+  # --- pack-server ---
+  - from: skill:pack-server/server-action
+    to: skill:security-guidance
+    kind: composes
+    evidence: "pack-server/server-action SKILL.md description: Composes with security-guidance, async-safety."
+
+  - from: skill:pack-server/server-action
+    to: skill:async-safety
+    kind: composes
+    evidence: "pack-server/server-action SKILL.md description: Composes with security-guidance, async-safety."
+
+  - from: skill:pack-server/env-validation
+    to: skill:security-guidance
+    kind: composes
+    evidence: "pack-server/env-validation SKILL.md: Composes with harness:security-guidance (env doctrine)"
+
+  - from: skill:pack-server/drizzle-migration-safe
+    to: skill:migrations-safety
+    kind: composes
+    evidence: "pack-server/drizzle-migration-safe SKILL.md: Composes with harness:migrations-safety (the generic doctrine); this skill ships the concrete Drizzle patterns."
