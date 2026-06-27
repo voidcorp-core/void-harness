@@ -1,9 +1,11 @@
 import ForceGraph3D from '3d-force-graph';
 import { forceX, forceY } from 'd3-force';
-import type { GraphModel, GraphNode } from '@voidcorp/harness-graph';
+import type { GraphEdge, GraphModel, GraphNode } from '@voidcorp/harness-graph';
 import { clusterAnchor, colorForType, sizeForLines } from '../scene/encode.js';
 import { familyOf } from '../scene/families.js';
 import { type ViewState, selectVisible } from '../scene/select.js';
+import { applyAnalysisStyling, type StylableGraph } from './overlays.js';
+import type { Overlays } from '../scene/overlays.js';
 
 const FAMILY_EDGE_COLORS = {
   routing: '#5eead4',
@@ -21,7 +23,7 @@ export interface GraphHandle {
   onNodeClick(cb: (node: GraphNode) => void): void;
 }
 
-export function createGraph(el: HTMLElement, model: GraphModel): GraphHandle {
+export function createGraph(el: HTMLElement, model: GraphModel, overlays: Overlays): GraphHandle {
   // Deterministic per-pack anchor so clusters land in stable regions.
   const packs = [...new Set(model.nodes.map((n) => n.pack ?? 'core'))].sort();
   const anchorOf = (n: GraphNode) => clusterAnchor(packs.indexOf(n.pack ?? 'core'), packs.length);
@@ -42,12 +44,37 @@ export function createGraph(el: HTMLElement, model: GraphModel): GraphHandle {
     .d3Force('x', forceX<object>().strength(0.06).x((n) => anchorOf(n as GraphNode).x))
     .d3Force('y', forceY<object>().strength(0.06).y((n) => anchorOf(n as GraphNode).y));
 
+  // Structural color function extracted so setView can restore it after analysis is off.
+  const structuralColor = (n: object): string => colorForType((n as GraphNode).type);
+
   const setView = (state: ViewState): void => {
     const { nodeIds, edges } = selectVisible(model, state);
+    type GraphLink = GraphEdge & { source: string; target: string };
+    const links: GraphLink[] = edges.map((e) => ({ ...e, source: e.from, target: e.to }));
+    if (state.layers.analysis) {
+      for (const o of overlays.overlapEdges) {
+        if (nodeIds.has(o.from) && nodeIds.has(o.to)) {
+          links.push({
+            from: o.from,
+            to: o.to,
+            kind: 'overlaps',
+            origin: 'derived',
+            evidence: 'overlap',
+            source: o.from,
+            target: o.to,
+          });
+        }
+      }
+    }
     graph.graphData({
       nodes: model.nodes.filter((n) => nodeIds.has(n.id)).map((n) => ({ ...n })),
-      links: edges.map((e) => ({ ...e, source: e.from, target: e.to })),
+      links,
     });
+    applyAnalysisStyling(graph as unknown as StylableGraph, overlays, state.layers.analysis);
+    if (!state.layers.analysis) {
+      // Restore structural coloring after the analysis layer is turned off.
+      graph.nodeColor(structuralColor);
+    }
   };
 
   const onNodeClick = (cb: (node: GraphNode) => void): void => {

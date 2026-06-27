@@ -18,7 +18,7 @@ controls.className = 'controls';
 document.body.append(panel, controls);
 
 let state = defaultViewState();
-const handle = createGraph(scene, data.model);
+const handle = createGraph(scene, data.model, overlays);
 handle.setView(state);
 handle.onNodeClick((node) => renderPanel(panel, data.model, overlays, node));
 
