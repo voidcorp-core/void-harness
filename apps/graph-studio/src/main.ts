@@ -32,7 +32,9 @@ const reticle = createReticle(handle.graph as unknown as ReticleGraph);
 handle.onNodeClick((node) => {
   moveReticleTo(reticle, node);
   focusNode(handle.graph as unknown as CameraGraph, node);
-  if (node.type === 'workflow-def') {
+  // Workflows layer on: a workflow-def opens its phase sub-view; off: it reads as a
+  // normal node (standard dossier panel). Other node types always use the panel.
+  if (node.type === 'workflow-def' && state.layers.workflows) {
     const meta = data.workflows[node.id] ?? { phases: [] };
     renderWorkflowView(panel, workflowView(data.model, node, meta));
   } else {

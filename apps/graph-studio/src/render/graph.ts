@@ -112,9 +112,6 @@ export function createGraph(
     .linkColor((l) => FAMILY_EDGE_COLORS[familyOf((l as { kind: GraphModel['edges'][number]['kind'] }).kind)])
     .linkOpacity(0.7)
     .linkWidth(1)
-    .linkDirectionalParticles((l) =>
-      familyOf((l as { kind: GraphModel['edges'][number]['kind'] }).kind) === 'routing' ? 2 : 0,
-    )
     .linkDirectionalParticleWidth(1.4)
     .linkDirectionalParticleSpeed(0.006);
 
@@ -151,6 +148,14 @@ export function createGraph(
       nodes: model.nodes.filter((n) => nodeIds.has(n.id)).map((n) => ({ ...n })),
       links,
     });
+    // Flow layer: routing edges (routes-to / composes) carry continuous travelling
+    // particles when the layer is on; off means a static graph. The Play-flow button
+    // emits a one-shot wavefront burst independently of this toggle.
+    graph.linkDirectionalParticles((l) =>
+      state.layers.flow && familyOf((l as { kind: GraphModel['edges'][number]['kind'] }).kind) === 'routing'
+        ? 2
+        : 0,
+    );
     // Reconcile analysis styling with the custom node objects: swap the builder
     // (dim vs glow) and rebuild. This visibly dims/highlights; it is not a no-op.
     applyAnalysisStyling(graph as unknown as AnalysisGraph, state.layers.analysis, normalBuild, dimBuild);
