@@ -72,9 +72,9 @@ export function createGraph(
       const glow = haloForCount(usage.counts[n.name] ?? 0);
       if (glow > 0) {
         const sprite = new Sprite(
-          new SpriteMaterial({ map: halo, color, transparent: true, opacity: glow * 0.6, depthWrite: false }),
+          new SpriteMaterial({ map: halo, color, transparent: true, opacity: glow * 0.22, depthWrite: false }),
         );
-        sprite.scale.setScalar(r * (3 + glow * 4));
+        sprite.scale.setScalar(r * (1.8 + glow * 1.8));
         group.add(sprite);
       }
       return group;
@@ -110,8 +110,8 @@ export function createGraph(
     .nodeLabel((n) => `${(n as GraphNode).id} (${(n as GraphNode).lines} lines)`)
     .nodeThreeObject(normalBuild)
     .linkColor((l) => FAMILY_EDGE_COLORS[familyOf((l as { kind: GraphModel['edges'][number]['kind'] }).kind)])
-    .linkOpacity(0.5)
-    .linkWidth(0.6)
+    .linkOpacity(0.7)
+    .linkWidth(1)
     .linkDirectionalParticles((l) =>
       familyOf((l as { kind: GraphModel['edges'][number]['kind'] }).kind) === 'routing' ? 2 : 0,
     )

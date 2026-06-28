@@ -44,7 +44,9 @@ export function addHologramFx(graph: FxGraph): void {
 
   // Bloom: makes the unlit neon node/edge colors read as projected light.
   // UnrealBloomPass(resolution, strength, radius, threshold) — confirmed three@0.185.
-  const bloom = new UnrealBloomPass(new Vector2(window.innerWidth, window.innerHeight), 1.1, 0.7, 0.05);
+  // Tuned for legibility: a softer strength + higher threshold keeps the graph
+  // reading as a node-link structure rather than washing into one glowing blob.
+  const bloom = new UnrealBloomPass(new Vector2(window.innerWidth, window.innerHeight), 0.55, 0.6, 0.22);
   const composer = graph.postProcessingComposer();
   composer.addPass(bloom);
 
@@ -59,7 +61,7 @@ export function addHologramFx(graph: FxGraph): void {
   geo.setAttribute('position', new Float32BufferAttribute(positions, 3));
   const field = new Points(
     geo,
-    new PointsMaterial({ color: 0x2a5a78, size: 1.4, transparent: true, opacity: 0.5, depthWrite: false }),
+    new PointsMaterial({ color: 0x2a5a78, size: 1.1, transparent: true, opacity: 0.35, depthWrite: false }),
   );
   scene.add(field);
 
