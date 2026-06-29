@@ -334,18 +334,19 @@ ressenti (pulse, decay, lisibilité) avant d'investir dans le replay. Lancer
 
 ## Resume point
 
-**Next step** : Step 3 (Cœur pur CLI — parse + tail-par-offset) — après signal Checkpoint A
+**Next step** : Step 7 (Reducer scrubber — cœur pur studio) — après signal Checkpoint B
 
 **Completed** :
 - ✅ Step 1 — activation-meter.sh + test (commits `192f53d` test, `15f7779` feat)
 - ✅ Step 2 — réenregistrer PreToolUse * + mirror + rebuild modèle + retarget primitive-hooks (commit `d0c2e1c`)
-- 🟡 Checkpoint A — atteint, en attente de validation utilisateur
+- ✅ Checkpoint A — validé
+- ✅ Step 3 — cœur pur CLI parse + tail (commits `cf2ac04` test, `9176e7b` feat)
+- ✅ Step 4 — cœur pur studio index + frameAt (commits `ed94f36` test, `92fdb98` feat ; refactor CLI `1749ad0`)
+- ✅ Step 5 — graph live SSE (commit `625496e`)
+- ✅ Step 6 — calque live studio (commit ci-dessus)
+- 🟡 Checkpoint B — atteint, en attente de validation utilisateur
 
 **Pending** :
-- ⏳ Step 3 — cœur pur CLI (parse + tail)
-- ⏳ Step 4 — cœur pur studio (index + frameAt)
-- ⏳ Step 5 — graph live (SSE)
-- ⏳ Step 6 — calque live studio
 - ⏳ Step 7 — reducer scrubber
 - ⏳ Step 8 — endpoint /history
 - ⏳ Step 9 — scrubber timeline
