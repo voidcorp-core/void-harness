@@ -384,9 +384,14 @@
       "type": "skill",
       "name": "accessibility-first",
       "description": "WCAG 2.2 AA floor. Radix primitives only, touch >=44x44, keyboard parity, semantic HTML, form labels, aria-live errors, mobile-first dual-quality. Use when building or modifying UI.",
-      "lines": 276,
+      "lines": 278,
       "pack": null,
-      "source": "packages/core/skills/accessibility-first/SKILL.md"
+      "source": "packages/core/skills/accessibility-first/SKILL.md",
+      "triggers": {
+        "extensions": [
+          "tsx"
+        ]
+      }
     },
     {
       "id": "skill:adr-workflow",
@@ -501,9 +506,14 @@
       "type": "skill",
       "name": "frontend-design",
       "description": "Anti-AI-slop UI. Density first, 3-size hierarchy, motion <250ms, components via @repo/ui (Radix/shadcn), mobile-first dual-quality. Brand from DESIGN.md. Use when building or modifying UI.",
-      "lines": 217,
+      "lines": 219,
       "pack": null,
-      "source": "packages/core/skills/frontend-design/SKILL.md"
+      "source": "packages/core/skills/frontend-design/SKILL.md",
+      "triggers": {
+        "extensions": [
+          "tsx"
+        ]
+      }
     },
     {
       "id": "skill:functional",
@@ -546,9 +556,15 @@
       "type": "skill",
       "name": "migrations-safety",
       "description": "Zero-downtime Postgres migrations. Two-phase changes, batched backfills, locking analysis, banned DDL patterns, CONCURRENTLY indexes, dev branch test, immutable after merge. Use on DB schema changes.",
-      "lines": 265,
+      "lines": 267,
       "pack": null,
-      "source": "packages/core/skills/migrations-safety/SKILL.md"
+      "source": "packages/core/skills/migrations-safety/SKILL.md",
+      "triggers": {
+        "globs": [
+          "**/migrations/**",
+          "**/*.sql"
+        ]
+      }
     },
     {
       "id": "skill:observability",
@@ -852,18 +868,34 @@
       "type": "skill",
       "name": "tdd",
       "description": "TDD with three modes (strict/souple/exploratory) auto-selected by path. Iron Law in strict (no prod code without a failing test), mutation gate, anti-rustine. Use for any feature, bugfix, refactor.",
-      "lines": 400,
+      "lines": 403,
       "pack": null,
-      "source": "packages/core/skills/tdd/SKILL.md"
+      "source": "packages/core/skills/tdd/SKILL.md",
+      "triggers": {
+        "extensions": [
+          "ts",
+          "tsx"
+        ],
+        "tools": [
+          "Edit",
+          "Write"
+        ]
+      }
     },
     {
       "id": "skill:testing",
       "type": "skill",
       "name": "testing",
       "description": "How to write a good test. Behavior over implementation, real code over mocks, factories over beforeEach, pyramid respected, pristine output, no snapshot creep. Use when writing or modifying tests.",
-      "lines": 277,
+      "lines": 279,
       "pack": null,
-      "source": "packages/core/skills/testing/SKILL.md"
+      "source": "packages/core/skills/testing/SKILL.md",
+      "triggers": {
+        "globs": [
+          "**/*.test.ts",
+          "**/*.spec.ts"
+        ]
+      }
     },
     {
       "id": "skill:ticket-runner",
@@ -888,9 +920,15 @@
       "type": "skill",
       "name": "typescript-strict",
       "description": "TS strict baseline. Zero any budget, branded types for domain primitives, discriminated unions over enums, exhaustive switches via never, satisfies over as. Use when editing TypeScript code.",
-      "lines": 295,
+      "lines": 297,
       "pack": null,
-      "source": "packages/core/skills/typescript-strict/SKILL.md"
+      "source": "packages/core/skills/typescript-strict/SKILL.md",
+      "triggers": {
+        "extensions": [
+          "ts",
+          "tsx"
+        ]
+      }
     },
     {
       "id": "skill:verification-before-completion",
