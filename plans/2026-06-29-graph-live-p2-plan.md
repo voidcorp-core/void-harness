@@ -1,7 +1,7 @@
 ---
 title: graph live (P2) — M6 télémétrie enrichie + M7 vue live/replay
 date: 2026-06-29
-status: in-progress
+status: done
 spec: docs/specs/2026-06-29-graph-live-p2.md
 author: Florent + Claude
 high_risk: false
@@ -334,20 +334,20 @@ ressenti (pulse, decay, lisibilité) avant d'investir dans le replay. Lancer
 
 ## Resume point
 
-**Next step** : Step 7 (Reducer scrubber — cœur pur studio) — après signal Checkpoint B
+**Next step** : aucune — plan terminé (check visuel WebGL du pulse/scrubber laissé à l'utilisateur sur GPU réel).
 
 **Completed** :
-- ✅ Step 1 — activation-meter.sh + test (commits `192f53d` test, `15f7779` feat)
-- ✅ Step 2 — réenregistrer PreToolUse * + mirror + rebuild modèle + retarget primitive-hooks (commit `d0c2e1c`)
+- ✅ Step 1 — activation-meter.sh + test (`192f53d`, `15f7779`)
+- ✅ Step 2 — réenregistrer PreToolUse * + mirror + rebuild modèle + retarget primitive-hooks (`d0c2e1c`)
 - ✅ Checkpoint A — validé
-- ✅ Step 3 — cœur pur CLI parse + tail (commits `cf2ac04` test, `9176e7b` feat)
-- ✅ Step 4 — cœur pur studio index + frameAt (commits `ed94f36` test, `92fdb98` feat ; refactor CLI `1749ad0`)
-- ✅ Step 5 — graph live SSE (commit `625496e`)
-- ✅ Step 6 — calque live studio (commit ci-dessus)
-- 🟡 Checkpoint B — atteint, en attente de validation utilisateur
+- ✅ Step 3 — cœur pur CLI parse + tail (`cf2ac04`, `9176e7b`)
+- ✅ Step 4 — cœur pur studio index + frameAt (`ed94f36`, `92fdb98` ; refactor CLI `1749ad0`)
+- ✅ Step 5 — graph live SSE (`625496e`)
+- ✅ Step 6 — calque live studio (`f745f56`)
+- ✅ Checkpoint B — atteint ; check visuel headless impossible (WebGL), handoff utilisateur
+- ✅ Step 7 — reducer scrubber (test + feat)
+- ✅ Step 8 — endpoint /history (feat)
+- ✅ Step 9 — scrubber timeline (feat)
+- ✅ Step 10 — doc & clôture (DECISIONS, jalons, aide CLI, READMEs)
 
-**Pending** :
-- ⏳ Step 7 — reducer scrubber
-- ⏳ Step 8 — endpoint /history
-- ⏳ Step 9 — scrubber timeline
-- ⏳ Step 10 — doc & clôture
+**Pending** : néant.
