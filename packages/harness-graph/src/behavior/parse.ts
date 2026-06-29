@@ -14,21 +14,27 @@ function parseLine(line: string): ActivationEvent | undefined {
   } catch {
     return undefined;
   }
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined;
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined; // allow-null: JSON.parse can yield a null value
   const o = raw as Record<string, unknown>;
-  if (typeof o.kind !== 'string' || !KINDS.has(o.kind)) return undefined;
-  if (typeof o.name !== 'string') return undefined;
-  const t = (typeof o.trigger === 'object' && o.trigger !== null ? o.trigger : {}) as Record<string, unknown>;
+  const kind = o['kind'];
+  const name = o['name'];
+  if (typeof kind !== 'string' || !KINDS.has(kind)) return undefined;
+  if (typeof name !== 'string') return undefined;
+  const rawTrigger = o['trigger'];
+  const t = (typeof rawTrigger === 'object' && rawTrigger !== null ? rawTrigger : {}) as Record<string, unknown>; // allow-null: guarding a parsed JSON value
+  const ts = o['ts'];
+  const sessionId = o['sessionId'];
+  const tool = t['tool'];
   return {
-    ts: typeof o.ts === 'string' ? o.ts : '',
-    kind: o.kind as ActivationKind,
-    name: o.name,
+    ts: typeof ts === 'string' ? ts : '',
+    kind: kind as ActivationKind,
+    name,
     trigger: {
-      tool: typeof t.tool === 'string' ? t.tool : '',
-      fileGlobs: asStringArray(t.fileGlobs),
-      ext: asStringArray(t.ext),
+      tool: typeof tool === 'string' ? tool : '',
+      fileGlobs: asStringArray(t['fileGlobs']),
+      ext: asStringArray(t['ext']),
     },
-    sessionId: typeof o.sessionId === 'string' ? o.sessionId : '',
+    sessionId: typeof sessionId === 'string' ? sessionId : '',
   };
 }
 

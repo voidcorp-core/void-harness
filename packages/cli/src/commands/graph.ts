@@ -13,8 +13,10 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   analyze,
+  analyzeBehavior,
   assembleModel,
   blockingFindings,
+  parseActivations,
   scanSourceTree,
   serializeModel,
 } from '@voidcorp/harness-graph';
@@ -122,6 +124,40 @@ export async function graph(args: readonly string[]): Promise<void> {
     }
     blank();
     footer(c.dim('warnings/info are signals to weigh (HITL); only broken-route blocks CI.'));
+    return;
+  }
+
+  if (sub === 'behavior') {
+    const model = await loadModel(coreSource);
+    const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
+    const sinceDays = numFlag(args, '--since', 0);
+    const events = parseActivations(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '');
+    const report = analyzeBehavior(
+      model,
+      events,
+      sinceDays > 0 ? { sinceMs: Date.now() - sinceDays * 86_400_000 } : {},
+    );
+    banner('graph behavior');
+    blank();
+    if (!report.sufficient) {
+      line(
+        `  ${c.yellow('insufficient data')} ${c.dim(glyph.dot)} ${report.stats.events} events, ${report.stats.sessions} sessions ${c.dim('(need >=20 events / >=3 sessions)')}`,
+      );
+      footer(c.dim('let the activation-meter hook accumulate more sessions, then retry.'));
+      return;
+    }
+    line(
+      `  ${c.dim('events')} ${report.stats.events} ${c.dim(glyph.dot)} ${c.dim('sessions')} ${report.stats.sessions} ${c.dim(glyph.dot)} ${c.dim('findings')} ${report.findings.length}`,
+    );
+    for (const f of report.findings) {
+      blank();
+      const tag = f.count !== undefined ? c.dim(` (x${f.count})`) : '';
+      line(`  ${c.dim('info')} ${c.bold(f.kind)} ${c.dim(f.nodes.join(', '))}${tag}`);
+      line(`    ${f.evidence}`);
+      line(`    ${c.dim(`-> ${f.suggestion}`)}`);
+    }
+    blank();
+    footer(c.dim('advisory (HITL): dead nodes may be context-specific; should-have-fired may need trigger tuning.'));
     return;
   }
 
