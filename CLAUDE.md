@@ -64,17 +64,20 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 
 ## Skill routing inside this repo
 
-| Task                           | Skill / Tool                                                            |
-| ------------------------------ | ----------------------------------------------------------------------- |
-| Adding a skill                 | `superpowers:writing-skills` (for now — until we vendor our own)        |
-| Brainstorming the next feature | `superpowers:brainstorming` (vendored target: `voidcorp:brainstorming`) |
-| Writing a plan                 | `superpowers:writing-plans` (vendored target: `voidcorp:writing-plans`) |
-| QA / design / ship             | gstack (`/qa`, `/design-review`, `/ship`)                               |
+| Task                                     | Skill / Tool                                                                         |
+| ---------------------------------------- | ------------------------------------------------------------------------------------ |
+| Brainstorming the next feature           | `harness:brainstorming`                                                              |
+| Writing a plan                           | `harness:writing-plans`                                                              |
+| Implementing a ticket / feature          | `harness:ticket-runner` (one unit, ready→shipped: TDD, UX, security, review, verify) |
+| Decomposing work into tickets            | `harness:ticket-writer`                                                              |
+| Draining independent tickets in parallel | `harness:backlog-autopilot`                                                          |
+| Adding a skill                           | `superpowers:writing-skills` (until vendored)                                        |
+| QA / design / ship                       | gstack (`/qa`, `/design-review`, `/ship`)                                            |
 
 ## On gstack and superpowers
 
 - **gstack** is and stays installed globally (`~/.claude/skills/gstack/`). It covers QA, design, browser, ship. The harness does **not** reinvent these workflows.
-- **superpowers** will be uninstalled from global once the harness's adapted versions of the essential skills are ready (`brainstorming`, `writing-plans`, `systematic-debugging`, `verification-before-completion`, `test-driven-development` already covered via DECLIK port). Until then, prefer the superpowers version and document the adaptation in `plans/skill-audits/`.
+- **superpowers**: the essential skills are now vendored as `harness:*` (`brainstorming`, `writing-plans`, `tdd`, `systematic-debugging`, `verification-before-completion`, plus `ticket-runner`/`ticket-writer`) — prefer the `harness:` version (see the routing table). superpowers stays only for what is not yet vendored (e.g. `writing-skills`, `executing-plans`, `subagent-driven-development`). Document each adaptation in `plans/skill-audits/`.
 
 ## Self-evolution principle
 

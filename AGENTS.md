@@ -66,15 +66,18 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 
 | Task | Tool / Pattern |
 |---|---|
+| Brainstorming the next feature | `brainstorming` skill (loads natively in Codex) |
+| Writing a plan | `writing-plans` skill |
+| Implementing a ticket / feature | `ticket-runner` skill (one unit, ready→shipped: TDD, UX, security, review, verify) |
+| Decomposing work into tickets | `ticket-writer` skill |
+| Draining independent tickets in parallel | `backlog-autopilot` skill |
 | Adding a skill | Author the SKILL.md by hand, run skill-test suite in `test/` |
-| Brainstorming the next feature | Codex consult mode (gstack `/codex` consult) — adapt the principles in `plans/` |
-| Writing a plan | Manual authoring against the template in `plans/2026-05-29-void-harness-design.md` |
 | QA / design / ship | gstack (`/qa`, `/design-review`, `/ship`) — Codex can invoke gstack commands via its shell tool |
 
 ## On gstack and superpowers (Codex perspective)
 
 - **gstack** is installed globally and provides slash commands callable from any agent shell. Use it for QA, design, browser, ship. The harness does **not** reinvent these workflows.
-- **superpowers** is a Claude Code-specific skill bundle. Codex consumers don't interact with it directly; the harness's adapted equivalents (`brainstorming`, `writing-plans`, `systematic-debugging`, `verification-before-completion`, `tdd`) target both runtimes. Document the adaptation in `plans/skill-audits/`.
+- **superpowers** is a Claude Code-specific skill bundle. Codex consumers don't interact with it directly; the harness's adapted equivalents (`brainstorming`, `writing-plans`, `tdd`, `systematic-debugging`, `verification-before-completion`, plus `ticket-runner`/`ticket-writer`) target both runtimes and are preferred over the superpowers originals (see the routing table). Document the adaptation in `plans/skill-audits/`.
 
 ## Self-evolution principle
 
