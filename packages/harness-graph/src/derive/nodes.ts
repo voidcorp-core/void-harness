@@ -20,15 +20,17 @@ export interface SourceTree {
 
 function toNode(type: NodeType, e: SourceEntry): GraphNode {
   const pack = e.pack ?? null; // allow-null: GraphNode.pack is string | null per model contract
-  return {
+  const { description, triggers } = readFrontmatter(e.text);
+  const base: GraphNode = {
     id: nodeId(type, e.name, pack),
     type,
     name: e.name,
-    description: readFrontmatter(e.text).description,
+    description,
     lines: countLines(e.text),
     pack,
     source: e.source,
   };
+  return triggers ? { ...base, triggers } : base;
 }
 
 /** Locale-independent code-unit comparison for deterministic, ICU-stable sorts. */
