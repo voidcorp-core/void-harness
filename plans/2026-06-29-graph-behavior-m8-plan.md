@@ -1,7 +1,7 @@
 ---
 title: graph behavior (M8) — should-have-fired + dead-node
 date: 2026-06-29
-status: in-progress
+status: done
 spec: docs/specs/2026-06-29-graph-behavior-m8.md
 author: Florent + Claude
 high_risk: false
@@ -178,14 +178,15 @@ la surface. Lancer `harness:verification-before-completion`. Attendre le signal.
 
 ## Resume point
 
-**Next step** : Step 1 (Frontmatter `triggers` : schéma + dérivation)
+**Next step** : aucune — plan terminé.
 
-**Completed** : aucun.
+**Completed** :
+- ✅ Step 1 — frontmatter triggers + dérivation (test + feat)
+- ✅ Step 2 — coeur pur parse + triggerMatches/glob (test + feat)
+- ✅ Step 3 — analyzeBehavior (dead-node + should-have-fired + garde volume) (test + feat)
+- ✅ Checkpoint A — passé (cœur testé, 17 tests behavior)
+- ✅ Step 4 — CLI graph behavior (feat)
+- ✅ Step 5 — seed 6 triggers + mirror + modèle (feat)
+- ✅ Step 6 — doc & clôture (DECISIONS, jalon M8, aide CLI, README)
 
-**Pending** :
-- ⏳ Step 1 — frontmatter triggers + dérivation
-- ⏳ Step 2 — coeur pur parse + triggerMatches/glob
-- ⏳ Step 3 — analyzeBehavior (dead-node + should-have-fired + garde volume)
-- ⏳ Step 4 — CLI graph behavior
-- ⏳ Step 5 — seed ~6 triggers + mirror + modèle
-- ⏳ Step 6 — doc & clôture
+**Pending** : néant. 500 tests verts, graph check passé.
