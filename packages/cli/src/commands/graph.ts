@@ -19,9 +19,21 @@ import {
   serializeModel,
 } from '@voidcorp/harness-graph';
 import { parseUsageLog } from '../lib/audit.js';
+import { startLiveServer } from '../lib/graph-live-server.js';
 import { findCoreSource } from '../lib/paths.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
 import { usedSkillNames } from '../lib/graph-io.js';
+
+/** Read `--flag value` from argv, falling back to `fallback`. */
+function strFlag(args: readonly string[], flag: string, fallback: string): string {
+  const i = args.indexOf(flag);
+  return i >= 0 ? (args[i + 1] ?? fallback) : fallback;
+}
+function numFlag(args: readonly string[], flag: string, fallback: number): number {
+  const raw = strFlag(args, flag, '');
+  const n = Number.parseInt(raw, 10);
+  return Number.isNaN(n) ? fallback : n;
+}
 
 // packages/ root: dist/main.js -> dist -> cli -> packages
 const PKGS_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -111,6 +123,21 @@ export async function graph(args: readonly string[]): Promise<void> {
     blank();
     footer(c.dim('warnings/info are signals to weigh (HITL); only broken-route blocks CI.'));
     return;
+  }
+
+  if (sub === 'live') {
+    const port = numFlag(args, '--port', 4317);
+    const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
+    const modelJson = serializeModel(await loadModel(coreSource));
+    banner('graph live');
+    blank();
+    line(`  serving model + SSE on ${c.green(`http://localhost:${port}`)}`);
+    line(`  ${c.dim('tailing')} ${logPath}`);
+    line(`  ${c.dim('routes')} GET /model.json ${c.dim(glyph.dot)} GET /events ${c.dim('(SSE)')}`);
+    line(`  ${c.dim('point the studio at it via')} VITE_LIVE_URL`);
+    footer(c.dim('Ctrl+C to stop.'));
+    startLiveServer({ port, logPath, modelJson });
+    return; // the listening socket keeps the process alive
   }
 
   console.error(`unknown graph subcommand: ${sub}\n`); // allow-console: error-exit branch per brief
