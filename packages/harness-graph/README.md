@@ -62,3 +62,15 @@ void-harness graph audit
 
 `broken-route` findings block CI. `orphan` and `overlap` findings are advisory
 (HITL -- a human decides whether to wire, fuse, or leave them alone).
+
+## Live (P2)
+
+```
+void-harness graph live [--port 4317] [--log .void/activations.jsonl] [--history-max 5000]
+```
+
+Serves the model + a Server-Sent Events stream of activations (written by the
+`activation-meter` hook) for the graph-studio live layer. Data-only: routes are
+`GET /model.json`, `GET /history` (bounded), `GET /events` (SSE). The studio is a
+separate app that connects via `VITE_LIVE_URL`. See
+`docs/specs/2026-06-29-graph-live-p2.md`.

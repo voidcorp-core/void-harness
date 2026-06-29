@@ -24,5 +24,7 @@ try {
 
 await rm(TARGET, { recursive: true, force: true });
 await mkdir(dirname(TARGET), { recursive: true });
-await cp(SOURCE, TARGET, { recursive: true });
+// Mirror runtime assets only: test files (e.g. hook *.test.ts) are dev-time and
+// must not ship in the consumer tarball.
+await cp(SOURCE, TARGET, { recursive: true, filter: (src) => !src.endsWith('.test.ts') });
 console.log(`copy-core-assets: copied ${SOURCE} -> ${TARGET}`);

@@ -21,6 +21,7 @@ void-harness/
 │       ├── pack-server/           # @voidcorp/pack-server     (plugin harness-server)
 │       ├── pack-pwa/              # @voidcorp/pack-pwa        (plugin harness-pwa)
 │       └── pack-mobile/           # @voidcorp/pack-mobile     (plugin harness-mobile)
+├── apps/                          # private, unpublished surfaces (graph-studio)
 ├── plans/                         # specs + ADRs of the harness itself
 │   └── skill-audits/              # one audit note per vendored skill
 ├── test/                          # automated skill tests (citypaul-style)
@@ -98,6 +99,17 @@ cli  →  core  ←  packs
 - `cli` depends on `core` (for the install logic, version manifest)
 - `packs` depend on `core` (for shared modules / skills they extend)
 - `core` depends on nothing inside the repo
+
+## apps/ (surfaces)
+
+`apps/*` are private, unpublished surfaces that consume the packages. They may
+depend on `packages/*` (e.g. `apps/graph-studio` devDepends on
+`@voidcorp/harness-graph`), never the reverse. They are exempt from the 400-line
+skill cap (they are apps, not skills) and from version lockstep (private, not
+shipped). `apps/graph-studio` is the maintainer 3D view of the component graph
+(spec §7): a Node prebuild runs the kernel's `analyze()` into static JSON, and the
+browser bundle is a pure renderer of that JSON (functional core / imperative shell,
+the same split the kernel uses).
 
 ## .void/config.json (consumer-side)
 

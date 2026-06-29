@@ -107,7 +107,12 @@ Honnêteté : overlap et trous sont **heuristiques** (lexical, pas sémantique-v
 présentés comme « signaux à arbitrer ». Seuls les détecteurs sûrs (routes cassées)
 deviennent une **gate CI bloquante**.
 
-## 7. Vue 3D mainteneur (`apps/graph-studio`)
+## 7. Vue 3D mainteneur (`apps/graph-studio`) -- IMPLEMENTED (Plan B, M4+M5)
+
+> Note: le rendu a évolué de la vue plate force-graph par clusters de pack décrite
+> ci-dessous vers une **vue orbitale 3D centrée sur l'orchestrateur** avec divulgation
+> progressive (CLAUDE.md au centre, hubs de groupe repliables, focus au clic sur
+> l'ego-network). Voir `docs/DECISIONS.md` (2026-06-29) et `apps/graph-studio/README.md`.
 
 - **Stack** : Vite + TS, **3d-force-graph** (Three.js + d3-force), **GSAP** (caméra,
   bursts de particules, transitions de calques). Charge `model.json` + résumé `usage.log`,
@@ -125,10 +130,16 @@ deviennent une **gate CI bloquante**.
 
 ## 8. Télémétrie enrichie + live consommateur (design P2, amorcé P1)
 
+> **Livré (2026-06-29)** : M6 + M7, voir `docs/specs/2026-06-29-graph-live-p2.md`.
+> Déviation assumée vs ci-dessous : le `kind` enregistré est `skill|agent|workflow|tool`
+> (pas `hook`) — un hook PreToolUse voit des outils, jamais des hooks ; « ce hook
+> aurait-il dû tirer » se dérive des situations (kind=tool) en M8, sans méta-logging.
+
 - **Enrichir** `skill-usage-meter.sh` (+ meters agent/hook/workflow) → event JSONL par
-  activation dans `.void/activations.jsonl` :
+  activation dans `.void/activations.jsonl` (livré sous forme du hook universel
+  `activation-meter.sh` sur `PreToolUse *`) :
   ```
-  { ts, kind: skill|agent|hook|workflow, name, event: PreToolUse|PostToolUse|…,
+  { ts, kind: skill|agent|workflow|tool, name, event: PreToolUse|PostToolUse|…,
     trigger: { tool, fileGlobs[], ext[] }, sessionId, parent? }
   ```
   **Jamais de contenu de fichier, jamais de secret** — chemins/extensions seulement
@@ -175,10 +186,10 @@ deviennent une **gate CI bloquante**.
 - **M3** amorçage : extraction LLM une fois → `relations.graph.yaml` curé ; commit `model.json`.
 - **M4** studio 3D : structure + calques d'analyse + panneau + filtres.
 - **M5** flux structurel (GSAP) + workflow-def DAG viewer.
-- **M6** amorçage télémétrie : enrichir hooks → `activations.jsonl` (enregistrement seul), gitignore + opt-in.
+- **M6** ✅ (2026-06-29) amorçage télémétrie : hook universel `activation-meter` `PreToolUse *` → `activations.jsonl` (enregistrement seul), gitignore + opt-in.
 
 **Phase 2**
-- **M7** vue live consommateur (`graph live` SSE) + replay scrubber.
+- **M7** ✅ (2026-06-29) vue live consommateur (`graph live` SSE data-only) + calque live + replay scrubber (studio).
 - **M8** analyse comportementale « should-have-fired » sur la donnée accumulée.
 
 ## 13. Décisions ouvertes / risques

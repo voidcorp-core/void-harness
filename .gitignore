@@ -48,3 +48,4 @@ Thumbs.db
 .void/worktrees/
 # Enriched activation telemetry log (local, runtime-only; analyzed in Phase 2).
 .void/activations.jsonl
+.gstack/

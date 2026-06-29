@@ -3,6 +3,63 @@
 Non-obvious decisions taken on the harness itself, where a credible alternative
 existed. One entry per decision. Newest first. See CLAUDE.md meta-rules.
 
+## 2026-06-29: graph live (P2) -- meter records `kind=tool`, SSE is data-only, one `frameAt` for live+replay
+
+Context: P2 "live" (the `is` layer) needed three coupled decisions, each with a
+credible alternative. Spec: `docs/specs/2026-06-29-graph-live-p2.md`.
+
+Decision 1 -- the activation meter records `kind: skill|agent|workflow|tool`, NOT the
+`skill|agent|hook|workflow` the parent spec (§8) listed. A universal `PreToolUse *`
+hook observes tools, never hooks; logging "which hook fired" would force every hook
+to self-log (fragile meta-logging, N files). Instead it records situations
+(`kind=tool` + `trigger.fileGlobs/ext`); "should this hook have fired" is derived in
+M8 by matching situations against declared triggers. The single `activation-meter.sh`
+absorbs the old `skill-usage-meter.sh` and keeps writing `usage.log` for skills
+(audit + studio halos unchanged).
+
+Decision 2 -- `graph live` serves data only (`/model.json`, `/history`, `/events`
+SSE); it does NOT bundle the studio `dist`. The studio stays a separate app and
+connects via `VITE_LIVE_URL`. The HTTP contract is a strict superset of the future
+all-in-one server, which only adds `GET / -> dist` later -- a non-breaking addition.
+Alternative rejected: bundle the studio dist into the CLI now. That forces a
+cross-package build + asset-mirror gate for zero behavioural gain at this stage;
+deferred to a dedicated packaging increment once the behaviour is locked.
+
+Decision 3 -- live and replay share one pure function `frameAt(events, cursor,
+window)`. Live pins the cursor to now (fed by the SSE stream); replay detaches it to
+the scrubber position over `/history`. One calculation, two pilots -- no duplicated
+intensity logic. Alternative rejected: a separate live pulser + replay renderer; it
+duplicates the decay math and drifts.
+
+Also: `null` was avoided throughout (harness:functional) -- parse/lookup return
+`undefined`.
+
+## 2026-06-29: graph-studio is orchestrator-centric with progressive disclosure, not a flat force-cloud
+
+Context: the first graph-studio build rendered all 102 nodes as a single
+3d-force-graph force-directed cloud (spec §7's literal "clusters spatiaux par pack").
+In use this was beautiful but illegible: it answered "what exists / where is it
+dense" but not "how does the harness articulate" -- the edges (the actual relations)
+were drowned, and a force layout encodes neither hierarchy nor flow. Dogfooding
+feedback: "c'est compliqué de comprendre comment tout s'articule."
+
+Decision: re-centre the view on the orchestrator (CLAUDE.md / the routing doctrine)
+and use progressive disclosure instead of showing everything at once. The
+orchestrator sits at the centre; group hubs (core + each pack) orbit it in a 3D
+volume; components are collapsed by default (overview = ~8 labelled hubs with count
+badges); clicking a hub expands its components; clicking a component isolates its
+ego-network (focused node + its semantic neighbours + directional arrows, rest
+hidden). This is the agent-flow "few nodes at a time, drill down" model. The
+holographic aesthetic (bloom, fog, reticle, gravitation spin) is retained but tuned
+down for legibility.
+
+Alternative rejected: keep the flat force-cloud and only tune bloom / add focus.
+Tried; the all-102-at-once layout stays cluttered because `core` alone has ~68
+components. Progressive disclosure is the only way to have both the full graph and
+legibility. The pure articulation overlay (`src/scene/articulation.ts`: orchestrator
++ hubs + containment + 3D orbital layout + ego-network) is unit-tested; spec §7's
+pack-cluster wording is superseded by this entry.
+
 ## 2026-06-26: "secrets via env" carves out customer-provided (BYO) credentials
 
 Context: an ADR audit of a consumer project (sesame, multi-tenant) surfaced a case
@@ -130,6 +187,33 @@ Alternatives rejected:
   current repo, so a real run here would create worktrees/an integration branch/a
   PR on the harness itself. The live smoke is a consumer-project dogfood; the
   deterministic CLI layers carry the unit-tested confidence.
+
+## 2026-06-26: graph-studio consumes the kernel via a static prebuild, not a runtime import
+
+**Decision:** `apps/graph-studio` does not import `@voidcorp/harness-graph` into
+the browser bundle. A Node prebuild (`scripts/prepare-data.ts`, run by tsx) reads
+`model.json` + `.void/usage.log`, runs the kernel's `analyze()`, and writes four
+static JSON blobs the browser renders.
+
+**Why:** keeps `node:fs` (the kernel's `derive/` adapter) out of the bundle, keeps
+analysis single-sourced in the kernel (no duplicated detector logic), and requires
+zero edits to the already-merged kernel package (no browser-safe subpath export).
+The cost -- findings are computed at build time, not live -- is acceptable for the
+P1 static maintainer view; the live consumer surface is P2.
+
+**Alternative rejected:** a browser-safe `@voidcorp/harness-graph/analyze` subpath
+export imported at runtime. Cleaner data freshness, but edits a merged package and
+risks bundling the fs adapter.
+
+## 2026-06-26: prior art reviewed: patoles/agent-flow (mined for P2, not P1)
+
+**Decision:** agent-flow (live runtime agent visualizer, React/Next + 2D canvas +
+SSE hook server) was reviewed. Borrowed for Plan B: its render decomposition into
+small focused draw-modules and isolated camera/interaction/particles concerns.
+Deferred to P2 as reference: its JSONL event schema (parentId/runtime/sessionId ->
+our `activations.jsonl`), its HTTP-hook -> SSE transport (-> `graph live`), and its
+timeline/scrubber (-> replay). Its 2D-canvas/React stack and run-physics data model
+were not adopted (we are locked on 3D / 3d-force-graph and a structural model).
 
 ## 2026-06-18: backlog-loop worker reaches Linear via project .mcp.json only
 

@@ -1,7 +1,7 @@
 /**
  * Tests for the lifecycle-event hooks added beyond PreToolUse:
  *   - auto-format.sh        (PostToolUse, non-blocking, fail-open)
- *   - skill-usage-meter.sh  (PreToolUse on Skill, telemetry for `audit`)
+ *   - activation-meter.sh   (universal PreToolUse meter; usage.log for skills, activations.jsonl for all)
  *   - sessionstart-context.sh (SessionStart, injects additionalContext; also
  *                              covers post-compaction via source=compact)
  */
@@ -32,7 +32,7 @@ describe('auto-format.sh', () => {
   });
 });
 
-describe('skill-usage-meter.sh', () => {
+describe('activation-meter.sh', () => {
   let dir: string;
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'void-meter-'));
@@ -40,7 +40,7 @@ describe('skill-usage-meter.sh', () => {
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
   it('logs a Skill invocation to .void/usage.log', () => {
-    const r = run('skill-usage-meter.sh', '{"tool_name":"Skill","tool_input":{"skill":"tdd"}}', {
+    const r = run('activation-meter.sh', '{"tool_name":"Skill","tool_input":{"skill":"tdd"}}', {
       CLAUDE_PROJECT_DIR: dir,
     });
     expect(r.code).toBe(0);
@@ -49,8 +49,8 @@ describe('skill-usage-meter.sh', () => {
     expect(readFileSync(log, 'utf8')).toContain('tdd');
   });
 
-  it('ignores non-Skill tools (no log)', () => {
-    run('skill-usage-meter.sh', '{"tool_name":"Bash","tool_input":{"command":"ls"}}', {
+  it('writes no usage.log line for non-Skill tools (usage.log stays skill-only)', () => {
+    run('activation-meter.sh', '{"tool_name":"Bash","tool_input":{"command":"ls"}}', {
       CLAUDE_PROJECT_DIR: dir,
     });
     expect(existsSync(join(dir, '.void', 'usage.log'))).toBe(false);
@@ -63,7 +63,7 @@ describe('skill-usage-meter.sh', () => {
       hook_event_name: 'PreToolUse',
       session_id: 'test-session-1',
     });
-    const r = run('skill-usage-meter.sh', payload, { CLAUDE_PROJECT_DIR: dir });
+    const r = run('activation-meter.sh', payload, { CLAUDE_PROJECT_DIR: dir });
     expect(r.code).toBe(0);
     const jsonlPath = join(dir, '.void', 'activations.jsonl');
     expect(existsSync(jsonlPath)).toBe(true);
@@ -76,7 +76,7 @@ describe('skill-usage-meter.sh', () => {
 
   it('exits 0 even when .void dir is unwritable (best-effort)', () => {
     const r = run(
-      'skill-usage-meter.sh',
+      'activation-meter.sh',
       '{"tool_name":"Skill","tool_input":{"skill":"harness:tdd"}}',
       { CLAUDE_PROJECT_DIR: '/dev/null/nonexistent' },
     );

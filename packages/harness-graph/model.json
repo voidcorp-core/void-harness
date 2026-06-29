@@ -83,6 +83,15 @@
       "source": "packages/core/commands/void-feedback.md"
     },
     {
+      "id": "hook:activation-meter",
+      "type": "hook",
+      "name": "activation-meter",
+      "description": "",
+      "lines": 67,
+      "pack": null,
+      "source": "packages/core/hooks/activation-meter.sh"
+    },
+    {
       "id": "hook:anti-ai-slop-grep",
       "type": "hook",
       "name": "anti-ai-slop-grep",
@@ -261,15 +270,6 @@
       "lines": 31,
       "pack": null,
       "source": "packages/core/hooks/sessionstart-context.sh"
-    },
-    {
-      "id": "hook:skill-usage-meter",
-      "type": "hook",
-      "name": "skill-usage-meter",
-      "description": "",
-      "lines": 35,
-      "pack": null,
-      "source": "packages/core/hooks/skill-usage-meter.sh"
     },
     {
       "id": "hook:tdd-guard",
