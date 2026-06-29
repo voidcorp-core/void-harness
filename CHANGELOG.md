@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.1](https://github.com/voidcorp-core/void-harness/compare/v0.13.0...v0.13.1) (2026-06-29)
+
+
+### Bug Fixes
+
+* **release:** pass the released tag to void-plugins bump-shas ([d18f924](https://github.com/voidcorp-core/void-harness/commit/d18f924701e1b0630e0744e8deda13aa78612f30))
+* **release:** pass the released tag to void-plugins bump-shas ([b71afe2](https://github.com/voidcorp-core/void-harness/commit/b71afe217bb2f314daf7f12bb7f666d9a5b270f5))
+
 ## [0.13.0](https://github.com/voidcorp-core/void-harness/compare/v0.12.1...v0.13.0) (2026-06-29)
 
 
