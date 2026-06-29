@@ -35,24 +35,24 @@ describe('parseActivationLine', () => {
   });
 
   it('rejects an unknown kind', () => {
-    expect(parseActivationLine(JSON.stringify({ kind: 'hook', name: 'x', trigger: {} }))).toBeNull();
+    expect(parseActivationLine(JSON.stringify({ kind: 'hook', name: 'x', trigger: {} }))).toBeUndefined();
   });
 
   it('rejects a missing or non-string name', () => {
-    expect(parseActivationLine(JSON.stringify({ kind: 'tool', trigger: {} }))).toBeNull();
-    expect(parseActivationLine(JSON.stringify({ kind: 'tool', name: 42, trigger: {} }))).toBeNull();
+    expect(parseActivationLine(JSON.stringify({ kind: 'tool', trigger: {} }))).toBeUndefined();
+    expect(parseActivationLine(JSON.stringify({ kind: 'tool', name: 42, trigger: {} }))).toBeUndefined();
   });
 
   it('rejects a missing trigger object', () => {
-    expect(parseActivationLine(JSON.stringify({ kind: 'tool', name: 'Edit' }))).toBeNull();
+    expect(parseActivationLine(JSON.stringify({ kind: 'tool', name: 'Edit' }))).toBeUndefined();
   });
 
   it('rejects empty, whitespace, malformed JSON, and non-object JSON', () => {
-    expect(parseActivationLine('')).toBeNull();
-    expect(parseActivationLine('   ')).toBeNull();
-    expect(parseActivationLine('{not json')).toBeNull();
-    expect(parseActivationLine('[1,2,3]')).toBeNull();
-    expect(parseActivationLine('42')).toBeNull();
+    expect(parseActivationLine('')).toBeUndefined();
+    expect(parseActivationLine('   ')).toBeUndefined();
+    expect(parseActivationLine('{not json')).toBeUndefined();
+    expect(parseActivationLine('[1,2,3]')).toBeUndefined();
+    expect(parseActivationLine('42')).toBeUndefined();
   });
 });
 

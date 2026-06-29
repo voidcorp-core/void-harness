@@ -26,23 +26,23 @@ function asStringArray(value: unknown): string[] {
 }
 
 /**
- * Parse one JSONL activation line into a typed event. Tolerant: returns null on
- * empty/malformed/non-object input or when the load-bearing fields (kind in the
+ * Parse one JSONL activation line into a typed event. Tolerant: returns undefined
+ * on empty/malformed/non-object input or when the load-bearing fields (kind in the
  * union, string name, trigger object) are missing or wrong.
  */
-export function parseActivationLine(line: string): ActivationEvent | null {
-  if (line.trim() === '') return null;
+export function parseActivationLine(line: string): ActivationEvent | undefined {
+  if (line.trim() === '') return undefined;
   let raw: unknown;
   try {
     raw = JSON.parse(line);
   } catch {
-    return null;
+    return undefined;
   }
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null;
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined;
   const o = raw as Record<string, unknown>;
-  if (typeof o.kind !== 'string' || !KINDS.has(o.kind)) return null;
-  if (typeof o.name !== 'string') return null;
-  if (typeof o.trigger !== 'object' || o.trigger === null) return null;
+  if (typeof o.kind !== 'string' || !KINDS.has(o.kind)) return undefined;
+  if (typeof o.name !== 'string') return undefined;
+  if (typeof o.trigger !== 'object' || o.trigger === null) return undefined;
   const t = o.trigger as Record<string, unknown>;
   return {
     ts: typeof o.ts === 'string' ? o.ts : '',
