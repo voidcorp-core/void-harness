@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ORCHESTRATOR_ID, buildArticulation, groupHubId, layout3D } from './articulation.js';
+import { ORCHESTRATOR_ID, buildArticulation, egoNetwork, groupHubId, layout3D } from './articulation.js';
 
 const node = (id: string, type: 'skill' | 'pack' | 'agent', pack: string | null) => ({
   id,
@@ -69,5 +69,26 @@ describe('layout3D', () => {
   it('is deterministic', () => {
     const e = new Set([groupHubId('core')]);
     expect(layout3D(a, e).get('skill:tdd')).toEqual(layout3D(a, e).get('skill:tdd'));
+  });
+});
+
+describe('egoNetwork', () => {
+  const m = {
+    version: 1 as const,
+    nodes: [node('skill:a', 'skill', null), node('skill:b', 'skill', null), node('skill:c', 'skill', null)],
+    edges: [
+      { from: 'skill:a', to: 'skill:b', kind: 'routes-to' as const, origin: 'declared' as const, evidence: 'e' },
+      { from: 'skill:c', to: 'skill:a', kind: 'composes' as const, origin: 'declared' as const, evidence: 'e' },
+    ],
+  };
+
+  it('returns outgoing and incoming neighbours with direction + kind', () => {
+    const ego = egoNetwork(m, 'skill:a');
+    expect(ego).toContainEqual({ id: 'skill:b', kind: 'routes-to', dir: 'out' });
+    expect(ego).toContainEqual({ id: 'skill:c', kind: 'composes', dir: 'in' });
+  });
+
+  it('returns [] for an unconnected node', () => {
+    expect(egoNetwork(m, 'skill:b').filter((n) => n.dir === 'out')).toEqual([]);
   });
 });

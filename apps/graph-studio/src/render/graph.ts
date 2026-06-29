@@ -3,7 +3,15 @@ import { Color, Group, Mesh, MeshBasicMaterial, type Object3D, SphereGeometry, S
 import SpriteText from 'three-spritetext';
 import type { GraphModel, GraphNode } from '@voidcorp/harness-graph';
 import type { UsageSummary } from '../data/types.js';
-import { type Articulation, buildArticulation, groupHubId, groupOf, layout3D, ORCHESTRATOR_ID } from '../scene/articulation.js';
+import {
+  type Articulation,
+  buildArticulation,
+  egoNetwork,
+  groupHubId,
+  groupOf,
+  layout3D,
+  ORCHESTRATOR_ID,
+} from '../scene/articulation.js';
 import { colorForType, haloForCount, sizeForLines } from '../scene/encode.js';
 import { familyOf } from '../scene/families.js';
 import type { ViewState } from '../scene/select.js';
@@ -21,6 +29,7 @@ const FAMILY_EDGE_COLORS = {
 const CONTAIN_COLOR = '#21456a';
 const ORCH_COLOR = '#36e0ff';
 const GROUP_COLOR = '#7dd3fc';
+const GOLDEN_ANGLE = 2.399963229728653;
 
 type GraphInstance = InstanceType<typeof ForceGraph3D>;
 
@@ -29,22 +38,28 @@ const DIM_HOLE = '#fbbf24';
 const DIM_ORPHAN = '#3a3a48';
 const DIM_OTHER = '#3a3a4a';
 
+type EdgeKind = GraphModel['edges'][number]['kind'];
+
 type RenderNode =
   | { id: string; _kind: 'orchestrator'; _label: string; fx: number; fy: number; fz: number }
   | { id: string; _kind: 'group'; _label: string; _open: boolean; fx: number; fy: number; fz: number }
-  | (GraphNode & { _kind: 'component'; fx: number; fy: number; fz: number });
+  | (GraphNode & { _kind: 'component'; _label?: string; _hero?: boolean; fx: number; fy: number; fz: number });
 
-type RenderLink = {
-  source: string;
-  target: string;
-  kind?: GraphModel['edges'][number]['kind'];
-  _contain: boolean;
-};
+type RenderLink = { source: string; target: string; kind?: EdgeKind; _contain: boolean };
 
 export interface GraphHandle {
   readonly graph: GraphInstance;
   setView(state: ViewState): void;
   onNodeClick(cb: (node: GraphNode) => void): void;
+}
+
+/** k-th of n points on a sphere of radius r (Fibonacci). */
+function spherePoint(k: number, n: number, r: number): { x: number; y: number; z: number } {
+  if (n <= 1) return { x: 0, y: r, z: 0 };
+  const y = 1 - (k / (n - 1)) * 2;
+  const rad = Math.sqrt(Math.max(0, 1 - y * y));
+  const theta = GOLDEN_ANGLE * k;
+  return { x: Math.cos(theta) * rad * r, y: y * r * 0.85, z: Math.sin(theta) * rad * r };
 }
 
 export function createGraph(
@@ -55,14 +70,12 @@ export function createGraph(
 ): GraphHandle {
   const articulation: Articulation = buildArticulation(model);
   const componentById = new Map(model.nodes.map((n) => [n.id, n]));
-  const hubIdOf = new Map<string, string>(); // component id -> its group hub id
-  for (const n of model.nodes) {
-    if (n.type !== 'pack') hubIdOf.set(n.id, groupHubId(groupOf(n)));
-  }
+  const hubIdOf = new Map<string, string>();
+  for (const n of model.nodes) if (n.type !== 'pack') hubIdOf.set(n.id, groupHubId(groupOf(n)));
   const halo = glowTexture();
 
-  // Expansion state (group hub ids that are open). Starts collapsed: clean overview.
   const expanded = new Set<string>();
+  let focusedId: string | undefined;
   let lastState: ViewState | undefined;
 
   // ---- Node objects --------------------------------------------------------
@@ -85,25 +98,33 @@ export function createGraph(
     const g = new Group();
     const r = open ? 7 : 10;
     g.add(new Mesh(new SphereGeometry(r, 20, 20), new MeshBasicMaterial({ color: new Color(GROUP_COLOR) })));
-    g.add(labelSprite(open ? label : `${label} +`, '#cfefff', 8, r + 8));
+    g.add(labelSprite(label, '#cfefff', 8, r + 8));
     return g;
   };
 
-  const componentObject = (n: GraphNode, dim: boolean, collect?: (m: MeshBasicMaterial) => void): Group => {
-    const r = Math.max(2.5, sizeForLines(n.lines) * 0.7);
+  const componentObject = (
+    n: GraphNode,
+    dim: boolean,
+    collect: ((m: MeshBasicMaterial) => void) | undefined,
+    label: string | undefined,
+    hero: boolean,
+  ): Group => {
+    const base = Math.max(2.5, sizeForLines(n.lines) * 0.7);
+    const r = hero ? base * 1.6 : base;
     const g = new Group();
     if (!dim) {
       const color = new Color(colorForType(n.type));
-      g.add(new Mesh(new SphereGeometry(r, 14, 14), new MeshBasicMaterial({ color })));
+      g.add(new Mesh(new SphereGeometry(r, 16, 16), new MeshBasicMaterial({ color })));
       const glow = haloForCount(usage.counts[n.name] ?? 0);
-      if (glow > 0) {
+      if (hero || glow > 0) {
+        const opacity = hero ? 0.55 : glow * 0.22;
         const sprite = new Sprite(
-          new SpriteMaterial({ map: halo, color, transparent: true, opacity: glow * 0.22, depthWrite: false }),
+          new SpriteMaterial({ map: halo, color, transparent: true, opacity, depthWrite: false }),
         );
-        sprite.scale.setScalar(r * (1.8 + glow * 1.8));
+        sprite.scale.setScalar(r * (hero ? 4 : 1.8 + glow * 1.8));
         g.add(sprite);
       }
-      g.add(labelSprite(n.name, '#9fb6cc', 4.5, r + 5));
+      if (label !== undefined) g.add(labelSprite(label, hero ? '#eaf6ff' : '#9fb6cc', hero ? 6 : 4.5, r + 5));
       return g;
     }
     let hex = DIM_OTHER;
@@ -127,7 +148,7 @@ export function createGraph(
     const node = raw as RenderNode;
     if (node._kind === 'orchestrator') return orchestratorObject(node._label);
     if (node._kind === 'group') return groupObject(node._label, node._open);
-    return componentObject(node, dim, collect);
+    return componentObject(node, dim, collect, node._label, node._hero === true);
   };
   const normalBuild = (raw: object): Object3D => buildObject(raw, false);
   const dimBuild = (raw: object, collect: (m: MeshBasicMaterial) => void): Object3D => buildObject(raw, true, collect);
@@ -148,7 +169,7 @@ export function createGraph(
     })
     .linkOpacity(0.5)
     .linkWidth((l) => ((l as RenderLink)._contain ? 0.5 : 1.2))
-    .linkDirectionalArrowLength((l) => ((l as RenderLink)._contain ? 0 : 3.2))
+    .linkDirectionalArrowLength((l) => ((l as RenderLink)._contain ? 0 : 3.4))
     .linkDirectionalArrowRelPos(1)
     .linkDirectionalParticleWidth(1.6)
     .linkDirectionalParticleSpeed(0.006)
@@ -156,7 +177,13 @@ export function createGraph(
 
   addHologramFx(graph as unknown as FxGraph);
 
-  // ---- Gentle "gravitation": slowly rotate the whole hologram (reduced-motion aware).
+  type CameraGraph = {
+    cameraPosition(p: { x: number; y: number; z: number }, lookAt: { x: number; y: number; z: number }, ms: number): void;
+    onBackgroundClick(cb: () => void): unknown;
+  };
+  const cam = graph as unknown as CameraGraph;
+
+  // Gentle "gravitation": slowly rotate the whole hologram (reduced-motion aware).
   if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     const sceneObj = (graph as unknown as { scene(): { rotation: { y: number } } }).scene();
     const spin = (): void => {
@@ -166,47 +193,39 @@ export function createGraph(
     requestAnimationFrame(spin);
   }
 
-  // ---- View projection -----------------------------------------------------
-  const render = (state: ViewState): void => {
-    lastState = state;
+  // ---- Overview render (collapsed hubs + expanded groups) ------------------
+  const renderOverview = (state: ViewState): void => {
     const layout = layout3D(articulation, expanded);
     const q = state.search.trim().toLowerCase();
     const matches = (n: GraphNode): boolean =>
       q === '' || n.id.toLowerCase().includes(q) || n.description.toLowerCase().includes(q);
 
     const nodes: RenderNode[] = [];
-    const orchP = layout.get(ORCHESTRATOR_ID) ?? { x: 0, y: 0, z: 0 };
-    nodes.push({ id: ORCHESTRATOR_ID, _kind: 'orchestrator', _label: 'CLAUDE.md', fx: orchP.x, fy: orchP.y, fz: orchP.z });
+    const op = layout.get(ORCHESTRATOR_ID) ?? { x: 0, y: 0, z: 0 };
+    nodes.push({ id: ORCHESTRATOR_ID, _kind: 'orchestrator', _label: 'CLAUDE.md', fx: op.x, fy: op.y, fz: op.z });
 
-    const visibleComponents = new Set<string>();
+    const visible = new Set<string>();
     for (const hub of articulation.hubs) {
       if (hub.kind !== 'group') continue;
       const hp = layout.get(hub.id) ?? { x: 0, y: 0, z: 0 };
       const open = expanded.has(hub.id);
-      nodes.push({ id: hub.id, _kind: 'group', _label: hub.label, _open: open, fx: hp.x, fy: hp.y, fz: hp.z });
+      const count = articulation.componentsByGroup.get(hub.id)?.length ?? 0;
+      nodes.push({ id: hub.id, _kind: 'group', _label: `${hub.label} (${count})`, _open: open, fx: hp.x, fy: hp.y, fz: hp.z });
       if (!open) continue;
       for (const c of articulation.componentsByGroup.get(hub.id) ?? []) {
         if (!matches(c)) continue;
         const p = layout.get(c.id) ?? hp;
         nodes.push({ ...c, _kind: 'component', fx: p.x, fy: p.y, fz: p.z });
-        visibleComponents.add(c.id);
+        visible.add(c.id);
       }
     }
 
-    // An edge endpoint resolves to the component itself if visible, else its group hub.
-    const endpoint = (componentId: string): string =>
-      visibleComponents.has(componentId) ? componentId : hubIdOf.get(componentId) ?? ORCHESTRATOR_ID;
-
+    const endpoint = (id: string): string => (visible.has(id) ? id : hubIdOf.get(id) ?? ORCHESTRATOR_ID);
     const links: RenderLink[] = [];
-    // Containment skeleton: orchestrator -> every group; group -> its open components.
     for (const c of articulation.contains) {
-      const childVisible = c.from === ORCHESTRATOR_ID || visibleComponents.has(c.to);
-      const isHubChild = c.from === ORCHESTRATOR_ID;
-      if (isHubChild || (expanded.has(c.from) && visibleComponents.has(c.to))) {
-        if (childVisible || isHubChild) links.push({ source: c.from, target: c.to, _contain: true });
-      }
+      if (c.from === ORCHESTRATOR_ID) links.push({ source: c.from, target: c.to, _contain: true });
+      else if (expanded.has(c.from) && visible.has(c.to)) links.push({ source: c.from, target: c.to, _contain: true });
     }
-    // Semantic edges, resolved to proxy endpoints (component or its hub) + deduped.
     if (state.layers.structure) {
       const seen = new Set<string>();
       for (const e of model.edges) {
@@ -237,6 +256,50 @@ export function createGraph(
     applyAnalysisStyling(graph as unknown as AnalysisGraph, state.layers.analysis, normalBuild, dimBuild);
   };
 
+  // ---- Focus render (one node's ego-network, agent-flow style) -------------
+  const renderFocus = (id: string): void => {
+    const hero = componentById.get(id);
+    if (!hero) {
+      focusedId = undefined;
+      if (lastState) renderOverview(lastState);
+      return;
+    }
+    const ego = egoNetwork(model, id);
+    const nodes: RenderNode[] = [
+      { ...hero, _kind: 'component', _label: hero.name, _hero: true, fx: 0, fy: 0, fz: 0 },
+    ];
+    const links: RenderLink[] = [];
+    ego.forEach((nb, i) => {
+      const n = componentById.get(nb.id);
+      if (!n) return;
+      const p = spherePoint(i, ego.length, 150);
+      nodes.push({ ...n, _kind: 'component', _label: n.name, fx: p.x, fy: p.y, fz: p.z });
+      const src = nb.dir === 'out' ? id : nb.id;
+      const tgt = nb.dir === 'out' ? nb.id : id;
+      links.push({ source: src, target: tgt, kind: nb.kind, _contain: false });
+    });
+
+    // Analysis pulse is meaningless in focus; always use the structural builder.
+    applyAnalysisStyling(graph as unknown as AnalysisGraph, false, normalBuild, dimBuild);
+    graph.graphData({ nodes, links });
+    graph.linkDirectionalParticles(() => 0);
+    cam.cameraPosition({ x: 0, y: 60, z: 360 }, { x: 0, y: 0, z: 0 }, 700);
+  };
+
+  const render = (state: ViewState): void => {
+    lastState = state;
+    if (focusedId !== undefined) renderFocus(focusedId);
+    else renderOverview(state);
+  };
+
+  cam.onBackgroundClick(() => {
+    if (focusedId !== undefined) {
+      focusedId = undefined;
+      cam.cameraPosition({ x: 0, y: 160, z: 900 }, { x: 0, y: 0, z: 0 }, 800);
+      if (lastState) renderOverview(lastState);
+    }
+  });
+
   const setView = (state: ViewState): void => render(state);
 
   const onNodeClick = (cb: (node: GraphNode) => void): void => {
@@ -245,10 +308,16 @@ export function createGraph(
       if (r._kind === 'group') {
         if (expanded.has(r.id)) expanded.delete(r.id);
         else expanded.add(r.id);
-        if (lastState) render(lastState);
+        focusedId = undefined;
+        if (lastState) renderOverview(lastState);
         return;
       }
-      if (r._kind === 'component') cb(componentById.get(r.id) ?? (r as GraphNode));
+      if (r._kind === 'component') {
+        const node = componentById.get(r.id) ?? (r as GraphNode);
+        focusedId = r.id;
+        renderFocus(r.id);
+        cb(node);
+      }
     });
   };
 

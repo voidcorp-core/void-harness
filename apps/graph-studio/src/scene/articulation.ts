@@ -62,6 +62,39 @@ export function buildArticulation(model: GraphModel): Articulation {
   return { hubs, contains, componentIds: components.map((c) => c.id), componentsByGroup: byGroup };
 }
 
+export interface Neighbor {
+  readonly id: string;
+  readonly kind: GraphModel['edges'][number]['kind'];
+  /** 'out' = focused -> neighbor; 'in' = neighbor -> focused. */
+  readonly dir: 'out' | 'in';
+}
+
+/**
+ * The semantic ego-network of a component: every node directly connected to it by
+ * a kernel edge, with the edge kind and direction. Containment is excluded (this
+ * is the real articulation: routing / composition / wiring / overlay). Pure.
+ */
+export function egoNetwork(model: GraphModel, focusedId: string): Neighbor[] {
+  const out: Neighbor[] = [];
+  const seen = new Set<string>();
+  for (const e of model.edges) {
+    if (e.from === focusedId && e.to !== focusedId) {
+      const key = `out:${e.to}:${e.kind}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push({ id: e.to, kind: e.kind, dir: 'out' });
+      }
+    } else if (e.to === focusedId && e.from !== focusedId) {
+      const key = `in:${e.from}:${e.kind}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push({ id: e.from, kind: e.kind, dir: 'in' });
+      }
+    }
+  }
+  return out;
+}
+
 export interface Vec3 {
   readonly x: number;
   readonly y: number;
