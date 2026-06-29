@@ -38,6 +38,9 @@ importers:
       three:
         specifier: ^0.185.0
         version: 0.185.0
+      three-spritetext:
+        specifier: ^1.9.0
+        version: 1.10.0(three@0.185.0)
     devDependencies:
       '@types/d3-force':
         specifier: ^3.0.10
@@ -1233,6 +1236,12 @@ packages:
     peerDependencies:
       three: '>=0.179'
 
+  three-spritetext@1.10.0:
+    resolution: {integrity: sha512-t08iP1FCU1lQh8T5MmCpdijKgas8GDHJE0LqMGBuVu3xqMMpFnEZhTlih7FlxLPQizHIGoumUSpfOlY1GO/Tgg==}
+    engines: {node: '>=12'}
+    peerDependencies:
+      three: '>=0.86.0'
+
   three@0.185.0:
     resolution: {integrity: sha512-+yRrcRO2iZa8uzvNNl0d7cL4huhgKgBvVJ0njcTe8xFqZ6DMAFZdCKDP91SEAuj25bNAj7k1QQdf+srZywVK6w==}
 
@@ -2234,6 +2243,10 @@ snapshots:
       float-tooltip: 1.7.5
       kapsule: 1.16.3
       polished: 4.3.1
+      three: 0.185.0
+
+  three-spritetext@1.10.0(three@0.185.0):
+    dependencies:
       three: 0.185.0
 
   three@0.185.0: {}

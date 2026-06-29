@@ -35,8 +35,9 @@ export function playIntro(graph: IntroGraph): void {
     overlay.remove();
     return;
   }
-  graph.cameraPosition({ x: 0, y: 80, z: 900 }, { x: 0, y: 0, z: 0 }, 0);
-  graph.cameraPosition({ x: 0, y: 0, z: 360 }, { x: 0, y: 0, z: 0 }, 1600);
+  // Frame the whole radial diagram (orchestrator at centre, components out to ~r430).
+  graph.cameraPosition({ x: 0, y: 200, z: 1500 }, { x: 0, y: 0, z: 0 }, 0);
+  graph.cameraPosition({ x: 0, y: 160, z: 900 }, { x: 0, y: 0, z: 0 }, 1800);
   gsap.to(overlay, {
     opacity: 0,
     duration: 0.7,
