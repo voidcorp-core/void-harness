@@ -109,6 +109,11 @@ deviennent une **gate CI bloquante**.
 
 ## 7. Vue 3D mainteneur (`apps/graph-studio`) -- IMPLEMENTED (Plan B, M4+M5)
 
+> Note: le rendu a évolué de la vue plate force-graph par clusters de pack décrite
+> ci-dessous vers une **vue orbitale 3D centrée sur l'orchestrateur** avec divulgation
+> progressive (CLAUDE.md au centre, hubs de groupe repliables, focus au clic sur
+> l'ego-network). Voir `docs/DECISIONS.md` (2026-06-29) et `apps/graph-studio/README.md`.
+
 - **Stack** : Vite + TS, **3d-force-graph** (Three.js + d3-force), **GSAP** (caméra,
   bursts de particules, transitions de calques). Charge `model.json` + résumé `usage.log`,
   **sans backend** en P1.
