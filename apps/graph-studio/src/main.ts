@@ -1,5 +1,4 @@
 import { loadData } from './data/load.js';
-import { type CameraGraph, focusNode } from './render/camera.js';
 import { createGraph } from './render/graph.js';
 import { playFlow } from './render/flow.js';
 import { type IntroGraph, playIntro } from './render/intro.js';
@@ -30,8 +29,10 @@ handle.setView(state);
 // Lock-on reticle: snaps onto the selected node, frames the camera, opens the HUD.
 const reticle = createReticle(handle.graph as unknown as ReticleGraph);
 handle.onNodeClick((node) => {
+  // The focus render (graph.ts) pins the clicked node at the origin and owns the
+  // camera framing, so the reticle lands on the origin (the hero) and we do NOT
+  // call focusNode here -- doing so forced the camera to a degenerate (0,0,0).
   moveReticleTo(reticle, node);
-  focusNode(handle.graph as unknown as CameraGraph, node);
   // Workflows layer on: a workflow-def opens its phase sub-view; off: it reads as a
   // normal node (standard dossier panel). Other node types always use the panel.
   if (node.type === 'workflow-def' && state.layers.workflows) {

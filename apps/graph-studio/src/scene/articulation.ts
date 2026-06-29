@@ -117,7 +117,7 @@ function fibSpherePoint(i: number, n: number): Vec3 {
  * 3D orbital layout (volume, not a plane): the orchestrator sits at the centre,
  * group hubs orbit it on a sphere, and each EXPANDED group's components orbit
  * their hub on a local sphere. Collapsed groups contribute no component positions.
- * Deterministic — same inputs give the same volume.
+ * Deterministic -- same inputs give the same volume.
  */
 export function layout3D(articulation: Articulation, expanded: ReadonlySet<string>): Map<string, Vec3> {
   const pos = new Map<string, Vec3>();

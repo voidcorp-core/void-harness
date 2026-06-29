@@ -71,7 +71,10 @@ export function createGraph(
   const articulation: Articulation = buildArticulation(model);
   const componentById = new Map(model.nodes.map((n) => [n.id, n]));
   const hubIdOf = new Map<string, string>();
-  for (const n of model.nodes) if (n.type !== 'pack') hubIdOf.set(n.id, groupHubId(groupOf(n)));
+  for (const n of model.nodes) {
+    // A pack node maps to its own group hub (by pack name); others by their pack/core.
+    hubIdOf.set(n.id, n.type === 'pack' ? groupHubId(n.name) : groupHubId(groupOf(n)));
+  }
   const halo = glowTexture();
 
   const expanded = new Set<string>();
@@ -195,10 +198,22 @@ export function createGraph(
 
   // ---- Overview render (collapsed hubs + expanded groups) ------------------
   const renderOverview = (state: ViewState): void => {
-    const layout = layout3D(articulation, expanded);
     const q = state.search.trim().toLowerCase();
+    const searching = q !== '';
     const matches = (n: GraphNode): boolean =>
-      q === '' || n.id.toLowerCase().includes(q) || n.description.toLowerCase().includes(q);
+      n.id.toLowerCase().includes(q) || n.description.toLowerCase().includes(q);
+
+    // When searching, auto-expand any group that holds a match so its matching
+    // components get real orbital positions (collapsed groups have none, so they
+    // would otherwise stack on the hub).
+    const effExpanded = new Set(expanded);
+    if (searching) {
+      for (const hub of articulation.hubs) {
+        if (hub.kind !== 'group') continue;
+        if ((articulation.componentsByGroup.get(hub.id) ?? []).some(matches)) effExpanded.add(hub.id);
+      }
+    }
+    const layout = layout3D(articulation, effExpanded);
 
     const nodes: RenderNode[] = [];
     const op = layout.get(ORCHESTRATOR_ID) ?? { x: 0, y: 0, z: 0 };
@@ -208,12 +223,12 @@ export function createGraph(
     for (const hub of articulation.hubs) {
       if (hub.kind !== 'group') continue;
       const hp = layout.get(hub.id) ?? { x: 0, y: 0, z: 0 };
-      const open = expanded.has(hub.id);
+      const open = effExpanded.has(hub.id);
       const count = articulation.componentsByGroup.get(hub.id)?.length ?? 0;
       nodes.push({ id: hub.id, _kind: 'group', _label: `${hub.label} (${count})`, _open: open, fx: hp.x, fy: hp.y, fz: hp.z });
       if (!open) continue;
       for (const c of articulation.componentsByGroup.get(hub.id) ?? []) {
-        if (!matches(c)) continue;
+        if (searching && !matches(c)) continue;
         const p = layout.get(c.id) ?? hp;
         nodes.push({ ...c, _kind: 'component', fx: p.x, fy: p.y, fz: p.z });
         visible.add(c.id);
@@ -224,7 +239,7 @@ export function createGraph(
     const links: RenderLink[] = [];
     for (const c of articulation.contains) {
       if (c.from === ORCHESTRATOR_ID) links.push({ source: c.from, target: c.to, _contain: true });
-      else if (expanded.has(c.from) && visible.has(c.to)) links.push({ source: c.from, target: c.to, _contain: true });
+      else if (visible.has(c.to)) links.push({ source: c.from, target: c.to, _contain: true });
     }
     if (state.layers.structure) {
       const seen = new Set<string>();
@@ -268,16 +283,22 @@ export function createGraph(
     const nodes: RenderNode[] = [
       { ...hero, _kind: 'component', _label: hero.name, _hero: true, fx: 0, fy: 0, fz: 0 },
     ];
-    const links: RenderLink[] = [];
-    ego.forEach((nb, i) => {
-      const n = componentById.get(nb.id);
+    // Place each distinct neighbour once (a pair joined by two edge kinds must not
+    // push the node twice), then draw every edge.
+    const uniq = [...new Set(ego.map((e) => e.id))];
+    uniq.forEach((nid, i) => {
+      const n = componentById.get(nid);
       if (!n) return;
-      const p = spherePoint(i, ego.length, 150);
+      const p = spherePoint(i, uniq.length, 150);
       nodes.push({ ...n, _kind: 'component', _label: n.name, fx: p.x, fy: p.y, fz: p.z });
+    });
+    const links: RenderLink[] = [];
+    for (const nb of ego) {
+      if (!componentById.has(nb.id)) continue;
       const src = nb.dir === 'out' ? id : nb.id;
       const tgt = nb.dir === 'out' ? nb.id : id;
       links.push({ source: src, target: tgt, kind: nb.kind, _contain: false });
-    });
+    }
 
     // Analysis pulse is meaningless in focus; always use the structural builder.
     applyAnalysisStyling(graph as unknown as AnalysisGraph, false, normalBuild, dimBuild);
