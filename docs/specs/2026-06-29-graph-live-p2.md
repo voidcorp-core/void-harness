@@ -1,7 +1,7 @@
 # Spec — graph live (P2) : télémétrie enrichie (M6) + vue live/replay (M7)
 
 - **Date** : 2026-06-29
-- **Statut** : design approuvé (brainstorm), à transformer en plan d'implémentation
+- **Statut** : approuvé et livré (2026-06-29) — voir `plans/2026-06-29-graph-live-p2-plan.md`
 - **Auteur** : Florent + Claude (brainstorming)
 - **Related** : `docs/specs/2026-06-26-harness-graph-viz.md` (§8 télémétrie + live, §12 jalons M6/M7) ; `plans/2026-06-26-harness-graph-studio-plan.md` ; `plans/2026-06-26-harness-graph-kernel-plan.md` (Task 17 amorce M6)
 
