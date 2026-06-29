@@ -190,7 +190,7 @@ deviennent une **gate CI bloquante**.
 
 **Phase 2**
 - **M7** ✅ (2026-06-29) vue live consommateur (`graph live` SSE data-only) + calque live + replay scrubber (studio).
-- **M8** analyse comportementale « should-have-fired » sur la donnée accumulée.
+- **M8** ✅ (2026-06-29) analyse comportementale `graph behavior` : dead-node + should-have-fired (triggers déclarés en frontmatter), advisory. Voir `docs/specs/2026-06-29-graph-behavior-m8.md`.
 
 ## 13. Décisions ouvertes / risques
 

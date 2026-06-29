@@ -9,6 +9,13 @@ export type EdgeKind =
   | 'extends';
 export type EdgeOrigin = 'derived' | 'declared';
 
+/** Declared, machine-readable activation triggers (opt-in, frontmatter). Feeds the M8 should-have-fired analysis. */
+export interface NodeTriggers {
+  readonly globs?: readonly string[];
+  readonly extensions?: readonly string[];
+  readonly tools?: readonly string[];
+}
+
 export interface GraphNode {
   readonly id: string;
   readonly type: NodeType;
@@ -17,6 +24,7 @@ export interface GraphNode {
   readonly lines: number;
   readonly pack: string | null; // allow-null: library boundary (pack optional for core nodes)
   readonly source: string;
+  readonly triggers?: NodeTriggers;
 }
 
 export interface GraphEdge {

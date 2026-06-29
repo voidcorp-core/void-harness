@@ -31,4 +31,17 @@ describe('deriveNodes', () => {
     expect(tdd?.lines).toBeGreaterThan(0);
     expect(tdd?.pack).toBeNull();
   });
+
+  it('carries declared triggers, and omits them when absent', () => {
+    const withTriggers = {
+      ...tree,
+      skills: [
+        { name: 'testing', pack: null, source: 's', text: '---\ndescription: t.\ntriggers:\n  globs: ["**/*.test.ts"]\n---\n' },
+      ],
+    };
+    const node = deriveNodes(withTriggers).find((n) => n.id === 'skill:testing');
+    expect(node?.triggers).toEqual({ globs: ['**/*.test.ts'] });
+    const plain = deriveNodes(tree).find((n) => n.id === 'skill:tdd');
+    expect(plain?.triggers).toBeUndefined();
+  });
 });

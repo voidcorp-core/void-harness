@@ -74,3 +74,21 @@ Serves the model + a Server-Sent Events stream of activations (written by the
 `GET /model.json`, `GET /history` (bounded), `GET /events` (SSE). The studio is a
 separate app that connects via `VITE_LIVE_URL`. See
 `docs/specs/2026-06-29-graph-live-p2.md`.
+
+## Behavior (M8)
+
+```
+void-harness graph behavior [--since <days>] [--log <path>]
+```
+
+Reads the accumulated activation log and reports, advisory (HITL, never blocks):
+
+- **dead-node** — a firing-capable node (skill / agent / command / workflow-def)
+  whose bare name never appears in the window. pack/hook excluded (not firing-capable).
+- **should-have-fired** — a skill whose declared frontmatter `triggers`
+  (`globs` / `extensions` / `tools`) matched a tool-use situation in a session where
+  the skill did not fire, counted per session.
+
+A volume guard prints "insufficient data" below ~3 sessions / ~20 events so a sparse
+log does not read as "everything is dead". Skills opt in by declaring `triggers` in
+their SKILL.md frontmatter. See `docs/specs/2026-06-29-graph-behavior-m8.md`.
