@@ -9,6 +9,7 @@ import { defaultViewState } from './scene/select.js';
 import { workflowView } from './scene/workflow-view.js';
 import { renderControls } from './ui/controls.js';
 import { renderPanel } from './ui/panel.js';
+import { mountScrubber } from './ui/scrubber.js';
 import { renderWorkflowView } from './ui/workflow.js';
 
 const scene = document.getElementById('scene');
@@ -30,6 +31,10 @@ handle.setView(state);
 // Live layer: the orchestrator-side `void-harness graph live` server streams
 // activations; the studio connects to it (separate process) via VITE_LIVE_URL.
 const live = startLive(handle, data.model, import.meta.env.VITE_LIVE_URL ?? 'http://localhost:4317');
+const scrubber = document.createElement('div');
+scrubber.style.display = 'none';
+document.body.append(scrubber);
+mountScrubber(scrubber, live);
 
 // Lock-on reticle: snaps onto the selected node, frames the camera, opens the HUD.
 const reticle = createReticle(handle.graph as unknown as ReticleGraph);
@@ -54,6 +59,7 @@ renderControls(controls, {
     state = next;
     handle.setView(next);
     live.setEnabled(next.layers.live);
+    scrubber.style.display = next.layers.live ? 'flex' : 'none';
   },
   onPlayFlow: () => {
     const start = data.model.nodes.find((n) => n.id === 'skill:brainstorming') ?? data.model.nodes[0];
