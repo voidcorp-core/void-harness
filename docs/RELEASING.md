@@ -31,7 +31,8 @@ The bump script touches **all of these**. Don't edit them by hand.
 | `packages/core/.claude-plugin/plugin.json` | Core plugin manifest. |
 | `packages/packs/<pack>/.claude-plugin/plugin.json` (6 files) | Each pack's plugin manifest. |
 | `packages/cli/package.json` | CLI npm package version. |
-| `packages/packs/<pack>/package.json` (3 files currently) | Runtime npm packages with shipped code. |
+| `packages/harness-graph/package.json` | harness-graph kernel npm package version. |
+| `packages/packs/<pack>/package.json` (pack-monorepo, pack-nextjs) | Runtime npm packages with shipped code. |
 
 `packages/cli/core-assets/.claude-plugin/plugin.json` is **generated** at `prepack` time — do not edit.
 
