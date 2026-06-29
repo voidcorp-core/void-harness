@@ -56,6 +56,25 @@ renderer of those blobs (no `node:fs`, no kernel runtime import).
   the "Play flow" button emits a one-shot wavefront burst on top.
 - **Workflows** -- when on, clicking a `workflow-def` opens its phase schematic +
   neighbours (run replay is P2); when off it reads as a normal node.
+- **Live** -- subscribes to the orchestrator's activation stream and pulses each
+  node (or its collapsed hub) as it fires, decaying over a few seconds. The
+  intensity math (`frameAt`) is the same pure function that drives replay.
+
+## Live layer (P2)
+
+The live layer connects to a separate `void-harness graph live` process (data-only
+SSE server; the studio stays a static app). Start the server in the repo root, then
+run the studio pointing at it:
+
+```bash
+void-harness graph live                 # serves GET /model.json, /events (SSE) on :4317
+VITE_LIVE_URL=http://localhost:4317 pnpm --filter @voidcorp/graph-studio dev
+```
+
+`VITE_LIVE_URL` defaults to `http://localhost:4317`. Toggle the **Live** layer on;
+trigger harness activity (the `activation-meter` hook appends to
+`.void/activations.jsonl`) and watch the matching nodes light up. `prefers-reduced-motion`
+switches the pulse to a binary on/off (no continuous motion).
 
 ## Boundaries
 

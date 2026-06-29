@@ -1,5 +1,6 @@
 import { loadData } from './data/load.js';
 import { createGraph } from './render/graph.js';
+import { startLive } from './render/live.js';
 import { playFlow } from './render/flow.js';
 import { type IntroGraph, playIntro } from './render/intro.js';
 import { createReticle, moveReticleTo, type ReticleGraph } from './render/reticle.js';
@@ -26,6 +27,10 @@ let state = defaultViewState();
 const handle = createGraph(scene, data.model, overlays, data.usage);
 handle.setView(state);
 
+// Live layer: the orchestrator-side `void-harness graph live` server streams
+// activations; the studio connects to it (separate process) via VITE_LIVE_URL.
+const live = startLive(handle, data.model, import.meta.env.VITE_LIVE_URL ?? 'http://localhost:4317');
+
 // Lock-on reticle: snaps onto the selected node, frames the camera, opens the HUD.
 const reticle = createReticle(handle.graph as unknown as ReticleGraph);
 handle.onNodeClick((node) => {
@@ -48,6 +53,7 @@ renderControls(controls, {
   onChange: (next) => {
     state = next;
     handle.setView(next);
+    live.setEnabled(next.layers.live);
   },
   onPlayFlow: () => {
     const start = data.model.nodes.find((n) => n.id === 'skill:brainstorming') ?? data.model.nodes[0];

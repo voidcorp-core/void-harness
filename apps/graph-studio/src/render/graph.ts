@@ -51,6 +51,8 @@ export interface GraphHandle {
   readonly graph: GraphInstance;
   setView(state: ViewState): void;
   onNodeClick(cb: (node: GraphNode) => void): void;
+  /** Live layer: scale-pulse each component (or its collapsed hub) by intensity 0..1. */
+  applyLiveFrame(frame: ReadonlyMap<string, number>): void;
 }
 
 /** k-th of n points on a sphere of radius r (Fibonacci). */
@@ -321,6 +323,39 @@ export function createGraph(
     }
   });
 
+  // ---- Live layer: pulse the visible object for each active node ------------
+  // A component collapsed inside its group hub lights up the hub instead, so
+  // activity is always visible whatever the current expand state.
+  const litBaseScale = new Map<string, number>();
+  const applyLiveFrame = (frame: ReadonlyMap<string, number>): void => {
+    const dataNodes = (graph.graphData() as { nodes: { id: string; __threeObj?: Object3D }[] }).nodes;
+    const present = new Set(dataNodes.map((n) => n.id));
+    const objById = new Map<string, Object3D>();
+    for (const n of dataNodes) if (n.__threeObj) objById.set(n.id, n.__threeObj);
+
+    // Fold component intensities onto the visible target (self or hub), keep the max.
+    const target = new Map<string, number>();
+    for (const [cid, intensity] of frame) {
+      const tid = present.has(cid) ? cid : hubIdOf.get(cid) ?? ORCHESTRATOR_ID;
+      target.set(tid, Math.max(target.get(tid) ?? 0, intensity));
+    }
+    // Reset objects that are no longer lit.
+    for (const [id, base] of litBaseScale) {
+      if (!target.has(id)) {
+        objById.get(id)?.scale.setScalar(base);
+        litBaseScale.delete(id);
+      }
+    }
+    // Apply the pulse.
+    for (const [id, intensity] of target) {
+      const obj = objById.get(id);
+      if (!obj) continue;
+      if (!litBaseScale.has(id)) litBaseScale.set(id, obj.scale.x);
+      const base = litBaseScale.get(id) ?? 1;
+      obj.scale.setScalar(base * (1 + intensity * 0.8));
+    }
+  };
+
   const setView = (state: ViewState): void => render(state);
 
   const onNodeClick = (cb: (node: GraphNode) => void): void => {
@@ -342,5 +377,5 @@ export function createGraph(
     });
   };
 
-  return { graph, setView, onNodeClick };
+  return { graph, setView, onNodeClick, applyLiveFrame };
 }
