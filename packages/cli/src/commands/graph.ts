@@ -128,15 +128,16 @@ export async function graph(args: readonly string[]): Promise<void> {
   if (sub === 'live') {
     const port = numFlag(args, '--port', 4317);
     const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
+    const historyMax = numFlag(args, '--history-max', 5000);
     const modelJson = serializeModel(await loadModel(coreSource));
     banner('graph live');
     blank();
     line(`  serving model + SSE on ${c.green(`http://localhost:${port}`)}`);
     line(`  ${c.dim('tailing')} ${logPath}`);
-    line(`  ${c.dim('routes')} GET /model.json ${c.dim(glyph.dot)} GET /events ${c.dim('(SSE)')}`);
+    line(`  ${c.dim('routes')} GET /model.json ${c.dim(glyph.dot)} GET /history ${c.dim(glyph.dot)} GET /events ${c.dim('(SSE)')}`);
     line(`  ${c.dim('point the studio at it via')} VITE_LIVE_URL`);
     footer(c.dim('Ctrl+C to stop.'));
-    startLiveServer({ port, logPath, modelJson });
+    startLiveServer({ port, logPath, modelJson, historyMax });
     return; // the listening socket keeps the process alive
   }
 

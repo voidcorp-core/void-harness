@@ -4,9 +4,9 @@
 // (no static studio) — the HTTP contract is a superset the future all-in-one
 // server can extend with a `GET /` -> dist route without breaking clients.
 
-import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs';
+import { closeSync, existsSync, openSync, readFileSync, readSync, statSync } from 'node:fs';
 import { type IncomingMessage, type Server, type ServerResponse, createServer } from 'node:http';
-import { parseActivationLine, splitNewLines } from './graph-live.js';
+import { type ActivationEvent, parseActivationLine, splitNewLines } from './graph-live.js';
 
 export interface LiveServerOptions {
   readonly port: number;
@@ -14,6 +14,8 @@ export interface LiveServerOptions {
   /** Serialized model.json served at GET /model.json. */
   readonly modelJson: string;
   readonly pollMs?: number;
+  /** Max events returned by GET /history (most recent kept). Default 5000. */
+  readonly historyMax?: number;
   readonly onListening?: (port: number) => void;
 }
 
@@ -68,6 +70,17 @@ function streamEvents(res: ServerResponse, logPath: string, pollMs: number): voi
   });
 }
 
+/** Read the whole log, parse every valid line, keep the most recent `max`. */
+function readHistory(logPath: string, max: number): ActivationEvent[] {
+  if (!existsSync(logPath)) return [];
+  const events: ActivationEvent[] = [];
+  for (const line of readFileSync(logPath, 'utf8').split('\n')) {
+    const ev = parseActivationLine(line);
+    if (ev !== undefined) events.push(ev);
+  }
+  return events.length > max ? events.slice(events.length - max) : events;
+}
+
 function handle(req: IncomingMessage, res: ServerResponse, opts: LiveServerOptions): void {
   const url = req.url ?? '/';
   if (req.method === 'OPTIONS') {
@@ -78,6 +91,12 @@ function handle(req: IncomingMessage, res: ServerResponse, opts: LiveServerOptio
   if (url === '/model.json') {
     res.writeHead(200, { ...CORS, 'Content-Type': 'application/json' });
     res.end(opts.modelJson);
+    return;
+  }
+  if (url.startsWith('/history')) {
+    const history = readHistory(opts.logPath, opts.historyMax ?? 5000);
+    res.writeHead(200, { ...CORS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(history));
     return;
   }
   if (url.startsWith('/events')) {
