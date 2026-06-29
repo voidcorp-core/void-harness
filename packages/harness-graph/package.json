@@ -1,23 +1,35 @@
 {
   "name": "@voidcorp/harness-graph",
-  "version": "0.12.1",
+  "version": "0.13.0",
   "description": "void-harness graph kernel — derive the skill/agent/hook/pack/workflow graph, declared relations, and static analyses (the source of truth the studio renders).",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" }
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
-  "engines": { "node": ">=20" },
-  "publishConfig": { "access": "public" },
-  "dependencies": { "yaml": "^2.5.0" },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "yaml": "^2.5.0"
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsup": "^8.0.0",
