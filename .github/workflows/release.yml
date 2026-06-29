@@ -36,10 +36,15 @@ jobs:
       # so this opens a single consolidated PR there (merged manually). Needs a
       # fine-grained PAT scoped to voidcorp-core/void-plugins with
       # "Actions: read and write", stored as the VOID_PLUGINS_DISPATCH_TOKEN secret.
+      #
+      # Pass the exact tag: void-plugins resolves it via git/ref/tags (immediately
+      # consistent) instead of the CDN-cached releases/latest, so the bump never
+      # races the release that just fired this step. Requires the `ref` input on
+      # void-plugins/bump-shas.yml (land that change first).
       - name: Trigger downstream pin bump (void-plugins)
         if: steps.release.outputs.release_created == 'true'
         env:
           GH_TOKEN: ${{ secrets.VOID_PLUGINS_DISPATCH_TOKEN }}
         run: |
-          gh workflow run bump-shas.yml -R voidcorp-core/void-plugins
+          gh workflow run bump-shas.yml -R voidcorp-core/void-plugins -f ref="${{ steps.release.outputs.tag_name }}"
           echo "Triggered void-plugins/bump-shas for ${{ steps.release.outputs.tag_name }}"
