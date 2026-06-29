@@ -128,7 +128,7 @@ All require explicit human review.
 ## Privacy guarantees
 
 - `.void/usage.log` (project-local) is **LOCAL only**. The `audit` reads it. No telemetry endpoint exists. No network call sends usage data anywhere.
-- The log format is one line per Skill invocation: `<timestamp>\t<skill>` (written by the `skill-usage-meter` PreToolUse hook). It records only the skill name and time, never project contents.
+- The log format is one line per Skill invocation: `<timestamp>\t<skill>` (written by the `activation-meter` PreToolUse hook). It records only the skill name and time, never project contents.
 - Feedback goes straight to a void-harness issue; no per-project queue is committed to consumer repos.
 - A filed issue may reference the consumer project (repo, SHA, path). The user confirms the draft before it is opened and controls what is shared.
 
@@ -136,7 +136,7 @@ All require explicit human review.
 
 ## Companion hooks / CLI helpers
 
-- `skill-usage-meter` — a PreToolUse hook on the Skill tool (`packages/core/hooks/skill-usage-meter.sh`) that appends `<timestamp>\t<skill>` to `.void/usage.log` on every invocation. Observation only; never blocks.
+- `activation-meter` — a universal PreToolUse hook (`packages/core/hooks/activation-meter.sh`) that appends one structured event per tool call to `.void/activations.jsonl` and, for Skill calls, the legacy `<timestamp>\t<skill>` line to `.void/usage.log`. Observation only; never blocks; never records file contents.
 - `gh issue create` — feedback is filed with the GitHub CLI directly against `voidcorp-core/void-harness`; there is no bespoke CLI subcommand for it (the tracker is the queue).
 - `audit` — CLI subcommand `void-harness audit` (in `packages/cli/`): reports skills that are active / stale / never-fired from `.void/usage.log` (MVP). Upstream-deprecation and decision-matrix-conflict detection are a planned extension.
 
