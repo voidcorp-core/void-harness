@@ -334,13 +334,14 @@ ressenti (pulse, decay, lisibilité) avant d'investir dans le replay. Lancer
 
 ## Resume point
 
-**Next step** : Step 1 (Écrire `activation-meter.sh` + son test de comportement)
+**Next step** : Step 3 (Cœur pur CLI — parse + tail-par-offset) — après signal Checkpoint A
 
-**Completed** : aucun.
+**Completed** :
+- ✅ Step 1 — activation-meter.sh + test (commits `192f53d` test, `15f7779` feat)
+- ✅ Step 2 — réenregistrer PreToolUse * + mirror + rebuild modèle + retarget primitive-hooks (commit `d0c2e1c`)
+- 🟡 Checkpoint A — atteint, en attente de validation utilisateur
 
 **Pending** :
-- ⏳ Step 1 — activation-meter.sh + test
-- ⏳ Step 2 — réenregistrer + mirror + rebuild modèle
 - ⏳ Step 3 — cœur pur CLI (parse + tail)
 - ⏳ Step 4 — cœur pur studio (index + frameAt)
 - ⏳ Step 5 — graph live (SSE)
