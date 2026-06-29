@@ -1,7 +1,7 @@
 ---
 title: graph behavior (M8) — should-have-fired + dead-node analysis
 date: 2026-06-29
-status: in-design
+status: delivered  # 2026-06-29
 author: Florent + Claude
 related:
   - docs/specs/2026-06-26-harness-graph-viz.md  # §8 telemetry, §12 M8
