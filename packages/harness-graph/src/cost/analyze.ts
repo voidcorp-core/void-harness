@@ -1,6 +1,7 @@
 import type { GraphModel, NodeType } from '../model/types.js';
 import type { ActivationEvent, ActivationKind } from '../behavior/types.js';
-import { FIRING_KIND, bareName, within } from '../behavior/index.js';
+import { FIRING_KIND, bareName, triggerMatches, within } from '../behavior/index.js';
+import type { ActivationTrigger } from '../behavior/types.js';
 import type { CostFlag, CostOptions, CostReport, CostRow, CostStats } from './types.js';
 
 export * from './types.js';
@@ -51,6 +52,9 @@ export function analyzeCost(
 
   // invocations[kind][bareName] = count of firing activations.
   const firedCount = new Map<ActivationKind, Map<string, number>>();
+  // Tool-use situations observed (the meter's PreToolUse * events). A hook fires
+  // deterministically when its tool matcher matches one of these.
+  const situations: ActivationTrigger[] = [];
   for (const e of scoped) {
     let byName = firedCount.get(e.kind);
     if (!byName) {
@@ -59,6 +63,7 @@ export function analyzeCost(
     }
     const name = bareName(e.name);
     byName.set(name, (byName.get(name) ?? 0) + 1);
+    if (e.kind === 'tool') situations.push(e.trigger);
   }
 
   const rows: CostRow[] = [];
@@ -74,6 +79,13 @@ export function analyzeCost(
     if (firingKind && invocations === 0) flags.push('dead');
     if (invocations > 0 && invocations < underusedBelow) flags.push('underused');
     if (staticTokens >= lowYieldStaticMin && invocations <= 1) flags.push('low-yield');
+    // dead-hook: a hook with an assessable tool matcher that matched no situation.
+    // Hooks fire deterministically on match, so a never-matched matcher means the
+    // hook never had the chance to fire. Wildcard/session-start hooks carry no
+    // triggers and are skipped (they fire broadly / every session).
+    if (n.type === 'hook' && n.triggers && situations.length > 0 && !situations.some((s) => triggerMatches(n.triggers ?? {}, s))) {
+      flags.push('dead-hook');
+    }
 
     rows.push({ nodeId: n.id, name: n.name, kind: n.type, invocations, staticTokens, flags });
   }

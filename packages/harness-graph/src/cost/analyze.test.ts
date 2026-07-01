@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { GraphModel, GraphNode } from '../model/types.js';
+import type { GraphModel, GraphNode, NodeTriggers } from '../model/types.js';
 import type { ActivationEvent } from '../behavior/types.js';
 import { analyzeCost } from './analyze.js';
 import type { CostRow } from './types.js';
 
-const node = (id: string, type: GraphNode['type'], staticTokens = 100): GraphNode => ({
+const node = (id: string, type: GraphNode['type'], staticTokens = 100, triggers?: NodeTriggers): GraphNode => ({
   id,
   type,
   name: id.slice(id.indexOf(':') + 1),
@@ -13,7 +13,11 @@ const node = (id: string, type: GraphNode['type'], staticTokens = 100): GraphNod
   staticTokens,
   pack: null,
   source: 's',
+  ...(triggers ? { triggers } : {}),
 });
+
+const toolEv = (tool: string, sessionId: string): ActivationEvent =>
+  ev({ kind: 'tool', name: tool, sessionId, trigger: { tool, fileGlobs: [], ext: [] } });
 
 const ev = (
   over: Partial<ActivationEvent> & Pick<ActivationEvent, 'kind' | 'name' | 'sessionId'>,
@@ -201,6 +205,34 @@ describe('analyzeCost — ordering + determinism', () => {
     ];
     const r = analyzeCost(model, events, SMALL);
     expect(r.rows.map((row) => row.nodeId)).toEqual(['skill:alpha', 'skill:zeta']);
+  });
+});
+
+describe('analyzeCost — dead-hook', () => {
+  it('does not flag a hook whose tool matcher matched a recorded situation', () => {
+    const model: GraphModel = {
+      version: 1,
+      nodes: [node('hook:tdd-guard', 'hook', 100, { tools: ['Edit', 'Write'] })],
+      edges: [],
+    };
+    const r = analyzeCost(model, [toolEv('Edit', 's1'), toolEv('Read', 's2')], SMALL);
+    expect(rowFor(r.rows, 'hook:tdd-guard')?.flags).not.toContain('dead-hook');
+  });
+
+  it('flags a hook whose tool matcher never matched any situation', () => {
+    const model: GraphModel = {
+      version: 1,
+      nodes: [node('hook:bash-guard', 'hook', 100, { tools: ['Bash'] })],
+      edges: [],
+    };
+    const r = analyzeCost(model, [toolEv('Edit', 's1'), toolEv('Read', 's2')], SMALL);
+    expect(rowFor(r.rows, 'hook:bash-guard')?.flags).toContain('dead-hook');
+  });
+
+  it('never flags a hook without assessable triggers (wildcard / session-start)', () => {
+    const model: GraphModel = { version: 1, nodes: [node('hook:meter', 'hook')], edges: [] };
+    const r = analyzeCost(model, [toolEv('Edit', 's1')], SMALL);
+    expect(rowFor(r.rows, 'hook:meter')?.flags).not.toContain('dead-hook');
   });
 });
 
