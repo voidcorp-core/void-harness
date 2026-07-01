@@ -29,19 +29,23 @@ const DEFAULT_MIN_EVENTS = 20;
 
 // Firing-capable node types and the activation kind that records their firing.
 // command fires through the Skill tool, so it shares the 'skill' activation kind.
-const FIRING_KIND: Partial<Record<NodeType, ActivationKind>> = {
+// Shared with the cost kernel so "what counts as firing" lives in one place.
+export const FIRING_KIND: Partial<Record<NodeType, ActivationKind>> = {
   skill: 'skill',
   command: 'skill',
   agent: 'agent',
   'workflow-def': 'workflow',
 };
 
-function bareName(raw: string): string {
+/** Strip a plugin/namespace prefix (`harness:tdd` -> `tdd`) to match node names. */
+export function bareName(raw: string): string {
   const colon = raw.lastIndexOf(':');
   return colon >= 0 ? raw.slice(colon + 1) : raw;
 }
 
-function within(ev: ActivationEvent, sinceMs: number | undefined): boolean {
+/** Whether an activation falls inside the `sinceMs` window. Shared with the cost
+ * kernel so the NaN guard + cutoff semantics live in one place. */
+export function within(ev: ActivationEvent, sinceMs: number | undefined): boolean {
   if (sinceMs === undefined) return true;
   const t = Date.parse(ev.ts);
   return !Number.isNaN(t) && t >= sinceMs;

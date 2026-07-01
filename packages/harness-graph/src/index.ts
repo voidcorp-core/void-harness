@@ -8,3 +8,14 @@ export { analyzeBehavior } from './behavior/index.js';
 export type { BehaviorOptions, BehaviorReport, BehaviorStats } from './behavior/index.js';
 export { parseActivations, triggerMatches, globMatches } from './behavior/index.js';
 export type { ActivationEvent, ActivationKind, ActivationTrigger, BehaviorFinding } from './behavior/types.js';
+export { analyzeCost } from './cost/analyze.js';
+export type {
+  CostOptions,
+  CostReport,
+  CostRow,
+  CostStats,
+  CostFlag,
+  SessionCost,
+  SessionTokens,
+  RealSignal,
+} from './cost/types.js';
