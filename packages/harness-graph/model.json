@@ -56,8 +56,8 @@
       "type": "command",
       "name": "backlog-autopilot",
       "description": "Attended parallel backlog drain — work several independent Linear tickets at once, each in its own worktree subagent, reconciled into one integration PR. Opt-in, needs the Workflow tool.",
-      "lines": 28,
-      "staticTokens": 424,
+      "lines": 33,
+      "staticTokens": 575,
       "pack": null,
       "source": "packages/core/commands/backlog-autopilot.md"
     },
@@ -552,8 +552,8 @@
       "type": "skill",
       "name": "backlog-autopilot",
       "description": "Opt-in skill draining independent Linear tickets in parallel, each in its own worktree subagent, reconciled into one integration PR gated by the full suite. Cluster mode + long-run autonomy incoming.",
-      "lines": 200,
-      "staticTokens": 2859,
+      "lines": 215,
+      "staticTokens": 3142,
       "pack": null,
       "source": "packages/core/skills/backlog-autopilot/SKILL.md"
     },

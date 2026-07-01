@@ -12,6 +12,7 @@
 import { join } from 'node:path';
 import { type AutopilotPlan, type AutopilotPlanInput, buildAutopilotPlan } from '../lib/backlog/autopilot-plan.js';
 import { blockedClusters, summarizeRun } from '../lib/backlog/autopilot-run.js';
+import { resolveMergeDecision } from '../lib/backlog/merge-decision.js';
 import { type RunState, nextPending, readState } from '../lib/backlog/run-state.js';
 
 function readStdin(): Promise<string> {
@@ -36,6 +37,7 @@ reads a JSON plan input on stdin and prints the parallel/sequential plan as JSON
 
 Usage:
   echo '<json>' | void-harness backlog-autopilot plan
+  echo '<json>' | void-harness backlog-autopilot merge-decision
   void-harness backlog-autopilot status <runId>
   void-harness backlog-autopilot resume <runId>
   void-harness backlog-autopilot explain-blocked <runId>
@@ -78,6 +80,17 @@ async function planCmd(): Promise<void> {
   }
   const plan: AutopilotPlan = buildAutopilotPlan(input);
   process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
+}
+
+async function mergeDecisionCmd(args: readonly string[]): Promise<void> {
+  // Decision only — this NEVER merges. The launcher acts on {arm} via gh.
+  const result = resolveMergeDecision(args, await readStdin(), process.env);
+  if (!result.ok) {
+    process.stderr.write(`backlog-autopilot merge-decision: ${result.error}\n`);
+    process.exitCode = 2;
+    return;
+  }
+  process.stdout.write(`${JSON.stringify(result.decision, null, 2)}\n`);
 }
 
 function runDir(runId: string): string {
@@ -134,6 +147,9 @@ export async function backlogAutopilot(args: readonly string[]): Promise<void> {
   switch (sub) {
     case 'plan':
       await planCmd();
+      return;
+    case 'merge-decision':
+      await mergeDecisionCmd(args);
       return;
     case 'status':
       statusCmd(runId);
