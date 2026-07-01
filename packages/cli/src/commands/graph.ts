@@ -25,6 +25,7 @@ import {
 } from '@voidcorp/harness-graph';
 import type { CostRow, GraphModel } from '@voidcorp/harness-graph';
 import { BUNDLED_MODEL_JSON, resolveBundledModel } from '../lib/bundled-model.js';
+import { BUNDLED_STUDIO_HTML } from '../lib/bundled-studio.js';
 import { readSessionCosts } from '../lib/transcript-cost.js';
 import { parseUsageLog } from '../lib/audit.js';
 import { startLiveServer } from '../lib/graph-live-server.js';
@@ -270,14 +271,20 @@ export async function graph(
     const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
     const historyMax = numFlag(args, '--history-max', 5000);
     const modelJson = serializeModel(await resolveModel(coreSource, bundled));
+    const studioHtml = BUNDLED_STUDIO_HTML;
     banner('graph live');
     blank();
     line(`  serving model + SSE on ${c.green(`http://localhost:${port}`)}`);
     line(`  ${c.dim('tailing')} ${logPath}`);
-    line(`  ${c.dim('routes')} GET /model.json ${c.dim(glyph.dot)} GET /history ${c.dim(glyph.dot)} GET /events ${c.dim('(SSE)')}`);
-    line(`  ${c.dim('point the studio at it via')} VITE_LIVE_URL`);
+    if (studioHtml !== undefined) {
+      line(`  ${c.dim('routes')} GET / ${c.dim('(studio)')} ${c.dim(glyph.dot)} /model.json ${c.dim(glyph.dot)} /history ${c.dim(glyph.dot)} /events ${c.dim('(SSE)')}`);
+      line(`  ${c.dim('open')} ${c.green(`http://localhost:${port}`)} ${c.dim('in a browser')}`);
+    } else {
+      line(`  ${c.dim('routes')} GET /model.json ${c.dim(glyph.dot)} GET /history ${c.dim(glyph.dot)} GET /events ${c.dim('(SSE)')}`);
+      line(`  ${c.dim('point the studio at it via')} VITE_LIVE_URL`);
+    }
     footer(c.dim('Ctrl+C to stop.'));
-    startLiveServer({ port, logPath, modelJson, historyMax });
+    startLiveServer({ port, logPath, modelJson, historyMax, studioHtml });
     return; // the listening socket keeps the process alive
   }
 

@@ -13,6 +13,8 @@ export interface LiveServerOptions {
   readonly logPath: string;
   /** Serialized model.json served at GET /model.json. */
   readonly modelJson: string;
+  /** Self-contained studio HTML served at GET /. Absent -> data-only server (GET / -> 404). */
+  readonly studioHtml?: string | undefined;
   readonly pollMs?: number;
   /** Max events returned by GET /history (most recent kept). Default 5000. */
   readonly historyMax?: number;
@@ -88,6 +90,16 @@ function handle(req: IncomingMessage, res: ServerResponse, opts: LiveServerOptio
     res.end();
     return;
   }
+  if (url === '/' || url === '/index.html') {
+    if (opts.studioHtml === undefined) {
+      res.writeHead(404, { ...CORS, 'Content-Type': 'text/plain' });
+      res.end('studio not bundled (data-only server); use /model.json, /history, /events');
+      return;
+    }
+    res.writeHead(200, { ...CORS, 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(opts.studioHtml);
+    return;
+  }
   if (url === '/model.json') {
     res.writeHead(200, { ...CORS, 'Content-Type': 'application/json' });
     res.end(opts.modelJson);
@@ -110,6 +122,10 @@ function handle(req: IncomingMessage, res: ServerResponse, opts: LiveServerOptio
 /** Start the live SSE server. Returns the http.Server (call .close() to stop). */
 export function startLiveServer(opts: LiveServerOptions): Server {
   const server = createServer((req, res) => handle(req, res, opts));
-  server.listen(opts.port, () => opts.onListening?.(opts.port));
+  server.listen(opts.port, () => {
+    const addr = server.address();
+    // Report the actually-bound port (matters for port 0 and the port-increment fallback).
+    opts.onListening?.(typeof addr === 'object' && addr ? addr.port : opts.port);
+  });
   return server;
 }
