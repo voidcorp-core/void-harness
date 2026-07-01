@@ -39,3 +39,9 @@ export function countLines(text: string): number {
   if (text === '') return 0;
   return text.split('\n').length;
 }
+
+/** Rough source-token weight (~chars/4). A deterministic proxy for a component's
+ * static context cost — not a real tokenizer, just a stable, cheap estimate. */
+export function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
