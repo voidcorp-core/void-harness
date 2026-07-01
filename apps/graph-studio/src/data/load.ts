@@ -45,8 +45,10 @@ export async function resolveStudioBoot(): Promise<StudioBoot> {
   if (origin.startsWith('http')) {
     try {
       return { data: await loadDataFromServer(origin), liveUrl: origin };
-    } catch {
-      // fall through to the bundled snapshot
+    } catch (err) {
+      // Served from an http origin but the data fetch failed (server down, malformed payload).
+      // Surface it, then fall back to the build-time snapshot so the studio still renders.
+      console.warn('graph-studio: server-fed data unavailable, using build-time snapshot', err); // allow-console: browser studio has no logger
     }
   }
   const configured = import.meta.env.VITE_LIVE_URL as string | undefined;

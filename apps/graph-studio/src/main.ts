@@ -16,8 +16,12 @@ const sceneRoot = document.getElementById('scene');
 if (!sceneRoot) throw new Error('graph-studio: #scene container missing');
 
 // Boot is async: server-fed data (consumer `graph live`) is fetched, dev falls back to the
-// build-time snapshot. Wrapped in a function so the module has no top-level await.
-void boot(sceneRoot);
+// build-time snapshot. Wrapped in a function so the module has no top-level await; a boot
+// failure is surfaced in the container instead of leaving a blank screen.
+void boot(sceneRoot).catch((err: unknown) => {
+  console.error('graph-studio: boot failed', err); // allow-console: browser studio has no logger
+  sceneRoot.textContent = `graph-studio failed to start: ${err instanceof Error ? err.message : String(err)}`;
+});
 
 async function boot(scene: HTMLElement): Promise<void> {
 const { data, liveUrl } = await resolveStudioBoot();
