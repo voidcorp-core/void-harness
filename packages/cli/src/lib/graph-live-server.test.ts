@@ -67,4 +67,30 @@ describe('graph live server', () => {
     const res = await fetch(`http://localhost:${port}/studio-data.json`);
     expect(res.status).toBe(404);
   });
+
+  it('walks to a free port when the requested one is busy', async () => {
+    // Occupy an ephemeral port, then request exactly it: the server must bind a higher one.
+    const busy = startLiveServer({ port: 0, logPath: logFile(), modelJson: MODEL });
+    await new Promise<void>((r) => busy.once('listening', () => r()));
+    const taken = (busy.address() as AddressInfo).port;
+    try {
+      let bound = 0;
+      const server2 = startLiveServer({
+        port: taken,
+        logPath: logFile(),
+        modelJson: MODEL,
+        onListening: (p) => {
+          bound = p;
+        },
+      });
+      await new Promise<void>((r) => server2.once('listening', () => r()));
+      try {
+        expect(bound).toBeGreaterThan(taken);
+      } finally {
+        await new Promise<void>((r) => server2.close(() => r()));
+      }
+    } finally {
+      await new Promise<void>((r) => busy.close(() => r()));
+    }
+  });
 });

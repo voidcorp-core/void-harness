@@ -18,6 +18,16 @@ describe('buildVoidGraphBundle', () => {
     expect(a).toContain('#!/usr/bin/env node');
   }, 30_000);
 
+  it('inlines the studio HTML when provided (via the __VOID_BUNDLED_STUDIO__ define)', async () => {
+    const html = '<!doctype html><title>STUDIO_MARKER_7Z</title>';
+    const [a, b] = await Promise.all([
+      buildVoidGraphBundle(MODEL, html),
+      buildVoidGraphBundle(MODEL, html),
+    ]);
+    expect(a).toContain('STUDIO_MARKER_7Z');
+    expect(a).toBe(b); // deterministic with the studio too
+  }, 30_000);
+
   it('runs standalone against a scratch consumer dir with no source tree', async () => {
     const code = await buildVoidGraphBundle(MODEL);
     const dir = mkdtempSync(join(tmpdir(), 'void-graph-bundle-'));

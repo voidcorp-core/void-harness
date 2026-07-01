@@ -21,11 +21,14 @@ const tsSourceResolve: Plugin = {
 };
 
 /**
- * Bundle the graph CLI into a single self-contained ESM string: the kernel is inlined and the
- * model is baked in via the `__VOID_BUNDLED_MODEL__` define. Node builtins stay external.
- * Deterministic — the same model string in yields byte-identical output.
+ * Bundle the graph CLI into a single self-contained ESM string: the kernel is inlined, the model
+ * is baked in via `__VOID_BUNDLED_MODEL__`, and the single-file studio HTML (when provided) via
+ * `__VOID_BUNDLED_STUDIO__`. Node builtins stay external. Deterministic — the same inputs yield
+ * byte-identical output.
  */
-export async function buildVoidGraphBundle(modelJson: string): Promise<string> {
+export async function buildVoidGraphBundle(modelJson: string, studioHtml?: string): Promise<string> {
+  const define: Record<string, string> = { __VOID_BUNDLED_MODEL__: JSON.stringify(modelJson) };
+  if (studioHtml !== undefined) define.__VOID_BUNDLED_STUDIO__ = JSON.stringify(studioHtml);
   const result = await build({
     entryPoints: [ENTRY],
     bundle: true,
@@ -34,7 +37,7 @@ export async function buildVoidGraphBundle(modelJson: string): Promise<string> {
     target: 'node20',
     write: false,
     legalComments: 'none',
-    define: { __VOID_BUNDLED_MODEL__: JSON.stringify(modelJson) },
+    define,
     plugins: [tsSourceResolve],
     // Shebang for direct execution; a real `require` so esbuild's CJS interop (the kernel's `yaml`
     // dep ships as CommonJS) resolves instead of throwing "Dynamic require is not supported".

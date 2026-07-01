@@ -284,17 +284,27 @@ export async function graph(
     const studioHtml = BUNDLED_STUDIO_HTML;
     banner('graph live');
     blank();
-    line(`  serving model + SSE on ${c.green(`http://localhost:${port}`)}`);
     line(`  ${c.dim('tailing')} ${logPath}`);
-    if (studioHtml !== undefined) {
-      line(`  ${c.dim('routes')} GET / ${c.dim('(studio)')} ${c.dim(glyph.dot)} /model.json ${c.dim(glyph.dot)} /history ${c.dim(glyph.dot)} /events ${c.dim('(SSE)')}`);
-      line(`  ${c.dim('open')} ${c.green(`http://localhost:${port}`)} ${c.dim('in a browser')}`);
-    } else {
-      line(`  ${c.dim('routes')} GET /model.json ${c.dim(glyph.dot)} GET /history ${c.dim(glyph.dot)} GET /events ${c.dim('(SSE)')}`);
-      line(`  ${c.dim('point the studio at it via')} VITE_LIVE_URL`);
-    }
-    footer(c.dim('Ctrl+C to stop.'));
-    startLiveServer({ port, logPath, modelJson, historyMax, studioHtml, studioDataJson });
+    startLiveServer({
+      port,
+      logPath,
+      modelJson,
+      historyMax,
+      studioHtml,
+      studioDataJson,
+      // Print the actually-bound port (may differ from --port after the busy-port fallback).
+      onListening: (actualPort) => {
+        line(`  serving on ${c.green(`http://localhost:${actualPort}`)}`);
+        if (studioHtml !== undefined) {
+          line(`  ${c.dim('routes')} GET / ${c.dim('(studio)')} ${c.dim(glyph.dot)} /model.json ${c.dim(glyph.dot)} /studio-data.json ${c.dim(glyph.dot)} /history ${c.dim(glyph.dot)} /events`);
+          line(`  ${c.dim('open the URL above in a browser')}`);
+        } else {
+          line(`  ${c.dim('routes')} GET /model.json ${c.dim(glyph.dot)} GET /history ${c.dim(glyph.dot)} GET /events ${c.dim('(SSE)')}`);
+          line(`  ${c.dim('point the studio at it via')} VITE_LIVE_URL`);
+        }
+        footer(c.dim('Ctrl+C to stop.'));
+      },
+    });
     return; // the listening socket keeps the process alive
   }
 

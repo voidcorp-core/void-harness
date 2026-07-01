@@ -132,12 +132,27 @@ function handle(req: IncomingMessage, res: ServerResponse, opts: LiveServerOptio
 }
 
 /** Start the live SSE server. Returns the http.Server (call .close() to stop). */
+/** Max consecutive ports to try when the requested one is busy. */
+const PORT_RETRIES = 20;
+
 export function startLiveServer(opts: LiveServerOptions): Server {
   const server = createServer((req, res) => handle(req, res, opts));
-  server.listen(opts.port, () => {
+  let port = opts.port;
+  server.on('listening', () => {
     const addr = server.address();
     // Report the actually-bound port (matters for port 0 and the port-increment fallback).
-    opts.onListening?.(typeof addr === 'object' && addr ? addr.port : opts.port);
+    opts.onListening?.(typeof addr === 'object' && addr ? addr.port : port);
   });
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    // Requested port busy: walk forward a bounded number of ports. Port 0 lets the OS pick, so
+    // it never collides and is never incremented.
+    if (err.code === 'EADDRINUSE' && opts.port !== 0 && port - opts.port < PORT_RETRIES) {
+      port += 1;
+      server.listen(port);
+      return;
+    }
+    throw err;
+  });
+  server.listen(port);
   return server;
 }
