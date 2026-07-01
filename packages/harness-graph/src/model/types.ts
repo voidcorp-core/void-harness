@@ -22,6 +22,8 @@ export interface GraphNode {
   readonly name: string;
   readonly description: string;
   readonly lines: number;
+  /** Estimated source tokens (chars/4), computed at build. Absent until a build populates it. */
+  readonly staticTokens?: number;
   readonly pack: string | null; // allow-null: library boundary (pack optional for core nodes)
   readonly source: string;
   readonly triggers?: NodeTriggers;

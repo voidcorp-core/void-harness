@@ -25,11 +25,26 @@ describe('deriveNodes', () => {
     expect(ids).toContain('workflow-def:backlog-autopilot');
   });
 
-  it('carries description and lines for a skill', () => {
+  it('carries description, lines and staticTokens for a skill', () => {
     const tdd = deriveNodes(tree).find((n) => n.id === 'skill:tdd');
     expect(tdd?.description).toBe('TDD modes.');
     expect(tdd?.lines).toBeGreaterThan(0);
+    expect(tdd?.staticTokens).toBeGreaterThan(0);
     expect(tdd?.pack).toBeNull();
+  });
+
+  it('gives an empty-source node zero staticTokens', () => {
+    const wf = deriveNodes(tree).find((n) => n.id === 'workflow-def:backlog-autopilot');
+    expect(wf?.staticTokens).toBe(0);
+  });
+
+  it('carries pre-derived triggers on a hook (from the plugin manifest, not frontmatter)', () => {
+    const withHookTriggers = {
+      ...tree,
+      hooks: [{ name: 'tdd-guard', source: 's', text: '#!/bin/sh\n', triggers: { tools: ['Edit', 'Write'] } }],
+    };
+    const hook = deriveNodes(withHookTriggers).find((n) => n.id === 'hook:tdd-guard');
+    expect(hook?.triggers).toEqual({ tools: ['Edit', 'Write'] });
   });
 
   it('carries declared triggers, and omits them when absent', () => {

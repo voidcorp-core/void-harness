@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countLines, readFrontmatter } from './read-frontmatter.js';
+import { countLines, estimateTokens, readFrontmatter } from './read-frontmatter.js';
 
 describe('readFrontmatter', () => {
   it('extracts the description field', () => {
@@ -52,5 +52,15 @@ describe('readFrontmatter', () => {
 describe('countLines', () => {
   it('counts newline-separated lines', () => {
     expect(countLines('a\nb\nc')).toBe(3);
+  });
+});
+
+describe('estimateTokens', () => {
+  it('estimates ~chars/4, rounding up', () => {
+    expect(estimateTokens('abcd')).toBe(1); // 4/4
+    expect(estimateTokens('abcde')).toBe(2); // 5/4 -> ceil
+  });
+  it('is zero for empty source', () => {
+    expect(estimateTokens('')).toBe(0);
   });
 });

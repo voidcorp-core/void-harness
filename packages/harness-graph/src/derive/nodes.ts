@@ -1,13 +1,16 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
-import { type GraphNode, type NodeType, nodeId } from '../model/types.js';
-import { countLines, readFrontmatter } from './read-frontmatter.js';
+import { type GraphNode, type NodeTriggers, type NodeType, nodeId } from '../model/types.js';
+import { parseHookMatchers } from './hook-matchers.js';
+import { countLines, estimateTokens, readFrontmatter } from './read-frontmatter.js';
 
 export interface SourceEntry {
   readonly name: string;
   readonly pack?: string | null; // allow-null: library boundary (pack absent for core nodes)
   readonly source: string;
   readonly text: string;
+  /** Pre-derived triggers (hooks get theirs from the plugin manifest, not frontmatter). */
+  readonly triggers?: NodeTriggers;
 }
 export interface SourceTree {
   readonly skills: readonly SourceEntry[];
@@ -20,13 +23,16 @@ export interface SourceTree {
 
 function toNode(type: NodeType, e: SourceEntry): GraphNode {
   const pack = e.pack ?? null; // allow-null: GraphNode.pack is string | null per model contract
-  const { description, triggers } = readFrontmatter(e.text);
+  const { description, triggers: fmTriggers } = readFrontmatter(e.text);
+  // Pre-derived triggers (hooks, from the plugin manifest) win over frontmatter.
+  const triggers = e.triggers ?? fmTriggers;
   const base: GraphNode = {
     id: nodeId(type, e.name, pack),
     type,
     name: e.name,
     description,
     lines: countLines(e.text),
+    staticTokens: estimateTokens(e.text),
     pack,
     source: e.source,
   };
@@ -66,7 +72,14 @@ export function scanSourceTree(coreDir: string, packsDir: string): SourceTree {
     }
   }
   const agents = readMdDir(join(coreDir, 'agents'), rel);
-  const hooks = readDir(join(coreDir, 'hooks'), '.sh', rel);
+  // Hooks get their triggers (tools) from the plugin manifest matchers, not from
+  // frontmatter (.sh files have none). Path/glob scoping is not recoverable here.
+  const pluginPath = join(coreDir, '.claude-plugin', 'plugin.json');
+  const hookMatchers = existsSync(pluginPath) ? parseHookMatchers(readFileSync(pluginPath, 'utf8')) : new Map<string, NodeTriggers>();
+  const hooks = readDir(join(coreDir, 'hooks'), '.sh', rel).map((e) => {
+    const triggers = hookMatchers.get(e.name);
+    return triggers ? { ...e, triggers } : e;
+  });
   const commands = readMdDir(join(coreDir, 'commands'), rel);
   const packs: SourceEntry[] = [];
   const workflowDefs: SourceEntry[] = [];
