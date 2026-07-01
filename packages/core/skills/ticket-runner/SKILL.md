@@ -33,7 +33,7 @@ Run in order. Each pass names the skill it composes and the predicate that fires
 4. **TDD implementation** (ALWAYS). Compose `harness:tdd` + `harness:testing`. Red, green, refactor. Unit tests for the behavior, green before moving on.
 5. **Async + idempotency** (IF it sends email, calls an external side-effecting API, enqueues a job, or mints a single-use token). Compose `harness:async-safety`: idempotency keys, replay/dedup window, bounded retries, single-use enforcement.
 6. **End-to-end tests** (IF it touches a user-facing flow). Write/extend the E2E suite (Playwright). The path a user actually walks, not just the unit.
-7. **UX/UI pass** (IF it touches a UI surface). Prefer the `impeccable` skill when installed in the project (production-grade craft, browser-verified); otherwise compose `harness:frontend-design` + `harness:accessibility-first` + gstack `/design-review` + `/qa`. Verify BACK and FRONT both work, mobile and desktop, plus loading / error / empty states.
+7. **UX/UI pass** (IF it touches a UI surface). The interface is held to production craft, not just "it renders". **Lead with the `impeccable` skill** — it is the interface-quality standard here: browser-verified craft across visual hierarchy, density, typography, spacing, motion, responsive behaviour and anti-slop, on top of the baseline (BACK+FRONT parity, mobile and desktop, and the states a user actually hits — loading / error / empty). When `impeccable` is not installed in the project, compose the fallback: `harness:frontend-design` + `harness:accessibility-first` + gstack `/design-review` + `/qa`. A UI ticket is not shippable until this pass is **browser-verified, not assumed**.
 8. **Security pass** (ALWAYS a quick scan; DEEP if it touches a trust boundary: external input, auth, RLS/tenancy, untrusted content, secrets, or a side-effecting action). Compose `harness:security-guidance` + gstack `/cso`.
 9. **Review** (ALWAYS). Compose `harness:code-review` + agents `doctrine-critic` + `silent-failure-hunter` + the project's own reviewer (e.g. a `pr-reviewer` agent) when present.
 10. **Verification before completion** (ALWAYS). Compose `harness:verification-before-completion`: typecheck, tests, hooks, both viewports, all observed not assumed.
@@ -73,6 +73,7 @@ Evaluate every predicate against the actual change. Never let an upstream declar
 | "It hits a trust boundary but it is internal" | Internal still gets the DEEP security pass. Tenancy leaks are internal. |
 | "Going fast means skipping E2E" | Fast skips passes whose PREDICATE is false, not the ones that fired. |
 | "The ticket looked complete, skip the gate" | The gate is one read. A missing edge case found now is hours saved later. |
+| "It renders, ship the UI" | Rendering is not craft. The UX/UI pass leads with `impeccable` and is browser-verified — hierarchy, motion, states, mobile, anti-slop, not just "it appears". |
 
 Violating the letter of the triage is violating its spirit: the predicate decides, not the vibe.
 
