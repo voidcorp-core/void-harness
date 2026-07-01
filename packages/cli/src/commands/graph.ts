@@ -23,7 +23,8 @@ import {
   scanSourceTree,
   serializeModel,
 } from '@voidcorp/harness-graph';
-import type { CostRow } from '@voidcorp/harness-graph';
+import type { CostRow, GraphModel } from '@voidcorp/harness-graph';
+import { BUNDLED_MODEL_JSON, resolveBundledModel } from '../lib/bundled-model.js';
 import { readSessionCosts } from '../lib/transcript-cost.js';
 import { parseUsageLog } from '../lib/audit.js';
 import { startLiveServer } from '../lib/graph-live-server.js';
@@ -91,6 +92,16 @@ async function loadModel(coreSource: string) {
   return assembleModel(tree, declared);
 }
 
+/**
+ * Resolve the model for a reporting subcommand. In the monorepo we scan the source tree; when
+ * the CLI is bundled for a consumer, the baked model travels inside the bundle and is filtered
+ * to the consumer's enabled packs — no source scan, no monorepo paths.
+ */
+async function resolveModel(coreSource: string): Promise<GraphModel> {
+  if (BUNDLED_MODEL_JSON !== undefined) return resolveBundledModel(BUNDLED_MODEL_JSON, process.cwd());
+  return loadModel(coreSource);
+}
+
 function ctxFor(): { usedSkillNames: Set<string> } {
   const logPath = join(process.cwd(), '.void', 'usage.log');
   const usage = existsSync(logPath) ? parseUsageLog(readFileSync(logPath, 'utf8')) : [];
@@ -144,7 +155,7 @@ export async function graph(args: readonly string[]): Promise<void> {
   }
 
   if (sub === 'audit') {
-    const model = await loadModel(coreSource);
+    const model = await resolveModel(coreSource);
     const findings = analyze(model, ctxFor());
     banner('graph audit');
     blank();
@@ -162,7 +173,7 @@ export async function graph(args: readonly string[]): Promise<void> {
   }
 
   if (sub === 'behavior') {
-    const model = await loadModel(coreSource);
+    const model = await resolveModel(coreSource);
     const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
     const sinceDays = numFlag(args, '--since', 0);
     const events = parseActivations(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '');
@@ -196,7 +207,7 @@ export async function graph(args: readonly string[]): Promise<void> {
   }
 
   if (sub === 'cost') {
-    const model = await loadModel(coreSource);
+    const model = await resolveModel(coreSource);
     const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
     const sinceDays = numFlag(args, '--since', 0);
     const events = parseActivations(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '');
@@ -247,7 +258,7 @@ export async function graph(args: readonly string[]): Promise<void> {
     const port = numFlag(args, '--port', 4317);
     const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
     const historyMax = numFlag(args, '--history-max', 5000);
-    const modelJson = serializeModel(await loadModel(coreSource));
+    const modelJson = serializeModel(await resolveModel(coreSource));
     banner('graph live');
     blank();
     line(`  serving model + SSE on ${c.green(`http://localhost:${port}`)}`);
