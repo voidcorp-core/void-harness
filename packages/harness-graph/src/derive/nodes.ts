@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { type GraphNode, type NodeType, nodeId } from '../model/types.js';
-import { countLines, readFrontmatter } from './read-frontmatter.js';
+import { countLines, estimateTokens, readFrontmatter } from './read-frontmatter.js';
 
 export interface SourceEntry {
   readonly name: string;
@@ -27,6 +27,7 @@ function toNode(type: NodeType, e: SourceEntry): GraphNode {
     name: e.name,
     description,
     lines: countLines(e.text),
+    staticTokens: estimateTokens(e.text),
     pack,
     source: e.source,
   };
