@@ -200,15 +200,15 @@ Le studio se sert et se charge en local depuis le serveur, sur n'importe quel cw
 
 ## Resume point
 
-**Next step**: Step 1 (`filterByEnabledPacks` kernel pur)
+**Next step**: Step 4 (`build-void-graph` CLI-only bundle) — after Checkpoint A signal
 
-**Completed**: none
+**Completed**:
+- ✅ Step 1 — filterByEnabledPacks kernel pur (commit `fa554ad`, 7 tests)
+- ✅ Step 2 — readEnabledPacks depuis .claude/settings{,.local}.json (commit `43e17fc`, 10 tests)
+- ✅ Step 3 — mode bundled graph.ts (resolveModel, commit `e2dba27`, 3 tests) → **Checkpoint A atteint**
 
 **Pending**:
-- ⏳ Step 1 — filterByEnabledPacks (strict)
-- ⏳ Step 2 — readEnabledPacks (souple)
-- ⏳ Step 3 — mode bundled graph.ts (souple) → Checkpoint A
-- ⏳ Step 4 — build-void-graph CLI-only (souple)
+- ⏳ Step 4 — build-void-graph CLI-only (souple) ← next
 - ⏳ Step 5 — serveur sert le studio (souple)
 - ⏳ Step 6 — studio server-fed (souple) → Checkpoint B
 - ⏳ Step 7 — studio inliné artefact complet (souple)
