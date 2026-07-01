@@ -6,6 +6,7 @@
 // rides on top in phase 2 via `sessionCosts` + `pricing` on CostOptions.
 
 import type { NodeType } from '../model/types.js';
+import type { PricingTable } from './pricing.js';
 
 /** Cache-aware token breakdown for one session, aggregated from a transcript. */
 export interface SessionTokens {
@@ -71,5 +72,6 @@ export interface CostOptions {
   readonly lowYieldStaticMin?: number;
   /** Phase 2: real per-session costs, correlated to activations by sessionId. */
   readonly sessionCosts?: readonly SessionCost[];
-  // Phase 2 also adds `pricing?: PricingTable` here (Step 5) — additive, no churn.
+  /** Phase 2: model->$ table used to derive dollars from tokens (defaults baked). */
+  readonly pricing?: PricingTable;
 }
