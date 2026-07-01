@@ -17,11 +17,14 @@ import {
   analyzeCost,
   assembleModel,
   blockingFindings,
+  DEFAULT_PRICING,
+  mergePricing,
   parseActivations,
   scanSourceTree,
   serializeModel,
 } from '@voidcorp/harness-graph';
 import type { CostRow } from '@voidcorp/harness-graph';
+import { readSessionCosts } from '../lib/transcript-cost.js';
 import { parseUsageLog } from '../lib/audit.js';
 import { startLiveServer } from '../lib/graph-live-server.js';
 import { findCoreSource } from '../lib/paths.js';
@@ -52,10 +55,33 @@ function relationsPath(_coreSource: string): string {
   return join(PKGS_ROOT, 'harness-graph', 'relations.graph.yaml');
 }
 
-/** One flagged cost row: `nodeId  inv  static  [flags]`, right-aligned numbers. */
-function renderCostRow(r: CostRow, nameW: number): string {
+/** Compact token count: 12345 -> `12k`, below 1000 shown as-is. */
+function fmtK(n: number): string {
+  return n >= 1000 ? `${Math.round(n / 1000)}k` : String(Math.round(n));
+}
+
+/** One flagged cost row. Real columns ($/sess, cache%) render only in full mode. */
+function renderCostRow(r: CostRow, nameW: number, full: boolean): string {
   const flags = r.flags.map((f) => (f === 'dead' || f === 'dead-hook' ? c.red(f) : c.yellow(f))).join(' ');
-  return `${r.nodeId.padEnd(nameW)}  ${String(r.invocations).padStart(4)}  ${String(r.staticTokens).padStart(7)}  ${flags}`;
+  const base = `${r.nodeId.padEnd(nameW)}  ${String(r.invocations).padStart(4)}  ${String(r.staticTokens).padStart(7)}`;
+  if (!full) return `${base}  ${flags}`;
+  const real = r.realSignal;
+  const total = real ? fmtK(real.tokens.in + real.tokens.out + real.tokens.cacheRead + real.tokens.cacheCreation) : '-';
+  const dollars = real?.dollars !== undefined ? `${real.dollars.toFixed(2)}$` : '-';
+  const cache = r.cacheReadRatio !== undefined ? `${Math.round(r.cacheReadRatio * 100)}%` : '-';
+  return `${base}  ${total.padStart(8)}  ${dollars.padStart(7)}  ${cache.padStart(5)}  ${flags}`;
+}
+
+/** Defaults merged with an optional .void/pricing.json (malformed -> defaults + warn). */
+function loadPricing(args: readonly string[]) {
+  const path = strFlag(args, '--pricing', join(process.cwd(), '.void', 'pricing.json'));
+  if (!existsSync(path)) return DEFAULT_PRICING;
+  try {
+    return mergePricing(DEFAULT_PRICING, JSON.parse(readFileSync(path, 'utf8')));
+  } catch {
+    console.error(`graph cost: ignoring malformed pricing file ${path}`); // allow-console: stderr warn per brief
+    return DEFAULT_PRICING;
+  }
 }
 
 async function loadModel(coreSource: string) {
@@ -174,11 +200,14 @@ export async function graph(args: readonly string[]): Promise<void> {
     const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
     const sinceDays = numFlag(args, '--since', 0);
     const events = parseActivations(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '');
-    const report = analyzeCost(
-      model,
-      events,
-      sinceDays > 0 ? { sinceMs: Date.now() - sinceDays * 86_400_000 } : {},
-    );
+    const { costs, skipped } = readSessionCosts(process.cwd());
+    const pricing = loadPricing(args);
+    const report = analyzeCost(model, events, {
+      sessionCosts: costs,
+      pricing,
+      ...(sinceDays > 0 ? { sinceMs: Date.now() - sinceDays * 86_400_000 } : {}),
+    });
+    const full = report.mode === 'full';
     banner('graph cost');
     blank();
     if (!report.sufficient) {
@@ -189,20 +218,24 @@ export async function graph(args: readonly string[]): Promise<void> {
       return;
     }
     const flagged = report.rows.filter((r) => r.flags.length > 0);
+    const skippedNote = full && skipped > 0 ? ` ${c.dim(glyph.dot)} ${c.dim(`${skipped} transcript line(s) skipped`)}` : '';
     line(
-      `  ${c.dim('components')} ${report.rows.length} ${c.dim(glyph.dot)} ${c.dim('events')} ${report.stats.events} ${c.dim(glyph.dot)} ${c.dim('sessions')} ${report.stats.sessions} ${c.dim(glyph.dot)} ${c.dim('mode')} ${report.mode}`,
+      `  ${c.dim('components')} ${report.rows.length} ${c.dim(glyph.dot)} ${c.dim('events')} ${report.stats.events} ${c.dim(glyph.dot)} ${c.dim('sessions')} ${report.stats.sessions} ${c.dim(glyph.dot)} ${c.dim('mode')} ${report.mode}${skippedNote}`,
     );
     blank();
     if (flagged.length === 0) {
       line(`  ${c.green('no flags')} ${c.dim('- every component earns its place in this window.')}`);
     } else {
       const nameW = Math.max(...flagged.map((r) => r.nodeId.length));
-      line(`  ${'component'.padEnd(nameW)}  ${'inv'.padStart(4)}  ${'static'.padStart(7)}  flags`);
-      for (const r of flagged) line(`  ${renderCostRow(r, nameW)}`);
+      const head = full
+        ? `  ${'component'.padEnd(nameW)}  ${'inv'.padStart(4)}  ${'static'.padStart(7)}  ${'real'.padStart(8)}  ${'$/sess'.padStart(7)}  ${'cache'.padStart(5)}  flags`
+        : `  ${'component'.padEnd(nameW)}  ${'inv'.padStart(4)}  ${'static'.padStart(7)}  flags`;
+      line(head);
+      for (const r of flagged) line(`  ${renderCostRow(r, nameW, full)}`);
     }
     blank();
     line(
-      `  ${c.dim(`${report.rows.length - flagged.length} unflagged component(s) omitted`)} ${c.dim(glyph.dot)} ${c.dim('static cost = source tokens x invocations')}`,
+      `  ${c.dim(`${report.rows.length - flagged.length} unflagged component(s) omitted`)} ${c.dim(glyph.dot)} ${c.dim(full ? 'real signal = median session cost where the component fired (correlational)' : 'static cost = source tokens x invocations')}`,
     );
     footer(c.dim('advisory (HITL): flags are candidates to trim/tune, never auto-applied.'));
     return;

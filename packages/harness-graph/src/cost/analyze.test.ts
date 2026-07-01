@@ -52,7 +52,6 @@ describe('analyzeCost — static mode shape', () => {
     const model: GraphModel = { version: 1, nodes: [node('skill:tdd', 'skill')], edges: [] };
     const r = analyzeCost(model, [ev({ kind: 'skill', name: 'tdd', sessionId: 's1' })], SMALL);
     expect(r.mode).toBe('static-only');
-    expect(r.stats.skippedTranscriptLines).toBe(0);
     const tdd = rowFor(r.rows, 'skill:tdd');
     expect(tdd?.realSignal).toBeUndefined();
     expect(tdd?.cacheReadRatio).toBeUndefined();

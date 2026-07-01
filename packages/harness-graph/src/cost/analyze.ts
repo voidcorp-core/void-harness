@@ -71,7 +71,7 @@ export function analyzeCost(
 
   const scoped = activations.filter((e) => within(e, opts.sinceMs));
   const sessions = new Set(scoped.map((e) => e.sessionId));
-  const stats: CostStats = { events: scoped.length, sessions: sessions.size, skippedTranscriptLines: 0 };
+  const stats: CostStats = { events: scoped.length, sessions: sessions.size };
 
   const costById = new Map<string, SessionCost>((opts.sessionCosts ?? []).map((c) => [c.sessionId, c]));
   const mode: CostReport['mode'] = costById.size > 0 ? 'full' : 'static-only';

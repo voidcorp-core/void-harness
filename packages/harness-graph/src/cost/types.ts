@@ -51,7 +51,6 @@ export interface CostRow {
 export interface CostStats {
   readonly events: number;
   readonly sessions: number;
-  readonly skippedTranscriptLines: number;
 }
 
 export interface CostReport {
