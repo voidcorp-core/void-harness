@@ -200,7 +200,7 @@ Le studio se sert et se charge en local depuis le serveur, sur n'importe quel cw
 
 ## Resume point
 
-**Next step**: Step 5 (serveur live sert le studio)
+**Next step**: Step 7 (studio inliné dans l'artefact complet) — after Checkpoint B signal
 
 **Completed**:
 - ✅ Step 1 — filterByEnabledPacks kernel pur (commit `fa554ad`, 7 tests)
@@ -208,10 +208,10 @@ Le studio se sert et se charge en local depuis le serveur, sur n'importe quel cw
 - ✅ Step 3 — mode bundled graph.ts (resolveModel, commit `e2dba27`, 3 tests) → **Checkpoint A atteint**
 - ✅ revue slice 1 — test d'intégration dispatch + guard version (commit `6f24e27`)
 - ✅ Step 4 — build-void-graph esbuild bundle CLI-only (commit `e2cdaf8`, 2 tests, déterministe + standalone)
+- ✅ Step 5 — serveur sert le studio GET / + port réel (commit `369fd1c`, 3 tests)
+- ✅ Step 6 — studio server-fed via /studio-data.json (commit `64cd4b2`, studio 59 + cli 269 tests) → **Checkpoint B atteint** (vérif visuelle end-to-end en attente du bundle Step 7)
 
 **Pending**:
-- ⏳ Step 5 — serveur sert le studio (souple) ← next
-- ⏳ Step 6 — studio server-fed (souple) → Checkpoint B
-- ⏳ Step 7 — studio inliné artefact complet (souple)
+- ⏳ Step 7 — studio inliné artefact complet (souple) ← next
 - ⏳ Step 8 — skill harness:void-graph (souple)
 - ⏳ Step 9 — pipeline release + livraison (souple)
