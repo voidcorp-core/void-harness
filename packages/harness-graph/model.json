@@ -1069,8 +1069,8 @@
       "type": "skill",
       "name": "ticket-runner",
       "description": "Use when taking a single ticket from ready through shipped at expert-team quality. Triggers on starting a ticket, taking an issue, or picking up a backlog item to execute.",
-      "lines": 84,
-      "staticTokens": 1625,
+      "lines": 85,
+      "staticTokens": 1758,
       "pack": null,
       "source": "packages/core/skills/ticket-runner/SKILL.md"
     },
