@@ -1,7 +1,7 @@
 ---
 title: backlog-autopilot auto-merge MVP (attended batch)
 date: 2026-07-01
-status: in-progress
+status: done
 spec: docs/specs/2026-07-01-backlog-autopilot-auto-merge-mvp.md
 author: Folpe + Claude
 high_risk: true
@@ -115,12 +115,13 @@ avant de câbler le skill (le seul endroit qui agit réellement).
 
 ## Resume point
 
-**Next step**: Step 1 (`riskSignalsFromDiff` pur)
+**Next step**: DONE — all 4 steps shipped on `feat/backlog-autopilot-launcher`. Review pass +
+verification, then PR + merge (per user directive).
 
-**Completed**: none
+**Completed**:
+- ✅ Step 1 — riskSignalsFromDiff pur (commit `398787e`, 8 tests, strict)
+- ✅ Step 2 — merge-decision decideMerge + sous-cmd (commit `0d2cc5d`, 10 tests, smoke OK)
+- ✅ Step 3 — resolveMergeDecision : flags --auto-merge + préflight billing (commit `c8b8ca0`, +5 tests) → **Checkpoint A atteint**
+- ✅ Step 4 — étape Layer-1 SKILL + command --auto-merge (commit `aef6a55`, model+artefact régénérés)
 
-**Pending**:
-- ⏳ Step 1 — riskSignalsFromDiff (strict)
-- ⏳ Step 2 — merge-decision CLI (souple)
-- ⏳ Step 3 — config + billing préflight (souple) → Checkpoint A
-- ⏳ Step 4 — étape skill Layer-1 + command (souple/prose)
+**Pending**: none — MVP complete. Multi-cluster L0 loop = documented follow-up.
