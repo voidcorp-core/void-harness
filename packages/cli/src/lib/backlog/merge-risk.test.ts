@@ -14,6 +14,30 @@ describe('riskSignalsFromDiff', () => {
     expect(riskSignalsFromDiff(['config/db-credentials.ts']).touchesSecurity).toBe(true);
   });
 
+  // The DANGEROUS direction: sensitive flat files that a directory-only match would miss must
+  // still block auto-merge. A false negative here would arm an autonomous merge over a security
+  // change — the exact failure the gate exists to prevent.
+  it('flags sensitive flat files (middleware, jwt, tokens, password, oauth, session, cors)', () => {
+    for (const f of [
+      'src/middleware.ts',
+      'src/lib/jwt.ts',
+      'src/lib/tokens.ts',
+      'src/lib/password.ts',
+      'src/server/oauth-callback.ts',
+      'src/hooks/useSessionStorage.ts', // camelCase → session segment
+      'src/lib/corsConfig.ts',
+      'src/rbac/policy.ts',
+    ]) {
+      expect(riskSignalsFromDiff([f]).touchesSecurity, f).toBe(true);
+    }
+  });
+
+  it('does NOT false-positive on words that merely contain a token (author, oracle, tokenizer)', () => {
+    for (const f of ['docs/authors.md', 'src/db/oracle.ts', 'src/lib/tokenizer.ts', 'src/keymap.ts']) {
+      expect(riskSignalsFromDiff([f]).touchesSecurity, f).toBe(false);
+    }
+  });
+
   it('does NOT flag security for safe .env variants', () => {
     expect(riskSignalsFromDiff(['.env.example']).touchesSecurity).toBe(false);
     expect(riskSignalsFromDiff(['.env.template']).touchesSecurity).toBe(false);

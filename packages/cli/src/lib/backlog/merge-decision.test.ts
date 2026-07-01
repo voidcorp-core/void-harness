@@ -62,6 +62,12 @@ describe('decideMerge', () => {
     expect(d.reason).toMatch(/conflict/i);
   });
 
+  it('blocks when required checks failed', () => {
+    const d = decideMerge({ ...base, observation: { ...cleanObs, checks: 'fail' } });
+    expect(d).toMatchObject({ arm: false, action: 'block' });
+    expect(d.reason).toMatch(/checks failed/i);
+  });
+
   it('waits while checks are pending', () => {
     const d = decideMerge({ ...base, observation: { ...cleanObs, checks: 'pending' } });
     expect(d).toMatchObject({ arm: false, action: 'wait' });
@@ -106,5 +112,27 @@ describe('resolveMergeDecision', () => {
   it('reports invalid stdin JSON', () => {
     const r = resolveMergeDecision(['merge-decision', '--auto-merge'], '{ not json', {});
     expect(r).toEqual({ ok: false, error: 'stdin is not valid JSON' });
+  });
+
+  // Trust boundary: a structurally-wrong but valid-JSON payload must fail cleanly, never throw.
+  it('rejects malformed context shapes without throwing', () => {
+    const bad = (obj: unknown) => resolveMergeDecision(['merge-decision', '--auto-merge'], JSON.stringify(obj), {});
+    expect(bad(42)).toMatchObject({ ok: false, error: expect.stringMatching(/JSON object/) });
+    expect(bad({ files: ['a.ts'], protection: { kind: 'protected' }, observation: cleanObs })).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/clusterId/),
+    });
+    expect(bad({ clusterId: 'c1', files: null, protection: { kind: 'protected' }, observation: cleanObs })).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/files/),
+    });
+    expect(bad({ clusterId: 'c1', files: [], protection: { kind: 'bogus' }, observation: cleanObs })).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/protection/),
+    });
+    expect(bad({ clusterId: 'c1', files: [], protection: { kind: 'protected' }, observation: { checks: 'pass' } })).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/observation/),
+    });
   });
 });

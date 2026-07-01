@@ -72,6 +72,79 @@ export type MergeDecisionResult =
   | { readonly ok: true; readonly decision: MergeDecision }
   | { readonly ok: false; readonly error: string };
 
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+function isStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every((x) => typeof x === 'string');
+}
+function isOneOf<T extends string>(v: unknown, opts: readonly T[]): v is T {
+  return typeof v === 'string' && opts.some((o) => o === v);
+}
+
+function parseProtection(v: unknown): ProtectionStatus | undefined {
+  if (!isRecord(v)) return undefined;
+  if (v.kind === 'protected' || v.kind === 'unprotected') return { kind: v.kind };
+  if (v.kind === 'unknown') {
+    return { kind: 'unknown', reason: typeof v.reason === 'string' ? v.reason : 'unspecified' };
+  }
+  return undefined;
+}
+
+function parseObservation(v: unknown): MergeObservation | undefined {
+  if (!isRecord(v)) return undefined;
+  if (
+    isOneOf(v.mergeable, ['clean', 'conflict', 'unknown'] as const) &&
+    isOneOf(v.checks, ['pass', 'pending', 'fail'] as const) &&
+    typeof v.baseUpToDate === 'boolean' &&
+    isOneOf(v.protection, ['protected', 'unprotected', 'unknown'] as const)
+  ) {
+    return {
+      mergeable: v.mergeable,
+      checks: v.checks,
+      baseUpToDate: v.baseUpToDate,
+      protection: v.protection,
+    };
+  }
+  return undefined;
+}
+
+/**
+ * Validate the observation context from stdin (a trust boundary — the payload is built by an LLM
+ * from gh output). Returns typed data or a precise error; never lets a structurally-wrong-but-valid
+ * JSON (e.g. files:null) reach the pure gates and throw.
+ */
+function parseContext(raw: string): { readonly ok: true; readonly value: MergeDecisionContext } | { readonly ok: false; readonly error: string } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { ok: false, error: 'stdin is not valid JSON' };
+  }
+  if (!isRecord(parsed)) return { ok: false, error: 'stdin must be a JSON object' };
+  if (typeof parsed.clusterId !== 'string') return { ok: false, error: 'clusterId (string) is required' };
+  if (!isStringArray(parsed.files)) return { ok: false, error: 'files (string[]) is required' };
+  const protection = parseProtection(parsed.protection);
+  if (protection === undefined) {
+    return { ok: false, error: 'protection {kind: protected|unprotected|unknown} is required' };
+  }
+  const observation = parseObservation(parsed.observation);
+  if (observation === undefined) {
+    return { ok: false, error: 'observation {mergeable, checks, baseUpToDate, protection} is required' };
+  }
+  return {
+    ok: true,
+    value: {
+      clusterId: parsed.clusterId,
+      files: parsed.files,
+      protection,
+      observation,
+      ...(typeof parsed.isStackRoot === 'boolean' ? { isStackRoot: parsed.isStackRoot } : {}),
+      ...(typeof parsed.maxFiles === 'number' ? { maxFiles: parsed.maxFiles } : {}),
+    },
+  };
+}
+
 /**
  * Command core: resolve `--auto-merge` / `--auto-merge-method` from the args (flags > env >
  * defaults), run the subscription preflight when auto-merge is on, parse the observation context
@@ -87,12 +160,8 @@ export function resolveMergeDecision(
     const preflight = assertSubscription(env, config.allowApi);
     if (!preflight.ok) return { ok: false, error: preflight.reason ?? 'subscription preflight failed' };
   }
-  let context: MergeDecisionContext;
-  try {
-    context = JSON.parse(stdinRaw) as MergeDecisionContext;
-  } catch {
-    return { ok: false, error: 'stdin is not valid JSON' };
-  }
-  const decision = decideMerge({ ...context, autoMerge: config.autoMerge, method: config.autoMergeMethod });
+  const parsed = parseContext(stdinRaw);
+  if (!parsed.ok) return parsed;
+  const decision = decideMerge({ ...parsed.value, autoMerge: config.autoMerge, method: config.autoMergeMethod });
   return { ok: true, decision };
 }
