@@ -56,4 +56,10 @@ describe('resolveBundledModel', () => {
       'skill:tdd',
     ]);
   });
+
+  it('throws a clear error when the baked model version does not match the kernel', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-bundled-'));
+    const drifted = JSON.stringify({ ...MODEL, version: 2 });
+    expect(() => resolveBundledModel(drifted, root)).toThrow(/version 2 does not match kernel 1/);
+  });
 });

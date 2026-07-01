@@ -1,4 +1,4 @@
-import { filterByEnabledPacks } from '@voidcorp/harness-graph';
+import { filterByEnabledPacks, KERNEL_VERSION } from '@voidcorp/harness-graph';
 import type { GraphModel } from '@voidcorp/harness-graph';
 import { readEnabledPacks } from './enabled-packs.js';
 
@@ -15,5 +15,11 @@ export const BUNDLED_MODEL_JSON: string | undefined = undefined;
  */
 export function resolveBundledModel(json: string, projectRoot: string): GraphModel {
   const model = JSON.parse(json) as GraphModel;
+  const version = (model as { version: number }).version;
+  if (version !== KERNEL_VERSION) {
+    throw new Error(
+      `bundled model version ${version} does not match kernel ${KERNEL_VERSION}; rebuild the void-graph bundle`,
+    );
+  }
   return filterByEnabledPacks(model, readEnabledPacks(projectRoot));
 }

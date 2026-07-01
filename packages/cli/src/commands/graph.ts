@@ -97,8 +97,8 @@ async function loadModel(coreSource: string) {
  * the CLI is bundled for a consumer, the baked model travels inside the bundle and is filtered
  * to the consumer's enabled packs — no source scan, no monorepo paths.
  */
-async function resolveModel(coreSource: string): Promise<GraphModel> {
-  if (BUNDLED_MODEL_JSON !== undefined) return resolveBundledModel(BUNDLED_MODEL_JSON, process.cwd());
+async function resolveModel(coreSource: string, bundledJson: string | undefined): Promise<GraphModel> {
+  if (bundledJson !== undefined) return resolveBundledModel(bundledJson, process.cwd());
   return loadModel(coreSource);
 }
 
@@ -108,12 +108,18 @@ function ctxFor(): { usedSkillNames: Set<string> } {
   return { usedSkillNames: usedSkillNames(usage) };
 }
 
-export async function graph(args: readonly string[]): Promise<void> {
+export async function graph(
+  args: readonly string[],
+  opts: { readonly bundledModelJson?: string } = {},
+): Promise<void> {
   const sub = args[0] ?? 'build';
   // Prefer the real source when running in the void-harness workspace itself;
   // fall back to the bundled core-assets for installed (consumer) invocations.
   const pkgsCoreDir = join(PKGS_ROOT, 'core');
   const coreSource = existsSync(pkgsCoreDir) ? pkgsCoreDir : await findCoreSource();
+  // Bundled model: injected by the bundle build (BUNDLED_MODEL_JSON) or by a test via opts.
+  // When present, the reporting subcommands read it instead of scanning the source tree.
+  const bundled = opts.bundledModelJson ?? BUNDLED_MODEL_JSON;
 
   if (sub === 'build') {
     const model = await loadModel(coreSource);
@@ -155,7 +161,7 @@ export async function graph(args: readonly string[]): Promise<void> {
   }
 
   if (sub === 'audit') {
-    const model = await resolveModel(coreSource);
+    const model = await resolveModel(coreSource, bundled);
     const findings = analyze(model, ctxFor());
     banner('graph audit');
     blank();
@@ -173,7 +179,7 @@ export async function graph(args: readonly string[]): Promise<void> {
   }
 
   if (sub === 'behavior') {
-    const model = await resolveModel(coreSource);
+    const model = await resolveModel(coreSource, bundled);
     const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
     const sinceDays = numFlag(args, '--since', 0);
     const events = parseActivations(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '');
@@ -207,7 +213,7 @@ export async function graph(args: readonly string[]): Promise<void> {
   }
 
   if (sub === 'cost') {
-    const model = await resolveModel(coreSource);
+    const model = await resolveModel(coreSource, bundled);
     const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
     const sinceDays = numFlag(args, '--since', 0);
     const events = parseActivations(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '');
@@ -258,7 +264,7 @@ export async function graph(args: readonly string[]): Promise<void> {
     const port = numFlag(args, '--port', 4317);
     const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
     const historyMax = numFlag(args, '--history-max', 5000);
-    const modelJson = serializeModel(await resolveModel(coreSource));
+    const modelJson = serializeModel(await resolveModel(coreSource, bundled));
     banner('graph live');
     blank();
     line(`  serving model + SSE on ${c.green(`http://localhost:${port}`)}`);
