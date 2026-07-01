@@ -15,6 +15,8 @@ export interface LiveServerOptions {
   readonly modelJson: string;
   /** Self-contained studio HTML served at GET /. Absent -> data-only server (GET / -> 404). */
   readonly studioHtml?: string | undefined;
+  /** Pre-computed StudioData JSON served at GET /studio-data.json (server-fed studio mode). */
+  readonly studioDataJson?: string | undefined;
   readonly pollMs?: number;
   /** Max events returned by GET /history (most recent kept). Default 5000. */
   readonly historyMax?: number;
@@ -103,6 +105,16 @@ function handle(req: IncomingMessage, res: ServerResponse, opts: LiveServerOptio
   if (url === '/model.json') {
     res.writeHead(200, { ...CORS, 'Content-Type': 'application/json' });
     res.end(opts.modelJson);
+    return;
+  }
+  if (url === '/studio-data.json') {
+    if (opts.studioDataJson === undefined) {
+      res.writeHead(404, { ...CORS, 'Content-Type': 'text/plain' });
+      res.end('studio data not computed (data-only server)');
+      return;
+    }
+    res.writeHead(200, { ...CORS, 'Content-Type': 'application/json' });
+    res.end(opts.studioDataJson);
     return;
   }
   if (url.startsWith('/history')) {

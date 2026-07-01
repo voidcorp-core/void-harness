@@ -270,7 +270,17 @@ export async function graph(
     const port = numFlag(args, '--port', 4317);
     const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
     const historyMax = numFlag(args, '--history-max', 5000);
-    const modelJson = serializeModel(await resolveModel(coreSource, bundled));
+    const model = await resolveModel(coreSource, bundled);
+    const modelJson = serializeModel(model);
+    const ctx = ctxFor();
+    // Server-fed studio data: computed once here (kernel analyze + usage), served at
+    // /studio-data.json. workflows stay {} on the consumer (phase metadata is build-time only).
+    const studioDataJson = JSON.stringify({
+      model,
+      findings: analyze(model, ctx),
+      usage: { counts: {}, usedSkillNames: [...ctx.usedSkillNames] },
+      workflows: {},
+    });
     const studioHtml = BUNDLED_STUDIO_HTML;
     banner('graph live');
     blank();
@@ -284,7 +294,7 @@ export async function graph(
       line(`  ${c.dim('point the studio at it via')} VITE_LIVE_URL`);
     }
     footer(c.dim('Ctrl+C to stop.'));
-    startLiveServer({ port, logPath, modelJson, historyMax, studioHtml });
+    startLiveServer({ port, logPath, modelJson, historyMax, studioHtml, studioDataJson });
     return; // the listening socket keeps the process alive
   }
 

@@ -52,4 +52,19 @@ describe('graph live server', () => {
     expect(res.status).toBe(404);
     expect(await res.text()).toContain('data-only');
   });
+
+  it('serves the pre-computed studio data at GET /studio-data.json', async () => {
+    const studioDataJson = JSON.stringify({ model: JSON.parse(MODEL), findings: [], usage: { counts: {}, usedSkillNames: [] }, workflows: {} });
+    const port = await start({ studioDataJson });
+    const res = await fetch(`http://localhost:${port}/studio-data.json`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('application/json');
+    expect(await res.text()).toBe(studioDataJson);
+  });
+
+  it('returns 404 on /studio-data.json when data was not computed', async () => {
+    const port = await start({});
+    const res = await fetch(`http://localhost:${port}/studio-data.json`);
+    expect(res.status).toBe(404);
+  });
 });
