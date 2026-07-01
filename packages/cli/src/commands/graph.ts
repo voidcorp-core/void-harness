@@ -205,6 +205,8 @@ export async function graph(args: readonly string[]): Promise<void> {
     const report = analyzeCost(model, events, {
       sessionCosts: costs,
       pricing,
+      minSessions: numFlag(args, '--min-sessions', 3),
+      minEvents: numFlag(args, '--min-events', 20),
       ...(sinceDays > 0 ? { sinceMs: Date.now() - sinceDays * 86_400_000 } : {}),
     });
     const full = report.mode === 'full';
