@@ -92,6 +92,16 @@
       "source": "packages/core/commands/void-feedback.md"
     },
     {
+      "id": "command:void-graph",
+      "type": "command",
+      "name": "void-graph",
+      "description": "Run the bundled void-graph on the installed harness — no arg opens the local live studio (localhost, offline); audit/cost/behavior print a terminal report of dead/underused/expensive components.",
+      "lines": 34,
+      "staticTokens": 485,
+      "pack": null,
+      "source": "packages/core/commands/void-graph.md"
+    },
+    {
       "id": "hook:activation-meter",
       "type": "hook",
       "name": "activation-meter",

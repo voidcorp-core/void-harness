@@ -13,6 +13,10 @@ export interface LiveServerOptions {
   readonly logPath: string;
   /** Serialized model.json served at GET /model.json. */
   readonly modelJson: string;
+  /** Self-contained studio HTML served at GET /. Absent -> data-only server (GET / -> 404). */
+  readonly studioHtml?: string | undefined;
+  /** Pre-computed StudioData JSON served at GET /studio-data.json (server-fed studio mode). */
+  readonly studioDataJson?: string | undefined;
   readonly pollMs?: number;
   /** Max events returned by GET /history (most recent kept). Default 5000. */
   readonly historyMax?: number;
@@ -88,9 +92,29 @@ function handle(req: IncomingMessage, res: ServerResponse, opts: LiveServerOptio
     res.end();
     return;
   }
+  if (url === '/' || url === '/index.html') {
+    if (opts.studioHtml === undefined) {
+      res.writeHead(404, { ...CORS, 'Content-Type': 'text/plain' });
+      res.end('studio not bundled (data-only server); use /model.json, /history, /events');
+      return;
+    }
+    res.writeHead(200, { ...CORS, 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(opts.studioHtml);
+    return;
+  }
   if (url === '/model.json') {
     res.writeHead(200, { ...CORS, 'Content-Type': 'application/json' });
     res.end(opts.modelJson);
+    return;
+  }
+  if (url === '/studio-data.json') {
+    if (opts.studioDataJson === undefined) {
+      res.writeHead(404, { ...CORS, 'Content-Type': 'text/plain' });
+      res.end('studio data not computed (data-only server)');
+      return;
+    }
+    res.writeHead(200, { ...CORS, 'Content-Type': 'application/json' });
+    res.end(opts.studioDataJson);
     return;
   }
   if (url.startsWith('/history')) {
@@ -108,8 +132,27 @@ function handle(req: IncomingMessage, res: ServerResponse, opts: LiveServerOptio
 }
 
 /** Start the live SSE server. Returns the http.Server (call .close() to stop). */
+/** Max consecutive ports to try when the requested one is busy. */
+const PORT_RETRIES = 20;
+
 export function startLiveServer(opts: LiveServerOptions): Server {
   const server = createServer((req, res) => handle(req, res, opts));
-  server.listen(opts.port, () => opts.onListening?.(opts.port));
+  let port = opts.port;
+  server.on('listening', () => {
+    const addr = server.address();
+    // Report the actually-bound port (matters for port 0 and the port-increment fallback).
+    opts.onListening?.(typeof addr === 'object' && addr ? addr.port : port);
+  });
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    // Requested port busy: walk forward a bounded number of ports. Port 0 lets the OS pick, so
+    // it never collides and is never incremented.
+    if (err.code === 'EADDRINUSE' && opts.port !== 0 && port - opts.port < PORT_RETRIES) {
+      port += 1;
+      server.listen(port);
+      return;
+    }
+    throw err;
+  });
+  server.listen(port);
   return server;
 }

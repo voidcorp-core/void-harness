@@ -8,6 +8,8 @@
 // whose parent is not the workspace packages root. Using import.meta.url is more
 // reliable for deriving sibling-package locations at runtime.
 
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,7 +25,9 @@ import {
   scanSourceTree,
   serializeModel,
 } from '@voidcorp/harness-graph';
-import type { CostRow } from '@voidcorp/harness-graph';
+import type { CostRow, GraphModel } from '@voidcorp/harness-graph';
+import { BUNDLED_MODEL_JSON, resolveBundledModel } from '../lib/bundled-model.js';
+import { BUNDLED_STUDIO_HTML } from '../lib/bundled-studio.js';
 import { readSessionCosts } from '../lib/transcript-cost.js';
 import { parseUsageLog } from '../lib/audit.js';
 import { startLiveServer } from '../lib/graph-live-server.js';
@@ -91,18 +95,77 @@ async function loadModel(coreSource: string) {
   return assembleModel(tree, declared);
 }
 
+/**
+ * Resolve the model for a reporting subcommand. In the monorepo we scan the source tree; when
+ * the CLI is bundled for a consumer, the baked model travels inside the bundle and is filtered
+ * to the consumer's enabled packs — no source scan, no monorepo paths.
+ */
+async function resolveModel(coreSource: string, bundledJson: string | undefined): Promise<GraphModel> {
+  if (bundledJson !== undefined) return resolveBundledModel(bundledJson, process.cwd());
+  return loadModel(coreSource);
+}
+
 function ctxFor(): { usedSkillNames: Set<string> } {
   const logPath = join(process.cwd(), '.void', 'usage.log');
   const usage = existsSync(logPath) ? parseUsageLog(readFileSync(logPath, 'utf8')) : [];
   return { usedSkillNames: usedSkillNames(usage) };
 }
 
-export async function graph(args: readonly string[]): Promise<void> {
+export async function graph(
+  args: readonly string[],
+  opts: { readonly bundledModelJson?: string } = {},
+): Promise<void> {
   const sub = args[0] ?? 'build';
-  // Prefer the real source when running in the void-harness workspace itself;
-  // fall back to the bundled core-assets for installed (consumer) invocations.
+  // Bundled model: injected by the bundle build (BUNDLED_MODEL_JSON) or by a test via opts.
+  // When present, reporting subcommands read it instead of scanning the source tree.
+  const bundled = opts.bundledModelJson ?? BUNDLED_MODEL_JSON;
+  // build/check regenerate/compare the committed model.json from source — monorepo-only.
+  if (bundled !== undefined && (sub === 'build' || sub === 'check')) {
+    throw new Error(`graph ${sub} is a monorepo-only command; not available in the installed bundle.`);
+  }
+  // Prefer the real source in the workspace; fall back to the bundled core-assets. In bundled
+  // mode there is no source tree, so we never resolve it (findCoreSource would throw).
   const pkgsCoreDir = join(PKGS_ROOT, 'core');
-  const coreSource = existsSync(pkgsCoreDir) ? pkgsCoreDir : await findCoreSource();
+  const coreSource =
+    bundled !== undefined ? '' : existsSync(pkgsCoreDir) ? pkgsCoreDir : await findCoreSource();
+
+  if (sub === 'model-hash') {
+    // Self-report the sha256 of the model this process would use as its source of truth:
+    // the baked model when bundled, the committed model.json in the monorepo. The consumer
+    // artifact and the repo agree iff these hashes match (see `check-bundle`).
+    const source =
+      bundled !== undefined
+        ? bundled
+        : existsSync(modelPath(coreSource))
+          ? readFileSync(modelPath(coreSource), 'utf8')
+          : serializeModel(await loadModel(coreSource));
+    process.stdout.write(`${createHash('sha256').update(source).digest('hex')}\n`);
+    return;
+  }
+
+  if (sub === 'check-bundle') {
+    // Drift gate for the shipped artifact: does packages/core/graph/void-graph.mjs embed the
+    // current model.json? We gate the embedded model (the part that drifts with harness content),
+    // not the whole vite/esbuild output (byte-determinism across environments is not guaranteed).
+    const artifact = join(PKGS_ROOT, 'core', 'graph', 'void-graph.mjs');
+    banner('graph check-bundle');
+    blank();
+    if (!existsSync(artifact)) {
+      line(`  ${c.red('artifact missing')} -- run \`pnpm -F @voidcorp/harness build:void-graph\``);
+      footer(c.red('graph check-bundle failed.'));
+      process.exit(1);
+    }
+    const committed = createHash('sha256').update(readFileSync(modelPath(coreSource), 'utf8')).digest('hex');
+    const embedded = execFileSync('node', [artifact, 'model-hash'], { encoding: 'utf8' }).trim();
+    if (committed !== embedded) {
+      line(`  ${c.red('stale bundle')} -- committed model ${c.dim(committed.slice(0, 12))} != artifact embeds ${c.dim(embedded.slice(0, 12))}`);
+      line(`  ${c.dim('rebuild')} pnpm -F @voidcorp/harness build:void-graph ${c.dim('and commit the artifact')}`);
+      footer(c.red('graph check-bundle failed.'));
+      process.exit(1);
+    }
+    footer(c.green('artifact embeds the committed model.'));
+    return;
+  }
 
   if (sub === 'build') {
     const model = await loadModel(coreSource);
@@ -144,7 +207,7 @@ export async function graph(args: readonly string[]): Promise<void> {
   }
 
   if (sub === 'audit') {
-    const model = await loadModel(coreSource);
+    const model = await resolveModel(coreSource, bundled);
     const findings = analyze(model, ctxFor());
     banner('graph audit');
     blank();
@@ -162,7 +225,7 @@ export async function graph(args: readonly string[]): Promise<void> {
   }
 
   if (sub === 'behavior') {
-    const model = await loadModel(coreSource);
+    const model = await resolveModel(coreSource, bundled);
     const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
     const sinceDays = numFlag(args, '--since', 0);
     const events = parseActivations(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '');
@@ -196,7 +259,7 @@ export async function graph(args: readonly string[]): Promise<void> {
   }
 
   if (sub === 'cost') {
-    const model = await loadModel(coreSource);
+    const model = await resolveModel(coreSource, bundled);
     const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
     const sinceDays = numFlag(args, '--since', 0);
     const events = parseActivations(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '');
@@ -247,15 +310,41 @@ export async function graph(args: readonly string[]): Promise<void> {
     const port = numFlag(args, '--port', 4317);
     const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
     const historyMax = numFlag(args, '--history-max', 5000);
-    const modelJson = serializeModel(await loadModel(coreSource));
+    const model = await resolveModel(coreSource, bundled);
+    const modelJson = serializeModel(model);
+    const ctx = ctxFor();
+    // Server-fed studio data: computed once here (kernel analyze + usage), served at
+    // /studio-data.json. workflows stay {} on the consumer (phase metadata is build-time only).
+    const studioDataJson = JSON.stringify({
+      model,
+      findings: analyze(model, ctx),
+      usage: { counts: {}, usedSkillNames: [...ctx.usedSkillNames] },
+      workflows: {},
+    });
+    const studioHtml = BUNDLED_STUDIO_HTML;
     banner('graph live');
     blank();
-    line(`  serving model + SSE on ${c.green(`http://localhost:${port}`)}`);
     line(`  ${c.dim('tailing')} ${logPath}`);
-    line(`  ${c.dim('routes')} GET /model.json ${c.dim(glyph.dot)} GET /history ${c.dim(glyph.dot)} GET /events ${c.dim('(SSE)')}`);
-    line(`  ${c.dim('point the studio at it via')} VITE_LIVE_URL`);
-    footer(c.dim('Ctrl+C to stop.'));
-    startLiveServer({ port, logPath, modelJson, historyMax });
+    startLiveServer({
+      port,
+      logPath,
+      modelJson,
+      historyMax,
+      studioHtml,
+      studioDataJson,
+      // Print the actually-bound port (may differ from --port after the busy-port fallback).
+      onListening: (actualPort) => {
+        line(`  serving on ${c.green(`http://localhost:${actualPort}`)}`);
+        if (studioHtml !== undefined) {
+          line(`  ${c.dim('routes')} GET / ${c.dim('(studio)')} ${c.dim(glyph.dot)} /model.json ${c.dim(glyph.dot)} /studio-data.json ${c.dim(glyph.dot)} /history ${c.dim(glyph.dot)} /events`);
+          line(`  ${c.dim('open the URL above in a browser')}`);
+        } else {
+          line(`  ${c.dim('routes')} GET /model.json ${c.dim(glyph.dot)} GET /history ${c.dim(glyph.dot)} GET /events ${c.dim('(SSE)')}`);
+          line(`  ${c.dim('point the studio at it via')} VITE_LIVE_URL`);
+        }
+        footer(c.dim('Ctrl+C to stop.'));
+      },
+    });
     return; // the listening socket keeps the process alive
   }
 

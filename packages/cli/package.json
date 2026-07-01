@@ -16,6 +16,7 @@
   "scripts": {
     "build": "tsup",
     "build:assets": "node scripts/copy-core-assets.mjs",
+    "build:void-graph": "tsx scripts/build-void-graph.ts",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -30,7 +31,9 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "esbuild": "^0.28.0",
     "tsup": "^8.0.0",
+    "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.0.0"
   },

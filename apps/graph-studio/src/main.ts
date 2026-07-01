@@ -1,4 +1,4 @@
-import { loadData } from './data/load.js';
+import { resolveStudioBoot } from './data/load.js';
 import { createGraph } from './render/graph.js';
 import { startLive } from './render/live.js';
 import { playFlow } from './render/flow.js';
@@ -12,10 +12,19 @@ import { renderPanel } from './ui/panel.js';
 import { mountScrubber } from './ui/scrubber.js';
 import { renderWorkflowView } from './ui/workflow.js';
 
-const scene = document.getElementById('scene');
-if (!scene) throw new Error('graph-studio: #scene container missing');
+const sceneRoot = document.getElementById('scene');
+if (!sceneRoot) throw new Error('graph-studio: #scene container missing');
 
-const data = loadData();
+// Boot is async: server-fed data (consumer `graph live`) is fetched, dev falls back to the
+// build-time snapshot. Wrapped in a function so the module has no top-level await; a boot
+// failure is surfaced in the container instead of leaving a blank screen.
+void boot(sceneRoot).catch((err: unknown) => {
+  console.error('graph-studio: boot failed', err); // allow-console: browser studio has no logger
+  sceneRoot.textContent = `graph-studio failed to start: ${err instanceof Error ? err.message : String(err)}`;
+});
+
+async function boot(scene: HTMLElement): Promise<void> {
+const { data, liveUrl } = await resolveStudioBoot();
 const overlays = buildOverlays(data.findings, data.model.edges);
 
 const panel = document.createElement('div');
@@ -28,9 +37,9 @@ let state = defaultViewState();
 const handle = createGraph(scene, data.model, overlays, data.usage);
 handle.setView(state);
 
-// Live layer: the orchestrator-side `void-harness graph live` server streams
-// activations; the studio connects to it (separate process) via VITE_LIVE_URL.
-const live = startLive(handle, data.model, import.meta.env.VITE_LIVE_URL ?? 'http://localhost:4317');
+// Live layer: the `void-harness graph live` server streams activations. Same-origin when
+// server-fed (consumer), else the configured/dev URL — resolved in resolveStudioBoot.
+const live = startLive(handle, data.model, liveUrl);
 const scrubber = document.createElement('div');
 scrubber.style.display = 'none';
 document.body.append(scrubber);
@@ -69,3 +78,4 @@ renderControls(controls, {
 
 // One-time boot intro (camera sweep + "SYSTEM ONLINE" overlay); skipped under reduced-motion.
 playIntro(handle.graph as unknown as IntroGraph);
+}

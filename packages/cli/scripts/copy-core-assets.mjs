@@ -24,7 +24,14 @@ try {
 
 await rm(TARGET, { recursive: true, force: true });
 await mkdir(dirname(TARGET), { recursive: true });
-// Mirror runtime assets only: test files (e.g. hook *.test.ts) are dev-time and
-// must not ship in the consumer tarball.
-await cp(SOURCE, TARGET, { recursive: true, filter: (src) => !src.endsWith('.test.ts') });
+// Mirror runtime assets only. Excluded:
+//  - test files (*.test.ts): dev-time, must not ship in the consumer tarball.
+//  - core/graph/ (the ~1.9MB void-graph.mjs bundle): consumers get it via the marketplace
+//    (which ships packages/core directly); duplicating it into the unpublished npm CLI's
+//    core-assets would double the committed blob for no gain.
+const GRAPH_DIR = join(SOURCE, 'graph');
+await cp(SOURCE, TARGET, {
+  recursive: true,
+  filter: (src) => !src.endsWith('.test.ts') && src !== GRAPH_DIR && !src.startsWith(`${GRAPH_DIR}/`),
+});
 console.log(`copy-core-assets: copied ${SOURCE} -> ${TARGET}`);

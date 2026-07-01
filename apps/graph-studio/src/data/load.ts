@@ -21,3 +21,36 @@ export function loadData(): StudioData {
     workflows: workflows as Record<string, WorkflowMeta>,
   };
 }
+
+/** Fetch the server-computed StudioData from a `graph live` server (same-origin). */
+export async function loadDataFromServer(origin: string): Promise<StudioData> {
+  const res = await fetch(`${origin}/studio-data.json`);
+  if (!res.ok) throw new Error(`studio-data fetch failed: ${res.status}`);
+  return (await res.json()) as StudioData;
+}
+
+export interface StudioBoot {
+  readonly data: StudioData;
+  /** Where the live SSE stream lives — same-origin when server-fed, else the configured URL. */
+  readonly liveUrl: string;
+}
+
+/**
+ * Pick the data source. When the studio is served by `void-harness graph live` (same-origin
+ * /studio-data.json responds), it is consumer server-fed and the live stream is same-origin.
+ * Otherwise (dev / static build) it falls back to the build-time snapshot.
+ */
+export async function resolveStudioBoot(): Promise<StudioBoot> {
+  const origin = typeof location === 'undefined' ? '' : location.origin;
+  if (origin.startsWith('http')) {
+    try {
+      return { data: await loadDataFromServer(origin), liveUrl: origin };
+    } catch (err) {
+      // Served from an http origin but the data fetch failed (server down, malformed payload).
+      // Surface it, then fall back to the build-time snapshot so the studio still renders.
+      console.warn('graph-studio: server-fed data unavailable, using build-time snapshot', err); // allow-console: browser studio has no logger
+    }
+  }
+  const configured = import.meta.env.VITE_LIVE_URL as string | undefined;
+  return { data: loadData(), liveUrl: configured ?? 'http://localhost:4317' };
+}
