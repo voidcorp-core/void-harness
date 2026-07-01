@@ -8,7 +8,9 @@ import {
   classifyMergeState,
   protectionGate,
 } from './auto-merge.js';
+import { assertSubscription } from './billing.js';
 import type { ProtectionStatus } from './branch-protection.js';
+import { parseFlags, resolveConfig } from './config.js';
 import { riskSignalsFromDiff } from './merge-risk.js';
 
 export type MergeMethod = 'merge' | 'squash' | 'rebase';
@@ -61,4 +63,36 @@ export function decideMerge(input: MergeDecisionInput): MergeDecision {
     return { arm: false, action: state.kind, method, reason };
   }
   return { arm: true, action: 'merge', method, reason: gate.reason };
+}
+
+/** Observation context on stdin; autoMerge/method come from the resolved flags, not the JSON. */
+export type MergeDecisionContext = Omit<MergeDecisionInput, 'autoMerge' | 'method'>;
+
+export type MergeDecisionResult =
+  | { readonly ok: true; readonly decision: MergeDecision }
+  | { readonly ok: false; readonly error: string };
+
+/**
+ * Command core: resolve `--auto-merge` / `--auto-merge-method` from the args (flags > env >
+ * defaults), run the subscription preflight when auto-merge is on, parse the observation context
+ * from stdin, and decide. Pure (args/stdin/env in, result out) — the command does only I/O + exit.
+ */
+export function resolveMergeDecision(
+  args: readonly string[],
+  stdinRaw: string,
+  env: Record<string, string | undefined>,
+): MergeDecisionResult {
+  const config = resolveConfig({ flags: parseFlags(args), env, file: {} });
+  if (config.autoMerge) {
+    const preflight = assertSubscription(env, config.allowApi);
+    if (!preflight.ok) return { ok: false, error: preflight.reason ?? 'subscription preflight failed' };
+  }
+  let context: MergeDecisionContext;
+  try {
+    context = JSON.parse(stdinRaw) as MergeDecisionContext;
+  } catch {
+    return { ok: false, error: 'stdin is not valid JSON' };
+  }
+  const decision = decideMerge({ ...context, autoMerge: config.autoMerge, method: config.autoMergeMethod });
+  return { ok: true, decision };
 }

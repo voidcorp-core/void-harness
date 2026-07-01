@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MergeObservation } from './auto-merge.js';
-import { type MergeDecisionInput, decideMerge } from './merge-decision.js';
+import { type MergeDecisionInput, decideMerge, resolveMergeDecision } from './merge-decision.js';
 
 const cleanObs: MergeObservation = {
   mergeable: 'clean',
@@ -70,5 +70,41 @@ describe('decideMerge', () => {
   it('asks for a rebase when the base moved', () => {
     const d = decideMerge({ ...base, observation: { ...cleanObs, baseUpToDate: false } });
     expect(d).toMatchObject({ arm: false, action: 'rebase' });
+  });
+});
+
+describe('resolveMergeDecision', () => {
+  const context = JSON.stringify({
+    clusterId: 'c1',
+    files: ['src/lib/a.ts'],
+    protection: { kind: 'protected' },
+    observation: cleanObs,
+  });
+
+  it('arms when --auto-merge is passed and the context is clean', () => {
+    const r = resolveMergeDecision(['merge-decision', '--auto-merge'], context, {});
+    expect(r).toEqual({ ok: true, decision: { arm: true, action: 'merge', method: 'merge', reason: 'low-risk cluster' } });
+  });
+
+  it('does not arm without the --auto-merge flag (flag is the source of truth)', () => {
+    const r = resolveMergeDecision(['merge-decision'], context, {});
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.decision).toMatchObject({ arm: false, reason: 'auto-merge not requested' });
+  });
+
+  it('honours --auto-merge-method', () => {
+    const r = resolveMergeDecision(['merge-decision', '--auto-merge', '--auto-merge-method', 'squash'], context, {});
+    expect(r.ok && r.decision.method).toBe('squash');
+  });
+
+  it('blocks on the subscription preflight when a cloud-routing var is set under --auto-merge', () => {
+    const r = resolveMergeDecision(['merge-decision', '--auto-merge'], context, { CLAUDE_CODE_USE_BEDROCK: '1' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/routes billing away/i);
+  });
+
+  it('reports invalid stdin JSON', () => {
+    const r = resolveMergeDecision(['merge-decision', '--auto-merge'], '{ not json', {});
+    expect(r).toEqual({ ok: false, error: 'stdin is not valid JSON' });
   });
 });
