@@ -1,7 +1,7 @@
 ---
 title: graph consumer delivery (sub-project B)
 date: 2026-07-01
-status: in-design
+status: approved
 author: Folpe + Claude
 related:
   - docs/specs/2026-07-01-graph-cost-profiler.md
