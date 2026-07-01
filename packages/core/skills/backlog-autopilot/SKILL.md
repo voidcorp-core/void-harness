@@ -12,9 +12,10 @@ review. Each ticket is worked end-to-end by a **worktree-isolated subagent**; th
 branches are reconciled into a single **integration PR** gated by the full suite.
 
 > **Consolidation in progress.** `backlog-autopilot` replaces the former `backlog-batch` and
-> the deleted `autonomous-backlog-loop`. The cluster auto-detection, multi-cluster long-run
-> autonomy and risk-gated auto-merge are being added per
-> `docs/specs/2026-06-21-backlog-autopilot.md`. The per-ticket quality cycle is now the
+> the deleted `autonomous-backlog-loop`. Risk-gated auto-merge of an attended cluster is wired
+> (`--auto-merge`, see below); cluster auto-detection and the multi-cluster long-run L0 loop are
+> still being added per `docs/specs/2026-06-21-backlog-autopilot.md` +
+> `docs/specs/2026-07-01-backlog-autopilot-auto-merge-mvp.md`. The per-ticket quality cycle is now the
 > dedicated `harness:ticket-runner` skill (single source of truth), which each worker runs.
 > The attended batch below is the stable core they build on.
 
@@ -123,16 +124,30 @@ Beyond a single burst, the launcher drains a pool over hours, **one cluster at a
 - **Base**: `develop` if it exists, else `main`. A cluster that depends on an earlier,
   unmerged cluster branches from **that cluster's branch** (a stacked PR); independent
   clusters branch from the base.
-- **Risk-gated auto-merge** (`--auto-merge`, opt-in): arms `gh pr merge --auto --merge`
-  **only** for a low-risk cluster (small diff, non-UI/security/migration, not a stack root).
-  The strategy is `--auto-merge-method=merge|squash|rebase` (env `AUTO_MERGE_METHOD`, default
-  `merge`): the integration PR bundles N tickets, each with its own `test:`/`fix:` commits and
-  "why" bodies, so a merge commit preserves that per-ticket history — squashing would collapse
-  the cluster into one commit, against `commit-discipline`'s "the git log is documentation".
-  Risky clusters and stack roots get a PR for a human to merge. Indeterminate branch
-  protection is **fatal** under `--auto-merge`. Stacked merges are **strictly sequential**:
-  wait for the parent to fully merge, rebase the single next child, **block on conflict**
-  (never a silent resolution) — there is no conflict-free cascade.
+- **Risk-gated auto-merge** (`--auto-merge`, opt-in). After the reconciliation subagent opens
+  the **green** integration PR, and only if `--auto-merge` was passed, the launcher decides
+  whether to arm the merge — it never decides by hand:
+
+  1. Gather observations via `gh` for the PR: `gh pr diff <pr> --name-only` (files),
+     `gh pr view <pr> --json mergeable,mergeStateStatus,statusCheckRollup` (→ `mergeable`,
+     `checks`, `baseUpToDate`), and the base branch protection (`gh api .../branches/<base>/protection`
+     → `protected` / `unprotected` / `unknown`).
+  2. Pipe `{clusterId, files, protection, observation}` as JSON to
+     `void-harness backlog-autopilot merge-decision --auto-merge [--auto-merge-method M]`. The CLI
+     composes the risk gate + protection gate + merge-state machine and returns `{arm, action,
+     reason}` — **it never merges**.
+  3. Act: `arm:true` → `gh pr merge <pr> --auto --<method>` (arms; GitHub merges once checks
+     finalize). `arm:false` → **leave the PR for a human** and report the `reason`.
+
+  `--auto-merge-method=merge|squash|rebase` (env `AUTO_MERGE_METHOD`, default `merge`): the
+  integration PR bundles N tickets, each with its own `test:`/`fix:` commits and "why" bodies, so
+  a merge commit preserves that per-ticket history — squashing collapses the cluster into one
+  commit, against `commit-discipline`'s "the git log is documentation". Risky clusters (UI /
+  security / migration / large diff) and stack roots return `arm:false` — a human merges them.
+  Indeterminate/unknown branch protection is **fatal** under `--auto-merge` (the decision blocks).
+  A merge conflict **blocks** (never a silent resolution). Multi-cluster stacked merges (strictly
+  sequential: parent fully merged → rebase the single next child → block on conflict) are the
+  deferred L0 loop; the MVP arms one attended cluster at a time (`isStackRoot=false`).
 - **Durable state**: `.void/autopilot/<runId>/` (atomic writes; the cluster statuses are
   the resume cursor). On resume the launcher **reconciles against the remote** (open PRs),
   not a replayed cursor. A **budget circuit breaker** (tokens / time) stops the run cleanly.
