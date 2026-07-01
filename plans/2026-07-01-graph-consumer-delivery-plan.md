@@ -1,7 +1,7 @@
 ---
 title: graph consumer delivery (sub-project B)
 date: 2026-07-01
-status: in-progress
+status: done
 spec: docs/specs/2026-07-01-graph-consumer-delivery.md
 author: Folpe + Claude
 high_risk: false
@@ -200,7 +200,7 @@ Le studio se sert et se charge en local depuis le serveur, sur n'importe quel cw
 
 ## Resume point
 
-**Next step**: Step 7 (studio inliné dans l'artefact complet) — after Checkpoint B signal
+**Next step**: DONE — all 9 steps shipped on `feat/graph-consumer-delivery` (not pushed). Optional: push + PR when the user decides, like sub-project A.
 
 **Completed**:
 - ✅ Step 1 — filterByEnabledPacks kernel pur (commit `fa554ad`, 7 tests)
@@ -211,7 +211,8 @@ Le studio se sert et se charge en local depuis le serveur, sur n'importe quel cw
 - ✅ Step 5 — serveur sert le studio GET / + port réel (commit `369fd1c`, 3 tests)
 - ✅ Step 6 — studio server-fed via /studio-data.json (commit `64cd4b2`, studio 59 + cli 269 tests) → **Checkpoint B atteint** (vérif visuelle end-to-end en attente du bundle Step 7)
 
-**Pending**:
-- ⏳ Step 7 — studio inliné artefact complet (souple) ← next
-- ⏳ Step 8 — skill harness:void-graph (souple)
-- ⏳ Step 9 — pipeline release + livraison (souple)
+- ✅ Step 7 — studio single-file inliné dans le bundle (commit `4ad91e2`, smoke réel : GET / sert le studio, model filtré 102→68) + port-increment + vrai port
+- ✅ Step 8 — command /void-graph (commit `33c67b3`, ${CLAUDE_PLUGIN_ROOT} inline-substitué, aligné void-doctor)
+- ✅ Step 9 — artefact commité + drift gate check-bundle + DECISIONS/ARCHITECTURE (commit `8a29f91`, tous gates CI verts en local)
+
+**Pending**: none — B complete.
