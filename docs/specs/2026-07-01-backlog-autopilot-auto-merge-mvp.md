@@ -1,7 +1,7 @@
 ---
 title: backlog-autopilot auto-merge MVP (attended batch)
 date: 2026-07-01
-status: in-design
+status: approved
 author: Folpe + Claude
 related:
   - docs/specs/2026-06-21-backlog-autopilot.md
