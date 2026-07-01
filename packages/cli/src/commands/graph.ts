@@ -14,12 +14,14 @@ import { fileURLToPath } from 'node:url';
 import {
   analyze,
   analyzeBehavior,
+  analyzeCost,
   assembleModel,
   blockingFindings,
   parseActivations,
   scanSourceTree,
   serializeModel,
 } from '@voidcorp/harness-graph';
+import type { CostRow } from '@voidcorp/harness-graph';
 import { parseUsageLog } from '../lib/audit.js';
 import { startLiveServer } from '../lib/graph-live-server.js';
 import { findCoreSource } from '../lib/paths.js';
@@ -48,6 +50,12 @@ function modelPath(_coreSource: string): string {
 }
 function relationsPath(_coreSource: string): string {
   return join(PKGS_ROOT, 'harness-graph', 'relations.graph.yaml');
+}
+
+/** One flagged cost row: `nodeId  inv  static  [flags]`, right-aligned numbers. */
+function renderCostRow(r: CostRow, nameW: number): string {
+  const flags = r.flags.map((f) => (f === 'dead' || f === 'dead-hook' ? c.red(f) : c.yellow(f))).join(' ');
+  return `${r.nodeId.padEnd(nameW)}  ${String(r.invocations).padStart(4)}  ${String(r.staticTokens).padStart(7)}  ${flags}`;
 }
 
 async function loadModel(coreSource: string) {
@@ -158,6 +166,45 @@ export async function graph(args: readonly string[]): Promise<void> {
     }
     blank();
     footer(c.dim('advisory (HITL): dead nodes may be context-specific; should-have-fired may need trigger tuning.'));
+    return;
+  }
+
+  if (sub === 'cost') {
+    const model = await loadModel(coreSource);
+    const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
+    const sinceDays = numFlag(args, '--since', 0);
+    const events = parseActivations(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '');
+    const report = analyzeCost(
+      model,
+      events,
+      sinceDays > 0 ? { sinceMs: Date.now() - sinceDays * 86_400_000 } : {},
+    );
+    banner('graph cost');
+    blank();
+    if (!report.sufficient) {
+      line(
+        `  ${c.yellow('insufficient data')} ${c.dim(glyph.dot)} ${report.stats.events} events, ${report.stats.sessions} sessions ${c.dim('(need >=20 events / >=3 sessions)')}`,
+      );
+      footer(c.dim('let the activation-meter hook accumulate more sessions, then retry.'));
+      return;
+    }
+    const flagged = report.rows.filter((r) => r.flags.length > 0);
+    line(
+      `  ${c.dim('components')} ${report.rows.length} ${c.dim(glyph.dot)} ${c.dim('events')} ${report.stats.events} ${c.dim(glyph.dot)} ${c.dim('sessions')} ${report.stats.sessions} ${c.dim(glyph.dot)} ${c.dim('mode')} ${report.mode}`,
+    );
+    blank();
+    if (flagged.length === 0) {
+      line(`  ${c.green('no flags')} ${c.dim('- every component earns its place in this window.')}`);
+    } else {
+      const nameW = Math.max(...flagged.map((r) => r.nodeId.length));
+      line(`  ${'component'.padEnd(nameW)}  ${'inv'.padStart(4)}  ${'static'.padStart(7)}  flags`);
+      for (const r of flagged) line(`  ${renderCostRow(r, nameW)}`);
+    }
+    blank();
+    line(
+      `  ${c.dim(`${report.rows.length - flagged.length} unflagged component(s) omitted`)} ${c.dim(glyph.dot)} ${c.dim('static cost = source tokens x invocations')}`,
+    );
+    footer(c.dim('advisory (HITL): flags are candidates to trim/tune, never auto-applied.'));
     return;
   }
 
