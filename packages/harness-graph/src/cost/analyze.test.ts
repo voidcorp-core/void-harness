@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { GraphModel, GraphNode, NodeTriggers } from '../model/types.js';
 import type { ActivationEvent } from '../behavior/types.js';
 import { analyzeCost } from './analyze.js';
-import type { CostRow } from './types.js';
+import type { CostRow, SessionCost, SessionTokens } from './types.js';
+
+const sessionCost = (sessionId: string, tokens: Partial<SessionTokens>, model = 'claude-opus-4-8'): SessionCost => ({
+  sessionId,
+  model,
+  tokens: { in: 0, out: 0, cacheRead: 0, cacheCreation: 0, ...tokens },
+  tsRange: { first: '2026-07-01T10:00:00Z', last: '2026-07-01T10:00:00Z' },
+});
 
 const node = (id: string, type: GraphNode['type'], staticTokens = 100, triggers?: NodeTriggers): GraphNode => ({
   id,
@@ -233,6 +240,72 @@ describe('analyzeCost — dead-hook', () => {
     const model: GraphModel = { version: 1, nodes: [node('hook:meter', 'hook')], edges: [] };
     const r = analyzeCost(model, [toolEv('Edit', 's1')], SMALL);
     expect(rowFor(r.rows, 'hook:meter')?.flags).not.toContain('dead-hook');
+  });
+});
+
+describe('analyzeCost — real layer', () => {
+  const model: GraphModel = {
+    version: 1,
+    nodes: [node('skill:a', 'skill'), node('skill:b', 'skill')],
+    edges: [],
+  };
+  const events = [
+    ev({ kind: 'skill', name: 'a', sessionId: 's1' }),
+    ev({ kind: 'skill', name: 'a', sessionId: 's2' }),
+    ev({ kind: 'skill', name: 'b', sessionId: 's3' }),
+  ];
+
+  it('stays static-only when no sessionCosts are given', () => {
+    const r = analyzeCost(model, events, SMALL);
+    expect(r.mode).toBe('static-only');
+    expect(rowFor(r.rows, 'skill:a')?.realSignal).toBeUndefined();
+  });
+
+  it('switches to full mode and medians tokens across the sessions where a component fired', () => {
+    const sessionCosts = [
+      sessionCost('s1', { in: 300_000 }),
+      sessionCost('s2', { in: 100_000 }),
+      sessionCost('s3', { in: 90_000 }),
+    ];
+    const r = analyzeCost(model, events, { ...SMALL, sessionCosts });
+    expect(r.mode).toBe('full');
+    // a fired in s1 + s2 -> median(300k, 100k) = 200k
+    expect(rowFor(r.rows, 'skill:a')?.realSignal?.tokens.in).toBe(200_000);
+    // b fired only in s3 -> 90k
+    expect(rowFor(r.rows, 'skill:b')?.realSignal?.tokens.in).toBe(90_000);
+  });
+
+  it('derives dollars from the median tokens', () => {
+    const sessionCosts = [sessionCost('s3', { in: 1_000_000 })];
+    const r = analyzeCost(model, events, { ...SMALL, sessionCosts });
+    // b fired in s3, 1M input on opus-4-8 -> $5
+    expect(rowFor(r.rows, 'skill:b')?.realSignal?.dollars).toBeCloseTo(5, 6);
+  });
+
+  it('computes cacheReadRatio from the median tokens', () => {
+    const sessionCosts = [sessionCost('s3', { in: 100, cacheRead: 300 })];
+    const r = analyzeCost(model, events, { ...SMALL, sessionCosts });
+    // cacheRead / (in + cacheRead + cacheCreation) = 300 / 400 = 0.75
+    expect(rowFor(r.rows, 'skill:b')?.realSignal).toBeDefined();
+    expect(rowFor(r.rows, 'skill:b')?.cacheReadRatio).toBeCloseTo(0.75, 6);
+  });
+
+  it('only counts sessions present in both activations and sessionCosts (intersection)', () => {
+    // a fired in s1 + s2, but only s1 has a cost record -> median over {s1} only
+    const sessionCosts = [sessionCost('s1', { in: 42_000 })];
+    const r = analyzeCost(model, events, { ...SMALL, sessionCosts });
+    expect(rowFor(r.rows, 'skill:a')?.realSignal?.tokens.in).toBe(42_000);
+  });
+
+  it('flags the top-decile component as expensive', () => {
+    const sessionCosts = [
+      sessionCost('s1', { in: 900_000 }),
+      sessionCost('s2', { in: 900_000 }),
+      sessionCost('s3', { in: 1_000 }),
+    ];
+    const r = analyzeCost(model, events, { ...SMALL, sessionCosts });
+    expect(rowFor(r.rows, 'skill:a')?.flags).toContain('expensive'); // 900k median
+    expect(rowFor(r.rows, 'skill:b')?.flags).not.toContain('expensive'); // 1k
   });
 });
 
