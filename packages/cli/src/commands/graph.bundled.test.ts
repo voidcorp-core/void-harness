@@ -106,4 +106,10 @@ describe('graph (bundled consumer mode)', () => {
     expect(out).toContain('graph cost');
     expect(out).toContain('mode static');
   });
+
+  it('rejects build/check in bundled mode (monorepo-only, no source tree)', async () => {
+    process.chdir(consumerDir({ 'harness-nextjs@voidcorp': true }));
+    await expect(graph(['build'], { bundledModelJson: BUNDLED })).rejects.toThrow(/monorepo-only/);
+    await expect(graph(['check'], { bundledModelJson: BUNDLED })).rejects.toThrow(/monorepo-only/);
+  });
 });

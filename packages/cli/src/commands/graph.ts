@@ -113,13 +113,18 @@ export async function graph(
   opts: { readonly bundledModelJson?: string } = {},
 ): Promise<void> {
   const sub = args[0] ?? 'build';
-  // Prefer the real source when running in the void-harness workspace itself;
-  // fall back to the bundled core-assets for installed (consumer) invocations.
-  const pkgsCoreDir = join(PKGS_ROOT, 'core');
-  const coreSource = existsSync(pkgsCoreDir) ? pkgsCoreDir : await findCoreSource();
   // Bundled model: injected by the bundle build (BUNDLED_MODEL_JSON) or by a test via opts.
-  // When present, the reporting subcommands read it instead of scanning the source tree.
+  // When present, reporting subcommands read it instead of scanning the source tree.
   const bundled = opts.bundledModelJson ?? BUNDLED_MODEL_JSON;
+  // build/check regenerate/compare the committed model.json from source — monorepo-only.
+  if (bundled !== undefined && (sub === 'build' || sub === 'check')) {
+    throw new Error(`graph ${sub} is a monorepo-only command; not available in the installed bundle.`);
+  }
+  // Prefer the real source in the workspace; fall back to the bundled core-assets. In bundled
+  // mode there is no source tree, so we never resolve it (findCoreSource would throw).
+  const pkgsCoreDir = join(PKGS_ROOT, 'core');
+  const coreSource =
+    bundled !== undefined ? '' : existsSync(pkgsCoreDir) ? pkgsCoreDir : await findCoreSource();
 
   if (sub === 'build') {
     const model = await loadModel(coreSource);

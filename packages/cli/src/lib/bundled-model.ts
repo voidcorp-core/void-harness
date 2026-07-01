@@ -2,12 +2,17 @@ import { filterByEnabledPacks, KERNEL_VERSION } from '@voidcorp/harness-graph';
 import type { GraphModel } from '@voidcorp/harness-graph';
 import { readEnabledPacks } from './enabled-packs.js';
 
+// Replaced by the bundle build via esbuild `define`. Undeclared at runtime in the monorepo
+// source, so `typeof` (which never throws on an undeclared identifier) yields 'undefined' there.
+declare const __VOID_BUNDLED_MODEL__: string;
+
 /**
- * Baked full harness model, injected at bundle build time (Step 4). In the monorepo source it
- * is `undefined`, so `graph` scans the real source tree instead. When the CLI is bundled for a
- * consumer, the build replaces this with the serialized model.json string.
+ * Baked full harness model. In the monorepo source it is `undefined`, so `graph` scans the real
+ * source tree instead. When the CLI is bundled for a consumer, `buildVoidGraphBundle` injects the
+ * serialized model.json here via the `__VOID_BUNDLED_MODEL__` define.
  */
-export const BUNDLED_MODEL_JSON: string | undefined = undefined;
+export const BUNDLED_MODEL_JSON: string | undefined =
+  typeof __VOID_BUNDLED_MODEL__ === 'string' ? __VOID_BUNDLED_MODEL__ : undefined;
 
 /**
  * Consumer path: parse the baked model and restrict it to the packs the consumer enabled.
