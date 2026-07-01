@@ -191,9 +191,9 @@ signal (are the expensive/low-yield candidates believable?). Stop here. Run
 
 ## Resume point
 
-**Next step**: Checkpoint A (user review) → then Step 5 (Pricing kernel)
+**Next step**: Checkpoint B (user review) — sub-project A COMPLETE
 
-**Completed** — PHASE 1 DONE:
+**Completed** — PHASE 1 + PHASE 2 DONE:
 - ✅ Step 1: Cost types + analyzeCost static core (commit `79b5781`). doctrine-critic
   pass applied. Note: `NodeType` already had `'hook'`.
 - ✅ Step 2: staticTokens at build (commits `3d1e3d7`, `0acd6d8`). `estimateTokens` (~chars/4).
@@ -205,11 +205,20 @@ signal (are the expensive/low-yield candidates believable?). Stop here. Run
   no silent cap. Verified end-to-end on synthetic ≥3-session data: dead / underused / low-yield
   / dead-hook all surface correctly. Full suite: 527 tests green.
 
-**Pending** (phase 2):
-- ⏳ Step 5: Pricing kernel
-- ⏳ Step 6: Transcript adapter
-- ⏳ Step 7: analyzeCost real layer
-- ⏳ Step 8: CLI graph cost full mode → Checkpoint B
+- ✅ Step 5: Pricing kernel (commit `7aa3937`). Baked model->$/MTok table (current rates,
+  cache-read 0.1x, cache-creation 1.25x), `.void/pricing.json` override, `deriveDollars`.
+- ✅ Step 6: Transcript adapter (commit `653c9a2`). `packages/cli/src/lib/transcript-cost.ts`,
+  pure `aggregateSessionCosts` + fs walk `readSessionCosts`. PRIVACY: usage counters only.
+  Real schema: `message.usage.{input,output,cache_read,cache_creation}_tokens`.
+- ✅ Step 7: analyzeCost real layer (commit `3fc17fd`). Session join, per-metric median,
+  cacheReadRatio, expensive (top decile), mode 'full'. Static-only path is a strict subset.
+- ✅ Step 8: CLI full mode (commit `e0101fd`). Real + $ + cache columns, pricing override,
+  skipped-line surfacing. Also dropped `skippedTranscriptLines` from kernel CostStats (shell
+  owns it). Verified end-to-end on real transcripts: mode full, real/$/cache/expensive all
+  populate correctly. Full suite: 547 tests green.
+
+**Sub-project A COMPLETE.** Next initiative work: B (consumer plugin delivery) and C (studio
+cost viz) — separate specs, not started.
 - ⏳ Step 4: CLI graph cost (static-only) → Checkpoint A
 - ⏳ Step 5: Pricing kernel
 - ⏳ Step 6: Transcript adapter
