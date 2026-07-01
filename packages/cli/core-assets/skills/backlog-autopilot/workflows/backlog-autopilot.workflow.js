@@ -17,12 +17,12 @@
 // Back-compat shape (a single batch-of-4 with no logical cluster): top-level
 // { parallel, sequential, batchId } is treated as one implicit cluster.
 //
-// Isolation (autoplan T2): every worker runs in its own git worktree — "worktree
-// always". Parallel tickets fan out concurrently; sequential tickets run in topo
-// order; reconciliation merges the green branches in topo order. (One shared
-// cluster worktree across sequential agents is not expressible in the Workflow
-// runtime; per-worker worktrees are the runtime form of "never without a worktree",
-// which is the safety property T2 asked for.)
+// Isolation (autoplan T2): every worker AND the reconcile agent run in their own git worktree —
+// "worktree always". Parallel tickets fan out concurrently; sequential tickets run in topo order;
+// reconciliation merges the green branches (which live in the shared object store) in topo order,
+// in its own worktree — never in the launcher's main working tree. (One shared cluster worktree
+// across sequential agents is not expressible in the Workflow runtime; per-worker worktrees are
+// the runtime form of "never without a worktree", which is the safety property T2 asked for.)
 
 export const meta = {
   name: 'backlog-autopilot',
@@ -225,6 +225,11 @@ async function runCluster(cluster) {
     label: `reconcile:${cluster.id}`,
     phase: 'Reconcile',
     schema: RECONCILE_SCHEMA,
+    // Worktree-isolated like the workers: reconcile checks out cluster/<id>, merges, runs the
+    // full suite (build/e2e) and opens the PR — all of which must NOT touch the launcher's main
+    // working tree. The green worker branches live in the shared object store, so a separate
+    // worktree merges them fine. "Never without a worktree" holds for reconcile too.
+    isolation: 'worktree',
   })
 
   return {
