@@ -119,7 +119,13 @@
       "lines": 31,
       "staticTokens": 273,
       "pack": null,
-      "source": "packages/core/hooks/auto-format.sh"
+      "source": "packages/core/hooks/auto-format.sh",
+      "triggers": {
+        "tools": [
+          "Edit",
+          "Write"
+        ]
+      }
     },
     {
       "id": "hook:axe-precommit",
@@ -139,7 +145,12 @@
       "lines": 90,
       "staticTokens": 1195,
       "pack": null,
-      "source": "packages/core/hooks/block-dangerous-bash.sh"
+      "source": "packages/core/hooks/block-dangerous-bash.sh",
+      "triggers": {
+        "tools": [
+          "Bash"
+        ]
+      }
     },
     {
       "id": "hook:block-protected-push",
@@ -159,7 +170,13 @@
       "lines": 48,
       "staticTokens": 490,
       "pack": null,
-      "source": "packages/core/hooks/boundary-direction-check.sh"
+      "source": "packages/core/hooks/boundary-direction-check.sh",
+      "triggers": {
+        "tools": [
+          "Edit",
+          "Write"
+        ]
+      }
     },
     {
       "id": "hook:large-cl-grep",
@@ -209,7 +226,13 @@
       "lines": 73,
       "staticTokens": 926,
       "pack": null,
-      "source": "packages/core/hooks/no-ai-design-slop.sh"
+      "source": "packages/core/hooks/no-ai-design-slop.sh",
+      "triggers": {
+        "tools": [
+          "Edit",
+          "Write"
+        ]
+      }
     },
     {
       "id": "hook:no-any-grep",
@@ -219,7 +242,13 @@
       "lines": 35,
       "staticTokens": 307,
       "pack": null,
-      "source": "packages/core/hooks/no-any-grep.sh"
+      "source": "packages/core/hooks/no-any-grep.sh",
+      "triggers": {
+        "tools": [
+          "Edit",
+          "Write"
+        ]
+      }
     },
     {
       "id": "hook:no-as-cast-grep",
@@ -229,7 +258,13 @@
       "lines": 33,
       "staticTokens": 338,
       "pack": null,
-      "source": "packages/core/hooks/no-as-cast-grep.sh"
+      "source": "packages/core/hooks/no-as-cast-grep.sh",
+      "triggers": {
+        "tools": [
+          "Edit",
+          "Write"
+        ]
+      }
     },
     {
       "id": "hook:no-console-log-grep",
@@ -239,7 +274,13 @@
       "lines": 33,
       "staticTokens": 327,
       "pack": null,
-      "source": "packages/core/hooks/no-console-log-grep.sh"
+      "source": "packages/core/hooks/no-console-log-grep.sh",
+      "triggers": {
+        "tools": [
+          "Edit",
+          "Write"
+        ]
+      }
     },
     {
       "id": "hook:no-null-grep",
@@ -249,7 +290,13 @@
       "lines": 57,
       "staticTokens": 543,
       "pack": null,
-      "source": "packages/core/hooks/no-null-grep.sh"
+      "source": "packages/core/hooks/no-null-grep.sh",
+      "triggers": {
+        "tools": [
+          "Edit",
+          "Write"
+        ]
+      }
     },
     {
       "id": "hook:no-only-no-skip",
@@ -259,7 +306,13 @@
       "lines": 30,
       "staticTokens": 282,
       "pack": null,
-      "source": "packages/core/hooks/no-only-no-skip.sh"
+      "source": "packages/core/hooks/no-only-no-skip.sh",
+      "triggers": {
+        "tools": [
+          "Edit",
+          "Write"
+        ]
+      }
     },
     {
       "id": "hook:pre-PR-review-evidence",
@@ -279,7 +332,13 @@
       "lines": 73,
       "staticTokens": 876,
       "pack": null,
-      "source": "packages/core/hooks/protect-sensitive-files.sh"
+      "source": "packages/core/hooks/protect-sensitive-files.sh",
+      "triggers": {
+        "tools": [
+          "Edit",
+          "Write"
+        ]
+      }
     },
     {
       "id": "hook:refactor-named-grep",
@@ -309,7 +368,13 @@
       "lines": 89,
       "staticTokens": 811,
       "pack": null,
-      "source": "packages/core/hooks/tdd-guard.sh"
+      "source": "packages/core/hooks/tdd-guard.sh",
+      "triggers": {
+        "tools": [
+          "Edit",
+          "Write"
+        ]
+      }
     },
     {
       "id": "hook:test-name-lint",
@@ -319,7 +384,13 @@
       "lines": 32,
       "staticTokens": 335,
       "pack": null,
-      "source": "packages/core/hooks/test-name-lint.sh"
+      "source": "packages/core/hooks/test-name-lint.sh",
+      "triggers": {
+        "tools": [
+          "Edit",
+          "Write"
+        ]
+      }
     },
     {
       "id": "hook:tidying-commit-prefix",

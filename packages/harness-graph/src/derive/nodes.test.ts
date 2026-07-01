@@ -38,6 +38,15 @@ describe('deriveNodes', () => {
     expect(wf?.staticTokens).toBe(0);
   });
 
+  it('carries pre-derived triggers on a hook (from the plugin manifest, not frontmatter)', () => {
+    const withHookTriggers = {
+      ...tree,
+      hooks: [{ name: 'tdd-guard', source: 's', text: '#!/bin/sh\n', triggers: { tools: ['Edit', 'Write'] } }],
+    };
+    const hook = deriveNodes(withHookTriggers).find((n) => n.id === 'hook:tdd-guard');
+    expect(hook?.triggers).toEqual({ tools: ['Edit', 'Write'] });
+  });
+
   it('carries declared triggers, and omits them when absent', () => {
     const withTriggers = {
       ...tree,
