@@ -191,14 +191,25 @@ signal (are the expensive/low-yield candidates believable?). Stop here. Run
 
 ## Resume point
 
-**Next step**: Step 1 (Cost types + analyzeCost static core)
+**Next step**: Checkpoint A (user review) → then Step 5 (Pricing kernel)
 
-**Completed**: none
+**Completed** — PHASE 1 DONE:
+- ✅ Step 1: Cost types + analyzeCost static core (commit `79b5781`). doctrine-critic
+  pass applied. Note: `NodeType` already had `'hook'`.
+- ✅ Step 2: staticTokens at build (commits `3d1e3d7`, `0acd6d8`). `estimateTokens` (~chars/4).
+- ✅ Step 3: Dead-hook (commits `8c0486c` parseHookMatchers, `66fce75` build ingest, `f95249c`
+  kernel flag). KEY REALITY: plugin.json matcher encodes TOOL ONLY (no path/glob) — hook
+  triggers are `tools`-only. Ingest lives in harness-graph `scanSourceTree` (not cli as the
+  plan said). 12 core hooks get triggers; precommit/wildcard hooks stay unassessable by design.
+- ✅ Step 4: CLI `graph cost` static-only render (commit `283e7e2`). Renders flagged rows only,
+  no silent cap. Verified end-to-end on synthetic ≥3-session data: dead / underused / low-yield
+  / dead-hook all surface correctly. Full suite: 527 tests green.
 
-**Pending**:
-- ⏳ Step 1: Cost types + analyzeCost static core
-- ⏳ Step 2: Build — compute staticTokens
-- ⏳ Step 3: Dead-hook detection
+**Pending** (phase 2):
+- ⏳ Step 5: Pricing kernel
+- ⏳ Step 6: Transcript adapter
+- ⏳ Step 7: analyzeCost real layer
+- ⏳ Step 8: CLI graph cost full mode → Checkpoint B
 - ⏳ Step 4: CLI graph cost (static-only) → Checkpoint A
 - ⏳ Step 5: Pricing kernel
 - ⏳ Step 6: Transcript adapter
