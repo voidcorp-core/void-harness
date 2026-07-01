@@ -8,6 +8,8 @@
 // whose parent is not the workspace packages root. Using import.meta.url is more
 // reliable for deriving sibling-package locations at runtime.
 
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -126,6 +128,44 @@ export async function graph(
   const pkgsCoreDir = join(PKGS_ROOT, 'core');
   const coreSource =
     bundled !== undefined ? '' : existsSync(pkgsCoreDir) ? pkgsCoreDir : await findCoreSource();
+
+  if (sub === 'model-hash') {
+    // Self-report the sha256 of the model this process would use as its source of truth:
+    // the baked model when bundled, the committed model.json in the monorepo. The consumer
+    // artifact and the repo agree iff these hashes match (see `check-bundle`).
+    const source =
+      bundled !== undefined
+        ? bundled
+        : existsSync(modelPath(coreSource))
+          ? readFileSync(modelPath(coreSource), 'utf8')
+          : serializeModel(await loadModel(coreSource));
+    process.stdout.write(`${createHash('sha256').update(source).digest('hex')}\n`);
+    return;
+  }
+
+  if (sub === 'check-bundle') {
+    // Drift gate for the shipped artifact: does packages/core/graph/void-graph.mjs embed the
+    // current model.json? We gate the embedded model (the part that drifts with harness content),
+    // not the whole vite/esbuild output (byte-determinism across environments is not guaranteed).
+    const artifact = join(PKGS_ROOT, 'core', 'graph', 'void-graph.mjs');
+    banner('graph check-bundle');
+    blank();
+    if (!existsSync(artifact)) {
+      line(`  ${c.red('artifact missing')} -- run \`pnpm -F @voidcorp/harness build:void-graph\``);
+      footer(c.red('graph check-bundle failed.'));
+      process.exit(1);
+    }
+    const committed = createHash('sha256').update(readFileSync(modelPath(coreSource), 'utf8')).digest('hex');
+    const embedded = execFileSync('node', [artifact, 'model-hash'], { encoding: 'utf8' }).trim();
+    if (committed !== embedded) {
+      line(`  ${c.red('stale bundle')} -- committed model ${c.dim(committed.slice(0, 12))} != artifact embeds ${c.dim(embedded.slice(0, 12))}`);
+      line(`  ${c.dim('rebuild')} pnpm -F @voidcorp/harness build:void-graph ${c.dim('and commit the artifact')}`);
+      footer(c.red('graph check-bundle failed.'));
+      process.exit(1);
+    }
+    footer(c.green('artifact embeds the committed model.'));
+    return;
+  }
 
   if (sub === 'build') {
     const model = await loadModel(coreSource);

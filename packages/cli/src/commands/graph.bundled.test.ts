@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -111,5 +112,12 @@ describe('graph (bundled consumer mode)', () => {
     process.chdir(consumerDir({ 'harness-nextjs@voidcorp': true }));
     await expect(graph(['build'], { bundledModelJson: BUNDLED })).rejects.toThrow(/monorepo-only/);
     await expect(graph(['check'], { bundledModelJson: BUNDLED })).rejects.toThrow(/monorepo-only/);
+  });
+
+  it('model-hash self-reports the sha256 of the embedded model (drift gate anchor)', async () => {
+    process.chdir(consumerDir({ 'harness-nextjs@voidcorp': true }));
+    await graph(['model-hash'], { bundledModelJson: BUNDLED });
+    const expected = createHash('sha256').update(BUNDLED).digest('hex');
+    expect(out.trim()).toBe(expected);
   });
 });
