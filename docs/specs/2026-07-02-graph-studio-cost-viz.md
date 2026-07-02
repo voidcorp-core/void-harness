@@ -1,7 +1,7 @@
 ---
 title: graph studio cost viz (sub-project C)
 date: 2026-07-02
-status: in-design
+status: approved
 author: Folpe + Claude
 related:
   - docs/specs/2026-07-01-graph-cost-profiler.md
