@@ -3,6 +3,7 @@ import model from '../generated/model.json' with { type: 'json' };
 import findings from '../generated/findings.json' with { type: 'json' };
 import usage from '../generated/usage-summary.json' with { type: 'json' };
 import workflows from '../generated/workflows.json' with { type: 'json' };
+import cost from '../generated/cost.json' with { type: 'json' };
 import type { UsageSummary, WorkflowMeta } from './types.js';
 
 export interface StudioData {
@@ -20,6 +21,7 @@ export function loadData(): StudioData {
     findings: findings as readonly Finding[],
     usage: usage as UsageSummary,
     workflows: workflows as Record<string, WorkflowMeta>,
+    cost: cost as CostReport,
   };
 }
 
