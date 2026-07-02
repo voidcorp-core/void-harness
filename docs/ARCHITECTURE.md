@@ -25,8 +25,7 @@ void-harness/
 ├── plans/                         # specs + ADRs of the harness itself
 │   └── skill-audits/              # one audit note per vendored skill
 ├── test/                          # automated skill tests (citypaul-style)
-├── docs/                          # PHILOSOPHY, ARCHITECTURE, CONTRIBUTING, DECISIONS
-└── .changeset/                    # semantic versioning
+└── docs/                          # PHILOSOPHY, ARCHITECTURE, DECISIONS, RELEASING
 ```
 
 ## Stack baseline

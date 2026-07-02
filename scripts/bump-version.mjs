@@ -36,6 +36,9 @@ const PLUGIN_MANIFESTS = [
 
 const NPM_PACKAGES = [
   resolve(ROOT, 'packages/cli/package.json'),
+  // harness-graph is a versioned, publishable package (the CLI depends on it via workspace:*);
+  // release-please + version:check track it, so the manual fallback bump must too.
+  resolve(ROOT, 'packages/harness-graph/package.json'),
   resolve(ROOT, 'packages/packs/pack-monorepo/package.json'),
   resolve(ROOT, 'packages/packs/pack-nextjs/package.json'),
   // pack-react / pack-server / pack-pwa / pack-mobile are skill-only packs
