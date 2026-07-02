@@ -313,13 +313,23 @@ export async function graph(
     const model = await resolveModel(coreSource, bundled);
     const modelJson = serializeModel(model);
     const ctx = ctxFor();
-    // Server-fed studio data: computed once here (kernel analyze + usage), served at
+    // Server-fed studio data: computed once here (kernel analyze + cost), served at
     // /studio-data.json. workflows stay {} on the consumer (phase metadata is build-time only).
+    // Cost is REAL here (transcripts via readSessionCosts) — the consumer's own $/tokens; 1/1
+    // volume floor keeps the cost layer populated (viz is advisory, not the CLI's gated report).
+    const events = parseActivations(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '');
+    const cost = analyzeCost(model, events, {
+      sessionCosts: readSessionCosts(process.cwd()).costs,
+      pricing: loadPricing(args),
+      minSessions: 1,
+      minEvents: 1,
+    });
     const studioDataJson = JSON.stringify({
       model,
       findings: analyze(model, ctx),
       usage: { counts: {}, usedSkillNames: [...ctx.usedSkillNames] },
       workflows: {},
+      cost,
     });
     const studioHtml = BUNDLED_STUDIO_HTML;
     banner('graph live');

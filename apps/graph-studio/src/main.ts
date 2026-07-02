@@ -1,3 +1,4 @@
+import { indexCost } from './data/cost.js';
 import { resolveStudioBoot } from './data/load.js';
 import { createGraph } from './render/graph.js';
 import { startLive } from './render/live.js';
@@ -26,6 +27,7 @@ void boot(sceneRoot).catch((err: unknown) => {
 async function boot(scene: HTMLElement): Promise<void> {
 const { data, liveUrl } = await resolveStudioBoot();
 const overlays = buildOverlays(data.findings, data.model.edges);
+const costIndex = indexCost(data.cost);
 
 const panel = document.createElement('div');
 panel.className = 'panel';
@@ -34,7 +36,7 @@ controls.className = 'controls';
 document.body.append(panel, controls);
 
 let state = defaultViewState();
-const handle = createGraph(scene, data.model, overlays, data.usage);
+const handle = createGraph(scene, data.model, overlays, data.usage, costIndex);
 handle.setView(state);
 
 // Live layer: the `void-harness graph live` server streams activations. Same-origin when
@@ -58,7 +60,7 @@ handle.onNodeClick((node) => {
     const meta = data.workflows[node.id] ?? { phases: [] };
     renderWorkflowView(panel, workflowView(data.model, node, meta));
   } else {
-    renderPanel(panel, data.model, overlays, node);
+    renderPanel(panel, data.model, overlays, node, costIndex);
   }
 });
 

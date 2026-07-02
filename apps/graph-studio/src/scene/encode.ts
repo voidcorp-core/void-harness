@@ -1,4 +1,4 @@
-import type { NodeType } from '@voidcorp/harness-graph';
+import type { CostFlag, NodeType } from '@voidcorp/harness-graph';
 
 // Neon-holographic hues (bloom-lit in Task 12). Aligned with the HUD palette tokens.
 export const TYPE_COLORS: Record<NodeType, string> = {
@@ -17,6 +17,23 @@ export function sizeForLines(lines: number): number {
 
 export function colorForType(type: NodeType): string {
   return TYPE_COLORS[type];
+}
+
+/** Cost-layer color for the node's dominant flag (trim/tune reading). Neutral when unflagged. */
+export const COST_NEUTRAL = '#2a2a38';
+const COST_COLORS: Record<CostFlag, string> = {
+  dead: '#ff3b3b', // remove — never fired
+  'dead-hook': '#ff3b3b',
+  expensive: '#f472b6', // vivid magenta — top-decile cost
+  underused: '#fbbf24', // amber — barely fired
+  'low-yield': '#6b7280', // dim — heavy for its use
+};
+// Highest concern first: a dead component matters more than merely low-yield.
+const COST_PRIORITY: readonly CostFlag[] = ['dead', 'dead-hook', 'expensive', 'underused', 'low-yield'];
+
+export function costStyleForFlags(flags: readonly CostFlag[]): string {
+  for (const flag of COST_PRIORITY) if (flags.includes(flag)) return COST_COLORS[flag];
+  return COST_NEUTRAL;
 }
 
 /** Halo intensity 0..1 from invocation count: log-shaped, 0 means never fired. */

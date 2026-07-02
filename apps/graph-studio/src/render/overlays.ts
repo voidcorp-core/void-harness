@@ -72,3 +72,17 @@ export function applyAnalysisStyling(
     },
   });
 }
+
+/**
+ * Apply the Cost layer styling by swapping to the cost node builder. Mirrors applyAnalysisStyling
+ * but has NO pulse — cost is a static, flag-colored read. Killing the shared pulse tween also
+ * clears any analysis pulse, since cost takes precedence over analysis styling. Deactivation is not
+ * this function's job: the caller routes back through applyAnalysisStyling (cost OFF → whatever
+ * analysis state applies), so there is no dead "off" branch here.
+ */
+export function applyCostStyling(graph: AnalysisGraph, costBuild: (raw: object) => Object3D): void {
+  activePulseTween?.kill();
+  activePulseTween = undefined;
+  graph.nodeThreeObject(costBuild);
+  graph.refresh();
+}

@@ -1,9 +1,9 @@
-import type { GraphModel } from '@voidcorp/harness-graph';
-import type { Finding } from '@voidcorp/harness-graph';
+import type { CostReport, Finding, GraphModel } from '@voidcorp/harness-graph';
 import model from '../generated/model.json' with { type: 'json' };
 import findings from '../generated/findings.json' with { type: 'json' };
 import usage from '../generated/usage-summary.json' with { type: 'json' };
 import workflows from '../generated/workflows.json' with { type: 'json' };
+import cost from '../generated/cost.json' with { type: 'json' };
 import type { UsageSummary, WorkflowMeta } from './types.js';
 
 export interface StudioData {
@@ -11,6 +11,8 @@ export interface StudioData {
   readonly findings: readonly Finding[];
   readonly usage: UsageSummary;
   readonly workflows: Record<string, WorkflowMeta>;
+  /** Per-component cost (from analyzeCost). Absent until a producer computes it. */
+  readonly cost?: CostReport;
 }
 
 export function loadData(): StudioData {
@@ -19,6 +21,7 @@ export function loadData(): StudioData {
     findings: findings as readonly Finding[],
     usage: usage as UsageSummary,
     workflows: workflows as Record<string, WorkflowMeta>,
+    cost: cost as CostReport,
   };
 }
 

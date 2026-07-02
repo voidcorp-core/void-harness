@@ -1,4 +1,5 @@
-import type { GraphModel, GraphNode } from '@voidcorp/harness-graph';
+import type { CostRow, GraphModel, GraphNode } from '@voidcorp/harness-graph';
+import { formatCostLines } from '../data/cost.js';
 import type { Overlays } from '../scene/overlays.js';
 
 const GITHUB_BASE = 'https://github.com/voidcorp-core/void-harness/blob/main/';
@@ -9,8 +10,14 @@ function edgesFor(model: GraphModel, id: string): string[] {
     .map((e) => `${e.from} -[${e.kind}]-> ${e.to}`);
 }
 
-/** Render the side panel for a clicked node (description, lines, edges, analysis flags, source link). */
-export function renderPanel(host: HTMLElement, model: GraphModel, overlays: Overlays, node: GraphNode): void {
+/** Render the side panel for a clicked node (description, lines, cost, edges, analysis flags, source link). */
+export function renderPanel(
+  host: HTMLElement,
+  model: GraphModel,
+  overlays: Overlays,
+  node: GraphNode,
+  costIndex: Map<string, CostRow>,
+): void {
   const flags: string[] = [];
   if (overlays.conflictNodes.has(node.id)) flags.push('in a conflict / routing cycle');
   if (overlays.orphanNodes.has(node.id)) flags.push('orphan (no relations, never fired)');
@@ -33,6 +40,21 @@ export function renderPanel(host: HTMLElement, model: GraphModel, overlays: Over
     f.className = 'flag';
     f.textContent = `Flags: ${flags.join('; ')}`;
     host.append(f);
+  }
+
+  // Cost section — only when this node has a cost row (pack / synthetic nodes have none).
+  const costRow = costIndex.get(node.id);
+  if (costRow !== undefined) {
+    const title = document.createElement('strong');
+    title.textContent = 'Cost';
+    const ul = document.createElement('ul');
+    ul.className = 'cost';
+    for (const line of formatCostLines(costRow)) {
+      const li = document.createElement('li');
+      li.textContent = line;
+      ul.append(li);
+    }
+    host.append(title, ul);
   }
 
   const edgesTitle = document.createElement('strong');

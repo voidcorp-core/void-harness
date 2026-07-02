@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { analyze } from '@voidcorp/harness-graph';
+import { analyze, analyzeCost, parseActivations } from '@voidcorp/harness-graph';
 import type { GraphModel } from '@voidcorp/harness-graph';
 import { extractMeta } from '../src/data/extract-meta.js';
 import { summarizeUsage } from '../src/data/summarize.js';
@@ -23,6 +23,11 @@ const model = JSON.parse(modelText) as GraphModel;
 const usage = summarizeUsage(readIfExists(resolve(repoRoot, '.void/usage.log')));
 const findings = analyze(model, { usedSkillNames: new Set(usage.usedSkillNames) });
 
+// Static-only cost snapshot (no transcripts → no cli dependency). The 1/1 volume floor keeps the
+// viz populated on modest dev data; real cost + gating come server-fed via `graph live`.
+const activations = parseActivations(readIfExists(resolve(repoRoot, '.void/activations.jsonl')));
+const cost = analyzeCost(model, activations, { minSessions: 1, minEvents: 1 });
+
 const workflows: Record<string, WorkflowMeta> = {};
 for (const node of model.nodes) {
   if (node.type !== 'workflow-def') continue;
@@ -37,6 +42,7 @@ write('model.json', model);
 write('usage-summary.json', usage);
 write('findings.json', findings);
 write('workflows.json', workflows);
+write('cost.json', cost);
 process.stdout.write(
-  `prepare-data: ${model.nodes.length} nodes, ${findings.length} findings, ${Object.keys(workflows).length} workflow metas\n`,
+  `prepare-data: ${model.nodes.length} nodes, ${findings.length} findings, ${cost.rows.length} cost rows, ${Object.keys(workflows).length} workflow metas\n`,
 );
