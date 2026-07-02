@@ -23,7 +23,25 @@ export interface LiveServerOptions {
   readonly onListening?: (port: number) => void;
 }
 
-const CORS = { 'Access-Control-Allow-Origin': '*' } as const;
+/** Bind loopback only — the studio is a local-first tool; never expose it on the LAN. */
+const LOOPBACK = '127.0.0.1';
+
+const LOCALHOST_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+
+/**
+ * CORS headers for one request. The server binds loopback, but a browser page can still reach
+ * 127.0.0.1, and a wildcard `Access-Control-Allow-Origin: *` would let ANY website read the graph /
+ * cost / activation data while `graph live` runs. So we reflect the Origin ONLY for localhost
+ * origins (the dev studio runs cross-port), and send no CORS header otherwise — the browser's
+ * same-origin policy then blocks a foreign page from reading the response. No Origin (same-origin or
+ * a non-browser client like curl) needs no header.
+ */
+export function corsFor(origin: string | undefined): Record<string, string> {
+  if (origin !== undefined && LOCALHOST_ORIGIN.test(origin)) {
+    return { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' };
+  }
+  return {};
+}
 
 /** Read bytes appended to `path` since `offset`; returns the new chunk + new size. */
 function readFrom(path: string, offset: number): { chunk: string; size: number } {
@@ -39,9 +57,9 @@ function readFrom(path: string, offset: number): { chunk: string; size: number }
   }
 }
 
-function streamEvents(res: ServerResponse, logPath: string, pollMs: number): void {
+function streamEvents(res: ServerResponse, logPath: string, pollMs: number, cors: Record<string, string>): void {
   res.writeHead(200, {
-    ...CORS,
+    ...cors,
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     Connection: 'keep-alive',
@@ -87,54 +105,55 @@ function readHistory(logPath: string, max: number): ActivationEvent[] {
 
 function handle(req: IncomingMessage, res: ServerResponse, opts: LiveServerOptions): void {
   const url = req.url ?? '/';
+  const cors = corsFor(req.headers.origin);
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, CORS);
+    res.writeHead(204, cors);
     res.end();
     return;
   }
   if (url === '/' || url === '/index.html') {
     if (opts.studioHtml === undefined) {
-      res.writeHead(404, { ...CORS, 'Content-Type': 'text/plain' });
+      res.writeHead(404, { ...cors, 'Content-Type': 'text/plain' });
       res.end('studio not bundled (data-only server); use /model.json, /history, /events');
       return;
     }
-    res.writeHead(200, { ...CORS, 'Content-Type': 'text/html; charset=utf-8' });
+    res.writeHead(200, { ...cors, 'Content-Type': 'text/html; charset=utf-8' });
     res.end(opts.studioHtml);
     return;
   }
   if (url === '/model.json') {
-    res.writeHead(200, { ...CORS, 'Content-Type': 'application/json' });
+    res.writeHead(200, { ...cors, 'Content-Type': 'application/json' });
     res.end(opts.modelJson);
     return;
   }
   if (url === '/studio-data.json') {
     if (opts.studioDataJson === undefined) {
-      res.writeHead(404, { ...CORS, 'Content-Type': 'text/plain' });
+      res.writeHead(404, { ...cors, 'Content-Type': 'text/plain' });
       res.end('studio data not computed (data-only server)');
       return;
     }
-    res.writeHead(200, { ...CORS, 'Content-Type': 'application/json' });
+    res.writeHead(200, { ...cors, 'Content-Type': 'application/json' });
     res.end(opts.studioDataJson);
     return;
   }
   if (url.startsWith('/history')) {
     const history = readHistory(opts.logPath, opts.historyMax ?? 5000);
-    res.writeHead(200, { ...CORS, 'Content-Type': 'application/json' });
+    res.writeHead(200, { ...cors, 'Content-Type': 'application/json' });
     res.end(JSON.stringify(history));
     return;
   }
   if (url.startsWith('/events')) {
-    streamEvents(res, opts.logPath, opts.pollMs ?? 500);
+    streamEvents(res, opts.logPath, opts.pollMs ?? 500, cors);
     return;
   }
-  res.writeHead(404, { ...CORS, 'Content-Type': 'text/plain' });
+  res.writeHead(404, { ...cors, 'Content-Type': 'text/plain' });
   res.end('not found');
 }
 
-/** Start the live SSE server. Returns the http.Server (call .close() to stop). */
 /** Max consecutive ports to try when the requested one is busy. */
 const PORT_RETRIES = 20;
 
+/** Start the live SSE server on loopback. Returns the http.Server (call .close() to stop). */
 export function startLiveServer(opts: LiveServerOptions): Server {
   const server = createServer((req, res) => handle(req, res, opts));
   let port = opts.port;
@@ -148,11 +167,11 @@ export function startLiveServer(opts: LiveServerOptions): Server {
     // it never collides and is never incremented.
     if (err.code === 'EADDRINUSE' && opts.port !== 0 && port - opts.port < PORT_RETRIES) {
       port += 1;
-      server.listen(port);
+      server.listen(port, LOOPBACK);
       return;
     }
     throw err;
   });
-  server.listen(port);
+  server.listen(port, LOOPBACK);
   return server;
 }

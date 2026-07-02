@@ -1,16 +1,17 @@
 # void-harness
 
-> Production-grade Claude Code harness for **VoidCorp**.
+> Production-grade agent harness (Claude Code + Codex) for **VoidCorp**.
 
-A pluggable Claude Code configuration that brings every new project to the top 5% bar — **automatically**.
+A pluggable agent configuration that brings every new project to the top 5% bar — **automatically**.
 
-Core craftsman skills (TDD strict, TigerStyle, hexagonal, DDD), enforced by hooks. Pluggable stack packs (Next.js PWA, monorepo, mobile). Distributed via npm.
+Core craftsman skills (TDD strict, TigerStyle, hexagonal, DDD), enforced by hooks. Pluggable stack packs (Next.js PWA, monorepo, mobile). Distributed as a marketplace plugin (`voidcorp-core/void-plugins`); npm publish is deliberately not wired.
 
 The opinionated foundation every VoidCorp project inherits.
 
 ## Status
 
-**Phase**: design — see `plans/2026-05-29-void-harness-design.md` for the in-flight spec.
+**Phase**: active — shipping via marketplace (current version in the manifests). See `plans/` for
+design specs and `docs/DECISIONS.md` for the decision log.
 
 This repo is private during incubation. Public release planned once MVP stabilizes.
 
@@ -89,7 +90,7 @@ whose catalog lives in [`voidcorp-core/void-plugins`](https://github.com/voidcor
 
 ## Anti-bloat discipline
 
-Seven hard rules enforced on every PR (see `docs/CONTRIBUTING.md`):
+Seven hard rules enforced on every PR (see the "Anti-bloat discipline" section of `CLAUDE.md`):
 
 1. Each skill ≤ 400 lines
 2. One skill = one subject (split if two)

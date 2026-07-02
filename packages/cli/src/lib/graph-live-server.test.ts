@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Server } from 'node:http';
 import { afterEach, describe, expect, it } from 'vitest';
-import { startLiveServer, type LiveServerOptions } from './graph-live-server.js';
+import { corsFor, startLiveServer, type LiveServerOptions } from './graph-live-server.js';
 
 const MODEL = JSON.stringify({ version: 1, nodes: [], edges: [] });
 
@@ -43,7 +43,8 @@ describe('graph live server', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('application/json');
     expect(await res.text()).toBe(MODEL);
-    expect(res.headers.get('access-control-allow-origin')).toBe('*');
+    // A same-origin / non-browser request (no Origin) gets no CORS header — not a wildcard.
+    expect(res.headers.get('access-control-allow-origin')).toBeNull();
   });
 
   it('returns 404 on GET / when no studio is bundled (data-only server)', async () => {
@@ -92,5 +93,21 @@ describe('graph live server', () => {
     } finally {
       await new Promise<void>((r) => busy.close(() => r()));
     }
+  });
+});
+
+describe('corsFor', () => {
+  it('reflects a localhost origin so the dev studio (cross-port) can read the data', () => {
+    expect(corsFor('http://localhost:5173')).toEqual({ 'Access-Control-Allow-Origin': 'http://localhost:5173', Vary: 'Origin' });
+    expect(corsFor('http://127.0.0.1:4317')['Access-Control-Allow-Origin']).toBe('http://127.0.0.1:4317');
+  });
+
+  it('sends NO cors header for a foreign origin (a website cannot read the local data)', () => {
+    expect(corsFor('https://evil.example.com')).toEqual({});
+    expect(corsFor('https://localhost.evil.com')).toEqual({});
+  });
+
+  it('sends no cors header when there is no Origin (same-origin / curl)', () => {
+    expect(corsFor(undefined)).toEqual({});
   });
 });
