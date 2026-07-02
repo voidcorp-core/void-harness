@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.14.0](https://github.com/voidcorp-core/void-harness/compare/v0.13.1...v0.14.0) (2026-07-02)
+
+
+### Features
+
+* backlog-autopilot --auto-merge MVP (attended batch) ([#51](https://github.com/voidcorp-core/void-harness/issues/51)) ([d5d3e44](https://github.com/voidcorp-core/void-harness/commit/d5d3e44086c287b03daeb9c86564d74c717006d0))
+* **core:** ticket-runner UX/UI pass leads with impeccable for interface craft ([#52](https://github.com/voidcorp-core/void-harness/issues/52)) ([34c1e8d](https://github.com/voidcorp-core/void-harness/commit/34c1e8d689b0d4109756db70a7fa7b42e7472ed2))
+* graph consumer delivery — /void-graph (sub-project B) ([#50](https://github.com/voidcorp-core/void-harness/issues/50)) ([889c65b](https://github.com/voidcorp-core/void-harness/commit/889c65b1cd7235491a519909a5fa716dc65b4770))
+* graph studio cost viz — cost layer + panel (sub-project C) ([#54](https://github.com/voidcorp-core/void-harness/issues/54)) ([cec38d3](https://github.com/voidcorp-core/void-harness/commit/cec38d3ea076b5a0dab97b64e7f9d813e7944b8e))
+* **harness-graph:** 'enforces' edge kind + wire agents/hooks into the graph ([#57](https://github.com/voidcorp-core/void-harness/issues/57)) ([af42d1b](https://github.com/voidcorp-core/void-harness/commit/af42d1b1a1cf97c970287a4bfe755d369ca70eb2))
+* **harness-graph:** graph cost profiler (sub-project A) ([#48](https://github.com/voidcorp-core/void-harness/issues/48)) ([2a21536](https://github.com/voidcorp-core/void-harness/commit/2a21536493932112ca3731eb5108f3126b0c6477))
+
+
+### Bug Fixes
+
+* **core:** isolate the backlog-autopilot reconcile agent in its own worktree ([#53](https://github.com/voidcorp-core/void-harness/issues/53)) ([01d11e2](https://github.com/voidcorp-core/void-harness/commit/01d11e247486f0d1d9ced3f0b387e0646b423b04))
+* harden graph live (loopback + scoped CORS) + release gates + stale docs ([#55](https://github.com/voidcorp-core/void-harness/issues/55)) ([91a6cbb](https://github.com/voidcorp-core/void-harness/commit/91a6cbbfa6dd4acf7dc87d29b5fe27638f71680b))
+
 ## [0.13.1](https://github.com/voidcorp-core/void-harness/compare/v0.13.0...v0.13.1) (2026-06-29)
 
 
