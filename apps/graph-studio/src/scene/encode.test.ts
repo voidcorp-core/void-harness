@@ -39,9 +39,11 @@ describe('costStyleForFlags', () => {
     expect(costStyleForFlags(['low-yield'])).toBe('#6b7280');
   });
 
-  it('picks the highest-priority flag when several are present', () => {
+  it('picks the highest-priority flag when several are present (incl. adjacent pairs)', () => {
     expect(costStyleForFlags(['low-yield', 'expensive'])).toBe('#f472b6');
     expect(costStyleForFlags(['expensive', 'dead'])).toBe('#ff3b3b');
+    expect(costStyleForFlags(['underused', 'expensive'])).toBe('#f472b6'); // expensive > underused
+    expect(costStyleForFlags(['low-yield', 'underused'])).toBe('#fbbf24'); // underused > low-yield
   });
 });
 

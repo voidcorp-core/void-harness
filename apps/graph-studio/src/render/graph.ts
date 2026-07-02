@@ -293,7 +293,7 @@ export function createGraph(
     });
     // Cost and analysis both re-style nodes; cost takes precedence when both are on.
     if (state.layers.cost) {
-      applyCostStyling(graph as unknown as AnalysisGraph, true, normalBuild, costBuild);
+      applyCostStyling(graph as unknown as AnalysisGraph, costBuild);
     } else {
       applyAnalysisStyling(graph as unknown as AnalysisGraph, state.layers.analysis, normalBuild, dimBuild);
     }

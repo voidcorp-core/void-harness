@@ -108,12 +108,13 @@ panneau. Stop. `harness:verification-before-completion`. Attendre le signal avan
 
 ## Resume point
 
-**Next step**: Step 1 (`StudioData.cost` + indexCost)
+**Next step**: DONE — all 4 steps shipped on `feat/graph-studio-cost-viz`.
 
-**Completed**: none
+**Completed**:
+- ✅ Step 1 — StudioData.cost + indexCost (commit `ecfa6ae`, 3 tests)
+- ✅ Step 2 — producteurs cost : build static + live real (commit `df2ea02`, smoke: cost servi)
+- ✅ Step 3 — lignes coût panneau + formatCostLines (commit `2b3ddbf`, +2 tests) → Checkpoint A
+- ✅ Step 4 — couche cost flag→couleur + costStyleForFlags (commit `33638c2`, +3 tests)
+- ✅ artefact rebuild + plan-done (commit `b411f7e`)
 
-**Pending**:
-- ⏳ Step 1 — StudioData.cost + indexCost (strict/souple)
-- ⏳ Step 2 — producteurs cost (build static + live full) (souple)
-- ⏳ Step 3 — lignes coût panneau + câblage (souple) → Checkpoint A
-- ⏳ Step 4 — couche cost flag→couleur (strict/exploratoire)
+**Pending**: none — C complete. Live cost ticking = documented follow-up.
