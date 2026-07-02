@@ -1,7 +1,7 @@
 ---
 title: graph studio cost viz (sub-project C)
 date: 2026-07-02
-status: in-progress
+status: done
 spec: docs/specs/2026-07-02-graph-studio-cost-viz.md
 author: Folpe + Claude
 high_risk: false
