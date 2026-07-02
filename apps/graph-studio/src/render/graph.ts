@@ -1,7 +1,7 @@
 import ForceGraph3D from '3d-force-graph';
 import { Color, Group, Mesh, MeshBasicMaterial, type Object3D, SphereGeometry, Sprite, SpriteMaterial } from 'three';
 import SpriteText from 'three-spritetext';
-import type { GraphModel, GraphNode } from '@voidcorp/harness-graph';
+import type { CostRow, GraphModel, GraphNode } from '@voidcorp/harness-graph';
 import type { UsageSummary } from '../data/types.js';
 import {
   type Articulation,
@@ -12,10 +12,10 @@ import {
   layout3D,
   ORCHESTRATOR_ID,
 } from '../scene/articulation.js';
-import { colorForType, haloForCount, sizeForLines } from '../scene/encode.js';
+import { colorForType, costStyleForFlags, haloForCount, sizeForLines } from '../scene/encode.js';
 import { familyOf } from '../scene/families.js';
 import type { ViewState } from '../scene/select.js';
-import { type AnalysisGraph, applyAnalysisStyling } from './overlays.js';
+import { type AnalysisGraph, applyAnalysisStyling, applyCostStyling } from './overlays.js';
 import { addHologramFx, type FxGraph, glowTexture } from './postfx.js';
 import type { Overlays } from '../scene/overlays.js';
 
@@ -69,6 +69,7 @@ export function createGraph(
   model: GraphModel,
   overlays: Overlays,
   usage: UsageSummary,
+  costIndex: Map<string, CostRow>,
 ): GraphHandle {
   const articulation: Articulation = buildArticulation(model);
   const componentById = new Map(model.nodes.map((n) => [n.id, n]));
@@ -113,10 +114,24 @@ export function createGraph(
     collect: ((m: MeshBasicMaterial) => void) | undefined,
     label: string | undefined,
     hero: boolean,
+    costMode = false,
   ): Group => {
     const base = Math.max(2.5, sizeForLines(n.lines) * 0.7);
     const r = hero ? base * 1.6 : base;
     const g = new Group();
+    if (costMode) {
+      // Cost layer: flat sphere colored by the node's dominant cost flag; neutral when unflagged
+      // or when the node has no cost row (pack / synthetic). Size unchanged.
+      const hex = costStyleForFlags(costIndex.get(n.id)?.flags ?? []);
+      g.add(
+        new Mesh(
+          new SphereGeometry(r, 14, 14),
+          new MeshBasicMaterial({ color: new Color(hex), transparent: true, opacity: 0.85 }),
+        ),
+      );
+      if (label !== undefined) g.add(labelSprite(label, '#9fb6cc', 4.5, r + 5));
+      return g;
+    }
     if (!dim) {
       const color = new Color(colorForType(n.type));
       g.add(new Mesh(new SphereGeometry(r, 16, 16), new MeshBasicMaterial({ color })));
@@ -149,14 +164,20 @@ export function createGraph(
     return g;
   };
 
-  const buildObject = (raw: object, dim: boolean, collect?: (m: MeshBasicMaterial) => void): Object3D => {
+  const buildObject = (
+    raw: object,
+    dim: boolean,
+    collect?: (m: MeshBasicMaterial) => void,
+    costMode = false,
+  ): Object3D => {
     const node = raw as RenderNode;
     if (node._kind === 'orchestrator') return orchestratorObject(node._label);
     if (node._kind === 'group') return groupObject(node._label, node._open);
-    return componentObject(node, dim, collect, node._label, node._hero === true);
+    return componentObject(node, dim, collect, node._label, node._hero === true, costMode);
   };
   const normalBuild = (raw: object): Object3D => buildObject(raw, false);
   const dimBuild = (raw: object, collect: (m: MeshBasicMaterial) => void): Object3D => buildObject(raw, true, collect);
+  const costBuild = (raw: object): Object3D => buildObject(raw, false, undefined, true);
 
   const graph = new ForceGraph3D(el)
     .backgroundColor('#04060d')
@@ -270,7 +291,12 @@ export function createGraph(
       if (link._contain || !state.layers.flow) return 0;
       return familyOf(link.kind ?? 'routes-to') === 'routing' ? 2 : 0;
     });
-    applyAnalysisStyling(graph as unknown as AnalysisGraph, state.layers.analysis, normalBuild, dimBuild);
+    // Cost and analysis both re-style nodes; cost takes precedence when both are on.
+    if (state.layers.cost) {
+      applyCostStyling(graph as unknown as AnalysisGraph, true, normalBuild, costBuild);
+    } else {
+      applyAnalysisStyling(graph as unknown as AnalysisGraph, state.layers.analysis, normalBuild, dimBuild);
+    }
   };
 
   // ---- Focus render (one node's ego-network, agent-flow style) -------------

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clusterAnchor, colorForType, haloForCount, sizeForLines } from './encode.js';
+import { COST_NEUTRAL, clusterAnchor, colorForType, costStyleForFlags, haloForCount, sizeForLines } from './encode.js';
 
 describe('sizeForLines', () => {
   it('grows monotonically with line count and clamps the floor', () => {
@@ -23,6 +23,25 @@ describe('haloForCount', () => {
     expect(haloForCount(1)).toBeGreaterThan(0);
     expect(haloForCount(10_000)).toBeLessThanOrEqual(1);
     expect(haloForCount(50)).toBeGreaterThan(haloForCount(5));
+  });
+});
+
+describe('costStyleForFlags', () => {
+  it('is neutral when there is no flag', () => {
+    expect(costStyleForFlags([])).toBe(COST_NEUTRAL);
+  });
+
+  it('colors by the dominant flag', () => {
+    expect(costStyleForFlags(['dead'])).toBe('#ff3b3b');
+    expect(costStyleForFlags(['dead-hook'])).toBe('#ff3b3b');
+    expect(costStyleForFlags(['expensive'])).toBe('#f472b6');
+    expect(costStyleForFlags(['underused'])).toBe('#fbbf24');
+    expect(costStyleForFlags(['low-yield'])).toBe('#6b7280');
+  });
+
+  it('picks the highest-priority flag when several are present', () => {
+    expect(costStyleForFlags(['low-yield', 'expensive'])).toBe('#f472b6');
+    expect(costStyleForFlags(['expensive', 'dead'])).toBe('#ff3b3b');
   });
 });
 

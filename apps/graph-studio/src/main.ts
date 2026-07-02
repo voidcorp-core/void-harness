@@ -36,7 +36,7 @@ controls.className = 'controls';
 document.body.append(panel, controls);
 
 let state = defaultViewState();
-const handle = createGraph(scene, data.model, overlays, data.usage);
+const handle = createGraph(scene, data.model, overlays, data.usage, costIndex);
 handle.setView(state);
 
 // Live layer: the `void-harness graph live` server streams activations. Same-origin when

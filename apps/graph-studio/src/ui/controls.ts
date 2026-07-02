@@ -8,6 +8,7 @@ const LAYERS: readonly { key: LayerName; label: string }[] = [
   { key: 'flow', label: 'Flow' },
   { key: 'workflows', label: 'Workflows' },
   { key: 'live', label: 'Live' },
+  { key: 'cost', label: 'Cost' },
 ];
 
 export interface ControlsOptions {

@@ -1,7 +1,7 @@
 import type { GraphEdge, GraphModel } from '@voidcorp/harness-graph';
 import { type Family, FAMILIES, familyOf } from './families.js';
 
-export type LayerName = 'structure' | 'analysis' | 'flow' | 'workflows' | 'live';
+export type LayerName = 'structure' | 'analysis' | 'flow' | 'workflows' | 'live' | 'cost';
 
 export interface ViewState {
   readonly layers: Record<LayerName, boolean>;
@@ -11,7 +11,7 @@ export interface ViewState {
 
 export function defaultViewState(): ViewState {
   return {
-    layers: { structure: true, analysis: false, flow: false, workflows: false, live: false },
+    layers: { structure: true, analysis: false, flow: false, workflows: false, live: false, cost: false },
     families: new Set(FAMILIES),
     search: '',
   };

@@ -72,3 +72,20 @@ export function applyAnalysisStyling(
     },
   });
 }
+
+/**
+ * Apply (or clear) the Cost layer styling by swapping the node-object builder. Mirrors
+ * applyAnalysisStyling but has NO pulse — cost is a static, flag-colored read. Killing the shared
+ * pulse tween also clears any analysis pulse, since cost takes precedence over analysis styling.
+ */
+export function applyCostStyling(
+  graph: AnalysisGraph,
+  active: boolean,
+  normalBuild: (raw: object) => Object3D,
+  costBuild: (raw: object) => Object3D,
+): void {
+  activePulseTween?.kill();
+  activePulseTween = undefined;
+  graph.nodeThreeObject(active ? costBuild : normalBuild);
+  graph.refresh();
+}
