@@ -2,7 +2,8 @@
 # These cannot be derived mechanically from file metadata.
 # Every edge carries evidence: the verbatim phrase that justifies it.
 # Regenerate model.json after editing: `void-harness graph build`.
-# Only kinds routes-to, composes, conflicts, and overlaps are allowed here.
+# Allowed kinds: routes-to, composes, conflicts, overlaps, companion-of, invokes, extends, enforces
+# (enforces = a hook enforcing a skill's doctrine, e.g. no-any-grep enforces typescript-strict).
 edges:
   # --- Routing (sequential handoff required by the skill prose) ---
   - from: skill:brainstorming
@@ -332,3 +333,36 @@ edges:
     to: skill:migrations-safety
     kind: composes
     evidence: "pack-server/drizzle-migration-safe SKILL.md: Composes with harness:migrations-safety (the generic doctrine); this skill ships the concrete Drizzle patterns."
+
+  # --- Agent compositions (skills that invoke read-only agents) ---
+  - { from: skill:code-review, to: agent:doctrine-critic, kind: composes, evidence: "code-review SKILL.md: composes agent doctrine-critic for doctrine conformance" }
+  - { from: skill:systematic-debugging, to: agent:doctrine-critic, kind: composes, evidence: "systematic-debugging SKILL.md: routes doctrine judgment to the doctrine-critic agent" }
+  - { from: skill:security-guidance, to: agent:doctrine-critic, kind: composes, evidence: "security-guidance SKILL.md: composes doctrine-critic for boundary/doctrine review" }
+  - { from: skill:ticket-runner, to: agent:doctrine-critic, kind: composes, evidence: "ticket-runner SKILL.md: Review pass composes agents doctrine-critic + silent-failure-hunter" }
+  - { from: skill:ticket-runner, to: agent:silent-failure-hunter, kind: composes, evidence: "ticket-runner SKILL.md: Review pass composes agent silent-failure-hunter" }
+  - { from: skill:ticket-runner, to: agent:type-design-analyzer, kind: composes, evidence: "ticket-runner SKILL.md: Architecture pass composes agents type-design-analyzer + doctrine-critic" }
+
+  # --- Hooks enforcing skill doctrine (enforces: mechanical guard for a skill's rule) ---
+  - { from: hook:no-any-grep, to: skill:typescript-strict, kind: enforces, evidence: "no-any-grep blocks the `any` type — enforces typescript-strict's zero-any budget" }
+  - { from: hook:no-as-cast-grep, to: skill:typescript-strict, kind: enforces, evidence: "no-as-cast-grep blocks `as Foo` casts — enforces typescript-strict (satisfies over as)" }
+  - { from: hook:tsc-noemit-precommit, to: skill:typescript-strict, kind: enforces, evidence: "tsc-noemit-precommit gates on a clean typecheck — enforces typescript-strict" }
+  - { from: hook:no-null-grep, to: skill:functional, kind: enforces, evidence: "no-null-grep prefers undefined/Option over null — enforces functional" }
+  - { from: hook:no-console-log-grep, to: skill:observability, kind: enforces, evidence: "no-console-log-grep bans console.log — enforces observability (use the logger)" }
+  - { from: hook:no-only-no-skip, to: skill:testing, kind: enforces, evidence: "no-only-no-skip bans .only/.skip — enforces testing (no silently disabled tests)" }
+  - { from: hook:test-name-lint, to: skill:testing, kind: enforces, evidence: "test-name-lint checks behavior-named tests — enforces testing" }
+  - { from: hook:migration-lint, to: skill:migrations-safety, kind: enforces, evidence: "migration-lint flags banned DDL patterns — enforces migrations-safety" }
+  - { from: hook:migration-pr-template, to: skill:migrations-safety, kind: enforces, evidence: "migration-pr-template requires the migration checklist — enforces migrations-safety" }
+  - { from: hook:llm-cost-precommit, to: skill:llm-cost-discipline, kind: enforces, evidence: "llm-cost-precommit checks LLM call-site discipline — enforces llm-cost-discipline" }
+  - { from: hook:ubiquitous-language-lint, to: skill:domain-driven-design, kind: enforces, evidence: "ubiquitous-language-lint checks domain vocabulary — enforces domain-driven-design" }
+  - { from: hook:no-ai-design-slop, to: skill:frontend-design, kind: enforces, evidence: "no-ai-design-slop blocks AI-slop UI patterns — enforces frontend-design" }
+  - { from: hook:anti-ai-slop-grep, to: skill:frontend-design, kind: enforces, evidence: "anti-ai-slop-grep flags generic AI aesthetics — enforces frontend-design" }
+  - { from: hook:axe-precommit, to: skill:accessibility-first, kind: enforces, evidence: "axe-precommit runs axe a11y checks — enforces accessibility-first" }
+  - { from: hook:viewport-screenshot-gate, to: skill:accessibility-first, kind: enforces, evidence: "viewport-screenshot-gate gates mobile+desktop viewports — enforces accessibility-first" }
+  - { from: hook:protect-sensitive-files, to: skill:security-guidance, kind: enforces, evidence: "protect-sensitive-files blocks secrets/keys edits — enforces security-guidance" }
+  - { from: hook:block-dangerous-bash, to: skill:security-guidance, kind: enforces, evidence: "block-dangerous-bash blocks destructive shell — enforces security-guidance" }
+  - { from: hook:refactor-named-grep, to: skill:refactoring, kind: enforces, evidence: "refactor-named-grep requires named Fowler refactors — enforces refactoring" }
+  - { from: hook:tidying-commit-prefix, to: skill:refactoring, kind: enforces, evidence: "tidying-commit-prefix separates tidyings from behavior — enforces refactoring (Tidy-First)" }
+  - { from: hook:pre-PR-review-evidence, to: skill:code-review, kind: enforces, evidence: "pre-PR-review-evidence requires review evidence before a PR — enforces code-review" }
+  - { from: hook:large-cl-grep, to: skill:commit-discipline, kind: enforces, evidence: "large-cl-grep warns on oversized changelists — enforces commit-discipline (small commits)" }
+  - { from: hook:boundary-direction-check, to: skill:hexagonal-architecture, kind: enforces, evidence: "boundary-direction-check enforces the import direction — enforces hexagonal-architecture" }
+  - { from: hook:block-protected-push, to: skill:backlog-autopilot, kind: enforces, evidence: "block-protected-push guards protected-branch pushes for commit-only autopilot workers — enforces backlog-autopilot" }

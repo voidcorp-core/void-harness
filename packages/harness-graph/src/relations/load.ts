@@ -1,7 +1,7 @@
 import { parse } from 'yaml';
 import type { EdgeKind, GraphEdge } from '../model/types.js';
 
-const KINDS: readonly EdgeKind[] = ['routes-to', 'composes', 'conflicts', 'overlaps', 'companion-of', 'invokes', 'extends'];
+const KINDS: readonly EdgeKind[] = ['routes-to', 'composes', 'conflicts', 'overlaps', 'companion-of', 'invokes', 'extends', 'enforces'];
 
 interface RawEdge {
   from?: unknown;

@@ -6,7 +6,8 @@ export type EdgeKind =
   | 'overlaps'
   | 'companion-of'
   | 'invokes'
-  | 'extends';
+  | 'extends'
+  | 'enforces';
 export type EdgeOrigin = 'derived' | 'declared';
 
 /** Declared, machine-readable activation triggers (opt-in, frontmatter). Feeds the M8 should-have-fired analysis. */
