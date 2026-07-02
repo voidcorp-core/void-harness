@@ -1133,11 +1133,172 @@
   ],
   "edges": [
     {
+      "from": "hook:anti-ai-slop-grep",
+      "to": "skill:frontend-design",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "anti-ai-slop-grep flags generic AI aesthetics — enforces frontend-design"
+    },
+    {
+      "from": "hook:axe-precommit",
+      "to": "skill:accessibility-first",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "axe-precommit runs axe a11y checks — enforces accessibility-first"
+    },
+    {
+      "from": "hook:block-dangerous-bash",
+      "to": "skill:security-guidance",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "block-dangerous-bash blocks destructive shell — enforces security-guidance"
+    },
+    {
+      "from": "hook:block-protected-push",
+      "to": "skill:backlog-autopilot",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "block-protected-push guards protected-branch pushes for commit-only autopilot workers — enforces backlog-autopilot"
+    },
+    {
+      "from": "hook:boundary-direction-check",
+      "to": "skill:hexagonal-architecture",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "boundary-direction-check enforces the import direction — enforces hexagonal-architecture"
+    },
+    {
+      "from": "hook:large-cl-grep",
+      "to": "skill:commit-discipline",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "large-cl-grep warns on oversized changelists — enforces commit-discipline (small commits)"
+    },
+    {
+      "from": "hook:llm-cost-precommit",
+      "to": "skill:llm-cost-discipline",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "llm-cost-precommit checks LLM call-site discipline — enforces llm-cost-discipline"
+    },
+    {
+      "from": "hook:migration-lint",
+      "to": "skill:migrations-safety",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "migration-lint flags banned DDL patterns — enforces migrations-safety"
+    },
+    {
+      "from": "hook:migration-pr-template",
+      "to": "skill:migrations-safety",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "migration-pr-template requires the migration checklist — enforces migrations-safety"
+    },
+    {
+      "from": "hook:no-ai-design-slop",
+      "to": "skill:frontend-design",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "no-ai-design-slop blocks AI-slop UI patterns — enforces frontend-design"
+    },
+    {
+      "from": "hook:no-any-grep",
+      "to": "skill:typescript-strict",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "no-any-grep blocks the `any` type — enforces typescript-strict's zero-any budget"
+    },
+    {
+      "from": "hook:no-as-cast-grep",
+      "to": "skill:typescript-strict",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "no-as-cast-grep blocks `as Foo` casts — enforces typescript-strict (satisfies over as)"
+    },
+    {
+      "from": "hook:no-console-log-grep",
+      "to": "skill:observability",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "no-console-log-grep bans console.log — enforces observability (use the logger)"
+    },
+    {
+      "from": "hook:no-null-grep",
+      "to": "skill:functional",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "no-null-grep prefers undefined/Option over null — enforces functional"
+    },
+    {
+      "from": "hook:no-only-no-skip",
+      "to": "skill:testing",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "no-only-no-skip bans .only/.skip — enforces testing (no silently disabled tests)"
+    },
+    {
+      "from": "hook:pre-PR-review-evidence",
+      "to": "skill:code-review",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "pre-PR-review-evidence requires review evidence before a PR — enforces code-review"
+    },
+    {
+      "from": "hook:protect-sensitive-files",
+      "to": "skill:security-guidance",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "protect-sensitive-files blocks secrets/keys edits — enforces security-guidance"
+    },
+    {
+      "from": "hook:refactor-named-grep",
+      "to": "skill:refactoring",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "refactor-named-grep requires named Fowler refactors — enforces refactoring"
+    },
+    {
       "from": "hook:tdd-guard",
       "to": "skill:tdd",
       "kind": "companion-of",
       "origin": "derived",
       "evidence": "naming convention: hook tdd-guard guards skill tdd"
+    },
+    {
+      "from": "hook:test-name-lint",
+      "to": "skill:testing",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "test-name-lint checks behavior-named tests — enforces testing"
+    },
+    {
+      "from": "hook:tidying-commit-prefix",
+      "to": "skill:refactoring",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "tidying-commit-prefix separates tidyings from behavior — enforces refactoring (Tidy-First)"
+    },
+    {
+      "from": "hook:tsc-noemit-precommit",
+      "to": "skill:typescript-strict",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "tsc-noemit-precommit gates on a clean typecheck — enforces typescript-strict"
+    },
+    {
+      "from": "hook:ubiquitous-language-lint",
+      "to": "skill:domain-driven-design",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "ubiquitous-language-lint checks domain vocabulary — enforces domain-driven-design"
+    },
+    {
+      "from": "hook:viewport-screenshot-gate",
+      "to": "skill:accessibility-first",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "viewport-screenshot-gate gates mobile+desktop viewports — enforces accessibility-first"
     },
     {
       "from": "skill:adr-workflow",
@@ -1222,6 +1383,13 @@
       "kind": "routes-to",
       "origin": "declared",
       "evidence": "brainstorming SKILL.md: MUST NOT transition to any skill other than harness:writing-plans post-approval"
+    },
+    {
+      "from": "skill:code-review",
+      "to": "agent:doctrine-critic",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "code-review SKILL.md: composes agent doctrine-critic for doctrine conformance"
     },
     {
       "from": "skill:code-review",
@@ -1484,6 +1652,13 @@
     },
     {
       "from": "skill:security-guidance",
+      "to": "agent:doctrine-critic",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "security-guidance SKILL.md: composes doctrine-critic for boundary/doctrine review"
+    },
+    {
+      "from": "skill:security-guidance",
       "to": "skill:llm-cost-discipline",
       "kind": "composes",
       "origin": "declared",
@@ -1519,6 +1694,13 @@
     },
     {
       "from": "skill:systematic-debugging",
+      "to": "agent:doctrine-critic",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "systematic-debugging SKILL.md: routes doctrine judgment to the doctrine-critic agent"
+    },
+    {
+      "from": "skill:systematic-debugging",
       "to": "skill:commit-discipline",
       "kind": "composes",
       "origin": "declared",
@@ -1530,6 +1712,27 @@
       "kind": "composes",
       "origin": "declared",
       "evidence": "systematic-debugging SKILL.md: The fix is a refactor (composes with refactoring and hexagonal-architecture / domain-driven-design)."
+    },
+    {
+      "from": "skill:ticket-runner",
+      "to": "agent:doctrine-critic",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "ticket-runner SKILL.md: Review pass composes agents doctrine-critic + silent-failure-hunter"
+    },
+    {
+      "from": "skill:ticket-runner",
+      "to": "agent:silent-failure-hunter",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "ticket-runner SKILL.md: Review pass composes agent silent-failure-hunter"
+    },
+    {
+      "from": "skill:ticket-runner",
+      "to": "agent:type-design-analyzer",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "ticket-runner SKILL.md: Architecture pass composes agents type-design-analyzer + doctrine-critic"
     },
     {
       "from": "skill:verification-before-completion",
