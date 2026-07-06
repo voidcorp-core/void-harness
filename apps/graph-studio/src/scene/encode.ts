@@ -27,9 +27,12 @@ const COST_COLORS: Record<CostFlag, string> = {
   expensive: '#f472b6', // vivid magenta — top-decile cost
   underused: '#fbbf24', // amber — barely fired
   'low-yield': '#6b7280', // dim — heavy for its use
+  always: '#34d399', // emerald — doctrine, structurally live (keep, do not trim)
 };
 // Highest concern first: a dead component matters more than merely low-yield.
-const COST_PRIORITY: readonly CostFlag[] = ['dead', 'dead-hook', 'expensive', 'underused', 'low-yield'];
+// `always` is a positive marker, ranked last so a real cost signal (expensive) still
+// shows through on a doctrine node, but a healthy always node reads green over neutral.
+const COST_PRIORITY: readonly CostFlag[] = ['dead', 'dead-hook', 'expensive', 'underused', 'low-yield', 'always'];
 
 export function costStyleForFlags(flags: readonly CostFlag[]): string {
   for (const flag of COST_PRIORITY) if (flags.includes(flag)) return COST_COLORS[flag];

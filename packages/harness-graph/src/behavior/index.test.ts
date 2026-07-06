@@ -59,6 +59,18 @@ describe('analyzeBehavior — dead-node', () => {
     expect(dead).not.toContain('hook:meter'); // hooks/packs are not firing-capable
     expect(dead).not.toContain('pack:p');
   });
+
+  it('never flags an always-loaded doctrine skill as dead, even when never invoked', () => {
+    const doctrineModel: GraphModel = {
+      version: 1,
+      nodes: [{ ...node('skill:security-guidance', 'skill'), activation: 'always' }, node('skill:brainstorming', 'skill')],
+      edges: [],
+    };
+    const events = [ev({ kind: 'tool', name: 'Edit', sessionId: 's1', trigger: { tool: 'Edit', fileGlobs: [], ext: [] } })];
+    const dead = analyzeBehavior(doctrineModel, events, SMALL).findings.filter((f) => f.kind === 'dead-node').flatMap((f) => f.nodes);
+    expect(dead).not.toContain('skill:security-guidance'); // doctrine: liveness is structural, not invocational
+    expect(dead).toContain('skill:brainstorming'); // on-demand: never invoked stays a real signal
+  });
 });
 
 describe('analyzeBehavior — should-have-fired', () => {

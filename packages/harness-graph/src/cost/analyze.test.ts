@@ -161,6 +161,41 @@ describe('analyzeCost — static flags', () => {
   });
 });
 
+describe('analyzeCost — activation: always (doctrine liveness)', () => {
+  const doctrine = (id: string, staticTokens = 3000): GraphNode => ({
+    ...node(id, 'skill', staticTokens),
+    activation: 'always',
+  });
+
+  it('never flags an always-loaded skill dead / underused / low-yield, even at zero invocations', () => {
+    const model: GraphModel = {
+      version: 1,
+      nodes: [doctrine('skill:tdd'), node('skill:brainstorming', 'skill', 3000)],
+      edges: [],
+    };
+    // Only brainstorming (on-demand) is absent from activations; tdd is never invoked either.
+    const r = analyzeCost(model, [ev({ kind: 'skill', name: 'brainstorming', sessionId: 's1' })], SMALL);
+    const tdd = rowFor(r.rows, 'skill:tdd');
+    expect(tdd?.invocations).toBe(0);
+    expect(tdd?.flags).not.toContain('dead');
+    expect(tdd?.flags).not.toContain('underused');
+    expect(tdd?.flags).not.toContain('low-yield');
+  });
+
+  it('marks an always-loaded skill with the positive `always` flag', () => {
+    const model: GraphModel = { version: 1, nodes: [doctrine('skill:security-guidance')], edges: [] };
+    const r = analyzeCost(model, [ev({ kind: 'skill', name: 'x', sessionId: 's1' })], SMALL);
+    expect(rowFor(r.rows, 'skill:security-guidance')?.flags).toContain('always');
+  });
+
+  it('non-regression: an on-demand skill (no activation) at zero invocations stays dead', () => {
+    const model: GraphModel = { version: 1, nodes: [node('skill:brainstorming', 'skill')], edges: [] };
+    const r = analyzeCost(model, [ev({ kind: 'skill', name: 'other', sessionId: 's1' })], SMALL);
+    expect(rowFor(r.rows, 'skill:brainstorming')?.flags).toContain('dead');
+    expect(rowFor(r.rows, 'skill:brainstorming')?.flags).not.toContain('always');
+  });
+});
+
 describe('analyzeCost — ordering + determinism', () => {
   it('sorts by static cost (staticTokens x invocations) descending', () => {
     const model: GraphModel = {
