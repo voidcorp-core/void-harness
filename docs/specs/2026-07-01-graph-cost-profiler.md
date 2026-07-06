@@ -136,6 +136,14 @@ interface CostReport {
 - `underused` — invocations below a threshold (default configurable, e.g. `< 2`).
 - `expensive` — real signal in the top decile of session cost.
 - `low-yield` — high `staticTokens` relative to invocations (loads a lot, rarely fires).
+- `always` — positive marker for a node declaring `activation: always` (doctrine
+  followed passively via PHILOSOPHY + enforcing hooks). Its liveness is **structural**,
+  not invocational — exactly like a hook whose liveness comes from matcher-vs-situations
+  rather than from a firing activation. Such a node is **exempt from `dead` / `underused` /
+  `low-yield`** (0 invocations is expected, not a death signal) but still eligible for
+  `expensive` (a real-cost fact). This closes the telemetry blind spot where doctrine
+  skills — never invoked through the Skill tool, only carried as context — were flagged
+  dead/low-yield. The behavior kernel's `dead-node` finding applies the same exemption.
 
 ## Error handling
 
