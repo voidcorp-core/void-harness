@@ -1,5 +1,6 @@
 ---
 name: hexagonal-architecture
+activation: always
 description: Ports + adapters. Domain owns interfaces, adapters at the edge, function-parameter injection only, no DI / CQRS / mediator. Use when placing code or crossing module boundaries.
 ---
 

@@ -343,6 +343,7 @@ edges:
   - { from: skill:ticket-runner, to: agent:type-design-analyzer, kind: composes, evidence: "ticket-runner SKILL.md: Architecture pass composes agents type-design-analyzer + doctrine-critic" }
 
   # --- Hooks enforcing skill doctrine (enforces: mechanical guard for a skill's rule) ---
+  - { from: hook:tdd-guard, to: skill:tdd, kind: enforces, evidence: "tdd-guard requires a test to drive every production change — enforces tdd (Iron Law)" }
   - { from: hook:no-any-grep, to: skill:typescript-strict, kind: enforces, evidence: "no-any-grep blocks the `any` type — enforces typescript-strict's zero-any budget" }
   - { from: hook:no-as-cast-grep, to: skill:typescript-strict, kind: enforces, evidence: "no-as-cast-grep blocks `as Foo` casts — enforces typescript-strict (satisfies over as)" }
   - { from: hook:tsc-noemit-precommit, to: skill:typescript-strict, kind: enforces, evidence: "tsc-noemit-precommit gates on a clean typecheck — enforces typescript-strict" }
