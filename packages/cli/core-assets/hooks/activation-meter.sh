@@ -25,7 +25,9 @@ if command -v jq >/dev/null 2>&1; then
   EVENT=$(printf '%s' "$INPUT" | jq -c --arg ts "$TS" --arg root "$ROOT" '
     (.tool_name // "") as $tool
     | (if $tool=="Skill" then "skill"
-       elif $tool=="Task" then "agent"
+       # The subagent spawn tool is `Task` in stock Claude Code and `Agent` in this
+       # harness; accept both so agent spawns are never miscounted as plain tools.
+       elif $tool=="Task" or $tool=="Agent" then "agent"
        elif $tool=="Workflow" then "workflow"
        else "tool" end) as $kind
     | (if $kind=="skill" then (.tool_input.skill // .tool_input.name // .tool_input.command // "unknown")
@@ -65,7 +67,7 @@ else
   TOOL=$(grab tool_name)
   case "$TOOL" in
     Skill) KIND=skill; NAME=$(grab skill); [ -z "$NAME" ] && NAME=$(grab name); [ -z "$NAME" ] && NAME=$(grab command); [ -z "$NAME" ] && NAME=unknown ;;
-    Task) KIND=agent; NAME=$(grab subagent_type); [ -z "$NAME" ] && NAME=claude ;;
+    Task|Agent) KIND=agent; NAME=$(grab subagent_type); [ -z "$NAME" ] && NAME=claude ;;
     Workflow) KIND=workflow; NAME=$(grab name)
       if [ -z "$NAME" ]; then
         SP=$(grab scriptPath)
