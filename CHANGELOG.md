@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.15.0](https://github.com/voidcorp-core/void-harness/compare/v0.14.0...v0.15.0) (2026-07-06)
+
+
+### Features
+
+* **graph:** close cost/behavior telemetry blind spots via activation mode ([#58](https://github.com/voidcorp-core/void-harness/issues/58)) ([72abada](https://github.com/voidcorp-core/void-harness/commit/72abada6e165ebe71b323b0e02f6d41096fa7f21))
+* **graph:** telemetry-gap finding collapses unrecorded firing kinds ([#61](https://github.com/voidcorp-core/void-harness/issues/61)) ([7019b9b](https://github.com/voidcorp-core/void-harness/commit/7019b9ba6b8c9b637918d0829f3a77cb04c545cb))
+
+
+### Bug Fixes
+
+* **activation-meter:** count Agent spawns as kind=agent ([#60](https://github.com/voidcorp-core/void-harness/issues/60)) ([f6e40bf](https://github.com/voidcorp-core/void-harness/commit/f6e40bf412dc6634459f8d3d87b9162079d92fd1))
+
 ## [0.14.0](https://github.com/voidcorp-core/void-harness/compare/v0.13.1...v0.14.0) (2026-07-02)
 
 
