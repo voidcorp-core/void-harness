@@ -55,6 +55,38 @@ describe('activation-meter — classification', () => {
     expect(activations[0]).toMatchObject({ kind: 'workflow', name: 'find-flaky' });
   });
 
+  it('derives a scriptPath-launched Workflow name from its basename (matches the workflow-def node)', () => {
+    const { activations } = runHook(
+      pre('Workflow', { scriptPath: 'packages/core/skills/backlog-autopilot/workflows/backlog-autopilot.workflow.js' }),
+    );
+    expect(activations[0]).toMatchObject({ kind: 'workflow', name: 'backlog-autopilot' });
+  });
+
+  it('prefers an explicit name over scriptPath for a Workflow', () => {
+    const { activations } = runHook(pre('Workflow', { name: 'custom', scriptPath: 'x/other.workflow.js' }));
+    expect(activations[0]).toMatchObject({ kind: 'workflow', name: 'custom' });
+  });
+
+  it('falls back to inline for a Workflow with neither name nor scriptPath', () => {
+    const { activations } = runHook(pre('Workflow', { script: 'export const meta = {}' }));
+    expect(activations[0]).toMatchObject({ kind: 'workflow', name: 'inline' });
+  });
+
+  it('treats an empty name as absent and derives from scriptPath (jq // only guards null/false)', () => {
+    const { activations } = runHook(pre('Workflow', { name: '', scriptPath: 'a/b/deploy.workflow.js' }));
+    expect(activations[0]).toMatchObject({ kind: 'workflow', name: 'deploy' });
+  });
+
+  it('falls back to inline when scriptPath yields an empty basename (trailing slash)', () => {
+    const { activations } = runHook(pre('Workflow', { scriptPath: 'workflows/deploy/' }));
+    expect(activations[0]).toMatchObject({ kind: 'workflow', name: 'inline' });
+  });
+
+  it('falls back to inline for an empty name and no scriptPath', () => {
+    const { activations } = runHook(pre('Workflow', { name: '' }));
+    expect(activations[0]).toMatchObject({ kind: 'workflow', name: 'inline' });
+  });
+
   it('records any other tool as kind=tool with the tool name', () => {
     const { activations } = runHook(pre('Bash', { command: 'ls' }));
     expect(activations[0]).toMatchObject({ kind: 'tool', name: 'Bash' });
