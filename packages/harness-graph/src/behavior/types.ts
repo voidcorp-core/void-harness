@@ -18,7 +18,7 @@ export interface ActivationEvent {
 }
 
 export interface BehaviorFinding {
-  readonly kind: 'dead-node' | 'should-have-fired';
+  readonly kind: 'dead-node' | 'should-have-fired' | 'telemetry-gap';
   readonly severity: 'info';
   readonly nodes: readonly string[];
   readonly evidence: string;
