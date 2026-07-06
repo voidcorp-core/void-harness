@@ -47,7 +47,7 @@ Commands:
                            findings (HITL); live serves model + activations SSE
                            (--port, --log, --history-max) for the studio's live layer;
                            behavior reads .void/activations.jsonl and reports dead
-                           nodes + should-have-fired (--since, --log; advisory).
+                           nodes + should-have-fired + telemetry-gap (--since, --log; advisory).
 
   audit [--stale-days <n>] Outbound self-evolution audit: read .void/usage.log
                            and report harness skills that are active, stale, or

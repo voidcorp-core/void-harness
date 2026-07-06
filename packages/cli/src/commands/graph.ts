@@ -256,7 +256,7 @@ export async function graph(
       line(`    ${c.dim(`-> ${f.suggestion}`)}`);
     }
     blank();
-    footer(c.dim('advisory (HITL): dead nodes may be context-specific; should-have-fired may need trigger tuning.'));
+    footer(c.dim('advisory (HITL): dead nodes may be context-specific; should-have-fired may need trigger tuning; telemetry-gap means the meter likely does not record that tool.'));
     return;
   }
 
