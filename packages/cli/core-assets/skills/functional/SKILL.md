@@ -1,5 +1,6 @@
 ---
 name: functional
+activation: always
 description: Pure-by-default, errors as values (Result<T, E>), discriminated unions for state, immutability defaults, functional core / imperative shell. Side effects at adapters. Use for data flow or state.
 ---
 

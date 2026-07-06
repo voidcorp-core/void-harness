@@ -1,5 +1,6 @@
 ---
 name: security-guidance
+activation: always
 description: Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. Compose gstack /cso for full audits. Use on trust-boundary code.
 ---
 

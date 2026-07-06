@@ -30,7 +30,18 @@ if command -v jq >/dev/null 2>&1; then
        else "tool" end) as $kind
     | (if $kind=="skill" then (.tool_input.skill // .tool_input.name // .tool_input.command // "unknown")
        elif $kind=="agent" then (.tool_input.subagent_type // "claude")
-       elif $kind=="workflow" then (.tool_input.name // "inline")
+       elif $kind=="workflow" then
+         # A scriptPath-launched workflow carries no `name`; derive the registered
+         # workflow-def id from the script basename (strip .workflow.js) so it joins
+         # the graph node instead of collapsing to "inline". `select` treats an empty
+         # string as absent (the jq `//` operator only substitutes on null/false, not ""),
+         # so an empty name or an empty basename (trailing-slash path) still falls through.
+         ((.tool_input.name | select(type=="string" and . != ""))
+          // (.tool_input.scriptPath
+              | select(type=="string" and . != "")
+              | sub(".*/";"") | sub("\\.workflow\\.js$";"") | sub("\\.js$";"")
+              | select(. != ""))
+          // "inline")
        else $tool end) as $name
     | ($root | length + 1) as $off
     | ([.tool_input.file_path?, .tool_input.path?, .tool_input.pattern?]
@@ -55,7 +66,12 @@ else
   case "$TOOL" in
     Skill) KIND=skill; NAME=$(grab skill); [ -z "$NAME" ] && NAME=$(grab name); [ -z "$NAME" ] && NAME=$(grab command); [ -z "$NAME" ] && NAME=unknown ;;
     Task) KIND=agent; NAME=$(grab subagent_type); [ -z "$NAME" ] && NAME=claude ;;
-    Workflow) KIND=workflow; NAME=$(grab name); [ -z "$NAME" ] && NAME=inline ;;
+    Workflow) KIND=workflow; NAME=$(grab name)
+      if [ -z "$NAME" ]; then
+        SP=$(grab scriptPath)
+        if [ -n "$SP" ]; then NAME="${SP##*/}"; NAME="${NAME%.workflow.js}"; NAME="${NAME%.js}"; fi
+      fi
+      [ -z "$NAME" ] && NAME=inline ;;
     *) KIND=tool; NAME="$TOOL" ;;
   esac
   printf '{"ts":"%s","kind":"%s","name":"%s","event":"","trigger":{"tool":"%s","fileGlobs":[],"ext":[]},"sessionId":""}\n' \
