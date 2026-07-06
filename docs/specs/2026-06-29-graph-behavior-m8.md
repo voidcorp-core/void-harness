@@ -91,7 +91,7 @@ interface ActivationEvent {
 
 ```ts
 interface BehaviorFinding {
-  readonly kind: 'dead-node' | 'should-have-fired';
+  readonly kind: 'dead-node' | 'should-have-fired' | 'telemetry-gap';
   readonly severity: 'info';
   readonly nodes: readonly string[];
   readonly evidence: string;     // ex. "never fired in 42 events / 7 sessions"
@@ -110,7 +110,15 @@ possible plus tard — hors scope.)
 - **`dead-node`** : pour chaque nœud de kind ∈ {skill, agent, command, workflow-def},
   son *bare name* (mapping kind→préfixe comme le studio, `skill` couvre `command`)
   n'apparaît dans aucune activation de la fenêtre → finding. pack/hook exclus (ne
-  tirent pas comme activations nommées).
+  tirent pas comme activations nommées). `activation: always` exclu (liveness
+  structurelle, cf DECISIONS 2026-07-04). Un nœud d'un kind *gappé* (voir ci-dessous)
+  est reporté via le gap, pas en dead-node.
+- **`telemetry-gap`** (ajout 2026-07-06) : un `ActivationKind` entier avec **≥ 2 nœuds
+  firing-capable non-`always` mais 0 activation enregistrée** est bien plus probablement
+  un recorder cassé (join-key : le meter ne mappe pas cet outil, ex. l'outil de spawn
+  nommé `Agent` vs `Task`) que N composants indépendamment morts. On émet **un** finding
+  gap listant les nœuds du kind, et on **supprime** leurs dead-node. Seuil ≥ 2 : avec un
+  seul nœud, « kind non enregistré » est indistinguable d'un composant réellement mort.
 - **`should-have-fired`** : grouper les events par `sessionId`. Par session : ensemble
   des skills tirés + ensemble des **situations** (`kind=tool` avec `trigger`). Pour
   chaque skill déclarant `triggers` : si une situation de la session **matche** le
