@@ -60,6 +60,53 @@ describe('analyzeBehavior — dead-node', () => {
     expect(dead).not.toContain('pack:p');
   });
 
+  it('collapses a whole unrecorded firing kind (>=2 nodes, 0 activations) into one telemetry-gap', () => {
+    const gapModel: GraphModel = {
+      version: 1,
+      nodes: [node('agent:a1', 'agent'), node('agent:a2', 'agent'), node('skill:s1', 'skill')],
+      edges: [],
+    };
+    // Enough volume, skill kind is alive, agent kind is entirely unrecorded.
+    const events = [
+      ev({ kind: 'skill', name: 's1', sessionId: 'x1' }),
+      ev({ kind: 'tool', name: 'Edit', sessionId: 'x1', trigger: { tool: 'Edit', fileGlobs: [], ext: [] } }),
+    ];
+    const findings = analyzeBehavior(gapModel, events, SMALL).findings;
+    const gaps = findings.filter((f) => f.kind === 'telemetry-gap');
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0]?.nodes).toEqual(['agent:a1', 'agent:a2']);
+    const dead = findings.filter((f) => f.kind === 'dead-node').flatMap((f) => f.nodes);
+    expect(dead).not.toContain('agent:a1'); // collapsed into the gap, not N misleading dead-nodes
+    expect(dead).not.toContain('agent:a2');
+  });
+
+  it('does not gap a single-node kind (indistinguishable from a genuinely dead component)', () => {
+    const oneAgent: GraphModel = {
+      version: 1,
+      nodes: [node('agent:solo', 'agent'), node('skill:s1', 'skill')],
+      edges: [],
+    };
+    const events = [ev({ kind: 'skill', name: 's1', sessionId: 'x1' })];
+    const findings = analyzeBehavior(oneAgent, events, SMALL).findings;
+    expect(findings.filter((f) => f.kind === 'telemetry-gap')).toHaveLength(0);
+    expect(findings.filter((f) => f.kind === 'dead-node').flatMap((f) => f.nodes)).toContain('agent:solo');
+  });
+
+  it('does not gap a kind that recorded at least one activation', () => {
+    const twoAgents: GraphModel = {
+      version: 1,
+      nodes: [node('agent:a1', 'agent'), node('agent:a2', 'agent')],
+      edges: [],
+    };
+    const events = [
+      ev({ kind: 'agent', name: 'a1', sessionId: 'x1' }),
+      ev({ kind: 'tool', name: 'Edit', sessionId: 'x1', trigger: { tool: 'Edit', fileGlobs: [], ext: [] } }),
+    ];
+    const findings = analyzeBehavior(twoAgents, events, SMALL).findings;
+    expect(findings.filter((f) => f.kind === 'telemetry-gap')).toHaveLength(0);
+    expect(findings.filter((f) => f.kind === 'dead-node').flatMap((f) => f.nodes)).toContain('agent:a2');
+  });
+
   it('never flags an always-loaded doctrine skill as dead, even when never invoked', () => {
     const doctrineModel: GraphModel = {
       version: 1,
@@ -104,6 +151,7 @@ describe('analyzeBehavior — window + determinism', () => {
     const cutoff = Date.parse('2026-06-20T00:00:00Z');
     const events = [
       ev({ kind: 'skill', name: 'tdd', sessionId: 's1', ts: '2026-06-10T00:00:00Z' }), // old
+      ev({ kind: 'skill', name: 'lonely', sessionId: 's2', ts: '2026-06-25T00:00:00Z' }), // keeps skill kind recorded in-window
       ev({ kind: 'agent', name: 'code-explorer', sessionId: 's2', ts: '2026-06-25T00:00:00Z' }),
     ];
     const dead = analyzeBehavior(model, events, { ...SMALL, sinceMs: cutoff }).findings

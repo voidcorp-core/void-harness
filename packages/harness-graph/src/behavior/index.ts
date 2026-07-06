@@ -91,6 +91,37 @@ export function analyzeBehavior(model: GraphModel, events: readonly ActivationEv
 
   const findings: BehaviorFinding[] = [];
 
+  // telemetry-gap: a whole firing kind with >= 2 firing-capable nodes but zero recorded
+  // activations is far more likely a recorder/join-key break (the meter does not record
+  // that tool, e.g. the spawn tool named Agent vs Task) than every component of that kind
+  // being independently dead. Collapse those dead-nodes into one gap. always-loaded nodes
+  // are excluded from the count -- they are exempt from dead regardless, so they are no
+  // evidence of a recorder break. A single-node kind stays a dead-node: with one member,
+  // "kind unrecorded" is indistinguishable from a genuinely dead component.
+  const GAP_MIN_NODES = 2;
+  const firingNodesByKind = new Map<ActivationKind, string[]>();
+  for (const n of model.nodes) {
+    const kind = FIRING_KIND[n.type];
+    if (kind === undefined || n.activation === 'always') continue;
+    const list = firingNodesByKind.get(kind) ?? [];
+    list.push(n.id);
+    firingNodesByKind.set(kind, list);
+  }
+  const gappedKinds = new Set<ActivationKind>();
+  for (const [kind, ids] of firingNodesByKind) {
+    const fired = firedByKind.get(kind);
+    if (ids.length >= GAP_MIN_NODES && (fired === undefined || fired.size === 0)) {
+      gappedKinds.add(kind);
+      findings.push({
+        kind: 'telemetry-gap',
+        severity: 'info',
+        nodes: [...ids].sort(),
+        evidence: `${ids.length} '${kind}' nodes but 0 '${kind}' activations recorded in ${stats.events} events across ${stats.sessions} sessions -- likely the activation-meter does not record this tool, not ${ids.length} dead components`,
+        suggestion: `verify the activation-meter maps the tool to kind '${kind}' before treating these as dead (HITL).`,
+      });
+    }
+  }
+
   // dead-node: a firing-capable node whose bare name never appears under its kind.
   for (const n of model.nodes) {
     const kind = FIRING_KIND[n.type];
@@ -98,6 +129,8 @@ export function analyzeBehavior(model: GraphModel, events: readonly ActivationEv
     // Doctrine skills (activation: always) are followed passively, never invoked via the
     // Skill tool — their liveness is structural, so zero firings is not a death signal.
     if (n.activation === 'always') continue;
+    // A gapped kind is unrecorded, not dead: its nodes are reported once as a telemetry-gap.
+    if (gappedKinds.has(kind)) continue;
     if (firedByKind.get(kind)?.has(n.name)) continue;
     findings.push({
       kind: 'dead-node',
