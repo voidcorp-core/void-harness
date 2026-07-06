@@ -50,6 +50,16 @@ describe('activation-meter — classification', () => {
     expect(usage).toBe(''); // non-skill kinds never touch usage.log
   });
 
+  it('records an Agent call (this harness names the spawn tool Agent, not Task) as kind=agent', () => {
+    const { activations } = runHook(pre('Agent', { subagent_type: 'harness:doctrine-critic' }));
+    expect(activations[0]).toMatchObject({ kind: 'agent', name: 'harness:doctrine-critic' });
+  });
+
+  it('defaults an Agent call with no subagent_type to claude', () => {
+    const { activations } = runHook(pre('Agent', { prompt: 'do a thing' }));
+    expect(activations[0]).toMatchObject({ kind: 'agent', name: 'claude' });
+  });
+
   it('records a Workflow call as kind=workflow using its name', () => {
     const { activations } = runHook(pre('Workflow', { name: 'find-flaky' }));
     expect(activations[0]).toMatchObject({ kind: 'workflow', name: 'find-flaky' });
