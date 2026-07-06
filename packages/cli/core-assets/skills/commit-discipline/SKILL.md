@@ -1,5 +1,6 @@
 ---
 name: commit-discipline
+activation: always
 description: Conventional Commits + mandatory "why" in body + scope + breaking-change marking. ASCII-only (no em dash, no emoji). Co-author trailer for AI pair. The git log is documentation. Use at every commit.
 ---
 

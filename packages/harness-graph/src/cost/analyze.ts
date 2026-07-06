@@ -147,9 +147,18 @@ export function analyzeCost(
     const invocations = firingKind ? (firedCount.get(firingKind)?.get(n.name) ?? 0) : 0;
 
     const flags: CostFlag[] = [];
-    if (firingKind && invocations === 0) flags.push('dead');
-    if (invocations > 0 && invocations < underusedBelow) flags.push('underused');
-    if (staticTokens >= lowYieldStaticMin && invocations <= 1) flags.push('low-yield');
+    // Doctrine skills are followed passively (via PHILOSOPHY + enforcing hooks), not
+    // invoked through the Skill tool, so their liveness is structural — same reasoning
+    // as hooks above. Zero invocations is expected; exempt them from the under-use flags
+    // and mark them positively instead. `expensive` (real-cost decile) still applies below.
+    const alwaysLoaded = n.activation === 'always';
+    if (alwaysLoaded) {
+      flags.push('always');
+    } else {
+      if (firingKind && invocations === 0) flags.push('dead');
+      if (invocations > 0 && invocations < underusedBelow) flags.push('underused');
+      if (staticTokens >= lowYieldStaticMin && invocations <= 1) flags.push('low-yield');
+    }
     // dead-hook: a hook with an assessable tool matcher that matched no situation.
     // Hooks fire deterministically on match, so a never-matched matcher means the
     // hook never had the chance to fire. Wildcard/session-start hooks carry no

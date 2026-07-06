@@ -1,5 +1,6 @@
 ---
 name: refactoring
+activation: always
 description: Tidy-First. Tidyings commit separately from behavior changes (Two-Hat). Named Fowler refactors only. Tests stay green. Two modes (strict/souple). Use when improving structure without behavior change.
 ---
 

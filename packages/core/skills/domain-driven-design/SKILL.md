@@ -1,5 +1,6 @@
 ---
 name: domain-driven-design
+activation: always
 description: Bounded contexts, aggregates as consistency boundaries, value objects as branded types, always-valid domain, ubiquitous language. No CQRS, event sourcing, or generic Repository<T>. Use on the domain.
 ---
 

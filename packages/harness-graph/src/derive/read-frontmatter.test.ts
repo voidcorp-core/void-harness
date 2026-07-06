@@ -49,6 +49,27 @@ describe('readFrontmatter', () => {
   });
 });
 
+describe('readFrontmatter — activation', () => {
+  it('reads activation: always', () => {
+    const md = '---\nname: tdd\ndescription: TDD.\nactivation: always\n---\nbody';
+    expect(readFrontmatter(md).activation).toBe('always');
+  });
+
+  it('reads activation: on-demand', () => {
+    const md = '---\ndescription: x\nactivation: on-demand\n---\n';
+    expect(readFrontmatter(md).activation).toBe('on-demand');
+  });
+
+  it('omits activation when absent (default is on-demand at the consumer)', () => {
+    expect(readFrontmatter('---\ndescription: x\n---\n').activation).toBeUndefined();
+  });
+
+  it('is tolerant: an unknown activation value is dropped, never throws', () => {
+    const md = '---\ndescription: x\nactivation: sometimes\n---\n';
+    expect(readFrontmatter(md).activation).toBeUndefined();
+  });
+});
+
 describe('countLines', () => {
   it('counts newline-separated lines', () => {
     expect(countLines('a\nb\nc')).toBe(3);

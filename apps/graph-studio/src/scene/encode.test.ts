@@ -37,6 +37,7 @@ describe('costStyleForFlags', () => {
     expect(costStyleForFlags(['expensive'])).toBe('#f472b6');
     expect(costStyleForFlags(['underused'])).toBe('#fbbf24');
     expect(costStyleForFlags(['low-yield'])).toBe('#6b7280');
+    expect(costStyleForFlags(['always'])).toBe('#34d399'); // doctrine: green, structurally live
   });
 
   it('picks the highest-priority flag when several are present (incl. adjacent pairs)', () => {
@@ -44,6 +45,7 @@ describe('costStyleForFlags', () => {
     expect(costStyleForFlags(['expensive', 'dead'])).toBe('#ff3b3b');
     expect(costStyleForFlags(['underused', 'expensive'])).toBe('#f472b6'); // expensive > underused
     expect(costStyleForFlags(['low-yield', 'underused'])).toBe('#fbbf24'); // underused > low-yield
+    expect(costStyleForFlags(['always', 'expensive'])).toBe('#f472b6'); // a real cost signal shows through doctrine
   });
 });
 

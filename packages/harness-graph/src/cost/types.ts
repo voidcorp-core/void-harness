@@ -24,8 +24,11 @@ export interface SessionCost {
   readonly tsRange: { readonly first: string; readonly last: string };
 }
 
-/** Advisory flags. All severity:info — suggestions, never auto-applied (HITL). */
-export type CostFlag = 'dead' | 'dead-hook' | 'underused' | 'expensive' | 'low-yield';
+/** Advisory flags. All severity:info — suggestions, never auto-applied (HITL).
+ * `always` is the one positive marker: a doctrine skill whose liveness is structural
+ * (followed passively via PHILOSOPHY + enforcing hooks), so its zero invocations are
+ * expected, not a death signal — it is exempt from dead / underused / low-yield. */
+export type CostFlag = 'dead' | 'dead-hook' | 'underused' | 'expensive' | 'low-yield' | 'always';
 
 /** Median real-cost signal for a component: per-metric median across the
  * sessions where it fired (correlational, not causal). Absent in static-only mode. */

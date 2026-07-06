@@ -38,6 +38,19 @@ describe('deriveNodes', () => {
     expect(wf?.staticTokens).toBe(0);
   });
 
+  it('carries declared activation from frontmatter, and omits it when absent', () => {
+    const withActivation = {
+      ...tree,
+      skills: [
+        { name: 'tdd', pack: null, source: 's', text: '---\ndescription: TDD.\nactivation: always\n---\n' },
+        { name: 'cache', pack: 'pack-nextjs', source: 's', text: '---\ndescription: cache.\n---\n' },
+      ],
+    };
+    const nodes = deriveNodes(withActivation);
+    expect(nodes.find((n) => n.id === 'skill:tdd')?.activation).toBe('always');
+    expect(nodes.find((n) => n.id === 'skill:pack-nextjs/cache')?.activation).toBeUndefined();
+  });
+
   it('carries pre-derived triggers on a hook (from the plugin manifest, not frontmatter)', () => {
     const withHookTriggers = {
       ...tree,

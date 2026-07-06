@@ -23,7 +23,7 @@ export interface SourceTree {
 
 function toNode(type: NodeType, e: SourceEntry): GraphNode {
   const pack = e.pack ?? null; // allow-null: GraphNode.pack is string | null per model contract
-  const { description, triggers: fmTriggers } = readFrontmatter(e.text);
+  const { description, triggers: fmTriggers, activation } = readFrontmatter(e.text);
   // Pre-derived triggers (hooks, from the plugin manifest) win over frontmatter.
   const triggers = e.triggers ?? fmTriggers;
   const base: GraphNode = {
@@ -36,7 +36,11 @@ function toNode(type: NodeType, e: SourceEntry): GraphNode {
     pack,
     source: e.source,
   };
-  return triggers ? { ...base, triggers } : base;
+  return {
+    ...base,
+    ...(triggers ? { triggers } : {}),
+    ...(activation ? { activation } : {}),
+  };
 }
 
 /** Locale-independent code-unit comparison for deterministic, ICU-stable sorts. */

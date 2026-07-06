@@ -1,4 +1,4 @@
-import type { NodeTriggers } from '../model/types.js';
+import type { NodeActivation, NodeTriggers } from '../model/types.js';
 
 /** Parse an opt-in `triggers:` block: indented `globs|extensions|tools: [json array]`. Tolerant. */
 function parseTriggers(block: string): NodeTriggers | undefined {
@@ -25,14 +25,32 @@ function parseTriggers(block: string): NodeTriggers | undefined {
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-export function readFrontmatter(text: string): { description: string; triggers?: NodeTriggers } {
+/** Parse the opt-in `activation:` scalar. Only the two known modes are accepted; anything
+ * else (or absent) is dropped, so the consumer applies its on-demand default. */
+function parseActivation(block: string): NodeActivation | undefined {
+  const line = block.split('\n').find((l) => l.startsWith('activation:'));
+  if (!line) return undefined;
+  const value = line.slice('activation:'.length).trim();
+  return value === 'always' || value === 'on-demand' ? value : undefined;
+}
+
+export function readFrontmatter(text: string): {
+  description: string;
+  triggers?: NodeTriggers;
+  activation?: NodeActivation;
+} {
   const match = text.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return { description: '' };
   const block = match[1] ?? '';
   const line = block.split('\n').find((l) => l.startsWith('description:'));
   const description = line ? line.slice('description:'.length).trim() : '';
   const triggers = parseTriggers(block);
-  return triggers ? { description, triggers } : { description };
+  const activation = parseActivation(block);
+  return {
+    description,
+    ...(triggers ? { triggers } : {}),
+    ...(activation ? { activation } : {}),
+  };
 }
 
 export function countLines(text: string): number {

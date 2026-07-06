@@ -66,7 +66,9 @@ function fmtK(n: number): string {
 
 /** One flagged cost row. Real columns ($/sess, cache%) render only in full mode. */
 function renderCostRow(r: CostRow, nameW: number, full: boolean): string {
-  const flags = r.flags.map((f) => (f === 'dead' || f === 'dead-hook' ? c.red(f) : c.yellow(f))).join(' ');
+  const flags = r.flags
+    .map((f) => (f === 'dead' || f === 'dead-hook' ? c.red(f) : f === 'always' ? c.green(f) : c.yellow(f)))
+    .join(' ');
   const base = `${r.nodeId.padEnd(nameW)}  ${String(r.invocations).padStart(4)}  ${String(r.staticTokens).padStart(7)}`;
   if (!full) return `${base}  ${flags}`;
   const real = r.realSignal;

@@ -95,6 +95,9 @@ export function analyzeBehavior(model: GraphModel, events: readonly ActivationEv
   for (const n of model.nodes) {
     const kind = FIRING_KIND[n.type];
     if (kind === undefined) continue;
+    // Doctrine skills (activation: always) are followed passively, never invoked via the
+    // Skill tool — their liveness is structural, so zero firings is not a death signal.
+    if (n.activation === 'always') continue;
     if (firedByKind.get(kind)?.has(n.name)) continue;
     findings.push({
       kind: 'dead-node',

@@ -106,8 +106,8 @@
       "type": "hook",
       "name": "activation-meter",
       "description": "",
-      "lines": 67,
-      "staticTokens": 856,
+      "lines": 83,
+      "staticTokens": 1073,
       "pack": null,
       "source": "packages/core/hooks/activation-meter.sh"
     },
@@ -507,15 +507,16 @@
       "type": "skill",
       "name": "accessibility-first",
       "description": "WCAG 2.2 AA floor. Radix primitives only, touch >=44x44, keyboard parity, semantic HTML, form labels, aria-live errors, mobile-first dual-quality. Use when building or modifying UI.",
-      "lines": 278,
-      "staticTokens": 2155,
+      "lines": 279,
+      "staticTokens": 2159,
       "pack": null,
       "source": "packages/core/skills/accessibility-first/SKILL.md",
       "triggers": {
         "extensions": [
           "tsx"
         ]
-      }
+      },
+      "activation": "always"
     },
     {
       "id": "skill:adr-workflow",
@@ -592,20 +593,22 @@
       "type": "skill",
       "name": "code-review",
       "description": "Pre-PR critical pass. Six dimensions (correctness, tests, security, structure, readability, perf). Two modes (strict/souple). Composes gstack /code-review and /codex review. Use on a diff.",
-      "lines": 219,
-      "staticTokens": 2629,
+      "lines": 220,
+      "staticTokens": 2633,
       "pack": null,
-      "source": "packages/core/skills/code-review/SKILL.md"
+      "source": "packages/core/skills/code-review/SKILL.md",
+      "activation": "always"
     },
     {
       "id": "skill:commit-discipline",
       "type": "skill",
       "name": "commit-discipline",
       "description": "Conventional Commits + mandatory \"why\" in body + scope + breaking-change marking. ASCII-only (no em dash, no emoji). Co-author trailer for AI pair. The git log is documentation. Use at every commit.",
-      "lines": 212,
-      "staticTokens": 1877,
+      "lines": 213,
+      "staticTokens": 1881,
       "pack": null,
-      "source": "packages/core/skills/commit-discipline/SKILL.md"
+      "source": "packages/core/skills/commit-discipline/SKILL.md",
+      "activation": "always"
     },
     {
       "id": "skill:compounding",
@@ -632,35 +635,38 @@
       "type": "skill",
       "name": "domain-driven-design",
       "description": "Bounded contexts, aggregates as consistency boundaries, value objects as branded types, always-valid domain, ubiquitous language. No CQRS, event sourcing, or generic Repository<T>. Use on the domain.",
-      "lines": 293,
-      "staticTokens": 3131,
+      "lines": 294,
+      "staticTokens": 3136,
       "pack": null,
-      "source": "packages/core/skills/domain-driven-design/SKILL.md"
+      "source": "packages/core/skills/domain-driven-design/SKILL.md",
+      "activation": "always"
     },
     {
       "id": "skill:frontend-design",
       "type": "skill",
       "name": "frontend-design",
       "description": "Anti-AI-slop UI. Density first, 3-size hierarchy, motion <250ms, components via @repo/ui (Radix/shadcn), mobile-first dual-quality. Brand from DESIGN.md. Use when building or modifying UI.",
-      "lines": 219,
-      "staticTokens": 2185,
+      "lines": 220,
+      "staticTokens": 2190,
       "pack": null,
       "source": "packages/core/skills/frontend-design/SKILL.md",
       "triggers": {
         "extensions": [
           "tsx"
         ]
-      }
+      },
+      "activation": "always"
     },
     {
       "id": "skill:functional",
       "type": "skill",
       "name": "functional",
       "description": "Pure-by-default, errors as values (Result<T, E>), discriminated unions for state, immutability defaults, functional core / imperative shell. Side effects at adapters. Use for data flow or state.",
-      "lines": 313,
-      "staticTokens": 2791,
+      "lines": 314,
+      "staticTokens": 2796,
       "pack": null,
-      "source": "packages/core/skills/functional/SKILL.md"
+      "source": "packages/core/skills/functional/SKILL.md",
+      "activation": "always"
     },
     {
       "id": "skill:harness-evolution",
@@ -677,28 +683,30 @@
       "type": "skill",
       "name": "hexagonal-architecture",
       "description": "Ports + adapters. Domain owns interfaces, adapters at the edge, function-parameter injection only, no DI / CQRS / mediator. Use when placing code or crossing module boundaries.",
-      "lines": 277,
-      "staticTokens": 2709,
+      "lines": 278,
+      "staticTokens": 2714,
       "pack": null,
-      "source": "packages/core/skills/hexagonal-architecture/SKILL.md"
+      "source": "packages/core/skills/hexagonal-architecture/SKILL.md",
+      "activation": "always"
     },
     {
       "id": "skill:llm-cost-discipline",
       "type": "skill",
       "name": "llm-cost-discipline",
       "description": "Sonnet default (Opus needs comment), prompt caching for >1024-token prompts, batch API for non-interactive, max_tokens declared, bounded retries, no full prompts in logs. Use on LLM API calls.",
-      "lines": 300,
-      "staticTokens": 2489,
+      "lines": 301,
+      "staticTokens": 2493,
       "pack": null,
-      "source": "packages/core/skills/llm-cost-discipline/SKILL.md"
+      "source": "packages/core/skills/llm-cost-discipline/SKILL.md",
+      "activation": "always"
     },
     {
       "id": "skill:migrations-safety",
       "type": "skill",
       "name": "migrations-safety",
       "description": "Zero-downtime Postgres migrations. Two-phase changes, batched backfills, locking analysis, banned DDL patterns, CONCURRENTLY indexes, dev branch test, immutable after merge. Use on DB schema changes.",
-      "lines": 267,
-      "staticTokens": 2201,
+      "lines": 268,
+      "staticTokens": 2206,
       "pack": null,
       "source": "packages/core/skills/migrations-safety/SKILL.md",
       "triggers": {
@@ -706,17 +714,19 @@
           "**/migrations/**",
           "**/*.sql"
         ]
-      }
+      },
+      "activation": "always"
     },
     {
       "id": "skill:observability",
       "type": "skill",
       "name": "observability",
       "description": "Structured logs (no string interp), trace IDs end-to-end, error boundaries at async boundaries, anonymized user scope, no PII/secrets ever. Use @repo/core/logger not console.log. Use for prod code.",
-      "lines": 246,
-      "staticTokens": 2196,
+      "lines": 247,
+      "staticTokens": 2201,
       "pack": null,
-      "source": "packages/core/skills/observability/SKILL.md"
+      "source": "packages/core/skills/observability/SKILL.md",
+      "activation": "always"
     },
     {
       "id": "skill:pack-mobile/eas-build-profile",
@@ -1003,30 +1013,33 @@
       "type": "skill",
       "name": "refactoring",
       "description": "Tidy-First. Tidyings commit separately from behavior changes (Two-Hat). Named Fowler refactors only. Tests stay green. Two modes (strict/souple). Use when improving structure without behavior change.",
-      "lines": 221,
-      "staticTokens": 2423,
+      "lines": 222,
+      "staticTokens": 2428,
       "pack": null,
-      "source": "packages/core/skills/refactoring/SKILL.md"
+      "source": "packages/core/skills/refactoring/SKILL.md",
+      "activation": "always"
     },
     {
       "id": "skill:security-guidance",
       "type": "skill",
       "name": "security-guidance",
       "description": "Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. Compose gstack /cso for full audits. Use on trust-boundary code.",
-      "lines": 256,
-      "staticTokens": 2423,
+      "lines": 257,
+      "staticTokens": 2428,
       "pack": null,
-      "source": "packages/core/skills/security-guidance/SKILL.md"
+      "source": "packages/core/skills/security-guidance/SKILL.md",
+      "activation": "always"
     },
     {
       "id": "skill:source-driven-development",
       "type": "skill",
       "name": "source-driven-development",
       "description": "Ground every third-party config or API usage in the official docs for the installed version, not training memory. Verify the version, cite the reference. Use before writing any tool config.",
-      "lines": 163,
-      "staticTokens": 2379,
+      "lines": 164,
+      "staticTokens": 2384,
       "pack": null,
-      "source": "packages/core/skills/source-driven-development/SKILL.md"
+      "source": "packages/core/skills/source-driven-development/SKILL.md",
+      "activation": "always"
     },
     {
       "id": "skill:systematic-debugging",
@@ -1043,18 +1056,19 @@
       "type": "skill",
       "name": "tdd",
       "description": "TDD with three modes (strict/souple/exploratory) auto-selected by path. Iron Law in strict (no prod code without a failing test), mutation gate, anti-rustine. Use for any feature, bugfix, refactor.",
-      "lines": 400,
-      "staticTokens": 3430,
+      "lines": 401,
+      "staticTokens": 3435,
       "pack": null,
-      "source": "packages/core/skills/tdd/SKILL.md"
+      "source": "packages/core/skills/tdd/SKILL.md",
+      "activation": "always"
     },
     {
       "id": "skill:testing",
       "type": "skill",
       "name": "testing",
       "description": "How to write a good test. Behavior over implementation, real code over mocks, factories over beforeEach, pyramid respected, pristine output, no snapshot creep. Use when writing or modifying tests.",
-      "lines": 279,
-      "staticTokens": 2654,
+      "lines": 280,
+      "staticTokens": 2659,
       "pack": null,
       "source": "packages/core/skills/testing/SKILL.md",
       "triggers": {
@@ -1062,7 +1076,8 @@
           "**/*.test.ts",
           "**/*.spec.ts"
         ]
-      }
+      },
+      "activation": "always"
     },
     {
       "id": "skill:ticket-runner",
@@ -1089,8 +1104,8 @@
       "type": "skill",
       "name": "typescript-strict",
       "description": "TS strict baseline. Zero any budget, branded types for domain primitives, discriminated unions over enums, exhaustive switches via never, satisfies over as. Use when editing TypeScript code.",
-      "lines": 297,
-      "staticTokens": 2618,
+      "lines": 298,
+      "staticTokens": 2623,
       "pack": null,
       "source": "packages/core/skills/typescript-strict/SKILL.md",
       "triggers": {
@@ -1098,7 +1113,8 @@
           "ts",
           "tsx"
         ]
-      }
+      },
+      "activation": "always"
     },
     {
       "id": "skill:verification-before-completion",
@@ -1264,6 +1280,13 @@
       "kind": "companion-of",
       "origin": "derived",
       "evidence": "naming convention: hook tdd-guard guards skill tdd"
+    },
+    {
+      "from": "hook:tdd-guard",
+      "to": "skill:tdd",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "tdd-guard requires a test to drive every production change — enforces tdd (Iron Law)"
     },
     {
       "from": "hook:test-name-lint",

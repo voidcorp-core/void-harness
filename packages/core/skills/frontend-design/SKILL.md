@@ -1,5 +1,6 @@
 ---
 name: frontend-design
+activation: always
 triggers:
   extensions: ["tsx"]
 description: Anti-AI-slop UI. Density first, 3-size hierarchy, motion <250ms, components via @repo/ui (Radix/shadcn), mobile-first dual-quality. Brand from DESIGN.md. Use when building or modifying UI.

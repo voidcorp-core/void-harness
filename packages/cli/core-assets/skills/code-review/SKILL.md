@@ -1,5 +1,6 @@
 ---
 name: code-review
+activation: always
 description: Pre-PR critical pass. Six dimensions (correctness, tests, security, structure, readability, perf). Two modes (strict/souple). Composes gstack /code-review and /codex review. Use on a diff.
 ---
 
