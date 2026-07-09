@@ -1,0 +1,21 @@
+{
+  "name": "@voidcorp/eval-harness",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Behavioral eval harness — measures whether a skill's prose actually changes agent behavior (fixture task run with/without the skill, deterministically scored). Maintainer tooling, never published.",
+  "scripts": {
+    "eval": "tsx src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.9"
+  }
+}

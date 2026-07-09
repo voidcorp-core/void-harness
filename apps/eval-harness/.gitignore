@@ -1,0 +1,3 @@
+# Transient run logs; the archived report .md files ARE committed.
+reports/*.log
+reports/.run.log
