@@ -51,12 +51,16 @@ jobs:
         # The CLI bundles packages/core as packages/cli/core-assets via
         # copy-core-assets.mjs. Regenerate and fail if the committed mirror
         # drifted, so the published CLI never ships a stale manifest or hooks.
+        # Use `git status --porcelain`, not `git diff --quiet`: the latter only
+        # sees modifications to TRACKED files, so a NEW core file whose mirror is
+        # untracked would pass silently (#66). Porcelain catches modified,
+        # untracked (??) and deleted paths alike.
         run: |
           pnpm --filter @voidcorp/harness build:assets
-          if ! git diff --quiet -- packages/cli/core-assets; then
+          if [ -n "$(git status --porcelain -- packages/cli/core-assets)" ]; then
             echo "FAIL: core-assets is out of sync with packages/core." >&2
-            echo "Run: pnpm --filter @voidcorp/harness build:assets" >&2
-            git --no-pager diff --stat -- packages/cli/core-assets >&2
+            echo "Run: pnpm --filter @voidcorp/harness build:assets && commit the result." >&2
+            git --no-pager status --porcelain -- packages/cli/core-assets >&2
             exit 1
           fi
 
