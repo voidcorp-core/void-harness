@@ -7,7 +7,7 @@
       "name": "code-explorer",
       "description": "Read-only mapper of an unfamiliar codebase. Returns a compact structured map — entrypoints, main flows, dependencies, where things live. Does not judge or fix. Protects the main context window.",
       "lines": 95,
-      "staticTokens": 1014,
+      "staticTokens": 1019,
       "pack": null,
       "source": "packages/core/agents/code-explorer.md"
     },
@@ -15,9 +15,9 @@
       "id": "agent:doctrine-critic",
       "type": "agent",
       "name": "doctrine-critic",
-      "description": "Judges a diff against VoidCorp doctrine that hooks/reviewers miss: weak tests, over-abstraction, broken boundaries, anti-bloat. Read-only; routes security to /cso, bugs to /code-review.",
+      "description": "Judges a diff against VoidCorp doctrine that hooks/reviewers miss: weak tests, over-abstraction, broken boundaries, anti-bloat. Read-only; routes security to security-audit, bugs to /code-review.",
       "lines": 90,
-      "staticTokens": 1073,
+      "staticTokens": 1089,
       "pack": null,
       "source": "packages/core/agents/doctrine-critic.md"
     },
@@ -27,7 +27,7 @@
       "name": "migration-planner",
       "description": "Read-only planner producing a sequenced, reversible migration plan (expand-contract, two-phase). Planning only, never execution. Complements migrations-safety; routes execution to tdd/writing-plans.",
       "lines": 98,
-      "staticTokens": 1149,
+      "staticTokens": 1158,
       "pack": null,
       "source": "packages/core/agents/migration-planner.md"
     },
@@ -37,7 +37,7 @@
       "name": "silent-failure-hunter",
       "description": "Read-only hunter for silent failures only — empty catches, swallowed errors, un-awaited promises, ignored return codes, .catch(()=>{}). Not a general review. Routes bugs to /code-review.",
       "lines": 95,
-      "staticTokens": 1157,
+      "staticTokens": 1166,
       "pack": null,
       "source": "packages/core/agents/silent-failure-hunter.md"
     },
@@ -47,7 +47,7 @@
       "name": "type-design-analyzer",
       "description": "Read-only judge of TYPE DESIGN only — illegal states representable, primitive obsession, missing discriminated unions, leaky boundary types. Not a general review. Routes bugs to /code-review.",
       "lines": 94,
-      "staticTokens": 1170,
+      "staticTokens": 1179,
       "pack": null,
       "source": "packages/core/agents/type-design-analyzer.md"
     },
@@ -658,7 +658,7 @@
       "name": "code-review",
       "description": "Pre-PR critical pass. Six dimensions (correctness, tests, security, structure, readability, perf). Two modes (strict/souple). Composes gstack /code-review and /codex review. Use on a diff.",
       "lines": 220,
-      "staticTokens": 2633,
+      "staticTokens": 2639,
       "pack": null,
       "source": "packages/core/skills/code-review/SKILL.md",
       "activation": "always"
@@ -1074,12 +1074,23 @@
       "activation": "always"
     },
     {
+      "id": "skill:security-audit",
+      "type": "skill",
+      "name": "security-audit",
+      "description": "Periodic deep security audit — OWASP Top 10, STRIDE, secrets, supply chain, CI/CD, infra, LLM. Phase-driven, read-only, zero-noise. The ceiling above security-guidance's daily floor.",
+      "lines": 129,
+      "staticTokens": 3759,
+      "pack": null,
+      "source": "packages/core/skills/security-audit/SKILL.md",
+      "activation": "on-demand"
+    },
+    {
       "id": "skill:security-guidance",
       "type": "skill",
       "name": "security-guidance",
-      "description": "Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. Compose gstack /cso for full audits. Use on trust-boundary code.",
+      "description": "Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. Escalate to security-audit for deep audits. Use on trust-boundary code.",
       "lines": 257,
-      "staticTokens": 2428,
+      "staticTokens": 2467,
       "pack": null,
       "source": "packages/core/skills/security-guidance/SKILL.md",
       "activation": "always"
@@ -1139,7 +1150,7 @@
       "name": "ticket-runner",
       "description": "Use when taking a single ticket from ready through shipped at expert-team quality. Triggers on starting a ticket, taking an issue, or picking up a backlog item to execute.",
       "lines": 85,
-      "staticTokens": 1758,
+      "staticTokens": 1761,
       "pack": null,
       "source": "packages/core/skills/ticket-runner/SKILL.md"
     },
@@ -1176,7 +1187,7 @@
       "name": "verification-before-completion",
       "description": "Final pre-flight checklist. Twelve items observed (not assumed) — typecheck, tests, hooks, mobile+desktop, commit why, review evidence. Skipping requires reason. Use at end of every task.",
       "lines": 166,
-      "staticTokens": 1680,
+      "staticTokens": 1683,
       "pack": null,
       "source": "packages/core/skills/verification-before-completion/SKILL.md",
       "activation": "always"
