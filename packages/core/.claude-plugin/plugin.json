@@ -124,6 +124,15 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/activation-meter.sh"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/secret-in-content.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -162,6 +171,14 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/outcome-meter.sh"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-typecheck.sh"
           }
         ]
       }

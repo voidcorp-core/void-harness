@@ -84,9 +84,26 @@ closed** when `jq` is absent (a content-scanning hook blocks with an explicit
 message instead of exiting 127, which the runtime treats as non-blocking and which
 silently disabled the whole enforcement layer before). It also owns the physical
 root-relative path normalization the enforcement globs depend on. A hook sources it
-with `source "${BASH_SOURCE[0]%/*}/_hooklib.sh"`; `activation-meter.sh` (already
-self-guarded, non-blocking) and `sessionstart-context.sh` (not a tool-call parser)
-are the two deliberate non-consumers.
+with `source "${BASH_SOURCE[0]%/*}/_hooklib.sh"`; `activation-meter.sh` /
+`outcome-meter.sh` (self-guarded, non-blocking meters) and `sessionstart-context.sh`
+(not a tool-call parser) are the deliberate non-consumers.
+
+Two content-aware hooks sit beside the filename/path guards:
+
+- **`secret-in-content.sh`** (PreToolUse Edit|Write, blocking) — the companion to
+  `protect-sensitive-files.sh` (which only guards known secret *filenames*). It
+  scans the edit's new content for high-confidence vendor tokens (AWS/GitHub/
+  Stripe/OpenAI/Anthropic/Slack/Google keys, PEM headers) and one guarded generic
+  rule (a `*_KEY|_SECRET|_TOKEN` var assigned a long, mixed, non-placeholder
+  literal — excluding UUIDs, git shas, and env indirection). Bounded to the edit
+  (never the repo; that is gitleaks/CI). Escape hatch: `// allow-secret-pattern:`;
+  test/fixture paths are skipped.
+- **`stop-typecheck.sh`** (Stop, **advisory**) — when a TS project has uncommitted
+  `.ts` changes at end of turn, it runs a timeout-bounded `tsc --noEmit` scoped to
+  the nearest tsconfig of the touched files and surfaces type errors on stderr, so
+  the "typecheck clean" item of `verification-before-completion` is answered from
+  observation. It **never blocks** (a blocking Stop would trap the session) and
+  no-ops with no TS project, no TS edit, or no `tsc`.
 
 ### Pack independence
 

@@ -381,6 +381,22 @@
       "source": "packages/core/hooks/refactor-named-grep.sh"
     },
     {
+      "id": "hook:secret-in-content",
+      "type": "hook",
+      "name": "secret-in-content",
+      "description": "",
+      "lines": 60,
+      "staticTokens": 775,
+      "pack": null,
+      "source": "packages/core/hooks/secret-in-content.sh",
+      "triggers": {
+        "tools": [
+          "Edit",
+          "Write"
+        ]
+      }
+    },
+    {
       "id": "hook:sessionstart-context",
       "type": "hook",
       "name": "sessionstart-context",
@@ -389,6 +405,16 @@
       "staticTokens": 325,
       "pack": null,
       "source": "packages/core/hooks/sessionstart-context.sh"
+    },
+    {
+      "id": "hook:stop-typecheck",
+      "type": "hook",
+      "name": "stop-typecheck",
+      "description": "",
+      "lines": 56,
+      "staticTokens": 604,
+      "pack": null,
+      "source": "packages/core/hooks/stop-typecheck.sh"
     },
     {
       "id": "hook:tdd-guard",
