@@ -27,6 +27,8 @@ Do NOT use this to execute a ticket (`harness:ticket-runner`) or to sequence man
 
 Pull from what already exists, in order: the approved spec/plan, the brainstorm decisions, this conversation's decisions, the applicable ADR(s), the code conventions. The ticket RECORDS decisions already made. If a load-bearing decision is missing, go get it or flag it. Do not guess scope into existence.
 
+A `docs/specs/*.md` spec with `source: forge` in its frontmatter (the forge→harness artifact contract; see `docs/ARCHITECTURE.md` "Inter-plugin contracts") is a first-class source: its 18 recon variables, winning design, and critique verdict already answer scope, persona, and constraints — ingest them, do not re-ask. A partial forge spec (missing critique, or an older `forge_version` field) is ingested for what it has, with the gaps listed as the ticket's open questions.
+
 ---
 
 ## The ticket: required slots
@@ -91,4 +93,4 @@ A ticket missing a required slot or field is not done, however clear it feels.
 
 ## Composition
 
-Upstream: `harness:brainstorming` and `harness:writing-plans` produced the thinking; this skill captures it. Downstream: `harness:ticket-runner` consumes the ticket and the passes it declares. On a project, follow that project's tracker doctrine (team, project, label and estimate conventions) rather than re-deciding them here. If the project ships its own tracker skill (e.g. gstack `ticket-craft` or `spec`), defer to it for tracker mechanics; this skill stays the harness-doctrine layer (ingest, required slots, runner handoff).
+Upstream: `harness:brainstorming` and `harness:writing-plans` produced the thinking (or a `source: forge` spec did — see "Ingest first"); this skill captures it. Downstream: `harness:ticket-runner` consumes the ticket and the passes it declares. On a project, follow that project's tracker doctrine (team, project, label and estimate conventions) rather than re-deciding them here; this skill stays the harness-doctrine layer (ingest, required slots, runner handoff).

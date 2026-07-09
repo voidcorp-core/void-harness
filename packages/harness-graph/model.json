@@ -601,8 +601,8 @@
       "type": "skill",
       "name": "brainstorming",
       "description": "Explore intent before code. One question at a time, 2-3 approaches, design section-by-section, spec written and approved, transition to writing-plans. HARD GATE — no code until spec approved.",
-      "lines": 195,
-      "staticTokens": 2059,
+      "lines": 199,
+      "staticTokens": 2281,
       "pack": null,
       "source": "packages/core/skills/brainstorming/SKILL.md"
     },
@@ -1112,8 +1112,8 @@
       "type": "skill",
       "name": "ticket-writer",
       "description": "Use when turning a finished brainstorm, plan, or design decision into a tracker ticket. Triggers on creating a ticket or issue, logging work, or breaking an approved spec into tickets.",
-      "lines": 95,
-      "staticTokens": 1403,
+      "lines": 97,
+      "staticTokens": 1506,
       "pack": null,
       "source": "packages/core/skills/ticket-writer/SKILL.md"
     },
@@ -1150,8 +1150,8 @@
       "type": "skill",
       "name": "writing-plans",
       "description": "Turn an approved spec into an executable plan. Steps with goal, deps, verification gate, TDD mode per step, expected commits. Resume point updated. Use after brainstorming approves a spec.",
-      "lines": 226,
-      "staticTokens": 2058,
+      "lines": 228,
+      "staticTokens": 2203,
       "pack": null,
       "source": "packages/core/skills/writing-plans/SKILL.md"
     },

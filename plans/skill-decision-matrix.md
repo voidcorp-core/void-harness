@@ -174,7 +174,7 @@ The single in-session backlog drainer; consolidates the former `backlog-batch` a
 - **Wins**: an explicitly launched run draining a Linear pool into clean PRs — today the **attended** parallel burst (several **independent** tickets, each in its own worktree subagent, reconciled into one integration PR); cluster auto-detection, an adaptive per-ticket cycle, multi-cluster autonomy and risk-gated auto-merge are being added. Opt-in only; needs the Workflow tool.
 - **Loses to**: any single-ticket interactive session; human judgment on the plan and on merge.
 - **Cannot decide**: whether two tickets truly overlap (the footprint is *estimated*; the reconciliation subagent + full suite are the backstop); whether to merge a risky cluster or a stack root (human, unless `--auto-merge` + green CI on a low-risk cluster).
-- **Composes with**: the Workflow tool (substrate), `using-git-worktrees`, the craftsman cycle inside each worker (`brainstorming`, `source-driven-development`, `writing-plans`, `tdd`, `verification-before-completion`, `commit-discipline`, `compounding`, `context-management`); gstack `ticket-craft` upstream, `/code-review` + `/ship` downstream (human-owned merge).
+- **Composes with**: the Workflow tool (substrate), `using-git-worktrees`, the craftsman cycle inside each worker (`brainstorming`, `source-driven-development`, `writing-plans`, `tdd`, `verification-before-completion`, `commit-discipline`, `learning-capture`, `context-management`); `ticket-writer` upstream (which may ingest a `source: forge` spec), `/code-review` + `/ship` downstream (human-owned merge).
 
 ### `ticket-runner`
 
