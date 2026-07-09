@@ -21,7 +21,9 @@ void-harness/
 │       ├── pack-server/           # @voidcorp/pack-server     (plugin harness-server)
 │       ├── pack-pwa/              # @voidcorp/pack-pwa        (plugin harness-pwa)
 │       └── pack-mobile/           # @voidcorp/pack-mobile     (plugin harness-mobile)
-├── apps/                          # private, unpublished surfaces (graph-studio)
+├── apps/                          # private, unpublished tooling
+│   ├── graph-studio/              # the graph visualiser (Vite)
+│   └── eval-harness/              # @voidcorp/eval-harness — behavioral skill evals
 ├── plans/                         # specs + ADRs of the harness itself
 │   └── skill-audits/              # one audit note per vendored skill
 ├── test/                          # automated skill tests (citypaul-style)
@@ -171,6 +173,23 @@ shipped). `apps/graph-studio` is the maintainer 3D view of the component graph
 (spec §7): a Node prebuild runs the kernel's `analyze()` into static JSON, and the
 browser bundle is a pure renderer of that JSON (functional core / imperative shell,
 the same split the kernel uses).
+
+`apps/eval-harness` (`@voidcorp/eval-harness`) is the **behavioral** skill eval. The
+`test/` suite proves a skill's *form* (frontmatter, size, structure); this proves its
+*effect*: it runs a fixture task with the skill's `SKILL.md` body (frontmatter
+excluded) appended to the system prompt and without it, N times each, and scores
+the delta. A skill "works" when the
+with-skill mean beats the without-skill mean past a noise threshold. It makes every
+prose change testable (and the gstack vendoring verifiable — is the distillate as good
+as the source?). Same functional-core / imperative-shell split: pure `scorers.ts` +
+`runner.ts` (unit-tested, no LLM) behind a `RunOnce` port, with the `claude -p` sandbox
+adapter as the only impure edge. **Deterministic scoring first** — assertions over the
+final files / git state (commit-discipline is scored with zero LLM judge); an LLM judge
+is a last resort. Isolation: `--setting-sources ""` + a fresh sandbox dir keep global
+plugins/skills/`CLAUDE.md` out of the baseline without relocating the config dir (so
+OAuth still works); any constant bias cancels in the with-minus-without delta. Runs cost
+tokens, so it is a **local command (`pnpm eval <skill>`), never a blocking CI gate** in
+v1. See `apps/eval-harness/README.md` for the method.
 
 ## Consumer graph delivery (`/void-graph`)
 
