@@ -120,20 +120,20 @@ Source: Folpe operating principle. Translated into mechanical checks via `access
 
 The harness must evolve from real usage in real projects, like citypaul's dotfiles evolves from his daily work. Two complementary mechanisms, both **strict Human-In-The-Loop** (no automatic write into doctrine, ever):
 
-### Inbound — `harness-evolution` skill, mode `feedback`
+### Inbound — `learning-capture` skill, harness-gap branch
 
 While coding in any project consuming the harness, when the model (or the user) perceives that something is missing, wrong, or worth a rule:
 
 1. The perception is filed **directly as a GitHub issue** on `voidcorp-core/void-harness` (not captured to a per-project queue). The body carries source-project context: repo, commit SHA, file path, and the motivation. The agent drafts it and confirms with the user before opening it.
-2. The filing bar is load-bearing: open an issue only when the gap is both *agnostic* (helps any consumer, not just this project) and *harness-worthy* (changes a skill, hook, pack, CLI, or doctrine line). A project-specific rule goes to `.void/PROJECT-DOCTRINE.md` via `capture-rule` instead. When in doubt, do not file.
+2. The filing bar is load-bearing: open an issue only when the gap is both *agnostic* (helps any consumer, not just this project) and *harness-worthy* (changes a skill, hook, pack, CLI, or doctrine line). A project-specific rule goes to `.void/PROJECT-DOCTRINE.md` via `learning-capture`'s project-rule branch instead. When in doubt, do not file.
 3. The issue tracker is the triage zone: taking the issue promotes it, closing it declines it — no `proposed/` queue, no `feedback push` step. A promoted issue becomes a void-harness PR carrying the source-project context as motivation. Nothing is merged without human review.
 
-### Outbound — `harness-evolution` skill, mode `audit`
+### Outbound — `learning-capture` skill, audit branch
 
 A recurring auto-evaluation that questions the harness's current surface:
 
-1. Each skill invocation logs to `~/.void/usage.log` (local, never shipped).
-2. `npx @voidcorp/harness audit` produces a report: skills never invoked in N days, skills whose upstream source has been deprecated/superseded, skills whose decision-matrix cell has fired conflicts repeatedly.
+1. Each skill invocation logs to `.void/activations.jsonl` (local, never shipped).
+2. `void-harness audit` produces a report: skills that are active, stale, or never invoked (per the local telemetry). Upstream-source deprecation and decision-matrix-conflict detection are a planned extension of the same command.
 3. The report **proposes** deprecations, fusions, or rewrites. Nothing is auto-applied. Each proposal becomes a PR after human review.
 
 ### Why HITL is absolute here
@@ -142,14 +142,9 @@ Auto-write into the harness's doctrine — even with good signals — would crea
 
 Source: citypaul's manual curation discipline; Boris Cherny's "compounding engineering" (adapted with the review gate); user's explicit project lead direction (2026-05-29).
 
-## Compound engineering — via a proposed-learnings queue, NOT auto-write
+## Compound engineering — deliberate capture, NOT auto-write
 
-Each session can produce 0–N learnings. These are captured in `learnings/proposed/YYYY-MM-DD-N.md` of the project repo — **never written automatically to CLAUDE.md or any load-bearing doctrine file**.
-
-Promotion to project CLAUDE.md, `docs/*`, or a skill happens only via:
-
-- Explicit user review (manual edit), or
-- The dedicated `harness:learnings-promote` skill that consolidates the queue and asks "promote / discard / file as ADR?" for each.
+Each session can produce 0–N learnings, **never written automatically to CLAUDE.md or any load-bearing doctrine file**. The per-repo `learnings/proposed/` queue and a `learnings-promote` skill were designed but never built: a markdown queue is a strictly worse reimplementation of the tools that already exist. What actually routes a learning is the single **`harness:learning-capture`** skill — it names the reusable pattern, decides scope, and runs the matching HITL capture: a project rule into `.void/PROJECT-DOCTRINE.md`, or a universal gap **directly as a GitHub issue** on `voidcorp-core/void-harness`.
 
 Auto-append into CLAUDE.md was rejected: it creates drift, contradictions, prompt bloat. Doctrine evolves deliberately, not by accretion.
 

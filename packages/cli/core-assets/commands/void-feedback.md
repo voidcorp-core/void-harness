@@ -11,7 +11,7 @@ self-evolution issue on the harness tracker; do not fix the harness from here.
 2. Apply the filing bar. Open an issue ONLY if the gap is BOTH **agnostic** (it
    would help any consumer, not just this project) AND **harness-worthy** (it
    would change a skill, hook, pack, CLI, or doctrine line). A project-specific
-   rule goes to `.void/PROJECT-DOCTRINE.md` via `/harness:capture-rule` instead.
+   rule goes to `.void/PROJECT-DOCTRINE.md` via `/harness:learning-capture` (Branch A) instead.
    When in doubt, do not file.
 3. Draft the issue: a concise `<area>: <gap>` title and a 5-15 line body with
    what happened, the evidence, the source-project context (repo, commit SHA,
@@ -21,6 +21,6 @@ self-evolution issue on the harness tracker; do not fix the harness from here.
    Triage happens on the tracker (taking the issue promotes it; closing it
    declines it) — there is no `proposed/` queue and no later push step.
 
-This is the `harness-evolution` inbound flow. Keep it HITL: an issue is a
-proposal, confirmed before it is opened; never write into harness doctrine
-automatically.
+This is the `learning-capture` harness-gap flow (Branch B). Keep it HITL: an
+issue is a proposal, confirmed before it is opened; never write into harness
+doctrine automatically.

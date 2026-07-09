@@ -87,7 +87,7 @@
       "name": "void-feedback",
       "description": "File a void-harness feedback issue (a gap or friction in the harness) directly on voidcorp-core/void-harness. HITL — drafted, confirmed, then opened; never fixes the harness from here.",
       "lines": 27,
-      "staticTokens": 397,
+      "staticTokens": 404,
       "pack": null,
       "source": "packages/core/commands/void-feedback.md"
     },
@@ -544,7 +544,7 @@
       "name": "adr-workflow",
       "description": "Capture architecture decisions as ADRs (decisions/0001-NNNN.md) — when to write one, when not, format, lifecycle (proposed → accepted → superseded). Distinct from generic plans.",
       "lines": 104,
-      "staticTokens": 1061,
+      "staticTokens": 1074,
       "pack": null,
       "source": "packages/core/skills/adr-workflow/SKILL.md"
     },
@@ -607,22 +607,12 @@
       "source": "packages/core/skills/brainstorming/SKILL.md"
     },
     {
-      "id": "skill:capture-rule",
-      "type": "skill",
-      "name": "capture-rule",
-      "description": "Capture a project-specific rule into .void/PROJECT-DOCTRINE.md (HITL strict: propose, wait, write, confirm). Universal rules go to harness-evolution. Use when user states a project rule.",
-      "lines": 239,
-      "staticTokens": 2339,
-      "pack": null,
-      "source": "packages/core/skills/capture-rule/SKILL.md"
-    },
-    {
       "id": "skill:claude-md-authoring",
       "type": "skill",
       "name": "claude-md-authoring",
       "description": "Author a lean, runnable CLAUDE.md (or AGENTS.md). Only universal instructions; defer detail to docs; push style to linters and certainties to hooks. Use when writing or auditing a project CLAUDE.md.",
-      "lines": 182,
-      "staticTokens": 2655,
+      "lines": 181,
+      "staticTokens": 2653,
       "pack": null,
       "source": "packages/core/skills/claude-md-authoring/SKILL.md"
     },
@@ -647,16 +637,6 @@
       "pack": null,
       "source": "packages/core/skills/commit-discipline/SKILL.md",
       "activation": "always"
-    },
-    {
-      "id": "skill:compounding",
-      "type": "skill",
-      "name": "compounding",
-      "description": "End-of-cycle ritual — after a merged feature/bugfix/refactor, name the reusable pattern learned, decide its scope, and route it. Use at cycle close or on a \"deja vu\" fix.",
-      "lines": 154,
-      "staticTokens": 2346,
-      "pack": null,
-      "source": "packages/core/skills/compounding/SKILL.md"
     },
     {
       "id": "skill:context-management",
@@ -685,7 +665,7 @@
       "name": "frontend-design",
       "description": "Anti-AI-slop UI. Density first, 3-size hierarchy, motion <250ms, components via @repo/ui (Radix/shadcn), mobile-first dual-quality. Brand from DESIGN.md. Use when building or modifying UI.",
       "lines": 220,
-      "staticTokens": 2190,
+      "staticTokens": 2192,
       "pack": null,
       "source": "packages/core/skills/frontend-design/SKILL.md",
       "triggers": {
@@ -707,16 +687,6 @@
       "activation": "always"
     },
     {
-      "id": "skill:harness-evolution",
-      "type": "skill",
-      "name": "harness-evolution",
-      "description": "File project gaps as void-harness issues (feedback mode). Audit obsolescence — unused skills, deprecated sources (audit mode). HITL strict, never auto-writes doctrine. Use on harness gap or audit.",
-      "lines": 173,
-      "staticTokens": 2072,
-      "pack": null,
-      "source": "packages/core/skills/harness-evolution/SKILL.md"
-    },
-    {
       "id": "skill:hexagonal-architecture",
       "type": "skill",
       "name": "hexagonal-architecture",
@@ -726,6 +696,16 @@
       "pack": null,
       "source": "packages/core/skills/hexagonal-architecture/SKILL.md",
       "activation": "always"
+    },
+    {
+      "id": "skill:learning-capture",
+      "type": "skill",
+      "name": "learning-capture",
+      "description": "Capture a lesson when it appears — a stated project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a harness gap. Routes to PROJECT-DOCTRINE, a GitHub issue, or nothing. HITL strict.",
+      "lines": 210,
+      "staticTokens": 2823,
+      "pack": null,
+      "source": "packages/core/skills/learning-capture/SKILL.md"
     },
     {
       "id": "skill:llm-cost-discipline",

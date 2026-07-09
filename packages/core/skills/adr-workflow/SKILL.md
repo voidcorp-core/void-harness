@@ -100,4 +100,4 @@ Reversal = new ADR. Editing an accepted ADR's "Decision" field is forbidden — 
 
 - `harness:writing-plans` — plans cover the WORK; ADRs cover the DECISIONS behind the work.
 - `harness:commit-discipline` — "why" lines in commits often surface ADR-worthy decisions. If a commit's "why" is one paragraph long, it should be an ADR.
-- `harness:harness-evolution` — ADRs about the harness itself live in this repo's `decisions/`, not in consumer projects.
+- `harness:learning-capture` — ADRs about the harness itself live in this repo's `decisions/`, not in consumer projects; a harness gap it surfaces may become such an ADR.

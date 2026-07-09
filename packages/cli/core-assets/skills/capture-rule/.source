@@ -1,9 +1,0 @@
-Sources for `capture-rule` skill:
-
-- Original to void-harness. No external precedent for this exact mechanism.
-- Inspiration: Boris Cherny "how Boris uses Claude Code" (compound engineering loop) + Kieran Klaassen (EveryInc compound-engineering-plugin) — adapted with HITL strict gating.
-- Composes with `harness-evolution` (cross-project promotion) and `commit-discipline` (the captured rule is committed with chore(doctrine): or docs(doctrine):).
-
-Strategy: original.
-
-Design constraint: NO auto-write into doctrine ever. The user is the loop closer. Section 0bis.4 of plans/2026-05-29-void-harness-design.md.

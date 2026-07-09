@@ -86,7 +86,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 
 ---
 
-## Process skills (16)
+## Process skills (14)
 
 ### `brainstorming`
 
@@ -130,22 +130,14 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 - **Cannot decide**: whether the change itself is correct.
 - **Composes with**: `verification-before-completion`.
 
-### `harness-evolution`
+### `learning-capture`
 
-Two modes: `feedback` (inbound suggestions captured from real project usage) and `audit` (outbound obsolescence detection).
+The 2026-07-09 fusion of `compounding` + `capture-rule` + `harness-evolution` (issue #75) — one skill, three routed destinations, HITL on every write.
 
-- **Wins (`feedback` mode)**: any moment, in any consumer project, when the model or user perceives a missing skill, missing rule, missing mention, or a hole in the harness coverage. Filed directly as a GitHub issue on `voidcorp-core/void-harness` (with source-project context) once it clears the agnostic + harness-worthy bar — no per-project `proposed/` queue.
-- **Wins (`audit` mode)**: triggered by `npx @voidcorp/harness audit`. Reads `~/.void/usage.log`, scans upstream sources for deprecation, surfaces conflicts in the decision matrix.
-- **Loses to**: nothing — it's a meta-skill operating on the harness itself, orthogonal to code-discipline and process skills.
-- **Cannot decide**: whether a proposed change is adopted (HITL only). Cannot write into harness doctrine — only opens issues/PRs.
-- **Composes with**: every skill (any skill can be the subject of feedback). Pairs naturally with `code-review` (a code review that surfaces a missing rule may generate a feedback item).
-
-### `capture-rule`
-
-- **Wins**: the user states a durable project-specific rule, preference, or constraint to remember. Captures it into `.void/PROJECT-DOCTRINE.md` under strict HITL (propose, wait, write, confirm).
-- **Loses to**: `harness-evolution` when the rule is universal (applies to all the user's projects) — that routes to a harness PR, not PROJECT-DOCTRINE.md.
-- **Cannot decide**: whether a rule is correct (the user owns it); whether to apply it without confirmation (never — HITL absolute).
-- **Composes with**: `harness-evolution` (universal split), `compounding` (routes a learned pattern here), `claude-md-authoring` (governs the doc the rule lands in).
+- **Wins**: any moment a lesson appears — a stated durable project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a perceived harness gap. Names the lesson, decides scope, and runs the matching capture: a project rule into `.void/PROJECT-DOCTRINE.md`, a harness gap as a direct `voidcorp-core/void-harness` issue, or drop. Also interprets the `void-harness audit` obsolescence report.
+- **Loses to**: nothing on capture routing — it is the single owner. Defers *which tool to use* to the code skills; a structural decision with a rejected alternative is `adr-workflow`, not a doctrine line.
+- **Cannot decide**: whether a capture is adopted (HITL only, never auto-writes doctrine); whether a rule is correct (the user owns it); the scope when genuinely ambiguous (it asks, never guesses).
+- **Composes with**: `verification-before-completion` (a cycle is not "closed" until verified), `commit-discipline` (a project rule commits as `docs(doctrine):`), `code-review` (a recurring finding is a deja-vu signal), `claude-md-authoring` (governs the doc a rule lands in), `adr-workflow`.
 
 ### `source-driven-development`
 
@@ -160,13 +152,6 @@ Two modes: `feedback` (inbound suggestions captured from real project usage) and
 - **Loses to**: `systematic-debugging` on the investigation *method* (this skill owns *where* the investigation runs, not how).
 - **Cannot decide**: the task content; the investigation's conclusions.
 - **Composes with**: `systematic-debugging`, `writing-plans` (plan state persisted on disk), `dispatching-parallel-agents` / `subagent-driven-development` (vendored targets).
-
-### `compounding`
-
-- **Wins**: the end-of-cycle ritual — after a merged unit of work, name the reusable *pattern* learned, triage its scope, and route it.
-- **Loses to**: `harness-evolution` on the feedback *mechanism* itself; `capture-rule` on *writing* a known project rule.
-- **Cannot decide**: whether a proposed capture is adopted (HITL only); cannot auto-write doctrine.
-- **Composes with**: `capture-rule` (routes project rules), `harness-evolution` (routes harness gaps), `commit-discipline`.
 
 ### `adr-workflow`
 
@@ -282,4 +267,4 @@ When two skills both claim "I win":
 
 ## Status
 
-Populated for the 31 core skills as of 2026-07-09 — the code-discipline (9), process (16, including the canonical `ticket-runner` cycle and `ticket-writer`), and hedge (6) groups above. `backlog-autopilot` replaced the deleted `autonomous-backlog-loop`. Refined as each skill's content evolves; any cell that becomes ambiguous in practice triggers an ADR in `docs/DECISIONS.md`.
+Populated for the 29 core skills as of 2026-07-09 — the code-discipline (9), process (14, including the canonical `ticket-runner` cycle, `ticket-writer`, and the fused `learning-capture`), and hedge (6) groups above. `backlog-autopilot` replaced the deleted `autonomous-backlog-loop`; `learning-capture` fused `compounding` + `capture-rule` + `harness-evolution` (issue #75). Refined as each skill's content evolves; any cell that becomes ambiguous in practice triggers an ADR in `docs/DECISIONS.md`.
