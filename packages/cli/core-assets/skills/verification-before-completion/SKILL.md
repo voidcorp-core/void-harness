@@ -33,7 +33,7 @@ Read item by item. Do not run from memory. Each item is OBSERVED, not assumed.
 | 5 | Hooks pass (pre-commit dry-run on staged set) | All hooks (`tdd-guard`, `tigerstyle-check`, `no-any-grep`, ...) |
 | 6 | UI changes verified in BOTH mobile and desktop viewports | `frontend-design` + `accessibility-first` (mobile-first dual-quality) |
 | 7 | Observability hooks present for new business logic | `observability` |
-| 8 | Security review check for any boundary / auth / secret change | `security-guidance` + gstack `/cso` |
+| 8 | Security review check for any boundary / auth / secret change | `security-guidance` + `harness:security-audit` |
 | 9 | Documentation updated if any convention changed | `commit-discipline` "always say why" |
 | 10 | Commit message includes the why (not just what) | `commit-discipline` |
 | 11 | Review evidence block present in PR body (strict mode) | `code-review` |
