@@ -96,6 +96,8 @@ Why vertical wins:
 
 Prefer "checkout one item, end to end" then "checkout many items" over "all models, then all ports, then all UI." Each step in the plan should name the thin slice it ships.
 
+**MVP-cut first** (vendored from gstack `/spec`): the first slice is the smallest version that delivers real value — name it explicitly, and defer everything not required to prove that value. The plan grows from a shipping core, not toward one.
+
 ---
 
 ## Review checkpoints
@@ -150,6 +152,7 @@ After writing the plan, scan for:
 4. **Unrealistic dependencies** — does step N actually need step N-1, or could they parallelize?
 5. **Missing resume point** — present and correct as "Next step: Step 1"?
 6. **Frontmatter `spec:`** — links back to the approved spec?
+7. **Executability gate** (vendored from gstack `/spec`) — could an *unfamiliar* implementer or agent execute this plan with **zero follow-up questions**? Walk one step as if you'd never seen the codebase: is every file named, every metric quantified, every acceptance criterion observable? Any "figure it out at implementation time" is an ambiguity to resolve now.
 
 Fix inline. Then user-review gate.
 

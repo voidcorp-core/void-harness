@@ -637,8 +637,8 @@
       "type": "skill",
       "name": "brainstorming",
       "description": "Explore intent before code: pressure-test a raw idea, one question at a time, 2-3 approaches, design in sections, spec written and approved. HARD GATE — no code until the spec is approved.",
-      "lines": 218,
-      "staticTokens": 3282,
+      "lines": 225,
+      "staticTokens": 3480,
       "pack": null,
       "source": "packages/core/skills/brainstorming/SKILL.md"
     },
@@ -1122,8 +1122,8 @@
       "type": "skill",
       "name": "systematic-debugging",
       "description": "Four phases (investigate, analyze, hypothesize, implement). Iron Law: no fix without a failing test reproducing the bug AND a root cause. Bug fix commit pairs. Use on bug or test failure.",
-      "lines": 188,
-      "staticTokens": 1856,
+      "lines": 212,
+      "staticTokens": 2332,
       "pack": null,
       "source": "packages/core/skills/systematic-debugging/SKILL.md"
     },
@@ -1161,7 +1161,7 @@
       "name": "ticket-runner",
       "description": "Use when taking a single ticket from ready through shipped at expert-team quality. Triggers on starting a ticket, taking an issue, or picking up a backlog item to execute.",
       "lines": 85,
-      "staticTokens": 1761,
+      "staticTokens": 1984,
       "pack": null,
       "source": "packages/core/skills/ticket-runner/SKILL.md"
     },
@@ -1197,8 +1197,8 @@
       "type": "skill",
       "name": "verification-before-completion",
       "description": "Final pre-flight checklist. Twelve items observed (not assumed) — typecheck, tests, hooks, mobile+desktop, commit why, review evidence. Skipping requires reason. Use at end of every task.",
-      "lines": 166,
-      "staticTokens": 1683,
+      "lines": 177,
+      "staticTokens": 1959,
       "pack": null,
       "source": "packages/core/skills/verification-before-completion/SKILL.md",
       "activation": "always"
@@ -1208,8 +1208,8 @@
       "type": "skill",
       "name": "writing-plans",
       "description": "Turn an approved spec into an executable plan. Steps with goal, deps, verification gate, TDD mode per step, expected commits. Resume point updated. Use after brainstorming approves a spec.",
-      "lines": 228,
-      "staticTokens": 2245,
+      "lines": 231,
+      "staticTokens": 2398,
       "pack": null,
       "source": "packages/core/skills/writing-plans/SKILL.md"
     },

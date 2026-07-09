@@ -56,3 +56,7 @@ red-flag row ("It renders, ship the UI") was added. Rationale: "it works" was be
 read as "it's done" for UI tickets; the pass now holds the interface to production
 craft, not just rendering. No new dependency — `impeccable` was already referenced;
 this elevates it from a preference to the default. Still one pass, one subject.
+
+## gstack /ship vendoring (DEV-388, de-gstackification Vague 2)
+
+/ship's pre-PR checklist is mostly ALREADY covered here (review, tests, commit, PR) + by verification-before-completion + commit-discipline. **Integrated** (the genuine cycle-level deltas): Test-Failure-Ownership triage (adjudicate a red suite in-branch vs pre-existing before proceeding — this skill assumed green), the independent fresh-context adversarial review pass (attacker/chaos lens, FIXABLE/INVESTIGATE, name the single most exploitable finding), and bisectable commit ordering (infra→domain→edge, each independently valid). **Rejected**: the Review-Army roster (7 named specialists + adaptive gating) as an over-engineered release-gate apparatus for a single ticket — kept only its *idea* (scope-gated fresh-context lenses); and the VERSION/CHANGELOG/release-please steps (release-please owns versioning here). The plan-completion-audit half of /ship went to verification-before-completion, not here.

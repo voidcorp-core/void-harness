@@ -53,7 +53,18 @@ Items 6, 7, 8 only fire when the change touches their domain.
 | "Sentry is set up, so observability is handled" | NOT for this code path. Did you add the breadcrumb? The log? |
 | "The hook ran before, why check" | Did you edit since? If yes, run again. |
 
-"Should" and "probably" are the words this skill exists to eliminate.
+"Should" and "probably" are the words this skill exists to eliminate. The named excuses (vendored from gstack `/ship`): "should work now" → run it; "I'm confident" → confidence is not evidence; "trivial change" → trivial changes break prod. If code changed since the last run, the last run is stale.
+
+---
+
+## Plan completion audit (vendored from gstack `/ship`)
+
+The 12-item checklist verifies *the build works*. This verifies *you built what was specified*. When the work derives from a plan or ticket, classify **every actionable item** against the diff:
+
+- `DONE` / `PARTIAL` / `NOT DONE` / `CHANGED` (deliberately deviated) / `UNVERIFIABLE` (cannot be proven from the diff — cross-repo, external state, runtime-only).
+- **Honesty rule**: code that *handles* a deliverable is not the deliverable. "Added the webhook handler" ≠ "the webhook fires end-to-end."
+- **Per-item confirmation for `UNVERIFIABLE`**: surface each one individually and ask — never a single blanket "all done?" over a list you cannot actually verify.
+- **Scope drift**: did you build exactly what was asked? Flag creep ("while I was in there…") and any missing requirement. Informational, but stated.
 
 ---
 
