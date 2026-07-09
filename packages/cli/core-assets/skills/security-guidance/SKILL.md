@@ -1,14 +1,14 @@
 ---
 name: security-guidance
 activation: always
-description: Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. Compose gstack /cso for full audits. Use on trust-boundary code.
+description: Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. Escalate to security-audit for deep audits. Use on trust-boundary code.
 ---
 
 # security-guidance — voidcorp craftsman edition
 
-Security is not "I will think about it later." It is the defaults applied at every trust boundary. This skill codifies the everyday discipline: validate at the boundary, never log secrets, never hand-roll auth, treat LLM I/O as untrusted. Full audit work is delegated to `gstack:/cso`. This skill is the daily floor; cso is the periodic ceiling.
+Security is not "I will think about it later." It is the defaults applied at every trust boundary. This skill codifies the everyday discipline: validate at the boundary, never log secrets, never hand-roll auth, treat LLM I/O as untrusted. Full audit work is delegated to `harness:security-audit`. This skill is the daily floor; `security-audit` is the periodic ceiling.
 
-**Attribution**: see `.source`. Composed with `gstack:/cso` (lite mode) + distilled from citypaul + OWASP cheat sheets.
+**Attribution**: see `.source`. Distilled from citypaul + OWASP cheat sheets; the deep-audit ceiling lives in `harness:security-audit`.
 
 ---
 
@@ -199,16 +199,16 @@ Logger config (in `pack-monorepo`) redacts known-secret keys (`password`, `apiKe
 
 ---
 
-## When to escalate to gstack `/cso`
+## When to escalate to `harness:security-audit`
 
-This skill is the daily floor. Escalate to `gstack:/cso` for:
+This skill is the daily floor. Escalate to `harness:security-audit` for:
 
 - Periodic deep audit (monthly): OWASP Top 10 walkthrough, dependency supply chain scan, threat model review, CI/CD pipeline security
 - High-stakes feature: payment surface, auth changes, PII handling
 - Pre-launch security gate
 - Incident response
 
-The `doctrine-critic` agent (in void-harness) flags trust-boundary code in a diff and routes the security pass to `cso`; `cso` handles surface-level and full audits.
+The `doctrine-critic` agent (in void-harness) flags trust-boundary code in a diff and routes the security pass to `security-audit`; `security-audit` runs the phase-driven deep audit.
 
 ---
 
@@ -219,8 +219,8 @@ The `doctrine-critic` agent (in void-harness) flags trust-boundary code in a dif
 - **With `observability`**: structured logs, no PII / secrets, breadcrumbs scoped with anonymized user ID.
 - **With `async-safety`**: webhook signature verification, replay protection.
 - **With `llm-cost-discipline`**: cost rules and security rules co-evolve at LLM call sites.
-- **With `code-review`**: dimension `security` is delegated. `doctrine-critic` flags boundaries and `cso` does the deep pass.
-- **With `gstack:/cso`**: full audit on demand. This skill is the daily; cso is the periodic.
+- **With `code-review`**: dimension `security` is delegated. `doctrine-critic` flags boundaries and `security-audit` does the deep pass.
+- **With `harness:security-audit`**: full audit on demand. This skill is the daily floor; `security-audit` is the periodic ceiling.
 
 ---
 
@@ -236,8 +236,8 @@ The `doctrine-critic` agent (in void-harness) flags trust-boundary code in a dif
 
 ## Anti-rules
 
-- MUST NOT replace `gstack:/cso` full-audit mode (different scope).
-- MUST NOT decide threat model boundaries (escalates to cso).
+- MUST NOT replace `harness:security-audit` full-audit mode (different scope).
+- MUST NOT decide threat model boundaries (escalates to `security-audit`).
 - MUST NOT pretend LLM input/output is trusted.
 - MUST NOT hand-roll auth, sessions, password hashing.
 - MUST NOT bypass Zod validation at trust boundaries "for performance."

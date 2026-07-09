@@ -68,13 +68,30 @@ connect-chrome (symlink dupliqué de browse).
 
 | Vague | Contenu | Coût |
 |---|---|---|
-| 0 | `auto_upgrade: false` + snapshot learnings/decisions.jsonl | 1h |
+| 0 | `auto_upgrade: false` + snapshot learnings/decisions.jsonl | 1h |  ✅ **FAIT (DEV-384, 2026-07-09)** |
 | 1 | Vendorer les 4 plan-reviews + autoplan + retro + office-hours + prose cso | prose |
 | 2 | Distiller ship / spec / investigate dans ticket-runner, systematic-debugging | prose |
 | 3 | Design : design-review/consultation/shotgun → frontend-design + forge + impeccable | prose |
 | 4 | QA browser repointée sur claude-in-chrome MCP ; make-pdf léger ; retirer le daemon | jours |
 | 5 | Décider iOS et gbrain (différables, voire jamais) | lourd |
 | 6 | Teardown : deux namespaces skills, symlink, ~/.gstack/ après extraction | 1h |
+
+### Vague 0 exécutée (DEV-384, 2026-07-09)
+
+- `~/.gstack/config.yaml` : `auto_upgrade: true → false` (gèle la v1.57.10.0 ;
+  1.58.5 dispo, non appliquée). Gate d'upgrade confirmé à la source
+  (`bin/gstack-session-update:31` : `exit 0` si `auto_upgrade != true`).
+- **Snapshot** : `~/gstack-snapshots/2026-07-09-degstackification-vague0/`
+  (hors `~/.gstack/`, structure par slug + `MANIFEST.txt` avec sha256).
+  3 fichiers capturés (pas 4) : `declik/{learnings,decisions}.jsonl` +
+  `declik-ai-declik/learnings.jsonl`. `declik-ai-declik` n'a jamais eu de
+  `decisions.jsonl`. Intégrité vérifiée (sha256 source == copie), JSONL valide.
+- Non copiés (délibéré) : developer-profile/builder-profile (absents + privacy),
+  brain-cache (régénérable), timeline/reviews/designs/taste-profile/
+  decisions.active.json (hors scope Vague 0), chromium-profile (browse vit
+  jusqu'à Vague 4). Autres slugs : aucun learnings/decisions non vide.
+- Migration du contenu vers `.void/PROJECT-DOCTRINE.md` + `decisions/NNNN.md` =
+  Vague 6 (teardown).
 
 ## Grandes améliorations proposées (au-delà des issues #62-#77)
 

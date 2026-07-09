@@ -7,6 +7,6 @@ Sources for `code-review` skill (see plans/skill-audits/code-review.md for full 
 - gstack /codex review — composed for independent second opinion (different model family)
 - gstack /review (PR review) — composed at PR level for SQL safety + LLM trust boundary
 
-Strategy: distill + compose-gstack. Skill orchestrates dimensions + composition; gstack does the diff analysis; the `doctrine-critic` agent handles the doctrine-conformance deep pass (security routes to gstack /cso).
+Strategy: distill + compose-gstack. Skill orchestrates dimensions + composition; gstack does the diff analysis; the `doctrine-critic` agent handles the doctrine-conformance deep pass (security routes to harness:security-audit).
 
 Companion hooks: pre-PR-review-evidence, large-cl-grep, blocker-prefix-grep.

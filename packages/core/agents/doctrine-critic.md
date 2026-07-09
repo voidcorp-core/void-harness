@@ -1,6 +1,6 @@
 ---
 name: doctrine-critic
-description: Judges a diff against VoidCorp doctrine that hooks/reviewers miss: weak tests, over-abstraction, broken boundaries, anti-bloat. Read-only; routes security to /cso, bugs to /code-review.
+description: Judges a diff against VoidCorp doctrine that hooks/reviewers miss: weak tests, over-abstraction, broken boundaries, anti-bloat. Read-only; routes security to security-audit, bugs to /code-review.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 color: purple
@@ -18,7 +18,7 @@ route the rest.
 > deterministic PreToolUse hooks (`no-any`, `no-as-cast`, `no-console-log`,
 > `no-null`, `no-only-no-skip`, `boundary-direction-check`, `test-name-lint`,
 > `tdd-guard`). Generic reviewers (`pr-reviewer`, gstack `/review`, built-in
-> `/code-review`) judge generic quality. Security has `/cso`. None of them judges
+> `/code-review`) judge generic quality. Security has `harness:security-audit`. None of them judges
 > the doctrine calls that need taste. That gap is your entire scope.
 
 ## Operating rules
@@ -59,7 +59,7 @@ stats.
   `ultra` mode for a deep multi-agent pass).
 - **Security** (OWASP / STRIDE / secrets / supply-chain) → only *detect*
   trust-boundary code (new input, auth, SQL, LLM I/O, env reads) and recommend
-  `/cso`. Do not audit it yourself.
+  `harness:security-audit`. Do not audit it yourself.
 - **QA / design / shipping** → stays in gstack (`/qa`, `/design-review`, `/ship`).
   Never spill here (anti-bloat rule 6).
 
@@ -80,7 +80,7 @@ auditable, not vibes.
 - <file:line> — <observation>
 
 ### Handoffs (owned by another tool, not judged here)
-- Security: trust-boundary code at <file:line> → run /cso
+- Security: trust-boundary code at <file:line> → run harness:security-audit
 - Bugs/perf: → run /code-review
 ```
 

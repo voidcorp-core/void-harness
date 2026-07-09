@@ -10,9 +10,9 @@ Sources for `ticket-runner` skill (see plans/skill-audits/ticket-runner.md for f
   harness:hexagonal-architecture, harness:domain-driven-design,
   harness:frontend-design, harness:accessibility-first, harness:security-guidance,
   harness:code-review, harness:verification-before-completion,
-  harness:commit-discipline; agents type-design-analyzer, doctrine-critic,
-  silent-failure-hunter; gstack /design-review, /qa, /cso; the `impeccable`
-  frontend skill when installed.
+  harness:commit-discipline, harness:security-audit; agents type-design-analyzer,
+  doctrine-critic, silent-failure-hunter; gstack /design-review, /qa; the
+  `impeccable` frontend skill when installed.
 
 Strategy: author. The load-bearing idea is the predicate-keyed triage: speed
 comes from skipping passes whose trigger is false, never from skipping an
