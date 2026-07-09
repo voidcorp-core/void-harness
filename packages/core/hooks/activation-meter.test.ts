@@ -20,7 +20,8 @@ function runHook(payload: Record<string, unknown>, env: Record<string, string> =
   const dir = mkdtempSync(join(tmpdir(), 'act-meter-'));
   execFileSync(BASH, [script], {
     input: JSON.stringify(payload),
-    env: { ...process.env, CLAUDE_PROJECT_DIR: dir, ...env },
+    // Isolate the global rollup index so self-registration (#72) never touches ~/.void.
+    env: { ...process.env, CLAUDE_PROJECT_DIR: dir, VOID_GLOBAL_DIR: join(dir, '_global'), ...env },
   });
   const actPath = join(dir, '.void', 'activations.jsonl');
   const usagePath = join(dir, '.void', 'usage.log');

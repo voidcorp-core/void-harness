@@ -34,6 +34,17 @@ import { startLiveServer } from '../lib/graph-live-server.js';
 import { findCoreSource } from '../lib/paths.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
 import { loadSkillUsage, usedSkillNames } from '../lib/graph-io.js';
+import { discoverProjects, mergeTelemetry } from '../lib/rollup.js';
+
+/**
+ * Load a telemetry stream body: the cross-project merge when `--all-projects` is
+ * set (issue #72), else the single-project file (respecting a `--log` override).
+ */
+function loadTelemetryBody(args: readonly string[], file: string, logPath?: string): string {
+  if (args.includes('--all-projects')) return mergeTelemetry(discoverProjects(), file);
+  const p = logPath ?? join(process.cwd(), '.void', file);
+  return existsSync(p) ? readFileSync(p, 'utf8') : '';
+}
 
 /** Read `--flag value` from argv, falling back to `fallback`. */
 function strFlag(args: readonly string[], flag: string, fallback: string): string {
@@ -238,7 +249,7 @@ export async function graph(
     const model = await resolveModel(coreSource, bundled);
     const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
     const sinceDays = numFlag(args, '--since', 0);
-    const events = parseActivations(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '');
+    const events = parseActivations(loadTelemetryBody(args, 'activations.jsonl', logPath));
     const report = analyzeBehavior(
       model,
       events,
@@ -272,9 +283,8 @@ export async function graph(
     const model = await resolveModel(coreSource, bundled);
     const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
     const sinceDays = numFlag(args, '--since', 0);
-    const events = parseActivations(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '');
-    const outPath = join(process.cwd(), '.void', 'outcomes.jsonl');
-    const outcomes = parseOutcomes(existsSync(outPath) ? readFileSync(outPath, 'utf8') : '');
+    const events = parseActivations(loadTelemetryBody(args, 'activations.jsonl', logPath));
+    const outcomes = parseOutcomes(loadTelemetryBody(args, 'outcomes.jsonl'));
     const { costs, skipped } = readSessionCosts(process.cwd());
     const pricing = loadPricing(args);
     const report = analyzeCost(model, events, {

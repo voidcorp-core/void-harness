@@ -42,6 +42,7 @@ describe('activation-meter.sh', () => {
   it('records a Skill invocation to activations.jsonl and never the legacy usage.log (#70)', () => {
     const r = run('activation-meter.sh', '{"tool_name":"Skill","tool_input":{"skill":"tdd"}}', {
       CLAUDE_PROJECT_DIR: dir,
+      VOID_GLOBAL_DIR: join(dir, "_global"),
     });
     expect(r.code).toBe(0);
     // activations.jsonl is now the single source of truth.
@@ -55,6 +56,7 @@ describe('activation-meter.sh', () => {
   it('records a non-Skill tool as kind=tool and writes no usage.log', () => {
     run('activation-meter.sh', '{"tool_name":"Bash","tool_input":{"command":"ls"}}', {
       CLAUDE_PROJECT_DIR: dir,
+      VOID_GLOBAL_DIR: join(dir, "_global"),
     });
     const jsonl = join(dir, '.void', 'activations.jsonl');
     expect(readFileSync(jsonl, 'utf8')).toContain('"kind":"tool"');
@@ -68,7 +70,7 @@ describe('activation-meter.sh', () => {
       hook_event_name: 'PreToolUse',
       session_id: 'test-session-1',
     });
-    const r = run('activation-meter.sh', payload, { CLAUDE_PROJECT_DIR: dir });
+    const r = run('activation-meter.sh', payload, { CLAUDE_PROJECT_DIR: dir, VOID_GLOBAL_DIR: join(dir, "_global") });
     expect(r.code).toBe(0);
     const jsonlPath = join(dir, '.void', 'activations.jsonl');
     expect(existsSync(jsonlPath)).toBe(true);

@@ -22,6 +22,18 @@ mkdir -p "$LOG_DIR" 2>/dev/null || exit 0
 TS=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "unknown")
 ACT_LOG="$LOG_DIR/activations.jsonl"
 
+# Telemetry-driven self-registration (#72): announce this project to the global
+# rollup index so cross-project aggregation can find its .void without a separate
+# registry. Once per project (a local marker avoids re-hashing every tool call);
+# the index holds only the project root, and lives on this machine only.
+if [ ! -f "$LOG_DIR/.registered" ]; then
+  GIDX="${VOID_GLOBAL_DIR:-${HOME:-}/.void}/projects"
+  SLUG=$(printf '%s' "$ROOT" | cksum 2>/dev/null | cut -d' ' -f1)
+  if [ -n "$SLUG" ] && mkdir -p "$GIDX" 2>/dev/null && printf '%s\n' "$ROOT" >"$GIDX/$SLUG.path" 2>/dev/null; then
+    touch "$LOG_DIR/.registered" 2>/dev/null || true
+  fi
+fi
+
 if command -v jq >/dev/null 2>&1; then
   EVENT=$(printf '%s' "$INPUT" | jq -c --arg ts "$TS" --arg root "$ROOT" '
     (.tool_name // "") as $tool

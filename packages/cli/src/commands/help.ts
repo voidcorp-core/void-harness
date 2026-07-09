@@ -49,9 +49,11 @@ Commands:
                            behavior reads .void/activations.jsonl and reports dead
                            nodes + should-have-fired + telemetry-gap (--since, --log; advisory).
 
-  audit [--stale-days <n>] Outbound self-evolution audit: read .void/usage.log
-                           and report harness skills that are active, stale, or
-                           never fired (deprecation candidates). HITL, report-only.
+  audit [--stale-days <n>] Outbound self-evolution audit: read .void/activations.jsonl
+        [--all-projects]   and report harness skills that are active, stale, or never
+        [--push [--dry-run]] fired (deprecation candidates). --all-projects aggregates
+                           every self-registered project; --push files the candidates as
+                           GitHub issues (dry-run by default, confirm before create). HITL.
 
   help                     Print this message.
 

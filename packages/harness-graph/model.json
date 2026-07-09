@@ -116,8 +116,8 @@
       "type": "hook",
       "name": "activation-meter",
       "description": "",
-      "lines": 81,
-      "staticTokens": 1040,
+      "lines": 93,
+      "staticTokens": 1204,
       "pack": null,
       "source": "packages/core/hooks/activation-meter.sh"
     },

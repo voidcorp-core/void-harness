@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type UsageEntry, auditSkills, parseUsageLog } from './audit.js';
+import { type UsageEntry, auditFindings, auditSkills, parseUsageLog } from './audit.js';
 
 // The outbound self-evolution audit (issue #17 cluster C) reads .void/usage.log
 // (one `<iso>\t<skill>` line per Skill invocation, written by skill-usage-meter)
@@ -55,5 +55,27 @@ describe('auditSkills', () => {
     const withForeign: UsageEntry[] = [...usage, { timestamp: '2026-06-19T10:00:00Z', skill: 'superpowers:x' }];
     const report = auditSkills({ allSkills: ['harness:tdd'], usage: withForeign, nowMs: now, staleDays: 30 });
     expect(report.active.length + report.stale.length + report.never.length).toBe(1);
+  });
+});
+
+describe('auditFindings', () => {
+  const report = {
+    active: [],
+    stale: [{ skill: 'harness:refactoring', lastUsed: '2026-05-01T00:00:00Z', daysSince: 50, status: 'stale' as const }],
+    never: [{ skill: 'harness:observability', lastUsed: undefined, daysSince: undefined, status: 'never' as const }],
+    staleDays: 30,
+  };
+
+  it('maps never + stale skills to deprecation-candidate findings on the bare skill id', () => {
+    const findings = auditFindings(report);
+    expect(findings).toContainEqual({ type: 'never', component: 'skill:observability', detail: 'never fired' });
+    expect(findings.find((f) => f.type === 'stale')?.component).toBe('skill:refactoring');
+  });
+
+  it('folds the project count into the detail for an aggregated push (no paths)', () => {
+    const findings = auditFindings(report, 4);
+    const never = findings.find((f) => f.type === 'never');
+    expect(never?.detail).toBe('never fired across 4 projects');
+    expect(JSON.stringify(findings)).not.toMatch(/\/(Users|home)\//);
   });
 });

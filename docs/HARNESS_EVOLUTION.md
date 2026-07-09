@@ -36,7 +36,14 @@ Periodically the harness should audit itself:
 - Upstream tooling deprecations (e.g., a library a skill references getting deprecated)
 - Repeated matrix conflicts in `plans/skill-decision-matrix.md` → boundaries need reshaping
 
-`void-harness audit` reports this from `.void/usage.log` (written by the `activation-meter` hook): harness skills that are active, stale (`--stale-days <n>`, default 30), or never fired — the never/stale lists being the deprecation candidates. It reports only; deprecation PRs stay hand-authored (HITL). Upstream-tooling deprecation and matrix-conflict detection are a planned extension of the same command.
+`void-harness audit` reports this from `.void/activations.jsonl` (written by the `activation-meter` hook; the legacy `usage.log` is merged as history, #70): harness skills that are active, stale (`--stale-days <n>`, default 30), or never fired — the never/stale lists being the deprecation candidates. It reports only; deprecation PRs stay hand-authored (HITL). Upstream-tooling deprecation and matrix-conflict detection are a planned extension of the same command.
+
+### Cross-project rollup and opt-in push (#72)
+
+A single repo's telemetry is too thin to trust a "never fired" verdict (a skill fires a handful of times in one project). Each project self-registers into a global index at `~/.void/projects/` — the `activation-meter` hook, the first time it runs in a project, drops a pointer file holding that project's root (telemetry-driven, so even projects wired before this feature announce themselves; the index stays on this machine and holds only paths).
+
+- `void-harness audit --all-projects` and `void-graph cost|behavior --all-projects` aggregate the `.void/*.jsonl` of every registered project before classifying, so the gates actually clear.
+- `void-harness audit --push` files the aggregated deprecation candidates as GitHub issues on `voidcorp-core/void-harness`, labelled `harness-feedback`. It is **dry-run by default** (prints the create/update plan and stops); a real push additionally requires an interactive confirmation, and a re-run **updates the same issue** (deterministic title per `type:component`) instead of duplicating. The issues carry component names and aggregate counts only — never a project path, file content, or session id. A missing or unauthenticated `gh` fails loud. HITL is absolute: no issue is ever filed without the explicit flag and the confirmation.
 
 ## HITL is absolute
 
