@@ -103,7 +103,7 @@ None. Planning is a process discipline; the verification gates leverage existing
 
 ## Anti-rules (what this skill MUST NOT do)
 
-- MUST NOT decide feature scope (that is brainstorming + office-hours).
+- MUST NOT decide feature scope (that is `brainstorming`, which now includes the vendored idea pressure-test).
 - MUST NOT decide architecture (architecture skills inform via the spec).
 - MUST NOT execute the plan (downstream skills do that).
 - MUST NOT skip the spec-link requirement.

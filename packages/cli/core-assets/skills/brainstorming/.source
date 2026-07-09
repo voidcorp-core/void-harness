@@ -1,7 +1,7 @@
 Sources for `brainstorming` skill (see plans/skill-audits/brainstorming.md for full audit):
 
 - superpowers/brainstorming — primary source. Hard gate, one-question, multi-choice preferred, 2–3 approaches, spec-write, transition to writing-plans.
-- gstack /office-hours — composed upstream (validates the IDEA before brainstorming the implementation).
+- gstack /office-hours — VENDORED (DEV-386): the YC product diagnostic (six forcing questions, anti-sycophancy, 10x ambition move) distilled into the "Pressure-testing a raw idea" upstream mode. Builder-visual/cross-model/gstack-runtime rejected. Was composed upstream; now absorbed as the gstack teardown removes it.
 - compound-engineering (EveryInc) — plan phase referenced; rejected as primary (no clear gate between explore and implement).
 - Boris Cherny "how Boris uses Claude Code" — discipline of writing the design before code.
 

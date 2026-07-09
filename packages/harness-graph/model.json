@@ -636,9 +636,9 @@
       "id": "skill:brainstorming",
       "type": "skill",
       "name": "brainstorming",
-      "description": "Explore intent before code. One question at a time, 2-3 approaches, design section-by-section, spec written and approved, transition to writing-plans. HARD GATE — no code until spec approved.",
-      "lines": 199,
-      "staticTokens": 2281,
+      "description": "Explore intent before code: pressure-test a raw idea, one question at a time, 2-3 approaches, design in sections, spec written and approved. HARD GATE — no code until the spec is approved.",
+      "lines": 218,
+      "staticTokens": 3178,
       "pack": null,
       "source": "packages/core/skills/brainstorming/SKILL.md"
     },

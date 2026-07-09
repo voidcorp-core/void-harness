@@ -1,13 +1,13 @@
 ---
 name: brainstorming
-description: Explore intent before code. One question at a time, 2-3 approaches, design section-by-section, spec written and approved, transition to writing-plans. HARD GATE — no code until spec approved.
+description: Explore intent before code: pressure-test a raw idea, one question at a time, 2-3 approaches, design in sections, spec written and approved. HARD GATE — no code until the spec is approved.
 ---
 
 # brainstorming — voidcorp craftsman edition
 
 Start by understanding the project context. Then ask questions one at a time to refine the idea. Once you understand what is being built, present the design in sections, get approval, write the spec to `docs/specs/`, and transition to `harness:writing-plans`. **No implementation skill, no code, no scaffolding until the spec is written and approved.**
 
-**Attribution**: see `.source`. Primary source: superpowers/brainstorming, adapted for void-harness.
+**Attribution**: see `.source`. Primary source: superpowers/brainstorming; the upstream idea-pressure-test mode is the distilled `gstack:/office-hours` diagnostic, vendored for void-harness.
 
 ---
 
@@ -28,6 +28,25 @@ The anti-pattern is "this is too simple to need a design." Every project goes th
 ## Ingesting a forge spec
 
 If `docs/specs/` holds a spec with `source: forge` in its frontmatter (the forge→harness artifact contract; see `docs/ARCHITECTURE.md` "Inter-plugin contracts"), the up-front thinking is already done. **Verify and fill the gaps — do not re-ask what the spec already answers.** The 18 recon variables cover persona, pain, positioning, competition, pricing, and the visual identity; the winning design and critique verdict are attached. Read them, confirm they still hold, and ask only about what is missing (a partial spec — recon without critique, or a field absent in an older `forge_version` — is ingested for what it has, with the holes listed as the only open questions). Then go straight to writing/approving the spec. Do not restart the interview from scratch.
+
+## Pressure-testing a raw idea (upstream mode)
+
+Runs ONLY when the input is a raw *product idea* ("I want to build X"), not an already-scoped feature or a `source: forge` spec (that thinking is done). Before designing the right solution, make sure it is the right *problem* — then push its ambition. This is the distilled `gstack:/office-hours` diagnostic, vendored here. Once premises hold, resume the normal design process (Step 1 onward) in the collaborative voice; this adversarial posture is scoped to this mode only.
+
+**Posture: diagnose, don't cheerlead.** Take a position on every answer and say what evidence would change your mind. No "interesting approach", no "that could work", no "you might consider" — say why it works or why it doesn't, and challenge the strongest version of the idea, never a strawman. The first answer is the polished one; push once, then again — the real answer comes on the second or third push. End with one concrete next action, not a strategy.
+
+**The six forcing questions.** Ask one at a time; push until the answer is specific, evidence-based, and a little uncomfortable. Route by stage — you rarely need all six: pre-product → Q1,Q2,Q3 · has users → Q2,Q4,Q5 · paying → Q4,Q5,Q6 · pure infra → Q2,Q4.
+
+1. **Demand reality.** Strongest evidence someone would be genuinely upset if this vanished tomorrow — not "interested", not a waitlist signup. Push for a paying / expanding / workflow-dependent behavior. Red flag: "people say it's interesting", "500 signups".
+2. **Status quo.** What are users doing to solve this today, even badly, and what does that workaround cost them? Red flag: "nothing exists" — usually the pain isn't sharp enough.
+3. **Desperate specificity.** Name the actual human who needs this most — title, what gets them promoted or fired. Red flag: category answers ("healthcare enterprises"); you can't email a category.
+4. **Narrowest wedge.** Smallest version someone would pay for *this week*, before the platform exists. Red flag: "we need the full platform first" — attachment to architecture over value.
+5. **Observation & surprise.** Have you watched someone use it without helping — what did they do that surprised you? Red flag: surveys and demo calls (surveys lie, demos are theater).
+6. **Future-fit.** If the world looks meaningfully different in 3 years, does this become more essential or less? Red flag: "the market grows 20%/yr" — every competitor cites the same tailwind.
+
+**Escape hatch.** If the user says "just do it": ask the 2 most critical remaining questions for their stage, then move on. If they push back a second time, respect it and proceed. Only a fully-formed plan with real evidence (named users, revenue) earns a full skip — and even then, still confirm the premises and generate alternatives.
+
+**Then push the ambition — the 10x move.** Pressure-testing keeps you honest about demand; this keeps you from shipping the timid version. Before settling, deliberately drop the self-imposed constraints: what does this look like at 10x — no resource limit, no "we can't because"? What is the *coolest* version the user has not considered? Carry that into the approaches (Step 5): always include one "ideal / most ambitious" path and one "creative-lateral" reframing, not just the safe increment. YAGNI still prunes the *final* scope — but prune down from an ambitious set; do not start timid.
 
 ## Process
 
@@ -169,7 +188,7 @@ Smaller, well-bounded units are easier to work with — easier for the agent to 
 
 ## Composition with other skills
 
-- **Upstream — `gstack:/office-hours`**: when the user describes a new product idea ("I have an idea..."), invoke `/office-hours` first to validate the idea. Once validated, this skill covers the implementation design.
+- **Raw product idea** ("I have an idea..."): pressure-test it first via the upstream mode above (the vendored `/office-hours` diagnostic), then design. Broader product *roadmap / strategy* still routes to `plan-ceo-review` (gstack).
 - **Downstream — `harness:writing-plans`**: the ONLY post-brainstorming transition.
 - **With `tdd`**: the spec declares the TDD mode for each major implementation step. Plans then uses this.
 - **With `hexagonal-architecture` + `domain-driven-design`**: these skills inform the design's structure (bounded contexts, ports, aggregates). Brainstorming consumes their vocabulary; does not duplicate their decisions.
@@ -182,7 +201,7 @@ Smaller, well-bounded units are easier to work with — easier for the agent to 
 - MUST NOT skip the hard gate.
 - MUST NOT batch multiple questions in one message.
 - MUST NOT decide implementation details (those go to plans).
-- MUST NOT decide product strategy / scope ambition (those go to office-hours / plan-ceo-review).
+- MUST NOT decide product roadmap / strategy (routes to `plan-ceo-review`). It DOES pressure-test a raw idea's demand and push its ambition (the upstream mode) — that is now in scope, not delegated.
 - MUST NOT skip the spec-write step "because the conversation is clear."
 - MUST NOT transition to any skill other than `harness:writing-plans` post-approval.
 

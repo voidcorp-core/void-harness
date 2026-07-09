@@ -23,7 +23,7 @@ Quote the relevant cells from `plans/skill-decision-matrix.md#source-driven-deve
 
 - **Wins**: any config or usage of a third-party tool (framework, lib, CLI, API, build/test tool). Version-matched grounding, source citation.
 - **Loses to**: `typescript-strict` on type-expression mechanics; the relevant `pack-*` skill when a stack pack already encodes the framework's documented config (compose, do not duplicate).
-- **Cannot decide**: whether to adopt a tool at all (that is `brainstorming` / `office-hours` / `adr-workflow`); first-party code design (own the source, not "docs").
+- **Cannot decide**: whether to adopt a tool at all (that is `brainstorming` / `adr-workflow`); first-party code design (own the source, not "docs").
 - **Composes with**: `writing-plans` (grounds stack decisions), `commit-discipline` (the "why" carries the source), `adr-workflow` (alternatives cite official docs).
 
 If the per-skill content drifts from the matrix, fix one or the other — never let them diverge silently.
@@ -87,7 +87,7 @@ None in v1. Citation is prose-level discipline carried by `commit-discipline`. A
 - MUST NOT cite a third-party tutorial as authoritative.
 - MUST NOT land non-obvious config without a traceable source citation.
 - MUST NOT silently arbitrate when sources genuinely conflict — surface the divergence.
-- MUST NOT decide whether to adopt a tool at all (defers to `brainstorming` / `office-hours` / `adr-workflow`).
+- MUST NOT decide whether to adopt a tool at all (defers to `brainstorming` / `adr-workflow`).
 
 ## Verification checklist for shipping this skill
 
