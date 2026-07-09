@@ -1,5 +1,6 @@
 ---
 name: verification-before-completion
+activation: always
 description: Final pre-flight checklist. Twelve items observed (not assumed) — typecheck, tests, hooks, mobile+desktop, commit why, review evidence. Skipping requires reason. Use at end of every task.
 ---
 

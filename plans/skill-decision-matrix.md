@@ -1,7 +1,7 @@
 ---
 title: Skill Decision Matrix
 date: 2026-05-29
-status: skeleton
+status: current
 owner: void-harness/core
 purpose: For every skill in core, specify when it wins, when it loses, and what it is NOT allowed to decide. Prevents overlap and silent contradictions between skills.
 ---
@@ -86,7 +86,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 
 ---
 
-## Process skills (14)
+## Process skills (16)
 
 ### `brainstorming`
 
@@ -191,6 +191,24 @@ The single in-session backlog drainer; consolidates the former `backlog-batch` a
 - **Cannot decide**: whether two tickets truly overlap (the footprint is *estimated*; the reconciliation subagent + full suite are the backstop); whether to merge a risky cluster or a stack root (human, unless `--auto-merge` + green CI on a low-risk cluster).
 - **Composes with**: the Workflow tool (substrate), `using-git-worktrees`, the craftsman cycle inside each worker (`brainstorming`, `source-driven-development`, `writing-plans`, `tdd`, `verification-before-completion`, `commit-discipline`, `compounding`, `context-management`); gstack `ticket-craft` upstream, `/code-review` + `/ship` downstream (human-owned merge).
 
+### `ticket-runner`
+
+The single canonical definition of "execute one ticket well" — one ticket taken from ready to shipped with a senior team's coverage (architecture, TDD, e2e, UX, security, review, verification), each pass keyed to an observable predicate.
+
+- **Wins**: taking a single ready ticket through to a shipped/green branch. Both interactive single-ticket work and each `backlog-autopilot` worker delegate here, so the cycle is defined once.
+- **Loses to**: `writing-plans` on sequencing *several* tickets; `ticket-writer` on authoring the ticket; human judgment on merge.
+- **Cannot decide**: whether a triggered pass may be skipped (never — the predicate decides, not a vibe); whether to merge (human).
+- **Composes with**: every code-discipline and process skill (it is the conductor that invokes them per predicate); `ticket-writer` upstream, `backlog-autopilot` as caller.
+
+### `ticket-writer`
+
+Turns a finished brainstorm, plan, or design decision into a tracker ticket an implementation agent can execute with zero follow-up — every required slot filled, estimated, labelled.
+
+- **Wins**: capturing an already-made decision as a trackable, self-contained work item; declaring which `ticket-runner` passes to expect.
+- **Loses to**: `brainstorming` / `writing-plans` on producing the thinking (it records, never invents scope); `ticket-runner` on execution.
+- **Cannot decide**: the scope itself (ingests it from upstream); the estimate's business priority (user).
+- **Composes with**: `brainstorming` + `writing-plans` upstream, `ticket-runner` downstream (consumes the ticket and its declared passes).
+
 ---
 
 ## Hedge skills (6)
@@ -264,4 +282,4 @@ When two skills both claim "I win":
 
 ## Status
 
-Skeleton populated for the core skills (29 as of 2026-06-04, including `source-driven-development`, `context-management`, `compounding`, `api-and-interface-design`, `adr-workflow` promoted from pack-monorepo, the opt-in `autonomous-backlog-loop`, and `claude-md-authoring`). To be refined as each skill's content evolves. Any cell that becomes ambiguous in practice triggers an ADR in `docs/DECISIONS.md`.
+Populated for the 31 core skills as of 2026-07-09 — the code-discipline (9), process (16, including the canonical `ticket-runner` cycle and `ticket-writer`), and hedge (6) groups above. `backlog-autopilot` replaced the deleted `autonomous-backlog-loop`. Refined as each skill's content evolves; any cell that becomes ambiguous in practice triggers an ADR in `docs/DECISIONS.md`.
