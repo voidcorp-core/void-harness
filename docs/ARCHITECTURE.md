@@ -142,6 +142,27 @@ the inlined studio and a `/studio-data.json` endpoint on `localhost` — fully o
 is gated by `graph check-bundle` (the artifact's embedded model must match `model.json`); see
 DECISIONS.md (2026-07-01). The artifact is excluded from the `core-assets` mirror.
 
+## Telemetry: the cost/value ledger (`.void/*.jsonl`)
+
+Two universal meters, both best-effort (never block, always exit 0), both privacy-scoped to
+names/kinds/status only — never file content, output, or secrets:
+
+- **attempts** — `activation-meter.sh` (PreToolUse, matcher `*`) appends one event per tool call
+  to `.void/activations.jsonl`: `{ ts, kind, name, trigger, sessionId }`. The single source of
+  truth for what fired (issue #70); `void-harness audit` and the graph cost/behavior kernels read
+  it.
+- **outcomes** — `outcome-meter.sh` (PostToolUse `*` + Stop) appends completions to
+  `.void/outcomes.jsonl`: `{ ts, event, kind, name, status, sessionId }` for a finished tool call
+  (status best-effort from `tool_response`) and `{ event: "Stop", sessionId }` when a session ends
+  cleanly (issue #71). This is the **value** side: `analyzeCost` joins it per component (by kind +
+  bare name) so `graph cost` shows a `yield` column (ok/(ok+error)) next to the token cost. A
+  session with no Stop (interrupted) leaves its attempts uncounted as failures — orphan attempts
+  are not errors.
+
+The two files never disagree because each has exactly one writer, and cost/value are correlated by
+`sessionId`. Cross-project aggregation and opt-in finding push ride on top of these files (issue
+#72), and are deliberately out of the meters themselves.
+
 ## Node frontmatter: `activation` (graph liveness)
 
 A skill's SKILL.md frontmatter may declare `activation: always` or `activation: on-demand`

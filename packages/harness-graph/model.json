@@ -66,8 +66,8 @@
       "type": "command",
       "name": "void-audit",
       "description": "Run the void-harness outbound audit — skills not invoked recently (from .void/usage.log), upstream deprecations, decision-matrix conflicts — and surface proposed deprecations.",
-      "lines": 12,
-      "staticTokens": 178,
+      "lines": 15,
+      "staticTokens": 224,
       "pack": null,
       "source": "packages/core/commands/void-audit.md"
     },
@@ -76,8 +76,8 @@
       "type": "command",
       "name": "void-doctor",
       "description": "Run the void-harness install health check and summarize the result (config, doctrine files, settings, jq/gh availability, version drift).",
-      "lines": 11,
-      "staticTokens": 141,
+      "lines": 15,
+      "staticTokens": 205,
       "pack": null,
       "source": "packages/core/commands/void-doctor.md"
     },
@@ -102,12 +102,22 @@
       "source": "packages/core/commands/void-graph.md"
     },
     {
+      "id": "hook:_hooklib",
+      "type": "hook",
+      "name": "_hooklib",
+      "description": "",
+      "lines": 93,
+      "staticTokens": 1048,
+      "pack": null,
+      "source": "packages/core/hooks/_hooklib.sh"
+    },
+    {
       "id": "hook:activation-meter",
       "type": "hook",
       "name": "activation-meter",
       "description": "",
-      "lines": 85,
-      "staticTokens": 1121,
+      "lines": 81,
+      "staticTokens": 1040,
       "pack": null,
       "source": "packages/core/hooks/activation-meter.sh"
     },
@@ -126,8 +136,8 @@
       "type": "hook",
       "name": "auto-format",
       "description": "",
-      "lines": 31,
-      "staticTokens": 273,
+      "lines": 32,
+      "staticTokens": 261,
       "pack": null,
       "source": "packages/core/hooks/auto-format.sh",
       "triggers": {
@@ -152,7 +162,7 @@
       "type": "hook",
       "name": "block-dangerous-bash",
       "description": "",
-      "lines": 90,
+      "lines": 93,
       "staticTokens": 1195,
       "pack": null,
       "source": "packages/core/hooks/block-dangerous-bash.sh",
@@ -177,8 +187,8 @@
       "type": "hook",
       "name": "boundary-direction-check",
       "description": "",
-      "lines": 48,
-      "staticTokens": 490,
+      "lines": 56,
+      "staticTokens": 521,
       "pack": null,
       "source": "packages/core/hooks/boundary-direction-check.sh",
       "triggers": {
@@ -233,8 +243,8 @@
       "type": "hook",
       "name": "no-ai-design-slop",
       "description": "",
-      "lines": 73,
-      "staticTokens": 926,
+      "lines": 76,
+      "staticTokens": 910,
       "pack": null,
       "source": "packages/core/hooks/no-ai-design-slop.sh",
       "triggers": {
@@ -249,8 +259,8 @@
       "type": "hook",
       "name": "no-any-grep",
       "description": "",
-      "lines": 35,
-      "staticTokens": 307,
+      "lines": 38,
+      "staticTokens": 290,
       "pack": null,
       "source": "packages/core/hooks/no-any-grep.sh",
       "triggers": {
@@ -265,8 +275,8 @@
       "type": "hook",
       "name": "no-as-cast-grep",
       "description": "",
-      "lines": 33,
-      "staticTokens": 338,
+      "lines": 42,
+      "staticTokens": 423,
       "pack": null,
       "source": "packages/core/hooks/no-as-cast-grep.sh",
       "triggers": {
@@ -281,8 +291,8 @@
       "type": "hook",
       "name": "no-console-log-grep",
       "description": "",
-      "lines": 33,
-      "staticTokens": 327,
+      "lines": 41,
+      "staticTokens": 358,
       "pack": null,
       "source": "packages/core/hooks/no-console-log-grep.sh",
       "triggers": {
@@ -297,8 +307,8 @@
       "type": "hook",
       "name": "no-null-grep",
       "description": "",
-      "lines": 57,
-      "staticTokens": 543,
+      "lines": 60,
+      "staticTokens": 525,
       "pack": null,
       "source": "packages/core/hooks/no-null-grep.sh",
       "triggers": {
@@ -313,8 +323,8 @@
       "type": "hook",
       "name": "no-only-no-skip",
       "description": "",
-      "lines": 30,
-      "staticTokens": 282,
+      "lines": 33,
+      "staticTokens": 265,
       "pack": null,
       "source": "packages/core/hooks/no-only-no-skip.sh",
       "triggers": {
@@ -323,6 +333,16 @@
           "Write"
         ]
       }
+    },
+    {
+      "id": "hook:outcome-meter",
+      "type": "hook",
+      "name": "outcome-meter",
+      "description": "",
+      "lines": 68,
+      "staticTokens": 859,
+      "pack": null,
+      "source": "packages/core/hooks/outcome-meter.sh"
     },
     {
       "id": "hook:pre-PR-review-evidence",
@@ -339,8 +359,8 @@
       "type": "hook",
       "name": "protect-sensitive-files",
       "description": "",
-      "lines": 73,
-      "staticTokens": 876,
+      "lines": 78,
+      "staticTokens": 878,
       "pack": null,
       "source": "packages/core/hooks/protect-sensitive-files.sh",
       "triggers": {
@@ -375,8 +395,8 @@
       "type": "hook",
       "name": "tdd-guard",
       "description": "",
-      "lines": 89,
-      "staticTokens": 811,
+      "lines": 94,
+      "staticTokens": 919,
       "pack": null,
       "source": "packages/core/hooks/tdd-guard.sh",
       "triggers": {
@@ -391,8 +411,8 @@
       "type": "hook",
       "name": "test-name-lint",
       "description": "",
-      "lines": 32,
-      "staticTokens": 335,
+      "lines": 35,
+      "staticTokens": 318,
       "pack": null,
       "source": "packages/core/hooks/test-name-lint.sh",
       "triggers": {

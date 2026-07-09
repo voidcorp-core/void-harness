@@ -135,6 +135,15 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/auto-format.sh"
           }
         ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/outcome-meter.sh"
+          }
+        ]
       }
     ],
     "SessionStart": [
@@ -143,6 +152,16 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/sessionstart-context.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/outcome-meter.sh"
           }
         ]
       }
