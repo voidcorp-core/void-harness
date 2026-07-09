@@ -17,7 +17,7 @@
       "name": "doctrine-critic",
       "description": "Judges a diff against VoidCorp doctrine that hooks/reviewers miss: weak tests, over-abstraction, broken boundaries, anti-bloat. Read-only; routes security to security-audit, bugs to /code-review.",
       "lines": 90,
-      "staticTokens": 1089,
+      "staticTokens": 1090,
       "pack": null,
       "source": "packages/core/agents/doctrine-critic.md"
     },
@@ -37,7 +37,7 @@
       "name": "silent-failure-hunter",
       "description": "Read-only hunter for silent failures only — empty catches, swallowed errors, un-awaited promises, ignored return codes, .catch(()=>{}). Not a general review. Routes bugs to /code-review.",
       "lines": 95,
-      "staticTokens": 1166,
+      "staticTokens": 1167,
       "pack": null,
       "source": "packages/core/agents/silent-failure-hunter.md"
     },
@@ -47,7 +47,7 @@
       "name": "type-design-analyzer",
       "description": "Read-only judge of TYPE DESIGN only — illegal states representable, primitive obsession, missing discriminated unions, leaky boundary types. Not a general review. Routes bugs to /code-review.",
       "lines": 94,
-      "staticTokens": 1179,
+      "staticTokens": 1180,
       "pack": null,
       "source": "packages/core/agents/type-design-analyzer.md"
     },
@@ -564,7 +564,7 @@
       "name": "accessibility-first",
       "description": "WCAG 2.2 AA floor. Radix primitives only, touch >=44x44, keyboard parity, semantic HTML, form labels, aria-live errors, mobile-first dual-quality. Use when building or modifying UI.",
       "lines": 279,
-      "staticTokens": 2159,
+      "staticTokens": 2200,
       "pack": null,
       "source": "packages/core/skills/accessibility-first/SKILL.md",
       "triggers": {
@@ -700,8 +700,8 @@
       "type": "skill",
       "name": "frontend-design",
       "description": "Anti-AI-slop UI. Density first, 3-size hierarchy, motion <250ms, components via @repo/ui (Radix/shadcn), mobile-first dual-quality. Brand from DESIGN.md. Use when building or modifying UI.",
-      "lines": 220,
-      "staticTokens": 2192,
+      "lines": 267,
+      "staticTokens": 3431,
       "pack": null,
       "source": "packages/core/skills/frontend-design/SKILL.md",
       "triggers": {
@@ -1068,7 +1068,7 @@
       "name": "plan-review",
       "description": "Critique a written plan (not a diff) via four lenses: CEO premise/ambition, Eng test-coverage, Design states/slop, DevEx time-to-first-value. Proposes findings; the author disposes.",
       "lines": 130,
-      "staticTokens": 2622,
+      "staticTokens": 2630,
       "pack": null,
       "source": "packages/core/skills/plan-review/SKILL.md",
       "activation": "on-demand"
@@ -1161,7 +1161,7 @@
       "name": "ticket-runner",
       "description": "Use when taking a single ticket from ready through shipped at expert-team quality. Triggers on starting a ticket, taking an issue, or picking up a backlog item to execute.",
       "lines": 85,
-      "staticTokens": 1984,
+      "staticTokens": 1966,
       "pack": null,
       "source": "packages/core/skills/ticket-runner/SKILL.md"
     },
@@ -1191,6 +1191,17 @@
         ]
       },
       "activation": "always"
+    },
+    {
+      "id": "skill:ui-review",
+      "type": "skill",
+      "name": "ui-review",
+      "description": "Audit and polish an EXISTING UI: the AI-slop test, heuristic critique, technical audit (contrast/a11y/responsive/perf), refine modes. The audit ceiling to frontend-design's build floor.",
+      "lines": 88,
+      "staticTokens": 1703,
+      "pack": null,
+      "source": "packages/core/skills/ui-review/SKILL.md",
+      "activation": "on-demand"
     },
     {
       "id": "skill:verification-before-completion",

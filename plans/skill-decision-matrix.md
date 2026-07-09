@@ -230,9 +230,9 @@ Turns a finished brainstorm, plan, or design decision into a tracker ticket an i
 
 - **Wins**: any interactive UI. Keyboard nav, ARIA via Radix, contrast, semantic HTML, touch targets ≥ 44×44px, focus management.
 - **Loses to**: nothing on accessibility. It's the floor, not the ceiling.
-- **Cannot decide**: visual design (defers to design-consultation / design-shotgun in gstack).
+- **Cannot decide**: visual design (defers to `frontend-design` / `ui-review` + the `DESIGN.md` contract; recon/variants to `forge`).
 - **Composes with**: `frontend-design` (enforces mobile-first dual-quality jointly).
-- **Mobile-first dual-quality invariant**: every UI ships with verified keyboard nav AND verified touch interaction. Both pass the design-review skill before merge.
+- **Mobile-first dual-quality invariant**: every UI ships with verified keyboard nav AND verified touch interaction. Both pass `ui-review` before merge.
 
 ### `llm-cost-discipline`
 
@@ -244,10 +244,17 @@ Turns a finished brainstorm, plan, or design decision into a tracker ticket an i
 ### `frontend-design`
 
 - **Wins**: any new UI component or layout. Anti-AI-slop rules, density, hierarchy, motion discipline, mobile-first layout design.
-- **Loses to**: `design-consultation` (gstack) for design system creation. `design-review` (gstack) for live audits.
+- **Loses to**: the `DESIGN.md` contract for system creation; `ui-review` for the audit/critique pass (this skill is build-time, ui-review is audit-time).
 - **Cannot decide**: brand identity (DESIGN.md owns it).
 - **Composes with**: `accessibility-first`, `typescript-strict`.
 - **Mobile-first dual-quality invariant**: layout starts at 360–390px and is progressively enhanced. No desktop-only layout shipped without an equivalent mobile experience (or an explicit documented decision). Both viewports screenshot-reviewed before merge.
+
+### `ui-review`
+
+- **Wins**: auditing/critiquing/polishing an EXISTING UI. The AI-slop two-altitude test, squint test, interaction-state coverage, technical audit (contrast/a11y/responsive/perf), refine modes (polish/bolder/quieter/distill/harden).
+- **Loses to**: `frontend-design` on the build-time rules (this skill assumes and checks against them, does not restate them); `forge` on market recon + scored 12-dim critique + design prompts.
+- **Cannot decide**: brand identity (DESIGN.md); it does not rewrite a UI wholesale (findings + scoped refine only).
+- **Composes with**: `frontend-design` (build floor to this audit ceiling), `accessibility-first` (a11y dimension), `forge` (recon/critique/prompt via the `source: forge` artifact contract). Vendored from impeccable + gstack design-review (DEV-389); live-browser audit deferred to Vague 4.
 
 ---
 

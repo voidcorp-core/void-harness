@@ -10,9 +10,10 @@ Sources for `ticket-runner` skill (see plans/skill-audits/ticket-runner.md for f
   harness:hexagonal-architecture, harness:domain-driven-design,
   harness:frontend-design, harness:accessibility-first, harness:security-guidance,
   harness:code-review, harness:verification-before-completion,
-  harness:commit-discipline, harness:security-audit; agents type-design-analyzer,
-  doctrine-critic, silent-failure-hunter; gstack /design-review, /qa; the
-  `impeccable` frontend skill when installed.
+  harness:commit-discipline, harness:security-audit, harness:ui-review; agents
+  type-design-analyzer, doctrine-critic, silent-failure-hunter; gstack /qa
+  (browser QA until Vague 4). The impeccable audit methodology is now vendored as
+  harness:ui-review (DEV-389), not an external dependency.
 
 - gstack /ship — VENDORED (DEV-388, cycle-level disciplines only): Test-Failure-Ownership triage (in-branch vs pre-existing), the independent fresh-context adversarial review pass (FIXABLE/INVESTIGATE + name-the-most-exploitable-finding), and bisectable commit ordering. Rejected: the Review-Army roster/gating machinery (release-gate apparatus, over-engineered for one ticket) and the VERSION/CHANGELOG/release-please steps (deployment runtime). The plan-completion-audit half of /ship went to verification-before-completion.
 

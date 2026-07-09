@@ -66,7 +66,7 @@ sketch the sounder shape (one line — you propose, you do not implement).
   *flag* the location and recommend `harness:security-audit`. Do not audit it.
 - **Doctrine taste, anti-bloat, test meaning** → that is `doctrine-critic`. Do not
   spill into it (anti-bloat rule 6).
-- **QA / design / shipping** → stays in gstack (`/qa`, `/design-review`, `/ship`).
+- **Design audit** → `harness:ui-review`. **QA / shipping** → gstack (`/qa`, `/ship`).
 
 ## Output format
 

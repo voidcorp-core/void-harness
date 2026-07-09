@@ -73,7 +73,8 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 | Decomposing work into tickets            | `harness:ticket-writer`                                                              |
 | Draining independent tickets in parallel | `harness:backlog-autopilot`                                                          |
 | Adding a skill                           | `superpowers:writing-skills` (until vendored)                                        |
-| QA / design / ship                       | gstack (`/qa`, `/design-review`, `/ship`)                                            |
+| Building or auditing a UI                | `harness:frontend-design` (build) + `harness:ui-review` (audit/critique/polish)      |
+| QA / ship                                | gstack (`/qa`, `/ship`) — live-browser QA until Vague 4                              |
 
 ## On gstack and superpowers
 
