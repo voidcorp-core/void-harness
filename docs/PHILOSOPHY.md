@@ -55,7 +55,7 @@ Naming, file layout, and feedback loops are not cosmetics — they are how a sys
 - "Always say why." Commit messages, comments, ADRs — explain the rationale, not the change.
 - Comments are sentences, with punctuation. Not scribblings.
 - Order matters for readability: important things at the top of a file. Main first. Fields, then types, then methods.
-- No em dashes, no emojis in code, docs, or commits.
+- No em dashes or emojis as AI-slop filler; both are allowed where they carry meaning (typographic separators in prose, glyphs in code). Not a hard CI gate.
 
 Sources: TigerStyle naming, citypaul CLAUDE.md, Folpe quality bar.
 
@@ -90,7 +90,7 @@ A throwaway implementation is not an acceptable initial state. It is debt that h
 These rules apply to ALL my projects regardless of stack. Project-specific exceptions go in `.void/PROJECT-DOCTRINE.md` with an ADR.
 
 - **No `console.log` in committed business code.** Use the project logger (`@repo/core/logger` via `pack-monorepo`). Enforced by `no-console-log-grep` hook + `observability` skill.
-- **No em dashes, no emojis in code, docs, or commits.** ASCII-only keeps grep / git log queryable across editors. Enforced by `no-emdash-no-emoji-in-commit-msg` hook + `commit-discipline` skill.
+- **No em dashes or emojis as AI-slop filler.** Both are allowed where they carry meaning (typographic separators in prose, glyphs in code such as the render layer); just do not sprinkle them decoratively. A taste rule carried by the `commit-discipline` skill, deliberately **not** a hard CI gate (DECISIONS.md, 2026-06-01).
 - **No `process.env.*` directly in business code.** Use Zod-validated `@repo/core/env` (`security-guidance` skill). This governs the app's OWN secrets; a customer-provided credential (BYO key) is application data — store it encrypted at rest per tenant (master key in env), not in env itself.
 - **Read the official documentation of any third-party tool BEFORE writing its config or wrapping its SDK.** Shortcuts based on assumed semantics produce subtle bugs that take hours to find. (Anti-rustine, formalized.)
 - **Match file naming exactly** per the convention of the active pack (e.g. `Name.tsx`, `Name.helper.ts`, `Name.test.ts`).
@@ -142,14 +142,12 @@ Auto-write into the harness's doctrine — even with good signals — would crea
 
 Source: citypaul's manual curation discipline; Boris Cherny's "compounding engineering" (adapted with the review gate); user's explicit project lead direction (2026-05-29).
 
-## Compound engineering — via a proposed-learnings queue, NOT auto-write
+## Compound engineering — deliberate capture, NOT auto-write
 
-Each session can produce 0–N learnings. These are captured in `learnings/proposed/YYYY-MM-DD-N.md` of the project repo — **never written automatically to CLAUDE.md or any load-bearing doctrine file**.
+Each session can produce 0–N learnings, **never written automatically to CLAUDE.md or any load-bearing doctrine file**. The per-repo `learnings/proposed/` queue and a `learnings-promote` skill were designed but never built: a markdown queue is a strictly worse reimplementation of the tools that already exist. What actually routes a learning:
 
-Promotion to project CLAUDE.md, `docs/*`, or a skill happens only via:
-
-- Explicit user review (manual edit), or
-- The dedicated `voidcorp:learnings-promote` skill that consolidates the queue and asks "promote / discard / file as ADR?" for each.
+- **`harness:compounding`** — the end-of-cycle ritual that names the reusable pattern and triages its scope, and
+- **`harness:capture-rule`** — writes a durable project rule into `.void/PROJECT-DOCTRINE.md` under strict HITL, while a universal gap goes **directly as a GitHub issue** on `voidcorp-core/void-harness` (via `harness:harness-evolution`).
 
 Auto-append into CLAUDE.md was rejected: it creates drift, contradictions, prompt bloat. Doctrine evolves deliberately, not by accretion.
 
