@@ -14,19 +14,12 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { execSync } from 'node:child_process';
 import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO, PACKS, enabledPluginsKey } from '../lib/packs.js';
 import { readSettings, settingsPathFor } from '../lib/settings.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
+import { checkGh, checkJq, type CheckResult } from '../lib/prerequisites.js';
 import { compareVersions, normalizeVersion } from '../lib/version.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
-
-interface CheckResult {
-  readonly name: string;
-  readonly ok: boolean;
-  readonly message: string;
-  readonly fix?: string;
-}
 
 const BEGIN_MARKER = '<!-- void-harness:begin -->';
 
@@ -188,43 +181,3 @@ async function checkRemoteVersions(root: string): Promise<CheckResult> {
   };
 }
 
-function checkGh(): CheckResult {
-  try {
-    execSync('gh --version', { stdio: 'ignore' });
-  } catch {
-    return {
-      name: 'gh CLI',
-      ok: false,
-      message: 'gh CLI not installed (required for private marketplace)',
-      fix: 'brew install gh OR https://cli.github.com',
-    };
-  }
-  try {
-    execSync('gh auth status', { stdio: 'ignore' });
-    return { name: 'gh CLI', ok: true, message: 'authenticated' };
-  } catch {
-    return {
-      name: 'gh CLI',
-      ok: false,
-      message: 'gh CLI not authenticated (required for private marketplace)',
-      fix: 'gh auth login',
-    };
-  }
-}
-
-function checkJq(): CheckResult {
-  // Every PreToolUse hook (tdd-guard, no-any, boundary-direction-check, ...)
-  // parses the Claude Code tool-call JSON from stdin with jq. Without it the
-  // hooks fail open and silently stop enforcing anything.
-  try {
-    execSync('jq --version', { stdio: 'ignore' });
-    return { name: 'jq', ok: true, message: 'available (required by hooks)' };
-  } catch {
-    return {
-      name: 'jq',
-      ok: false,
-      message: 'jq not installed: enforcement hooks will not run',
-      fix: 'brew install jq OR https://jqlang.github.io/jq/download/',
-    };
-  }
-}

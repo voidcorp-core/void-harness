@@ -31,7 +31,8 @@ import { mergeSettings, readSettings, settingsPathFor, writeSettings } from '../
 import { patchClaudeMd, patchAgentsMd } from '../lib/claude-md.js';
 import { banner, blank, c, footer, glyph, line, meta } from '../lib/render.js';
 import { commandsFor, detectStack, type Stack } from '../lib/stack.js';
-import { fetchRemoteMarketplace } from '../lib/remote.js';
+import { resolveCorePin } from '../lib/remote.js';
+import { checkGh, checkJq, checkMarketplaceAccess, type CheckResult } from '../lib/prerequisites.js';
 
 interface InitOptions {
   readonly explicitPacks: readonly string[];
@@ -74,13 +75,13 @@ function parseArgs(args: readonly string[]): InitOptions {
 }
 
 interface ConfigSeed {
-  readonly pinVersion: string;
+  /** undefined when the marketplace was unreachable: never write a stale pin (#67). */
+  readonly pinVersion: string | undefined;
   readonly stack: Stack;
 }
 
-function buildDefaultConfig(seed: ConfigSeed): Record<string, unknown> & { packs: Record<string, string> } {
-  return {
-    core: `^${seed.pinVersion}`,
+export function buildDefaultConfig(seed: ConfigSeed): Record<string, unknown> & { packs: Record<string, string> } {
+  const config: Record<string, unknown> & { packs: Record<string, string> } = {
     packs: {} as Record<string, string>,
     stack: { ...seed.stack },
     paths: {
@@ -94,9 +95,31 @@ function buildDefaultConfig(seed: ConfigSeed): Record<string, unknown> & { packs
     commands: commandsFor(seed.stack),
     modes: { tdd: 'auto', codeReview: 'auto' },
   };
+  // Only pin `core` when a real version was resolved. An unresolved pin is left
+  // absent (surfaced in the final checklist) rather than defaulted to a stale
+  // literal, which would silently freeze the install at a wrong version (#67).
+  if (seed.pinVersion !== undefined) config.core = `^${seed.pinVersion}`;
+  return config;
 }
 
-const FALLBACK_PIN = '0.1.0';
+/**
+ * The numbered "what's left" checklist printed at the end of init. Pure so it is
+ * unit-tested: every unmet prerequisite becomes an impossible-to-miss FAILED
+ * line with its remediation, on top of the always-present restart + trust steps.
+ */
+export function buildFinalChecklist(
+  checks: readonly CheckResult[],
+  pinResolved: boolean,
+): readonly string[] {
+  const items: string[] = ['restart Claude Code (skills load on session start)', 'accept the plugin trust prompt on first load'];
+  for (const check of checks) {
+    if (!check.ok) items.push(`FAILED: ${check.message}${check.fix ? ` — ${check.fix}` : ''}`);
+  }
+  if (!pinResolved) {
+    items.push('FAILED: core version unresolved (marketplace unreachable) — run gh auth login, then void-harness update to pin it');
+  }
+  return items;
+}
 
 export async function init(args: readonly string[]): Promise<void> {
   const opts = parseArgs(args);
@@ -111,8 +134,19 @@ export async function init(args: readonly string[]): Promise<void> {
   const stack = detectStack(projectRoot);
   meta('stack', `${stack.packageManager} + ${stack.testRunner}${stack.e2eRunner !== 'none' ? ` + ${stack.e2eRunner}` : ''}`);
 
-  const pinVersion = await resolvePinVersion(opts.marketplaceRepo);
-  meta('pin', `^${pinVersion}${pinVersion === FALLBACK_PIN ? c.dim('  (fallback, remote unreachable)') : ''}`);
+  // Prerequisite checks up front: jq (hooks), gh (private marketplace), and the
+  // marketplace repo itself. init never FAILS on these (it stays idempotent),
+  // but every unmet one is loud here and reappears in the closing checklist so
+  // a broken install can't hide behind a "succeeded for env reasons" exit (#67).
+  const prereqs: CheckResult[] = [checkJq(), checkGh(), checkMarketplaceAccess(opts.marketplaceRepo)];
+  for (const check of prereqs) {
+    const mark = check.ok ? c.green(glyph.check) : c.red('x');
+    line(`${mark}  ${c.dim(check.name.padEnd(18))}${check.message}`);
+    if (!check.ok && check.fix) line(c.dim(`     ${glyph.to} ${check.fix}`));
+  }
+
+  const pinVersion = resolveCorePin(opts.marketplaceRepo);
+  meta('pin', pinVersion !== undefined ? `^${pinVersion}` : c.red('unresolved (marketplace unreachable, not pinned)'));
   blank();
 
   // Locate the harness source (for PHILOSOPHY.md + PROJECT-DOCTRINE template).
@@ -143,7 +177,18 @@ export async function init(args: readonly string[]): Promise<void> {
 
   blank();
   meta('plugins', enabledPlugins.join(', '));
-  footer(`restart Claude Code ${glyph.emdash} skills appear as ${c.bold('/harness:<name>')}, ${c.bold('/void-<pack>:<name>')}`);
+
+  // Numbered "what's left" checklist. Restart + trust always; every failed
+  // prerequisite and an unresolved pin appear as FAILED lines you cannot miss.
+  const checklist = buildFinalChecklist(prereqs, pinVersion !== undefined);
+  blank();
+  line(c.bold('Next steps:'));
+  checklist.forEach((item, i) => {
+    const failed = item.startsWith('FAILED:');
+    const label = `${i + 1}. ${item}`;
+    line(`  ${failed ? c.red(label) : c.dim(label)}`);
+  });
+  footer(`skills appear as ${c.bold('/harness:<name>')}, ${c.bold('/void-<pack>:<name>')}`);
 }
 
 async function choosePacks(projectRoot: string, opts: InitOptions): Promise<readonly PackDescriptor[]> {
@@ -204,16 +249,18 @@ async function writeConfig(
   const configPath = join(voidDir, 'config.json');
   await mkdir(voidDir, { recursive: true });
 
-  const pin = `^${seed.pinVersion}`;
+  // undefined pin (marketplace unreachable): activate packs in settings.json but
+  // do NOT stamp a stale version pin into config; the checklist flags it (#67).
+  const pin = seed.pinVersion !== undefined ? `^${seed.pinVersion}` : undefined;
   const tag = (status: string) =>
     line(`${c.green(glyph.check)}  ${c.dim('.void/config.json'.padEnd(18))}${status}`);
 
   // --force OR first-time: write the full scaffold seeded with detected stack.
   if (!existsSync(configPath) || opts.force) {
     const config = buildDefaultConfig(seed);
-    for (const pack of packs) config.packs[`@voidcorp/${pack.name}`] = pin;
+    if (pin !== undefined) for (const pack of packs) config.packs[`@voidcorp/${pack.name}`] = pin;
     await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`);
-    tag('written');
+    tag(pin !== undefined ? 'written' : 'written (versions unpinned, marketplace unreachable)');
     return;
   }
 
@@ -227,11 +274,15 @@ async function writeConfig(
     return;
   }
   const currentPacks = { ...(existing.packs ?? {}) };
+  // Reuse an existing pack pin as the pin for newly added packs when the remote
+  // was unreachable, so an existing well-pinned config stays lockstep instead of
+  // gaining a stale literal or `^undefined`.
+  const effectivePin = pin ?? (existing.core as string | undefined) ?? Object.values(existing.packs ?? {})[0];
   const added: string[] = [];
   for (const pack of packs) {
     const key = `@voidcorp/${pack.name}`;
     if (currentPacks[key] === undefined) {
-      currentPacks[key] = pin;
+      if (effectivePin !== undefined) currentPacks[key] = effectivePin;
       added.push(pack.name);
     }
   }
@@ -241,14 +292,7 @@ async function writeConfig(
   }
   const merged = { ...existing, packs: currentPacks };
   await writeFile(configPath, `${JSON.stringify(merged, null, 2)}\n`);
-  tag(`merged (added ${c.bold(added.join(', '))} at ${pin})`);
-}
-
-async function resolvePinVersion(repo: string): Promise<string> {
-  const remote = fetchRemoteMarketplace(repo);
-  if (!remote.ok) return FALLBACK_PIN;
-  // Lockstep model: every plugin shares one version. First plugin is canonical.
-  return remote.value.plugins[0]?.version ?? FALLBACK_PIN;
+  tag(`merged (added ${c.bold(added.join(', '))}${effectivePin !== undefined ? ` at ${effectivePin}` : ' (unpinned)'})`);
 }
 
 async function installDoctrineFiles(projectRoot: string, sourceRoot: string): Promise<void> {

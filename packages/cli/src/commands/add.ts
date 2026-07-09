@@ -20,6 +20,7 @@ import {
 } from '../lib/settings.js';
 import { patchClaudeMd, patchAgentsMd } from '../lib/claude-md.js';
 import { enabledPluginsKey } from '../lib/packs.js';
+import { resolveCorePin } from '../lib/remote.js';
 
 
 export async function add(args: readonly string[]): Promise<void> {
@@ -69,8 +70,8 @@ export async function add(args: readonly string[]): Promise<void> {
   await writeSettings(settingsPath, merged);
 
   // 2. .void/config.json — add packs to the packs map with the same pin
-  //    used elsewhere in the config (read it; fall back to ^0.1.0)
-  await syncVoidConfig(projectRoot, newlyAdded);
+  //    used elsewhere in the config
+  await syncVoidConfig(projectRoot, newlyAdded, marketplaceRepo);
 
   // 3. CLAUDE.md + AGENTS.md (keep the sister docs in parity)
   const enabledPacks = PACKS.filter((pack) => enabledNames.has(pack.name));
@@ -81,7 +82,11 @@ export async function add(args: readonly string[]): Promise<void> {
   p.log.info('Restart Claude Code to pick up the new plugin.');
 }
 
-async function syncVoidConfig(projectRoot: string, addedPacks: readonly string[]): Promise<void> {
+async function syncVoidConfig(
+  projectRoot: string,
+  addedPacks: readonly string[],
+  marketplaceRepo: string,
+): Promise<void> {
   const configPath = join(projectRoot, '.void', 'config.json');
   if (!existsSync(configPath)) return;   // no config = no sync; init expected first
 
@@ -93,9 +98,18 @@ async function syncVoidConfig(projectRoot: string, addedPacks: readonly string[]
     return;
   }
 
-  // Use whatever pin the config currently uses (core's pin is the lockstep
-  // canonical). Fallback only if core is missing.
-  const pin = config.core ?? '^0.1.0';
+  // Pin the added packs to the config's canonical version: core's pin (lockstep),
+  // else any existing pack pin, else a fresh remote resolve. NEVER a stale
+  // hardcoded literal — the old `^0.1.0` fallback froze packs at a wrong version
+  // and reintroduced the default-pin-stale friction this repo fixed (#67).
+  const resolved = resolveCorePin(marketplaceRepo);
+  const pin = config.core ?? Object.values(config.packs ?? {})[0] ?? (resolved ? `^${resolved}` : undefined);
+  if (pin === undefined) {
+    p.log.warn(
+      `core version unresolved (marketplace unreachable): '${addedPacks.join(', ')}' activated in settings only. Run void-harness update after gh auth login to pin it.`,
+    );
+    return;
+  }
   const packs = { ...(config.packs ?? {}) };
   for (const name of addedPacks) {
     packs[`@voidcorp/${name}`] = pin;
