@@ -102,6 +102,16 @@
       "source": "packages/core/commands/void-graph.md"
     },
     {
+      "id": "hook:_checks",
+      "type": "hook",
+      "name": "_checks",
+      "description": "",
+      "lines": 136,
+      "staticTokens": 1937,
+      "pack": null,
+      "source": "packages/core/hooks/_checks.sh"
+    },
+    {
       "id": "hook:_hooklib",
       "type": "hook",
       "name": "_hooklib",
@@ -162,8 +172,8 @@
       "type": "hook",
       "name": "block-dangerous-bash",
       "description": "",
-      "lines": 93,
-      "staticTokens": 1195,
+      "lines": 38,
+      "staticTokens": 441,
       "pack": null,
       "source": "packages/core/hooks/block-dangerous-bash.sh",
       "triggers": {
@@ -187,8 +197,8 @@
       "type": "hook",
       "name": "boundary-direction-check",
       "description": "",
-      "lines": 56,
-      "staticTokens": 521,
+      "lines": 40,
+      "staticTokens": 403,
       "pack": null,
       "source": "packages/core/hooks/boundary-direction-check.sh",
       "triggers": {
@@ -359,8 +369,8 @@
       "type": "hook",
       "name": "protect-sensitive-files",
       "description": "",
-      "lines": 78,
-      "staticTokens": 878,
+      "lines": 60,
+      "staticTokens": 665,
       "pack": null,
       "source": "packages/core/hooks/protect-sensitive-files.sh",
       "triggers": {
@@ -385,8 +395,8 @@
       "type": "hook",
       "name": "secret-in-content",
       "description": "",
-      "lines": 60,
-      "staticTokens": 775,
+      "lines": 31,
+      "staticTokens": 334,
       "pack": null,
       "source": "packages/core/hooks/secret-in-content.sh",
       "triggers": {

@@ -1,0 +1,21 @@
+# void-harness dogfoods its OWN enforcement floor on every PR. Uses the LOCAL
+# composite (./.github/actions/void-enforce) so the check runs THIS PR's code,
+# not the last released version — a change to a check is validated by the same
+# PR that makes it. Consumers use the reusable workflow (enforce.yml) instead.
+#
+# Kept separate from ci.yml on purpose: ci.yml gates build/lint/tests (general
+# quality), this gates the doctrine floor. The ticket forbids doubling them.
+name: void-enforce
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/void-enforce

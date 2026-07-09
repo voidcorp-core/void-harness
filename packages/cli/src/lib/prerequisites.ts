@@ -5,6 +5,8 @@
 // (audit 2026-07-09, issue #67).
 
 import { execSync } from 'node:child_process';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fetchRemoteMarketplace } from './remote.js';
 
 export interface CheckResult {
@@ -77,5 +79,47 @@ export function checkMarketplaceAccess(repo: string): CheckResult {
     ok: false,
     message: `cannot read ${repo}: ${remote.error}`,
     fix: `verify access to ${repo} (gh auth login / request repo access), then void-harness update`,
+  };
+}
+
+/**
+ * The local hooks only enforce the floor on THIS machine; a cloud agent or a
+ * --dangerously-skip-permissions bypass slips past them. The void-enforce Action
+ * replays the same floor server-side on every PR. This is ADVISORY (ok stays
+ * true so it never blocks doctor): it just tells a project whether it has
+ * adopted the server-side floor, and how to if not (DEV-393).
+ */
+export function checkEnforceWorkflow(root: string): CheckResult {
+  const dir = join(root, '.github', 'workflows');
+  if (!existsSync(dir)) {
+    return { name: 'enforce Action', ok: true, message: 'no .github/workflows (server-side floor not applicable)' };
+  }
+  // Never throw out of an advisory check: an unreadable entry (a dir named *.yml,
+  // a broken symlink, a TOCTOU removal) must degrade to a note, not crash doctor
+  // and discard every other diagnostic already collected.
+  let adopted = false;
+  try {
+    adopted = readdirSync(dir)
+      .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
+      .some((f) => {
+        try {
+          const text = readFileSync(join(dir, f), 'utf8');
+          // Either the reusable workflow (consumers) or the composite action (local).
+          return text.includes('void-harness/.github/workflows/enforce.yml') || text.includes('actions/void-enforce');
+        } catch {
+          return false;
+        }
+      });
+  } catch (err) {
+    return { name: 'enforce Action', ok: true, message: `could not inspect .github/workflows (${(err as Error).message})` };
+  }
+  if (adopted) {
+    return { name: 'enforce Action', ok: true, message: 'void-enforce workflow adopted (server-side floor)' };
+  }
+  return {
+    name: 'enforce Action',
+    ok: true,
+    message: 'server-side floor not adopted — local hooks only',
+    fix: 'add .github/workflows/void-enforce.yml (uses: voidcorp-core/void-harness/.github/workflows/enforce.yml@main) — see README',
   };
 }

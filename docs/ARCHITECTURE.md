@@ -90,6 +90,17 @@ with `source "${BASH_SOURCE[0]%/*}/_hooklib.sh"`; `activation-meter.sh` /
 `outcome-meter.sh` (self-guarded, non-blocking meters) and `sessionstart-context.sh`
 (not a tool-call parser) are the deliberate non-consumers.
 
+A second sourced library, **`core/hooks/_checks.sh`**, carries the *pure
+detection* the floor hooks share with the server-side Action (see "Server-side
+floor" below). Where `_hooklib.sh` owns the Claude-runtime stdin/jq plumbing,
+`_checks.sh` owns runtime-agnostic predicates — `checks_sensitive_path`,
+`checks_secret_content`, `checks_boundary_imports`, `checks_dangerous_command`
+— that take a path and/or content and return a verdict. The floor hooks
+(`protect-sensitive-files`, `secret-in-content`, `boundary-direction-check`,
+`block-dangerous-bash`) are thin wrappers over it, so the local hook and the CI
+diff driver can never diverge on *what* the floor is (DEV-393). Also
+`_`-prefixed, also exempt from the size cap, also `bash -n`-checked.
+
 Two content-aware hooks sit beside the filename/path guards:
 
 - **`secret-in-content.sh`** (PreToolUse Edit|Write, blocking) — the companion to
@@ -322,3 +333,40 @@ Roadmap (documented intent, not yet wired): skill front-matter schema check,
 per-hook smoke tests on a sample repo, CLI integration tests on a fresh fixture.
 Releases are cut with `scripts/bump-version.mjs` (lockstep), not changesets; the
 `.changeset/` directory is unused.
+
+## Server-side floor (the void-enforce Action)
+
+Local PreToolUse hooks only enforce the floor on the machine running them — a
+cloud agent, a `--dangerously-skip-permissions` run, or any non-Claude author
+never sees them. The **void-enforce Action** replays the same floor on every PR,
+server-side, so the floor is incontournable regardless of author. It complements
+(does not replace) the server-side branch protection `backlog-autopilot` already
+requires.
+
+- `core/enforce/ci-enforce.sh` — the diff driver. Given `--base <ref>`, it walks
+  the PR diff (`git diff base...HEAD`), runs the ADDED lines / changed paths
+  through the same `_checks.sh` predicates the hooks use, and emits GitHub
+  `::error file=,line=::` annotations. It lives under `enforce/` (not `hooks/`)
+  because it is a CI tool, not a Claude-runtime hook: that keeps the `hooks/ =
+  runtime` boundary honest and keeps the driver out of the 100-LOC hook cap.
+- `.github/actions/void-enforce/action.yml` — composite action wrapping the
+  driver; resolves the base from the PR context and runs the bundled script.
+- `.github/workflows/enforce.yml` — reusable workflow (`workflow_call`) a
+  consumer adopts in ≤5 lines (`uses:
+  voidcorp-core/void-harness/.github/workflows/enforce.yml@main`).
+- `.github/workflows/void-enforce.yml` — void-harness's own dogfood, using the
+  *local* composite so a check change is validated by the same PR that makes it.
+
+**Fail-closed** is the invariant (the #62-64 class): a missing prerequisite, an
+unresolvable base ref, a missing merge-base, or any git error is an explicit red
+check, never a silent green. Escape hatch: `.github/void-enforce-allow` lists
+path globs the driver skips (each skip logged) — the committed, reviewable
+equivalent of the local `VOID_HARNESS_ALLOW_SECRET_EDIT` override, for files
+legitimately named like a secret store.
+`void-harness doctor` reports (advisory, never blocking) whether a project has
+adopted the workflow. v1 replays three checks: sensitive-path, secret-content,
+boundary-direction. Destructive-shell stays a local runtime guard only — a
+committed pattern self-matches the detector/docs/fixtures, a net-negative false
+positive for a floor check (see DECISIONS). The project test gate stays the
+consumer's own CI (this Action enforces the doctrine floor, not general quality —
+it must not double the existing CI).

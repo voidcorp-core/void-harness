@@ -17,7 +17,7 @@ import { join } from 'node:path';
 import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO, PACKS, enabledPluginsKey } from '../lib/packs.js';
 import { readSettings, settingsPathFor } from '../lib/settings.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
-import { checkGh, checkJq, type CheckResult } from '../lib/prerequisites.js';
+import { checkEnforceWorkflow, checkGh, checkJq, type CheckResult } from '../lib/prerequisites.js';
 import { packsCoherenceIssues, validateConfig } from '../lib/config-schema.js';
 import { hookHealthIssues, locatePluginDir } from '../lib/plugin-cache.js';
 import { compareVersions, normalizeVersion } from '../lib/version.js';
@@ -149,6 +149,10 @@ export async function doctor(args: readonly string[]): Promise<void> {
   // gh only matters for fetching the private marketplace, so it is gated
   // behind the remote checks: --no-remote is a fully offline run.
   checks.push(checkJq());
+
+  // Advisory: is the same floor enforced server-side (void-enforce Action) and
+  // not only by the local hooks? Never a blocker (ok stays true).
+  checks.push(checkEnforceWorkflow(root));
 
   // Plugin cache hooks: the enforcement layer is only real if the hooks the
   // installed plugin.json wires exist and are executable in the cache. Absent

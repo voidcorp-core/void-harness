@@ -1,0 +1,10 @@
+# void-enforce allowlist — path globs (one per line) exempt from the floor.
+# The committed, reviewed equivalent of the local VOID_HARNESS_ALLOW_SECRET_EDIT
+# override. Use sparingly; a diff touching an allowlisted path is NOT floor-scanned,
+# so treat those paths as security-sensitive in review.
+#
+# The harness's own secret-detection hook is legitimately NAMED for what it
+# detects, so the sensitive-path check flags "secret" in its filename. Exempt the
+# source and its generated CLI mirror.
+packages/core/hooks/secret-in-content.sh
+packages/cli/core-assets/hooks/secret-in-content.sh

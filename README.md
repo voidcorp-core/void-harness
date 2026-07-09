@@ -72,6 +72,28 @@ Skills then auto-load as `/harness:<name>` (core) and `/harness-<stack>:<name>`
 [`voidcorp-core/void-plugins`](https://github.com/voidcorp-core/void-plugins)
 (pure catalog, pinned by commit sha).
 
+### Enforce the floor on every PR (void-enforce Action)
+
+The local hooks (no editing secrets/keys/lockfiles, no forbidden `@repo/*`
+imports, no leaked tokens, no destructive shell) only run on the machine that
+has the plugin. To make the same floor incontournable server-side — for cloud
+agents, `--dangerously-skip-permissions` runs, or any author — add the reusable
+workflow to your repo. Five lines, `.github/workflows/void-enforce.yml`:
+
+```yaml
+name: void-enforce
+on: pull_request
+jobs:
+  enforce:
+    uses: voidcorp-core/void-harness/.github/workflows/enforce.yml@main
+```
+
+It replays the exact `_checks.sh` detection the hooks use (one source of truth),
+reports per-file/line annotations, and **fails closed** — a missing dependency or
+unresolvable base is a red check, never a silent pass. Pin `@main` to a release
+tag for a stable floor. It enforces the doctrine floor only; keep your own
+lint/test CI. `void-harness doctor` reports (advisory) whether it is adopted.
+
 ### Maintainer CLI (this repo)
 
 The `void-harness` CLI wires config per-project (`.void/config.json`, CLAUDE.md /

@@ -7,6 +7,7 @@
 
 set -euo pipefail
 source "${BASH_SOURCE[0]%/*}/_hooklib.sh"
+source "${BASH_SOURCE[0]%/*}/_checks.sh"
 
 hooklib_read
 TOOL=$(hooklib_tool)
@@ -23,33 +24,16 @@ hooklib_require_jq boundary-direction-check
 NEW=$(hooklib_content)
 [[ -z "$NEW" ]] && exit 0
 
-# Only files inside packages/<X>/ (NOT apps/, NOT packages/core/)
-[[ "$FILE" =~ ^packages/[^/]+/ ]] || exit 0
-[[ "$FILE" =~ ^packages/core/ ]] && exit 0
-[[ "$FILE" =~ \.(test|spec)\.(ts|tsx)$|\.d\.ts$|/__generated__/ ]] && exit 0
+# Detection (packages/<X>/ gating + @repo/* direction) lives in _checks.sh,
+# shared verbatim with the CI diff driver (DEV-393). Returns 0 for apps/,
+# packages/core/ and test/generated files.
+VIOLATIONS=$(printf "%s" "$NEW" | checks_boundary_imports "$FILE") && exit 0
 
 PKG=$(printf "%s" "$FILE" | sed -E 's|^packages/([^/]+)/.*|\1|')
-
-re_import="from[[:space:]]+['\"]@repo/([a-zA-Z0-9-]+)"
-
-# Find lines with @repo/* imports, then check if target is forbidden
-VIOLATIONS=""
-while IFS= read -r line; do
-  IMPORT=$(printf "%s" "$line" | grep -oE '@repo/[a-zA-Z0-9-]+' | head -1)
-  TARGET=$(printf "%s" "$IMPORT" | sed 's|@repo/||')
-  if [[ "$TARGET" != "core" && "$TARGET" != "$PKG" ]]; then
-    VIOLATIONS="${VIOLATIONS}${line}\n"
-  fi
-done < <(printf "%s" "$NEW" | grep -nE "$re_import" | grep -vE '// *allow-boundary:' || true)
-
-if [[ -n "$VIOLATIONS" ]]; then
-  printf "boundary-direction-check: forbidden @repo/* import from packages/%s/\n" "$PKG" >&2
-  printf "%b\n" "$VIOLATIONS" >&2
-  printf "Packages may only import from @repo/core. For cross-package deps,\n" >&2
-  printf "define a port in this package and wire the adapter in the consuming app.\n" >&2
-  printf "See harness-monorepo:dependency-direction.\n" >&2
-  printf "Override (documented): tag the import line '// allow-boundary: <reason>'.\n" >&2
-  exit 2
-fi
-
-exit 0
+printf "boundary-direction-check: forbidden @repo/* import from packages/%s/\n" "$PKG" >&2
+printf "%s\n" "$VIOLATIONS" >&2
+printf "Packages may only import from @repo/core. For cross-package deps,\n" >&2
+printf "define a port in this package and wire the adapter in the consuming app.\n" >&2
+printf "See harness-monorepo:dependency-direction.\n" >&2
+printf "Override (documented): tag the import line '// allow-boundary: <reason>'.\n" >&2
+exit 2
