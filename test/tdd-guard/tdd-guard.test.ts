@@ -206,4 +206,94 @@ describe('tdd-guard.sh', () => {
   it('hook script exists', () => {
     expect(existsSync(HOOK)).toBe(true);
   });
+
+  // Claude Code passes ABSOLUTE file paths in tool_input.file_path. The hook
+  // must normalize them against the project root before matching the
+  // root-anchored business glob, otherwise it silently fails open and the
+  // Iron Law is never enforced (audit 2026-07-09, issue #62).
+  describe('absolute paths', () => {
+    it('BLOCKS an absolute-path business edit with no sibling test (exit 2)', () => {
+      const dir = setupFixture();
+      try {
+        place(dir, 'apps/web/src/feature.ts', 'export function f() {}');
+        const result = runHook(dir, {
+          tool: 'Write',
+          file: join(dir, 'apps/web/src/feature.ts'),
+          content: 'export function f() {}',
+        });
+        expect(result.code).toBe(2);
+        expect(result.stderr).toContain('missing sibling test');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('allows an absolute-path business edit when the sibling test exists (exit 0)', () => {
+      const dir = setupFixture();
+      try {
+        place(dir, 'apps/web/src/feature.ts', 'export function f() {}');
+        place(dir, 'apps/web/src/feature.test.ts', 'test("f", () => {});');
+        const result = runHook(dir, {
+          tool: 'Write',
+          file: join(dir, 'apps/web/src/feature.ts'),
+          content: 'export function f() {}',
+        });
+        expect(result.code).toBe(0);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('respects CLAUDE_PROJECT_DIR as the root for normalization', () => {
+      const dir = setupFixture();
+      try {
+        place(dir, 'apps/web/src/feature.ts', 'export function f() {}');
+        const input = JSON.stringify({
+          tool_name: 'Write',
+          tool_input: { file_path: join(dir, 'apps/web/src/feature.ts'), content: 'x' },
+        });
+        // cwd deliberately NOT the project root: only the env var links them.
+        const proc = spawnSync('bash', [HOOK], {
+          cwd: tmpdir(),
+          input,
+          encoding: 'utf8',
+          env: { ...process.env, CLAUDE_PROJECT_DIR: dir },
+        });
+        expect(proc.status).toBe(2);
+        expect(proc.stderr).toContain('missing sibling test');
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('does not crash nor block on an absolute path outside the project root', () => {
+      const dir = setupFixture();
+      try {
+        const result = runHook(dir, {
+          tool: 'Write',
+          file: '/somewhere/else/apps/web/src/feature.ts',
+          content: 'export function f() {}',
+        });
+        expect(result.code).toBe(0);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    it('handles a project root containing spaces', () => {
+      const base = mkdtempSync(join(tmpdir(), 'tdd guard spaced '));
+      try {
+        execSync('git init -q', { cwd: base });
+        place(base, 'apps/web/src/feature.ts', 'export function f() {}');
+        const result = runHook(base, {
+          tool: 'Write',
+          file: join(base, 'apps/web/src/feature.ts'),
+          content: 'export function f() {}',
+        });
+        expect(result.code).toBe(2);
+      } finally {
+        rmSync(base, { recursive: true, force: true });
+      }
+    });
+  });
 });

@@ -2,15 +2,11 @@
 # tdd-guard — PreToolUse hook for Edit|Write.
 # https://code.claude.com/docs/en/hooks — reads JSON from stdin.
 #
-# Enforces the Iron Law of harness:tdd (strict mode):
-#   ZERO LINE OF PRODUCTION CODE WITHOUT A FAILING TEST THAT REQUESTED IT.
-#
-# Mechanics: before editing/creating a business-code file, the sibling
-# test file MUST exist on disk. If it doesn't, BLOCK with instructions.
-#
+# Enforces the Iron Law of harness:tdd (strict mode): no production code
+# without a failing test — the sibling test file MUST exist on disk before a
+# business-code file is edited/created, else BLOCK with instructions.
 # Mode resolution: file header `// tdd-mode: <mode>` > .void/config.json
 # modes.tdd > "auto" (treated as strict in business paths).
-#
 # Exit codes: 0 allow, 2 block (Claude sees stderr).
 
 set -euo pipefail
@@ -19,11 +15,27 @@ INPUT=$(cat)
 TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty')
 FILE=$(printf "%s" "$INPUT" | jq -r '.tool_input.file_path // empty')
 
-# Only Edit/Write
 case "$TOOL" in Edit|Write) ;; *) exit 0 ;; esac
 [[ -z "$FILE" ]] && exit 0
 
-CONFIG=".void/config.json"
+# Claude Code passes ABSOLUTE paths; the globs below are root-anchored, so an
+# unstripped path silently fails open (#62). Compare PHYSICAL paths only
+# (logical/physical forms differ under symlinked roots, e.g. macOS /var).
+_phys() {
+  local p="$1" t=""
+  while [[ ! -d "$p" && "$p" == */* ]]; do t="/${p##*/}$t"; p="${p%/*}"; done
+  if [[ -d "$p" ]]; then printf '%s%s' "$(cd "$p" && pwd -P)" "$t"; else printf '%s' "$1"; fi
+}
+ROOT=$(_phys "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}")
+ROOT="${ROOT%/}"
+if [[ "$FILE" == /* ]]; then
+  FILE=$(_phys "$FILE")
+  case "$FILE" in "$ROOT"/*) FILE="${FILE#"$ROOT"/}" ;; esac
+fi
+# Disk probes must not depend on the hook's cwd being the project root.
+ABS_FILE="$FILE"; [[ "$ABS_FILE" != /* ]] && ABS_FILE="$ROOT/$FILE"
+
+CONFIG="$ROOT/.void/config.json"
 MODE="auto"
 BUSINESS_GLOB="apps/*/src/**"
 SPIKES_GLOB="apps/*/scripts/spike-*"
@@ -46,12 +58,12 @@ re_paths='/(tests?|__tests__)/fixtures/|/seed/|/migrations/|/drizzle/meta/|/code
 case "$FILE" in $SPIKES_GLOB) exit 0 ;; esac
 
 # Header marker: exploratory bypass
-if [[ -f "$FILE" ]]; then
-  if head -5 "$FILE" 2>/dev/null | grep -qE '//[[:space:]]*tdd-mode:[[:space:]]*exploratory'; then
+if [[ -f "$ABS_FILE" ]]; then
+  if head -5 "$ABS_FILE" 2>/dev/null | grep -qE '//[[:space:]]*tdd-mode:[[:space:]]*exploratory'; then
     exit 0
   fi
   # Header marker: explicit mode override
-  HEADER_MODE=$(head -5 "$FILE" 2>/dev/null | grep -oE '//[[:space:]]*tdd-mode:[[:space:]]*(strict|souple)' | grep -oE '(strict|souple)' || true)
+  HEADER_MODE=$(head -5 "$ABS_FILE" 2>/dev/null | grep -oE '//[[:space:]]*tdd-mode:[[:space:]]*(strict|souple)' | grep -oE '(strict|souple)' || true)
   [[ -n "$HEADER_MODE" ]] && MODE="$HEADER_MODE"
 fi
 [[ "$MODE" == "exploratory" ]] && exit 0
@@ -63,7 +75,7 @@ case "$FILE" in $BUSINESS_GLOB) ;; *) exit 0 ;; esac
 TEST_TS="${FILE%.ts}.test.ts"
 TEST_TSX="${FILE%.tsx}.test.tsx"
 
-if [[ -f "$TEST_TS" || -f "$TEST_TSX" ]]; then
+if [[ -f "$ROOT/$TEST_TS" || -f "$ROOT/$TEST_TSX" ]]; then
   exit 0
 fi
 
