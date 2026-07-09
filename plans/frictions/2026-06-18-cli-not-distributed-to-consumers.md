@@ -3,7 +3,11 @@ date: 2026-06-18
 source: void-harness self (backlog-loop dogfood — "how do I launch from Claude?")
 kind: dx
 severity: major
-status: proposed
+status: resolved
+resolution: 2026-07-09 — marketplace-only assumed (issue #69). The CLI is
+  maintainer-only by decision, not by accident. Consumers install plugins via the
+  marketplace; they never run `void-harness`. Command bodies and docs no longer
+  point consumers at `npx @voidcorp/harness` (which 404s). See docs/DECISIONS.md.
 ---
 
 # The `void-harness` CLI is not distributed to consumers — every `/void-*` command body is unrunnable as written

@@ -53,33 +53,37 @@ void-harness/
 
 ## Usage
 
-```bash
-# Recommended flow: per-project. Enables the harness core plugin plus the packs
-# you pick, scaffolds .void/config.json, and patches CLAUDE.md / AGENTS.md.
-cd my-project
-npx @voidcorp/harness init --pack pack-nextjs --pack pack-monorepo
-# (pack names also accept harness-nextjs or nextjs)
+Distribution is **marketplace-only**: the plugins ship through Claude Code's
+marketplace, and the `@voidcorp/harness` npm package is deliberately not
+published (see [`docs/DECISIONS.md`](docs/DECISIONS.md)). Consumers install the
+plugin from the marketplace; the `void-harness` CLI is maintainer tooling that
+lives in this repo.
 
-# Health check / update
-npx @voidcorp/harness doctor
-npx @voidcorp/harness update
-
-# Escape hatch (rare): install the core plugin globally instead of per-project
-npx @voidcorp/harness install --global
-```
-
-## Distribution
-
-The plugins of this repo are distributed through the **voidcorp** marketplace,
-whose catalog lives in [`voidcorp-core/void-plugins`](https://github.com/voidcorp-core/void-plugins)
-(pure catalog, pinned by commit sha). Manual install:
+Install the core plugin (and any pack) from the **voidcorp** marketplace:
 
 ```
 /plugin marketplace add voidcorp-core/void-plugins
 /plugin install harness@voidcorp
+/plugin install harness-nextjs@voidcorp     # add a stack pack
 ```
 
-`npx @voidcorp/harness init` does this wiring per-project for you.
+Skills then auto-load as `/harness:<name>` (core) and `/harness-<stack>:<name>`
+(packs). The catalog lives in
+[`voidcorp-core/void-plugins`](https://github.com/voidcorp-core/void-plugins)
+(pure catalog, pinned by commit sha).
+
+### Maintainer CLI (this repo)
+
+The `void-harness` CLI wires config per-project (`.void/config.json`, CLAUDE.md /
+AGENTS.md patches) and health-checks a setup. It is run from a checkout of this
+repo, not fetched from npm:
+
+```bash
+pnpm build && pnpm link --global        # once, exposes `void-harness` on PATH
+void-harness init --pack nextjs --pack monorepo   # wire the current project
+void-harness doctor                     # health check
+void-harness update                     # sync marketplace pins to remote HEAD
+```
 
 ## Relation to other VoidCorp repos
 

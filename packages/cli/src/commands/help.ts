@@ -56,9 +56,14 @@ Commands:
   help                     Print this message.
 
 Pack names (current marketplace):
-  void           core — universal craftsman skills (always active)
-  harness-monorepo  Turborepo + Bun conventions
-  harness-nextjs    Next.js 16 + PWA conventions
+  harness           core — universal craftsman skills (always active)
+  harness-monorepo  Turborepo + Bun monorepo conventions
+  harness-react     React 19 + shadcn/Radix + accessibility-first
+  harness-nextjs    Next.js 16 App Router conventions
+  harness-server    Server Actions, webhooks, Drizzle, Zod boundaries
+  harness-pwa       PWA manifest, service worker, offline-first
+  harness-mobile    Expo + React Native + native modules
+  (--pack accepts the bare stack too: nextjs, monorepo, react, ...)
 
 Examples:
   void-harness init                                  # interactive
