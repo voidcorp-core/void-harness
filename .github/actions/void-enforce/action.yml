@@ -1,0 +1,34 @@
+name: void-harness enforce
+description: >-
+  Replay the void-harness enforcement floor (protected files, leaked secrets,
+  @repo/* import direction) over a pull-request diff. Same detection as the local
+  PreToolUse hooks — one source of truth, enforced server-side so no author
+  (human, local agent, cloud agent) can bypass it.
+
+inputs:
+  base-ref:
+    description: >-
+      Git ref to diff the head against (the PR base). Defaults to the pull
+      request's base SHA, then origin/<base branch>. Set explicitly for a
+      push-triggered run.
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Enforce the void-harness floor over the diff
+      shell: bash
+      env:
+        # github.action_path resolves to this action's dir inside the checked-out
+        # void-harness repo; the shared script + _checks.sh live three levels up.
+        INPUT_BASE_REF: ${{ inputs.base-ref }}
+        PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        PR_BASE_REF: ${{ github.base_ref }}
+      run: |
+        set -euo pipefail
+        base="${INPUT_BASE_REF:-}"
+        [ -z "$base" ] && base="${PR_BASE_SHA:-}"
+        [ -z "$base" ] && [ -n "${PR_BASE_REF:-}" ] && base="origin/${PR_BASE_REF}"
+        # A missing base is handled fail-closed by the script itself (red check).
+        "${GITHUB_ACTION_PATH}/../../../packages/core/enforce/ci-enforce.sh" --base "$base"

@@ -1,0 +1,35 @@
+# Reusable workflow: the void-harness enforcement floor for CONSUMER repos.
+#
+# Adopt it with five lines in your own repo (.github/workflows/void-enforce.yml):
+#
+#   name: void-enforce
+#   on: pull_request
+#   jobs:
+#     enforce:
+#       uses: voidcorp-core/void-harness/.github/workflows/enforce.yml@main
+#
+# Pin @main to a release tag once you want a stable floor. This complements — it
+# does not replace — your own lint/test CI: it enforces the doctrine floor only.
+name: void-enforce (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      base-ref:
+        description: Ref to diff against (defaults to the PR base).
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 gives the base commit so the diff (and fail-closed base
+      # resolution) works; a shallow checkout would make the base unresolvable.
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: voidcorp-core/void-harness/.github/actions/void-enforce@main
+        with:
+          base-ref: ${{ inputs.base-ref }}
