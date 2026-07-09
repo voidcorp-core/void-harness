@@ -128,3 +128,7 @@ None directly. This skill composes with the existing hooks and skills.
 - **CLI subcommand to run items 1–5 mechanically**: `npx @voidcorp/harness verify` could run typecheck + tests + hooks dry-run and report. Lean yes for Phase E. Saves the user one cognitive step. Still requires reading the output, not auto-claiming done.
 - **Item #6 (mobile + desktop) mechanism**: lean to compose with `gstack` browse for the screenshots in a future iteration. Defer.
 - **Documentation update detection (item #9)**: heuristic — if the diff touched files in `docs/` OR if any "convention" was introduced (regex on PR body). Lean: rely on `code-review` for now.
+
+## gstack /ship vendoring (DEV-388, de-gstackification Vague 2)
+
+**Integrated** the completion-verification half of /ship: the Plan-Completion Audit (classify every actionable item DONE/PARTIAL/NOT-DONE/CHANGED/UNVERIFIABLE against the diff), the honesty rule ("code that *handles* a deliverable is not the deliverable"), per-item confirmation for UNVERIFIABLE items (never a blanket "all done?"), and scope-drift flagging. Also sharpened "observed not assumed" with /ship's named rationalizations ("should work now"→run it, "trivial change"→trivial breaks prod). **Covered already** (not re-vendored): typecheck/tests/lint/hooks pass (the 12-item checklist). **Distinction preserved**: the checklist verifies the *build works*; the completion audit verifies *you built what was specified* — different subject, one skill.

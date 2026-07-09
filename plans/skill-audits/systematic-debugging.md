@@ -119,3 +119,7 @@ None directly. The discipline is enforced via:
 - **Composition with `/codex` consult mode**: for hard bugs, second-opinion via Codex on the root-cause hypothesis. Document as optional pattern; lean optional.
 - **Flake bug discipline**: an entire sub-discipline ("flake debugging") could live as a section here or as a separate skill. Lean section in this skill; reassess after first 10 flakes.
 - **Production-only bugs**: when reproduction requires production data, document anonymization patterns + sandbox-replay approach. Lean: brief section in SKILL.md with reference to `observability` for sampling.
+
+## gstack /investigate vendoring (DEV-388, de-gstackification Vague 2)
+
+/investigate shares this skill's superpowers lineage — it was **~85-90% already covered** (the four phases, root-cause-first Iron Law, regression-test-fails-without/passes-with, minimal diff, fresh verification). This is a documented-rejection case: the bulk was **deliberately NOT re-vendored** (cited as such, not duplicated). **Integrated** only the surgical deltas the skill lacked: the Pattern-Analysis lookup table (race/nil/state-corruption/integration/config-drift, each with signature + where-to-look), the 3-strike rule (3 failed hypotheses → treat as architectural), the blast-radius gate (>5 files → stop and ask), instrument-to-confirm-before-editing, recurring-bug-is-an-architectural-smell (`git log` the file for prior fixes), and the red-flags list. **Attribution corrected**: /investigate moves from "composed with" to "fully vendored".

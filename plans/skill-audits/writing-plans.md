@@ -131,3 +131,7 @@ None. Planning is a process discipline; the verification gates leverage existing
 - **Plan size cap**: should there be a soft cap (e.g., > 20 steps = decompose)? Lean yes, document as advisory rule. Refine after first 10 real plans.
 - **Composition with subagent-driven-development**: how does the plan declare "step N can run in parallel with step M"? Lean: explicit `parallelizable_with: [step-3]` field per step. Defer mechanics to first multi-agent plan.
 - **High-risk flag mechanics**: who sets `high_risk: true`? Lean: the author (during plan self-review). Document heuristics (payment, auth, prod data migration, security-sensitive code).
+
+## gstack /spec vendoring (DEV-388, de-gstackification Vague 2)
+
+**Integrated** the planning half of /spec: the **executability gate** (a plan is done only when an *unfamiliar* implementer or agent could execute it with **zero follow-up questions** — added as self-review item #7; this skill stated it qualitatively, now it is a walk-one-step-as-a-stranger check) and **MVP-cut-first** (the first vertical slice is the smallest version that delivers real value; grow from a shipping core). **Covered already** (not re-vendored): step structure, verification gates, TDD mode per step. The precision/grounding half of /spec (read-code-before-asking, the five why-questions) went to brainstorming, not here — authoring the plan is downstream of understanding the intent.

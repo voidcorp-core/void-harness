@@ -14,6 +14,8 @@ Sources for `ticket-runner` skill (see plans/skill-audits/ticket-runner.md for f
   doctrine-critic, silent-failure-hunter; gstack /design-review, /qa; the
   `impeccable` frontend skill when installed.
 
+- gstack /ship — VENDORED (DEV-388, cycle-level disciplines only): Test-Failure-Ownership triage (in-branch vs pre-existing), the independent fresh-context adversarial review pass (FIXABLE/INVESTIGATE + name-the-most-exploitable-finding), and bisectable commit ordering. Rejected: the Review-Army roster/gating machinery (release-gate apparatus, over-engineered for one ticket) and the VERSION/CHANGELOG/release-please steps (deployment runtime). The plan-completion-audit half of /ship went to verification-before-completion.
+
 Strategy: author. The load-bearing idea is the predicate-keyed triage: speed
 comes from skipping passes whose trigger is false, never from skipping an
 ALWAYS pass. This is the "an expert team would cover all of it" guarantee made

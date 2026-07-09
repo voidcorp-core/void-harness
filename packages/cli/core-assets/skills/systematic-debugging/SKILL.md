@@ -7,7 +7,7 @@ description: Four phases (investigate, analyze, hypothesize, implement). Iron La
 
 A bug fix without a root cause is a band-aid. The bug recurs in three months under a different name, and the next debugger inherits the band-aid. `systematic-debugging` enforces four phases (investigate → analyze → hypothesize → implement), with a failing test that reproduces the bug landing BEFORE the fix.
 
-**Attribution**: see `.source`. Primary mechanism: gstack `/investigate`, composed with `superpowers:systematic-debugging`.
+**Attribution**: see `.source`. The gstack `/investigate` methodology is vendored here (DEV-388); the four-phase discipline is `superpowers:systematic-debugging`.
 
 ---
 
@@ -154,6 +154,30 @@ Retry-until-green is rejected.
 
 ---
 
+## Diagnostic aids (vendored from gstack `/investigate`)
+
+**Pattern lookup** — before theorizing, match the symptom against a common class:
+
+| Pattern | Signature | Where to look |
+|---|---|---|
+| Race condition | intermittent, timing/load-dependent, "works when I step through" | shared mutable state, missing `await`, unordered async |
+| Nil propagation | NPE / undefined far from its origin | an optional assumed present at a boundary |
+| State corruption | wrong value, no error | a write path skipping validation, or a stale cache |
+| Integration failure | works in isolation, fails wired up | contract mismatch at the adapter, env / config drift |
+| Config drift | works locally, fails in one env | env-specific value, unpinned dependency |
+
+**Instrument to confirm, before editing.** Add a temporary log/assertion at the suspected cause and match it against the reproduction *before* writing any fix. A hypothesis you have not observed is still a guess.
+
+**3-strike rule.** Three failed hypotheses → stop treating it as a simple bug. It is likely architectural: instrument-and-wait, or escalate to a structural review (see "When the root cause is structural").
+
+**Blast-radius gate.** If the fix touches > 5 files, stop and ask: proceed / split / rethink. A wide fix for a narrow bug is usually the wrong layer.
+
+**Recurring bug = architectural smell.** `git log` the affected files for prior fixes. The same file fixed three times is not coincidence — the root is structural, not the latest symptom.
+
+**Red flags** (each means you are guessing): "a quick fix for now" (there is no for-now); proposing a fix before tracing the data flow; each fix revealing a new problem (wrong layer).
+
+---
+
 ## Composition with other skills
 
 - **Upstream — `observability`**: if visibility is the gap, fix it first.
@@ -162,7 +186,7 @@ Retry-until-green is rejected.
 - **With `refactoring`**: structural fixes compose with refactoring's Two-Hat principle.
 - **With `doctrine-critic` agent**: for structural roots affecting multiple bugs of the same kind.
 - **With `commit-discipline`**: `fix:` commits include the "why" (root cause).
-- **With `gstack:/investigate`**: this skill IS the gstack `/investigate` discipline + harness-specific composition.
+- **`gstack:/investigate` is fully vendored here** (DEV-388): its diagnostic aids (pattern lookup, 3-strike, blast-radius, instrument-to-confirm) are the section above; the phase skeleton + Iron Law + regression-test rule were already this skill's core (deliberately not re-vendored).
 
 ---
 

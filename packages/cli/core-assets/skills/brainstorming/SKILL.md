@@ -84,6 +84,13 @@ Wait for the user's response. If they decline, proceed in text-only.
 - Open-ended fine when no obvious options exist.
 - Focus on: purpose, constraints, success criteria.
 
+**Precision & grounding** (vendored from gstack `/spec`) — ambiguity is a bug; find it:
+
+- **Read the code before asking.** Do not ask what you can read. Grep/read at least one real piece of evidence and cite `path:line` in the question. "Don't ask what you can read" beats an interview that ignores the repo.
+- **Quantify.** "Several files" is not an answer — find the exact count. "Improves performance" is not a goal — state the metric and target.
+- **Five "why" questions must be answered without hand-waving** before design: **who** is affected, the **verified current** behavior, the **desired** behavior, **why now**, and the **observable/measurable** done-signal.
+- **Think in failure modes** as a first-class axis: empty / null / enormous / duplicated / wrong-role / called-twice.
+
 ### Step 5 — Propose 2–3 approaches
 
 Present alternatives conversationally with trade-offs. Lead with the recommendation and the reason. Let the user redirect.
