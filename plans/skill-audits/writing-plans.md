@@ -32,7 +32,7 @@ Without `writing-plans`, an approved design jumps directly to code. The plan is 
 | superpowers/executing-plans | superpowers/skills | reviewed | KEEP EXTERNAL — we do not vendor execution. Plans transition to it. |
 | superpowers/subagent-driven-development | superpowers/skills | reviewed | reference (alternative execution style for parallelizable tasks) |
 | citypaul plan templates (in `plans/`) | citypaul/.dotfiles | reviewed | partially kept (sectioning style, numbered steps with verification gates) |
-| gstack `/autoplan` | gstack/skills | reviewed | different niche (REVIEWS an existing plan via CEO/eng/design/DX gates). Composes with this skill (autoplan can be invoked after writing-plans to validate) |
+| gstack `/autoplan` | gstack/skills | vendored (DEV-385) | its methodology is now `harness:plan-review` (the `all` mode) — a different niche (REVIEWS an existing plan via CEO/Eng/Design/DevEx lenses). Composes with this skill: plan-review is invoked after writing-plans to validate a high-risk plan |
 
 ## Adaptation strategy
 
@@ -64,7 +64,7 @@ Without `writing-plans`, an approved design jumps directly to code. The plan is 
   Why: makes the discipline cost visible at planning; the user can see "this plan is 3 strict + 2 souple + 1 exploratory" and adjust.
 - **Resume point is mandatory**: every plan's last section is "Resume point" listing the next step to execute. Updated by the execution skill as steps complete. Why: cross-session shipping.
 - **Verification gates compose with hooks** (new): each step's gate maps to specific harness hooks (`pre-commit typecheck+test`, `tdd-guard`, `tigerstyle-check`). Plans state which hooks must succeed at that step. Why: explicit composition surfaces what protects each step.
-- **Composition with `autoplan`** (gstack): plans that target high-risk surface (payment, auth, prod migrations) can be reviewed by `autoplan` after writing. Plans include a flag in frontmatter (`high_risk: true`) that triggers an autoplan recommendation. Why: catch design issues without re-litigating brainstorming.
+- **Composition with `plan-review`** (was gstack `autoplan`, vendored DEV-385): plans that target high-risk surface (payment, auth, prod migrations) can be reviewed by `harness:plan-review` (`all` mode) after writing. Plans include a flag in frontmatter (`high_risk: true`) that triggers a plan-review recommendation. Why: catch design issues without re-litigating brainstorming.
 
 ## What we reject
 
@@ -98,7 +98,7 @@ None. Planning is a process discipline; the verification gates leverage existing
 - **With `tdd`**: per-step mode selection lives in the plan.
 - **With `code-review`**: review checkpoints declared in the plan are honored.
 - **With `verification-before-completion`**: the plan's "Done" criteria feed the completion checklist.
-- **With `autoplan` (gstack)**: optional review of the plan via CEO/eng/design/DX gates for high-risk surface.
+- **With `harness:plan-review`**: optional review of the plan via CEO/Eng/Design/DevEx lenses for high-risk surface (vendored from gstack `autoplan`, DEV-385).
 - **With `commit-discipline`**: each step states the expected conventional-commit message (`feat:`, `fix:`, `refactor:` etc.) so commits align with the plan.
 
 ## Anti-rules (what this skill MUST NOT do)
@@ -114,13 +114,13 @@ None. Planning is a process discipline; the verification gates leverage existing
 
 - [ ] SKILL.md drafted at target ≤ 300 LOC
 - [ ] Frontmatter `description` ≤ 200 chars, mentions plan-to-disk + steps with verification gates + TDD mode per step + resume point as headline
-- [ ] `.source` file lists superpowers/writing-plans + superpowers/executing-plans (external) + citypaul plan templates + gstack/autoplan
+- [ ] `.source` file lists superpowers/writing-plans + superpowers/executing-plans (external) + citypaul plan templates + harness:plan-review (was gstack/autoplan, vendored DEV-385)
 - [ ] No companion hooks needed (process discipline)
 - [ ] Plan template published in `packages/core/claude/skills/writing-plans/TEMPLATE.md`
 - [ ] Matrix row in `plans/skill-decision-matrix.md` matches this audit note
 - [ ] Skill tests in `test/writing-plans/` cover: plan-link-check, missing-verification-gate detection, missing-resume-point detection, missing-spec-frontmatter detection
 - [ ] No overlap > 30% with `brainstorming` (this skill = sequence; brainstorming = design)
-- [ ] No overlap > 30% with `autoplan` (this skill = author; autoplan = review)
+- [ ] No overlap > 30% with `plan-review` (this skill = author; plan-review = review)
 - [ ] Sister-doc parity: AGENTS.md flavor matches CLAUDE.md flavor
 - [ ] Audit status moved from `reviewed` → `shipped` after first project consumes the skill
 

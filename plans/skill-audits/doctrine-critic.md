@@ -30,10 +30,10 @@ exactly that gap, and nothing else.
 
 - **Wins**: judging a diff against VoidCorp doctrine where a hook cannot (taste
   calls) and a generic reviewer does not know the doctrine.
-- **Loses to**: gstack `/cso` for the security audit (it only flags trust-boundary
-  code and hands off). gstack `/code-review` for line-level bugs/perf. gstack
-  `/plan-eng-review` for forward architecture planning. `pr-reviewer` for posting
-  to GitHub.
+- **Loses to**: `harness:security-audit` for the security audit (it only flags
+  trust-boundary code and hands off). gstack `/code-review` for line-level bugs/perf.
+  `harness:plan-review` (Eng lens) for reviewing a written plan's architecture.
+  `pr-reviewer` for posting to GitHub.
 - **Cannot decide**: whether to ship (user). It is advisory; it does not gate.
 - **Composes with**: `code-review` (inherits its dimensions + blocker/nit framing),
   `security-guidance` (reuses the "flag + route to /cso" pattern), `tdd`,
@@ -58,7 +58,7 @@ It carries no security engine (→ `/cso`) and no bug-finder (→ `/code-review`
 
 - **Rejected the three-agent plan.** `senior-reviewer`, `security-reviewer`,
   `architect-critic` overlapped existing capabilities 70-85% (global `pr-reviewer`,
-  gstack `/cso` + `/plan-eng-review`, the `boundary-direction-check.sh` hook, the
+  `harness:security-audit` + `harness:plan-review`, the `boundary-direction-check.sh` hook, the
   `code-review` + `security-guidance` skills). Collapsing to one doctrine-aware
   agent removes the overlap and the routing non-determinism of three thin wrappers
   competing with the global agents already in a consumer session. Full rationale:

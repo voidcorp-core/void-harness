@@ -67,7 +67,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 
 - **Wins**: identifying bounded contexts, aggregates, ubiquitous language. Anti-corruption layers between domains.
 - **Loses to**: `hexagonal-architecture` on the technical boundary mechanism. `functional` on data shapes within an aggregate.
-- **Cannot decide**: tactical patterns (delegated to `functional` + `hexagonal-architecture`). Sub-domain analysis: deferred to `brainstorming` / `plan-ceo-review` upstream.
+- **Cannot decide**: tactical patterns (delegated to `functional` + `hexagonal-architecture`). Sub-domain analysis: deferred to `brainstorming` / `plan-review` (CEO lens) upstream.
 - **Composes with**: `hexagonal-architecture`, `functional`.
 
 ### `code-review`
@@ -86,12 +86,12 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 
 ---
 
-## Process skills (14)
+## Process skills (15)
 
 ### `brainstorming`
 
 - **Wins**: any creative task before code. Feature scoping, design discussion, "should we build X this way?" — and, via the vendored upstream mode (DEV-386), "should we build X at all?" (demand pressure-test + 10x ambition).
-- **Loses to**: `plan-ceo-review` (gstack) for broader product roadmap / strategy.
+- **Loses to**: `plan-review` (CEO lens) for reviewing a written plan's premise / ambition / trajectory.
 - **Cannot decide**: implementation specifics (defers to `writing-plans`).
 - **Composes with**: `writing-plans` (downstream).
 
@@ -101,6 +101,13 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 - **Loses to**: `brainstorming` on intent and design choices.
 - **Cannot decide**: feature scope (it's a planning skill, not a scoping skill). Architecture (defers to architecture skills).
 - **Composes with**: `brainstorming` (upstream), `executing-plans` (downstream — gstack/superpowers).
+
+### `plan-review`
+
+- **Wins**: critiquing a written plan before execution through four lenses (CEO premise/ambition, Eng test-coverage/failure-modes, Design states/slop, DevEx TTHW); the `all` mode orchestrates them with auto-decisions.
+- **Loses to**: `writing-plans` on authoring/structuring the plan (plan-review proposes findings, the author disposes); `code-review` once code exists.
+- **Cannot decide**: the idea's demand (that is `brainstorming`); it never rewrites the plan or auto-decides taste/user-challenge calls.
+- **Composes with**: `writing-plans` (upstream, produces the artifact), `ticket-runner` (downstream), `frontend-design`/`impeccable` (Design lens), `security-audit` (Eng lens routes deep security). Vendored from gstack plan-reviews + autoplan (DEV-385).
 
 ### `systematic-debugging`
 
