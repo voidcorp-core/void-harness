@@ -7,9 +7,10 @@
 // Upstream-deprecation and decision-matrix-conflict detection are a documented
 // follow-up (they need data sources beyond the usage log).
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { type SkillAudit, auditSkills, parseUsageLog } from '../lib/audit.js';
+import { type SkillAudit, auditSkills } from '../lib/audit.js';
+import { loadSkillUsage } from '../lib/graph-io.js';
 import { findCoreSource } from '../lib/paths.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
 
@@ -37,15 +38,18 @@ export async function audit(args: readonly string[]): Promise<void> {
   const coreSource = await findCoreSource();
   const allSkills = harnessSkills(coreSource);
 
-  const logPath = join(root, '.void', 'usage.log');
-  const usage = existsSync(logPath) ? parseUsageLog(readFileSync(logPath, 'utf8')) : [];
+  // Single source of truth: activations.jsonl (rich), merged with the legacy
+  // usage.log for transition history only (issue #70).
+  const usage = loadSkillUsage(root);
 
   const report = auditSkills({ allSkills, usage, nowMs: Date.now(), staleDays });
 
   banner('audit');
   blank();
-  if (!existsSync(logPath)) {
-    line(c.yellow(`  no .void/usage.log yet — the skill-usage-meter hook populates it as skills fire.`));
+  if (!existsSync(join(root, '.void', 'activations.jsonl')) && usage.length === 0) {
+    line(
+      c.yellow(`  no .void/activations.jsonl yet — the activation-meter hook populates it as skills fire.`),
+    );
   }
   line(
     `${c.dim('skills')} ${allSkills.length} ${c.dim(glyph.dot)} ${c.green(`${report.active.length} active`)} ${c.dim(glyph.dot)} ${c.yellow(`${report.stale.length} stale`)} ${c.dim(glyph.dot)} ${c.dim(`${report.never.length} never`)} ${c.dim(`(stale > ${staleDays}d)`)}`,

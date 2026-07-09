@@ -29,11 +29,10 @@ import type { CostRow, GraphModel } from '@voidcorp/harness-graph';
 import { BUNDLED_MODEL_JSON, resolveBundledModel } from '../lib/bundled-model.js';
 import { BUNDLED_STUDIO_HTML } from '../lib/bundled-studio.js';
 import { readSessionCosts } from '../lib/transcript-cost.js';
-import { parseUsageLog } from '../lib/audit.js';
 import { startLiveServer } from '../lib/graph-live-server.js';
 import { findCoreSource } from '../lib/paths.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
-import { usedSkillNames } from '../lib/graph-io.js';
+import { loadSkillUsage, usedSkillNames } from '../lib/graph-io.js';
 
 /** Read `--flag value` from argv, falling back to `fallback`. */
 function strFlag(args: readonly string[], flag: string, fallback: string): string {
@@ -108,9 +107,8 @@ async function resolveModel(coreSource: string, bundledJson: string | undefined)
 }
 
 function ctxFor(): { usedSkillNames: Set<string> } {
-  const logPath = join(process.cwd(), '.void', 'usage.log');
-  const usage = existsSync(logPath) ? parseUsageLog(readFileSync(logPath, 'utf8')) : [];
-  return { usedSkillNames: usedSkillNames(usage) };
+  // Unified skill-usage source: activations.jsonl (+ legacy usage.log history).
+  return { usedSkillNames: usedSkillNames(loadSkillUsage(process.cwd())) };
 }
 
 export async function graph(

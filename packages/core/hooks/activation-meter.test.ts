@@ -37,17 +37,18 @@ const pre = (toolName: string, toolInput: Record<string, unknown>): Record<strin
 });
 
 describe('activation-meter — classification', () => {
-  it('records a Skill call as kind=skill and preserves the usage.log line', () => {
+  it('records a Skill call as kind=skill and no longer writes the legacy usage.log (#70)', () => {
     const { activations, usage } = runHook(pre('Skill', { skill: 'tdd' }));
     expect(activations).toHaveLength(1);
     expect(activations[0]).toMatchObject({ kind: 'skill', name: 'tdd', sessionId: 'sess-1' });
-    expect(usage).toContain('\ttdd\n');
+    // activations.jsonl is the single source of truth; usage.log is not written.
+    expect(usage).toBe('');
   });
 
   it('records a Task call as kind=agent using subagent_type', () => {
     const { activations, usage } = runHook(pre('Task', { subagent_type: 'Explore' }));
     expect(activations[0]).toMatchObject({ kind: 'agent', name: 'Explore' });
-    expect(usage).toBe(''); // non-skill kinds never touch usage.log
+    expect(usage).toBe(''); // usage.log is never written (single-source, #70)
   });
 
   it('records an Agent call (this harness names the spawn tool Agent, not Task) as kind=agent', () => {

@@ -39,20 +39,25 @@ describe('activation-meter.sh', () => {
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-  it('logs a Skill invocation to .void/usage.log', () => {
+  it('records a Skill invocation to activations.jsonl and never the legacy usage.log (#70)', () => {
     const r = run('activation-meter.sh', '{"tool_name":"Skill","tool_input":{"skill":"tdd"}}', {
       CLAUDE_PROJECT_DIR: dir,
     });
     expect(r.code).toBe(0);
-    const log = join(dir, '.void', 'usage.log');
-    expect(existsSync(log)).toBe(true);
-    expect(readFileSync(log, 'utf8')).toContain('tdd');
+    // activations.jsonl is now the single source of truth.
+    const jsonl = join(dir, '.void', 'activations.jsonl');
+    expect(existsSync(jsonl)).toBe(true);
+    expect(readFileSync(jsonl, 'utf8')).toContain('"name":"tdd"');
+    // The legacy usage.log writer is gone: the meter must not recreate it.
+    expect(existsSync(join(dir, '.void', 'usage.log'))).toBe(false);
   });
 
-  it('writes no usage.log line for non-Skill tools (usage.log stays skill-only)', () => {
+  it('records a non-Skill tool as kind=tool and writes no usage.log', () => {
     run('activation-meter.sh', '{"tool_name":"Bash","tool_input":{"command":"ls"}}', {
       CLAUDE_PROJECT_DIR: dir,
     });
+    const jsonl = join(dir, '.void', 'activations.jsonl');
+    expect(readFileSync(jsonl, 'utf8')).toContain('"kind":"tool"');
     expect(existsSync(join(dir, '.void', 'usage.log'))).toBe(false);
   });
 

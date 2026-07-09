@@ -14,7 +14,7 @@ export const orphans: Detector = (model, ctx) => {
       kind: 'orphan',
       severity: 'warning',
       nodes: [n.id],
-      evidence: `${n.id} has no relations${n.type === 'skill' ? ' and has never fired in usage.log' : ''}`,
+      evidence: `${n.id} has no relations${n.type === 'skill' ? ' and has never fired in .void/activations.jsonl' : ''}`,
       suggestion: 'wire it into routing/composition, or consider deprecating it (audit is HITL)',
     });
   }
