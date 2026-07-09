@@ -1438,10 +1438,10 @@ a side door; the same logic run server-side on the diff closes it without a seco
 Audit top-5% lever #2. The `test/` suite proves a skill's FORM (frontmatter, size, structure) but
 nothing about its EFFECT: no test showed that a skill's prose changes the agent's behavior in the
 intended direction. Decision: a behavioral eval harness runs a fixture task with the skill's
-`SKILL.md` appended to the system prompt and without it, N times each, and scores the delta. This
+`SKILL.md` body injected into the system prompt and without it, N times each, and scores the delta. This
 makes every prose edit testable and the gstack vendoring (DEV-385..389) verifiable — is the distillate
-as good as the source? First real run (commit-discipline, N=3, model haiku): with-skill mean 100% vs
-without-skill 44%, delta +56%, ~$0.26 — a clear, measured signal, not a hope.
+as good as the source? First real run (commit-discipline, N=5, model haiku): with-skill mean 100% vs
+without-skill 67%, delta +33%, ~$0.26 — a clear, measured signal, not a hope.
 
 Load-bearing choices:
 - **Inject the prose via `--append-system-prompt`, don't install the plugin.** The eval tests whether
