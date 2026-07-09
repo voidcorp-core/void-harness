@@ -8,6 +8,6 @@ Sources for `domain-driven-design` skill (see plans/skill-audits/domain-driven-d
 - Vaughn Vernon "Domain-Driven Design Distilled" 2016 — book — shorter intro
 - citypaul/.dotfiles DDD notes — ubiquitous language enforcement
 
-Strategy: distill. Reject CQRS, event sourcing, mediator, generic Repository<T> as defaults (per docs/PHILOSOPHY.md Wing Chun). Sub-domain analysis (Core/Supporting/Generic) delegated upstream to office-hours / plan-ceo-review.
+Strategy: distill. Reject CQRS, event sourcing, mediator, generic Repository<T> as defaults (per docs/PHILOSOPHY.md Wing Chun). Sub-domain analysis (Core/Supporting/Generic) delegated upstream to brainstorming / plan-ceo-review.
 
 Companion hook: ubiquitous-language-lint (advisory).

@@ -67,7 +67,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 
 - **Wins**: identifying bounded contexts, aggregates, ubiquitous language. Anti-corruption layers between domains.
 - **Loses to**: `hexagonal-architecture` on the technical boundary mechanism. `functional` on data shapes within an aggregate.
-- **Cannot decide**: tactical patterns (delegated to `functional` + `hexagonal-architecture`). Sub-domain analysis: deferred to `office-hours` / `plan-ceo-review` upstream.
+- **Cannot decide**: tactical patterns (delegated to `functional` + `hexagonal-architecture`). Sub-domain analysis: deferred to `brainstorming` / `plan-ceo-review` upstream.
 - **Composes with**: `hexagonal-architecture`, `functional`.
 
 ### `code-review`
@@ -90,9 +90,9 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 
 ### `brainstorming`
 
-- **Wins**: any creative task before code. Feature scoping, design discussion, "should we build X this way?".
-- **Loses to**: `office-hours` (gstack) when the question is "should we build X at all?" (upstream).
-- **Cannot decide**: implementation specifics (defers to `writing-plans`). Sub-domain identification (defers upstream).
+- **Wins**: any creative task before code. Feature scoping, design discussion, "should we build X this way?" — and, via the vendored upstream mode (DEV-386), "should we build X at all?" (demand pressure-test + 10x ambition).
+- **Loses to**: `plan-ceo-review` (gstack) for broader product roadmap / strategy.
+- **Cannot decide**: implementation specifics (defers to `writing-plans`).
 - **Composes with**: `writing-plans` (downstream).
 
 ### `writing-plans`

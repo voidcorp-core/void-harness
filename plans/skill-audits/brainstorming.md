@@ -2,13 +2,17 @@
 skill: brainstorming
 status: reviewed
 strategy: distill
-target_loc: 350
+target_loc: 400
+actual_loc: 217
 phase: D
 depends_on: []
 composes_with: [writing-plans, tdd]
 matrix_row: plans/skill-decision-matrix.md#brainstorming
 audit_date: 2026-05-29
-auditor: Folpe + Claude Opus 4.7
+updated: 2026-07-09
+source_ticket: DEV-386
+epic: DEV-383
+auditor: Folpe + Claude Opus 4.7 (updated 4.8 for the office-hours vendoring)
 ---
 
 # Skill audit: `brainstorming`
@@ -20,8 +24,8 @@ Without a brainstorming gate, an LLM agent starts coding the moment a request ar
 ## Decision matrix anchor
 
 - **Wins**: any creative task before code — feature scoping, design discussion, "should we build X this way?"
-- **Loses to**: gstack `/office-hours` when the question is "should we build X at all?" (upstream, validates the idea)
-- **Cannot decide**: implementation specifics (defers to `writing-plans`). Sub-domain identification (defers upstream to office-hours / plan-ceo-review)
+- **Owns (DEV-386)**: "should we build X at all?" — the idea-pressure-test upstream mode, vendored from `/office-hours`. No longer delegated.
+- **Cannot decide**: implementation specifics (defers to `writing-plans`). Product roadmap / strategy (defers to `plan-ceo-review`)
 - **Composes with**: `writing-plans` (downstream, mandatory transition after spec approval)
 
 ## Sources audited
@@ -29,7 +33,7 @@ Without a brainstorming gate, an LLM agent starts coding the moment a request ar
 | Source | URL | Status | Verdict |
 |---|---|---|---|
 | superpowers/brainstorming | superpowers/skills | reviewed in depth (we used it to brainstorm this very harness) | kept as primary — hard gate, one-question-at-a-time, multi-choice preferred, 2–3 approaches with recommendation, spec-write, transition to writing-plans |
-| gstack `/office-hours` | gstack/skills | reviewed | different niche (upstream "should we build it at all?"). Composed as predecessor when the user describes a new product idea. |
+| gstack `/office-hours` | gstack/skills (1655 LOC) | vendored (DEV-386) | the upstream "should we build it at all?" diagnostic distilled into the "Pressure-testing a raw idea" mode — see the vendoring section below. Was composed as a predecessor; now absorbed as the gstack teardown removes it. |
 | compound-engineering plan phase | EveryInc plugin | reviewed | rejected as primary (no clear gate between explore and implement). Some pattern reuse (compound-loop reference) |
 | Boris Cherny "how Boris uses Claude Code" | https://howborisusesclaudecode.com | reviewed | inspiration on the discipline of writing the design before code |
 
@@ -68,6 +72,16 @@ Without a brainstorming gate, an LLM agent starts coding the moment a request ar
 - **Combining brainstorming and planning into one skill**: rejected. They are distinct phases. Brainstorming explores intent + design; planning sequences execution. Different cognitive modes.
 - **Jumping directly to implementation skill (frontend-design, mcp-builder, etc.) post-brainstorming**: rejected per superpowers HARD GATE. Always go through `writing-plans` first.
 
+## office-hours vendoring (DEV-386, de-gstackification Vague 1)
+
+The gstack teardown removes `/office-hours`, whose idea-validation value the cartography classified VENDOR into `brainstorming`. Its brainstorm/builder half already overlapped this skill almost entirely (documented rejection, not a port); the distinct value is the YC-style **product diagnostic** that runs *upstream* of design. Folded as the "Pressure-testing a raw idea" mode.
+
+**Kept (distilled):** the six forcing questions (demand reality, status quo, desperate specificity, narrowest wedge, observation & surprise, future-fit) with stage-based routing; the anti-sycophancy posture (take a position + state what would change your mind, push past the polished first answer, no praise-hedging); the escape hatch (respect impatience after two pushes); and — per Folpe's explicit ask — the **10x ambition move** (drop self-imposed constraints, ask the "coolest / 10x version", carry an ideal + a creative-lateral path into the approaches; YAGNI prunes the final scope down from an ambitious set, never starts timid).
+
+**Rejected:** the builder-mode visual/design-discovery and visual-sketch phases (overlap `frontend-design` + belong to the forge/design waves); the cross-model Codex second-opinion (a separate `/challenge` initiative + gstack `/codex`, other scope); all gstack runtime plumbing (gbrain, telemetry, plan-mode, voice, founder-profile append, AskUserQuestion machinery). None of these are the load-bearing diagnostic.
+
+**Anti-bloat:** brainstorming went 198 → 217 LOC (cap 400). The forcing questions are distilled to ask + push-target + red-flag, not the source's full worked examples. No new overlap: no other skill carries a product-demand diagnostic. The adversarial posture is scoped to the upstream mode; the normal design flow keeps its collaborative voice.
+
 ## Hard rules surfaced by this skill
 
 - **HARD GATE: no implementation skill, no code, no scaffolding until spec is written and user approved**. Enforced by: SKILL.md prose + transition checklist + downstream skills checking for spec existence.
@@ -87,7 +101,7 @@ None. Brainstorming is a process discipline; the gate is enforced via the SKILL.
 
 ## Composition with other skills
 
-- **Upstream — `gstack:/office-hours`**: when the user describes a new product idea ("I have an idea..."), invoke office-hours FIRST to validate the idea. Once the idea is validated, brainstorming covers the implementation design.
+- **Raw product idea** ("I have an idea..."): pressure-tested in-skill via the vendored upstream mode (the `/office-hours` diagnostic, DEV-386), then designed. No separate upstream skill; broader roadmap / strategy still routes to `plan-ceo-review` (gstack).
 - **Downstream — `voidcorp:writing-plans`**: the ONLY post-brainstorming transition. Plans turns the approved spec into an executable plan.
 - **With `tdd`**: the spec's "Mode selection" section declares the TDD mode per major implementation step. Plans then uses this to sequence the work.
 - **With `hexagonal-architecture` + `domain-driven-design`**: for non-trivial designs, these skills inform the section structure (bounded contexts, port/adapter split, aggregates). Brainstorming consumes their vocabulary; does not duplicate their decisions.
@@ -98,20 +112,20 @@ None. Brainstorming is a process discipline; the gate is enforced via the SKILL.
 - MUST NOT skip the hard gate. Implementation skills are not invoked, code is not written, until the spec is approved.
 - MUST NOT batch multiple questions in one message. One question at a time.
 - MUST NOT decide implementation details (those go to plans).
-- MUST NOT decide product strategy / scope ambition (those go to office-hours / plan-ceo-review).
+- MUST NOT decide product roadmap / strategy (routes to `plan-ceo-review`). It DOES pressure-test a raw idea's demand and push its ambition (the vendored upstream mode) — in scope, not delegated.
 - MUST NOT skip the spec-write step "because the conversation is clear." Specs persist; conversations evaporate.
 - MUST NOT transition to any skill other than `voidcorp:writing-plans` post-approval.
 
 ## Verification checklist for shipping this skill
 
-- [ ] SKILL.md drafted at target ≤ 350 LOC
+- [ ] SKILL.md drafted at target ≤ 400 LOC
 - [ ] Frontmatter `description` ≤ 200 chars, mentions hard gate + one question + 2–3 approaches + spec-write as headline
-- [ ] `.source` file lists superpowers + gstack/office-hours + compound-engineering + Boris Cherny
+- [ ] `.source` file lists superpowers + gstack/office-hours (vendored) + compound-engineering + Boris Cherny
 - [ ] No companion hooks needed (the discipline is process)
 - [ ] Matrix row in `plans/skill-decision-matrix.md` matches this audit note
 - [ ] Skill tests in `test/brainstorming/` cover: hard-gate violation detection (writing code without spec approval), one-question-at-a-time enforcement (chat transcript analysis), multi-subsystem decomposition trigger
 - [ ] No overlap > 30% with `writing-plans` (this skill = explore + design; plans = sequence execution)
-- [ ] No overlap > 30% with gstack `/office-hours` (this skill = how; office-hours = whether)
+- [ ] office-hours vendored (DEV-386), not composed: the "whether to build it" diagnostic is now the in-skill upstream mode; no >30% overlap with any remaining skill
 - [ ] Sister-doc parity: AGENTS.md flavor matches CLAUDE.md flavor
 - [ ] Audit status moved from `reviewed` → `shipped` after first project consumes the skill
 
