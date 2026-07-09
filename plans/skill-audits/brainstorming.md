@@ -25,7 +25,7 @@ Without a brainstorming gate, an LLM agent starts coding the moment a request ar
 
 - **Wins**: any creative task before code — feature scoping, design discussion, "should we build X this way?"
 - **Owns (DEV-386)**: "should we build X at all?" — the idea-pressure-test upstream mode, vendored from `/office-hours`. No longer delegated.
-- **Cannot decide**: implementation specifics (defers to `writing-plans`). Product roadmap / strategy (defers to `plan-ceo-review`)
+- **Cannot decide**: implementation specifics (defers to `writing-plans`). Product roadmap / strategy (defers to `plan-review` CEO lens)
 - **Composes with**: `writing-plans` (downstream, mandatory transition after spec approval)
 
 ## Sources audited
@@ -101,7 +101,7 @@ None. Brainstorming is a process discipline; the gate is enforced via the SKILL.
 
 ## Composition with other skills
 
-- **Raw product idea** ("I have an idea..."): pressure-tested in-skill via the vendored upstream mode (the `/office-hours` diagnostic, DEV-386), then designed. No separate upstream skill; broader roadmap / strategy still routes to `plan-ceo-review` (gstack).
+- **Raw product idea** ("I have an idea..."): pressure-tested in-skill via the vendored upstream mode (the `/office-hours` diagnostic, DEV-386), then designed. No separate upstream skill; broader roadmap / strategy routes to `plan-review` (CEO lens).
 - **Downstream — `voidcorp:writing-plans`**: the ONLY post-brainstorming transition. Plans turns the approved spec into an executable plan.
 - **With `tdd`**: the spec's "Mode selection" section declares the TDD mode per major implementation step. Plans then uses this to sequence the work.
 - **With `hexagonal-architecture` + `domain-driven-design`**: for non-trivial designs, these skills inform the section structure (bounded contexts, port/adapter split, aggregates). Brainstorming consumes their vocabulary; does not duplicate their decisions.
@@ -112,7 +112,7 @@ None. Brainstorming is a process discipline; the gate is enforced via the SKILL.
 - MUST NOT skip the hard gate. Implementation skills are not invoked, code is not written, until the spec is approved.
 - MUST NOT batch multiple questions in one message. One question at a time.
 - MUST NOT decide implementation details (those go to plans).
-- MUST NOT decide product roadmap / strategy (routes to `plan-ceo-review`). It DOES pressure-test a raw idea's demand and push its ambition (the vendored upstream mode) — in scope, not delegated.
+- MUST NOT decide product roadmap / strategy (routes to `plan-review` CEO lens). It DOES pressure-test a raw idea's demand and push its ambition (the vendored upstream mode) — in scope, not delegated.
 - MUST NOT skip the spec-write step "because the conversation is clear." Specs persist; conversations evaporate.
 - MUST NOT transition to any skill other than `voidcorp:writing-plans` post-approval.
 

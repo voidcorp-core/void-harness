@@ -68,6 +68,7 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 |---|---|
 | Brainstorming the next feature | `brainstorming` skill (loads natively in Codex) |
 | Writing a plan | `writing-plans` skill |
+| Reviewing a written plan (pre-execution) | `plan-review` skill (lenses CEO/Eng/Design/DevEx, or `all`) |
 | Implementing a ticket / feature | `ticket-runner` skill (one unit, ready→shipped: TDD, UX, security, review, verify) |
 | Decomposing work into tickets | `ticket-writer` skill |
 | Draining independent tickets in parallel | `backlog-autopilot` skill |

@@ -21,7 +21,7 @@ Without DDD discipline, the data model drives the design. Tables shape services,
 
 - **Wins**: identifying bounded contexts, aggregates, ubiquitous language, anti-corruption layers between domains, value object identification
 - **Loses to**: `hexagonal-architecture` on the technical boundary mechanism (ports / adapters / use-case layer). `functional` on data shapes within an aggregate (ADTs, immutability, smart constructors)
-- **Cannot decide**: tactical patterns delegated to `functional` + `hexagonal-architecture`. Sub-domain analysis (Core / Supporting / Generic) — that is a product call, lives upstream in `brainstorming` / `plan-ceo-review`
+- **Cannot decide**: tactical patterns delegated to `functional` + `hexagonal-architecture`. Sub-domain analysis (Core / Supporting / Generic) — that is a product call, lives upstream in `brainstorming` / `plan-review` (CEO lens)
 - **Composes with**: `hexagonal-architecture` (physical boundaries match logical), `functional` (data shape inside aggregates), `typescript-strict` (branded types for value objects), `code-review` (flag anemic models)
 
 ## Sources audited
@@ -58,7 +58,7 @@ Without DDD discipline, the data model drives the design. Tables shape services,
   - **Domain events as plain typed records**: `{ kind: 'OrderConfirmed'; orderId: OrderId; at: IsoDate }`. Emitted by aggregates, collected by the use-case layer, dispatched via injected event-bus port (compose with `hexagonal-architecture`).
 - **Repository pattern as port + adapter**: Vernon's repository concept becomes a port (`OrdersPort.findById`, `OrdersPort.save`) with adapters per persistence technology. Composes with `hexagonal-architecture`. Why: avoid Vernon's framework-specific repository implementations; the port abstraction is enough.
 - **Domain errors as `Result<T, DomainError>` not exceptions** (Khorikov's "Result alternative"): expected domain failures (out of stock, insufficient balance) are values. Exceptions remain for unexpected technical failures (DB down, network timeout). Composes with `functional`.
-- **Sub-domain analysis upstream**: identifying Core / Supporting / Generic sub-domains is a product call (which capabilities are competitive advantage vs commodity). We delegate this to `brainstorming` (idea pressure-test) and `plan-ceo-review` (gstack). The DDD skill consumes the result, does not produce it.
+- **Sub-domain analysis upstream**: identifying Core / Supporting / Generic sub-domains is a product call (which capabilities are competitive advantage vs commodity). We delegate this to `brainstorming` (idea pressure-test) and `plan-review` (CEO lens). The DDD skill consumes the result, does not produce it.
 
 ## What we reject
 

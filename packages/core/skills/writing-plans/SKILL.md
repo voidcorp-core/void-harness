@@ -32,7 +32,7 @@ date: YYYY-MM-DD
 status: in-progress  # in-progress → executing → done
 spec: docs/specs/YYYY-MM-DD-<topic>.md
 author: <user> + Claude/Codex
-high_risk: false  # set true if the plan touches payment, auth, prod data migration, security-sensitive code → triggers autoplan recommendation
+high_risk: false  # set true if the plan touches payment, auth, prod data migration, security-sensitive code → triggers plan-review recommendation
 ---
 ```
 
@@ -178,11 +178,11 @@ Resume-point updates happen during execution (the executing skill mutates the pl
 
 ---
 
-## High-risk plans — autoplan recommendation
+## High-risk plans — plan-review recommendation
 
-If `high_risk: true` in the frontmatter, recommend running `gstack:/autoplan` after the plan is written but before execution begins.
+If `high_risk: true` in the frontmatter, recommend running `harness:plan-review` (the `all` mode) after the plan is written but before execution begins.
 
-`autoplan` reviews the plan via CEO / eng / design / DX gates with auto-decisions and surfaces taste decisions for the user. It catches design issues that brainstorming may have missed.
+`plan-review` critiques the plan through CEO / Eng / Design / DevEx lenses, auto-decides the mechanical calls and surfaces the taste calls for the user. It catches issues brainstorming may have missed. It proposes findings; this skill's author folds them in.
 
 Set `high_risk: true` when the plan touches:
 
@@ -201,7 +201,7 @@ Set `high_risk: true` when the plan touches:
 - **With `tdd`**: per-step mode selection lives in the plan.
 - **With `code-review`**: review checkpoints declared in the plan are honored.
 - **With `verification-before-completion`**: the plan's "Done" criteria feed the completion checklist.
-- **With `gstack:/autoplan`**: optional review for high-risk plans.
+- **With `harness:plan-review`**: optional multi-lens review for high-risk plans (downstream of this skill, upstream of implementation).
 - **With `commit-discipline`**: each step states the expected conventional-commit message.
 
 ---

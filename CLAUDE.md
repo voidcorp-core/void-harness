@@ -68,6 +68,7 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 | ---------------------------------------- | ------------------------------------------------------------------------------------ |
 | Brainstorming the next feature           | `harness:brainstorming`                                                              |
 | Writing a plan                           | `harness:writing-plans`                                                              |
+| Reviewing a written plan (pre-execution) | `harness:plan-review` (lenses CEO/Eng/Design/DevEx, or `all`)                        |
 | Implementing a ticket / feature          | `harness:ticket-runner` (one unit, ready→shipped: TDD, UX, security, review, verify) |
 | Decomposing work into tickets            | `harness:ticket-writer`                                                              |
 | Draining independent tickets in parallel | `harness:backlog-autopilot`                                                          |

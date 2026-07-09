@@ -638,7 +638,7 @@
       "name": "brainstorming",
       "description": "Explore intent before code: pressure-test a raw idea, one question at a time, 2-3 approaches, design in sections, spec written and approved. HARD GATE — no code until the spec is approved.",
       "lines": 218,
-      "staticTokens": 3266,
+      "staticTokens": 3282,
       "pack": null,
       "source": "packages/core/skills/brainstorming/SKILL.md"
     },
@@ -1063,6 +1063,17 @@
       "source": "packages/packs/pack-server/skills/webhook-handler-pattern/SKILL.md"
     },
     {
+      "id": "skill:plan-review",
+      "type": "skill",
+      "name": "plan-review",
+      "description": "Critique a written plan (not a diff) via four lenses: CEO premise/ambition, Eng test-coverage, Design states/slop, DevEx time-to-first-value. Proposes findings; the author disposes.",
+      "lines": 130,
+      "staticTokens": 2622,
+      "pack": null,
+      "source": "packages/core/skills/plan-review/SKILL.md",
+      "activation": "on-demand"
+    },
+    {
       "id": "skill:refactoring",
       "type": "skill",
       "name": "refactoring",
@@ -1198,7 +1209,7 @@
       "name": "writing-plans",
       "description": "Turn an approved spec into an executable plan. Steps with goal, deps, verification gate, TDD mode per step, expected commits. Resume point updated. Use after brainstorming approves a spec.",
       "lines": 228,
-      "staticTokens": 2203,
+      "staticTokens": 2245,
       "pack": null,
       "source": "packages/core/skills/writing-plans/SKILL.md"
     },

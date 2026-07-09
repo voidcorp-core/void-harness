@@ -188,7 +188,7 @@ Smaller, well-bounded units are easier to work with — easier for the agent to 
 
 ## Composition with other skills
 
-- **Raw product idea** ("I have an idea..."): pressure-test it first via the upstream mode above (the vendored `/office-hours` diagnostic), then design. Broader product *roadmap / strategy* still routes to `plan-ceo-review` (gstack).
+- **Raw product idea** ("I have an idea..."): pressure-test it first via the upstream mode above (the vendored `/office-hours` diagnostic), then design. Broader product *roadmap / strategy* routes to `harness:plan-review` (CEO lens — challenges a written plan's premise and ambition).
 - **Downstream — `harness:writing-plans`**: the ONLY post-brainstorming transition.
 - **With `tdd`**: the spec declares the TDD mode for each major implementation step. Plans then uses this.
 - **With `hexagonal-architecture` + `domain-driven-design`**: these skills inform the design's structure (bounded contexts, ports, aggregates). Brainstorming consumes their vocabulary; does not duplicate their decisions.
@@ -201,7 +201,7 @@ Smaller, well-bounded units are easier to work with — easier for the agent to 
 - MUST NOT skip the hard gate.
 - MUST NOT batch multiple questions in one message.
 - MUST NOT decide implementation details (those go to plans).
-- MUST NOT decide product roadmap / strategy (routes to `plan-ceo-review`). It DOES pressure-test a raw idea's demand and push its ambition (the upstream mode) — that is now in scope, not delegated.
+- MUST NOT decide product roadmap / strategy (routes to `harness:plan-review` CEO lens). It DOES pressure-test a raw idea's demand and push its ambition (the upstream mode) — that is now in scope, not delegated.
 - MUST NOT skip the spec-write step "because the conversation is clear."
 - MUST NOT transition to any skill other than `harness:writing-plans` post-approval.
 
