@@ -144,7 +144,14 @@ The 2026-07-09 fusion of `compounding` + `capture-rule` + `harness-evolution` (i
 - **Wins**: any moment a lesson appears — a stated durable project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a perceived harness gap. Names the lesson, decides scope, and runs the matching capture: a project rule into `.void/PROJECT-DOCTRINE.md`, a harness gap as a direct `voidcorp-core/void-harness` issue, or drop. Also interprets the `void-harness audit` obsolescence report.
 - **Loses to**: nothing on capture routing — it is the single owner. Defers *which tool to use* to the code skills; a structural decision with a rejected alternative is `adr-workflow`, not a doctrine line.
 - **Cannot decide**: whether a capture is adopted (HITL only, never auto-writes doctrine); whether a rule is correct (the user owns it); the scope when genuinely ambiguous (it asks, never guesses).
-- **Composes with**: `verification-before-completion` (a cycle is not "closed" until verified), `commit-discipline` (a project rule commits as `docs(doctrine):`), `code-review` (a recurring finding is a deja-vu signal), `claude-md-authoring` (governs the doc a rule lands in), `adr-workflow`.
+- **Composes with**: `verification-before-completion` (a cycle is not "closed" until verified), `commit-discipline` (a project rule commits as `docs(doctrine):`), `code-review` (a recurring finding is a deja-vu signal), `claude-md-authoring` (governs the doc a rule lands in), `adr-workflow`, `retrospective` (feeds it window-scale patterns).
+
+### `retrospective`
+
+- **Wins**: a periodic engineering retro over a window (a week, a cycle) — reads git log / PRs / `.void/`, surfaces signals (commit-type mix, hotspots, recurring-fix files, test-to-prod ratio, PR size, regressions), and turns them into concrete improvement decisions.
+- **Loses to**: `learning-capture` on writing a lesson into doctrine (the retro routes patterns to it, never writes doctrine itself); `systematic-debugging` on fixing one bug (the retro only flags the recurring-file smell at window scale).
+- **Cannot decide**: whether a capture is adopted (HITL via learning-capture); it never changes code or writes doctrine.
+- **Composes with**: `learning-capture` (durable patterns routed there), `systematic-debugging` (recurring-fix smell), `writing-plans` (large-PR window = slicing signal). Vendored from gstack `/retro` (DEV-396) with the gamification dropped.
 
 ### `source-driven-development`
 

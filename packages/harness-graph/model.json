@@ -1085,6 +1085,17 @@
       "activation": "always"
     },
     {
+      "id": "skill:retrospective",
+      "type": "skill",
+      "name": "retrospective",
+      "description": "Periodic engineering retro over a window: read git log / PRs / .void, surface signals (hotspots, test ratio, commit types, regressions), turn them into improvement decisions feeding learning-capture.",
+      "lines": 73,
+      "staticTokens": 1384,
+      "pack": null,
+      "source": "packages/core/skills/retrospective/SKILL.md",
+      "activation": "on-demand"
+    },
+    {
       "id": "skill:security-audit",
       "type": "skill",
       "name": "security-audit",
