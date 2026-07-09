@@ -18,23 +18,60 @@ import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO, PACKS, enabledPlu
 import { readSettings, settingsPathFor } from '../lib/settings.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { checkGh, checkJq, type CheckResult } from '../lib/prerequisites.js';
+import { packsCoherenceIssues, validateConfig } from '../lib/config-schema.js';
+import { hookHealthIssues, locatePluginDir } from '../lib/plugin-cache.js';
 import { compareVersions, normalizeVersion } from '../lib/version.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
+import { homedir } from 'node:os';
 
 const BEGIN_MARKER = '<!-- void-harness:begin -->';
+
+/** Plain pack names (no @voidcorp/ prefix, core excluded) pinned in config.packs. */
+function configPackNames(config: { packs?: Record<string, string> }): string[] {
+  return Object.keys(config.packs ?? {})
+    .map((k) => k.replace(/^@voidcorp\//, ''))
+    .filter((name) => name !== CORE_PLUGIN_NAME);
+}
+
+/** Plain pack names enabled (=== true) in settings.enabledPlugins, core excluded. */
+function enabledPackNames(plugins: Record<string, unknown>): string[] {
+  return Object.keys(plugins)
+    .filter((k) => plugins[k] === true)
+    .map((k) => k.split('@')[0] ?? '')
+    .filter((name) => name.length > 0 && name !== CORE_PLUGIN_NAME);
+}
 
 export async function doctor(args: readonly string[]): Promise<void> {
   const skipRemote = args.includes('--no-remote');
   const checks: CheckResult[] = [];
   const root = process.cwd();
 
+  // Parsed config is reused by the schema check AND the settings<->config
+  // coherence check further down, so capture it once here.
+  let parsedConfig: { packs?: Record<string, string> } & Record<string, unknown> = {};
+  let configReadable = false;
+
   const configPath = join(root, '.void', 'config.json');
   if (!existsSync(configPath)) {
     checks.push({ name: 'project config', ok: false, message: '.void/config.json missing', fix: 'void-harness init' });
   } else {
     try {
-      JSON.parse(await readFile(configPath, 'utf8'));
-      checks.push({ name: 'project config', ok: true, message: 'valid JSON' });
+      parsedConfig = JSON.parse(await readFile(configPath, 'utf8'));
+      configReadable = true;
+      // Shape validation, not just parseability: a mistyped path / non-semver
+      // pin passes JSON.parse but breaks a hook later, so report it with its
+      // JSON path (#68).
+      const validation = validateConfig(parsedConfig);
+      if (validation.ok) {
+        checks.push({ name: 'project config', ok: true, message: 'valid JSON + schema' });
+      } else {
+        checks.push({
+          name: 'project config',
+          ok: false,
+          message: `schema errors: ${validation.issues.join('; ')}`,
+          fix: 'fix the fields above in .void/config.json',
+        });
+      }
     } catch (err) {
       checks.push({ name: 'project config', ok: false, message: `invalid JSON: ${(err as Error).message}` });
     }
@@ -52,16 +89,19 @@ export async function doctor(args: readonly string[]): Promise<void> {
   }
 
   const settingsPath = settingsPathFor(root);
+  let enabledPlugins: Record<string, unknown> = {};
+  let settingsReadable = false;
   if (!existsSync(settingsPath)) {
     checks.push({ name: 'settings.json', ok: false, message: '.claude/settings.json missing', fix: 'void-harness init' });
   } else {
     const settings = await readSettings(settingsPath);
     const markets = (settings.extraKnownMarketplaces ?? {}) as Record<string, unknown>;
-    const plugins = (settings.enabledPlugins ?? {}) as Record<string, unknown>;
+    enabledPlugins = (settings.enabledPlugins ?? {}) as Record<string, unknown>;
+    settingsReadable = true;
     const hasMarketplace = markets[MARKETPLACE_NAME] !== undefined;
-    const hasCore = plugins[enabledPluginsKey(CORE_PLUGIN_NAME)] === true;
+    const hasCore = enabledPlugins[enabledPluginsKey(CORE_PLUGIN_NAME)] === true;
     if (hasMarketplace && hasCore) {
-      const activePlugins = Object.keys(plugins).filter((k) => plugins[k] === true).length;
+      const activePlugins = Object.keys(enabledPlugins).filter((k) => enabledPlugins[k] === true).length;
       checks.push({ name: 'settings.json', ok: true, message: `marketplace registered, ${activePlugins} plugin(s) enabled` });
     } else {
       const missing = [
@@ -69,6 +109,23 @@ export async function doctor(args: readonly string[]): Promise<void> {
         !hasCore && `enabledPlugins["${enabledPluginsKey(CORE_PLUGIN_NAME)}"]`,
       ].filter(Boolean).join(', ');
       checks.push({ name: 'settings.json', ok: false, message: `missing: ${missing}`, fix: 'void-harness init' });
+    }
+  }
+
+  // Coherence: a pack enabled in settings.json but not pinned in config (or the
+  // reverse) means the plugin loads but is unpinned, or is pinned but never
+  // loads. Only meaningful when both files were readable (#68).
+  if (configReadable && settingsReadable) {
+    const issues = packsCoherenceIssues(enabledPackNames(enabledPlugins), configPackNames(parsedConfig));
+    if (issues.length === 0) {
+      checks.push({ name: 'packs coherence', ok: true, message: 'settings.json ⇄ .void/config.json in sync' });
+    } else {
+      checks.push({
+        name: 'packs coherence',
+        ok: false,
+        message: issues.join('; '),
+        fix: 'void-harness add/remove <pack> to realign, or edit .void/config.json',
+      });
     }
   }
 
@@ -93,6 +150,11 @@ export async function doctor(args: readonly string[]): Promise<void> {
   // behind the remote checks: --no-remote is a fully offline run.
   checks.push(checkJq());
 
+  // Plugin cache hooks: the enforcement layer is only real if the hooks the
+  // installed plugin.json wires exist and are executable in the cache. Absent
+  // cache = not installed yet (informational, ≠ corruption).
+  checks.push(await checkPluginCacheHooks());
+
   if (!skipRemote) {
     checks.push(checkGh());
     checks.push(await checkRemoteVersions(root));
@@ -113,6 +175,36 @@ export async function doctor(args: readonly string[]): Promise<void> {
     footer(c.red(`${blockers} check${blockers > 1 ? 's' : ''} failed`));
     process.exit(1);
   }
+}
+
+async function checkPluginCacheHooks(): Promise<CheckResult> {
+  // Claude Code caches marketplace plugins under ~/.claude/plugins/cache.
+  const cacheRoot = join(homedir(), '.claude', 'plugins', 'cache');
+  const pluginDir = locatePluginDir(cacheRoot, CORE_PLUGIN_NAME);
+  if (!pluginDir) {
+    return {
+      name: 'plugin cache',
+      ok: true,
+      message: 'not installed in cache yet (restart Claude Code to fetch it)',
+    };
+  }
+  const manifestPath = join(pluginDir, '.claude-plugin', 'plugin.json');
+  let manifest: Record<string, unknown>;
+  try {
+    manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  } catch (err) {
+    return { name: 'plugin cache', ok: false, message: `unreadable manifest: ${(err as Error).message}` };
+  }
+  const issues = hookHealthIssues(pluginDir, manifest);
+  if (issues.length === 0) {
+    return { name: 'plugin cache', ok: true, message: 'wired hooks present + executable' };
+  }
+  return {
+    name: 'plugin cache',
+    ok: false,
+    message: issues.join('; '),
+    fix: '/plugin marketplace update (inside Claude Code) to refetch the plugin',
+  };
 }
 
 async function checkRemoteVersions(root: string): Promise<CheckResult> {
