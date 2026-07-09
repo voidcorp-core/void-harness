@@ -14,10 +14,13 @@
 # Exit codes: 0 allow, 2 block.
 
 set -euo pipefail
+source "${BASH_SOURCE[0]%/*}/_hooklib.sh"
 
-INPUT=$(cat)
-TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty')
-CMD=$(printf "%s" "$INPUT" | jq -r 'if (.tool_input.command? | type) == "array" then (.tool_input.command | join(" ")) else (.tool_input.command // empty) end' 2>/dev/null || true)
+hooklib_read
+TOOL=$(hooklib_tool)
+# hooklib_command joins a Codex argv array; without jq it degrades to the
+# pure-bash .command scalar (string commands still screened, better than 127).
+CMD=$(hooklib_command)
 
 case "$TOOL" in Bash|shell) ;; *) exit 0 ;; esac
 [[ -z "$CMD" ]] && exit 0

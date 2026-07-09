@@ -6,29 +6,22 @@
 # Exit codes: 0 allow, 2 block.
 
 set -euo pipefail
+source "${BASH_SOURCE[0]%/*}/_hooklib.sh"
 
-INPUT=$(cat)
-TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty')
-FILE=$(printf "%s" "$INPUT" | jq -r '.tool_input.file_path // empty')
-NEW=$(printf "%s" "$INPUT" | jq -r '.tool_input.content // .tool_input.new_string // empty')
+hooklib_read
+TOOL=$(hooklib_tool)
+FILE=$(hooklib_file)
 
 case "$TOOL" in Edit|Write) ;; *) exit 0 ;; esac
-[[ -z "$FILE" || -z "$NEW" ]] && exit 0
+[[ -z "$FILE" ]] && exit 0
 
-# Claude Code passes ABSOLUTE paths; the ^packages/ anchor below is
-# project-root-relative, so an unstripped path silently fails open (#62).
-# Compare PHYSICAL paths only (symlinked roots: macOS /var vs /private/var).
-_phys() {
-  local p="$1" t=""
-  while [[ ! -d "$p" && "$p" == */* ]]; do t="/${p##*/}$t"; p="${p%/*}"; done
-  if [[ -d "$p" ]]; then printf '%s%s' "$(cd "$p" && pwd -P)" "$t"; else printf '%s' "$1"; fi
-}
-if [[ "$FILE" == /* ]]; then
-  ROOT=$(_phys "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}")
-  ROOT="${ROOT%/}"
-  FILE=$(_phys "$FILE")
-  case "$FILE" in "$ROOT"/*) FILE="${FILE#"$ROOT"/}" ;; esac
-fi
+# Normalize the absolute path Claude Code passes so the ^packages/ anchor
+# below matches (#62); the lib compares physical paths (symlinked roots).
+FILE=$(hooklib_relpath "$FILE")
+
+hooklib_require_jq boundary-direction-check
+NEW=$(hooklib_content)
+[[ -z "$NEW" ]] && exit 0
 
 # Only files inside packages/<X>/ (NOT apps/, NOT packages/core/)
 [[ "$FILE" =~ ^packages/[^/]+/ ]] || exit 0

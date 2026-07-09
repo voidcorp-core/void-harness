@@ -30,15 +30,36 @@ if [[ -n "$SKILL_FILES" ]]; then
   fi
 fi
 
-# Rule 5: hooks ≤ 100 LOC (core + packs)
+# Rule 5: hooks ≤ 100 LOC (core + packs). Sourced libraries (underscore-prefixed,
+# e.g. _hooklib.sh) are NOT hooks — they carry shared code deliberately and are
+# excluded from the per-hook cap (still syntax-checked below).
 echo "  rule 5: hooks ≤ 100 LOC"
-if [[ -n "$HOOK_FILES" ]]; then
-  OVERSIZE_HOOKS=$(printf "%s\n" "$HOOK_FILES" | xargs wc -l 2>/dev/null | awk '$1 > 100 && $2 != "total" { print }')
+HOOK_FILES_NOLIB=$(printf "%s\n" "$HOOK_FILES" | grep -vE '(^|/)_[^/]*\.sh$' || true)
+if [[ -n "$HOOK_FILES_NOLIB" ]]; then
+  OVERSIZE_HOOKS=$(printf "%s\n" "$HOOK_FILES_NOLIB" | xargs wc -l 2>/dev/null | awk '$1 > 100 && $2 != "total" { print }')
   if [[ -n "$OVERSIZE_HOOKS" ]]; then
     echo "    FAIL: hook exceeds 100 LOC:" >&2
     echo "$OVERSIZE_HOOKS" >&2
     FAILED=1
   fi
+fi
+
+# Manifest <-> disk: every hook command wired in the core plugin manifest must
+# resolve to a file on disk. A dangling reference disables enforcement silently
+# (the audited fail-open class). Parse the hooks/<name>.sh basenames out of the
+# manifest and assert each exists under packages/core/hooks/.
+echo "  manifest <-> disk: wired hooks exist"
+PLUGIN_MANIFEST="packages/core/.claude-plugin/plugin.json"
+if [[ -f "$PLUGIN_MANIFEST" ]] && command -v jq >/dev/null 2>&1; then
+  WIRED=$(jq -r '.hooks // {} | to_entries[] | .value[]? | .hooks[]? | .command // empty' "$PLUGIN_MANIFEST" 2>/dev/null \
+    | grep -oE 'hooks/[A-Za-z0-9_-]+\.sh' | sort -u || true)
+  while IFS= read -r ref; do
+    [[ -n "$ref" ]] || continue
+    if [[ ! -f "packages/core/$ref" ]]; then
+      echo "    FAIL: manifest references packages/core/$ref which does not exist" >&2
+      FAILED=1
+    fi
+  done <<<"$WIRED"
 fi
 
 # Hook syntax (core + packs)

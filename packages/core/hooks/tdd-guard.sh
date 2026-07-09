@@ -10,28 +10,20 @@
 # Exit codes: 0 allow, 2 block (Claude sees stderr).
 
 set -euo pipefail
+source "${BASH_SOURCE[0]%/*}/_hooklib.sh"
 
-INPUT=$(cat)
-TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty')
-FILE=$(printf "%s" "$INPUT" | jq -r '.tool_input.file_path // empty')
+hooklib_read
+TOOL=$(hooklib_tool)
+FILE=$(hooklib_file)
 
 case "$TOOL" in Edit|Write) ;; *) exit 0 ;; esac
 [[ -z "$FILE" ]] && exit 0
 
-# Claude Code passes ABSOLUTE paths; the globs below are root-anchored, so an
-# unstripped path silently fails open (#62). Compare PHYSICAL paths only
-# (logical/physical forms differ under symlinked roots, e.g. macOS /var).
-_phys() {
-  local p="$1" t=""
-  while [[ ! -d "$p" && "$p" == */* ]]; do t="/${p##*/}$t"; p="${p%/*}"; done
-  if [[ -d "$p" ]]; then printf '%s%s' "$(cd "$p" && pwd -P)" "$t"; else printf '%s' "$1"; fi
-}
-ROOT=$(_phys "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}")
-ROOT="${ROOT%/}"
-if [[ "$FILE" == /* ]]; then
-  FILE=$(_phys "$FILE")
-  case "$FILE" in "$ROOT"/*) FILE="${FILE#"$ROOT"/}" ;; esac
-fi
+# Claude Code passes ABSOLUTE paths; the globs below are project-root-anchored,
+# so an unstripped path silently fails open (#62). hooklib_relpath compares
+# physical paths (logical/physical forms differ under symlinked roots).
+ROOT=$(hooklib_root)
+FILE=$(hooklib_relpath "$FILE")
 # Disk probes must not depend on the hook's cwd being the project root.
 ABS_FILE="$FILE"; [[ "$ABS_FILE" != /* ]] && ABS_FILE="$ROOT/$FILE"
 
@@ -39,7 +31,8 @@ CONFIG="$ROOT/.void/config.json"
 MODE="auto"
 BUSINESS_GLOB="apps/*/src/**"
 SPIKES_GLOB="apps/*/scripts/spike-*"
-if [[ -f "$CONFIG" ]]; then
+# Config is jq-parsed; a missing jq keeps the defaults rather than erroring.
+if [[ -f "$CONFIG" && "${HOOK_JQ:-0}" == 1 ]]; then
   MODE=$(jq -r '.modes.tdd // "auto"' "$CONFIG" 2>/dev/null || echo "auto")
   BUSINESS_GLOB=$(jq -r '.paths.business // "apps/*/src/**"' "$CONFIG" 2>/dev/null || echo "apps/*/src/**")
   SPIKES_GLOB=$(jq -r '.paths.spikes // "apps/*/scripts/spike-*"' "$CONFIG" 2>/dev/null || echo "apps/*/scripts/spike-*")

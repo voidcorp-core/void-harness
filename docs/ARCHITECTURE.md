@@ -73,6 +73,21 @@ Every agent declares an explicit `model:` in its frontmatter, chosen by the work
 
 **Rule**: a file in `core/` may assume TypeScript, Zod, `tsc`, vitest-style discovery. It may NOT assume a specific framework (Next vs Remix vs SvelteKit), a specific runtime (Node vs Bun vs Deno), or specific monorepo tooling. Those decisions live in packs and are read from `voidcorp.config.json` at runtime.
 
+### Hook libraries (`_`-prefixed)
+
+Hooks are one file each and capped at 100 LOC (anti-bloat rule 5). Shared hook
+logic lives in an **underscore-prefixed sourced library** (`core/hooks/_hooklib.sh`),
+never executed on its own and excluded from the per-hook size cap. `_hooklib.sh`
+carries the single guarded stdin parse: it reads the Claude Code / Codex tool-call
+JSON once, extracts scalars with a pure-bash fallback, and — critically — **fails
+closed** when `jq` is absent (a content-scanning hook blocks with an explicit
+message instead of exiting 127, which the runtime treats as non-blocking and which
+silently disabled the whole enforcement layer before). It also owns the physical
+root-relative path normalization the enforcement globs depend on. A hook sources it
+with `source "${BASH_SOURCE[0]%/*}/_hooklib.sh"`; `activation-meter.sh` (already
+self-guarded, non-blocking) and `sessionstart-context.sh` (not a tool-call parser)
+are the two deliberate non-consumers.
+
 ### Pack independence
 
 Two packs **may not depend on each other**. If pack A and pack B share logic, that logic belongs in `core/`.
@@ -204,8 +219,9 @@ Implemented today in `.github/workflows/ci.yml` (all block the PR on failure):
 | Gate | What it runs |
 |---|---|
 | Anti-bloat: SKILL.md size | fails if any `SKILL.md` exceeds 400 LOC |
-| Anti-bloat: hook size | fails if any `hooks/*.sh` exceeds 100 LOC |
+| Anti-bloat: hook size | fails if any `hooks/*.sh` (excluding `_`-prefixed libs) exceeds 100 LOC |
 | Shell syntax | `bash -n` on every hook |
+| Manifest ↔ disk | fails if `plugin.json` wires a `hooks/<name>.sh` that does not exist on disk |
 | core-assets sync | regenerates `core-assets` and fails if it drifted from `packages/core` |
 | Publish safety | packs each npm package with pnpm and fails if a `workspace:` specifier survives into the tarball |
 | Lint | `pnpm lint` (Biome) over first-party TypeScript |

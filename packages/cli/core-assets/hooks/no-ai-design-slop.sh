@@ -9,17 +9,20 @@
 # Exit codes: 0 allow, 2 block.
 
 set -euo pipefail
+source "${BASH_SOURCE[0]%/*}/_hooklib.sh"
 
-INPUT=$(cat)
-TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty')
-FILE=$(printf "%s" "$INPUT" | jq -r '.tool_input.file_path // empty')
-NEW=$(printf "%s" "$INPUT" | jq -r '.tool_input.content // .tool_input.new_string // empty')
+hooklib_read
+TOOL=$(hooklib_tool)
+FILE=$(hooklib_file)
 
 case "$TOOL" in Edit|Write) ;; *) exit 0 ;; esac
-[[ -z "$FILE" || -z "$NEW" ]] && exit 0
+[[ -z "$FILE" ]] && exit 0
 # Style-bearing files only: components/markup and stylesheets.
 [[ "$FILE" =~ \.(tsx|jsx|css|scss)$ ]] || exit 0
 [[ "$FILE" =~ \.(test|spec)\.(tsx|jsx)$|/__generated__/|/__fixtures__/ ]] && exit 0
+hooklib_require_jq no-ai-design-slop
+NEW=$(hooklib_content)
+[[ -z "$NEW" ]] && exit 0
 
 # Net AI design tells. Each is intentionally specific to keep false positives low.
 #  1. Explicit default Inter font (font-family declaration or Tailwind font-[Inter]).
