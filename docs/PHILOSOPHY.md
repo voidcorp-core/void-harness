@@ -157,7 +157,7 @@ Source: Kieran Klaassen (EveryInc/compound-engineering-plugin), Boris Cherny ("h
 The harness does **not** govern:
 
 - Product strategy or roadmap decisions (a written plan's premise/ambition is reviewed by `plan-review`'s CEO lens; a raw idea's demand pressure-test lives in `brainstorming`)
-- Visual design system choices (use `design-consultation`)
+- Visual design system choices (the `DESIGN.md` contract; build via `frontend-design`, audit via `ui-review`)
 - Live QA of running apps (use `gstack:/qa`)
 - Ship/deploy mechanics (use `gstack:/ship`, `/land-and-deploy`)
 

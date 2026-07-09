@@ -63,7 +63,7 @@ Scope-gated: no UI in the plan → skip. Judges what reaches the user's eyes.
 - **Information architecture**: explicit primary / secondary / tertiary emphasis per screen.
 - **Interaction-state coverage**: every state the user actually hits — loading, empty, error, success, partial — described as what the user *sees*. A missing state is a first-class plan gap, not a detail.
 - **Journey & emotional arc**: the 5-second / 5-minute / 5-year read of the feature.
-- **AI-slop risk**: classify the surface (marketing vs app-UI vs hybrid) and hold it to the matching bar; reject generic-AI-generated patterns. (Bar and blacklist re-derived from OpenAI's "designing delightful frontends" + Krug — cited in `.source`, composes with `harness:frontend-design` / `impeccable`.)
+- **AI-slop risk**: classify the surface (marketing vs app-UI vs hybrid) and hold it to the matching bar; reject generic-AI-generated patterns. (Bar and blacklist re-derived from OpenAI's "designing delightful frontends" + Krug — cited in `.source`, composes with `harness:frontend-design` / `harness:ui-review`.)
 - **Responsive & a11y**: per-viewport intent, keyboard path, ARIA, 44px targets, 4.5:1 contrast — as plan requirements, not afterthoughts.
 
 **Output**: rate each dimension `N/10 → M/10` with the fix written into the plan; "design-complete" when every dimension ≥ 8.
@@ -103,7 +103,7 @@ Between phases, auto-decide only the safe class; escalate the rest:
 - **Not `brainstorming`**: brainstorming pressure-tests the *idea* (is there demand?); plan-review critiques the *written plan* (is it the right shape, buildable, complete?). Different artifact, different question.
 - **Not `code-review`**: that reviews a *diff*; this reviews a *plan* before any code exists.
 - **Not `doctrine-critic`**: that judges a diff against VoidCorp doctrine; this critiques a plan across product/eng/design/DX lenses.
-- **Composes with `frontend-design` / `impeccable`** (the Design lens defers UI craft to them) and `security-guidance` / `harness:security-audit` (the Eng lens routes a deep security concern there).
+- **Composes with `frontend-design` / `harness:ui-review`** (the Design lens defers UI build-craft and audit to them) and `security-guidance` / `harness:security-audit` (the Eng lens routes a deep security concern there).
 
 ---
 

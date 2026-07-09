@@ -60,7 +60,7 @@ stats.
 - **Security** (OWASP / STRIDE / secrets / supply-chain) → only *detect*
   trust-boundary code (new input, auth, SQL, LLM I/O, env reads) and recommend
   `harness:security-audit`. Do not audit it yourself.
-- **QA / design / shipping** → stays in gstack (`/qa`, `/design-review`, `/ship`).
+- **Design audit** → `harness:ui-review`. **QA / shipping** → gstack (`/qa`, `/ship`).
   Never spill here (anti-bloat rule 6).
 
 ## Output format

@@ -73,7 +73,8 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 | Decomposing work into tickets | `ticket-writer` skill |
 | Draining independent tickets in parallel | `backlog-autopilot` skill |
 | Adding a skill | Author the SKILL.md by hand, run skill-test suite in `test/` |
-| QA / design / ship | gstack (`/qa`, `/design-review`, `/ship`) — Codex can invoke gstack commands via its shell tool |
+| Building or auditing a UI | `frontend-design` (build) + `ui-review` (audit/critique/polish) skills |
+| QA / ship | gstack (`/qa`, `/ship`) — live-browser QA until Vague 4; Codex can invoke gstack commands via its shell tool |
 
 ## On gstack and superpowers (Codex perspective)
 
