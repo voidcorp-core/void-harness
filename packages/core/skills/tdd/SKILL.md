@@ -87,37 +87,10 @@ Code → [does the demo prove the idea?] → either transition to strict before 
 
 ### RED — write the failing test
 
-One thing tested, clear name, real code (mocks only at infrastructure boundaries).
-
-<Good>
-```typescript
-test('retries failed operations 3 times', async () => {
-  let attempts = 0;
-  const op = () => {
-    attempts++;
-    if (attempts < 3) throw new Error('fail');
-    return 'success';
-  };
-  const result = await retryOperation(op);
-  expect(result).toBe('success');
-  expect(attempts).toBe(3);
-});
-```
-</Good>
-
-<Bad>
-```typescript
-test('retry works', async () => {
-  const mock = jest.fn()
-    .mockRejectedValueOnce(new Error())
-    .mockRejectedValueOnce(new Error())
-    .mockResolvedValueOnce('success');
-  await retryOperation(mock);
-  expect(mock).toHaveBeenCalledTimes(3);
-});
-```
-Tests the mock, not the behavior.
-</Bad>
+One thing tested, a name that states the behavior, real code — assert on the observable
+outcome, never on a mock's call count (that tests the mock, not the behavior). Mocks live
+only at infrastructure boundaries. The full technique (how to express the test, factories,
+mocking policy) is the `testing` skill's job; TDD owns only *when* and *that* it fails first.
 
 Before finalizing the test, scan the mutator rules (boundaries, boolean combinations, equality, arithmetic identities, array/string ops, optional chaining, side effects). See `mutation-testing` skill if available.
 
@@ -205,11 +178,8 @@ Load the `refactoring` skill for the detailed methodology (RED-GREEN-REFACTOR st
 - Test files: `Name.test.ts` co-located with the source file
 - Real-I/O integration tests: `Name.integration.test.ts`
 - E2E Playwright: `<config.paths.e2e>` (e.g. `apps/*/tests/e2e/*.spec.ts`)
-- Heavy fixtures: `tests/fixtures/`, never inline
-- No `let` + `beforeEach` → factory functions for test data
-- Naming: no "test1", no "works", describe the behavior
 
-See the `testing` skill for the full technique catalog (factories, fixture externalization, naming, snapshot policy).
+See the `testing` skill for the full technique catalog (factories over `beforeEach`, fixture externalization, behavior-first naming, snapshot policy).
 
 ### Schema contracts at trust boundaries
 
@@ -223,10 +193,9 @@ The contract is the **single source of truth**, never redefined in tests.
 
 ### Anti-pattern detected too often
 
-- Tests that mock the DB → prefer integration tests against pglite or the dev DB branch. Mocking the DB breaks at the next refactor without protecting anything.
-- Tests that mock Server Actions → prefer invoking them directly; their sandbox is light.
-
-See the `testing` skill for the full anti-mock-business rationale.
+Mocking the DB or Server Actions to make a test pass: it breaks at the next refactor without
+protecting anything. Prefer integration tests (pglite / dev DB branch) or invoking the action
+directly. Full anti-mock-business rationale: the `testing` skill.
 
 ---
 

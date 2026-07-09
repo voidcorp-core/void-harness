@@ -2,32 +2,37 @@
 # tdd-guard — PreToolUse hook for Edit|Write.
 # https://code.claude.com/docs/en/hooks — reads JSON from stdin.
 #
-# Enforces the Iron Law of harness:tdd (strict mode):
-#   ZERO LINE OF PRODUCTION CODE WITHOUT A FAILING TEST THAT REQUESTED IT.
-#
-# Mechanics: before editing/creating a business-code file, the sibling
-# test file MUST exist on disk. If it doesn't, BLOCK with instructions.
-#
+# Enforces the Iron Law of harness:tdd (strict mode): no production code
+# without a failing test — the sibling test file MUST exist on disk before a
+# business-code file is edited/created, else BLOCK with instructions.
 # Mode resolution: file header `// tdd-mode: <mode>` > .void/config.json
 # modes.tdd > "auto" (treated as strict in business paths).
-#
 # Exit codes: 0 allow, 2 block (Claude sees stderr).
 
 set -euo pipefail
+source "${BASH_SOURCE[0]%/*}/_hooklib.sh"
 
-INPUT=$(cat)
-TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty')
-FILE=$(printf "%s" "$INPUT" | jq -r '.tool_input.file_path // empty')
+hooklib_read
+TOOL=$(hooklib_tool)
+FILE=$(hooklib_file)
 
-# Only Edit/Write
 case "$TOOL" in Edit|Write) ;; *) exit 0 ;; esac
 [[ -z "$FILE" ]] && exit 0
 
-CONFIG=".void/config.json"
+# Claude Code passes ABSOLUTE paths; the globs below are project-root-anchored,
+# so an unstripped path silently fails open (#62). hooklib_relpath compares
+# physical paths (logical/physical forms differ under symlinked roots).
+ROOT=$(hooklib_root)
+FILE=$(hooklib_relpath "$FILE")
+# Disk probes must not depend on the hook's cwd being the project root.
+ABS_FILE="$FILE"; [[ "$ABS_FILE" != /* ]] && ABS_FILE="$ROOT/$FILE"
+
+CONFIG="$ROOT/.void/config.json"
 MODE="auto"
 BUSINESS_GLOB="apps/*/src/**"
 SPIKES_GLOB="apps/*/scripts/spike-*"
-if [[ -f "$CONFIG" ]]; then
+# Config is jq-parsed; a missing jq keeps the defaults rather than erroring.
+if [[ -f "$CONFIG" && "${HOOK_JQ:-0}" == 1 ]]; then
   MODE=$(jq -r '.modes.tdd // "auto"' "$CONFIG" 2>/dev/null || echo "auto")
   BUSINESS_GLOB=$(jq -r '.paths.business // "apps/*/src/**"' "$CONFIG" 2>/dev/null || echo "apps/*/src/**")
   SPIKES_GLOB=$(jq -r '.paths.spikes // "apps/*/scripts/spike-*"' "$CONFIG" 2>/dev/null || echo "apps/*/scripts/spike-*")
@@ -46,12 +51,12 @@ re_paths='/(tests?|__tests__)/fixtures/|/seed/|/migrations/|/drizzle/meta/|/code
 case "$FILE" in $SPIKES_GLOB) exit 0 ;; esac
 
 # Header marker: exploratory bypass
-if [[ -f "$FILE" ]]; then
-  if head -5 "$FILE" 2>/dev/null | grep -qE '//[[:space:]]*tdd-mode:[[:space:]]*exploratory'; then
+if [[ -f "$ABS_FILE" ]]; then
+  if head -5 "$ABS_FILE" 2>/dev/null | grep -qE '//[[:space:]]*tdd-mode:[[:space:]]*exploratory'; then
     exit 0
   fi
   # Header marker: explicit mode override
-  HEADER_MODE=$(head -5 "$FILE" 2>/dev/null | grep -oE '//[[:space:]]*tdd-mode:[[:space:]]*(strict|souple)' | grep -oE '(strict|souple)' || true)
+  HEADER_MODE=$(head -5 "$ABS_FILE" 2>/dev/null | grep -oE '//[[:space:]]*tdd-mode:[[:space:]]*(strict|souple)' | grep -oE '(strict|souple)' || true)
   [[ -n "$HEADER_MODE" ]] && MODE="$HEADER_MODE"
 fi
 [[ "$MODE" == "exploratory" ]] && exit 0
@@ -63,7 +68,7 @@ case "$FILE" in $BUSINESS_GLOB) ;; *) exit 0 ;; esac
 TEST_TS="${FILE%.ts}.test.ts"
 TEST_TSX="${FILE%.tsx}.test.tsx"
 
-if [[ -f "$TEST_TS" || -f "$TEST_TSX" ]]; then
+if [[ -f "$ROOT/$TEST_TS" || -f "$ROOT/$TEST_TSX" ]]; then
   exit 0
 fi
 

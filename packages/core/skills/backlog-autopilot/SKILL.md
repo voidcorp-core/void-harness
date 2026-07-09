@@ -1,6 +1,6 @@
 ---
 name: backlog-autopilot
-description: Opt-in skill draining independent Linear tickets in parallel, each in its own worktree subagent, reconciled into one integration PR gated by the full suite. Cluster mode + long-run autonomy incoming.
+description: Opt-in parallel drain of independent Linear tickets, each in its own worktree subagent, reconciled into one integration PR gated by the full suite. Use when clearing independent tickets at once.
 ---
 
 # backlog-autopilot

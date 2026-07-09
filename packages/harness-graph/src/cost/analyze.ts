@@ -1,6 +1,7 @@
 import type { GraphModel, NodeType } from '../model/types.js';
 import type { ActivationEvent, ActivationKind, ActivationTrigger } from '../behavior/types.js';
 import { FIRING_KIND, bareName, triggerMatches, within } from '../behavior/index.js';
+import { analyzeOutcomes, outcomeKey } from '../outcome/analyze.js';
 import { DEFAULT_PRICING, deriveDollars } from './pricing.js';
 import type { CostFlag, CostOptions, CostReport, CostRow, CostStats, RealSignal, SessionCost, SessionTokens } from './types.js';
 
@@ -75,6 +76,9 @@ export function analyzeCost(
 
   const costById = new Map<string, SessionCost>((opts.sessionCosts ?? []).map((c) => [c.sessionId, c]));
   const mode: CostReport['mode'] = costById.size > 0 ? 'full' : 'static-only';
+
+  // Value side (issue #71): completions per component, joined by kind + bare name.
+  const outcomeByKey = analyzeOutcomes(opts.outcomes ?? []);
 
   if (stats.sessions < minSessions || stats.events < minEvents) {
     return { sufficient: false, stats, rows: [], mode };
@@ -167,7 +171,16 @@ export function analyzeCost(
       flags.push('dead-hook');
     }
 
-    const row: CostRow = { nodeId: n.id, name: n.name, kind: n.type, invocations, staticTokens, flags };
+    const outcome = firingKind ? outcomeByKey.get(outcomeKey(firingKind, n.name)) : undefined;
+    const row: CostRow = {
+      nodeId: n.id,
+      name: n.name,
+      kind: n.type,
+      invocations,
+      staticTokens,
+      flags,
+      ...(outcome ? { outcome } : {}),
+    };
     if (mode === 'full') {
       const realSignal = realSignalFor(activeSessions(n, firingKind));
       if (realSignal) {

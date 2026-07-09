@@ -25,11 +25,15 @@ The anti-pattern is "this is too simple to need a design." Every project goes th
 
 ---
 
+## Ingesting a forge spec
+
+If `docs/specs/` holds a spec with `source: forge` in its frontmatter (the forge→harness artifact contract; see `docs/ARCHITECTURE.md` "Inter-plugin contracts"), the up-front thinking is already done. **Verify and fill the gaps — do not re-ask what the spec already answers.** The 18 recon variables cover persona, pain, positioning, competition, pricing, and the visual identity; the winning design and critique verdict are attached. Read them, confirm they still hold, and ask only about what is missing (a partial spec — recon without critique, or a field absent in an older `forge_version` — is ingested for what it has, with the holes listed as the only open questions). Then go straight to writing/approving the spec. Do not restart the interview from scratch.
+
 ## Process
 
 ### Step 1 — Explore project context
 
-Check the current state: existing files, `docs/`, recent commits, related specs in `docs/specs/`. If a similar spec exists, reference it.
+Check the current state: existing files, `docs/`, recent commits, related specs in `docs/specs/`. If a similar spec exists, reference it. A `source: forge` spec is the strongest such reference (see "Ingesting a forge spec" above).
 
 ### Step 2 — Scope check (multi-subsystem decomposition)
 

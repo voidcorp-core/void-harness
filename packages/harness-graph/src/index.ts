@@ -22,3 +22,6 @@ export type {
   SessionTokens,
   RealSignal,
 } from './cost/types.js';
+export { parseOutcomes } from './outcome/parse.js';
+export { analyzeOutcomes, outcomeKey, stoppedSessions } from './outcome/analyze.js';
+export type { OutcomeEvent, ToolOutcome, SessionStop, OutcomeStatus, ComponentOutcome } from './outcome/types.js';

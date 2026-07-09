@@ -124,6 +124,15 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/activation-meter.sh"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/secret-in-content.sh"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -135,6 +144,15 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/auto-format.sh"
           }
         ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/outcome-meter.sh"
+          }
+        ]
       }
     ],
     "SessionStart": [
@@ -143,6 +161,24 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/sessionstart-context.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/outcome-meter.sh"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-typecheck.sh"
           }
         ]
       }

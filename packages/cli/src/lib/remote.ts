@@ -45,6 +45,20 @@ function ghFetchRaw(repo: string, path: string, ref = 'HEAD'): RemoteFetch<strin
   }
 }
 
+/**
+ * The lockstep core version to pin, read from the marketplace HEAD. Returns
+ * undefined when the remote is unreachable — callers must NOT substitute a
+ * stale literal (the old `0.1.0` fallback reintroduced the default-pin-stale
+ * friction this repo already fixed, #67). An undefined pin is surfaced to the
+ * user as a failed checklist item, not silently written.
+ */
+export function resolveCorePin(repo: string): string | undefined {
+  const remote = fetchRemoteMarketplace(repo);
+  if (!remote.ok) return undefined;
+  // Lockstep model: every plugin shares one version. First plugin is canonical.
+  return remote.value.plugins[0]?.version;
+}
+
 export function fetchRemoteMarketplace(repo: string): RemoteFetch<RemoteMarketplace> {
   const raw = ghFetchRaw(repo, '.claude-plugin/marketplace.json');
   if (!raw.ok) return raw;

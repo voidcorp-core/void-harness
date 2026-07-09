@@ -28,6 +28,42 @@ export interface AuditReport {
   readonly staleDays: number;
 }
 
+/** A normalized finding ready to become a rollup issue (issue #72). Kept here to
+ * avoid a cycle with rollup.ts; structurally the `RollupFinding` shape. */
+export interface AuditFinding {
+  readonly type: 'never' | 'stale';
+  readonly component: string;
+  readonly detail: string;
+}
+
+/**
+ * Deprecation-candidate findings from an audit report: the never-fired and stale
+ * skills. `projectCount` (>=1) is folded into the detail so an aggregated push
+ * says "across N projects" — privacy-scoped counts only, never a path.
+ */
+export function auditFindings(report: AuditReport, projectCount = 1): AuditFinding[] {
+  const scope = projectCount > 1 ? ` across ${projectCount} projects` : '';
+  const out: AuditFinding[] = [];
+  for (const s of report.never) {
+    out.push({ type: 'never', component: `skill:${bareSkill(s.skill)}`, detail: `never fired${scope}` });
+  }
+  for (const s of report.stale) {
+    const since = s.daysSince !== undefined ? `${s.daysSince}d ago` : 'unknown';
+    out.push({
+      type: 'stale',
+      component: `skill:${bareSkill(s.skill)}`,
+      detail: `last fired ${since}${scope} (stale > ${report.staleDays}d)`,
+    });
+  }
+  return out;
+}
+
+/** Drop a `plugin:` prefix so the component id is the bare skill (e.g. `tdd`). */
+function bareSkill(skill: string): string {
+  const colon = skill.indexOf(':');
+  return colon >= 0 ? skill.slice(colon + 1) : skill;
+}
+
 const DAY_MS = 86_400_000;
 
 /** Parse the usage log into entries; blank/malformed lines are dropped. */

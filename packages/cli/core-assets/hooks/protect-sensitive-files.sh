@@ -16,21 +16,26 @@
 # Exit codes: 0 allow, 2 block.
 
 set -euo pipefail
+source "${BASH_SOURCE[0]%/*}/_hooklib.sh"
 
-INPUT=$(cat)
-TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty')
-FILE=$(printf "%s" "$INPUT" | jq -r '.tool_input.file_path // empty')
+hooklib_read
+TOOL=$(hooklib_tool)
+FILE=$(hooklib_file)
 
 case "$TOOL" in Edit|Write|apply_patch|shell|Bash) ;; *) exit 0 ;; esac
 [[ "${VOID_HARNESS_ALLOW_SECRET_EDIT:-}" == "1" ]] && exit 0
 
-# Candidate target paths: the explicit file_path (Claude) plus any apply_patch
-# headers (Codex). The patch text is JSON-encoded (newlines as literal \n), so
-# decode the likely fields with jq first, then scan for the envelope headers.
-# Codex's shell tool passes the command as an argv ARRAY, so join arrays to
-# newline-joined strings before scanning (else the headers stay JSON-wrapped).
-PATCH=$(printf "%s" "$INPUT" \
-  | jq -r '[.tool_input.content, .tool_input.command, .tool_input.input, .tool_input.patch] | map(select(. != null)) | map(if type == "array" then join("\n") else . end) | .[]' 2>/dev/null || true)
+# Candidate target paths: the explicit file_path (Claude, via the pure-bash
+# fallback even without jq) plus any apply_patch headers (Codex). The patch
+# text is JSON-encoded (newlines as literal \n), decoded with jq; when jq is
+# absent this Codex path degrades to empty while the Claude file_path check
+# still enforces (strictly better than the previous total fail-open on 127).
+if [[ "${HOOK_JQ:-0}" == 1 ]]; then
+  PATCH=$(printf "%s" "$HOOK_INPUT" \
+    | jq -r '[.tool_input.content, .tool_input.command, .tool_input.input, .tool_input.patch] | map(select(. != null)) | map(if type == "array" then join("\n") else . end) | .[]' 2>/dev/null || true)
+else
+  PATCH=""
+fi
 CANDIDATES=$(
   { [[ -n "$FILE" ]] && printf "%s\n" "$FILE"
     printf "%s" "$PATCH" | grep -oE '^\*\*\* (Add|Update|Delete) File: .+' \

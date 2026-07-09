@@ -110,8 +110,7 @@ A CLAUDE.md gets *shorter* over a healthy project's life, not longer. Growth wit
 
 - **`context-management`**: the foundation. Context is the constraint; CLAUDE.md spends from the same budget every task pays. This skill is that principle applied to the always-on prompt.
 - **`source-driven-development`**: when CLAUDE.md points at a deferred doc, that doc grounds tool config in version-matched official sources rather than inlining remembered config into the prompt.
-- **`harness-evolution`**: the harness *produces* CLAUDE.md files for consumer projects; this skill is the doctrine those generated files must obey. A "the harness should add X to CLAUDE.md" feedback item is judged against this skill before it lands.
-- **`capture-rule`**: when a user states a *project-specific* rule, capture-rule routes it. This skill answers *where it lands* — universal certainty → hook; deterministic → settings; project invariant with no enforcer → a lean CLAUDE.md line; deep detail → a deferred doc.
+- **`learning-capture`**: the harness *produces* CLAUDE.md files for consumer projects; this skill is the doctrine those generated files must obey. A "the harness should add X to CLAUDE.md" gap (Branch B) is judged against this skill before it lands. When a user states a *project-specific* rule, learning-capture (Branch A) routes it; this skill answers *where it lands* — universal certainty → hook; deterministic → settings; project invariant with no enforcer → a lean CLAUDE.md line; deep detail → a deferred doc.
 
 ---
 

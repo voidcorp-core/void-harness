@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.5.0",
-    "@voidcorp/harness-graph": "workspace:*"
+    "@voidcorp/harness-graph": "workspace:*",
+    "zod": "^4.4.3"
   }
 }

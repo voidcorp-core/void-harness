@@ -7,10 +7,11 @@
 # Exit code: always 0 (formatting must never block a turn).
 
 set -euo pipefail
+source "${BASH_SOURCE[0]%/*}/_hooklib.sh"
 
-INPUT=$(cat)
-TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty')
-FILE=$(printf "%s" "$INPUT" | jq -r '.tool_input.file_path // empty')
+hooklib_read
+TOOL=$(hooklib_tool)
+FILE=$(hooklib_file)
 
 case "$TOOL" in Edit|Write) ;; *) exit 0 ;; esac
 [[ -n "$FILE" && -f "$FILE" ]] || exit 0

@@ -6,7 +6,7 @@ You are working inside the **void-harness** repo itself — the meta-repo that p
 
 ## What this repo is
 
-A versioned package distributed via npm (`@voidcorp/harness`) that injects opinionated Claude Code configuration into any project:
+A versioned Claude Code plugin distributed **marketplace-only** through the voidcorp marketplace (`voidcorp-core/void-plugins`); the `@voidcorp/harness` npm package is deliberately unpublished (see `docs/DECISIONS.md`). It injects opinionated Claude Code configuration into any project:
 
 - **Core** (`packages/core/`) — universal craftsman skills, agents, hooks, CLAUDE.md modules
 - **Packs** (`packages/packs/*`) — stack-specific add-ons activated per project
@@ -27,7 +27,7 @@ Seven hard rules. **Any PR violating these is blocked.**
 2. **One skill = one subject.** A skill that talks about TDD AND mutation testing splits into two.
 3. **No responsibility overlap > 30%** between two skills. If detected, fuse or clarify boundary.
 4. **Frontmatter `description` ≤ 200 chars**, precise enough that auto-discovery picks the right skill from the description alone.
-5. **Hooks ≤ 100 lines**, shell or simple TS. No DSL maison, no framework.
+5. **Hooks ≤ 100 lines**, shell or simple TS. No DSL maison, no framework. Shared logic goes in a sourced, `_`-prefixed hook library (e.g. `hooks/_hooklib.sh`), which is exempt from the per-hook cap.
 6. **Agents have an explicit scope**. `doctrine-critic` judges code against doctrine — it does not also do QA, design, or shipping (those stay in gstack).
 7. **Skill tests pass in CI.** A broken skill blocks the release.
 
@@ -84,7 +84,7 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 The harness improves from real project usage, never auto-applied.
 
 - **Inbound**: while coding in a consumer project, a perceived "the harness should have X" is filed directly as a GitHub issue here (with source-project context), once it clears the agnostic + harness-worthy bar. The tracker is the triage zone; there is no per-project `proposed/` queue and no `feedback push` step.
-- **Outbound**: `npx @voidcorp/harness audit` reports skills not invoked recently, upstream deprecations, repeated matrix conflicts. Proposes deprecations as PRs.
+- **Outbound**: the maintainer CLI `void-harness audit` reports skills not invoked recently, upstream deprecations, repeated matrix conflicts. Proposes deprecations as PRs.
 - **HITL is absolute**: no automatic write into doctrine, ever. Every change is a deliberate commit.
 
 ## Autonomous mode (opt-in)

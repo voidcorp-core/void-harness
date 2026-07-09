@@ -5,15 +5,18 @@
 # Exit codes: 0 allow, 2 block.
 
 set -euo pipefail
+source "${BASH_SOURCE[0]%/*}/_hooklib.sh"
 
-INPUT=$(cat)
-TOOL=$(printf "%s" "$INPUT" | jq -r '.tool_name // empty')
-FILE=$(printf "%s" "$INPUT" | jq -r '.tool_input.file_path // empty')
-NEW=$(printf "%s" "$INPUT" | jq -r '.tool_input.content // .tool_input.new_string // empty')
+hooklib_read
+TOOL=$(hooklib_tool)
+FILE=$(hooklib_file)
 
 case "$TOOL" in Edit|Write) ;; *) exit 0 ;; esac
-[[ -z "$FILE" || -z "$NEW" ]] && exit 0
+[[ -z "$FILE" ]] && exit 0
 [[ "$FILE" =~ \.(test|spec)\.(ts|tsx|js|jsx)$ ]] || exit 0
+hooklib_require_jq no-only-no-skip
+NEW=$(hooklib_content)
+[[ -z "$NEW" ]] && exit 0
 
 re_focus='\b(it|test|describe)\.only\b|\b(it|test)\.skip\b|\bxit\b|\bxdescribe\b'
 

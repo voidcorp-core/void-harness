@@ -6,6 +6,7 @@
 // rides on top in phase 2 via `sessionCosts` + `pricing` on CostOptions.
 
 import type { NodeType } from '../model/types.js';
+import type { OutcomeEvent, ComponentOutcome } from '../outcome/types.js';
 import type { PricingTable } from './pricing.js';
 
 /** Cache-aware token breakdown for one session, aggregated from a transcript. */
@@ -48,6 +49,9 @@ export interface CostRow {
   readonly realSignal?: RealSignal;
   /** Absent in static-only mode. */
   readonly cacheReadRatio?: number;
+  /** Completion tally (issue #71): the value side next to the cost. Absent when
+   * no outcomes were supplied or none were recorded for this component. */
+  readonly outcome?: ComponentOutcome;
   readonly flags: readonly CostFlag[];
 }
 
@@ -76,4 +80,7 @@ export interface CostOptions {
   readonly sessionCosts?: readonly SessionCost[];
   /** Phase 2: model->$ table used to derive dollars from tokens (defaults baked). */
   readonly pricing?: PricingTable;
+  /** Value side (issue #71): completion outcomes, joined per component so a row
+   * can show yield next to cost. */
+  readonly outcomes?: readonly OutcomeEvent[];
 }

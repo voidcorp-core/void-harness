@@ -22,6 +22,7 @@ import {
   DEFAULT_PRICING,
   mergePricing,
   parseActivations,
+  parseOutcomes,
   scanSourceTree,
   serializeModel,
 } from '@voidcorp/harness-graph';
@@ -29,11 +30,21 @@ import type { CostRow, GraphModel } from '@voidcorp/harness-graph';
 import { BUNDLED_MODEL_JSON, resolveBundledModel } from '../lib/bundled-model.js';
 import { BUNDLED_STUDIO_HTML } from '../lib/bundled-studio.js';
 import { readSessionCosts } from '../lib/transcript-cost.js';
-import { parseUsageLog } from '../lib/audit.js';
 import { startLiveServer } from '../lib/graph-live-server.js';
 import { findCoreSource } from '../lib/paths.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
-import { usedSkillNames } from '../lib/graph-io.js';
+import { loadSkillUsage, usedSkillNames } from '../lib/graph-io.js';
+import { discoverProjects, mergeTelemetry } from '../lib/rollup.js';
+
+/**
+ * Load a telemetry stream body: the cross-project merge when `--all-projects` is
+ * set (issue #72), else the single-project file (respecting a `--log` override).
+ */
+function loadTelemetryBody(args: readonly string[], file: string, logPath?: string): string {
+  if (args.includes('--all-projects')) return mergeTelemetry(discoverProjects(), file);
+  const p = logPath ?? join(process.cwd(), '.void', file);
+  return existsSync(p) ? readFileSync(p, 'utf8') : '';
+}
 
 /** Read `--flag value` from argv, falling back to `fallback`. */
 function strFlag(args: readonly string[], flag: string, fallback: string): string {
@@ -64,18 +75,27 @@ function fmtK(n: number): string {
   return n >= 1000 ? `${Math.round(n / 1000)}k` : String(Math.round(n));
 }
 
+/** Value column (issue #71): yield% when ok/error is known, `N?` when only
+ * unknown-status completions exist, `-` when no outcome was recorded. */
+function renderYield(r: CostRow): string {
+  if (!r.outcome) return '-';
+  if (r.outcome.yield !== undefined) return `${Math.round(r.outcome.yield * 100)}%`;
+  return `${r.outcome.completions}?`;
+}
+
 /** One flagged cost row. Real columns ($/sess, cache%) render only in full mode. */
 function renderCostRow(r: CostRow, nameW: number, full: boolean): string {
   const flags = r.flags
     .map((f) => (f === 'dead' || f === 'dead-hook' ? c.red(f) : f === 'always' ? c.green(f) : c.yellow(f)))
     .join(' ');
+  const y = renderYield(r);
   const base = `${r.nodeId.padEnd(nameW)}  ${String(r.invocations).padStart(4)}  ${String(r.staticTokens).padStart(7)}`;
-  if (!full) return `${base}  ${flags}`;
+  if (!full) return `${base}  ${y.padStart(6)}  ${flags}`;
   const real = r.realSignal;
   const total = real ? fmtK(real.tokens.in + real.tokens.out + real.tokens.cacheRead + real.tokens.cacheCreation) : '-';
   const dollars = real?.dollars !== undefined ? `${real.dollars.toFixed(2)}$` : '-';
   const cache = r.cacheReadRatio !== undefined ? `${Math.round(r.cacheReadRatio * 100)}%` : '-';
-  return `${base}  ${total.padStart(8)}  ${dollars.padStart(7)}  ${cache.padStart(5)}  ${flags}`;
+  return `${base}  ${total.padStart(8)}  ${dollars.padStart(7)}  ${cache.padStart(5)}  ${y.padStart(6)}  ${flags}`;
 }
 
 /** Defaults merged with an optional .void/pricing.json (malformed -> defaults + warn). */
@@ -108,9 +128,8 @@ async function resolveModel(coreSource: string, bundledJson: string | undefined)
 }
 
 function ctxFor(): { usedSkillNames: Set<string> } {
-  const logPath = join(process.cwd(), '.void', 'usage.log');
-  const usage = existsSync(logPath) ? parseUsageLog(readFileSync(logPath, 'utf8')) : [];
-  return { usedSkillNames: usedSkillNames(usage) };
+  // Unified skill-usage source: activations.jsonl (+ legacy usage.log history).
+  return { usedSkillNames: usedSkillNames(loadSkillUsage(process.cwd())) };
 }
 
 export async function graph(
@@ -230,7 +249,7 @@ export async function graph(
     const model = await resolveModel(coreSource, bundled);
     const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
     const sinceDays = numFlag(args, '--since', 0);
-    const events = parseActivations(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '');
+    const events = parseActivations(loadTelemetryBody(args, 'activations.jsonl', logPath));
     const report = analyzeBehavior(
       model,
       events,
@@ -264,12 +283,14 @@ export async function graph(
     const model = await resolveModel(coreSource, bundled);
     const logPath = strFlag(args, '--log', join(process.cwd(), '.void', 'activations.jsonl'));
     const sinceDays = numFlag(args, '--since', 0);
-    const events = parseActivations(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '');
+    const events = parseActivations(loadTelemetryBody(args, 'activations.jsonl', logPath));
+    const outcomes = parseOutcomes(loadTelemetryBody(args, 'outcomes.jsonl'));
     const { costs, skipped } = readSessionCosts(process.cwd());
     const pricing = loadPricing(args);
     const report = analyzeCost(model, events, {
       sessionCosts: costs,
       pricing,
+      outcomes,
       minSessions: numFlag(args, '--min-sessions', 3),
       minEvents: numFlag(args, '--min-events', 20),
       ...(sinceDays > 0 ? { sinceMs: Date.now() - sinceDays * 86_400_000 } : {}),
@@ -295,8 +316,8 @@ export async function graph(
     } else {
       const nameW = Math.max(...flagged.map((r) => r.nodeId.length));
       const head = full
-        ? `  ${'component'.padEnd(nameW)}  ${'inv'.padStart(4)}  ${'static'.padStart(7)}  ${'real'.padStart(8)}  ${'$/sess'.padStart(7)}  ${'cache'.padStart(5)}  flags`
-        : `  ${'component'.padEnd(nameW)}  ${'inv'.padStart(4)}  ${'static'.padStart(7)}  flags`;
+        ? `  ${'component'.padEnd(nameW)}  ${'inv'.padStart(4)}  ${'static'.padStart(7)}  ${'real'.padStart(8)}  ${'$/sess'.padStart(7)}  ${'cache'.padStart(5)}  ${'yield'.padStart(6)}  flags`
+        : `  ${'component'.padEnd(nameW)}  ${'inv'.padStart(4)}  ${'static'.padStart(7)}  ${'yield'.padStart(6)}  flags`;
       line(head);
       for (const r of flagged) line(`  ${renderCostRow(r, nameW, full)}`);
     }
@@ -320,9 +341,11 @@ export async function graph(
     // Cost is REAL here (transcripts via readSessionCosts) — the consumer's own $/tokens; 1/1
     // volume floor keeps the cost layer populated (viz is advisory, not the CLI's gated report).
     const events = parseActivations(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '');
+    const outLive = join(process.cwd(), '.void', 'outcomes.jsonl');
     const cost = analyzeCost(model, events, {
       sessionCosts: readSessionCosts(process.cwd()).costs,
       pricing: loadPricing(args),
+      outcomes: parseOutcomes(existsSync(outLive) ? readFileSync(outLive, 'utf8') : ''),
       minSessions: 1,
       minEvents: 1,
     });

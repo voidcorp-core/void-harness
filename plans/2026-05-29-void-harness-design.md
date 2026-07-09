@@ -71,6 +71,13 @@ When in doubt, the hook **warns** instead of **blocks**, and asks the user to co
 
 ### 0bis.4 — Compound-engineering: proposed-learnings queue, NOT auto-write
 
+> **Superseded 2026-07-09** (issue #74): the `learnings/proposed/` queue and the
+> `voidcorp:learnings-promote` skill below were never built — a markdown queue is a
+> strictly worse reimplementation of tools that exist. The load-bearing principle
+> (never auto-write doctrine) stands; the mechanism is now `harness:compounding` +
+> `harness:capture-rule` (project rule → `.void/PROJECT-DOCTRINE.md`) + direct GitHub
+> issues for universal gaps. See `docs/PHILOSOPHY.md` and `docs/HARNESS_EVOLUTION.md`.
+
 Auto-appending to project CLAUDE.md creates drift, noise, contradictions, and prompt bloat. Replaced with:
 
 - **Capture**: at session-end, the harness writes 0–N learnings to `learnings/proposed/YYYY-MM-DD-N.md` in the project repo. Format: trigger, observation, proposed rule, confidence level.
@@ -113,6 +120,13 @@ Explicit project-lead decision: no metric-based kill criteria, no 2-week observa
 (Recorded for traceability. The risk is acknowledged: if the harness creates more friction than value, we will only learn from direct usage friction, not from numbers.)
 
 ### 0bis.8 — Harness self-evolution (HITL strict)
+
+> **Superseded 2026-07-09** (issue #74): the `.void/harness-feedback/proposed/` queue
+> and the `feedback push` CLI step below were dropped — a perceived gap is filed
+> **directly** as a GitHub issue on `voidcorp-core/void-harness` (the tracker is the
+> triage zone). The `usage.log` source is now `.void/activations.jsonl` (#70), and
+> `audit` gained cross-project aggregation + opt-in issue push (#72). The HITL-strict
+> principle stands. See `docs/HARNESS_EVOLUTION.md`.
 
 The harness must evolve from real project usage. Two mechanisms, both strictly Human-In-The-Loop:
 

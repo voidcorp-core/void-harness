@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # activation-meter — universal PreToolUse meter. Appends one structured JSONL
-# event per tool invocation to .void/activations.jsonl (seeds the Phase 2 live
-# view + the should-have-fired analysis). Also keeps the legacy usage.log line
-# for kind=skill (consumed by `void-harness audit` + the studio usage halos).
+# event per tool invocation to .void/activations.jsonl — the SINGLE source of
+# truth for skill/agent/workflow/tool usage (seeds the live view, the
+# should-have-fired analysis, and `void-harness audit`). The legacy usage.log is
+# no longer written (issue #70); audit still reads any pre-existing one as
+# transition history.
 #
 # Captures NAMES / TOOL / event / relativized file paths + extensions ONLY.
 # NEVER file contents, NEVER secrets. Best-effort: never blocks, always exit 0.
@@ -19,7 +21,18 @@ LOG_DIR="$ROOT/.void"
 mkdir -p "$LOG_DIR" 2>/dev/null || exit 0
 TS=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "unknown")
 ACT_LOG="$LOG_DIR/activations.jsonl"
-USAGE_LOG="$LOG_DIR/usage.log"
+
+# Telemetry-driven self-registration (#72): announce this project to the global
+# rollup index so cross-project aggregation can find its .void without a separate
+# registry. Once per project (a local marker avoids re-hashing every tool call);
+# the index holds only the project root, and lives on this machine only.
+if [ ! -f "$LOG_DIR/.registered" ]; then
+  GIDX="${VOID_GLOBAL_DIR:-${HOME:-}/.void}/projects"
+  SLUG=$(printf '%s' "$ROOT" | cksum 2>/dev/null | cut -d' ' -f1)
+  if [ -n "$SLUG" ] && mkdir -p "$GIDX" 2>/dev/null && printf '%s\n' "$ROOT" >"$GIDX/$SLUG.path" 2>/dev/null; then
+    touch "$LOG_DIR/.registered" 2>/dev/null || true
+  fi
+fi
 
 if command -v jq >/dev/null 2>&1; then
   EVENT=$(printf '%s' "$INPUT" | jq -c --arg ts "$TS" --arg root "$ROOT" '
@@ -54,10 +67,6 @@ if command -v jq >/dev/null 2>&1; then
        trigger: {tool: $tool, fileGlobs: $globs, ext: $exts}, sessionId: (.session_id // "")}
   ' 2>/dev/null) || EVENT=""
   [ -n "$EVENT" ] && printf '%s\n' "$EVENT" >>"$ACT_LOG" 2>/dev/null || true
-  if printf '%s' "$INPUT" | jq -e '.tool_name == "Skill"' >/dev/null 2>&1; then
-    SKILL=$(printf '%s' "$INPUT" | jq -r '.tool_input.skill // .tool_input.name // .tool_input.command // "unknown"' 2>/dev/null)
-    printf '%s\t%s\n' "$TS" "$SKILL" >>"$USAGE_LOG" 2>/dev/null || true
-  fi
 else
   # --- jq-less fallback: pure-bash regex extraction (no external tools) ---
   grab() {
@@ -78,7 +87,6 @@ else
   esac
   printf '{"ts":"%s","kind":"%s","name":"%s","event":"","trigger":{"tool":"%s","fileGlobs":[],"ext":[]},"sessionId":""}\n' \
     "$TS" "$KIND" "$NAME" "$TOOL" >>"$ACT_LOG" 2>/dev/null || true
-  [ "$TOOL" = "Skill" ] && printf '%s\t%s\n' "$TS" "$NAME" >>"$USAGE_LOG" 2>/dev/null || true
 fi
 
 exit 0

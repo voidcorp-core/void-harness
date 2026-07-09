@@ -1219,3 +1219,163 @@ knowingly because it is the only path compatible with zero-npm + marketplace-shi
 cost is bounded by refreshing the artifact only when `model.json` changes (a skill/hook/command
 add or remove), enforced by the per-PR `graph:check-bundle` gate — the same "regenerate the
 derived asset, fail on drift" pattern the repo already uses for `core-assets` and `model.json`.
+
+## 2026-07-09: validate .void/config.json with Zod, a new CLI dependency (issue #68)
+
+`doctor` now validates `.void/config.json` against a Zod schema
+(`packages/cli/src/lib/config-schema.ts`), not just `JSON.parse`. This adds `zod` as the CLI's
+third runtime dependency (previously only `@clack/prompts` + the workspace graph package).
+
+The credible alternative was a hand-rolled validator (zero new dependency, ~50 lines). Rejected:
+the acceptance criteria require reporting the **offending JSON path** for each problem
+(`paths.business`, `packs.@voidcorp/harness-nextjs`), which is exactly what Zod's
+`safeParse().error.issues[].path` yields for free; reimplementing path-precise error reporting is
+the kind of wheel-reinvention the sourcing discipline warns against, and the harness doctrine
+itself mandates Zod at every input boundary (`security-guidance`). The dependency weight is not a
+concern here: the CLI is distributed via the marketplace (git), not an npm install, and it is
+bundled with esbuild/tsup so Zod is tree-shaken into the output.
+
+Why: an invalid config (a mistyped `paths.*`, a non-semver pin) parses fine as JSON but breaks a
+hook later, silently. Schema validation at `doctor` time turns that into an actionable, located
+error. The schema is the single source of truth for the config shape and is deliberately tolerant
+(every field optional, unknown keys ignored) so legacy and forward-compatible configs pass.
+
+## 2026-07-09: distribution is marketplace-only; the CLI is maintainer tooling (issue #69)
+
+The harness ships **only** through the Claude Code marketplace
+(`voidcorp-core/void-plugins`, pinned by commit sha). The `@voidcorp/harness` npm package is
+deliberately **not** published, and `void-harness init/add/doctor/...` is maintainer tooling run
+from a checkout of this repo, not a consumer-facing binary. Docs, `help.ts`, and the `/void-*`
+command bodies were pointing consumers at `npx @voidcorp/harness`, which 404s (the package is
+unpublished and `npx` does not resolve a pnpm global link) — a broken first impression. They now
+lead with the marketplace flow and, where the CLI is genuinely needed, mark it as maintainer-only
+(a missing `void-harness` binary reports "maintainer CLI not installed", never an npm fetch).
+
+The credible alternative was to publish `@voidcorp/harness` to npm so `npx` works everywhere
+(friction 2026-06-18, option 1). Rejected: the marketplace already distributes the load-bearing
+surface (skills, hooks, agents, commands) via git with zero npm, the packs and forge ride the same
+channel, and an npm publish adds an org, release automation, and a second drifting distribution
+path for a CLI that consumers do not actually need — they need the plugin, which the marketplace
+delivers. The per-project config wiring the CLI does is a maintainer/scaffolding concern, not a
+runtime dependency of a consumer that has installed the plugin.
+
+Why: assuming one distribution channel and making every surface tell the same story removes the
+single worst onboarding failure (install the plugin, run `/void-doctor`, get a 404). It also
+matches the already-recorded stance of the #68 entry above ("the CLI is distributed via the
+marketplace (git), not an npm install"). This entry makes that stance explicit and repo-wide, and
+resolves friction `2026-06-18-cli-not-distributed-to-consumers`.
+
+## 2026-07-09: activations.jsonl is the single telemetry source; usage.log is retired (issue #70)
+
+The harness had two telemetry writers: the legacy `.void/usage.log` (Skill events only, written
+only when jq was present) and the rich `.void/activations.jsonl` (every tool call, with a
+pure-bash fallback). `void-harness audit` and `void-graph`'s orphan note read the *poorer* file,
+so a project could show skills as "never fired" that had fired plenty. The activation-meter now
+writes **only** `activations.jsonl`, and both readers go through one loader
+(`graph-io.loadSkillUsage`) that derives skill usage from the jsonl.
+
+The credible alternative was to keep both writers and just have readers merge them. Rejected as
+the steady state: two writers is two things that can drift (retention, semantics, the jq-present
+gate), which is exactly the bug. Instead the loader merges any *pre-existing* `usage.log` as
+read-only transition history (so a consumer's "stale" stats are not reset on upgrade), while new
+firings only ever land in the jsonl. Once consumers have rolled a version, `usage.log` decays to
+nothing on its own.
+
+Why: one writer + one reader path means the audit and the graph can never disagree about whether a
+skill fired. The format itself did not change (the jsonl schema is unchanged); only the number of
+sources did, from two to one.
+
+## 2026-07-09: cross-project telemetry rollup via a self-registering index; opt-in issue push (issue #72)
+
+Per-project telemetry is structurally too thin to trust — a skill fires a handful of times in one
+repo, never clearing the cost/behavior gates (>=20 events / >=3 sessions). The audit decision was
+to aggregate across projects locally and push only *findings* (never raw data) as GitHub issues,
+opt-in and HITL.
+
+**Project discovery — the `activation-meter` self-registers, telemetry-driven.** Rejected a
+separate registry written by `init` (misses projects wired before the feature, needs an extra
+step, drifts if a project is re-init'd) and a filesystem scan for `.void/` dirs (fragile, assumes
+a common parent). Instead the meter — which already runs in every project and knows the root —
+drops an idempotent pointer file `~/.void/projects/<cksum>.path` holding the project root, once per
+project (a local `.void/.registered` marker avoids re-hashing every tool call). Any project that
+runs the harness announces itself; the index self-heals (roots whose dir is gone are dropped on
+read); nothing leaves the machine. This is the loomcraft-style self-registration the maintainer
+asked for.
+
+**Issue format and dedup.** One issue per `(type, component)` with a deterministic title
+`[harness-audit] <type>: <component>` and the `harness-feedback` label, so a re-run edits/leaves
+the same issue instead of duplicating (dedup by title via `gh issue list`, GitHub-side dedup across
+machines). The body carries component names and aggregate counts/windows ONLY — never a project
+path, file content, or session id. `void-harness audit --push` is dry-run by default (prints the
+create/update plan and stops) and a real push additionally requires an interactive confirmation; a
+missing/unauthenticated `gh` fails loud, never a silent no-op.
+
+Why: the loop was a cost accountant with no revenue side and no cross-project view. Telemetry-driven
+registration means aggregation "just works" as projects are used, and the strict privacy scope +
+double gate (flag + confirm) keeps the outbound path safe enough to leave on. The cost/behavior
+findings (`expensive`, `should-have-fired`) surface through `void-graph --all-projects`; the audit
+command owns the skill-usage findings (`never`, `stale`).
+
+## 2026-07-09: doc truth pass — living docs match the decision log; CONTRIBUTING created (issue #74)
+
+The docs had drifted from the decision log: `PHILOSOPHY.md` stated the em-dash/emoji rule as
+absolute and claimed a `no-emdash-no-emoji-in-commit-msg` hook that does not exist (the 2026-06-01
+entry already made it a soft taste rule, not a CI gate); it still promised the `learnings/proposed/`
+queue + `voidcorp:learnings-promote` skill that were never built; the design plan's §0bis.4 and
+§0bis.8 described removed mechanisms with no "superseded" marker; and `README.md` referenced a
+`docs/CONTRIBUTING.md` that did not exist.
+
+All corrected to match the log: the em-dash rule now reads soft in both `PHILOSOPHY.md` and
+`CLAUDE.md`, the compound-engineering section points at `harness:compounding` + `capture-rule` +
+direct issues, and the two dead design-plan sections carry a dated "Superseded" banner (the plan is
+historical — banners, not rewrites).
+
+CONTRIBUTING: chose to **create a minimal `docs/CONTRIBUTING.md`** (a short index pointing at
+CLAUDE.md, PHILOSOPHY, the gates, and the issue-filing flow) rather than delete the reference. The
+repo is meant to open to outside eyes; a one-screen contributor entry point that defers to the real
+source-of-truth docs is more welcoming than a dangling link, and cheap to keep honest.
+
+## 2026-07-09: fuse compounding + capture-rule + harness-evolution into learning-capture (issue #75)
+
+The three skills (563 lines) were three doors to one intent — *capture a lesson* — separated by ~200
+lines of mutual boundary-policing: each spent prose defending its edge against the other two, and
+auto-discovery had to pick one of three descriptions for the same trigger family (exactly the
+ambiguity that yields the wrong pick). Folpe's decision: fuse into a single `learning-capture` whose
+first step is the routing decision, with the three behaviors preserved verbatim and each keeping its
+own HITL gate — a project rule → `.void/PROJECT-DOCTRINE.md`, a harness gap → a direct GitHub issue,
+an end-of-cycle pattern → named and routed to one of those or dropped.
+
+The credible alternative was to keep three skills and sharpen their descriptions. Rejected: the
+overlap is structural, not cosmetic — the disambiguating prose *is* the bloat, and it only exists
+because the three are separate. One skill has no boundary to police.
+
+Auto-trigger is by broad frontmatter description + an explicit signal list (Step 0), not a hook. A
+Stop nudge to remind at cycle close was evaluated and rejected: the Stop payload carries no
+session-start reference or merge signal, so "a cycle closed" is not reliably detectable, and a
+misfiring nudge trains the user to ignore it. See `plans/skill-audits/learning-capture.md`.
+
+Why: fewer, sharper skills route better than many overlapping ones. The load-bearing principle —
+never auto-write doctrine, HITL on every capture — is unchanged; only the number of doors dropped
+from three to one, taking the skill count from 31 to 29.
+
+## 2026-07-09: forge → harness is an artifact contract on a core-hub, not a plugin dependency (issue #76)
+
+Forge (ideation) previously dangled its downstream handoff at gstack `/ticket-craft` — a dead pointer
+once gstack is being removed. Folpe's inter-plugin decision: the **core plugin is always installed
+and is the hub**; forge routes into the core's execution skills (`brainstorming`, `writing-plans`,
+`ticket-writer`, `tdd`, ...). The interface is a **versioned markdown artifact contract** the harness
+owns the format of (`docs/specs/*.md`, frontmatter `source: forge` + the 18 recon variables + winning
+design + critique verdict), so each plugin still stands alone: forge degrades to emitting a standalone
+spec, core works from a hand-written one. `brainstorming` / `writing-plans` / `ticket-writer` ingest a
+`source: forge` spec instead of re-asking; partial or older-version specs are tolerated (fill the gaps,
+list what is missing).
+
+The credible alternative was a hard plugin dependency (forge `requires` core). Rejected: it breaks
+forge's standalone value and couples release cadences; a contract on a file gives the same nominal
+routing without the coupling. Re-splitting core into `core` + `dev` (execution) sub-plugins is
+explicitly **deferred (YAGNI)** — one core-hub is enough until a second consumer of the execution half
+exists.
+
+Why: the artifact contract is the loosest coupling that still lets forge hand real work to the core
+without re-deriving it, and keeps the "each plugin makes sense alone" property that the marketplace
+model depends on. The forge side lives in `voidcorp-core/forge` (forge#4).

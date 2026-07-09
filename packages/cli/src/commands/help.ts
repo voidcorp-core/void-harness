@@ -49,16 +49,23 @@ Commands:
                            behavior reads .void/activations.jsonl and reports dead
                            nodes + should-have-fired + telemetry-gap (--since, --log; advisory).
 
-  audit [--stale-days <n>] Outbound self-evolution audit: read .void/usage.log
-                           and report harness skills that are active, stale, or
-                           never fired (deprecation candidates). HITL, report-only.
+  audit [--stale-days <n>] Outbound self-evolution audit: read .void/activations.jsonl
+        [--all-projects]   and report harness skills that are active, stale, or never
+        [--push [--dry-run]] fired (deprecation candidates). --all-projects aggregates
+                           every self-registered project; --push files the candidates as
+                           GitHub issues (dry-run by default, confirm before create). HITL.
 
   help                     Print this message.
 
 Pack names (current marketplace):
-  void           core — universal craftsman skills (always active)
-  harness-monorepo  Turborepo + Bun conventions
-  harness-nextjs    Next.js 16 + PWA conventions
+  harness           core — universal craftsman skills (always active)
+  harness-monorepo  Turborepo + Bun monorepo conventions
+  harness-react     React 19 + shadcn/Radix + accessibility-first
+  harness-nextjs    Next.js 16 App Router conventions
+  harness-server    Server Actions, webhooks, Drizzle, Zod boundaries
+  harness-pwa       PWA manifest, service worker, offline-first
+  harness-mobile    Expo + React Native + native modules
+  (--pack accepts the bare stack too: nextjs, monorepo, react, ...)
 
 Examples:
   void-harness init                                  # interactive

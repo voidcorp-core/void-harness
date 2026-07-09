@@ -180,7 +180,7 @@ import { Button } from '@repo/ui';
 ## Companion hooks
 
 - `viewport-screenshot-gate` (pre-PR on UI changes, shared with `accessibility-first`) — fails PRs lacking both mobile and desktop screenshots.
-- `anti-ai-slop-grep` (pre-commit) — warns on banned copy patterns. Initial list of ~10; grows from `harness-evolution` feedback.
+- `anti-ai-slop-grep` (pre-commit) — warns on banned copy patterns. Initial list of ~10; grows from `learning-capture` harness-gap feedback.
 
 See `../../hooks/`.
 

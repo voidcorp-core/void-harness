@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { GraphModel, GraphNode, NodeTriggers } from '../model/types.js';
 import type { ActivationEvent } from '../behavior/types.js';
 import { analyzeCost } from './analyze.js';
+import { parseOutcomes } from '../outcome/parse.js';
 import type { CostRow, SessionCost, SessionTokens } from './types.js';
 
 const sessionCost = (sessionId: string, tokens: Partial<SessionTokens>, model = 'claude-opus-4-8'): SessionCost => ({
@@ -84,6 +85,30 @@ describe('analyzeCost — invocations', () => {
     const r = analyzeCost(model, events, SMALL);
     expect(rowFor(r.rows, 'skill:tdd')?.invocations).toBe(2);
     expect(rowFor(r.rows, 'agent:code-explorer')?.invocations).toBe(1);
+  });
+
+  it('attaches per-component outcome (yield next to cost) when outcomes are supplied (#71)', () => {
+    const model: GraphModel = { version: 1, nodes: [node('skill:tdd', 'skill')], edges: [] };
+    const events = [ev({ kind: 'skill', name: 'harness:tdd', sessionId: 's1' })];
+    const outcomes = parseOutcomes(
+      [
+        '{"event":"PostToolUse","kind":"skill","name":"harness:tdd","status":"ok","ts":"t","sessionId":"s1"}',
+        '{"event":"PostToolUse","kind":"skill","name":"tdd","status":"error","ts":"t","sessionId":"s1"}',
+      ].join('\n'),
+    );
+    const r = analyzeCost(model, events, { ...SMALL, outcomes });
+    expect(rowFor(r.rows, 'skill:tdd')?.outcome).toEqual({
+      completions: 2,
+      ok: 1,
+      error: 1,
+      yield: 0.5,
+    });
+  });
+
+  it('leaves outcome absent when no outcomes are supplied', () => {
+    const model: GraphModel = { version: 1, nodes: [node('skill:tdd', 'skill')], edges: [] };
+    const r = analyzeCost(model, [ev({ kind: 'skill', name: 'tdd', sessionId: 's1' })], SMALL);
+    expect(rowFor(r.rows, 'skill:tdd')?.outcome).toBeUndefined();
   });
 
   it('counts command via the skill kind and workflow-def via the workflow kind', () => {

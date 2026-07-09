@@ -1,7 +1,7 @@
 ---
 title: Skill Decision Matrix
 date: 2026-05-29
-status: skeleton
+status: current
 owner: void-harness/core
 purpose: For every skill in core, specify when it wins, when it loses, and what it is NOT allowed to decide. Prevents overlap and silent contradictions between skills.
 ---
@@ -130,22 +130,14 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 - **Cannot decide**: whether the change itself is correct.
 - **Composes with**: `verification-before-completion`.
 
-### `harness-evolution`
+### `learning-capture`
 
-Two modes: `feedback` (inbound suggestions captured from real project usage) and `audit` (outbound obsolescence detection).
+The 2026-07-09 fusion of `compounding` + `capture-rule` + `harness-evolution` (issue #75) — one skill, three routed destinations, HITL on every write.
 
-- **Wins (`feedback` mode)**: any moment, in any consumer project, when the model or user perceives a missing skill, missing rule, missing mention, or a hole in the harness coverage. Filed directly as a GitHub issue on `voidcorp-core/void-harness` (with source-project context) once it clears the agnostic + harness-worthy bar — no per-project `proposed/` queue.
-- **Wins (`audit` mode)**: triggered by `npx @voidcorp/harness audit`. Reads `~/.void/usage.log`, scans upstream sources for deprecation, surfaces conflicts in the decision matrix.
-- **Loses to**: nothing — it's a meta-skill operating on the harness itself, orthogonal to code-discipline and process skills.
-- **Cannot decide**: whether a proposed change is adopted (HITL only). Cannot write into harness doctrine — only opens issues/PRs.
-- **Composes with**: every skill (any skill can be the subject of feedback). Pairs naturally with `code-review` (a code review that surfaces a missing rule may generate a feedback item).
-
-### `capture-rule`
-
-- **Wins**: the user states a durable project-specific rule, preference, or constraint to remember. Captures it into `.void/PROJECT-DOCTRINE.md` under strict HITL (propose, wait, write, confirm).
-- **Loses to**: `harness-evolution` when the rule is universal (applies to all the user's projects) — that routes to a harness PR, not PROJECT-DOCTRINE.md.
-- **Cannot decide**: whether a rule is correct (the user owns it); whether to apply it without confirmation (never — HITL absolute).
-- **Composes with**: `harness-evolution` (universal split), `compounding` (routes a learned pattern here), `claude-md-authoring` (governs the doc the rule lands in).
+- **Wins**: any moment a lesson appears — a stated durable project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a perceived harness gap. Names the lesson, decides scope, and runs the matching capture: a project rule into `.void/PROJECT-DOCTRINE.md`, a harness gap as a direct `voidcorp-core/void-harness` issue, or drop. Also interprets the `void-harness audit` obsolescence report.
+- **Loses to**: nothing on capture routing — it is the single owner. Defers *which tool to use* to the code skills; a structural decision with a rejected alternative is `adr-workflow`, not a doctrine line.
+- **Cannot decide**: whether a capture is adopted (HITL only, never auto-writes doctrine); whether a rule is correct (the user owns it); the scope when genuinely ambiguous (it asks, never guesses).
+- **Composes with**: `verification-before-completion` (a cycle is not "closed" until verified), `commit-discipline` (a project rule commits as `docs(doctrine):`), `code-review` (a recurring finding is a deja-vu signal), `claude-md-authoring` (governs the doc a rule lands in), `adr-workflow`.
 
 ### `source-driven-development`
 
@@ -160,13 +152,6 @@ Two modes: `feedback` (inbound suggestions captured from real project usage) and
 - **Loses to**: `systematic-debugging` on the investigation *method* (this skill owns *where* the investigation runs, not how).
 - **Cannot decide**: the task content; the investigation's conclusions.
 - **Composes with**: `systematic-debugging`, `writing-plans` (plan state persisted on disk), `dispatching-parallel-agents` / `subagent-driven-development` (vendored targets).
-
-### `compounding`
-
-- **Wins**: the end-of-cycle ritual — after a merged unit of work, name the reusable *pattern* learned, triage its scope, and route it.
-- **Loses to**: `harness-evolution` on the feedback *mechanism* itself; `capture-rule` on *writing* a known project rule.
-- **Cannot decide**: whether a proposed capture is adopted (HITL only); cannot auto-write doctrine.
-- **Composes with**: `capture-rule` (routes project rules), `harness-evolution` (routes harness gaps), `commit-discipline`.
 
 ### `adr-workflow`
 
@@ -189,7 +174,25 @@ The single in-session backlog drainer; consolidates the former `backlog-batch` a
 - **Wins**: an explicitly launched run draining a Linear pool into clean PRs — today the **attended** parallel burst (several **independent** tickets, each in its own worktree subagent, reconciled into one integration PR); cluster auto-detection, an adaptive per-ticket cycle, multi-cluster autonomy and risk-gated auto-merge are being added. Opt-in only; needs the Workflow tool.
 - **Loses to**: any single-ticket interactive session; human judgment on the plan and on merge.
 - **Cannot decide**: whether two tickets truly overlap (the footprint is *estimated*; the reconciliation subagent + full suite are the backstop); whether to merge a risky cluster or a stack root (human, unless `--auto-merge` + green CI on a low-risk cluster).
-- **Composes with**: the Workflow tool (substrate), `using-git-worktrees`, the craftsman cycle inside each worker (`brainstorming`, `source-driven-development`, `writing-plans`, `tdd`, `verification-before-completion`, `commit-discipline`, `compounding`, `context-management`); gstack `ticket-craft` upstream, `/code-review` + `/ship` downstream (human-owned merge).
+- **Composes with**: the Workflow tool (substrate), `using-git-worktrees`, the craftsman cycle inside each worker (`brainstorming`, `source-driven-development`, `writing-plans`, `tdd`, `verification-before-completion`, `commit-discipline`, `learning-capture`, `context-management`); `ticket-writer` upstream (which may ingest a `source: forge` spec), `/code-review` + `/ship` downstream (human-owned merge).
+
+### `ticket-runner`
+
+The single canonical definition of "execute one ticket well" — one ticket taken from ready to shipped with a senior team's coverage (architecture, TDD, e2e, UX, security, review, verification), each pass keyed to an observable predicate.
+
+- **Wins**: taking a single ready ticket through to a shipped/green branch. Both interactive single-ticket work and each `backlog-autopilot` worker delegate here, so the cycle is defined once.
+- **Loses to**: `writing-plans` on sequencing *several* tickets; `ticket-writer` on authoring the ticket; human judgment on merge.
+- **Cannot decide**: whether a triggered pass may be skipped (never — the predicate decides, not a vibe); whether to merge (human).
+- **Composes with**: every code-discipline and process skill (it is the conductor that invokes them per predicate); `ticket-writer` upstream, `backlog-autopilot` as caller.
+
+### `ticket-writer`
+
+Turns a finished brainstorm, plan, or design decision into a tracker ticket an implementation agent can execute with zero follow-up — every required slot filled, estimated, labelled.
+
+- **Wins**: capturing an already-made decision as a trackable, self-contained work item; declaring which `ticket-runner` passes to expect.
+- **Loses to**: `brainstorming` / `writing-plans` on producing the thinking (it records, never invents scope); `ticket-runner` on execution.
+- **Cannot decide**: the scope itself (ingests it from upstream); the estimate's business priority (user).
+- **Composes with**: `brainstorming` + `writing-plans` upstream, `ticket-runner` downstream (consumes the ticket and its declared passes).
 
 ---
 
@@ -264,4 +267,4 @@ When two skills both claim "I win":
 
 ## Status
 
-Skeleton populated for the core skills (29 as of 2026-06-04, including `source-driven-development`, `context-management`, `compounding`, `api-and-interface-design`, `adr-workflow` promoted from pack-monorepo, the opt-in `autonomous-backlog-loop`, and `claude-md-authoring`). To be refined as each skill's content evolves. Any cell that becomes ambiguous in practice triggers an ADR in `docs/DECISIONS.md`.
+Populated for the 29 core skills as of 2026-07-09 — the code-discipline (9), process (14, including the canonical `ticket-runner` cycle, `ticket-writer`, and the fused `learning-capture`), and hedge (6) groups above. `backlog-autopilot` replaced the deleted `autonomous-backlog-loop`; `learning-capture` fused `compounding` + `capture-rule` + `harness-evolution` (issue #75). Refined as each skill's content evolves; any cell that becomes ambiguous in practice triggers an ADR in `docs/DECISIONS.md`.

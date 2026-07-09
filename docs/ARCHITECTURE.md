@@ -43,7 +43,7 @@ Rules:
 - Doctrine in `CLAUDE.md` and `AGENTS.md` is identical. Only terminology adapts ("Claude Code" / "Skill tool" vs "Codex" / "tools / shell").
 - `scripts/sync-agent-docs.sh` enforces parity on the harness repo itself: `--staged` (a commit touching one sister doc must touch the other) via `.githooks/pre-commit` (`git config core.hooksPath .githooks`), and section-heading parity in CI (`pnpm sync:docs`).
 - No file is auto-generated from the other. Auto-generation risks losing intentional adaptations. Manual authoring + mechanical gate is the safer trade-off.
-- The CLI command `npx @voidcorp/harness init` (and `add` / `remove`) patches both files in consumer projects, keeping them in parity. It does not install the harness's own pre-commit hook into the consumer — the parity gate is a harness-repo concern; a consumer that wants it opts in by pointing `core.hooksPath` at the shipped `.githooks/`.
+- The maintainer CLI command `void-harness init` (and `add` / `remove`) patches both files in consumer projects, keeping them in parity. It does not install the harness's own pre-commit hook into the consumer — the parity gate is a harness-repo concern; a consumer that wants it opts in by pointing `core.hooksPath` at the shipped `.githooks/`.
 
 ## Agent model tiers
 
@@ -73,6 +73,38 @@ Every agent declares an explicit `model:` in its frontmatter, chosen by the work
 
 **Rule**: a file in `core/` may assume TypeScript, Zod, `tsc`, vitest-style discovery. It may NOT assume a specific framework (Next vs Remix vs SvelteKit), a specific runtime (Node vs Bun vs Deno), or specific monorepo tooling. Those decisions live in packs and are read from `voidcorp.config.json` at runtime.
 
+### Hook libraries (`_`-prefixed)
+
+Hooks are one file each and capped at 100 LOC (anti-bloat rule 5). Shared hook
+logic lives in an **underscore-prefixed sourced library** (`core/hooks/_hooklib.sh`),
+never executed on its own and excluded from the per-hook size cap. `_hooklib.sh`
+carries the single guarded stdin parse: it reads the Claude Code / Codex tool-call
+JSON once, extracts scalars with a pure-bash fallback, and — critically — **fails
+closed** when `jq` is absent (a content-scanning hook blocks with an explicit
+message instead of exiting 127, which the runtime treats as non-blocking and which
+silently disabled the whole enforcement layer before). It also owns the physical
+root-relative path normalization the enforcement globs depend on. A hook sources it
+with `source "${BASH_SOURCE[0]%/*}/_hooklib.sh"`; `activation-meter.sh` /
+`outcome-meter.sh` (self-guarded, non-blocking meters) and `sessionstart-context.sh`
+(not a tool-call parser) are the deliberate non-consumers.
+
+Two content-aware hooks sit beside the filename/path guards:
+
+- **`secret-in-content.sh`** (PreToolUse Edit|Write, blocking) — the companion to
+  `protect-sensitive-files.sh` (which only guards known secret *filenames*). It
+  scans the edit's new content for high-confidence vendor tokens (AWS/GitHub/
+  Stripe/OpenAI/Anthropic/Slack/Google keys, PEM headers) and one guarded generic
+  rule (a `*_KEY|_SECRET|_TOKEN` var assigned a long, mixed, non-placeholder
+  literal — excluding UUIDs, git shas, and env indirection). Bounded to the edit
+  (never the repo; that is gitleaks/CI). Escape hatch: `// allow-secret-pattern:`;
+  test/fixture paths are skipped.
+- **`stop-typecheck.sh`** (Stop, **advisory**) — when a TS project has uncommitted
+  `.ts` changes at end of turn, it runs a timeout-bounded `tsc --noEmit` scoped to
+  the nearest tsconfig of the touched files and surfaces type errors on stderr, so
+  the "typecheck clean" item of `verification-before-completion` is answered from
+  observation. It **never blocks** (a blocking Stop would trap the session) and
+  no-ops with no TS project, no TS edit, or no `tsc`.
+
 ### Pack independence
 
 Two packs **may not depend on each other**. If pack A and pack B share logic, that logic belongs in `core/`.
@@ -88,6 +120,36 @@ The CLI is the only entry point. It:
 5. Runs `init` to create `voidcorp.config.json` in a new project
 
 The CLI does **not** edit the consumer's source code. The consumer's CLAUDE.md imports harness modules — the harness never writes business code.
+
+## Inter-plugin contracts (the core-hub model)
+
+The core plugin is **always installed** and acts as the hub between plugins. A sibling plugin (today: `forge`, the ideation pipeline) routes into the core's execution capabilities (`brainstorming`, `writing-plans`, `ticket-writer`, `tdd`, ...) rather than reimplementing them or dangling a pointer at a gstack skill. The nominal routing assumes the core is present; the coupling is nonetheless a **versioned artifact contract**, not a hard plugin dependency, so each plugin still makes sense alone — forge degrades to producing a standalone spec, core works with a hand-written spec.
+
+Re-splitting core into `core` + `dev` (execution) sub-plugins is explicitly **deferred (YAGNI)**: one core-hub is enough until a second consumer of the "execution" half exists.
+
+### The forge → harness spec contract
+
+The interface is a markdown spec the harness **owns the format of**, dropped by forge (or a human) at `docs/specs/YYYY-MM-DD-<slug>.md`. Frontmatter marks provenance and the recon summary:
+
+```yaml
+---
+source: forge # provenance; core skills ingest instead of re-asking
+forge_version: "0.2.0" # contract version, for tolerance on older specs
+slug: <kebab-slug> # disambiguates two specs in one repo
+verdict: GO | GO_PRUDENT | NO_GO # forge:recon critique verdict
+score: 0-100 # recon composite score
+red_ocean_score: 1-10 # differentiation aggressiveness driver
+---
+```
+
+The body carries the **18 load-bearing recon variables** (the interface's payload), the **winning design** (chosen `forge:design-prompt` variant), and the **critique verdict** (`forge:critique` findings). The 18 variables, named:
+
+- **Business (10)**: `positioning_statement`, `primary_persona` (`.title` + `.context`), `pain_severity`, `current_solution`, `top_buying_objections`, `competitive_advantage`, `main_competitors`, `price_point` (+ `pricing_justification`), `primary_kpi`, `decision_timeline`.
+- **Visual identity (8)**: `emotional_promise`, `brand_archetype`, `signature_moment`, `motion_personality`, `density_target`, `aesthetic_axes`, `inspiration_refs`, `vocab_pro` (+ `vocab_banned`).
+
+**Ingestion rule** (core skills): when a `source: forge` spec exists, **verify and fill the gaps — never re-ask what it already answers**. A partial spec (recon without critique, or a missing field from an older `forge_version`) is ingested for what it has, with the missing pieces listed as the only open questions. Two specs in one repo are disambiguated by `slug` / date.
+
+`brainstorming`, `writing-plans`, and `ticket-writer` each honor this rule (see their SKILL.md "Ingesting a forge spec" note). The forge side of the contract lives in `voidcorp-core/forge` (forge#4).
 
 ## Dependency direction
 
@@ -126,6 +188,27 @@ correlates it with local telemetry (`.void/activations.jsonl`, transcripts). `gr
 the inlined studio and a `/studio-data.json` endpoint on `localhost` — fully offline. Freshness
 is gated by `graph check-bundle` (the artifact's embedded model must match `model.json`); see
 DECISIONS.md (2026-07-01). The artifact is excluded from the `core-assets` mirror.
+
+## Telemetry: the cost/value ledger (`.void/*.jsonl`)
+
+Two universal meters, both best-effort (never block, always exit 0), both privacy-scoped to
+names/kinds/status only — never file content, output, or secrets:
+
+- **attempts** — `activation-meter.sh` (PreToolUse, matcher `*`) appends one event per tool call
+  to `.void/activations.jsonl`: `{ ts, kind, name, trigger, sessionId }`. The single source of
+  truth for what fired (issue #70); `void-harness audit` and the graph cost/behavior kernels read
+  it.
+- **outcomes** — `outcome-meter.sh` (PostToolUse `*` + Stop) appends completions to
+  `.void/outcomes.jsonl`: `{ ts, event, kind, name, status, sessionId }` for a finished tool call
+  (status best-effort from `tool_response`) and `{ event: "Stop", sessionId }` when a session ends
+  cleanly (issue #71). This is the **value** side: `analyzeCost` joins it per component (by kind +
+  bare name) so `graph cost` shows a `yield` column (ok/(ok+error)) next to the token cost. A
+  session with no Stop (interrupted) leaves its attempts uncounted as failures — orphan attempts
+  are not errors.
+
+The two files never disagree because each has exactly one writer, and cost/value are correlated by
+`sessionId`. Cross-project aggregation and opt-in finding push ride on top of these files (issue
+#72), and are deliberately out of the meters themselves.
 
 ## Node frontmatter: `activation` (graph liveness)
 
@@ -204,8 +287,9 @@ Implemented today in `.github/workflows/ci.yml` (all block the PR on failure):
 | Gate | What it runs |
 |---|---|
 | Anti-bloat: SKILL.md size | fails if any `SKILL.md` exceeds 400 LOC |
-| Anti-bloat: hook size | fails if any `hooks/*.sh` exceeds 100 LOC |
+| Anti-bloat: hook size | fails if any `hooks/*.sh` (excluding `_`-prefixed libs) exceeds 100 LOC |
 | Shell syntax | `bash -n` on every hook |
+| Manifest ↔ disk | fails if `plugin.json` wires a `hooks/<name>.sh` that does not exist on disk |
 | core-assets sync | regenerates `core-assets` and fails if it drifted from `packages/core` |
 | Publish safety | packs each npm package with pnpm and fails if a `workspace:` specifier survives into the tarball |
 | Lint | `pnpm lint` (Biome) over first-party TypeScript |

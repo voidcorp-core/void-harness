@@ -10,7 +10,7 @@ While coding in a consumer project, when you perceive "the harness should have X
 
 Going direct-to-issue moves the pre-filter from "before the note exists" to "triage by close on the tracker". For a single-maintainer repo that is cheap, but it makes the filing bar load-bearing. Open an issue ONLY when the gap clears BOTH tests:
 
-- **Agnostic** — it helps any consumer of the harness, not just this project. A project-specific rule belongs in that project's `.void/PROJECT-DOCTRINE.md` (via `harness:capture-rule`), not on this tracker.
+- **Agnostic** — it helps any consumer of the harness, not just this project. A project-specific rule belongs in that project's `.void/PROJECT-DOCTRINE.md` (via `harness:learning-capture`), not on this tracker.
 - **Harness-worthy** — it would change a skill, hook, pack, CLI, or doctrine line; not a one-off preference, not already covered by an existing skill.
 
 Calibrate against the ADR sweep behind issue #34: a full audit that rejected everything except one narrow rule correction. When in doubt, do not file.
@@ -36,15 +36,22 @@ Periodically the harness should audit itself:
 - Upstream tooling deprecations (e.g., a library a skill references getting deprecated)
 - Repeated matrix conflicts in `plans/skill-decision-matrix.md` → boundaries need reshaping
 
-`void-harness audit` reports this from `.void/usage.log` (written by the `activation-meter` hook): harness skills that are active, stale (`--stale-days <n>`, default 30), or never fired — the never/stale lists being the deprecation candidates. It reports only; deprecation PRs stay hand-authored (HITL). Upstream-tooling deprecation and matrix-conflict detection are a planned extension of the same command.
+`void-harness audit` reports this from `.void/activations.jsonl` (written by the `activation-meter` hook; the legacy `usage.log` is merged as history, #70): harness skills that are active, stale (`--stale-days <n>`, default 30), or never fired — the never/stale lists being the deprecation candidates. It reports only; deprecation PRs stay hand-authored (HITL). Upstream-tooling deprecation and matrix-conflict detection are a planned extension of the same command.
+
+### Cross-project rollup and opt-in push (#72)
+
+A single repo's telemetry is too thin to trust a "never fired" verdict (a skill fires a handful of times in one project). Each project self-registers into a global index at `~/.void/projects/` — the `activation-meter` hook, the first time it runs in a project, drops a pointer file holding that project's root (telemetry-driven, so even projects wired before this feature announce themselves; the index stays on this machine and holds only paths).
+
+- `void-harness audit --all-projects` and `void-graph cost|behavior --all-projects` aggregate the `.void/*.jsonl` of every registered project before classifying, so the gates actually clear.
+- `void-harness audit --push` files the aggregated deprecation candidates as GitHub issues on `voidcorp-core/void-harness`, labelled `harness-feedback`. It is **dry-run by default** (prints the create/update plan and stops); a real push additionally requires an interactive confirmation, and a re-run **updates the same issue** (deterministic title per `type:component`) instead of duplicating. The issues carry component names and aggregate counts only — never a project path, file content, or session id. A missing or unauthenticated `gh` fails loud. HITL is absolute: no issue is ever filed without the explicit flag and the confirmation.
 
 ## HITL is absolute
 
 - No automatic write into doctrine, ever.
 - Every harness change is a deliberate commit with a "why" line.
-- `capture-rule` (`harness:capture-rule`) handles the human ↔ AI conversation when a new rule is captured.
+- `harness:learning-capture` handles the human ↔ AI conversation when a new rule is captured (project-rule branch) and when a harness gap is filed (harness-gap branch).
 
 ## See also
 
-- `harness:harness-evolution` skill — the in-Claude workflow for filing a friction as a void-harness issue during a coding session.
+- `harness:learning-capture` skill — the in-Claude workflow for filing a friction as a void-harness issue during a coding session (and for capturing project rules).
 - `plans/frictions/` — historical frictions before the consumer-side convention shipped.

@@ -1,5 +1,7 @@
 ---
 name: api-and-interface-design
+triggers:
+  globs: ["**/src/index.ts", "**/openapi*.{yaml,yml,json}", "**/*.openapi.ts", "**/trpc/**/router.ts"]
 description: Contract-first design of any public interface — package exports, HTTP/REST, RPC/tRPC, SDK, module boundary. Minimal surface, stable boundary types, versioning. Use when shaping a public API.
 ---
 
