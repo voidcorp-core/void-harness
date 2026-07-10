@@ -2,7 +2,7 @@
 name: type-design-analyzer
 description: Read-only judge of TYPE DESIGN only — illegal states representable, primitive obsession, missing discriminated unions, leaky boundary types. Not a general review. Routes bugs to /code-review.
 tools: Read, Grep, Glob, Bash
-model: opus
+model: sonnet
 color: blue
 ---
 
