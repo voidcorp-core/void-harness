@@ -216,6 +216,25 @@ consommateur recommandé avant de considérer la skill « done ».
 
 ---
 
+### Step 15 — Protocole fichiers append-partagés (DEV-402)
+
+Motivé par preuve directe (session de-gstack 2026-07-10 : conflits répétés sur DECISIONS.md,
+numéros ADR, bundle graph). **Fait dans DEV-402** : le protocole est encodé dans le skill
+(section « Shared-append files ») + le spec (Réconciliation) :
+
+- **Artefacts générés** non commités par les workers ; rebuild unique à la réconciliation
+  (`graph build` + `build:void-graph` + `copy-core-assets`), gate `graph:check`/`check-bundle`.
+- **DECISIONS.md** concaténé en ordre topo (pas de 3-way merge de la queue).
+- **Registres** : lignes distinctes ; re-dérivation sur conflit réel ; parité `sync-agent-docs`.
+
+**Reste (brique déterministe, code + TDD strict)** : réservation d'un **numéro ADR par ticket
+au plan time** dans la sortie de `void-harness backlog-autopilot plan` (max courant sur la base
++ index par ticket), consommée par les workers ; fallback renumérotation topo à la réconciliation.
+Tests : collision-free sur un batch parallèle simulé. **Non fait ici** (protocole d'abord ; la
+brique CLI est un incrément à part).
+
+---
+
 ## Review checkpoints
 
 - **Checkpoint A** — après Step 3 (fin P1, consolidation).
@@ -230,7 +249,7 @@ consommateur recommandé avant de considérer la skill « done ».
 
 ## Resume point
 
-**Next step**: — plan complet (14/14). Reste hors plan : dogfood live en projet consommateur (jamais sur void-harness).
+**Next step**: — plan complet 14/14 + Step 15 protocole shared-append (DEV-402, skill+spec faits). Reste : la brique CLI de réservation ADR au plan time (Step 15, code+TDD, incrément à part) ; dogfood live en projet consommateur (jamais sur void-harness).
 
 **Completed (P1 — consolidation)**:
 - ✅ Step 1 — Supprimer autonomous-backlog-loop (commit `1901539`) ; protocole `VOID_EVENT` extrait dans `events.ts` ; suite 290 verte. Déviation : `summary.ts`/`wizard.ts` supprimés (loop-shaped), reconstruits en P2/P4.
