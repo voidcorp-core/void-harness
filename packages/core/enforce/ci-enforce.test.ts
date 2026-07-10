@@ -123,6 +123,28 @@ describe('ci-enforce — clean diff is green', () => {
     expect(run(repo, base).code).toBe(0);
   });
 
+  it('allows a lockfile change accompanied by a manifest change (a legitimate dependency add)', () => {
+    // The signature of a real `pnpm add`: package.json AND pnpm-lock.yaml move
+    // together, and the reviewer sees the new dependency in the manifest.
+    write(repo, 'package.json', '{\n  "name": "x",\n  "dependencies": { "marked": "^14.1.0" }\n}\n');
+    write(repo, 'pnpm-lock.yaml', 'lockfileVersion: 9\ndependencies:\n  marked: 14.1.0\n');
+    git(repo, 'add', '-A');
+    git(repo, 'commit', '-q', '-m', 'add marked');
+    const { code, stdout } = run(repo, base);
+    expect(code).toBe(0);
+    expect(stdout).not.toMatch(/::error/);
+    expect(stdout).toMatch(/lockfile change accompanied by a package manifest change/);
+  });
+
+  it('still blocks a lockfile changed ALONE, with no manifest (the tamper case)', () => {
+    write(repo, 'pnpm-lock.yaml', 'lockfileVersion: 9\ntampered: true\n');
+    git(repo, 'add', '-A');
+    git(repo, 'commit', '-q', '-m', 'lockfile only');
+    const { code, stdout } = run(repo, base);
+    expect(code).toBe(1);
+    expect(stdout).toMatch(/protected file: lockfile/);
+  });
+
   it('skips a path listed in .github/void-enforce-allow (the committed override) and logs it', () => {
     // A file legitimately NAMED for secrets (like the harness's own detector) is
     // flagged by sensitive-path; the allowlist is the reviewable, committed
