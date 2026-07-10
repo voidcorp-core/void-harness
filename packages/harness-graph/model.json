@@ -1018,8 +1018,8 @@
       "type": "skill",
       "name": "drizzle-migration-safe",
       "description": "Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. Composes with harness:migrations-safety for the generic discipline.",
-      "lines": 140,
-      "staticTokens": 1695,
+      "lines": 169,
+      "staticTokens": 2116,
       "pack": "pack-server",
       "source": "packages/packs/pack-server/skills/drizzle-migration-safe/SKILL.md"
     },
@@ -1183,7 +1183,7 @@
       "name": "ticket-runner",
       "description": "Use when taking a single ticket from ready through shipped at expert-team quality. Triggers on starting a ticket, taking an issue, or picking up a backlog item to execute.",
       "lines": 85,
-      "staticTokens": 1966,
+      "staticTokens": 2070,
       "pack": null,
       "source": "packages/core/skills/ticket-runner/SKILL.md"
     },
