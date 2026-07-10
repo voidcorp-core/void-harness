@@ -57,6 +57,23 @@ read as "it's done" for UI tickets; the pass now holds the interface to producti
 craft, not just rendering. No new dependency — `impeccable` was already referenced;
 this elevates it from a preference to the default. Still one pass, one subject.
 
+## 2026-07-10 — migration apply ordering + prod-via-CI boundary (Migration safety pass)
+
+Step 3 (Migration safety) previously stopped at the *design* review of a schema
+change (two-phase, batched backfill, locking). It said nothing about *applying* the
+migration, so the downstream TDD/E2E passes could run against a stale dev schema and
+either fail spuriously or pass against the wrong shape. Added the ordering principle:
+once generated and safety-reviewed, the migration is applied to **dev/local before
+the test passes run**, and — the load-bearing safety boundary — this cycle only ever
+applies to dev/local; **production migrations run through CI / GitHub Actions on
+merge, never from a worker or session**. The credible alternative (agent applies to
+prod too, or never applies even to dev) was rejected: prod DDL is a human-gated deploy
+decision (mirrors the `migrations-safety` anti-rule "MUST NOT auto-apply on push to
+main"), while a dev apply that a human must run defeats the point of a ticket cycle
+whose tests need the real schema. The concrete Drizzle/Neon commands live in the
+`harness-server:drizzle-migration-safe` pack, not here — this stays generic ordering.
+See `docs/DECISIONS.md` 2026-07-10.
+
 ## gstack /ship vendoring (DEV-388, de-gstackification Vague 2)
 
 /ship's pre-PR checklist is mostly ALREADY covered here (review, tests, commit, PR) + by verification-before-completion + commit-discipline. **Integrated** (the genuine cycle-level deltas): Test-Failure-Ownership triage (adjudicate a red suite in-branch vs pre-existing before proceeding — this skill assumed green), the independent fresh-context adversarial review pass (attacker/chaos lens, FIXABLE/INVESTIGATE, name the single most exploitable finding), and bisectable commit ordering (infra→domain→edge, each independently valid). **Rejected**: the Review-Army roster (7 named specialists + adaptive gating) as an over-engineered release-gate apparatus for a single ticket — kept only its *idea* (scope-gated fresh-context lenses); and the VERSION/CHANGELOG/release-please steps (release-please owns versioning here). The plan-completion-audit half of /ship went to verification-before-completion, not here.

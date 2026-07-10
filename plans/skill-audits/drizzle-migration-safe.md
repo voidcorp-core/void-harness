@@ -43,6 +43,20 @@ This skill is the Drizzle concretization — same principles, concrete SQL and c
 - **Enforcement hook** that blocks commits adding migrations without backfill counterparts: tempting but produces false positives (some migrations are genuinely "nullable add, never backfill needed"). Rule reads better than enforcer.
 - **MySQL/SQLite patterns inline**: scope creep. If a consumer asks, we add a sibling skill.
 
+## 2026-07-10 — "who runs `migrate`, and where" section added
+
+The pack described how to *shape* safe DDL but never said who applies it. Added a
+section splitting the two environments by owner: **dev/local the agent applies**
+(local Postgres/pglite or an ephemeral Neon dev branch) *before* the ticket's test
+passes, because Drizzle infers types from the schema and the suite queries real
+tables — a stale DB fails spuriously or passes against the wrong shape; **production
+CI applies** via a human-gated GitHub Actions step on merge, never a local command.
+This is the concrete Drizzle/Neon counterpart to the generic ordering principle now
+in `ticket-runner` step 3, and it operationalizes the `migrations-safety` anti-rule
+"MUST NOT auto-apply migrations on push to main". Kept concrete (real `neonctl` +
+`pnpm db:migrate` + a GH Actions excerpt); the generic doctrine stays in
+`migrations-safety`. See `docs/DECISIONS.md` 2026-07-10.
+
 ## Open questions
 
 - Should we add a companion CLI command `void-harness db plan` that reads a generated migration and warns about CONCURRENTLY/NOT VALID gaps? Tracked in [[harness-evolution]] as a future feature.
