@@ -43,6 +43,20 @@ git merge-base "${BASE}" HEAD >/dev/null 2>&1 \
 
 FAIL=0
 
+# A lockfile change is legitimate ONLY when a package manifest changed in the same
+# diff — the signature of a real `pnpm add` / dependency update, which a reviewer
+# sees in package.json. A lockfile changed ALONE (no manifest) is the hand-edit /
+# tamper case the floor exists to block. Detect the manifest presence once, up
+# front, so the per-file loop can allow a lockfile only when one is present.
+# (The local PreToolUse hook still blocks a direct Edit/Write to a lockfile;
+# `pnpm add` runs via Bash, so the manifest+lockfile pair is how deps legitimately
+# land.) A `git diff` failure here fails CLOSED (manifest treated as absent).
+MANIFEST_CHANGED=0
+if git diff --name-only "${BASE}"...HEAD 2>/dev/null \
+  | grep -qiE '(^|/)(package\.json|cargo\.toml|pyproject\.toml|go\.mod|gemfile|composer\.json|pubspec\.yaml)$'; then
+  MANIFEST_CHANGED=1
+fi
+
 # Committed, reviewable exemptions: `.github/void-enforce-allow` lists path globs
 # (one per line, # comments) skipped entirely. This is the Action equivalent of
 # the local VOID_HARNESS_ALLOW_SECRET_EDIT override — e.g. a file legitimately
@@ -120,6 +134,12 @@ while IFS= read -r -d '' status; do
 
   # 1) Never-edit file (path only): lockfile / key / secret filename / .git.
   if reason=$(checks_sensitive_path "$path"); then :; else
+    # A lockfile is allowed when a manifest changed in the same diff (legitimate
+    # dependency op, reviewer-visible in the manifest). Alone, it stays blocked.
+    if [[ "$reason" == lockfile* && "$MANIFEST_CHANGED" -eq 1 ]]; then
+      printf 'void-enforce: %s allowed (lockfile change accompanied by a package manifest change)\n' "$path"
+      continue
+    fi
     annotate error "$path" 1 "protected file: ${reason}"
     continue    # no point content-scanning a file that must not be edited at all
   fi

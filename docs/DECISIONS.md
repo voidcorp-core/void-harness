@@ -1680,11 +1680,64 @@ Why: the history is already telling you where the debt and the recurring pain ar
 of listening on a cadence. Losing that at teardown would drop a real quality signal — but the gamification it
 was wrapped in was never the value.
 
-## 2026-07-10: iOS cluster and gbrain fate — two ADRs, proposed pending Folpe (DEV-392)
+## 2026-07-10: the server-side floor allows a lockfile change accompanied by a manifest change (DEV-393 follow-up)
+
+Building `apps/make-pdf` surfaced a real gap in the DEV-393 server-side floor (`ci-enforce.sh`): it blocked
+**every** lockfile diff fail-closed, so the harness monorepo could never add a dependency — a legitimate
+`pnpm add` (which moves `package.json` AND `pnpm-lock.yaml` together) was rejected exactly like a hand-edit.
+The local PreToolUse hook was already correct (it blocks a direct `Edit`/`Write` to a lockfile; `pnpm add`
+runs via Bash and is allowed), but the server replay was stricter than the local floor — an inconsistency.
+
+Decision: `ci-enforce.sh` allows a lockfile change **only when a package manifest changed in the same diff**
+(`package.json`, `Cargo.toml`, `pyproject.toml`, `go.mod`, `Gemfile`, `composer.json`, `pubspec.yaml`). A
+lockfile changed **alone** — no manifest — stays blocked (the hand-edit / tamper case the floor exists to
+catch). This is the standard shape of a dependency PR: the reviewer sees the new dependency in the manifest,
+which is the human check the lockfile-tamper block was standing in for.
+
+Load-bearing choices:
+- **Manifest+lockfile is reviewer-visible; lockfile-alone is not.** The floor's job is to stop sneaky edits a
+  review would miss (lockfile-only tampering, secret injection), not to forbid all dependency additions —
+  which would make the monorepo unusable. Gating on manifest-accompaniment restores that intent.
+- **Fail-closed preserved**: a `git diff` failure in the manifest pre-pass treats the manifest as absent, so
+  the lockfile stays blocked. No new fail-open path.
+- **Local hook unchanged**: hand-editing a lockfile via `Edit`/`Write` is still blocked; only the server replay
+  learned the manifest-accompaniment rule, closing the local/server inconsistency.
+- Tested: `ci-enforce.test.ts` gains "allows lockfile + manifest" (green, logged) and "blocks lockfile alone"
+  (red) cases; the existing lockfile-alone-blocked test still holds.
+
+Why: a floor that forbids ever adding a dependency is not a floor, it is a wall. The rule is the same one every
+dependency PR already follows — the change makes the automated gate agree with how dependencies legitimately
+land, without opening a tamper path.
+
+## 2026-07-10: rebuild make-pdf on marked + puppeteer-core (system Chrome, page numbers), not a band-aid (DEV-391)
+
+De-gstackification Vague 4 (epic DEV-383), REBUILD. gstack `/make-pdf` produces the PDFs DECLIK signed
+deliverables depend on, via the browse daemon. A first pass rebuilt it with a hand-rolled markdown parser + the
+raw `chrome --headless --print-to-pdf` flag to avoid a dependency; Folpe rejected that as a band-aid ("pas de
+rustine, état de l'art"). Rebuilt on the researched state-of-the-art path instead.
+
+- **`marked` + `puppeteer-core`** (the standard md->PDF pipeline, e.g. `md-to-pdf`): `marked` for robust
+  parsing; `puppeteer-core` drives the **system** Chrome (no bundled Chromium download) and prints via
+  `page.pdf()`, which — unlike the CLI flag — gives **page-number footers** (`pageNumber`/`totalPages`),
+  `printBackground`, and precise margins. Source-driven against the Puppeteer PDFOptions docs.
+- **Engine `apps/make-pdf/`**: pure `render` (marked + the kept HTML sanitizer — marked passes raw HTML through,
+  a real trust boundary) + `print-css`, an impure `pdf` module (injectable `findChrome`), an async CLI. 13 unit
+  tests + a dogfood PDF (observed: 67 KB, `1/1` footer, French accents, table with €, code).
+- **Enabled by the floor fix above**: the two deps change the lockfile; rather than hand-roll around the floor
+  (band-aid) or permanently allowlist the lockfile (removes protection), the floor learned the
+  manifest-accompaniment rule. Principled unblock.
+- **Chrome absent -> explicit non-zero exit**, never silent (AC).
+
+Why: make-pdf is load-bearing for revenue deliverables; it must be état-de-l'art, not a stopgap. `marked` +
+Puppeteer is the standard, it restores page numbers the CLI flag could not do, and `puppeteer-core` keeps CI
+light (no Chromium download).
+
+## 2026-07-10: iOS cluster and gbrain fate — two ADRs, accepted by Folpe (DEV-392)
 
 De-gstackification Vague 5 (epic DEV-383). Two gstack pieces escape the vendoring and need an explicit call
-rather than a default port. Both are formal ADRs (the first in this repo's new `decisions/` directory), authored
-as **proposed** — HITL absolute, NOT auto-accepted; Folpe accepts by merging + flipping status to `accepted`:
+rather than a default port. Both are formal ADRs (the first in this repo's new `decisions/` directory). They
+were authored **proposed** — HITL absolute, NOT auto-accepted — and are now **accepted** by Folpe's explicit
+go-ahead to merge (in the ADR lifecycle, merging = accepting; status flipped to `accepted` in the same act):
 
 - **[ADR-0001](../decisions/0001-defer-ios-cluster-port.md) — Defer porting the iOS cluster.** No current iOS
   consumer; deferral is the reversible default. Wake trigger: the first signed iOS project. Teardown coupling:
