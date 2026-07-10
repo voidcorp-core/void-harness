@@ -1,8 +1,8 @@
 # ADR-0001: Defer porting the gstack iOS cluster
 
-- **Status**: proposed
+- **Status**: accepted
 - **Date**: 2026-07-10
-- **Deciders**: @folpe (pending — HITL, not auto-accepted)
+- **Deciders**: @folpe
 
 ## Context
 

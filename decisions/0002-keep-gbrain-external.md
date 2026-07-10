@@ -1,8 +1,8 @@
 # ADR-0002: Keep gbrain external, with a defined exit criterion
 
-- **Status**: proposed
+- **Status**: accepted
 - **Date**: 2026-07-10
-- **Deciders**: @folpe (pending — HITL, not auto-accepted)
+- **Deciders**: @folpe
 
 ## Context
 
