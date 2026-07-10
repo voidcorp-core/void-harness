@@ -627,8 +627,8 @@
       "type": "skill",
       "name": "backlog-autopilot",
       "description": "Opt-in parallel drain of independent Linear tickets, each in its own worktree subagent, reconciled into one integration PR gated by the full suite. Use when clearing independent tickets at once.",
-      "lines": 215,
-      "staticTokens": 3141,
+      "lines": 227,
+      "staticTokens": 3805,
       "pack": null,
       "source": "packages/core/skills/backlog-autopilot/SKILL.md"
     },

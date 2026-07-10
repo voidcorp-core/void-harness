@@ -136,6 +136,21 @@ critères d'acceptation, footprint fichiers estimé, touche-t-il l'UI, risque
   la branche du cluster, sans worktree**.
 - **Reconcile subagent** : merge des branches vertes dans l'ordre topo sur
   `cluster/<id>` ; résout les conflits en gardant l'intention des deux tickets.
+- **Fichiers append-partagés (résolus à l'intégration, pas par les workers)** — la
+  partition parallèle/séquentiel ne suffit pas : des branches séquentielles depuis la
+  même base collisionnent quand même sur la queue appendée ou les octets régénérés.
+  Protocole (cf. skill, section « Shared-append files ») :
+  - **Artefacts générés** (`model.json`, `void-graph.mjs`, miroir `core-assets`) — les
+    workers ne les commitent PAS ; le reconcile subagent les rebuild **une fois** après
+    tous les merges (`graph build` + `build:void-graph` + `copy-core-assets`), gate
+    `graph:check` + `graph:check-bundle`. Supprime la plus grosse surface de conflit.
+  - **Numéros ADR** — réservés **par ticket au plan time** (max courant sur la base) ;
+    fallback : renumérotation déterministe en ordre topo à la réconciliation.
+  - **`docs/DECISIONS.md`** — chaque worker n'append que SON bloc ; le reconcile
+    **concatène** en ordre topo (jamais de 3-way merge de la queue). Cible durable :
+    un-fichier-par-décision + index généré.
+  - **Registres** (coverage-matrix, decision-matrix, routing) — lignes distinctes par
+    worker ; re-dérivation à la réconciliation sur conflit de ligne réel.
 - **Gate avant PR** (tout vert) : `lint` + `typecheck` + **suite complète** +
   `verification-before-completion` (12 points observés, pas supposés).
 - **Code-review deux niveaux, bloquante** :
