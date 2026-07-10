@@ -1,0 +1,41 @@
+# ADR-0001: Defer porting the gstack iOS cluster
+
+- **Status**: accepted
+- **Date**: 2026-07-10
+- **Deciders**: @folpe
+
+## Context
+
+The gstack teardown (epic DEV-383) forces an explicit call on the iOS cluster: `ios-qa`, `ios-fix`, `ios-design-review`, `ios-sync`, `ios-clean`, plus the DebugBridge SPM package. This is the heaviest, most stack-specific part of gstack — a live-device SwiftUI QA/fix apparatus with a compiled Swift bridge. VoidCorp ships no iOS product today; the cartography (`plans/2026-07-09-gstack-cartography-and-next.md`) classifies it REBUILD-only-if-strategic and recommends deferral. Porting it now would be weeks of work for zero current consumer.
+
+## Decision
+
+We will **defer** the iOS cluster: neither port it into the harness nor delete its source, until VoidCorp has a concrete iOS project. The frozen gstack v1.57.10 snapshot remains the reference if it is ever needed.
+
+## Consequences
+
+Positive:
+- Zero effort spent on a capability with no current consumer (YAGNI at the wave scale).
+- The harness stays focused on the web/TS stack it actually ships.
+- The frozen gstack source + the snapshot preserve the option; nothing is lost, only postponed.
+
+Negative:
+- If an iOS project lands, the cluster must be re-evaluated from a frozen (aging) gstack v1.57.10 rather than a maintained upstream — a one-time re-familiarization cost.
+- The iOS skills stay only as long as gstack itself is installed; once the Vague 6 teardown removes gstack, the iOS cluster must be **snapshotted separately** first (see Wake trigger) or it is gone.
+
+## Alternatives considered
+
+- **Port now into the harness**: rejected — weeks of Swift/SPM/CDP work for zero current consumer; violates anti-bloat and YAGNI at the initiative scale.
+- **Drop entirely (delete the snapshot too)**: rejected — a signed iOS engagement is plausible within VoidCorp's trajectory; deleting the only reference makes a future port start from scratch. Deferral keeps the option cheaply.
+
+## Wake trigger
+
+Re-open this ADR (as a new ADR that supersedes it) when **the first iOS project is signed or committed to**. At that point: (a) snapshot the iOS cluster out of the frozen gstack before any teardown removes it, (b) decide port-vs-rebuild against the then-current SwiftUI/agent tooling.
+
+## Teardown coupling (Vague 6, DEV-395)
+
+Because this ADR defers rather than drops, the Vague 6 teardown MUST NOT delete the iOS cluster's source without first snapshotting it (like the Vague 0 learnings snapshot). The teardown ticket references this ADR to know the iOS source is "preserve, don't delete."
+
+## Reversal cost
+
+**Low.** Deferral is the reversible default — reversing it means starting the port when a real need appears, which is exactly when the information to do it well exists.
