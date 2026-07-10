@@ -75,8 +75,9 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 | Adding a skill | Author the SKILL.md by hand, run skill-test suite in `test/` |
 | Building or auditing a UI | `frontend-design` (build) + `ui-review` (audit/critique/polish) skills |
 | Auditing a live dev surface (API/CLI/SDK/docs) | `devex-audit` skill (measured TTHW, error-path tracing, evidence-backed DX scorecard) |
+| Live browser QA of a running web app | `qa` skill (claude-in-chrome MCP: explore, states, atomic fix loop, report; `--report-only` for no-fix) |
 | Periodic engineering retrospective | `retrospective` skill (window signals → improvement decisions → learning-capture) |
-| QA / ship | gstack (`/qa`, `/ship`) — live-browser QA until Vague 4; Codex can invoke gstack commands via its shell tool |
+| Ship | gstack (`/ship`); Codex can invoke gstack commands via its shell tool |
 
 ## On gstack and superpowers (Codex perspective)
 
