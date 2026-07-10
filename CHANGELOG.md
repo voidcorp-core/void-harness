@@ -1,5 +1,62 @@
 # Changelog
 
+## [0.16.0](https://github.com/voidcorp-core/void-harness/compare/v0.15.0...v0.16.0) (2026-07-10)
+
+
+### Features
+
+* **audit:** cross-project telemetry rollup + opt-in issue push ([#72](https://github.com/voidcorp-core/void-harness/issues/72)) ([89d83c0](https://github.com/voidcorp-core/void-harness/commit/89d83c05dd725fce5c58da9c28ef910dec52fa93))
+* **backlog-autopilot:** per-worker model tier driven by ticket stakes (DEV-404) ([d97407d](https://github.com/voidcorp-core/void-harness/commit/d97407ddfe7083fa96e1de2e798a99049aeb3fe8))
+* **backlog-autopilot:** per-worker model tier driven by ticket stakes (DEV-404) ([f070f3a](https://github.com/voidcorp-core/void-harness/commit/f070f3a8e2f238cd8d37a4f94556a8b4310e9302))
+* **backlog-autopilot:** shared-append conflict protocol — owned by integration (DEV-402) ([063c59a](https://github.com/voidcorp-core/void-harness/commit/063c59affc9fe0109fb4847c7cdd34f6fc3494b9))
+* **backlog-autopilot:** shared-append conflict protocol — owned by integration, not workers (DEV-402) ([825968c](https://github.com/voidcorp-core/void-harness/commit/825968cdd63c2ca66f087c6e46f031e92c7a8307))
+* **brainstorming:** sharpen the demand pre-emption and the per-turn assignment (DEV-386) ([56caf99](https://github.com/voidcorp-core/void-harness/commit/56caf9998f2b38ce12c8658a90a4248b19be2132))
+* **cli:** doctor validates config by schema + checks hook/pack health ([#68](https://github.com/voidcorp-core/void-harness/issues/68)) ([7a06636](https://github.com/voidcorp-core/void-harness/commit/7a06636f1257f21ea54bf3e44b4c0d927c1c8f91))
+* **cli:** init fails loud on missing prerequisites, never pins a stale version ([#67](https://github.com/voidcorp-core/void-harness/issues/67)) ([61c7b06](https://github.com/voidcorp-core/void-harness/commit/61c7b06dd05fd7b0245b16f6dd589f0b3b644c06))
+* **contract:** forge-&gt;harness spec artifact contract on the core-hub model ([#76](https://github.com/voidcorp-core/void-harness/issues/76)) ([6eaf759](https://github.com/voidcorp-core/void-harness/commit/6eaf7596f0ee75e4a1975169f83d78b7b64a9ac1))
+* **devex-audit:** vendor the live DX audit as a dedicated audit-ceiling skill (DEV-398) ([7591bc4](https://github.com/voidcorp-core/void-harness/commit/7591bc4471249c9efe1a121ae3353937efde4ef8))
+* **devex-audit:** vendor the live DX audit as a dedicated audit-ceiling skill (DEV-398) ([79e9259](https://github.com/voidcorp-core/void-harness/commit/79e9259c7e0a483c7c0a1f91d4f31220dce30e7e))
+* **enforce:** replay the floor server-side via a shared-logic GitHub Action (DEV-393) ([8d9ca7b](https://github.com/voidcorp-core/void-harness/commit/8d9ca7bde4dcf1bb3b15e53f0e248ae46f4773e0))
+* **enforce:** server-side floor via a shared-logic GitHub Action (DEV-393) ([ccc2226](https://github.com/voidcorp-core/void-harness/commit/ccc22263aa848eb4cdc00582bbb476eb6597cef5))
+* **eval-harness:** behavioral skill evals — measure prose effect, not form (DEV-394) ([7b13aae](https://github.com/voidcorp-core/void-harness/commit/7b13aae48c0cbcc936c024c0da81e5c5fd275634))
+* **eval-harness:** behavioral skill evals — measure the prose's effect, not its form (DEV-394) ([c3f37f5](https://github.com/voidcorp-core/void-harness/commit/c3f37f51b9a6f21b16f97ce53154a8ad576e5124))
+* **eval-harness:** LLM judge (injected port, last resort) + blind head-to-head (DEV-397) ([4bc1896](https://github.com/voidcorp-core/void-harness/commit/4bc1896e41ff2f3f8084c3d059cd429d6e16af4b))
+* **eval-harness:** LLM judge (injected port, last resort) + blind head-to-head (DEV-397) ([2c8401a](https://github.com/voidcorp-core/void-harness/commit/2c8401aee94d44ac2035479c6ddb62cd94ae42d0))
+* **hooks:** secret-in-content (blocking) + stop-typecheck (advisory) ([#77](https://github.com/voidcorp-core/void-harness/issues/77)) ([86e178a](https://github.com/voidcorp-core/void-harness/commit/86e178a13f155e2b7f12645a329907c1a287bad1))
+* **make-pdf:** rebuild gstack make-pdf on marked + puppeteer-core, page numbers (DEV-391) ([d32999b](https://github.com/voidcorp-core/void-harness/commit/d32999b9eb8b51558345fa3cc76bf8c807986fe1))
+* **make-pdf:** rebuild on marked + puppeteer-core, page numbers (DEV-391) ([a9208be](https://github.com/voidcorp-core/void-harness/commit/a9208bee829a0b6570fc0875060f8b5ebf31fcd1))
+* **qa:** vendor live browser QA re-pointed onto the claude-in-chrome MCP (DEV-390) ([2268f27](https://github.com/voidcorp-core/void-harness/commit/2268f27f5b37d5dab0b072b1750061a8de4a1bbb))
+* **qa:** vendor live browser QA re-pointed onto the claude-in-chrome MCP (DEV-390) ([28c1090](https://github.com/voidcorp-core/void-harness/commit/28c109078a29736883e6d6a0508dc94d56fa0ea0))
+* **skills:** fold ship/spec/investigate deltas into existing skills (DEV-388) ([d35805e](https://github.com/voidcorp-core/void-harness/commit/d35805e3f9afb28f3cc8f943b576fa8d2944f875))
+* **skills:** fold ship/spec/investigate deltas into existing skills (DEV-388) ([46a94b7](https://github.com/voidcorp-core/void-harness/commit/46a94b756aa12a8a008925fac99d6d4530f21429))
+* **skills:** split design craft into frontend-design (build) + new ui-review (audit); internalise impeccable (DEV-389) ([7b593b9](https://github.com/voidcorp-core/void-harness/commit/7b593b9f6aeed9b396535deb3eb2718903d72759))
+* **skills:** split design craft into frontend-design (build) + ui-review (audit); internalise impeccable (DEV-389) ([b42a20c](https://github.com/voidcorp-core/void-harness/commit/b42a20c13b0ff7a018cb27b71e60cd3f635d0580))
+* **skills:** vendor gstack /cso as a dedicated security-audit skill (DEV-387) ([3f8bb0f](https://github.com/voidcorp-core/void-harness/commit/3f8bb0f98217f9c18a5609cccceb7d2bd29a9e15))
+* **skills:** vendor gstack /cso as a dedicated security-audit skill (DEV-387) ([14db394](https://github.com/voidcorp-core/void-harness/commit/14db3949f764753136c96aa58ef39274803eb190))
+* **skills:** vendor gstack /office-hours into brainstorming (DEV-386) ([1bc18a6](https://github.com/voidcorp-core/void-harness/commit/1bc18a69ab6397c2cd0c64dfd51e03165405083c))
+* **skills:** vendor gstack /office-hours into brainstorming as an idea pressure-test mode (DEV-386) ([beab071](https://github.com/voidcorp-core/void-harness/commit/beab071515a81c437c98324c65697e4ce107e4b1))
+* **skills:** vendor gstack /retro as harness:retrospective (DEV-396) ([3f7750b](https://github.com/voidcorp-core/void-harness/commit/3f7750b32c6ea877ca731b57a4696b330a1bffba))
+* **skills:** vendor gstack /retro as harness:retrospective, gamification dropped (DEV-396) ([481d846](https://github.com/voidcorp-core/void-harness/commit/481d8467cf657705af37f92a14a89a70354b9293))
+* **skills:** vendor the 4 gstack plan-reviews + autoplan as one plan-review skill (DEV-385) ([a373ef1](https://github.com/voidcorp-core/void-harness/commit/a373ef1f751a1d56b0d3085a2341fd85f050d3de))
+* **skills:** vendor the 4 gstack plan-reviews + autoplan as one plan-review skill (DEV-385) ([60f864b](https://github.com/voidcorp-core/void-harness/commit/60f864b6c798237362020b539e2626e969ec0791))
+* **telemetry:** capture outcomes to turn cost telemetry into a cost/value ledger ([#71](https://github.com/voidcorp-core/void-harness/issues/71)) ([0647116](https://github.com/voidcorp-core/void-harness/commit/0647116785632fe692313c377c6fe21b63992790))
+* **ticket-runner:** apply migrations to dev/local before tests, prod via CI only ([cc0ea21](https://github.com/voidcorp-core/void-harness/commit/cc0ea215ef8f71f269f7a932154d5adf491e4aed))
+* **ticket-runner:** apply migrations to dev/local before tests, prod via CI only ([deaadc6](https://github.com/voidcorp-core/void-harness/commit/deaadc60fb48dc3b5509be5d955be749297f38d3))
+
+
+### Bug Fixes
+
+* **enforce:** allow a lockfile change accompanied by a manifest change (DEV-393 follow-up) ([4b04403](https://github.com/voidcorp-core/void-harness/commit/4b04403b931397648d978846835d7ee8f2fd4a25))
+* **enforce:** allow a lockfile change accompanied by a manifest change (DEV-393 follow-up) ([16eb1bd](https://github.com/voidcorp-core/void-harness/commit/16eb1bdc7c30ae795a1dba50d8d312690b3f0300))
+* **hooks:** normalize absolute tool paths against the project root ([#62](https://github.com/voidcorp-core/void-harness/issues/62)) ([73c65a1](https://github.com/voidcorp-core/void-harness/commit/73c65a1baf3a09563ad04b7ced2fc69861703119))
+* **hooks:** rewrite no-as-cast-grep in POSIX ERE, not PCRE ([#64](https://github.com/voidcorp-core/void-harness/issues/64)) ([e3b71eb](https://github.com/voidcorp-core/void-harness/commit/e3b71eb1b965bd0dc0e91d3c9fda58971a395a68))
+
+
+### Performance Improvements
+
+* **harness:** token-frugality audit + tier type-design-analyzer/estimator down (DEV-403) ([ac660dd](https://github.com/voidcorp-core/void-harness/commit/ac660ddde3189427ca642a5f3e8b9a436b6e2755))
+* **harness:** token-frugality audit + tier type-design-analyzer/estimator down (DEV-403) ([143e395](https://github.com/voidcorp-core/void-harness/commit/143e395fb2b715364a16104a132f8ec83f7cfbbe))
+
 ## [0.15.0](https://github.com/voidcorp-core/void-harness/compare/v0.14.0...v0.15.0) (2026-07-06)
 
 
