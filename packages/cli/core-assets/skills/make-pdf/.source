@@ -1,0 +1,9 @@
+Sources for `make-pdf` skill (see plans/skill-audits/make-pdf.md for full audit):
+
+- gstack /make-pdf (v1.57.10, ~/.claude/skills/gstack/make-pdf/, a compiled TS tool) — REBUILT (DEV-391): kept the load-bearing pipeline (marked md->HTML, the HTML sanitizer for untrusted embedded HTML, the print-CSS design intent: metric-compatible sans stack for cross-OS diacritics, @page margins, break-avoid). REJECTED: its dependency on the gstack browse daemon (browseClient.ts) — replaced by system Chrome `--headless=new --print-to-pdf`. The engine lives in apps/make-pdf/ (@voidcorp/make-pdf); this skill documents driving it.
+- Chrome headless docs — `--print-to-pdf` + `--no-pdf-header-footer` flags (source-driven: the CLI flag suffices, no Puppeteer/Playwright per YAGNI).
+- marked (^14) — md->HTML parser, the one added dependency (justified: robust table/code parsing; gstack used it too).
+
+Strategy: rebuild (REBUILD class in the cartography). Distilled the pipeline + CSS intent, re-authored lean in TS with unit tests (render + sanitizer + print-css + chrome detection) and a dogfood PDF. Deferred to a follow-up (need Paged.js or CDP, which the CLI flag does not expose): page-number footers, cover pages, auto TOC.
+
+No companion hooks; the skill documents the apps/make-pdf CLI.

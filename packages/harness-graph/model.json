@@ -755,6 +755,17 @@
       "activation": "always"
     },
     {
+      "id": "skill:make-pdf",
+      "type": "skill",
+      "name": "make-pdf",
+      "description": "Turn a markdown file into a publication-quality PDF via system headless Chrome (--print-to-pdf), no gstack daemon. For signed deliverables (DECLIK audits). Use when a .md must become a clean PDF.",
+      "lines": 51,
+      "staticTokens": 868,
+      "pack": null,
+      "source": "packages/core/skills/make-pdf/SKILL.md",
+      "activation": "on-demand"
+    },
+    {
       "id": "skill:migrations-safety",
       "type": "skill",
       "name": "migrations-safety",

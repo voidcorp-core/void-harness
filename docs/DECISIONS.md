@@ -1679,3 +1679,26 @@ Load-bearing choices:
 Why: the history is already telling you where the debt and the recurring pain are; the retro is the discipline
 of listening on a cadence. Losing that at teardown would drop a real quality signal — but the gamification it
 was wrapped in was never the value.
+
+## 2026-07-10: rebuild make-pdf on system Chrome (no browse daemon), as apps/make-pdf + a lean skill (DEV-391)
+
+De-gstackification Vague 4 (epic DEV-383), REBUILD class. gstack `/make-pdf` produces the PDFs DECLIK signed
+deliverables depend on, but via the browse daemon. Rebuilt on the **system** Chrome headless print engine.
+
+- **Engine `apps/make-pdf/`** (`@voidcorp/make-pdf`): pure `render` (marked -> HTML), `print-css`, and
+  `chrome` (detection) modules + an impure CLI. `--headless=new --no-pdf-header-footer --print-to-pdf`, no
+  Puppeteer/Playwright (the CLI flag suffices — YAGNI, source-driven). 14 unit tests + a dogfood PDF.
+- **Kept the load-bearing parts** of the gstack source: the marked pipeline, the **HTML sanitizer** (untrusted
+  markdown is a real trust boundary — re-authored with the same coverage), and the print-CSS intent (a
+  metric-compatible sans stack that renders French diacritics on every OS; `@page` margins; `break-inside:
+  avoid` so tables/code never split). **Rejected** the daemon dependency and all gstack runtime. One added
+  dep: `marked@^14` (regular `pnpm add`, no lockfile hand-edit).
+- **v1 scope cut**: page-number footers, cover pages, and auto-TOC are deferred — Chrome's CLI `--print-to-pdf`
+  does not render `@page` margin-box counters (needs Paged.js or CDP). v1 renders clean, correctly-paginated
+  documents, which is the AC. Follow-up documented in the skill + audit note.
+
+Verified observed: dogfood produced a real 51 KB / 1-page PDF from a French sample (accents, €, table, code);
+no-Chrome path exits 1 with an explicit message; typecheck strict + 14 tests green.
+
+Why: make-pdf is load-bearing for revenue deliverables (DECLIK audits); losing it at teardown is not an option.
+The daemon was the only gstack coupling — swapping it for the system browser is the whole rebuild.

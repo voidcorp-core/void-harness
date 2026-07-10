@@ -1,0 +1,27 @@
+{
+  "name": "@voidcorp/make-pdf",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Turn a markdown file into a publication-quality PDF via system Chrome headless (--print-to-pdf). No browse daemon, no gstack. Distilled from gstack make-pdf.",
+  "bin": {
+    "make-pdf": "src/cli.ts"
+  },
+  "scripts": {
+    "make-pdf": "tsx src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "marked": "^14.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.9"
+  }
+}
