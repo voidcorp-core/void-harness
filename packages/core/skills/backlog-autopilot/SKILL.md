@@ -57,7 +57,7 @@ You (the main session) run this. It ends at the human confirmation gate; it neve
    blocked** by any still-open ticket. Gather for each: id, title, priority, board order,
    `dependsOn`.
 2. **Estimate the footprint** of each candidate — dispatch a **lightweight estimator
-   subagent** per ticket (a cheap model is fine):
+   subagent** per ticket (pin a cheap model — haiku; low confidence already routes safe):
 
    > Read ticket `<id>` (`<title>` + description). Predict the files/areas it will most
    > likely touch (e.g. `src/auth`, `db/migrations`). Flag `highRisk: true` if it plausibly
