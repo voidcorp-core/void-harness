@@ -131,6 +131,35 @@ Postgres enums are awkward to change. Use this checklist:
 5. **Open PR** with a "Deploy plan" section listing the migration's effect and required app code changes.
 6. **Deploy**: monitor `pg_stat_activity` for blocked queries; abort and rollback if writes back up.
 
+## Applying the migration: who runs `migrate`, and where
+
+Two environments, two owners. Never blur them.
+
+**Dev / local (the agent applies).** When a ticket ships a schema change, the migration must land in the dev/local DB *before* the test passes run — Drizzle infers types from the schema and the integration/E2E suite queries the real tables, so a stale DB either fails spuriously or (worse) passes against the wrong shape.
+
+```bash
+# after `pnpm db:generate` + hand-review of the SQL:
+pnpm db:migrate                                   # local Postgres / pglite
+# or against an ephemeral Neon dev branch (isolated, throwaway):
+neonctl branches create --name dev/$TICKET --parent main
+DATABASE_URL="$(neonctl connection-string dev/$TICKET)" pnpm db:migrate
+# then run the suite against that same DATABASE_URL
+```
+
+A Neon dev branch is the right target when the migration is lock-sensitive or needs realistic row counts (see `harness:migrations-safety` lock-impact dry run); pglite/local is enough for small tables. Delete the branch when the ticket lands.
+
+**Production (CI applies, never the agent).** The worker/session stops at a green branch. `drizzle-kit migrate` against prod runs in a gated CI job on merge — a human-approved GitHub Actions step, never a local command and never on push to a feature branch:
+
+```yaml
+# .github/workflows/deploy.yml (excerpt) — runs after review + merge to main
+- name: Apply migrations
+  run: pnpm db:migrate
+  env:
+    DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+```
+
+This mirrors the `harness:migrations-safety` anti-rule "MUST NOT auto-apply migrations on push to main": prod DDL is a deploy decision, not a coding-cycle side effect.
+
 ## Composition
 
 - `harness:migrations-safety` — generic doctrine (this skill is the Drizzle concretization).
