@@ -373,6 +373,9 @@ edges:
   - { from: skill:ticket-runner, to: agent:doctrine-critic, kind: composes, evidence: "ticket-runner SKILL.md: Review pass composes agents doctrine-critic + silent-failure-hunter" }
   - { from: skill:ticket-runner, to: agent:silent-failure-hunter, kind: composes, evidence: "ticket-runner SKILL.md: Review pass composes agent silent-failure-hunter" }
   - { from: skill:ticket-runner, to: agent:type-design-analyzer, kind: composes, evidence: "ticket-runner SKILL.md: Architecture pass composes agents type-design-analyzer + doctrine-critic" }
+  - { from: skill:context-management, to: agent:code-explorer, kind: composes, evidence: "context-management SKILL.md: Delegate heavy investigation to fresh-context subagents — code-explorer is that read-only mapper" }
+  - { from: agent:migration-planner, to: skill:migrations-safety, kind: companion-of, evidence: "migration-planner: Read-only planner ... Complements migrations-safety" }
+  - { from: agent:migration-planner, to: skill:writing-plans, kind: routes-to, evidence: "migration-planner: Planning only ... routes execution to tdd/writing-plans" }
 
   # --- Hooks enforcing skill doctrine (enforces: mechanical guard for a skill's rule) ---
   - { from: hook:tdd-guard, to: skill:tdd, kind: enforces, evidence: "tdd-guard requires a test to drive every production change — enforces tdd (Iron Law)" }

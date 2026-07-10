@@ -1281,6 +1281,20 @@
   ],
   "edges": [
     {
+      "from": "agent:migration-planner",
+      "to": "skill:migrations-safety",
+      "kind": "companion-of",
+      "origin": "declared",
+      "evidence": "migration-planner: Read-only planner ... Complements migrations-safety"
+    },
+    {
+      "from": "agent:migration-planner",
+      "to": "skill:writing-plans",
+      "kind": "routes-to",
+      "origin": "declared",
+      "evidence": "migration-planner: Planning only ... routes execution to tdd/writing-plans"
+    },
+    {
       "from": "hook:anti-ai-slop-grep",
       "to": "skill:frontend-design",
       "kind": "enforces",
@@ -1594,6 +1608,13 @@
       "kind": "composes",
       "origin": "declared",
       "evidence": "commit-discipline SKILL.md: fix: Bug fix. Composes with systematic-debugging (the why = the root cause)"
+    },
+    {
+      "from": "skill:context-management",
+      "to": "agent:code-explorer",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "context-management SKILL.md: Delegate heavy investigation to fresh-context subagents — code-explorer is that read-only mapper"
     },
     {
       "from": "skill:context-management",
