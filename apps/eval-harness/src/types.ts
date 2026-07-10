@@ -16,6 +16,12 @@ export interface RunOutcome {
   readonly files: Readonly<Record<string, string>>;
   /** The parsed `git log -1` of the sandbox; undefined if the run made no commit. */
   readonly lastCommit: CommitInfo | undefined;
+  /**
+   * The agent's final conversational output (`claude -p`'s `result`). This is the
+   * signal for skills whose value is a DIAGNOSIS, not a file edit — brainstorming's
+   * pushback, security-audit's findings. Empty string when the run produced none.
+   */
+  readonly transcript: string;
   /** Populated when ok is false. */
   readonly error?: string;
 }
@@ -33,8 +39,65 @@ export interface ScoreResult {
   readonly signals: Readonly<Record<string, boolean>>;
 }
 
-/** Pure: turns an outcome into a score. No I/O, no LLM — deterministic where possible. */
-export type Scorer = (outcome: RunOutcome) => ScoreResult;
+/**
+ * Turns an outcome into a score. Deterministic-first: a plain function with no I/O
+ * is the backbone. It MAY be async (return a Promise) — the single seam through
+ * which a `judgeScorer` reaches an injected LLM judge, used ONLY when no
+ * deterministic check can observe the behavior (a conversational skill).
+ */
+export type Scorer = (outcome: RunOutcome) => ScoreResult | Promise<ScoreResult>;
+
+/** A per-skill rubric: the named criteria a judge scores a transcript against. */
+export interface JudgeGrid {
+  readonly criteria: readonly string[];
+}
+
+/** What the single-transcript judge is asked to rule on. */
+export interface JudgeInput {
+  readonly transcript: string;
+  readonly criteria: readonly string[];
+}
+
+/** The judge's ruling: a [0,1] score, per-criterion pass/fail, and a short reason. */
+export interface JudgeVerdict {
+  readonly score: number;
+  readonly signals: Readonly<Record<string, boolean>>;
+  readonly reason: string;
+}
+
+/**
+ * Port: an LLM judge over ONE transcript against a grid. The real adapter spawns a
+ * separate `claude -p`; tests inject a deterministic fake. Last resort only.
+ */
+export type Judge = (input: JudgeInput) => Promise<JudgeVerdict>;
+
+/** A blind A-vs-B comparison of two transcripts on the same fixture + grid. */
+export interface HeadToHeadInput {
+  readonly a: string;
+  readonly b: string;
+  readonly criteria: readonly string[];
+}
+
+/** The blind judge names a winner (or a tie) with a reason — never told which is which. */
+export interface HeadToHeadVerdict {
+  readonly winner: 'A' | 'B' | 'tie';
+  readonly reason: string;
+}
+
+/** Port: a blind pairwise judge. Real adapter = `claude -p`; tests inject a fake. */
+export type HeadToHeadJudge = (input: HeadToHeadInput) => Promise<HeadToHeadVerdict>;
+
+/** The head-to-head comparison result — does the distillate match/beat the source? */
+export interface HeadToHeadReport {
+  readonly skill: string;
+  readonly title: string;
+  readonly runs: number;
+  /** Wins for condition A (the distillate) and B (the source), plus ties. */
+  readonly aWins: number;
+  readonly bWins: number;
+  readonly ties: number;
+  readonly verdict: 'distillate-better' | 'source-better' | 'tie';
+}
 
 /**
  * Port: execute ONE sandbox run for a condition and return its outcome. The real
@@ -78,4 +141,11 @@ export interface EvalCase {
   readonly fixture: Readonly<Record<string, string>>;
   /** Deterministic-first scorer over the run outcome. */
   readonly scorer: Scorer;
+  /**
+   * Optional rubric for a conversational skill whose value is not observable in
+   * files. When set, the CLI builds a `judgeScorer(realJudge, grid)` — the last
+   * resort. A case has EITHER a deterministic scorer OR a judge grid as its primary
+   * signal; when both are present the judge grid wins for the report.
+   */
+  readonly judge?: JudgeGrid;
 }

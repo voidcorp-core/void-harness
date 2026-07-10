@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { runEval } from './runner.js';
-import type { EvalCase, RunOnce, RunOutcome, Scorer } from './types.js';
+import { runEval, runHeadToHead } from './runner.js';
+import type { EvalCase, HeadToHeadJudge, RunOnce, RunOutcome, Scorer } from './types.js';
 
 // A scorer that reads a numeric score the fake outcome carries in a file, so a
 // test can script per-run scores precisely without depending on real scorers.
@@ -14,11 +14,40 @@ const evalCase = (scorer: Scorer = passthroughScorer): EvalCase => ({
   scorer,
 });
 
+// A runOnce that tags the transcript by which body it was given, so a head-to-head
+// test can trace which side each transcript came from through the blind swap.
+const taggingRunOnce: RunOnce = ({ skillBody }) =>
+  Promise.resolve({ ok: true, costUsd: 0, files: {}, lastCommit: undefined, transcript: skillBody ?? '?' });
+
+// A blind judge that (unknowingly) always prefers whichever side is the given tag.
+const judgePreferring =
+  (winnerTag: string): HeadToHeadJudge =>
+  ({ a, b }) =>
+    Promise.resolve({ winner: a === winnerTag ? 'A' : b === winnerTag ? 'B' : 'tie', reason: 'test' });
+
+describe('runHeadToHead', () => {
+  const meta = { skill: 'brainstorming', title: 'pressure-test' };
+  const grid = { criteria: ['x'] };
+
+  it('un-blinds the position swap: the distillate wins every run when it is judged better', async () => {
+    const r = await runHeadToHead(meta, 'DISTILLATE', 'SOURCE', taggingRunOnce, judgePreferring('DISTILLATE'), grid, 4);
+    expect({ a: r.aWins, b: r.bWins, t: r.ties }).toEqual({ a: 4, b: 0, t: 0 });
+    expect(r.verdict).toBe('distillate-better');
+  });
+
+  it('attributes source wins correctly across swapped indices', async () => {
+    const r = await runHeadToHead(meta, 'DISTILLATE', 'SOURCE', taggingRunOnce, judgePreferring('SOURCE'), grid, 4);
+    expect({ a: r.aWins, b: r.bWins, t: r.ties }).toEqual({ a: 0, b: 4, t: 0 });
+    expect(r.verdict).toBe('source-better');
+  });
+});
+
 const outcome = (score: number, over: Partial<RunOutcome> = {}): RunOutcome => ({
   ok: true,
   costUsd: 0.01,
   files: { score: String(score) },
   lastCommit: undefined,
+  transcript: '',
   ...over,
 });
 

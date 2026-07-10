@@ -7,6 +7,7 @@ const outcome = (over: Partial<RunOutcome> = {}): RunOutcome => ({
   costUsd: 0,
   files: {},
   lastCommit: undefined,
+  transcript: '',
   ...over,
 });
 

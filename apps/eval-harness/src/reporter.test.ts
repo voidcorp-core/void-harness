@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { formatReport } from './reporter.js';
-import type { EvalReport } from './types.js';
+import { formatHeadToHead, formatReport } from './reporter.js';
+import type { EvalReport, HeadToHeadReport } from './types.js';
 
 const report: EvalReport = {
   skill: 'commit-discipline',
@@ -21,5 +21,27 @@ describe('formatReport', () => {
     expect(out).toContain('with skill');
     expect(out).toContain('without skill');
     expect(out).toContain('$0.22');
+  });
+});
+
+describe('formatHeadToHead', () => {
+  const h2h: HeadToHeadReport = {
+    skill: 'brainstorming',
+    title: 'pressure-test',
+    runs: 4,
+    aWins: 3,
+    bWins: 1,
+    ties: 0,
+    verdict: 'distillate-better',
+  };
+
+  it('renders the skill, verdict and the distillate/source/tie counts', () => {
+    const out = formatHeadToHead(h2h);
+    expect(out).toContain('brainstorming');
+    expect(out).toContain('distillate-better');
+    expect(out).toContain('distillate wins');
+    expect(out).toContain('source wins');
+    // the counts row: 3 distillate | 1 source | 0 ties
+    expect(out).toContain('| 3 | 1 | 0 |');
   });
 });
