@@ -37,7 +37,7 @@
 | setup-browser-cookies | DEFERRED | DEV-390 browser family (Vague 4) |
 | open-gstack-browser | DEFERRED | DEV-390 browser family (Vague 4); else DROP with `browse` |
 | make-pdf | VENDORED | `apps/make-pdf` (marked + puppeteer-core, system Chrome, page-number footers) + `harness:make-pdf` skill (DEV-391, merged) |
-| devex-review | DEFERRED | **DEV-398** — live DX audit; methodology exists in `plan-review` DevEx lens, live-surface audit needs a home |
+| devex-review | VENDORED | `harness:devex-audit` (audit ceiling: measured TTHW, error-path tracing, evidence-backed scorecard) (DEV-398); live browser driver → Vague 4 |
 | ios-qa | KEEP-EXTERNAL / DEFERRED | ADR-0001 (defer until first iOS project); snapshot before Vague 6 teardown |
 | ios-fix | KEEP-EXTERNAL / DEFERRED | ADR-0001 |
 | ios-design-review | KEEP-EXTERNAL / DEFERRED | ADR-0001 |
@@ -72,13 +72,13 @@
 
 ## Summary
 
-- **VENDORED** (merged, Vagues 1-3): 14 gstack skills → 4 new harness skills (`security-audit`, `plan-review`, `ui-review`, `retrospective`) + folds into 7 existing skills. `learn` is a 15th, covered by `learning-capture`/`void-audit`.
-- **DEFERRED** (open tickets): 8 — the browser family (`qa`, `qa-only`, `browse`, `scrape`, `setup-browser-cookies`, `open-gstack-browser`) → DEV-390; `make-pdf` → DEV-391; `devex-review` → DEV-398. All Vague 4 / follow-up.
-- **KEEP-EXTERNAL** (ADRs, proposed): 9 — iOS cluster (5) → ADR-0001; gbrain (4) → ADR-0002.
+- **VENDORED** (merged, Vagues 1-3 + DEV-398): 15 gstack skills → 5 new harness skills (`security-audit`, `plan-review`, `ui-review`, `retrospective`, `devex-audit`) + folds into 7 existing skills. `learn` is a 16th, covered by `learning-capture`/`void-audit`.
+- **DEFERRED** (open tickets): 7 — the browser family (`qa`, `qa-only`, `browse`, `scrape`, `setup-browser-cookies`, `open-gstack-browser`) → DEV-390; `make-pdf` → DEV-391 (merged). All Vague 4 / follow-up.
+- **KEEP-EXTERNAL** (ADRs, accepted): 9 — iOS cluster (5) → ADR-0001; gbrain (4) → ADR-0002.
 - **DROP** (documented): 20 — harness duplicates, gstack runtime, deploy family (vercel), gstack-specific output.
 
 **No silent gaps.** Every gstack capability is vendored, ticketed, ADR'd, or explicitly dropped. The one real
-capability that lacked a home at audit time (`devex-review`, the live DX audit) is now ticketed (DEV-398). The
+capability that lacked a home at audit time (`devex-review`, the live DX audit) is now vendored as `harness:devex-audit` (DEV-398; live browser driver → Vague 4). The
 "deploy family" (`land-and-deploy`, `setup-deploy`, `canary`) is deliberately out of harness scope — deploy is
 the vercel plugin's domain; if VoidCorp ever wants harness-native deploy, that is a new initiative, not a gstack
 gap.

@@ -81,7 +81,7 @@ Scope-gated: no API / CLI / SDK / library / docs surface → skip. Audits the de
 - **Upgrade path**: blast radius, deprecation warnings, codemods, semver honored.
 - **Dev environment**: LSP autocomplete, non-interactive CI, types, hot reload, cross-platform.
 
-**Output**: a DX scorecard (each dimension Score/Prior/Trend + TTHW tier + competitive rank); TTHW > 10 min is blocking; any dimension < 6 is critical DX debt.
+**Output**: a DX scorecard (each dimension Score/Prior/Trend + TTHW tier + competitive rank); TTHW > 10 min is blocking; any dimension < 6 is critical DX debt. This lens judges the *plan's promises*; once the surface ships, `harness:devex-audit` measures the reality against them.
 
 ---
 
@@ -103,7 +103,7 @@ Between phases, auto-decide only the safe class; escalate the rest:
 - **Not `brainstorming`**: brainstorming pressure-tests the *idea* (is there demand?); plan-review critiques the *written plan* (is it the right shape, buildable, complete?). Different artifact, different question.
 - **Not `code-review`**: that reviews a *diff*; this reviews a *plan* before any code exists.
 - **Not `doctrine-critic`**: that judges a diff against VoidCorp doctrine; this critiques a plan across product/eng/design/DX lenses.
-- **Composes with `frontend-design` / `harness:ui-review`** (the Design lens defers UI build-craft and audit to them) and `security-guidance` / `harness:security-audit` (the Eng lens routes a deep security concern there).
+- **Composes with `frontend-design` / `harness:ui-review`** (the Design lens defers UI build-craft and audit to them), `harness:devex-audit` (the DevEx lens's shipped-surface counterpart — this judges the plan, that measures the deployed reality), and `security-guidance` / `harness:security-audit` (the Eng lens routes a deep security concern there).
 
 ---
 

@@ -194,6 +194,7 @@ Before a public interface is considered designed:
 - **`functional`**: `Result<T, E>` is the boundary return; the error set is a closed ADT.
 - **`security-guidance`**: external input parsed/validated at the boundary (Zod); errors carry no sensitive payload.
 - **`async-safety`**: idempotency keys and retry semantics for network mutations; pagination for growable reads.
+- **`devex-audit`**: this skill is the build-time floor (design a minimal, misuse-resistant, versioned contract); `devex-audit` is the audit-time ceiling that measures the shipped contract's developer experience (TTHW, error paths, docs, upgrade) after it deploys.
 
 ---
 
