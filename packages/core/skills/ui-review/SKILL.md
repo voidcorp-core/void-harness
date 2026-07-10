@@ -57,9 +57,9 @@ Once findings exist, drive a focused refine rather than a vague "make it better"
 
 Each is a scoped edit driven by the critique/audit findings, not a rewrite.
 
-## Live browser audit — deferred (Vague 4)
+## Live browser audit — via `harness:qa`
 
-The live layer — screenshotting the running UI, in-browser variant iteration, the atomic-fix loop, the multi-variant comparison board — is deliberately out of this prose skill. It belongs to the `claude-in-chrome` MCP re-point (epic DEV-383, Vague 4). Until then, review from the code and note any check that needs a running browser as "requires live audit — out of scope."
+The live layer — screenshotting the running UI, driving interactions, checking states in a real browser — is not in this prose skill; the browser home for it is `harness:qa` (the claude-in-chrome MCP re-point, DEV-390). When a check needs a running browser, compose `harness:qa` (its visual pass invokes this skill's methodology against the live screenshots) rather than reviewing from code alone. The multi-variant comparison board remains out of scope (forge).
 
 ## Composition & boundaries
 

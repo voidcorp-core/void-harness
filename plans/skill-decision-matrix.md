@@ -270,6 +270,13 @@ Turns a finished brainstorm, plan, or design decision into a tracker ticket an i
 - **Cannot decide**: the contract's shape (api-and-interface-design owns it); it does not drive a browser (web-only checks deferred to Vague 4).
 - **Composes with**: `plan-review` (its DevEx lens is the plan-time counterpart), `api-and-interface-design` (build floor to this audit ceiling), `ui-review` (sibling audit skill, different subject). Vendored from gstack devex-review (DEV-398); live-browser audit deferred to Vague 4.
 
+### `qa`
+
+- **Wins**: live browser QA of a RUNNING web app (drive a real browser via claude-in-chrome, explore every state, find bugs, atomic fix loop, evidence report). The default post-change "does it actually work" pass; `--report-only` for a no-fix audit.
+- **Loses to**: `tdd`/`testing` on authoring a unit/E2E suite (this composes them only for the regression test that locks a fix); `ui-review` on visual-craft judgment (this composes it for the visual pass).
+- **Cannot decide**: visual design bar (defers to `ui-review`); it does not QA a dev-facing API/CLI/SDK surface (that is `devex-audit`).
+- **Composes with**: `ui-review` (visual pass on live screenshots), `tdd`/`testing` (regression test in the fix loop). Vendored from gstack qa/qa-only + design-review live half, re-pointed onto the claude-in-chrome MCP (DEV-390). Assumed limit: not headless — no cloud/cron QA.
+
 ---
 
 ## Cross-cutting boundary rules

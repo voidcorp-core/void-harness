@@ -1096,6 +1096,17 @@
       "activation": "on-demand"
     },
     {
+      "id": "skill:qa",
+      "type": "skill",
+      "name": "qa",
+      "description": "Live browser QA of a running web app via the claude-in-chrome MCP: systematic exploration, edge/error/empty states, atomic fix loop, evidence-backed report. Report-only mode available.",
+      "lines": 105,
+      "staticTokens": 2544,
+      "pack": null,
+      "source": "packages/core/skills/qa/SKILL.md",
+      "activation": "on-demand"
+    },
+    {
       "id": "skill:refactoring",
       "type": "skill",
       "name": "refactoring",
@@ -1231,7 +1242,7 @@
       "name": "ui-review",
       "description": "Audit and polish an EXISTING UI: the AI-slop test, heuristic critique, technical audit (contrast/a11y/responsive/perf), refine modes. The audit ceiling to frontend-design's build floor.",
       "lines": 89,
-      "staticTokens": 1754,
+      "staticTokens": 1775,
       "pack": null,
       "source": "packages/core/skills/ui-review/SKILL.md",
       "activation": "on-demand"
@@ -1809,6 +1820,27 @@
       "evidence": "pack-server/server-action SKILL.md description: Composes with security-guidance, async-safety."
     },
     {
+      "from": "skill:qa",
+      "to": "skill:tdd",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "qa SKILL.md: the regression test in the fix loop is authored per tdd/testing discipline."
+    },
+    {
+      "from": "skill:qa",
+      "to": "skill:testing",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "qa SKILL.md: a regression test that reproduces the bug (compose harness:tdd/harness:testing — assert behavior, not it renders)."
+    },
+    {
+      "from": "skill:qa",
+      "to": "skill:ui-review",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "qa SKILL.md: for visual/interaction judgment on the live screenshots, compose harness:ui-review. This skill drives the browser; ui-review supplies the craft bar."
+    },
+    {
       "from": "skill:refactoring",
       "to": "skill:typescript-strict",
       "kind": "composes",
@@ -1898,6 +1930,13 @@
       "kind": "composes",
       "origin": "declared",
       "evidence": "ticket-runner SKILL.md: Architecture pass composes agents type-design-analyzer + doctrine-critic"
+    },
+    {
+      "from": "skill:ui-review",
+      "to": "skill:qa",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "ui-review SKILL.md: the browser home for the live layer is harness:qa; compose harness:qa rather than reviewing from code alone."
     },
     {
       "from": "skill:verification-before-completion",

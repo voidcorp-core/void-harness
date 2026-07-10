@@ -74,6 +74,24 @@ edges:
     kind: companion-of
     evidence: "devex-audit SKILL.md: Not ui-review — that audits the visual/interaction UI; this audits the developer journey. Different subject (sibling audit skills)."
 
+  # --- qa (live browser QA via claude-in-chrome) ---
+  - from: skill:qa
+    to: skill:ui-review
+    kind: composes
+    evidence: "qa SKILL.md: for visual/interaction judgment on the live screenshots, compose harness:ui-review. This skill drives the browser; ui-review supplies the craft bar."
+  - from: skill:qa
+    to: skill:testing
+    kind: composes
+    evidence: "qa SKILL.md: a regression test that reproduces the bug (compose harness:tdd/harness:testing — assert behavior, not it renders)."
+  - from: skill:qa
+    to: skill:tdd
+    kind: composes
+    evidence: "qa SKILL.md: the regression test in the fix loop is authored per tdd/testing discipline."
+  - from: skill:ui-review
+    to: skill:qa
+    kind: composes
+    evidence: "ui-review SKILL.md: the browser home for the live layer is harness:qa; compose harness:qa rather than reviewing from code alone."
+
   # --- async-safety ---
   - from: skill:async-safety
     to: skill:security-guidance

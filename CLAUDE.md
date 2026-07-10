@@ -75,8 +75,9 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 | Adding a skill                           | `superpowers:writing-skills` (until vendored)                                        |
 | Building or auditing a UI                | `harness:frontend-design` (build) + `harness:ui-review` (audit/critique/polish)      |
 | Auditing a live dev surface (API/CLI/SDK/docs) | `harness:devex-audit` (measured TTHW, error-path tracing, evidence-backed DX scorecard) |
+| Live browser QA of a running web app     | `harness:qa` (claude-in-chrome MCP: explore, states, atomic fix loop, report; `--report-only` for no-fix) |
 | Periodic engineering retrospective       | `harness:retrospective` (window signals → improvement decisions → learning-capture)  |
-| QA / ship                                | gstack (`/qa`, `/ship`) — live-browser QA until Vague 4                              |
+| Ship                                     | gstack (`/ship`)                                                                    |
 
 ## On gstack and superpowers
 

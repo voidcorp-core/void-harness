@@ -26,16 +26,16 @@
 | ship | VENDORED | `ticket-runner` + `verification-before-completion` (DEV-388); VERSION/CHANGELOG → release-please |
 | spec | VENDORED | `brainstorming` (precision) + `writing-plans` (executability gate) (DEV-388) |
 | investigate | VENDORED | `systematic-debugging` (DEV-388) |
-| design-review | VENDORED | `ui-review` (audit) + `frontend-design` (Krug) (DEV-389); live driver → Vague 4 |
+| design-review | VENDORED | `ui-review` (audit) + `frontend-design` (Krug) (DEV-389); live visual QA → `harness:qa` visual pass (DEV-390) |
 | design-consultation | VENDORED | `frontend-design` + `ui-review`; DESIGN.md contract kept (DEV-389); rosters → forge |
 | design-shotgun | VENDORED | `frontend-design`/`ui-review` + forge (DEV-389); comparison board → Vague 4 |
 | retro | VENDORED | `retrospective`, gamification dropped (DEV-396) |
-| qa | DEFERRED | DEV-390 — QA methodology → claude-in-chrome MCP (Vague 4) |
-| qa-only | DEFERRED | DEV-390 (Vague 4) |
-| browse | DEFERRED | DEV-390 browser family → claude-in-chrome MCP (Vague 4) |
-| scrape | DEFERRED | DEV-390 browser family (claude-in-chrome `get_page_text`/`read_page`) |
-| setup-browser-cookies | DEFERRED | DEV-390 browser family (Vague 4) |
-| open-gstack-browser | DEFERRED | DEV-390 browser family (Vague 4); else DROP with `browse` |
+| qa | VENDORED | `harness:qa` — QA methodology re-pointed onto claude-in-chrome MCP (DEV-390) |
+| qa-only | VENDORED | `harness:qa --report-only` mode (DEV-390) |
+| browse | DROP | daemon not ported; QA methodology re-pointed to claude-in-chrome via `harness:qa` (DEV-390); daemon removed at Vague 6 teardown |
+| scrape | DROP | claude-in-chrome `get_page_text`/`read_page` cover it natively; no dedicated skill (DEV-390) |
+| setup-browser-cookies | DROP | claude-in-chrome uses the real logged-in Chrome; cookie import moot (DEV-390) |
+| open-gstack-browser | DROP | dropped with the browse daemon (DEV-390) |
 | make-pdf | VENDORED | `apps/make-pdf` (marked + puppeteer-core, system Chrome, page-number footers) + `harness:make-pdf` skill (DEV-391, merged) |
 | devex-review | VENDORED | `harness:devex-audit` (audit ceiling: measured TTHW, error-path tracing, evidence-backed scorecard) (DEV-398); live browser driver → Vague 4 |
 | ios-qa | KEEP-EXTERNAL / DEFERRED | ADR-0001 (defer until first iOS project); snapshot before Vague 6 teardown |
@@ -72,13 +72,14 @@
 
 ## Summary
 
-- **VENDORED** (merged, Vagues 1-3 + DEV-398): 15 gstack skills → 5 new harness skills (`security-audit`, `plan-review`, `ui-review`, `retrospective`, `devex-audit`) + folds into 7 existing skills. `learn` is a 16th, covered by `learning-capture`/`void-audit`.
-- **DEFERRED** (open tickets): 7 — the browser family (`qa`, `qa-only`, `browse`, `scrape`, `setup-browser-cookies`, `open-gstack-browser`) → DEV-390; `make-pdf` → DEV-391 (merged). All Vague 4 / follow-up.
+- **VENDORED** (merged, Vagues 1-4): 17 gstack skills → 6 new harness skills (`security-audit`, `plan-review`, `ui-review`, `retrospective`, `devex-audit`, `qa`) + folds into 7 existing skills. `qa-only` folds into `qa` as `--report-only`; the live half of `design-review` folds into `qa`'s visual pass. `learn` is covered by `learning-capture`/`void-audit`.
+- **DEFERRED** (open tickets): 0 — `make-pdf` (DEV-391) and the browser family (DEV-390) are both merged. No open coverage ticket remains; only the Vague 6 teardown (DEV-395) is left, which removes rather than adds.
 - **KEEP-EXTERNAL** (ADRs, accepted): 9 — iOS cluster (5) → ADR-0001; gbrain (4) → ADR-0002.
-- **DROP** (documented): 20 — harness duplicates, gstack runtime, deploy family (vercel), gstack-specific output.
+- **DROP** (documented): 24 — harness duplicates, gstack runtime, deploy family (vercel), gstack-specific output, and the browser daemon family (`browse`, `scrape`, `setup-browser-cookies`, `open-gstack-browser`) now that the QA methodology runs on the claude-in-chrome MCP.
 
-**No silent gaps.** Every gstack capability is vendored, ticketed, ADR'd, or explicitly dropped. The one real
-capability that lacked a home at audit time (`devex-review`, the live DX audit) is now vendored as `harness:devex-audit` (DEV-398; live browser driver → Vague 4). The
+**No silent gaps.** Every gstack capability is vendored, folded, ADR'd, or explicitly dropped. The last real
+capability gaps at audit time — `devex-review` (live DX audit) and the QA browser family — are now vendored as
+`harness:devex-audit` (DEV-398) and `harness:qa` (DEV-390, on the claude-in-chrome MCP). The
 "deploy family" (`land-and-deploy`, `setup-deploy`, `canary`) is deliberately out of harness scope — deploy is
 the vercel plugin's domain; if VoidCorp ever wants harness-native deploy, that is a new initiative, not a gstack
 gap.
