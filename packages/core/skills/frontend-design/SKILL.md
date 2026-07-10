@@ -24,7 +24,7 @@ Every UI is designed mobile-first AND must reach first-class quality on both vie
 - **Never the reverse.** No "desktop-first then squeeze for mobile."
 - **Both viewports screenshot-reviewed before merge** — `viewport-screenshot-gate` hook (shared with `accessibility-first`).
 - **No mobile-only / desktop-only features** without an explicit decision logged in `docs/DECISIONS.md`.
-- **Performance budget enforced for both**: LCP < 2.5s on slow 4G mobile AND on desktop fiber (composes with `benchmark` in gstack).
+- **Performance budget enforced for both**: LCP < 2.5s on slow 4G mobile AND on desktop fiber (measure with the project's perf tooling — Lighthouse CI, WebPageTest, bundlesize).
 
 ---
 
