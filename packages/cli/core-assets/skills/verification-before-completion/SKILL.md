@@ -49,7 +49,7 @@ Items 6, 7, 8 only fire when the change touches their domain.
 |---|---|
 | "Tests should pass" | NOT observed. Run them again, then check. |
 | "Linting was fine earlier" | Not observed since last change. Re-run. |
-| "Mobile is probably the same" | NOT observed. Screenshot or `gstack /browse` on a phone viewport. |
+| "Mobile is probably the same" | NOT observed. Screenshot via `harness:qa` (claude-in-chrome) on a phone viewport. |
 | "Sentry is set up, so observability is handled" | NOT for this code path. Did you add the breadcrumb? The log? |
 | "The hook ran before, why check" | Did you edit since? If yes, run again. |
 

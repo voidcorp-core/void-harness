@@ -28,7 +28,7 @@ Seven hard rules. **Any PR violating these is blocked.**
 3. **No responsibility overlap > 30%** between two skills. If detected, fuse or clarify boundary.
 4. **Frontmatter `description` ≤ 200 chars**, precise enough that auto-discovery picks the right skill from the description alone.
 5. **Hooks ≤ 100 lines**, shell or simple TS. No DSL maison, no framework. Shared logic goes in a sourced, `_`-prefixed hook library (e.g. `hooks/_hooklib.sh`), which is exempt from the per-hook cap.
-6. **Agents have an explicit scope**. `doctrine-critic` judges code against doctrine — it does not also do QA, design, or shipping (those stay in gstack).
+6. **Agents have an explicit scope**. `doctrine-critic` judges code against doctrine — it does not also do QA, design, or shipping (those are their own skills/workflows).
 7. **Skill tests pass in CI.** A broken skill blocks the release.
 
 ## Sourcing discipline (no verbatim vendoring)
@@ -77,11 +77,11 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 | Auditing a live dev surface (API/CLI/SDK/docs) | `devex-audit` skill (measured TTHW, error-path tracing, evidence-backed DX scorecard) |
 | Live browser QA of a running web app | `qa` skill (claude-in-chrome MCP: explore, states, atomic fix loop, report; `--report-only` for no-fix) |
 | Periodic engineering retrospective | `retrospective` skill (window signals → improvement decisions → learning-capture) |
-| Ship | gstack (`/ship`); Codex can invoke gstack commands via its shell tool |
+| Ship a PR | `ticket-runner` pass 11 + `commit-discipline` + `gh` (release-please owns versions/changelog) |
 
 ## On gstack and superpowers (Codex perspective)
 
-- **gstack** is installed globally and provides slash commands callable from any agent shell. Use it for QA, design, browser, ship. The harness does **not** reinvent these workflows.
+- **gstack** stays installed globally pending the Vague 6 teardown (DEV-395). QA, design, browser, and ship are now harness-native (`qa`, `ui-review`/`frontend-design`, claude-in-chrome, `ticket-runner`+gh); what remains gstack-provided until teardown is tracked in the gstack-coverage-matrix.
 - **superpowers** is a Claude Code-specific skill bundle. Codex consumers don't interact with it directly; the harness's adapted equivalents (`brainstorming`, `writing-plans`, `tdd`, `systematic-debugging`, `verification-before-completion`, plus `ticket-runner`/`ticket-writer`) target both runtimes and are preferred over the superpowers originals (see the routing table). Document the adaptation in `plans/skill-audits/`.
 
 ## Self-evolution principle

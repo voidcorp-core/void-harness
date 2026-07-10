@@ -188,7 +188,7 @@ The single in-session backlog drainer; consolidates the former `backlog-batch` a
 - **Wins**: an explicitly launched run draining a Linear pool into clean PRs — today the **attended** parallel burst (several **independent** tickets, each in its own worktree subagent, reconciled into one integration PR); cluster auto-detection, an adaptive per-ticket cycle, multi-cluster autonomy and risk-gated auto-merge are being added. Opt-in only; needs the Workflow tool.
 - **Loses to**: any single-ticket interactive session; human judgment on the plan and on merge.
 - **Cannot decide**: whether two tickets truly overlap (the footprint is *estimated*; the reconciliation subagent + full suite are the backstop); whether to merge a risky cluster or a stack root (human, unless `--auto-merge` + green CI on a low-risk cluster).
-- **Composes with**: the Workflow tool (substrate), `using-git-worktrees`, the craftsman cycle inside each worker (`brainstorming`, `source-driven-development`, `writing-plans`, `tdd`, `verification-before-completion`, `commit-discipline`, `learning-capture`, `context-management`); `ticket-writer` upstream (which may ingest a `source: forge` spec), `/code-review` + `/ship` downstream (human-owned merge).
+- **Composes with**: the Workflow tool (substrate), `using-git-worktrees`, the craftsman cycle inside each worker (`brainstorming`, `source-driven-development`, `writing-plans`, `tdd`, `verification-before-completion`, `commit-discipline`, `learning-capture`, `context-management`); `ticket-writer` upstream (which may ingest a `source: forge` spec), `code-review` + the ship step (`ticket-runner` pass 11 + gh) downstream (human-owned merge).
 
 ### `ticket-runner`
 
@@ -286,7 +286,7 @@ These are global rules that apply across all skills:
 1. **No skill modifies architectural decisions logged in DECISIONS.md without escalating.** The architecture skills `propose`; the user `decides` and records.
 2. **No skill writes to project CLAUDE.md.** Learnings go to `learnings/proposed/`. Only explicit promotion (via `voidcorp:learnings-promote` or manual edit) updates doctrine.
 3. **No skill silently overrides another.** If a skill detects it should defer, it announces "deferring to `X` because Y" and invokes X.
-4. **No skill claims completion of work that belongs to gstack** (QA, design, ship, browser interactions). These are explicitly out of scope.
+4. **No skill claims completion of work owned by a dedicated skill/workflow.** QA (`harness:qa`), design (`frontend-design`/`ui-review`), ship (`ticket-runner` pass 11 + gh), and browser interactions (claude-in-chrome) each have an explicit home; a general skill or agent does not silently do their job.
 
 ---
 
