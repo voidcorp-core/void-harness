@@ -627,8 +627,8 @@
       "type": "skill",
       "name": "backlog-autopilot",
       "description": "Opt-in parallel drain of independent Linear tickets, each in its own worktree subagent, reconciled into one integration PR gated by the full suite. Use when clearing independent tickets at once.",
-      "lines": 227,
-      "staticTokens": 3815,
+      "lines": 240,
+      "staticTokens": 4058,
       "pack": null,
       "source": "packages/core/skills/backlog-autopilot/SKILL.md"
     },
@@ -1204,8 +1204,8 @@
       "type": "skill",
       "name": "ticket-runner",
       "description": "Use when taking a single ticket from ready through shipped at expert-team quality. Triggers on starting a ticket, taking an issue, or picking up a backlog item to execute.",
-      "lines": 85,
-      "staticTokens": 2066,
+      "lines": 94,
+      "staticTokens": 2358,
       "pack": null,
       "source": "packages/core/skills/ticket-runner/SKILL.md"
     },

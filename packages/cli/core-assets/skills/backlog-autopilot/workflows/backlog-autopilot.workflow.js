@@ -169,6 +169,22 @@ Steps:
 Return: { status, pr, conflictsResolved, detail }.`
 }
 
+// Model tier per worker (DEV-404): a light ticket's cycle is mostly mechanical, so its
+// worker runs a cheaper model at medium effort; anything high-stakes OR unknown keeps the
+// full-strength session model at high effort. The launcher attaches the signal from its
+// footprint estimate (`tier: 'light'`, or `highRisk`/`areas`/`confidence`); ABSENCE of a
+// signal => top-tier (safe by default, matching "unknown footprint => conservative"). This
+// never tiers a judgment-heavy ticket down: the predicate drives the tier, so no quality loss.
+const SENSITIVE_AREA = /auth|security|secret|migration|payment|billing|rls|tenant|crypto/i
+function workerTier(t) {
+  const light =
+    t.tier === 'light' ||
+    (t.highRisk === false &&
+      (t.confidence === undefined || t.confidence >= 0.6) &&
+      !(Array.isArray(t.areas) && t.areas.some((a) => SENSITIVE_AREA.test(String(a)))))
+  return light ? { model: 'sonnet', effort: 'medium' } : { effort: 'high' }
+}
+
 // Order the sequential queue so a dependency is worked before its dependents. The
 // launcher passes `order` (from cluster-order); fall back to the given order.
 function orderedSequential(cluster) {
@@ -189,6 +205,7 @@ async function runCluster(cluster) {
         phase: 'Workers',
         schema: WORKER_SCHEMA,
         isolation: 'worktree',
+        ...workerTier(t),
       }),
     ),
   )
@@ -200,6 +217,7 @@ async function runCluster(cluster) {
       phase: 'Workers',
       schema: WORKER_SCHEMA,
       isolation: 'worktree',
+      ...workerTier(t),
     })
     sequentialResults.push(r)
   }
