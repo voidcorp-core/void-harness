@@ -1,0 +1,25 @@
+{
+  "name": "@voidcorp/make-pdf",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Turn a markdown file into a publication-quality PDF: marked -> HTML -> puppeteer-core page.pdf() with page-number footers, on the system Chrome. No browse daemon, no gstack.",
+  "scripts": {
+    "make-pdf": "tsx src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "marked": "^14.1.0",
+    "puppeteer-core": "^23.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.9"
+  }
+}

@@ -36,7 +36,7 @@
 | scrape | DEFERRED | DEV-390 browser family (claude-in-chrome `get_page_text`/`read_page`) |
 | setup-browser-cookies | DEFERRED | DEV-390 browser family (Vague 4) |
 | open-gstack-browser | DEFERRED | DEV-390 browser family (Vague 4); else DROP with `browse` |
-| make-pdf | DEFERRED | DEV-391 — Chromium `--print-to-pdf` script (Vague 4) |
+| make-pdf | VENDORED | `apps/make-pdf` (marked + puppeteer-core, system Chrome, page-number footers) + `harness:make-pdf` skill (DEV-391, merged) |
 | devex-review | DEFERRED | **DEV-398** — live DX audit; methodology exists in `plan-review` DevEx lens, live-surface audit needs a home |
 | ios-qa | KEEP-EXTERNAL / DEFERRED | ADR-0001 (defer until first iOS project); snapshot before Vague 6 teardown |
 | ios-fix | KEEP-EXTERNAL / DEFERRED | ADR-0001 |

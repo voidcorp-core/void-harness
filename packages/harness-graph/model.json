@@ -755,6 +755,17 @@
       "activation": "always"
     },
     {
+      "id": "skill:make-pdf",
+      "type": "skill",
+      "name": "make-pdf",
+      "description": "Turn a markdown file into a publication-quality PDF — marked + puppeteer-core on the system Chrome, with page-number footers. No gstack daemon. For signed deliverables (DECLIK audits).",
+      "lines": 47,
+      "staticTokens": 793,
+      "pack": null,
+      "source": "packages/core/skills/make-pdf/SKILL.md",
+      "activation": "on-demand"
+    },
+    {
       "id": "skill:migrations-safety",
       "type": "skill",
       "name": "migrations-safety",
