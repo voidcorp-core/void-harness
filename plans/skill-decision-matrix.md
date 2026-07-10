@@ -263,6 +263,13 @@ Turns a finished brainstorm, plan, or design decision into a tracker ticket an i
 - **Cannot decide**: brand identity (DESIGN.md); it does not rewrite a UI wholesale (findings + scoped refine only).
 - **Composes with**: `frontend-design` (build floor to this audit ceiling), `accessibility-first` (a11y dimension), `forge` (recon/critique/prompt via the `source: forge` artifact contract). Vendored from impeccable + gstack design-review (DEV-389); live-browser audit deferred to Vague 4.
 
+### `devex-audit`
+
+- **Wins**: auditing/scoring/improving an EXISTING dev-facing surface (deployed API/CLI/SDK/docs). Measured TTHW, real error-path tracing (problem+cause+fix), evidence-tagged scorecard (TESTED/PARTIAL/INFERRED), gap-method scoring, scoped refine modes (quickstart/errors/docs/upgrade/types).
+- **Loses to**: `plan-review`'s DevEx lens on judging a *written plan* before code (this skill audits the shipped reality); `api-and-interface-design` on *designing* the contract (this skill judges it after the fact, does not re-architect it).
+- **Cannot decide**: the contract's shape (api-and-interface-design owns it); it does not drive a browser (web-only checks deferred to Vague 4).
+- **Composes with**: `plan-review` (its DevEx lens is the plan-time counterpart), `api-and-interface-design` (build floor to this audit ceiling), `ui-review` (sibling audit skill, different subject). Vendored from gstack devex-review (DEV-398); live-browser audit deferred to Vague 4.
+
 ---
 
 ## Cross-cutting boundary rules

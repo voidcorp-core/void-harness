@@ -589,8 +589,8 @@
       "type": "skill",
       "name": "api-and-interface-design",
       "description": "Contract-first design of any public interface — package exports, HTTP/REST, RPC/tRPC, SDK, module boundary. Minimal surface, stable boundary types, versioning. Use when shaping a public API.",
-      "lines": 233,
-      "staticTokens": 3312,
+      "lines": 234,
+      "staticTokens": 3378,
       "pack": null,
       "source": "packages/core/skills/api-and-interface-design/SKILL.md",
       "triggers": {
@@ -683,6 +683,17 @@
       "staticTokens": 2592,
       "pack": null,
       "source": "packages/core/skills/context-management/SKILL.md"
+    },
+    {
+      "id": "skill:devex-audit",
+      "type": "skill",
+      "name": "devex-audit",
+      "description": "Audit an EXISTING dev-facing surface (API/CLI/SDK/docs): measured TTHW, real error-path tracing, evidence-backed DX scorecard, scoped refine. The audit ceiling to plan-review's DevEx-lens.",
+      "lines": 115,
+      "staticTokens": 2102,
+      "pack": null,
+      "source": "packages/core/skills/devex-audit/SKILL.md",
+      "activation": "on-demand"
     },
     {
       "id": "skill:domain-driven-design",
@@ -1079,7 +1090,7 @@
       "name": "plan-review",
       "description": "Critique a written plan (not a diff) via four lenses: CEO premise/ambition, Eng test-coverage, Design states/slop, DevEx time-to-first-value. Proposes findings; the author disposes.",
       "lines": 130,
-      "staticTokens": 2630,
+      "staticTokens": 2693,
       "pack": null,
       "source": "packages/core/skills/plan-review/SKILL.md",
       "activation": "on-demand"
@@ -1219,8 +1230,8 @@
       "type": "skill",
       "name": "ui-review",
       "description": "Audit and polish an EXISTING UI: the AI-slop test, heuristic critique, technical audit (contrast/a11y/responsive/perf), refine modes. The audit ceiling to frontend-design's build floor.",
-      "lines": 88,
-      "staticTokens": 1703,
+      "lines": 89,
+      "staticTokens": 1754,
       "pack": null,
       "source": "packages/core/skills/ui-review/SKILL.md",
       "activation": "on-demand"
@@ -1579,6 +1590,27 @@
       "kind": "composes",
       "origin": "declared",
       "evidence": "context-management SKILL.md: composes with writing-plans — the plan file is the source of truth, not the chat log."
+    },
+    {
+      "from": "skill:devex-audit",
+      "to": "skill:api-and-interface-design",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "devex-audit SKILL.md: With api-and-interface-design — its build-time floor ... is what this skill audits after the fact. Build there, judge here."
+    },
+    {
+      "from": "skill:devex-audit",
+      "to": "skill:plan-review",
+      "kind": "overlaps",
+      "origin": "declared",
+      "evidence": "devex-audit SKILL.md: Not plan-review's DevEx lens — that judges a written plan before code; this audits the shipped surface. The < 30% overlap is structural."
+    },
+    {
+      "from": "skill:devex-audit",
+      "to": "skill:ui-review",
+      "kind": "companion-of",
+      "origin": "declared",
+      "evidence": "devex-audit SKILL.md: Not ui-review — that audits the visual/interaction UI; this audits the developer journey. Different subject (sibling audit skills)."
     },
     {
       "from": "skill:domain-driven-design",

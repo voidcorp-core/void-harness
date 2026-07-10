@@ -74,6 +74,7 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 | Draining independent tickets in parallel | `harness:backlog-autopilot`                                                          |
 | Adding a skill                           | `superpowers:writing-skills` (until vendored)                                        |
 | Building or auditing a UI                | `harness:frontend-design` (build) + `harness:ui-review` (audit/critique/polish)      |
+| Auditing a live dev surface (API/CLI/SDK/docs) | `harness:devex-audit` (measured TTHW, error-path tracing, evidence-backed DX scorecard) |
 | Periodic engineering retrospective       | `harness:retrospective` (window signals → improvement decisions → learning-capture)  |
 | QA / ship                                | gstack (`/qa`, `/ship`) — live-browser QA until Vague 4                              |
 

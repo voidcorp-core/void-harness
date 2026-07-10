@@ -60,6 +60,20 @@ edges:
     kind: composes
     evidence: "api-and-interface-design SKILL.md: two contract terms earn their place when relevant. Composes with async-safety."
 
+  # --- devex-audit (audit ceiling for a shipped dev surface) ---
+  - from: skill:devex-audit
+    to: skill:api-and-interface-design
+    kind: composes
+    evidence: "devex-audit SKILL.md: With api-and-interface-design — its build-time floor ... is what this skill audits after the fact. Build there, judge here."
+  - from: skill:devex-audit
+    to: skill:plan-review
+    kind: overlaps
+    evidence: "devex-audit SKILL.md: Not plan-review's DevEx lens — that judges a written plan before code; this audits the shipped surface. The < 30% overlap is structural."
+  - from: skill:devex-audit
+    to: skill:ui-review
+    kind: companion-of
+    evidence: "devex-audit SKILL.md: Not ui-review — that audits the visual/interaction UI; this audits the developer journey. Different subject (sibling audit skills)."
+
   # --- async-safety ---
   - from: skill:async-safety
     to: skill:security-guidance

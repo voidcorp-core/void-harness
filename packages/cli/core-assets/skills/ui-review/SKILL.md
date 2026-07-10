@@ -66,6 +66,7 @@ The live layer — screenshotting the running UI, in-browser variant iteration, 
 - **With `frontend-design`** — the build-time floor to this audit ceiling; the bans and build specifics live there, this skill checks against them and does not restate them (no > 30% overlap).
 - **With `accessibility-first`** — the a11y audit dimension composes with it.
 - **Not `plan-review`'s Design lens** — that judges a *written plan* before any code exists (does the plan name the states, the responsive intent?); this judges the *shipped UI*. Different artifact, different lifecycle stage.
+- **Not `devex-audit`** — that audits a shipped dev-facing surface (the API/CLI/SDK/docs journey: naming, errors, TTHW); this audits the visual/interaction UI. Sibling audit skills, different subject.
 - **With `forge`** (voidcorp plugin) — market recon, the 12-dimension scored critique, multi-variant design prompts, and the slop-registry live there; bridged by the `docs/specs/` `source: forge` artifact contract.
 - **Supersedes** the external `impeccable` skill's prose methodology (now harness-native) and gstack `/design-review`/`/design-consultation`/`/design-shotgun`.
 
