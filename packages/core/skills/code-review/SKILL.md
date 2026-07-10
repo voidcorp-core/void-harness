@@ -169,7 +169,7 @@ Disagreements are surfaced. Not averaged. The user decides.
 ## Composition summary
 
 - **Upstream**: `verification-before-completion` (the author claims the code is ready before review starts).
-- **Downstream**: `commit-discipline` (the merge commit follows conventional commit + always-say-why), `ship` (gstack — actually lands the PR).
+- **Downstream**: `commit-discipline` (the merge commit follows conventional commit + always-say-why), then the ship step (`ticket-runner` pass 11 + `gh` lands the PR; release-please owns versions).
 - **Side-by-side**: the `doctrine-critic` agent (doctrine conformance, read-only).
 
 ---

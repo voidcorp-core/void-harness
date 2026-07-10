@@ -20,7 +20,7 @@ When you configure or call a third-party tool (framework, library, CLI, API, bui
 
 1. **Find the installed version.** Read the lockfile (`pnpm-lock.yaml`, `package-lock.json`, `Cargo.lock`) or the resolved entry, not just the `^x` range in `package.json`. Options change between majors; the range lies about what is actually resolved.
 2. **Read the docs for that version.** Pin the docs to the resolved major/minor. Latest-docs for an older installed version is a silent mismatch.
-3. **Prefer a clean read.** Use gstack `/defuddle` (or WebFetch) on the official docs. Strip nav and ads to the load-bearing prose. Distrust third-party tutorials, blog posts, and Stack Overflow answers: they are dated by construction and rarely say which version they target.
+3. **Prefer a clean read.** Use the `defuddle` skill (or WebFetch) on the official docs. Strip nav and ads to the load-bearing prose. Distrust third-party tutorials, blog posts, and Stack Overflow answers: they are dated by construction and rarely say which version they target.
 4. **Cite the reference.** Put the URL + section (or doc path) in the commit body, the PR, or a comment next to non-obvious config. The next reader must be able to re-derive the choice.
 
 Memory proposes; docs dispose.

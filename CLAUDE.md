@@ -28,7 +28,7 @@ Seven hard rules. **Any PR violating these is blocked.**
 3. **No responsibility overlap > 30%** between two skills. If detected, fuse or clarify boundary.
 4. **Frontmatter `description` ≤ 200 chars**, precise enough that auto-discovery picks the right skill from the description alone.
 5. **Hooks ≤ 100 lines**, shell or simple TS. No DSL maison, no framework. Shared logic goes in a sourced, `_`-prefixed hook library (e.g. `hooks/_hooklib.sh`), which is exempt from the per-hook cap.
-6. **Agents have an explicit scope**. `doctrine-critic` judges code against doctrine — it does not also do QA, design, or shipping (those stay in gstack).
+6. **Agents have an explicit scope**. `doctrine-critic` judges code against doctrine — it does not also do QA, design, or shipping (those are their own skills/workflows).
 7. **Skill tests pass in CI.** A broken skill blocks the release.
 
 ## Sourcing discipline (no verbatim vendoring)
@@ -77,11 +77,11 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 | Auditing a live dev surface (API/CLI/SDK/docs) | `harness:devex-audit` (measured TTHW, error-path tracing, evidence-backed DX scorecard) |
 | Live browser QA of a running web app     | `harness:qa` (claude-in-chrome MCP: explore, states, atomic fix loop, report; `--report-only` for no-fix) |
 | Periodic engineering retrospective       | `harness:retrospective` (window signals → improvement decisions → learning-capture)  |
-| Ship                                     | gstack (`/ship`)                                                                    |
+| Ship a PR                                | `harness:ticket-runner` pass 11 + `harness:commit-discipline` + `gh` (release-please owns versions/changelog) |
 
 ## On gstack and superpowers
 
-- **gstack** is and stays installed globally (`~/.claude/skills/gstack/`). It covers QA, design, browser, ship. The harness does **not** reinvent these workflows.
+- **gstack** stays installed globally (`~/.claude/skills/gstack/`) pending the Vague 6 teardown (DEV-395). QA, design, browser, and ship are now harness-native (`harness:qa`, `harness:ui-review`/`frontend-design`, claude-in-chrome, `ticket-runner`+gh); what remains gstack-provided until teardown is tracked in the gstack-coverage-matrix.
 - **superpowers**: the essential skills are now vendored as `harness:*` (`brainstorming`, `writing-plans`, `tdd`, `systematic-debugging`, `verification-before-completion`, plus `ticket-runner`/`ticket-writer`) — prefer the `harness:` version (see the routing table). superpowers stays only for what is not yet vendored (e.g. `writing-skills`, `executing-plans`, `subagent-driven-development`). Document each adaptation in `plans/skill-audits/`.
 
 ## Self-evolution principle
