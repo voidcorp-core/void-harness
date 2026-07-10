@@ -54,8 +54,8 @@
 | landing-report | DROP | ship queue dashboard — harness duplicate |
 | document-generate | DROP | not carried (doc-gen out of core scope) |
 | document-release | DROP | not carried (release doc = release-please) |
-| benchmark | DROP | perf regression via browse daemon — out of scope |
-| benchmark-models | DROP | not carried |
+| benchmark | DROP | perf measured via project tooling (Lighthouse CI/bundlesize); harness skills de-coupled from gstack /benchmark (DEV-401) |
+| benchmark-models | DROP | model comparison generic ("benchmark candidates on real prompts"); llm-cost-discipline de-coupled (DEV-401) |
 | plan-tune | DROP | gstack self-tuning runtime |
 | skillify | DROP | gstack browser-skill codification runtime |
 | pair-agent | DROP | gstack browser-sharing runtime |

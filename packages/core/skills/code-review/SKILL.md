@@ -21,7 +21,7 @@ The order matters. A correctness issue blocks regardless of beautiful structure.
 3. **Security** — input validated at trust boundaries? secrets handled? SQL safe? LLM input untrusted? composes with `security-guidance` (which routes deep audits to `harness:security-audit`).
 4. **Structure** — boundaries respected (no domain importing infrastructure)? service/repository split? function lengths? composes with `hexagonal-architecture`, `domain-driven-design`, `refactoring`, and the `doctrine-critic` agent.
 5. **Readability** — names? exhaustive switches? `any` slips? `as` casts? composes with `typescript-strict`.
-6. **Performance** — obvious O(n²) inside loops? leaky reactive subscriptions? unbounded queries? composes with `benchmark` (gstack) for measured claims.
+6. **Performance** — obvious O(n²) inside loops? leaky reactive subscriptions? unbounded queries? measured claims come from the project's perf tooling (Lighthouse CI, bundlesize), not guesses.
 
 A11y, observability, LLM cost discipline ride inside dimensions 1-6 (e.g. missing a11y is a Correctness issue at the UI boundary; missing structured log is a Structure issue at the service layer).
 
@@ -104,7 +104,7 @@ Review quality decays after ~400 LOC. The companion hook `large-cl-grep` warns o
 | Security | `security-guidance` skill, `doctrine-critic` agent (flags boundaries), `security-audit` (only at user request for full audit) |
 | Structure | `hexagonal-architecture` skill, `domain-driven-design` skill, `doctrine-critic` agent (boundary spirit) |
 | Readability | `typescript-strict` skill, Biome (formatter) |
-| Performance | `benchmark` (gstack) for measured claims; this skill flags only obvious smells |
+| Performance | the project's perf tooling (Lighthouse CI, bundlesize) for measured claims; this skill flags only obvious smells |
 | Independent second opinion | `codex review` (the codex CLI's non-interactive review; a different model family, catches different bug classes) |
 | Diff analysis at high effort | native `/code-review medium` / `high` / `ultra` |
 

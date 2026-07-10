@@ -197,7 +197,7 @@ Every UI is designed mobile-first AND must reach first-class quality on both vie
 - Layout starts at **360–390px** (iPhone 12 mini → iPhone 15 Pro), progressively enhanced wider.
 - Touch targets ≥ 44×44 on every interactive element regardless of viewport.
 - Keyboard navigation parity with touch.
-- Performance budget: LCP < 2.5s on slow 4G mobile AND on desktop fiber (composes with `benchmark` in gstack).
+- Performance budget: LCP < 2.5s on slow 4G mobile AND on desktop fiber (measure with the project's perf tooling — Lighthouse CI, WebPageTest, bundlesize).
 - No mobile-only nor desktop-only features without an explicit decision in `docs/DECISIONS.md`.
 - Both viewports screenshot-reviewed before merge.
 

@@ -564,7 +564,7 @@
       "name": "accessibility-first",
       "description": "WCAG 2.2 AA floor. Radix primitives only, touch >=44x44, keyboard parity, semantic HTML, form labels, aria-live errors, mobile-first dual-quality. Use when building or modifying UI.",
       "lines": 279,
-      "staticTokens": 2200,
+      "staticTokens": 2211,
       "pack": null,
       "source": "packages/core/skills/accessibility-first/SKILL.md",
       "triggers": {
@@ -658,7 +658,7 @@
       "name": "code-review",
       "description": "Pre-PR critical pass. Six dimensions (correctness, tests, security, structure, readability, perf). Two modes (strict/souple). Composes the native /code-review and codex CLI. Use on a diff.",
       "lines": 220,
-      "staticTokens": 2684,
+      "staticTokens": 2702,
       "pack": null,
       "source": "packages/core/skills/code-review/SKILL.md",
       "activation": "always"
@@ -712,7 +712,7 @@
       "name": "frontend-design",
       "description": "Anti-AI-slop UI. Density first, 3-size hierarchy, motion <250ms, components via @repo/ui (Radix/shadcn), mobile-first dual-quality. Brand from DESIGN.md. Use when building or modifying UI.",
       "lines": 267,
-      "staticTokens": 3431,
+      "staticTokens": 3442,
       "pack": null,
       "source": "packages/core/skills/frontend-design/SKILL.md",
       "triggers": {
@@ -760,7 +760,7 @@
       "name": "llm-cost-discipline",
       "description": "Sonnet default (Opus needs comment), prompt caching for >1024-token prompts, batch API for non-interactive, max_tokens declared, bounded retries, no full prompts in logs. Use on LLM API calls.",
       "lines": 301,
-      "staticTokens": 2493,
+      "staticTokens": 2509,
       "pack": null,
       "source": "packages/core/skills/llm-cost-discipline/SKILL.md",
       "activation": "always"

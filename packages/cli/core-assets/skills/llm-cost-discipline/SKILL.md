@@ -8,7 +8,7 @@ description: Sonnet default (Opus needs comment), prompt caching for >1024-token
 
 LLM costs scale with usage. A 1k-token system prompt re-billed on every call is 90% waste with caching. Opus everywhere is 5× Sonnet for marginal gains. Unbounded retries on a refusal burn tokens. This skill makes cost a first-class design concern at every LLM call site.
 
-**Attribution**: see `.source`. Composed with `gstack:/claude-api` (SDK mechanics). Foundation: Anthropic prompt caching docs + batch API + model card pricing.
+**Attribution**: see `.source`. Composed with the `claude-api` skill (SDK mechanics). Foundation: Anthropic prompt caching docs + batch API + model card pricing.
 
 ---
 
@@ -48,7 +48,7 @@ The companion hook `llm-cost-precommit` warns on `model: 'opus'` without `// usi
 
 ### When to escalate
 
-If you cannot decide which model fits without testing, invoke `gstack:/benchmark-models` — it runs the same prompt through Claude / GPT / Gemini and reports cost + quality.
+If you cannot decide which model fits without testing, benchmark the candidate models on the actual prompts — run the same prompt through each and compare cost + quality before committing.
 
 ---
 
@@ -85,7 +85,7 @@ The cache hit reduces per-call cost by ~90% for cached blocks. Default TTL is 5 
 
 The companion hook `llm-cost-precommit` warns on `system` / `tools` arrays > 1024 tokens without `cache_control`.
 
-Composes with `gstack:/claude-api` skill for cache mechanics.
+Composes with the `claude-api` skill for cache mechanics.
 
 ---
 
@@ -249,13 +249,13 @@ See `security-guidance` skill for full LLM trust-boundary patterns.
 
 ## Composition with other skills
 
-- **With `gstack:/claude-api`**: SDK mechanics live there; this skill = the discipline.
+- **With the `claude-api` skill**: SDK mechanics live there; this skill = the discipline.
 - **With `observability`**: cost-per-call structured logs feed the dashboard.
 - **With `security-guidance`**: prompt content NEVER in plain logs. LLM I/O untrusted.
 - **With `async-safety`**: retries with backoff + jitter. LLM call failures handled with idempotency discipline.
 - **With `hexagonal-architecture`**: LLM SDK at an adapter behind `LlmPort`. In-memory adapter for tests.
 - **With `code-review`**: dimension `performance` includes LLM cost surface.
-- **With `gstack:/benchmark-models`**: escalation for "which model is best for this surface?"
+- **Model comparison**: escalation for "which model is best for this surface?" — benchmark the candidates on real prompts (cost + quality).
 
 ---
 
@@ -281,7 +281,7 @@ See `security-guidance` skill for full LLM trust-boundary patterns.
 
 | Problem | Solution |
 |---|---|
-| Sonnet seems insufficient | Quantify it: invoke `gstack:/benchmark-models` to compare Sonnet vs Opus on the actual prompts. |
+| Sonnet seems insufficient | Quantify it: benchmark Sonnet vs Opus on the actual prompts (cost + quality) before upgrading. |
 | Cache hit rate low | Prompt structure problem — variable content interleaved with stable. Restructure to put stable blocks first with `cache_control`. |
 | Cost budget exceeded | Audit via cost dashboard. Top 3 endpoints. Apply caching, batching, model downgrade where quality allows. |
 | Token budget too small | Validate via observability — what's the actual output size? Adjust budget OR truncate the input intelligently. |
