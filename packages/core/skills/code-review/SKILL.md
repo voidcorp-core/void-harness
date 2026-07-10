@@ -1,12 +1,12 @@
 ---
 name: code-review
 activation: always
-description: Pre-PR critical pass. Six dimensions (correctness, tests, security, structure, readability, perf). Two modes (strict/souple). Composes gstack /code-review and /codex review. Use on a diff.
+description: Pre-PR critical pass. Six dimensions (correctness, tests, security, structure, readability, perf). Two modes (strict/souple). Composes the native /code-review and codex CLI. Use on a diff.
 ---
 
 # code-review — voidcorp craftsman edition
 
-A review without a framework is "the first ten things I noticed." This skill provides the framework: six dimensions in order, blocker vs nit, evidence block in the PR body, two modes, explicit composition with gstack and specialized agents. The skill orchestrates; it does not duplicate the deep-pass agents.
+A review without a framework is "the first ten things I noticed." This skill provides the framework: six dimensions in order, blocker vs nit, evidence block in the PR body, two modes, explicit composition with Claude Code's native `/code-review` and specialized agents. The skill orchestrates; it does not duplicate the deep-pass agents.
 
 **Attribution**: see `.source` in this directory.
 
@@ -56,7 +56,7 @@ Every PR in strict mode includes a Review Evidence block:
 ## Review Evidence
 
 - **Mode**: strict
-- **Composed with**: gstack /code-review medium, /codex review (second opinion)
+- **Composed with**: native /code-review medium, codex CLI (second opinion)
 - **Dimensions covered**:
   - [x] Correctness — tdd evidence verified (RED commit c925187, GREEN 5e0055b)
   - [x] Tests — 4/4 passing, mutation score 94%, no business mocks
@@ -91,8 +91,8 @@ Review quality decays after ~400 LOC. The companion hook `large-cl-grep` warns o
 
 | Mode | Trigger | Posture |
 |---|---|---|
-| **strict** | PR targeting `main` / `develop` / release branches. Pre-PR final pass. | All six dimensions checked. Blockers fail. Evidence block REQUIRED. Default gstack effort: `/code-review medium`, escalate to `ultra` for high-stakes diffs. Optional Codex second opinion. |
-| **souple** | In-progress feedback on a feature branch during work. WIP commits. | Dimensions checked at user discretion. No evidence block required. Default gstack effort: `/code-review low` or `medium`. |
+| **strict** | PR targeting `main` / `develop` / release branches. Pre-PR final pass. | All six dimensions checked. Blockers fail. Evidence block REQUIRED. Default effort: native `/code-review medium`, escalate to `ultra` for high-stakes diffs. Optional codex CLI second opinion. |
+| **souple** | In-progress feedback on a feature branch during work. WIP commits. | Dimensions checked at user discretion. No evidence block required. Default effort: native `/code-review low` or `medium`. |
 
 ---
 
@@ -105,10 +105,10 @@ Review quality decays after ~400 LOC. The companion hook `large-cl-grep` warns o
 | Structure | `hexagonal-architecture` skill, `domain-driven-design` skill, `doctrine-critic` agent (boundary spirit) |
 | Readability | `typescript-strict` skill, Biome (formatter) |
 | Performance | `benchmark` (gstack) for measured claims; this skill flags only obvious smells |
-| Independent second opinion | gstack `/codex review` (different model family, catches different bug classes) |
-| Diff analysis at high effort | gstack `/code-review medium` / `high` / `ultra` |
+| Independent second opinion | `codex review` (the codex CLI's non-interactive review; a different model family, catches different bug classes) |
+| Diff analysis at high effort | native `/code-review medium` / `high` / `ultra` |
 
-The skill is the orchestration. Specialized agents and gstack commands do the heavy work.
+The skill is the orchestration. Specialized agents and the native `/code-review` do the heavy work.
 
 ---
 
@@ -124,11 +124,11 @@ If any pre-condition fails, the review pauses — fix the pre-condition first.
 
 ### Pass
 
-1. Run gstack `/code-review <effort>` to enumerate findings.
+1. Run the native `/code-review <effort>` to enumerate findings.
 2. Walk the six dimensions in order. For each:
    - Compose with the specialized skill / agent if applicable.
    - Tag findings as `BLOCKER:` / `NIT:` / `QUESTION:` / `PRAISE:`.
-3. If strict mode and high stakes: invoke gstack `/codex review` for an independent pass. Surface disagreements explicitly.
+3. If strict mode and high stakes: run `codex review` (the CLI's non-interactive review subcommand) for an independent cross-model pass. Surface disagreements explicitly.
 4. Compose the Review Evidence block.
 5. If blockers remain: PR is not ready to merge. Author addresses.
 6. If only nits: PR can merge once author has read the nits (no obligation to address each).

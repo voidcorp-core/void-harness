@@ -123,6 +123,15 @@ Without a structured review skill, "review my diff" produces style nits and mayb
 - [ ] Sister-doc parity: AGENTS.md flavor matches CLAUDE.md flavor (Codex uses `/codex review` natively, terminology adjusted)
 - [ ] Audit status moved from `reviewed` → `shipped` after first project consumes the skill
 
+## 2026-07-10 — tool repoint off gstack (DEV-399, unblocks DEV-395 teardown)
+
+The skill framework was always harness-native, but its enumeration engine composed gstack `/code-review` and its second opinion composed gstack `/codex review`. The gstack teardown inventory (DEV-395) flagged these as live dependencies. Repointed both:
+
+- **Enumeration → Claude Code's native `/code-review`** (low/medium/high/max/ultra, `--comment`/`--fix`). A 1:1 replacement — the native command post-dates the skill's authoring; no capability lost, one less external dependency.
+- **Second opinion → the standalone `codex` CLI** (`~/.local/bin/codex`, v0.142.5). Decision: KEEP the cross-model second opinion (its whole value is a *different model family* catching different bug classes) but source it from the CLI directly, not the gstack wrapper. Credible alternatives rejected: (a) drop the second opinion entirely — loses cross-model coverage; (b) use native `/code-review ultra` as the "independent" pass — still Claude family, not cross-model. The codex CLI is installed standalone and survives the teardown, so the capability is preserved gstack-free.
+
+Left for sibling tickets (ticket-boundary discipline): `/benchmark` (perf, lines 24/107) → DEV-401; `/ship` (line 172) → DEV-400. Those gstack refs are intentionally still present here.
+
 ## Open questions
 
 - **PR template enforcement**: pre-push hook warning vs `.github/pull_request_template.md` with the evidence block scaffolded vs both. Lean both.
