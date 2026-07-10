@@ -73,7 +73,10 @@ You (the main session) run this. It ends at the human confirmation gate; it neve
    `verifyCmd`** (which must mirror CI — see below). The human can drop a ticket, move one
    between groups, or correct `verifyCmd`. **No fan-out before confirmation.**
 5. **Invoke the Workflow** with the confirmed plan as `args` (parallel list, sequential
-   list, batchId, branchPrefix, reviewState, verifyCmd, autoMerge). Run
+   list, batchId, branchPrefix, reviewState, verifyCmd, autoMerge). Attach a **model tier
+   per ticket** from its estimate — `tier: 'light'` for a low-risk, high-confidence,
+   non-sensitive footprint; leave it off (top-tier) for anything high-risk, low-confidence,
+   or touching a sensitive area (auth / security / migration / payment). Run
    `workflows/backlog-autopilot.workflow.js`.
 
 ### Layer 2 — Workflow (deterministic, background)
@@ -176,6 +179,16 @@ inherit the session auth → the subscription. A future **headless backend** (wa
 is reserved and deferred, not the deleted loop.
 
 ---
+
+## Model tier per worker (frugality, no quality loss)
+
+A **light** ticket's cycle is mostly mechanical, so its worker runs a cheaper model at medium
+effort; anything **high-stakes or unknown** keeps the full-strength session model at high
+effort. The launcher attaches the tier from its footprint estimate (§Layer 1 step 5); the
+Workflow's `workerTier()` applies it, **defaulting to top-tier when no signal is present**
+(unknown → conservative, like the routing). The **reconcile** subagent is never tiered down —
+it merges, runs the full suite, and does the level-2 review (all judgment). The predicate
+drives the tier, so a judgment-heavy ticket is never cheapened: no quality loss by construction.
 
 ## Safety
 
