@@ -1,6 +1,20 @@
 import type { Certification, ProjectState, Score } from '@voidcorp/harness-graph';
 import { describe, expect, it } from 'vitest';
-import { statusLines, usedCountsById } from './status.js';
+import { dataCandidates, statusLines, usedCountsById } from './status.js';
+
+describe('dataCandidates', () => {
+  it('prefers the monorepo source, then falls back to the package-local shipped copy', () => {
+    expect(dataCandidates('/x/packages/cli', 'certification.json')).toEqual([
+      '/x/packages/harness-graph/certification.json',
+      '/x/packages/cli/core-assets/data/certification.json',
+    ]);
+  });
+
+  it('resolves the package-local copy under a published install root', () => {
+    const [, packaged] = dataCandidates('/n/node_modules/@voidcorp/harness', 'model.json');
+    expect(packaged).toBe('/n/node_modules/@voidcorp/harness/core-assets/data/model.json');
+  });
+});
 
 const cert: Certification = {
   schemaVersion: 1,

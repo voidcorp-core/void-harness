@@ -1,0 +1,1670 @@
+{
+  "schemaVersion": 1,
+  "harnessVersion": "0.16.0",
+  "capabilities": [
+    {
+      "id": "skill:accessibility-first",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:adr-workflow",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:api-and-interface-design",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:async-safety",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:backlog-autopilot",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:brainstorming",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:claude-md-authoring",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:code-review",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:commit-discipline",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:context-management",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:devex-audit",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:domain-driven-design",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:frontend-design",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:functional",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:hexagonal-architecture",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:learning-capture",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:llm-cost-discipline",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:make-pdf",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:migrations-safety",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:observability",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-mobile/eas-build-profile",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-mobile/expo-config-plugins",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-mobile/expo-router-pattern",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-mobile/ota-update-strategy",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-monorepo/dependency-direction",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-monorepo/package-extraction",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-monorepo/service-package",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-monorepo/turbo-pipeline-tuning",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-nextjs/cache-component-pattern",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-nextjs/instrumentation-setup",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-nextjs/loading-error-boundaries",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-nextjs/parallel-routes-slots",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-nextjs/route-group-decision",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-pwa/install-prompt-ux",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-pwa/manifest-checklist",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-pwa/offline-first-mutation",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-pwa/service-worker-strategy",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-react/accessibility-check",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-react/client-vs-server-component",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-react/form-pattern",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-react/state-architecture",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-server/background-job-pattern",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-server/drizzle-migration-safe",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-server/env-validation",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-server/rate-limit-strategy",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-server/server-action",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-server/testing-server-modules",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:pack-server/webhook-handler-pattern",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:plan-review",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:qa",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:refactoring",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:retrospective",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:security-audit",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:security-guidance",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:source-driven-development",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:systematic-debugging",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:tdd",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:testing",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:ticket-runner",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:ticket-writer",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:typescript-strict",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:ui-review",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:verification-before-completion",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:writing-plans",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    }
+  ]
+}

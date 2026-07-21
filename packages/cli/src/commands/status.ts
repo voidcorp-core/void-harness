@@ -17,10 +17,17 @@ import {
 } from '@voidcorp/harness-graph';
 import { banner, blank, c, footer, line } from '../lib/render.js';
 
-// 2 levels up from the bundled dist/main.js -> packages/ (matches graph.ts PKGS_ROOT).
-const PKGS = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const CERT_PATH = join(PKGS, 'harness-graph', 'certification.json');
-const MODEL_PATH = join(PKGS, 'harness-graph', 'model.json');
+// dist/main.js -> the package root (packages/cli in the monorepo, node_modules/@voidcorp/harness once published).
+const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+/** Candidate paths for a shipped data artifact, in priority order: the monorepo source
+ * (`packages/harness-graph/<name>`) first for dev, then the package-local copy
+ * (`core-assets/data/<name>`) that ships in the published tarball. Pure — the caller picks the first
+ * that exists, so a published CLI runs `status` with no monorepo. */
+export function dataCandidates(pkgRoot: string, name: string): string[] {
+  return [resolve(pkgRoot, '..', 'harness-graph', name), join(pkgRoot, 'core-assets', 'data', name)];
+}
+const findData = (name: string): string | undefined => dataCandidates(PKG_ROOT, name).find((p) => existsSync(p));
 
 const DIMENSION_ORDER = ['installation', 'portability', 'activation', 'efficacy', 'enforcement', 'dx', 'performance', 'governance'];
 const HISTORY_KEEP = 30; // retain the most recent N state snapshots; older ones are pruned each run
@@ -104,18 +111,20 @@ function detectRuntimes(cwd: string): Set<string> {
 
 export async function status(_args: readonly string[]): Promise<void> {
   const cwd = process.cwd();
-  if (!existsSync(CERT_PATH)) {
-    footer(c.red('no certification.json found — run `pnpm certification:build` (maintainer, monorepo).'));
+  const certPath = findData('certification.json');
+  if (!certPath) {
+    footer(c.red('no certification.json found — reinstall the harness, or run `pnpm certification:build` in the monorepo.'));
     process.exit(1);
   }
-  const cert = readJson<Certification>(CERT_PATH);
+  const cert = readJson<Certification>(certPath);
   if (cert.capabilities.length === 0) {
     // A real certification always ships the full capability catalog; an empty one is corrupt, not a
     // legitimately-empty project (the project can be empty; the shipped catalog never is).
     footer(c.red('certification.json has no capabilities — likely corrupt; run `pnpm certification:build`.'));
     process.exit(1);
   }
-  const model = existsSync(MODEL_PATH) ? readJson<GraphModel>(MODEL_PATH) : { version: 1, nodes: [], edges: [] };
+  const modelPath = findData('model.json');
+  const model = modelPath ? readJson<GraphModel>(modelPath) : { version: 1, nodes: [], edges: [] };
   const staticTokensById = new Map<string, number>();
   for (const n of model.nodes) if (typeof n.staticTokens === 'number') staticTokensById.set(n.id, n.staticTokens);
 
