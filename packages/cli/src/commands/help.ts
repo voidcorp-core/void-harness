@@ -2,11 +2,12 @@
 
 export function printHelp(): void {
   const text = `
-void-harness — wire your project to the VoidCorp Claude Code marketplace.
+void-harness — install a top-5% development doctrine on any project.
 
-The harness plugins live in voidcorp-core/void-harness and are distributed
-through the voidcorp marketplace (voidcorp-core/void-plugins). Skills are auto-loaded by Claude
-Code as /harness:<name> (core) and /harness-<stack>:<name> (packs).
+Public and MIT. Install free, account-free: npx @voidcorp/harness init
+Then: npx @voidcorp/harness status (deterministic, offline project health).
+The Claude Code marketplace (voidcorp-core/void-plugins) is an optional secondary
+channel; skills auto-load there as /harness:<name> and /harness-<stack>:<name>.
 
 Usage:
   void-harness <command> [options]

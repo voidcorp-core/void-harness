@@ -4,16 +4,14 @@
 
 A pluggable agent configuration that brings every new project to the top 5% bar — **automatically**.
 
-Core craftsman skills (TDD strict, TigerStyle, hexagonal, DDD), enforced by hooks. Pluggable stack packs (Next.js PWA, monorepo, mobile). Distributed as a marketplace plugin (`voidcorp-core/void-plugins`); npm publish is deliberately not wired.
+Core craftsman skills (TDD strict, TigerStyle, hexagonal, DDD), enforced by hooks. Pluggable stack packs (Next.js PWA, monorepo, mobile). Public and MIT: installed free and account-free via `npx @voidcorp/harness`, with the Claude Code marketplace as an optional secondary channel.
 
 The opinionated foundation every VoidCorp project inherits.
 
 ## Status
 
-**Phase**: active — shipping via marketplace (current version in the manifests). See `plans/` for
-design specs and `docs/DECISIONS.md` for the decision log.
-
-This repo is private during incubation. Public release planned once MVP stabilizes.
+**Phase**: active — public MIT, installed via `npx @voidcorp/harness` (current version in the
+manifests). See `plans/` for design specs and `docs/DECISIONS.md` for the decision log.
 
 ## Philosophy
 
@@ -53,13 +51,28 @@ void-harness/
 
 ## Usage
 
-Distribution is **marketplace-only**: the plugins ship through Claude Code's
-marketplace, and the `@voidcorp/harness` npm package is deliberately not
-published (see [`docs/DECISIONS.md`](docs/DECISIONS.md)). Consumers install the
-plugin from the marketplace; the `void-harness` CLI is maintainer tooling that
-lives in this repo.
+Install free, account-free (no Claude account, no subscription, no API key), in one command:
 
-Install the core plugin (and any pack) from the **voidcorp** marketplace:
+```
+npx @voidcorp/harness init
+```
+
+It detects the project and installed runtimes (Claude Code / Codex), installs the adapted assets,
+verifies them, and writes the project state. Then, at any time:
+
+```
+npx @voidcorp/harness status     # deterministic, offline, LLM-free project health
+npx @voidcorp/harness doctor     # health check
+```
+
+`status` reads a frozen capability certification and local telemetry to show, per capability, the
+five-state lifecycle (`available → installed → verified → used → effective`) and a blocker/gauge
+score — no model call, no network. See [`docs/DECISIONS.md`](docs/DECISIONS.md) (2026-07-21) for the
+public-MIT distribution decision (supersedes the earlier marketplace-only stance).
+
+### Claude Code marketplace (optional, secondary)
+
+Claude-Code users who prefer the plugin channel can still install from the **voidcorp** marketplace:
 
 ```
 /plugin marketplace add voidcorp-core/void-plugins
@@ -67,10 +80,9 @@ Install the core plugin (and any pack) from the **voidcorp** marketplace:
 /plugin install harness-nextjs@voidcorp     # add a stack pack
 ```
 
-Skills then auto-load as `/harness:<name>` (core) and `/harness-<stack>:<name>`
-(packs). The catalog lives in
-[`voidcorp-core/void-plugins`](https://github.com/voidcorp-core/void-plugins)
-(pure catalog, pinned by commit sha).
+Skills then auto-load as `/harness:<name>` (core) and `/harness-<stack>:<name>` (packs). The catalog
+lives in [`voidcorp-core/void-plugins`](https://github.com/voidcorp-core/void-plugins) (pinned by
+commit sha).
 
 ### Enforce the floor on every PR (void-enforce Action)
 
@@ -94,17 +106,17 @@ unresolvable base is a red check, never a silent pass. Pin `@main` to a release
 tag for a stable floor. It enforces the doctrine floor only; keep your own
 lint/test CI. `void-harness doctor` reports (advisory) whether it is adopted.
 
-### Maintainer CLI (this repo)
+### CLI (from a checkout, for contributors)
 
-The `void-harness` CLI wires config per-project (`.void/config.json`, CLAUDE.md /
-AGENTS.md patches) and health-checks a setup. It is run from a checkout of this
-repo, not fetched from npm:
+The `void-harness` CLI is the consumer entry point (via `npx`, above): it wires config per-project
+(`.void/config.json`, CLAUDE.md / AGENTS.md patches), reports project state (`status`), and
+health-checks a setup (`doctor`). Contributors run it from a checkout of this repo:
 
 ```bash
 pnpm build && pnpm link --global        # once, exposes `void-harness` on PATH
 void-harness init --pack nextjs --pack monorepo   # wire the current project
+void-harness status                     # deterministic project health
 void-harness doctor                     # health check
-void-harness update                     # sync marketplace pins to remote HEAD
 ```
 
 ## Relation to other VoidCorp repos
