@@ -76,6 +76,15 @@ describe('scoreProjectState', () => {
     expect(scoreProjectState(computeProjectState(oneCap, hammered, '0.16.0'), oneCap, noTokens).confidence).toBe('low');
   });
 
+  it('performance is pending (not a false 100%) when no token data is available, measured when it is', () => {
+    const c = cert([cap('skill:a')]);
+    const ps = computeProjectState(c, signals({ installedIds: new Set(['skill:a']) }), '0.16.0');
+    // no model.json -> empty token map -> cannot measure context cost -> pending, never "budgets respected"
+    expect(dim(scoreProjectState(ps, c, noTokens), 'performance')?.score).toBeNull();
+    // with token data, it is measured
+    expect(dim(scoreProjectState(ps, c, new Map([['skill:a', 100]])), 'performance')?.score).toBe(100);
+  });
+
   it('an empty project yields pending (null) dimensions and no phantom next actions — not a false 0', () => {
     const c = cert([]);
     const score = scoreProjectState(computeProjectState(c, signals(), '0.16.0'), c, noTokens);
@@ -98,9 +107,9 @@ describe('scoreProjectState', () => {
     const ps = computeProjectState(c, signals({ installedIds: new Set(['skill:a', 'skill:b']) }), '0.16.0');
     const actions = scoreProjectState(ps, c, noTokens).nextActions;
     expect(actions.length).toBeGreaterThan(0);
-    // portability/activation/efficacy are all at 0 (nothing detected/used/proven), gap 100 over 6
-    // measured dimensions -> impact round(100/6) = 17.
-    expect(actions[0]?.impact).toBe(17);
+    // portability/activation/efficacy are all at 0 (nothing detected/used/proven), gap 100 over the
+    // 5 measured dimensions (performance is pending without token data) -> impact round(100/5) = 20.
+    expect(actions[0]?.impact).toBe(20);
     for (let i = 1; i < actions.length; i += 1) {
       expect(actions[i - 1]!.impact).toBeGreaterThanOrEqual(actions[i]!.impact);
       expect(actions[i - 1]!.rank).toBe(i);

@@ -84,8 +84,13 @@ export function scoreProjectState(
   const portability: Dimension = { key: 'portability', kind: 'gauge', score: ratio(detected, state.runtimes.length), detail: `${detected}/${state.runtimes.length} runtimes detected` };
   const activation: Dimension = { key: 'activation', kind: 'gauge', score: ratio(usedN, nInstalled), detail: `${usedN}/${nInstalled} installed capabilities used` };
   const efficacy: Dimension = { key: 'efficacy', kind: 'gauge', score: ratio(effectiveN, nInstalled), detail: `${effectiveN}/${nInstalled} evaluated here` };
+  // Performance needs token data; with none (model.json absent) it is pending, not a false 100% —
+  // otherwise a missing model would read as "context budgets respected".
   const heavy = installed.filter((c) => (staticTokensById.get(c.id) ?? 0) > CONTEXT_HEAVY_TOKENS).length;
-  const performance: Dimension = { key: 'performance', kind: 'gauge', score: ratio(nInstalled - heavy, nInstalled), detail: heavy > 0 ? `${heavy} context-heavy capabilities` : 'context budgets respected' };
+  const performance: Dimension =
+    staticTokensById.size === 0
+      ? { key: 'performance', kind: 'gauge', score: null, detail: 'context cost not measured (no model data)' } // allow-null: pending without token data
+      : { key: 'performance', kind: 'gauge', score: ratio(nInstalled - heavy, nInstalled), detail: heavy > 0 ? `${heavy} context-heavy capabilities` : 'context budgets respected' };
 
   const installation: Dimension = { key: 'installation', kind: 'blocker', score: null, red: false, detail: 'transactional-install signal lands with void init (Phase C)' }; // allow-null: pending dimension
   const dx: Dimension = { key: 'dx', kind: 'gauge', score: null, detail: 'no deterministic local DX signal yet (devex-audit)' }; // allow-null: pending dimension
