@@ -48,5 +48,7 @@ Thumbs.db
 .void/worktrees/
 # Enriched activation telemetry log (local, runtime-only; analyzed in Phase 2).
 .void/activations.jsonl
+# Full tool outputs spilled by the trim-large-output hook (runtime-only pointers).
+.void/outputs/
 .gstack/
 dist-singlefile/
