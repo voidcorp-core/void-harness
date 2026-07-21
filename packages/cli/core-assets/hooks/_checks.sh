@@ -28,7 +28,13 @@ checks_sensitive_path() {
     printf 'environment file with secrets\n'; return 1; fi
   if [[ "$base" =~ \.(pem|key|p12|pfx|keystore|jks|asc)$ || "$base" =~ ^id_(rsa|ed25519|ecdsa|dsa)$ ]]; then
     printf 'private key / certificate\n'; return 1; fi
-  if [[ "$base" =~ (secret|credential|\.npmrc$|\.netrc$|\.pgpass$) ]]; then
+  if [[ "$base" =~ (\.npmrc$|\.netrc$|\.pgpass$) ]]; then
+    printf 'credential file\n'; return 1; fi
+  # The loose secret|credential NAME match is a heuristic; exempt markdown docs.
+  # A real credential file is never .md, and content secret-scanning still covers
+  # .md, so this only removes false positives (e.g. a decision note whose slug
+  # contains "…-byo-credentials.md" is documentation, not a credential file).
+  if [[ ! "$base" =~ \.md$ ]] && [[ "$base" =~ (secret|credential) ]]; then
     printf 'credential file\n'; return 1; fi
   case "$base" in
     package-lock.json|pnpm-lock.yaml|yarn.lock|bun.lockb|cargo.lock|poetry.lock|composer.lock)
