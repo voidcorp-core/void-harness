@@ -28,6 +28,8 @@ describe('checks_sensitive_path — never-edit files (path only)', () => {
     ['deploy/id_rsa', /private key/],
     ['certs/server.pem', /private key/],
     ['app/credentials.json', /credential file/],
+    ['config/secrets.yaml', /credential file/],
+    ['.npmrc', /credential file/],
     ['.git/config', /git metadata/],
   ])('flags %s', (path, reason) => {
     const { code, stdout } = runCheck('checks_sensitive_path', [path]);
@@ -35,7 +37,17 @@ describe('checks_sensitive_path — never-edit files (path only)', () => {
     expect(stdout).toMatch(reason);
   });
 
-  it.each(['src/index.ts', '.env.example', 'config/.env.sample', 'README.md', 'packages/core/hooks/_checks.sh'])(
+  it.each([
+    'src/index.ts',
+    '.env.example',
+    'config/.env.sample',
+    'README.md',
+    'packages/core/hooks/_checks.sh',
+    // Markdown docs that merely mention secrets/credentials in the name are
+    // documentation, not credential files (content scanning still applies).
+    'docs/decisions-log/2026-06-26-secrets-via-env-byo-credentials.md',
+    'notes/secret-handling.md',
+  ])(
     'allows %s',
     (path) => {
       const { code, stdout } = runCheck('checks_sensitive_path', [path]);

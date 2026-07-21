@@ -19,7 +19,7 @@ The working rules for this repo live in `CLAUDE.md` (mirrored as `AGENTS.md` for
 
 ## Commits
 
-Conventional Commits, and every message ends with **why**, not just what (see `harness:commit-discipline`). Any new convention added in a commit must be reflected in `docs/*.md` in the same commit; any non-obvious decision is logged in `docs/DECISIONS.md`.
+Conventional Commits, and every message ends with **why**, not just what (see `harness:commit-discipline`). Any new convention added in a commit must be reflected in `docs/*.md` in the same commit; any non-obvious decision is logged as a new dated file in `docs/decisions-log/<YYYY-MM-DD>-<slug>.md` (`docs/DECISIONS.md` is the generated index — `pnpm decisions:build` rebuilds it).
 
 ## Filing a gap
 
