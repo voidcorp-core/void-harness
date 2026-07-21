@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/voidcorp-core/void-harness/compare/v0.16.0...v0.17.0) (2026-07-21)
+
+
+### Features
+
+* **hooks:** trim oversized Bash/MCP tool output (token frugality) ([#104](https://github.com/voidcorp-core/void-harness/issues/104)) ([6aab377](https://github.com/voidcorp-core/void-harness/commit/6aab37789f250935bd5ced762e881b403283c9cc))
+
 ## [0.16.0](https://github.com/voidcorp-core/void-harness/compare/v0.15.0...v0.16.0) (2026-07-10)
 
 
