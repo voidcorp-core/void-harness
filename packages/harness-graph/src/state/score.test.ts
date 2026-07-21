@@ -53,6 +53,7 @@ describe('scoreProjectState', () => {
     const enf = dim(score, 'enforcement');
     expect(enf?.perRuntime).toEqual({ claude: 100, codex: 100, hermes: 60 });
     expect(enf?.red).toBe(false);
+    expect(enf?.detail).toBe('claude 100 · codex 100 · hermes 60');
     expect(score.capped).toBe(false);
   });
 

@@ -77,6 +77,7 @@ export function scoreProjectState(
     score: enfVals.length ? Math.round(enfVals.reduce((a, b) => a + b, 0) / enfVals.length) : null, // allow-null: pending when no capability declares an inline tier
     red: false, // a pretooluse-capable runtime failing to enforce would be red; not observable at rest
     perRuntime,
+    detail: enfVals.length ? Object.entries(perRuntime).map(([r, v]) => `${r} ${v}`).join(' · ') : 'no capability declares enforcement',
   };
 
   const detected = state.runtimes.filter((r) => r.detected).length;

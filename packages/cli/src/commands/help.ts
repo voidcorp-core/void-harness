@@ -55,6 +55,10 @@ Commands:
                            every self-registered project; --push files the candidates as
                            GitHub issues (dry-run by default, confirm before create). HITL.
 
+  status                   Project health: join the frozen certification with local
+                           signals into the five-state per capability + a score, render
+                           it, and write .void/state.json. Deterministic, offline, no LLM.
+
   help                     Print this message.
 
 Pack names (current marketplace):
