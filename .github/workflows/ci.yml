@@ -47,6 +47,12 @@ jobs:
         # the agent description cap go unenforced in CI (it only ran locally).
         run: pnpm anti-bloat:check
 
+      - name: Decisions index in sync with decisions-log
+        # docs/DECISIONS.md is generated from docs/decisions-log/<date>-<slug>.md
+        # (one file per decision, so parallel workers never race a shared append).
+        # Fail if the committed index drifts from the per-decision files.
+        run: pnpm decisions:check
+
       - name: core-assets in sync with core
         # The CLI bundles packages/core as packages/cli/core-assets via
         # copy-core-assets.mjs. Regenerate and fail if the committed mirror

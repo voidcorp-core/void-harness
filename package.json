@@ -20,6 +20,8 @@
     "lint": "biome lint",
     "typecheck": "pnpm -r --filter '!void-harness' typecheck",
     "anti-bloat:check": "bash scripts/anti-bloat-check.sh",
+    "decisions:build": "node scripts/build-decisions-index.mjs",
+    "decisions:check": "node scripts/build-decisions-index.mjs --check",
     "sync:docs": "bash scripts/sync-agent-docs.sh",
     "version:check": "node scripts/check-version-lockstep.mjs",
     "check:publish": "node scripts/check-publish-safety.mjs",

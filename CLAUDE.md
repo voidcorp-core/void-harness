@@ -57,7 +57,7 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 ## Meta-rules
 
 - Any new convention added in a commit MUST be reflected in `docs/*.md` in the same commit
-- Any non-obvious decision (where a credible alternative exists) MUST be logged in `docs/DECISIONS.md`
+- Any non-obvious decision (where a credible alternative exists) MUST be logged as a new dated file in `docs/decisions-log/<YYYY-MM-DD>-<slug>.md` (`docs/DECISIONS.md` is a generated index — never edit it directly; `pnpm decisions:build` rebuilds it, `pnpm decisions:check` gates drift in CI)
 - Removed concepts must be removed from the docs at the same time
 - Tests run via `pnpm test`; do not skip TDD when adding logic
 - Versions are never hand-edited: release-please bumps every manifest in lockstep from Conventional Commits, and `pnpm version:check` fails CI on any drift (see `docs/RELEASING.md`)
