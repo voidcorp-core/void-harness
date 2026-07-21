@@ -1,7 +1,7 @@
 {
   "name": "harness",
   "version": "0.16.0",
-  "description": "VoidCorp universal craftsman skills (TDD strict, TypeScript strict, hexagonal, DDD, functional, code-review, api-and-interface-design, source-driven-development, context-management, compounding, adr-workflow, claude-md-authoring, observability, security-guidance, ...) plus 12 PreToolUse enforcement hooks (tdd-guard, no-any, protect-sensitive-files, block-dangerous-bash, no-ai-design-slop, ...) and PostToolUse/SessionStart lifecycle hooks, read-only agents (doctrine-critic, silent-failure-hunter, type-design-analyzer, code-explorer, migration-planner), and /void-graph, /void-feedback, /void-doctor, /void-audit commands.",
+  "description": "VoidCorp universal craftsman skills (TDD strict, TypeScript strict, hexagonal, DDD, functional, code-review, api-and-interface-design, source-driven-development, context-management, compounding, adr-workflow, claude-md-authoring, observability, security-guidance, ...) plus 12 PreToolUse enforcement hooks (tdd-guard, no-any, protect-sensitive-files, block-dangerous-bash, no-ai-design-slop, ...) and PostToolUse/SessionStart lifecycle hooks (incl. trim-large-output token frugality), read-only agents (doctrine-critic, silent-failure-hunter, type-design-analyzer, code-explorer, migration-planner), and /void-graph, /void-feedback, /void-doctor, /void-audit commands.",
   "author": {
     "name": "VoidCorp",
     "email": "florent.pellegrin@voidcorp.io"
@@ -142,6 +142,15 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/auto-format.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/trim-large-output.sh"
           }
         ]
       },
