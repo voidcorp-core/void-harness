@@ -1,6 +1,7 @@
 ---
 name: parallel-routes-slots
 description: Use Next.js parallel routes (@slot) and intercepting routes ((.)foo) — when they're the right tool, when they're an anti-pattern. The "modal that's also a deep-linkable page" archetype.
+owner: folpe
 ---
 
 # parallel-routes-slots

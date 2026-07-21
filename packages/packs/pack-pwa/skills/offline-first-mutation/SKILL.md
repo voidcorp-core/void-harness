@@ -1,6 +1,7 @@
 ---
 name: offline-first-mutation
 description: Implement a UI mutation that works offline via the capture-queue + sync pattern: IndexedDB, optimistic UI, idempotency keys, retry, conflict resolution. Self-contained, no harness wrappers.
+owner: folpe
 ---
 
 # offline-first-mutation

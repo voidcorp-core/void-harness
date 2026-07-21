@@ -70,6 +70,41 @@ describe('readFrontmatter — activation', () => {
   });
 });
 
+describe('readFrontmatter — owner', () => {
+  it('reads the owner scalar', () => {
+    const md = '---\nname: tdd\ndescription: TDD.\nowner: folpe\n---\nbody';
+    expect(readFrontmatter(md).owner).toBe('folpe');
+  });
+
+  it('omits owner when absent (governance flags it downstream)', () => {
+    expect(readFrontmatter('---\ndescription: x\n---\n').owner).toBeUndefined();
+  });
+
+  it('trims surrounding whitespace', () => {
+    expect(readFrontmatter('---\ndescription: x\nowner:   folpe  \n---\n').owner).toBe('folpe');
+  });
+
+  it('does not confuse a substring key (e.g. co-owner) with owner', () => {
+    expect(readFrontmatter('---\ndescription: x\nco-owner: someone\n---\n').owner).toBeUndefined();
+  });
+
+  it('treats a quoted-empty owner as absent (fail-closed: a vacuous owner must not pass governance)', () => {
+    expect(readFrontmatter('---\ndescription: x\nowner: ""\n---\n').owner).toBeUndefined();
+    expect(readFrontmatter("---\ndescription: x\nowner: ''\n---\n").owner).toBeUndefined();
+  });
+
+  it('treats YAML null representations as absent', () => {
+    for (const v of ['~', 'null', 'Null', 'NULL']) {
+      expect(readFrontmatter(`---\ndescription: x\nowner: ${v}\n---\n`).owner).toBeUndefined();
+    }
+  });
+
+  it('strips surrounding quotes from a real owner value', () => {
+    expect(readFrontmatter('---\ndescription: x\nowner: "folpe"\n---\n').owner).toBe('folpe');
+    expect(readFrontmatter("---\ndescription: x\nowner: 'folpe'\n---\n").owner).toBe('folpe');
+  });
+});
+
 describe('countLines', () => {
   it('counts newline-separated lines', () => {
     expect(countLines('a\nb\nc')).toBe(3);

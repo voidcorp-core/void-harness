@@ -1,6 +1,7 @@
 ---
 name: loading-error-boundaries
 description: Place loading.tsx, error.tsx, not-found.tsx files at the right level — neither too high (poor UX) nor too low (unhandled errors). The skeleton matches the layout it replaces.
+owner: folpe
 ---
 
 # loading-error-boundaries

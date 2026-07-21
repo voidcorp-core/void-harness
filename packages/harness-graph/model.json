@@ -573,8 +573,8 @@
       "type": "skill",
       "name": "accessibility-first",
       "description": "WCAG 2.2 AA floor. Radix primitives only, touch >=44x44, keyboard parity, semantic HTML, form labels, aria-live errors, mobile-first dual-quality. Use when building or modifying UI.",
-      "lines": 279,
-      "staticTokens": 2211,
+      "lines": 280,
+      "staticTokens": 2215,
       "pack": null,
       "source": "packages/core/skills/accessibility-first/SKILL.md",
       "triggers": {
@@ -582,25 +582,27 @@
           "tsx"
         ]
       },
-      "activation": "always"
+      "activation": "always",
+      "owner": "folpe"
     },
     {
       "id": "skill:adr-workflow",
       "type": "skill",
       "name": "adr-workflow",
       "description": "Capture architecture decisions as ADRs (decisions/0001-NNNN.md) — when to write one, when not, format, lifecycle (proposed → accepted → superseded). Distinct from generic plans.",
-      "lines": 104,
-      "staticTokens": 1074,
+      "lines": 105,
+      "staticTokens": 1077,
       "pack": null,
-      "source": "packages/core/skills/adr-workflow/SKILL.md"
+      "source": "packages/core/skills/adr-workflow/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:api-and-interface-design",
       "type": "skill",
       "name": "api-and-interface-design",
       "description": "Contract-first design of any public interface — package exports, HTTP/REST, RPC/tRPC, SDK, module boundary. Minimal surface, stable boundary types, versioning. Use when shaping a public API.",
-      "lines": 234,
-      "staticTokens": 3378,
+      "lines": 235,
+      "staticTokens": 3382,
       "pack": null,
       "source": "packages/core/skills/api-and-interface-design/SKILL.md",
       "triggers": {
@@ -610,15 +612,16 @@
           "**/*.openapi.ts",
           "**/trpc/**/router.ts"
         ]
-      }
+      },
+      "owner": "folpe"
     },
     {
       "id": "skill:async-safety",
       "type": "skill",
       "name": "async-safety",
       "description": "Idempotency by design. At-least-once with consumer dedup. Signature verify, replay window, idempotency keys, outbox, bounded retries, DLQ. Use for async/webhook/job/cron code.",
-      "lines": 284,
-      "staticTokens": 2958,
+      "lines": 285,
+      "staticTokens": 2961,
       "pack": null,
       "source": "packages/core/skills/async-safety/SKILL.md",
       "triggers": {
@@ -630,99 +633,108 @@
           "**/cron/**",
           "**/*.worker.ts"
         ]
-      }
+      },
+      "owner": "folpe"
     },
     {
       "id": "skill:backlog-autopilot",
       "type": "skill",
       "name": "backlog-autopilot",
       "description": "Opt-in parallel drain of independent Linear tickets, each in its own worktree subagent, reconciled into one integration PR gated by the full suite. Use when clearing independent tickets at once.",
-      "lines": 240,
-      "staticTokens": 4084,
+      "lines": 241,
+      "staticTokens": 4088,
       "pack": null,
-      "source": "packages/core/skills/backlog-autopilot/SKILL.md"
+      "source": "packages/core/skills/backlog-autopilot/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:brainstorming",
       "type": "skill",
       "name": "brainstorming",
       "description": "Explore intent before code: pressure-test a raw idea, one question at a time, 2-3 approaches, design in sections, spec written and approved. HARD GATE — no code until the spec is approved.",
-      "lines": 225,
-      "staticTokens": 3480,
+      "lines": 226,
+      "staticTokens": 3483,
       "pack": null,
-      "source": "packages/core/skills/brainstorming/SKILL.md"
+      "source": "packages/core/skills/brainstorming/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:claude-md-authoring",
       "type": "skill",
       "name": "claude-md-authoring",
       "description": "Author a lean, runnable CLAUDE.md (or AGENTS.md). Only universal instructions; defer detail to docs; push style to linters and certainties to hooks. Use when writing or auditing a project CLAUDE.md.",
-      "lines": 181,
-      "staticTokens": 2653,
+      "lines": 182,
+      "staticTokens": 2656,
       "pack": null,
-      "source": "packages/core/skills/claude-md-authoring/SKILL.md"
+      "source": "packages/core/skills/claude-md-authoring/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:code-review",
       "type": "skill",
       "name": "code-review",
       "description": "Pre-PR critical pass. Six dimensions (correctness, tests, security, structure, readability, perf). Two modes (strict/souple). Composes the native /code-review and codex CLI. Use on a diff.",
-      "lines": 220,
-      "staticTokens": 2702,
+      "lines": 221,
+      "staticTokens": 2706,
       "pack": null,
       "source": "packages/core/skills/code-review/SKILL.md",
-      "activation": "always"
+      "activation": "always",
+      "owner": "folpe"
     },
     {
       "id": "skill:commit-discipline",
       "type": "skill",
       "name": "commit-discipline",
       "description": "Conventional Commits + mandatory \"why\" in body + scope + breaking-change marking. ASCII-only (no em dash, no emoji). Co-author trailer for AI pair. The git log is documentation. Use at every commit.",
-      "lines": 213,
-      "staticTokens": 1881,
+      "lines": 214,
+      "staticTokens": 1885,
       "pack": null,
       "source": "packages/core/skills/commit-discipline/SKILL.md",
-      "activation": "always"
+      "activation": "always",
+      "owner": "folpe"
     },
     {
       "id": "skill:context-management",
       "type": "skill",
       "name": "context-management",
       "description": "Context is the agent's core constraint. Use when a task spans many files, a session mixes subjects, corrections loop, or replies forget earlier constraints. Clear, compact, delegate to subagents.",
-      "lines": 162,
-      "staticTokens": 2592,
+      "lines": 163,
+      "staticTokens": 2595,
       "pack": null,
-      "source": "packages/core/skills/context-management/SKILL.md"
+      "source": "packages/core/skills/context-management/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:devex-audit",
       "type": "skill",
       "name": "devex-audit",
       "description": "Audit an EXISTING dev-facing surface (API/CLI/SDK/docs): measured TTHW, real error-path tracing, evidence-backed DX scorecard, scoped refine. The audit ceiling to plan-review's DevEx-lens.",
-      "lines": 115,
-      "staticTokens": 2102,
+      "lines": 116,
+      "staticTokens": 2105,
       "pack": null,
       "source": "packages/core/skills/devex-audit/SKILL.md",
-      "activation": "on-demand"
+      "activation": "on-demand",
+      "owner": "folpe"
     },
     {
       "id": "skill:domain-driven-design",
       "type": "skill",
       "name": "domain-driven-design",
       "description": "Bounded contexts, aggregates as consistency boundaries, value objects as branded types, always-valid domain, ubiquitous language. No CQRS, event sourcing, or generic Repository<T>. Use on the domain.",
-      "lines": 294,
-      "staticTokens": 3136,
+      "lines": 295,
+      "staticTokens": 3139,
       "pack": null,
       "source": "packages/core/skills/domain-driven-design/SKILL.md",
-      "activation": "always"
+      "activation": "always",
+      "owner": "folpe"
     },
     {
       "id": "skill:frontend-design",
       "type": "skill",
       "name": "frontend-design",
       "description": "Anti-AI-slop UI. Density first, 3-size hierarchy, motion <250ms, components via @repo/ui (Radix/shadcn), mobile-first dual-quality. Brand from DESIGN.md. Use when building or modifying UI.",
-      "lines": 267,
-      "staticTokens": 3442,
+      "lines": 268,
+      "staticTokens": 3445,
       "pack": null,
       "source": "packages/core/skills/frontend-design/SKILL.md",
       "triggers": {
@@ -730,69 +742,75 @@
           "tsx"
         ]
       },
-      "activation": "always"
+      "activation": "always",
+      "owner": "folpe"
     },
     {
       "id": "skill:functional",
       "type": "skill",
       "name": "functional",
       "description": "Pure-by-default, errors as values (Result<T, E>), discriminated unions for state, immutability defaults, functional core / imperative shell. Side effects at adapters. Use for data flow or state.",
-      "lines": 314,
-      "staticTokens": 2796,
+      "lines": 315,
+      "staticTokens": 2799,
       "pack": null,
       "source": "packages/core/skills/functional/SKILL.md",
-      "activation": "always"
+      "activation": "always",
+      "owner": "folpe"
     },
     {
       "id": "skill:hexagonal-architecture",
       "type": "skill",
       "name": "hexagonal-architecture",
       "description": "Ports + adapters. Domain owns interfaces, adapters at the edge, function-parameter injection only, no DI / CQRS / mediator. Use when placing code or crossing module boundaries.",
-      "lines": 278,
-      "staticTokens": 2714,
+      "lines": 279,
+      "staticTokens": 2717,
       "pack": null,
       "source": "packages/core/skills/hexagonal-architecture/SKILL.md",
-      "activation": "always"
+      "activation": "always",
+      "owner": "folpe"
     },
     {
       "id": "skill:learning-capture",
       "type": "skill",
       "name": "learning-capture",
       "description": "Capture a lesson when it appears — a stated project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a harness gap. Routes to PROJECT-DOCTRINE, a GitHub issue, or nothing. HITL strict.",
-      "lines": 210,
-      "staticTokens": 2823,
+      "lines": 211,
+      "staticTokens": 2826,
       "pack": null,
-      "source": "packages/core/skills/learning-capture/SKILL.md"
+      "source": "packages/core/skills/learning-capture/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:llm-cost-discipline",
       "type": "skill",
       "name": "llm-cost-discipline",
       "description": "Sonnet default (Opus needs comment), prompt caching for >1024-token prompts, batch API for non-interactive, max_tokens declared, bounded retries, no full prompts in logs. Use on LLM API calls.",
-      "lines": 301,
-      "staticTokens": 2509,
+      "lines": 302,
+      "staticTokens": 2512,
       "pack": null,
       "source": "packages/core/skills/llm-cost-discipline/SKILL.md",
-      "activation": "always"
+      "activation": "always",
+      "owner": "folpe"
     },
     {
       "id": "skill:make-pdf",
       "type": "skill",
       "name": "make-pdf",
       "description": "Turn a markdown file into a publication-quality PDF — marked + puppeteer-core on the system Chrome, with page-number footers. No gstack daemon. For signed deliverables (DECLIK audits).",
-      "lines": 47,
-      "staticTokens": 793,
+      "lines": 48,
+      "staticTokens": 796,
       "pack": null,
       "source": "packages/core/skills/make-pdf/SKILL.md",
-      "activation": "on-demand"
+      "activation": "on-demand",
+      "owner": "folpe"
     },
     {
       "id": "skill:migrations-safety",
       "type": "skill",
       "name": "migrations-safety",
       "description": "Zero-downtime Postgres migrations. Two-phase changes, batched backfills, locking analysis, banned DDL patterns, CONCURRENTLY indexes, dev branch test, immutable after merge. Use on DB schema changes.",
-      "lines": 268,
-      "staticTokens": 2206,
+      "lines": 269,
+      "staticTokens": 2209,
       "pack": null,
       "source": "packages/core/skills/migrations-safety/SKILL.md",
       "triggers": {
@@ -801,404 +819,443 @@
           "**/*.sql"
         ]
       },
-      "activation": "always"
+      "activation": "always",
+      "owner": "folpe"
     },
     {
       "id": "skill:observability",
       "type": "skill",
       "name": "observability",
       "description": "Structured logs (no string interp), trace IDs end-to-end, error boundaries at async boundaries, anonymized user scope, no PII/secrets ever. Use @repo/core/logger not console.log. Use for prod code.",
-      "lines": 247,
-      "staticTokens": 2201,
+      "lines": 248,
+      "staticTokens": 2204,
       "pack": null,
       "source": "packages/core/skills/observability/SKILL.md",
-      "activation": "always"
+      "activation": "always",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-mobile/eas-build-profile",
       "type": "skill",
       "name": "eas-build-profile",
       "description": "Configure eas.json profiles (development, preview, production) with the right env, bundle ID, signing, distribution. The 3-profile structure that fits 95% of Expo apps.",
-      "lines": 165,
-      "staticTokens": 1476,
+      "lines": 166,
+      "staticTokens": 1480,
       "pack": "pack-mobile",
-      "source": "packages/packs/pack-mobile/skills/eas-build-profile/SKILL.md"
+      "source": "packages/packs/pack-mobile/skills/eas-build-profile/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-mobile/expo-config-plugins",
       "type": "skill",
       "name": "expo-config-plugins",
       "description": "Add native functionality to an Expo app via config plugins, never by ejecting. Pick existing Expo modules first, write a custom plugin only when none fits. Document everything in app.config.ts.",
-      "lines": 179,
-      "staticTokens": 1569,
+      "lines": 180,
+      "staticTokens": 1573,
       "pack": "pack-mobile",
-      "source": "packages/packs/pack-mobile/skills/expo-config-plugins/SKILL.md"
+      "source": "packages/packs/pack-mobile/skills/expo-config-plugins/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-mobile/expo-router-pattern",
       "type": "skill",
       "name": "expo-router-pattern",
       "description": "File-based routing in Expo via expo-router — layouts, tabs, modals, deep links. Mirrors Next.js App Router so monorepos can share mental model. Stack-aware navigation patterns.",
-      "lines": 210,
-      "staticTokens": 1619,
+      "lines": 211,
+      "staticTokens": 1622,
       "pack": "pack-mobile",
-      "source": "packages/packs/pack-mobile/skills/expo-router-pattern/SKILL.md"
+      "source": "packages/packs/pack-mobile/skills/expo-router-pattern/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-mobile/ota-update-strategy",
       "type": "skill",
       "name": "ota-update-strategy",
       "description": "Ship JS-only fixes via EAS Update; full rebuild via EAS Build. Runtime versions, channels, rollback. The \"when can I OTA vs when do I rebuild\" decision.",
-      "lines": 195,
-      "staticTokens": 1754,
+      "lines": 196,
+      "staticTokens": 1757,
       "pack": "pack-mobile",
-      "source": "packages/packs/pack-mobile/skills/ota-update-strategy/SKILL.md"
+      "source": "packages/packs/pack-mobile/skills/ota-update-strategy/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-monorepo/dependency-direction",
       "type": "skill",
       "name": "dependency-direction",
       "description": "Enforce the @repo/* import direction in a Turborepo workspace. Concrete violations + fixes. Composes with core:hexagonal-architecture and the boundary-direction-check hook.",
-      "lines": 161,
-      "staticTokens": 1426,
+      "lines": 162,
+      "staticTokens": 1429,
       "pack": "pack-monorepo",
-      "source": "packages/packs/pack-monorepo/skills/dependency-direction/SKILL.md"
+      "source": "packages/packs/pack-monorepo/skills/dependency-direction/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-monorepo/package-extraction",
       "type": "skill",
       "name": "package-extraction",
       "description": "Decide whether code in apps/<app>/ should be extracted into a new packages/<name>/ workspace. Most extractions are premature; this skill is the decision gate.",
-      "lines": 71,
-      "staticTokens": 1077,
+      "lines": 72,
+      "staticTokens": 1080,
       "pack": "pack-monorepo",
-      "source": "packages/packs/pack-monorepo/skills/package-extraction/SKILL.md"
+      "source": "packages/packs/pack-monorepo/skills/package-extraction/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-monorepo/service-package",
       "type": "skill",
       "name": "service-package",
       "description": "Create or extend a packages/<name>/ service in a harness-monorepo workspace: the 5+5 file layout, @repo/* boundaries, ports-and-adapters direction. Composes with hexagonal-architecture, DDD.",
-      "lines": 123,
-      "staticTokens": 1477,
+      "lines": 124,
+      "staticTokens": 1480,
       "pack": "pack-monorepo",
-      "source": "packages/packs/pack-monorepo/skills/service-package/SKILL.md"
+      "source": "packages/packs/pack-monorepo/skills/service-package/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-monorepo/turbo-pipeline-tuning",
       "type": "skill",
       "name": "turbo-pipeline-tuning",
       "description": "Configure turbo.json tasks correctly — dependsOn, outputs, cache keys, persistent tasks, remote cache. Get build speed right without over-engineering.",
-      "lines": 117,
-      "staticTokens": 1295,
+      "lines": 118,
+      "staticTokens": 1299,
       "pack": "pack-monorepo",
-      "source": "packages/packs/pack-monorepo/skills/turbo-pipeline-tuning/SKILL.md"
+      "source": "packages/packs/pack-monorepo/skills/turbo-pipeline-tuning/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-nextjs/cache-component-pattern",
       "type": "skill",
       "name": "cache-component-pattern",
       "description": "Use Next.js 16 Cache Components correctly — when to opt in ('use cache'), when to opt out ('use no cache'), cache key strategy, scoping by user/org. Default is cached; uncache deliberately.",
-      "lines": 163,
-      "staticTokens": 1725,
+      "lines": 164,
+      "staticTokens": 1728,
       "pack": "pack-nextjs",
-      "source": "packages/packs/pack-nextjs/skills/cache-component-pattern/SKILL.md"
+      "source": "packages/packs/pack-nextjs/skills/cache-component-pattern/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-nextjs/instrumentation-setup",
       "type": "skill",
       "name": "instrumentation-setup",
       "description": "Wire instrumentation.ts in Next.js 16 — Sentry, pino logger, OpenTelemetry traces. Edge vs Node runtime split. The single place observability is bootstrapped.",
-      "lines": 162,
-      "staticTokens": 1403,
+      "lines": 163,
+      "staticTokens": 1406,
       "pack": "pack-nextjs",
-      "source": "packages/packs/pack-nextjs/skills/instrumentation-setup/SKILL.md"
+      "source": "packages/packs/pack-nextjs/skills/instrumentation-setup/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-nextjs/loading-error-boundaries",
       "type": "skill",
       "name": "loading-error-boundaries",
       "description": "Place loading.tsx, error.tsx, not-found.tsx files at the right level — neither too high (poor UX) nor too low (unhandled errors). The skeleton matches the layout it replaces.",
-      "lines": 177,
-      "staticTokens": 1670,
+      "lines": 178,
+      "staticTokens": 1674,
       "pack": "pack-nextjs",
-      "source": "packages/packs/pack-nextjs/skills/loading-error-boundaries/SKILL.md"
+      "source": "packages/packs/pack-nextjs/skills/loading-error-boundaries/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-nextjs/parallel-routes-slots",
       "type": "skill",
       "name": "parallel-routes-slots",
       "description": "Use Next.js parallel routes (@slot) and intercepting routes ((.)foo) — when they're the right tool, when they're an anti-pattern. The \"modal that's also a deep-linkable page\" archetype.",
-      "lines": 130,
-      "staticTokens": 1323,
+      "lines": 131,
+      "staticTokens": 1326,
       "pack": "pack-nextjs",
-      "source": "packages/packs/pack-nextjs/skills/parallel-routes-slots/SKILL.md"
+      "source": "packages/packs/pack-nextjs/skills/parallel-routes-slots/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-nextjs/route-group-decision",
       "type": "skill",
       "name": "route-group-decision",
       "description": "Decide when to use a (route-group), what to name it, and how to share layouts. The void-harness convention groups by trust boundary, not by visual section.",
-      "lines": 108,
-      "staticTokens": 1299,
+      "lines": 109,
+      "staticTokens": 1302,
       "pack": "pack-nextjs",
-      "source": "packages/packs/pack-nextjs/skills/route-group-decision/SKILL.md"
+      "source": "packages/packs/pack-nextjs/skills/route-group-decision/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-pwa/install-prompt-ux",
       "type": "skill",
       "name": "install-prompt-ux",
       "description": "Surface the PWA install prompt at the right moment (engagement signal) with the right UI (custom button, not auto-prompt). Capture beforeinstallprompt, defer, recover declined.",
-      "lines": 154,
-      "staticTokens": 1663,
+      "lines": 155,
+      "staticTokens": 1667,
       "pack": "pack-pwa",
-      "source": "packages/packs/pack-pwa/skills/install-prompt-ux/SKILL.md"
+      "source": "packages/packs/pack-pwa/skills/install-prompt-ux/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-pwa/manifest-checklist",
       "type": "skill",
       "name": "manifest-checklist",
       "description": "Get manifest.webmanifest right the first time — required fields, icon sizes (192, 512, maskable), display modes, scope, start_url. Single artifact: every field motivated, no dead options.",
-      "lines": 205,
-      "staticTokens": 1572,
+      "lines": 206,
+      "staticTokens": 1575,
       "pack": "pack-pwa",
-      "source": "packages/packs/pack-pwa/skills/manifest-checklist/SKILL.md"
+      "source": "packages/packs/pack-pwa/skills/manifest-checklist/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-pwa/offline-first-mutation",
       "type": "skill",
       "name": "offline-first-mutation",
       "description": "Implement a UI mutation that works offline via the capture-queue + sync pattern: IndexedDB, optimistic UI, idempotency keys, retry, conflict resolution. Self-contained, no harness wrappers.",
-      "lines": 267,
-      "staticTokens": 2501,
+      "lines": 268,
+      "staticTokens": 2505,
       "pack": "pack-pwa",
-      "source": "packages/packs/pack-pwa/skills/offline-first-mutation/SKILL.md"
+      "source": "packages/packs/pack-pwa/skills/offline-first-mutation/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-pwa/service-worker-strategy",
       "type": "skill",
       "name": "service-worker-strategy",
       "description": "Pick caching strategy per route class (NetworkFirst, CacheFirst, StaleWhileRevalidate, NetworkOnly), version your caches, handle update activation. Use Serwist (Next) or vite-plugin-pwa.",
-      "lines": 179,
-      "staticTokens": 1827,
+      "lines": 180,
+      "staticTokens": 1830,
       "pack": "pack-pwa",
-      "source": "packages/packs/pack-pwa/skills/service-worker-strategy/SKILL.md"
+      "source": "packages/packs/pack-pwa/skills/service-worker-strategy/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-react/accessibility-check",
       "type": "skill",
       "name": "accessibility-check",
       "description": "Per-component accessibility checklist: semantic HTML, ARIA, keyboard, focus, contrast, touch targets. Auto-applies on any React component edit. Composes with harness:accessibility-first.",
-      "lines": 137,
-      "staticTokens": 1543,
+      "lines": 138,
+      "staticTokens": 1546,
       "pack": "pack-react",
-      "source": "packages/packs/pack-react/skills/accessibility-check/SKILL.md"
+      "source": "packages/packs/pack-react/skills/accessibility-check/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-react/client-vs-server-component",
       "type": "skill",
       "name": "client-vs-server-component",
       "description": "Decide which components run on server vs client in a React 19 / Next.js app and place the 'use client' boundary correctly. Server Components by default; client is the exception.",
-      "lines": 117,
-      "staticTokens": 1320,
+      "lines": 118,
+      "staticTokens": 1323,
       "pack": "pack-react",
-      "source": "packages/packs/pack-react/skills/client-vs-server-component/SKILL.md"
+      "source": "packages/packs/pack-react/skills/client-vs-server-component/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-react/form-pattern",
       "type": "skill",
       "name": "form-pattern",
       "description": "Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with harness-server:server-action.",
-      "lines": 158,
-      "staticTokens": 1703,
+      "lines": 159,
+      "staticTokens": 1707,
       "pack": "pack-react",
-      "source": "packages/packs/pack-react/skills/form-pattern/SKILL.md"
+      "source": "packages/packs/pack-react/skills/form-pattern/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-react/state-architecture",
       "type": "skill",
       "name": "state-architecture",
       "description": "Decide where state lives — local, lifted, URL, server, client global. The decision tree to avoid useState-in-the-wrong-place sprawl. Default to URL or server before reaching for global stores.",
-      "lines": 161,
-      "staticTokens": 1684,
+      "lines": 162,
+      "staticTokens": 1687,
       "pack": "pack-react",
-      "source": "packages/packs/pack-react/skills/state-architecture/SKILL.md"
+      "source": "packages/packs/pack-react/skills/state-architecture/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-server/background-job-pattern",
       "type": "skill",
       "name": "background-job-pattern",
       "description": "Run async work outside the request lifecycle: when to use a queue (Inngest, Trigger, Cloudflare Queues) vs a cron route. Idempotency, retry, dead-letter. Self-contained, no harness wrappers.",
-      "lines": 215,
-      "staticTokens": 2243,
+      "lines": 216,
+      "staticTokens": 2246,
       "pack": "pack-server",
-      "source": "packages/packs/pack-server/skills/background-job-pattern/SKILL.md"
+      "source": "packages/packs/pack-server/skills/background-job-pattern/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-server/drizzle-migration-safe",
       "type": "skill",
       "name": "drizzle-migration-safe",
       "description": "Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. Composes with harness:migrations-safety for the generic discipline.",
-      "lines": 169,
-      "staticTokens": 2116,
+      "lines": 170,
+      "staticTokens": 2120,
       "pack": "pack-server",
-      "source": "packages/packs/pack-server/skills/drizzle-migration-safe/SKILL.md"
+      "source": "packages/packs/pack-server/skills/drizzle-migration-safe/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-server/env-validation",
       "type": "skill",
       "name": "env-validation",
       "description": "Validate environment variables at boot via Zod in @repo/core/env. Separate PUBLIC (NEXT_PUBLIC_*) from server-only. Fail fast at startup; never raw process.env in business code.",
-      "lines": 132,
-      "staticTokens": 1414,
+      "lines": 133,
+      "staticTokens": 1418,
       "pack": "pack-server",
-      "source": "packages/packs/pack-server/skills/env-validation/SKILL.md"
+      "source": "packages/packs/pack-server/skills/env-validation/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-server/rate-limit-strategy",
       "type": "skill",
       "name": "rate-limit-strategy",
       "description": "Choose rate limit window, max, and key strategy per action class. Per-user for authed, per-IP for public, escalation for auth-adjacent. Default values + when to deviate.",
-      "lines": 150,
-      "staticTokens": 1728,
+      "lines": 151,
+      "staticTokens": 1731,
       "pack": "pack-server",
-      "source": "packages/packs/pack-server/skills/rate-limit-strategy/SKILL.md"
+      "source": "packages/packs/pack-server/skills/rate-limit-strategy/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-server/server-action",
       "type": "skill",
       "name": "server-action",
       "description": "Create a Next.js 16 Server Action with the void trust-boundary checklist: Zod ingress, auth, rate limit, observability, structured errors. Composes with security-guidance, async-safety.",
-      "lines": 182,
-      "staticTokens": 2132,
+      "lines": 183,
+      "staticTokens": 2135,
       "pack": "pack-server",
-      "source": "packages/packs/pack-server/skills/server-action/SKILL.md"
+      "source": "packages/packs/pack-server/skills/server-action/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-server/testing-server-modules",
       "type": "skill",
       "name": "testing-server-modules",
       "description": "Unit-test modules guarded by server-only / client-only under Vitest by aliasing those packages to an empty stub. Test-time only; never a substitute for the real build-time boundary.",
-      "lines": 74,
-      "staticTokens": 927,
+      "lines": 75,
+      "staticTokens": 930,
       "pack": "pack-server",
-      "source": "packages/packs/pack-server/skills/testing-server-modules/SKILL.md"
+      "source": "packages/packs/pack-server/skills/testing-server-modules/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:pack-server/webhook-handler-pattern",
       "type": "skill",
       "name": "webhook-handler-pattern",
       "description": "Build a webhook handler with signature verification, idempotency, and dead-letter routing. Per-source patterns (Stripe, Resend, GitHub). Self-contained — no harness wrappers required.",
-      "lines": 206,
-      "staticTokens": 2129,
+      "lines": 207,
+      "staticTokens": 2132,
       "pack": "pack-server",
-      "source": "packages/packs/pack-server/skills/webhook-handler-pattern/SKILL.md"
+      "source": "packages/packs/pack-server/skills/webhook-handler-pattern/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:plan-review",
       "type": "skill",
       "name": "plan-review",
       "description": "Critique a written plan (not a diff) via four lenses: CEO premise/ambition, Eng test-coverage, Design states/slop, DevEx time-to-first-value. Proposes findings; the author disposes.",
-      "lines": 130,
-      "staticTokens": 2693,
+      "lines": 131,
+      "staticTokens": 2696,
       "pack": null,
       "source": "packages/core/skills/plan-review/SKILL.md",
-      "activation": "on-demand"
+      "activation": "on-demand",
+      "owner": "folpe"
     },
     {
       "id": "skill:qa",
       "type": "skill",
       "name": "qa",
       "description": "Live browser QA of a running web app via the claude-in-chrome MCP: systematic exploration, edge/error/empty states, atomic fix loop, evidence-backed report. Report-only mode available.",
-      "lines": 105,
-      "staticTokens": 2544,
+      "lines": 106,
+      "staticTokens": 2547,
       "pack": null,
       "source": "packages/core/skills/qa/SKILL.md",
-      "activation": "on-demand"
+      "activation": "on-demand",
+      "owner": "folpe"
     },
     {
       "id": "skill:refactoring",
       "type": "skill",
       "name": "refactoring",
       "description": "Tidy-First. Tidyings commit separately from behavior changes (Two-Hat). Named Fowler refactors only. Tests stay green. Two modes (strict/souple). Use when improving structure without behavior change.",
-      "lines": 222,
-      "staticTokens": 2428,
+      "lines": 223,
+      "staticTokens": 2431,
       "pack": null,
       "source": "packages/core/skills/refactoring/SKILL.md",
-      "activation": "always"
+      "activation": "always",
+      "owner": "folpe"
     },
     {
       "id": "skill:retrospective",
       "type": "skill",
       "name": "retrospective",
       "description": "Periodic engineering retro over a window: read git log / PRs / .void, surface signals (hotspots, test ratio, commit types, regressions), turn them into improvement decisions feeding learning-capture.",
-      "lines": 73,
-      "staticTokens": 1384,
+      "lines": 74,
+      "staticTokens": 1388,
       "pack": null,
       "source": "packages/core/skills/retrospective/SKILL.md",
-      "activation": "on-demand"
+      "activation": "on-demand",
+      "owner": "folpe"
     },
     {
       "id": "skill:security-audit",
       "type": "skill",
       "name": "security-audit",
       "description": "Periodic deep security audit — OWASP Top 10, STRIDE, secrets, supply chain, CI/CD, infra, LLM. Phase-driven, read-only, zero-noise. The ceiling above security-guidance's daily floor.",
-      "lines": 129,
-      "staticTokens": 3759,
+      "lines": 130,
+      "staticTokens": 3762,
       "pack": null,
       "source": "packages/core/skills/security-audit/SKILL.md",
-      "activation": "on-demand"
+      "activation": "on-demand",
+      "owner": "folpe"
     },
     {
       "id": "skill:security-guidance",
       "type": "skill",
       "name": "security-guidance",
       "description": "Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. Escalate to security-audit for deep audits. Use on trust-boundary code.",
-      "lines": 257,
-      "staticTokens": 2467,
+      "lines": 258,
+      "staticTokens": 2471,
       "pack": null,
       "source": "packages/core/skills/security-guidance/SKILL.md",
-      "activation": "always"
+      "activation": "always",
+      "owner": "folpe"
     },
     {
       "id": "skill:source-driven-development",
       "type": "skill",
       "name": "source-driven-development",
       "description": "Ground every third-party config or API usage in the official docs for the installed version, not training memory. Verify the version, cite the reference. Use before writing any tool config.",
-      "lines": 164,
-      "staticTokens": 2384,
+      "lines": 165,
+      "staticTokens": 2387,
       "pack": null,
       "source": "packages/core/skills/source-driven-development/SKILL.md",
-      "activation": "always"
+      "activation": "always",
+      "owner": "folpe"
     },
     {
       "id": "skill:systematic-debugging",
       "type": "skill",
       "name": "systematic-debugging",
       "description": "Four phases (investigate, analyze, hypothesize, implement). Iron Law: no fix without a failing test reproducing the bug AND a root cause. Bug fix commit pairs. Use on bug or test failure.",
-      "lines": 212,
-      "staticTokens": 2332,
+      "lines": 213,
+      "staticTokens": 2336,
       "pack": null,
-      "source": "packages/core/skills/systematic-debugging/SKILL.md"
+      "source": "packages/core/skills/systematic-debugging/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:tdd",
       "type": "skill",
       "name": "tdd",
       "description": "TDD with three modes (strict/souple/exploratory) auto-selected by path. Iron Law in strict (no prod code without a failing test), mutation gate, anti-rustine. Use for any feature, bugfix, refactor.",
-      "lines": 370,
-      "staticTokens": 3293,
+      "lines": 371,
+      "staticTokens": 3296,
       "pack": null,
       "source": "packages/core/skills/tdd/SKILL.md",
-      "activation": "always"
+      "activation": "always",
+      "owner": "folpe"
     },
     {
       "id": "skill:testing",
       "type": "skill",
       "name": "testing",
       "description": "How to write a good test. Behavior over implementation, real code over mocks, factories over beforeEach, pyramid respected, pristine output, no snapshot creep. Use when writing or modifying tests.",
-      "lines": 280,
-      "staticTokens": 2659,
+      "lines": 281,
+      "staticTokens": 2662,
       "pack": null,
       "source": "packages/core/skills/testing/SKILL.md",
       "triggers": {
@@ -1207,35 +1264,38 @@
           "**/*.spec.ts"
         ]
       },
-      "activation": "always"
+      "activation": "always",
+      "owner": "folpe"
     },
     {
       "id": "skill:ticket-runner",
       "type": "skill",
       "name": "ticket-runner",
       "description": "Use when taking a single ticket from ready through shipped at expert-team quality. Triggers on starting a ticket, taking an issue, or picking up a backlog item to execute.",
-      "lines": 94,
-      "staticTokens": 2358,
+      "lines": 95,
+      "staticTokens": 2361,
       "pack": null,
-      "source": "packages/core/skills/ticket-runner/SKILL.md"
+      "source": "packages/core/skills/ticket-runner/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:ticket-writer",
       "type": "skill",
       "name": "ticket-writer",
       "description": "Use when turning a finished brainstorm, plan, or design decision into a tracker ticket. Triggers on creating a ticket or issue, logging work, or breaking an approved spec into tickets.",
-      "lines": 97,
-      "staticTokens": 1506,
+      "lines": 98,
+      "staticTokens": 1509,
       "pack": null,
-      "source": "packages/core/skills/ticket-writer/SKILL.md"
+      "source": "packages/core/skills/ticket-writer/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "skill:typescript-strict",
       "type": "skill",
       "name": "typescript-strict",
       "description": "TS strict baseline. Zero any budget, branded types for domain primitives, discriminated unions over enums, exhaustive switches via never, satisfies over as. Use when editing TypeScript code.",
-      "lines": 298,
-      "staticTokens": 2623,
+      "lines": 299,
+      "staticTokens": 2626,
       "pack": null,
       "source": "packages/core/skills/typescript-strict/SKILL.md",
       "triggers": {
@@ -1244,39 +1304,43 @@
           "tsx"
         ]
       },
-      "activation": "always"
+      "activation": "always",
+      "owner": "folpe"
     },
     {
       "id": "skill:ui-review",
       "type": "skill",
       "name": "ui-review",
       "description": "Audit and polish an EXISTING UI: the AI-slop test, heuristic critique, technical audit (contrast/a11y/responsive/perf), refine modes. The audit ceiling to frontend-design's build floor.",
-      "lines": 89,
-      "staticTokens": 1775,
+      "lines": 90,
+      "staticTokens": 1779,
       "pack": null,
       "source": "packages/core/skills/ui-review/SKILL.md",
-      "activation": "on-demand"
+      "activation": "on-demand",
+      "owner": "folpe"
     },
     {
       "id": "skill:verification-before-completion",
       "type": "skill",
       "name": "verification-before-completion",
       "description": "Final pre-flight checklist. Twelve items observed (not assumed) — typecheck, tests, hooks, mobile+desktop, commit why, review evidence. Skipping requires reason. Use at end of every task.",
-      "lines": 177,
-      "staticTokens": 1963,
+      "lines": 178,
+      "staticTokens": 1966,
       "pack": null,
       "source": "packages/core/skills/verification-before-completion/SKILL.md",
-      "activation": "always"
+      "activation": "always",
+      "owner": "folpe"
     },
     {
       "id": "skill:writing-plans",
       "type": "skill",
       "name": "writing-plans",
       "description": "Turn an approved spec into an executable plan. Steps with goal, deps, verification gate, TDD mode per step, expected commits. Resume point updated. Use after brainstorming approves a spec.",
-      "lines": 231,
-      "staticTokens": 2398,
+      "lines": 232,
+      "staticTokens": 2401,
       "pack": null,
-      "source": "packages/core/skills/writing-plans/SKILL.md"
+      "source": "packages/core/skills/writing-plans/SKILL.md",
+      "owner": "folpe"
     },
     {
       "id": "workflow-def:backlog-autopilot",

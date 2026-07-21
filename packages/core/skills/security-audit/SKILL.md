@@ -2,6 +2,7 @@
 name: security-audit
 activation: on-demand
 description: Periodic deep security audit — OWASP Top 10, STRIDE, secrets, supply chain, CI/CD, infra, LLM. Phase-driven, read-only, zero-noise. The ceiling above security-guidance's daily floor.
+owner: folpe
 ---
 
 # security-audit — voidcorp craftsman edition

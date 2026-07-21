@@ -2,6 +2,7 @@
 name: code-review
 activation: always
 description: Pre-PR critical pass. Six dimensions (correctness, tests, security, structure, readability, perf). Two modes (strict/souple). Composes the native /code-review and codex CLI. Use on a diff.
+owner: folpe
 ---
 
 # code-review — voidcorp craftsman edition

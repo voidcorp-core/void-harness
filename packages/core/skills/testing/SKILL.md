@@ -4,6 +4,7 @@ activation: always
 triggers:
   globs: ["**/*.test.ts", "**/*.spec.ts"]
 description: How to write a good test. Behavior over implementation, real code over mocks, factories over beforeEach, pyramid respected, pristine output, no snapshot creep. Use when writing or modifying tests.
+owner: folpe
 ---
 
 # testing — voidcorp craftsman edition

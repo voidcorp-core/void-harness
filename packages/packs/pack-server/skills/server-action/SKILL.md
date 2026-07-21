@@ -1,6 +1,7 @@
 ---
 name: server-action
 description: Create a Next.js 16 Server Action with the void trust-boundary checklist: Zod ingress, auth, rate limit, observability, structured errors. Composes with security-guidance, async-safety.
+owner: folpe
 ---
 
 # server-action

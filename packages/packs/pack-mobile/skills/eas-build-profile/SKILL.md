@@ -1,6 +1,7 @@
 ---
 name: eas-build-profile
 description: Configure eas.json profiles (development, preview, production) with the right env, bundle ID, signing, distribution. The 3-profile structure that fits 95% of Expo apps.
+owner: folpe
 ---
 
 # eas-build-profile

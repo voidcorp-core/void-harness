@@ -1,6 +1,7 @@
 ---
 name: claude-md-authoring
 description: Author a lean, runnable CLAUDE.md (or AGENTS.md). Only universal instructions; defer detail to docs; push style to linters and certainties to hooks. Use when writing or auditing a project CLAUDE.md.
+owner: folpe
 ---
 
 # claude-md-authoring

@@ -34,10 +34,26 @@ function parseActivation(block: string): NodeActivation | undefined {
   return value === 'always' || value === 'on-demand' ? value : undefined;
 }
 
+/** Parse the opt-in `owner:` scalar (accountable maintainer). A vacuous value — empty, quoted-empty,
+ * or a YAML nil token — counts as **absent** so the fail-closed governance gate still fires (a
+ * template artifact like `owner: ""` must never pass as a real owner). */
+function parseOwner(block: string): string | undefined {
+  const line = block.split('\n').find((l) => l.startsWith('owner:'));
+  if (!line) return undefined;
+  let value = line.slice('owner:'.length).trim();
+  // Strip a single pair of surrounding quotes so `owner: "folpe"` yields `folpe`, and `owner: ""` empties.
+  if (value.length >= 2 && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
+    value = value.slice(1, -1).trim();
+  }
+  const nil = value === '' || value === '~' || /^null$/i.test(value); // allow-null: matches the YAML nil keyword as text, not a nullish value
+  return nil ? undefined : value;
+}
+
 export function readFrontmatter(text: string): {
   description: string;
   triggers?: NodeTriggers;
   activation?: NodeActivation;
+  owner?: string;
 } {
   const match = text.match(/^---\n([\s\S]*?)\n---/);
   if (!match) return { description: '' };
@@ -46,10 +62,12 @@ export function readFrontmatter(text: string): {
   const description = line ? line.slice('description:'.length).trim() : '';
   const triggers = parseTriggers(block);
   const activation = parseActivation(block);
+  const owner = parseOwner(block);
   return {
     description,
     ...(triggers ? { triggers } : {}),
     ...(activation ? { activation } : {}),
+    ...(owner ? { owner } : {}),
   };
 }
 

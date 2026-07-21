@@ -4,6 +4,7 @@ activation: always
 triggers:
   extensions: ["tsx"]
 description: WCAG 2.2 AA floor. Radix primitives only, touch >=44x44, keyboard parity, semantic HTML, form labels, aria-live errors, mobile-first dual-quality. Use when building or modifying UI.
+owner: folpe
 ---
 
 # accessibility-first — voidcorp craftsman edition

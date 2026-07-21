@@ -39,6 +39,9 @@ export interface GraphNode {
   readonly triggers?: NodeTriggers;
   /** Declared activation mode (frontmatter). Absent = on-demand (default). See NodeActivation. */
   readonly activation?: NodeActivation;
+  /** Accountable maintainer (frontmatter `owner:`). Governance: a capability (skill) with no
+   * owner is a blocking `missing-owner` finding — no capacity without a proof of ownership. */
+  readonly owner?: string;
 }
 
 export interface GraphEdge {

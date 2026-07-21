@@ -2,6 +2,7 @@
 name: qa
 activation: on-demand
 description: Live browser QA of a running web app via the claude-in-chrome MCP: systematic exploration, edge/error/empty states, atomic fix loop, evidence-backed report. Report-only mode available.
+owner: folpe
 ---
 
 # qa — voidcorp craftsman edition

@@ -1,6 +1,7 @@
 ---
 name: expo-router-pattern
 description: File-based routing in Expo via expo-router — layouts, tabs, modals, deep links. Mirrors Next.js App Router so monorepos can share mental model. Stack-aware navigation patterns.
+owner: folpe
 ---
 
 # expo-router-pattern

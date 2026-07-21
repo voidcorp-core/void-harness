@@ -1,6 +1,7 @@
 ---
 name: service-package
 description: Create or extend a packages/<name>/ service in a harness-monorepo workspace: the 5+5 file layout, @repo/* boundaries, ports-and-adapters direction. Composes with hexagonal-architecture, DDD.
+owner: folpe
 ---
 
 # service-package

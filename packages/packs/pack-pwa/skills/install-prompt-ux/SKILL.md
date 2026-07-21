@@ -1,6 +1,7 @@
 ---
 name: install-prompt-ux
 description: Surface the PWA install prompt at the right moment (engagement signal) with the right UI (custom button, not auto-prompt). Capture beforeinstallprompt, defer, recover declined.
+owner: folpe
 ---
 
 # install-prompt-ux

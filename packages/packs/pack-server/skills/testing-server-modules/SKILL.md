@@ -1,6 +1,7 @@
 ---
 name: testing-server-modules
 description: Unit-test modules guarded by server-only / client-only under Vitest by aliasing those packages to an empty stub. Test-time only; never a substitute for the real build-time boundary.
+owner: folpe
 ---
 
 # testing-server-modules

@@ -2,6 +2,7 @@
 name: devex-audit
 activation: on-demand
 description: Audit an EXISTING dev-facing surface (API/CLI/SDK/docs): measured TTHW, real error-path tracing, evidence-backed DX scorecard, scoped refine. The audit ceiling to plan-review's DevEx-lens.
+owner: folpe
 ---
 
 # devex-audit — voidcorp craftsman edition
