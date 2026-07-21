@@ -108,11 +108,11 @@ diff for direction review before scoring (B2) and the surface (B3).
 
 ## Resume point
 
-**Next step**: Step B1 (pure ProjectState five-state core)
+**Next step**: Step B2 (score model + next actions) — at Checkpoint B, awaiting direction on the score formulas.
 
-**Completed**: none (Phase A complete — see its plan)
+**Completed**:
+- ✅ B1: computeProjectState five-state core (`250ce6c`). Pure, offline. doctrine-critic PASS; silent-failure-hunter found + fixed a NaN-promotes-to-effective hole (normalizeCount). 172 tests green.
 
 **Pending**:
-- ⏳ B1: computeProjectState five-state core (MVP)
-- ⏳ B2: score model + next actions
-- ⏳ B3: void status command + persistence
+- ⏳ B2: score model + next actions (blocker red-predicates separate from dimension score, so Hermes ci-only 60 never caps; dx + transactional-installation signals deferred — no honest local signal yet)
+- ⏳ B3: void status command + persistence (.void/state.json + history, runtime detection, ARCHITECTURE ProjectState section)
