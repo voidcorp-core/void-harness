@@ -60,6 +60,9 @@ Commands:
                            signals into the five-state per capability + a score, render
                            it, and write .void/state.json. Deterministic, offline, no LLM.
 
+  adoption                 Maintainer: pull public npm + GitHub download/star stats
+                           (tier-1 telemetry, zero phone-home).
+
   help                     Print this message.
 
 Pack names (current marketplace):

@@ -12,6 +12,7 @@ import { backlogAutopilot } from './commands/backlog-autopilot.js';
 import { graph } from './commands/graph.js';
 import { audit } from './commands/audit.js';
 import { status } from './commands/status.js';
+import { adoption } from './commands/adoption.js';
 import { printHelp } from './commands/help.js';
 
 export async function main(argv: readonly string[]): Promise<void> {
@@ -55,6 +56,9 @@ export async function main(argv: readonly string[]): Promise<void> {
       return;
     case 'status':
       await status(rest);
+      return;
+    case 'adoption':
+      await adoption(rest);
       return;
     case 'help':
     case '--help':
