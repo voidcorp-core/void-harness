@@ -135,12 +135,12 @@ broadening the contract in A2–A4. (Folpe reviews on diffs, not plans.)
 
 ## Resume point
 
-**Next step**: Step A1 (owner field end-to-end + governance blocker)
+**Next step**: Step A2 (runtimes + enforcement) — awaiting direction review at Checkpoint A.
 
-**Completed**: none
+**Completed**:
+- ✅ A1: owner field end-to-end + fail-closed missing-owner governance (commit `feat(graph): capability owner field + fail-closed missing-owner governance`). 129 harness-graph tests green, typecheck/lint/graph:check/check-bundle green, doctrine-critic PASS, silent-failure-hunter found + fixed a vacuous-owner governance hole.
 
 **Pending**:
-- ⏳ A1: owner + governance blocker (MVP pipe)
-- ⏳ A2: runtimes + enforcement
+- ⏳ A2: runtimes + enforcement (apply doctrine-critic nit: extract `parseScalar(block, key)` when a third scalar field lands)
 - ⏳ A3: evals.targets + success_signal + id/version
 - ⏳ A4: certification manifest build + bundle freeze
