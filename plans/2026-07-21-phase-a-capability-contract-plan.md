@@ -135,12 +135,12 @@ broadening the contract in A2–A4. (Folpe reviews on diffs, not plans.)
 
 ## Resume point
 
-**Next step**: Step A2 (runtimes + enforcement) — awaiting direction review at Checkpoint A.
+**Next step**: Phase A complete on the stacked branch `folpe/void-public-multiruntime-spec`. Awaiting PR (Folpe: stack A2-A4 before PR). Next phase: B (ProjectState + `void status`).
 
-**Completed**:
-- ✅ A1: owner field end-to-end + fail-closed missing-owner governance (commit `feat(graph): capability owner field + fail-closed missing-owner governance`). 129 harness-graph tests green, typecheck/lint/graph:check/check-bundle green, doctrine-critic PASS, silent-failure-hunter found + fixed a vacuous-owner governance hole.
+**Completed** (all four steps, each doctrine-critic + silent-failure-hunter reviewed, all gates green):
+- ✅ A1: owner + fail-closed missing-owner governance (`1fff384`). Fixed a vacuous-owner hole.
+- ✅ A2: runtimes + two-tier enforcement, inline tiers derived from enforces edges (`5877c9d`). Fixed multi-line-list false-positive + case-floor. ADR: two-tier enforcement.
+- ✅ A3: eval_targets (slug-encoded) + optional success_signal + shared parseScalar/parseList (`cc3ecb5`). Restored matched-pair quote semantics (two passes flagged the drift). ADR: slug encoding.
+- ✅ A4: frozen certification.json (64 caps, 0 effective — honest) + certification:build/check CI gate. Honesty invariant hardened per review: effective requires verified + finite delta + exactly one declared cell. ADR: certification manifest + single-cell limitation + deferrals (bundle-bake → Phase B, eval JSON emission → Phase E).
 
-**Pending**:
-- ⏳ A2: runtimes + enforcement (apply doctrine-critic nit: extract `parseScalar(block, key)` when a third scalar field lands)
-- ⏳ A3: evals.targets + success_signal + id/version
-- ⏳ A4: certification manifest build + bundle freeze
+**Deferred into later phases** (deliberate, ADR-logged): certification bundle-bake (Phase B), eval-harness JSON emission that populates `effective` (Phase E).
