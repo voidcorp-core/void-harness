@@ -93,11 +93,11 @@ adoption command (C3).
 
 ## Resume point
 
-**Next step**: Step C1 (public MIT decision + docs flip)
+**Next step**: Phase C COMPLETE on `folpe/void-public-multiruntime-spec`. Remaining is release-ops (Folpe): actual `npm publish` + release-please wiring + signed-binary GH Releases. Next code phase: D (Codex E2E seam).
 
-**Completed**: none (Phases A + B complete — see their plans)
+**Completed** (each reviewed; all gates green):
+- ✅ C1: public MIT npx-primary docs flip + ADR superseding 2026-07-09 (`7ffcafe`). README/help/CLAUDE/AGENTS lead with npx; help test flipped.
+- ✅ C2: self-sufficient CLI tarball (`6b2c400`). Ships certification.json + model.json in core-assets/data/; status resolves package-local via pure dataCandidates. `npm pack` verified. Clears A4/B3 consumer-cert deferral.
+- ✅ C3: `void adoption` (`1dc634f`) + performance-pending fix (`f948b98`). Tier-1 pull of npm+GitHub stats, zero phone-home; fetchJson distinguishes rate-limit/404/network. Review caught a false-100% performance on missing model.json → pending.
 
-**Pending**:
-- ⏳ C1: docs flip + superseding ADR
-- ⏳ C2: self-sufficient CLI package
-- ⏳ C3: void adoption command
+**Deferred (Folpe/release-ops, ADR-noted)**: actual npm publish + release-please publish wiring; signed standalone binary via GH Releases; tier-2/tier-3 telemetry.
