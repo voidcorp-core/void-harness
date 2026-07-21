@@ -34,10 +34,16 @@ export type {
   EvalReportLite,
 } from './certification/types.js';
 export { computeProjectState } from './state/compute.js';
+export { scoreProjectState } from './state/score.js';
 export type {
   ProjectState,
   CapabilityState,
   CapabilityStateName,
   RuntimeState,
   LocalSignals,
+  Score,
+  Dimension,
+  DimensionKind,
+  ScoreConfidence,
+  NextAction,
 } from './state/types.js';

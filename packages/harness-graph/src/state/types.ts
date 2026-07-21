@@ -48,4 +48,42 @@ export interface ProjectState {
   readonly runtimes: readonly RuntimeState[];
 }
 
+/** A **blocker** caps the global score at 69 when its `red` failure-predicate fires (a real defect —
+ * never a merely-low score, so a structural limit like Hermes `ci-only` never caps). A **gauge** is a
+ * maturity gradient that contributes proportionally and can never cap ("new is not broken"). */
+export type DimensionKind = 'blocker' | 'gauge';
+
+/** One scored dimension. A **pending** score (no honest local signal yet) is excluded from the global
+ * mean rather than invented; it serializes explicitly so the artifact reads "measured: pending", not
+ * "field forgotten". `red` is meaningful only for blockers. */
+export interface Dimension {
+  readonly key: string;
+  readonly kind: DimensionKind;
+  readonly score: number | null; // allow-null: JSON artifact — the explicit pending marker must survive serialization (undefined would drop it)
+  readonly red?: boolean;
+  readonly detail?: string;
+  readonly perRuntime?: Readonly<Record<string, number>>;
+}
+
+/** How much of the score rests on real proof vs assumption — driven by eval coverage + telemetry volume. */
+export type ScoreConfidence = 'low' | 'medium' | 'high';
+
+/** A recommended move, ranked by the global-score points it would unlock. */
+export interface NextAction {
+  readonly rank: number;
+  readonly title: string;
+  readonly impact: number;
+}
+
+/** The composite score: never a naive mean — a red blocker caps it at 69, and unmeasured dimensions
+ * are excluded, not invented. Carries a confidence band and impact-ranked next actions. */
+export interface Score {
+  readonly global: number;
+  readonly confidence: ScoreConfidence;
+  readonly capped: boolean;
+  readonly blockers: readonly string[];
+  readonly dimensions: readonly Dimension[];
+  readonly nextActions: readonly NextAction[];
+}
+
 export type { Certification };
