@@ -33,3 +33,11 @@ export type {
   EffectiveCell,
   EvalReportLite,
 } from './certification/types.js';
+export { computeProjectState } from './state/compute.js';
+export type {
+  ProjectState,
+  CapabilityState,
+  CapabilityStateName,
+  RuntimeState,
+  LocalSignals,
+} from './state/types.js';
