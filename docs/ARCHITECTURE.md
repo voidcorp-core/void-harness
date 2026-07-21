@@ -286,8 +286,24 @@ Two more contract fields land through the same seam (`read-frontmatter.ts` → `
   `active` — so the map cannot drift from the actual hook wiring. Enforcement is declared per runtime
   and never masked; Hermes' `ci-only` is a structural limit, scored on its own ceiling, not a failure.
 
-Still to land in Phase A: `evals.targets` + `success_signal` (A3), then the frozen certification
-manifest (A4).
+Two more fields complete the authored contract (A3):
+
+- `eval_targets:` — the `(runtime, provider, tier)` cells a capability is authored/certified for,
+  **slug-encoded** `runtime/provider/tier` in a normal YAML list (`[claude/anthropic/opus]`). The slug
+  form is parsed by the shared `parseList` helper (reused with `runtimes:`), not a fragile
+  hand-rolled list-of-maps parser. It drives which cells the certification manifest (A4) may mark
+  `effective`.
+- `success_signal:` — an optional human-readable "what good looks like" sentence. Not
+  mass-backfilled (a uniform placeholder would be dishonest, unlike `owner: folpe` which is
+  uniformly true); authored per skill over time.
+
+Two shared frontmatter helpers back these fields so the scalar and list parsers cannot diverge:
+`parseScalar(block, key)` (quote-stripping, YAML-nil-aware — used by `owner` and `success_signal`)
+and `parseList(block, key)` (flow or block YAML list — used by `runtimes` and `eval_targets`).
+
+Still to land in Phase A: the frozen certification manifest (A4), which stamps the single lockstep
+harness version and joins `eval_targets` with the eval-harness reports to produce each capability's
+`proof` record.
 
 ## .void/config.json (consumer-side)
 

@@ -10,6 +10,7 @@ enforcement:
     claude: pretooluse
     codex: pretooluse
     hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # llm-cost-discipline — voidcorp craftsman edition

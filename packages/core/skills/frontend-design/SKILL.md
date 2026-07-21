@@ -12,6 +12,7 @@ enforcement:
     claude: pretooluse
     codex: pretooluse
     hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # frontend-design — voidcorp craftsman edition

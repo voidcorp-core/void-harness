@@ -573,8 +573,8 @@
       "type": "skill",
       "name": "accessibility-first",
       "description": "WCAG 2.2 AA floor. Radix primitives only, touch >=44x44, keyboard parity, semantic HTML, form labels, aria-live errors, mobile-first dual-quality. Use when building or modifying UI.",
-      "lines": 287,
-      "staticTokens": 2246,
+      "lines": 288,
+      "staticTokens": 2256,
       "pack": null,
       "source": "packages/core/skills/accessibility-first/SKILL.md",
       "triggers": {
@@ -595,15 +595,22 @@
           "codex": "pretooluse",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:adr-workflow",
       "type": "skill",
       "name": "adr-workflow",
       "description": "Capture architecture decisions as ADRs (decisions/0001-NNNN.md) — when to write one, when not, format, lifecycle (proposed → accepted → superseded). Distinct from generic plans.",
-      "lines": 112,
-      "staticTokens": 1106,
+      "lines": 113,
+      "staticTokens": 1116,
       "pack": null,
       "source": "packages/core/skills/adr-workflow/SKILL.md",
       "owner": "folpe",
@@ -618,15 +625,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:api-and-interface-design",
       "type": "skill",
       "name": "api-and-interface-design",
       "description": "Contract-first design of any public interface — package exports, HTTP/REST, RPC/tRPC, SDK, module boundary. Minimal surface, stable boundary types, versioning. Use when shaping a public API.",
-      "lines": 242,
-      "staticTokens": 3411,
+      "lines": 243,
+      "staticTokens": 3421,
       "pack": null,
       "source": "packages/core/skills/api-and-interface-design/SKILL.md",
       "triggers": {
@@ -649,15 +663,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:async-safety",
       "type": "skill",
       "name": "async-safety",
       "description": "Idempotency by design. At-least-once with consumer dedup. Signature verify, replay window, idempotency keys, outbox, bounded retries, DLQ. Use for async/webhook/job/cron code.",
-      "lines": 292,
-      "staticTokens": 2991,
+      "lines": 293,
+      "staticTokens": 3000,
       "pack": null,
       "source": "packages/core/skills/async-safety/SKILL.md",
       "triggers": {
@@ -682,15 +703,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:backlog-autopilot",
       "type": "skill",
       "name": "backlog-autopilot",
       "description": "Opt-in parallel drain of independent Linear tickets, each in its own worktree subagent, reconciled into one integration PR gated by the full suite. Use when clearing independent tickets at once.",
-      "lines": 248,
-      "staticTokens": 4119,
+      "lines": 249,
+      "staticTokens": 4129,
       "pack": null,
       "source": "packages/core/skills/backlog-autopilot/SKILL.md",
       "owner": "folpe",
@@ -705,15 +733,22 @@
           "codex": "pretooluse",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:brainstorming",
       "type": "skill",
       "name": "brainstorming",
       "description": "Explore intent before code: pressure-test a raw idea, one question at a time, 2-3 approaches, design in sections, spec written and approved. HARD GATE — no code until the spec is approved.",
-      "lines": 233,
-      "staticTokens": 3513,
+      "lines": 234,
+      "staticTokens": 3522,
       "pack": null,
       "source": "packages/core/skills/brainstorming/SKILL.md",
       "owner": "folpe",
@@ -728,15 +763,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:claude-md-authoring",
       "type": "skill",
       "name": "claude-md-authoring",
       "description": "Author a lean, runnable CLAUDE.md (or AGENTS.md). Only universal instructions; defer detail to docs; push style to linters and certainties to hooks. Use when writing or auditing a project CLAUDE.md.",
-      "lines": 189,
-      "staticTokens": 2686,
+      "lines": 190,
+      "staticTokens": 2695,
       "pack": null,
       "source": "packages/core/skills/claude-md-authoring/SKILL.md",
       "owner": "folpe",
@@ -751,15 +793,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:code-review",
       "type": "skill",
       "name": "code-review",
       "description": "Pre-PR critical pass. Six dimensions (correctness, tests, security, structure, readability, perf). Two modes (strict/souple). Composes the native /code-review and codex CLI. Use on a diff.",
-      "lines": 228,
-      "staticTokens": 2737,
+      "lines": 229,
+      "staticTokens": 2747,
       "pack": null,
       "source": "packages/core/skills/code-review/SKILL.md",
       "activation": "always",
@@ -775,15 +824,22 @@
           "codex": "pretooluse",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:commit-discipline",
       "type": "skill",
       "name": "commit-discipline",
       "description": "Conventional Commits + mandatory \"why\" in body + scope + breaking-change marking. ASCII-only (no em dash, no emoji). Co-author trailer for AI pair. The git log is documentation. Use at every commit.",
-      "lines": 221,
-      "staticTokens": 1916,
+      "lines": 222,
+      "staticTokens": 1926,
       "pack": null,
       "source": "packages/core/skills/commit-discipline/SKILL.md",
       "activation": "always",
@@ -799,15 +855,22 @@
           "codex": "pretooluse",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:context-management",
       "type": "skill",
       "name": "context-management",
       "description": "Context is the agent's core constraint. Use when a task spans many files, a session mixes subjects, corrections loop, or replies forget earlier constraints. Clear, compact, delegate to subagents.",
-      "lines": 170,
-      "staticTokens": 2624,
+      "lines": 171,
+      "staticTokens": 2634,
       "pack": null,
       "source": "packages/core/skills/context-management/SKILL.md",
       "owner": "folpe",
@@ -822,15 +885,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:devex-audit",
       "type": "skill",
       "name": "devex-audit",
       "description": "Audit an EXISTING dev-facing surface (API/CLI/SDK/docs): measured TTHW, real error-path tracing, evidence-backed DX scorecard, scoped refine. The audit ceiling to plan-review's DevEx-lens.",
-      "lines": 123,
-      "staticTokens": 2135,
+      "lines": 124,
+      "staticTokens": 2144,
       "pack": null,
       "source": "packages/core/skills/devex-audit/SKILL.md",
       "activation": "on-demand",
@@ -846,15 +916,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:domain-driven-design",
       "type": "skill",
       "name": "domain-driven-design",
       "description": "Bounded contexts, aggregates as consistency boundaries, value objects as branded types, always-valid domain, ubiquitous language. No CQRS, event sourcing, or generic Repository<T>. Use on the domain.",
-      "lines": 302,
-      "staticTokens": 3170,
+      "lines": 303,
+      "staticTokens": 3180,
       "pack": null,
       "source": "packages/core/skills/domain-driven-design/SKILL.md",
       "activation": "always",
@@ -870,15 +947,22 @@
           "codex": "pretooluse",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:frontend-design",
       "type": "skill",
       "name": "frontend-design",
       "description": "Anti-AI-slop UI. Density first, 3-size hierarchy, motion <250ms, components via @repo/ui (Radix/shadcn), mobile-first dual-quality. Brand from DESIGN.md. Use when building or modifying UI.",
-      "lines": 275,
-      "staticTokens": 3477,
+      "lines": 276,
+      "staticTokens": 3486,
       "pack": null,
       "source": "packages/core/skills/frontend-design/SKILL.md",
       "triggers": {
@@ -899,15 +983,22 @@
           "codex": "pretooluse",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:functional",
       "type": "skill",
       "name": "functional",
       "description": "Pure-by-default, errors as values (Result<T, E>), discriminated unions for state, immutability defaults, functional core / imperative shell. Side effects at adapters. Use for data flow or state.",
-      "lines": 322,
-      "staticTokens": 2830,
+      "lines": 323,
+      "staticTokens": 2840,
       "pack": null,
       "source": "packages/core/skills/functional/SKILL.md",
       "activation": "always",
@@ -923,15 +1014,22 @@
           "codex": "pretooluse",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:hexagonal-architecture",
       "type": "skill",
       "name": "hexagonal-architecture",
       "description": "Ports + adapters. Domain owns interfaces, adapters at the edge, function-parameter injection only, no DI / CQRS / mediator. Use when placing code or crossing module boundaries.",
-      "lines": 286,
-      "staticTokens": 2748,
+      "lines": 287,
+      "staticTokens": 2758,
       "pack": null,
       "source": "packages/core/skills/hexagonal-architecture/SKILL.md",
       "activation": "always",
@@ -947,15 +1045,22 @@
           "codex": "pretooluse",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:learning-capture",
       "type": "skill",
       "name": "learning-capture",
       "description": "Capture a lesson when it appears — a stated project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a harness gap. Routes to PROJECT-DOCTRINE, a GitHub issue, or nothing. HITL strict.",
-      "lines": 218,
-      "staticTokens": 2856,
+      "lines": 219,
+      "staticTokens": 2865,
       "pack": null,
       "source": "packages/core/skills/learning-capture/SKILL.md",
       "owner": "folpe",
@@ -970,15 +1075,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:llm-cost-discipline",
       "type": "skill",
       "name": "llm-cost-discipline",
       "description": "Sonnet default (Opus needs comment), prompt caching for >1024-token prompts, batch API for non-interactive, max_tokens declared, bounded retries, no full prompts in logs. Use on LLM API calls.",
-      "lines": 309,
-      "staticTokens": 2543,
+      "lines": 310,
+      "staticTokens": 2553,
       "pack": null,
       "source": "packages/core/skills/llm-cost-discipline/SKILL.md",
       "activation": "always",
@@ -994,15 +1106,22 @@
           "codex": "pretooluse",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:make-pdf",
       "type": "skill",
       "name": "make-pdf",
       "description": "Turn a markdown file into a publication-quality PDF — marked + puppeteer-core on the system Chrome, with page-number footers. No gstack daemon. For signed deliverables (DECLIK audits).",
-      "lines": 55,
-      "staticTokens": 825,
+      "lines": 56,
+      "staticTokens": 835,
       "pack": null,
       "source": "packages/core/skills/make-pdf/SKILL.md",
       "activation": "on-demand",
@@ -1018,15 +1137,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:migrations-safety",
       "type": "skill",
       "name": "migrations-safety",
       "description": "Zero-downtime Postgres migrations. Two-phase changes, batched backfills, locking analysis, banned DDL patterns, CONCURRENTLY indexes, dev branch test, immutable after merge. Use on DB schema changes.",
-      "lines": 276,
-      "staticTokens": 2241,
+      "lines": 277,
+      "staticTokens": 2250,
       "pack": null,
       "source": "packages/core/skills/migrations-safety/SKILL.md",
       "triggers": {
@@ -1048,15 +1174,22 @@
           "codex": "pretooluse",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:observability",
       "type": "skill",
       "name": "observability",
       "description": "Structured logs (no string interp), trace IDs end-to-end, error boundaries at async boundaries, anonymized user scope, no PII/secrets ever. Use @repo/core/logger not console.log. Use for prod code.",
-      "lines": 255,
-      "staticTokens": 2235,
+      "lines": 256,
+      "staticTokens": 2245,
       "pack": null,
       "source": "packages/core/skills/observability/SKILL.md",
       "activation": "always",
@@ -1072,15 +1205,22 @@
           "codex": "pretooluse",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-mobile/eas-build-profile",
       "type": "skill",
       "name": "eas-build-profile",
       "description": "Configure eas.json profiles (development, preview, production) with the right env, bundle ID, signing, distribution. The 3-profile structure that fits 95% of Expo apps.",
-      "lines": 173,
-      "staticTokens": 1509,
+      "lines": 174,
+      "staticTokens": 1519,
       "pack": "pack-mobile",
       "source": "packages/packs/pack-mobile/skills/eas-build-profile/SKILL.md",
       "owner": "folpe",
@@ -1095,15 +1235,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-mobile/expo-config-plugins",
       "type": "skill",
       "name": "expo-config-plugins",
       "description": "Add native functionality to an Expo app via config plugins, never by ejecting. Pick existing Expo modules first, write a custom plugin only when none fits. Document everything in app.config.ts.",
-      "lines": 187,
-      "staticTokens": 1602,
+      "lines": 188,
+      "staticTokens": 1612,
       "pack": "pack-mobile",
       "source": "packages/packs/pack-mobile/skills/expo-config-plugins/SKILL.md",
       "owner": "folpe",
@@ -1118,15 +1265,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-mobile/expo-router-pattern",
       "type": "skill",
       "name": "expo-router-pattern",
       "description": "File-based routing in Expo via expo-router — layouts, tabs, modals, deep links. Mirrors Next.js App Router so monorepos can share mental model. Stack-aware navigation patterns.",
-      "lines": 218,
-      "staticTokens": 1651,
+      "lines": 219,
+      "staticTokens": 1661,
       "pack": "pack-mobile",
       "source": "packages/packs/pack-mobile/skills/expo-router-pattern/SKILL.md",
       "owner": "folpe",
@@ -1141,15 +1295,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-mobile/ota-update-strategy",
       "type": "skill",
       "name": "ota-update-strategy",
       "description": "Ship JS-only fixes via EAS Update; full rebuild via EAS Build. Runtime versions, channels, rollback. The \"when can I OTA vs when do I rebuild\" decision.",
-      "lines": 203,
-      "staticTokens": 1786,
+      "lines": 204,
+      "staticTokens": 1796,
       "pack": "pack-mobile",
       "source": "packages/packs/pack-mobile/skills/ota-update-strategy/SKILL.md",
       "owner": "folpe",
@@ -1164,15 +1325,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-monorepo/dependency-direction",
       "type": "skill",
       "name": "dependency-direction",
       "description": "Enforce the @repo/* import direction in a Turborepo workspace. Concrete violations + fixes. Composes with core:hexagonal-architecture and the boundary-direction-check hook.",
-      "lines": 169,
-      "staticTokens": 1458,
+      "lines": 170,
+      "staticTokens": 1468,
       "pack": "pack-monorepo",
       "source": "packages/packs/pack-monorepo/skills/dependency-direction/SKILL.md",
       "owner": "folpe",
@@ -1187,15 +1355,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-monorepo/package-extraction",
       "type": "skill",
       "name": "package-extraction",
       "description": "Decide whether code in apps/<app>/ should be extracted into a new packages/<name>/ workspace. Most extractions are premature; this skill is the decision gate.",
-      "lines": 79,
-      "staticTokens": 1110,
+      "lines": 80,
+      "staticTokens": 1119,
       "pack": "pack-monorepo",
       "source": "packages/packs/pack-monorepo/skills/package-extraction/SKILL.md",
       "owner": "folpe",
@@ -1210,15 +1385,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-monorepo/service-package",
       "type": "skill",
       "name": "service-package",
       "description": "Create or extend a packages/<name>/ service in a harness-monorepo workspace: the 5+5 file layout, @repo/* boundaries, ports-and-adapters direction. Composes with hexagonal-architecture, DDD.",
-      "lines": 131,
-      "staticTokens": 1509,
+      "lines": 132,
+      "staticTokens": 1519,
       "pack": "pack-monorepo",
       "source": "packages/packs/pack-monorepo/skills/service-package/SKILL.md",
       "owner": "folpe",
@@ -1233,15 +1415,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-monorepo/turbo-pipeline-tuning",
       "type": "skill",
       "name": "turbo-pipeline-tuning",
       "description": "Configure turbo.json tasks correctly — dependsOn, outputs, cache keys, persistent tasks, remote cache. Get build speed right without over-engineering.",
-      "lines": 125,
-      "staticTokens": 1328,
+      "lines": 126,
+      "staticTokens": 1338,
       "pack": "pack-monorepo",
       "source": "packages/packs/pack-monorepo/skills/turbo-pipeline-tuning/SKILL.md",
       "owner": "folpe",
@@ -1256,15 +1445,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-nextjs/cache-component-pattern",
       "type": "skill",
       "name": "cache-component-pattern",
       "description": "Use Next.js 16 Cache Components correctly — when to opt in ('use cache'), when to opt out ('use no cache'), cache key strategy, scoping by user/org. Default is cached; uncache deliberately.",
-      "lines": 171,
-      "staticTokens": 1758,
+      "lines": 172,
+      "staticTokens": 1767,
       "pack": "pack-nextjs",
       "source": "packages/packs/pack-nextjs/skills/cache-component-pattern/SKILL.md",
       "owner": "folpe",
@@ -1279,15 +1475,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-nextjs/instrumentation-setup",
       "type": "skill",
       "name": "instrumentation-setup",
       "description": "Wire instrumentation.ts in Next.js 16 — Sentry, pino logger, OpenTelemetry traces. Edge vs Node runtime split. The single place observability is bootstrapped.",
-      "lines": 170,
-      "staticTokens": 1436,
+      "lines": 171,
+      "staticTokens": 1445,
       "pack": "pack-nextjs",
       "source": "packages/packs/pack-nextjs/skills/instrumentation-setup/SKILL.md",
       "owner": "folpe",
@@ -1302,15 +1505,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-nextjs/loading-error-boundaries",
       "type": "skill",
       "name": "loading-error-boundaries",
       "description": "Place loading.tsx, error.tsx, not-found.tsx files at the right level — neither too high (poor UX) nor too low (unhandled errors). The skeleton matches the layout it replaces.",
-      "lines": 185,
-      "staticTokens": 1703,
+      "lines": 186,
+      "staticTokens": 1713,
       "pack": "pack-nextjs",
       "source": "packages/packs/pack-nextjs/skills/loading-error-boundaries/SKILL.md",
       "owner": "folpe",
@@ -1325,15 +1535,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-nextjs/parallel-routes-slots",
       "type": "skill",
       "name": "parallel-routes-slots",
       "description": "Use Next.js parallel routes (@slot) and intercepting routes ((.)foo) — when they're the right tool, when they're an anti-pattern. The \"modal that's also a deep-linkable page\" archetype.",
-      "lines": 138,
-      "staticTokens": 1356,
+      "lines": 139,
+      "staticTokens": 1365,
       "pack": "pack-nextjs",
       "source": "packages/packs/pack-nextjs/skills/parallel-routes-slots/SKILL.md",
       "owner": "folpe",
@@ -1348,15 +1565,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-nextjs/route-group-decision",
       "type": "skill",
       "name": "route-group-decision",
       "description": "Decide when to use a (route-group), what to name it, and how to share layouts. The void-harness convention groups by trust boundary, not by visual section.",
-      "lines": 116,
-      "staticTokens": 1332,
+      "lines": 117,
+      "staticTokens": 1341,
       "pack": "pack-nextjs",
       "source": "packages/packs/pack-nextjs/skills/route-group-decision/SKILL.md",
       "owner": "folpe",
@@ -1371,15 +1595,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-pwa/install-prompt-ux",
       "type": "skill",
       "name": "install-prompt-ux",
       "description": "Surface the PWA install prompt at the right moment (engagement signal) with the right UI (custom button, not auto-prompt). Capture beforeinstallprompt, defer, recover declined.",
-      "lines": 162,
-      "staticTokens": 1696,
+      "lines": 163,
+      "staticTokens": 1706,
       "pack": "pack-pwa",
       "source": "packages/packs/pack-pwa/skills/install-prompt-ux/SKILL.md",
       "owner": "folpe",
@@ -1394,15 +1625,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-pwa/manifest-checklist",
       "type": "skill",
       "name": "manifest-checklist",
       "description": "Get manifest.webmanifest right the first time — required fields, icon sizes (192, 512, maskable), display modes, scope, start_url. Single artifact: every field motivated, no dead options.",
-      "lines": 213,
-      "staticTokens": 1604,
+      "lines": 214,
+      "staticTokens": 1614,
       "pack": "pack-pwa",
       "source": "packages/packs/pack-pwa/skills/manifest-checklist/SKILL.md",
       "owner": "folpe",
@@ -1417,15 +1655,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-pwa/offline-first-mutation",
       "type": "skill",
       "name": "offline-first-mutation",
       "description": "Implement a UI mutation that works offline via the capture-queue + sync pattern: IndexedDB, optimistic UI, idempotency keys, retry, conflict resolution. Self-contained, no harness wrappers.",
-      "lines": 275,
-      "staticTokens": 2534,
+      "lines": 276,
+      "staticTokens": 2544,
       "pack": "pack-pwa",
       "source": "packages/packs/pack-pwa/skills/offline-first-mutation/SKILL.md",
       "owner": "folpe",
@@ -1440,15 +1685,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-pwa/service-worker-strategy",
       "type": "skill",
       "name": "service-worker-strategy",
       "description": "Pick caching strategy per route class (NetworkFirst, CacheFirst, StaleWhileRevalidate, NetworkOnly), version your caches, handle update activation. Use Serwist (Next) or vite-plugin-pwa.",
-      "lines": 187,
-      "staticTokens": 1860,
+      "lines": 188,
+      "staticTokens": 1869,
       "pack": "pack-pwa",
       "source": "packages/packs/pack-pwa/skills/service-worker-strategy/SKILL.md",
       "owner": "folpe",
@@ -1463,15 +1715,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-react/accessibility-check",
       "type": "skill",
       "name": "accessibility-check",
       "description": "Per-component accessibility checklist: semantic HTML, ARIA, keyboard, focus, contrast, touch targets. Auto-applies on any React component edit. Composes with harness:accessibility-first.",
-      "lines": 145,
-      "staticTokens": 1576,
+      "lines": 146,
+      "staticTokens": 1585,
       "pack": "pack-react",
       "source": "packages/packs/pack-react/skills/accessibility-check/SKILL.md",
       "owner": "folpe",
@@ -1486,15 +1745,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-react/client-vs-server-component",
       "type": "skill",
       "name": "client-vs-server-component",
       "description": "Decide which components run on server vs client in a React 19 / Next.js app and place the 'use client' boundary correctly. Server Components by default; client is the exception.",
-      "lines": 125,
-      "staticTokens": 1352,
+      "lines": 126,
+      "staticTokens": 1362,
       "pack": "pack-react",
       "source": "packages/packs/pack-react/skills/client-vs-server-component/SKILL.md",
       "owner": "folpe",
@@ -1509,15 +1775,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-react/form-pattern",
       "type": "skill",
       "name": "form-pattern",
       "description": "Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with harness-server:server-action.",
-      "lines": 166,
-      "staticTokens": 1736,
+      "lines": 167,
+      "staticTokens": 1746,
       "pack": "pack-react",
       "source": "packages/packs/pack-react/skills/form-pattern/SKILL.md",
       "owner": "folpe",
@@ -1532,15 +1805,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-react/state-architecture",
       "type": "skill",
       "name": "state-architecture",
       "description": "Decide where state lives — local, lifted, URL, server, client global. The decision tree to avoid useState-in-the-wrong-place sprawl. Default to URL or server before reaching for global stores.",
-      "lines": 169,
-      "staticTokens": 1716,
+      "lines": 170,
+      "staticTokens": 1726,
       "pack": "pack-react",
       "source": "packages/packs/pack-react/skills/state-architecture/SKILL.md",
       "owner": "folpe",
@@ -1555,15 +1835,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-server/background-job-pattern",
       "type": "skill",
       "name": "background-job-pattern",
       "description": "Run async work outside the request lifecycle: when to use a queue (Inngest, Trigger, Cloudflare Queues) vs a cron route. Idempotency, retry, dead-letter. Self-contained, no harness wrappers.",
-      "lines": 223,
-      "staticTokens": 2275,
+      "lines": 224,
+      "staticTokens": 2285,
       "pack": "pack-server",
       "source": "packages/packs/pack-server/skills/background-job-pattern/SKILL.md",
       "owner": "folpe",
@@ -1578,15 +1865,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-server/drizzle-migration-safe",
       "type": "skill",
       "name": "drizzle-migration-safe",
       "description": "Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. Composes with harness:migrations-safety for the generic discipline.",
-      "lines": 177,
-      "staticTokens": 2149,
+      "lines": 178,
+      "staticTokens": 2159,
       "pack": "pack-server",
       "source": "packages/packs/pack-server/skills/drizzle-migration-safe/SKILL.md",
       "owner": "folpe",
@@ -1601,15 +1895,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-server/env-validation",
       "type": "skill",
       "name": "env-validation",
       "description": "Validate environment variables at boot via Zod in @repo/core/env. Separate PUBLIC (NEXT_PUBLIC_*) from server-only. Fail fast at startup; never raw process.env in business code.",
-      "lines": 140,
-      "staticTokens": 1447,
+      "lines": 141,
+      "staticTokens": 1457,
       "pack": "pack-server",
       "source": "packages/packs/pack-server/skills/env-validation/SKILL.md",
       "owner": "folpe",
@@ -1624,15 +1925,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-server/rate-limit-strategy",
       "type": "skill",
       "name": "rate-limit-strategy",
       "description": "Choose rate limit window, max, and key strategy per action class. Per-user for authed, per-IP for public, escalation for auth-adjacent. Default values + when to deviate.",
-      "lines": 158,
-      "staticTokens": 1760,
+      "lines": 159,
+      "staticTokens": 1770,
       "pack": "pack-server",
       "source": "packages/packs/pack-server/skills/rate-limit-strategy/SKILL.md",
       "owner": "folpe",
@@ -1647,15 +1955,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-server/server-action",
       "type": "skill",
       "name": "server-action",
       "description": "Create a Next.js 16 Server Action with the void trust-boundary checklist: Zod ingress, auth, rate limit, observability, structured errors. Composes with security-guidance, async-safety.",
-      "lines": 190,
-      "staticTokens": 2164,
+      "lines": 191,
+      "staticTokens": 2174,
       "pack": "pack-server",
       "source": "packages/packs/pack-server/skills/server-action/SKILL.md",
       "owner": "folpe",
@@ -1670,15 +1985,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-server/testing-server-modules",
       "type": "skill",
       "name": "testing-server-modules",
       "description": "Unit-test modules guarded by server-only / client-only under Vitest by aliasing those packages to an empty stub. Test-time only; never a substitute for the real build-time boundary.",
-      "lines": 82,
-      "staticTokens": 960,
+      "lines": 83,
+      "staticTokens": 969,
       "pack": "pack-server",
       "source": "packages/packs/pack-server/skills/testing-server-modules/SKILL.md",
       "owner": "folpe",
@@ -1693,15 +2015,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:pack-server/webhook-handler-pattern",
       "type": "skill",
       "name": "webhook-handler-pattern",
       "description": "Build a webhook handler with signature verification, idempotency, and dead-letter routing. Per-source patterns (Stripe, Resend, GitHub). Self-contained — no harness wrappers required.",
-      "lines": 214,
-      "staticTokens": 2162,
+      "lines": 215,
+      "staticTokens": 2171,
       "pack": "pack-server",
       "source": "packages/packs/pack-server/skills/webhook-handler-pattern/SKILL.md",
       "owner": "folpe",
@@ -1716,15 +2045,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:plan-review",
       "type": "skill",
       "name": "plan-review",
       "description": "Critique a written plan (not a diff) via four lenses: CEO premise/ambition, Eng test-coverage, Design states/slop, DevEx time-to-first-value. Proposes findings; the author disposes.",
-      "lines": 138,
-      "staticTokens": 2725,
+      "lines": 139,
+      "staticTokens": 2735,
       "pack": null,
       "source": "packages/core/skills/plan-review/SKILL.md",
       "activation": "on-demand",
@@ -1740,15 +2076,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:qa",
       "type": "skill",
       "name": "qa",
       "description": "Live browser QA of a running web app via the claude-in-chrome MCP: systematic exploration, edge/error/empty states, atomic fix loop, evidence-backed report. Report-only mode available.",
-      "lines": 113,
-      "staticTokens": 2577,
+      "lines": 114,
+      "staticTokens": 2586,
       "pack": null,
       "source": "packages/core/skills/qa/SKILL.md",
       "activation": "on-demand",
@@ -1764,15 +2107,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:refactoring",
       "type": "skill",
       "name": "refactoring",
       "description": "Tidy-First. Tidyings commit separately from behavior changes (Two-Hat). Named Fowler refactors only. Tests stay green. Two modes (strict/souple). Use when improving structure without behavior change.",
-      "lines": 230,
-      "staticTokens": 2462,
+      "lines": 231,
+      "staticTokens": 2472,
       "pack": null,
       "source": "packages/core/skills/refactoring/SKILL.md",
       "activation": "always",
@@ -1788,15 +2138,22 @@
           "codex": "pretooluse",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:retrospective",
       "type": "skill",
       "name": "retrospective",
       "description": "Periodic engineering retro over a window: read git log / PRs / .void, surface signals (hotspots, test ratio, commit types, regressions), turn them into improvement decisions feeding learning-capture.",
-      "lines": 81,
-      "staticTokens": 1417,
+      "lines": 82,
+      "staticTokens": 1427,
       "pack": null,
       "source": "packages/core/skills/retrospective/SKILL.md",
       "activation": "on-demand",
@@ -1812,15 +2169,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:security-audit",
       "type": "skill",
       "name": "security-audit",
       "description": "Periodic deep security audit — OWASP Top 10, STRIDE, secrets, supply chain, CI/CD, infra, LLM. Phase-driven, read-only, zero-noise. The ceiling above security-guidance's daily floor.",
-      "lines": 137,
-      "staticTokens": 3792,
+      "lines": 138,
+      "staticTokens": 3801,
       "pack": null,
       "source": "packages/core/skills/security-audit/SKILL.md",
       "activation": "on-demand",
@@ -1836,15 +2200,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:security-guidance",
       "type": "skill",
       "name": "security-guidance",
       "description": "Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. Escalate to security-audit for deep audits. Use on trust-boundary code.",
-      "lines": 265,
-      "staticTokens": 2502,
+      "lines": 266,
+      "staticTokens": 2512,
       "pack": null,
       "source": "packages/core/skills/security-guidance/SKILL.md",
       "activation": "always",
@@ -1860,15 +2231,22 @@
           "codex": "pretooluse",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:source-driven-development",
       "type": "skill",
       "name": "source-driven-development",
       "description": "Ground every third-party config or API usage in the official docs for the installed version, not training memory. Verify the version, cite the reference. Use before writing any tool config.",
-      "lines": 172,
-      "staticTokens": 2417,
+      "lines": 173,
+      "staticTokens": 2426,
       "pack": null,
       "source": "packages/core/skills/source-driven-development/SKILL.md",
       "activation": "always",
@@ -1884,15 +2262,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:systematic-debugging",
       "type": "skill",
       "name": "systematic-debugging",
       "description": "Four phases (investigate, analyze, hypothesize, implement). Iron Law: no fix without a failing test reproducing the bug AND a root cause. Bug fix commit pairs. Use on bug or test failure.",
-      "lines": 220,
-      "staticTokens": 2365,
+      "lines": 221,
+      "staticTokens": 2375,
       "pack": null,
       "source": "packages/core/skills/systematic-debugging/SKILL.md",
       "owner": "folpe",
@@ -1907,15 +2292,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:tdd",
       "type": "skill",
       "name": "tdd",
       "description": "TDD with three modes (strict/souple/exploratory) auto-selected by path. Iron Law in strict (no prod code without a failing test), mutation gate, anti-rustine. Use for any feature, bugfix, refactor.",
-      "lines": 378,
-      "staticTokens": 3328,
+      "lines": 379,
+      "staticTokens": 3337,
       "pack": null,
       "source": "packages/core/skills/tdd/SKILL.md",
       "activation": "always",
@@ -1931,15 +2323,22 @@
           "codex": "pretooluse",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:testing",
       "type": "skill",
       "name": "testing",
       "description": "How to write a good test. Behavior over implementation, real code over mocks, factories over beforeEach, pyramid respected, pristine output, no snapshot creep. Use when writing or modifying tests.",
-      "lines": 288,
-      "staticTokens": 2694,
+      "lines": 289,
+      "staticTokens": 2703,
       "pack": null,
       "source": "packages/core/skills/testing/SKILL.md",
       "triggers": {
@@ -1961,15 +2360,22 @@
           "codex": "pretooluse",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:ticket-runner",
       "type": "skill",
       "name": "ticket-runner",
       "description": "Use when taking a single ticket from ready through shipped at expert-team quality. Triggers on starting a ticket, taking an issue, or picking up a backlog item to execute.",
-      "lines": 102,
-      "staticTokens": 2391,
+      "lines": 103,
+      "staticTokens": 2400,
       "pack": null,
       "source": "packages/core/skills/ticket-runner/SKILL.md",
       "owner": "folpe",
@@ -1984,15 +2390,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:ticket-writer",
       "type": "skill",
       "name": "ticket-writer",
       "description": "Use when turning a finished brainstorm, plan, or design decision into a tracker ticket. Triggers on creating a ticket or issue, logging work, or breaking an approved spec into tickets.",
-      "lines": 105,
-      "staticTokens": 1539,
+      "lines": 106,
+      "staticTokens": 1548,
       "pack": null,
       "source": "packages/core/skills/ticket-writer/SKILL.md",
       "owner": "folpe",
@@ -2007,15 +2420,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:typescript-strict",
       "type": "skill",
       "name": "typescript-strict",
       "description": "TS strict baseline. Zero any budget, branded types for domain primitives, discriminated unions over enums, exhaustive switches via never, satisfies over as. Use when editing TypeScript code.",
-      "lines": 306,
-      "staticTokens": 2658,
+      "lines": 307,
+      "staticTokens": 2667,
       "pack": null,
       "source": "packages/core/skills/typescript-strict/SKILL.md",
       "triggers": {
@@ -2037,15 +2457,22 @@
           "codex": "pretooluse",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:ui-review",
       "type": "skill",
       "name": "ui-review",
       "description": "Audit and polish an EXISTING UI: the AI-slop test, heuristic critique, technical audit (contrast/a11y/responsive/perf), refine modes. The audit ceiling to frontend-design's build floor.",
-      "lines": 97,
-      "staticTokens": 1808,
+      "lines": 98,
+      "staticTokens": 1818,
       "pack": null,
       "source": "packages/core/skills/ui-review/SKILL.md",
       "activation": "on-demand",
@@ -2061,15 +2488,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:verification-before-completion",
       "type": "skill",
       "name": "verification-before-completion",
       "description": "Final pre-flight checklist. Twelve items observed (not assumed) — typecheck, tests, hooks, mobile+desktop, commit why, review evidence. Skipping requires reason. Use at end of every task.",
-      "lines": 185,
-      "staticTokens": 1996,
+      "lines": 186,
+      "staticTokens": 2005,
       "pack": null,
       "source": "packages/core/skills/verification-before-completion/SKILL.md",
       "activation": "always",
@@ -2085,15 +2519,22 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "skill:writing-plans",
       "type": "skill",
       "name": "writing-plans",
       "description": "Turn an approved spec into an executable plan. Steps with goal, deps, verification gate, TDD mode per step, expected commits. Resume point updated. Use after brainstorming approves a spec.",
-      "lines": 239,
-      "staticTokens": 2430,
+      "lines": 240,
+      "staticTokens": 2440,
       "pack": null,
       "source": "packages/core/skills/writing-plans/SKILL.md",
       "owner": "folpe",
@@ -2108,7 +2549,14 @@
           "codex": "active",
           "hermes": "ci-only"
         }
-      }
+      },
+      "evalTargets": [
+        {
+          "runtime": "claude",
+          "provider": "anthropic",
+          "tier": "opus"
+        }
+      ]
     },
     {
       "id": "workflow-def:backlog-autopilot",

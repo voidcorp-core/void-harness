@@ -10,6 +10,7 @@ enforcement:
     claude: active
     codex: active
     hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # ui-review — voidcorp craftsman edition

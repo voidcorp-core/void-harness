@@ -42,6 +42,15 @@ export interface NodeEnforcement {
   readonly inline?: Readonly<Record<string, EnforcementTier>>;
 }
 
+/** A declared eval cell: the `(runtime, provider, tier)` a capability is certified/exercised on
+ * (frontmatter `eval_targets:`, slug-encoded `runtime/provider/tier`). Drives which cells the
+ * certification manifest (Phase A step A4) may mark `effective`. */
+export interface EvalTarget {
+  readonly runtime: string;
+  readonly provider: string;
+  readonly tier: string;
+}
+
 export interface GraphNode {
   readonly id: string;
   readonly type: NodeType;
@@ -63,6 +72,10 @@ export interface GraphNode {
   readonly runtimes?: readonly string[];
   /** Declared per-runtime enforcement (frontmatter `enforcement:`). See NodeEnforcement. */
   readonly enforcement?: NodeEnforcement;
+  /** Declared eval cells (frontmatter `eval_targets:`). See EvalTarget. */
+  readonly evalTargets?: readonly EvalTarget[];
+  /** Human-readable "what good looks like" signal (frontmatter `success_signal:`). Optional metadata. */
+  readonly successSignal?: string;
 }
 
 export interface GraphEdge {

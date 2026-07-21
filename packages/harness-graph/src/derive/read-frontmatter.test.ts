@@ -103,6 +103,11 @@ describe('readFrontmatter — owner', () => {
     expect(readFrontmatter('---\ndescription: x\nowner: "folpe"\n---\n').owner).toBe('folpe');
     expect(readFrontmatter("---\ndescription: x\nowner: 'folpe'\n---\n").owner).toBe('folpe');
   });
+
+  it('only strips a MATCHED quote pair: a dangling or lone quote stays present, not silently cleaned', () => {
+    expect(readFrontmatter('---\ndescription: x\nowner: "flo\n---\n').owner).toBe('"flo');
+    expect(readFrontmatter('---\ndescription: x\nowner: "\n---\n').owner).toBe('"');
+  });
 });
 
 describe('readFrontmatter — runtimes', () => {
@@ -175,6 +180,40 @@ describe('readFrontmatter — enforcement', () => {
   it('is tolerant: an unknown inline tier is dropped, never throws', () => {
     const md = '---\ndescription: x\nenforcement:\n  floor: ci\n  inline:\n    claude: sometimes\n    codex: active\n---\n';
     expect(readFrontmatter(md).enforcement).toEqual({ floor: 'ci', inline: { codex: 'active' } });
+  });
+});
+
+describe('readFrontmatter — eval_targets', () => {
+  it('parses slug-encoded runtime/provider/tier cells (flow or block form)', () => {
+    const flow = '---\ndescription: x\neval_targets: [claude/anthropic/opus, codex/openai/gpt]\n---\n';
+    expect(readFrontmatter(flow).evalTargets).toEqual([
+      { runtime: 'claude', provider: 'anthropic', tier: 'opus' },
+      { runtime: 'codex', provider: 'openai', tier: 'gpt' },
+    ]);
+    const bloc = '---\ndescription: x\neval_targets:\n  - claude/anthropic/opus\n---\n';
+    expect(readFrontmatter(bloc).evalTargets).toEqual([{ runtime: 'claude', provider: 'anthropic', tier: 'opus' }]);
+  });
+
+  it('drops a malformed cell (not exactly runtime/provider/tier), never throws', () => {
+    const md = '---\ndescription: x\neval_targets: [claude/anthropic/opus, broken, a/b]\n---\n';
+    expect(readFrontmatter(md).evalTargets).toEqual([{ runtime: 'claude', provider: 'anthropic', tier: 'opus' }]);
+  });
+
+  it('omits eval_targets when absent or empty', () => {
+    expect(readFrontmatter('---\ndescription: x\n---\n').evalTargets).toBeUndefined();
+    expect(readFrontmatter('---\ndescription: x\neval_targets: []\n---\n').evalTargets).toBeUndefined();
+  });
+});
+
+describe('readFrontmatter — success_signal', () => {
+  it('reads the success_signal scalar (a free-text sentence, quotes stripped)', () => {
+    const md = '---\ndescription: x\nsuccess_signal: "test-first commit pair present"\n---\n';
+    expect(readFrontmatter(md).successSignal).toBe('test-first commit pair present');
+  });
+
+  it('omits success_signal when absent or vacuous', () => {
+    expect(readFrontmatter('---\ndescription: x\n---\n').successSignal).toBeUndefined();
+    expect(readFrontmatter('---\ndescription: x\nsuccess_signal: ""\n---\n').successSignal).toBeUndefined();
   });
 });
 

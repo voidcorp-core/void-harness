@@ -12,6 +12,7 @@ enforcement:
     claude: pretooluse
     codex: pretooluse
     hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # migrations-safety — voidcorp craftsman edition

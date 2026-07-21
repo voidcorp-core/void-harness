@@ -11,6 +11,7 @@ enforcement:
     claude: active
     codex: active
     hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # async-safety — voidcorp craftsman edition

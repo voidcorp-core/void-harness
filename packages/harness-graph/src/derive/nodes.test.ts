@@ -86,6 +86,23 @@ describe('deriveNodes', () => {
     expect(cache?.enforcement).toBeUndefined();
   });
 
+  it('carries declared eval targets and success signal from frontmatter', () => {
+    const withEvals = {
+      ...tree,
+      skills: [
+        {
+          name: 'tdd',
+          pack: null,
+          source: 's',
+          text: '---\ndescription: TDD.\neval_targets: [claude/anthropic/opus]\nsuccess_signal: red-green pair present\n---\n',
+        },
+      ],
+    };
+    const tdd = deriveNodes(withEvals).find((n) => n.id === 'skill:tdd');
+    expect(tdd?.evalTargets).toEqual([{ runtime: 'claude', provider: 'anthropic', tier: 'opus' }]);
+    expect(tdd?.successSignal).toBe('red-green pair present');
+  });
+
   it('carries pre-derived triggers on a hook (from the plugin manifest, not frontmatter)', () => {
     const withHookTriggers = {
       ...tree,

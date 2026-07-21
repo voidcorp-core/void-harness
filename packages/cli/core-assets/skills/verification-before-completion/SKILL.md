@@ -10,6 +10,7 @@ enforcement:
     claude: active
     codex: active
     hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # verification-before-completion — voidcorp craftsman edition
