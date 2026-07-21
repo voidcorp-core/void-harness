@@ -64,6 +64,28 @@ describe('deriveNodes', () => {
     expect(nodes.find((n) => n.id === 'skill:pack-nextjs/cache')?.owner).toBeUndefined();
   });
 
+  it('carries declared runtimes and enforcement from frontmatter', () => {
+    const withContract = {
+      ...tree,
+      skills: [
+        {
+          name: 'tdd',
+          pack: null,
+          source: 's',
+          text: '---\ndescription: TDD.\nruntimes: [claude, codex]\nenforcement:\n  floor: ci\n  inline:\n    claude: pretooluse\n    hermes: ci-only\n---\n',
+        },
+        { name: 'cache', pack: 'pack-nextjs', source: 's', text: '---\ndescription: cache.\n---\n' },
+      ],
+    };
+    const nodes = deriveNodes(withContract);
+    const tdd = nodes.find((n) => n.id === 'skill:tdd');
+    expect(tdd?.runtimes).toEqual(['claude', 'codex']);
+    expect(tdd?.enforcement).toEqual({ floor: 'ci', inline: { claude: 'pretooluse', hermes: 'ci-only' } });
+    const cache = nodes.find((n) => n.id === 'skill:pack-nextjs/cache');
+    expect(cache?.runtimes).toBeUndefined();
+    expect(cache?.enforcement).toBeUndefined();
+  });
+
   it('carries pre-derived triggers on a hook (from the plugin manifest, not frontmatter)', () => {
     const withHookTriggers = {
       ...tree,

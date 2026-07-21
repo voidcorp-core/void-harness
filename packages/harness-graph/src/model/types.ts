@@ -26,6 +26,22 @@ export interface NodeTriggers {
   readonly tools?: readonly string[];
 }
 
+/**
+ * Per-runtime enforcement tier for a capability (spec Fork 1, two-tier enforcement).
+ * `pretooluse` = deep in-session block where the runtime supports it (Claude/Codex);
+ * `active` = the skill runs but has no in-session enforcing hook;
+ * `ci-only` = only the runtime-agnostic CI floor applies (e.g. Hermes);
+ * `n/a` = the runtime cannot host the capability at all.
+ */
+export type EnforcementTier = 'pretooluse' | 'active' | 'ci-only' | 'n/a';
+
+/** Declared enforcement (frontmatter). `floor` is the CI floor every runtime inherits; `inline`
+ * is the per-runtime in-session tier. A capability's enforcement is honest per runtime, never masked. */
+export interface NodeEnforcement {
+  readonly floor: 'ci';
+  readonly inline?: Readonly<Record<string, EnforcementTier>>;
+}
+
 export interface GraphNode {
   readonly id: string;
   readonly type: NodeType;
@@ -42,6 +58,11 @@ export interface GraphNode {
   /** Accountable maintainer (frontmatter `owner:`). Governance: a capability (skill) with no
    * owner is a blocking `missing-owner` finding — no capacity without a proof of ownership. */
   readonly owner?: string;
+  /** Runtimes this capability declares it supports (frontmatter `runtimes:`). Governance: a skill
+   * with no declared runtimes is a blocking `missing-runtimes` finding. Drives the runtime matrix. */
+  readonly runtimes?: readonly string[];
+  /** Declared per-runtime enforcement (frontmatter `enforcement:`). See NodeEnforcement. */
+  readonly enforcement?: NodeEnforcement;
 }
 
 export interface GraphEdge {

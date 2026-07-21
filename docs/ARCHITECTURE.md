@@ -271,8 +271,23 @@ capability. It is read in `read-frontmatter.ts` (`parseOwner`) and threaded onto
 Governance is **fail-closed**: the `missing-owner` detector (`analyze/missing-owner.ts`, wired into
 `DETECTORS`) emits a blocking `error` for any **skill** node with no `owner`, so `graph check` (and
 the CI "Graph integrity" gate) fails. No capacity ships without a proof of ownership. The rule is
-scoped to skills — hooks, commands, packs, and agents are not capabilities. Subsequent Phase A steps
-add `runtimes`, `enforcement`, `evals.targets`, and `success_signal` through the same seam.
+scoped to skills — hooks, commands, packs, and agents are not capabilities.
+
+Two more contract fields land through the same seam (`read-frontmatter.ts` → `GraphNode`):
+
+- `runtimes:` — the runtimes a capability declares it supports (`[claude, codex]`). A second
+  fail-closed detector, `missing-runtimes`, blocks any skill that declares none (the runtime matrix
+  cannot place an undeclared capability).
+- `enforcement:` — the **two-tier** enforcement contract (spec Fork 1). `floor: ci` is the
+  runtime-agnostic CI floor (the void-enforce Action) every runtime inherits; `inline` is the
+  per-runtime in-session tier (`pretooluse` where the runtime supports a blocking hook, `active`
+  otherwise, `ci-only` for Hermes). The `inline.{claude,codex}` tier is **derived, not
+  hand-classified**: a skill that is the target of an `enforces` edge gets `pretooluse`, else
+  `active` — so the map cannot drift from the actual hook wiring. Enforcement is declared per runtime
+  and never masked; Hermes' `ci-only` is a structural limit, scored on its own ceiling, not a failure.
+
+Still to land in Phase A: `evals.targets` + `success_signal` (A3), then the frozen certification
+manifest (A4).
 
 ## .void/config.json (consumer-side)
 

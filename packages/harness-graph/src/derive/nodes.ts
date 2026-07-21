@@ -23,7 +23,7 @@ export interface SourceTree {
 
 function toNode(type: NodeType, e: SourceEntry): GraphNode {
   const pack = e.pack ?? null; // allow-null: GraphNode.pack is string | null per model contract
-  const { description, triggers: fmTriggers, activation, owner } = readFrontmatter(e.text);
+  const { description, triggers: fmTriggers, activation, owner, runtimes, enforcement } = readFrontmatter(e.text);
   // Pre-derived triggers (hooks, from the plugin manifest) win over frontmatter.
   const triggers = e.triggers ?? fmTriggers;
   const base: GraphNode = {
@@ -41,6 +41,8 @@ function toNode(type: NodeType, e: SourceEntry): GraphNode {
     ...(triggers ? { triggers } : {}),
     ...(activation ? { activation } : {}),
     ...(owner ? { owner } : {}),
+    ...(runtimes ? { runtimes } : {}),
+    ...(enforcement ? { enforcement } : {}),
   };
 }
 

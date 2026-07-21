@@ -2,6 +2,13 @@
 name: manifest-checklist
 description: Get manifest.webmanifest right the first time — required fields, icon sizes (192, 512, maskable), display modes, scope, start_url. Single artifact: every field motivated, no dead options.
 owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: active
+    codex: active
+    hermes: ci-only
 ---
 
 # manifest-checklist

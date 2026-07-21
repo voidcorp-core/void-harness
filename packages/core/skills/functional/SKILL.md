@@ -3,6 +3,13 @@ name: functional
 activation: always
 description: Pure-by-default, errors as values (Result<T, E>), discriminated unions for state, immutability defaults, functional core / imperative shell. Side effects at adapters. Use for data flow or state.
 owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: pretooluse
+    codex: pretooluse
+    hermes: ci-only
 ---
 
 # functional — voidcorp craftsman edition

@@ -5,6 +5,13 @@ triggers:
   globs: ["**/migrations/**", "**/*.sql"]
 description: Zero-downtime Postgres migrations. Two-phase changes, batched backfills, locking analysis, banned DDL patterns, CONCURRENTLY indexes, dev branch test, immutable after merge. Use on DB schema changes.
 owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: pretooluse
+    codex: pretooluse
+    hermes: ci-only
 ---
 
 # migrations-safety — voidcorp craftsman edition

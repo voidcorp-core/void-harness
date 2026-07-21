@@ -2,6 +2,13 @@
 name: route-group-decision
 description: Decide when to use a (route-group), what to name it, and how to share layouts. The void-harness convention groups by trust boundary, not by visual section.
 owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: active
+    codex: active
+    hermes: ci-only
 ---
 
 # route-group-decision

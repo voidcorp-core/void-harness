@@ -2,6 +2,13 @@
 name: dependency-direction
 description: Enforce the @repo/* import direction in a Turborepo workspace. Concrete violations + fixes. Composes with core:hexagonal-architecture and the boundary-direction-check hook.
 owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: active
+    codex: active
+    hermes: ci-only
 ---
 
 # dependency-direction

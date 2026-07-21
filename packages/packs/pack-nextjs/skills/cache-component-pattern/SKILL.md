@@ -2,6 +2,13 @@
 name: cache-component-pattern
 description: Use Next.js 16 Cache Components correctly — when to opt in ('use cache'), when to opt out ('use no cache'), cache key strategy, scoping by user/org. Default is cached; uncache deliberately.
 owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: active
+    codex: active
+    hermes: ci-only
 ---
 
 # cache-component-pattern

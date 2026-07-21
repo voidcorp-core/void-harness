@@ -2,6 +2,13 @@
 name: instrumentation-setup
 description: Wire instrumentation.ts in Next.js 16 — Sentry, pino logger, OpenTelemetry traces. Edge vs Node runtime split. The single place observability is bootstrapped.
 owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: active
+    codex: active
+    hermes: ci-only
 ---
 
 # instrumentation-setup

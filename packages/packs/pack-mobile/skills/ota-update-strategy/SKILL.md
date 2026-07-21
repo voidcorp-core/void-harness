@@ -2,6 +2,13 @@
 name: ota-update-strategy
 description: Ship JS-only fixes via EAS Update; full rebuild via EAS Build. Runtime versions, channels, rollback. The "when can I OTA vs when do I rebuild" decision.
 owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: active
+    codex: active
+    hermes: ci-only
 ---
 
 # ota-update-strategy

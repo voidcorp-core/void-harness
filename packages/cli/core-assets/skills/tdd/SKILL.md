@@ -3,6 +3,13 @@ name: tdd
 activation: always
 description: TDD with three modes (strict/souple/exploratory) auto-selected by path. Iron Law in strict (no prod code without a failing test), mutation gate, anti-rustine. Use for any feature, bugfix, refactor.
 owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: pretooluse
+    codex: pretooluse
+    hermes: ci-only
 ---
 
 # tdd — voidcorp craftsman edition

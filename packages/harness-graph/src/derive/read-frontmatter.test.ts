@@ -105,6 +105,79 @@ describe('readFrontmatter — owner', () => {
   });
 });
 
+describe('readFrontmatter — runtimes', () => {
+  it('parses a bracketed runtimes list (unquoted or quoted, tolerant)', () => {
+    expect(readFrontmatter('---\ndescription: x\nruntimes: [claude, codex]\n---\n').runtimes).toEqual(['claude', 'codex']);
+    expect(readFrontmatter('---\ndescription: x\nruntimes: ["claude", "codex", "hermes"]\n---\n').runtimes).toEqual([
+      'claude',
+      'codex',
+      'hermes',
+    ]);
+  });
+
+  it('omits runtimes when absent or empty (governance flags absence)', () => {
+    expect(readFrontmatter('---\ndescription: x\n---\n').runtimes).toBeUndefined();
+    expect(readFrontmatter('---\ndescription: x\nruntimes: []\n---\n').runtimes).toBeUndefined();
+  });
+
+  it('parses the idiomatic multi-line YAML block list form (must not read as absent)', () => {
+    const md = '---\ndescription: x\nruntimes:\n  - claude\n  - codex\n---\nbody';
+    expect(readFrontmatter(md).runtimes).toEqual(['claude', 'codex']);
+  });
+
+  it('tolerates a space-separated bracketed list', () => {
+    expect(readFrontmatter('---\ndescription: x\nruntimes: [claude codex]\n---\n').runtimes).toEqual(['claude', 'codex']);
+  });
+});
+
+describe('readFrontmatter — enforcement', () => {
+  const full = [
+    '---',
+    'description: x',
+    'enforcement:',
+    '  floor: ci',
+    '  inline:',
+    '    claude: pretooluse',
+    '    codex: pretooluse',
+    '    hermes: ci-only',
+    '---',
+    'body',
+  ].join('\n');
+
+  it('parses the nested floor + per-runtime inline tiers', () => {
+    expect(readFrontmatter(full).enforcement).toEqual({
+      floor: 'ci',
+      inline: { claude: 'pretooluse', codex: 'pretooluse', hermes: 'ci-only' },
+    });
+  });
+
+  it('parses a floor-only enforcement block', () => {
+    const md = '---\ndescription: x\nenforcement:\n  floor: ci\n---\n';
+    expect(readFrontmatter(md).enforcement).toEqual({ floor: 'ci' });
+  });
+
+  it('omits enforcement when absent, and when floor is missing (floor is required)', () => {
+    expect(readFrontmatter('---\ndescription: x\n---\n').enforcement).toBeUndefined();
+    const noFloor = '---\ndescription: x\nenforcement:\n  inline:\n    claude: pretooluse\n---\n';
+    expect(readFrontmatter(noFloor).enforcement).toBeUndefined();
+  });
+
+  it('accepts a case-variant floor value (ci), normalized', () => {
+    const md = '---\ndescription: x\nenforcement:\n  floor: CI\n---\n';
+    expect(readFrontmatter(md).enforcement).toEqual({ floor: 'ci' });
+  });
+
+  it('drops an enforcement block whose floor is an invalid value (floor must be ci)', () => {
+    const md = '---\ndescription: x\nenforcement:\n  floor: broken\n  inline:\n    claude: active\n---\n';
+    expect(readFrontmatter(md).enforcement).toBeUndefined();
+  });
+
+  it('is tolerant: an unknown inline tier is dropped, never throws', () => {
+    const md = '---\ndescription: x\nenforcement:\n  floor: ci\n  inline:\n    claude: sometimes\n    codex: active\n---\n';
+    expect(readFrontmatter(md).enforcement).toEqual({ floor: 'ci', inline: { codex: 'active' } });
+  });
+});
+
 describe('countLines', () => {
   it('counts newline-separated lines', () => {
     expect(countLines('a\nb\nc')).toBe(3);

@@ -2,6 +2,13 @@
 name: client-vs-server-component
 description: Decide which components run on server vs client in a React 19 / Next.js app and place the 'use client' boundary correctly. Server Components by default; client is the exception.
 owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: active
+    codex: active
+    hermes: ci-only
 ---
 
 # client-vs-server-component
