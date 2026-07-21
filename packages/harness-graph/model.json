@@ -469,6 +469,16 @@
       "source": "packages/core/hooks/tidying-commit-prefix.sh"
     },
     {
+      "id": "hook:trim-large-output",
+      "type": "hook",
+      "name": "trim-large-output",
+      "description": "",
+      "lines": 73,
+      "staticTokens": 833,
+      "pack": null,
+      "source": "packages/core/hooks/trim-large-output.sh"
+    },
+    {
       "id": "hook:tsc-noemit-precommit",
       "type": "hook",
       "name": "tsc-noemit-precommit",
