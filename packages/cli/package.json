@@ -1,6 +1,6 @@
 {
   "name": "@voidfactory/harness",
-  "version": "0.17.0",
+  "version": "1.0.0",
   "description": "void-harness CLI — install a top-5% development doctrine on any project; render deterministic project health. Command: void-harness.",
   "license": "MIT",
   "author": "Folpe @ VoidCorp",

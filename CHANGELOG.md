@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.0](https://github.com/voidcorp-core/void-harness/compare/v0.17.0...v1.0.0) (2026-07-22)
+
+First public release. Declares the CLI's public surface stable; from here,
+Conventional Commits map to standard SemVer (breaking → major).
+
+### Features
+
+* **cli:** multi-runtime harness via a runtime-adapter seam — `init`/`runtime add`/`doctor` iterate runtime adapters (Claude Code + Codex), each owning its wiring and doctrine doc; add a runtime a-posteriori without friction ([#111](https://github.com/voidcorp-core/void-harness/pull/111))
+* **cli:** `graph` reporting works standalone by reusing the shipped model.json ([#114](https://github.com/voidcorp-core/void-harness/pull/114))
+
+### Continuous Integration
+
+* **release:** tokenless, provenance-signed npm publish via Trusted Publishing (OIDC), gated on the release-PR merge ([#113](https://github.com/voidcorp-core/void-harness/pull/113), [#116](https://github.com/voidcorp-core/void-harness/pull/116))
+
 ## [0.17.0](https://github.com/voidcorp-core/void-harness/compare/v0.16.0...v0.17.0) (2026-07-21)
 
 
