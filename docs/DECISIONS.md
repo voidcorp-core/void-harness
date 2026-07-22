@@ -169,7 +169,7 @@ no internal-scope dependency.
 > catch npm documents: Trusted Publishing configures a publisher on an **existing** package and
 > cannot create a new one — so v1 is a one-time manual `pnpm publish` bootstrap (interactive 2FA, no
 > stored credential), after which the trusted publisher is linked and every later release is
-> tokenless. The job pins **pnpm 10** (OIDC landed in pnpm 10; 11.0.8 has a known 404 bug,
+> tokenless. The repo's `packageManager` is **pnpm 10** (OIDC landed in pnpm 10; 11.0.8 has a known 404 bug,
 > pnpm/pnpm#11513). Everything below about HITL, CI-only publishing, and the `workspace:` rewrite
 > still holds; only the credential mechanism changed (stored token → OIDC).
 

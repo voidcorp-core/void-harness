@@ -63,9 +63,9 @@ already enforces. No one runs the bump script by hand in the normal path.
    `pnpm --filter @voidfactory/harness publish`. Publishing only ever happens in
    CI, from the tagged commit, so the `workspace:` rewrite, the guard, and an npm
    **provenance attestation** are always applied. Only the self-contained CLI is
-   published; packs and the kernel ship via the marketplace / bundle. The job pins
-   **pnpm 10** (OIDC trusted publishing landed in pnpm 10; 11.0.8 has a known 404
-   bug — pnpm/pnpm#11513).
+   published; packs and the kernel ship via the marketplace / bundle. The repo's
+   `packageManager` is **pnpm 10** (bumped from 9 because OIDC trusted publishing
+   landed in pnpm 10; 11.0.8 has a known 404 bug — pnpm/pnpm#11513).
 
 ### First publish (one-time bootstrap)
 
