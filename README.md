@@ -7,13 +7,13 @@ Install a top-5% development doctrine on any project in one command, run it acro
 - **Craftsman skills** — TDD strict, TigerStyle, hexagonal, DDD — enforced by hooks, not vibes.
 - **Multi-runtime by construction** — one doctrine, compiled to **Claude Code** (`CLAUDE.md` + marketplace plugin) and **Codex** (`AGENTS.md` + a `.codex/` safety floor) through a runtime-adapter seam. Add a runtime later without a reinstall (`void-harness runtime add codex`).
 - **Pluggable stack packs** — Next.js, monorepo, React, server, PWA, mobile — activated per project.
-- **Free and account-free** — `npx @voidfactory/harness init`. No Claude account, no subscription, no API key. The Claude Code marketplace is an optional secondary channel.
+- **Free and account-free** — `npx voidharness init`. No Claude account, no subscription, no API key. The Claude Code marketplace is an optional secondary channel.
 
 Born at VoidCorp, released for anyone.
 
 ## Status
 
-**1.0.0 — live on npm**, public MIT. Install with `npx @voidfactory/harness init`. Releases are
+**1.0.0 — live on npm**, public MIT. Install with `npx voidharness init`. Releases are
 provenance-signed and published tokenlessly from CI (npm Trusted Publishing). See `docs/RELEASING.md`
 for the release flow, `plans/` for design specs, and `docs/DECISIONS.md` for the decision log.
 
@@ -34,7 +34,7 @@ Inspired by Wing Chun (economy of means), TigerStyle (TigerBeetle), Citypaul dot
 ```
 void-harness/
 ├── packages/
-│   ├── cli/                       # @voidfactory/harness — the CLI (the only npm package)
+│   ├── cli/                       # voidharness — the CLI (the only npm package)
 │   │   └── core-assets/           # bundled plugin + frozen model/certification (self-contained npx)
 │   ├── core/                      # harness plugin (static assets, not an npm package)
 │   │   ├── skills/                # craftsman skills
@@ -61,10 +61,10 @@ void-harness/
 Install free, account-free (no Claude account, no subscription, no API key), in one command:
 
 ```
-npx @voidfactory/harness init
+npx voidharness init
 ```
 
-> On a pnpm project, prefer `pnpm dlx @voidfactory/harness init` — `npx` (npm) prints harmless
+> On a pnpm project, prefer `pnpm dlx voidharness init` — `npx` (npm) prints harmless
 > "Unknown project config" warnings when it reads your pnpm-only `.npmrc` keys; `pnpm dlx` doesn't.
 
 It detects the project and installed runtimes (Claude Code / Codex), wires each through its adapter
@@ -72,8 +72,8 @@ It detects the project and installed runtimes (Claude Code / Codex), wires each 
 prints what to do next. Then, at any time:
 
 ```
-npx @voidfactory/harness status     # deterministic, offline, LLM-free project health
-npx @voidfactory/harness doctor     # health check
+npx voidharness status     # deterministic, offline, LLM-free project health
+npx voidharness doctor     # health check
 ```
 
 ### Multiple runtimes, added when you need them
@@ -87,8 +87,8 @@ Add a runtime **later, without friction** — no reinstall, nothing touched on t
 already use:
 
 ```
-npx @voidfactory/harness runtime list        # which runtimes are wired
-npx @voidfactory/harness runtime add codex    # wire Codex on a Claude project (or vice-versa)
+npx voidharness runtime list        # which runtimes are wired
+npx voidharness runtime add codex    # wire Codex on a Claude project (or vice-versa)
 ```
 
 `runtime add codex` stages Codex's safety floor (`.codex/hooks.json` + hook scripts) and writes

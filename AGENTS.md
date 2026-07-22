@@ -6,7 +6,7 @@ You are working inside the **void-harness** repo itself — the meta-repo that p
 
 ## What this repo is
 
-A **public, MIT** harness installed free and account-free via `npx @voidfactory/harness` (the npm package is the primary channel; the voidcorp marketplace is self-hosted in this repo — `.claude-plugin/marketplace.json` lists every plugin as a local subdirectory — as an optional secondary channel; see `docs/DECISIONS.md`). It injects opinionated agent configuration into any project:
+A **public, MIT** harness installed free and account-free via `npx voidharness` (the npm package is the primary channel; the voidcorp marketplace is self-hosted in this repo — `.claude-plugin/marketplace.json` lists every plugin as a local subdirectory — as an optional secondary channel; see `docs/DECISIONS.md`). It injects opinionated agent configuration into any project:
 
 - **Core** (`packages/core/`) — universal craftsman skills, agents, hooks, AGENTS.md / CLAUDE.md modules
 - **Packs** (`packages/packs/*`) — stack-specific add-ons activated per project

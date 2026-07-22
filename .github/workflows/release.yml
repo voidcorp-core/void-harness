@@ -56,7 +56,7 @@ jobs:
           gh workflow run bump-shas.yml -R voidcorp-core/void-plugins -f ref="${{ steps.release.outputs.tag_name }}"
           echo "Triggered void-plugins/bump-shas for ${{ steps.release.outputs.tag_name }}"
 
-  # Tokenless, provenance-signed publish of @voidfactory/harness via npm Trusted
+  # Tokenless, provenance-signed publish of voidharness via npm Trusted
   # Publishing (OIDC), gated on a release having been cut (i.e. a human merged the
   # release PR). NO npm token exists anywhere: `id-token: write` lets the runner
   # mint a short-lived, workflow-scoped credential that npm trusts, and provenance
@@ -100,4 +100,4 @@ jobs:
       # published tarball is self-contained. --no-git-checks: the tag is already
       # cut; the tree is the release commit. No NODE_AUTH_TOKEN — auth is OIDC.
       - name: Publish to npm (OIDC trusted publishing, provenance auto)
-        run: pnpm --filter @voidfactory/harness publish --access public --no-git-checks
+        run: pnpm --filter voidharness publish --access public --no-git-checks

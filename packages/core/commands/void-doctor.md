@@ -4,8 +4,8 @@ allowed-tools: Bash(void-harness:*)
 ---
 
 Run `void-harness doctor` in the project root. The CLI is public on npm as
-`@voidfactory/harness` (command: `void-harness`); if it is not on PATH, run
-`npx @voidfactory/harness doctor`.
+`voidharness` (command: `void-harness`); if it is not on PATH, run
+`npx voidharness doctor`.
 
 Read its output and give the user a one-screen summary: what is healthy, what is
 missing or stale, and the exact next command to fix each problem. Do not attempt

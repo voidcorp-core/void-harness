@@ -10,7 +10,7 @@ import {
 
 describe('adoption URLs', () => {
   it('builds the public npm + GitHub endpoints for the harness package/repo', () => {
-    expect(npmDownloadsUrl()).toBe('https://api.npmjs.org/downloads/point/last-month/@voidfactory/harness');
+    expect(npmDownloadsUrl()).toBe('https://api.npmjs.org/downloads/point/last-month/voidharness');
     expect(githubRepoUrl()).toBe('https://api.github.com/repos/voidcorp-core/void-harness');
     expect(githubReleasesUrl()).toBe('https://api.github.com/repos/voidcorp-core/void-harness/releases');
   });
@@ -18,7 +18,7 @@ describe('adoption URLs', () => {
 
 describe('parseNpmDownloads', () => {
   it('reads the download count', () => {
-    expect(parseNpmDownloads({ downloads: 1234, package: '@voidfactory/harness' })).toBe(1234);
+    expect(parseNpmDownloads({ downloads: 1234, package: 'voidharness' })).toBe(1234);
   });
   it('returns undefined on a 404-shaped / malformed response (no false 0)', () => {
     expect(parseNpmDownloads({ error: 'not found' })).toBeUndefined();

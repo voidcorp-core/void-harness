@@ -62,10 +62,10 @@ jobs:
         # untracked would pass silently (#66). Porcelain catches modified,
         # untracked (??) and deleted paths alike.
         run: |
-          pnpm --filter @voidfactory/harness build:assets
+          pnpm --filter voidharness build:assets
           if [ -n "$(git status --porcelain -- packages/cli/core-assets)" ]; then
             echo "FAIL: core-assets is out of sync with packages/core." >&2
-            echo "Run: pnpm --filter @voidfactory/harness build:assets && commit the result." >&2
+            echo "Run: pnpm --filter voidharness build:assets && commit the result." >&2
             git --no-pager status --porcelain -- packages/cli/core-assets >&2
             exit 1
           fi
@@ -94,7 +94,7 @@ jobs:
         # The shipped packages/core/graph/void-graph.mjs bakes model.json. This gates the
         # embedded model against the committed model.json (not the whole vite/esbuild output —
         # its byte-determinism across environments is not guaranteed). If a skill/hook/command
-        # change regenerated model.json, rebuild: pnpm -F @voidfactory/harness build:void-graph
+        # change regenerated model.json, rebuild: pnpm -F voidharness build:void-graph
         run: pnpm graph:check-bundle
 
       - name: Skill tests
