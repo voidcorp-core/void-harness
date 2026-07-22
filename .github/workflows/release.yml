@@ -6,12 +6,13 @@ name: release
 # extra-files in release-please-config.json) and writes the changelog. Merging
 # that PR tags `vX.Y.Z` and cuts a GitHub release. No one hand-bumps a version.
 #
-# HITL is preserved: the version is computed automatically, but the release only
-# happens when a human merges the release PR. Pre-1.0 policy (config):
-# feat -> minor, fix -> patch, breaking -> minor (bump-minor-pre-major).
-#
-# npm publish is intentionally NOT wired here yet (the package is not published).
-# When ready, add a step gated on `steps.release.outputs.release_created`.
+# HITL is preserved and is exactly ONE deliberate human action: merging the
+# release PR. That merge cuts the GitHub release, which fires the `publish` job
+# below — a provenance-signed `pnpm publish` to npm. There is no separate
+# "publish" button and no manual `npm publish` from a laptop: publishing only
+# ever happens in CI, from tagged source, so `workspace:` rewrite + the
+# check:publish guard + npm provenance are always applied. Pre-1.0 policy
+# (config): feat -> minor, fix -> patch, breaking -> minor (bump-minor-pre-major).
 
 on:
   push:
@@ -24,6 +25,9 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -48,3 +52,41 @@ jobs:
         run: |
           gh workflow run bump-shas.yml -R voidcorp-core/void-plugins -f ref="${{ steps.release.outputs.tag_name }}"
           echo "Triggered void-plugins/bump-shas for ${{ steps.release.outputs.tag_name }}"
+
+  # Provenance-signed publish of @voidfactory/harness, gated on a release having
+  # been cut (i.e. a human merged the release PR). `id-token: write` lets npm mint
+  # a provenance attestation from this OIDC-authenticated run — the package's npm
+  # page then shows it was built and signed by this workflow from the tagged
+  # commit, which a manual laptop publish can never produce. `pnpm publish`
+  # rewrites the internal `workspace:*` dep to a real range; `check:publish` fails
+  # closed if any `workspace:` specifier survives into a packed tarball.
+  #
+  # Requires one repo secret: NPM_TOKEN — a granular npm automation token scoped
+  # to publish @voidfactory/harness. (Once the first version is on npm, this can
+  # be upgraded to tokenless npm Trusted Publishing, configured on the npm side.)
+  publish:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Guard: no `workspace:` specifier may survive into a published tarball.
+      - run: pnpm check:publish
+      # prepack (builds the kernel + CLI + core-assets) runs automatically, so the
+      # published tarball is self-contained. --no-git-checks: the tag is already
+      # cut; the tree is the release commit.
+      - name: Publish to npm (provenance-signed)
+        run: pnpm --filter @voidfactory/harness publish --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
