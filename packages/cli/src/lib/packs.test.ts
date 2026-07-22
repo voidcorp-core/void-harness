@@ -121,8 +121,10 @@ describe('PACKS ordering', () => {
 });
 
 describe('marketplace identity', () => {
-  it('catalog lives in the dedicated void-plugins repo, marketplace named after the entity', () => {
+  it('self-hosts the catalog in this repo, marketplace still named after the entity', () => {
+    // Name stays `voidcorp` so existing `harness@voidcorp` enabledPlugins keep resolving;
+    // only the repo moved (dedicated void-plugins catalog -> self-hosted in void-harness).
     expect(MARKETPLACE_NAME).toBe('voidcorp');
-    expect(MARKETPLACE_REPO).toBe('voidcorp-core/void-plugins');
+    expect(MARKETPLACE_REPO).toBe('voidcorp-core/void-harness');
   });
 });

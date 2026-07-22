@@ -1,0 +1,59 @@
+{
+  "name": "voidcorp",
+  "owner": {
+    "name": "VoidCorp",
+    "email": "florent.pellegrin@voidcorp.io"
+  },
+  "description": "VoidCorp craftsman harness — universal core skills plus stack-specific packs. Self-hosted: every plugin is a subdirectory of this repo, versioned by its plugin.json.",
+  "plugins": [
+    {
+      "name": "harness",
+      "source": "./packages/core",
+      "description": "Universal craftsman skills (TDD strict, TypeScript strict, hexagonal, DDD, functional, code-review, security) plus enforcement hooks and read-only agents.",
+      "category": "best-practices",
+      "tags": ["tdd", "typescript", "hexagonal", "ddd", "craftsman"]
+    },
+    {
+      "name": "harness-monorepo",
+      "source": "./packages/packs/pack-monorepo",
+      "description": "Turborepo monorepo conventions: shared strict tsconfig, @repo/core (Result, Option, pipe), package boundary discipline.",
+      "category": "stack",
+      "tags": ["turborepo", "monorepo"]
+    },
+    {
+      "name": "harness-react",
+      "source": "./packages/packs/pack-react",
+      "description": "React 19 conventions: shadcn/Radix, accessibility-first, client/server component boundaries, form and state patterns.",
+      "category": "stack",
+      "tags": ["react", "shadcn", "accessibility"]
+    },
+    {
+      "name": "harness-nextjs",
+      "source": "./packages/packs/pack-nextjs",
+      "description": "Next.js 16 App Router conventions: route groups, cache components, loading/error boundaries, instrumentation.",
+      "category": "stack",
+      "tags": ["nextjs", "app-router"]
+    },
+    {
+      "name": "harness-server",
+      "source": "./packages/packs/pack-server",
+      "description": "Server-side trust boundaries: Server Actions, webhook safety, Zod ingress, rate limiting, Drizzle migrations, structured errors.",
+      "category": "stack",
+      "tags": ["server-actions", "webhooks", "drizzle", "zod"]
+    },
+    {
+      "name": "harness-pwa",
+      "source": "./packages/packs/pack-pwa",
+      "description": "PWA conventions: manifest, service worker, offline-first strategies.",
+      "category": "stack",
+      "tags": ["pwa", "offline", "service-worker"]
+    },
+    {
+      "name": "harness-mobile",
+      "source": "./packages/packs/pack-mobile",
+      "description": "Mobile conventions: Expo + React Native, EAS Build, config plugins, OTA update strategy. Composes with harness-react.",
+      "category": "stack",
+      "tags": ["expo", "react-native", "mobile"]
+    }
+  ]
+}

@@ -37,7 +37,7 @@ describe('printHelp', () => {
     expect(capture()).toContain('npx @voidfactory/harness init');
   });
 
-  it('still points at the marketplace catalog repo as the optional secondary channel', () => {
-    expect(capture()).toContain('voidcorp-core/void-plugins');
+  it('points at the self-hosted marketplace repo as the optional secondary channel', () => {
+    expect(capture()).toContain('voidcorp-core/void-harness');
   });
 });

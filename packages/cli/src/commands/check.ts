@@ -39,11 +39,11 @@ export async function check(args: readonly string[]): Promise<void> {
     process.exit(1);
   }
 
-  const drift = reportVersionDrift(local, remote.value);
+  const drift = reportVersionDrift(local, remote.value, repo);
 
   if (doctrine) {
     blank();
-    await reportDoctrineDrift(projectRoot, remote.value);
+    await reportDoctrineDrift(projectRoot, remote.value, repo);
   }
 
   if (drift > 0) {
@@ -77,7 +77,7 @@ async function readLocalConfig(projectRoot: string): Promise<LocalConfig> {
   }
 }
 
-function reportVersionDrift(local: LocalConfig, remote: RemoteMarketplace): number {
+function reportVersionDrift(local: LocalConfig, remote: RemoteMarketplace, marketplaceRepo: string): number {
   const localVersions: Record<string, string | undefined> = {
     [CORE_PLUGIN_NAME]: local.core,
   };
@@ -90,7 +90,7 @@ function reportVersionDrift(local: LocalConfig, remote: RemoteMarketplace): numb
   for (const plugin of remote.plugins) {
     const declaredRaw = localVersions[plugin.name];
     const localStr = declaredRaw ? normalizeVersion(declaredRaw) : glyph.emdash;
-    const remoteFetch = fetchPinnedPluginVersion(plugin);
+    const remoteFetch = fetchPinnedPluginVersion(plugin, marketplaceRepo);
     if (!remoteFetch.ok) {
       row({ mark: 'info', label: plugin.name, versions: [localStr, glyph.emdash], suffix: c.dim(remoteFetch.error) });
       continue;
@@ -125,14 +125,14 @@ function reportVersionDrift(local: LocalConfig, remote: RemoteMarketplace): numb
   return drift;
 }
 
-async function reportDoctrineDrift(projectRoot: string, market: RemoteMarketplace): Promise<void> {
+async function reportDoctrineDrift(projectRoot: string, market: RemoteMarketplace, marketplaceRepo: string): Promise<void> {
   const localPath = join(projectRoot, '.void', 'PHILOSOPHY.md');
   if (!existsSync(localPath)) {
     status('PHILOSOPHY.md missing locally — run `void-harness init` to install.', 'warn');
     return;
   }
   const localText = await readFile(localPath, 'utf8');
-  const remote = fetchRemotePhilosophy(market, CORE_PLUGIN_NAME);
+  const remote = fetchRemotePhilosophy(market, CORE_PLUGIN_NAME, marketplaceRepo);
   if (!remote.ok) {
     status(`could not fetch remote PHILOSOPHY.md: ${remote.error}`, 'warn');
     return;

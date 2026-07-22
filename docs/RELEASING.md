@@ -7,7 +7,7 @@ How to ship a new version. One model, one number — everything moves together.
 While the harness is pre-1.0, **one version governs everything** that carries a version (below).
 Distinguish **versioned** (all manifests, in lockstep) from **published to npm** (only the CLI):
 
-- Plugin manifests (each `plugin.json`; the catalog lives in voidcorp-core/void-plugins) — versioned.
+- Plugin manifests (each `plugin.json`; the catalog is self-hosted at `.claude-plugin/marketplace.json`) — versioned.
 - Packs (`@voidcorp/pack-monorepo`, `@voidcorp/pack-nextjs`, …) and the `@voidcorp/harness-graph`
   kernel — versioned, but **not published to npm**: packs ship via the marketplace, and the kernel is
   bundled into the CLI (see DECISIONS.md 2026-07-22).

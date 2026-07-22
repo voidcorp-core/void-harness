@@ -16,7 +16,7 @@ export interface RemotePluginSource {
 
 export interface RemotePlugin {
   readonly name: string;
-  /** Absent in the void-plugins catalog: the pinned plugin.json is the version of truth. */
+  /** Usually absent in the catalog: the plugin.json (local or pinned) is the version of truth. */
   readonly version?: string;
   readonly description?: string;
   readonly source?: string | RemotePluginSource;
@@ -74,7 +74,7 @@ export function resolveCorePin(repo: string): string | undefined {
   if (!remote.ok) return undefined;
   const core = selectCorePlugin(remote.value.plugins);
   if (!core) return undefined;
-  const pinned = fetchPinnedPluginVersion(core);
+  const pinned = fetchPinnedPluginVersion(core, repo);
   return pinned.ok ? pinned.value : undefined;
 }
 
@@ -93,14 +93,23 @@ export function fetchRemoteMarketplace(repo: string): RemoteFetch<RemoteMarketpl
 }
 
 /**
- * Resolve where a catalog entry's pinned content lives: which repo, under
- * which base path, at which ref. The sha wins over the ref (it is the
- * effective pin); string sources are repo-local and have no remote pin.
+ * Resolve where a catalog entry's content lives: which repo, under which base
+ * path, at which ref. A **local/relative** source (`"./packages/core"`) means the
+ * plugin is a subdirectory of the marketplace repo itself, versioned by its own
+ * plugin.json at HEAD — the self-hosted case. External git sources pin via
+ * sha (winning over ref). Returns undefined when no repo can be determined.
  */
 export function pinnedCoordinates(
   source: RemotePlugin['source'],
+  marketplaceRepo: string,
 ): { repo: string; basePath: string; ref: string } | undefined {
-  if (!source || typeof source === 'string') return undefined;
+  if (!source) return undefined;
+  if (typeof source === 'string') {
+    // Local source: strip the leading `./` and trailing `/`; the plugin lives in
+    // the marketplace repo at HEAD (no external pin — the repo commit is the pin).
+    const rel = source.replace(/^\.\//, '').replace(/\/$/, '');
+    return { repo: marketplaceRepo, basePath: rel ? `${rel}/` : '', ref: 'HEAD' };
+  }
   const ref = source.sha ?? source.ref ?? 'HEAD';
   if (source.source === 'github' && source.repo) {
     return { repo: source.repo, basePath: '', ref };
@@ -115,8 +124,8 @@ export function pinnedCoordinates(
  * plugin.json at the pinned commit. Falls back to the catalog version
  * field for legacy entries that still carry one.
  */
-export function fetchPinnedPluginVersion(plugin: RemotePlugin): RemoteFetch<string> {
-  const coords = pinnedCoordinates(plugin.source);
+export function fetchPinnedPluginVersion(plugin: RemotePlugin, marketplaceRepo: string): RemoteFetch<string> {
+  const coords = pinnedCoordinates(plugin.source, marketplaceRepo);
   if (!coords) {
     return plugin.version
       ? { ok: true, value: plugin.version }
@@ -138,9 +147,13 @@ export function fetchPinnedPluginVersion(plugin: RemotePlugin): RemoteFetch<stri
  * PHILOSOPHY.md lives next to the core plugin in the product repo, so its
  * location follows the core entry's pin instead of the catalog repo.
  */
-export function fetchRemotePhilosophy(market: RemoteMarketplace, corePluginName: string): RemoteFetch<string> {
+export function fetchRemotePhilosophy(
+  market: RemoteMarketplace,
+  corePluginName: string,
+  marketplaceRepo: string,
+): RemoteFetch<string> {
   const core = market.plugins.find((p) => p.name === corePluginName);
-  const coords = pinnedCoordinates(core?.source);
+  const coords = pinnedCoordinates(core?.source, marketplaceRepo);
   if (!coords) {
     return { ok: false, error: `catalog has no pinned source for plugin "${corePluginName}"` };
   }
