@@ -17,6 +17,9 @@ name: release
 on:
   push:
     branches: [main]
+  # Manual re-publish of the CURRENT version on main — e.g. to complete a release
+  # whose auto-publish failed (a CI misconfig), without cutting a new version.
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -68,24 +71,26 @@ jobs:
   # then linked to (org: voidcorp-core, repo: void-harness, workflow: release.yml),
   # and every release from the next one on publishes here with zero tokens.
   #
-  # pnpm 10.x is pinned deliberately: OIDC trusted publishing landed in pnpm 10 and
-  # 11.0.8 has a known 404 regression (pnpm/pnpm#11513). The repo otherwise runs on
-  # its packageManager pnpm; only this publish step overrides the version.
+  # The repo's packageManager is pnpm 10 (bumped from 9 precisely because OIDC
+  # trusted publishing landed in pnpm 10; 11.0.8 has a known 404 regression,
+  # pnpm/pnpm#11513). action-setup reads the version from packageManager — no
+  # `version:` input here (setting both errors: ERR_PNPM_BAD_PM_VERSION).
   publish:
     needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
+    # Runs when a release was just cut (the normal path) OR on a manual dispatch
+    # (re-publish the current version after a failed run). `always()` lets it
+    # evaluate on dispatch even though the gating output is empty then.
+    if: ${{ always() && (needs.release-please.outputs.release_created == 'true' || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           registry-url: https://registry.npmjs.org
           cache: pnpm
       - run: pnpm install --frozen-lockfile
