@@ -182,7 +182,7 @@ export async function init(args: readonly string[]): Promise<void> {
   // The core pin is a Claude-marketplace concern; only resolve/report it there.
   const pinVersion = wireClaude ? resolveCorePin(opts.marketplaceRepo) : undefined;
   if (wireClaude) {
-    meta('pin', pinVersion !== undefined ? `^${pinVersion}` : c.red('unresolved (marketplace unreachable, not pinned)'));
+    meta('pin', pinVersion !== undefined ? `^${pinVersion}` : c.red('unresolved (could not derive from marketplace, not pinned)'));
   }
   blank();
 
@@ -224,7 +224,7 @@ export async function init(args: readonly string[]): Promise<void> {
     const label = `${i + 1}. ${item}`;
     line(`  ${failed ? c.red(label) : c.dim(label)}`);
   });
-  footer(`skills appear as ${c.bold('/harness:<name>')}, ${c.bold('/void-<pack>:<name>')}`);
+  footer(`skills appear as ${c.bold('/harness:<name>')}, ${c.bold('/harness-<stack>:<name>')}`);
 }
 
 async function choosePacks(projectRoot: string, opts: InitOptions): Promise<readonly PackDescriptor[]> {
@@ -285,7 +285,7 @@ async function writeConfig(
   const configPath = join(voidDir, 'config.json');
   await mkdir(voidDir, { recursive: true });
 
-  // undefined pin (marketplace unreachable): activate packs in settings.json but
+  // undefined pin (core version not resolved): activate packs in settings.json but
   // do NOT stamp a stale version pin into config; the checklist flags it (#67).
   const pin = seed.pinVersion !== undefined ? `^${seed.pinVersion}` : undefined;
   const tag = (status: string) =>
@@ -296,7 +296,7 @@ async function writeConfig(
     const config = buildDefaultConfig(seed);
     if (pin !== undefined) for (const pack of packs) config.packs[`@voidcorp/${pack.name}`] = pin;
     await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`);
-    tag(pin !== undefined ? 'written' : 'written (versions unpinned, marketplace unreachable)');
+    tag(pin !== undefined ? 'written' : 'written (versions unpinned — core version not resolved)');
     return;
   }
 

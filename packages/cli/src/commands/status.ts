@@ -140,7 +140,7 @@ export async function status(_args: readonly string[]): Promise<void> {
   const state = computeProjectState(cert, signals, cert.harnessVersion);
   const score = scoreProjectState(state, cert, staticTokensById);
 
-  banner('void status');
+  banner('status');
   blank();
   for (const l of statusLines(state, score)) line(l);
 

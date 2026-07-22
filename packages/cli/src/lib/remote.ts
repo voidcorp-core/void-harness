@@ -3,6 +3,7 @@
 // instead of the base64-wrapped contents API envelope.
 
 import { execFileSync } from 'node:child_process';
+import { CORE_PLUGIN_NAME } from './packs.js';
 
 export interface RemotePluginSource {
   readonly source: string;
@@ -47,16 +48,34 @@ function ghFetchRaw(repo: string, path: string, ref = 'HEAD'): RemoteFetch<strin
 
 /**
  * The lockstep core version to pin, read from the marketplace HEAD. Returns
- * undefined when the remote is unreachable — callers must NOT substitute a
- * stale literal (the old `0.1.0` fallback reintroduced the default-pin-stale
- * friction this repo already fixed, #67). An undefined pin is surfaced to the
- * user as a failed checklist item, not silently written.
+ * undefined when the version cannot be derived (unreachable remote, no core
+ * entry, or an entry with no resolvable version) — callers must NOT substitute
+ * a stale literal (the old `0.1.0` fallback reintroduced the default-pin-stale
+ * friction this repo already fixed, #67).
+ *
+ * The core version is read from the entry named `harness` (CORE_PLUGIN_NAME),
+ * NOT `plugins[0]` — the catalog is not ordered by canonicity and its first
+ * entry may be an unrelated, version-less product. Modern entries are sha-pinned
+ * via `source`, so the version comes from the pinned plugin.json
+ * (fetchPinnedPluginVersion), not a legacy top-level `.version`.
  */
+/**
+ * The catalog entry for the core plugin, selected BY NAME. Pure + exported so a
+ * test locks the regression: the core is `harness`, never `plugins[0]` (the
+ * catalog is unordered and its first entry can be an unrelated, version-less
+ * product like `forge`, which silently yielded an undefined pin).
+ */
+export function selectCorePlugin(plugins: readonly RemotePlugin[]): RemotePlugin | undefined {
+  return plugins.find((p) => p.name === CORE_PLUGIN_NAME);
+}
+
 export function resolveCorePin(repo: string): string | undefined {
   const remote = fetchRemoteMarketplace(repo);
   if (!remote.ok) return undefined;
-  // Lockstep model: every plugin shares one version. First plugin is canonical.
-  return remote.value.plugins[0]?.version;
+  const core = selectCorePlugin(remote.value.plugins);
+  if (!core) return undefined;
+  const pinned = fetchPinnedPluginVersion(core);
+  return pinned.ok ? pinned.value : undefined;
 }
 
 export function fetchRemoteMarketplace(repo: string): RemoteFetch<RemoteMarketplace> {
