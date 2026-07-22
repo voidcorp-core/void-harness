@@ -34,7 +34,7 @@ describe('printHelp', () => {
 
   it('leads with the public account-free npx install (supersedes marketplace-only, 2026-07-21)', () => {
     // Distribution is now public MIT, npx-primary; the CLI is the consumer entry point.
-    expect(capture()).toContain('npx @voidcorp/harness init');
+    expect(capture()).toContain('npx @voidfactory/harness init');
   });
 
   it('still points at the marketplace catalog repo as the optional secondary channel', () => {

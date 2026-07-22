@@ -39,7 +39,7 @@ Pack-specific skills (extending core skills with Next.js context) and hooks (e.g
 
 ```bash
 # Via the void-harness CLI (accepts pack-nextjs, harness-nextjs, or nextjs)
-npx @voidcorp/harness init --pack pack-monorepo --pack pack-nextjs
+npx @voidfactory/harness init --pack pack-monorepo --pack pack-nextjs
 ```
 
 The CLI enables both plugins and wires their Claude / Codex modules into the consumer's CLAUDE.md / AGENTS.md.

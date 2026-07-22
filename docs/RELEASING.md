@@ -4,18 +4,22 @@ How to ship a new version. One model, one number — everything moves together.
 
 ## Model: total lockstep (pre-1.0)
 
-While the harness is pre-1.0, **one version governs everything**:
+While the harness is pre-1.0, **one version governs everything** that carries a version (below).
+Distinguish **versioned** (all manifests, in lockstep) from **published to npm** (only the CLI):
 
-- Plugin manifests (each `plugin.json`; the catalog lives in voidcorp-core/void-plugins)
-- CLI npm package (`@voidcorp/harness`)
-- Runtime npm packages (`@voidcorp/pack-monorepo`, `@voidcorp/pack-nextjs`, …)
+- Plugin manifests (each `plugin.json`; the catalog lives in voidcorp-core/void-plugins) — versioned.
+- Packs (`@voidcorp/pack-monorepo`, `@voidcorp/pack-nextjs`, …) and the `@voidcorp/harness-graph`
+  kernel — versioned, but **not published to npm**: packs ship via the marketplace, and the kernel is
+  bundled into the CLI (see DECISIONS.md 2026-07-22).
+- **CLI npm package (`@voidfactory/harness`) — the only package published to npm.** Self-contained
+  (the kernel is bundled in), so `npx @voidfactory/harness` needs nothing else from the registry.
 
 A skill change, a CLI bugfix, and a runtime helper addition all ship under the same version bump.
 
 ### Why one number
 
 - **Coherence.** A skill that references a runtime helper ships in the same version as that helper.
-- **Trace.** `void-harness --version` matches `pnpm view @voidcorp/pack-nextjs version` matches the marketplace HEAD.
+- **Trace.** `void-harness --version` matches `pnpm view @voidfactory/harness version` matches the marketplace HEAD.
 - **No skew incidents.** Pre-1.0, every divergence is a support nightmare. Lockstep eliminates the question.
 
 ### When we might split (post-1.0)
@@ -50,8 +54,11 @@ already enforces. No one runs the bump script by hand in the normal path.
    script, plus the core-assets mirror), and writes `CHANGELOG.md`.
 3. **Merge the release PR when you want to cut the release.** That tags `vX.Y.Z`
    and creates the GitHub release. This merge is the only human gate (HITL).
-4. **(When ready to publish to npm)** `pnpm -r --filter './packages/**' publish`.
-   Not wired into the workflow yet — the package is not published.
+4. **(When ready to publish to npm)** `pnpm release` from `main` — it runs
+   `check:publish` then `pnpm --filter @voidfactory/harness publish`, publishing
+   **only** the self-contained CLI. Packs and the kernel are not pushed to the
+   registry (marketplace / bundled). This is a deliberate maintainer act (npm
+   auth required), not wired into CI.
 
 A CI step (`pnpm version:check`, `scripts/check-version-lockstep.mjs`) fails the
 build if **any** manifest drifts from the canonical version — so a missed file
@@ -61,7 +68,7 @@ build if **any** manifest drifts from the canonical version — so a missed file
 
 `scripts/bump-version.mjs <patch|minor|major|X.Y.Z>` still bumps all manifests in
 lockstep for an emergency/offline release. After it, run
-`pnpm --filter @voidcorp/harness build:assets` to sync the mirror, commit
+`pnpm --filter @voidfactory/harness build:assets` to sync the mirror, commit
 `chore: release vX.Y.Z`, tag, push. Prefer the automated flow.
 
 Consumers on a project pull the new version with:

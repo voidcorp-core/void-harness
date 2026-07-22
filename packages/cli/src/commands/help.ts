@@ -4,8 +4,8 @@ export function printHelp(): void {
   const text = `
 void-harness — install a top-5% development doctrine on any project.
 
-Public and MIT. Install free, account-free: npx @voidcorp/harness init
-Then: npx @voidcorp/harness status (deterministic, offline project health).
+Public and MIT. Install free, account-free: npx @voidfactory/harness init
+Then: npx @voidfactory/harness status (deterministic, offline project health).
 The Claude Code marketplace (voidcorp-core/void-plugins) is an optional secondary
 channel; skills auto-load there as /harness:<name> and /harness-<stack>:<name>.
 

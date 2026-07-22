@@ -4,13 +4,13 @@
 
 A pluggable agent configuration that brings every new project to the top 5% bar — **automatically**.
 
-Core craftsman skills (TDD strict, TigerStyle, hexagonal, DDD), enforced by hooks. Pluggable stack packs (Next.js PWA, monorepo, mobile). Public and MIT: installed free and account-free via `npx @voidcorp/harness`, with the Claude Code marketplace as an optional secondary channel.
+Core craftsman skills (TDD strict, TigerStyle, hexagonal, DDD), enforced by hooks. Pluggable stack packs (Next.js PWA, monorepo, mobile). Public and MIT: installed free and account-free via `npx @voidfactory/harness`, with the Claude Code marketplace as an optional secondary channel.
 
 The opinionated foundation every VoidCorp project inherits.
 
 ## Status
 
-**Phase**: active — public MIT, installed via `npx @voidcorp/harness` (current version in the
+**Phase**: active — public MIT, installed via `npx @voidfactory/harness` (current version in the
 manifests). See `plans/` for design specs and `docs/DECISIONS.md` for the decision log.
 
 ## Philosophy
@@ -30,7 +30,7 @@ Inspired by Wing Chun (economy of means), TigerStyle (TigerBeetle), Citypaul dot
 ```
 void-harness/
 ├── packages/
-│   ├── cli/                       # @voidcorp/harness — CLI npm
+│   ├── cli/                       # @voidfactory/harness — CLI npm
 │   ├── core/                      # harness plugin (static assets, not an npm package)
 │   │   ├── skills/                # craftsman skills
 │   │   ├── agents/                # doctrine-critic (read-only doctrine conformance review)
@@ -54,15 +54,15 @@ void-harness/
 Install free, account-free (no Claude account, no subscription, no API key), in one command:
 
 ```
-npx @voidcorp/harness init
+npx @voidfactory/harness init
 ```
 
 It detects the project and installed runtimes (Claude Code / Codex), installs the adapted assets,
 verifies them, and writes the project state. Then, at any time:
 
 ```
-npx @voidcorp/harness status     # deterministic, offline, LLM-free project health
-npx @voidcorp/harness doctor     # health check
+npx @voidfactory/harness status     # deterministic, offline, LLM-free project health
+npx @voidfactory/harness doctor     # health check
 ```
 
 `status` reads a frozen capability certification and local telemetry to show, per capability, the
