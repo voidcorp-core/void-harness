@@ -2,6 +2,7 @@
 
 import { install } from './commands/install.js';
 import { init } from './commands/init.js';
+import { runtime } from './commands/runtime.js';
 import { add } from './commands/add.js';
 import { remove } from './commands/remove.js';
 import { list } from './commands/list.js';
@@ -22,6 +23,9 @@ export async function main(argv: readonly string[]): Promise<void> {
   switch (cmd) {
     case 'init':
       await init(rest);
+      return;
+    case 'runtime':
+      await runtime(rest);
       return;
     case 'add':
       await add(rest);

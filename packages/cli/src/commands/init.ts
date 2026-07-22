@@ -27,12 +27,17 @@ import {
   findPack,
   type PackDescriptor,
 } from '../lib/packs.js';
-import { mergeSettings, readSettings, settingsPathFor, writeSettings } from '../lib/settings.js';
-import { patchClaudeMd, patchAgentsMd } from '../lib/claude-md.js';
 import { banner, blank, c, footer, glyph, line, meta } from '../lib/render.js';
 import { commandsFor, detectStack, type Stack } from '../lib/stack.js';
 import { resolveCorePin } from '../lib/remote.js';
-import { checkGh, checkJq, checkMarketplaceAccess, type CheckResult } from '../lib/prerequisites.js';
+import { checkJq, type CheckResult } from '../lib/prerequisites.js';
+import {
+  detectRuntimes,
+  parseRuntimeArg,
+  resolveRuntimes,
+  type Runtime,
+} from '../lib/runtime.js';
+import { adaptersFor } from '../lib/runtime-adapters.js';
 
 interface InitOptions {
   readonly explicitPacks: readonly string[];
@@ -40,10 +45,15 @@ interface InitOptions {
   readonly interactive: boolean;
   readonly force: boolean;
   readonly marketplaceRepo: string;
+  readonly explicitRuntimes: readonly Runtime[];
+  /** Raw `--runtime` values that parsed to no known runtime (e.g. a typo), for a loud warning. */
+  readonly invalidRuntimeArgs: readonly string[];
 }
 
 function parseArgs(args: readonly string[]): InitOptions {
   const explicitPacks: string[] = [];
+  const explicitRuntimes: Runtime[] = [];
+  const invalidRuntimeArgs: string[] = [];
   let allPacks = false;
   let interactive = true;
   let force = false;
@@ -65,13 +75,23 @@ function parseArgs(args: readonly string[]): InitOptions {
       const next = args[i + 1];
       if (next !== undefined) marketplaceRepo = next;
       i += 1;
+    } else if (a === '--runtime' && i + 1 < args.length) {
+      const next = args[i + 1];
+      if (next !== undefined) {
+        const parsed = parseRuntimeArg(next);
+        // A --runtime value that yields nothing (typo like "claud") must not
+        // silently fall back to "both" — record it so init can warn and stop.
+        if (parsed.length === 0) invalidRuntimeArgs.push(next);
+        else explicitRuntimes.push(...parsed);
+      }
+      i += 1;
     }
   }
 
   // If --pack flags are present, default to non-interactive (script-friendly).
   if (explicitPacks.length > 0 || allPacks) interactive = false;
 
-  return { explicitPacks, allPacks, interactive, force, marketplaceRepo };
+  return { explicitPacks, allPacks, interactive, force, marketplaceRepo, explicitRuntimes, invalidRuntimeArgs };
 }
 
 interface ConfigSeed {
@@ -109,14 +129,13 @@ export function buildDefaultConfig(seed: ConfigSeed): Record<string, unknown> & 
  */
 export function buildFinalChecklist(
   checks: readonly CheckResult[],
-  pinResolved: boolean,
+  runtimeNextSteps: readonly string[],
 ): readonly string[] {
-  const items: string[] = ['restart Claude Code (skills load on session start)', 'accept the plugin trust prompt on first load'];
+  // Each adapter supplies its own "how to start using it" steps (including a
+  // FAILED line for an unresolved pin, which only the Claude adapter emits).
+  const items: string[] = [...runtimeNextSteps];
   for (const check of checks) {
     if (!check.ok) items.push(`FAILED: ${check.message}${check.fix ? ` — ${check.fix}` : ''}`);
-  }
-  if (!pinResolved) {
-    items.push('FAILED: core version unresolved (marketplace unreachable) — run gh auth login, then void-harness update to pin it');
   }
   return items;
 }
@@ -127,60 +146,77 @@ export async function init(args: readonly string[]): Promise<void> {
 
   banner('init');
   meta('project', projectRoot);
-  meta('marketplace', opts.marketplaceRepo);
+
+  // A --runtime typo must fail loudly, never silently fall back to "both".
+  if (opts.invalidRuntimeArgs.length > 0) {
+    p.log.error(`Unknown --runtime value(s): ${opts.invalidRuntimeArgs.join(', ')}. Use: claude, codex, both.`);
+    process.exit(2);
+  }
+
+  // Resolve which runtimes to wire, then work through their adapters. The
+  // command never branches on a runtime name — each adapter owns its
+  // prerequisites, active wiring, doctrine doc, and next-steps.
+  const runtimes = resolveRuntimes(opts.explicitRuntimes, detectRuntimes(projectRoot));
+  const adapters = adaptersFor(runtimes);
+  const wireClaude = runtimes.includes('claude');
+  meta('runtimes', adapters.map((a) => a.label).join(' + '));
+  if (wireClaude) meta('marketplace', opts.marketplaceRepo);
 
   // Resolve seed config: detect consumer's stack + fetch marketplace HEAD
   // version. Both have fallbacks so init never fails for env reasons.
   const stack = detectStack(projectRoot);
   meta('stack', `${stack.packageManager} + ${stack.testRunner}${stack.e2eRunner !== 'none' ? ` + ${stack.e2eRunner}` : ''}`);
 
-  // Prerequisite checks up front: jq (hooks), gh (private marketplace), and the
-  // marketplace repo itself. init never FAILS on these (it stays idempotent),
-  // but every unmet one is loud here and reappears in the closing checklist so
-  // a broken install can't hide behind a "succeeded for env reasons" exit (#67).
-  const prereqs: CheckResult[] = [checkJq(), checkGh(), checkMarketplaceAccess(opts.marketplaceRepo)];
+  // Prerequisite checks up front. jq is needed by the enforcement hooks on every
+  // runtime, so it is always checked; each adapter adds its own (Claude: gh +
+  // marketplace; Codex: none). init never FAILS on these (it stays idempotent),
+  // but every unmet one is loud here and reappears in the closing checklist so a
+  // broken install can't hide behind a "succeeded for env reasons" exit (#67).
+  const prereqs: CheckResult[] = [checkJq(), ...adapters.flatMap((a) => a.prerequisites(opts.marketplaceRepo))];
   for (const check of prereqs) {
     const mark = check.ok ? c.green(glyph.check) : c.red('x');
     line(`${mark}  ${c.dim(check.name.padEnd(18))}${check.message}`);
     if (!check.ok && check.fix) line(c.dim(`     ${glyph.to} ${check.fix}`));
   }
 
-  const pinVersion = resolveCorePin(opts.marketplaceRepo);
-  meta('pin', pinVersion !== undefined ? `^${pinVersion}` : c.red('unresolved (marketplace unreachable, not pinned)'));
+  // The core pin is a Claude-marketplace concern; only resolve/report it there.
+  const pinVersion = wireClaude ? resolveCorePin(opts.marketplaceRepo) : undefined;
+  if (wireClaude) {
+    meta('pin', pinVersion !== undefined ? `^${pinVersion}` : c.red('unresolved (marketplace unreachable, not pinned)'));
+  }
   blank();
 
   // Locate the harness source (for PHILOSOPHY.md + PROJECT-DOCTRINE template).
   const sourceRoot = await findCoreSource();
 
-  // 1. Choose packs
+  // 1. Choose packs (runtime-agnostic)
   const packs = await choosePacks(projectRoot, opts);
   const enabledPlugins = [CORE_PLUGIN_NAME, ...packs.map((pk) => pk.name)];
 
-  // 2. Write .void/config.json
+  // 2. Write .void/config.json (runtime-agnostic)
   await writeConfig(projectRoot, packs, opts, { pinVersion, stack });
 
-  // 3. Copy PHILOSOPHY.md + create PROJECT-DOCTRINE.md from template
+  // 3. Copy PHILOSOPHY.md + create PROJECT-DOCTRINE.md from template (runtime-agnostic)
   await installDoctrineFiles(projectRoot, sourceRoot);
 
-  // 4. Merge .claude/settings.json
-  const settingsPath = settingsPathFor(projectRoot);
-  const existing = await readSettings(settingsPath);
-  const merged = mergeSettings(existing, { enabledPlugins, marketplaceRepo: opts.marketplaceRepo });
-  await writeSettings(settingsPath, merged);
-  line(`${c.green(glyph.check)}  ${c.dim('settings.json'.padEnd(18))}extraKnownMarketplaces.${MARKETPLACE_NAME} + enabledPlugins merged`);
-
-  // 5. Patch CLAUDE.md and its Codex sister AGENTS.md (one doctrine, two runtimes)
-  const claudeMdResult = await patchClaudeMd(projectRoot, { enabledPlugins, enabledPacks: packs });
-  line(`${c.green(glyph.check)}  ${c.dim('CLAUDE.md'.padEnd(18))}${claudeMdResult}`);
-  const agentsMdResult = await patchAgentsMd(projectRoot, { enabledPlugins, enabledPacks: packs });
-  line(`${c.green(glyph.check)}  ${c.dim('AGENTS.md'.padEnd(18))}${agentsMdResult}`);
+  // 4. Wire each selected runtime through its adapter (active layer + its own
+  //    doctrine doc). A runtime not selected is left entirely untouched.
+  const wireCtx = { projectRoot, sourceRoot, enabledPlugins, enabledPacks: packs, marketplaceRepo: opts.marketplaceRepo, pinVersion };
+  const nextSteps: string[] = [];
+  for (const adapter of adapters) {
+    const outcome = await adapter.wire(wireCtx);
+    for (const status of outcome.statusLines) {
+      line(`${c.green(glyph.check)}  ${c.dim(`${adapter.id}`.padEnd(18))}${status}`);
+    }
+    nextSteps.push(...outcome.nextSteps);
+  }
 
   blank();
   meta('plugins', enabledPlugins.join(', '));
 
-  // Numbered "what's left" checklist. Restart + trust always; every failed
-  // prerequisite and an unresolved pin appear as FAILED lines you cannot miss.
-  const checklist = buildFinalChecklist(prereqs, pinVersion !== undefined);
+  // Numbered "what's left" checklist: each adapter's start-steps, then every
+  // unmet prerequisite as an unmissable FAILED line.
+  const checklist = buildFinalChecklist(prereqs, nextSteps);
   blank();
   line(c.bold('Next steps:'));
   checklist.forEach((item, i) => {

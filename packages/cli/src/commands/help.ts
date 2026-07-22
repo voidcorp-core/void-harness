@@ -13,11 +13,22 @@ Usage:
   void-harness <command> [options]
 
 Commands:
-  init [--pack <name>] [--all-packs] [--no-interactive] [--force]
+  init [--pack <name>] [--all-packs] [--runtime <r>]
+       [--no-interactive] [--force]
                            Wire the CURRENT project. Without flags, runs an
                            interactive prompt with auto-detection. With
                            --pack flags, activates exactly those packs
-                           non-interactively.
+                           non-interactively. --runtime (claude|codex|both,
+                           default: auto-detected, else both) picks which
+                           runtimes to wire: Claude gets the marketplace in
+                           .claude/settings.json, Codex gets the safety floor
+                           (.codex/hooks.json + staged .void/hooks/ scripts).
+
+  runtime list             Show which agent runtimes (Claude Code / Codex) are
+  runtime add <r>          wired, and add one a posteriori without friction.
+                           'runtime add codex' on a Claude project wires only
+                           Codex's layer (safety floor + AGENTS.md), touching
+                           nothing Claude. Idempotent.
 
   add <pack-name>          Activate a pack in the current project.
   remove <pack-name>       Deactivate a pack (core cannot be removed).
@@ -80,6 +91,10 @@ Examples:
   void-harness init                                  # interactive
   void-harness init --pack nextjs --pack monorepo    # script-friendly
   void-harness init --all-packs                      # activate everything
+  void-harness init --runtime codex                  # Codex-only: wire its floor
+  void-harness init --runtime both                   # wire Claude + Codex
+  void-harness runtime add codex                     # add Codex to a Claude project
+  void-harness runtime list                          # which runtimes are wired
   void-harness add nextjs                            # add a pack later
   void-harness list                                  # see what's active
   void-harness check                                 # remote version drift

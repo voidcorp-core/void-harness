@@ -31,30 +31,30 @@ describe('buildFinalChecklist', () => {
   const failJq: CheckResult = { name: 'jq', ok: false, message: 'jq not installed', fix: 'brew install jq' };
   const failGh: CheckResult = { name: 'gh CLI', ok: false, message: 'gh not authenticated', fix: 'gh auth login' };
 
-  it('always leads with restart and trust steps', () => {
-    const items = buildFinalChecklist([ok], true);
-    expect(items[0]).toContain('restart Claude Code');
-    expect(items[1]).toContain('trust prompt');
+  it('leads with the adapters\' next-steps in order', () => {
+    const steps = ['restart Claude Code', 'trust the project .codex/ layer'];
+    const items = buildFinalChecklist([ok], steps);
+    expect(items[0]).toBe('restart Claude Code');
+    expect(items[1]).toBe('trust the project .codex/ layer');
   });
 
-  it('adds a FAILED line with remediation for each unmet prerequisite', () => {
-    const items = buildFinalChecklist([failJq, failGh], true);
+  it('adds a FAILED line with remediation for each unmet prerequisite, after the steps', () => {
+    const items = buildFinalChecklist([failJq, failGh], ['step one']);
     const failed = items.filter((i) => i.startsWith('FAILED:'));
     expect(failed).toHaveLength(2);
     expect(failed[0]).toContain('brew install jq');
     expect(failed[1]).toContain('gh auth login');
+    expect(items[0]).toBe('step one');
   });
 
-  it('flags an unresolved pin as its own FAILED item', () => {
-    const items = buildFinalChecklist([ok], false);
+  it('passes through a FAILED next-step (e.g. an unresolved pin from the Claude adapter)', () => {
+    const items = buildFinalChecklist([ok], ['FAILED: core version unresolved — run gh auth login']);
     const pinItem = items.find((i) => i.includes('core version unresolved'));
-    expect(pinItem).toBeDefined();
     expect(pinItem).toContain('FAILED:');
-    expect(pinItem).toContain('void-harness update');
   });
 
   it('produces no FAILED lines when everything is healthy', () => {
-    const items = buildFinalChecklist([ok], true);
+    const items = buildFinalChecklist([ok], ['restart Claude Code']);
     expect(items.some((i) => i.startsWith('FAILED:'))).toBe(false);
   });
 });

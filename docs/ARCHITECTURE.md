@@ -36,16 +36,21 @@ The harness assumes **TypeScript + web**. The core is not framework-agnostic acr
 
 A future Rust/Go/Python flavor lives in a sibling repo, reusing mechanics not skills.
 
-## Agent runtime parity (Claude Code + Codex)
+## Agent runtime parity (Claude Code + Codex) — the adapter seam
 
-The harness targets two primary agent runtimes simultaneously: **Claude Code** (via `CLAUDE.md`) and **Codex CLI** (via `AGENTS.md`). Both files coexist at every level where one would: the repo root, each pack root, and every consumer project.
+The harness authors **one doctrine** and compiles it to each agent runtime through a **runtime adapter** (`packages/cli/src/lib/runtime-adapters.ts`). Today: **Claude Code** (via `CLAUDE.md` + the marketplace plugin) and **Codex CLI** (via `AGENTS.md` + a `.codex/` safety floor). This is the *agent-runtime* axis; the orthogonal *model-provider* axis (Anthropic / OpenAI-compatible / Ollama / custom) is a separate seam and is deliberately not conflated.
+
+The seam is the load-bearing rule: **core commands never branch on a runtime name.** `init`, `runtime add`, and `doctor` iterate the adapters. Adding a runtime (Codex exec, Hermes, a local agent) is a new adapter object registered in `ADAPTERS`, with zero edits to the commands. Each adapter owns exactly its runtime-specific surface: `detect`, `prerequisites`, `wire` (its active layer + **its own** doctrine doc), and `doctorChecks`.
 
 Rules:
 
 - Doctrine in `CLAUDE.md` and `AGENTS.md` is identical. Only terminology adapts ("Claude Code" / "Skill tool" vs "Codex" / "tools / shell").
-- `scripts/sync-agent-docs.sh` enforces parity on the harness repo itself: `--staged` (a commit touching one sister doc must touch the other) via `.githooks/pre-commit` (`git config core.hooksPath .githooks`), and section-heading parity in CI (`pnpm sync:docs`).
+- `scripts/sync-agent-docs.sh` enforces parity on the harness repo itself: `--staged` (a commit touching one sister doc must touch the other) via `.githooks/pre-commit` (`git config core.hooksPath .githooks`), and section-heading parity in CI (`pnpm sync:docs`). This is a **harness-repo** rule; a consumer project only carries the doc(s) of the runtime(s) it wired.
 - No file is auto-generated from the other. Auto-generation risks losing intentional adaptations. Manual authoring + mechanical gate is the safer trade-off.
-- The maintainer CLI command `void-harness init` (and `add` / `remove`) patches both files in consumer projects, keeping them in parity. It does not install the harness's own pre-commit hook into the consumer — the parity gate is a harness-repo concern; a consumer that wants it opts in by pointing `core.hooksPath` at the shipped `.githooks/`.
+- **Doc ownership is per-runtime.** Each adapter's `wire` writes only its own doctrine doc — a Claude-only project has just `CLAUDE.md`, a Codex-only project just `AGENTS.md`. `doctor` checks only the docs of *detected* runtimes, so a Codex-only project is never dinged for a missing `CLAUDE.md`. (`add` / `remove` still patch whichever docs exist, keeping active docs current.)
+- **`init` wires each selected runtime's layer via its adapter**, gated by `--runtime <claude|codex|both>` (default: auto-detected footprint, else both). Claude's layer is the marketplace registration in `.claude/settings.json`; Codex's is the safety floor — the guardrail hook scripts staged into `.void/hooks/` and `.codex/hooks.json` compiled from `packages/core/codex/hooks.json` (relative `${VOID_HOOKS_DIR}` → `.void/hooks`). A Codex-only wire skips the `gh`/marketplace prerequisites and the Claude "restart + trust" steps; a Claude-only wire skips the Codex floor.
+- **Runtimes are added a posteriori without friction**: `void-harness runtime add <runtime>` wires exactly that runtime's layer on an already-`init`-ed project, touching nothing the other runtime owns (verified byte-for-byte in tests). `runtime list` shows which are wired. This is the `void runtime add` command from the multi-runtime spec.
+- `doctor` iterates the *detected* adapters for each runtime's wiring + doc health; Claude-marketplace checks (`gh`, plugin cache, remote versions, packs coherence) run only when Claude is wired. See `docs/CODEX.md`.
 
 ## Agent model tiers
 

@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { harnessBlock, patchClaudeMd, patchAgentsMd } from './claude-md.js';
+import { existsSync } from 'node:fs';
+import { harnessBlock, patchClaudeMd, patchAgentsMd, patchExistingRuntimeDocs } from './claude-md.js';
 
 const input = { enabledPlugins: ['harness'], enabledPacks: [] as never[] };
 
@@ -49,5 +50,33 @@ describe('patchClaudeMd / patchAgentsMd', () => {
     const out = readFileSync(join(dir, 'AGENTS.md'), 'utf8');
     expect(out).toContain('keep me');
     expect(out).toContain('void-harness (managed');
+  });
+});
+
+describe('patchExistingRuntimeDocs (per-runtime, add/remove)', () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'void-existing-'));
+  });
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('refreshes only the docs that exist and never resurrects the absent one', async () => {
+    // A Codex-only project: AGENTS.md present, CLAUDE.md absent.
+    await patchAgentsMd(dir, input);
+    const patched = await patchExistingRuntimeDocs(dir, input);
+    expect(patched).toEqual(['codex']);
+    expect(existsSync(join(dir, 'CLAUDE.md'))).toBe(false); // not resurrected
+  });
+
+  it('refreshes both when both exist', async () => {
+    await patchClaudeMd(dir, input);
+    await patchAgentsMd(dir, input);
+    expect(await patchExistingRuntimeDocs(dir, input)).toEqual(['claude', 'codex']);
+  });
+
+  it('is a no-op on a project with no doctrine docs', async () => {
+    expect(await patchExistingRuntimeDocs(dir, input)).toEqual([]);
   });
 });

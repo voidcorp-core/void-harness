@@ -1,7 +1,7 @@
 // `void-harness remove <pack-name>` — deactivate a pack. Updates:
 //   1. .claude/settings.json (enabledPlugins — delete the key)
 //   2. .void/config.json (packs section — delete the pin)
-//   3. CLAUDE.md + AGENTS.md (regenerated plugin list, sister docs in parity)
+//   3. whichever doctrine docs exist (CLAUDE.md / AGENTS.md), refreshed per-runtime
 //
 // Core (`harness`) cannot be removed. Marketplace repo is read from existing
 // settings.json (does NOT reset a fork or private mirror).
@@ -18,7 +18,7 @@ import {
   settingsPathFor,
   writeSettings,
 } from '../lib/settings.js';
-import { patchClaudeMd, patchAgentsMd } from '../lib/claude-md.js';
+import { patchExistingRuntimeDocs } from '../lib/claude-md.js';
 import { enabledPluginsKey } from '../lib/packs.js';
 
 
@@ -78,10 +78,9 @@ export async function remove(args: readonly string[]): Promise<void> {
   // 2. .void/config.json — delete pins for removed packs
   await unsyncVoidConfig(projectRoot, removed);
 
-  // 3. CLAUDE.md + AGENTS.md (keep the sister docs in parity)
+  // 3. Refresh whichever doctrine docs the project already has (per-runtime).
   const enabledPacks = PACKS.filter((pack) => enabledNames.has(pack.name));
-  await patchClaudeMd(projectRoot, { enabledPlugins, enabledPacks });
-  await patchAgentsMd(projectRoot, { enabledPlugins, enabledPacks });
+  await patchExistingRuntimeDocs(projectRoot, { enabledPlugins, enabledPacks });
 
   p.log.success(`Removed: ${removed.join(', ')} (marketplace: ${marketplaceRepo})`);
   p.log.info('Restart Claude Code to drop the plugin.');

@@ -14,17 +14,16 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO, PACKS, enabledPluginsKey } from '../lib/packs.js';
-import { readSettings, settingsPathFor } from '../lib/settings.js';
+import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS } from '../lib/packs.js';
+import { marketplaceRepoFrom, readSettings, settingsPathFor } from '../lib/settings.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { checkEnforceWorkflow, checkGh, checkJq, type CheckResult } from '../lib/prerequisites.js';
 import { packsCoherenceIssues, validateConfig } from '../lib/config-schema.js';
 import { hookHealthIssues, locatePluginDir } from '../lib/plugin-cache.js';
 import { compareVersions, normalizeVersion } from '../lib/version.js';
+import { detectedAdapters } from '../lib/runtime-adapters.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
 import { homedir } from 'node:os';
-
-const BEGIN_MARKER = '<!-- void-harness:begin -->';
 
 /** Plain pack names (no @voidcorp/ prefix, core excluded) pinned in config.packs. */
 function configPackNames(config: { packs?: Record<string, string> }): string[] {
@@ -88,35 +87,33 @@ export async function doctor(args: readonly string[]): Promise<void> {
     checks.push({ name: 'doctrine files', ok: false, message: `missing: ${missing}`, fix: 'void-harness init' });
   }
 
-  const settingsPath = settingsPathFor(root);
-  let enabledPlugins: Record<string, unknown> = {};
-  let settingsReadable = false;
-  if (!existsSync(settingsPath)) {
-    checks.push({ name: 'settings.json', ok: false, message: '.claude/settings.json missing', fix: 'void-harness init' });
-  } else {
-    const settings = await readSettings(settingsPath);
-    const markets = (settings.extraKnownMarketplaces ?? {}) as Record<string, unknown>;
-    enabledPlugins = (settings.enabledPlugins ?? {}) as Record<string, unknown>;
-    settingsReadable = true;
-    const hasMarketplace = markets[MARKETPLACE_NAME] !== undefined;
-    const hasCore = enabledPlugins[enabledPluginsKey(CORE_PLUGIN_NAME)] === true;
-    if (hasMarketplace && hasCore) {
-      const activePlugins = Object.keys(enabledPlugins).filter((k) => enabledPlugins[k] === true).length;
-      checks.push({ name: 'settings.json', ok: true, message: `marketplace registered, ${activePlugins} plugin(s) enabled` });
-    } else {
-      const missing = [
-        !hasMarketplace && `extraKnownMarketplaces.${MARKETPLACE_NAME}`,
-        !hasCore && `enabledPlugins["${enabledPluginsKey(CORE_PLUGIN_NAME)}"]`,
-      ].filter(Boolean).join(', ');
-      checks.push({ name: 'settings.json', ok: false, message: `missing: ${missing}`, fix: 'void-harness init' });
-    }
+  // Runtime-specific health: each DETECTED runtime's adapter verifies its own
+  // wiring + doctrine doc. Docs are per-runtime now, so a Codex-only project is
+  // never dinged for a missing CLAUDE.md, and vice versa. The command never
+  // branches on a runtime name — it iterates the detected adapters.
+  const detected = detectedAdapters(root);
+  const claudeDetected = detected.some((a) => a.id === 'claude');
+  if (detected.length === 0) {
+    // No footprint at all ⇒ nothing is wired. Without this, a project that has
+    // .void/config.json but no CLAUDE.md/.claude or AGENTS.md/.codex would run
+    // zero wiring checks and falsely report "all checks passed".
+    checks.push({
+      name: 'runtimes',
+      ok: false,
+      message: 'no agent runtime wired (no CLAUDE.md/.claude or AGENTS.md/.codex)',
+      fix: 'void-harness init, or void-harness runtime add <claude|codex>',
+    });
+  }
+  for (const adapter of detected) {
+    checks.push(...(await adapter.doctorChecks(root)));
   }
 
   // Coherence: a pack enabled in settings.json but not pinned in config (or the
-  // reverse) means the plugin loads but is unpinned, or is pinned but never
-  // loads. Only meaningful when both files were readable (#68).
-  if (configReadable && settingsReadable) {
-    const issues = packsCoherenceIssues(enabledPackNames(enabledPlugins), configPackNames(parsedConfig));
+  // reverse). Claude-marketplace concern — only when Claude is wired and both
+  // files are readable (#68).
+  if (claudeDetected && configReadable && existsSync(settingsPathFor(root))) {
+    const settings = await readSettings(settingsPathFor(root));
+    const issues = packsCoherenceIssues(enabledPackNames(settings.enabledPlugins ?? {}), configPackNames(parsedConfig));
     if (issues.length === 0) {
       checks.push({ name: 'packs coherence', ok: true, message: 'settings.json ⇄ .void/config.json in sync' });
     } else {
@@ -129,39 +126,21 @@ export async function doctor(args: readonly string[]): Promise<void> {
     }
   }
 
-  // CLAUDE.md (Claude Code) and AGENTS.md (Codex) are sister docs that init /
-  // add / remove keep in parity; verify both carry the harness block.
-  for (const doc of ['CLAUDE.md', 'AGENTS.md']) {
-    const docPath = join(root, doc);
-    if (!existsSync(docPath)) {
-      checks.push({ name: doc, ok: false, message: 'missing', fix: 'void-harness init' });
-      continue;
-    }
-    const text = await readFile(docPath, 'utf8');
-    if (text.includes(BEGIN_MARKER)) {
-      checks.push({ name: doc, ok: true, message: 'void-harness block present' });
-    } else {
-      checks.push({ name: doc, ok: false, message: 'void-harness block missing', fix: 'void-harness init' });
-    }
-  }
-
-  // jq is needed by the local enforcement hooks, so it is always checked.
-  // gh only matters for fetching the private marketplace, so it is gated
-  // behind the remote checks: --no-remote is a fully offline run.
+  // jq is needed by the local enforcement hooks on every runtime, so it is
+  // always checked. Advisory: is the same floor also enforced server-side
+  // (void-enforce Action)? Never a blocker (ok stays true).
   checks.push(checkJq());
-
-  // Advisory: is the same floor enforced server-side (void-enforce Action) and
-  // not only by the local hooks? Never a blocker (ok stays true).
   checks.push(checkEnforceWorkflow(root));
 
-  // Plugin cache hooks: the enforcement layer is only real if the hooks the
-  // installed plugin.json wires exist and are executable in the cache. Absent
-  // cache = not installed yet (informational, ≠ corruption).
-  checks.push(await checkPluginCacheHooks());
-
-  if (!skipRemote) {
-    checks.push(checkGh());
-    checks.push(await checkRemoteVersions(root));
+  // Plugin cache + remote version checks are Claude-marketplace concerns — only
+  // relevant when Claude is wired. gh gates the private-marketplace fetch, so it
+  // rides with the remote checks (--no-remote is a fully offline run).
+  if (claudeDetected) {
+    checks.push(await checkPluginCacheHooks());
+    if (!skipRemote) {
+      checks.push(checkGh());
+      checks.push(await checkRemoteVersions(root));
+    }
   }
 
   banner('doctor');
@@ -213,10 +192,7 @@ async function checkPluginCacheHooks(): Promise<CheckResult> {
 
 async function checkRemoteVersions(root: string): Promise<CheckResult> {
   const settings = await readSettings(settingsPathFor(root));
-  const entry = (settings.extraKnownMarketplaces as Record<string, unknown> | undefined)?.[MARKETPLACE_NAME];
-  const repo =
-    (entry && typeof entry === 'object' ? (entry as { source?: { repo?: string } }).source?.repo : undefined) ??
-    MARKETPLACE_REPO;
+  const repo = marketplaceRepoFrom(settings, MARKETPLACE_REPO);
 
   const remote = fetchRemoteMarketplace(repo);
   if (!remote.ok) {
