@@ -9,6 +9,7 @@ import {
   type Certification,
   computeProjectState,
   type GraphModel,
+  installedCapabilityIds,
   type LocalSignals,
   parseActivations,
   type ProjectState,
@@ -63,6 +64,22 @@ export function usedCountsById(
     if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
   }
   return counts;
+}
+
+/**
+ * The pack directories a project has activated, derived from `.void/config.json`
+ * `packs` keys. A key is `@voidcorp/harness-<x>`; the matching capability pack dir
+ * is `pack-<x>` (the marketplace name `harness-monorepo` maps to the source dir
+ * `pack-monorepo`). The core entry (`@voidcorp/harness`) is not a pack. Pure.
+ */
+export function activatedPackDirs(config: { packs?: Record<string, string> }): Set<string> {
+  const dirs = new Set<string>();
+  for (const key of Object.keys(config.packs ?? {})) {
+    const name = key.replace(/^@voidcorp\//, '');
+    if (name === 'harness' || !name.startsWith('harness-')) continue;
+    dirs.add(name.replace(/^harness-/, 'pack-'));
+  }
+  return dirs;
 }
 
 const pad = (s: string, n: number): string => (s.length >= n ? s : s + ' '.repeat(n - s.length));
@@ -130,9 +147,16 @@ export async function status(_args: readonly string[]): Promise<void> {
 
   const actPath = join(cwd, '.void', 'activations.jsonl');
   const events = existsSync(actPath) ? parseActivations(readFileSync(actPath, 'utf8')) : [];
+  // Installed = core capabilities + only the packs this project activated (read
+  // from .void/config.json). Absent config ⇒ no packs ⇒ core only — never the
+  // whole catalog, which overstated the surface.
+  const configPath = join(cwd, '.void', 'config.json');
+  const config = existsSync(configPath) ? readJson<{ packs?: Record<string, string> }>(configPath) : {};
   const signals: LocalSignals = {
-    // In the harness repo every certified capability is present; consumer pack-filtering lands with Phase C.
-    installedIds: new Set(cert.capabilities.map((cp) => cp.id)),
+    installedIds: installedCapabilityIds(
+      cert.capabilities.map((cp) => cp.id),
+      activatedPackDirs(config),
+    ),
     usedCounts: usedCountsById(events, cert),
     runtimesDetected: detectRuntimes(cwd),
   };

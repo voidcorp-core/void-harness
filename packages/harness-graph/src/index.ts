@@ -35,6 +35,7 @@ export type {
 } from './certification/types.js';
 export { computeProjectState } from './state/compute.js';
 export { scoreProjectState } from './state/score.js';
+export { capabilityPackDir, installedCapabilityIds } from './state/installed.js';
 export type {
   ProjectState,
   CapabilityState,
