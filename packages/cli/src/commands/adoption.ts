@@ -55,7 +55,10 @@ async function fetchJson(url: string): Promise<Fetched> {
   } catch {
     return { reason: 'network error' };
   }
-  if (!res.ok) return { reason: res.status === 403 || res.status === 429 ? `HTTP ${res.status} (rate-limited)` : res.status === 404 ? 'HTTP 404 (not yet published)' : `HTTP ${res.status}` };
+  // The npm downloads API 404s both for an unpublished package AND for a
+  // published-but-too-new one with no aggregated stats yet — so don't assert
+  // "not yet published"; report the ambiguity honestly.
+  if (!res.ok) return { reason: res.status === 403 || res.status === 429 ? `HTTP ${res.status} (rate-limited)` : res.status === 404 ? 'HTTP 404 (no download data — unpublished or too new)' : `HTTP ${res.status}` };
   try {
     return { json: await res.json() };
   } catch {
