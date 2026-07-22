@@ -1,6 +1,35 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Certification, ProjectState, Score } from '@voidcorp/harness-graph';
+import { capabilityPackDir } from '@voidcorp/harness-graph';
 import { describe, expect, it } from 'vitest';
-import { dataCandidates, statusLines, usedCountsById } from './status.js';
+import { PACKS } from '../lib/packs.js';
+import { activatedPackDirs, dataCandidates, statusLines, usedCountsById } from './status.js';
+
+describe('activatedPackDirs', () => {
+  it('maps @voidcorp/harness-<x> config keys to pack-<x> dirs, skipping core', () => {
+    const dirs = activatedPackDirs({
+      packs: { '@voidcorp/harness-monorepo': '^1.0.0', '@voidcorp/harness-nextjs': '^1.0.0', '@voidcorp/harness': '^1.0.0' },
+    });
+    expect([...dirs].sort()).toEqual(['pack-monorepo', 'pack-nextjs']);
+  });
+
+  it('returns an empty set when there are no packs', () => {
+    expect(activatedPackDirs({}).size).toBe(0);
+  });
+
+  it('drift guard: every PACKS entry maps to a pack dir present in the real certification', () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const certPath = resolve(here, '..', '..', '..', 'harness-graph', 'certification.json');
+    const cert = JSON.parse(readFileSync(certPath, 'utf8')) as Certification;
+    const certDirs = new Set(cert.capabilities.map((c) => capabilityPackDir(c.id)).filter(Boolean));
+    for (const pack of PACKS) {
+      const [dir] = activatedPackDirs({ packs: { [`@voidcorp/${pack.name}`]: '^1' } });
+      expect(certDirs.has(dir), `${pack.name} -> ${dir} not found in certification`).toBe(true);
+    }
+  });
+});
 
 describe('dataCandidates', () => {
   it('prefers the monorepo source, then falls back to the package-local shipped copy', () => {
