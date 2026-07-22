@@ -1,20 +1,19 @@
-import { describe, expect, it } from 'vitest';
-import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
 import {
   CODEX_FLOOR_SCRIPTS,
   CODEX_HOOKS_DIR,
-  compileCodexHooksManifest,
   codexFloorDrift,
   codexFloorHealth,
+  compileCodexHooksManifest,
   referencedScripts,
   refreshCodexFloor,
   wireCodexFloor,
 } from './codex-floor.js';
-import { chmodSync } from 'node:fs';
-import { rm } from 'node:fs/promises';
 
 // The real shipped template — the single source the CLI compiles at init time.
 // Reading it here makes the drift guard meaningful: adding a hook to the
@@ -94,6 +93,27 @@ describe('wireCodexFloor', () => {
     const project = mkdtempSync(join(tmpdir(), 'void-codex-floor-'));
     expect(await wireCodexFloor(project, CORE_ROOT)).toBe(CODEX_FLOOR_SCRIPTS.length);
     await expect(wireCodexFloor(project, CORE_ROOT)).resolves.toBe(CODEX_FLOOR_SCRIPTS.length);
+  });
+
+  it('makes the entry hooks executable even when the source lost its exec bit (npm/pnpm pack)', async () => {
+    // Simulate the published package: a source tree whose hook scripts are 0644.
+    const src = mkdtempSync(join(tmpdir(), 'void-codex-src-'));
+    mkdirSync(join(src, 'hooks'), { recursive: true });
+    mkdirSync(join(src, 'codex'), { recursive: true });
+    for (const s of CODEX_FLOOR_SCRIPTS) {
+      copyFileSync(join(CORE_ROOT, 'hooks', s), join(src, 'hooks', s));
+      chmodSync(join(src, 'hooks', s), 0o644); // stripped, as in a packed tarball
+    }
+    copyFileSync(join(CORE_ROOT, 'codex', 'hooks.json'), join(src, 'codex', 'hooks.json'));
+
+    const project = mkdtempSync(join(tmpdir(), 'void-codex-floor-'));
+    await wireCodexFloor(project, src);
+
+    // The floor must be live: codexFloorHealth checks the entry hooks are executable.
+    expect((await codexFloorHealth(project)).ok).toBe(true);
+    for (const entry of ['block-dangerous-bash.sh', 'protect-sensitive-files.sh']) {
+      expect(statSync(join(project, CODEX_HOOKS_DIR, entry)).mode & 0o111).toBeTruthy();
+    }
   });
 });
 
