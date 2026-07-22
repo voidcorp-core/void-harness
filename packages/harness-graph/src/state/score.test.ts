@@ -89,6 +89,16 @@ describe('scoreProjectState', () => {
     expect(score.capped).toBe(false);
   });
 
+  it('enforcement is coverage (mean tier across capabilities), not the single strongest one', () => {
+    const strong: NodeEnforcement = { floor: 'ci', inline: { claude: 'pretooluse' } };
+    const weak: NodeEnforcement = { floor: 'ci', inline: { claude: 'ci-only' } };
+    const c = cert([cap('skill:a', { enforcement: strong }), cap('skill:b', { enforcement: weak })]);
+    const ps = computeProjectState(c, signals({ installedIds: new Set(['skill:a', 'skill:b']) }), '0.16.0');
+    const enf = dim(scoreProjectState(ps, c, noTokens), 'enforcement');
+    // mean of pretooluse(100) and ci-only(60) = 80 — the old max would have said 100
+    expect(enf?.perRuntime).toEqual({ claude: 80 });
+  });
+
   it('confidence is low when no capability is effective (thin proof)', () => {
     const c = cert([cap('skill:a')]);
     const ps = computeProjectState(c, signals({ installedIds: new Set(['skill:a']), usedCounts: new Map([['skill:a', 3]]) }), '0.16.0');
