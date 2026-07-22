@@ -26,6 +26,7 @@ export const configSchema = z.object({
       packageManager: z.string(),
       testRunner: z.string(),
       e2eRunner: z.string(),
+      mutationRunner: z.string().optional(),
     })
     .optional(),
   paths: z.record(z.string(), z.string()).optional(),

@@ -43,11 +43,17 @@ export const CODEX_FLOOR_SCRIPTS = [
   '_checks.sh',
 ] as const;
 
-// Project-relative directory the scripts are staged into, and the value we
-// substitute for the template's ${VOID_HOOKS_DIR} placeholder. Relative (not an
-// absolute machine path) so .codex/hooks.json stays committable and portable
-// across a team; mirrors the runtime running hooks with cwd at the project root.
+// Project-relative directory the scripts are staged into on disk (mkdir/cp/chmod
+// target). Kept relative so it composes with any projectRoot.
 export const CODEX_HOOKS_DIR = '.void/hooks';
+
+// The value substituted for the template's ${VOID_HOOKS_DIR} placeholder in the
+// compiled manifest's `command`s. Resolved from the Git root at hook-run time,
+// per the official Codex hooks guidance ("prefer resolving from the git root
+// instead of a relative path"): a relative `.void/hooks/...` breaks the moment
+// a Codex session starts in a subdirectory, silently killing the safety floor.
+// Codex runs each `command` through a shell, so the `$(...)` is expanded there.
+export const CODEX_MANIFEST_HOOKS_DIR = '$(git rev-parse --show-toplevel)/.void/hooks';
 
 // biome-ignore lint/suspicious/noTemplateCurlyInString: this IS the literal placeholder token, matched verbatim.
 const PLACEHOLDER = '${VOID_HOOKS_DIR}';
@@ -64,7 +70,7 @@ function substituteHooksDir(template: string, hooksDir: string): string {
  * Throws on a template that isn't a JSON object (a corrupt shipped asset must
  * fail loudly at wire time, never write a garbage manifest).
  */
-export function compileCodexHooksManifest(template: string, hooksDir: string = CODEX_HOOKS_DIR): string {
+export function compileCodexHooksManifest(template: string, hooksDir: string = CODEX_MANIFEST_HOOKS_DIR): string {
   const parsed: unknown = JSON.parse(substituteHooksDir(template, hooksDir));
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('codex hooks template is not a JSON object');
@@ -78,20 +84,19 @@ export function compileCodexHooksManifest(template: string, hooksDir: string = C
 }
 
 /**
- * Every script basename the manifest invokes under `hooksDir`. Accepts either
- * the raw template (with the ${VOID_HOOKS_DIR} placeholder) or an
- * already-compiled/on-disk manifest. Pure string scan — never parses/mutates,
- * so a malformed (scalar/null) manifest yields `[]` rather than throwing. Drift
- * guard: the result must be a subset of CODEX_FLOOR_SCRIPTS, else a hook would
- * be wired-but-absent after `init` copies only the known scripts.
+ * Every script basename the manifest invokes. Accepts the raw template (with the
+ * ${VOID_HOOKS_DIR} placeholder), a compiled manifest (Git-root `$(...)` paths),
+ * or an absolute/relative on-disk one — it keys on the command's trailing `.sh`
+ * basename, so it is robust to whatever prefix the hooks dir resolves to. Pure
+ * string scan — never parses/mutates, so a malformed (non-object) manifest
+ * yields `[]` rather than throwing. Drift guard: the result must be a subset of
+ * CODEX_FLOOR_SCRIPTS, else a hook would be wired-but-absent after `init`.
  */
-export function referencedScripts(manifest: string, hooksDir: string = CODEX_HOOKS_DIR): string[] {
-  const substituted = substituteHooksDir(manifest, hooksDir);
-  const prefix = `${hooksDir}/`;
+export function referencedScripts(manifest: string): string[] {
   const found = new Set<string>();
-  for (const match of substituted.matchAll(/"command"\s*:\s*"([^"]+)"/g)) {
-    const cmd = match[1] ?? '';
-    if (cmd.startsWith(prefix)) found.add(cmd.slice(prefix.length));
+  for (const match of manifest.matchAll(/"command"\s*:\s*"([^"]+)"/g)) {
+    const base = (match[1] ?? '').split('/').pop() ?? '';
+    if (base.endsWith('.sh')) found.add(base);
   }
   return [...found];
 }

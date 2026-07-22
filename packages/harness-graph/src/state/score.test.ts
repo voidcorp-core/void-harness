@@ -32,6 +32,38 @@ describe('scoreProjectState', () => {
     expect(score.global).toBeLessThan(100);
   });
 
+  it('caps the global at <= 60 with zero behavioral evidence, however strong the structural gauges', () => {
+    const ids = ['a', 'b', 'c'].map((n) => `skill:${n}`);
+    const c = cert(ids.map((id) => cap(id)));
+    // Strong structure: everything installed, every runtime detected, light context.
+    // But nothing used and nothing evaluated here -> no proof it helps.
+    const ps = computeProjectState(
+      c,
+      signals({ installedIds: new Set(ids), runtimesDetected: new Set(['claude', 'codex', 'hermes']) }),
+      '0.16.0',
+    );
+    const lightTokens = new Map(ids.map((id) => [id, 100] as const));
+    const score = scoreProjectState(ps, c, lightTokens);
+    expect(dim(score, 'portability')?.score).toBe(100); // structural gauges high
+    expect(dim(score, 'activation')?.score).toBe(0); // yet nothing used
+    expect(dim(score, 'efficacy')?.score).toBe(0); // and nothing proven
+    expect(score.capped).toBe(false); // not a blocker cap — a no-evidence cap
+    expect(score.global).toBeLessThanOrEqual(60);
+    expect(score.confidence).toBe('low');
+  });
+
+  it('lifts the no-evidence cap as soon as there is real usage — the same surface exceeds 60', () => {
+    const ids = ['a', 'b', 'c'].map((n) => `skill:${n}`);
+    const c = cert(ids.map((id) => cap(id)));
+    const used = signals({
+      installedIds: new Set(ids),
+      runtimesDetected: new Set(['claude', 'codex', 'hermes']),
+      usedCounts: new Map(ids.map((id) => [id, 2] as const)),
+    });
+    const score = scoreProjectState(computeProjectState(c, used, '0.16.0'), c, new Map(ids.map((id) => [id, 100] as const)));
+    expect(score.global).toBeGreaterThan(60);
+  });
+
   it('a capability without an owner is a RED governance blocker that caps the global score at <= 69', () => {
     const c = cert([cap('skill:a'), cap('skill:b', { owner: undefined })]);
     const ps = computeProjectState(c, signals({ installedIds: new Set(['skill:a', 'skill:b']) }), '0.16.0');

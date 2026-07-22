@@ -45,6 +45,29 @@ describe('compileCodexHooksManifest', () => {
     expect(() => compileCodexHooksManifest('null')).toThrow(/not a JSON object/);
     expect(() => compileCodexHooksManifest('[1,2]')).toThrow(/not a JSON object/);
   });
+
+  it('resolves hook paths from the Git root, not relative to the CWD (subdir-safe)', () => {
+    const out = compileCodexHooksManifest(template);
+    // A relative `.void/hooks/...` silently dies when Codex starts in a subdir;
+    // the compiled command must resolve from the Git root instead.
+    expect(out).toContain('$(git rev-parse --show-toplevel)/.void/hooks/block-dangerous-bash.sh');
+  });
+});
+
+describe('safety-floor matcher coverage', () => {
+  // The command surface is the load-bearing match: if the matcher misses the
+  // tool Codex actually emits, block-dangerous-bash never fires and the whole
+  // destructive-command floor is silently dead.
+  it('matches the Bash tool name documented by Codex, and keeps legacy shell', () => {
+    const manifest = JSON.parse(compileCodexHooksManifest(template));
+    const matchers: string[] = manifest.hooks.PreToolUse.map((h: { matcher: string }) => h.matcher);
+    for (const m of matchers) {
+      expect(m).toContain('Bash');
+      expect(m).toContain('shell');
+    }
+    // the file-edit hook must still cover apply_patch
+    expect(matchers.some((m) => m.includes('apply_patch'))).toBe(true);
+  });
 });
 
 describe('referencedScripts drift guard', () => {
