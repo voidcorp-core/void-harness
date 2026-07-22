@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.0](https://github.com/voidcorp-core/void-harness/compare/v1.1.0...v1.2.0) (2026-07-22)
+
+
+### Features
+
+* **cli:** give `help` the void identity + a pnpm-dlx hint ([71ee231](https://github.com/voidcorp-core/void-harness/commit/71ee231879481d5433b6719ed9111f6d92e1a39f))
+* **cli:** help screen gets the void identity + pnpm-dlx hint ([b26147d](https://github.com/voidcorp-core/void-harness/commit/b26147d8ecbce83423c9413e37318e0f0fd19efc))
+
+
+### Bug Fixes
+
+* **cli:** chmod +x staged Codex hooks (pack strips the exec bit) ([0bcba92](https://github.com/voidcorp-core/void-harness/commit/0bcba92653e4867e894c98ebf827a8cf19b6ad27))
+* **cli:** chmod +x the staged Codex hooks — pack strips the exec bit ([54d88f3](https://github.com/voidcorp-core/void-harness/commit/54d88f37402ab72233cce06d524a411d8545ff2e))
+* **release:** bump repo to pnpm 10 so OIDC trusted publishing works; add manual re-publish ([638f66f](https://github.com/voidcorp-core/void-harness/commit/638f66f7a6d0eac967db82fb51993d7a4657bee2))
+* **release:** pnpm 10 for OIDC publishing + manual re-publish ([22327a0](https://github.com/voidcorp-core/void-harness/commit/22327a08bc0e107da01118951ddbabab13832052))
+
 ## [1.1.0](https://github.com/voidcorp-core/void-harness/compare/v1.0.0...v1.1.0) (2026-07-22)
 
 
