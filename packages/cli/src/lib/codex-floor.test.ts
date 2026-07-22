@@ -25,8 +25,9 @@ const templatePath = resolve(CORE_ROOT, 'codex', 'hooks.json');
 const template = readFileSync(templatePath, 'utf8');
 
 describe('compileCodexHooksManifest', () => {
-  it('substitutes every ${VOID_HOOKS_DIR} placeholder with the staged dir', () => {
+  it('substitutes every VOID_HOOKS_DIR placeholder with the staged dir', () => {
     const out = compileCodexHooksManifest(template);
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: asserting the literal placeholder is gone.
     expect(out).not.toContain('${VOID_HOOKS_DIR}');
     expect(out).toContain(`${CODEX_HOOKS_DIR}/block-dangerous-bash.sh`);
   });
@@ -79,6 +80,7 @@ describe('wireCodexFloor', () => {
     }
 
     const manifest = readFileSync(join(project, '.codex', 'hooks.json'), 'utf8');
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: asserting the literal placeholder is gone.
     expect(manifest).not.toContain('${VOID_HOOKS_DIR}');
     expect(() => JSON.parse(manifest)).not.toThrow();
     expect(manifest).toContain('.void/hooks/block-dangerous-bash.sh');

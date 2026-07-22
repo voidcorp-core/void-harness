@@ -49,6 +49,7 @@ export const CODEX_FLOOR_SCRIPTS = [
 // across a team; mirrors the runtime running hooks with cwd at the project root.
 export const CODEX_HOOKS_DIR = '.void/hooks';
 
+// biome-ignore lint/suspicious/noTemplateCurlyInString: this IS the literal placeholder token, matched verbatim.
 const PLACEHOLDER = '${VOID_HOOKS_DIR}';
 
 function substituteHooksDir(template: string, hooksDir: string): string {
