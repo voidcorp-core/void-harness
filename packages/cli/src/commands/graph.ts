@@ -2,11 +2,16 @@
 // Thin shell over @voidcorp/harness-graph (functional core / imperative shell),
 // mirroring the existing `audit` command.
 //
-// Path note: output paths (model.json, relations.graph.yaml, packs/) are anchored
-// on PKGS_ROOT (2 levels up from dist/main.js), not on dirname(coreSource).
+// Path note: source paths (relations.graph.yaml, packs/) are anchored on
+// PKGS_ROOT (2 levels up from dist/main.js), not on dirname(coreSource).
 // findCoreSource() may return packages/cli/core-assets (the bundled npm copy),
 // whose parent is not the workspace packages root. Using import.meta.url is more
 // reliable for deriving sibling-package locations at runtime.
+//
+// Consumer note: an npm install has no `packs/` source tree, so the reporting
+// subcommands (audit/cost/behavior/live) reuse the frozen, complete `model.json`
+// shipped in `core-assets/data/` instead of a packs-less source scan. See
+// resolveModel below. build/check remain monorepo-only.
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -118,12 +123,27 @@ async function loadModel(coreSource: string) {
 }
 
 /**
- * Resolve the model for a reporting subcommand. In the monorepo we scan the source tree; when
- * the CLI is bundled for a consumer, the baked model travels inside the bundle and is filtered
- * to the consumer's enabled packs — no source scan, no monorepo paths.
+ * Resolve the model for a reporting subcommand, in priority order:
+ *   1. an esbuild-baked model (the plugin bundle path), filtered to enabled packs;
+ *   2. the live source tree, when the monorepo `packs/` dir is present (maintainer — a fresh scan);
+ *   3. the frozen, COMPLETE model.json shipped in `core-assets/data/` (npm consumer — reuse the
+ *      built artifact so `graph audit/cost/behavior/live` work standalone, not a packs-less scan);
+ *   4. a best-effort source scan (core-only) as a last resort.
+ * `paths` is injected for testability (PKGS_ROOT is otherwise a module constant).
  */
-async function resolveModel(coreSource: string, bundledJson: string | undefined): Promise<GraphModel> {
+export async function resolveModel(
+  coreSource: string,
+  bundledJson: string | undefined,
+  paths: { packsDir: string; shippedModel: string } = {
+    packsDir: packsDirFor(coreSource),
+    shippedModel: join(coreSource, 'data', 'model.json'),
+  },
+): Promise<GraphModel> {
   if (bundledJson !== undefined) return resolveBundledModel(bundledJson, process.cwd());
+  if (existsSync(paths.packsDir)) return loadModel(coreSource);
+  if (existsSync(paths.shippedModel)) {
+    return resolveBundledModel(readFileSync(paths.shippedModel, 'utf8'), process.cwd());
+  }
   return loadModel(coreSource);
 }
 
