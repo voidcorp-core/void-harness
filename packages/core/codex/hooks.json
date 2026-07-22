@@ -1,15 +1,15 @@
 {
-  "$comment": "Codex CLI hooks manifest — the Codex-side safety floor, mirror of the Claude Code PreToolUse hooks wired in ../.claude-plugin/plugin.json. Codex's hook system shares Claude's event names, schema, and exit-code-2-blocks convention, so the same scripts run unchanged. Install: copy this to <project>/.codex/hooks.json (or ~/.codex/hooks.json) and make the void hook scripts resolvable at the referenced path. See ../../../docs/CODEX.md. The two file-edit hooks match Codex's apply_patch tool; block-dangerous-bash matches the shell tool. Paths use ${VOID_HOOKS_DIR}, which you set to the directory holding the hook scripts (e.g. an absolute path to packages/core/hooks, or a copied .void/hooks).",
+  "$comment": "Codex CLI hooks manifest — the Codex-side safety floor, mirror of the Claude Code PreToolUse hooks wired in ../.claude-plugin/plugin.json. Codex's hook system shares Claude's event names, schema, and exit-code-2-blocks convention, so the same scripts run unchanged. Install: copy this to <project>/.codex/hooks.json (or ~/.codex/hooks.json) and make the void hook scripts resolvable at the referenced path. See ../../../docs/CODEX.md. Matchers list both tool names for the command surface — `Bash` (per the official Codex hooks docs) and `shell` (legacy) — so the floor fires whichever a given Codex build emits; apply_patch is the file-edit tool. Paths use ${VOID_HOOKS_DIR}, resolved from the Git root at run time so a session started in a subdirectory still finds the scripts.",
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "shell",
+        "matcher": "Bash|shell",
         "hooks": [
           { "type": "command", "command": "${VOID_HOOKS_DIR}/block-dangerous-bash.sh" }
         ]
       },
       {
-        "matcher": "apply_patch|shell",
+        "matcher": "apply_patch|Bash|shell",
         "hooks": [
           { "type": "command", "command": "${VOID_HOOKS_DIR}/protect-sensitive-files.sh" }
         ]
