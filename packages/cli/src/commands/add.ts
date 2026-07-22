@@ -1,7 +1,7 @@
 // `void-harness add <pack-name>` — activate an additional pack. Updates:
 //   1. .claude/settings.json (enabledPlugins)
 //   2. .void/config.json (packs section — same source of truth as init)
-//   3. CLAUDE.md + AGENTS.md (regenerated plugin list, sister docs in parity)
+//   3. whichever doctrine docs exist (CLAUDE.md / AGENTS.md), refreshed per-runtime
 //
 // Marketplace repo is read from existing settings.json (does NOT reset a
 // fork or private mirror).
@@ -18,7 +18,7 @@ import {
   settingsPathFor,
   writeSettings,
 } from '../lib/settings.js';
-import { patchClaudeMd, patchAgentsMd } from '../lib/claude-md.js';
+import { patchExistingRuntimeDocs } from '../lib/claude-md.js';
 import { enabledPluginsKey } from '../lib/packs.js';
 import { resolveCorePin } from '../lib/remote.js';
 
@@ -73,10 +73,10 @@ export async function add(args: readonly string[]): Promise<void> {
   //    used elsewhere in the config
   await syncVoidConfig(projectRoot, newlyAdded, marketplaceRepo);
 
-  // 3. CLAUDE.md + AGENTS.md (keep the sister docs in parity)
+  // 3. Refresh whichever doctrine docs the project already has (per-runtime;
+  //    never resurrects the doc of a runtime this project doesn't target).
   const enabledPacks = PACKS.filter((pack) => enabledNames.has(pack.name));
-  await patchClaudeMd(projectRoot, { enabledPlugins, enabledPacks });
-  await patchAgentsMd(projectRoot, { enabledPlugins, enabledPacks });
+  await patchExistingRuntimeDocs(projectRoot, { enabledPlugins, enabledPacks });
 
   p.log.success(`Added: ${newlyAdded.join(', ')} (marketplace: ${marketplaceRepo})`);
   p.log.info('Restart Claude Code to pick up the new plugin.');

@@ -1,10 +1,15 @@
-// `void-harness update` — sync .void/config.json pins to the current
-// marketplace HEAD without touching paths / commands / modes.
+// `void-harness update` — bring a project's harness materializations to the
+// current version without the heavier `init --force` (which rewrites everything).
 //
-// Use case: after `/plugin marketplace update` inside Claude Code, the
-// runtime now loads the new plugin version but the local pin in
-// .void/config.json is unchanged. This command makes them match in one
-// shot, without the heavier `init --force` (which rewrites everything).
+//   1. refresh Claude Code's marketplace cache (git pull)
+//   2. sync .void/config.json pins to marketplace HEAD (paths/commands/modes untouched)
+//   3. re-stage the Codex safety floor (.void/hooks/ + .codex/hooks.json) to the
+//      running CLI's version — only on real drift, only when Codex is wired
+//
+// Use case: after `/plugin marketplace update` inside Claude Code the runtime
+// loads the new plugin version but the local pin is unchanged; and after a CLI
+// upgrade a Codex project's staged floor scripts lag the shipped ones. This
+// command reconciles both in one shot.
 
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -15,6 +20,8 @@ import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO } from '../lib/pac
 import { readSettings, settingsPathFor } from '../lib/settings.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { compareVersions, normalizeVersion } from '../lib/version.js';
+import { CODEX_HOOKS_DIR, refreshCodexFloor } from '../lib/codex-floor.js';
+import { findCoreSource } from '../lib/paths.js';
 import { banner, blank, c, footer, glyph, line, meta, row, status } from '../lib/render.js';
 
 
@@ -77,12 +84,21 @@ export async function update(args: readonly string[]): Promise<void> {
     pinsTouched = await bumpPins(projectRoot, head, opts.dryRun);
   }
 
+  // Step 3: re-stage the Codex safety floor to the running CLI's version. The
+  // floor scripts ship inside this CLI, so `update` is where a Codex project
+  // catches version drift (the marketplace cache/pins above are Claude-only).
+  const floorApplied = await refreshCodexFloorStep(projectRoot, opts.dryRun);
+
   blank();
   if (opts.dryRun) {
     footer(c.dim(`dry-run ${glyph.emdash} no changes written. Drop --dry-run to apply.`));
     return;
   }
-  if (pinsTouched === 0 && (cacheRefreshed === 'fresh' || cacheRefreshed === 'skipped')) {
+  if (
+    pinsTouched === 0 &&
+    (cacheRefreshed === 'fresh' || cacheRefreshed === 'skipped') &&
+    !floorApplied
+  ) {
     footer(c.dim(`already at ^${head} ${glyph.emdash} nothing to update`));
     return;
   }
@@ -92,8 +108,43 @@ export async function update(args: readonly string[]): Promise<void> {
   if (cacheRefreshed === 'fresh') parts.push(c.dim('cache already fresh'));
   if (cacheRefreshed === 'missing') parts.push(c.dim('cache not present (Claude Code never ran the plugin here?)'));
   if (cacheRefreshed === 'failed') parts.push(c.yellow('cache pull failed (manual `/plugin marketplace update` in Claude)'));
+  if (floorApplied) parts.push(c.green('codex floor refreshed'));
 
-  footer(`${parts.join(' + ')} ${glyph.emdash} ${c.bold('restart Claude Code to load the new version')}`);
+  const claudeTouched = pinsTouched > 0 || cacheRefreshed === 'pulled';
+  const tail = claudeTouched ? ` ${glyph.emdash} ${c.bold('restart Claude Code to load the new version')}` : '';
+  footer(`${parts.join(' + ')}${tail}`);
+}
+
+/**
+ * Print the Codex-floor refresh step and report whether files were actually
+ * re-staged (true only on a real, non-dry-run refresh). Thin I/O glue over the
+ * tested `refreshCodexFloor`: it owns the "is Codex even wired" + "can we locate
+ * the source" guards, so `update` never breaks on a Codex-less project or an
+ * unlocatable harness source.
+ */
+async function refreshCodexFloorStep(projectRoot: string, dryRun: boolean): Promise<boolean> {
+  if (!existsSync(join(projectRoot, '.codex'))) return false;
+
+  let sourceRoot: string;
+  try {
+    sourceRoot = await findCoreSource();
+  } catch {
+    line(`${c.yellow(glyph.up)}  ${c.dim('codex floor'.padEnd(12))}${c.yellow('skipped')}: could not locate the harness source`);
+    return false;
+  }
+
+  const result = await refreshCodexFloor(projectRoot, sourceRoot, dryRun);
+  const drift = result.drift.join(', ');
+  if (result.status === 'fresh') {
+    line(`${c.green(glyph.check)}  ${c.dim('codex floor'.padEnd(12))}already at CLI version`);
+    return false;
+  }
+  if (result.status === 'would-refresh') {
+    line(`${c.yellow(glyph.up)}  ${c.dim('codex floor'.padEnd(12))}${drift} ${c.yellow('will re-stage')}`);
+    return false;
+  }
+  line(`${c.green(glyph.check)}  ${c.dim('codex floor'.padEnd(12))}re-staged (${drift}) → ${CODEX_HOOKS_DIR}/`);
+  return true;
 }
 
 function refreshMarketplaceCache(dryRun: boolean): 'fresh' | 'pulled' | 'missing' | 'failed' {

@@ -75,11 +75,20 @@ describe('doctor', () => {
     expect(out).toContain('invalid JSON');
   });
 
-  it('checks AGENTS.md (Codex sister doc), not only CLAUDE.md', async () => {
-    // CLAUDE.md present with the block, AGENTS.md absent -> AGENTS.md must fail.
+  it('does NOT ding a missing AGENTS.md on a Claude-only project (docs are per-runtime)', async () => {
+    // CLAUDE.md present (claude detected), no Codex footprint -> AGENTS.md is not this project's concern.
     writeFileSync(join(dir, 'CLAUDE.md'), '# CLAUDE.md\n<!-- void-harness:begin -->\nx\n<!-- void-harness:end -->\n');
     const out = await runDoctor();
+    expect(out).toContain('CLAUDE.md');
+    expect(out).not.toContain('AGENTS.md');
+  });
+
+  it('checks AGENTS.md when Codex is detected, flagging a missing block', async () => {
+    // A Codex footprint (.codex/) makes AGENTS.md this project's concern.
+    mkdirSync(join(dir, '.codex'), { recursive: true });
+    writeFileSync(join(dir, 'AGENTS.md'), '# AGENTS.md\n(no managed block here)\n');
+    const out = await runDoctor();
     expect(out).toContain('AGENTS.md');
-    expect(out).toContain('missing');
+    expect(out).toContain('block missing');
   });
 });

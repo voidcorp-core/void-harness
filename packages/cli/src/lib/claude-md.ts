@@ -12,11 +12,20 @@ import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { MARKETPLACE_NAME, MARKETPLACE_REPO, type PackDescriptor } from './packs.js';
+import type { Runtime } from './runtime.js';
 
 const BEGIN_MARKER = '<!-- void-harness:begin -->';
 const END_MARKER = '<!-- void-harness:end -->';
 
-export type Runtime = 'claude' | 'codex';
+export type { Runtime };
+
+/** The delimiter that marks a doc as carrying the harness block (doctor reads this). */
+export const HARNESS_BLOCK_MARKER = BEGIN_MARKER;
+
+/** The doctrine doc a runtime owns: Claude Code reads CLAUDE.md, Codex reads AGENTS.md. */
+export function docFileFor(runtime: Runtime): string {
+  return runtime === 'codex' ? 'AGENTS.md' : 'CLAUDE.md';
+}
 
 export interface ClaudeMdBlockInputs {
   readonly enabledPlugins: readonly string[];
@@ -102,16 +111,46 @@ async function patchDoc(
   return original.includes(BEGIN_MARKER) ? 'updated' : 'patched';
 }
 
+/** Patch the doctrine doc a runtime owns (CLAUDE.md with @imports, AGENTS.md with pointers). */
+export async function patchRuntimeDoc(
+  projectRoot: string,
+  runtime: Runtime,
+  input: ClaudeMdBlockInputs,
+): Promise<PatchResult> {
+  const file = docFileFor(runtime);
+  return patchDoc(join(projectRoot, file), file, harnessBlock(input, runtime));
+}
+
+/**
+ * Refresh only the doctrine docs that already exist, never creating the absent
+ * runtime's doc. Used by `add` / `remove`, which update the current plugin list
+ * without changing which runtimes a project targets (that is `runtime add`'s
+ * job). Returns the runtimes whose doc was patched.
+ */
+export async function patchExistingRuntimeDocs(
+  projectRoot: string,
+  input: ClaudeMdBlockInputs,
+): Promise<Runtime[]> {
+  const patched: Runtime[] = [];
+  for (const runtime of ['claude', 'codex'] as const) {
+    if (existsSync(join(projectRoot, docFileFor(runtime)))) {
+      await patchRuntimeDoc(projectRoot, runtime, input);
+      patched.push(runtime);
+    }
+  }
+  return patched;
+}
+
 export async function patchClaudeMd(
   projectRoot: string,
   input: ClaudeMdBlockInputs,
 ): Promise<PatchResult> {
-  return patchDoc(join(projectRoot, 'CLAUDE.md'), 'CLAUDE.md', harnessBlock(input, 'claude'));
+  return patchRuntimeDoc(projectRoot, 'claude', input);
 }
 
 export async function patchAgentsMd(
   projectRoot: string,
   input: ClaudeMdBlockInputs,
 ): Promise<PatchResult> {
-  return patchDoc(join(projectRoot, 'AGENTS.md'), 'AGENTS.md', harnessBlock(input, 'codex'));
+  return patchRuntimeDoc(projectRoot, 'codex', input);
 }
