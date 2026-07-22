@@ -1,17 +1,21 @@
 # void-harness
 
-> Production-grade agent harness (Claude Code + Codex) for **VoidCorp**.
+> A development-doctrine operating system for coding agents. Multi-runtime by construction, public, MIT.
 
-A pluggable agent configuration that brings every new project to the top 5% bar — **automatically**.
+Install a top-5% development doctrine on any project in one command, run it across several agent runtimes, and read locally what is installed, actually active, and worth improving.
 
-Core craftsman skills (TDD strict, TigerStyle, hexagonal, DDD), enforced by hooks. Pluggable stack packs (Next.js PWA, monorepo, mobile). Public and MIT: installed free and account-free via `npx @voidfactory/harness`, with the Claude Code marketplace as an optional secondary channel.
+- **Craftsman skills** — TDD strict, TigerStyle, hexagonal, DDD — enforced by hooks, not vibes.
+- **Multi-runtime by construction** — one doctrine, compiled to **Claude Code** (`CLAUDE.md` + marketplace plugin) and **Codex** (`AGENTS.md` + a `.codex/` safety floor) through a runtime-adapter seam. Add a runtime later without a reinstall (`void-harness runtime add codex`).
+- **Pluggable stack packs** — Next.js, monorepo, React, server, PWA, mobile — activated per project.
+- **Free and account-free** — `npx @voidfactory/harness init`. No Claude account, no subscription, no API key. The Claude Code marketplace is an optional secondary channel.
 
-The opinionated foundation every VoidCorp project inherits.
+Born at VoidCorp, released for anyone.
 
 ## Status
 
-**Phase**: active — public MIT, installed via `npx @voidfactory/harness` (current version in the
-manifests). See `plans/` for design specs and `docs/DECISIONS.md` for the decision log.
+**1.0.0 — live on npm**, public MIT. Install with `npx @voidfactory/harness init`. Releases are
+provenance-signed and published tokenlessly from CI (npm Trusted Publishing). See `docs/RELEASING.md`
+for the release flow, `plans/` for design specs, and `docs/DECISIONS.md` for the decision log.
 
 ## Philosophy
 
@@ -25,17 +29,20 @@ Inspired by Wing Chun (economy of means), TigerStyle (TigerBeetle), Citypaul dot
 
 > *"Du vide naît la structure"* (VoidCorp motto, kept in French by design) — Build More. Move Fast. Be Better.
 
-## Architecture (target)
+## Architecture
 
 ```
 void-harness/
 ├── packages/
-│   ├── cli/                       # @voidfactory/harness — CLI npm
+│   ├── cli/                       # @voidfactory/harness — the CLI (the only npm package)
+│   │   └── core-assets/           # bundled plugin + frozen model/certification (self-contained npx)
 │   ├── core/                      # harness plugin (static assets, not an npm package)
 │   │   ├── skills/                # craftsman skills
 │   │   ├── agents/                # doctrine-critic (read-only doctrine conformance review)
 │   │   ├── hooks/                 # tdd-guard, no-any-grep, no-console-log-grep, etc.
+│   │   ├── codex/                 # Codex safety-floor manifest (hooks.json)
 │   │   └── modules/               # CLAUDE.md modules (composable)
+│   ├── harness-graph/             # graph kernel + frozen model.json / certification.json
 │   └── packs/
 │       ├── pack-monorepo/         # Turbo / Bun / ADR / 5+5 layout
 │       ├── pack-react/            # React 19 component-layer purity
@@ -44,9 +51,9 @@ void-harness/
 │       ├── pack-pwa/              # installable PWA conventions
 │       └── pack-mobile/           # Expo / React Native conventions
 ├── plans/                         # specs + skill audits
-├── test/                          # automated skill tests
-├── docs/                          # PHILOSOPHY / ARCHITECTURE / CONTRIBUTING / DECISIONS / RELEASING
-└── scripts/                       # bump-version, anti-bloat, copy-core-assets
+├── test/                          # automated skill + CLI tests
+├── docs/                          # PHILOSOPHY / ARCHITECTURE / CODEX / CONTRIBUTING / DECISIONS / RELEASING
+└── scripts/                       # bump-version, anti-bloat, copy-core-assets, check-publish-safety
 ```
 
 ## Usage
@@ -57,8 +64,9 @@ Install free, account-free (no Claude account, no subscription, no API key), in 
 npx @voidfactory/harness init
 ```
 
-It detects the project and installed runtimes (Claude Code / Codex), installs the adapted assets,
-verifies them, and writes the project state. Then, at any time:
+It detects the project and installed runtimes (Claude Code / Codex), wires each through its adapter
+(marketplace for Claude, safety floor for Codex), writes `.void/config.json` + the doctrine docs, and
+prints what to do next. Then, at any time:
 
 ```
 npx @voidfactory/harness status     # deterministic, offline, LLM-free project health
