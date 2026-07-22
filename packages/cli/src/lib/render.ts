@@ -175,9 +175,9 @@ export function line(text: string): void {
   process.stdout.write(`  ${text}\n`);
 }
 
-/** Accented section heading, e.g. `Next steps` or `CAPABILITIES`. */
+/** Accented section heading with a blank line above for breathing room. */
 export function heading(text: string): void {
-  process.stdout.write(`  ${c.accent(c.bold(text))}\n`);
+  process.stdout.write(`\n  ${c.accent(c.bold(text))}\n`);
 }
 
 /** `  key  value` style metadata, with key muted. */

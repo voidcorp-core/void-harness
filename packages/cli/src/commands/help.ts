@@ -1,108 +1,95 @@
-// `void-harness help` / no-args — print the command reference.
+// `void-harness help` / no-args — the command reference, rendered through the
+// shared render layer so the front door wears the same "void" identity as every
+// other command (a plain template string used to read as an afterthought).
+
+import { blank, brand, c, glyph, heading, termWidth } from '../lib/render.js';
+import { CORE_PLUGIN_NAME } from '../lib/packs.js';
+
+const write = (s: string): void => void process.stdout.write(s);
+
+/** Sign-post column: the command signature is padded to this before its description. */
+const SIG = 26;
+
+/** One command row: `  <sig>   <description…>` with the description wrapped + hanging-indented. */
+function cmd(sig: string, desc: string): void {
+  const width = Math.min(termWidth(), 88);
+  const descCol = Math.max(30, width - SIG - 2);
+  const words = desc.split(' ');
+  const lines: string[] = [];
+  let cur = '';
+  for (const word of words) {
+    if (cur !== '' && `${cur} ${word}`.length > descCol) {
+      lines.push(cur);
+      cur = word;
+    } else {
+      cur = cur === '' ? word : `${cur} ${word}`;
+    }
+  }
+  if (cur !== '') lines.push(cur);
+
+  if (sig.length <= SIG - 2) {
+    write(`  ${c.accent2(sig.padEnd(SIG - 2))}  ${c.muted(lines[0] ?? '')}\n`);
+  } else {
+    // Long signature: put it on its own line, description starts under the column.
+    write(`  ${c.accent2(sig)}\n  ${' '.repeat(SIG)}${c.muted(lines[0] ?? '')}\n`);
+  }
+  for (const l of lines.slice(1)) write(`  ${' '.repeat(SIG)}${c.muted(l)}\n`);
+}
+
+/** One pack row: `  <name>   <description>`. */
+function pack(name: string, desc: string): void {
+  write(`  ${c.accent2(name.padEnd(SIG - 2))}  ${c.muted(desc)}\n`);
+}
+
+/** One example row: `  <command>   # comment`. */
+function example(command: string, note: string): void {
+  write(`  ${command.padEnd(50)}${c.muted(`# ${note}`)}\n`);
+}
 
 export function printHelp(): void {
-  const text = `
-void-harness — install a top-5% development doctrine on any project.
+  blank();
+  write(`  ${c.accent(glyph.arrow)} ${brand('void-harness')}  ${c.muted('— a development-doctrine OS for coding agents')}\n`);
+  write(`  ${c.muted(glyph.dash.repeat(Math.min(termWidth(), 88) - 2))}\n`);
+  write(`  ${c.muted('Public & MIT. Install free, account-free — no account, no key:')}\n`);
+  write(`  ${c.accent2('npx @voidfactory/harness init')}    ${c.muted('# wire the current project')}\n`);
+  write(`  ${c.accent2('npx @voidfactory/harness status')}  ${c.muted('# deterministic, offline health')}\n`);
+  write(`  ${c.muted('on pnpm? use')} ${c.muted('pnpm dlx @voidfactory/harness …')} ${c.muted('to silence npm config warnings.')}\n`);
 
-Public and MIT. Install free, account-free: npx @voidfactory/harness init
-Then: npx @voidfactory/harness status (deterministic, offline project health).
-The Claude Code marketplace (voidcorp-core/void-plugins) is an optional secondary
-channel; skills auto-load there as /harness:<name> and /harness-<stack>:<name>.
+  heading('Commands');
+  cmd('init [--pack] [--runtime]', 'Wire the current project: detect runtimes + stack, activate packs, write doctrine. --runtime claude|codex|both, --all-packs, --force.');
+  cmd('runtime <list|add <r>>', 'Show which runtimes are wired, or add one (claude|codex) a posteriori without a reinstall — touches only that runtime.');
+  cmd('add <pack>', 'Activate a stack pack in the current project.');
+  cmd('remove <pack>', 'Deactivate a pack (core cannot be removed).');
+  cmd('list', 'Show active and available packs.');
+  cmd('status', 'Project health: the five-state capability lifecycle + a score. Deterministic, offline, no LLM.');
+  cmd('doctor [--no-remote]', 'Health-check the install (config, doctrine, per-runtime wiring). --no-remote runs fully offline.');
+  cmd('update [--dry-run]', 'Sync the marketplace cache + .void pins + the Codex floor to the current version.');
+  cmd('check [--doctrine]', 'Report local vs remote version drift. --doctrine also diffs PHILOSOPHY.md.');
+  cmd('graph <sub>', 'Build / gate / report the skill-agent graph (build, check, audit, live, behavior).');
+  cmd('audit', 'Self-evolution audit: surface stale / never-fired skills as deprecation candidates. HITL.');
+  cmd('adoption', 'Maintainer: pull public npm + GitHub stats (tier-1 telemetry, zero phone-home).');
+  cmd('version · help', 'Print the version (also -v) · print this reference.');
 
-Usage:
-  void-harness <command> [options]
+  heading('Packs');
+  pack(CORE_PLUGIN_NAME, 'core — universal craftsman skills (always active)');
+  pack('harness-monorepo', 'Turborepo + Bun monorepo conventions');
+  pack('harness-react', 'React 19 + shadcn/Radix + accessibility-first');
+  pack('harness-nextjs', 'Next.js 16 App Router conventions');
+  pack('harness-server', 'Server Actions, webhooks, Drizzle, Zod boundaries');
+  pack('harness-pwa', 'PWA manifest, service worker, offline-first');
+  pack('harness-mobile', 'Expo + React Native + native modules');
+  write(`  ${c.muted('--pack accepts the bare stack too: nextjs, monorepo, react, …')}\n`);
 
-Commands:
-  init [--pack <name>] [--all-packs] [--runtime <r>]
-       [--no-interactive] [--force]
-                           Wire the CURRENT project. Without flags, runs an
-                           interactive prompt with auto-detection. With
-                           --pack flags, activates exactly those packs
-                           non-interactively. --runtime (claude|codex|both,
-                           default: auto-detected, else both) picks which
-                           runtimes to wire: Claude gets the marketplace in
-                           .claude/settings.json, Codex gets the safety floor
-                           (.codex/hooks.json + staged .void/hooks/ scripts).
+  heading('Examples');
+  example('void-harness init', 'interactive, auto-detects runtimes + packs');
+  example('void-harness init --pack nextjs --pack monorepo', 'script-friendly');
+  example('void-harness init --runtime codex', 'Codex-only: wire its safety floor');
+  example('void-harness runtime add codex', 'add Codex to a Claude project, later');
+  example('void-harness status', 'offline project health');
+  example('void-harness update --dry-run', 'preview version + floor drift');
 
-  runtime list             Show which agent runtimes (Claude Code / Codex) are
-  runtime add <r>          wired, and add one a posteriori without friction.
-                           'runtime add codex' on a Claude project wires only
-                           Codex's layer (safety floor + AGENTS.md), touching
-                           nothing Claude. Idempotent.
-
-  add <pack-name>          Activate a pack in the current project.
-  remove <pack-name>       Deactivate a pack (core cannot be removed).
-  list                     Show active and available packs.
-
-  doctor [--no-remote]     Health-check the project setup. Includes a remote
-                           version check against the marketplace (--no-remote
-                           to skip).
-  check [--doctrine]       Compare local plugin versions against the remote
-                           marketplace. With --doctrine, also diff PHILOSOPHY.md.
-  update [--dry-run]       Refresh Claude Code's marketplace cache (git
-         [--pins-only]     pull) AND bump .void/config.json pins to the
-         [--cache-only]    new HEAD. One command replaces the
-                           "/plugin marketplace update" + restart dance.
-                           Restart Claude after to load the new plugin
-                           version. --dry-run previews; --pins-only skips
-                           the cache pull; --cache-only skips the pins.
-  install --global         Escape hatch (rare); see install --help.
-
-  backlog-autopilot plan       Deterministic planner for the attended parallel mode
-                           (/harness:backlog-autopilot). Reads tickets+estimates
-                           JSON on stdin, prints the parallel/sequential plan.
-                           See backlog-autopilot --help.
-
-  graph [build|check|audit|live|behavior] build/gate/report/stream/analyze the
-                           skill-agent graph. build writes harness-graph/model.json;
-                           check gates CI on drift + broken routes; audit reports all
-                           findings (HITL); live serves model + activations SSE
-                           (--port, --log, --history-max) for the studio's live layer;
-                           behavior reads .void/activations.jsonl and reports dead
-                           nodes + should-have-fired + telemetry-gap (--since, --log; advisory).
-
-  audit [--stale-days <n>] Outbound self-evolution audit: read .void/activations.jsonl
-        [--all-projects]   and report harness skills that are active, stale, or never
-        [--push [--dry-run]] fired (deprecation candidates). --all-projects aggregates
-                           every self-registered project; --push files the candidates as
-                           GitHub issues (dry-run by default, confirm before create). HITL.
-
-  status                   Project health: join the frozen certification with local
-                           signals into the five-state per capability + a score, render
-                           it, and write .void/state.json. Deterministic, offline, no LLM.
-
-  adoption                 Maintainer: pull public npm + GitHub download/star stats
-                           (tier-1 telemetry, zero phone-home).
-
-  version                  Print the CLI version (also: --version, -v).
-  help                     Print this message.
-
-Pack names (current marketplace):
-  harness           core — universal craftsman skills (always active)
-  harness-monorepo  Turborepo + Bun monorepo conventions
-  harness-react     React 19 + shadcn/Radix + accessibility-first
-  harness-nextjs    Next.js 16 App Router conventions
-  harness-server    Server Actions, webhooks, Drizzle, Zod boundaries
-  harness-pwa       PWA manifest, service worker, offline-first
-  harness-mobile    Expo + React Native + native modules
-  (--pack accepts the bare stack too: nextjs, monorepo, react, ...)
-
-Examples:
-  void-harness init                                  # interactive
-  void-harness init --pack nextjs --pack monorepo    # script-friendly
-  void-harness init --all-packs                      # activate everything
-  void-harness init --runtime codex                  # Codex-only: wire its floor
-  void-harness init --runtime both                   # wire Claude + Codex
-  void-harness runtime add codex                     # add Codex to a Claude project
-  void-harness runtime list                          # which runtimes are wired
-  void-harness add nextjs                            # add a pack later
-  void-harness list                                  # see what's active
-  void-harness check                                 # remote version drift
-  void-harness check --doctrine                      # + PHILOSOPHY.md drift
-  void-harness update                                # sync pins to remote HEAD
-  void-harness update --dry-run                      # preview the diff
-
-Marketplace: https://github.com/voidcorp-core/void-plugins
-`.trimStart();
-  process.stdout.write(text);
+  blank();
+  write(`  ${c.muted('Skills load as')} ${c.accent('/harness:<name>')} ${c.muted('and')} ${c.accent('/harness-<stack>:<name>')}${c.muted('.')}\n`);
+  write(`  ${c.muted('Marketplace (optional):')} ${c.muted('github.com/voidcorp-core/void-plugins')}\n`);
+  blank();
 }
