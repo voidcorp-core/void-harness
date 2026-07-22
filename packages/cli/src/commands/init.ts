@@ -14,30 +14,30 @@
 // plugin from the marketplace on session start. Skills appear as
 // /harness:tdd, /harness-nextjs:..., etc.
 
-import * as p from '@clack/prompts';
 import { existsSync } from 'node:fs';
 import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { findCoreSource } from '../lib/paths.js';
+import * as p from '@clack/prompts';
+import { type PackConfig, resolveEffectivePin } from '../lib/pack-config.js';
 import {
-  PACKS,
   CORE_PLUGIN_NAME,
-  MARKETPLACE_NAME,
-  MARKETPLACE_REPO,
   findPack,
+  MARKETPLACE_REPO,
+  PACKS,
   type PackDescriptor,
 } from '../lib/packs.js';
-import { banner, blank, c, footer, glyph, line, meta } from '../lib/render.js';
-import { commandsFor, detectStack, type Stack } from '../lib/stack.js';
+import { findCoreSource } from '../lib/paths.js';
+import { type CheckResult, checkJq } from '../lib/prerequisites.js';
 import { resolveCorePin } from '../lib/remote.js';
-import { checkJq, type CheckResult } from '../lib/prerequisites.js';
+import { banner, blank, c, footer, glyph, line, meta } from '../lib/render.js';
 import {
   detectRuntimes,
   parseRuntimeArg,
-  resolveRuntimes,
   type Runtime,
+  resolveRuntimes,
 } from '../lib/runtime.js';
 import { adaptersFor } from '../lib/runtime-adapters.js';
+import { commandsFor, detectStack, type Stack } from '../lib/stack.js';
 
 interface InitOptions {
   readonly explicitPacks: readonly string[];
@@ -302,7 +302,7 @@ async function writeConfig(
 
   // Existing config: merge in any newly-selected packs without touching the
   // user's hand-tuned paths/commands/modes or existing pack pins.
-  let existing: { packs?: Record<string, string> } & Record<string, unknown> = {};
+  let existing: PackConfig = {};
   try {
     existing = JSON.parse(await readFile(configPath, 'utf8'));
   } catch {
@@ -310,10 +310,9 @@ async function writeConfig(
     return;
   }
   const currentPacks = { ...(existing.packs ?? {}) };
-  // Reuse an existing pack pin as the pin for newly added packs when the remote
-  // was unreachable, so an existing well-pinned config stays lockstep instead of
-  // gaining a stale literal or `^undefined`.
-  const effectivePin = pin ?? (existing.core as string | undefined) ?? Object.values(existing.packs ?? {})[0];
+  // A fresh remote pin wins; else reuse the config's canonical pin so an existing
+  // well-pinned config stays lockstep instead of gaining a stale literal (#67).
+  const effectivePin = pin ?? resolveEffectivePin(existing);
   const added: string[] = [];
   for (const pack of packs) {
     const key = `@voidcorp/${pack.name}`;
