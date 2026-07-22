@@ -55,5 +55,7 @@ Thumbs.db
 .void/history/
 # Runtime outcome-recording telemetry (local, like activations.jsonl).
 .void/outcomes.jsonl
+# Session self-registration marker (harness writes it on start; runtime-only).
+.void/.registered
 .gstack/
 dist-singlefile/
