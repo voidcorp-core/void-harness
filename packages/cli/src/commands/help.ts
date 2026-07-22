@@ -63,6 +63,7 @@ Commands:
   adoption                 Maintainer: pull public npm + GitHub download/star stats
                            (tier-1 telemetry, zero phone-home).
 
+  version                  Print the CLI version (also: --version, -v).
   help                     Print this message.
 
 Pack names (current marketplace):

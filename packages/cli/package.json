@@ -3,6 +3,27 @@
   "version": "0.17.0",
   "description": "void-harness CLI — install a top-5% development doctrine on any project; render deterministic project health. Command: void-harness.",
   "license": "MIT",
+  "author": "Folpe @ VoidCorp",
+  "homepage": "https://github.com/voidcorp-core/void-harness#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/voidcorp-core/void-harness.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/voidcorp-core/void-harness/issues"
+  },
+  "keywords": [
+    "cli",
+    "claude-code",
+    "codex",
+    "ai-agent",
+    "developer-tools",
+    "code-quality",
+    "tdd",
+    "doctrine",
+    "void-harness"
+  ],
   "type": "module",
   "bin": {
     "void-harness": "./bin/void-harness.mjs"
@@ -11,7 +32,8 @@
     "bin",
     "dist",
     "core-assets",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsup",

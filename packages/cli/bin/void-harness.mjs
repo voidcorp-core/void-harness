@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Entry point for the voidcorp-harness CLI.
+// Entry point for the void-harness CLI.
 import { main } from '../dist/main.js';
 
 main(process.argv.slice(2)).catch((err) => {
