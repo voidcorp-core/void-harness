@@ -64,6 +64,9 @@ Install free, account-free (no Claude account, no subscription, no API key), in 
 npx @voidfactory/harness init
 ```
 
+> On a pnpm project, prefer `pnpm dlx @voidfactory/harness init` — `npx` (npm) prints harmless
+> "Unknown project config" warnings when it reads your pnpm-only `.npmrc` keys; `pnpm dlx` doesn't.
+
 It detects the project and installed runtimes (Claude Code / Codex), wires each through its adapter
 (marketplace for Claude, safety floor for Codex), writes `.void/config.json` + the doctrine docs, and
 prints what to do next. Then, at any time:
