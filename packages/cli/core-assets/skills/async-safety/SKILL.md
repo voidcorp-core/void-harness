@@ -179,7 +179,10 @@ type JobState =
 
 Transitions are explicit. No "did it succeed? unclear" state.
 
-`pack-nextjs` provides `withJobSafety()` wrapper:
+The target shape is a `withJobSafety()` wrapper. **Not yet shipped** — `pack-nextjs`
+ships `withWebhookSafety` today; `withJobSafety` / `withCronSafety` are the planned
+Phase E form (see the pack README). Until they land, apply this shape by hand; do
+not import a wrapper that does not exist yet.
 
 ```typescript
 export const refundOrderJob = withJobSafety({
@@ -219,6 +222,9 @@ After exhaustion, dead-letter and alert. Beyond that, the failure is structural;
 ---
 
 ## Cron safety — overlap protection
+
+Same status as `withJobSafety` above: `withCronSafety` is the planned Phase E shape,
+not yet shipped by `pack-nextjs`. Apply it by hand until it lands.
 
 ```typescript
 export const dailyReportCron = withCronSafety({
