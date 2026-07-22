@@ -82,7 +82,7 @@ describe('detectStack', () => {
 
 describe('commandsFor', () => {
   it('uses pnpm exec for pnpm', () => {
-    const stack: Stack = { packageManager: 'pnpm', testRunner: 'vitest', e2eRunner: 'playwright' };
+    const stack: Stack = { packageManager: 'pnpm', testRunner: 'vitest', e2eRunner: 'playwright', mutationRunner: 'none' };
     const cmd = commandsFor(stack);
     expect(cmd.typecheck).toBe('pnpm exec tsc --noEmit');
     expect(cmd.testUnit).toBe('pnpm exec vitest run');
@@ -90,19 +90,46 @@ describe('commandsFor', () => {
   });
 
   it('uses bunx for bun', () => {
-    const stack: Stack = { packageManager: 'bun', testRunner: 'vitest', e2eRunner: 'playwright' };
+    const stack: Stack = { packageManager: 'bun', testRunner: 'vitest', e2eRunner: 'playwright', mutationRunner: 'none' };
     expect(commandsFor(stack).typecheck).toBe('bunx tsc --noEmit');
   });
 
   it('uses npx for npm', () => {
-    const stack: Stack = { packageManager: 'npm', testRunner: 'jest', e2eRunner: 'none' };
+    const stack: Stack = { packageManager: 'npm', testRunner: 'jest', e2eRunner: 'none', mutationRunner: 'none' };
     const cmd = commandsFor(stack);
     expect(cmd.typecheck).toBe('npx tsc --noEmit');
     expect(cmd.testUnit).toBe('npx jest');
   });
 
   it('uses yarn dlx-equivalent for yarn', () => {
-    const stack: Stack = { packageManager: 'yarn', testRunner: 'vitest', e2eRunner: 'none' };
+    const stack: Stack = { packageManager: 'yarn', testRunner: 'vitest', e2eRunner: 'none', mutationRunner: 'none' };
     expect(commandsFor(stack).typecheck).toBe('yarn tsc --noEmit');
+  });
+
+  it('omits testE2e and mutation entirely when neither tool is detected', () => {
+    const stack: Stack = { packageManager: 'pnpm', testRunner: 'vitest', e2eRunner: 'none', mutationRunner: 'none' };
+    const cmd = commandsFor(stack);
+    // No fabricated playwright/stryker command that would error on first run.
+    expect('testE2e' in cmd).toBe(false);
+    expect('mutation' in cmd).toBe(false);
+  });
+
+  it('emits mutation only when Stryker is present', () => {
+    const withStryker: Stack = { packageManager: 'pnpm', testRunner: 'vitest', e2eRunner: 'none', mutationRunner: 'stryker' };
+    expect(commandsFor(withStryker).mutation).toBe('pnpm exec stryker run');
+  });
+});
+
+describe('detectMutationRunner', () => {
+  it('detects Stryker from @stryker-mutator/core', () => {
+    const root = tmp();
+    writePkg(root, { devDependencies: { '@stryker-mutator/core': '^8.0.0' } });
+    expect(detectStack(root).mutationRunner).toBe('stryker');
+  });
+
+  it('defaults to none with no Stryker signal', () => {
+    const root = tmp();
+    writePkg(root, { devDependencies: { vitest: '^2.0.0' } });
+    expect(detectStack(root).mutationRunner).toBe('none');
   });
 });

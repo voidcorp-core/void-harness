@@ -16,18 +16,23 @@ import { join } from 'node:path';
 export type PackageManager = 'bun' | 'pnpm' | 'yarn' | 'npm';
 export type TestRunner = 'vitest' | 'jest' | 'bun' | 'node';
 export type E2ERunner = 'playwright' | 'cypress' | 'none';
+export type MutationRunner = 'stryker' | 'none';
 
 export interface Stack {
   readonly packageManager: PackageManager;
   readonly testRunner: TestRunner;
   readonly e2eRunner: E2ERunner;
+  readonly mutationRunner: MutationRunner;
 }
 
 export interface StackCommands {
   readonly typecheck: string;
   readonly testUnit: string;
-  readonly testE2e: string;
-  readonly mutation: string;
+  // Only emitted when the corresponding tool is actually detected — inventing a
+  // `playwright`/`stryker` command with no signal writes a config that fails the
+  // first time it runs. Absent means "no such tool here", not "run the default".
+  readonly testE2e?: string;
+  readonly mutation?: string;
 }
 
 interface RootPkg {
@@ -88,12 +93,19 @@ export function detectE2ERunner(root: string, pkg = readPkg(root)): E2ERunner {
   return 'none';
 }
 
+export function detectMutationRunner(root: string, pkg = readPkg(root)): MutationRunner {
+  const deps = allDeps(pkg);
+  if (deps['@stryker-mutator/core'] !== undefined || deps.stryker !== undefined) return 'stryker';
+  return 'none';
+}
+
 export function detectStack(root: string): Stack {
   const pkg = readPkg(root);
   return {
     packageManager: detectPackageManager(root, pkg),
     testRunner: detectTestRunner(root, pkg),
     e2eRunner: detectE2ERunner(root, pkg),
+    mutationRunner: detectMutationRunner(root, pkg),
   };
 }
 
@@ -122,15 +134,21 @@ export function commandsFor(stack: Stack): StackCommands {
   else if (stack.testRunner === 'bun') testUnit = 'bun test';
   else testUnit = `${dx} vitest run`;
 
-  let testE2e: string;
+  // E2E + mutation commands are emitted ONLY on a real signal. No detected e2e
+  // runner ⇒ no testE2e key; no Stryker in deps ⇒ no mutation key. The `.void`
+  // hooks read these with `jq '// empty'`, so an absent key is a clean no-op —
+  // far better than a fabricated `playwright`/`stryker` command that errors on
+  // first run.
+  let testE2e: string | undefined;
   if (stack.e2eRunner === 'playwright') testE2e = `${dx} playwright test`;
   else if (stack.e2eRunner === 'cypress') testE2e = `${dx} cypress run`;
-  else testE2e = `${dx} playwright test`;
+
+  const mutation = stack.mutationRunner === 'stryker' ? `${dx} stryker run` : undefined;
 
   return {
     typecheck,
     testUnit,
-    testE2e,
-    mutation: `${dx} stryker run`,
+    ...(testE2e !== undefined ? { testE2e } : {}),
+    ...(mutation !== undefined ? { mutation } : {}),
   };
 }

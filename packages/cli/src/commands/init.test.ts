@@ -9,7 +9,7 @@ import { buildDefaultConfig, buildFinalChecklist } from './init.js';
 import type { CheckResult } from '../lib/prerequisites.js';
 import type { Stack } from '../lib/stack.js';
 
-const STACK: Stack = { packageManager: 'pnpm', testRunner: 'vitest', e2eRunner: 'none' };
+const STACK: Stack = { packageManager: 'pnpm', testRunner: 'vitest', e2eRunner: 'none', mutationRunner: 'none' };
 
 describe('buildDefaultConfig pin behavior', () => {
   it('pins core when a version was resolved', () => {
