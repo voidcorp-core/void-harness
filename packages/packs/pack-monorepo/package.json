@@ -1,6 +1,6 @@
 {
   "name": "@voidcorp/pack-monorepo",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Turborepo + Bun monorepo conventions for the void-harness — shared tsconfig.strict, @repo/core helpers (Result, Option, pipe), package boundary discipline.",
   "license": "MIT",
   "type": "module",

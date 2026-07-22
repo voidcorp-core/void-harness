@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/voidcorp-core/void-harness/compare/v1.0.0...v1.1.0) (2026-07-22)
+
+
+### Features
+
+* **cli:** a "void in the shell" visual identity + README refresh for 1.0.0 ([23c78c2](https://github.com/voidcorp-core/void-harness/commit/23c78c2e52b7c2dfc8eaa08b58705379dbacaa3e))
+* **cli:** void-in-the-shell visual identity + README refresh for 1.0.0 ([11aa3e7](https://github.com/voidcorp-core/void-harness/commit/11aa3e78bef80c37c33e53f3c11eb596d5484ed3))
+
 ## [1.0.0](https://github.com/voidcorp-core/void-harness/compare/v0.17.0...v1.0.0) (2026-07-22)
 
 First public release. Declares the CLI's public surface stable; from here,
