@@ -1,5 +1,5 @@
 /**
- * @voidcorp/pack-monorepo — re-exports for Turborepo + Bun consumers.
+ * @voidcorp/pack-monorepo — re-exports for Turborepo consumers.
  *
  * The main entry is intentionally thin. Submodule imports (./result, ./option,
  * ./pipe) are preferred for tree-shaking. The Claude/Codex SKILL.md modules

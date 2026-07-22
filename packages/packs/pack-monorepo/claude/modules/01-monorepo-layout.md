@@ -1,6 +1,6 @@
 # Monorepo layout (`@voidcorp/pack-monorepo`)
 
-This repository is a Turborepo + Bun workspace following the void-harness `pack-monorepo` conventions.
+This repository is a Turborepo workspace following the void-harness `pack-monorepo` conventions.
 
 ## Topology
 

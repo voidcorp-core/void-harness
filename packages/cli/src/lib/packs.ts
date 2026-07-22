@@ -37,7 +37,7 @@ export const PACKS: readonly PackDescriptor[] = [
   {
     name: 'harness-monorepo',
     label: 'harness-monorepo',
-    description: 'Turborepo + Bun monorepo conventions',
+    description: 'Turborepo monorepo conventions',
     detect: (root) =>
       existsSync(join(root, 'turbo.json')) ||
       existsSync(join(root, 'pnpm-workspace.yaml')) ||

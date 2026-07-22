@@ -44,7 +44,7 @@ void-harness/
 │   │   └── modules/               # CLAUDE.md modules (composable)
 │   ├── harness-graph/             # graph kernel + frozen model.json / certification.json
 │   └── packs/
-│       ├── pack-monorepo/         # Turbo / Bun / ADR / 5+5 layout
+│       ├── pack-monorepo/         # Turbo / ADR / 5+5 layout
 │       ├── pack-react/            # React 19 component-layer purity
 │       ├── pack-nextjs/           # Next.js App Router conventions
 │       ├── pack-server/           # backend service conventions

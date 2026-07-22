@@ -72,7 +72,7 @@ export function printHelp(): void {
 
   heading('Packs');
   pack(CORE_PLUGIN_NAME, 'core — universal craftsman skills (always active)');
-  pack('harness-monorepo', 'Turborepo + Bun monorepo conventions');
+  pack('harness-monorepo', 'Turborepo monorepo conventions');
   pack('harness-react', 'React 19 + shadcn/Radix + accessibility-first');
   pack('harness-nextjs', 'Next.js 16 App Router conventions');
   pack('harness-server', 'Server Actions, webhooks, Drizzle, Zod boundaries');
