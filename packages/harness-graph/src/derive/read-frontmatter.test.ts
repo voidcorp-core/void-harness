@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { countLines, estimateTokens, readFrontmatter } from './read-frontmatter.js';
 
 describe('readFrontmatter', () => {
+  it('strips surrounding quotes from a valid-YAML quoted description (colon-carrying text)', () => {
+    const md = '---\nname: dbg\ndescription: "Four phases: no fix without a test."\n---\nbody';
+    expect(readFrontmatter(md).description).toBe('Four phases: no fix without a test.');
+  });
+
   it('extracts the description field', () => {
     const md = '---\nname: tdd\ndescription: TDD with three modes.\n---\n\n# tdd\n';
     expect(readFrontmatter(md).description).toBe('TDD with three modes.');

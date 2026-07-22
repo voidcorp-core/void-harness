@@ -149,7 +149,9 @@ export function readFrontmatter(text: string): {
   if (!match) return { description: '' };
   const block = match[1] ?? '';
   const line = block.split('\n').find((l) => l.startsWith('description:'));
-  const description = line ? line.slice('description:'.length).trim() : '';
+  // stripQuotes so a valid-YAML quoted description (needed when the text carries a
+  // colon) yields the same value as a bare one — never the surrounding quotes.
+  const description = line ? stripQuotes(line.slice('description:'.length)) : '';
   const triggers = parseTriggers(block);
   const activation = parseActivation(block);
   const owner = parseScalar(block, 'owner');
