@@ -16,22 +16,25 @@ function ratio(num: number, den: number): number | null { // allow-null: a pendi
   return den <= 0 ? null : Math.round((num / den) * 100); // allow-null: nothing to measure
 }
 
-/** Per-runtime enforcement ceiling: the strongest inline tier the runtime reaches across all
- * capabilities. claude/codex reach `pretooluse` (100); hermes tops out at `ci-only` (60). Computed
- * over the runtimes capabilities actually declare — a detected-but-untargeted runtime is not an
- * enforcement concern and must not drag the average. */
+/** Per-runtime enforcement **coverage**: the mean inline tier across the capabilities that declare
+ * enforcement for that runtime — not the single strongest one. A runtime where one capability is
+ * `pretooluse` and the rest are `ci-only` scores well below 100, honestly reflecting that most of
+ * the surface is not strongly enforced. Computed only over capabilities that actually declare the
+ * runtime — a detected-but-untargeted runtime is not an enforcement concern. */
 function enforcementByRuntime(cert: Certification): Record<string, number> {
   const runtimes = new Set<string>();
   for (const cap of cert.capabilities) for (const r of Object.keys(cap.enforcement?.inline ?? {})) runtimes.add(r);
   const out: Record<string, number> = {};
   for (const r of runtimes) {
-    let best = 0;
+    let sum = 0;
+    let count = 0;
     for (const cap of cert.capabilities) {
       const tier: EnforcementTier | undefined = cap.enforcement?.inline?.[r];
-      const tierScore = tier ? (TIER_SCORE[tier] ?? 0) : 0;
-      if (tierScore > best) best = tierScore;
+      if (tier === undefined) continue; // this capability doesn't declare inline enforcement for r
+      sum += TIER_SCORE[tier] ?? 0;
+      count += 1;
     }
-    out[r] = best;
+    out[r] = count > 0 ? Math.round(sum / count) : 0;
   }
   return out;
 }
