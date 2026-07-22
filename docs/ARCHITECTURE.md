@@ -5,7 +5,7 @@
 ```
 void-harness/
 ├── packages/
-│   ├── cli/                       # @voidfactory/harness
+│   ├── cli/                       # voidharness
 │   │   ├── src/commands/          # install, add, update, doctor, init
 │   │   └── package.json
 │   ├── core/                      # harness plugin (static assets, not an npm package)

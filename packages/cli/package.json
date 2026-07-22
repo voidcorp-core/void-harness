@@ -1,7 +1,7 @@
 {
-  "name": "@voidfactory/harness",
+  "name": "voidharness",
   "version": "1.2.0",
-  "description": "void-harness CLI — install a top-5% development doctrine on any project; render deterministic project health. Command: void-harness.",
+  "description": "void-harness CLI — install a top-5% development doctrine on any project; render deterministic project health. Run via `npx voidharness`; command: void-harness (alias vh).",
   "license": "MIT",
   "author": "Folpe @ VoidCorp",
   "homepage": "https://github.com/voidcorp-core/void-harness#readme",
@@ -26,7 +26,8 @@
   ],
   "type": "module",
   "bin": {
-    "void-harness": "./bin/void-harness.mjs"
+    "void-harness": "./bin/void-harness.mjs",
+    "vh": "./bin/void-harness.mjs"
   },
   "files": [
     "bin",

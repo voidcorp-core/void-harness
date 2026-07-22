@@ -18,7 +18,7 @@ import {
 } from '@voidcorp/harness-graph';
 import { banner, blank, c, footer, line } from '../lib/render.js';
 
-// dist/main.js -> the package root (packages/cli in the monorepo, node_modules/@voidfactory/harness once published).
+// dist/main.js -> the package root (packages/cli in the monorepo, node_modules/voidharness once published).
 const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** Candidate paths for a shipped data artifact, in priority order: the monorepo source

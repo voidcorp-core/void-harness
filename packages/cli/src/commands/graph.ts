@@ -192,7 +192,7 @@ export async function graph(
     banner('graph check-bundle');
     blank();
     if (!existsSync(artifact)) {
-      line(`  ${c.red('artifact missing')} -- run \`pnpm -F @voidfactory/harness build:void-graph\``);
+      line(`  ${c.red('artifact missing')} -- run \`pnpm -F voidharness build:void-graph\``);
       footer(c.red('graph check-bundle failed.'));
       process.exit(1);
     }
@@ -200,7 +200,7 @@ export async function graph(
     const embedded = execFileSync('node', [artifact, 'model-hash'], { encoding: 'utf8' }).trim();
     if (committed !== embedded) {
       line(`  ${c.red('stale bundle')} -- committed model ${c.dim(committed.slice(0, 12))} != artifact embeds ${c.dim(embedded.slice(0, 12))}`);
-      line(`  ${c.dim('rebuild')} pnpm -F @voidfactory/harness build:void-graph ${c.dim('and commit the artifact')}`);
+      line(`  ${c.dim('rebuild')} pnpm -F voidharness build:void-graph ${c.dim('and commit the artifact')}`);
       footer(c.red('graph check-bundle failed.'));
       process.exit(1);
     }

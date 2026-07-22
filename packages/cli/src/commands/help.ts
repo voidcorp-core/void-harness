@@ -51,9 +51,9 @@ export function printHelp(): void {
   write(`  ${c.accent(glyph.arrow)} ${brand('void-harness')}  ${c.muted('— a development-doctrine OS for coding agents')}\n`);
   write(`  ${c.muted(glyph.dash.repeat(Math.min(termWidth(), 88) - 2))}\n`);
   write(`  ${c.muted('Public & MIT. Install free, account-free — no account, no key:')}\n`);
-  write(`  ${c.accent2('npx @voidfactory/harness init')}    ${c.muted('# wire the current project')}\n`);
-  write(`  ${c.accent2('npx @voidfactory/harness status')}  ${c.muted('# deterministic, offline health')}\n`);
-  write(`  ${c.muted('on pnpm? use')} ${c.muted('pnpm dlx @voidfactory/harness …')} ${c.muted('to silence npm config warnings.')}\n`);
+  write(`  ${c.accent2('npx voidharness init')}    ${c.muted('# wire the current project')}\n`);
+  write(`  ${c.accent2('npx voidharness status')}  ${c.muted('# deterministic, offline health')}\n`);
+  write(`  ${c.muted('on pnpm? use')} ${c.muted('pnpm dlx voidharness …')} ${c.muted('to silence npm config warnings.')}\n`);
 
   heading('Commands');
   cmd('init [--pack] [--runtime]', 'Wire the current project: detect runtimes + stack, activate packs, write doctrine. --runtime claude|codex|both, --all-packs, --force.');

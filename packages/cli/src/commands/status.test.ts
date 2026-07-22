@@ -40,8 +40,8 @@ describe('dataCandidates', () => {
   });
 
   it('resolves the package-local copy under a published install root', () => {
-    const [, packaged] = dataCandidates('/n/node_modules/@voidfactory/harness', 'model.json');
-    expect(packaged).toBe('/n/node_modules/@voidfactory/harness/core-assets/data/model.json');
+    const [, packaged] = dataCandidates('/n/node_modules/voidharness', 'model.json');
+    expect(packaged).toBe('/n/node_modules/voidharness/core-assets/data/model.json');
   });
 });
 

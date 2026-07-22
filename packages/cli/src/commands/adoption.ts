@@ -4,7 +4,7 @@
 
 import { banner, blank, c, footer, line } from '../lib/render.js';
 
-export const NPM_PKG = '@voidfactory/harness';
+export const NPM_PKG = 'voidharness';
 export const GH_REPO = 'voidcorp-core/void-harness';
 
 export const npmDownloadsUrl = (pkg: string = NPM_PKG): string => `https://api.npmjs.org/downloads/point/last-month/${pkg}`;

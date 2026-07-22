@@ -1,4 +1,4 @@
-# `@voidfactory/harness`
+# `voidharness`
 
 CLI for the [void-harness](https://github.com/voidcorp-core/void-harness): register the marketplace, enable the `harness` core plugin plus the stack packs a project needs, and health-check the setup.
 
@@ -8,11 +8,11 @@ CLI for the [void-harness](https://github.com/voidcorp-core/void-harness): regis
 # In any project: register the marketplace, enable core + the packs you pick,
 # scaffold .void/config.json, and patch CLAUDE.md / AGENTS.md.
 cd my-project
-npx @voidfactory/harness init                          # core only
-npx @voidfactory/harness init --pack pack-nextjs --pack pack-monorepo
+npx voidharness init                          # core only
+npx voidharness init --pack pack-nextjs --pack pack-monorepo
 
 # Verify the setup (offline-friendly)
-npx @voidfactory/harness doctor
+npx voidharness doctor
 ```
 
 Pack names accept any form: `pack-nextjs`, `harness-nextjs`, or `nextjs`.
@@ -28,7 +28,7 @@ Sets up the current project:
 - Patches `CLAUDE.md` / `AGENTS.md` (sister docs, cross-referenced)
 
 ```
-npx @voidfactory/harness init [--pack <name>...] [--all-packs] [--force]
+npx voidharness init [--pack <name>...] [--all-packs] [--force]
 ```
 
 After `init`, restart Claude Code; skills appear as `/harness:<name>` and `/void-<pack>:<name>`.
@@ -38,8 +38,8 @@ After `init`, restart Claude Code; skills appear as `/harness:<name>` and `/void
 Enable or disable a pack on an already-initialized project (updates `.claude/settings.json` and `.void/config.json`).
 
 ```
-npx @voidfactory/harness add pack-nextjs
-npx @voidfactory/harness remove pack-nextjs
+npx voidharness add pack-nextjs
+npx voidharness remove pack-nextjs
 ```
 
 ### `doctor`
@@ -47,7 +47,7 @@ npx @voidfactory/harness remove pack-nextjs
 Health-check: `.void/config.json` validity, marketplace + plugins registered in `.claude/settings.json`, the CLAUDE.md block, `jq` (required by the hooks), and version drift against the marketplace HEAD. `--no-remote` runs fully offline. Exit `0` if all checks pass, `1` otherwise.
 
 ```
-npx @voidfactory/harness doctor [--no-remote]
+npx voidharness doctor [--no-remote]
 ```
 
 ### `list` / `check` / `update`
@@ -59,7 +59,7 @@ npx @voidfactory/harness doctor [--no-remote]
 Escape hatch (rare): installs the `harness` plugin at the user-global level (`~/.claude-plugin/plugins/harness/`) instead of per-project. The recommended flow is `init`.
 
 ```
-npx @voidfactory/harness install --global [--dry-run]
+npx voidharness install --global [--dry-run]
 ```
 
 ### `help`

@@ -11,15 +11,15 @@ Distinguish **versioned** (all manifests, in lockstep) from **published to npm**
 - Packs (`@voidcorp/pack-monorepo`, `@voidcorp/pack-nextjs`, …) and the `@voidcorp/harness-graph`
   kernel — versioned, but **not published to npm**: packs ship via the marketplace, and the kernel is
   bundled into the CLI (see DECISIONS.md 2026-07-22).
-- **CLI npm package (`@voidfactory/harness`) — the only package published to npm.** Self-contained
-  (the kernel is bundled in), so `npx @voidfactory/harness` needs nothing else from the registry.
+- **CLI npm package (`voidharness`) — the only package published to npm.** Self-contained
+  (the kernel is bundled in), so `npx voidharness` needs nothing else from the registry.
 
 A skill change, a CLI bugfix, and a runtime helper addition all ship under the same version bump.
 
 ### Why one number
 
 - **Coherence.** A skill that references a runtime helper ships in the same version as that helper.
-- **Trace.** `void-harness --version` matches `pnpm view @voidfactory/harness version` matches the marketplace HEAD.
+- **Trace.** `void-harness --version` matches `pnpm view voidharness version` matches the marketplace HEAD.
 - **No skew incidents.** Pre-1.0, every divergence is a support nightmare. Lockstep eliminates the question.
 
 ### When we might split (post-1.0)
@@ -54,13 +54,13 @@ already enforces. No one runs the bump script by hand in the normal path.
    script, plus the core-assets mirror), and writes `CHANGELOG.md`.
 3. **Merge the release PR when you want to cut the release.** That tags `vX.Y.Z`,
    creates the GitHub release, and (once the one-time bootstrap below is done)
-   **automatically publishes** `@voidfactory/harness` to npm. This merge is the
+   **automatically publishes** `voidharness` to npm. This merge is the
    only human gate (HITL) — there is no separate publish step and no stored token.
 4. **Automated publish (`.github/workflows/release.yml`, `publish` job)** via npm
    **Trusted Publishing (OIDC) — tokenless**. Gated on `release_created`, it runs
    under `id-token: write` (no `NODE_AUTH_TOKEN`, no secret): `pnpm check:publish`
    (fails closed if any `workspace:` specifier survived a packed tarball), then
-   `pnpm --filter @voidfactory/harness publish`. Publishing only ever happens in
+   `pnpm --filter voidharness publish`. Publishing only ever happens in
    CI, from the tagged commit, so the `workspace:` rewrite, the guard, and an npm
    **provenance attestation** are always applied. Only the self-contained CLI is
    published; packs and the kernel ship via the marketplace / bundle. The repo's
@@ -69,17 +69,23 @@ already enforces. No one runs the bump script by hand in the normal path.
 
 ### First publish (one-time bootstrap)
 
+> **Note (2026-07-22 rename):** the CLI was renamed `@voidfactory/harness` →
+> `voidharness` (unscoped). `voidharness` does not exist on npm yet and the old
+> package's Trusted Publisher does **not** carry over, so this bootstrap must be
+> run once for the new name. Until it is, the CI `publish` job will fail auth.
+
 npm Trusted Publishing configures a publisher on an **existing** package — it
 cannot create a brand-new one. So the very first version is bootstrapped by hand,
 with no token and no 2FA-bypass:
 
-1. Ensure the npm **org `voidfactory`** exists and you can publish to it.
+1. `voidharness` is **unscoped** — no org needed; just an npm account that can
+   publish the name (confirmed free as of the rename).
 2. From a clean `main` at the target version: `pnpm release` (or
-   `pnpm --filter @voidfactory/harness publish`). Enter your **2FA OTP** when
+   `pnpm --filter voidharness publish`). Enter your **2FA OTP** when
    prompted — an interactive publish, no stored credential.
-3. On npmjs.com → the package → **Settings → Trusted Publisher → GitHub Actions**:
-   organization `voidcorp-core`, repository `void-harness`, workflow file
-   `release.yml`, environment blank.
+3. On npmjs.com → the `voidharness` package → **Settings → Trusted Publisher →
+   GitHub Actions**: organization `voidcorp-core`, repository `void-harness`,
+   workflow file `release.yml`, environment blank.
 4. From the next release on, the CI `publish` job publishes tokenlessly. You never
    run `publish` by hand again.
 
@@ -95,7 +101,7 @@ release never breaks CI on a forgotten regenerate.
 `scripts/bump-version.mjs <patch|minor|major|X.Y.Z>` still bumps all manifests
 **and the certification `harnessVersion`** (source + core-assets mirror) in
 lockstep for an emergency/offline release. After it, run
-`pnpm --filter @voidfactory/harness build:assets` to sync the rest of the mirror,
+`pnpm --filter voidharness build:assets` to sync the rest of the mirror,
 commit `chore: release vX.Y.Z`, tag, push. Prefer the automated flow.
 
 Consumers on a project pull the new version with:
