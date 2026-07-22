@@ -5,6 +5,18 @@ title: "npm publish is automated in CI, provenance-signed, gated on the release-
 
 ## 2026-07-22: npm publish is automated in CI, provenance-signed, gated on the release-PR merge
 
+> **Update (same day): tokenless via Trusted Publishing, not a stored token.** The first cut of
+> this decision used an `NPM_TOKEN` automation secret. npm's own UI flags the 2FA-bypass token that
+> a CI token implies as a security risk and steers to **Trusted Publishing (OIDC)** for automation.
+> So the design is now **tokenless**: the `publish` job authenticates via GitHub OIDC (`id-token:
+> write`, no `NODE_AUTH_TOKEN`, no repo secret), and npm attaches provenance automatically. The one
+> catch npm documents: Trusted Publishing configures a publisher on an **existing** package and
+> cannot create a new one — so v1 is a one-time manual `pnpm publish` bootstrap (interactive 2FA, no
+> stored credential), after which the trusted publisher is linked and every later release is
+> tokenless. The job pins **pnpm 10** (OIDC landed in pnpm 10; 11.0.8 has a known 404 bug,
+> pnpm/pnpm#11513). Everything below about HITL, CI-only publishing, and the `workspace:` rewrite
+> still holds; only the credential mechanism changed (stored token → OIDC).
+
 Context: `@voidfactory/harness` was version-managed by release-please but **published by hand**
 (`pnpm release` from a laptop). The publish-readiness audit flagged two consequences: (1) no npm
 **provenance** — an attestation that the tarball was built from a specific commit in a verifiable

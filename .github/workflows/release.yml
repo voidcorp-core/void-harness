@@ -53,17 +53,24 @@ jobs:
           gh workflow run bump-shas.yml -R voidcorp-core/void-plugins -f ref="${{ steps.release.outputs.tag_name }}"
           echo "Triggered void-plugins/bump-shas for ${{ steps.release.outputs.tag_name }}"
 
-  # Provenance-signed publish of @voidfactory/harness, gated on a release having
-  # been cut (i.e. a human merged the release PR). `id-token: write` lets npm mint
-  # a provenance attestation from this OIDC-authenticated run — the package's npm
-  # page then shows it was built and signed by this workflow from the tagged
-  # commit, which a manual laptop publish can never produce. `pnpm publish`
-  # rewrites the internal `workspace:*` dep to a real range; `check:publish` fails
-  # closed if any `workspace:` specifier survives into a packed tarball.
+  # Tokenless, provenance-signed publish of @voidfactory/harness via npm Trusted
+  # Publishing (OIDC), gated on a release having been cut (i.e. a human merged the
+  # release PR). NO npm token exists anywhere: `id-token: write` lets the runner
+  # mint a short-lived, workflow-scoped credential that npm trusts, and provenance
+  # is attached automatically. `pnpm publish` rewrites the internal `workspace:*`
+  # dep to a real range; `check:publish` fails closed if any `workspace:`
+  # specifier survives into a packed tarball.
   #
-  # Requires one repo secret: NPM_TOKEN — a granular npm automation token scoped
-  # to publish @voidfactory/harness. (Once the first version is on npm, this can
-  # be upgraded to tokenless npm Trusted Publishing, configured on the npm side.)
+  # PREREQUISITE (one-time, see docs/RELEASING.md): npm Trusted Publishing can NOT
+  # create a brand-new package — the trusted publisher is configured on an
+  # EXISTING package's settings page. So v1 is bootstrapped by a single manual
+  # `pnpm publish` (interactive 2FA, no stored token); the trusted publisher is
+  # then linked to (org: voidcorp-core, repo: void-harness, workflow: release.yml),
+  # and every release from the next one on publishes here with zero tokens.
+  #
+  # pnpm 10.x is pinned deliberately: OIDC trusted publishing landed in pnpm 10 and
+  # 11.0.8 has a known 404 regression (pnpm/pnpm#11513). The repo otherwise runs on
+  # its packageManager pnpm; only this publish step overrides the version.
   publish:
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true'
@@ -74,9 +81,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+        with:
+          version: 10
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           registry-url: https://registry.npmjs.org
           cache: pnpm
       - run: pnpm install --frozen-lockfile
@@ -84,9 +93,6 @@ jobs:
       - run: pnpm check:publish
       # prepack (builds the kernel + CLI + core-assets) runs automatically, so the
       # published tarball is self-contained. --no-git-checks: the tag is already
-      # cut; the tree is the release commit.
-      - name: Publish to npm (provenance-signed)
+      # cut; the tree is the release commit. No NODE_AUTH_TOKEN — auth is OIDC.
+      - name: Publish to npm (OIDC trusted publishing, provenance auto)
         run: pnpm --filter @voidfactory/harness publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_CONFIG_PROVENANCE: "true"

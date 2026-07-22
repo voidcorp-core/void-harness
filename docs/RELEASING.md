@@ -53,19 +53,35 @@ already enforces. No one runs the bump script by hand in the normal path.
    `extra-files` in `release-please-config.json` — the same file list as the bump
    script, plus the core-assets mirror), and writes `CHANGELOG.md`.
 3. **Merge the release PR when you want to cut the release.** That tags `vX.Y.Z`,
-   creates the GitHub release, and **automatically publishes** `@voidfactory/harness`
-   to npm. This merge is the only human gate (HITL) — there is no separate publish
-   step and no manual `npm publish`.
-4. **Automated publish (`.github/workflows/release.yml`, `publish` job).** Gated on
-   `release_created`, it runs in CI under OIDC (`id-token: write`): `pnpm check:publish`
+   creates the GitHub release, and (once the one-time bootstrap below is done)
+   **automatically publishes** `@voidfactory/harness` to npm. This merge is the
+   only human gate (HITL) — there is no separate publish step and no stored token.
+4. **Automated publish (`.github/workflows/release.yml`, `publish` job)** via npm
+   **Trusted Publishing (OIDC) — tokenless**. Gated on `release_created`, it runs
+   under `id-token: write` (no `NODE_AUTH_TOKEN`, no secret): `pnpm check:publish`
    (fails closed if any `workspace:` specifier survived a packed tarball), then
-   `pnpm --filter @voidfactory/harness publish --provenance`. Publishing only ever
-   happens in CI, from the tagged commit, so the `workspace:` rewrite, the guard,
-   and an npm **provenance attestation** are always applied. Only the self-contained
-   CLI is published; packs and the kernel ship via the marketplace / bundle.
-   **One-time setup:** add the `NPM_TOKEN` repo secret (a granular npm automation
-   token scoped to publish `@voidfactory/harness`). Once the first version is live,
-   this can be upgraded to tokenless npm Trusted Publishing (configured npm-side).
+   `pnpm --filter @voidfactory/harness publish`. Publishing only ever happens in
+   CI, from the tagged commit, so the `workspace:` rewrite, the guard, and an npm
+   **provenance attestation** are always applied. Only the self-contained CLI is
+   published; packs and the kernel ship via the marketplace / bundle. The job pins
+   **pnpm 10** (OIDC trusted publishing landed in pnpm 10; 11.0.8 has a known 404
+   bug — pnpm/pnpm#11513).
+
+### First publish (one-time bootstrap)
+
+npm Trusted Publishing configures a publisher on an **existing** package — it
+cannot create a brand-new one. So the very first version is bootstrapped by hand,
+with no token and no 2FA-bypass:
+
+1. Ensure the npm **org `voidfactory`** exists and you can publish to it.
+2. From a clean `main` at the target version: `pnpm release` (or
+   `pnpm --filter @voidfactory/harness publish`). Enter your **2FA OTP** when
+   prompted — an interactive publish, no stored credential.
+3. On npmjs.com → the package → **Settings → Trusted Publisher → GitHub Actions**:
+   organization `voidcorp-core`, repository `void-harness`, workflow file
+   `release.yml`, environment blank.
+4. From the next release on, the CI `publish` job publishes tokenlessly. You never
+   run `publish` by hand again.
 
 A CI step (`pnpm version:check`, `scripts/check-version-lockstep.mjs`) fails the
 build if **any** manifest drifts from the canonical version — so a missed file
