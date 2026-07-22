@@ -78,6 +78,13 @@ DESC_FILES=$(printf "%s\n" "$SKILL_FILES"; ls packages/core/agents/*.md 2>/dev/n
 while IFS= read -r f; do
   [[ -n "$f" && -e "$f" ]] || continue
   DESC=$(awk '/^description:/{ sub(/^description: */,""); print; exit }' "$f" 2>/dev/null || true)
+  # Strip a single pair of surrounding quotes: a valid-YAML quoted description
+  # (needed when the text carries a colon) must be measured by its value, not its
+  # quoting — mirrors read-frontmatter's stripQuotes.
+  case "$DESC" in
+    \"*\") DESC="${DESC#\"}"; DESC="${DESC%\"}" ;;
+    \'*\') DESC="${DESC#\'}"; DESC="${DESC%\'}" ;;
+  esac
   LEN=${#DESC}
   if [[ "$LEN" -gt 200 ]]; then
     echo "    FAIL: $f description is $LEN chars (cap 200): $DESC" >&2
