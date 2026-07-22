@@ -45,6 +45,17 @@ const NPM_PACKAGES = [
   // (no npm package.json yet). When they grow runtime code, add them here.
 ];
 
+// The frozen certification manifest is keyed by `harnessVersion` (the only
+// version-bearing field in it). It is a DERIVED artifact, but its single version
+// stamp must move in lockstep so `certification:check` passes after a bump —
+// otherwise every release breaks CI until someone remembers to rebuild. Both the
+// source and the shipped core-assets mirror carry it. release-please bumps these
+// via extra-files ($.harnessVersion); this manual fallback mirrors that.
+const CERTIFICATION_FILES = [
+  resolve(ROOT, 'packages/harness-graph/certification.json'),
+  resolve(ROOT, 'packages/cli/core-assets/data/certification.json'),
+];
+
 function parseVersion(v) {
   const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(v);
   if (!m) throw new Error(`not a M.m.p semver: ${v}`);
@@ -79,6 +90,17 @@ async function setVersion(path, next, label) {
   console.log(`  ✓ ${label}`);
 }
 
+async function setHarnessVersion(path, next, label) {
+  if (!existsSync(path)) {
+    console.warn(`  ! missing ${label}, skipped`);
+    return;
+  }
+  const json = await readJson(path);
+  json.harnessVersion = next;
+  await writeJson(path, json);
+  console.log(`  ✓ ${label} (harnessVersion)`);
+}
+
 async function main() {
   const arg = process.argv[2];
   if (!arg) {
@@ -105,6 +127,11 @@ async function main() {
   // 2. each npm package.json (CLI + runtime packs)
   for (const path of NPM_PACKAGES) {
     await setVersion(path, next, path.replace(ROOT + '/', ''));
+  }
+
+  // 3. the certification manifest's harnessVersion stamp (source + mirror)
+  for (const path of CERTIFICATION_FILES) {
+    await setHarnessVersion(path, next, path.replace(ROOT + '/', ''));
   }
 
   console.log('');
