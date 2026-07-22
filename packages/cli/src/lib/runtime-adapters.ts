@@ -43,6 +43,7 @@ import {
   codexFloorHealth,
   wireCodexFloor,
 } from './codex-floor.js';
+import { CODEX_SKILLS_DIR, codexSkillsHealth, wireCodexSkills } from './codex-skills.js';
 import { checkGh, checkMarketplaceAccess, type CheckResult } from './prerequisites.js';
 import { detectRuntimes, type Runtime } from './runtime.js';
 
@@ -157,6 +158,9 @@ const codexAdapter: RuntimeAdapter = {
   prerequisites: () => [],
   async wire(ctx) {
     const staged = await wireCodexFloor(ctx.projectRoot, ctx.sourceRoot);
+    // Codex has no marketplace channel, so unlike Claude the skills must be
+    // materialized into .agents/skills for Codex to discover them.
+    const skills = await wireCodexSkills(ctx.projectRoot, ctx.sourceRoot);
     const docResult = await patchRuntimeDoc(ctx.projectRoot, 'codex', {
       enabledPlugins: ctx.enabledPlugins,
       enabledPacks: ctx.enabledPacks,
@@ -164,6 +168,7 @@ const codexAdapter: RuntimeAdapter = {
     return {
       statusLines: [
         `.codex/hooks.json: floor wired (${staged} scripts → ${CODEX_HOOKS_DIR}/)`,
+        `${CODEX_SKILLS_DIR}/: ${skills} skills wired for Codex discovery`,
         `AGENTS.md: ${docResult}`,
       ],
       nextSteps: ['trust the project .codex/ layer per your Codex config (the safety floor is wired)'],
@@ -171,12 +176,19 @@ const codexAdapter: RuntimeAdapter = {
   },
   async doctorChecks(projectRoot) {
     const floor = await codexFloorHealth(projectRoot);
+    const skills = await codexSkillsHealth(projectRoot);
     return [
       {
         name: 'codex floor',
         ok: floor.ok,
         message: floor.detail,
         ...(floor.ok ? {} : { fix: 'void-harness runtime add codex' }),
+      },
+      {
+        name: 'codex skills',
+        ok: skills.ok,
+        message: skills.detail,
+        ...(skills.ok ? {} : { fix: 'void-harness runtime add codex' }),
       },
       await docBlockCheck(projectRoot, 'codex'),
     ];

@@ -17,6 +17,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { CODEX_HOOKS_DIR, refreshCodexFloor } from '../lib/codex-floor.js';
+import { CODEX_SKILLS_DIR, wireCodexSkills } from '../lib/codex-skills.js';
 import { computePinBumps } from '../lib/pack-config.js';
 import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO } from '../lib/packs.js';
 import { findCoreSource } from '../lib/paths.js';
@@ -131,6 +132,13 @@ async function refreshCodexFloorStep(projectRoot: string, dryRun: boolean): Prom
   } catch {
     line(`${c.yellow(glyph.up)}  ${c.dim('codex floor'.padEnd(12))}${c.yellow('skipped')}: could not locate the harness source`);
     return false;
+  }
+
+  // Skills re-stage alongside the floor: an idempotent overwrite to the running
+  // CLI's version, so `update` keeps a Codex project's .agents/skills current.
+  if (!dryRun) {
+    const n = await wireCodexSkills(projectRoot, sourceRoot);
+    line(`${c.green(glyph.check)}  ${c.dim('codex skills'.padEnd(12))}${n} skill(s) staged → ${CODEX_SKILLS_DIR}/`);
   }
 
   const result = await refreshCodexFloor(projectRoot, sourceRoot, dryRun);

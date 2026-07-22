@@ -22,8 +22,18 @@ runtime, so a Codex-only project is never flagged for a missing `CLAUDE.md`.
 ## The skills
 
 Skill content is runtime-agnostic prose and applies to both. Claude Code
-auto-discovers the harness plugin's skills from the marketplace; a Codex user reads
-the same doctrine via `AGENTS.md` + the `.void/` files.
+auto-discovers the harness plugin's skills from the marketplace. Codex has no
+marketplace channel — it discovers skills by directory convention, scanning
+`.agents/skills` from the cwd up to the repo root — so `init` **materializes**
+the skills there: every core skill that declares `codex` in its `runtimes`
+frontmatter is staged as `.agents/skills/<name>/SKILL.md`. A Codex user thus gets
+both the doctrine (via `AGENTS.md` + `.void/`) **and** the invocable skills.
+`doctor` reports how many are discoverable; `update` re-stages them to the
+running CLI's version.
+
+Scope today is the **core** skills (they ship in the CLI tarball). Pack skills
+are not bundled in the CLI yet — staging them for Codex needs a pack-bundling
+step first.
 
 ## The hooks (guardrails, not the floor)
 
