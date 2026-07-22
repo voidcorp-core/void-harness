@@ -125,7 +125,9 @@ Two content-aware hooks sit beside the filename/path guards:
 
 ### Pack independence
 
-Two packs **may not depend on each other**. If pack A and pack B share logic, that logic belongs in `core/`.
+A pack **may not carry a bundled runtime `dependencies` edge on another pack** — that hides a dependency graph and couples release cycles. If two packs share substantial logic, that logic belongs in `core/`.
+
+One exception is allowed: an **explicit, documented `peerDependency` of composition** — a stack pack that deliberately presupposes another (e.g. `pack-nextjs` peer-depends on `pack-monorepo` for the `Result`/`ok`/`err` primitives, and `init` co-installs them). This is not a hidden edge: it is declared in `package.json` `peerDependencies`, documented in the pack README, and the consumer installs both. Extracting three functional primitives into their own package to avoid it would be premature (see `package-extraction`). Prefer this over a new shared package when the shared surface is small and the composition is intentional.
 
 ### CLI scope
 

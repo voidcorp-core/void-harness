@@ -9,6 +9,28 @@ existed. One entry per decision. Newest first. See CLAUDE.md meta-rules.
 > decision, create a new dated file (never append to this index) — that is what
 > makes parallel work conflict-free.
 
+## 2026-07-22: stay on TypeScript 5.9 for now; defer 6 and pilot 7 later
+
+The external audit (2026-07-22) noted PHILOSOPHY.md speaks of "TypeScript 6" while
+the repo resolves TypeScript 5.9, and recommended moving to TS 6 now and piloting
+the native TS 7 compiler.
+
+Decision: **stay on 5.9** for this cycle. The credible alternative — jump to 6/7
+now — was weighed and deferred:
+
+- **TS 7 (the native compiler) is preview**; its full programmatic API (which
+  `tsup`, `tsx`, and the vitest transform pipeline depend on) lands in 7.1. A repo
+  whose build and test toolchain consume the TS API cannot adopt the native
+  compiler wholesale without risking the whole pipeline.
+- **TS 6** brings no forcing function for this codebase today; the strict-mode
+  features we rely on are already in 5.9.
+
+Plan: bump 5.9 → 6 when 6 is stable and the toolchain follows; treat TS 7 as a
+**watch item**, piloting it only for the standalone compile step (not the API),
+then migrating fully once the ecosystem is ready. PHILOSOPHY.md's "TypeScript 6"
+mention is aspirational, not a current dependency — no change needed there beyond
+this record.
+
 ## 2026-07-22: Runtime adapter seam — core iterates adapters, doc is per-runtime, runtimes add a posteriori
 
 Context: the first multi-runtime `init` (same day, earlier) auto-wired Codex but stayed
@@ -57,6 +79,32 @@ Blind spot held deliberately: **over-abstraction.** Exactly the two adapters tha
 wired — no speculative generality. Hermes is added only after reading its docs
 (source-driven-development), as a later phase; the seam is what makes that a one-file change.
 Supersedes the "both docs always emitted" line from the earlier same-day decision.
+
+## 2026-07-22: a documented peerDependency of composition between packs is allowed; a bundled runtime dep is not
+
+`docs/ARCHITECTURE.md` said "two packs may not depend on each other", but
+`pack-nextjs` declares `peerDependencies: { @voidcorp/pack-monorepo: workspace:^ }`
+— it imports `Result`/`ok`/`err` from `@voidcorp/pack-monorepo/result` in
+`withWebhookSafety.ts`. Doctrine and code contradicted (flagged by the external
+audit, 2026-07-22).
+
+The credible alternative was the audit's recommendation: **extract the shared
+primitives (`result`, `option`, `pipe`) into a new package** that both packs
+depend on, making the packs truly independent. Rejected as premature: the entire
+shared surface is three pure functional primitives, and `pack-nextjs`'s only use
+is `Result`/`ok`/`err` in one file. Creating, versioning, and publishing a new
+package to remove one small, intentional edge is exactly the extraction
+`package-extraction` warns against — more moving parts than the coupling it
+removes.
+
+Resolution: **amend the rule** rather than the code. The ban now targets what it
+was really meant to prevent — a **bundled runtime `dependencies` edge** (a hidden
+graph that couples release cycles). An **explicit `peerDependency` of
+composition** is allowed when: it is declared in `package.json`
+`peerDependencies`, documented in the pack README, the shared surface is small,
+and `init` co-installs both packs. `pack-nextjs → pack-monorepo` is the
+sanctioned example. If the shared surface ever grows substantial, revisit the
+extraction (the rule still sends shared *logic* to `core/`).
 
 ## 2026-07-22: the plugin marketplace is self-hosted in void-harness, not a dedicated catalog repo
 
