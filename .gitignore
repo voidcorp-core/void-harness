@@ -50,5 +50,10 @@ Thumbs.db
 .void/activations.jsonl
 # Full tool outputs spilled by the trim-large-output hook (runtime-only pointers).
 .void/outputs/
+# Generated project state + history snapshots (void status; deterministic, per-project runtime).
+.void/state.json
+.void/history/
+# Runtime outcome-recording telemetry (local, like activations.jsonl).
+.void/outcomes.jsonl
 .gstack/
 dist-singlefile/

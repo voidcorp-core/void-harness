@@ -70,6 +70,153 @@ describe('readFrontmatter — activation', () => {
   });
 });
 
+describe('readFrontmatter — owner', () => {
+  it('reads the owner scalar', () => {
+    const md = '---\nname: tdd\ndescription: TDD.\nowner: folpe\n---\nbody';
+    expect(readFrontmatter(md).owner).toBe('folpe');
+  });
+
+  it('omits owner when absent (governance flags it downstream)', () => {
+    expect(readFrontmatter('---\ndescription: x\n---\n').owner).toBeUndefined();
+  });
+
+  it('trims surrounding whitespace', () => {
+    expect(readFrontmatter('---\ndescription: x\nowner:   folpe  \n---\n').owner).toBe('folpe');
+  });
+
+  it('does not confuse a substring key (e.g. co-owner) with owner', () => {
+    expect(readFrontmatter('---\ndescription: x\nco-owner: someone\n---\n').owner).toBeUndefined();
+  });
+
+  it('treats a quoted-empty owner as absent (fail-closed: a vacuous owner must not pass governance)', () => {
+    expect(readFrontmatter('---\ndescription: x\nowner: ""\n---\n').owner).toBeUndefined();
+    expect(readFrontmatter("---\ndescription: x\nowner: ''\n---\n").owner).toBeUndefined();
+  });
+
+  it('treats YAML null representations as absent', () => {
+    for (const v of ['~', 'null', 'Null', 'NULL']) {
+      expect(readFrontmatter(`---\ndescription: x\nowner: ${v}\n---\n`).owner).toBeUndefined();
+    }
+  });
+
+  it('strips surrounding quotes from a real owner value', () => {
+    expect(readFrontmatter('---\ndescription: x\nowner: "folpe"\n---\n').owner).toBe('folpe');
+    expect(readFrontmatter("---\ndescription: x\nowner: 'folpe'\n---\n").owner).toBe('folpe');
+  });
+
+  it('only strips a MATCHED quote pair: a dangling or lone quote stays present, not silently cleaned', () => {
+    expect(readFrontmatter('---\ndescription: x\nowner: "flo\n---\n').owner).toBe('"flo');
+    expect(readFrontmatter('---\ndescription: x\nowner: "\n---\n').owner).toBe('"');
+  });
+});
+
+describe('readFrontmatter — runtimes', () => {
+  it('parses a bracketed runtimes list (unquoted or quoted, tolerant)', () => {
+    expect(readFrontmatter('---\ndescription: x\nruntimes: [claude, codex]\n---\n').runtimes).toEqual(['claude', 'codex']);
+    expect(readFrontmatter('---\ndescription: x\nruntimes: ["claude", "codex", "hermes"]\n---\n').runtimes).toEqual([
+      'claude',
+      'codex',
+      'hermes',
+    ]);
+  });
+
+  it('omits runtimes when absent or empty (governance flags absence)', () => {
+    expect(readFrontmatter('---\ndescription: x\n---\n').runtimes).toBeUndefined();
+    expect(readFrontmatter('---\ndescription: x\nruntimes: []\n---\n').runtimes).toBeUndefined();
+  });
+
+  it('parses the idiomatic multi-line YAML block list form (must not read as absent)', () => {
+    const md = '---\ndescription: x\nruntimes:\n  - claude\n  - codex\n---\nbody';
+    expect(readFrontmatter(md).runtimes).toEqual(['claude', 'codex']);
+  });
+
+  it('tolerates a space-separated bracketed list', () => {
+    expect(readFrontmatter('---\ndescription: x\nruntimes: [claude codex]\n---\n').runtimes).toEqual(['claude', 'codex']);
+  });
+});
+
+describe('readFrontmatter — enforcement', () => {
+  const full = [
+    '---',
+    'description: x',
+    'enforcement:',
+    '  floor: ci',
+    '  inline:',
+    '    claude: pretooluse',
+    '    codex: pretooluse',
+    '    hermes: ci-only',
+    '---',
+    'body',
+  ].join('\n');
+
+  it('parses the nested floor + per-runtime inline tiers', () => {
+    expect(readFrontmatter(full).enforcement).toEqual({
+      floor: 'ci',
+      inline: { claude: 'pretooluse', codex: 'pretooluse', hermes: 'ci-only' },
+    });
+  });
+
+  it('parses a floor-only enforcement block', () => {
+    const md = '---\ndescription: x\nenforcement:\n  floor: ci\n---\n';
+    expect(readFrontmatter(md).enforcement).toEqual({ floor: 'ci' });
+  });
+
+  it('omits enforcement when absent, and when floor is missing (floor is required)', () => {
+    expect(readFrontmatter('---\ndescription: x\n---\n').enforcement).toBeUndefined();
+    const noFloor = '---\ndescription: x\nenforcement:\n  inline:\n    claude: pretooluse\n---\n';
+    expect(readFrontmatter(noFloor).enforcement).toBeUndefined();
+  });
+
+  it('accepts a case-variant floor value (ci), normalized', () => {
+    const md = '---\ndescription: x\nenforcement:\n  floor: CI\n---\n';
+    expect(readFrontmatter(md).enforcement).toEqual({ floor: 'ci' });
+  });
+
+  it('drops an enforcement block whose floor is an invalid value (floor must be ci)', () => {
+    const md = '---\ndescription: x\nenforcement:\n  floor: broken\n  inline:\n    claude: active\n---\n';
+    expect(readFrontmatter(md).enforcement).toBeUndefined();
+  });
+
+  it('is tolerant: an unknown inline tier is dropped, never throws', () => {
+    const md = '---\ndescription: x\nenforcement:\n  floor: ci\n  inline:\n    claude: sometimes\n    codex: active\n---\n';
+    expect(readFrontmatter(md).enforcement).toEqual({ floor: 'ci', inline: { codex: 'active' } });
+  });
+});
+
+describe('readFrontmatter — eval_targets', () => {
+  it('parses slug-encoded runtime/provider/tier cells (flow or block form)', () => {
+    const flow = '---\ndescription: x\neval_targets: [claude/anthropic/opus, codex/openai/gpt]\n---\n';
+    expect(readFrontmatter(flow).evalTargets).toEqual([
+      { runtime: 'claude', provider: 'anthropic', tier: 'opus' },
+      { runtime: 'codex', provider: 'openai', tier: 'gpt' },
+    ]);
+    const bloc = '---\ndescription: x\neval_targets:\n  - claude/anthropic/opus\n---\n';
+    expect(readFrontmatter(bloc).evalTargets).toEqual([{ runtime: 'claude', provider: 'anthropic', tier: 'opus' }]);
+  });
+
+  it('drops a malformed cell (not exactly runtime/provider/tier), never throws', () => {
+    const md = '---\ndescription: x\neval_targets: [claude/anthropic/opus, broken, a/b]\n---\n';
+    expect(readFrontmatter(md).evalTargets).toEqual([{ runtime: 'claude', provider: 'anthropic', tier: 'opus' }]);
+  });
+
+  it('omits eval_targets when absent or empty', () => {
+    expect(readFrontmatter('---\ndescription: x\n---\n').evalTargets).toBeUndefined();
+    expect(readFrontmatter('---\ndescription: x\neval_targets: []\n---\n').evalTargets).toBeUndefined();
+  });
+});
+
+describe('readFrontmatter — success_signal', () => {
+  it('reads the success_signal scalar (a free-text sentence, quotes stripped)', () => {
+    const md = '---\ndescription: x\nsuccess_signal: "test-first commit pair present"\n---\n';
+    expect(readFrontmatter(md).successSignal).toBe('test-first commit pair present');
+  });
+
+  it('omits success_signal when absent or vacuous', () => {
+    expect(readFrontmatter('---\ndescription: x\n---\n').successSignal).toBeUndefined();
+    expect(readFrontmatter('---\ndescription: x\nsuccess_signal: ""\n---\n').successSignal).toBeUndefined();
+  });
+});
+
 describe('countLines', () => {
   it('counts newline-separated lines', () => {
     expect(countLines('a\nb\nc')).toBe(3);

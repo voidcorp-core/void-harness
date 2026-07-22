@@ -1,6 +1,15 @@
 ---
 name: systematic-debugging
 description: Four phases (investigate, analyze, hypothesize, implement). Iron Law: no fix without a failing test reproducing the bug AND a root cause. Bug fix commit pairs. Use on bug or test failure.
+owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: active
+    codex: active
+    hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # systematic-debugging — voidcorp craftsman edition

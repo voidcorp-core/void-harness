@@ -2,6 +2,15 @@
 name: hexagonal-architecture
 activation: always
 description: Ports + adapters. Domain owns interfaces, adapters at the edge, function-parameter injection only, no DI / CQRS / mediator. Use when placing code or crossing module boundaries.
+owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: pretooluse
+    codex: pretooluse
+    hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # hexagonal-architecture — voidcorp craftsman edition

@@ -1,6 +1,15 @@
 ---
 name: adr-workflow
 description: Capture architecture decisions as ADRs (decisions/0001-NNNN.md) — when to write one, when not, format, lifecycle (proposed → accepted → superseded). Distinct from generic plans.
+owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: active
+    codex: active
+    hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # adr-workflow

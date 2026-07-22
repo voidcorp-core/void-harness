@@ -25,3 +25,25 @@ export type {
 export { parseOutcomes } from './outcome/parse.js';
 export { analyzeOutcomes, outcomeKey, stoppedSessions } from './outcome/analyze.js';
 export type { OutcomeEvent, ToolOutcome, SessionStop, OutcomeStatus, ComponentOutcome } from './outcome/types.js';
+export { buildCertification, serializeCertification } from './certification/build.js';
+export type {
+  Certification,
+  CapabilityCert,
+  ProofRecord,
+  EffectiveCell,
+  EvalReportLite,
+} from './certification/types.js';
+export { computeProjectState } from './state/compute.js';
+export { scoreProjectState } from './state/score.js';
+export type {
+  ProjectState,
+  CapabilityState,
+  CapabilityStateName,
+  RuntimeState,
+  LocalSignals,
+  Score,
+  Dimension,
+  DimensionKind,
+  ScoreConfidence,
+  NextAction,
+} from './state/types.js';

@@ -1,6 +1,15 @@
 ---
 name: state-architecture
 description: Decide where state lives — local, lifted, URL, server, client global. The decision tree to avoid useState-in-the-wrong-place sprawl. Default to URL or server before reaching for global stores.
+owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: active
+    codex: active
+    hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # state-architecture

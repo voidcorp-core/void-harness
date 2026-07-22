@@ -51,6 +51,58 @@ describe('deriveNodes', () => {
     expect(nodes.find((n) => n.id === 'skill:pack-nextjs/cache')?.activation).toBeUndefined();
   });
 
+  it('carries declared owner from frontmatter, and omits it when absent', () => {
+    const withOwner = {
+      ...tree,
+      skills: [
+        { name: 'tdd', pack: null, source: 's', text: '---\ndescription: TDD.\nowner: folpe\n---\n' },
+        { name: 'cache', pack: 'pack-nextjs', source: 's', text: '---\ndescription: cache.\n---\n' },
+      ],
+    };
+    const nodes = deriveNodes(withOwner);
+    expect(nodes.find((n) => n.id === 'skill:tdd')?.owner).toBe('folpe');
+    expect(nodes.find((n) => n.id === 'skill:pack-nextjs/cache')?.owner).toBeUndefined();
+  });
+
+  it('carries declared runtimes and enforcement from frontmatter', () => {
+    const withContract = {
+      ...tree,
+      skills: [
+        {
+          name: 'tdd',
+          pack: null,
+          source: 's',
+          text: '---\ndescription: TDD.\nruntimes: [claude, codex]\nenforcement:\n  floor: ci\n  inline:\n    claude: pretooluse\n    hermes: ci-only\n---\n',
+        },
+        { name: 'cache', pack: 'pack-nextjs', source: 's', text: '---\ndescription: cache.\n---\n' },
+      ],
+    };
+    const nodes = deriveNodes(withContract);
+    const tdd = nodes.find((n) => n.id === 'skill:tdd');
+    expect(tdd?.runtimes).toEqual(['claude', 'codex']);
+    expect(tdd?.enforcement).toEqual({ floor: 'ci', inline: { claude: 'pretooluse', hermes: 'ci-only' } });
+    const cache = nodes.find((n) => n.id === 'skill:pack-nextjs/cache');
+    expect(cache?.runtimes).toBeUndefined();
+    expect(cache?.enforcement).toBeUndefined();
+  });
+
+  it('carries declared eval targets and success signal from frontmatter', () => {
+    const withEvals = {
+      ...tree,
+      skills: [
+        {
+          name: 'tdd',
+          pack: null,
+          source: 's',
+          text: '---\ndescription: TDD.\neval_targets: [claude/anthropic/opus]\nsuccess_signal: red-green pair present\n---\n',
+        },
+      ],
+    };
+    const tdd = deriveNodes(withEvals).find((n) => n.id === 'skill:tdd');
+    expect(tdd?.evalTargets).toEqual([{ runtime: 'claude', provider: 'anthropic', tier: 'opus' }]);
+    expect(tdd?.successSignal).toBe('red-green pair present');
+  });
+
   it('carries pre-derived triggers on a hook (from the plugin manifest, not frontmatter)', () => {
     const withHookTriggers = {
       ...tree,

@@ -1,6 +1,15 @@
 ---
 name: context-management
 description: Context is the agent's core constraint. Use when a task spans many files, a session mixes subjects, corrections loop, or replies forget earlier constraints. Clear, compact, delegate to subagents.
+owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: active
+    codex: active
+    hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # context-management — voidcorp craftsman edition

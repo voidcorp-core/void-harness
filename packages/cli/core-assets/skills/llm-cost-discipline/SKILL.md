@@ -2,6 +2,15 @@
 name: llm-cost-discipline
 activation: always
 description: Sonnet default (Opus needs comment), prompt caching for >1024-token prompts, batch API for non-interactive, max_tokens declared, bounded retries, no full prompts in logs. Use on LLM API calls.
+owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: pretooluse
+    codex: pretooluse
+    hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # llm-cost-discipline — voidcorp craftsman edition

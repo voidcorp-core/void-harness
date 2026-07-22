@@ -1,6 +1,15 @@
 ---
 name: webhook-handler-pattern
 description: Build a webhook handler with signature verification, idempotency, and dead-letter routing. Per-source patterns (Stripe, Resend, GitHub). Self-contained — no harness wrappers required.
+owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: active
+    codex: active
+    hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # webhook-handler-pattern

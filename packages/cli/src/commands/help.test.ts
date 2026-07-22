@@ -32,12 +32,12 @@ describe('printHelp', () => {
     }
   });
 
-  it('does not tell a consumer to run the unpublished npm package', () => {
-    // Distribution is marketplace-only; npx @voidcorp/harness 404s (#69).
-    expect(capture()).not.toContain('npx @voidcorp/harness');
+  it('leads with the public account-free npx install (supersedes marketplace-only, 2026-07-21)', () => {
+    // Distribution is now public MIT, npx-primary; the CLI is the consumer entry point.
+    expect(capture()).toContain('npx @voidcorp/harness init');
   });
 
-  it('points at the marketplace catalog repo', () => {
+  it('still points at the marketplace catalog repo as the optional secondary channel', () => {
     expect(capture()).toContain('voidcorp-core/void-plugins');
   });
 });

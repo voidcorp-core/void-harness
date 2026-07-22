@@ -85,6 +85,11 @@ jobs:
       - name: Graph integrity (model drift + broken routes)
         run: pnpm graph:check
 
+      - name: Certification freshness (certification.json matches model + eval reports)
+        # The frozen packages/harness-graph/certification.json is the input ProjectState reads.
+        # If a capability contract field or an eval report changed, rebuild: pnpm certification:build
+        run: pnpm certification:check
+
       - name: Consumer bundle freshness (void-graph.mjs embeds the current model)
         # The shipped packages/core/graph/void-graph.mjs bakes model.json. This gates the
         # embedded model against the committed model.json (not the whole vite/esbuild output —

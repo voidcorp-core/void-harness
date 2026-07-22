@@ -2,6 +2,15 @@
 name: security-guidance
 activation: always
 description: Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. Escalate to security-audit for deep audits. Use on trust-boundary code.
+owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: pretooluse
+    codex: pretooluse
+    hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # security-guidance — voidcorp craftsman edition

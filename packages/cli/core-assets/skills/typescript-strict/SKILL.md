@@ -4,6 +4,15 @@ activation: always
 triggers:
   extensions: ["ts", "tsx"]
 description: TS strict baseline. Zero any budget, branded types for domain primitives, discriminated unions over enums, exhaustive switches via never, satisfies over as. Use when editing TypeScript code.
+owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: pretooluse
+    codex: pretooluse
+    hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # typescript-strict — voidcorp craftsman edition

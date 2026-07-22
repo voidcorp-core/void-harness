@@ -2,6 +2,15 @@
 name: observability
 activation: always
 description: Structured logs (no string interp), trace IDs end-to-end, error boundaries at async boundaries, anonymized user scope, no PII/secrets ever. Use @repo/core/logger not console.log. Use for prod code.
+owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: pretooluse
+    codex: pretooluse
+    hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # observability — voidcorp craftsman edition

@@ -1,6 +1,15 @@
 ---
 name: backlog-autopilot
 description: Opt-in parallel drain of independent Linear tickets, each in its own worktree subagent, reconciled into one integration PR gated by the full suite. Use when clearing independent tickets at once.
+owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: pretooluse
+    codex: pretooluse
+    hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # backlog-autopilot

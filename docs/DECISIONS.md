@@ -9,6 +9,40 @@ existed. One entry per decision. Newest first. See CLAUDE.md meta-rules.
 > decision, create a new dated file (never append to this index) — that is what
 > makes parallel work conflict-free.
 
+## 2026-07-21: enforcement is a two-tier, per-runtime capability attribute with derived inline tiers
+
+Phase A step A2 (spec `docs/specs/2026-07-21-void-harness-public-multiruntime-os.md`, Fork 1) makes
+**enforcement** a structured, per-runtime field of the capability contract rather than a single global
+flag. Each capability declares:
+
+```yaml
+enforcement:
+  floor: ci            # runtime-agnostic CI floor (the void-enforce Action) — every runtime inherits it
+  inline:              # deep in-session enforcement, per runtime
+    claude: pretooluse # blocking PreToolUse hook where the runtime supports it
+    codex: pretooluse
+    hermes: ci-only    # structural limit, declared not hidden
+```
+
+The credible alternative was a single boolean/enum "is this skill enforced?". Rejected: it cannot
+express that the *same* capability enforces deeply in-session on Claude/Codex but only at the CI floor
+on a runtime (Hermes) that has no PreToolUse equivalent. Collapsing that to one value would either
+overstate Hermes' guarantees or understate Claude's. The two-tier split (floor everywhere + inline
+per runtime) is the honest shape, and it lets the score reward a runtime on its own ceiling — Hermes'
+`ci-only` is not a failure, so it never caps the global score (spec Fork 6).
+
+The `inline.{claude,codex}` tier is **derived, not hand-classified**: the A2 backfill reads the
+existing `enforces` edges in `model.json` (hook → skill) and assigns `pretooluse` to the 16 skills
+that are the target of one, `active` to the rest. Deriving from the real hook wiring means the tier
+map cannot silently drift from what the hooks actually do — the same source of truth the graph
+already trusts.
+
+Why: the promise of a portable harness is only credible if enforcement is expressed per runtime and
+never masked. A capability that claims uniform enforcement across runtimes that cannot deliver it is
+exactly the dishonesty the five-state model exists to prevent. Encoding enforcement as a derived,
+per-runtime contract keeps the portability and enforcement score dimensions from lying about each
+other (they were otherwise mutually capping — see the spec's Fork 1/Fork 6 resolution).
+
 ## 2026-07-21: `trim-large-output` PostToolUse hook -- cap oversized tool output, spill the full to disk
 
 Context: measured, not assumed. Decomposing two real heavy feature sessions (peak
@@ -45,6 +79,74 @@ reads). Not mirrored into Codex `hooks.json`: that manifest is the Codex safety 
 whether the installed Claude Code version honors `updatedToolOutput` end-to-end -- to confirm
 with a live smoke test before relying on it.
 
+## 2026-07-21: the health score caps on blocker failure-predicates, not low scores; unmeasured dimensions are pending, not zero
+
+Phase B step B2 scores `ProjectState` into eight dimensions (spec §6, Fork 6). Three non-obvious calls:
+
+**Blocker cap fires on a red *predicate*, not a low score.** A dimension is a `blocker` (installation,
+enforcement, governance) or a `gauge` (portability, activation, efficacy, performance, dx). A blocker
+caps the global at 69 **only when its `red` failure-predicate is true** — a genuine defect (e.g. a
+capability with no owner) — never merely because its score is low. This is what lets Hermes' `ci-only`
+enforcement score ~60 without capping the project: a structural ceiling is not a failure. The credible
+alternative (cap when any blocker dimension scores below a threshold) was rejected: it would punish the
+harness for a runtime's structural limits and conflate "new/limited" with "broken". Gauges are maturity
+gradients — they lower the mean proportionally and can never cap, so a fresh install reads as new, not
+broken.
+
+**Unmeasured dimensions are pending (excluded), not invented.** A dimension with no honest local
+signal — no data yet (installation's transactional signal lands with `void init` in Phase C; dx has no
+deterministic local measure) or nothing to measure (an empty project, denominator 0) — carries an
+explicit pending marker and is **excluded from the global mean**, not scored 0. The alternative
+(defaulting to 0 or a plausible placeholder like the spec mockup's 74) was rejected: a false 0 makes a
+brand-new project read identically to a failing one, and an invented number erodes the credibility the
+five-state model rests on. This is the same "0 effective is the truth" stance as the certification
+manifest — the score reports only what it can honestly measure, and the confidence band carries the
+rest. Confidence requires a real sample floor (not a single capability hammered N times) before it
+rises above `low`.
+
+**Next actions derive from the measured gauges, not a hand-list.** The impact-ranked action list is
+computed from gauge dimensions below 100 (a red blocker already surfaces via `blockers`; a pending
+dimension has no measurable gap), so a future measurable gauge joins the list without a code change —
+no maintenance trap.
+
+Why: a score that can be gamed by a flattering average, or that invents numbers for what it cannot
+measure, is worse than no score. Capping on real defects, excluding the unmeasured, and deriving
+actions from real gaps keeps the top-5% bar honest — the score never masks a blocker and never claims
+proof it lacks.
+
+## 2026-07-21: void-harness is public MIT, npx-primary — supersedes marketplace-only (2026-07-09)
+
+**Supersedes `2026-07-09-distribution-is-marketplace-only-the-cli-is-maintainer-tooli`.** void-harness
+is published to npm as `@voidcorp/harness` (MIT, `publishConfig.access: public`) and installed via
+`npx @voidcorp/harness init`; a signed standalone binary on GitHub Releases complements npx for
+machines without Node. The Claude Code marketplace is demoted to a **secondary, optional** channel for
+Claude-Code users who prefer it — no longer the required path.
+
+The 2026-07-09 entry made distribution marketplace-only on the premise that *"consumers need the
+plugin, which the marketplace delivers; the CLI they do not need"*. That premise **changed** with the
+public multi-runtime redirection (spec `2026-07-21-void-harness-public-multiruntime-os`, Fork 2): the
+CLI and `void status` **become the product** — the legible-state surface a developer runs — and the
+redirection's non-negotiable is an **account-free** install (no Claude account, no subscription, no
+API key to install/audit/visualize). The marketplace cannot satisfy account-free install: it requires
+Claude Code. So the earlier decision is not merely revised, its premise no longer holds.
+
+The credible alternative — stay marketplace-only, keep the doctrine private — was rejected (Fork 2
+analysis): void-harness is engine + generic craftsman doctrine already ~90% distilled from public
+sources (superpowers, TigerStyle, citypaul), and its LICENSE is already MIT. Secrecy of derived prose
+buys almost nothing; the moat is the **integration + enforcement + eval-proven evolution**, which
+lives in the **private sibling repos** (forge tuning, DECLIK/business packs) and the **telemetry
+flywheel**, never in this repo. Publishing the engine is near-pure upside: recognition, adoption, and
+the credibility of an open, privacy-first, offline-first harness — which is itself the point.
+
+Telemetry stays opt-in and tiered (see the 2026-07-21 telemetry decision): tier-1 is a maintainer
+*pull* of public npm + GitHub stats (zero phone-home); nothing on a user's machine is ever required to
+call a VoidCorp service, preserving the offline + no-mandatory-service non-negotiables.
+
+Why: assuming a single, account-free, public channel and making every surface tell that one story is
+what makes the "install a top-5% doctrine on any project in under two minutes, free" promise real.
+Versions stay release-please-owned; the actual `npm publish` and the signed-binary pipeline are
+deliberate release-ops acts, not automated from a working session.
+
 ## 2026-07-21: the credential-file NAME heuristic exempts markdown docs
 
 Context: migrating the decision log to per-file markdown (same day) created files whose slugs carry
@@ -65,6 +167,38 @@ Rejected alternative: rename the offending decision slugs to dodge the trigger w
 rustine — it leaves the false positive latent, so any future decision *about* this subject, written
 as its own markdown file, would fail `enforce` again. Fixing the heuristic at the root is the
 harness's own doctrine (systematic-debugging: fix the cause, not the symptom).
+
+## 2026-07-21: eval targets are slug-encoded in frontmatter; success_signal is optional, not mass-backfilled
+
+Phase A step A3 adds the last two authored fields of the capability contract. Two non-obvious calls:
+
+**Eval targets are slug-encoded, not nested maps.** The model shape (spec §2) is a list of
+`{ runtime, provider, tier }` cells. The credible alternative was to author them that way in
+frontmatter — a YAML list of inline maps (`- { runtime: claude, provider: anthropic, tier: opus }`).
+Rejected: parsing a list-of-maps with the repo's hand-rolled, regex-based frontmatter reader is
+exactly the fragile surface the A2 review already flagged (silent "absent vs unrecognized-shape"
+collapse). Instead the frontmatter authors one slug per cell — `eval_targets: [claude/anthropic/opus]`
+— parsed by the **shared `parseList` helper** (the same one `runtimes:` uses) and split on `/` into
+the structured `EvalTarget`. The model exposes the identical `{ runtime, provider, tier }` shape; only
+the authoring surface is compact. A slug that is not exactly three non-empty parts is dropped
+(tolerant), consistent with every other frontmatter parser here.
+
+**`success_signal` is optional and not mass-backfilled.** Unlike `owner: folpe` (uniformly *true* —
+one maintainer owns everything today), a uniform `success_signal` across 64 skills would be a
+dishonest placeholder: the "what good looks like" signal is genuinely per-skill content. So the field
+is optional, absent until authored per capability, and never governance-gated. `eval_targets` is
+backfilled uniformly to the primary `claude/anthropic/opus` cell (the tier the skills are authored
+for — a real declaration of intent), while codex/other cells are added only when a capability actually
+declares support for evaluation there.
+
+Also folded in: the A1 review nit — with `success_signal` as the third scalar frontmatter field, the
+`parseScalar(block, key)` helper was extracted and `owner`/`success_signal` now share it (three was
+the stated YAGNI line for de-duplicating the copy-paste, not two).
+
+Why: keeping the authoring surface parseable by the existing tolerant reader (no new YAML dependency,
+no list-of-maps regex) preserves the "frontmatter is the one source of truth" decision while avoiding
+the fragile-parser trap; and refusing to fake `success_signal` keeps the capability contract honest —
+a populated field must mean something, or the five-state model's credibility erodes.
 
 ## 2026-07-21: docs/DECISIONS.md becomes a generated index over one-file-per-decision
 
@@ -92,6 +226,77 @@ cross-refs resolve unchanged — the migration is invisible to everything downst
 verified: splitting then regenerating preserves every decision line byte-for-byte (only intra-date
 order and the added "generated" banner differ). The `adr-workflow` ADRs under `decisions/` are a
 separate genre and are untouched.
+
+## 2026-07-21: the certification manifest is a frozen committed artifact with an honesty invariant; bundle-bake and eval JSON emission deferred
+
+Phase A step A4 produces `packages/harness-graph/certification.json` — the per-release, frozen join of
+the capability contract (graph model) with the eval-harness reports. It is the repo-authored half of
+the five-state model that `ProjectState` (Phase B) reads and **never recomputes on a consumer
+machine** (spec Fork 5). `buildCertification(model, reports, harnessVersion)` is pure and
+unit-tested; `certification.json` is a committed artifact regenerated by `pnpm certification:build`
+and drift-gated in CI by `pnpm certification:check` (mirroring `decisions:check` / `graph:check`).
+
+**Honesty invariant (the load-bearing decision).** A capability is marked `proof.effective` only when
+a real eval report for it exists, its verdict is `skill-helps`, and it declares an eval target cell to
+place the delta on. `proof.verified` is purely structural (owner + runtimes declared). The credible
+alternative — seeding plausible `effective` values, or defaulting `effective` to the declared target —
+was rejected: it would make the five-state model's terminal state a lie, which is the exact failure
+the model exists to prevent. Consequence: today, with no eval JSON reports on disk, the manifest ships
+**64 capabilities, 0 effective**. That is the honest current state, not a gap to paper over.
+
+**Known limitation — single-cell attribution (flagged, not a dodge).** `EvalReportLite` (skill,
+delta, verdict) carries no `(runtime, provider, tier)` cell identity, so the builder cannot know which
+declared cell a report proves. Rather than blindly stamping the delta on the first declared target
+(which would certify cell B's proof as cell A's on any multi-target capability), the join marks
+`effective` **only when the capability declares exactly one eval target** — then the attribution is
+unambiguous. A multi-target capability stays un-`effective` until eval reports carry cell identity,
+which is a Phase E addition (when reports are actually emitted). `proof.effective.cells` stays a plural
+array for that forward compatibility, but the join emits at most one cell today. Effective also
+requires a *finite* delta (an upstream NaN serializes to a JSON nil) and structural `verified` first
+(effective implies verified) — both enforced in the pure builder and tested.
+
+**Two deliberate deferrals (YAGNI).**
+
+1. *Baking the manifest into the consumer `void-graph` bundle* — deferred to Phase B. Nothing reads
+   the certification until ProjectState exists; baking an unconsumed 64-capability blob into the
+   1.9 MB artifact now is speculative, and the freshness gate already protects the committed file.
+2. *The eval-harness JSON emission that populates `effective`* — deferred to Phase E. Emitting
+   `apps/eval-harness/reports/<skill>.json` only matters once the paid evals actually run, which is
+   Phase E's work (evals as a capability gate), not A4's. A4 builds the manifest *structure* and the
+   join logic; the builder already reads any JSON reports that exist, so Phase E is a one-line emit
+   plus a real eval run, no manifest change.
+
+Why: freezing the proof into a committed, drift-gated artifact keeps ProjectState deterministic and
+offline (it reads a file, runs no eval, calls no model), while the honesty invariant + the "0
+effective is the truth" stance protect the credibility the whole product rests on. Deferring the two
+downstream integrations keeps A4 self-contained and honest rather than shipping speculative wiring.
+
+## 2026-07-21: the capability contract is authored as SKILL.md frontmatter; owner is the first governance gate
+
+Phase A of the public multi-runtime harness OS (spec
+`docs/specs/2026-07-21-void-harness-public-multiruntime-os.md`) needs a structured **capability
+contract** per skill: identity, declared runtimes, per-runtime enforcement tier, owner, eval targets.
+The contract is authored **as SKILL.md frontmatter fields**, extending the existing
+`description`/`activation`/`triggers` block, rather than as a sibling `capability.yaml` per skill.
+
+The credible alternative was a dedicated `capability.yaml` next to each `SKILL.md`. Rejected: the
+graph kernel already parses frontmatter (`packages/harness-graph/src/derive/read-frontmatter.ts`) and
+threads it onto `GraphNode`; a second file would add discovery, a second parser, and a drift surface
+for zero gain. Frontmatter keeps one source of truth per capability and reuses the proven
+`parseActivation`/`parseTriggers` seam.
+
+The first field shipped is `owner:` (accountable maintainer), and it is **governance, fail-closed**: a
+new `missing-owner` detector (`analyze/missing-owner.ts`, wired into `DETECTORS`) emits a blocking
+`error` for any skill node without an owner, so `graph check` and the CI "Graph integrity" gate fail.
+The rule is scoped to skills — hooks/commands/packs/agents are not capabilities. All 64 skills were
+backfilled `owner: folpe` (single maintainer today; per-domain granularity deferred until a second
+owner exists).
+
+Why: the five-state capability model (`available → installed → verified → used → effective`) is only
+honest if every capability has an accountable owner and a proof status. Making ownership a fail-closed
+gate from the first field means no capability can ever ship ownerless, and the same frontmatter seam
+carries `runtimes`, `enforcement`, `evals.targets`, and `success_signal` in the following Phase A
+steps without new machinery.
 
 ## 2026-07-10: vendor the 4 gstack plan-reviews + autoplan as ONE plan-review skill with four lenses (DEV-385)
 

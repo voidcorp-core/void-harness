@@ -2,6 +2,15 @@
 name: retrospective
 activation: on-demand
 description: Periodic engineering retro over a window: read git log / PRs / .void, surface signals (hotspots, test ratio, commit types, regressions), turn them into improvement decisions feeding learning-capture.
+owner: folpe
+runtimes: [claude, codex]
+enforcement:
+  floor: ci
+  inline:
+    claude: active
+    codex: active
+    hermes: ci-only
+eval_targets: [claude/anthropic/opus]
 ---
 
 # retrospective — voidcorp craftsman edition
