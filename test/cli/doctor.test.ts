@@ -91,4 +91,22 @@ describe('doctor', () => {
     expect(out).toContain('AGENTS.md');
     expect(out).toContain('block missing');
   });
+
+  it('reds a config-present project with NO runtime wired (guards against a false all-green)', async () => {
+    mkdirSync(join(dir, '.void'), { recursive: true });
+    writeFileSync(join(dir, '.void', 'config.json'), JSON.stringify({ core: '^0.17.0' }));
+    // no CLAUDE.md/.claude, no AGENTS.md/.codex
+    const out = await runDoctor();
+    expect(out).toContain('no agent runtime wired');
+    expect(out).toContain('failed');
+  });
+
+  it('a Codex-only project sees no Claude marketplace noise (no gh / settings checks)', async () => {
+    mkdirSync(join(dir, '.codex'), { recursive: true });
+    writeFileSync(join(dir, 'AGENTS.md'), '# AGENTS.md\n<!-- void-harness:begin -->\nx\n<!-- void-harness:end -->\n');
+    const out = await runDoctor();
+    expect(out).toContain('codex floor');
+    expect(out).not.toContain('settings.json');
+    expect(out).not.toContain('gh CLI');
+  });
 });

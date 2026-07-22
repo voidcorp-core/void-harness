@@ -10,7 +10,10 @@ import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as p from '@clack/prompts';
-import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, findPack, PACKS } from '../lib/packs.js';
+import { patchExistingRuntimeDocs } from '../lib/claude-md.js';
+import { enabledPluginNames, type PackConfig, resolveEffectivePin, withPackPins } from '../lib/pack-config.js';
+import { enabledPluginsKey, findPack, MARKETPLACE_REPO, PACKS } from '../lib/packs.js';
+import { resolveCorePin } from '../lib/remote.js';
 import {
   marketplaceRepoFrom,
   mergeSettings,
@@ -18,9 +21,6 @@ import {
   settingsPathFor,
   writeSettings,
 } from '../lib/settings.js';
-import { patchExistingRuntimeDocs } from '../lib/claude-md.js';
-import { enabledPluginsKey } from '../lib/packs.js';
-import { resolveCorePin } from '../lib/remote.js';
 
 
 export async function add(args: readonly string[]): Promise<void> {
@@ -56,15 +56,8 @@ export async function add(args: readonly string[]): Promise<void> {
   }
 
   // 1. Settings.json — full enabled list (core + previous + new)
-  const enabledNames = new Set<string>([CORE_PLUGIN_NAME]);
-  for (const key of Object.keys(currentEnabled)) {
-    if (currentEnabled[key] === true) {
-      const [name] = key.split('@');
-      if (name) enabledNames.add(name);
-    }
-  }
-  for (const name of newlyAdded) enabledNames.add(name);
-  const enabledPlugins = Array.from(enabledNames);
+  const enabledPlugins = enabledPluginNames(currentEnabled, { add: newlyAdded });
+  const enabledSet = new Set(enabledPlugins);
 
   const merged = mergeSettings(existing, { enabledPlugins, marketplaceRepo });
   await writeSettings(settingsPath, merged);
@@ -75,7 +68,7 @@ export async function add(args: readonly string[]): Promise<void> {
 
   // 3. Refresh whichever doctrine docs the project already has (per-runtime;
   //    never resurrects the doc of a runtime this project doesn't target).
-  const enabledPacks = PACKS.filter((pack) => enabledNames.has(pack.name));
+  const enabledPacks = PACKS.filter((pack) => enabledSet.has(pack.name));
   await patchExistingRuntimeDocs(projectRoot, { enabledPlugins, enabledPacks });
 
   p.log.success(`Added: ${newlyAdded.join(', ')} (marketplace: ${marketplaceRepo})`);
@@ -90,7 +83,7 @@ async function syncVoidConfig(
   const configPath = join(projectRoot, '.void', 'config.json');
   if (!existsSync(configPath)) return;   // no config = no sync; init expected first
 
-  let config: { core?: string; packs?: Record<string, string> } & Record<string, unknown>;
+  let config: PackConfig;
   try {
     config = JSON.parse(await readFile(configPath, 'utf8'));
   } catch {
@@ -98,21 +91,17 @@ async function syncVoidConfig(
     return;
   }
 
-  // Pin the added packs to the config's canonical version: core's pin (lockstep),
-  // else any existing pack pin, else a fresh remote resolve. NEVER a stale
-  // hardcoded literal — the old `^0.1.0` fallback froze packs at a wrong version
-  // and reintroduced the default-pin-stale friction this repo fixed (#67).
+  // Pin the added packs to the config's canonical version (single source of the
+  // policy: core's pin, else any existing pack pin, else a fresh remote resolve).
+  // NEVER a stale literal (#67).
   const resolved = resolveCorePin(marketplaceRepo);
-  const pin = config.core ?? Object.values(config.packs ?? {})[0] ?? (resolved ? `^${resolved}` : undefined);
+  const pin = resolveEffectivePin(config, resolved ? `^${resolved}` : undefined);
   if (pin === undefined) {
     p.log.warn(
-      `core version unresolved (marketplace unreachable): '${addedPacks.join(', ')}' activated in settings only. Run void-harness update after gh auth login to pin it.`,
+      `core version unresolved (could not derive from marketplace): '${addedPacks.join(', ')}' activated in settings only. Run void-harness update once it is reachable to pin it.`,
     );
     return;
   }
-  const packs = { ...(config.packs ?? {}) };
-  for (const name of addedPacks) {
-    packs[`@voidcorp/${name}`] = pin;
-  }
-  await writeFile(configPath, `${JSON.stringify({ ...config, packs }, null, 2)}\n`);
+  const next = withPackPins(config, { addNames: addedPacks, pin });
+  await writeFile(configPath, `${JSON.stringify(next, null, 2)}\n`);
 }

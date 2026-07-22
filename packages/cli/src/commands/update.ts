@@ -11,18 +11,18 @@
 // upgrade a Codex project's staged floor scripts lag the shipped ones. This
 // command reconciles both in one shot.
 
+import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
-import { execFileSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO } from '../lib/packs.js';
-import { readSettings, settingsPathFor } from '../lib/settings.js';
-import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
-import { compareVersions, normalizeVersion } from '../lib/version.js';
 import { CODEX_HOOKS_DIR, refreshCodexFloor } from '../lib/codex-floor.js';
+import { computePinBumps } from '../lib/pack-config.js';
+import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO } from '../lib/packs.js';
 import { findCoreSource } from '../lib/paths.js';
+import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { banner, blank, c, footer, glyph, line, meta, row, status } from '../lib/render.js';
+import { readSettings, settingsPathFor } from '../lib/settings.js';
 
 
 interface LocalConfig {
@@ -194,29 +194,16 @@ async function bumpPins(projectRoot: string, head: string, dryRun: boolean): Pro
 
   let config: LocalConfig;
   try {
-    config = JSON.parse(await readFile(configPath, 'utf8')) as LocalConfig;
+    config = JSON.parse(await readFile(configPath, 'utf8'));
   } catch (err) {
-    line(`${c.yellow(glyph.up)}  ${c.dim('pins'.padEnd(12))}invalid .void/config.json: ${(err as Error).message}`);
+    const msg = err instanceof Error ? err.message : String(err);
+    line(`${c.yellow(glyph.up)}  ${c.dim('pins'.padEnd(12))}invalid .void/config.json: ${msg}`);
     return 0;
   }
 
-  const newPin = `^${head}`;
-  const changes: Array<{ name: string; from: string; to: string }> = [];
-
-  if (config.core !== undefined) {
-    const fromCore = normalizeVersion(config.core);
-    if (compareVersions(fromCore, head) !== 0) {
-      changes.push({ name: CORE_PLUGIN_NAME, from: fromCore, to: head });
-    }
-  }
-  const packs = config.packs ?? {};
-  for (const [key, declared] of Object.entries(packs)) {
-    const from = normalizeVersion(declared);
-    if (compareVersions(from, head) !== 0) {
-      const packName = key.replace(/^@voidcorp\//, '');
-      changes.push({ name: packName, from, to: head });
-    }
-  }
+  // Pure core: which pins move to `head` + the next config. The fs write,
+  // rendering, and dry-run are the shell around it.
+  const { changes, next } = computePinBumps(config, head);
 
   if (changes.length === 0) {
     line(`${c.green(glyph.check)}  ${c.dim('pins'.padEnd(12))}already at ^${head}`);
@@ -234,10 +221,7 @@ async function bumpPins(projectRoot: string, head: string, dryRun: boolean): Pro
 
   if (dryRun) return changes.length;
 
-  if (config.core !== undefined) config.core = newPin;
-  for (const key of Object.keys(packs)) packs[key] = newPin;
-  config.packs = packs;
-  await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`);
+  await writeFile(configPath, `${JSON.stringify(next, null, 2)}\n`);
   return changes.length;
 }
 

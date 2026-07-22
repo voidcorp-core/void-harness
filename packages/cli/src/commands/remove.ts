@@ -10,7 +10,9 @@ import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as p from '@clack/prompts';
-import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, findPack, PACKS } from '../lib/packs.js';
+import { patchExistingRuntimeDocs } from '../lib/claude-md.js';
+import { enabledPluginNames, type PackConfig, withPackPins } from '../lib/pack-config.js';
+import { CORE_PLUGIN_NAME, enabledPluginsKey, findPack, MARKETPLACE_REPO, PACKS } from '../lib/packs.js';
 import {
   marketplaceRepoFrom,
   mergeSettings,
@@ -18,8 +20,6 @@ import {
   settingsPathFor,
   writeSettings,
 } from '../lib/settings.js';
-import { patchExistingRuntimeDocs } from '../lib/claude-md.js';
-import { enabledPluginsKey } from '../lib/packs.js';
 
 
 export async function remove(args: readonly string[]): Promise<void> {
@@ -59,15 +59,9 @@ export async function remove(args: readonly string[]): Promise<void> {
     return;
   }
 
-  // 1. Settings.json
-  const enabledNames = new Set<string>([CORE_PLUGIN_NAME]);
-  for (const key of Object.keys(currentEnabled)) {
-    if (currentEnabled[key] === true) {
-      const [name] = key.split('@');
-      if (name) enabledNames.add(name);
-    }
-  }
-  const enabledPlugins = Array.from(enabledNames);
+  // 1. Settings.json — currentEnabled already has the removed keys deleted.
+  const enabledPlugins = enabledPluginNames(currentEnabled);
+  const enabledSet = new Set(enabledPlugins);
 
   const merged = mergeSettings(
     { ...existing, enabledPlugins: currentEnabled },
@@ -79,7 +73,7 @@ export async function remove(args: readonly string[]): Promise<void> {
   await unsyncVoidConfig(projectRoot, removed);
 
   // 3. Refresh whichever doctrine docs the project already has (per-runtime).
-  const enabledPacks = PACKS.filter((pack) => enabledNames.has(pack.name));
+  const enabledPacks = PACKS.filter((pack) => enabledSet.has(pack.name));
   await patchExistingRuntimeDocs(projectRoot, { enabledPlugins, enabledPacks });
 
   p.log.success(`Removed: ${removed.join(', ')} (marketplace: ${marketplaceRepo})`);
@@ -90,7 +84,7 @@ async function unsyncVoidConfig(projectRoot: string, removedPacks: readonly stri
   const configPath = join(projectRoot, '.void', 'config.json');
   if (!existsSync(configPath)) return;
 
-  let config: { packs?: Record<string, string> } & Record<string, unknown>;
+  let config: PackConfig;
   try {
     config = JSON.parse(await readFile(configPath, 'utf8'));
   } catch {
@@ -98,9 +92,6 @@ async function unsyncVoidConfig(projectRoot: string, removedPacks: readonly stri
     return;
   }
 
-  const packs = { ...(config.packs ?? {}) };
-  for (const name of removedPacks) {
-    delete packs[`@voidcorp/${name}`];
-  }
-  await writeFile(configPath, `${JSON.stringify({ ...config, packs }, null, 2)}\n`);
+  const next = withPackPins(config, { removeNames: removedPacks });
+  await writeFile(configPath, `${JSON.stringify(next, null, 2)}\n`);
 }
