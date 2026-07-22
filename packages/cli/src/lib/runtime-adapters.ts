@@ -1,8 +1,16 @@
 // The runtime seam. The harness authors ONE doctrine and compiles it to each
 // agent runtime through an adapter. Core commands (init / runtime add / doctor)
-// never branch on a runtime name — they iterate the adapters. Adding a runtime
-// (Codex exec, Hermes, a local agent, ...) is a new adapter object registered in
-// ADAPTERS here, with zero edits to the commands.
+// iterate the adapters for detect / prerequisites / wire / doctorChecks rather
+// than switching on a runtime name; adding a runtime (Codex exec, Hermes, a
+// local agent, ...) is a new adapter object registered in ADAPTERS here, with
+// zero edits to that iterated surface.
+//
+// One axis stays intentionally OUTSIDE the adapter contract: the Claude
+// MARKETPLACE (pin resolution, marketplace reachability, plugin-cache + remote
+// version health). No other runtime has a marketplace, so the commands gate it
+// with an explicit `claude` check rather than pretending it is a generic adapter
+// concern — the one honest exception to "iterate, don't branch", not a leak to
+// fold away.
 //
 // This is the AGENT-RUNTIME axis only. The orthogonal MODEL-PROVIDER axis
 // (Anthropic / OpenAI-compatible / Ollama / custom) is a separate seam and is
@@ -104,7 +112,7 @@ const claudeAdapter: RuntimeAdapter = {
     ];
     if (ctx.pinVersion === undefined) {
       nextSteps.push(
-        'FAILED: core version unresolved (marketplace unreachable) — run gh auth login, then void-harness update to pin it',
+        'FAILED: core version could not be resolved from the marketplace — once it is reachable, run void-harness update to pin it',
       );
     }
     return {

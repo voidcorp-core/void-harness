@@ -184,7 +184,8 @@ export async function codexFloorHealth(projectRoot: string): Promise<CodexFloorH
   } catch {
     return { ok: false, detail: '.codex/hooks.json is not valid JSON' };
   }
-  if (parsed === null || typeof parsed !== 'object') {
+  // allow-null: JSON.parse returns the null literal for a "null" manifest.
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
     return { ok: false, detail: '.codex/hooks.json is not a JSON object' };
   }
 

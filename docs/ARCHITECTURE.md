@@ -78,7 +78,7 @@ Every agent declares an explicit `model:` in its frontmatter, chosen by the work
 | Framework-specific extensions of core skills | `packs/<pack>/` (can extend, not override blindly) |
 | Package-manager / monorepo-tool specifics (Bun, Turbo, pnpm) | `packs/pack-monorepo/` |
 
-**Rule**: a file in `core/` may assume TypeScript, Zod, `tsc`, vitest-style discovery. It may NOT assume a specific framework (Next vs Remix vs SvelteKit), a specific runtime (Node vs Bun vs Deno), or specific monorepo tooling. Those decisions live in packs and are read from `voidcorp.config.json` at runtime.
+**Rule**: a file in `core/` may assume TypeScript, Zod, `tsc`, vitest-style discovery. It may NOT assume a specific framework (Next vs Remix vs SvelteKit), a specific runtime (Node vs Bun vs Deno), or specific monorepo tooling. Those decisions live in packs and are read from `.void/config.json` at runtime.
 
 ### Hook libraries (`_`-prefixed)
 
@@ -135,7 +135,7 @@ The CLI is the only entry point. It:
 2. Adds packs to the current project's `.claude/` (via symlink or copy)
 3. Updates both
 4. Runs `doctor` to detect drift / corruption / version mismatch
-5. Runs `init` to create `voidcorp.config.json` in a new project
+5. Runs `init` to create `.void/config.json` in a new project
 
 The CLI does **not** edit the consumer's source code. The consumer's CLAUDE.md imports harness modules — the harness never writes business code.
 
@@ -353,7 +353,7 @@ The `packs` field pins the **marketplace plugins** that were enabled, keyed
 `@voidcorp/<plugin-name>` (the plugin name, e.g. `harness-nextjs`, scoped under
 `@voidcorp/`), each mapped to the version it was pinned at. These are plugin
 references, not npm package names: the npm packages are `@voidcorp/pack-<stack>`,
-the plugins they pair with are `void-<stack>`. `doctor` reads this field to
+the plugins they pair with are `harness-<stack>`. `doctor` reads this field to
 detect version drift against the marketplace HEAD.
 
 ```json

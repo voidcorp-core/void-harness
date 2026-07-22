@@ -90,7 +90,7 @@ describe('claude adapter', () => {
   it('emits a FAILED next-step when the pin is unresolved', async () => {
     const dir = scratch();
     const outcome = await adapterFor('claude').wire({ ...ctxFor(dir), pinVersion: undefined });
-    expect(outcome.nextSteps.some((s) => s.startsWith('FAILED:') && s.includes('core version unresolved'))).toBe(true);
+    expect(outcome.nextSteps.some((s) => s.startsWith('FAILED:') && s.includes('core version could not be resolved'))).toBe(true);
   });
 
   it('doctorChecks reds a missing settings.json', async () => {

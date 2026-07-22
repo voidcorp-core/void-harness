@@ -1,6 +1,6 @@
 // Shared prerequisite checks for the harness install. `doctor` and `init` both
 // need to know whether jq (required by every enforcement hook), gh (required to
-// reach the private marketplace), and the marketplace repo itself are usable.
+// reach the public marketplace), and the marketplace repo itself are usable.
 // Extracted here so the two commands can never drift in what "healthy" means
 // (audit 2026-07-09, issue #67).
 
@@ -36,7 +36,7 @@ export function checkJq(): CheckResult {
 }
 
 /**
- * gh gates the private-marketplace fetch. Two distinct failures the caller must
+ * gh gates the marketplace fetch. Two distinct failures the caller must
  * be able to tell apart: not installed vs installed-but-unauthenticated.
  */
 export function checkGh(): CheckResult {
@@ -46,7 +46,7 @@ export function checkGh(): CheckResult {
     return {
       name: 'gh CLI',
       ok: false,
-      message: 'gh CLI not installed (required for private marketplace)',
+      message: 'gh CLI not installed (required for marketplace pin resolution)',
       fix: 'brew install gh OR https://cli.github.com',
     };
   }
@@ -57,7 +57,7 @@ export function checkGh(): CheckResult {
     return {
       name: 'gh CLI',
       ok: false,
-      message: 'gh CLI not authenticated (required for private marketplace)',
+      message: 'gh CLI not authenticated (required for marketplace pin resolution)',
       fix: 'gh auth login',
     };
   }
@@ -66,7 +66,7 @@ export function checkGh(): CheckResult {
 /**
  * The marketplace repo must be reachable AND readable with the current gh auth.
  * This is the check that catches "authenticated to GitHub, but no access to the
- * private repo" — a distinct failure from an unauthenticated gh, surfaced at
+ * repo" — a distinct failure from an unauthenticated gh, surfaced at
  * init time instead of only after a restart when the plugin never loads.
  */
 export function checkMarketplaceAccess(repo: string): CheckResult {

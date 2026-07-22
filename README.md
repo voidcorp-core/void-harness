@@ -65,6 +65,24 @@ npx @voidfactory/harness status     # deterministic, offline, LLM-free project h
 npx @voidfactory/harness doctor     # health check
 ```
 
+### Multiple runtimes, added when you need them
+
+The harness is runtime-agnostic by construction: one doctrine, compiled to each agent runtime
+through an adapter. `init` wires the runtimes it detects (or `--runtime claude|codex|both`). Each
+runtime owns its own layer and doctrine doc — a Claude-only project has just `CLAUDE.md`, a
+Codex-only project just `AGENTS.md`.
+
+Add a runtime **later, without friction** — no reinstall, nothing touched on the runtime you
+already use:
+
+```
+npx @voidfactory/harness runtime list        # which runtimes are wired
+npx @voidfactory/harness runtime add codex    # wire Codex on a Claude project (or vice-versa)
+```
+
+`runtime add codex` stages Codex's safety floor (`.codex/hooks.json` + hook scripts) and writes
+`AGENTS.md`, leaving your Claude setup byte-for-byte untouched. See [`docs/CODEX.md`](docs/CODEX.md).
+
 `status` reads a frozen capability certification and local telemetry to show, per capability, the
 five-state lifecycle (`available → installed → verified → used → effective`) and a blocker/gauge
 score — no model call, no network. See [`docs/DECISIONS.md`](docs/DECISIONS.md) (2026-07-21) for the

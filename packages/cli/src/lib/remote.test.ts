@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { pinnedCoordinates } from './remote.js';
+import { pinnedCoordinates, selectCorePlugin } from './remote.js';
+
+describe('selectCorePlugin', () => {
+  it('selects the harness entry by name, never plugins[0]', () => {
+    // Regression: the first catalog entry is an unrelated, version-less product.
+    const plugins = [
+      { name: 'forge', source: 'github' as const },
+      { name: 'harness', source: { source: 'github', repo: 'voidcorp-core/void-plugins', sha: 'a'.repeat(40) } },
+    ];
+    expect(selectCorePlugin(plugins)?.name).toBe('harness');
+  });
+
+  it('returns undefined when no harness entry exists', () => {
+    expect(selectCorePlugin([{ name: 'forge', source: 'github' as const }])).toBeUndefined();
+  });
+});
 
 // The catalog (void-plugins) pins every external source with ref + sha and
 // carries no version field: the remote version of truth is the plugin.json

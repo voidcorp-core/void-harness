@@ -144,13 +144,15 @@ describe('codexFloorHealth', () => {
     expect(health.detail).toContain('missing');
   });
 
-  it('does not crash on a valid-JSON-but-non-object manifest', async () => {
+  it('does not crash on a valid-JSON-but-non-object manifest (null or array)', async () => {
     const project = mkdtempSync(join(tmpdir(), 'void-codex-health-'));
     await wireCodexFloor(project, CORE_ROOT);
-    writeFileSync(join(project, '.codex', 'hooks.json'), 'null\n');
-    const health = await codexFloorHealth(project);
-    expect(health.ok).toBe(false);
-    expect(health.detail).toContain('not a JSON object');
+    for (const scalar of ['null\n', '[1,2]\n', '42\n']) {
+      writeFileSync(join(project, '.codex', 'hooks.json'), scalar);
+      const health = await codexFloorHealth(project);
+      expect(health.ok).toBe(false);
+      expect(health.detail).toContain('not a JSON object');
+    }
   });
 
   it('flags invalid JSON', async () => {
