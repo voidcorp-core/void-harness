@@ -12,7 +12,7 @@
 // update). Keeping them here means init/doctor/update never re-implement floor
 // logic — they format results this module returns.
 
-import { cp, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
+import { chmod, cp, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 async function readOrUndefined(path: string): Promise<string | undefined> {
@@ -114,12 +114,18 @@ export async function wireCodexFloor(projectRoot: string, sourceRoot: string): P
   const hooksDst = join(projectRoot, CODEX_HOOKS_DIR);
   await mkdir(hooksDst, { recursive: true });
   for (const script of CODEX_FLOOR_SCRIPTS) {
-    // cp copies the mode by default, preserving the executable bit the two
-    // entry-point hooks need to run as a command.
     await cp(join(hooksSrc, script), join(hooksDst, script));
   }
 
   const template = await readFile(join(sourceRoot, 'codex', 'hooks.json'), 'utf8');
+  // npm/pnpm pack normalizes file modes to 0644, so the hooks shipped inside the
+  // published package arrive NON-executable — `cp` then propagates that, leaving
+  // a wired-but-dead floor. Codex runs the entry-point hooks as commands, so set
+  // +x explicitly instead of trusting a preserved mode.
+  for (const hook of referencedScripts(template)) {
+    await chmod(join(hooksDst, hook), 0o755);
+  }
+
   const manifest = compileCodexHooksManifest(template);
   const codexDir = join(projectRoot, '.codex');
   await mkdir(codexDir, { recursive: true });
