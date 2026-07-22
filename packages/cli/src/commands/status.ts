@@ -107,6 +107,13 @@ export function statusLines(state: ProjectState, score: Score): string[] {
   out.push('');
   out.push('RUNTIMES');
   out.push(`  ${state.runtimes.map((r) => `${r.runtime} ${r.detected ? 'verified' : 'missing'}`).join(' · ')}`);
+  // Honesty: skill usage is counted from observable invocations (Claude's Skill
+  // tool). Codex loads skills as context and fires no hook event for them, so on
+  // a Codex project the counts reflect Claude usage only — never read a low count
+  // as "these skills aren't used".
+  if (state.runtimes.some((r) => r.runtime === 'codex' && r.detected)) {
+    out.push('  note: usage reflects observable (Claude) skill invocations — Codex does not surface skill use');
+  }
   out.push('');
   out.push('NEXT BEST ACTIONS');
   if (score.nextActions.length === 0) out.push('  (none — nothing measurable to improve yet)');
