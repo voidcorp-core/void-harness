@@ -3,8 +3,9 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { rmSync } from 'node:fs';
 import type { GraphModel } from '@voidcorp/harness-graph';
-import { graph } from './graph.js';
+import { graph, resolveModel } from './graph.js';
 
 // A baked model with core + two packs. The consumer test enables only harness-nextjs,
 // so harness-monorepo must be filtered out of every reporting subcommand.
@@ -35,6 +36,40 @@ const MODEL: GraphModel = {
   edges: [],
 };
 const BUNDLED = JSON.stringify(MODEL);
+
+describe('resolveModel — npm consumer reuses the shipped model.json', () => {
+  it('reads core-assets/data/model.json when the monorepo packs source is absent', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'void-graph-shipped-'));
+    const shippedModel = join(dir, 'data', 'model.json');
+    mkdirSync(join(dir, 'data'), { recursive: true });
+    writeFileSync(shippedModel, BUNDLED);
+    try {
+      // No bundled define, no monorepo packs dir -> must fall back to the shipped model.
+      const model = await resolveModel(dir, undefined, { packsDir: join(dir, 'no-packs-here'), shippedModel });
+      // Core nodes survive any enabled-pack filter, proving it read the full shipped model.
+      expect(model.nodes.some((n) => n.id === 'skill:tdd')).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('prefers a live source scan when the monorepo packs dir is present', async () => {
+    // packsDir present -> the loadModel(source scan) branch, NOT the shipped model. An empty core
+    // source yields no `skill:tdd`, proving the shipped fixture (which has it) was not read.
+    const emptyCore = mkdtempSync(join(tmpdir(), 'void-graph-empty-'));
+    const dir = mkdtempSync(join(tmpdir(), 'void-graph-shipped-'));
+    const shippedModel = join(dir, 'data', 'model.json');
+    mkdirSync(join(dir, 'data'), { recursive: true });
+    writeFileSync(shippedModel, BUNDLED);
+    try {
+      const model = await resolveModel(emptyCore, undefined, { packsDir: dir, shippedModel });
+      expect(model.nodes.some((n) => n.id === 'skill:tdd')).toBe(false);
+    } finally {
+      rmSync(emptyCore, { recursive: true, force: true });
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
 
 // 24 activation events across 3 sessions clears the volume guard (>=20 events, >=3 sessions).
 const activations = () => {
