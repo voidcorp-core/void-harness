@@ -27,6 +27,7 @@ import {
   type PackDescriptor,
 } from '../lib/packs.js';
 import { findCoreSource } from '../lib/paths.js';
+import { isHarnessSourceRepo } from '../lib/self-repo.js';
 import { type CheckResult, checkJq } from '../lib/prerequisites.js';
 import { resolveCorePin } from '../lib/remote.js';
 import { banner, blank, c, footer, glyph, line, meta } from '../lib/render.js';
@@ -146,6 +147,17 @@ export async function init(args: readonly string[]): Promise<void> {
 
   banner('init');
   meta('project', projectRoot);
+
+  // Guard: never wire the void-harness source repo as if it were a consumer.
+  // init overwrites the canonical CLAUDE.md / AGENTS.md and drops doctrine files
+  // at the repo root — corrupting the source of truth. Refuse by default; --force
+  // is the deliberate "I know, I'm dogfooding the installer here" escape hatch.
+  if (isHarnessSourceRepo(projectRoot) && !opts.force) {
+    blank();
+    p.log.error('This is the void-harness source repo — init would overwrite the canonical CLAUDE.md and doctrine files.');
+    p.log.message('To install/test the harness, run init in a consumer project. To do it here anyway, pass --force.');
+    process.exit(2);
+  }
 
   // A --runtime typo must fail loudly, never silently fall back to "both".
   if (opts.invalidRuntimeArgs.length > 0) {

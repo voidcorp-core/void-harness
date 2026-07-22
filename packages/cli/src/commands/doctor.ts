@@ -22,6 +22,7 @@ import { packsCoherenceIssues, validateConfig } from '../lib/config-schema.js';
 import { hookHealthIssues, locatePluginDir } from '../lib/plugin-cache.js';
 import { compareVersions, normalizeVersion } from '../lib/version.js';
 import { detectedAdapters } from '../lib/runtime-adapters.js';
+import { isHarnessSourceRepo } from '../lib/self-repo.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
 import { homedir } from 'node:os';
 
@@ -44,6 +45,20 @@ export async function doctor(args: readonly string[]): Promise<void> {
   const skipRemote = args.includes('--no-remote');
   const checks: CheckResult[] = [];
   const root = process.cwd();
+
+  // Running inside the void-harness source repo? The consumer checks below
+  // (config, doctrine files, wired runtime) don't apply here — the source repo
+  // produces the harness, it doesn't install it — so report that plainly
+  // instead of a wall of irrelevant failures that reads as a broken install.
+  if (isHarnessSourceRepo(root)) {
+    banner('doctor');
+    blank();
+    line(`${c.muted(glyph.dot)}  this is the ${c.accent('void-harness')} source repo — the harness is not installed here`);
+    line(c.dim('   consumer checks (config, doctrine, runtime wiring) do not apply; nothing to fix'));
+    line(c.dim(`   ${glyph.to} to dogfood the installer, run it in a throwaway project, not the source tree`));
+    footer(c.dim('source repo — skipped'));
+    return;
+  }
 
   // Parsed config is reused by the schema check AND the settings<->config
   // coherence check further down, so capture it once here.

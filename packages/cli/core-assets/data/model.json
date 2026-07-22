@@ -1400,7 +1400,7 @@
       "name": "service-package",
       "description": "Create or extend a packages/<name>/ service in a harness-monorepo workspace: the 5+5 file layout, @repo/* boundaries, ports-and-adapters direction. Composes with hexagonal-architecture, DDD.",
       "lines": 132,
-      "staticTokens": 1519,
+      "staticTokens": 1517,
       "pack": "pack-monorepo",
       "source": "packages/packs/pack-monorepo/skills/service-package/SKILL.md",
       "owner": "folpe",
