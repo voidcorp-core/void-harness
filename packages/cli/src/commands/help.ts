@@ -3,7 +3,7 @@
 // other command (a plain template string used to read as an afterthought).
 
 import { blank, brand, c, glyph, heading, termWidth } from '../lib/render.js';
-import { CORE_PLUGIN_NAME } from '../lib/packs.js';
+import { CORE_PLUGIN_NAME, MARKETPLACE_REPO } from '../lib/packs.js';
 
 const write = (s: string): void => void process.stdout.write(s);
 
@@ -90,6 +90,6 @@ export function printHelp(): void {
 
   blank();
   write(`  ${c.muted('Skills load as')} ${c.accent('/harness:<name>')} ${c.muted('and')} ${c.accent('/harness-<stack>:<name>')}${c.muted('.')}\n`);
-  write(`  ${c.muted('Marketplace (optional):')} ${c.muted('github.com/voidcorp-core/void-plugins')}\n`);
+  write(`  ${c.muted('Marketplace (optional):')} ${c.muted(`github.com/${MARKETPLACE_REPO}`)}\n`);
   blank();
 }

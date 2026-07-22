@@ -27,8 +27,9 @@ export interface PackDescriptor {
 /** Marketplace name used in `extraKnownMarketplaces` and `enabledPlugins`. */
 export const MARKETPLACE_NAME = 'voidcorp';
 
-/** Dedicated catalog repo (pure marketplace, products live in their own repos). */
-export const MARKETPLACE_REPO = 'voidcorp-core/void-plugins';
+/** Self-hosted marketplace: this repo IS the catalog. `.claude-plugin/marketplace.json`
+ *  at the root lists every plugin as a local subdirectory (`./packages/core`, ...). */
+export const MARKETPLACE_REPO = 'voidcorp-core/void-harness';
 
 /** Core plugin name (always activated). */
 export const CORE_PLUGIN_NAME = 'harness';

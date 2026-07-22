@@ -240,7 +240,7 @@ async function checkRemoteVersions(root: string): Promise<CheckResult> {
   for (const plugin of remote.value.plugins) {
     const declared = localFor(plugin.name);
     if (!declared) continue;
-    const pinned = fetchPinnedPluginVersion(plugin);
+    const pinned = fetchPinnedPluginVersion(plugin, repo);
     if (!pinned.ok) continue;
     if (compareVersions(normalizeVersion(declared), pinned.value) < 0) {
       drifted.push(`${plugin.name} ${normalizeVersion(declared)} → ${pinned.value}`);

@@ -62,7 +62,7 @@ export async function update(args: readonly string[]): Promise<void> {
     process.exit(1);
   }
   const core = remote.value.plugins.find((p) => p.name === CORE_PLUGIN_NAME);
-  const headFetch = core ? fetchPinnedPluginVersion(core) : undefined;
+  const headFetch = core ? fetchPinnedPluginVersion(core, repo) : undefined;
   if (!headFetch?.ok) {
     blank();
     status(`could not resolve the pinned ${CORE_PLUGIN_NAME} version: ${headFetch?.error ?? 'entry missing from catalog'}`, 'err');

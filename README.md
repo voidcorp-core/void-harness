@@ -104,14 +104,15 @@ public-MIT distribution decision (supersedes the earlier marketplace-only stance
 Claude-Code users who prefer the plugin channel can still install from the **voidcorp** marketplace:
 
 ```
-/plugin marketplace add voidcorp-core/void-plugins
+/plugin marketplace add voidcorp-core/void-harness
 /plugin install harness@voidcorp
 /plugin install harness-nextjs@voidcorp     # add a stack pack
 ```
 
 Skills then auto-load as `/harness:<name>` (core) and `/harness-<stack>:<name>` (packs). The catalog
-lives in [`voidcorp-core/void-plugins`](https://github.com/voidcorp-core/void-plugins) (pinned by
-commit sha).
+is self-hosted here: [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) lists every
+plugin as a local subdirectory (`./packages/core`, `./packages/packs/*`), versioned by each
+`plugin.json`.
 
 ### Enforce the floor on every PR (void-enforce Action)
 
@@ -150,8 +151,8 @@ void-harness doctor                     # health check
 
 ## Relation to other VoidCorp repos
 
-- [`voidcorp-core/void-plugins`](https://github.com/voidcorp-core/void-plugins) — the voidcorp marketplace catalog (harness, packs, forge).
 - [`voidcorp-core/forge`](https://github.com/voidcorp-core/forge) — ideation pipeline plugin, distributed as `forge@voidcorp`.
+- [`voidcorp-core/void-plugins`](https://github.com/voidcorp-core/void-plugins) — legacy dedicated catalog; superseded by this repo's self-hosted `.claude-plugin/marketplace.json`. Kept for back-compat with installs that still point at it.
 - [`voidcorp-core/void-starter`](https://github.com/voidcorp-core/void-starter) — Next.js template. Its CLAUDE.md will reference `@voidcorp/pack-nextjs` + `@voidcorp/pack-monorepo`.
 - [`voidcorp-core/voidcorp`](https://github.com/voidcorp-core/voidcorp) — marketing site, will use `@voidcorp/pack-marketing-site` (future).
 
