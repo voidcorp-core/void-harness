@@ -61,7 +61,7 @@ describe('core-assets mirror', () => {
         drifted.push(`missing in mirror: ${rel}`);
       }
     }
-    expect(drifted, `run: pnpm --filter @voidcorp/harness build:assets`).toEqual([]);
+    expect(drifted, `run: pnpm --filter @voidfactory/harness build:assets`).toEqual([]);
   });
 
   it('contains no orphan file absent from packages/core', () => {
@@ -73,6 +73,6 @@ describe('core-assets mirror', () => {
         orphans.push(rel);
       }
     }
-    expect(orphans, `stale mirror files; run: pnpm --filter @voidcorp/harness build:assets`).toEqual([]);
+    expect(orphans, `stale mirror files; run: pnpm --filter @voidfactory/harness build:assets`).toEqual([]);
   });
 });

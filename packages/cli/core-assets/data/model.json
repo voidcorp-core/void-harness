@@ -66,8 +66,8 @@
       "type": "command",
       "name": "void-audit",
       "description": "Run the void-harness outbound audit — skills not invoked recently (from .void/usage.log), upstream deprecations, decision-matrix conflicts — and surface proposed deprecations.",
-      "lines": 15,
-      "staticTokens": 224,
+      "lines": 13,
+      "staticTokens": 186,
       "pack": null,
       "source": "packages/core/commands/void-audit.md"
     },
@@ -76,8 +76,8 @@
       "type": "command",
       "name": "void-doctor",
       "description": "Run the void-harness install health check and summarize the result (config, doctrine files, settings, jq/gh availability, version drift).",
-      "lines": 15,
-      "staticTokens": 205,
+      "lines": 13,
+      "staticTokens": 150,
       "pack": null,
       "source": "packages/core/commands/void-doctor.md"
     },

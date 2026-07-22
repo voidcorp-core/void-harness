@@ -1,7 +1,7 @@
 {
-  "name": "@voidcorp/harness",
+  "name": "@voidfactory/harness",
   "version": "0.17.0",
-  "description": "void-harness CLI — install the harness plugin into a project, configure marketplace + settings, manage doctrine.",
+  "description": "void-harness CLI — install a top-5% development doctrine on any project; render deterministic project health. Command: void-harness.",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -32,6 +32,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@voidcorp/harness-graph": "workspace:*",
     "esbuild": "^0.28.0",
     "tsup": "^8.0.0",
     "tsx": "^4.19.0",
@@ -40,7 +41,7 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.5.0",
-    "@voidcorp/harness-graph": "workspace:*",
+    "yaml": "^2.5.0",
     "zod": "^4.4.3"
   }
 }

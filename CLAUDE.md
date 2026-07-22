@@ -6,7 +6,7 @@ You are working inside the **void-harness** repo itself — the meta-repo that p
 
 ## What this repo is
 
-A **public, MIT** harness installed free and account-free via `npx @voidcorp/harness` (the npm package is the primary channel; the voidcorp marketplace `voidcorp-core/void-plugins` is an optional secondary channel — see `docs/DECISIONS.md` 2026-07-21, which supersedes the earlier marketplace-only stance). It injects opinionated Claude Code configuration into any project:
+A **public, MIT** harness installed free and account-free via `npx @voidfactory/harness` (the npm package is the primary channel; the voidcorp marketplace `voidcorp-core/void-plugins` is an optional secondary channel — see `docs/DECISIONS.md` 2026-07-21, which supersedes the earlier marketplace-only stance). It injects opinionated Claude Code configuration into any project:
 
 - **Core** (`packages/core/`) — universal craftsman skills, agents, hooks, CLAUDE.md modules
 - **Packs** (`packages/packs/*`) — stack-specific add-ons activated per project

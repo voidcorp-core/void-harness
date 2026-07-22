@@ -26,9 +26,9 @@
     "version:check": "node scripts/check-version-lockstep.mjs",
     "check:publish": "node scripts/check-publish-safety.mjs",
     "bump": "node scripts/bump-version.mjs",
-    "release": "node scripts/check-publish-safety.mjs && pnpm -r --filter './packages/**' publish",
-    "certification:build": "pnpm --filter @voidcorp/harness-graph build && pnpm --filter @voidcorp/harness build:certification",
-    "certification:check": "pnpm --filter @voidcorp/harness-graph build && pnpm --filter @voidcorp/harness build:certification -- --check",
+    "release": "node scripts/check-publish-safety.mjs && pnpm --filter @voidfactory/harness publish",
+    "certification:build": "pnpm --filter @voidcorp/harness-graph build && pnpm --filter @voidfactory/harness build:certification",
+    "certification:check": "pnpm --filter @voidcorp/harness-graph build && pnpm --filter @voidfactory/harness build:certification -- --check",
     "graph:check": "pnpm --filter @voidcorp/harness-graph build && node packages/cli/bin/void-harness.mjs graph check",
     "graph:check-bundle": "node packages/cli/bin/void-harness.mjs graph check-bundle",
     "eval": "pnpm --filter @voidcorp/eval-harness run eval --"
