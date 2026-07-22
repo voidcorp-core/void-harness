@@ -6,7 +6,9 @@ export default defineConfig({
   target: 'node20',
   outDir: 'dist',
   dts: true,
-  sourcemap: true,
+  // No source map in the published CLI: consumers never debug it, and it is the largest file in the
+  // tarball. Rebuild locally with `--sourcemap` if you ever need one for development.
+  sourcemap: false,
   clean: true,
   splitting: false,
   shims: false,
