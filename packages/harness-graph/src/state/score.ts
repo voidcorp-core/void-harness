@@ -5,6 +5,7 @@ import type { Dimension, NextAction, ProjectState, Score, ScoreConfidence } from
 const TIER_SCORE: Record<EnforcementTier, number> = { pretooluse: 100, active: 80, 'ci-only': 60, 'n/a': 0 };
 const CONTEXT_HEAVY_TOKENS = 3000;
 const BLOCKER_CAP = 69; // spec Fork 6: a red blocker caps the global score here, whatever the gauges say
+const UNPROVEN_CAP = 60; // no behavioral evidence (nothing used, nothing evaluated) caps the global here — structural gauges alone can't post a flattering 60+
 const HIGH_CONFIDENCE_EFFECTIVE_RATIO = 0.5;
 const HIGH_CONFIDENCE_MIN_USES = 20;
 const MIN_CONFIDENCE_SAMPLE = 4; // below this many installed capabilities the surface is too small to claim > low
@@ -100,9 +101,15 @@ export function scoreProjectState(
   const blockers = dimensions.filter((d) => d.kind === 'blocker' && d.red).map((d) => d.key);
   const rawGlobal = measured.length ? Math.round(measured.reduce((a, d) => a + (d.score ?? 0), 0) / measured.length) : 0;
   const capped = blockers.length > 0;
-  const global = capped ? Math.min(BLOCKER_CAP, rawGlobal) : rawGlobal;
-
   const totalUsed = installed.reduce((a, c) => a + c.usedCount, 0);
+  // Two independent ceilings on the global, whichever binds lower:
+  //  - a red blocker caps at 69 (a real defect outweighs strong gauges);
+  //  - zero behavioral evidence — nothing used AND nothing evaluated here — caps
+  //    at UNPROVEN_CAP, so a fresh install can't post a flattering 60+ on the
+  //    structural gauges (owners declared, runtimes detected) it hasn't proven.
+  const hasEvidence = effectiveN > 0 || totalUsed > 0;
+  const global = Math.min(capped ? BLOCKER_CAP : 100, hasEvidence ? 100 : UNPROVEN_CAP, rawGlobal);
+
   const confidence: ScoreConfidence =
     effectiveN === 0 || totalUsed === 0 || nInstalled < MIN_CONFIDENCE_SAMPLE
       ? 'low'
