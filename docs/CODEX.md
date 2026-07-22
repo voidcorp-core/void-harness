@@ -35,6 +35,16 @@ Scope today is the **core** skills (they ship in the CLI tarball). Pack skills
 are not bundled in the CLI yet — staging them for Codex needs a pack-bundling
 step first.
 
+### Usage measurement (a Codex platform limit)
+
+`status`/`void-graph` count skill **usage** from observable invocations — on
+Claude, a skill runs through the `Skill` tool, which the activation-meter hook
+records. Codex loads skills as context and fires **no hook event** for them (its
+hooks cover `Bash`, `apply_patch`, MCP and other function tools, not skill use).
+So on a Codex-only project the usage counts reflect Claude usage only — a low
+count means "not observed", not "not useful". This is a Codex limitation, not a
+gap in the harness; nothing to instrument until Codex surfaces skill use.
+
 ## The hooks (guardrails, not the floor)
 
 The safety *floor* for an unattended run is the deny-by-default permission scope

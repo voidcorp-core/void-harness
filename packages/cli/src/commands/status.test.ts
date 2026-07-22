@@ -115,6 +115,13 @@ describe('statusLines', () => {
     expect(statusLines(state, score)[0]).toContain('VOID PROJECT HEALTH   62/100   confidence: low');
   });
 
+  it('adds the Codex usage-measurement note only when Codex is detected', () => {
+    // no codex here -> no note
+    expect(statusLines(state, score).join('\n')).not.toContain('Codex does not surface skill use');
+    const withCodex: ProjectState = { ...state, runtimes: [{ runtime: 'codex', detected: true }] };
+    expect(statusLines(withCodex, score).join('\n')).toContain('Codex does not surface skill use');
+  });
+
   it('shows a pending dimension as "pending", never a fabricated number', () => {
     const text = statusLines(state, score).join('\n');
     expect(text).toMatch(/installation\s+pending/);
