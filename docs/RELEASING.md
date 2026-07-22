@@ -83,16 +83,20 @@ with no token and no 2FA-bypass:
 4. From the next release on, the CI `publish` job publishes tokenlessly. You never
    run `publish` by hand again.
 
-A CI step (`pnpm version:check`, `scripts/check-version-lockstep.mjs`) fails the
-build if **any** manifest drifts from the canonical version — so a missed file
-(by release-please, the manual script, or a hand-edit) can never ship.
+Two CI gates fail the build on a drift so a version bump can never ship a stale
+artifact: `pnpm version:check` (every manifest at the canonical version) and
+`pnpm certification:check` (the frozen `certification.json` matches the model +
+its `harnessVersion` stamp). Both the release-please flow (via `extra-files`) and
+the manual script bump the certification's `harnessVersion` in lockstep, so a
+release never breaks CI on a forgotten regenerate.
 
 ### Manual fallback
 
-`scripts/bump-version.mjs <patch|minor|major|X.Y.Z>` still bumps all manifests in
+`scripts/bump-version.mjs <patch|minor|major|X.Y.Z>` still bumps all manifests
+**and the certification `harnessVersion`** (source + core-assets mirror) in
 lockstep for an emergency/offline release. After it, run
-`pnpm --filter @voidfactory/harness build:assets` to sync the mirror, commit
-`chore: release vX.Y.Z`, tag, push. Prefer the automated flow.
+`pnpm --filter @voidfactory/harness build:assets` to sync the rest of the mirror,
+commit `chore: release vX.Y.Z`, tag, push. Prefer the automated flow.
 
 Consumers on a project pull the new version with:
 
