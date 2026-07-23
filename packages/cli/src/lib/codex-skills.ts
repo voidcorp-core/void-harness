@@ -14,7 +14,7 @@
 
 import { existsSync } from 'node:fs';
 import { cp, mkdir, readdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
 // Directory Codex scans for project-local skills. Relative to the project root;
@@ -97,20 +97,62 @@ export async function listCodexSkills(sourceRoot: string): Promise<string[]> {
 }
 
 /**
- * Stage every Codex-eligible core skill into <project>/.agents/skills/<name>/SKILL.md
- * (imperative shell). Idempotent: re-running overwrites in place. Returns how many
- * skills were staged so the caller phrases its own status line.
+ * Locate a pack's skills directory relative to the resolved core source. In the
+ * published tarball the packs are bundled at `<sourceRoot>/packs/<dir>/skills`;
+ * in the dev monorepo `sourceRoot` is `packages/core`, so packs live one level up
+ * at `packages/packs/<dir>/skills`. Returns undefined when the pack ships no skills.
  */
-export async function wireCodexSkills(projectRoot: string, sourceRoot: string): Promise<number> {
-  const names = await listCodexSkills(sourceRoot);
+export function packSkillsDir(sourceRoot: string, packDir: string): string | undefined {
+  const candidates = [
+    join(sourceRoot, 'packs', packDir, 'skills'),
+    resolve(sourceRoot, '..', 'packs', packDir, 'skills'),
+  ];
+  return candidates.find((c) => existsSync(c));
+}
+
+/**
+ * Stage every Codex-eligible skill directory found under `skillsDir` into
+ * `<dst>/<name>/`, copying the WHOLE skill folder (SKILL.md + scripts/references/
+ * assets) — not just SKILL.md — since Codex treats a skill as its full directory.
+ * The void-internal `.source` sidecar and test files are excluded. Returns the count.
+ */
+async function stageEligibleSkills(skillsDir: string, dst: string): Promise<number> {
+  if (!existsSync(skillsDir)) return 0;
+  const entries = await readdir(skillsDir, { withFileTypes: true });
+  let staged = 0;
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const skillDir = join(skillsDir, entry.name);
+    const md = await readOrUndefined(join(skillDir, 'SKILL.md'));
+    if (md === undefined || !isCodexEligible(parseFrontmatter(md))) continue;
+    await cp(skillDir, join(dst, entry.name), {
+      recursive: true,
+      filter: (src) => !src.endsWith('.test.ts') && !src.endsWith(`${sep}.source`),
+    });
+    staged += 1;
+  }
+  return staged;
+}
+
+/**
+ * Stage the Codex-eligible skills into <project>/.agents/skills — the core skills
+ * plus the skills of every activated pack (`packDirs`, e.g. ['pack-nextjs']).
+ * Copies each skill as a full directory. Idempotent. Returns how many skills were
+ * staged so the caller phrases its own status line.
+ */
+export async function wireCodexSkills(
+  projectRoot: string,
+  sourceRoot: string,
+  packDirs: readonly string[] = [],
+): Promise<number> {
   const dst = join(projectRoot, CODEX_SKILLS_DIR);
   await mkdir(dst, { recursive: true });
-  for (const name of names) {
-    const skillDst = join(dst, name);
-    await mkdir(skillDst, { recursive: true });
-    await cp(join(sourceRoot, 'skills', name, 'SKILL.md'), join(skillDst, 'SKILL.md'));
+  let staged = await stageEligibleSkills(join(sourceRoot, 'skills'), dst);
+  for (const packDir of packDirs) {
+    const dir = packSkillsDir(sourceRoot, packDir);
+    if (dir) staged += await stageEligibleSkills(dir, dst);
   }
-  return names.length;
+  return staged;
 }
 
 export interface CodexSkillsHealth {

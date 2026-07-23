@@ -54,6 +54,10 @@ checks_boundary_imports() {
   [[ "$file" =~ ^packages/[^/]+/ ]] || return 0
   [[ "$file" =~ ^packages/core/ ]] && return 0
   [[ "$file" =~ \.(test|spec)\.(ts|tsx)$|\.d\.ts$|/__generated__/ ]] && return 0
+  # The @repo/* direction is a TypeScript-source rule. Docs (.md — e.g. skill
+  # examples that show a forbidden `import ... from '@repo/db'` marked ✗) carry
+  # such imports as illustrations, never as real edges — only .ts/.tsx count.
+  [[ "$file" =~ \.(ts|tsx)$ ]] || return 0
   pkg=$(printf '%s' "$file" | sed -E 's|^packages/([^/]+)/.*|\1|')
   re_import="from[[:space:]]+['\"]@repo/([a-zA-Z0-9-]+)"
   while IFS= read -r line; do

@@ -106,8 +106,8 @@
       "type": "hook",
       "name": "_checks",
       "description": "",
-      "lines": 142,
-      "staticTokens": 2043,
+      "lines": 146,
+      "staticTokens": 2113,
       "pack": null,
       "source": "packages/core/hooks/_checks.sh"
     },

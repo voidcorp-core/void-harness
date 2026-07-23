@@ -26,7 +26,7 @@ import {
   PACKS,
   type PackDescriptor,
 } from '../lib/packs.js';
-import { findCoreSource } from '../lib/paths.js';
+import { cliVersion, findCoreSource } from '../lib/paths.js';
 import { isHarnessSourceRepo } from '../lib/self-repo.js';
 import { type CheckResult, checkJq } from '../lib/prerequisites.js';
 import { resolveCorePin } from '../lib/remote.js';
@@ -303,12 +303,17 @@ async function writeConfig(
   const tag = (status: string) =>
     line(`${c.green(glyph.check)}  ${c.dim('.void/config.json'.padEnd(18))}${status}`);
 
+  // Pack pin: a resolved marketplace pin, else this CLI's version — the packs are
+  // materialized from THIS CLI (the Codex path has no marketplace), so config
+  // must record every activated pack, never leave it absent (the fake-pack bug).
+  const packPin = pin ?? `^${cliVersion()}`;
+
   // --force OR first-time: write the full scaffold seeded with detected stack.
   if (!existsSync(configPath) || opts.force) {
     const config = buildDefaultConfig(seed);
-    if (pin !== undefined) for (const pack of packs) config.packs[`@voidcorp/${pack.name}`] = pin;
+    for (const pack of packs) config.packs[`@voidcorp/${pack.name}`] = packPin;
     await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`);
-    tag(pin !== undefined ? 'written' : 'written (versions unpinned — core version not resolved)');
+    tag(pin !== undefined ? 'written' : 'written (core unpinned; packs pinned to CLI version)');
     return;
   }
 
@@ -322,14 +327,15 @@ async function writeConfig(
     return;
   }
   const currentPacks = { ...(existing.packs ?? {}) };
-  // A fresh remote pin wins; else reuse the config's canonical pin so an existing
-  // well-pinned config stays lockstep instead of gaining a stale literal (#67).
-  const effectivePin = pin ?? resolveEffectivePin(existing);
+  // A fresh remote pin wins; else the config's canonical pin; else this CLI's
+  // version — an activated pack is always recorded with a valid version, never
+  // added-in-message-only (the fake-pack bug).
+  const effectivePin = pin ?? resolveEffectivePin(existing) ?? `^${cliVersion()}`;
   const added: string[] = [];
   for (const pack of packs) {
     const key = `@voidcorp/${pack.name}`;
     if (currentPacks[key] === undefined) {
-      if (effectivePin !== undefined) currentPacks[key] = effectivePin;
+      currentPacks[key] = effectivePin;
       added.push(pack.name);
     }
   }
@@ -339,7 +345,7 @@ async function writeConfig(
   }
   const merged = { ...existing, packs: currentPacks };
   await writeFile(configPath, `${JSON.stringify(merged, null, 2)}\n`);
-  tag(`merged (added ${c.bold(added.join(', '))}${effectivePin !== undefined ? ` at ${effectivePin}` : ' (unpinned)'})`);
+  tag(`merged (added ${c.bold(added.join(', '))} at ${effectivePin})`);
 }
 
 async function installDoctrineFiles(projectRoot: string, sourceRoot: string): Promise<void> {

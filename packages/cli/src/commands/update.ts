@@ -19,7 +19,7 @@ import { join } from 'node:path';
 import { CODEX_HOOKS_DIR, refreshCodexFloor } from '../lib/codex-floor.js';
 import { CODEX_SKILLS_DIR, wireCodexSkills } from '../lib/codex-skills.js';
 import { computePinBumps } from '../lib/pack-config.js';
-import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO } from '../lib/packs.js';
+import { configPackDirs, CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO } from '../lib/packs.js';
 import { findCoreSource } from '../lib/paths.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { banner, blank, c, footer, glyph, line, meta, row, status } from '../lib/render.js';
@@ -135,9 +135,17 @@ async function refreshCodexFloorStep(projectRoot: string, dryRun: boolean): Prom
   }
 
   // Skills re-stage alongside the floor: an idempotent overwrite to the running
-  // CLI's version, so `update` keeps a Codex project's .agents/skills current.
+  // CLI's version, so `update` keeps a Codex project's .agents/skills current —
+  // core plus whatever packs the config activated.
   if (!dryRun) {
-    const n = await wireCodexSkills(projectRoot, sourceRoot);
+    let packDirs: string[] = [];
+    try {
+      const cfg = JSON.parse(await readFile(join(projectRoot, '.void', 'config.json'), 'utf8'));
+      packDirs = configPackDirs(cfg);
+    } catch {
+      // no/unreadable config -> core skills only
+    }
+    const n = await wireCodexSkills(projectRoot, sourceRoot, packDirs);
     line(`${c.green(glyph.check)}  ${c.dim('codex skills'.padEnd(12))}${n} skill(s) staged → ${CODEX_SKILLS_DIR}/`);
   }
 

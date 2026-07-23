@@ -34,6 +34,24 @@ export const MARKETPLACE_REPO = 'voidcorp-core/void-harness';
 /** Core plugin name (always activated). */
 export const CORE_PLUGIN_NAME = 'harness';
 
+/** The capability pack directory (`pack-<x>`) for a marketplace plugin name
+ *  (`harness-<x>`). Core or a non-pack name maps to undefined. */
+export function packDirForName(pluginName: string): string | undefined {
+  if (pluginName === CORE_PLUGIN_NAME || !pluginName.startsWith('harness-')) return undefined;
+  return pluginName.replace(/^harness-/, 'pack-');
+}
+
+/** The pack dirs a `.void/config.json` activates (its `packs` keys are
+ *  `@voidcorp/harness-<x>`). Core is not a pack. */
+export function configPackDirs(config: { packs?: Record<string, string> }): string[] {
+  const dirs: string[] = [];
+  for (const key of Object.keys(config.packs ?? {})) {
+    const dir = packDirForName(key.replace(/^@voidcorp\//, ''));
+    if (dir) dirs.push(dir);
+  }
+  return dirs;
+}
+
 export const PACKS: readonly PackDescriptor[] = [
   {
     name: 'harness-monorepo',
