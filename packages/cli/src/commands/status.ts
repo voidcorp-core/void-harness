@@ -82,7 +82,11 @@ const pad = (s: string, n: number): string => (s.length >= n ? s : s + ' '.repea
 export function statusLines(state: ProjectState, score: Score): string[] {
   const out: string[] = [];
   const cap = score.capped ? ` (capped: ${score.blockers.join(', ')})` : '';
-  out.push(`VOID PROJECT HEALTH   ${score.global}/100   confidence: ${score.confidence}${cap}`);
+  // Honest headline: without behavioral evidence (low confidence) this is a
+  // STRUCTURE score (owners/runtimes/enforcement declared), not proven "health".
+  // It graduates to PROJECT HEALTH only once real usage/eval evidence exists.
+  const headline = score.confidence === 'low' ? 'VOID STRUCTURE SCORE' : 'VOID PROJECT HEALTH ';
+  out.push(`${headline}  ${score.global}/100   confidence: ${score.confidence}${cap}`);
   out.push('');
   const byKey = new Map(score.dimensions.map((d) => [d.key, d]));
   for (const key of DIMENSION_ORDER) {

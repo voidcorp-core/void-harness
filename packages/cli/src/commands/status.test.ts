@@ -112,7 +112,10 @@ describe('statusLines', () => {
   };
 
   it('renders the health header with score and confidence', () => {
-    expect(statusLines(state, score)[0]).toContain('VOID PROJECT HEALTH   62/100   confidence: low');
+    // low confidence -> honest "STRUCTURE SCORE" headline, not "PROJECT HEALTH"
+    expect(statusLines(state, score)[0]).toContain('VOID STRUCTURE SCORE  62/100   confidence: low');
+    // with behavioral evidence (medium/high), it graduates to PROJECT HEALTH
+    expect(statusLines(state, { ...score, confidence: 'high' })[0]).toContain('VOID PROJECT HEALTH   62/100');
   });
 
   it('adds the usage note only when Codex is the only runtime (usage unobservable)', () => {
