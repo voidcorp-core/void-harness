@@ -115,11 +115,21 @@ describe('statusLines', () => {
     expect(statusLines(state, score)[0]).toContain('VOID PROJECT HEALTH   62/100   confidence: low');
   });
 
-  it('adds the Codex usage-measurement note only when Codex is detected', () => {
-    // no codex here -> no note
-    expect(statusLines(state, score).join('\n')).not.toContain('Codex does not surface skill use');
-    const withCodex: ProjectState = { ...state, runtimes: [{ runtime: 'codex', detected: true }] };
-    expect(statusLines(withCodex, score).join('\n')).toContain('Codex does not surface skill use');
+  it('adds the usage note only when Codex is the only runtime (usage unobservable)', () => {
+    // state has claude detected -> usage observable -> no note
+    expect(statusLines(state, score).join('\n')).not.toContain('not observable on Codex');
+    // codex-only -> note
+    const codexOnly: ProjectState = { ...state, runtimes: [{ runtime: 'codex', detected: true }] };
+    expect(statusLines(codexOnly, score).join('\n')).toContain('not observable on Codex');
+    // both claude + codex -> usage observable via Claude -> no note
+    const both: ProjectState = {
+      ...state,
+      runtimes: [
+        { runtime: 'claude', detected: true },
+        { runtime: 'codex', detected: true },
+      ],
+    };
+    expect(statusLines(both, score).join('\n')).not.toContain('not observable on Codex');
   });
 
   it('shows a pending dimension as "pending", never a fabricated number', () => {

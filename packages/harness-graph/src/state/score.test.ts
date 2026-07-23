@@ -22,11 +22,16 @@ const dim = (s: ReturnType<typeof scoreProjectState>, key: string) => s.dimensio
 describe('scoreProjectState', () => {
   it('a fresh install (installed, nothing used) scores gauges low but is NOT capped — new is not broken', () => {
     const c = cert([cap('skill:a'), cap('skill:b')]);
-    const ps = computeProjectState(c, signals({ installedIds: new Set(['skill:a', 'skill:b']) }), '0.16.0');
+    // Claude detected so usage is observable (else activation is pending, tested separately)
+    const ps = computeProjectState(
+      c,
+      signals({ installedIds: new Set(['skill:a', 'skill:b']), runtimesDetected: new Set(['claude']) }),
+      '0.16.0',
+    );
     const score = scoreProjectState(ps, c, noTokens);
     expect(score.capped).toBe(false);
     expect(score.blockers).toEqual([]);
-    expect(dim(score, 'activation')?.score).toBe(0); // nothing used
+    expect(dim(score, 'activation')?.score).toBe(0); // observable, nothing used
     expect(dim(score, 'efficacy')?.score).toBe(0); // nothing effective
     expect(score.global).toBeGreaterThan(0);
     expect(score.global).toBeLessThan(100);
@@ -99,6 +104,31 @@ describe('scoreProjectState', () => {
     expect(enf?.perRuntime).toEqual({ claude: 80 });
   });
 
+  it('activation is PENDING (not 0) and spawns no prune action when usage is unobservable (Codex, no Claude)', () => {
+    const c = cert([cap('skill:a'), cap('skill:b')]);
+    // Codex detected, Claude not -> usage can't be measured
+    const ps = computeProjectState(
+      c,
+      signals({ installedIds: new Set(['skill:a', 'skill:b']), runtimesDetected: new Set(['codex']) }),
+      '0.16.0',
+    );
+    const score = scoreProjectState(ps, c, noTokens);
+    expect(dim(score, 'activation')?.score).toBeNull(); // pending, not 0
+    expect(dim(score, 'activation')?.detail).toContain('not observable');
+    // no "Use or prune unused" action when activation is unmeasurable
+    expect(score.nextActions.some((a) => a.title.includes('prune'))).toBe(false);
+  });
+
+  it('activation is measured when Claude is detected (usage observable)', () => {
+    const c = cert([cap('skill:a')]);
+    const ps = computeProjectState(
+      c,
+      signals({ installedIds: new Set(['skill:a']), runtimesDetected: new Set(['claude']), usedCounts: new Map([['skill:a', 2]]) }),
+      '0.16.0',
+    );
+    expect(dim(scoreProjectState(ps, c, noTokens), 'activation')?.score).toBe(100); // 1/1 used
+  });
+
   it('confidence is low when no capability is effective (thin proof)', () => {
     const c = cert([cap('skill:a')]);
     const ps = computeProjectState(c, signals({ installedIds: new Set(['skill:a']), usedCounts: new Map([['skill:a', 3]]) }), '0.16.0');
@@ -149,9 +179,10 @@ describe('scoreProjectState', () => {
     const ps = computeProjectState(c, signals({ installedIds: new Set(['skill:a', 'skill:b']) }), '0.16.0');
     const actions = scoreProjectState(ps, c, noTokens).nextActions;
     expect(actions.length).toBeGreaterThan(0);
-    // portability/activation/efficacy are all at 0 (nothing detected/used/proven), gap 100 over the
-    // 5 measured dimensions (performance is pending without token data) -> impact round(100/5) = 20.
-    expect(actions[0]?.impact).toBe(20);
+    // portability + efficacy are at 0; the 4 measured dims are portability, efficacy, enforcement,
+    // governance (performance + activation + installation + dx are pending — no tokens, no Claude
+    // runtime, no signal) -> impact round(100/4) = 25.
+    expect(actions[0]?.impact).toBe(25);
     for (let i = 1; i < actions.length; i += 1) {
       expect(actions[i - 1]!.impact).toBeGreaterThanOrEqual(actions[i]!.impact);
       expect(actions[i - 1]!.rank).toBe(i);
