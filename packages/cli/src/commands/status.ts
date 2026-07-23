@@ -101,12 +101,13 @@ export function statusLines(state: ProjectState, score: Score): string[] {
   out.push('');
   out.push('RUNTIMES');
   out.push(`  ${state.runtimes.map((r) => `${r.runtime} ${r.detected ? 'verified' : 'missing'}`).join(' · ')}`);
-  // Honesty: skill usage is counted from observable invocations (Claude's Skill
-  // tool). Codex loads skills as context and fires no hook event for them, so on
-  // a Codex project the counts reflect Claude usage only — never read a low count
-  // as "these skills aren't used".
-  if (state.runtimes.some((r) => r.runtime === 'codex' && r.detected)) {
-    out.push('  note: usage reflects observable (Claude) skill invocations — Codex does not surface skill use');
+  // Honesty: skill usage is only observable on Claude (its Skill tool fires the
+  // meter). When Codex is the only runtime, usage is unmeasurable — activation is
+  // pending, and this note explains why a project can look "0 used" yet be active.
+  const codexDetected = state.runtimes.some((r) => r.runtime === 'codex' && r.detected);
+  const claudeDetected = state.runtimes.some((r) => r.runtime === 'claude' && r.detected);
+  if (codexDetected && !claudeDetected) {
+    out.push('  note: skill usage is not observable on Codex (no hook event) — activation shows pending, not 0');
   }
   out.push('');
   out.push('NEXT BEST ACTIONS');

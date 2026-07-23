@@ -86,7 +86,14 @@ export function scoreProjectState(
 
   const detected = state.runtimes.filter((r) => r.detected).length;
   const portability: Dimension = { key: 'portability', kind: 'gauge', score: ratio(detected, state.runtimes.length), detail: `${detected}/${state.runtimes.length} runtimes detected` };
-  const activation: Dimension = { key: 'activation', kind: 'gauge', score: ratio(usedN, nInstalled), detail: `${usedN}/${nInstalled} installed capabilities used` };
+  // Skill usage is only observable on Claude (its `Skill` tool fires the meter);
+  // Codex loads skills as context with no hook event. So when no Claude runtime is
+  // detected, activation is PENDING (unmeasurable), never a real 0 — a 0 here would
+  // read as "these skills go unused" and spawn a bogus "prune unused" next action.
+  const usageObservable = state.runtimes.some((r) => r.runtime === 'claude' && r.detected);
+  const activation: Dimension = usageObservable
+    ? { key: 'activation', kind: 'gauge', score: ratio(usedN, nInstalled), detail: `${usedN}/${nInstalled} installed capabilities used` }
+    : { key: 'activation', kind: 'gauge', score: null, detail: 'usage not observable (no Claude runtime; Codex does not surface skill use)' }; // allow-null: pending, distinct from a real 0
   const efficacy: Dimension = { key: 'efficacy', kind: 'gauge', score: ratio(effectiveN, nInstalled), detail: `${effectiveN}/${nInstalled} evaluated here` };
   // Performance needs token data; with none (model.json absent) it is pending, not a false 100% —
   // otherwise a missing model would read as "context budgets respected".
