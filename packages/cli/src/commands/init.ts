@@ -14,7 +14,7 @@
 // plugin from the marketplace on session start. Skills appear as
 // /harness:tdd, /harness-nextjs:..., etc.
 
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import * as p from '@clack/prompts';
@@ -141,6 +141,9 @@ export function buildFinalChecklist(
   return items;
 }
 
+/** Message of an unknown thrown value without an `as` cast. */
+const errorMessage = (e: unknown): string => (e instanceof Error ? e.message : String(e));
+
 export async function init(args: readonly string[]): Promise<void> {
   const opts = parseArgs(args);
   const projectRoot = process.cwd();
@@ -191,6 +194,21 @@ export async function init(args: readonly string[]): Promise<void> {
     if (!check.ok && check.fix) line(c.dim(`     ${glyph.to} ${check.fix}`));
   }
 
+  // PREFLIGHT — transactional gate. Refuse to write ANYTHING if a prerequisite
+  // is unmet: a partially-wired project that exits 0 while its marketplace is
+  // unreachable or jq is missing is a false success (audit #2). Nothing has been
+  // written yet at this point. `--force` is the deliberate "install anyway" escape.
+  const failedPreflight = prereqs.filter((pre) => !pre.ok);
+  if (failedPreflight.length > 0 && !opts.force) {
+    blank();
+    p.log.error(`Preflight failed — nothing was written. ${failedPreflight.length} prerequisite(s) unmet:`);
+    for (const f of failedPreflight) {
+      p.log.message(`  ${c.red('x')} ${f.name}: ${f.message}${f.fix ? `  ${glyph.to} ${f.fix}` : ''}`);
+    }
+    p.log.message('Fix the above and re-run, or pass --force to install anyway.');
+    process.exit(2);
+  }
+
   // The core pin is a Claude-marketplace concern; only resolve/report it there.
   const pinVersion = wireClaude ? resolveCorePin(opts.marketplaceRepo) : undefined;
   if (wireClaude) {
@@ -198,29 +216,48 @@ export async function init(args: readonly string[]): Promise<void> {
   }
   blank();
 
-  // Locate the harness source (for PHILOSOPHY.md + PROJECT-DOCTRINE template).
-  const sourceRoot = await findCoreSource();
+  // Locate the harness source — a preflight too: no source means nothing to
+  // install, so fail before writing rather than half-way through.
+  let sourceRoot: string;
+  try {
+    sourceRoot = await findCoreSource();
+  } catch (err) {
+    p.log.error(`Preflight failed — cannot locate the harness source; nothing written. ${errorMessage(err)}`);
+    process.exit(2);
+  }
 
-  // 1. Choose packs (runtime-agnostic)
+  // Choose packs (runtime-agnostic) — selection only, no writes yet.
   const packs = await choosePacks(projectRoot, opts);
   const enabledPlugins = [CORE_PLUGIN_NAME, ...packs.map((pk) => pk.name)];
 
-  // 2. Write .void/config.json (runtime-agnostic)
-  await writeConfig(projectRoot, packs, opts, { pinVersion, stack });
-
-  // 3. Copy PHILOSOPHY.md + create PROJECT-DOCTRINE.md from template (runtime-agnostic)
-  await installDoctrineFiles(projectRoot, sourceRoot);
-
-  // 4. Wire each selected runtime through its adapter (active layer + its own
-  //    doctrine doc). A runtime not selected is left entirely untouched.
-  const wireCtx = { projectRoot, sourceRoot, enabledPlugins, enabledPacks: packs, marketplaceRepo: opts.marketplaceRepo, pinVersion };
+  // TRANSACTION — from here we write. Snapshot which top-level dirs pre-existed so
+  // a mid-write failure rolls back the ones we created (best-effort: in-place
+  // patches to a pre-existing CLAUDE.md/AGENTS.md are not reverted, only created
+  // dirs are removed — enough to avoid leaving a half-scaffolded project).
+  const rollbackDirs = ['.void', '.claude', '.codex', '.agents'].map((d) => join(projectRoot, d));
+  const preExisting = new Set(rollbackDirs.filter((d) => existsSync(d)));
   const nextSteps: string[] = [];
-  for (const adapter of adapters) {
-    const outcome = await adapter.wire(wireCtx);
-    for (const status of outcome.statusLines) {
-      line(`${c.green(glyph.check)}  ${c.dim(`${adapter.id}`.padEnd(18))}${status}`);
+  try {
+    // 1. Write .void/config.json (runtime-agnostic)
+    await writeConfig(projectRoot, packs, opts, { pinVersion, stack });
+    // 2. Copy PHILOSOPHY.md + create PROJECT-DOCTRINE.md from template
+    await installDoctrineFiles(projectRoot, sourceRoot);
+    // 3. Wire each selected runtime through its adapter.
+    const wireCtx = { projectRoot, sourceRoot, enabledPlugins, enabledPacks: packs, marketplaceRepo: opts.marketplaceRepo, pinVersion };
+    for (const adapter of adapters) {
+      const outcome = await adapter.wire(wireCtx);
+      for (const status of outcome.statusLines) {
+        line(`${c.green(glyph.check)}  ${c.dim(`${adapter.id}`.padEnd(18))}${status}`);
+      }
+      nextSteps.push(...outcome.nextSteps);
     }
-    nextSteps.push(...outcome.nextSteps);
+  } catch (err) {
+    for (const d of rollbackDirs) {
+      if (!preExisting.has(d)) rmSync(d, { recursive: true, force: true });
+    }
+    blank();
+    p.log.error(`init failed mid-write and rolled back the dirs it created. ${errorMessage(err)}`);
+    process.exit(1);
   }
 
   blank();
