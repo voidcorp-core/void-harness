@@ -159,10 +159,10 @@ const codexAdapter: RuntimeAdapter = {
   prerequisites: () => [],
   async wire(ctx) {
     const staged = await wireCodexFloor(ctx.projectRoot, ctx.sourceRoot);
-    // Codex has no marketplace channel, so unlike Claude the skills must be
-    // materialized into .agents/skills for Codex to discover them — core skills
-    // plus the skills of every activated pack (marketplace name harness-<x> maps
-    // to the source dir pack-<x>).
+    // For Codex we materialize the skills into .agents/skills (its directory-
+    // convention discovery) rather than a marketplace fetch — core skills plus the
+    // skills of every activated pack (marketplace name harness-<x> maps to the
+    // source dir pack-<x>). Native Codex plugin channel: tracked in #144.
     const packDirs = ctx.enabledPacks.map((p) => packDirForName(p.name)).filter((d): d is string => d !== undefined);
     const skills = await wireCodexSkills(ctx.projectRoot, ctx.sourceRoot, packDirs);
     const docResult = await patchRuntimeDoc(ctx.projectRoot, 'codex', {
