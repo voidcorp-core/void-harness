@@ -48,7 +48,7 @@
     "prepack": "pnpm --filter @voidcorp/harness-graph build && pnpm run build && pnpm run build:assets"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=22.12"
   },
   "publishConfig": {
     "access": "public"
