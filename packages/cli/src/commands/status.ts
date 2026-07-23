@@ -16,6 +16,7 @@ import {
   type Score,
   scoreProjectState,
 } from '@voidcorp/harness-graph';
+import { configPackDirs } from '../lib/packs.js';
 import { banner, blank, c, footer, line } from '../lib/render.js';
 
 // dist/main.js -> the package root (packages/cli in the monorepo, node_modules/voidharness once published).
@@ -68,18 +69,11 @@ export function usedCountsById(
 
 /**
  * The pack directories a project has activated, derived from `.void/config.json`
- * `packs` keys. A key is `@voidcorp/harness-<x>`; the matching capability pack dir
- * is `pack-<x>` (the marketplace name `harness-monorepo` maps to the source dir
- * `pack-monorepo`). The core entry (`@voidcorp/harness`) is not a pack. Pure.
+ * `packs` keys (`@voidcorp/harness-<x>` -> `pack-<x>`). Thin Set wrapper over the
+ * shared `configPackDirs` so status, init, and update never diverge on the mapping.
  */
 export function activatedPackDirs(config: { packs?: Record<string, string> }): Set<string> {
-  const dirs = new Set<string>();
-  for (const key of Object.keys(config.packs ?? {})) {
-    const name = key.replace(/^@voidcorp\//, '');
-    if (name === 'harness' || !name.startsWith('harness-')) continue;
-    dirs.add(name.replace(/^harness-/, 'pack-'));
-  }
-  return dirs;
+  return new Set(configPackDirs(config));
 }
 
 const pad = (s: string, n: number): string => (s.length >= n ? s : s + ' '.repeat(n - s.length));

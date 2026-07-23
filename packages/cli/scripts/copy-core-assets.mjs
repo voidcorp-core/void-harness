@@ -7,7 +7,7 @@
 //
 // Runs during `prepack` so npm pack / npm publish bundles the assets.
 
-import { cp, mkdir, rm, stat } from 'node:fs/promises';
+import { cp, mkdir, readdir, rm, stat } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -45,3 +45,30 @@ for (const f of ['certification.json', 'model.json']) {
   await cp(join(HG, f), join(DATA, f));
 }
 console.log(`copy-core-assets: copied data (certification.json, model.json) -> ${DATA}`);
+
+// Bundle each pack's skills so a --pack install can materialize them for Codex
+// (packs are not a separate npm package; without this a pack install on Codex
+// would stage nothing — the fake-success the audit caught). Only skills ship;
+// pack runtime code reaches Claude via the marketplace, not this tarball.
+const PACKS_SRC = resolve(HERE, '..', '..', 'packs');
+const PACKS_DST = join(TARGET, 'packs');
+try {
+  const entries = await readdir(PACKS_SRC, { withFileTypes: true });
+  let bundled = 0;
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const skillsSrc = join(PACKS_SRC, entry.name, 'skills');
+    try {
+      await stat(skillsSrc);
+    } catch {
+      continue; // pack has no skills
+    }
+    const skillsDst = join(PACKS_DST, entry.name, 'skills');
+    await mkdir(dirname(skillsDst), { recursive: true });
+    await cp(skillsSrc, skillsDst, { recursive: true, filter: (src) => !src.endsWith('.test.ts') });
+    bundled += 1;
+  }
+  console.log(`copy-core-assets: bundled ${bundled} pack(s) skills -> ${PACKS_DST}`);
+} catch {
+  console.log('copy-core-assets: no packs dir to bundle');
+}

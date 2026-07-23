@@ -4,11 +4,13 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   CODEX_SKILLS_DIR,
   codexSkillsHealth,
   isCodexEligible,
   listCodexSkills,
+  packSkillsDir,
   parseFrontmatter,
   wireCodexSkills,
 } from './codex-skills.js';
@@ -101,6 +103,35 @@ describe('wireCodexSkills + codexSkillsHealth', () => {
     const project = tmp('void-codex-skills-');
     expect(await wireCodexSkills(project, src)).toBe(1);
     await expect(wireCodexSkills(project, src)).resolves.toBe(1);
+  });
+
+  it('stages pack skills too, and copies the WHOLE skill folder (not just SKILL.md), minus .source', () => {
+    const src = fakeSource({ alpha: ['codex'] });
+    // a pack with one codex skill carrying an extra script + a .source sidecar
+    const skillDir = join(src, 'packs', 'pack-nextjs', 'skills', 'route-group');
+    mkdirSync(join(skillDir, 'scripts'), { recursive: true });
+    writeFileSync(join(skillDir, 'SKILL.md'), '---\nname: route-group\ndescription: x\nruntimes: [codex]\n---\nbody\n');
+    writeFileSync(join(skillDir, 'scripts', 'gen.sh'), '# helper\n');
+    writeFileSync(join(skillDir, '.source'), 'internal metadata\n');
+    return (async () => {
+      const project = tmp('void-codex-skills-');
+      const count = await wireCodexSkills(project, src, ['pack-nextjs']);
+      expect(count).toBe(2); // alpha (core) + route-group (pack)
+      // whole folder copied
+      expect(existsSync(join(project, CODEX_SKILLS_DIR, 'route-group', 'SKILL.md'))).toBe(true);
+      expect(existsSync(join(project, CODEX_SKILLS_DIR, 'route-group', 'scripts', 'gen.sh'))).toBe(true);
+      // void-internal .source excluded
+      expect(existsSync(join(project, CODEX_SKILLS_DIR, 'route-group', '.source'))).toBe(false);
+      expect(readFileSync(join(project, CODEX_SKILLS_DIR, 'route-group', 'scripts', 'gen.sh'), 'utf8')).toContain('helper');
+    })();
+  });
+
+  it('packSkillsDir resolves the tarball layout (sourceRoot/packs/<dir>/skills)', () => {
+    const src = fakeSource({ alpha: ['codex'] });
+    const dir = join(src, 'packs', 'pack-nextjs', 'skills');
+    mkdirSync(dir, { recursive: true });
+    expect(packSkillsDir(src, 'pack-nextjs')).toBe(dir);
+    expect(packSkillsDir(src, 'pack-absent')).toBeUndefined();
   });
 
   it('health flags a project with no .agents/skills dir', async () => {

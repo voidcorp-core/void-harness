@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MARKETPLACE_NAME, MARKETPLACE_REPO, PACKS, findPack } from './packs.js';
+import { configPackDirs, MARKETPLACE_NAME, MARKETPLACE_REPO, packDirForName, PACKS, findPack } from './packs.js';
 
 function tmp(): string {
   return mkdtempSync(join(tmpdir(), 'void-harness-packs-'));
@@ -126,5 +126,26 @@ describe('marketplace identity', () => {
     // only the repo moved (dedicated void-plugins catalog -> self-hosted in void-harness).
     expect(MARKETPLACE_NAME).toBe('voidcorp');
     expect(MARKETPLACE_REPO).toBe('voidcorp-core/void-harness');
+  });
+});
+
+describe('pack dir mapping', () => {
+  it('packDirForName maps harness-<x> to pack-<x>, core/non-pack to undefined', () => {
+    expect(packDirForName('harness-nextjs')).toBe('pack-nextjs');
+    expect(packDirForName('harness-monorepo')).toBe('pack-monorepo');
+    expect(packDirForName('harness')).toBeUndefined();
+    expect(packDirForName('something-else')).toBeUndefined();
+  });
+
+  it('configPackDirs extracts pack dirs from a .void config packs record', () => {
+    expect(
+      configPackDirs({ packs: { '@voidcorp/harness-nextjs': '^1', '@voidcorp/harness-monorepo': '^1' } }).sort(),
+    ).toEqual(['pack-monorepo', 'pack-nextjs']);
+    expect(configPackDirs({})).toEqual([]);
+    expect(configPackDirs({ packs: { '@voidcorp/harness': '^1' } })).toEqual([]); // core is not a pack
+  });
+
+  it('every real PACKS entry maps to a pack dir', () => {
+    for (const p of PACKS) expect(packDirForName(p.name)).toBe(p.name.replace(/^harness-/, 'pack-'));
   });
 });

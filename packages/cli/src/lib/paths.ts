@@ -8,9 +8,33 @@
 //  2. Monorepo workspace install — sibling `core` package
 //  3. Dev mode — running from packages/cli/{dist,src}
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+/**
+ * This CLI's own version, read from its package.json. Used to pin packs that a
+ * project activates when no marketplace pin is available (e.g. a Codex install,
+ * where skills are materialized from THIS CLI, not a versioned marketplace) — so
+ * `.void/config.json` records the packs it actually staged instead of leaving
+ * them unpinned/absent. Falls back to 0.0.0 rather than throwing in an install path.
+ */
+export function cliVersion(): string {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    resolve(here, '..', 'package.json'), // dist/main.js -> package root (tarball + build)
+    resolve(here, '..', '..', 'package.json'), // src/lib -> package root (dev via tsx)
+  ];
+  for (const candidate of candidates) {
+    try {
+      const pkg = JSON.parse(readFileSync(candidate, 'utf8')) as { name?: string; version?: string };
+      if (pkg.name === 'voidharness' && typeof pkg.version === 'string') return pkg.version;
+    } catch {
+      // try next candidate
+    }
+  }
+  return '0.0.0';
+}
 
 export async function findCoreSource(): Promise<string> {
   const here = dirname(fileURLToPath(import.meta.url));
