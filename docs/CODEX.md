@@ -22,18 +22,26 @@ runtime, so a Codex-only project is never flagged for a missing `CLAUDE.md`.
 ## The skills
 
 Skill content is runtime-agnostic prose and applies to both. Claude Code
-auto-discovers the harness plugin's skills from the marketplace. Codex has no
-marketplace channel — it discovers skills by directory convention, scanning
-`.agents/skills` from the cwd up to the repo root — so `init` **materializes**
-the skills there: every core skill that declares `codex` in its `runtimes`
-frontmatter is staged as `.agents/skills/<name>/SKILL.md`. A Codex user thus gets
-both the doctrine (via `AGENTS.md` + `.void/`) **and** the invocable skills.
-`doctor` reports how many are discoverable; `update` re-stages them to the
-running CLI's version.
+auto-discovers the harness plugin's skills from the marketplace. Codex discovers
+skills two ways: by **directory convention** — scanning `.agents/skills` from the
+cwd up to the repo root — and, more recently, through a **native plugin channel**
+(`.codex-plugin/plugin.json` + `codex plugin marketplace add owner/repo`, bundling
+skills and hooks). See the official docs: [build-skills] and [build-plugins].
 
-Scope today is the **core** skills (they ship in the CLI tarball). Pack skills
-are not bundled in the CLI yet — staging them for Codex needs a pack-bundling
-step first.
+We use the **directory-convention** path: `init` **materializes** the skills
+into `.agents/skills`. Every skill that declares `codex` in its `runtimes`
+frontmatter is staged as `.agents/skills/<name>/` — the whole skill folder
+(SKILL.md + scripts/references), core **and** the skills of every activated pack
+(the pack skills ship bundled in the CLI tarball). A Codex user thus gets both the
+doctrine (via `AGENTS.md` + `.void/`) **and** the invocable skills. `doctor`
+reports how many are discoverable; `update` re-stages them to the running CLI's
+version. This is chosen because it is universal, reproducible, and account-free
+(no marketplace fetch); the native Codex plugin channel is a viable
+**complementary** channel we may add later (tracked as an issue) so both runtimes
+resolve the same artifacts from a plugin.
+
+[build-skills]: https://learn.chatgpt.com/docs/build-skills
+[build-plugins]: https://learn.chatgpt.com/docs/build-plugins
 
 ### Usage measurement (a Codex platform limit)
 
