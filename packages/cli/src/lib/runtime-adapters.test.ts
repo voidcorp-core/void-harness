@@ -23,6 +23,7 @@ function ctxFor(projectRoot: string, pinVersion: string | undefined = '0.17.0'):
     sourceRoot: CORE_ROOT,
     enabledPlugins: ['harness'],
     enabledPacks: [],
+    source: 'local',
     marketplaceRepo: 'voidcorp-core/void-plugins',
     pinVersion,
   };
@@ -122,25 +123,62 @@ describe('codex adapter', () => {
 });
 
 describe('claude adapter', () => {
-  it('wire merges settings.json and writes CLAUDE.md but NOT AGENTS.md', async () => {
+  it('materializes local skills, agents and hooks without a marketplace account', async () => {
     const dir = scratch();
+    mkdirSync(join(dir, '.claude'), { recursive: true });
+    writeFileSync(
+      join(dir, '.claude', 'settings.json'),
+      JSON.stringify({ hooks: { Stop: [{ matcher: '*', hooks: [{ type: 'command', command: 'user-hook' }] }] } }),
+    );
     const outcome = await adapterFor('claude').wire(ctxFor(dir));
     expect(existsSync(join(dir, '.claude', 'settings.json'))).toBe(true);
+    expect(existsSync(join(dir, '.claude', 'skills', 'tdd', 'SKILL.md'))).toBe(true);
+    expect(existsSync(join(dir, '.claude', 'agents', 'doctrine-critic.md'))).toBe(true);
+    expect(existsSync(join(dir, '.void', 'hooks', '_void-hook.mjs'))).toBe(true);
     expect(existsSync(join(dir, 'CLAUDE.md'))).toBe(true);
     expect(existsSync(join(dir, 'AGENTS.md'))).toBe(false);
+    const settings = JSON.parse(readFileSync(join(dir, '.claude', 'settings.json'), 'utf8')) as {
+      hooks: { Stop: Array<{ hooks: Array<{ command: string }> }> };
+      extraKnownMarketplaces?: unknown;
+    };
+    expect(settings.hooks.Stop.some((entry) => entry.hooks.some((hook) => hook.command === 'user-hook'))).toBe(true);
+    expect(JSON.stringify(settings.hooks)).toContain('$CLAUDE_PROJECT_DIR/.void/hooks/');
+    expect(settings.extraKnownMarketplaces).toBeUndefined();
     expect(outcome.nextSteps.join(' ')).toContain('restart Claude Code');
   });
 
-  it('emits a FAILED next-step when the pin is unresolved', async () => {
+  it('keeps the marketplace behind an explicit adapter mode', async () => {
     const dir = scratch();
-    const outcome = await adapterFor('claude').wire({ ...ctxFor(dir), pinVersion: undefined });
+    const marketplace = { ...ctxFor(dir), source: 'marketplace' as const, pinVersion: undefined };
+    const outcome = await adapterFor('claude').wire(marketplace);
+    const settings = readFileSync(join(dir, '.claude', 'settings.json'), 'utf8');
+    expect(settings).toContain('extraKnownMarketplaces');
+    expect(existsSync(join(dir, '.claude', 'skills', 'tdd', 'SKILL.md'))).toBe(false);
     expect(outcome.nextSteps.some((s) => s.startsWith('FAILED:') && s.includes('core version could not be resolved'))).toBe(true);
+  });
+
+  it('has no account, gh or jq prerequisite in local mode', () => {
+    expect(adapterFor('claude').prerequisites('repo', 'local')).toEqual([]);
   });
 
   it('doctorChecks reds a missing settings.json', async () => {
     const dir = scratch();
     const checks = await adapterFor('claude').doctorChecks(dir);
     expect(checks.find((c) => c.name === 'settings.json')?.ok).toBe(false);
+  });
+
+  it('proves a local Claude install by executing its staged hook', async () => {
+    const dir = scratch();
+    await adapterFor('claude').wire(ctxFor(dir));
+
+    const inspection = await adapterFor('claude').inspect(dir);
+
+    expect(inspection.evidence, JSON.stringify(inspection, null, 2)).toMatchObject({
+      installed: true,
+      wired: true,
+      fired: true,
+      observed: false,
+    });
   });
 });
 

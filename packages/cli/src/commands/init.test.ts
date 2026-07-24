@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { buildDefaultConfig, buildFinalChecklist } from './init.js';
+import { buildDefaultConfig, buildFinalChecklist, resolveInstallSource } from './init.js';
 import type { CheckResult } from '../lib/prerequisites.js';
 import type { Stack } from '../lib/stack.js';
 
@@ -56,5 +56,14 @@ describe('buildFinalChecklist', () => {
   it('produces no FAILED lines when everything is healthy', () => {
     const items = buildFinalChecklist([ok], ['restart Claude Code']);
     expect(items.some((i) => i.startsWith('FAILED:'))).toBe(false);
+  });
+});
+
+describe('install source', () => {
+  it('defaults to the bundled local package and requires an explicit marketplace opt-in', () => {
+    expect(resolveInstallSource([])).toBe('local');
+    expect(resolveInstallSource(['--marketplace'])).toBe('marketplace');
+    expect(resolveInstallSource(['--source', 'marketplace'])).toBe('marketplace');
+    expect(resolveInstallSource(['--source', 'local'])).toBe('local');
   });
 });
