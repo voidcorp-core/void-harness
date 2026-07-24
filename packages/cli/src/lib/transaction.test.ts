@@ -60,6 +60,27 @@ describe('commitFileTransaction', () => {
     expect(readFileSync(adjacent, 'utf8')).toBe('# private\n');
   });
 
+  it('rolls back a receipt-authorized stale-file removal', async () => {
+    const root = scratch();
+    const stale = join(root, '.agents/skills/old/SKILL.md');
+    mkdirSync(join(root, '.agents/skills/old'), { recursive: true });
+    writeFileSync(stale, '# old\n');
+
+    await expect(
+      commitFileTransaction(
+        root,
+        [
+          { path: '.agents/skills/old/SKILL.md', remove: true },
+          { path: '.void/new', content: Buffer.from('new') },
+        ],
+        { failAfterMutation: 1 },
+      ),
+    ).rejects.toThrow();
+
+    expect(readFileSync(stale, 'utf8')).toBe('# old\n');
+    expect(existsSync(join(root, '.void/new'))).toBe(false);
+  });
+
   it('rejects traversal and symlink targets before writing', async () => {
     const root = scratch();
     const outside = scratch();
