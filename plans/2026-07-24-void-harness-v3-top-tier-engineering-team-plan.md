@@ -1263,7 +1263,7 @@ Mission Control visuel et écosystème ne peuvent pas grossir ce cut.
 
 ## Resume point
 
-**Next step**: Step 7 - Porter les règles qualité et lifecycle restantes
+**Next step**: Step 8 - Self-host dogfooding réel
 
 **Completed**:
 
@@ -1307,6 +1307,14 @@ Mission Control visuel et écosystème ne peuvent pas grossir ce cut.
   smoke Codex depuis un sous-répertoire avec espaces, chemins symlinkés bornés, conformance
   offline p50 1,07 s, typecheck, lint, anti-bloat, publication, décisions, parité docs et
   versions verts.
+- Step 7 : règles qualité restantes profilées par langage, commandes lifecycle en argv,
+  formatage borné aux fichiers touchés, trim/typecheck/context portables, un seul asset Node
+  installé, résultats de hooks canoniques et contrôle de taille Git-only réellement advisory
+  (`fc4f819`, `4579b6e`, `e7f610a`, `fc6f018`, `6909c40`) ;
+- gate Step 7 : 1 367 tests passés, 1 skip attendu ; fixtures Python, dépôt sans commit,
+  chemin avec espaces et base Git explicite couverts ; conformance offline Claude/Codex/both
+  p50 621 ms ; build, typecheck, lint, anti-bloat, publication, décisions immuables depuis
+  `fc6f018`, graphes, bundle, certification, parité docs, versions et diff verts.
 
 **Pending**:
 
