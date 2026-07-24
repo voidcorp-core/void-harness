@@ -22,8 +22,10 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Offline tarball install for Claude, Codex and both
-        run: pnpm conformance:install
+      - name: Offline tarball install and hook execution for Claude, Codex and both
+        run: |
+          pnpm conformance:install
+          pnpm conformance:hooks
 
   validate:
     runs-on: ubuntu-latest
