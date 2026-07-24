@@ -16,6 +16,7 @@ import {
   type Score,
   scoreProjectState,
 } from '@voidcorp/harness-graph';
+import { loadTelemetryStream } from '../lib/graph-io.js';
 import { configPackDirs } from '../lib/packs.js';
 import { banner, blank, c, footer, line } from '../lib/render.js';
 
@@ -151,8 +152,7 @@ export async function status(_args: readonly string[]): Promise<void> {
   const staticTokensById = new Map<string, number>();
   for (const n of model.nodes) if (typeof n.staticTokens === 'number') staticTokensById.set(n.id, n.staticTokens);
 
-  const actPath = join(cwd, '.void', 'activations.jsonl');
-  const events = existsSync(actPath) ? parseActivations(readFileSync(actPath, 'utf8')) : [];
+  const events = parseActivations(loadTelemetryStream(cwd, 'activations.jsonl'));
   // Installed = core capabilities + only the packs this project activated (read
   // from .void/config.json). Absent config ⇒ no packs ⇒ core only — never the
   // whole catalog, which overstated the surface.

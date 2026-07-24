@@ -66,14 +66,14 @@ void-harness graph audit
 ## Live (P2)
 
 ```
-void-harness graph live [--port 4317] [--log .void/activations.jsonl] [--history-max 5000]
+void-harness graph live [--port 4317] [--log <legacy-or-canonical.jsonl>] [--history-max 5000]
 ```
 
-Serves the model + a Server-Sent Events stream of activations (written by the
-`activation-meter` hook) for the graph-studio live layer. Data-only: routes are
-`GET /model.json`, `GET /history` (bounded), `GET /events` (SSE). The studio is a
-separate app that connects via `VITE_LIVE_URL`. See
-`docs/specs/2026-06-29-graph-live-p2.md`.
+Serves the model + a reconnectable SSE projection of canonical mission events
+from `.void/runs/*/events.jsonl`. The printed one-shot URL exchanges its token
+for a local HttpOnly cookie; model, history, studio data and SSE are protected.
+Legacy activation logs remain readable through `--log`. The Studio can also
+connect through `VITE_LIVE_URL` after the local auth exchange.
 
 ## Behavior (M8)
 

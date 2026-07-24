@@ -138,7 +138,7 @@ The tracker **is** the triage zone: taking the issue promotes it, closing it dec
 
 ### Outbound audit (obsolescence detection)
 
-The obsolescence side runs from the CLI, not from prose here: `void-harness audit` (and `--all-projects` / `--push`, #72) reads `.void/activations.jsonl` and reports skills that are active / stale / never-fired, plus expensive/should-have-fired via `void-graph`. This skill's job in audit mode is to **interpret** that report and, per proposal, draft a deprecation/fusion PR — hand-authored, HITL. The audit never removes a skill, edits a SKILL.md, or touches doctrine automatically.
+The obsolescence side runs from the CLI, not from prose here: `void-harness audit` (and `--all-projects` / `--push`, #72) reads canonical `.void/runs/*/events.jsonl` journals plus legacy history and reports skills that are active / stale / never-fired, plus expensive/should-have-fired via `void-graph`. This skill's job in audit mode is to **interpret** that report and, per proposal, draft a deprecation/fusion PR — hand-authored, HITL. The audit never removes a skill, edits a SKILL.md, or touches doctrine automatically.
 
 ---
 
@@ -171,7 +171,7 @@ A clean doctrine is the asset. Every entry earns its place by changing what happ
 
 - Nothing is written to `PROJECT-DOCTRINE.md` or filed as an issue without an explicit human yes.
 - This skill OPENS issues/PRs; it never merges them.
-- Usage telemetry is LOCAL only (`.void/activations.jsonl`); no network call sends it anywhere.
+- Usage telemetry is LOCAL only (`.void/runs/*/events.jsonl`); no network call sends it anywhere.
 
 ---
 

@@ -1,3 +1,4 @@
+import { parseEventLine } from '@voidcorp/mission-engine';
 import type { ActivationEvent, ActivationKind } from './types.js';
 
 const KINDS: ReadonlySet<string> = new Set(['skill', 'agent', 'workflow', 'tool']);
@@ -6,8 +7,39 @@ function asStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
 }
 
+function asObject(value: unknown): Readonly<Record<string, unknown>> | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as Readonly<Record<string, unknown>>
+    : undefined;
+}
+
+function canonicalActivation(line: string): ActivationEvent | undefined {
+  const parsed = parseEventLine(line);
+  if (!parsed.ok || parsed.value.kind !== 'runtime.tool.started') return undefined;
+  const separator = parsed.value.subject.indexOf(':');
+  if (separator < 1) return undefined;
+  const kind = parsed.value.subject.slice(0, separator);
+  const name = parsed.value.subject.slice(separator + 1);
+  if (!KINDS.has(kind) || name === '') return undefined;
+  const payload = asObject(parsed.value.payload);
+  if (payload === undefined) return undefined;
+  return {
+    ts: parsed.value.ts,
+    kind: kind as ActivationKind,
+    name,
+    trigger: {
+      tool: typeof payload['tool'] === 'string' ? payload['tool'] : '',
+      fileGlobs: asStringArray(payload['fileGlobs']),
+      ext: asStringArray(payload['extensions']),
+    },
+    sessionId: parsed.value.missionId,
+  };
+}
+
 function parseLine(line: string): ActivationEvent | undefined {
   if (line.trim() === '') return undefined;
+  const canonical = canonicalActivation(line);
+  if (canonical !== undefined) return canonical;
   let raw: unknown;
   try {
     raw = JSON.parse(line);
@@ -38,7 +70,7 @@ function parseLine(line: string): ActivationEvent | undefined {
   };
 }
 
-/** Parse a `.void/activations.jsonl` body into typed events. Tolerant: bad lines are skipped. */
+/** Parse canonical or legacy activation JSONL into typed events. Bad lines are skipped. */
 export function parseActivations(text: string): ActivationEvent[] {
   const events: ActivationEvent[] = [];
   for (const line of text.split('\n')) {

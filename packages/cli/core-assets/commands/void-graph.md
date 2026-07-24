@@ -7,7 +7,7 @@ allowed-tools: Bash(node:*)
 Run the self-contained `void-graph` analyzer that ships inside this plugin. It reads the
 **installed harness** model (baked into the bundle, filtered to the packs enabled in
 `.claude/settings.json`) and correlates it with this project's local telemetry
-(`.void/activations.jsonl`, `.void/usage.log`, and Claude Code transcripts). Everything is
+(`.void/runs/*/events.jsonl`, read-only legacy logs, and local transcripts). Everything is
 local — no npm, no network.
 
 The bundle lives at `${CLAUDE_PLUGIN_ROOT}/graph/void-graph.mjs` (this path is already the

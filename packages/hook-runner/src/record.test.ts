@@ -1,0 +1,48 @@
+import {
+  mkdtemp,
+  readFile,
+  readdir,
+  realpath,
+} from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { recordRuntimeEvent } from './record.js';
+
+describe('recordRuntimeEvent', () => {
+  it('writes one canonical event and never persists raw session or tool content', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'void-record-'));
+    const globalDir = await mkdtemp(join(tmpdir(), 'void-global-'));
+    const recorded = await recordRuntimeEvent({
+      root,
+      globalDir,
+      runtime: 'codex',
+      phase: 'activation',
+      rawInput: {
+        session_id: 'private-runtime-session',
+        tool_name: 'shell',
+        hook_event_name: 'PreToolUse',
+        tool_input: { command: 'echo TOP_SECRET' },
+      },
+    });
+
+    expect(recorded).toMatchObject({
+      seq: 1,
+      source: 'runtime:codex',
+      kind: 'runtime.tool.started',
+      subject: 'tool:shell',
+    });
+    if (recorded === undefined) return;
+    const body = await readFile(
+      join(root, '.void', 'runs', recorded.missionId, 'events.jsonl'),
+      'utf8',
+    );
+    expect(body).not.toContain('private-runtime-session');
+    expect(body).not.toContain('TOP_SECRET');
+    const pointers = await readdir(join(globalDir, 'projects'));
+    expect(pointers).toHaveLength(1);
+    expect(
+      await readFile(join(globalDir, 'projects', pointers[0] ?? ''), 'utf8'),
+    ).toBe(`${await realpath(root)}\n`);
+  });
+});

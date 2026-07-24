@@ -1,11 +1,45 @@
+import { parseEventLine } from '@voidcorp/mission-engine';
 import type { ActivationKind } from '../behavior/types.js';
 import type { OutcomeEvent, OutcomeStatus } from './types.js';
 
 const KINDS: ReadonlySet<string> = new Set(['skill', 'agent', 'workflow', 'tool']);
 const STATUSES: ReadonlySet<string> = new Set(['ok', 'error', 'unknown']);
 
+function asObject(value: unknown): Readonly<Record<string, unknown>> | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as Readonly<Record<string, unknown>>
+    : undefined;
+}
+
 function parseLine(line: string): OutcomeEvent | undefined {
   if (line.trim() === '') return undefined;
+  const canonical = parseEventLine(line);
+  if (canonical.ok) {
+    const event = canonical.value;
+    if (event.kind === 'runtime.session.stopped') {
+      return { event: 'Stop', ts: event.ts, sessionId: event.missionId };
+    }
+    if (event.kind === 'runtime.tool.completed') {
+      const separator = event.subject.indexOf(':');
+      if (separator < 1) return undefined;
+      const kind = event.subject.slice(0, separator);
+      const name = event.subject.slice(separator + 1);
+      if (!KINDS.has(kind) || name === '') return undefined;
+      const rawStatus = asObject(event.payload)?.['status'];
+      const status: OutcomeStatus =
+        typeof rawStatus === 'string' && STATUSES.has(rawStatus)
+          ? rawStatus as OutcomeStatus
+          : 'unknown';
+      return {
+        event: 'PostToolUse',
+        ts: event.ts,
+        kind: kind as ActivationKind,
+        name,
+        status,
+        sessionId: event.missionId,
+      };
+    }
+  }
   let raw: unknown;
   try {
     raw = JSON.parse(line);
@@ -31,7 +65,7 @@ function parseLine(line: string): OutcomeEvent | undefined {
   return { event: 'PostToolUse', ts, kind: kind as ActivationKind, name, status, sessionId };
 }
 
-/** Parse a `.void/outcomes.jsonl` body into typed events. Tolerant: bad/truncated lines are skipped. */
+/** Parse canonical or legacy outcome JSONL. Bad/truncated lines are skipped. */
 export function parseOutcomes(text: string): OutcomeEvent[] {
   const events: OutcomeEvent[] = [];
   for (const line of text.split('\n')) {

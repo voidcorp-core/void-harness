@@ -121,7 +121,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/activation-meter.sh"
+            "command": "VOID_AGENT_RUNTIME=claude ${CLAUDE_PLUGIN_ROOT}/hooks/activation-meter.sh"
           }
         ]
       },
@@ -159,7 +159,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/outcome-meter.sh"
+            "command": "VOID_AGENT_RUNTIME=claude ${CLAUDE_PLUGIN_ROOT}/hooks/outcome-meter.sh"
           }
         ]
       }
@@ -179,7 +179,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/outcome-meter.sh"
+            "command": "VOID_AGENT_RUNTIME=claude ${CLAUDE_PLUGIN_ROOT}/hooks/outcome-meter.sh"
           }
         ]
       },

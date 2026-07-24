@@ -1,5 +1,5 @@
 import type { LiveController } from '../render/live.js';
-import type { LiveState } from './live-state.js';
+import { type LiveState, visibleLiveStatus } from './live-state.js';
 
 // Imperative shell: the replay timeline. Renders the live/replay controls and
 // drives the pure liveReducer (via the controller). The render loop reads the
@@ -64,8 +64,11 @@ export function mountScrubber(host: HTMLElement, ctrl: LiveController): void {
     slider.disabled = !hasRange;
     playBtn.textContent = s.playing ? '⏸' : '▶';
     playBtn.disabled = !hasRange;
-    liveBtn.classList.toggle('is-active', s.mode === 'live');
-    time.textContent = s.mode === 'live' ? 'live' : fmt(s.cursorMs);
+    const status = visibleLiveStatus(s);
+    liveBtn.textContent = status;
+    liveBtn.classList.toggle('is-active', status === 'LIVE');
+    liveBtn.setAttribute('data-status', status.toLowerCase());
+    time.textContent = s.mode === 'live' ? status.toLowerCase() : fmt(s.cursorMs);
   };
 
   ctrl.onState(sync);

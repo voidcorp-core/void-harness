@@ -1,14 +1,21 @@
 // Cross-project telemetry rollup (issue #72). Per-project telemetry is too thin
 // to clear the cost/behavior gates alone (a skill fires a handful of times in one
-// repo). The activation-meter self-registers each project into a global index
+// repo). The canonical hook runner self-registers each project into a global index
 // (~/.void/projects/<hash>.path holding the project root); this module discovers
 // those roots, merges their .void/*.jsonl streams, and turns the resulting
 // findings into privacy-scoped GitHub issue drafts. HITL: drafting only — the
 // actual push is gated by an explicit flag in the command layer.
 
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
+import { loadCanonicalEventBody } from './graph-io.js';
 
 /** The global rollup index dir. `VOID_GLOBAL_DIR` overrides the base (test seam). */
 export function globalIndexDir(): string {
@@ -33,8 +40,24 @@ export function discoverProjects(indexDir: string = globalIndexDir()): string[] 
   for (const f of names) {
     if (!f.endsWith('.path')) continue;
     try {
-      const root = readFileSync(join(indexDir, f), 'utf8').trim();
-      if (root !== '' && existsSync(root) && statSync(root).isDirectory()) roots.add(root);
+      const pointer = join(indexDir, f);
+      const pointerInfo = lstatSync(pointer);
+      if (
+        !pointerInfo.isFile()
+        || pointerInfo.isSymbolicLink()
+        || pointerInfo.size > 4_096
+      ) {
+        continue;
+      }
+      const root = readFileSync(pointer, 'utf8').trim();
+      if (
+        root !== ''
+        && isAbsolute(root)
+        && existsSync(root)
+        && statSync(root).isDirectory()
+      ) {
+        roots.add(root);
+      }
     } catch {
       // unreadable pointer — skip, never crash the rollup
     }
@@ -59,6 +82,14 @@ export function mergeTelemetry(roots: readonly string[], file: string): string {
     }
   }
   return parts.join('\n');
+}
+
+/** Merge canonical run journals across projects for graph/cost/behavior readers. */
+export function mergeCanonicalTelemetry(roots: readonly string[]): string {
+  return roots
+    .map((root) => loadCanonicalEventBody(root))
+    .filter((body) => body !== '')
+    .join('\n');
 }
 
 /** A normalized finding ready to become an issue. Privacy: component + counts

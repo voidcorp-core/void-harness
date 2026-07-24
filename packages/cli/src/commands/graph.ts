@@ -14,7 +14,7 @@
 // resolveModel below. build/check remain monorepo-only.
 
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,17 +38,32 @@ import { readSessionCosts } from '../lib/transcript-cost.js';
 import { startLiveServer } from '../lib/graph-live-server.js';
 import { findCoreSource } from '../lib/paths.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
-import { loadSkillUsage, usedSkillNames } from '../lib/graph-io.js';
-import { discoverProjects, mergeTelemetry } from '../lib/rollup.js';
+import {
+  loadSkillUsage,
+  loadTelemetryStream,
+  usedSkillNames,
+} from '../lib/graph-io.js';
+import {
+  discoverProjects,
+  mergeCanonicalTelemetry,
+  mergeTelemetry,
+} from '../lib/rollup.js';
 
 /**
  * Load a telemetry stream body: the cross-project merge when `--all-projects` is
  * set (issue #72), else the single-project file (respecting a `--log` override).
  */
 function loadTelemetryBody(args: readonly string[], file: string, logPath?: string): string {
-  if (args.includes('--all-projects')) return mergeTelemetry(discoverProjects(), file);
-  const p = logPath ?? join(process.cwd(), '.void', file);
-  return existsSync(p) ? readFileSync(p, 'utf8') : '';
+  if (args.includes('--all-projects')) {
+    const roots = discoverProjects();
+    return [mergeCanonicalTelemetry(roots), mergeTelemetry(roots, file)]
+      .filter((body) => body !== '')
+      .join('\n');
+  }
+  if (logPath !== undefined && args.includes('--log')) {
+    return existsSync(logPath) ? readFileSync(logPath, 'utf8') : '';
+  }
+  return loadTelemetryStream(process.cwd(), file);
 }
 
 /** Read `--flag value` from argv, falling back to `fallback`. */
@@ -148,7 +163,7 @@ export async function resolveModel(
 }
 
 function ctxFor(): { usedSkillNames: Set<string> } {
-  // Unified skill-usage source: activations.jsonl (+ legacy usage.log history).
+  // Canonical skill usage plus legacy transition history.
   return { usedSkillNames: usedSkillNames(loadSkillUsage(process.cwd())) };
 }
 
@@ -360,12 +375,11 @@ export async function graph(
     // /studio-data.json. workflows stay {} on the consumer (phase metadata is build-time only).
     // Cost is REAL here (transcripts via readSessionCosts) — the consumer's own $/tokens; 1/1
     // volume floor keeps the cost layer populated (viz is advisory, not the CLI's gated report).
-    const events = parseActivations(existsSync(logPath) ? readFileSync(logPath, 'utf8') : '');
-    const outLive = join(process.cwd(), '.void', 'outcomes.jsonl');
+    const events = parseActivations(loadTelemetryBody(args, 'activations.jsonl', logPath));
     const cost = analyzeCost(model, events, {
       sessionCosts: readSessionCosts(process.cwd()).costs,
       pricing: loadPricing(args),
-      outcomes: parseOutcomes(existsSync(outLive) ? readFileSync(outLive, 'utf8') : ''),
+      outcomes: parseOutcomes(loadTelemetryBody(args, 'outcomes.jsonl')),
       minSessions: 1,
       minEvents: 1,
     });
@@ -377,19 +391,29 @@ export async function graph(
       cost,
     });
     const studioHtml = BUNDLED_STUDIO_HTML;
+    const launchToken = randomBytes(32).toString('base64url');
     banner('graph live');
     blank();
-    line(`  ${c.dim('tailing')} ${logPath}`);
+    line(
+      `  ${c.dim('tailing')} ${
+        args.includes('--log') ? logPath : '.void/runs/*/events.jsonl'
+      }`,
+    );
     startLiveServer({
       port,
       logPath,
       modelJson,
+      launchToken,
       historyMax,
       studioHtml,
       studioDataJson,
+      readEventBody: () =>
+        loadTelemetryBody(args, 'activations.jsonl', logPath),
       // Print the actually-bound port (may differ from --port after the busy-port fallback).
       onListening: (actualPort) => {
-        line(`  serving on ${c.green(`http://localhost:${actualPort}`)}`);
+        const launchUrl =
+          `http://localhost:${actualPort}/auth?token=${encodeURIComponent(launchToken)}`;
+        line(`  serving on ${c.green(launchUrl)}`);
         if (studioHtml !== undefined) {
           line(`  ${c.dim('routes')} GET / ${c.dim('(studio)')} ${c.dim(glyph.dot)} /model.json ${c.dim(glyph.dot)} /studio-data.json ${c.dim(glyph.dot)} /history ${c.dim(glyph.dot)} /events`);
           line(`  ${c.dim('open the URL above in a browser')}`);

@@ -54,6 +54,17 @@ jobs:
           DECISIONS_BASE: ${{ github.event.pull_request.base.sha }}
         run: pnpm decisions:check
 
+      - name: Generated hook runner is current
+        # Runtime hooks execute a checked-in, dependency-free bundle. Rebuild it
+        # before mirroring core so source and shipped hot paths cannot diverge.
+        run: |
+          pnpm hooks:build
+          if [ -n "$(git status --porcelain -- packages/core/hooks/_void-hook.mjs)" ]; then
+            echo "FAIL: generated hook runner is stale." >&2
+            echo "Run: pnpm hooks:build && commit the artifact." >&2
+            exit 1
+          fi
+
       - name: core-assets in sync with core
         # The CLI bundles packages/core as packages/cli/core-assets via
         # copy-core-assets.mjs. Regenerate and fail if the committed mirror

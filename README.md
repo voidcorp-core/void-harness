@@ -58,6 +58,8 @@ void-harness/
 │   │   ├── hooks/                 # tdd-guard, no-any-grep, no-console-log-grep, etc.
 │   │   ├── codex/                 # Codex safety-floor manifest (hooks.json)
 │   │   └── modules/               # CLAUDE.md modules (composable)
+│   ├── mission-engine/            # pure mission/event contracts and reducers
+│   ├── hook-runner/               # portable Node hook event writer
 │   ├── harness-graph/             # graph kernel + frozen model.json / certification.json
 │   └── packs/
 │       ├── pack-monorepo/         # Turbo / ADR / 5+5 layout

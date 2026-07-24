@@ -1,6 +1,6 @@
 // Outcome telemetry (issue #71): the value side of the cost/value ledger. The
-// PreToolUse activation-meter records ATTEMPTS (.void/activations.jsonl); the
-// PostToolUse/Stop outcome-meter records COMPLETIONS (.void/outcomes.jsonl) — did
+// PreToolUse records ATTEMPTS; PostToolUse/Stop records COMPLETIONS in the
+// canonical per-mission journal (legacy split streams remain importable) — did
 // a tool call succeed or error, and did the session end cleanly. Pure domain.
 
 import type { ActivationKind } from '../behavior/types.js';

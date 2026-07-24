@@ -15,7 +15,10 @@ describe('loadDataFromServer', () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify(payload), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
     const data = await loadDataFromServer('http://localhost:4317');
-    expect(fetchMock).toHaveBeenCalledWith('http://localhost:4317/studio-data.json');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:4317/studio-data.json',
+      { credentials: 'include' },
+    );
     expect(data.model.version).toBe(1);
     expect(data.usage.usedSkillNames).toEqual(['tdd']);
   });

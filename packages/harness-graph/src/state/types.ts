@@ -17,7 +17,7 @@ export interface CapabilityState {
   /** Structural proof carried from the certification (`proof.verified`). Note: independent of local
    * install — an `available` (not-installed-here) capability can still carry the repo's `verified`. */
   readonly verified: boolean;
-  /** How many times it fired here (from `.void/activations.jsonl`), a non-negative integer. 0 = never used here. */
+  /** How many times it fired in local mission telemetry. 0 = never used here. */
   readonly usedCount: number;
   /** The certified effective cells, present only when the project state reached `effective`. */
   readonly effectiveCells?: readonly EffectiveCell[];

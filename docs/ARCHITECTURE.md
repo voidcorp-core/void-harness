@@ -14,6 +14,9 @@ void-harness/
 │   │   ├── skills/                # craftsman skills (TDD, refactor, hexagonal, ...)
 │   │   ├── agents/                # doctrine-critic (read-only doctrine conformance review)
 │   │   └── hooks/                 # tdd-guard.sh, no-any-grep.sh, no-console-log-grep.sh
+│   ├── mission-engine/            # pure event contracts and deterministic reducers
+│   ├── hook-runner/               # Node adapter compiled into the portable hook asset
+│   ├── harness-graph/             # graph kernel + telemetry projections
 │   └── packs/                     # one workspace + plugin per capability
 │       ├── pack-monorepo/         # @voidcorp/pack-monorepo  (plugin harness-monorepo)
 │       ├── pack-react/            # @voidcorp/pack-react      (plugin harness-react)
@@ -113,9 +116,10 @@ closed** when `jq` is absent (a content-scanning hook blocks with an explicit
 message instead of exiting 127, which the runtime treats as non-blocking and which
 silently disabled the whole enforcement layer before). It also owns the physical
 root-relative path normalization the enforcement globs depend on. A hook sources it
-with `source "${BASH_SOURCE[0]%/*}/_hooklib.sh"`; `activation-meter.sh` /
-`outcome-meter.sh` (self-guarded, non-blocking meters) and `sessionstart-context.sh`
-(not a tool-call parser) are the deliberate non-consumers.
+with `source "${BASH_SOURCE[0]%/*}/_hooklib.sh"`. `activation-meter.sh` and
+`outcome-meter.sh` are deliberate non-consumers: they are tiny, fail-open adapters
+to the generated `_void-hook.mjs`, which owns the runtime-neutral event contract
+and needs no `jq`. `sessionstart-context.sh` is not a tool-call parser.
 
 A second sourced library, **`core/hooks/_checks.sh`**, carries the *pure
 detection* the floor hooks share with the server-side Action (see "Server-side
@@ -243,31 +247,39 @@ reaches consumers with zero npm publish. The `/void-graph` command runs it from
 
 On a consumer the CLI runs in **bundled mode**: it loads the baked model instead of scanning a
 source tree (no monorepo paths), filters it to the packs enabled in `.claude/settings.json`, and
-correlates it with local telemetry (`.void/activations.jsonl`, transcripts). `graph live` serves
-the inlined studio and a `/studio-data.json` endpoint on `localhost` — fully offline. Freshness
+correlates it with local mission journals (`.void/runs/*/events.jsonl`, plus
+read-only v2 import, and transcripts). `graph live` serves the inlined studio
+and a `/studio-data.json` endpoint on loopback - fully offline. Freshness
 is gated by `graph check-bundle` (the artifact's embedded model must match `model.json`); see
 DECISIONS.md (2026-07-01). The artifact is excluded from the `core-assets` mirror.
 
-## Telemetry: the cost/value ledger (`.void/*.jsonl`)
+## Mission event journal (`.void/runs/<mission-id>/events.jsonl`)
 
-Two universal meters, both best-effort (never block, always exit 0), both privacy-scoped to
-names/kinds/status only — never file content, output, or secrets:
+All runtimes now emit one strict, versioned event contract. `@voidcorp/mission-engine`
+validates bounded JSON and reduces it without I/O. `@voidcorp/hook-runner` adapts
+Claude/Codex hook payloads, redacts content, derives an opaque mission ID and
+assigns a continuous per-mission sequence under an exclusive cross-platform lock.
 
-- **attempts** — `activation-meter.sh` (PreToolUse, matcher `*`) appends one event per tool call
-  to `.void/activations.jsonl`: `{ ts, kind, name, trigger, sessionId }`. The single source of
-  truth for what fired (issue #70); `void-harness audit` and the graph cost/behavior kernels read
-  it.
-- **outcomes** — `outcome-meter.sh` (PostToolUse `*` + Stop) appends completions to
-  `.void/outcomes.jsonl`: `{ ts, event, kind, name, status, sessionId }` for a finished tool call
-  (status best-effort from `tool_response`) and `{ event: "Stop", sessionId }` when a session ends
-  cleanly (issue #71). This is the **value** side: `analyzeCost` joins it per component (by kind +
-  bare name) so `graph cost` shows a `yield` column (ok/(ok+error)) next to the token cost. A
-  session with no Stop (interrupted) leaves its attempts uncounted as failures — orphan attempts
-  are not errors.
+The canonical append-only line contains `schemaVersion`, `seq`, opaque `eventId`
+and `missionId`, UTC time, source, dotted kind, subject, correlation and bounded
+payload. Attempts, outcomes and Stop therefore share one writer and one ordering.
+The writer rejects path escapes and symlinks, isolates a partial tail, uses
+user-only modes where supported and never blocks the agent runtime on telemetry
+failure. Its generated dependency-free Node bundle is rebuilt by `pnpm hooks:build`
+and gated for drift before `core-assets` is mirrored.
 
-The two files never disagree because each has exactly one writer, and cost/value are correlated by
-`sessionId`. Cross-project aggregation and opt-in finding push ride on top of these files (issue
-#72), and are deliberately out of the meters themselves.
+Graph behavior, cost, audit, status and Studio consume the canonical journal.
+Legacy `.void/activations.jsonl`, `.void/outcomes.jsonl` and `.void/usage.log`
+remain read-only transition inputs; current hooks never append to them. Each
+project self-registers an opaque pointer under `~/.void/projects/` for opt-in
+cross-project aggregation.
+
+`graph live` binds loopback only. A random launch token is exchanged once for a
+process-local `HttpOnly; SameSite=Strict` cookie, foreign browser origins are
+rejected, and every data/SSE route requires the session. SSE uses the stable
+event ID, honors `Last-Event-ID` (or the first-connect `after` cursor), backfills
+the bounded snapshot and reports discontinuity as `PARTIAL`, never as live truth.
+Studio renders `LIVE`, `RECONNECTING`, `STALE`, `PARTIAL`, `REPLAY` and `OFFLINE`.
 
 ## Node frontmatter: `activation` (graph liveness)
 
@@ -355,7 +367,8 @@ reads it until Phase B's ProjectState) and the eval-harness JSON emission that p
 
 `ProjectState` is the project's legible state: a **deterministic, offline, LLM-free** join of the
 frozen `certification.json` (repo-authored proof) with **local signals** (which capabilities are
-installed here, which fired in `.void/activations.jsonl`, which runtimes are detected). The pure core
+installed here, which fired in canonical mission events (plus legacy read-only
+history), which runtimes are detected). The pure core
 lives in `packages/harness-graph/src/state/` — `computeProjectState` derives each capability's
 five-state (`available → installed → verified → used → effective`; `effective` requires certified
 proof **and** real local use), and `scoreProjectState` scores the eight dimensions (blocker/gauge,

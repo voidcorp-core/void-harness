@@ -1,8 +1,7 @@
 // `void-harness audit` — the outbound self-evolution audit (issue #17 cluster C).
 //
-// MVP scope (usage-log only): read .void/usage.log (written by the
-// skill-usage-meter hook) and report which harness skills are active, which have
-// gone stale, and which have never fired. The never/stale lists are the signal a
+// Read canonical mission events plus legacy history and report which harness
+// skills are active, stale or never fired. The never/stale lists are the signal a
 // human weighs when proposing a deprecation. HITL: this reports, it never acts.
 // Upstream-deprecation and decision-matrix-conflict detection are a documented
 // follow-up (they need data sources beyond the usage log).
@@ -12,7 +11,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { type SkillAudit, auditFindings, auditSkills } from '../lib/audit.js';
-import { loadSkillUsage } from '../lib/graph-io.js';
+import { loadCanonicalEventBody, loadSkillUsage } from '../lib/graph-io.js';
 import { findCoreSource } from '../lib/paths.js';
 import { checkGh } from '../lib/prerequisites.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
@@ -49,8 +48,7 @@ export async function audit(args: readonly string[]): Promise<void> {
   const coreSource = await findCoreSource();
   const allSkills = harnessSkills(coreSource);
 
-  // Skill usage: single source of truth is activations.jsonl (+ legacy usage.log
-  // history, #70). Aggregated across the self-registered projects when asked (#72).
+  // Canonical mission events are authoritative; legacy logs preserve history.
   const projects = aggregate ? discoverProjects() : [root];
   const usage = (projects.length > 0 ? projects : [root]).flatMap((r) => loadSkillUsage(r));
 
@@ -60,9 +58,13 @@ export async function audit(args: readonly string[]): Promise<void> {
   blank();
   if (aggregate) {
     line(`${c.dim('scope')} ${projects.length} registered project(s) ${c.dim(glyph.dot)} ${c.dim('~/.void index')}`);
-  } else if (!existsSync(join(root, '.void', 'activations.jsonl')) && usage.length === 0) {
+  } else if (
+    loadCanonicalEventBody(root) === ''
+    && !existsSync(join(root, '.void', 'activations.jsonl'))
+    && usage.length === 0
+  ) {
     line(
-      c.yellow(`  no .void/activations.jsonl yet — the activation-meter hook populates it as skills fire.`),
+      c.yellow('  no mission events yet - the activation hook populates .void/runs/*/events.jsonl.'),
     );
   }
   line(

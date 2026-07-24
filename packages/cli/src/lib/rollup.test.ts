@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import {
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   discoverProjects,
+  mergeCanonicalTelemetry,
   mergeTelemetry,
   dedupeKey,
   findingToIssue,
@@ -53,6 +60,22 @@ describe('discoverProjects', () => {
   it('returns empty when the index does not exist', () => {
     expect(discoverProjects(join(scratch(), 'nope'))).toEqual([]);
   });
+
+  it('rejects symlinked pointer files instead of following arbitrary reads', () => {
+    const base = scratch();
+    try {
+      const idx = join(base, 'projects');
+      const root = join(base, 'project');
+      mkdirSync(idx, { recursive: true });
+      mkdirSync(root);
+      const target = join(base, 'target.path');
+      writeFileSync(target, `${root}\n`);
+      symlinkSync(target, join(idx, 'linked.path'));
+      expect(discoverProjects(idx)).toEqual([]);
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('mergeTelemetry', () => {
@@ -79,6 +102,29 @@ describe('mergeTelemetry', () => {
       const a = join(base, 'a');
       mkdirSync(a);
       expect(mergeTelemetry([a], 'outcomes.jsonl')).toBe('');
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
+  });
+
+  it('merges canonical run logs across registered projects', () => {
+    const base = scratch();
+    try {
+      const a = join(base, 'a');
+      const b = join(base, 'b');
+      mkdirSync(join(a, '.void', 'runs', 'mis_aaaaaaaa'), { recursive: true });
+      mkdirSync(join(b, '.void', 'runs', 'mis_bbbbbbbb'), { recursive: true });
+      writeFileSync(
+        join(a, '.void', 'runs', 'mis_aaaaaaaa', 'events.jsonl'),
+        '{"missionId":"mis_aaaaaaaa"}\n',
+      );
+      writeFileSync(
+        join(b, '.void', 'runs', 'mis_bbbbbbbb', 'events.jsonl'),
+        '{"missionId":"mis_bbbbbbbb"}\n',
+      );
+      const merged = mergeCanonicalTelemetry([a, b]);
+      expect(merged).toContain('mis_aaaaaaaa');
+      expect(merged).toContain('mis_bbbbbbbb');
     } finally {
       rmSync(base, { recursive: true, force: true });
     }

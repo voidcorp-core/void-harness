@@ -1,5 +1,11 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, symlinkSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  symlinkSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,9 +29,15 @@ function runHook(payload: Record<string, unknown>, env: Record<string, string> =
     // Isolate the global rollup index so self-registration (#72) never touches ~/.void.
     env: { ...process.env, CLAUDE_PROJECT_DIR: dir, VOID_GLOBAL_DIR: join(dir, '_global'), ...env },
   });
-  const actPath = join(dir, '.void', 'activations.jsonl');
+  const runs = join(dir, '.void', 'runs');
+  const mission = existsSync(runs) ? readdirSync(runs)[0] : undefined;
+  const actPath = mission === undefined
+    ? ''
+    : join(runs, mission, 'events.jsonl');
   const usagePath = join(dir, '.void', 'usage.log');
-  const raw = existsSync(actPath) ? readFileSync(actPath, 'utf8').trim() : '';
+  const raw = actPath !== '' && existsSync(actPath)
+    ? readFileSync(actPath, 'utf8').trim()
+    : '';
   const activations = raw === '' ? [] : raw.split('\n').map((l) => JSON.parse(l) as Record<string, unknown>);
   return { dir, activations, usage: existsSync(usagePath) ? readFileSync(usagePath, 'utf8') : '' };
 }
@@ -41,67 +53,72 @@ describe('activation-meter — classification', () => {
   it('records a Skill call as kind=skill and no longer writes the legacy usage.log (#70)', () => {
     const { activations, usage } = runHook(pre('Skill', { skill: 'tdd' }));
     expect(activations).toHaveLength(1);
-    expect(activations[0]).toMatchObject({ kind: 'skill', name: 'tdd', sessionId: 'sess-1' });
-    // activations.jsonl is the single source of truth; usage.log is not written.
+    expect(activations[0]).toMatchObject({
+      schemaVersion: 1,
+      seq: 1,
+      kind: 'runtime.tool.started',
+      subject: 'skill:tdd',
+    });
+    expect(JSON.stringify(activations[0])).not.toContain('sess-1');
     expect(usage).toBe('');
   });
 
   it('records a Task call as kind=agent using subagent_type', () => {
     const { activations, usage } = runHook(pre('Task', { subagent_type: 'Explore' }));
-    expect(activations[0]).toMatchObject({ kind: 'agent', name: 'Explore' });
-    expect(usage).toBe(''); // usage.log is never written (single-source, #70)
+    expect(activations[0]).toMatchObject({ subject: 'agent:Explore' });
+    expect(usage).toBe('');
   });
 
   it('records an Agent call (this harness names the spawn tool Agent, not Task) as kind=agent', () => {
     const { activations } = runHook(pre('Agent', { subagent_type: 'harness:doctrine-critic' }));
-    expect(activations[0]).toMatchObject({ kind: 'agent', name: 'harness:doctrine-critic' });
+    expect(activations[0]).toMatchObject({ subject: 'agent:harness:doctrine-critic' });
   });
 
   it('defaults an Agent call with no subagent_type to claude', () => {
     const { activations } = runHook(pre('Agent', { prompt: 'do a thing' }));
-    expect(activations[0]).toMatchObject({ kind: 'agent', name: 'claude' });
+    expect(activations[0]).toMatchObject({ subject: 'agent:claude' });
   });
 
   it('records a Workflow call as kind=workflow using its name', () => {
     const { activations } = runHook(pre('Workflow', { name: 'find-flaky' }));
-    expect(activations[0]).toMatchObject({ kind: 'workflow', name: 'find-flaky' });
+    expect(activations[0]).toMatchObject({ subject: 'workflow:find-flaky' });
   });
 
   it('derives a scriptPath-launched Workflow name from its basename (matches the workflow-def node)', () => {
     const { activations } = runHook(
       pre('Workflow', { scriptPath: 'packages/core/skills/backlog-autopilot/workflows/backlog-autopilot.workflow.js' }),
     );
-    expect(activations[0]).toMatchObject({ kind: 'workflow', name: 'backlog-autopilot' });
+    expect(activations[0]).toMatchObject({ subject: 'workflow:backlog-autopilot' });
   });
 
   it('prefers an explicit name over scriptPath for a Workflow', () => {
     const { activations } = runHook(pre('Workflow', { name: 'custom', scriptPath: 'x/other.workflow.js' }));
-    expect(activations[0]).toMatchObject({ kind: 'workflow', name: 'custom' });
+    expect(activations[0]).toMatchObject({ subject: 'workflow:custom' });
   });
 
   it('falls back to inline for a Workflow with neither name nor scriptPath', () => {
     const { activations } = runHook(pre('Workflow', { script: 'export const meta = {}' }));
-    expect(activations[0]).toMatchObject({ kind: 'workflow', name: 'inline' });
+    expect(activations[0]).toMatchObject({ subject: 'workflow:inline' });
   });
 
   it('treats an empty name as absent and derives from scriptPath (jq // only guards null/false)', () => {
     const { activations } = runHook(pre('Workflow', { name: '', scriptPath: 'a/b/deploy.workflow.js' }));
-    expect(activations[0]).toMatchObject({ kind: 'workflow', name: 'deploy' });
+    expect(activations[0]).toMatchObject({ subject: 'workflow:deploy' });
   });
 
   it('falls back to inline when scriptPath yields an empty basename (trailing slash)', () => {
     const { activations } = runHook(pre('Workflow', { scriptPath: 'workflows/deploy/' }));
-    expect(activations[0]).toMatchObject({ kind: 'workflow', name: 'inline' });
+    expect(activations[0]).toMatchObject({ subject: 'workflow:inline' });
   });
 
   it('falls back to inline for an empty name and no scriptPath', () => {
     const { activations } = runHook(pre('Workflow', { name: '' }));
-    expect(activations[0]).toMatchObject({ kind: 'workflow', name: 'inline' });
+    expect(activations[0]).toMatchObject({ subject: 'workflow:inline' });
   });
 
   it('records any other tool as kind=tool with the tool name', () => {
     const { activations } = runHook(pre('Bash', { command: 'ls' }));
-    expect(activations[0]).toMatchObject({ kind: 'tool', name: 'Bash' });
+    expect(activations[0]).toMatchObject({ subject: 'tool:Bash' });
   });
 });
 
@@ -112,14 +129,18 @@ describe('activation-meter — file trigger context', () => {
       input: JSON.stringify(pre('Edit', { file_path: join(dir, 'src/render/live.ts'), new_string: 'SECRET CONTENT' })),
       env: { ...process.env, CLAUDE_PROJECT_DIR: dir },
     });
-    const ev = JSON.parse(readFileSync(join(dir, '.void', 'activations.jsonl'), 'utf8').trim()) as {
+    const runs = join(dir, '.void', 'runs');
+    const mission = readdirSync(runs)[0] ?? '';
+    const ev = JSON.parse(
+      readFileSync(join(runs, mission, 'events.jsonl'), 'utf8').trim(),
+    ) as {
       kind: string;
-      trigger: { tool: string; fileGlobs: string[]; ext: string[] };
+      payload: { tool: string; fileGlobs: string[]; extensions: string[] };
     };
-    expect(ev.kind).toBe('tool');
-    expect(ev.trigger.tool).toBe('Edit');
-    expect(ev.trigger.fileGlobs).toContain('src/render/live.ts');
-    expect(ev.trigger.ext).toContain('ts');
+    expect(ev.kind).toBe('runtime.tool.started');
+    expect(ev.payload.tool).toBe('Edit');
+    expect(ev.payload.fileGlobs).toContain('src/render/live.ts');
+    expect(ev.payload.extensions).toContain('ts');
     expect(JSON.stringify(ev)).not.toContain('SECRET CONTENT');
   });
 });
@@ -130,18 +151,23 @@ describe('activation-meter — robustness', () => {
     expect(() => runHook({})).not.toThrow();
   });
 
-  it('falls back to a well-formed line when jq is absent', () => {
+  it('records a well-formed event when jq is absent', () => {
     const binDir = mkdtempSync(join(tmpdir(), 'act-bin-'));
     for (const tool of ['cat', 'date', 'mkdir']) symlinkSync(`/bin/${tool}`, join(binDir, tool));
+    symlinkSync(process.execPath, join(binDir, 'node'));
     const dir = mkdtempSync(join(tmpdir(), 'act-meter-'));
     execFileSync(BASH, [script], {
       input: JSON.stringify(pre('Skill', { skill: 'tdd' })),
       env: { CLAUDE_PROJECT_DIR: dir, PATH: binDir },
     });
-    const ev = JSON.parse(readFileSync(join(dir, '.void', 'activations.jsonl'), 'utf8').trim()) as Record<
-      string,
-      unknown
-    >;
-    expect(ev).toMatchObject({ kind: 'skill', name: 'tdd' });
+    const runs = join(dir, '.void', 'runs');
+    const mission = readdirSync(runs)[0] ?? '';
+    const ev = JSON.parse(
+      readFileSync(join(runs, mission, 'events.jsonl'), 'utf8').trim(),
+    ) as Record<string, unknown>;
+    expect(ev).toMatchObject({
+      kind: 'runtime.tool.started',
+      subject: 'skill:tdd',
+    });
   });
 });

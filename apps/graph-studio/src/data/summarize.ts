@@ -18,3 +18,16 @@ export function summarizeUsage(logText: string): UsageSummary {
   }
   return { counts, usedSkillNames: Object.keys(counts).sort() };
 }
+
+export function summarizeActivations(
+  events: readonly { readonly kind: string; readonly name: string }[],
+): UsageSummary {
+  const counts: Record<string, number> = {};
+  for (const event of events) {
+    if (event.kind !== 'skill') continue;
+    const name = bareName(event.name);
+    if (name === '') continue;
+    counts[name] = (counts[name] ?? 0) + 1;
+  }
+  return { counts, usedSkillNames: Object.keys(counts).sort() };
+}

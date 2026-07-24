@@ -77,7 +77,7 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/activation-meter.sh" }
+          { "type": "command", "command": "VOID_AGENT_RUNTIME=codex ${VOID_HOOKS_DIR}/activation-meter.sh" }
         ]
       }
     ],
@@ -91,7 +91,7 @@
       {
         "matcher": "*",
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/outcome-meter.sh" }
+          { "type": "command", "command": "VOID_AGENT_RUNTIME=codex ${VOID_HOOKS_DIR}/outcome-meter.sh" }
         ]
       }
     ],
@@ -105,7 +105,7 @@
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/outcome-meter.sh" }
+          { "type": "command", "command": "VOID_AGENT_RUNTIME=codex ${VOID_HOOKS_DIR}/outcome-meter.sh" }
         ]
       },
       {

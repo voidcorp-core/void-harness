@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { clampCursor, defaultLiveState, liveReducer } from './live-state.js';
+import {
+  clampCursor,
+  defaultLiveState,
+  liveReducer,
+  visibleLiveStatus,
+} from './live-state.js';
 
 const ranged = () => liveReducer(defaultLiveState(), { type: 'setRange', min: 0, max: 100 });
 
@@ -9,6 +14,7 @@ describe('defaultLiveState', () => {
     expect(s.mode).toBe('live');
     expect(s.playing).toBe(false);
     expect(s.speed).toBe(1);
+    expect(s.connection).toBe('OFFLINE');
   });
 });
 
@@ -66,5 +72,29 @@ describe('liveReducer', () => {
     const s = liveReducer({ ...defaultLiveState(), cursorMs: 999 }, { type: 'setRange', min: 0, max: 100 });
     expect(s.cursorMs).toBe(100);
     expect(s.range).toEqual({ min: 0, max: 100 });
+  });
+
+  it('tracks explicit transport truth without changing replay state', () => {
+    const connecting = liveReducer(defaultLiveState(), {
+      type: 'setConnection',
+      connection: 'RECONNECTING',
+    });
+    expect(connecting.connection).toBe('RECONNECTING');
+    expect(visibleLiveStatus(connecting)).toBe('RECONNECTING');
+    const replay = liveReducer(connecting, { type: 'toReplay', atMs: 0 });
+    expect(visibleLiveStatus(replay)).toBe('REPLAY');
+  });
+
+  it('surfaces partial and stale streams instead of claiming live', () => {
+    const partial = liveReducer(defaultLiveState(), {
+      type: 'setConnection',
+      connection: 'PARTIAL',
+    });
+    expect(visibleLiveStatus(partial)).toBe('PARTIAL');
+    const stale = liveReducer(partial, {
+      type: 'setConnection',
+      connection: 'STALE',
+    });
+    expect(visibleLiveStatus(stale)).toBe('STALE');
   });
 });

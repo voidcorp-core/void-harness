@@ -58,6 +58,7 @@ export const CODEX_FLOOR_SCRIPTS = [
   'test-name-lint.sh',
   'no-ai-design-slop.sh',
   'activation-meter.sh',
+  '_void-hook.mjs',
   // PostToolUse / SessionStart / Stop — repair, telemetry, lifecycle gates
   'auto-format.sh',
   'outcome-meter.sh',

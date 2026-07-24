@@ -32,6 +32,7 @@
     "certification:check": "pnpm --filter @voidcorp/harness-graph build && pnpm --filter voidharness build:certification -- --check",
     "graph:check": "pnpm --filter @voidcorp/harness-graph build && node packages/cli/bin/void-harness.mjs graph check",
     "graph:check-bundle": "node packages/cli/bin/void-harness.mjs graph check-bundle",
+    "hooks:build": "pnpm --filter @voidcorp/mission-engine build && pnpm --filter @voidcorp/hook-runner build",
     "eval": "pnpm --filter @voidcorp/eval-harness run eval --"
   },
   "devDependencies": {

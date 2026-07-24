@@ -1,176 +1,314 @@
-// Imperative shell for `graph live`: a zero-dependency node:http server that
-// serves the model and tails .void/activations.jsonl as a Server-Sent Events
-// stream. Pure parsing/splitting lives in ./graph-live.ts. Data-only by design
-// (no static studio) — the HTTP contract is a superset the future all-in-one
-// server can extend with a `GET /` -> dist route without breaking clients.
-
-import { closeSync, existsSync, openSync, readFileSync, readSync, statSync } from 'node:fs';
-import { type IncomingMessage, type Server, type ServerResponse, createServer } from 'node:http';
-import { type ActivationEvent, parseActivationLine, splitNewLines } from './graph-live.js';
+import { existsSync, lstatSync, readFileSync } from 'node:fs';
+import {
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+  createServer,
+} from 'node:http';
+import {
+  buildLiveSnapshot,
+  type LiveEvent,
+  type LiveSnapshot,
+} from './graph-live.js';
+import {
+  createLiveAuth,
+  sessionCookie,
+  type LiveAuth,
+} from './graph-live-auth.js';
 
 export interface LiveServerOptions {
   readonly port: number;
   readonly logPath: string;
-  /** Serialized model.json served at GET /model.json. */
   readonly modelJson: string;
-  /** Self-contained studio HTML served at GET /. Absent -> data-only server (GET / -> 404). */
+  readonly launchToken: string;
   readonly studioHtml?: string | undefined;
-  /** Pre-computed StudioData JSON served at GET /studio-data.json (server-fed studio mode). */
   readonly studioDataJson?: string | undefined;
   readonly pollMs?: number;
-  /** Max events returned by GET /history (most recent kept). Default 5000. */
   readonly historyMax?: number;
+  /** Canonical + legacy body provider. Defaults to the bounded `logPath` file. */
+  readonly readEventBody?: (() => string) | undefined;
   readonly onListening?: (port: number) => void;
 }
 
-/** Bind loopback only — the studio is a local-first tool; never expose it on the LAN. */
 const LOOPBACK = '127.0.0.1';
+const PORT_RETRIES = 20;
+const LOCALHOST_ORIGIN =
+  /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
 
-const LOCALHOST_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
-
-/**
- * CORS headers for one request. The server binds loopback, but a browser page can still reach
- * 127.0.0.1, and a wildcard `Access-Control-Allow-Origin: *` would let ANY website read the graph /
- * cost / activation data while `graph live` runs. So we reflect the Origin ONLY for localhost
- * origins (the dev studio runs cross-port), and send no CORS header otherwise — the browser's
- * same-origin policy then blocks a foreign page from reading the response. No Origin (same-origin or
- * a non-browser client like curl) needs no header.
- */
 export function corsFor(origin: string | undefined): Record<string, string> {
   if (origin !== undefined && LOCALHOST_ORIGIN.test(origin)) {
-    return { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' };
+    return {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Credentials': 'true',
+      Vary: 'Origin',
+    };
   }
   return {};
 }
 
-/** Read bytes appended to `path` since `offset`; returns the new chunk + new size. */
-function readFrom(path: string, offset: number): { chunk: string; size: number } {
-  const size = statSync(path).size;
-  if (size <= offset) return { chunk: '', size };
-  const fd = openSync(path, 'r');
+function foreignOrigin(origin: string | undefined): boolean {
+  return origin !== undefined && !LOCALHOST_ORIGIN.test(origin);
+}
+
+function securityHeaders(): Record<string, string> {
+  return {
+    'Cache-Control': 'no-store',
+    'Referrer-Policy': 'no-referrer',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+  };
+}
+
+function safeLogBody(path: string): string {
+  if (!existsSync(path)) return '';
   try {
-    const buf = Buffer.alloc(size - offset);
-    readSync(fd, buf, 0, buf.length, offset);
-    return { chunk: buf.toString('utf8'), size };
-  } finally {
-    closeSync(fd);
+    const info = lstatSync(path);
+    if (!info.isFile() || info.isSymbolicLink() || info.size > 64 * 1024 * 1024) {
+      return '';
+    }
+    return readFileSync(path, 'utf8');
+  } catch {
+    return '';
   }
 }
 
-function streamEvents(res: ServerResponse, logPath: string, pollMs: number, cors: Record<string, string>): void {
+function snapshot(opts: LiveServerOptions): LiveSnapshot {
+  let body = '';
+  try {
+    body = opts.readEventBody?.() ?? safeLogBody(opts.logPath);
+  } catch {
+    body = '';
+  }
+  return buildLiveSnapshot(body, opts.historyMax ?? 5_000);
+}
+
+function streamState(value: LiveSnapshot): 'LIVE' | 'PARTIAL' {
+  return value.continuity === 'partial' || value.truncated ? 'PARTIAL' : 'LIVE';
+}
+
+function writeStatus(
+  res: ServerResponse,
+  state: 'LIVE' | 'PARTIAL',
+  reason?: string,
+): void {
+  res.write(
+    `event: stream-status\ndata: ${JSON.stringify({
+      state,
+      ...(reason === undefined ? {} : { reason }),
+    })}\n\n`,
+  );
+}
+
+function writeEvent(res: ServerResponse, event: LiveEvent): void {
+  res.write(
+    `id: ${event.id}\nevent: activation\ndata: ${JSON.stringify(event.activation)}\n\n`,
+  );
+}
+
+function afterCursor(
+  value: LiveSnapshot,
+  cursor: string,
+): { events: readonly LiveEvent[]; cursorFound: boolean } {
+  const index = value.events.findIndex((event) => event.id === cursor);
+  return index < 0
+    ? { events: value.events, cursorFound: false }
+    : { events: value.events.slice(index + 1), cursorFound: true };
+}
+
+function streamEvents(
+  req: IncomingMessage,
+  res: ServerResponse,
+  opts: LiveServerOptions,
+  cors: Record<string, string>,
+  url: URL,
+): void {
   res.writeHead(200, {
     ...cors,
+    ...securityHeaders(),
     'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
     Connection: 'keep-alive',
   });
-  res.write(': connected\n\n');
-  // Start at the current end of file: /events streams only NEW activations;
-  // the past is served by /history (so reconnects do not replay duplicates).
-  let offset = existsSync(logPath) ? statSync(logPath).size : 0;
-  let rest = '';
+  res.write('retry: 1000\n: connected\n\n');
+
+  const first = snapshot(opts);
+  const headerCursor = req.headers['last-event-id'];
+  const cursor = typeof headerCursor === 'string'
+    ? headerCursor
+    : url.searchParams.get('after') ?? '';
+  const sentIds = new Set(first.events.map((event) => event.id));
+  if (cursor !== '') {
+    const backfill = afterCursor(first, cursor);
+    if (!backfill.cursorFound) {
+      writeStatus(res, 'PARTIAL', 'cursor-unavailable');
+    } else {
+      writeStatus(res, streamState(first));
+    }
+    for (const event of backfill.events) writeEvent(res, event);
+  } else {
+    writeStatus(res, streamState(first));
+  }
 
   const poll = setInterval(() => {
-    if (!existsSync(logPath)) return;
-    const { chunk, size } = readFrom(logPath, offset);
-    if (size < offset) offset = 0; // file truncated/rotated -> resync
-    if (chunk === '') return;
-    offset = size;
-    const split = splitNewLines(rest + chunk);
-    rest = split.rest;
-    for (const line of split.lines) {
-      const ev = parseActivationLine(line);
-      if (ev !== undefined) res.write(`event: activation\ndata: ${JSON.stringify(ev)}\n\n`);
+    const current = snapshot(opts);
+    if (streamState(current) === 'PARTIAL') {
+      writeStatus(res, 'PARTIAL', 'journal-discontinuity');
     }
-  }, pollMs);
-
+    for (const event of current.events) {
+      if (sentIds.has(event.id)) continue;
+      sentIds.add(event.id);
+      writeEvent(res, event);
+    }
+    if (sentIds.size > (opts.historyMax ?? 5_000) * 2) {
+      sentIds.clear();
+      for (const event of current.events) sentIds.add(event.id);
+    }
+  }, opts.pollMs ?? 500);
   const heartbeat = setInterval(() => res.write(': ping\n\n'), 15_000);
-
   res.on('close', () => {
     clearInterval(poll);
     clearInterval(heartbeat);
   });
 }
 
-/** Read the whole log, parse every valid line, keep the most recent `max`. */
-function readHistory(logPath: string, max: number): ActivationEvent[] {
-  if (!existsSync(logPath)) return [];
-  const events: ActivationEvent[] = [];
-  for (const line of readFileSync(logPath, 'utf8').split('\n')) {
-    const ev = parseActivationLine(line);
-    if (ev !== undefined) events.push(ev);
+function exchangeLaunchToken(
+  res: ServerResponse,
+  auth: LiveAuth,
+  url: URL,
+): void {
+  const supplied = url.searchParams.get('token') ?? '';
+  const session = auth.exchange(supplied);
+  if (session === undefined) {
+    res.writeHead(401, { ...securityHeaders(), 'Content-Type': 'text/plain' });
+    res.end('invalid or consumed launch token');
+    return;
   }
-  return events.length > max ? events.slice(events.length - max) : events;
+  res.writeHead(303, {
+    ...securityHeaders(),
+    'Set-Cookie': sessionCookie(session),
+    Location: '/',
+  });
+  res.end();
 }
 
-function handle(req: IncomingMessage, res: ServerResponse, opts: LiveServerOptions): void {
-  const url = req.url ?? '/';
-  const cors = corsFor(req.headers.origin);
+function json(
+  res: ServerResponse,
+  cors: Record<string, string>,
+  body: string,
+  extra: Record<string, string> = {},
+): void {
+  res.writeHead(200, {
+    ...cors,
+    ...securityHeaders(),
+    ...extra,
+    'Content-Type': 'application/json',
+  });
+  res.end(body);
+}
+
+function handle(
+  req: IncomingMessage,
+  res: ServerResponse,
+  opts: LiveServerOptions,
+  auth: LiveAuth,
+): void {
+  const origin = req.headers.origin;
+  if (foreignOrigin(origin)) {
+    res.writeHead(403, { ...securityHeaders(), 'Content-Type': 'text/plain' });
+    res.end('foreign origins are forbidden');
+    return;
+  }
+  const cors = corsFor(origin);
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, cors);
+    res.writeHead(204, {
+      ...cors,
+      ...securityHeaders(),
+      'Access-Control-Allow-Headers': 'Last-Event-ID, Content-Type',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    });
     res.end();
     return;
   }
-  if (url === '/' || url === '/index.html') {
+  const url = new URL(req.url ?? '/', 'http://localhost');
+  if (url.pathname === '/auth') {
+    exchangeLaunchToken(res, auth, url);
+    return;
+  }
+  if (!auth.authorized(req.headers.cookie)) {
+    res.writeHead(401, { ...cors, ...securityHeaders(), 'Content-Type': 'text/plain' });
+    res.end('authentication required');
+    return;
+  }
+  if (url.pathname === '/' || url.pathname === '/index.html') {
     if (opts.studioHtml === undefined) {
-      res.writeHead(404, { ...cors, 'Content-Type': 'text/plain' });
-      res.end('studio not bundled (data-only server); use /model.json, /history, /events');
+      res.writeHead(404, { ...cors, ...securityHeaders(), 'Content-Type': 'text/plain' });
+      res.end('studio not bundled (data-only server)');
       return;
     }
-    res.writeHead(200, { ...cors, 'Content-Type': 'text/html; charset=utf-8' });
+    res.writeHead(200, {
+      ...cors,
+      ...securityHeaders(),
+      'Content-Type': 'text/html; charset=utf-8',
+    });
     res.end(opts.studioHtml);
     return;
   }
-  if (url === '/model.json') {
-    res.writeHead(200, { ...cors, 'Content-Type': 'application/json' });
-    res.end(opts.modelJson);
+  if (url.pathname === '/model.json') {
+    json(res, cors, opts.modelJson);
     return;
   }
-  if (url === '/studio-data.json') {
+  if (url.pathname === '/studio-data.json') {
     if (opts.studioDataJson === undefined) {
-      res.writeHead(404, { ...cors, 'Content-Type': 'text/plain' });
-      res.end('studio data not computed (data-only server)');
+      res.writeHead(404, { ...cors, ...securityHeaders(), 'Content-Type': 'text/plain' });
+      res.end('studio data not computed');
       return;
     }
-    res.writeHead(200, { ...cors, 'Content-Type': 'application/json' });
-    res.end(opts.studioDataJson);
+    json(res, cors, opts.studioDataJson);
     return;
   }
-  if (url.startsWith('/history')) {
-    const history = readHistory(opts.logPath, opts.historyMax ?? 5000);
-    res.writeHead(200, { ...cors, 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(history));
+  if (url.pathname === '/history') {
+    const current = snapshot(opts);
+    const last = current.events.at(-1)?.id ?? '';
+    json(
+      res,
+      cors,
+      JSON.stringify(current.events.map((event) => event.activation)),
+      {
+        'X-Void-Continuity': streamState(current).toLowerCase(),
+        ...(last === '' ? {} : { 'X-Void-Last-Event-ID': last }),
+      },
+    );
     return;
   }
-  if (url.startsWith('/events')) {
-    streamEvents(res, opts.logPath, opts.pollMs ?? 500, cors);
+  if (url.pathname === '/events') {
+    streamEvents(req, res, opts, cors, url);
     return;
   }
-  res.writeHead(404, { ...cors, 'Content-Type': 'text/plain' });
+  res.writeHead(404, { ...cors, ...securityHeaders(), 'Content-Type': 'text/plain' });
   res.end('not found');
 }
 
-/** Max consecutive ports to try when the requested one is busy. */
-const PORT_RETRIES = 20;
-
-/** Start the live SSE server on loopback. Returns the http.Server (call .close() to stop). */
+/** Start a loopback-only, cookie-authenticated live SSE server. */
 export function startLiveServer(opts: LiveServerOptions): Server {
-  const server = createServer((req, res) => handle(req, res, opts));
+  const auth = createLiveAuth(opts.launchToken);
+  const server = createServer((req, res) => handle(req, res, opts, auth));
   let port = opts.port;
   server.on('listening', () => {
-    const addr = server.address();
-    // Report the actually-bound port (matters for port 0 and the port-increment fallback).
-    opts.onListening?.(typeof addr === 'object' && addr ? addr.port : port);
+    const address = server.address();
+    opts.onListening?.(
+      typeof address === 'object' && address ? address.port : port,
+    );
   });
-  server.on('error', (err: NodeJS.ErrnoException) => {
-    // Requested port busy: walk forward a bounded number of ports. Port 0 lets the OS pick, so
-    // it never collides and is never incremented.
-    if (err.code === 'EADDRINUSE' && opts.port !== 0 && port - opts.port < PORT_RETRIES) {
+  server.on('error', (error: NodeJS.ErrnoException) => {
+    if (
+      error.code === 'EADDRINUSE'
+      && opts.port !== 0
+      && port - opts.port < PORT_RETRIES
+    ) {
       port += 1;
       server.listen(port, LOOPBACK);
       return;
     }
-    throw err;
+    throw error;
   });
   server.listen(port, LOOPBACK);
   return server;
