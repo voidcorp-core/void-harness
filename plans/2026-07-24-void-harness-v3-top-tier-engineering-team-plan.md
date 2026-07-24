@@ -1263,7 +1263,7 @@ Mission Control visuel et écosystème ne peuvent pas grossir ce cut.
 
 ## Resume point
 
-**Next step**: Step 2 - Introduire le journal d'événements append-only
+**Next step**: Step 3 - Relier preuves, findings, invalidation et verdict
 
 **Completed**:
 
@@ -1273,11 +1273,17 @@ Mission Control visuel et écosystème ne peuvent pas grossir ce cut.
 - Step 1 : ADR UUID exclusifs, schémas legacy/v3, supersession, immutabilité git,
   projections read-only, doctrine/CI/assets/graphes alignés (`a39d8ad`) ;
 - gate Step 1 : 1 173 tests passés, 1 skip attendu ; typecheck, lint, build,
-  anti-bloat, décisions avec base git, graphes, bundle et publish-safety verts.
+  anti-bloat, décisions avec base git, graphes, bundle et publish-safety verts ;
+- Step 2 : journal canonique append-only partagé Claude/Codex, validation bornée,
+  séquençage concurrent, replay O(n), compatibilité legacy, registre multi-projet,
+  SSE authentifié et reprenable, états Mission Control explicites (`74b2e6c`) ;
+- gate Step 2 : 1 211 tests passés, 1 skip attendu ; typecheck, bundle embarqué,
+  core-assets et diff verts ; replay 10k événements p95 59,26 ms, hook cold p95
+  92,66 ms, écriture hot p95 1,6 ms.
 
 **Pending**:
 
-- Steps 2 à 24 ;
+- Steps 3 à 24 ;
 - Checkpoint A après Step 8 ;
 - Checkpoint B après Step 22 ;
 - brainstorming/spec dédiée Mission Control x10 pendant Step 23.
