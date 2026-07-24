@@ -10,6 +10,11 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { commitFileTransaction } from './transaction.js';
 import {
+  buildInstallReceipt,
+  encodeReceipt,
+  INSTALL_RECEIPT_PATH,
+} from './receipts.js';
+import {
   prepareInstallCommit,
   seedInstallStage,
 } from './local-install.js';
@@ -74,5 +79,39 @@ describe('local install staging', () => {
       runtimes: ['claude'],
       force: false,
     })).rejects.toThrow(/unowned asset conflict/);
+  });
+
+  it('can add one runtime while retaining unchanged ownership from the other', async () => {
+    const root = scratch('void-project-');
+    const stage = scratch('void-stage-');
+    const claudePath = '.claude/skills/tdd/SKILL.md';
+    mkdirSync(join(root, '.claude', 'skills', 'tdd'), { recursive: true });
+    mkdirSync(join(root, '.void', 'receipts'), { recursive: true });
+    mkdirSync(join(stage, '.codex'), { recursive: true });
+    writeFileSync(join(root, ...claudePath.split('/')), '# TDD\n');
+    writeFileSync(join(stage, '.codex', 'hooks.json'), '{}\n');
+    const prior = buildInstallReceipt({
+      version: '2.0.2',
+      source: 'local',
+      runtimes: ['claude'],
+      files: [{ path: claudePath, content: Buffer.from('# TDD\n'), mode: 0o644 }],
+    });
+    writeFileSync(join(root, ...INSTALL_RECEIPT_PATH.split('/')), encodeReceipt(prior));
+
+    const prepared = await prepareInstallCommit({
+      projectRoot: root,
+      stageRoot: stage,
+      version: '2.0.2',
+      source: 'local',
+      runtimes: ['claude', 'codex'],
+      force: false,
+      retainPreviousOwned: true,
+    });
+
+    expect(prepared.receipt.files.map((file) => file.path)).toEqual([
+      '.claude/skills/tdd/SKILL.md',
+      '.codex/hooks.json',
+    ]);
+    expect(prepared.mutations).not.toContainEqual({ path: claudePath, remove: true });
   });
 });
