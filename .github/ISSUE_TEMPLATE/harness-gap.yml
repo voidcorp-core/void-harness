@@ -1,0 +1,53 @@
+name: Harness gap
+description: "While working in a project, you thought: the harness should have handled this."
+labels: ["harness-gap"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the harness's documented inbound flow: a gap noticed while coding in a
+        consumer project is filed here, with the context of where it was felt.
+
+        Two bars it has to clear before it becomes doctrine, so please address them below:
+        **agnostic** (it is not specific to one project's stack or taste) and
+        **harness-worthy** (it belongs in shared doctrine, not in that project's own docs).
+  - type: textarea
+    id: situation
+    attributes:
+      label: What were you doing?
+      description: The concrete task, and where the harness did not help or got in the way.
+      placeholder: "Adding a webhook handler; nothing pushed me to verify the signature until review caught it."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should the harness have done?
+      description: A skill that should have fired, a hook that should have blocked, a doc that should have existed.
+    validations:
+      required: true
+  - type: dropdown
+    id: shape
+    attributes:
+      label: What shape does the fix probably take?
+      options:
+        - A new skill
+        - A change to an existing skill
+        - A hook (enforcement)
+        - A CLI change
+        - Documentation
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: agnostic
+    attributes:
+      label: Why is this agnostic and harness-worthy?
+      description: Why would another project, on another stack, want this too? If it is really specific to one codebase, it belongs in that repo's PROJECT-DOCTRINE.md instead.
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime and version
+      placeholder: "Claude Code, voidharness 2.0.2"

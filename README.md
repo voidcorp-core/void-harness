@@ -1,5 +1,10 @@
 # void-harness
 
+[![npm](https://img.shields.io/npm/v/voidharness?color=0b7285&label=voidharness)](https://www.npmjs.com/package/voidharness)
+[![ci](https://github.com/voidcorp-core/void-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/voidcorp-core/void-harness/actions/workflows/ci.yml)
+[![provenance](https://img.shields.io/badge/npm-provenance%20signed-0b7285)](https://registry.npmjs.org/-/npm/v1/attestations/voidharness@2.0.2)
+[![license](https://img.shields.io/badge/license-MIT-0b7285)](./LICENSE)
+
 > A development-doctrine operating system for coding agents. Multi-runtime by construction, public, MIT.
 
 Install a top-5% development doctrine on any project in one command, run it across several agent runtimes, and read locally what is installed, actually active, and worth improving.
@@ -13,13 +18,20 @@ Born at VoidCorp, released for anyone.
 
 ## Status
 
-**2.0.1 — live on npm**, public MIT. Install with `npx voidharness init`. Releases are cut
-from Conventional Commits and published from CI **tokenlessly**, via npm Trusted Publishing
-(OIDC): no npm token exists in this repo or its secrets. Stated rather than glossed:
-published versions do **not** yet carry a provenance attestation, so do not rely on one.
-The intent is documented in `docs/RELEASING.md`; this line will claim it once an attestation
-is actually observed on a release. See `plans/` for design specs and `docs/DECISIONS.md`
-for the decision log.
+**2.0.2 — live on npm**, public MIT. Install with `npx voidharness init`. Releases are cut
+from Conventional Commits and published from CI **tokenlessly** via npm Trusted Publishing
+(OIDC) — no npm token exists in this repo or its secrets — and carry a **provenance
+attestation** signed by GitHub Actions and recorded in the sigstore transparency log.
+
+Verify it yourself rather than taking this line's word for it:
+
+```bash
+npm audit signatures                                     # in a project that installs it
+curl https://registry.npmjs.org/-/npm/v1/attestations/voidharness@2.0.2
+```
+
+See `docs/RELEASING.md` for the release flow, `plans/` for design specs, and
+`docs/DECISIONS.md` for the decision log.
 
 ## Philosophy
 
