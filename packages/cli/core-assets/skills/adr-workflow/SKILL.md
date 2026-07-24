@@ -1,6 +1,6 @@
 ---
 name: adr-workflow
-description: Capture architecture decisions as ADRs (decisions/0001-NNNN.md) — when to write one, when not, format, lifecycle (proposed → accepted → superseded). Distinct from generic plans.
+description: Capture structural choices as one immutable ADR file with collision-free identity, explicit alternatives, reversal cost, and supersession. Use when future code depends on why.
 owner: folpe
 runtimes: [claude, codex]
 enforcement:
@@ -14,53 +14,79 @@ eval_targets: [claude/anthropic/opus]
 
 # adr-workflow
 
-Use when making a structural choice that **changes how future code is written** in this codebase and where a future contributor (or future-you) would otherwise ask "why did we do it this way?". ADRs are scoped to the codebase; for cross-org or product strategy, use a different tool (Notion, Linear).
+Use when a structural choice changes how future code is written and a future
+contributor would otherwise ask "why?". ADRs are codebase-scoped. Product or
+cross-organization strategy belongs in the product's decision system.
 
-Composes with `harness:writing-plans` (which is plan-the-work-before-coding); ADRs document the **decisions** behind that work, persistent in the repo.
+This composes with `harness:writing-plans`: plans describe work; ADRs preserve
+the decisions behind it.
 
-## When to write an ADR
+## Write an ADR when
 
-- Choosing a library that pins the project (Drizzle vs Prisma, tRPC vs GraphQL, Zustand vs Jotai)
-- Naming or layout convention with codebase-wide impact (5+5 service layout, `(actions)` route group placement)
-- Boundary decisions (which package owns X, where the trust boundary lives)
-- Performance trade-offs accepted explicitly (RSC vs Client default, caching policy)
-- Reversal of a previous ADR (creates a new ADR superseding the old)
+- A library or platform choice creates material lock-in.
+- A naming, layout or dependency convention affects the codebase broadly.
+- Ownership, trust or deployment boundaries change.
+- A performance, availability, privacy or security trade-off is accepted.
+- A previous accepted ADR must be reversed or narrowed.
 
-## When NOT to write an ADR
+Do not write one for bug fixes, preference, pure refactors or choices reversible
+in one small PR. If no credible alternative was rejected, the record is usually
+ceremony rather than a decision.
 
-- Bugfixes (commit message + linked issue is enough)
-- Pure refactors that don't change conventions
-- Choices reversible in one PR (component rename, internal helper)
-- Personal preferences ("I like tab indent") — not a decision, an opinion
-- Things already in `PHILOSOPHY.md` or `PROJECT-DOCTRINE.md`
+## Storage contract
 
-If you cannot name a credible alternative that was rejected, it is not an ADR. Documenting "we chose React" without saying "rejecting Solid/Vue/Svelte because X" is empty.
+One decision owns one Markdown file. Never append to, number from, or regenerate
+a shared index.
 
-## Location and naming
+Default location:
 
+```text
+docs/decisions/
+  2026-07-24-use-drizzle--018f43f4-3ac4-7c40-8000-000000000001.md
 ```
-<repo>/decisions/
-├── 0001-use-drizzle-orm.md
-├── 0002-server-actions-in-app-actions.md
-├── 0003-rsc-by-default.md
-└── 0004-replace-jest-with-vitest.md           (supersedes 0010 in another timeline)
+
+An existing project may keep an established equivalent such as
+`docs/decisions-log/` or `decisions/`.
+
+The filename contains:
+
+- an ISO date for scanning;
+- a readable slug describing the chosen direction;
+- a collision-resistant UUID used by the ADR identity.
+
+Prefer the project command when present:
+
+```sh
+void-harness decisions new \
+  --title "Adopt Server Actions for UI mutations" \
+  --slug adopt-server-actions \
+  --decider folpe
 ```
 
-Sequential 4-digit prefix. Slug describes the decision, not the alternative ("use-X", not "no-Y").
+Without the CLI, generate a UUID locally and create the same standalone contract.
+Never inspect sibling files to allocate `NNNN`; parallel workers must not share a
+counter.
 
-## Format (terse, ~50 lines)
+## Format
+
+Keep the record terse, normally under 100 lines:
 
 ```md
-# ADR-0007: Adopt Server Actions for all UI mutations
+---
+schemaVersion: 1
+id: "adr:018f43f4-3ac4-7c40-8000-000000000001"
+createdAt: "2026-07-24T10:15:00.000Z"
+title: "Adopt Server Actions for UI mutations"
+status: proposed
+deciders: [folpe]
+supersedes: []
+---
 
-- **Status**: accepted
-- **Date**: 2026-06-01
-- **Deciders**: @folpe, @brice
+# Adopt Server Actions for UI mutations
 
 ## Context
 
-What forces are at play? What constraints? What is the current pain?
-~5 lines.
+What forces, constraints and pain make the choice necessary?
 
 ## Decision
 
@@ -69,44 +95,53 @@ We will <one sentence>.
 ## Consequences
 
 Positive:
-- ...
+
 - ...
 
 Negative:
+
 - ...
 
 ## Alternatives considered
 
-- **tRPC mutations**: rejected because <reason>
-- **REST endpoints in api/**: rejected because <reason>
-- **GraphQL mutations**: rejected because <reason>
+- **tRPC mutations**: rejected because ...
+- **REST endpoints**: rejected because ...
 
 ## Reversal cost
 
-How expensive is undoing this? Low / Medium / High. Why.
+Low, Medium or High, with the concrete migration cost.
 ```
-
-If your ADR is longer than 100 lines, the decision is unclear — refine before merging.
 
 ## Lifecycle
 
-- **proposed** — drafted, in PR, not yet merged
-- **accepted** — merged, applies to all new code
-- **deprecated** — still in effect for existing code, new code should not follow
-- **superseded by ADR-NNNN** — replaced; the new ADR links back, the old keeps its number forever (never delete)
+- `proposed`: open for review and editable.
+- `accepted`: merged and binding for new work.
+- `deprecated`: retained for history but discouraged for new work.
+- `superseded`: replaced by a newer record.
 
-Reversal = new ADR. Editing an accepted ADR's "Decision" field is forbidden — write ADR-NNNN+1 that supersedes it.
+Accepted records are immutable. To reverse, clarify or partially replace one,
+create a new ADR whose `supersedes` contains the old `id`. Never edit, delete or
+rename the accepted file. This preserves evidence and prevents parallel branches
+from rewriting the same history.
 
 ## Workflow
 
-1. **One-line summary first.** Open a PR with just the ADR file containing the title + Context + Decision (one sentence). If you cannot summarize, the decision isn't ready.
-2. **Fill alternatives section.** Force yourself to name 2-3 credible options you rejected. If you can't, you're not making a real choice.
-3. **Reversal cost.** Explicit. Future-you needs this to know if revisiting is worth it.
-4. **Merge with one reviewer.** ADRs are not consensus documents; they are decisions made by responsible parties. Argument happens in PR comments; resolution is the merge.
-5. **Reference from CLAUDE.md if foundational.** Major ADRs (>5 minutes of impact per week) link from CLAUDE.md so Claude reads them every session.
+1. State the decision in one sentence before expanding it.
+2. Record forces and constraints, not a chronology of discussion.
+3. Name at least two credible alternatives and reject them with evidence.
+4. State negative consequences and concrete reversal cost.
+5. Let the accountable decider accept it through normal review.
+6. Run `void-harness decisions check` when available.
+7. Link foundational ADRs from project doctrine by their source file or stable
+   `adr:<uuid>` identity.
+
+Do not commit a rendered Markdown or JSON projection. Generate it on demand with
+`void-harness decisions render`; source files alone participate in merges.
 
 ## Composition
 
-- `harness:writing-plans` — plans cover the WORK; ADRs cover the DECISIONS behind the work.
-- `harness:commit-discipline` — "why" lines in commits often surface ADR-worthy decisions. If a commit's "why" is one paragraph long, it should be an ADR.
-- `harness:learning-capture` — ADRs about the harness itself live in this repo's `decisions/`, not in consumer projects; a harness gap it surfaces may become such an ADR.
+- `harness:writing-plans`: plans cover work; ADRs cover durable decisions.
+- `harness:source-driven-development`: alternatives cite primary documentation.
+- `harness:commit-discipline`: a long commit rationale can expose ADR-worthy work.
+- `harness:learning-capture`: recurring lessons become doctrine; structural
+  choices become ADRs.

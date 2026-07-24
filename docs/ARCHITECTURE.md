@@ -24,11 +24,33 @@ void-harness/
 ├── apps/                          # private, unpublished tooling
 │   ├── graph-studio/              # the graph visualiser (Vite)
 │   └── eval-harness/              # @voidcorp/eval-harness — behavioral skill evals
-├── plans/                         # specs + ADRs of the harness itself
+├── plans/                         # specs and implementation plans
 │   └── skill-audits/              # one audit note per vendored skill
 ├── test/                          # automated skill tests (citypaul-style)
-└── docs/                          # PHILOSOPHY, ARCHITECTURE, DECISIONS, RELEASING
+└── docs/                          # doctrine, architecture, release and decisions
+    └── decisions-log/             # one immutable, collision-free file per ADR
 ```
+
+## Decision records
+
+ADRs are an append-only data model, not a generated document:
+
+- `void-harness decisions new` creates one exclusively-owned file with a UUID
+  identity; concurrent workers never allocate a shared counter or index.
+- `void-harness decisions check` validates the schema, unique identities,
+  supersession links and cycles. In CI, `DECISIONS_BASE` also rejects edits,
+  renames or deletions of accepted records.
+- Decision loading is root-confined, rejects symlinks and bounds each record to
+  256 KiB before parsing.
+- `void-harness decisions render --format markdown|json` produces a read-only
+  projection on stdout. It never commits or rewrites a shared artifact.
+- `docs/DECISIONS.md` is only the frozen pre-v3 landing page. Existing repos keep
+  their detected ADR directory; new consumer projects default to
+  `docs/decisions/`.
+
+The public contract is plain Markdown plus YAML frontmatter, so it works without
+an agent runtime. The CLI is deterministic validation and ergonomics, not a
+storage dependency.
 
 ## Stack baseline
 

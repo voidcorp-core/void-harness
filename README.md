@@ -31,7 +31,7 @@ curl https://registry.npmjs.org/-/npm/v1/attestations/voidharness@2.0.2
 ```
 
 See `docs/RELEASING.md` for the release flow, `plans/` for design specs, and
-`docs/DECISIONS.md` for the decision log.
+`docs/DECISIONS.md` for the legacy decision landing page and `void-harness decisions render` for the current projection.
 
 ## Philosophy
 

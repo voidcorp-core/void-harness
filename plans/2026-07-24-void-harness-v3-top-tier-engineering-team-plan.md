@@ -1,7 +1,7 @@
 ---
 title: void-harness v3 - top-tier autonomous engineering team
 date: 2026-07-24
-status: in-progress
+status: executing
 spec: docs/specs/2026-07-24-void-harness-v3-top-tier-engineering-team.md
 author: Folpe + Codex
 high_risk: true
@@ -169,7 +169,6 @@ Tout ce qui n'est pas requis pour cette preuve reste hors du premier alpha.
   - `docs/DECISIONS.md`
   - `docs/CONTRIBUTING.md`
   - `docs/ARCHITECTURE.md`
-  - toutes les références repo vers des ancres de l'ancien index
   - `AGENTS.md` et `CLAUDE.md`
 - **Behavior**:
   - `void-harness decisions new --title <title> --slug <slug>` crée avec `open(..., "wx")` un
@@ -178,19 +177,17 @@ Tout ce qui n'est pas requis pour cette preuve reste hors du premier alpha.
   - `void-harness decisions check` valide formats legacy et v3, IDs, statuts, supersessions et
     cycles ;
   - `void-harness decisions render --format markdown|json` calcule une vue sans modifier le dépôt ;
-  - `docs/DECISIONS.md` devient une landing page stable ;
+  - `docs/DECISIONS.md` devient une landing page stable qui conserve le snapshot des 96 décisions
+    legacy pour ne casser aucune référence historique ;
   - le script legacy cesse d'écrire l'index et délègue au check pendant la transition ;
   - les nouveaux projets utilisent `docs/decisions/`, void-harness conserve
-    `docs/decisions-log/` ;
-  - toute référence historique pointe vers son fichier décision exact, pas vers une ancre de
-    l'ancien index.
+    `docs/decisions-log/`.
 - **Verification gate**:
   - 32 créations concurrentes dans le même fixture produisent 32 fichiers uniques et ne modifient
     aucun autre fichier ;
   - duplicate ID, supersession manquante et cycle font échouer `decisions check` ;
   - les 96 fichiers legacy passent ;
-  - `rg 'DECISIONS\.md.*(2026-|#)'` ne trouve plus de référence datée ou d'ancre cassable hors
-    documentation de migration ;
+  - aucune commande `decisions new/check/render` ne modifie `docs/DECISIONS.md` ;
   - `pnpm decisions:check && pnpm --filter voidharness test && pnpm sync:docs` passent.
 - **Expected commits**:
   - `test(decisions): cover concurrent ADR creation because parallel workers must never share a counter`
@@ -1238,7 +1235,7 @@ reste ouvert.
 | Priorité | Lens | Finding | Disposition |
 |---|---|---|---|
 | P1 | CEO/Eng | programme trop gros pour une branche et DAG de lanes imprécis | replié dans Architecture d'exécution, joins et ownership intégrateur |
-| P1 | Eng | supprimer l'index ADR casserait ses références historiques | replié Step 1, migration vers les fichiers exacts + gate `rg` |
+| P1 | Eng | supprimer l'index ADR casserait ses références historiques | replié Step 1, snapshot legacy figé + projection courante à la demande |
 | P1 | Eng/Security | le premier serveur live exposait les événements avant l'auth Mission Control | replié Step 2, token one-shot, cookie local et routes protégées |
 | P1 | Eng | `top 5 %` restait invérifiable sans cohorte | replié Step 21, benchmark public gelé, cohorte >=20, sinon label absent |
 | P2 | Eng | `read-only` peut être déclaratif selon le runtime | replié Step 10, état degraded sans isolation prouvée |

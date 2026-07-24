@@ -68,6 +68,7 @@ export function printHelp(): void {
   cmd('graph <sub>', 'Build / gate / report the skill-agent graph (build, check, audit, live, behavior).');
   cmd('audit', 'Self-evolution audit: surface stale / never-fired skills as deprecation candidates. HITL.');
   cmd('adoption', 'Maintainer: pull public npm + GitHub stats (tier-1 telemetry, zero phone-home).');
+  cmd('decisions <sub>', 'Create, validate, or render one-file ADRs without a shared counter or index.');
   cmd('version · help', 'Print the version (also -v) · print this reference.');
 
   heading('Packs');
@@ -87,6 +88,7 @@ export function printHelp(): void {
   example('void-harness runtime add codex', 'add Codex to a Claude project, later');
   example('void-harness status', 'offline project health');
   example('void-harness update --dry-run', 'preview version + floor drift');
+  example('void-harness decisions new --title "Use X" --slug use-x', 'create one conflict-free ADR');
 
   blank();
   write(`  ${c.muted('Skills load as')} ${c.accent('/harness:<name>')} ${c.muted('and')} ${c.accent('/harness-<stack>:<name>')}${c.muted('.')}\n`);

@@ -7,7 +7,7 @@ The working rules for this repo live in `CLAUDE.md` (mirrored as `AGENTS.md` for
 1. Read `CLAUDE.md` — the anti-bloat discipline (seven hard rules), sourcing discipline, and hard rules for any added code. A PR that violates the anti-bloat rules is blocked.
 2. Read `docs/PHILOSOPHY.md` — the three pillars (safety / performance / DX) and why they win.
 3. Read `docs/ARCHITECTURE.md` — package boundaries and dependency direction.
-4. Skim `docs/DECISIONS.md` — the decision log is authoritative; do not re-litigate a settled call without superseding it.
+4. Skim `docs/DECISIONS.md`, then use `void-harness decisions render` for the current decision projection. Do not re-litigate a settled call without superseding it.
 
 ## The gates (run before you push)
 
@@ -19,7 +19,7 @@ The working rules for this repo live in `CLAUDE.md` (mirrored as `AGENTS.md` for
 
 ## Commits
 
-Conventional Commits, and every message ends with **why**, not just what (see `harness:commit-discipline`). Any new convention added in a commit must be reflected in `docs/*.md` in the same commit; any non-obvious decision is logged as a new dated file in `docs/decisions-log/<YYYY-MM-DD>-<slug>.md` (`docs/DECISIONS.md` is the generated index — `pnpm decisions:build` rebuilds it).
+Conventional Commits, and every message ends with **why**, not just what (see `harness:commit-discipline`). Any new convention added in a commit must be reflected in `docs/*.md` in the same commit. Create each non-obvious decision with `void-harness decisions new`; never edit an accepted decision or a shared index. `pnpm decisions:check` validates the records and their immutability.
 
 ## Filing a gap
 

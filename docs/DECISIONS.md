@@ -1,13 +1,14 @@
 # Decisions log
 
-Non-obvious decisions taken on the harness itself, where a credible alternative
-existed. One entry per decision. Newest first. See CLAUDE.md meta-rules.
+Each current decision is an immutable file under `docs/decisions-log/`. Create
+one with `void-harness decisions new`, validate with `pnpm decisions:check`, and
+render the current Markdown or JSON projection with `void-harness decisions
+render`. No worker writes a shared index.
 
-> **Generated file — do not edit here.** Each decision is one file under
-> `docs/decisions-log/<YYYY-MM-DD>-<slug>.md`; this index is rebuilt by
-> `pnpm decisions:build` and gated by `pnpm decisions:check` in CI. To add a
-> decision, create a new dated file (never append to this index) — that is what
-> makes parallel work conflict-free.
+> **Frozen legacy snapshot.** The entries below preserve the historical
+> newest-first log through 2026-07-24 so existing date links remain useful.
+> They are not regenerated or edited. New decisions exist only as individual
+> source files and in read-only projections.
 
 ## 2026-07-24: Tokenless publishing works; provenance does not yet, and the README says so
 

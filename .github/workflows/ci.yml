@@ -47,10 +47,11 @@ jobs:
         # the agent description cap go unenforced in CI (it only ran locally).
         run: pnpm anti-bloat:check
 
-      - name: Decisions index in sync with decisions-log
-        # docs/DECISIONS.md is generated from docs/decisions-log/<date>-<slug>.md
-        # (one file per decision, so parallel workers never race a shared append).
-        # Fail if the committed index drifts from the per-decision files.
+      - name: Decision records valid and accepted records immutable
+        # Each decision owns one file. The optional PR base also proves that an
+        # accepted record was superseded, never rewritten or deleted in place.
+        env:
+          DECISIONS_BASE: ${{ github.event.pull_request.base.sha }}
         run: pnpm decisions:check
 
       - name: core-assets in sync with core
