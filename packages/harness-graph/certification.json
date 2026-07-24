@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "harnessVersion": "2.0.0",
+  "harnessVersion": "2.0.1",
   "capabilities": [
     {
       "id": "skill:accessibility-first",
