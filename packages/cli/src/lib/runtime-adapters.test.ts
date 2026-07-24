@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -74,6 +74,51 @@ describe('codex adapter', () => {
     const checks = await adapterFor('codex').doctorChecks(dir);
     expect(checks.find((c) => c.name === 'codex floor')?.ok).toBe(true);
     expect(checks.find((c) => c.name === 'AGENTS.md')?.ok).toBe(true);
+  });
+
+  it('proves installed, wired and fired by executing the installed hook', async () => {
+    const dir = scratch();
+    await adapterFor('codex').wire(ctxFor(dir));
+
+    const inspection = await adapterFor('codex').inspect(dir);
+
+    expect(inspection.evidence).toMatchObject({
+      installed: true,
+      wired: true,
+      fired: true,
+      observed: false,
+    });
+    expect(inspection.checks.find((check) => check.name === 'codex hook smoke')?.ok).toBe(true);
+  });
+
+  it('keeps a manifest-present but non-executable hook red', async () => {
+    const dir = scratch();
+    await adapterFor('codex').wire(ctxFor(dir));
+    chmodSync(join(dir, '.void', 'hooks', 'activation-meter.sh'), 0o644);
+
+    const inspection = await adapterFor('codex').inspect(dir);
+
+    expect(inspection.evidence.installed).toBe(true);
+    expect(inspection.evidence.wired).toBe(false);
+    expect(inspection.evidence.fired).toBe(false);
+    expect(inspection.checks.some((check) => !check.ok && check.message.includes('not executable'))).toBe(true);
+  });
+
+  it('does not call a manifest alone an installed runtime', async () => {
+    const dir = scratch();
+    writeFileSync(join(dir, 'AGENTS.md'), '# AGENTS.md\n<!-- void-harness:begin -->\n<!-- void-harness:end -->\n');
+    const codexDir = join(dir, '.codex');
+    const voidHooks = join(dir, '.void', 'hooks');
+    await import('node:fs/promises').then(({ mkdir }) =>
+      Promise.all([mkdir(codexDir, { recursive: true }), mkdir(voidHooks, { recursive: true })]),
+    );
+    writeFileSync(join(codexDir, 'hooks.json'), JSON.stringify({ hooks: {} }));
+
+    const inspection = await adapterFor('codex').inspect(dir);
+
+    expect(inspection.evidence.installed).toBe(false);
+    expect(inspection.evidence.wired).toBe(false);
+    expect(inspection.evidence.fired).toBe(false);
   });
 });
 

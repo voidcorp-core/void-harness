@@ -21,8 +21,9 @@ function cert(capabilities: CapabilityCert[]): Certification {
 function signals(over: Partial<LocalSignals> = {}): LocalSignals {
   return {
     installedIds: new Set(),
+    verifiedIds: new Set(),
     usedCounts: new Map(),
-    runtimesDetected: new Set(),
+    runtimeEvidence: new Map(),
     ...over,
   };
 }
@@ -44,19 +45,39 @@ describe('computeProjectState — five-state derivation', () => {
     expect(stateOf(ps, 'skill:tdd')).toBe('installed');
   });
 
-  it('installed + verified but never used here is verified (installed-but-unused is not fully available)', () => {
+  it('installed + locally verified but never used here is verified', () => {
     const ps = computeProjectState(
       cert([cap('skill:tdd')]),
-      signals({ installedIds: new Set(['skill:tdd']) }),
+      signals({
+        installedIds: new Set(['skill:tdd']),
+        verifiedIds: new Set(['skill:tdd']),
+      }),
       '0.16.0',
     );
     expect(stateOf(ps, 'skill:tdd')).toBe('verified');
   });
 
+  it('never infers local verification from a frozen structural certification', () => {
+    const ps = computeProjectState(
+      cert([cap('skill:tdd')]),
+      signals({ installedIds: new Set(['skill:tdd']) }),
+      '0.16.0',
+    );
+    expect(stateOf(ps, 'skill:tdd')).toBe('installed');
+    expect(ps.capabilities[0]).toMatchObject({
+      verified: false,
+      certified: true,
+    });
+  });
+
   it('used here but with no effective proof is used', () => {
     const ps = computeProjectState(
       cert([cap('skill:tdd')]),
-      signals({ installedIds: new Set(['skill:tdd']), usedCounts: new Map([['skill:tdd', 5]]) }),
+      signals({
+        installedIds: new Set(['skill:tdd']),
+        verifiedIds: new Set(['skill:tdd']),
+        usedCounts: new Map([['skill:tdd', 5]]),
+      }),
       '0.16.0',
     );
     expect(stateOf(ps, 'skill:tdd')).toBe('used');
@@ -67,7 +88,11 @@ describe('computeProjectState — five-state derivation', () => {
     const effective = { cells: [{ ...opusCell, delta: 0.31 }] };
     const ps = computeProjectState(
       cert([cap('skill:tdd', { proof: { verified: true, effective } })]),
-      signals({ installedIds: new Set(['skill:tdd']), usedCounts: new Map([['skill:tdd', 9]]) }),
+      signals({
+        installedIds: new Set(['skill:tdd']),
+        verifiedIds: new Set(['skill:tdd']),
+        usedCounts: new Map([['skill:tdd', 9]]),
+      }),
       '0.16.0',
     );
     expect(stateOf(ps, 'skill:tdd')).toBe('effective');
@@ -78,7 +103,10 @@ describe('computeProjectState — five-state derivation', () => {
     const effective = { cells: [{ ...opusCell, delta: 0.31 }] };
     const ps = computeProjectState(
       cert([cap('skill:tdd', { proof: { verified: true, effective } })]),
-      signals({ installedIds: new Set(['skill:tdd']) }), // installed, never fired
+      signals({
+        installedIds: new Set(['skill:tdd']),
+        verifiedIds: new Set(['skill:tdd']),
+      }), // installed, verified, never fired
       '0.16.0',
     );
     expect(stateOf(ps, 'skill:tdd')).toBe('verified');
@@ -98,7 +126,11 @@ describe('computeProjectState — five-state derivation', () => {
     const effective = { cells: [{ ...opusCell, delta: 0.31 }] };
     const ps = computeProjectState(
       cert([cap('skill:tdd', { proof: { verified: true, effective } })]),
-      signals({ installedIds: new Set(['skill:tdd']), usedCounts: new Map([['skill:tdd', Number.NaN]]) }),
+      signals({
+        installedIds: new Set(['skill:tdd']),
+        verifiedIds: new Set(['skill:tdd']),
+        usedCounts: new Map([['skill:tdd', Number.NaN]]),
+      }),
       '0.16.0',
     );
     expect(stateOf(ps, 'skill:tdd')).toBe('verified');
@@ -112,20 +144,56 @@ describe('computeProjectState — five-state derivation', () => {
       '0.16.0',
     );
     expect(neg.capabilities[0]?.usedCount).toBe(0);
-    expect(stateOf(neg, 'skill:tdd')).toBe('verified');
+    expect(stateOf(neg, 'skill:tdd')).toBe('installed');
     const frac = computeProjectState(
       cert([cap('skill:tdd')]),
       signals({ installedIds: new Set(['skill:tdd']), usedCounts: new Map([['skill:tdd', 4.9]]) }),
       '0.16.0',
     );
     expect(frac.capabilities[0]?.usedCount).toBe(4);
-    expect(stateOf(frac, 'skill:tdd')).toBe('used');
+    expect(stateOf(frac, 'skill:tdd')).toBe('installed');
   });
 
-  it('reports runtimes as detected/undetected over the union of declared + detected', () => {
-    const ps = computeProjectState(cert([cap('skill:tdd')]), signals({ runtimesDetected: new Set(['claude']) }), '0.16.0');
-    const runtimes = Object.fromEntries(ps.runtimes.map((r) => [r.runtime, r.detected]));
-    expect(runtimes).toEqual({ claude: true, codex: false });
+  it('preserves explicit unknown runtime evidence instead of inferring health', () => {
+    const ps = computeProjectState(
+      cert([cap('skill:tdd')]),
+      signals({
+        runtimeEvidence: new Map([
+          ['claude', {
+            installed: true,
+            wired: true,
+            fired: null,
+            observed: false,
+            certified: true,
+          }],
+        ]),
+      }),
+      '0.16.0',
+    );
+    expect(ps.runtimes).toEqual([
+      {
+        runtime: 'claude',
+        detected: true,
+        evidence: {
+          installed: true,
+          wired: true,
+          fired: null,
+          observed: false,
+          certified: true,
+        },
+      },
+      {
+        runtime: 'codex',
+        detected: false,
+        evidence: {
+          installed: null,
+          wired: null,
+          fired: null,
+          observed: null,
+          certified: null,
+        },
+      },
+    ]);
   });
 
   it('carries schema + harness version', () => {

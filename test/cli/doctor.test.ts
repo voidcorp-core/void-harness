@@ -109,4 +109,17 @@ describe('doctor', () => {
     expect(out).not.toContain('settings.json');
     expect(out).not.toContain('gh CLI');
   });
+
+  it('reports the source repository as self-host not-installed instead of skipping green', async () => {
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'void-harness' }));
+    mkdirSync(join(dir, 'packages', 'cli'), { recursive: true });
+    mkdirSync(join(dir, 'packages', 'core'), { recursive: true });
+
+    const out = await runDoctor();
+
+    expect(out).toContain('self-host');
+    expect(out).toContain('not-installed');
+    expect(out).not.toContain('skipped');
+    expect(out).not.toContain('nothing to fix');
+  });
 });
