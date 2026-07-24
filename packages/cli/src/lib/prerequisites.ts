@@ -12,6 +12,7 @@ import { fetchRemoteMarketplace } from './remote.js';
 export interface CheckResult {
   readonly name: string;
   readonly ok: boolean;
+  readonly status?: 'pass' | 'fail' | 'unknown' | 'advisory';
   readonly message: string;
   readonly fix?: string;
 }
@@ -111,7 +112,12 @@ export function checkEnforceWorkflow(root: string): CheckResult {
         }
       });
   } catch (err) {
-    return { name: 'enforce Action', ok: true, message: `could not inspect .github/workflows (${(err as Error).message})` };
+    return {
+      name: 'enforce Action',
+      ok: true,
+      status: 'unknown',
+      message: `unknown: could not inspect .github/workflows (${(err as Error).message})`,
+    };
   }
   if (adopted) {
     return { name: 'enforce Action', ok: true, message: 'void-enforce workflow adopted (server-side floor)' };

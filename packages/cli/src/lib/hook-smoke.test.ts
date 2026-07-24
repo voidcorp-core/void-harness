@@ -46,4 +46,27 @@ describe('smokeInstalledHook', () => {
       detail: 'hook is not executable',
     });
   });
+
+  it('passes no ambient secrets to the isolated hook process', async () => {
+    const root = scratch();
+    const hook = join(root, 'hook.sh');
+    writeFileSync(hook, [
+      '#!/bin/sh',
+      'if [ -n "$' + '{VOID_SMOKE_TEST_SECRET:-}" ]; then exit 9; fi',
+      'dir="$VOID_PROJECT_ROOT/.void/runs/$VOID_MISSION_ID"',
+      'mkdir -p "$dir"',
+      'printf \'{"schemaVersion":1,"seq":1,"eventId":"evt_doctor_smoke","missionId":"%s","ts":"2026-07-24T00:00:00.000Z","source":"runtime:codex","kind":"runtime.tool.started","subject":"tool:Read","correlationId":"%s","payload":{}}\\n\' "$VOID_MISSION_ID" "$VOID_MISSION_ID" > "$dir/events.jsonl"',
+    ].join('\n'));
+    chmodSync(hook, 0o755);
+    const previous = process.env.VOID_SMOKE_TEST_SECRET;
+    process.env.VOID_SMOKE_TEST_SECRET = 'must-not-cross-the-probe-boundary';
+    try {
+      await expect(smokeInstalledHook(hook, 'codex')).resolves.toMatchObject({
+        fired: true,
+      });
+    } finally {
+      if (previous === undefined) delete process.env.VOID_SMOKE_TEST_SECRET;
+      else process.env.VOID_SMOKE_TEST_SECRET = previous;
+    }
+  });
 });

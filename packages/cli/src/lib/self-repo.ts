@@ -30,3 +30,25 @@ export function isHarnessSourceRepo(root: string): boolean {
     return false;
   }
 }
+
+export type SelfRepoDoctorTarget =
+  | { readonly kind: 'consumer' }
+  | {
+      readonly kind: 'self-host';
+      readonly state: 'not-installed';
+      readonly command: 'void-harness self-host sync';
+    };
+
+/**
+ * Route doctor without pretending that a source checkout is healthy. The
+ * executable self-host receipt lands in Step 8; until then the only honest
+ * source-repo state is `not-installed`.
+ */
+export function selfRepoDoctorTarget(root: string): SelfRepoDoctorTarget {
+  if (!isHarnessSourceRepo(root)) return { kind: 'consumer' };
+  return {
+    kind: 'self-host',
+    state: 'not-installed',
+    command: 'void-harness self-host sync',
+  };
+}

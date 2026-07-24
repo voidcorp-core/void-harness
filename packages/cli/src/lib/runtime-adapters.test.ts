@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -82,7 +82,7 @@ describe('codex adapter', () => {
 
     const inspection = await adapterFor('codex').inspect(dir);
 
-    expect(inspection.evidence).toMatchObject({
+    expect(inspection.evidence, JSON.stringify(inspection, null, 2)).toMatchObject({
       installed: true,
       wired: true,
       fired: true,
@@ -109,9 +109,8 @@ describe('codex adapter', () => {
     writeFileSync(join(dir, 'AGENTS.md'), '# AGENTS.md\n<!-- void-harness:begin -->\n<!-- void-harness:end -->\n');
     const codexDir = join(dir, '.codex');
     const voidHooks = join(dir, '.void', 'hooks');
-    await import('node:fs/promises').then(({ mkdir }) =>
-      Promise.all([mkdir(codexDir, { recursive: true }), mkdir(voidHooks, { recursive: true })]),
-    );
+    mkdirSync(codexDir, { recursive: true });
+    mkdirSync(voidHooks, { recursive: true });
     writeFileSync(join(codexDir, 'hooks.json'), JSON.stringify({ hooks: {} }));
 
     const inspection = await adapterFor('codex').inspect(dir);

@@ -14,9 +14,10 @@ export type CapabilityStateName = 'available' | 'installed' | 'verified' | 'used
 export interface CapabilityState {
   readonly id: string;
   readonly state: CapabilityStateName;
-  /** Structural proof carried from the certification (`proof.verified`). Note: independent of local
-   * install — an `available` (not-installed-here) capability can still carry the repo's `verified`. */
+  /** Executable local postconditions passed for at least one compatible runtime. */
   readonly verified: boolean;
+  /** Frozen release proof carried from the certification, independent of local installation. */
+  readonly certified: boolean;
   /** How many times it fired in local mission telemetry. 0 = never used here. */
   readonly usedCount: number;
   /** The certified effective cells, present only when the project state reached `effective`. */
@@ -26,18 +27,31 @@ export interface CapabilityState {
 /** Whether a runtime the harness targets is set up in this project. */
 export interface RuntimeState {
   readonly runtime: string;
+  /** Compatibility projection. True only when installation is positively observed. */
   readonly detected: boolean;
+  readonly evidence: RuntimeEvidence;
+}
+
+/** Tri-state runtime postconditions. `null` means the signal was not measured, never success. */
+export interface RuntimeEvidence {
+  readonly installed: boolean | null;
+  readonly wired: boolean | null;
+  readonly fired: boolean | null;
+  readonly observed: boolean | null;
+  readonly certified: boolean | null;
 }
 
 /** The local, deterministic inputs the pure core joins with the frozen certification. The imperative
  * shell (the `status` command) builds this by reading files; the core never does I/O. */
 export interface LocalSignals {
-  /** Capability ids present in this project (all shipped capabilities in the harness repo itself). */
+  /** Capability ids materially present in at least one installed runtime. */
   readonly installedIds: ReadonlySet<string>;
+  /** Capability ids whose compatible runtime passed executable wiring + hook postconditions. */
+  readonly verifiedIds: ReadonlySet<string>;
   /** Invocation count per capability id, from local telemetry. Keyed by id (shell maps name -> id). */
   readonly usedCounts: ReadonlyMap<string, number>;
-  /** Runtimes detected as set up here (e.g. claude if CLAUDE.md, codex if AGENTS.md). */
-  readonly runtimesDetected: ReadonlySet<string>;
+  /** Explicit runtime evidence. Missing keys and null fields remain unknown. */
+  readonly runtimeEvidence: ReadonlyMap<string, RuntimeEvidence>;
 }
 
 /** The deterministic, offline, LLM-free project snapshot. Persisted at `.void/state.json`. */

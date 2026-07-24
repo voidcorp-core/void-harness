@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Certification, ProjectState, Score } from '@voidcorp/harness-graph';
 import { capabilityPackDir } from '@voidcorp/harness-graph';

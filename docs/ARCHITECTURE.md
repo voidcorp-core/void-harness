@@ -65,7 +65,7 @@ A future Rust/Go/Python flavor lives in a sibling repo, reusing mechanics not sk
 
 The harness authors **one doctrine** and compiles it to each agent runtime through a **runtime adapter** (`packages/cli/src/lib/runtime-adapters.ts`). Today: **Claude Code** (via `CLAUDE.md` + the marketplace plugin) and **Codex CLI** (via `AGENTS.md` + a `.codex/` safety floor). This is the *agent-runtime* axis; the orthogonal *model-provider* axis (Anthropic / OpenAI-compatible / Ollama / custom) is a separate seam and is deliberately not conflated.
 
-The seam is the load-bearing rule: **core commands never branch on a runtime name.** `init`, `runtime add`, and `doctor` iterate the adapters. Adding a runtime (Codex exec, Hermes, a local agent) is a new adapter object registered in `ADAPTERS`, with zero edits to the commands. Each adapter owns exactly its runtime-specific surface: `detect`, `prerequisites`, `wire` (its active layer + **its own** doctrine doc), and `doctorChecks`.
+The seam is the load-bearing rule: **core commands never branch on a runtime name.** `init`, `runtime add`, `doctor`, and `status` iterate the adapters. Adding a runtime (Codex exec, Hermes, a local agent) is a new adapter object registered in `ADAPTERS`, with zero edits to the commands. Each adapter owns exactly its runtime-specific surface: `detect`, `prerequisites`, `wire` (its active layer + **its own** doctrine doc), `inspect` (executable postconditions), and `doctorChecks`.
 
 Rules:
 
@@ -75,7 +75,7 @@ Rules:
 - **Doc ownership is per-runtime.** Each adapter's `wire` writes only its own doctrine doc — a Claude-only project has just `CLAUDE.md`, a Codex-only project just `AGENTS.md`. `doctor` checks only the docs of *detected* runtimes, so a Codex-only project is never dinged for a missing `CLAUDE.md`. (`add` / `remove` still patch whichever docs exist, keeping active docs current.)
 - **`init` wires each selected runtime's layer via its adapter**, gated by `--runtime <claude|codex|both>` (default: auto-detected footprint, else both). Claude's layer is the marketplace registration in `.claude/settings.json`; Codex's is the safety floor — the guardrail hook scripts staged into `.void/hooks/` and `.codex/hooks.json` compiled from `packages/core/codex/hooks.json` (relative `${VOID_HOOKS_DIR}` → `.void/hooks`). A Codex-only wire skips the `gh`/marketplace prerequisites and the Claude "restart + trust" steps; a Claude-only wire skips the Codex floor.
 - **Runtimes are added a posteriori without friction**: `void-harness runtime add <runtime>` wires exactly that runtime's layer on an already-`init`-ed project, touching nothing the other runtime owns (verified byte-for-byte in tests). `runtime list` shows which are wired. This is the `void runtime add` command from the multi-runtime spec.
-- `doctor` iterates the *detected* adapters for each runtime's wiring + doc health; Claude-marketplace checks (`gh`, plugin cache, remote versions, packs coherence) run only when Claude is wired. See `docs/CODEX.md`.
+- `doctor` iterates the *detected* adapters for each runtime's wiring + doc health; Claude-marketplace checks (`gh`, plugin cache, remote versions, packs coherence) run only when Claude is wired. Adapter inspection distinguishes `installed`, `wired`, `fired`, and `observed`. The `fired` postcondition executes the installed activation hook against an isolated fixture and reads back its canonical event; a zero exit without that event stays red. The source repository is `self-host not-installed` until Step 8 materializes a receipt, never a skipped green. See `docs/CODEX.md`.
 
 ## Agent model tiers
 
@@ -409,20 +409,26 @@ reads it until Phase B's ProjectState) and the eval-harness JSON emission that p
 
 `ProjectState` is the project's legible state: a **deterministic, offline, LLM-free** join of the
 frozen `certification.json` (repo-authored proof) with **local signals** (which capabilities are
-installed here, which fired in canonical mission events (plus legacy read-only
-history), which runtimes are detected). The pure core
+materially installed, which passed executable runtime postconditions, which fired in canonical
+mission events, and the tri-state runtime evidence). The pure core
 lives in `packages/harness-graph/src/state/` — `computeProjectState` derives each capability's
-five-state (`available → installed → verified → used → effective`; `effective` requires certified
-proof **and** real local use), and `scoreProjectState` scores the eight dimensions (blocker/gauge,
+five-state (`available → installed → verified → used → effective`). Local `verified` now requires a
+compatible runtime with `installed=yes`, `wired=yes` and `fired=yes`; the frozen structural proof is
+reported separately as `certified`. `effective` requires both that local chain and certified
+behavioral proof plus real local use. Each runtime carries independent `installed`, `wired`,
+`fired`, `observed` and `certified` fields; `null` means `unknown`, never success.
+`scoreProjectState` scores the eight dimensions (blocker/gauge,
 cap-69 on a red failure-predicate, pending dimensions excluded, confidence band, impact-ranked next
 actions — see DECISIONS.md 2026-07-21). Both are pure: no I/O, no clock, no model call.
 
 `void-harness status` (`packages/cli/src/commands/status.ts`) is the imperative shell: it reads the
-certification + model + telemetry, calls the pure core, renders the terminal surface, and persists
+certification + model + telemetry, executes each detected adapter's bounded local postconditions,
+calls the pure core, renders the terminal surface, and persists
 `.void/state.json` plus a `.void/history/<ts>.json` snapshot (both git-ignored, per-project runtime
-state). `generatedAt` is stamped by the shell so the core stays deterministic — the same telemetry
-yields the same state. Consumer-side bundled-certificate resolution and pack-aware `installed`
-filtering land with Phase C distribution.
+state). `generatedAt` is stamped by the shell so the core stays deterministic. Missing runtime,
+cost, smoke or observation data stays `unknown`/pending and is excluded from scores instead of being
+invented. Consumer-side bundled-certificate resolution and pack-aware filtering remain local and
+offline.
 
 ## .void/config.json (consumer-side)
 

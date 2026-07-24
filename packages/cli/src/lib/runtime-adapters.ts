@@ -23,8 +23,11 @@
 // PROJECT-DOCTRINE, pack selection) stays in the commands.
 
 import { existsSync } from 'node:fs';
+import { lstat } from 'node:fs/promises';
 import { readFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { parseEventLine } from '@voidcorp/mission-engine/events';
 import {
   CORE_PLUGIN_NAME,
   MARKETPLACE_NAME,
@@ -48,6 +51,9 @@ import { CODEX_SKILLS_DIR, codexSkillsHealth, wireCodexSkills } from './codex-sk
 import { wireCodexAgents } from './codex-agents.js';
 import { checkGh, checkMarketplaceAccess, type CheckResult } from './prerequisites.js';
 import { detectRuntimes, type Runtime } from './runtime.js';
+import { hookHealthIssues, locatePluginDir } from './plugin-cache.js';
+import { loadCanonicalEventBody } from './graph-io.js';
+import { smokeInstalledHook } from './hook-smoke.js';
 
 /** Everything an adapter's `wire` may need. Runtime-agnostic inputs the command computed. */
 export interface RuntimeWireContext {
@@ -67,6 +73,23 @@ export interface RuntimeWireOutcome {
   readonly nextSteps: readonly string[];
 }
 
+export interface RuntimeInspectionEvidence {
+  readonly installed: boolean | null;
+  readonly wired: boolean | null;
+  readonly fired: boolean | null;
+  readonly observed: boolean | null;
+}
+
+export interface RuntimeInspection {
+  readonly runtime: Runtime;
+  readonly evidence: RuntimeInspectionEvidence;
+  readonly checks: readonly CheckResult[];
+}
+
+export interface RuntimeInspectOptions {
+  readonly claudeCacheRoot?: string;
+}
+
 export interface RuntimeAdapter {
   readonly id: Runtime;
   readonly label: string;
@@ -78,6 +101,43 @@ export interface RuntimeAdapter {
   wire(ctx: RuntimeWireContext): Promise<RuntimeWireOutcome>;
   /** Health checks for this runtime's wiring + doc, for `doctor`. Never throws. */
   doctorChecks(projectRoot: string): Promise<readonly CheckResult[]>;
+  /** Executable lifecycle postconditions. Missing proof stays false/null, never green. */
+  inspect(projectRoot: string, options?: RuntimeInspectOptions): Promise<RuntimeInspection>;
+}
+
+async function safeRegularFile(path: string): Promise<boolean> {
+  try {
+    const info = await lstat(path);
+    return info.isFile() && !info.isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
+function observedRuntime(projectRoot: string, runtime: Runtime): boolean | null {
+  const body = loadCanonicalEventBody(projectRoot);
+  if (body === '') return existsSync(join(projectRoot, '.void', 'runs')) ? null : false;
+  let malformed = false;
+  for (const line of body.split(/\r?\n/)) {
+    if (line === '') continue;
+    const parsed = parseEventLine(line);
+    if (!parsed.ok) {
+      malformed = true;
+      continue;
+    }
+    if (parsed.value.source === `runtime:${runtime}`) return true;
+  }
+  return malformed ? null : false;
+}
+
+function smokeCheck(runtime: Runtime, fired: boolean | null, detail: string): CheckResult {
+  return {
+    name: `${runtime} hook smoke`,
+    ok: fired === true,
+    ...(fired === null ? { status: 'unknown' as const } : {}),
+    message: fired === null ? `unknown: ${detail}` : detail,
+    ...(fired === true ? {} : { fix: `void-harness runtime add ${runtime}` }),
+  };
 }
 
 async function docBlockCheck(projectRoot: string, runtime: Runtime): Promise<CheckResult> {
@@ -127,6 +187,9 @@ const claudeAdapter: RuntimeAdapter = {
     };
   },
   async doctorChecks(projectRoot) {
+    return (await this.inspect(projectRoot)).checks;
+  },
+  async inspect(projectRoot, options) {
     const checks: CheckResult[] = [];
     const settingsPath = settingsPathFor(projectRoot);
     if (!existsSync(settingsPath)) {
@@ -149,7 +212,63 @@ const claudeAdapter: RuntimeAdapter = {
       }
     }
     checks.push(await docBlockCheck(projectRoot, 'claude'));
-    return checks;
+
+    const cacheRoot = options?.claudeCacheRoot
+      ?? join(homedir(), '.claude', 'plugins', 'cache');
+    const pluginDir = locatePluginDir(cacheRoot, CORE_PLUGIN_NAME);
+    let installed = false;
+    let activationHook: string | undefined;
+    if (pluginDir === undefined) {
+      checks.push({
+        name: 'plugin cache',
+        ok: false,
+        message: 'not-installed: no harness plugin cache found',
+        fix: 'restart Claude Code to materialize the enabled plugin',
+      });
+    } else {
+      const manifestPath = join(pluginDir, '.claude-plugin', 'plugin.json');
+      try {
+        const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, unknown>;
+        installed = true;
+        const issues = hookHealthIssues(pluginDir, manifest);
+        checks.push(issues.length === 0
+          ? { name: 'plugin cache', ok: true, message: 'installed hooks present + executable' }
+          : {
+              name: 'plugin cache',
+              ok: false,
+              message: issues.join('; '),
+              fix: 'restart Claude Code to refetch the plugin',
+            });
+        activationHook = join(pluginDir, 'hooks', 'activation-meter.sh');
+      } catch (error) {
+        checks.push({
+          name: 'plugin cache',
+          ok: false,
+          message: `unreadable manifest: ${(error as Error).message}`,
+          fix: 'restart Claude Code to refetch the plugin',
+        });
+      }
+    }
+    const wiringChecks = checks.filter((check) =>
+      check.name === 'settings.json'
+      || check.name === 'CLAUDE.md'
+      || check.name === 'plugin cache',
+    );
+    const wired = installed && wiringChecks.length === 3 && wiringChecks.every((check) => check.ok);
+    const smoke = wired && activationHook !== undefined
+      ? await smokeInstalledHook(activationHook, 'claude')
+      : { fired: false as const, detail: 'hook smoke blocked by failed installation or wiring' };
+    checks.push(smokeCheck('claude', smoke.fired, smoke.detail));
+    return {
+      runtime: 'claude',
+      evidence: {
+        installed,
+        wired,
+        fired: smoke.fired,
+        observed: observedRuntime(projectRoot, 'claude'),
+      },
+      checks,
+    };
   },
 };
 
@@ -186,9 +305,13 @@ const codexAdapter: RuntimeAdapter = {
     };
   },
   async doctorChecks(projectRoot) {
+    return (await this.inspect(projectRoot)).checks;
+  },
+  async inspect(projectRoot) {
     const floor = await codexFloorHealth(projectRoot);
     const skills = await codexSkillsHealth(projectRoot);
-    return [
+    const doc = await docBlockCheck(projectRoot, 'codex');
+    const checks: CheckResult[] = [
       {
         name: 'codex floor',
         ok: floor.ok,
@@ -201,8 +324,27 @@ const codexAdapter: RuntimeAdapter = {
         message: skills.detail,
         ...(skills.ok ? {} : { fix: 'void-harness runtime add codex' }),
       },
-      await docBlockCheck(projectRoot, 'codex'),
+      doc,
     ];
+    const activationHook = join(projectRoot, CODEX_HOOKS_DIR, 'activation-meter.sh');
+    const runner = join(projectRoot, CODEX_HOOKS_DIR, '_void-hook.mjs');
+    const installed = await safeRegularFile(activationHook)
+      && await safeRegularFile(runner);
+    const wired = installed && floor.ok && skills.ok && doc.ok;
+    const smoke = wired
+      ? await smokeInstalledHook(activationHook, 'codex')
+      : { fired: false as const, detail: 'hook smoke blocked by failed installation or wiring' };
+    checks.push(smokeCheck('codex', smoke.fired, smoke.detail));
+    return {
+      runtime: 'codex',
+      evidence: {
+        installed,
+        wired,
+        fired: smoke.fired,
+        observed: observedRuntime(projectRoot, 'codex'),
+      },
+      checks,
+    };
   },
 };
 

@@ -41,6 +41,7 @@ export type {
   CapabilityState,
   CapabilityStateName,
   RuntimeState,
+  RuntimeEvidence,
   LocalSignals,
   Score,
   Dimension,

@@ -5,6 +5,7 @@ import type {
   Certification,
   LocalSignals,
   ProjectState,
+  RuntimeEvidence,
   RuntimeState,
 } from './types.js';
 
@@ -21,9 +22,14 @@ function normalizeCount(n: number | undefined): number {
  * (a used-but-unverified capability caps at `installed`). `effective` requires BOTH a certified
  * effective proof AND real local use here — a certified-but-unused-here capability stays below it,
  * which is the "installed is not fully available" intent (spec §2). */
-function deriveState(cap: CapabilityCert, installed: boolean, usedCount: number): CapabilityStateName {
+function deriveState(
+  cap: CapabilityCert,
+  installed: boolean,
+  locallyVerified: boolean,
+  usedCount: number,
+): CapabilityStateName {
   if (!installed) return 'available';
-  if (!cap.proof.verified) return 'installed';
+  if (!cap.proof.verified || !locallyVerified) return 'installed';
   if (usedCount <= 0) return 'verified';
   if (!cap.proof.effective) return 'used';
   return 'effective';
@@ -31,6 +37,14 @@ function deriveState(cap: CapabilityCert, installed: boolean, usedCount: number)
 
 const byName = (a: RuntimeState, b: RuntimeState): number =>
   a.runtime < b.runtime ? -1 : a.runtime > b.runtime ? 1 : 0;
+
+const UNKNOWN_RUNTIME_EVIDENCE: RuntimeEvidence = {
+  installed: null,
+  wired: null,
+  fired: null,
+  observed: null,
+  certified: null,
+};
 
 /**
  * Join the frozen certification (repo-authored proof) with local signals into the deterministic,
@@ -45,22 +59,31 @@ export function computeProjectState(
 ): ProjectState {
   const capabilities: CapabilityState[] = cert.capabilities.map((cap) => {
     const installed = signals.installedIds.has(cap.id);
+    const locallyVerified = signals.verifiedIds.has(cap.id);
     const usedCount = normalizeCount(signals.usedCounts.get(cap.id));
-    const state = deriveState(cap, installed, usedCount);
+    const state = deriveState(cap, installed, locallyVerified, usedCount);
     const effectiveCells = state === 'effective' ? cap.proof.effective?.cells : undefined;
     return {
       id: cap.id,
       state,
-      verified: cap.proof.verified,
+      verified: locallyVerified && cap.proof.verified,
+      certified: cap.proof.verified,
       usedCount,
       ...(effectiveCells ? { effectiveCells } : {}),
     };
   });
 
-  const known = new Set<string>(signals.runtimesDetected);
+  const known = new Set<string>(signals.runtimeEvidence.keys());
   for (const cap of cert.capabilities) for (const r of cap.runtimes) known.add(r);
   const runtimes: RuntimeState[] = [...known]
-    .map((runtime) => ({ runtime, detected: signals.runtimesDetected.has(runtime) }))
+    .map((runtime) => {
+      const evidence = signals.runtimeEvidence.get(runtime) ?? UNKNOWN_RUNTIME_EVIDENCE;
+      return {
+        runtime,
+        detected: evidence.installed === true,
+        evidence,
+      };
+    })
     .sort(byName);
 
   return { schemaVersion: 1, harnessVersion, capabilities, runtimes };

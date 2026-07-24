@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import { realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import type {
@@ -102,12 +103,20 @@ async function main(): Promise<void> {
   });
 }
 
+function physicalPath(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
+}
+
 const invokedPath = process.argv[1] === undefined
   ? undefined
-  : resolve(process.argv[1]);
+  : physicalPath(process.argv[1]);
 if (
   invokedPath !== undefined
-  && resolve(fileURLToPath(import.meta.url)) === invokedPath
+  && physicalPath(fileURLToPath(import.meta.url)) === invokedPath
 ) {
   main().catch(() => {
     // Telemetry is best-effort and must never block the runtime tool call.

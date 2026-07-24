@@ -1,5 +1,6 @@
 // src/record.ts
 import { fileURLToPath } from "node:url";
+import { realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve as resolve4 } from "node:path";
 
@@ -719,8 +720,15 @@ async function main() {
     ...process.env["VOID_MISSION_ID"] === void 0 ? {} : { missionId: process.env["VOID_MISSION_ID"] }
   });
 }
-var invokedPath = process.argv[1] === void 0 ? void 0 : resolve4(process.argv[1]);
-if (invokedPath !== void 0 && resolve4(fileURLToPath(import.meta.url)) === invokedPath) {
+function physicalPath(path) {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve4(path);
+  }
+}
+var invokedPath = process.argv[1] === void 0 ? void 0 : physicalPath(process.argv[1]);
+if (invokedPath !== void 0 && physicalPath(fileURLToPath(import.meta.url)) === invokedPath) {
   main().catch(() => {
     process.exitCode = 0;
   });

@@ -14,8 +14,20 @@ function cap(id: string, over: Partial<CapabilityCert> = {}): CapabilityCert {
 }
 const cert = (capabilities: CapabilityCert[]): Certification => ({ schemaVersion: 1, harnessVersion: '0.16.0', capabilities });
 function signals(over: Partial<LocalSignals> = {}): LocalSignals {
-  return { installedIds: new Set(), usedCounts: new Map(), runtimesDetected: new Set(), ...over };
+  const installedIds = over.installedIds ?? new Set<string>();
+  return {
+    installedIds,
+    verifiedIds: over.verifiedIds ?? installedIds,
+    usedCounts: new Map(),
+    runtimeEvidence: new Map(),
+    ...over,
+  };
 }
+const runtimeEvidence = (runtimes: readonly string[]) =>
+  new Map(runtimes.map((runtime) => [
+    runtime,
+    { installed: true, wired: true, fired: true, observed: true, certified: true },
+  ] as const));
 const noTokens = new Map<string, number>();
 const dim = (s: ReturnType<typeof scoreProjectState>, key: string) => s.dimensions.find((d) => d.key === key);
 
@@ -25,7 +37,7 @@ describe('scoreProjectState', () => {
     // Claude detected so usage is observable (else activation is pending, tested separately)
     const ps = computeProjectState(
       c,
-      signals({ installedIds: new Set(['skill:a', 'skill:b']), runtimesDetected: new Set(['claude']) }),
+      signals({ installedIds: new Set(['skill:a', 'skill:b']), runtimeEvidence: runtimeEvidence(['claude']) }),
       '0.16.0',
     );
     const score = scoreProjectState(ps, c, noTokens);
@@ -44,7 +56,7 @@ describe('scoreProjectState', () => {
     // But nothing used and nothing evaluated here -> no proof it helps.
     const ps = computeProjectState(
       c,
-      signals({ installedIds: new Set(ids), runtimesDetected: new Set(['claude', 'codex', 'hermes']) }),
+      signals({ installedIds: new Set(ids), runtimeEvidence: runtimeEvidence(['claude', 'codex', 'hermes']) }),
       '0.16.0',
     );
     const lightTokens = new Map(ids.map((id) => [id, 100] as const));
@@ -62,7 +74,7 @@ describe('scoreProjectState', () => {
     const c = cert(ids.map((id) => cap(id)));
     const used = signals({
       installedIds: new Set(ids),
-      runtimesDetected: new Set(['claude', 'codex', 'hermes']),
+      runtimeEvidence: runtimeEvidence(['claude', 'codex', 'hermes']),
       usedCounts: new Map(ids.map((id) => [id, 2] as const)),
     });
     const score = scoreProjectState(computeProjectState(c, used, '0.16.0'), c, new Map(ids.map((id) => [id, 100] as const)));
@@ -71,7 +83,14 @@ describe('scoreProjectState', () => {
 
   it('a capability without an owner is a RED governance blocker that caps the global score at <= 69', () => {
     const c = cert([cap('skill:a'), cap('skill:b', { owner: undefined })]);
-    const ps = computeProjectState(c, signals({ installedIds: new Set(['skill:a', 'skill:b']) }), '0.16.0');
+    const ps = computeProjectState(
+      c,
+      signals({
+        installedIds: new Set(['skill:a', 'skill:b']),
+        runtimeEvidence: runtimeEvidence(['claude']),
+      }),
+      '0.16.0',
+    );
     const score = scoreProjectState(ps, c, noTokens);
     expect(dim(score, 'governance')?.red).toBe(true);
     expect(score.capped).toBe(true);
@@ -83,7 +102,7 @@ describe('scoreProjectState', () => {
     const c = cert([cap('skill:a')]);
     const ps = computeProjectState(
       c,
-      signals({ installedIds: new Set(['skill:a']), runtimesDetected: new Set(['claude', 'codex', 'hermes']) }),
+      signals({ installedIds: new Set(['skill:a']), runtimeEvidence: runtimeEvidence(['claude', 'codex', 'hermes']) }),
       '0.16.0',
     );
     const score = scoreProjectState(ps, c, noTokens);
@@ -98,7 +117,14 @@ describe('scoreProjectState', () => {
     const strong: NodeEnforcement = { floor: 'ci', inline: { claude: 'pretooluse' } };
     const weak: NodeEnforcement = { floor: 'ci', inline: { claude: 'ci-only' } };
     const c = cert([cap('skill:a', { enforcement: strong }), cap('skill:b', { enforcement: weak })]);
-    const ps = computeProjectState(c, signals({ installedIds: new Set(['skill:a', 'skill:b']) }), '0.16.0');
+    const ps = computeProjectState(
+      c,
+      signals({
+        installedIds: new Set(['skill:a', 'skill:b']),
+        runtimeEvidence: runtimeEvidence(['claude']),
+      }),
+      '0.16.0',
+    );
     const enf = dim(scoreProjectState(ps, c, noTokens), 'enforcement');
     // mean of pretooluse(100) and ci-only(60) = 80 — the old max would have said 100
     expect(enf?.perRuntime).toEqual({ claude: 80 });
@@ -109,7 +135,7 @@ describe('scoreProjectState', () => {
     // Codex detected, Claude not -> usage can't be measured
     const ps = computeProjectState(
       c,
-      signals({ installedIds: new Set(['skill:a', 'skill:b']), runtimesDetected: new Set(['codex']) }),
+      signals({ installedIds: new Set(['skill:a', 'skill:b']), runtimeEvidence: runtimeEvidence(['codex']) }),
       '0.16.0',
     );
     const score = scoreProjectState(ps, c, noTokens);
@@ -123,7 +149,7 @@ describe('scoreProjectState', () => {
     const c = cert([cap('skill:a')]);
     const ps = computeProjectState(
       c,
-      signals({ installedIds: new Set(['skill:a']), runtimesDetected: new Set(['claude']), usedCounts: new Map([['skill:a', 2]]) }),
+      signals({ installedIds: new Set(['skill:a']), runtimeEvidence: runtimeEvidence(['claude']), usedCounts: new Map([['skill:a', 2]]) }),
       '0.16.0',
     );
     expect(dim(scoreProjectState(ps, c, noTokens), 'activation')?.score).toBe(100); // 1/1 used
@@ -179,10 +205,9 @@ describe('scoreProjectState', () => {
     const ps = computeProjectState(c, signals({ installedIds: new Set(['skill:a', 'skill:b']) }), '0.16.0');
     const actions = scoreProjectState(ps, c, noTokens).nextActions;
     expect(actions.length).toBeGreaterThan(0);
-    // portability + efficacy are at 0; the 4 measured dims are portability, efficacy, enforcement,
-    // governance (performance + activation + installation + dx are pending — no tokens, no Claude
-    // runtime, no signal) -> impact round(100/4) = 25.
-    expect(actions[0]?.impact).toBe(25);
+    // Only efficacy + governance are measured. Runtime/enforcement/install stay pending without an
+    // executable runtime probe, so the efficacy gap is spread over 2 measured dimensions.
+    expect(actions[0]?.impact).toBe(50);
     for (let i = 1; i < actions.length; i += 1) {
       expect(actions[i - 1]!.impact).toBeGreaterThanOrEqual(actions[i]!.impact);
       expect(actions[i - 1]!.rank).toBe(i);
