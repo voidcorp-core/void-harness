@@ -1263,7 +1263,7 @@ Mission Control visuel et écosystème ne peuvent pas grossir ce cut.
 
 ## Resume point
 
-**Next step**: Step 5 - Installer Claude et Codex localement, sans compte, avec rollback
+**Next step**: Step 7 - Porter les règles qualité et lifecycle restantes
 
 **Completed**:
 
@@ -1293,10 +1293,24 @@ Mission Control visuel et écosystème ne peuvent pas grossir ce cut.
 - gate Step 4 : 1 260 tests passés, 1 skip attendu ; 558 tests CLI passent hors sandbox loopback ;
   build, typecheck, lint, anti-bloat, publication, décisions, graphes, certification, core-assets,
   parité docs, versions et diff verts ; manifest seul et hook non exécutable restent rouges.
+- Step 5 : assets Claude/Codex locaux par défaut, tarball offline autosuffisant, staging isolé,
+  transaction byte-for-byte, receipt hashé, ownership conservateur et lifecycle
+  add/remove/update local sans marketplace (`650f983`, `079420e`) ;
+- gate Step 5 : matrice conformance Claude/Codex/both verte sur tarball offline, p50 1,07 s ;
+  rollback fault-injected, runtime add et fichiers adjacents prouvés ; 1 283 tests passés,
+  1 skip attendu ; typecheck, anti-bloat, publication, décisions, parité docs et versions verts.
+- Step 6 : quatre règles critiques pures dans le runner Node, normalisation Claude/Codex/CI
+  bornée, wrappers shell réduits à dix lignes, TDD backend/frontend partagé, manifests natifs,
+  chemins Codex absolus quotés cross-platform et diff CI sur le même bundle (`7cc4071`,
+  `499ac31`, `234af19`) ;
+- gate Step 6 : 1 339 tests passés, 1 skip attendu ; 57 tests runner, 119 tests floor ciblés,
+  smoke Codex depuis un sous-répertoire avec espaces, chemins symlinkés bornés, conformance
+  offline p50 1,07 s, typecheck, lint, anti-bloat, publication, décisions, parité docs et
+  versions verts.
 
 **Pending**:
 
-- Steps 5 à 24 ;
+- Steps 7 à 24 ;
 - Checkpoint A après Step 8 ;
 - Checkpoint B après Step 22 ;
 - brainstorming/spec dédiée Mission Control x10 pendant Step 23.
