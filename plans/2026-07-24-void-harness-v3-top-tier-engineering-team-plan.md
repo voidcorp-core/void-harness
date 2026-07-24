@@ -1263,7 +1263,7 @@ Mission Control visuel et écosystème ne peuvent pas grossir ce cut.
 
 ## Resume point
 
-**Next step**: Step 3 - Relier preuves, findings, invalidation et verdict
+**Next step**: Step 4 - Rendre doctor et status strictement honnêtes
 
 **Completed**:
 
@@ -1280,10 +1280,16 @@ Mission Control visuel et écosystème ne peuvent pas grossir ce cut.
 - gate Step 2 : 1 211 tests passés, 1 skip attendu ; typecheck, bundle embarqué,
   core-assets et diff verts ; replay 10k événements p95 59,26 ms, hook cold p95
   92,66 ms, écriture hot p95 1,6 ms.
+- Step 3 : preuves canoniques auto-hashées et bornées, invalidation ciblée par dépendance,
+  findings append-only, verdict déterministe, journal redacted, CLI mission shell-safe,
+  inspection stable, archivage atomique et prune explicite (`f079a6e`) ;
+- gate Step 3 : 1 251 tests passés, 1 skip attendu ; build, typecheck, anti-bloat,
+  publish-safety, décisions, graphes, bundle, core-assets, parité docs, versions et diff verts ;
+  smoke réel start/verify/inspect/archive vert, fuite de secret absente et preuve stale refusée.
 
 **Pending**:
 
-- Steps 3 à 24 ;
+- Steps 4 à 24 ;
 - Checkpoint A après Step 8 ;
 - Checkpoint B après Step 22 ;
 - brainstorming/spec dédiée Mission Control x10 pendant Step 23.
