@@ -94,6 +94,24 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+
+      # The release PR carries NO checks of its own: GitHub deliberately does not
+      # trigger workflows for a pull request opened by the bot's GITHUB_TOKEN
+      # (anti-recursion), so `ci.yml` never runs on release-please--branches--main.
+      # Merging it therefore used to tag and publish a tree that no suite had run
+      # against — the version bumps in particular are exactly what `version:check`
+      # exists to catch, and they only ever appear on that unchecked branch.
+      #
+      # So the gate lives HERE, on the tree actually being published, rather than
+      # trusting that main was green when the PR was cut. Publishing to npm is
+      # irreversible; a failing step here costs a re-run, a bad publish costs a
+      # deprecation notice forever.
+      - name: Validate the tree being published
+        run: |
+          pnpm version:check
+          pnpm typecheck
+          pnpm test
+
       # Guard: no `workspace:` specifier may survive into a published tarball.
       - run: pnpm check:publish
       # prepack (builds the kernel + CLI + core-assets) runs automatically, so the
