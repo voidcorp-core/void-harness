@@ -36,9 +36,11 @@ import {
   type PackDescriptor,
 } from './packs.js';
 import {
+  mergeLocalSettings,
   mergeSettings,
   readSettings,
   settingsPathFor,
+  type ClaudeSettings,
   writeSettings,
 } from './settings.js';
 import { docFileFor, HARNESS_BLOCK_MARKER, patchRuntimeDoc } from './claude-md.js';
@@ -54,6 +56,10 @@ import { detectRuntimes, type Runtime } from './runtime.js';
 import { hookHealthIssues, locatePluginDir } from './plugin-cache.js';
 import { loadCanonicalEventBody } from './graph-io.js';
 import { smokeInstalledHook } from './hook-smoke.js';
+import {
+  type InstallSource,
+  wireClaudeLocalAssets,
+} from './runtime-assets.js';
 
 /** Everything an adapter's `wire` may need. Runtime-agnostic inputs the command computed. */
 export interface RuntimeWireContext {
@@ -61,6 +67,7 @@ export interface RuntimeWireContext {
   readonly sourceRoot: string;
   readonly enabledPlugins: readonly string[];
   readonly enabledPacks: readonly PackDescriptor[];
+  readonly source: InstallSource;
   readonly marketplaceRepo: string;
   /** undefined when the Claude marketplace pin could not be resolved (offline). */
   readonly pinVersion: string | undefined;
@@ -96,7 +103,7 @@ export interface RuntimeAdapter {
   /** Does this runtime already show a footprint in the project? */
   detect(projectRoot: string): boolean;
   /** Extra prerequisite checks beyond the always-checked jq (empty for a runtime with none). */
-  prerequisites(marketplaceRepo: string): readonly CheckResult[];
+  prerequisites(marketplaceRepo: string, source?: InstallSource): readonly CheckResult[];
   /** Materialize this runtime's active layer + its own doctrine doc. Idempotent. */
   wire(ctx: RuntimeWireContext): Promise<RuntimeWireOutcome>;
   /** Health checks for this runtime's wiring + doc, for `doctor`. Never throws. */
@@ -156,31 +163,46 @@ const claudeAdapter: RuntimeAdapter = {
   id: 'claude',
   label: 'Claude Code',
   detect: (root) => existsSync(join(root, '.claude')) || existsSync(join(root, 'CLAUDE.md')),
-  prerequisites: (repo) => [checkGh(), checkMarketplaceAccess(repo)],
+  prerequisites: (repo, source = 'local') =>
+    source === 'marketplace' ? [checkGh(), checkMarketplaceAccess(repo)] : [],
   async wire(ctx) {
     const settingsPath = settingsPathFor(ctx.projectRoot);
     const existing = await readSettings(settingsPath);
-    const merged = mergeSettings(existing, {
-      enabledPlugins: ctx.enabledPlugins,
-      marketplaceRepo: ctx.marketplaceRepo,
-    });
+    let status: string;
+    let nextSteps: string[];
+    const packDirs = ctx.enabledPacks
+      .map((pack) => packDirForName(pack.name))
+      .filter((directory): directory is string => directory !== undefined);
+    let merged: ClaudeSettings;
+    if (ctx.source === 'local') {
+      const assets = await wireClaudeLocalAssets(ctx.projectRoot, ctx.sourceRoot, packDirs);
+      merged = mergeLocalSettings(existing, assets.hookConfiguration);
+      status = `settings.json + ${assets.skills} skills + ${assets.agents} agents + ${assets.hooks} hooks wired locally`;
+      nextSteps = ['restart Claude Code (project-local skills and agents load on session start)'];
+    } else {
+      merged = mergeSettings(existing, {
+        enabledPlugins: ctx.enabledPlugins,
+        marketplaceRepo: ctx.marketplaceRepo,
+      });
+      status = `settings.json: extraKnownMarketplaces.${MARKETPLACE_NAME} + enabledPlugins merged`;
+      nextSteps = [
+        'restart Claude Code (skills load on session start)',
+        'accept the plugin trust prompt on first load',
+      ];
+      if (ctx.pinVersion === undefined) {
+        nextSteps.push(
+          'FAILED: core version could not be resolved from the marketplace — once it is reachable, run void-harness update to pin it',
+        );
+      }
+    }
     await writeSettings(settingsPath, merged);
     const docResult = await patchRuntimeDoc(ctx.projectRoot, 'claude', {
       enabledPlugins: ctx.enabledPlugins,
       enabledPacks: ctx.enabledPacks,
     });
-    const nextSteps = [
-      'restart Claude Code (skills load on session start)',
-      'accept the plugin trust prompt on first load',
-    ];
-    if (ctx.pinVersion === undefined) {
-      nextSteps.push(
-        'FAILED: core version could not be resolved from the marketplace — once it is reachable, run void-harness update to pin it',
-      );
-    }
     return {
       statusLines: [
-        `settings.json: extraKnownMarketplaces.${MARKETPLACE_NAME} + enabledPlugins merged`,
+        status,
         `CLAUDE.md: ${docResult}`,
       ],
       nextSteps,
@@ -192,15 +214,19 @@ const claudeAdapter: RuntimeAdapter = {
   async inspect(projectRoot, options) {
     const checks: CheckResult[] = [];
     const settingsPath = settingsPathFor(projectRoot);
+    let localSettings = false;
     if (!existsSync(settingsPath)) {
       checks.push({ name: 'settings.json', ok: false, message: '.claude/settings.json missing', fix: 'void-harness runtime add claude' });
     } else {
       const settings = await readSettings(settingsPath);
       const markets = settings.extraKnownMarketplaces ?? {};
       const enabledPlugins = settings.enabledPlugins ?? {};
+      localSettings = JSON.stringify(settings.hooks ?? {}).includes('$CLAUDE_PROJECT_DIR/.void/hooks/');
       const hasMarketplace = markets[MARKETPLACE_NAME] !== undefined;
       const hasCore = enabledPlugins[enabledPluginsKey(CORE_PLUGIN_NAME)] === true;
-      if (hasMarketplace && hasCore) {
+      if (localSettings) {
+        checks.push({ name: 'settings.json', ok: true, message: 'project-local hooks wired' });
+      } else if (hasMarketplace && hasCore) {
         const active = Object.keys(enabledPlugins).filter((k) => enabledPlugins[k] === true).length;
         checks.push({ name: 'settings.json', ok: true, message: `marketplace registered, ${active} plugin(s) enabled` });
       } else {
@@ -213,46 +239,66 @@ const claudeAdapter: RuntimeAdapter = {
     }
     checks.push(await docBlockCheck(projectRoot, 'claude'));
 
-    const cacheRoot = options?.claudeCacheRoot
-      ?? join(homedir(), '.claude', 'plugins', 'cache');
-    const pluginDir = locatePluginDir(cacheRoot, CORE_PLUGIN_NAME);
     let installed = false;
     let activationHook: string | undefined;
-    if (pluginDir === undefined) {
+    const localRunner = join(projectRoot, '.void', 'hooks', '_void-hook.mjs');
+    const localActivation = join(projectRoot, '.void', 'hooks', 'activation-meter.sh');
+    const localSkill = join(projectRoot, '.claude', 'skills', 'tdd', 'SKILL.md');
+    const localAgent = join(projectRoot, '.claude', 'agents', 'doctrine-critic.md');
+    if (
+      localSettings
+      && await safeRegularFile(localRunner)
+      && await safeRegularFile(localActivation)
+      && await safeRegularFile(localSkill)
+      && await safeRegularFile(localAgent)
+    ) {
+      installed = true;
+      activationHook = localActivation;
+      checks.push({
+        name: 'local assets',
+        ok: true,
+        message: 'installed skills, agents and executable hooks present',
+      });
+    } else {
+      const cacheRoot = options?.claudeCacheRoot
+        ?? join(homedir(), '.claude', 'plugins', 'cache');
+      const pluginDir = locatePluginDir(cacheRoot, CORE_PLUGIN_NAME);
+      if (pluginDir === undefined) {
       checks.push({
         name: 'plugin cache',
         ok: false,
         message: 'not-installed: no harness plugin cache found',
         fix: 'restart Claude Code to materialize the enabled plugin',
       });
-    } else {
-      const manifestPath = join(pluginDir, '.claude-plugin', 'plugin.json');
-      try {
-        const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, unknown>;
-        installed = true;
-        const issues = hookHealthIssues(pluginDir, manifest);
-        checks.push(issues.length === 0
-          ? { name: 'plugin cache', ok: true, message: 'installed hooks present + executable' }
-          : {
-              name: 'plugin cache',
-              ok: false,
-              message: issues.join('; '),
-              fix: 'restart Claude Code to refetch the plugin',
-            });
-        activationHook = join(pluginDir, 'hooks', 'activation-meter.sh');
-      } catch (error) {
-        checks.push({
-          name: 'plugin cache',
-          ok: false,
-          message: `unreadable manifest: ${(error as Error).message}`,
-          fix: 'restart Claude Code to refetch the plugin',
-        });
+      } else {
+        const manifestPath = join(pluginDir, '.claude-plugin', 'plugin.json');
+        try {
+          const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, unknown>;
+          installed = true;
+          const issues = hookHealthIssues(pluginDir, manifest);
+          checks.push(issues.length === 0
+            ? { name: 'plugin cache', ok: true, message: 'installed hooks present + executable' }
+            : {
+                name: 'plugin cache',
+                ok: false,
+                message: issues.join('; '),
+                fix: 'restart Claude Code to refetch the plugin',
+              });
+          activationHook = join(pluginDir, 'hooks', 'activation-meter.sh');
+        } catch (error) {
+          checks.push({
+            name: 'plugin cache',
+            ok: false,
+            message: `unreadable manifest: ${(error as Error).message}`,
+            fix: 'restart Claude Code to refetch the plugin',
+          });
+        }
       }
     }
     const wiringChecks = checks.filter((check) =>
       check.name === 'settings.json'
       || check.name === 'CLAUDE.md'
-      || check.name === 'plugin cache',
+      || check.name === (localSettings ? 'local assets' : 'plugin cache'),
     );
     const wired = installed && wiringChecks.length === 3 && wiringChecks.every((check) => check.ok);
     const smoke = wired && activationHook !== undefined

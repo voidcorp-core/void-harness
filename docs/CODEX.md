@@ -21,8 +21,9 @@ runtime, so a Codex-only project is never flagged for a missing `CLAUDE.md`.
 
 ## The skills
 
-Skill content is runtime-agnostic prose and applies to both. Claude Code
-auto-discovers the harness plugin's skills from the marketplace. Codex discovers
+Skill content is runtime-agnostic prose and applies to both. The default local
+install materializes Claude skills under `.claude/skills` and Codex skills under
+`.agents/skills`; both are native project-local discovery surfaces. Codex discovers
 skills two ways: by **directory convention** — scanning `.agents/skills` from the
 cwd up to the repo root — and, more recently, through a **native plugin channel**
 (`.codex-plugin/plugin.json` + `codex plugin marketplace add owner/repo`, bundling
@@ -38,7 +39,9 @@ reports how many are discoverable; `update` re-stages them to the running CLI's
 version. This is chosen because it is universal, reproducible, and account-free
 (no marketplace fetch); the native Codex plugin channel is a viable
 **complementary** channel we may add later (tracked as an issue) so both runtimes
-resolve the same artifacts from a plugin.
+resolve the same artifacts from a plugin. Claude's own project configuration
+supports `.claude/skills`, `.claude/agents` and `.claude/settings.json`; its
+plugin marketplace remains available only through explicit opt-in.
 
 [build-skills]: https://learn.chatgpt.com/docs/build-skills
 [build-plugins]: https://learn.chatgpt.com/docs/build-plugins

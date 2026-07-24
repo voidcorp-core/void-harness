@@ -11,7 +11,7 @@ Install a top-5% development doctrine on any project in one command, run it acro
 
 - **Craftsman skills** — TDD strict, TigerStyle, hexagonal, DDD — enforced by hooks, not vibes.
 - **Evidence-bound missions** — append-only local proofs, findings and honest verdicts that become stale when their inputs change.
-- **Multi-runtime by construction** — one doctrine, compiled to **Claude Code** (`CLAUDE.md` + marketplace plugin) and **Codex** (`AGENTS.md` + `.codex/hooks.json` + `.agents/skills`) through a runtime-adapter seam. Both runtimes get the *same* enforcement: the hooks are a full mirror, and the read-only agents are compiled into Codex skills rather than re-authored. What genuinely cannot cross over is listed in `docs/CODEX.md` instead of being papered over. Add a runtime later without a reinstall (`void-harness runtime add codex`).
+- **Multi-runtime by construction** — one doctrine, compiled locally to **Claude Code** (`CLAUDE.md` + `.claude/skills` + `.claude/agents`) and **Codex** (`AGENTS.md` + `.codex/hooks.json` + `.agents/skills`) through a runtime-adapter seam. Both runtimes get the *same* enforcement: the hooks are a full mirror, and the read-only agents are compiled into Codex skills rather than re-authored. What genuinely cannot cross over is listed in `docs/CODEX.md` instead of being papered over. Add a runtime later without a reinstall (`void-harness runtime add codex`).
 - **Pluggable stack packs** — Next.js, monorepo, React, server, PWA, mobile — activated per project.
 - **Free and account-free** — `npx voidharness init`. No Claude account, no subscription, no API key. The Claude Code marketplace is an optional secondary channel.
 
@@ -86,9 +86,11 @@ npx voidharness init
 > On a pnpm project, prefer `pnpm dlx voidharness init` — `npx` (npm) prints harmless
 > "Unknown project config" warnings when it reads your pnpm-only `.npmrc` keys; `pnpm dlx` doesn't.
 
-It detects the project and installed runtimes (Claude Code / Codex), wires each through its adapter
-(marketplace for Claude, safety floor for Codex), writes `.void/config.json` + the doctrine docs, and
-prints what to do next. Then, at any time:
+It detects the project and installed runtimes (Claude Code / Codex), compiles the bundled tarball
+into each runtime's native project directories, smokes the staged hooks, then publishes the finite
+file set transactionally. `.void/receipts/install-v1.json` records deletion ownership; rollback
+restores the previous bytes and adjacent user files are never claimed. No marketplace, `gh`,
+GitHub authentication or network fetch is part of the default path.
 
 ```
 npx voidharness status     # deterministic, offline, LLM-free project health
@@ -146,6 +148,9 @@ Skills then auto-load as `/harness:<name>` (core) and `/harness-<stack>:<name>` 
 is self-hosted here: [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) lists every
 plugin as a local subdirectory (`./packages/core`, `./packages/packs/*`), versioned by each
 `plugin.json`.
+
+The CLI equivalent is explicit: `void-harness init --source marketplace` (or
+`--marketplace`). Local bundled assets remain the default.
 
 ### Enforce the floor on every PR (void-enforce Action)
 

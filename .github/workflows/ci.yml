@@ -7,6 +7,24 @@ on:
     branches: [main]
 
 jobs:
+  install-conformance:
+    name: install conformance (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Offline tarball install for Claude, Codex and both
+        run: pnpm conformance:install
+
   validate:
     runs-on: ubuntu-latest
     steps:

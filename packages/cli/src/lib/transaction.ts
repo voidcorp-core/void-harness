@@ -14,11 +14,18 @@ import {
 } from 'node:fs/promises';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 
-export interface FileMutation {
+export interface FileWriteMutation {
   readonly path: string;
   readonly content: Uint8Array;
   readonly mode?: number;
 }
+
+export interface FileRemoveMutation {
+  readonly path: string;
+  readonly remove: true;
+}
+
+export type FileMutation = FileWriteMutation | FileRemoveMutation;
 
 export interface TransactionOptions {
   /** Test-only fault injection: throw immediately after this zero-based mutation. */
@@ -144,11 +151,15 @@ export async function commitFileTransaction(
       const current = targets[index];
       if (current === undefined) continue;
       await rejectSymlinkPath(root, current.mutation.path);
-      await atomicWrite(
-        current.target,
-        current.mutation.content,
-        current.mutation.mode ?? 0o644,
-      );
+      if ('remove' in current.mutation) {
+        await rm(current.target, { force: true });
+      } else {
+        await atomicWrite(
+          current.target,
+          current.mutation.content,
+          current.mutation.mode ?? 0o644,
+        );
+      }
       if (options.failAfterMutation === index) {
         throw new Error(`injected transaction failure after mutation ${index}`);
       }

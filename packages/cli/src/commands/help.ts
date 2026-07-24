@@ -56,7 +56,7 @@ export function printHelp(): void {
   write(`  ${c.muted('on pnpm? use')} ${c.muted('pnpm dlx voidharness …')} ${c.muted('to silence npm config warnings.')}\n`);
 
   heading('Commands');
-  cmd('init [--pack] [--runtime]', 'Wire the current project: detect runtimes + stack, activate packs, write doctrine. --runtime claude|codex|both, --all-packs, --force.');
+  cmd('init [--pack] [--runtime]', 'Install bundled local assets by default: detect runtimes + stack, activate packs, write doctrine. --runtime claude|codex|both, --source marketplace, --force.');
   cmd('runtime <list|add <r>>', 'Show which runtimes are wired, or add one (claude|codex) a posteriori without a reinstall — touches only that runtime.');
   cmd('add <pack>', 'Activate a stack pack in the current project.');
   cmd('remove <pack>', 'Deactivate a pack (core cannot be removed).');
@@ -86,6 +86,7 @@ export function printHelp(): void {
   example('void-harness init', 'interactive, auto-detects runtimes + packs');
   example('void-harness init --pack nextjs --pack monorepo', 'script-friendly');
   example('void-harness init --runtime codex', 'Codex-only: wire its safety floor');
+  example('void-harness init --marketplace', 'explicit opt-in to the secondary Claude marketplace');
   example('void-harness runtime add codex', 'add Codex to a Claude project, later');
   example('void-harness status', 'offline project health');
   example('void-harness update --dry-run', 'preview version + floor drift');

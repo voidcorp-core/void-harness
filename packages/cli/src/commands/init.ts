@@ -14,8 +14,9 @@
 // plugin from the marketplace on session start. Skills appear as
 // /harness:tdd, /harness-nextjs:..., etc.
 
-import { existsSync, rmSync } from 'node:fs';
-import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as p from '@clack/prompts';
 import { type PackConfig, resolveEffectivePin } from '../lib/pack-config.js';
@@ -28,7 +29,7 @@ import {
 } from '../lib/packs.js';
 import { cliVersion, findCoreSource } from '../lib/paths.js';
 import { isHarnessSourceRepo } from '../lib/self-repo.js';
-import { type CheckResult, checkJq } from '../lib/prerequisites.js';
+import type { CheckResult } from '../lib/prerequisites.js';
 import { resolveCorePin } from '../lib/remote.js';
 import { banner, blank, c, footer, glyph, line, meta } from '../lib/render.js';
 import {
@@ -38,7 +39,10 @@ import {
   resolveRuntimes,
 } from '../lib/runtime.js';
 import { adaptersFor } from '../lib/runtime-adapters.js';
+import type { InstallSource } from '../lib/runtime-assets.js';
 import { commandsFor, detectStack, type Stack } from '../lib/stack.js';
+import { prepareInstallCommit, seedInstallStage } from '../lib/local-install.js';
+import { commitFileTransaction } from '../lib/transaction.js';
 
 interface InitOptions {
   readonly explicitPacks: readonly string[];
@@ -46,6 +50,7 @@ interface InitOptions {
   readonly interactive: boolean;
   readonly force: boolean;
   readonly marketplaceRepo: string;
+  readonly source: InstallSource;
   readonly explicitRuntimes: readonly Runtime[];
   /** Raw `--runtime` values that parsed to no known runtime (e.g. a typo), for a loud warning. */
   readonly invalidRuntimeArgs: readonly string[];
@@ -59,6 +64,7 @@ function parseArgs(args: readonly string[]): InitOptions {
   let interactive = true;
   let force = false;
   let marketplaceRepo = MARKETPLACE_REPO;
+  const source = resolveInstallSource(args);
 
   for (let i = 0; i < args.length; i += 1) {
     const a = args[i] ?? '';
@@ -92,7 +98,13 @@ function parseArgs(args: readonly string[]): InitOptions {
   // If --pack flags are present, default to non-interactive (script-friendly).
   if (explicitPacks.length > 0 || allPacks) interactive = false;
 
-  return { explicitPacks, allPacks, interactive, force, marketplaceRepo, explicitRuntimes, invalidRuntimeArgs };
+  return { explicitPacks, allPacks, interactive, force, marketplaceRepo, source, explicitRuntimes, invalidRuntimeArgs };
+}
+
+export function resolveInstallSource(args: readonly string[]): InstallSource {
+  if (args.includes('--marketplace')) return 'marketplace';
+  const index = args.indexOf('--source');
+  return index >= 0 && args[index + 1] === 'marketplace' ? 'marketplace' : 'local';
 }
 
 interface ConfigSeed {
@@ -175,7 +187,7 @@ export async function init(args: readonly string[]): Promise<void> {
   const adapters = adaptersFor(runtimes);
   const wireClaude = runtimes.includes('claude');
   meta('runtimes', adapters.map((a) => a.label).join(' + '));
-  if (wireClaude) meta('marketplace', opts.marketplaceRepo);
+  meta('source', opts.source === 'local' ? 'bundled local package' : `marketplace ${opts.marketplaceRepo}`);
 
   // Resolve seed config: detect consumer's stack + fetch marketplace HEAD
   // version. Both have fallbacks so init never fails for env reasons.
@@ -187,7 +199,9 @@ export async function init(args: readonly string[]): Promise<void> {
   // marketplace; Codex: none). init never FAILS on these (it stays idempotent),
   // but every unmet one is loud here and reappears in the closing checklist so a
   // broken install can't hide behind a "succeeded for env reasons" exit (#67).
-  const prereqs: CheckResult[] = [checkJq(), ...adapters.flatMap((a) => a.prerequisites(opts.marketplaceRepo))];
+  const prereqs: CheckResult[] = adapters.flatMap((adapter) =>
+    adapter.prerequisites(opts.marketplaceRepo, opts.source)
+  );
   for (const check of prereqs) {
     const mark = check.ok ? c.green(glyph.check) : c.red('x');
     line(`${mark}  ${c.dim(check.name.padEnd(18))}${check.message}`);
@@ -210,8 +224,10 @@ export async function init(args: readonly string[]): Promise<void> {
   }
 
   // The core pin is a Claude-marketplace concern; only resolve/report it there.
-  const pinVersion = wireClaude ? resolveCorePin(opts.marketplaceRepo) : undefined;
-  if (wireClaude) {
+  const pinVersion = opts.source === 'local'
+    ? cliVersion()
+    : wireClaude ? resolveCorePin(opts.marketplaceRepo) : undefined;
+  if (wireClaude && opts.source === 'marketplace') {
     meta('pin', pinVersion !== undefined ? `^${pinVersion}` : c.red('unresolved (could not derive from marketplace, not pinned)'));
   }
   blank();
@@ -230,20 +246,26 @@ export async function init(args: readonly string[]): Promise<void> {
   const packs = await choosePacks(projectRoot, opts);
   const enabledPlugins = [CORE_PLUGIN_NAME, ...packs.map((pk) => pk.name)];
 
-  // TRANSACTION — from here we write. Snapshot which top-level dirs pre-existed so
-  // a mid-write failure rolls back the ones we created (best-effort: in-place
-  // patches to a pre-existing CLAUDE.md/AGENTS.md are not reverted, only created
-  // dirs are removed — enough to avoid leaving a half-scaffolded project).
-  const rollbackDirs = ['.void', '.claude', '.codex', '.agents'].map((d) => join(projectRoot, d));
-  const preExisting = new Set(rollbackDirs.filter((d) => existsSync(d)));
+  // COMPILE IN ISOLATION. Only the finite mutation set is published after each
+  // selected runtime proves installed + wired + fired in this stage.
+  const stageRoot = await mkdtemp(join(tmpdir(), 'void-init-stage-'));
   const nextSteps: string[] = [];
   try {
+    await seedInstallStage(projectRoot, stageRoot);
     // 1. Write .void/config.json (runtime-agnostic)
-    await writeConfig(projectRoot, packs, opts, { pinVersion, stack });
+    await writeConfig(stageRoot, packs, opts, { pinVersion, stack });
     // 2. Copy PHILOSOPHY.md + create PROJECT-DOCTRINE.md from template
-    await installDoctrineFiles(projectRoot, sourceRoot);
+    await installDoctrineFiles(stageRoot, sourceRoot);
     // 3. Wire each selected runtime through its adapter.
-    const wireCtx = { projectRoot, sourceRoot, enabledPlugins, enabledPacks: packs, marketplaceRepo: opts.marketplaceRepo, pinVersion };
+    const wireCtx = {
+      projectRoot: stageRoot,
+      sourceRoot,
+      enabledPlugins,
+      enabledPacks: packs,
+      source: opts.source,
+      marketplaceRepo: opts.marketplaceRepo,
+      pinVersion,
+    };
     for (const adapter of adapters) {
       const outcome = await adapter.wire(wireCtx);
       for (const status of outcome.statusLines) {
@@ -251,13 +273,35 @@ export async function init(args: readonly string[]): Promise<void> {
       }
       nextSteps.push(...outcome.nextSteps);
     }
-  } catch (err) {
-    for (const d of rollbackDirs) {
-      if (!preExisting.has(d)) rmSync(d, { recursive: true, force: true });
+    if (opts.source === 'local') {
+      for (const adapter of adapters) {
+        const inspection = await adapter.inspect(stageRoot);
+        if (
+          inspection.evidence.installed !== true
+          || inspection.evidence.wired !== true
+          || inspection.evidence.fired === false
+        ) {
+          const failed = inspection.checks.filter((check) => !check.ok).map((check) => check.message);
+          throw new Error(`${adapter.label} staged doctor failed: ${failed.join('; ')}`);
+        }
+      }
     }
+    const prepared = await prepareInstallCommit({
+      projectRoot,
+      stageRoot,
+      version: cliVersion(),
+      source: opts.source,
+      runtimes,
+      force: opts.force,
+    });
+    await commitFileTransaction(projectRoot, prepared.mutations);
+    line(`${c.green(glyph.check)}  ${c.dim('transaction'.padEnd(18))}${prepared.receipt.files.length} owned files committed + receipt written`);
+  } catch (err) {
     blank();
-    p.log.error(`init failed mid-write and rolled back the dirs it created. ${errorMessage(err)}`);
+    p.log.error(`init failed before publication or rolled back byte-for-byte. ${errorMessage(err)}`);
     process.exit(1);
+  } finally {
+    await rm(stageRoot, { recursive: true, force: true });
   }
 
   blank();

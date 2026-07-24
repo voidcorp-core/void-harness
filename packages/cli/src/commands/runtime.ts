@@ -8,15 +8,17 @@
 
 import * as p from '@clack/prompts';
 import { existsSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { findCoreSource } from '../lib/paths.js';
+import { cliVersion, findCoreSource } from '../lib/paths.js';
 import { CORE_PLUGIN_NAME, findPack, MARKETPLACE_REPO, type PackDescriptor } from '../lib/packs.js';
 import { marketplaceRepoFrom, readSettings, settingsPathFor } from '../lib/settings.js';
-import { resolveCorePin } from '../lib/remote.js';
 import { ADAPTERS, adaptersFor } from '../lib/runtime-adapters.js';
 import { detectRuntimes, parseRuntimeArg, type Runtime } from '../lib/runtime.js';
 import { banner, blank, c, footer, glyph, line, meta } from '../lib/render.js';
+import { prepareInstallCommit, seedInstallStage } from '../lib/local-install.js';
+import { commitFileTransaction } from '../lib/transaction.js';
 
 export async function runtime(args: readonly string[]): Promise<void> {
   const [sub, ...rest] = args;
@@ -73,24 +75,57 @@ async function runtimeAdd(rest: readonly string[]): Promise<void> {
   const marketplaceRepo = marketplaceRepoFrom(settings, MARKETPLACE_REPO);
   const enabledPacks = await readEnabledPacks(projectRoot);
   const enabledPlugins = [CORE_PLUGIN_NAME, ...enabledPacks.map((pk) => pk.name)];
-  // The pin only feeds the Claude adapter's next-step; resolve it only if adding Claude.
-  const pinVersion = requested.includes('claude') ? resolveCorePin(marketplaceRepo) : undefined;
+  const pinVersion = cliVersion();
 
   banner('runtime add');
   meta('project', projectRoot);
   meta('adding', adapters.map((a) => a.label).join(' + '));
   blank();
 
-  const ctx = { projectRoot, sourceRoot, enabledPlugins, enabledPacks, marketplaceRepo, pinVersion };
   const nextSteps: string[] = [];
-  for (const adapter of adapters) {
-    const already = adapter.detect(projectRoot);
-    const outcome = await adapter.wire(ctx);
-    for (const status of outcome.statusLines) {
-      line(`${c.green(glyph.check)}  ${c.dim(adapter.id.padEnd(18))}${status}`);
+  const alreadyDetected = detectRuntimes(projectRoot);
+  const resultingRuntimes = [...new Set([...alreadyDetected, ...requested])];
+  const stageRoot = await mkdtemp(join(tmpdir(), 'void-runtime-stage-'));
+  try {
+    await seedInstallStage(projectRoot, stageRoot);
+    const ctx = {
+      projectRoot: stageRoot,
+      sourceRoot,
+      enabledPlugins,
+      enabledPacks,
+      source: 'local' as const,
+      marketplaceRepo,
+      pinVersion,
+    };
+    for (const adapter of adapters) {
+      const already = adapter.detect(projectRoot);
+      const outcome = await adapter.wire(ctx);
+      for (const status of outcome.statusLines) {
+        line(`${c.green(glyph.check)}  ${c.dim(adapter.id.padEnd(18))}${status}`);
+      }
+      nextSteps.push(...outcome.nextSteps);
+      if (already) line(c.dim(`     ${glyph.dot} ${adapter.id} was already wired — refreshed in place`));
+      const inspection = await adapter.inspect(stageRoot);
+      if (
+        inspection.evidence.installed !== true
+        || inspection.evidence.wired !== true
+        || inspection.evidence.fired === false
+      ) {
+        throw new Error(`${adapter.label} staged doctor failed`);
+      }
     }
-    nextSteps.push(...outcome.nextSteps);
-    if (already) line(c.dim(`     ${glyph.dot} ${adapter.id} was already wired — refreshed in place`));
+    const prepared = await prepareInstallCommit({
+      projectRoot,
+      stageRoot,
+      version: cliVersion(),
+      source: 'local',
+      runtimes: resultingRuntimes,
+      force: false,
+      retainPreviousOwned: true,
+    });
+    await commitFileTransaction(projectRoot, prepared.mutations);
+  } finally {
+    await rm(stageRoot, { recursive: true, force: true });
   }
 
   blank();

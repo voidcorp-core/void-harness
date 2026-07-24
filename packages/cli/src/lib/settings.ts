@@ -7,7 +7,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { enabledPluginsKey, MARKETPLACE_NAME } from './packs.js';
 
-interface ClaudeSettings {
+export interface ClaudeSettings {
   readonly extraKnownMarketplaces?: Record<string, unknown>;
   readonly enabledPlugins?: Record<string, unknown>;
   readonly [k: string]: unknown;
@@ -62,6 +62,47 @@ export function mergeSettings(existing: ClaudeSettings, mutation: SettingsMutati
     extraKnownMarketplaces: markets,
     enabledPlugins: plugins,
   };
+}
+
+function isHarnessHook(value: unknown): boolean {
+  return JSON.stringify(value).includes('$CLAUDE_PROJECT_DIR/.void/hooks/')
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: matches the literal legacy plugin token.
+    || JSON.stringify(value).includes('${CLAUDE_PLUGIN_ROOT}/hooks/');
+}
+
+/**
+ * Merge local harness hooks without replacing user hooks. Re-running first
+ * removes the prior local harness entries, so the operation is idempotent.
+ */
+export function mergeLocalSettings(
+  existing: ClaudeSettings,
+  harnessHooks: Record<string, unknown>,
+): ClaudeSettings {
+  const currentHooks = isObject(existing.hooks) ? existing.hooks : {};
+  const hooks: Record<string, unknown> = { ...currentHooks };
+  for (const [event, configured] of Object.entries(harnessHooks)) {
+    const userEntries = Array.isArray(currentHooks[event])
+      ? currentHooks[event].filter((entry) => !isHarnessHook(entry))
+      : [];
+    hooks[event] = [...userEntries, ...(Array.isArray(configured) ? configured : [])];
+  }
+
+  const merged: Record<string, unknown> = { ...existing, hooks };
+  if (isObject(existing.extraKnownMarketplaces)) {
+    const markets = { ...existing.extraKnownMarketplaces };
+    delete markets[MARKETPLACE_NAME];
+    if (Object.keys(markets).length > 0) merged.extraKnownMarketplaces = markets;
+    else delete merged.extraKnownMarketplaces;
+  }
+  if (isObject(existing.enabledPlugins)) {
+    const plugins = { ...existing.enabledPlugins };
+    for (const key of Object.keys(plugins)) {
+      if (key.endsWith(`@${MARKETPLACE_NAME}`)) delete plugins[key];
+    }
+    if (Object.keys(plugins).length > 0) merged.enabledPlugins = plugins;
+    else delete merged.enabledPlugins;
+  }
+  return merged;
 }
 
 export async function writeSettings(settingsPath: string, value: ClaudeSettings): Promise<void> {
