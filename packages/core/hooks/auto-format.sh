@@ -11,11 +11,10 @@ source "${BASH_SOURCE[0]%/*}/_hooklib.sh"
 
 hooklib_read
 TOOL=$(hooklib_tool)
-FILE=$(hooklib_file)
 
-case "$TOOL" in Edit|Write) ;; *) exit 0 ;; esac
-[[ -n "$FILE" && -f "$FILE" ]] || exit 0
-[[ "$FILE" =~ \.(ts|tsx|js|jsx|mjs|cjs|json|jsonc|css)$ ]] || exit 0
+# Claude edits one file (Edit|Write); Codex applies a multi-file diff
+# (apply_patch) — every file it touched deserves the same formatting pass.
+case "$TOOL" in Edit|Write|apply_patch) ;; *) exit 0 ;; esac
 
 # Resolve Biome without installing anything. Prefer a project-local binary.
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -27,5 +26,18 @@ else
   exit 0
 fi
 
-"$BIOME" format --write "$FILE" >/dev/null 2>&1 || true
+format_one() {
+  local file="$1"
+  [[ -n "$file" && -f "$file" ]] || return 0
+  [[ "$file" =~ \.(ts|tsx|js|jsx|mjs|cjs|json|jsonc|css)$ ]] || return 0
+  "$BIOME" format --write "$file" >/dev/null 2>&1 || true
+}
+
+# hooklib_edits already degrades to the pure-bash file_path when jq is absent,
+# so this needs no jq branch of its own (the hook fails open by contract — it
+# must never block a turn).
+while IFS= read -r -d "$_HOOKLIB_RS" REC; do
+  format_one "${REC%%"$_HOOKLIB_US"*}"
+done < <(hooklib_edits)
+
 exit 0

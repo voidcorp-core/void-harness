@@ -55,18 +55,54 @@ describe('compileCodexHooksManifest', () => {
 });
 
 describe('safety-floor matcher coverage', () => {
-  // The command surface is the load-bearing match: if the matcher misses the
-  // tool Codex actually emits, block-dangerous-bash never fires and the whole
-  // destructive-command floor is silently dead.
-  it('matches the Bash tool name documented by Codex, and keeps legacy shell', () => {
+  /** PreToolUse entries as (script basename -> matcher) pairs. */
+  function preToolUseMatchers(): Map<string, string> {
     const manifest = JSON.parse(compileCodexHooksManifest(template));
-    const matchers: string[] = manifest.hooks.PreToolUse.map((h: { matcher: string }) => h.matcher);
-    for (const m of matchers) {
-      expect(m).toContain('Bash');
-      expect(m).toContain('shell');
+    const pairs = new Map<string, string>();
+    for (const entry of manifest.hooks.PreToolUse as {
+      matcher: string;
+      hooks: { command: string }[];
+    }[]) {
+      for (const h of entry.hooks) pairs.set(h.command.split('/').pop() ?? '', entry.matcher);
     }
-    // the file-edit hook must still cover apply_patch
-    expect(matchers.some((m) => m.includes('apply_patch'))).toBe(true);
+    return pairs;
+  }
+
+  // The matcher is the load-bearing part: if it misses the tool Codex actually
+  // emits, the hook never fires and its enforcement is silently dead. The two
+  // surfaces have different tool names, so they are asserted separately.
+  it('matches the Bash tool name documented by Codex, and keeps legacy shell', () => {
+    const matcher = preToolUseMatchers().get('block-dangerous-bash.sh');
+    expect(matcher).toContain('Bash');
+    expect(matcher).toContain('shell');
+  });
+
+  it('never names Bash without also naming legacy shell', () => {
+    for (const m of preToolUseMatchers().values()) {
+      if (m.includes('Bash')) expect(m).toContain('shell');
+    }
+  });
+
+  // Codex edits files through apply_patch; a matcher stuck on Claude's
+  // Edit|Write would leave every content-scanning hook dead on that runtime.
+  it('covers apply_patch on every file-edit hook', () => {
+    const matchers = preToolUseMatchers();
+    for (const script of [
+      'protect-sensitive-files.sh',
+      'secret-in-content.sh',
+      'tdd-guard.sh',
+      'no-any-grep.sh',
+      'no-as-cast-grep.sh',
+      'no-console-log-grep.sh',
+      'no-null-grep.sh',
+      'no-only-no-skip.sh',
+      'boundary-direction-check.sh',
+      'test-name-lint.sh',
+      'no-ai-design-slop.sh',
+    ]) {
+      expect(matchers.get(script), `${script} must be wired`).toBeDefined();
+      expect(matchers.get(script), `${script} must match apply_patch`).toContain('apply_patch');
+    }
   });
 });
 

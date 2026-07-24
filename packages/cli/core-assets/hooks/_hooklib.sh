@@ -52,6 +52,77 @@ hooklib_command() {
   fi
 }
 
+# Framing for the hooklib_edits stream (ASCII RS/US). Edited content routinely
+# contains newlines and tabs, so neither can frame the records.
+_HOOKLIB_RS=$'\036'
+_HOOKLIB_US=$'\037'
+
+# _hooklib_patch_text: the raw apply_patch envelope, whichever field a given
+# Codex build carries it in. Same candidate list as the floor's
+# protect-sensitive-files, so the two can never disagree on where a patch lives.
+_hooklib_patch_text() {
+  printf '%s' "$HOOK_INPUT" \
+    | jq -r '[.tool_input.input, .tool_input.patch, .tool_input.content, .tool_input.command]
+             | map(select(. != null))
+             | map(if type == "array" then join("\n") else . end)
+             | .[]' 2>/dev/null || true
+}
+
+# _hooklib_parse_patch: stdin = an apply_patch envelope; stdout = one
+# <path>US<added-content>RS record per Add/Update section. Only ADDED (`+`)
+# lines are collected, so a REMOVED or untouched context line can never trip a
+# forbidden-pattern scan — the Codex equivalent of Claude's `.new_string`. A
+# Delete section yields no record: there is nothing left to scan.
+_hooklib_parse_patch() {
+  awk -v USEP="$_HOOKLIB_US" -v RSEP="$_HOOKLIB_RS" '
+    function emit() { if (path != "") printf "%s%s%s%s", path, USEP, buf, RSEP }
+    /^\*\*\* (Add|Update) File: / { emit(); path = substr($0, index($0, "File: ") + 6); buf = ""; next }
+    /^\*\*\* Delete File: /       { emit(); path = ""; buf = ""; next }
+    /^\*\*\* (Begin|End) Patch/   { next }
+    { if (path != "" && substr($0, 1, 1) == "+" && substr($0, 1, 3) != "+++") buf = buf substr($0, 2) "\n" }
+    END { emit() }
+  '
+}
+
+# hooklib_edits: the edits of THIS tool call as a NORMALIZED, runtime-agnostic
+# stream of <path>US<new-content>RS records — one per edited file. It exists so a
+# content-scanning hook iterates instead of assuming Claude's single-file shape:
+#   - Claude: Edit|Write  -> one record (.tool_input.file_path + .content/.new_string)
+#   - Codex:  apply_patch -> one record per patched file, carrying its added lines
+# Wiring those hooks for Codex WITHOUT this would fire them against an empty
+# payload: a wired-but-dead hook, which is a silent enforcement hole rather than
+# an honest absence. Requires jq (exact content extraction) — callers gate on
+# hooklib_require_jq first. Read it with:
+#   while IFS= read -r -d "$_HOOKLIB_RS" rec; do
+#     file="${rec%%"$_HOOKLIB_US"*}"; new="${rec#*"$_HOOKLIB_US"}"
+#   done < <(hooklib_edits)
+hooklib_edits() {
+  # Without jq: degrade to the pure-bash file_path, emitting one CONTENTLESS
+  # record. That keeps the PATH-ONLY hooks (tdd-guard, auto-format) enforcing on
+  # the Claude shape exactly as they did before this stream existed. It does not
+  # weaken the content-scanning hooks: those call hooklib_require_jq BEFORE the
+  # loop and have already exited 2 by the time they would read a record (#63).
+  # A Codex patch simply cannot be parsed without jq, so it yields nothing.
+  if [[ "${HOOK_JQ:-0}" != 1 ]]; then
+    local bash_file
+    bash_file=$(hooklib_file)
+    [[ -n "$bash_file" ]] && printf '%s%s%s' "$bash_file" "$_HOOKLIB_US" "$_HOOKLIB_RS"
+    return 0
+  fi
+  # A file_path means the single-file runtime shape. The patch parse is then
+  # deliberately skipped: file CONTENT that happens to document the apply_patch
+  # format (this repo's own docs do) would otherwise forge phantom records.
+  if [[ -n "$(hooklib_file)" ]]; then
+    printf '%s' "$HOOK_INPUT" \
+      | jq -j --arg us "$_HOOKLIB_US" --arg rs "$_HOOKLIB_RS" \
+          '.tool_input.file_path + $us + ((.tool_input.content // .tool_input.new_string) // "") + $rs' \
+          2>/dev/null || true
+    return 0
+  fi
+  _hooklib_patch_text | _hooklib_parse_patch
+  return 0
+}
+
 # hooklib_require_jq [name]: a content-scanning hook cannot verify an edit
 # without jq. Rather than fail OPEN (the #63 bug), block once with an explicit,
 # actionable message. jq is a documented prerequisite (void-harness doctor).
