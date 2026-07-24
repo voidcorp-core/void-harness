@@ -1,7 +1,7 @@
 ---
 title: void-harness v3 - top-tier autonomous engineering team
 date: 2026-07-24
-status: in-design
+status: approved
 author: Folpe + Codex
 supersedes:
   - docs/specs/2026-07-21-void-harness-public-multiruntime-os.md
