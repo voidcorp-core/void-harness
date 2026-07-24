@@ -88,10 +88,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v6
+      # NO `registry-url:` here, deliberately, and it must stay that way.
+      # setup-node reacts to it by writing `//registry.npmjs.org/:_authToken=
+      # ${NODE_AUTH_TOKEN}` into a temp .npmrc (and pointing NPM_CONFIG_USERCONFIG
+      # at it), with NODE_AUTH_TOKEN defaulted to the literal placeholder
+      # `XXXXX-XXXXX-XXXXX-XXXXX`. npm then sees a credential already configured,
+      # never initiates the OIDC exchange, and authenticates with that garbage
+      # token -- which the registry answers with a bare `E404 PUT /voidharness`,
+      # a permission error wearing a not-found costume. See actions/setup-node#1551.
+      # registry.npmjs.org is the default registry anyway, so the input bought
+      # nothing and cost the whole trusted-publishing flow.
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 

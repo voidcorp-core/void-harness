@@ -69,10 +69,18 @@ already enforces. No one runs the bump script by hand in the normal path.
 
 ### First publish (one-time bootstrap)
 
-> **Note (2026-07-22 rename):** the CLI was renamed `@voidfactory/harness` →
-> `voidharness` (unscoped). `voidharness` does not exist on npm yet and the old
-> package's Trusted Publisher does **not** carry over, so this bootstrap must be
-> run once for the new name. Until it is, the CI `publish` job will fail auth.
+> **Note (2026-07-24):** this bootstrap is **done**. `voidharness` exists on npm
+> (1.2.0, then 2.0.0), both published by hand. Do not re-run it.
+>
+> Beware of what this section used to claim: that a CI auth failure means the
+> bootstrap is missing. When 2.0.0 failed to publish from CI with `E404 PUT
+> /voidharness`, that note sent the investigation at the npm account settings,
+> and the trusted publisher was configured correctly all along. The real cause
+> was in `release.yml`: `setup-node`'s `registry-url` input writes an
+> `_authToken` line into a temp `.npmrc`, so npm believed it already had a
+> credential and never ran the OIDC exchange (actions/setup-node#1551). **An
+> `E404` on publish is a credential problem, and the credential to suspect first
+> is the one the workflow injected, not the one npm is missing.**
 
 npm Trusted Publishing configures a publisher on an **existing** package — it
 cannot create a brand-new one. So the very first version is bootstrapped by hand,
