@@ -22,6 +22,7 @@ import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
 import { detectedAdapters } from '../lib/runtime-adapters.js';
 import { localPackAssetIssues } from '../lib/runtime-assets.js';
 import { selfRepoDoctorTarget } from '../lib/self-repo.js';
+import { runSelfHostDoctor } from './self-host.js';
 import { marketplaceRepoFrom, readSettings, settingsPathFor } from '../lib/settings.js';
 import { compareVersions, normalizeVersion } from '../lib/version.js';
 
@@ -47,12 +48,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
 
   const target = selfRepoDoctorTarget(root);
   if (target.kind === 'self-host') {
-    banner('doctor');
-    blank();
-    line(`${c.red('x')}  ${c.dim('self-host'.padEnd(18))}${target.state}`);
-    line(c.dim(`     ${glyph.to} ${target.command}`));
-    footer(c.red(`self-host ${target.state}`));
-    process.exit(1);
+    await runSelfHostDoctor(root, args);
     return;
   }
 

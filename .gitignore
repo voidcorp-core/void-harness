@@ -58,6 +58,8 @@ Thumbs.db
 # Canonical mission journals and compressed local archives (runtime evidence).
 .void/runs/
 .void/archives/
+# Atomic self-host compilation, receipts and local runtime probes.
+.void/generated/
 # Session self-registration marker (harness writes it on start; runtime-only).
 .void/.registered
 .gstack/

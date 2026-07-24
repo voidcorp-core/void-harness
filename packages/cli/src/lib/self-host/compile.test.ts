@@ -17,7 +17,7 @@ import {
 } from './compile.js';
 import { readSelfHostReceipt } from './receipt.js';
 
-const REPO = resolve(import.meta.dirname, '../../../../../..');
+const REPO = resolve(import.meta.dirname, '../../../../..');
 const roots: string[] = [];
 
 async function temporaryRoot(name: string): Promise<string> {

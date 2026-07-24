@@ -48,4 +48,8 @@ describe('printHelp', () => {
   it('exposes the local mission evidence lifecycle', () => {
     expect(capture()).toContain('mission <sub>');
   });
+
+  it('exposes isolated source dogfooding', () => {
+    expect(capture()).toContain('self-host <sync|doctor>');
+  });
 });

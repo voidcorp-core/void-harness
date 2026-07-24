@@ -23,4 +23,10 @@ describe('self-host CLI contract', () => {
     expect(selfHostExitCode('drifted', 'release-gate')).toBe(2);
     expect(selfHostExitCode('degraded', 'release-gate')).toBe(0);
   });
+
+  it('rejects unknown flags instead of silently weakening the requested mode', () => {
+    expect(() => parseSelfHostArgs(['sync', '--unknown'])).toThrow(
+      'self-host accepts only --mode',
+    );
+  });
 });

@@ -188,7 +188,12 @@ pnpm build && pnpm link --global        # once, exposes `void-harness` on PATH
 void-harness init --pack nextjs --pack monorepo   # wire the current project
 void-harness status                     # deterministic project health
 void-harness doctor                     # health check
+void-harness self-host sync --mode shadow  # compile this repo as its own consumer
+void-harness self-host doctor              # prove receipt, hooks and event replay
 ```
+
+Self-host artifacts stay under the gitignored `.void/generated/` boundary and
+never overwrite the authored core or native root agent configuration.
 
 ## Relation to other VoidCorp repos
 

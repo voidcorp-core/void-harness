@@ -70,6 +70,7 @@ export function printHelp(): void {
   cmd('adoption', 'Maintainer: pull public npm + GitHub stats (tier-1 telemetry, zero phone-home).');
   cmd('decisions <sub>', 'Create, validate, or render one-file ADRs without a shared counter or index.');
   cmd('mission <sub>', 'Start, verify, inspect, archive, or explicitly prune an auditable local mission run.');
+  cmd('self-host <sync|doctor>', 'Maintainer: compile current sources into an isolated dogfood artifact and verify source, hooks, events, replay, and runtime availability.');
   cmd('version · help', 'Print the version (also -v) · print this reference.');
 
   heading('Packs');

@@ -13,7 +13,7 @@ import {
   type BuildHookBundle,
 } from './compile.js';
 
-const REPO = resolve(import.meta.dirname, '../../../../../..');
+const REPO = resolve(import.meta.dirname, '../../../../..');
 const roots: string[] = [];
 const buildHookBundle: BuildHookBundle = async ({ outfile }) => {
   await cp(join(REPO, 'packages/core/hooks/_void-hook.mjs'), outfile);
@@ -78,5 +78,29 @@ describe('diagnoseSelfHost', () => {
     });
     expect(drifted.state).toBe('drifted');
     expect(drifted.blocking).toBe(true);
+  });
+
+  it('does not let a shadow receipt impersonate the release gate', async () => {
+    const generatedRoot = await generatedFixture();
+    const diagnosis = await diagnoseSelfHost(REPO, {
+      generatedRoot,
+      mode: 'release-gate',
+      runtimeAvailable: () => false,
+      probeEventReplay: async () => ({ ok: true, detail: 'ok' }),
+    });
+    expect(diagnosis.state).toBe('stale');
+    expect(diagnosis.blocking).toBe(true);
+  });
+
+  it('fails closed on an unexpected file inside the owned artifact', async () => {
+    const generatedRoot = await generatedFixture();
+    await writeFile(join(generatedRoot, 'current', 'unexpected.txt'), 'injected');
+    const diagnosis = await diagnoseSelfHost(REPO, {
+      generatedRoot,
+      runtimeAvailable: () => false,
+      probeEventReplay: async () => ({ ok: true, detail: 'ok' }),
+    });
+    expect(diagnosis.state).toBe('drifted');
+    expect(diagnosis.checks[0]?.detail).toContain('unexpected.txt');
   });
 });

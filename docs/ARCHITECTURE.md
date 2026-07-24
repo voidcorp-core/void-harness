@@ -80,7 +80,26 @@ Rules:
   config pack set and prune only unchanged receipt-owned stale assets. Local `update` recompiles
   from the running CLI without a remote fetch. Legacy/explicit marketplace receipts retain their
   cache and remote-pin adapter.
-- `doctor` iterates the *detected* adapters for each runtime's wiring + doc health; Claude marketplace checks (`gh`, plugin cache, remote versions) apply only to an explicit marketplace install. Adapter inspection distinguishes `installed`, `wired`, `fired`, and `observed`. The `fired` postcondition executes the installed Node runner against an isolated fixture and reads back its canonical event; a zero exit without that event stays red. The source repository is `self-host not-installed` until Step 8 materializes a receipt, never a skipped green. See `docs/CODEX.md`.
+- `doctor` iterates the *detected* adapters for each runtime's wiring + doc health; Claude marketplace checks (`gh`, plugin cache, remote versions) apply only to an explicit marketplace install. Adapter inspection distinguishes `installed`, `wired`, `fired`, and `observed`. The `fired` postcondition executes the installed Node runner against an isolated fixture and reads back its canonical event; a zero exit without that event stays red. In the source repository, `doctor` delegates to the self-host receipt and current-source checks instead of applying consumer assumptions. See `docs/CODEX.md`.
+
+### Source self-host boundary
+
+`void-harness self-host sync` is the only supported dogfood compiler for this
+meta-repository. It hashes bounded, symlink-free current inputs, builds the hook
+runner directly from TypeScript, and compiles both runtime adapters into
+`.void/generated/.staging-*`. Publication swaps the complete directory to
+`.void/generated/current`; a failed swap restores the last green artifact.
+
+The deterministic receipt records the source hash, rollout mode and every owned
+file's bytes + mode. An identical sync is a no-op. `self-host doctor` separately
+reports source staleness, artifact drift, discovery, adapter hook smoke,
+canonical event replay and native runtime availability. Missing runtime CLIs are
+degraded, never certified or silently green.
+
+This boundary never writes `packages/core/`, root `CLAUDE.md`/`AGENTS.md`, or
+root `.claude`/`.codex`/`.agents` surfaces. All generated files and runtime probe
+metadata are gitignored. Modes `shadow` and `warn` are advisory; `enforce` and
+`release-gate` fail on structural blockers.
 
 ## Agent model tiers
 
@@ -494,6 +513,7 @@ Implemented today in `.github/workflows/ci.yml` (all block the PR on failure):
 | Publish safety | packs each npm package with pnpm and fails if a `workspace:` specifier survives into the tarball |
 | Lint | `pnpm lint` (Biome) over first-party TypeScript |
 | Build | `pnpm build` (packs must build before typecheck resolves their exports) |
+| Self-host release gate | compiles current sources in isolation; rejects source/receipt/hook/replay drift |
 | Graph integrity | `pnpm graph:check` — model.json drift + broken routes + capability governance (owner/runtimes) |
 | Certification freshness | `pnpm certification:check` — committed `certification.json` matches the model + eval reports |
 | Consumer bundle freshness | `pnpm graph:check-bundle` — the shipped `void-graph.mjs` embeds the current `model.json` |

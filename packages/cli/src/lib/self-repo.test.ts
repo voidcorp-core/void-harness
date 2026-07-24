@@ -60,7 +60,6 @@ describe('isHarnessSourceRepo', () => {
 
     expect(selfRepoDoctorTarget(root)).toEqual({
       kind: 'self-host',
-      state: 'not-installed',
       command: 'void-harness self-host sync',
     });
   });
