@@ -12,6 +12,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { doctor } from '../../packages/cli/src/commands/doctor.js';
+import { init } from '../../packages/cli/src/commands/init.js';
 
 let originalCwd: string;
 let dir: string;
@@ -108,6 +109,17 @@ describe('doctor', () => {
     expect(out).toContain('codex floor');
     expect(out).not.toContain('settings.json');
     expect(out).not.toContain('gh CLI');
+  });
+
+  it('checks local pack assets against config instead of marketplace settings', async () => {
+    await init(['--runtime', 'claude', '--pack', 'nextjs', '--no-interactive']);
+    output = '';
+
+    const out = await runDoctor();
+
+    expect(out).toContain('packs coherence');
+    expect(out).toContain('local pack assets match');
+    expect(out).not.toContain('pinned in config but not enabled');
   });
 
   it('reports the source repository as self-host not-installed instead of skipping green', async () => {
