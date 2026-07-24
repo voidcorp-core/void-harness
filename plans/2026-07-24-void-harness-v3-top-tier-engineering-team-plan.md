@@ -1263,17 +1263,21 @@ Mission Control visuel et écosystème ne peuvent pas grossir ce cut.
 
 ## Resume point
 
-**Next step**: Step 1 - Rendre les ADR conflict-free de bout en bout
+**Next step**: Step 2 - Introduire le journal d'événements append-only
 
 **Completed**:
 
 - spec v3 approuvée et commitée (`df216e7`) ;
 - audit stack/usage/graph terminé ;
 - architecture, modes, équipe, graphes, failure policy, certification et rollout validés.
+- Step 1 : ADR UUID exclusifs, schémas legacy/v3, supersession, immutabilité git,
+  projections read-only, doctrine/CI/assets/graphes alignés (`a39d8ad`) ;
+- gate Step 1 : 1 173 tests passés, 1 skip attendu ; typecheck, lint, build,
+  anti-bloat, décisions avec base git, graphes, bundle et publish-safety verts.
 
 **Pending**:
 
-- Steps 1 à 24 ;
+- Steps 2 à 24 ;
 - Checkpoint A après Step 8 ;
 - Checkpoint B après Step 22 ;
 - brainstorming/spec dédiée Mission Control x10 pendant Step 23.
