@@ -1,7 +1,7 @@
 import {
   mkdtemp,
-  readFile,
   readdir,
+  readFile,
   realpath,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
