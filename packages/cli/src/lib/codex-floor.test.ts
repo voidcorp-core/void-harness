@@ -139,6 +139,10 @@ describe('safety-floor matcher coverage', () => {
 });
 
 describe('referencedScripts drift guard', () => {
+  it('stages only the self-contained Node runner', () => {
+    expect(CODEX_FLOOR_SCRIPTS).toEqual(['_void-hook.mjs']);
+  });
+
   it('every script the template invokes is in the staged floor set', () => {
     const referenced = referencedScripts(template);
     expect(referenced.length).toBeGreaterThan(0);
@@ -251,9 +255,9 @@ describe('codexFloorDrift', () => {
   it('flags a staged script whose content diverged', async () => {
     const project = mkdtempSync(join(tmpdir(), 'void-codex-drift-'));
     await wireCodexFloor(project, CORE_ROOT);
-    writeFileSync(join(project, CODEX_HOOKS_DIR, 'block-dangerous-bash.sh'), '# tampered\n');
+    writeFileSync(join(project, CODEX_HOOKS_DIR, '_void-hook.mjs'), '// tampered\n');
     const drift = await codexFloorDrift(project, CORE_ROOT);
-    expect(drift).toEqual(['block-dangerous-bash.sh']);
+    expect(drift).toEqual(['_void-hook.mjs']);
   });
 
   it('ignores a trailing-newline-only difference in the manifest', async () => {
@@ -301,13 +305,11 @@ describe('codexFloorHealth', () => {
     expect(health.detail).toContain('not valid JSON');
   });
 
-  it('flags a missing sourced library, not just a missing entry hook (wired-but-dead)', async () => {
+  it('does not stage shell libraries that the native manifest no longer invokes', async () => {
     const project = mkdtempSync(join(tmpdir(), 'void-codex-health-'));
     await wireCodexFloor(project, CORE_ROOT);
-    await rm(join(project, CODEX_HOOKS_DIR, '_hooklib.sh'));
-    const health = await codexFloorHealth(project);
-    expect(health.ok).toBe(false);
-    expect(health.detail).toContain('_hooklib.sh');
+    expect(existsSync(join(project, CODEX_HOOKS_DIR, '_hooklib.sh'))).toBe(false);
+    expect((await codexFloorHealth(project)).ok).toBe(true);
   });
 
   it('flags an entry hook that lost its executable bit', async () => {
@@ -332,18 +334,18 @@ describe('refreshCodexFloor', () => {
   it('previews a re-stage under dry-run without touching the file', async () => {
     const project = mkdtempSync(join(tmpdir(), 'void-codex-refresh-'));
     await wireCodexFloor(project, CORE_ROOT);
-    const staged = join(project, CODEX_HOOKS_DIR, 'block-dangerous-bash.sh');
+    const staged = join(project, CODEX_HOOKS_DIR, '_void-hook.mjs');
     writeFileSync(staged, '# tampered\n');
     const result = await refreshCodexFloor(project, CORE_ROOT, true);
     expect(result.status).toBe('would-refresh');
-    expect(result.drift).toEqual(['block-dangerous-bash.sh']);
+    expect(result.drift).toEqual(['_void-hook.mjs']);
     expect(readFileSync(staged, 'utf8')).toBe('# tampered\n'); // untouched
   });
 
   it('re-stages on drift when not a dry-run, restoring the file', async () => {
     const project = mkdtempSync(join(tmpdir(), 'void-codex-refresh-'));
     await wireCodexFloor(project, CORE_ROOT);
-    const staged = join(project, CODEX_HOOKS_DIR, 'block-dangerous-bash.sh');
+    const staged = join(project, CODEX_HOOKS_DIR, '_void-hook.mjs');
     writeFileSync(staged, '# tampered\n');
     const result = await refreshCodexFloor(project, CORE_ROOT, false);
     expect(result.status).toBe('refreshed');

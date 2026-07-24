@@ -1,6 +1,17 @@
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  copyFileSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import {
+  dirname,
+  join,
+  resolve,
+} from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { smokeInstalledHook } from './hook-smoke.js';
 
@@ -19,6 +30,21 @@ afterEach(() => {
 });
 
 describe('smokeInstalledHook', () => {
+  it('executes a non-executable portable Node runner directly', async () => {
+    const root = scratch();
+    const hook = join(root, '_void-hook.mjs');
+    const here = dirname(fileURLToPath(import.meta.url));
+    copyFileSync(
+      resolve(here, '..', '..', '..', 'core', 'hooks', '_void-hook.mjs'),
+      hook,
+    );
+    chmodSync(hook, 0o644);
+
+    await expect(smokeInstalledHook(hook, 'codex')).resolves.toMatchObject({
+      fired: true,
+    });
+  });
+
   it('requires the executable to emit the expected canonical event', async () => {
     const root = scratch();
     const hook = join(root, 'hook.sh');
