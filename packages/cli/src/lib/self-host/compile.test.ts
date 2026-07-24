@@ -102,4 +102,22 @@ describe('syncSelfHost', () => {
     expect(await readSelfHostReceipt(join(generatedRoot, 'current')))
       .toMatchObject({ mode: 'shadow' });
   });
+
+  it('refuses to publish when sources change during compilation', async () => {
+    const generatedRoot = await temporaryRoot('void-self-concurrent');
+    let hashCalls = 0;
+
+    await expect(syncSelfHost(REPO, {
+      generatedRoot,
+      buildHookBundle: copyCommittedRunner,
+      computeSourceHash: async () => {
+        hashCalls += 1;
+        return (hashCalls === 1 ? 'a' : 'b').repeat(64);
+      },
+      mode: 'shadow',
+    })).rejects.toThrow('self-host sources changed during compilation');
+
+    expect(await lstat(join(generatedRoot, 'current')).catch(() => undefined))
+      .toBeUndefined();
+  });
 });

@@ -7,7 +7,10 @@ import {
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { diagnoseSelfHost } from './doctor.js';
+import {
+  diagnoseSelfHost,
+  selfHostChildEnvironment,
+} from './doctor.js';
 import {
   syncSelfHost,
   type BuildHookBundle,
@@ -37,6 +40,28 @@ async function generatedFixture(): Promise<string> {
 }
 
 describe('diagnoseSelfHost', () => {
+  it('never forwards ambient credentials to runtime or hook probes', () => {
+    const childEnvironment = selfHostChildEnvironment(
+      {
+        PATH: '/trusted/bin',
+        LANG: 'fr_FR.UTF-8',
+        HOME: '/Users/private',
+        ANTHROPIC_API_KEY: 'secret-anthropic',
+        OPENAI_API_KEY: 'secret-openai',
+        NPM_TOKEN: 'secret-npm',
+      },
+      {
+        VOID_PROJECT_ROOT: '/project',
+      },
+    );
+
+    expect(childEnvironment).toEqual({
+      PATH: '/trusted/bin',
+      LANG: 'fr_FR.UTF-8',
+      VOID_PROJECT_ROOT: '/project',
+    });
+  });
+
   it('keeps a valid artifact degraded when native runtimes are unavailable', async () => {
     const generatedRoot = await generatedFixture();
     const diagnosis = await diagnoseSelfHost(REPO, {
