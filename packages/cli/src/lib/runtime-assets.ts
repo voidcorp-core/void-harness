@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { chmod, cp, mkdir, readdir, readFile } from 'node:fs/promises';
 import { join, sep } from 'node:path';
 import { isCodexEligible, packSkillsDir, parseFrontmatter } from './codex-skills.js';
+import { wiredHooks } from './plugin-cache.js';
 
 export type InstallSource = 'local' | 'marketplace';
 
@@ -90,17 +91,20 @@ export function compileClaudeHooks(hooks: unknown): Record<string, unknown> {
   return compiled as Record<string, unknown>;
 }
 
-async function stageHooks(projectRoot: string, sourceRoot: string): Promise<number> {
+async function stageHooks(
+  projectRoot: string,
+  sourceRoot: string,
+  assets: readonly string[],
+): Promise<number> {
   const source = join(sourceRoot, 'hooks');
   const destination = join(projectRoot, '.void', 'hooks');
   await mkdir(destination, { recursive: true });
-  const entries = await readdir(source, { withFileTypes: true });
   let count = 0;
-  for (const entry of entries) {
-    if (!entry.isFile() || (!entry.name.endsWith('.sh') && !entry.name.endsWith('.mjs'))) continue;
-    const target = join(destination, entry.name);
-    await cp(join(source, entry.name), target);
-    await chmod(target, 0o755);
+  for (const asset of assets) {
+    const name = asset.replace(/^hooks\//, '');
+    const target = join(destination, name);
+    await cp(join(source, name), target);
+    if (name.endsWith('.sh')) await chmod(target, 0o755);
     count += 1;
   }
   return count;
@@ -122,15 +126,16 @@ export async function wireClaudeLocalAssets(
     const source = packSkillsDir(sourceRoot, packDirectory);
     if (source !== undefined) skills += await stageSkills(source, skillsDestination, 'claude');
   }
+  const manifest = JSON.parse(
+    await readFile(join(sourceRoot, '.claude-plugin', 'plugin.json'), 'utf8'),
+  ) as { hooks?: Record<string, Array<{ hooks?: Array<{ command?: string }> }>> };
+  if (manifest.hooks === undefined) throw new Error('core Claude manifest has no hooks');
+  const hookAssets = wiredHooks({ hooks: manifest.hooks });
   const [agents, commands, hooks] = await Promise.all([
     stageMarkdownDirectory(join(sourceRoot, 'agents'), join(projectRoot, '.claude', 'agents')),
     stageMarkdownDirectory(join(sourceRoot, 'commands'), join(projectRoot, '.claude', 'commands')),
-    stageHooks(projectRoot, sourceRoot),
+    stageHooks(projectRoot, sourceRoot, hookAssets),
   ]);
-  const manifest = JSON.parse(
-    await readFile(join(sourceRoot, '.claude-plugin', 'plugin.json'), 'utf8'),
-  ) as { hooks?: unknown };
-  if (manifest.hooks === undefined) throw new Error('core Claude manifest has no hooks');
   return {
     skills,
     agents,

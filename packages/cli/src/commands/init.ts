@@ -19,6 +19,7 @@ import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as p from '@clack/prompts';
+import { prepareInstallCommit, seedInstallStage } from '../lib/local-install.js';
 import { type PackConfig, resolveEffectivePin } from '../lib/pack-config.js';
 import {
   CORE_PLUGIN_NAME,
@@ -28,7 +29,6 @@ import {
   type PackDescriptor,
 } from '../lib/packs.js';
 import { cliVersion, findCoreSource } from '../lib/paths.js';
-import { isHarnessSourceRepo } from '../lib/self-repo.js';
 import type { CheckResult } from '../lib/prerequisites.js';
 import { resolveCorePin } from '../lib/remote.js';
 import { banner, blank, c, footer, glyph, line, meta } from '../lib/render.js';
@@ -40,8 +40,8 @@ import {
 } from '../lib/runtime.js';
 import { adaptersFor } from '../lib/runtime-adapters.js';
 import type { InstallSource } from '../lib/runtime-assets.js';
+import { isHarnessSourceRepo } from '../lib/self-repo.js';
 import { commandsFor, detectStack, type Stack } from '../lib/stack.js';
-import { prepareInstallCommit, seedInstallStage } from '../lib/local-install.js';
 import { commitFileTransaction } from '../lib/transaction.js';
 
 interface InitOptions {
@@ -199,9 +199,8 @@ export async function init(args: readonly string[]): Promise<void> {
   const stack = detectStack(projectRoot);
   meta('stack', `${stack.packageManager} + ${stack.testRunner}${stack.e2eRunner !== 'none' ? ` + ${stack.e2eRunner}` : ''}`);
 
-  // Prerequisite checks up front. jq is needed by the enforcement hooks on every
-  // runtime, so it is always checked; each adapter adds its own (Claude: gh +
-  // marketplace; Codex: none). init never FAILS on these (it stays idempotent),
+  // Prerequisite checks up front. Each adapter owns its optional external
+  // dependencies (marketplace Claude: gh; local Claude and Codex: none).
   // but every unmet one is loud here and reappears in the closing checklist so a
   // broken install can't hide behind a "succeeded for env reasons" exit (#67).
   const prereqs: CheckResult[] = adapters.flatMap((adapter) =>
@@ -215,7 +214,7 @@ export async function init(args: readonly string[]): Promise<void> {
 
   // PREFLIGHT — transactional gate. Refuse to write ANYTHING if a prerequisite
   // is unmet: a partially-wired project that exits 0 while its marketplace is
-  // unreachable or jq is missing is a false success (audit #2). Nothing has been
+  // unreachable is a false success (audit #2). Nothing has been
   // written yet at this point. `--force` is the deliberate "install anyway" escape.
   const failedPreflight = prereqs.filter((pre) => !pre.ok);
   if (failedPreflight.length > 0 && !opts.force) {

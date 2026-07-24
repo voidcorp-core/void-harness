@@ -61,6 +61,8 @@ describe('wireClaudeLocalAssets', () => {
     expect(existsSync(join(root, '.claude/agents/doctrine-critic.md'))).toBe(true);
     expect(existsSync(join(root, '.claude/commands/void-doctor.md'))).toBe(true);
     expect(existsSync(join(root, '.void/hooks/_void-hook.mjs'))).toBe(true);
+    expect(existsSync(join(root, '.void/hooks/_hooklib.sh'))).toBe(false);
+    expect(result.hooks).toBe(1);
     expect(readFileSync(join(root, '.claude/skills/tdd/SKILL.md'), 'utf8')).toContain('runtimes: [claude, codex]');
   });
 });

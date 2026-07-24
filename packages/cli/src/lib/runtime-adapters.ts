@@ -23,43 +23,42 @@
 // PROJECT-DOCTRINE, pack selection) stays in the commands.
 
 import { existsSync } from 'node:fs';
-import { lstat } from 'node:fs/promises';
-import { readFile } from 'node:fs/promises';
+import { lstat, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { parseEventLine } from '@voidcorp/mission-engine/events';
-import {
-  CORE_PLUGIN_NAME,
-  MARKETPLACE_NAME,
-  enabledPluginsKey,
-  packDirForName,
-  type PackDescriptor,
-} from './packs.js';
-import {
-  mergeLocalSettings,
-  mergeSettings,
-  readSettings,
-  settingsPathFor,
-  type ClaudeSettings,
-  writeSettings,
-} from './settings.js';
 import { docFileFor, HARNESS_BLOCK_MARKER, patchRuntimeDoc } from './claude-md.js';
+import { wireCodexAgents } from './codex-agents.js';
 import {
   CODEX_HOOKS_DIR,
   codexFloorHealth,
   wireCodexFloor,
 } from './codex-floor.js';
 import { CODEX_SKILLS_DIR, codexSkillsHealth, wireCodexSkills } from './codex-skills.js';
-import { wireCodexAgents } from './codex-agents.js';
-import { checkGh, checkMarketplaceAccess, type CheckResult } from './prerequisites.js';
-import { detectRuntimes, type Runtime } from './runtime.js';
-import { hookHealthIssues, locatePluginDir } from './plugin-cache.js';
 import { loadCanonicalEventBody } from './graph-io.js';
 import { smokeInstalledHook } from './hook-smoke.js';
+import {
+  CORE_PLUGIN_NAME,
+  enabledPluginsKey,
+  MARKETPLACE_NAME,
+  type PackDescriptor,
+  packDirForName,
+} from './packs.js';
+import { hookHealthIssues, locatePluginDir } from './plugin-cache.js';
+import { type CheckResult, checkGh, checkMarketplaceAccess } from './prerequisites.js';
+import { detectRuntimes, type Runtime } from './runtime.js';
 import {
   type InstallSource,
   wireClaudeLocalAssets,
 } from './runtime-assets.js';
+import {
+  type ClaudeSettings,
+  mergeLocalSettings,
+  mergeSettings,
+  readSettings,
+  settingsPathFor,
+  writeSettings,
+} from './settings.js';
 
 /** Everything an adapter's `wire` may need. Runtime-agnostic inputs the command computed. */
 export interface RuntimeWireContext {
@@ -105,7 +104,7 @@ export interface RuntimeAdapter {
   readonly label: string;
   /** Does this runtime already show a footprint in the project? */
   detect(projectRoot: string): boolean;
-  /** Extra prerequisite checks beyond the always-checked jq (empty for a runtime with none). */
+  /** Runtime-specific prerequisites (empty for local, self-contained adapters). */
   prerequisites(marketplaceRepo: string, source?: InstallSource): readonly CheckResult[];
   /** Materialize this runtime's active layer + its own doctrine doc. Idempotent. */
   wire(ctx: RuntimeWireContext): Promise<RuntimeWireOutcome>;
@@ -245,18 +244,16 @@ const claudeAdapter: RuntimeAdapter = {
     let installed = false;
     let activationHook: string | undefined;
     const localRunner = join(projectRoot, '.void', 'hooks', '_void-hook.mjs');
-    const localActivation = join(projectRoot, '.void', 'hooks', 'activation-meter.sh');
     const localSkill = join(projectRoot, '.claude', 'skills', 'tdd', 'SKILL.md');
     const localAgent = join(projectRoot, '.claude', 'agents', 'doctrine-critic.md');
     if (
       localSettings
       && await safeRegularFile(localRunner)
-      && await safeRegularFile(localActivation)
       && await safeRegularFile(localSkill)
       && await safeRegularFile(localAgent)
     ) {
       installed = true;
-      activationHook = localActivation;
+      activationHook = localRunner;
       checks.push({
         name: 'local assets',
         ok: true,
@@ -287,7 +284,7 @@ const claudeAdapter: RuntimeAdapter = {
                 message: issues.join('; '),
                 fix: 'restart Claude Code to refetch the plugin',
               });
-          activationHook = join(pluginDir, 'hooks', 'activation-meter.sh');
+          activationHook = join(pluginDir, 'hooks', '_void-hook.mjs');
         } catch (error) {
           checks.push({
             name: 'plugin cache',
@@ -379,13 +376,11 @@ const codexAdapter: RuntimeAdapter = {
       },
       doc,
     ];
-    const activationHook = join(projectRoot, CODEX_HOOKS_DIR, 'activation-meter.sh');
     const runner = join(projectRoot, CODEX_HOOKS_DIR, '_void-hook.mjs');
-    const installed = await safeRegularFile(activationHook)
-      && await safeRegularFile(runner);
+    const installed = await safeRegularFile(runner);
     const wired = installed && floor.ok && skills.ok && doc.ok;
     const smoke = wired
-      ? await smokeInstalledHook(activationHook, 'codex')
+      ? await smokeInstalledHook(runner, 'codex')
       : { fired: false as const, detail: 'hook smoke blocked by failed installation or wiring' };
     checks.push(smokeCheck('codex', smoke.fired, smoke.detail));
     return {

@@ -1,6 +1,5 @@
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { rm } from 'node:fs/promises';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -166,7 +165,7 @@ describe('wireCodexFloor', () => {
     for (const script of CODEX_FLOOR_SCRIPTS) {
       expect(existsSync(join(project, CODEX_HOOKS_DIR, script))).toBe(true);
     }
-    expect(statSync(join(project, CODEX_HOOKS_DIR, '_void-hook.mjs')).mode & 0o100).toBeTruthy();
+    expect(statSync(join(project, CODEX_HOOKS_DIR, '_void-hook.mjs')).mode & 0o100).toBeFalsy();
 
     const manifest = readFileSync(join(project, '.codex', 'hooks.json'), 'utf8');
     // biome-ignore lint/suspicious/noTemplateCurlyInString: asserting the literal placeholder is gone.
@@ -218,8 +217,7 @@ describe('wireCodexFloor', () => {
     await expect(wireCodexFloor(project, CORE_ROOT)).resolves.toBe(CODEX_FLOOR_SCRIPTS.length);
   });
 
-  it('makes the entry hooks executable even when the source lost its exec bit (npm/pnpm pack)', async () => {
-    // Simulate the published package: a source tree whose hook scripts are 0644.
+  it('keeps Node assets healthy when npm/pnpm pack strips their executable bit', async () => {
     const src = mkdtempSync(join(tmpdir(), 'void-codex-src-'));
     mkdirSync(join(src, 'hooks'), { recursive: true });
     mkdirSync(join(src, 'codex'), { recursive: true });
@@ -232,9 +230,9 @@ describe('wireCodexFloor', () => {
     const project = mkdtempSync(join(tmpdir(), 'void-codex-floor-'));
     await wireCodexFloor(project, src);
 
-    // The floor must be live: codexFloorHealth checks the entry hooks are executable.
+    // Node reads the bundle as data; the executable bit is irrelevant.
     expect((await codexFloorHealth(project)).ok).toBe(true);
-    expect(statSync(join(project, CODEX_HOOKS_DIR, '_void-hook.mjs')).mode & 0o111).toBeTruthy();
+    expect(statSync(join(project, CODEX_HOOKS_DIR, '_void-hook.mjs')).mode & 0o111).toBeFalsy();
   });
 });
 
@@ -312,13 +310,12 @@ describe('codexFloorHealth', () => {
     expect((await codexFloorHealth(project)).ok).toBe(true);
   });
 
-  it('flags an entry hook that lost its executable bit', async () => {
+  it('keeps a Node entry healthy without an executable bit', async () => {
     const project = mkdtempSync(join(tmpdir(), 'void-codex-health-'));
     await wireCodexFloor(project, CORE_ROOT);
     chmodSync(join(project, CODEX_HOOKS_DIR, '_void-hook.mjs'), 0o644);
     const health = await codexFloorHealth(project);
-    expect(health.ok).toBe(false);
-    expect(health.detail).toContain('not executable');
+    expect(health.ok).toBe(true);
   });
 });
 

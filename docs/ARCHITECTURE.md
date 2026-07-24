@@ -80,7 +80,7 @@ Rules:
   config pack set and prune only unchanged receipt-owned stale assets. Local `update` recompiles
   from the running CLI without a remote fetch. Legacy/explicit marketplace receipts retain their
   cache and remote-pin adapter.
-- `doctor` iterates the *detected* adapters for each runtime's wiring + doc health; Claude marketplace checks (`gh`, plugin cache, remote versions) apply only to an explicit marketplace install. Adapter inspection distinguishes `installed`, `wired`, `fired`, and `observed`. The `fired` postcondition executes the installed activation hook against an isolated fixture and reads back its canonical event; a zero exit without that event stays red. The source repository is `self-host not-installed` until Step 8 materializes a receipt, never a skipped green. See `docs/CODEX.md`.
+- `doctor` iterates the *detected* adapters for each runtime's wiring + doc health; Claude marketplace checks (`gh`, plugin cache, remote versions) apply only to an explicit marketplace install. Adapter inspection distinguishes `installed`, `wired`, `fired`, and `observed`. The `fired` postcondition executes the installed Node runner against an isolated fixture and reads back its canonical event; a zero exit without that event stays red. The source repository is `self-host not-installed` until Step 8 materializes a receipt, never a skipped green. See `docs/CODEX.md`.
 
 ## Agent model tiers
 
@@ -110,24 +110,27 @@ Every agent declares an explicit `model:` in its frontmatter, chosen by the work
 
 **Rule**: a file in `core/` may assume TypeScript, Zod, `tsc`, vitest-style discovery. It may NOT assume a specific framework (Next vs Remix vs SvelteKit), a specific runtime (Node vs Bun vs Deno), or specific monorepo tooling. Those decisions live in packs and are read from `.void/config.json` at runtime.
 
-### Hook libraries (`_`-prefixed)
+### Portable hook runtime
 
-Hooks are one file each and capped at 100 LOC (anti-bloat rule 5). The critical
-TDD, protected-path, secret-content and dangerous-command rules live as pure
-TypeScript in `packages/hook-runner/src/rules/`. `_void-hook.mjs` normalizes
-Claude and Codex inputs, bounds invalid/binary payloads and maps the common
-verdict to exit 0/2. Native manifests invoke it directly; the four corresponding
-shell files are ten-line compatibility adapters that only locate Node and pass
-stdin/exit. This path needs no `jq`.
+Inline enforcement rules live as pure TypeScript in
+`packages/hook-runner/src/rules/`. Lifecycle policies and bounded imperative
+adapters live under `packages/hook-runner/src/lifecycle/`. The generated
+`_void-hook.mjs` normalizes Claude and Codex inputs, bounds invalid/binary
+payloads, executes commands with `shell:false`, applies timeouts and maps common
+verdicts to exit 0/2.
 
-The remaining transition hooks share **`core/hooks/_hooklib.sh`**, an
-underscore-prefixed sourced library excluded from the per-hook size cap. It
-owns guarded stdin parsing and physical root-relative normalization, and fails
-closed when a still-shell-based content parser requires missing `jq`.
+Native Claude and Codex manifests invoke that bundle directly. A local install
+stages exactly one runtime asset, regardless of platform. The short shell files
+under `core/hooks/` are compatibility adapters for older installs; v3 manifests,
+receipts and health checks do not depend on them. `_hooklib.sh` and `_checks.sh`
+remain characterization inputs only and are not part of the active runtime.
+The local runtime therefore requires Node only, not `jq` or a POSIX shell.
 
-`core/hooks/_checks.sh` remains the sourced home of the boundary-import
-predicate and legacy characterization until the remaining Step 7 rules move to
-Node. It is `_`-prefixed, exempt from the size cap and `bash -n`-checked.
+Every active hook records a bounded, redacted `hook.completed` event. Lifecycle
+states distinguish `ok`, `skipped` and `degraded`; enforcement additionally
+records `blocked`. Formatting touches only files named by the tool call. Output
+trimming spills the full result under `.void/outputs/`, and typecheck is scoped
+to changed TypeScript plus the nearest tsconfig where the command supports it.
 
 Two content-aware hooks sit beside the filename/path guards:
 

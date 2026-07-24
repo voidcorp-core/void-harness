@@ -31,42 +31,11 @@ async function isExecutable(path: string): Promise<boolean> {
   }
 }
 
-// The staged set is fixed and enumerable: the portable runner, compatibility
-// adapters, remaining hooks and their sourced libraries. Kept explicit rather than globbed because this is a
-// security surface — growing it must be a deliberate act, and the drift-guard
-// test below asserts this set still covers every command the template references.
-//
-// It started as a two-hook SAFETY FLOOR. It is now the full mirror of the Claude
-// enforcement surface: Codex shares Claude's hook events and exit-code-2
-// convention. `_void-hook.mjs` normalizes critical single-file Edit|Write
-// against multi-file apply_patch; `_hooklib.sh` covers transitional hooks.
-// There is no longer a reason for a Codex project to
-// get less enforcement than a Claude one. Deliberately NOT here:
-// trim-large-output (its PostToolUse output rewriting is unconfirmed on Codex).
+// Codex stages one self-contained Node runner. Compatibility shell adapters stay
+// in the source package for older installs, but native manifests never reference
+// or copy them into a consumer project.
 export const CODEX_FLOOR_SCRIPTS = [
-  // PreToolUse — blocking guardrails
-  'block-dangerous-bash.sh',
-  'protect-sensitive-files.sh',
-  'secret-in-content.sh',
-  'tdd-guard.sh',
-  'no-any-grep.sh',
-  'no-as-cast-grep.sh',
-  'no-console-log-grep.sh',
-  'no-null-grep.sh',
-  'no-only-no-skip.sh',
-  'boundary-direction-check.sh',
-  'test-name-lint.sh',
-  'no-ai-design-slop.sh',
-  'activation-meter.sh',
   '_void-hook.mjs',
-  // PostToolUse / SessionStart / Stop — repair, telemetry, lifecycle gates
-  'auto-format.sh',
-  'outcome-meter.sh',
-  'sessionstart-context.sh',
-  'stop-typecheck.sh',
-  // sourced libraries (never invoked directly)
-  '_hooklib.sh',
-  '_checks.sh',
 ] as const;
 
 // Project-relative directory the scripts are staged into on disk (mkdir/cp/chmod
@@ -183,12 +152,10 @@ export async function wireCodexFloor(
   }
 
   const template = await readFile(join(sourceRoot, 'codex', 'hooks.json'), 'utf8');
-  // npm/pnpm pack normalizes file modes to 0644, so the hooks shipped inside the
-  // published package arrive NON-executable — `cp` then propagates that, leaving
-  // a wired-but-dead floor. Codex runs the entry-point hooks as commands, so set
-  // +x explicitly instead of trusting a preserved mode.
+  // Shell assets would require an executable bit after npm packing. The native
+  // manifest passes `.mjs` assets to Node, so their mode is deliberately irrelevant.
   for (const hook of referencedScripts(template)) {
-    await chmod(join(hooksDst, hook), 0o755);
+    if (hook.endsWith('.sh')) await chmod(join(hooksDst, hook), 0o755);
   }
 
   const manifest = compileCodexHooksManifest(
@@ -246,9 +213,8 @@ export interface CodexFloorHealth {
  * actually live, not merely present:
  *   - manifest exists, is valid JSON, and is an object;
  *   - it references at least one staged command;
- *   - EVERY floor asset is staged (entry hooks AND the libs they source — a
- *     missing _hooklib.sh makes the hooks fail at runtime);
- *   - referenced entry assets are executable after staging.
+ *   - every floor asset is staged;
+ *   - a referenced shell adapter is executable (Node assets need only exist).
  */
 export async function codexFloorHealth(projectRoot: string): Promise<CodexFloorHealth> {
   const manifest = await readOrUndefined(join(projectRoot, '.codex', 'hooks.json'));
@@ -277,7 +243,9 @@ export async function codexFloorHealth(projectRoot: string): Promise<CodexFloorH
 
   const notExecutable: string[] = [];
   for (const hook of entryHooks) {
-    if (!(await isExecutable(join(hooksDir, hook)))) notExecutable.push(hook);
+    if (hook.endsWith('.sh') && !(await isExecutable(join(hooksDir, hook)))) {
+      notExecutable.push(hook);
+    }
   }
   if (notExecutable.length > 0) {
     return { ok: false, detail: `staged hooks not executable: ${notExecutable.join(', ')}` };
@@ -285,7 +253,7 @@ export async function codexFloorHealth(projectRoot: string): Promise<CodexFloorH
 
   return {
     ok: true,
-    detail: `wired: ${CODEX_FLOOR_SCRIPTS.length} scripts staged in ${CODEX_HOOKS_DIR}/ (${entryHooks.length} executable hook(s))`,
+    detail: `wired: ${CODEX_FLOOR_SCRIPTS.length} portable runner staged in ${CODEX_HOOKS_DIR}/`,
   };
 }
 

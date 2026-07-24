@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
 import {
   ADAPTERS,
   adapterFor,
@@ -93,17 +93,16 @@ describe('codex adapter', () => {
     expect(inspection.checks.find((check) => check.name === 'codex hook smoke')?.ok).toBe(true);
   });
 
-  it('keeps a manifest-present but non-executable hook red', async () => {
+  it('keeps a Node runner live when its executable bit is absent', async () => {
     const dir = scratch();
     await adapterFor('codex').wire(ctxFor(dir));
-    chmodSync(join(dir, '.void', 'hooks', 'activation-meter.sh'), 0o644);
+    chmodSync(join(dir, '.void', 'hooks', '_void-hook.mjs'), 0o644);
 
     const inspection = await adapterFor('codex').inspect(dir);
 
     expect(inspection.evidence.installed).toBe(true);
-    expect(inspection.evidence.wired).toBe(false);
-    expect(inspection.evidence.fired).toBe(false);
-    expect(inspection.checks.some((check) => !check.ok && check.message.includes('not executable'))).toBe(true);
+    expect(inspection.evidence.wired).toBe(true);
+    expect(inspection.evidence.fired).toBe(true);
   });
 
   it('does not call a manifest alone an installed runtime', async () => {

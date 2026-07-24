@@ -136,9 +136,8 @@ export function commandsFor(stack: Stack): StackCommands {
 
   // E2E + mutation commands are emitted ONLY on a real signal. No detected e2e
   // runner ⇒ no testE2e key; no Stryker in deps ⇒ no mutation key. The `.void`
-  // hooks read these with `jq '// empty'`, so an absent key is a clean no-op —
-  // far better than a fabricated `playwright`/`stryker` command that errors on
-  // first run.
+  // An absent key is a clean no-op, far better than a fabricated
+  // `playwright`/`stryker` command that errors on first run.
   let testE2e: readonly string[] | undefined;
   if (stack.e2eRunner === 'playwright') testE2e = [...dx, 'playwright', 'test'];
   else if (stack.e2eRunner === 'cypress') testE2e = [...dx, 'cypress', 'run'];

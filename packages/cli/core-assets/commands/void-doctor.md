@@ -1,5 +1,5 @@
 ---
-description: Run the void-harness install health check and summarize the result (config, doctrine files, settings, jq/gh availability, version drift).
+description: Run harness health checks for config, doctrine, runtime wiring, lifecycle proof, optional marketplace access, and version drift.
 allowed-tools: Bash(void-harness:*)
 ---
 

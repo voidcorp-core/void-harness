@@ -63,7 +63,7 @@ The safety *floor* for an unattended run is the deny-by-default permission scope
 are enforcement on top. Codex's hook system mirrors Claude's: same event names
 (`PreToolUse`, `PostToolUse`, `SessionStart`, `Stop`), same `hooks.json` schema
 (events under a top-level `hooks` key), same "exit 2 blocks" convention, so the
-void hook scripts run on Codex unchanged.
+the same portable Node runner serves both runtimes.
 
 Codex used to receive only two guardrails where Claude received eighteen. It now
 receives the **same enforcement surface**: the blocking greps (`no-any`,
@@ -79,8 +79,8 @@ the content-scanning hooks without accounting for that would have fired them
 against an empty payload — they would have passed everything while reading green.
 A wired-but-dead hook is worse than an honest absence.
 
-The generated `_void-hook.mjs` runner now normalizes both forms before applying
-the critical `protected-file`, `secret-content` and `tdd-order` rules. Two
+The generated `_void-hook.mjs` runner normalizes both forms before applying
+every active content rule. Two
 properties matter:
 
 - only **added (`+`) lines** are collected, so removing or merely surrounding an
@@ -88,10 +88,9 @@ properties matter:
 - **every file in the patch is scanned**, not just the first — a secret added in
   the second file of a multi-file patch is blocked and names the right file.
 
-These critical rules are dependency-free beyond the Node runtime required by
-the CLI itself and need no `jq`. The remaining quality and lifecycle shell hooks
-still use `_hooklib.sh` during the Step 7 transition and fail closed where their
-content parser requires `jq`.
+Enforcement, formatting, session context, advisory typecheck and telemetry are
+dependency-free beyond the Node runtime required by the CLI. No native Codex
+hook requires `jq`, Bash or an executable file bit.
 
 ### Wiring the Codex hooks (auto-wired by `init`)
 
@@ -99,27 +98,23 @@ content parser requires `jq`.
 runtime (auto-detected from a `.codex/` dir or `AGENTS.md`, or forced with
 `--runtime codex` / `--runtime both`). It:
 
-1. Stages the hook assets into `<project>/.void/hooks/` — the portable Node
-   bundle, compatibility adapters, remaining hooks and sourced libraries.
-   The set is enumerated explicitly in `CODEX_FLOOR_SCRIPTS`, never globbed:
-   this is a security surface, so growing it must be a deliberate act, and a
-   drift-guard test asserts the set still covers every command the template
-   references.
+1. Stages one asset into `<project>/.void/hooks/`: `_void-hook.mjs`.
+   `CODEX_FLOOR_SCRIPTS` is explicit and a drift guard proves every manifest
+   command resolves to that asset.
 2. Compiles `<project>/.codex/hooks.json` from `packages/core/codex/hooks.json`,
    substituting `${VOID_HOOKS_DIR}` with the final project's absolute
    `.void/hooks` path. The path is JSON-escaped and shell-quoted, so Windows,
    spaces and sessions started in a subdirectory do not weaken the floor.
 
 The one remaining human step is to **trust the project-local `.codex/` layer**
-per Codex's config. `void-harness doctor` verifies the floor: every asset the
-manifest invokes must be staged and executable under `.void/hooks/`. After
+per Codex's config. `void-harness doctor` verifies the floor by executing the
+staged runner and requiring its canonical event. After
 a CLI upgrade, `void-harness update` re-stages the floor to the running CLI's
 version (only on real drift), so a Codex project catches floor-script updates the
 same way the Claude side catches marketplace bumps.
 
 The former manual copy is no longer needed. `packages/core/codex/hooks.json`
-remains the single source `init` compiles from; its `$comment` still documents
-the manual path for anyone wiring `~/.codex/hooks.json` by hand.
+remains the single source `init` compiles from.
 
 ## The agents (compiled, not re-authored)
 
@@ -167,11 +162,11 @@ plainly is the point — this is the only place where "prerequisite" keeps meani
 ## Status (verified vs pending)
 
 - **Verified**: sister-doc gate; `init` emits `AGENTS.md` and auto-wires
-  `.codex/hooks.json` (staged scripts + compiled manifest, unit-tested); `doctor`
+  `.codex/hooks.json` (one staged runner + compiled manifest, unit-tested); `doctor`
   checks the wiring; the hooks parse both runtimes' payload shapes, including
   multi-file `apply_patch` (unit-tested); the five agents compile from the real
   `packages/core` tree (integration-tested); a real `init --runtime codex` stages
-  19 scripts + 41 discoverable skills, and the staged hooks block a violation
+  one runner plus the discoverable skills, and the staged hooks block a violation
   added in the second file of a multi-file patch.
 - **Pending a real-Codex run**: end-to-end firing of `.codex/hooks.json` by Codex
   itself (the hooks are verified by direct invocation, not yet by a live Codex

@@ -6,9 +6,7 @@
 //   3. .claude/settings.json has extraKnownMarketplaces.void-harness + at
 //      least harness@voidcorp in enabledPlugins
 //   4. CLAUDE.md contains the void-harness block
-//   5. jq is available (required by the PreToolUse + pre-commit hooks, which
-//      parse the Claude Code tool-call JSON from stdin) — always checked
-//   6. gh CLI is available and authenticated (required for the private repo
+//   5. gh CLI is available and authenticated (required for the optional
 //      marketplace fetch) — only when remote checks run; --no-remote skips it
 
 import { existsSync } from 'node:fs';
@@ -17,7 +15,7 @@ import { join } from 'node:path';
 import { packsCoherenceIssues, validateConfig } from '../lib/config-schema.js';
 import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../lib/packs.js';
 import { findCoreSource } from '../lib/paths.js';
-import { type CheckResult, checkEnforceWorkflow, checkGh, checkJq } from '../lib/prerequisites.js';
+import { type CheckResult, checkEnforceWorkflow, checkGh } from '../lib/prerequisites.js';
 import { readInstallReceipt } from '../lib/receipts.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
@@ -190,10 +188,8 @@ export async function doctor(args: readonly string[]): Promise<void> {
     }
   }
 
-  // jq is needed by the local enforcement hooks on every runtime, so it is
-  // always checked. Advisory: is the same floor also enforced server-side
-  // (void-enforce Action)? Never a blocker (ok stays true).
-  checks.push(checkJq());
+  // Advisory: is the same floor also enforced server-side (void-enforce
+  // Action)? Never a blocker (ok stays true).
   checks.push(checkEnforceWorkflow(root));
 
   // Plugin cache + remote version checks are Claude-marketplace concerns — only

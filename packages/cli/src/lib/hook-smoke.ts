@@ -1,9 +1,9 @@
+import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
 import { access, lstat, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawn } from 'node:child_process';
 import { parseEventLine } from '@voidcorp/mission-engine/events';
 import type { Runtime } from './runtime.js';
 
@@ -47,7 +47,11 @@ async function runHook(
         .map((name) => [name, process.env[name]])
         .filter((entry): entry is [string, string] => entry[1] !== undefined),
     );
-    const child = spawn(hookPath, [], {
+    const nodeAsset = hookPath.endsWith('.mjs');
+    const child = spawn(
+      nodeAsset ? process.execPath : hookPath,
+      nodeAsset ? [hookPath, 'activation', runtime] : [],
+      {
       cwd: projectRoot,
       env: {
         ...inheritedEnvironment,
@@ -59,7 +63,8 @@ async function runHook(
       },
       shell: false,
       stdio: ['pipe', 'ignore', 'ignore'],
-    });
+      },
+    );
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill('SIGKILL');
@@ -87,10 +92,20 @@ export async function smokeInstalledHook(
   hookPath: string,
   runtime: Runtime,
 ): Promise<HookSmokeResult> {
-  if (!(await executable(hookPath))) {
+  const nodeAsset = hookPath.endsWith('.mjs');
+  if (nodeAsset) {
+    try {
+      const info = await lstat(hookPath);
+      if (!info.isFile() || info.isSymbolicLink()) {
+        return { fired: false, detail: 'hook is not a safe regular file' };
+      }
+    } catch {
+      return { fired: false, detail: 'hook is missing' };
+    }
+  } else if (!(await executable(hookPath))) {
     return { fired: false, detail: 'hook is not executable' };
   }
-  if (process.platform === 'win32') {
+  if (process.platform === 'win32' && !nodeAsset) {
     return {
       fired: null,
       detail: 'hook smoke unknown: POSIX wrapper cannot execute on Windows',

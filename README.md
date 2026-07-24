@@ -126,7 +126,7 @@ npx voidharness runtime list        # which runtimes are wired
 npx voidharness runtime add codex    # wire Codex on a Claude project (or vice-versa)
 ```
 
-`runtime add codex` stages Codex's safety floor (`.codex/hooks.json` + hook scripts) and writes
+`runtime add codex` stages Codex's safety floor (`.codex/hooks.json` + one portable Node runner) and writes
 `AGENTS.md`, leaving your Claude setup byte-for-byte untouched. See [`docs/CODEX.md`](docs/CODEX.md).
 `add`, `remove` and `update` reconcile local assets through the same staged transaction; a pack
 removal deletes only unchanged files owned by the receipt and preserves adjacent or edited files.
@@ -170,9 +170,9 @@ jobs:
     uses: voidcorp-core/void-harness/.github/workflows/enforce.yml@main
 ```
 
-It runs protected-path, secret-content and TDD checks through the exact portable
-Node bundle used inline; the remaining boundary predicate is shared through
-`_checks.sh`. It reports per-file/line annotations and **fails closed** — a missing dependency or
+It runs protected-path, secret-content, TDD and boundary checks through the
+exact portable Node bundle used inline. It reports per-file/line annotations
+and **fails closed** — a missing dependency or
 unresolvable base is a red check, never a silent pass. Pin `@main` to a release
 tag for a stable floor. It enforces the doctrine floor only; keep your own
 lint/test CI. `void-harness doctor` reports (advisory) whether it is adopted.
