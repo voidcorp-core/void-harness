@@ -1263,7 +1263,7 @@ Mission Control visuel et écosystème ne peuvent pas grossir ce cut.
 
 ## Resume point
 
-**Next step**: Step 4 - Rendre doctor et status strictement honnêtes
+**Next step**: Step 5 - Installer Claude et Codex localement, sans compte, avec rollback
 
 **Completed**:
 
@@ -1286,10 +1286,17 @@ Mission Control visuel et écosystème ne peuvent pas grossir ce cut.
 - gate Step 3 : 1 251 tests passés, 1 skip attendu ; build, typecheck, anti-bloat,
   publish-safety, décisions, graphes, bundle, core-assets, parité docs, versions et diff verts ;
   smoke réel start/verify/inspect/archive vert, fuite de secret absente et preuve stale refusée.
+- Step 4 : faux verts capturés en TDD (`6fa49d8`), postconditions exécutables par adapter,
+  smoke du hook réellement installé en fixture isolée sans secrets ambiants, états tri-state
+  `installed/wired/fired/observed/certified`, ProjectState localement vérifié et self-host
+  explicitement `not-installed` (`3852ae0`) ;
+- gate Step 4 : 1 260 tests passés, 1 skip attendu ; 558 tests CLI passent hors sandbox loopback ;
+  build, typecheck, lint, anti-bloat, publication, décisions, graphes, certification, core-assets,
+  parité docs, versions et diff verts ; manifest seul et hook non exécutable restent rouges.
 
 **Pending**:
 
-- Steps 4 à 24 ;
+- Steps 5 à 24 ;
 - Checkpoint A après Step 8 ;
 - Checkpoint B après Step 22 ;
 - brainstorming/spec dédiée Mission Control x10 pendant Step 23.
