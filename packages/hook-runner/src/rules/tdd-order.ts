@@ -77,7 +77,7 @@ export function tddOrder(input: TddOrderInput): RuleVerdict {
     }
     return block(
       'TDD_SIBLING_TEST_MISSING',
-      'production edit requires an existing sibling test in strict/auto mode',
+      'missing sibling test: production edit requires one in strict/auto mode',
       [evidence],
     );
   }
@@ -86,7 +86,7 @@ export function tddOrder(input: TddOrderInput): RuleVerdict {
     : {
         allow: true,
         code: 'TDD_SIBLING_TEST_WARNING',
-        message: 'souple mode: sibling test missing',
+        message: 'warning: souple mode, sibling test missing',
         evidence: warnings,
       };
 }

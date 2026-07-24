@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
   evaluateRule,
   MAX_HOOK_INPUT_BYTES,
+  parseHookText,
   parseHookPayload,
 } from './runner.js';
 
@@ -32,6 +33,13 @@ describe('parseHookPayload', () => {
     ['oversized input', Buffer.alloc(MAX_HOOK_INPUT_BYTES + 1, 0x61)],
   ])('fails safe on %s', (_name, input) => {
     expect(() => parseHookPayload(input)).toThrow();
+  });
+});
+
+describe('parseHookText', () => {
+  it('preserves bounded diff content and rejects binary input', () => {
+    expect(parseHookText(Buffer.from('added line\n'))).toBe('added line\n');
+    expect(() => parseHookText(Buffer.from([0xff]))).toThrow();
   });
 });
 
@@ -85,6 +93,37 @@ describe('evaluateRule', () => {
       tool_input: {
         file_path: '/outside/apps/web/src/Card.tsx',
         content: 'export const Card = 1;',
+      },
+    }, { root }).allow).toBe(true);
+  });
+
+  it('does not follow an in-project symlink to read policy headers outside the root', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-rule-'));
+    const outside = mkdtempSync(join(tmpdir(), 'void-rule-outside-'));
+    write(outside, 'Card.tsx', 'export const Card = 1;\n');
+    mkdirSync(join(root, 'apps/web/src'), { recursive: true });
+    symlinkSync(join(outside, 'Card.tsx'), join(root, 'apps/web/src/Card.tsx'));
+
+    expect(evaluateRule('tdd-order', {
+      tool_name: 'Write',
+      tool_input: {
+        file_path: 'apps/web/src/Card.tsx',
+        content: 'export const Card = 2;',
+      },
+    }, { root }).allow).toBe(true);
+  });
+
+  it('resolves the nearest existing parent before accepting a new edit path', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-rule-'));
+    const outside = mkdtempSync(join(tmpdir(), 'void-rule-outside-'));
+    mkdirSync(join(root, 'apps/web'), { recursive: true });
+    symlinkSync(outside, join(root, 'apps/web/src'));
+
+    expect(evaluateRule('tdd-order', {
+      tool_name: 'Write',
+      tool_input: {
+        file_path: 'apps/web/src/New.ts',
+        content: 'export const New = 1;',
       },
     }, { root }).allow).toBe(true);
   });

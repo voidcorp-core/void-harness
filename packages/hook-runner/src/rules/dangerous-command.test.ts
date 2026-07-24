@@ -4,6 +4,7 @@ import { dangerousCommand } from './dangerous-command.js';
 describe('dangerousCommand', () => {
   it.each([
     ['rm -rf /', 'recursive delete'],
+    ['sudo rm -rf / --no-preserve-root', 'recursive delete'],
     ['rm -Rf $HOME/', 'recursive delete'],
     [':(){ :|:& };:', 'fork bomb'],
     ['dd if=/dev/zero of=/dev/sda', 'raw-device'],

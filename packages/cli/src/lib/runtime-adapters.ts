@@ -63,7 +63,10 @@ import {
 
 /** Everything an adapter's `wire` may need. Runtime-agnostic inputs the command computed. */
 export interface RuntimeWireContext {
+  /** Isolated directory receiving bytes before publication. */
   readonly projectRoot: string;
+  /** Final project root used when compiling absolute runtime references. */
+  readonly installationRoot: string;
   readonly sourceRoot: string;
   readonly enabledPlugins: readonly string[];
   readonly enabledPacks: readonly PackDescriptor[];
@@ -324,7 +327,11 @@ const codexAdapter: RuntimeAdapter = {
   detect: (root) => existsSync(join(root, '.codex')) || existsSync(join(root, 'AGENTS.md')),
   prerequisites: () => [],
   async wire(ctx) {
-    const staged = await wireCodexFloor(ctx.projectRoot, ctx.sourceRoot);
+    const staged = await wireCodexFloor(
+      ctx.projectRoot,
+      ctx.sourceRoot,
+      ctx.installationRoot,
+    );
     // For Codex we materialize the skills into .agents/skills (its directory-
     // convention discovery) rather than a marketplace fetch — core skills plus the
     // skills of every activated pack (marketplace name harness-<x> maps to the

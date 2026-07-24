@@ -79,18 +79,19 @@ the content-scanning hooks without accounting for that would have fired them
 against an empty payload — they would have passed everything while reading green.
 A wired-but-dead hook is worse than an honest absence.
 
-`_hooklib.sh` therefore exposes `hooklib_edits`: a runtime-agnostic stream of one
-`<path, new-content>` record per edited file. Every content-scanning hook iterates
-it. Two properties matter:
+The generated `_void-hook.mjs` runner now normalizes both forms before applying
+the critical `protected-file`, `secret-content` and `tdd-order` rules. Two
+properties matter:
 
 - only **added (`+`) lines** are collected, so removing or merely surrounding an
   offending line never trips a scan;
 - **every file in the patch is scanned**, not just the first — a secret added in
   the second file of a multi-file patch is blocked and names the right file.
 
-Without `jq` the stream degrades to the pure-bash `file_path`, so the path-only
-hooks (`tdd-guard`, `auto-format`) keep enforcing as before; the content-scanning
-hooks still fail **closed** via `hooklib_require_jq`.
+These critical rules are dependency-free beyond the Node runtime required by
+the CLI itself and need no `jq`. The remaining quality and lifecycle shell hooks
+still use `_hooklib.sh` during the Step 7 transition and fail closed where their
+content parser requires `jq`.
 
 ### Wiring the Codex hooks (auto-wired by `init`)
 
@@ -98,19 +99,20 @@ hooks still fail **closed** via `hooklib_require_jq`.
 runtime (auto-detected from a `.codex/` dir or `AGENTS.md`, or forced with
 `--runtime codex` / `--runtime both`). It:
 
-1. Stages the hook scripts into `<project>/.void/hooks/` — every hook the
-   manifest wires, plus the two sourced libraries `_hooklib.sh` + `_checks.sh`.
+1. Stages the hook assets into `<project>/.void/hooks/` — the portable Node
+   bundle, compatibility adapters, remaining hooks and sourced libraries.
    The set is enumerated explicitly in `CODEX_FLOOR_SCRIPTS`, never globbed:
    this is a security surface, so growing it must be a deliberate act, and a
    drift-guard test asserts the set still covers every command the template
    references.
 2. Compiles `<project>/.codex/hooks.json` from `packages/core/codex/hooks.json`,
-   substituting `${VOID_HOOKS_DIR}` with a Git-root-resolved `.void/hooks` path
-   (a relative path dies the moment a Codex session starts in a subdirectory).
+   substituting `${VOID_HOOKS_DIR}` with the final project's absolute
+   `.void/hooks` path. The path is JSON-escaped and shell-quoted, so Windows,
+   spaces and sessions started in a subdirectory do not weaken the floor.
 
 The one remaining human step is to **trust the project-local `.codex/` layer**
-per Codex's config. `void-harness doctor` verifies the floor: every hook the
-manifest invokes must be a staged, executable script under `.void/hooks/`. After
+per Codex's config. `void-harness doctor` verifies the floor: every asset the
+manifest invokes must be staged and executable under `.void/hooks/`. After
 a CLI upgrade, `void-harness update` re-stages the floor to the running CLI's
 version (only on real drift), so a Codex project catches floor-script updates the
 same way the Claude side catches marketplace bumps.

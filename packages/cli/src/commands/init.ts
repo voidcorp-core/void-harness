@@ -264,6 +264,7 @@ export async function init(args: readonly string[]): Promise<void> {
     // 3. Wire each selected runtime through its adapter.
     const wireCtx = {
       projectRoot: stageRoot,
+      installationRoot: projectRoot,
       sourceRoot,
       enabledPlugins,
       enabledPacks: packs,

@@ -112,30 +112,22 @@ Every agent declares an explicit `model:` in its frontmatter, chosen by the work
 
 ### Hook libraries (`_`-prefixed)
 
-Hooks are one file each and capped at 100 LOC (anti-bloat rule 5). Shared hook
-logic lives in an **underscore-prefixed sourced library** (`core/hooks/_hooklib.sh`),
-never executed on its own and excluded from the per-hook size cap. `_hooklib.sh`
-carries the single guarded stdin parse: it reads the Claude Code / Codex tool-call
-JSON once, extracts scalars with a pure-bash fallback, and — critically — **fails
-closed** when `jq` is absent (a content-scanning hook blocks with an explicit
-message instead of exiting 127, which the runtime treats as non-blocking and which
-silently disabled the whole enforcement layer before). It also owns the physical
-root-relative path normalization the enforcement globs depend on. A hook sources it
-with `source "${BASH_SOURCE[0]%/*}/_hooklib.sh"`. `activation-meter.sh` and
-`outcome-meter.sh` are deliberate non-consumers: they are tiny, fail-open adapters
-to the generated `_void-hook.mjs`, which owns the runtime-neutral event contract
-and needs no `jq`. `sessionstart-context.sh` is not a tool-call parser.
+Hooks are one file each and capped at 100 LOC (anti-bloat rule 5). The critical
+TDD, protected-path, secret-content and dangerous-command rules live as pure
+TypeScript in `packages/hook-runner/src/rules/`. `_void-hook.mjs` normalizes
+Claude and Codex inputs, bounds invalid/binary payloads and maps the common
+verdict to exit 0/2. Native manifests invoke it directly; the four corresponding
+shell files are ten-line compatibility adapters that only locate Node and pass
+stdin/exit. This path needs no `jq`.
 
-A second sourced library, **`core/hooks/_checks.sh`**, carries the *pure
-detection* the floor hooks share with the server-side Action (see "Server-side
-floor" below). Where `_hooklib.sh` owns the Claude-runtime stdin/jq plumbing,
-`_checks.sh` owns runtime-agnostic predicates — `checks_sensitive_path`,
-`checks_secret_content`, `checks_boundary_imports`, `checks_dangerous_command`
-— that take a path and/or content and return a verdict. The floor hooks
-(`protect-sensitive-files`, `secret-in-content`, `boundary-direction-check`,
-`block-dangerous-bash`) are thin wrappers over it, so the local hook and the CI
-diff driver can never diverge on *what* the floor is (DEV-393). Also
-`_`-prefixed, also exempt from the size cap, also `bash -n`-checked.
+The remaining transition hooks share **`core/hooks/_hooklib.sh`**, an
+underscore-prefixed sourced library excluded from the per-hook size cap. It
+owns guarded stdin parsing and physical root-relative normalization, and fails
+closed when a still-shell-based content parser requires missing `jq`.
+
+`core/hooks/_checks.sh` remains the sourced home of the boundary-import
+predicate and legacy characterization until the remaining Step 7 rules move to
+Node. It is `_`-prefixed, exempt from the size cap and `bash -n`-checked.
 
 Two content-aware hooks sit beside the filename/path guards:
 
@@ -270,8 +262,9 @@ and `missionId`, UTC time, source, dotted kind, subject, correlation and bounded
 payload. Attempts, outcomes and Stop therefore share one writer and one ordering.
 The writer rejects path escapes and symlinks, isolates a partial tail, uses
 user-only modes where supported and never blocks the agent runtime on telemetry
-failure. Its generated dependency-free Node bundle is rebuilt by `pnpm hooks:build`
-and gated for drift before `core-assets` is mirrored.
+failure. The same generated dependency-free Node bundle also owns the critical
+inline/CI enforcement rules. It is rebuilt by `pnpm hooks:build` and gated for
+drift before `core-assets` is mirrored.
 
 Graph behavior, cost, audit, status and Studio consume the canonical journal.
 Legacy `.void/activations.jsonl`, `.void/outcomes.jsonl` and `.void/usage.log`
@@ -520,7 +513,8 @@ requires.
 
 - `core/enforce/ci-enforce.sh` — the diff driver. Given `--base <ref>`, it walks
   the PR diff (`git diff base...HEAD`), runs the ADDED lines / changed paths
-  through the same `_checks.sh` predicates the hooks use, and emits GitHub
+  through the shared Node rules (protected path, secret content, TDD) plus the
+  transitional `_checks.sh` boundary predicate, and emits GitHub
   `::error file=,line=::` annotations. It lives under `enforce/` (not `hooks/`)
   because it is a CI tool, not a Claude-runtime hook: that keeps the `hooks/ =
   runtime` boundary honest and keeps the driver out of the 100-LOC hook cap.

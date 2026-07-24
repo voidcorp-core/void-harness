@@ -1,8 +1,8 @@
 name: void-harness enforce
 description: >-
   Replay the void-harness enforcement floor (protected files, leaked secrets,
-  @repo/* import direction) over a pull-request diff. Same detection as the local
-  PreToolUse hooks — one source of truth, enforced server-side so no author
+  TDD order, @repo/* import direction) over a pull-request diff. Critical rules
+  run through the same Node bundle as local hooks, so no author
   (human, local agent, cloud agent) can bypass it.
 
 inputs:

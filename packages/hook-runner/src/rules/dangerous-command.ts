@@ -26,8 +26,7 @@ function recursiveRootOperation(segment: string, operation: 'rm' | 'chmod' | 'ch
     token === '--recursive' || /^-[A-Za-z]*R[A-Za-z]*$/.test(token) || /^-[A-Za-z]*r[A-Za-z]*$/.test(token)
   );
   if (!recursive) return false;
-  const target = args.at(-1) ?? '';
-  return ROOT_TARGETS.has(target);
+  return args.some((target) => ROOT_TARGETS.has(target));
 }
 
 function violation(command: string): string | undefined {

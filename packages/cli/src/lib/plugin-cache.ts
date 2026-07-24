@@ -13,16 +13,16 @@ interface PluginManifest {
 }
 
 /**
- * The distinct `hooks/<name>.sh` paths a plugin manifest wires, relative to the
+ * The distinct `hooks/<name>.{sh,mjs}` paths a plugin manifest wires, relative to the
  * plugin root. Reads every event → matcher → hook command and extracts the
- * hooks/*.sh reference (ignoring interpreter prefixes and ${CLAUDE_PLUGIN_ROOT}).
+ * hook asset reference (ignoring interpreter prefixes and runtime arguments).
  */
 export function wiredHooks(manifest: PluginManifest): readonly string[] {
   const found = new Set<string>();
   for (const entries of Object.values(manifest.hooks ?? {})) {
     for (const entry of entries) {
       for (const hook of entry.hooks ?? []) {
-        const m = hook.command?.match(/hooks\/[A-Za-z0-9_-]+\.sh/);
+        const m = hook.command?.match(/hooks\/[A-Za-z0-9._-]+\.(?:sh|mjs)/);
         if (m) found.add(m[0]);
       }
     }
@@ -32,7 +32,8 @@ export function wiredHooks(manifest: PluginManifest): readonly string[] {
 
 /**
  * Problems with the wired hooks under `pluginDir`: each must exist and be
- * executable (owner/group/other x bit). Returns a human line per problem,
+ * executable when launched directly (owner/group/other x bit). Node `.mjs`
+ * assets only need to exist because the manifest passes them to `node`.
  * empty when every wired hook is present and executable.
  */
 export function hookHealthIssues(pluginDir: string, manifest: PluginManifest): readonly string[] {
@@ -44,7 +45,7 @@ export function hookHealthIssues(pluginDir: string, manifest: PluginManifest): r
       continue;
     }
     // 0o111 = any execute bit. A hook the shell cannot exec silently no-ops.
-    if ((statSync(abs).mode & 0o111) === 0) {
+    if (rel.endsWith('.sh') && (statSync(abs).mode & 0o111) === 0) {
       issues.push(`${rel}: present but not executable (chmod +x)`);
     }
   }

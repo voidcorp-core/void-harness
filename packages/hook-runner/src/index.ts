@@ -4,8 +4,10 @@ export {
   type SequencedWriteOptions,
 } from './sequenced-writer.js';
 export {
+  discoverProjectRoot,
   evaluateRule,
   MAX_HOOK_INPUT_BYTES,
+  parseHookText,
   parseHookPayload,
   type EvaluateRuleOptions,
   type RuleName,

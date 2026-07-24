@@ -8,6 +8,8 @@ import {
   realpathSync
 } from "node:fs";
 import {
+  basename as basename2,
+  dirname,
   isAbsolute,
   join,
   relative,
@@ -123,8 +125,7 @@ function recursiveRootOperation(segment, operation) {
     (token) => token === "--recursive" || /^-[A-Za-z]*R[A-Za-z]*$/.test(token) || /^-[A-Za-z]*r[A-Za-z]*$/.test(token)
   );
   if (!recursive) return false;
-  const target = args.at(-1) ?? "";
-  return ROOT_TARGETS.has(target);
+  return args.some((target) => ROOT_TARGETS.has(target));
 }
 function violation(command) {
   if (/:\(\)\s*\{\s*:\s*\|\s*:/.test(command)) return "fork bomb";
@@ -197,8 +198,8 @@ function protectedFile(paths) {
 
 // src/rules/secret-content.ts
 var HIGH_CONFIDENCE = [
-  /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/,
-  /\bgh[posru]_[A-Za-z0-9]{36}\b/,
+  /\b(?:AKIA|ASIA)[0-9A-Z]{16}/,
+  /\bgh[posru]_[A-Za-z0-9]{36}/,
   /\bgithub_pat_[A-Za-z0-9_]{40,}\b/,
   /\b(?:sk|rk)_live_[A-Za-z0-9]{20,}\b/,
   /\bsk-(?:ant|proj)-[A-Za-z0-9_-]{40,}\b/,
@@ -229,7 +230,7 @@ function secretContent(edits) {
       if (lineHasSecret(line)) evidence.push(`${edit.path}:${index + 1}`);
     });
   }
-  return evidence.length === 0 ? allow() : block("SECRET_IN_CONTENT", "likely secret detected in edited content", evidence);
+  return evidence.length === 0 ? allow() : block("SECRET_IN_CONTENT", "secret-in-content: likely secret detected in edited content", evidence);
 }
 
 // src/rules/tdd-order.ts
@@ -282,14 +283,14 @@ function tddOrder(input) {
     }
     return block(
       "TDD_SIBLING_TEST_MISSING",
-      "production edit requires an existing sibling test in strict/auto mode",
+      "missing sibling test: production edit requires one in strict/auto mode",
       [evidence]
     );
   }
   return warnings.length === 0 ? allow() : {
     allow: true,
     code: "TDD_SIBLING_TEST_WARNING",
-    message: "souple mode: sibling test missing",
+    message: "warning: souple mode, sibling test missing",
     evidence: warnings
   };
 }
@@ -302,26 +303,49 @@ function containsNul(value) {
   if (typeof value !== "object" || value === null) return false;
   return Object.values(value).some((item) => containsNul(item));
 }
-function parseHookPayload(input) {
+function parseHookText(input) {
   if (input.byteLength > MAX_HOOK_INPUT_BYTES) {
     throw new Error("HOOK_INPUT_TOO_LARGE");
   }
   const text2 = new TextDecoder("utf-8", { fatal: true }).decode(input);
   if (text2.includes("\0")) throw new Error("HOOK_INPUT_BINARY");
+  return text2;
+}
+function parseHookPayload(input) {
+  const text2 = parseHookText(input);
   const parsed = JSON.parse(text2);
   if (containsNul(parsed)) throw new Error("HOOK_INPUT_BINARY");
   return parsed;
 }
 function physicalPath(path) {
-  try {
-    return realpathSync(path);
-  } catch {
-    return resolve(path);
+  const absolute = resolve(path);
+  let existing = absolute;
+  const suffix = [];
+  while (true) {
+    try {
+      return join(realpathSync(existing), ...suffix);
+    } catch {
+      const parent = dirname(existing);
+      if (parent === existing) return absolute;
+      suffix.unshift(basename2(existing));
+      existing = parent;
+    }
+  }
+}
+function discoverProjectRoot(start) {
+  let current = physicalPath(start);
+  while (true) {
+    if (existsSync(join(current, ".void", "config.json")) || existsSync(join(current, ".git"))) {
+      return current;
+    }
+    const parent = dirname(current);
+    if (parent === current) return physicalPath(start);
+    current = parent;
   }
 }
 function projectRelativePath(root, path) {
   const physicalRoot = physicalPath(root);
-  const absolute = isAbsolute(path) ? physicalPath(path) : resolve(physicalRoot, path);
+  const absolute = physicalPath(isAbsolute(path) ? path : resolve(physicalRoot, path));
   const projectPath = relative(physicalRoot, absolute).replaceAll("\\", "/");
   return projectPath === ".." || projectPath.startsWith("../") || isAbsolute(projectPath) ? void 0 : projectPath;
 }
@@ -423,7 +447,7 @@ import { resolve as resolve5 } from "node:path";
 // src/runtime-input.ts
 import { createHash } from "node:crypto";
 import {
-  basename as basename2,
+  basename as basename3,
   extname,
   isAbsolute as isAbsolute2,
   relative as relative2,
@@ -468,7 +492,7 @@ function nameFor(tool, category, input) {
     const explicit = text(input["name"]);
     if (explicit !== "") return explicit;
     const script = text(input["scriptPath"]);
-    return script === "" || script.endsWith("/") ? "inline" : basename2(script).replace(/(?:\.workflow)?\.js$/, "") || "inline";
+    return script === "" || script.endsWith("/") ? "inline" : basename3(script).replace(/(?:\.workflow)?\.js$/, "") || "inline";
   }
   return tool || "unknown";
 }
@@ -561,7 +585,7 @@ import {
   unlink
 } from "node:fs/promises";
 import {
-  dirname,
+  dirname as dirname2,
   isAbsolute as isAbsolute3,
   join as join2,
   relative as relative3,
@@ -839,7 +863,7 @@ async function safeRunDirectory(root, missionId) {
   const run = join2(absoluteRoot, ".void", "runs", missionId);
   let ancestor = run;
   while (!await exists(ancestor)) {
-    const parent = dirname(ancestor);
+    const parent = dirname2(ancestor);
     if (parent === ancestor) break;
     ancestor = parent;
   }
@@ -1143,7 +1167,7 @@ ${verdict.evidence.map((item) => `- ${item}`).join("\n")}`;
 }
 async function main() {
   const input = await readStdin();
-  if (process.argv[2] !== "enforce") {
+  if (process.argv[2] !== "enforce" && process.argv[2] !== "enforce-ci") {
     try {
       await recordRuntimeEventFromCli(
         parseHookPayload(input),
@@ -1157,11 +1181,18 @@ async function main() {
   try {
     const rule = process.argv[3];
     if (!RULES.has(rule)) throw new Error("UNKNOWN_ENFORCEMENT_RULE");
+    const rawInput = process.argv[2] === "enforce-ci" ? {
+      tool_name: "Write",
+      tool_input: {
+        file_path: process.argv[4] ?? "",
+        content: parseHookText(input)
+      }
+    } : parseHookPayload(input);
     const verdict = evaluateRule(
       rule,
-      parseHookPayload(input),
+      rawInput,
       {
-        root: process.env["VOID_PROJECT_ROOT"] ?? process.env["CLAUDE_PROJECT_DIR"] ?? process.cwd(),
+        root: process.env["VOID_PROJECT_ROOT"] ?? process.env["CLAUDE_PROJECT_DIR"] ?? discoverProjectRoot(process.cwd()),
         env: process.env
       }
     );

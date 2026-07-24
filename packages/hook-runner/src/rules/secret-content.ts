@@ -5,8 +5,8 @@ import type {
 import { allow, block } from './verdict.js';
 
 const HIGH_CONFIDENCE = [
-  /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/,
-  /\bgh[posru]_[A-Za-z0-9]{36}\b/,
+  /\b(?:AKIA|ASIA)[0-9A-Z]{16}/,
+  /\bgh[posru]_[A-Za-z0-9]{36}/,
   /\bgithub_pat_[A-Za-z0-9_]{40,}\b/,
   /\b(?:sk|rk)_live_[A-Za-z0-9]{20,}\b/,
   /\bsk-(?:ant|proj)-[A-Za-z0-9_-]{40,}\b/,
@@ -43,5 +43,5 @@ export function secretContent(edits: readonly NormalizedEdit[]): RuleVerdict {
   }
   return evidence.length === 0
     ? allow()
-    : block('SECRET_IN_CONTENT', 'likely secret detected in edited content', evidence);
+    : block('SECRET_IN_CONTENT', 'secret-in-content: likely secret detected in edited content', evidence);
 }

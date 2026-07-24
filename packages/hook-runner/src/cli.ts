@@ -1,6 +1,8 @@
 import {
+  discoverProjectRoot,
   evaluateRule,
   MAX_HOOK_INPUT_BYTES,
+  parseHookText,
   parseHookPayload,
   type RuleName,
 } from './enforcement/runner.js';
@@ -38,7 +40,7 @@ function writeVerdict(
 
 async function main(): Promise<void> {
   const input = await readStdin();
-  if (process.argv[2] !== 'enforce') {
+  if (process.argv[2] !== 'enforce' && process.argv[2] !== 'enforce-ci') {
     try {
       await recordRuntimeEventFromCli(
         parseHookPayload(input),
@@ -54,13 +56,22 @@ async function main(): Promise<void> {
   try {
     const rule = process.argv[3];
     if (!RULES.has(rule as RuleName)) throw new Error('UNKNOWN_ENFORCEMENT_RULE');
+    const rawInput = process.argv[2] === 'enforce-ci'
+      ? {
+          tool_name: 'Write',
+          tool_input: {
+            file_path: process.argv[4] ?? '',
+            content: parseHookText(input),
+          },
+        }
+      : parseHookPayload(input);
     const verdict = evaluateRule(
       rule as RuleName,
-      parseHookPayload(input),
+      rawInput,
       {
         root: process.env['VOID_PROJECT_ROOT']
           ?? process.env['CLAUDE_PROJECT_DIR']
-          ?? process.cwd(),
+          ?? discoverProjectRoot(process.cwd()),
         env: process.env,
       },
     );

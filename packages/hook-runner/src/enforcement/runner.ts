@@ -7,6 +7,8 @@ import {
   realpathSync,
 } from 'node:fs';
 import {
+  basename,
+  dirname,
   isAbsolute,
   join,
   relative,
@@ -46,28 +48,56 @@ function containsNul(value: unknown): boolean {
   return Object.values(value).some((item) => containsNul(item));
 }
 
-export function parseHookPayload(input: Uint8Array): unknown {
+export function parseHookText(input: Uint8Array): string {
   if (input.byteLength > MAX_HOOK_INPUT_BYTES) {
     throw new Error('HOOK_INPUT_TOO_LARGE');
   }
   const text = new TextDecoder('utf-8', { fatal: true }).decode(input);
   if (text.includes('\u0000')) throw new Error('HOOK_INPUT_BINARY');
+  return text;
+}
+
+export function parseHookPayload(input: Uint8Array): unknown {
+  const text = parseHookText(input);
   const parsed: unknown = JSON.parse(text);
   if (containsNul(parsed)) throw new Error('HOOK_INPUT_BINARY');
   return parsed;
 }
 
 function physicalPath(path: string): string {
-  try {
-    return realpathSync(path);
-  } catch {
-    return resolve(path);
+  const absolute = resolve(path);
+  let existing = absolute;
+  const suffix: string[] = [];
+  while (true) {
+    try {
+      return join(realpathSync(existing), ...suffix);
+    } catch {
+      const parent = dirname(existing);
+      if (parent === existing) return absolute;
+      suffix.unshift(basename(existing));
+      existing = parent;
+    }
+  }
+}
+
+export function discoverProjectRoot(start: string): string {
+  let current = physicalPath(start);
+  while (true) {
+    if (
+      existsSync(join(current, '.void', 'config.json'))
+      || existsSync(join(current, '.git'))
+    ) {
+      return current;
+    }
+    const parent = dirname(current);
+    if (parent === current) return physicalPath(start);
+    current = parent;
   }
 }
 
 function projectRelativePath(root: string, path: string): string | undefined {
   const physicalRoot = physicalPath(root);
-  const absolute = isAbsolute(path) ? physicalPath(path) : resolve(physicalRoot, path);
+  const absolute = physicalPath(isAbsolute(path) ? path : resolve(physicalRoot, path));
   const projectPath = relative(physicalRoot, absolute).replaceAll('\\', '/');
   return projectPath === '..' || projectPath.startsWith('../') || isAbsolute(projectPath)
     ? undefined

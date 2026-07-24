@@ -90,6 +90,7 @@ async function runtimeAdd(rest: readonly string[]): Promise<void> {
     await seedInstallStage(projectRoot, stageRoot);
     const ctx = {
       projectRoot: stageRoot,
+      installationRoot: projectRoot,
       sourceRoot,
       enabledPlugins,
       enabledPacks,

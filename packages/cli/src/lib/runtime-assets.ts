@@ -64,7 +64,7 @@ async function stageMarkdownDirectory(source: string, destination: string): Prom
 
 function rewriteHookCommand(command: string): string {
   return command.replace(
-    /\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\/([A-Za-z0-9._-]+)/g,
+    /"?\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\/([A-Za-z0-9._-]+)"?/g,
     '"$CLAUDE_PROJECT_DIR/.void/hooks/$1"',
   );
 }

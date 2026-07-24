@@ -88,6 +88,16 @@ describe('ci-enforce — violations become red annotations', () => {
     expect(stdout).toMatch(/::error file=src\/config\.ts/);
   });
 
+  it('flags frontend production code with no sibling test', () => {
+    write(repo, 'apps/web/src/Card.tsx', 'export const Card = () => null;\n');
+    git(repo, 'add', '-A');
+    git(repo, 'commit', '-q', '-m', 'skip red');
+    const { code, stdout } = run(repo, base);
+    expect(code).not.toBe(0);
+    expect(stdout).toMatch(/TDD_SIBLING_TEST_MISSING/);
+    expect(stdout).toMatch(/apps\/web\/src\/Card\.tsx/);
+  });
+
   it('reports every distinct violation in one run', () => {
     write(repo, 'pnpm-lock.yaml', 'lockfileVersion: 9\n');
     write(repo, 'packages/foo/src/index.ts', "import { a } from '@repo/bar';\n");
@@ -120,6 +130,14 @@ describe('ci-enforce — clean diff is green', () => {
     write(repo, 'packages/foo/src/index.ts', "import { a } from '@repo/core';\nimport { b } from '@repo/foo';\n");
     git(repo, 'add', '-A');
     git(repo, 'commit', '-q', '-m', 'legit imports');
+    expect(run(repo, base).code).toBe(0);
+  });
+
+  it('allows frontend production code when its sibling test exists', () => {
+    write(repo, 'apps/web/src/Card.tsx', 'export const Card = () => null;\n');
+    write(repo, 'apps/web/src/Card.test.tsx', 'test("Card", () => {});\n');
+    git(repo, 'add', '-A');
+    git(repo, 'commit', '-q', '-m', 'red green');
     expect(run(repo, base).code).toBe(0);
   });
 
