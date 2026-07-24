@@ -45,6 +45,7 @@ import {
   wireCodexFloor,
 } from './codex-floor.js';
 import { CODEX_SKILLS_DIR, codexSkillsHealth, wireCodexSkills } from './codex-skills.js';
+import { wireCodexAgents } from './codex-agents.js';
 import { checkGh, checkMarketplaceAccess, type CheckResult } from './prerequisites.js';
 import { detectRuntimes, type Runtime } from './runtime.js';
 
@@ -165,14 +166,20 @@ const codexAdapter: RuntimeAdapter = {
     // source dir pack-<x>). Native Codex plugin channel: tracked in #144.
     const packDirs = ctx.enabledPacks.map((p) => packDirForName(p.name)).filter((d): d is string => d !== undefined);
     const skills = await wireCodexSkills(ctx.projectRoot, ctx.sourceRoot, packDirs);
+    // Claude gets the five read-only critics as context-isolated SUBAGENTS from
+    // the plugin. Codex has no stable equivalent (its subagents are still
+    // experimental, its custom prompts deprecated in favour of skills), so we
+    // compile the same authored agent definitions into Codex skills rather than
+    // author a second copy that would drift. See codex-agents.ts.
+    const agents = await wireCodexAgents(ctx.projectRoot, ctx.sourceRoot);
     const docResult = await patchRuntimeDoc(ctx.projectRoot, 'codex', {
       enabledPlugins: ctx.enabledPlugins,
       enabledPacks: ctx.enabledPacks,
     });
     return {
       statusLines: [
-        `.codex/hooks.json: floor wired (${staged} scripts → ${CODEX_HOOKS_DIR}/)`,
-        `${CODEX_SKILLS_DIR}/: ${skills} skills wired for Codex discovery`,
+        `.codex/hooks.json: ${staged} hook scripts wired → ${CODEX_HOOKS_DIR}/`,
+        `${CODEX_SKILLS_DIR}/: ${skills} skills + ${agents} compiled agents wired for Codex discovery`,
         `AGENTS.md: ${docResult}`,
       ],
       nextSteps: ['trust the project .codex/ layer per your Codex config (the safety floor is wired)'],

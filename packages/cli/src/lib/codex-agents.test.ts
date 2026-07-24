@@ -1,0 +1,141 @@
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { afterEach, describe, expect, it } from 'vitest';
+import { CODEX_SKILLS_DIR, isCodexEligible, parseFrontmatter } from './codex-skills.js';
+import { compileAgentToSkill, wireCodexAgents } from './codex-agents.js';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const CORE_ROOT = resolve(here, '..', '..', '..', 'core'); // the real agents source
+
+const tmps: string[] = [];
+function tmp(prefix: string): string {
+  const d = mkdtempSync(join(tmpdir(), prefix));
+  tmps.push(d);
+  return d;
+}
+afterEach(() => {
+  for (const d of tmps.splice(0)) rmSync(d, { recursive: true, force: true });
+});
+
+const AGENT_MD = [
+  '---',
+  'name: doctrine-critic',
+  'description: Judges a diff against doctrine. Read-only.',
+  'tools: Read, Grep, Glob, Bash',
+  'model: sonnet',
+  'color: purple',
+  '---',
+  '',
+  '# doctrine-critic',
+  '',
+  'You are the doctrine-critic.',
+  '',
+].join('\n');
+
+/** A source tree shaped like packages/core, holding the given agent files. */
+function fakeSource(agents: Record<string, string>): string {
+  const root = tmp('void-codex-agentsrc-');
+  mkdirSync(join(root, 'agents'), { recursive: true });
+  for (const [file, body] of Object.entries(agents)) {
+    writeFileSync(join(root, 'agents', file), body);
+  }
+  return root;
+}
+
+describe('compileAgentToSkill', () => {
+  it('keeps the name and description so Codex can discover it', () => {
+    const out = compileAgentToSkill(AGENT_MD);
+    expect(out?.name).toBe('doctrine-critic');
+    expect(out?.content).toMatch(/^name: doctrine-critic$/m);
+    expect(out?.content).toMatch(/^description: "Judges a diff against doctrine\. Read-only\."$/m);
+  });
+
+  it('quotes the description, so a colon-carrying one stays valid YAML (#130)', () => {
+    const md = AGENT_MD.replace(
+      'description: Judges a diff against doctrine. Read-only.',
+      'description: Judges what hooks miss: weak tests, over-abstraction.',
+    );
+    expect(compileAgentToSkill(md)?.content).toMatch(
+      /^description: "Judges what hooks miss: weak tests, over-abstraction\."$/m,
+    );
+  });
+
+  it('declares the codex runtime so the staged skill is eligible', () => {
+    expect(compileAgentToSkill(AGENT_MD)?.content).toMatch(/^runtimes: \[codex\]$/m);
+  });
+
+  it('drops the Claude-only subagent keys, which Codex has no equivalent for', () => {
+    const content = compileAgentToSkill(AGENT_MD)?.content ?? '';
+    expect(content).not.toMatch(/^tools:/m);
+    expect(content).not.toMatch(/^model:/m);
+    expect(content).not.toMatch(/^color:/m);
+  });
+
+  it('preserves the agent body verbatim', () => {
+    expect(compileAgentToSkill(AGENT_MD)?.content).toContain('You are the doctrine-critic.');
+  });
+
+  it('states the compiled origin, so nobody hand-edits the generated copy', () => {
+    expect(compileAgentToSkill(AGENT_MD)?.content).toMatch(/compiled/i);
+  });
+
+  it('returns undefined when the file carries no usable frontmatter name', () => {
+    expect(compileAgentToSkill('no frontmatter at all')).toBeUndefined();
+    expect(compileAgentToSkill('---\ndescription: nameless\n---\nbody')).toBeUndefined();
+  });
+});
+
+describe('wireCodexAgents', () => {
+  it('stages one discoverable skill directory per agent', async () => {
+    const src = fakeSource({ 'doctrine-critic.md': AGENT_MD });
+    const project = tmp('void-codex-agentproj-');
+    const staged = await wireCodexAgents(project, src);
+    expect(staged).toBe(1);
+    expect(existsSync(join(project, CODEX_SKILLS_DIR, 'doctrine-critic', 'SKILL.md'))).toBe(true);
+  });
+
+  it('ignores the .source sidecars that sit next to the agent definitions', async () => {
+    const src = fakeSource({ 'doctrine-critic.md': AGENT_MD });
+    writeFileSync(join(src, 'agents', 'doctrine-critic.source'), 'inspiration: x');
+    expect(await wireCodexAgents(tmp('void-codex-agentproj-'), src)).toBe(1);
+  });
+
+  it('is idempotent — re-wiring overwrites in place rather than failing', async () => {
+    const src = fakeSource({ 'doctrine-critic.md': AGENT_MD });
+    const proj = tmp('void-codex-agentproj-');
+    await wireCodexAgents(proj, src);
+    await wireCodexAgents(proj, src);
+    const md = readFileSync(join(proj, CODEX_SKILLS_DIR, 'doctrine-critic', 'SKILL.md'), 'utf8');
+    expect(md.match(/^name: doctrine-critic$/gm)).toHaveLength(1);
+  });
+
+  it('returns 0 when the source tree ships no agents', async () => {
+    expect(await wireCodexAgents(tmp('void-codex-agentproj-'), tmp('void-empty-'))).toBe(0);
+  });
+
+  // Integration against the REAL packages/core tree: the colon-carrying
+  // descriptions live there, so a strict-YAML regression would stage nothing
+  // while every synthetic fixture above still passed.
+  it('compiles every agent this repo actually ships', async () => {
+    const proj = tmp('void-codex-agentproj-');
+    const staged = await wireCodexAgents(proj, CORE_ROOT);
+    expect(staged).toBe(5);
+    for (const name of [
+      'doctrine-critic',
+      'silent-failure-hunter',
+      'type-design-analyzer',
+      'code-explorer',
+      'migration-planner',
+    ]) {
+      const md = readFileSync(join(proj, CODEX_SKILLS_DIR, name, 'SKILL.md'), 'utf8');
+      expect(md).toMatch(new RegExp(`^name: ${name}$`, 'm'));
+      expect(md).toMatch(/^runtimes: \[codex\]$/m);
+      // The staged file must be parseable by the same eligibility reader Codex
+      // staging uses, or the skill would be staged-but-invisible.
+      expect(isCodexEligible(parseFrontmatter(md))).toBe(true);
+    }
+  });
+});
