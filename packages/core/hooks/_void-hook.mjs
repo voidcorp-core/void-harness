@@ -835,7 +835,7 @@ function runGit(git, root, args, env) {
   };
 }
 function verifiedRef(git, root, ref, env) {
-  if (ref === "" || /[\r\n\u0000]/u.test(ref)) return false;
+  if (ref === "" || ref.includes("\r") || ref.includes("\n") || ref.includes("\0")) return false;
   return runGit(
     git,
     root,

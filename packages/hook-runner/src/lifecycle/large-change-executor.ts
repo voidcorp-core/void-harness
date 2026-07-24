@@ -42,7 +42,12 @@ function verifiedRef(
   ref: string,
   env: Environment,
 ): boolean {
-  if (ref === '' || /[\r\n\u0000]/u.test(ref)) return false;
+  if (
+    ref === ''
+    || ref.includes('\r')
+    || ref.includes('\n')
+    || ref.includes('\u0000')
+  ) return false;
   return runGit(
     git,
     root,
