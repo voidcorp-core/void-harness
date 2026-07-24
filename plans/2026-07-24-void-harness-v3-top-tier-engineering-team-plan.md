@@ -1263,7 +1263,7 @@ Mission Control visuel et écosystème ne peuvent pas grossir ce cut.
 
 ## Resume point
 
-**Next step**: Step 8 - Self-host dogfooding réel
+**Next step**: Checkpoint A - validation humaine du socle alpha
 
 **Completed**:
 
@@ -1315,10 +1315,19 @@ Mission Control visuel et écosystème ne peuvent pas grossir ce cut.
   chemin avec espaces et base Git explicite couverts ; conformance offline Claude/Codex/both
   p50 621 ms ; build, typecheck, lint, anti-bloat, publication, décisions immuables depuis
   `fc6f018`, graphes, bundle, certification, parité docs, versions et diff verts.
+- Step 8 : self-host isolé en staging puis swap atomique, receipt byte-hashé, worker
+  Claude/Codex compilé depuis les sources courantes, modes de rollout, rollback et doctor
+  exécutable avec replay canonique (`f281525`, `db95ec5`, `bce4130`) ;
+- audit sécurité Step 8 : environnement enfant réduit, revalidation du hash avant publication,
+  PostCSS corrigé et `pnpm audit` sans vulnérabilité connue ;
+- gate Step 8 : 1 382 tests passés, 1 skip attendu ; Claude et Codex réellement disponibles,
+  hooks fired, événements rejoués, self-host `release-gate` puis `shadow` verts ; build,
+  typecheck, lint, anti-bloat, publication, décisions immuables depuis `b80ce14`, graphes,
+  bundle, certification, conformance offline p50 734 ms, parité docs et versions verts.
 
 **Pending**:
 
-- Steps 7 à 24 ;
-- Checkpoint A après Step 8 ;
+- validation humaine Checkpoint A ;
+- Steps 9 à 24 ;
 - Checkpoint B après Step 22 ;
 - brainstorming/spec dédiée Mission Control x10 pendant Step 23.
