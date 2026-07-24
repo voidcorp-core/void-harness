@@ -104,6 +104,16 @@ its `harnessVersion` stamp). Both the release-please flow (via `extra-files`) an
 the manual script bump the certification's `harnessVersion` in lockstep, so a
 release never breaks CI on a forgotten regenerate.
 
+The CI validation lane also runs `self-host sync --mode release-gate` followed
+by the strict self-host doctor. It builds the hook runner directly from current
+TypeScript with the source checkout's esbuild, compiles both runtime adapters
+under `.void/generated/current`, verifies the deterministic receipt, executes
+both hooks, and replays their canonical events. No generated self-host file is
+published or committed. Missing Claude/Codex executables are reported as
+degraded rather than certified. When present, a bounded `--version` process
+smoke is recorded, but install conformance and later runtime-invocation
+certification remain separate gates.
+
 ### Manual fallback
 
 `scripts/bump-version.mjs <patch|minor|major|X.Y.Z>` still bumps all manifests

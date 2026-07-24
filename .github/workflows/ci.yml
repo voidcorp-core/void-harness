@@ -112,6 +112,14 @@ jobs:
         # so the type declarations must exist first.
         run: pnpm build
 
+      - name: Self-host release gate
+        # Compile current sources into an isolated, gitignored Claude+Codex
+        # artifact. The strict doctor rejects source-hash or owned-file drift;
+        # unavailable native CLIs stay degraded until their certification lane.
+        run: |
+          node packages/cli/bin/void-harness.mjs self-host sync --mode release-gate
+          node packages/cli/bin/void-harness.mjs self-host doctor --mode release-gate
+
       - name: Graph integrity (model drift + broken routes)
         run: pnpm graph:check
 
