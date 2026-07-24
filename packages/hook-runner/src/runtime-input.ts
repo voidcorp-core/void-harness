@@ -6,7 +6,7 @@ import {
   relative,
   resolve,
 } from 'node:path';
-import type { JsonValue } from '@voidcorp/mission-engine';
+import type { JsonValue } from '@voidcorp/mission-engine/events';
 
 export type AgentRuntime = 'claude' | 'codex' | 'unknown';
 export type HookPhase = 'activation' | 'outcome' | 'stop';

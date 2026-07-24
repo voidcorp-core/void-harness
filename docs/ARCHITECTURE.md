@@ -14,7 +14,7 @@ void-harness/
 │   │   ├── skills/                # craftsman skills (TDD, refactor, hexagonal, ...)
 │   │   ├── agents/                # doctrine-critic (read-only doctrine conformance review)
 │   │   └── hooks/                 # tdd-guard.sh, no-any-grep.sh, no-console-log-grep.sh
-│   ├── mission-engine/            # pure event contracts and deterministic reducers
+│   ├── mission-engine/            # pure event/evidence contracts and verdict reducers
 │   ├── hook-runner/               # Node adapter compiled into the portable hook asset
 │   ├── harness-graph/             # graph kernel + telemetry projections
 │   └── packs/                     # one workspace + plugin per capability
@@ -280,6 +280,48 @@ rejected, and every data/SSE route requires the session. SSE uses the stable
 event ID, honors `Last-Event-ID` (or the first-connect `after` cursor), backfills
 the bounded snapshot and reports discontinuity as `PARTIAL`, never as live truth.
 Studio renders `LIVE`, `RECONNECTING`, `STALE`, `PARTIAL`, `REPLAY` and `OFFLINE`.
+
+### Evidence, findings and verdicts
+
+The journal is also the single source for mission quality. A run keeps immutable
+metadata in `mission.json`, canonical events in `events.jsonl` and optional
+redacted quarantine copies under `quarantine/`. Findings, resolutions,
+exceptions and evidence are event kinds, not independently mutable ledgers.
+Separate `findings.jsonl`, `evidence.jsonl` or UI summaries may exist only as
+rebuildable projections.
+
+Command evidence records redacted argv, exit code, start/end/duration, producer,
+source, confidence, bounded output, affected file nodes, input hash, diff hash
+and typed dependency hashes. `canonicalJson` sorts object keys recursively before
+SHA-256 sealing. The checksum proves canonical integrity and detects corruption;
+it is deliberately not described as a signature against a user who controls the
+local machine.
+
+The pure verdict reducer compares only declared dependency hashes. A changed Git
+worktree invalidates diff-dependent evidence without invalidating an unrelated
+proof. Open non-waivable blockers remain blocking; accepted waivers yield
+`shipped-with-exception`, never `verified`. Missing/stale proof yields
+`unverified`; malformed, duplicate, cross-mission or integrity-broken input
+yields `degraded`. The projection carries no evaluation timestamp, so replay of
+the same journal and dependency context is byte-for-byte deterministic.
+
+`void-harness mission` exposes the operator lifecycle:
+
+- `start --title ... [--mode fast|team|fortress]` creates a team-mode run by
+  default;
+- `verify --id ... -- <argv...>` executes with `shell:false`, captures a redacted
+  bounded proof and returns the current verdict; `--shell` is explicit;
+- `inspect --id ... [--json]` recomputes the current Git diff and exits non-zero
+  unless the verdict is shippable;
+- `archive --id ...` writes an explicit `.jsonl.gz` snapshot only for
+  `verified` or `shipped-with-exception`;
+- `prune --older-than ...` is a dry-run unless `--apply` is supplied and removes
+  only runs that already have an archive.
+
+Invalid journal lines are preserved for forensics and copied once, redacted and
+bounded, into quarantine; they are never silently repaired. Runtime journals and
+archives are local artifacts ignored by Git. There is no automatic retention or
+network upload.
 
 ## Node frontmatter: `activation` (graph liveness)
 

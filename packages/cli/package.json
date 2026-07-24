@@ -57,6 +57,7 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@voidcorp/harness-graph": "workspace:*",
+    "@voidcorp/hook-runner": "workspace:*",
     "@voidcorp/mission-engine": "workspace:*",
     "esbuild": "^0.28.0",
     "tsup": "^8.0.0",

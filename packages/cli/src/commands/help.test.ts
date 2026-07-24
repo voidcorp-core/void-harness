@@ -44,4 +44,8 @@ describe('printHelp', () => {
   it('exposes conflict-free decision authoring', () => {
     expect(capture()).toContain('decisions <sub>');
   });
+
+  it('exposes the local mission evidence lifecycle', () => {
+    expect(capture()).toContain('mission <sub>');
+  });
 });

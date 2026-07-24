@@ -10,6 +10,7 @@
 Install a top-5% development doctrine on any project in one command, run it across several agent runtimes, and read locally what is installed, actually active, and worth improving.
 
 - **Craftsman skills** — TDD strict, TigerStyle, hexagonal, DDD — enforced by hooks, not vibes.
+- **Evidence-bound missions** — append-only local proofs, findings and honest verdicts that become stale when their inputs change.
 - **Multi-runtime by construction** — one doctrine, compiled to **Claude Code** (`CLAUDE.md` + marketplace plugin) and **Codex** (`AGENTS.md` + `.codex/hooks.json` + `.agents/skills`) through a runtime-adapter seam. Both runtimes get the *same* enforcement: the hooks are a full mirror, and the read-only agents are compiled into Codex skills rather than re-authored. What genuinely cannot cross over is listed in `docs/CODEX.md` instead of being papered over. Add a runtime later without a reinstall (`void-harness runtime add codex`).
 - **Pluggable stack packs** — Next.js, monorepo, React, server, PWA, mobile — activated per project.
 - **Free and account-free** — `npx voidharness init`. No Claude account, no subscription, no API key. The Claude Code marketplace is an optional secondary channel.
@@ -93,6 +94,20 @@ prints what to do next. Then, at any time:
 npx voidharness status     # deterministic, offline, LLM-free project health
 npx voidharness doctor     # health check
 ```
+
+For an auditable local execution:
+
+```bash
+npx voidharness mission start --title "Ship feature"
+npx voidharness mission verify --id mis_<returned-id> -- pnpm test
+npx voidharness mission inspect --id mis_<returned-id> --json
+npx voidharness mission archive --id mis_<returned-id>
+```
+
+Verification runs argv directly with `shell:false`; shell interpretation is
+available only through explicit `--shell`. Mission evidence stays under
+`.void/runs/`, is redacted and bounded, and compressed archives remain local
+under `.void/archives/`.
 
 ### Multiple runtimes, added when you need them
 

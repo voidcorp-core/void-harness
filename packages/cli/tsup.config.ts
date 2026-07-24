@@ -16,5 +16,9 @@ export default defineConfig({
   // Bundle the workspace kernel INTO the CLI so the published package has no internal-scope runtime
   // dependency. `yaml` (the kernel's only runtime dep) stays external — a normal public npm package,
   // declared in this CLI's dependencies, so Node handles its CommonJS interop.
-  noExternal: ['@voidcorp/harness-graph', '@voidcorp/mission-engine'],
+  noExternal: [
+    '@voidcorp/harness-graph',
+    '@voidcorp/hook-runner',
+    '@voidcorp/mission-engine',
+  ],
 });

@@ -131,6 +131,9 @@ importers:
       '@voidcorp/harness-graph':
         specifier: workspace:*
         version: link:../harness-graph
+      '@voidcorp/hook-runner':
+        specifier: workspace:*
+        version: link:../hook-runner
       '@voidcorp/mission-engine':
         specifier: workspace:*
         version: link:../mission-engine
@@ -193,6 +196,9 @@ importers:
 
   packages/mission-engine:
     devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
       typescript:
         specifier: ^5.6.0
         version: 5.9.3

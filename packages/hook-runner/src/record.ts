@@ -1,7 +1,10 @@
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
-import type { CanonicalEvent, EventDraft } from '@voidcorp/mission-engine';
+import type {
+  CanonicalEvent,
+  EventDraft,
+} from '@voidcorp/mission-engine/events';
 import {
   adaptRuntimeInput,
   deriveMissionId,

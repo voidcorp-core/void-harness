@@ -5,6 +5,9 @@
   "description": "Portable Node hook adapter and sequenced event writer for void-harness.",
   "license": "MIT",
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "build": "esbuild src/record.ts --bundle --platform=node --format=esm --target=node22 --outfile=../core/hooks/_void-hook.mjs",
     "test": "vitest run",

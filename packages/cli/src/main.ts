@@ -15,6 +15,7 @@ import { audit } from './commands/audit.js';
 import { status } from './commands/status.js';
 import { adoption } from './commands/adoption.js';
 import { decisions } from './commands/decisions.js';
+import { mission } from './commands/mission.js';
 import { printHelp } from './commands/help.js';
 import { version } from '../package.json';
 
@@ -68,6 +69,9 @@ export async function main(argv: readonly string[]): Promise<void> {
       return;
     case 'decisions':
       await decisions(rest);
+      return;
+    case 'mission':
+      await mission(rest);
       return;
     case 'version':
     case '--version':

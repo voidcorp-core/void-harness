@@ -24,7 +24,7 @@ import {
   serializeEvent,
   type CanonicalEvent,
   type EventDraft,
-} from '@voidcorp/mission-engine';
+} from '@voidcorp/mission-engine/events';
 
 export const MAX_EVENT_LOG_BYTES = 8 * 1024 * 1024;
 const MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
