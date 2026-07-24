@@ -106,9 +106,16 @@ jobs:
       # trusting that main was green when the PR was cut. Publishing to npm is
       # irreversible; a failing step here costs a re-run, a bad publish costs a
       # deprecation notice forever.
+      #
+      # `pnpm build` FIRST, mirroring ci.yml: packs resolve cross-package imports
+      # through their dist exports, so the type declarations must exist before
+      # typecheck or it fails on unresolvable @voidcorp/* modules. Omitting it is
+      # what made the first gated 2.0.0 run fail (correctly, but for the wrong
+      # reason) and left the tag cut with nothing published.
       - name: Validate the tree being published
         run: |
           pnpm version:check
+          pnpm build
           pnpm typecheck
           pnpm test
 
