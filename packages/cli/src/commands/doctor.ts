@@ -14,18 +14,18 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../lib/packs.js';
-import { marketplaceRepoFrom, readSettings, settingsPathFor } from '../lib/settings.js';
-import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
-import { checkEnforceWorkflow, checkGh, checkJq, type CheckResult } from '../lib/prerequisites.js';
 import { packsCoherenceIssues, validateConfig } from '../lib/config-schema.js';
-import { compareVersions, normalizeVersion } from '../lib/version.js';
-import { detectedAdapters } from '../lib/runtime-adapters.js';
-import { selfRepoDoctorTarget } from '../lib/self-repo.js';
-import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
-import { readInstallReceipt } from '../lib/receipts.js';
+import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../lib/packs.js';
 import { findCoreSource } from '../lib/paths.js';
+import { type CheckResult, checkEnforceWorkflow, checkGh, checkJq } from '../lib/prerequisites.js';
+import { readInstallReceipt } from '../lib/receipts.js';
+import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
+import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
+import { detectedAdapters } from '../lib/runtime-adapters.js';
 import { localPackAssetIssues } from '../lib/runtime-assets.js';
+import { selfRepoDoctorTarget } from '../lib/self-repo.js';
+import { marketplaceRepoFrom, readSettings, settingsPathFor } from '../lib/settings.js';
+import { compareVersions, normalizeVersion } from '../lib/version.js';
 
 /** Plain pack names (no @voidcorp/ prefix, core excluded) pinned in config.packs. */
 function configPackNames(config: { packs?: Record<string, string> }): string[] {
@@ -75,7 +75,13 @@ export async function doctor(args: readonly string[]): Promise<void> {
       // JSON path (#68).
       const validation = validateConfig(parsedConfig);
       if (validation.ok) {
-        checks.push({ name: 'project config', ok: true, message: 'valid JSON + schema' });
+        checks.push({
+          name: 'project config',
+          ok: true,
+          message: validation.warnings.length === 0
+            ? 'valid JSON + schema'
+            : `valid with migration warning: ${validation.warnings.join('; ')}`,
+        });
       } else {
         checks.push({
           name: 'project config',
