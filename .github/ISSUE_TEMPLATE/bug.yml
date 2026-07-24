@@ -1,0 +1,42 @@
+name: Bug
+description: Something in the CLI, a hook, or the install is broken.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Include the exact command and its output. Redact anything private.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: "`void-harness doctor` output"
+      description: Run it in the affected project. It reports what is wired and what drifted, which is usually the fastest route to the cause.
+      render: shell
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Runtime
+      options:
+        - Claude Code
+        - Codex
+        - Both
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: "`voidharness --version`, Node, OS."
+      placeholder: "voidharness 2.0.2, Node 24.15, macOS 15"
+    validations:
+      required: true
