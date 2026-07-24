@@ -99,31 +99,39 @@ describe('safety-floor matcher coverage', () => {
   // Edit|Write would leave every content-scanning hook dead on that runtime.
   it('covers apply_patch on every file-edit hook', () => {
     const matchers = preToolUseMatchers();
-    for (const script of [
+    for (const rule of [
       'protected-file',
       'secret-content',
       'tdd-order',
-      'no-any-grep.sh',
-      'no-as-cast-grep.sh',
-      'no-console-log-grep.sh',
-      'no-null-grep.sh',
-      'no-only-no-skip.sh',
-      'boundary-direction-check.sh',
-      'test-name-lint.sh',
-      'no-ai-design-slop.sh',
+      'no-any',
+      'no-as-cast',
+      'no-console',
+      'no-null',
+      'no-focused-test',
+      'boundary-direction',
+      'test-name',
+      'design-slop',
     ]) {
-      expect(matchers.get(script), `${script} must be wired`).toBeDefined();
-      expect(matchers.get(script), `${script} must match apply_patch`).toContain('apply_patch');
+      expect(matchers.get(rule), `${rule} must be wired`).toBeDefined();
+      expect(matchers.get(rule), `${rule} must match apply_patch`).toContain('apply_patch');
     }
   });
 
-  it('runs every critical rule through the portable Node bundle', () => {
+  it('runs every inline rule through the portable Node bundle', () => {
     const manifest = compileCodexHooksManifest(template);
     for (const rule of [
       'dangerous-command',
       'protected-file',
       'secret-content',
       'tdd-order',
+      'no-any',
+      'no-as-cast',
+      'no-console',
+      'no-null',
+      'no-focused-test',
+      'boundary-direction',
+      'test-name',
+      'design-slop',
     ]) {
       expect(manifest).toContain(`_void-hook.mjs\\" enforce ${rule}`);
     }

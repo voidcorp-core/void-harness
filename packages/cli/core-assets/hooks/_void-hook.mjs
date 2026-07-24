@@ -16,79 +16,61 @@ import {
   resolve
 } from "node:path";
 
-// src/enforcement/normalize.ts
-var MAX_FIELD_BYTES = 1024 * 1024;
-function record(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
-}
-function safeString(value, label) {
-  if (typeof value !== "string") return "";
-  if (value.includes("\0") || Buffer.byteLength(value) > MAX_FIELD_BYTES) {
-    throw new Error(`unsafe hook input: ${label}`);
-  }
-  return value;
-}
-function commandText(value) {
-  if (Array.isArray(value)) return value.map((part) => safeString(part, "command")).join(" ");
-  return safeString(value, "command");
-}
-function patchText(input) {
-  const candidates = [
-    input["patch"],
-    input["input"],
-    input["content"],
-    input["command"]
-  ];
-  return candidates.map((value) => commandText(value)).filter((value) => value.includes("*** Begin Patch")).join("\n");
-}
-function parsePatchEdits(patch) {
-  const edits = [];
-  let path = "";
-  let added = "";
-  const emit = () => {
-    if (path !== "") edits.push({ path, addedContent: added });
-  };
-  for (const line of patch.split(/\r?\n/)) {
-    const section = line.match(/^\*\*\* (Add|Update|Delete) File: (.+)$/);
-    if (section !== null) {
-      emit();
-      path = safeString(section[2] ?? "", "patch path");
-      added = "";
-      continue;
-    }
-    if (path !== "" && line.startsWith("+") && !line.startsWith("+++")) {
-      added += `${line.slice(1)}
-`;
-    }
-  }
-  emit();
-  return edits;
-}
-function normalizeToolCall(value) {
-  const raw = record(value);
-  if (raw === void 0) throw new Error("invalid hook input: expected object");
-  const input = record(raw["tool_input"]) ?? {};
-  const tool = safeString(raw["tool_name"], "tool_name");
-  const command = commandText(input["command"]);
-  const file = safeString(input["file_path"], "file_path");
-  let edits;
-  if (file !== "") {
-    edits = [{
-      path: file,
-      addedContent: safeString(input["content"] ?? input["new_string"], "edit content")
-    }];
-  } else {
-    edits = parsePatchEdits(patchText(input));
-  }
-  return { tool, command, edits };
-}
-
 // src/rules/verdict.ts
 function allow(code3 = "ALLOW", message = "allowed") {
   return { allow: true, code: code3, message, evidence: [] };
 }
 function block(code3, message, evidence) {
   return { allow: false, code: code3, message, evidence };
+}
+
+// src/rules/source-helpers.ts
+function normalizedPath(path) {
+  return path.replaceAll("\\", "/");
+}
+function isTestPath(path) {
+  return /\.(?:test|spec)\.(?:ts|tsx|js|jsx)$/.test(path);
+}
+function isGeneratedPath(path) {
+  return /\/__(?:generated|fixtures)__\//.test(path);
+}
+function lineEvidence(edits, applies, violates, allowTag) {
+  const evidence = [];
+  for (const edit of edits) {
+    const path = normalizedPath(edit.path);
+    if (!applies(path)) continue;
+    edit.addedContent.split(/\r?\n/).forEach((line, index) => {
+      if (allowTag !== void 0 && line.includes(allowTag)) return;
+      if (violates(line)) evidence.push(`${path}:${index + 1}`);
+    });
+  }
+  return evidence;
+}
+function evidenceVerdict(code3, message, evidence) {
+  return evidence.length === 0 ? allow() : block(code3, message, evidence);
+}
+
+// src/rules/boundary-direction.ts
+function boundaryDirection(edits) {
+  const evidence = [];
+  for (const edit of edits) {
+    const path = normalizedPath(edit.path);
+    const match = path.match(/^packages\/([^/]+)\/.+\.(?:ts|tsx)$/);
+    if (match === null || match[1] === "core" || isTestPath(path) || isGeneratedPath(path)) continue;
+    const sourcePackage = match[1];
+    edit.addedContent.split(/\r?\n/).forEach((line, index) => {
+      if (line.includes("allow-boundary:")) return;
+      const target = line.match(/\bfrom\s+['"]@repo\/([A-Za-z0-9-]+)/)?.[1];
+      if (target !== void 0 && target !== "core" && target !== sourcePackage) {
+        evidence.push(`${path}:${index + 1} -> @repo/${target}`);
+      }
+    });
+  }
+  return evidenceVerdict(
+    "MONOREPO_BOUNDARY_DIRECTION",
+    "forbidden @repo/* import; package may import only itself or @repo/core",
+    evidence
+  );
 }
 
 // src/rules/dangerous-command.ts
@@ -156,6 +138,117 @@ function dangerousCommand(command) {
     "DANGEROUS_COMMAND",
     "refusing a destructive command; use the reviewed one-shot override only when deliberate",
     [evidence]
+  );
+}
+
+// src/rules/design-slop.ts
+var INTER = /font-family[^;]*\bInter\b|font-\[.?Inter|fontFamily[^,]*\bInter\b/i;
+var GRADIENT = /(?:from|to)-(?:purple|indigo|violet|fuchsia)-\d+[^"' ]*[^"']*(?:from|to)-(?:blue|cyan|teal|sky|indigo)-\d+|linear-gradient\([^)]*(?:purple|indigo|violet)[^)]*(?:blue|cyan|teal)/i;
+var GREY_ON_COLOR = /\btext-(?:gray|grey|slate|zinc|neutral)-\d+\b[^"']*\bbg-(?:indigo|purple|blue|violet|fuchsia|emerald|rose|pink)-\d+\b/i;
+var NESTED_CARD = /class(?:Name)?="[^"]*\bcard\b[^"]*"[^>]*>[^<]*<[^>]*class(?:Name)?="[^"]*\bcard\b/i;
+function designSlop(edits) {
+  const evidence = [];
+  for (const edit of edits) {
+    const path = normalizedPath(edit.path);
+    if (!/\.(?:tsx|jsx|css|scss)$/.test(path) || isTestPath(path) || isGeneratedPath(path)) {
+      continue;
+    }
+    edit.addedContent.split(/\r?\n/).forEach((line, index) => {
+      if (/allow-design-slop:/.test(line)) return;
+      const code3 = line.replace(/`[^`]*`|\/\*.*?\*\/|\/\/.*$/g, "");
+      if (INTER.test(code3)) evidence.push(`${path}:${index + 1}: default Inter font`);
+      if (GRADIENT.test(code3)) evidence.push(`${path}:${index + 1}: clich\xE9 gradient`);
+      if (GREY_ON_COLOR.test(code3)) evidence.push(`${path}:${index + 1}: grey text on color`);
+    });
+    if (NESTED_CARD.test(edit.addedContent) && !edit.addedContent.includes("allow-design-slop:")) {
+      evidence.push(`${path}: card nested directly inside card`);
+    }
+  }
+  return evidenceVerdict(
+    "GENERIC_AI_DESIGN_TELL",
+    "conservative generic-design tell detected; apply the project visual language",
+    evidence
+  );
+}
+
+// src/rules/no-any.ts
+var ANY = /:\s*any\b|<any>|\bas\s+any\b/;
+function noAny(edits) {
+  const evidence = lineEvidence(
+    edits,
+    (path) => /\.(?:ts|tsx)$/.test(path) && !isTestPath(path) && !path.endsWith(".d.ts") && !isGeneratedPath(path),
+    (line) => ANY.test(line),
+    "allow-any:"
+  );
+  return evidenceVerdict(
+    "TYPESCRIPT_ANY",
+    "any weakens the type boundary; use a precise type or unknown plus narrowing",
+    evidence
+  );
+}
+
+// src/rules/no-as-cast.ts
+var ASSERTION_CAST = /\bas\s+[A-Z][A-Za-z0-9_]*/;
+function noAsCast(edits) {
+  const evidence = lineEvidence(
+    edits,
+    (path) => /\.(?:ts|tsx)$/.test(path) && !isTestPath(path) && !path.endsWith(".d.ts") && !isGeneratedPath(path),
+    (line) => ASSERTION_CAST.test(line),
+    "allow-as-cast:"
+  );
+  return evidenceVerdict(
+    "TYPESCRIPT_ASSERTION_CAST",
+    "assertion cast detected; prefer narrowing, a type guard, a generic or boundary parsing",
+    evidence
+  );
+}
+
+// src/rules/no-console.ts
+var CONSOLE = /\bconsole\.(?:log|error|warn|info|debug)\b/;
+function noConsole(edits) {
+  const evidence = lineEvidence(
+    edits,
+    (path) => /\.(?:ts|tsx|js|jsx)$/.test(path) && !/(^|\/)scripts\//.test(path) && !isTestPath(path) && !isGeneratedPath(path),
+    (line) => CONSOLE.test(line),
+    "allow-console:"
+  );
+  return evidenceVerdict(
+    "CONSOLE_IN_SOURCE",
+    "console call detected in source; use the project logger",
+    evidence.map((item) => `console.* in ${item}`)
+  );
+}
+
+// src/rules/no-focused-test.ts
+var FOCUSED = /\b(?:it|test|describe)\.only\b|\b(?:it|test)\.skip\b|\b(?:xit|xdescribe)\b/;
+function noFocusedTest(edits) {
+  return evidenceVerdict(
+    "FOCUSED_OR_SKIPPED_TEST",
+    "focused or skipped test detected; use todo only for explicitly pending coverage",
+    lineEvidence(edits, isTestPath, (line) => FOCUSED.test(line))
+  );
+}
+
+// src/rules/no-null.ts
+function codeOnly(line) {
+  return line.replace(/"(?:[^"\\]|\\.)*"/g, "").replace(/'(?:[^'\\]|\\.)*'/g, "").replace(/`[^`]*`/g, "").replace(/\/\*.*?\*\//g, "").replace(/\/\/.*$/, "");
+}
+function noNull(edits) {
+  const evidence = lineEvidence(
+    edits,
+    (path) => /\.(?:ts|tsx)$/.test(path) && !isTestPath(path) && !path.endsWith(".d.ts") && !isGeneratedPath(path),
+    (line) => {
+      if (/from\s+['"]drizzle-orm|JSON\.(?:stringify|parse)|typeof.*===\s*['"]null/.test(line)) {
+        return false;
+      }
+      return /\bnull\b/.test(codeOnly(line));
+    },
+    "allow-null:"
+  );
+  return evidenceVerdict(
+    "NULL_IN_TYPESCRIPT",
+    "null literal detected; prefer undefined or an explicit Option type",
+    evidence
   );
 }
 
@@ -293,6 +386,83 @@ function tddOrder(input) {
     message: "warning: souple mode, sibling test missing",
     evidence: warnings
   };
+}
+
+// src/rules/test-name.ts
+var GENERIC_NAME = /\b(?:it|test)\(\s*['"]should\s|\b(?:it|test)\(\s*['"]works?\b|\b(?:it|test)\(\s*['"]test['"]/;
+function testName(edits) {
+  return evidenceVerdict(
+    "GENERIC_TEST_NAME",
+    "test name must describe observable behavior",
+    lineEvidence(edits, isTestPath, (line) => GENERIC_NAME.test(line))
+  );
+}
+
+// src/enforcement/normalize.ts
+var MAX_FIELD_BYTES = 1024 * 1024;
+function record(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
+}
+function safeString(value, label) {
+  if (typeof value !== "string") return "";
+  if (value.includes("\0") || Buffer.byteLength(value) > MAX_FIELD_BYTES) {
+    throw new Error(`unsafe hook input: ${label}`);
+  }
+  return value;
+}
+function commandText(value) {
+  if (Array.isArray(value)) return value.map((part) => safeString(part, "command")).join(" ");
+  return safeString(value, "command");
+}
+function patchText(input) {
+  const candidates = [
+    input["patch"],
+    input["input"],
+    input["content"],
+    input["command"]
+  ];
+  return candidates.map((value) => commandText(value)).filter((value) => value.includes("*** Begin Patch")).join("\n");
+}
+function parsePatchEdits(patch) {
+  const edits = [];
+  let path = "";
+  let added = "";
+  const emit = () => {
+    if (path !== "") edits.push({ path, addedContent: added });
+  };
+  for (const line of patch.split(/\r?\n/)) {
+    const section = line.match(/^\*\*\* (Add|Update|Delete) File: (.+)$/);
+    if (section !== null) {
+      emit();
+      path = safeString(section[2] ?? "", "patch path");
+      added = "";
+      continue;
+    }
+    if (path !== "" && line.startsWith("+") && !line.startsWith("+++")) {
+      added += `${line.slice(1)}
+`;
+    }
+  }
+  emit();
+  return edits;
+}
+function normalizeToolCall(value) {
+  const raw = record(value);
+  if (raw === void 0) throw new Error("invalid hook input: expected object");
+  const input = record(raw["tool_input"]) ?? {};
+  const tool = safeString(raw["tool_name"], "tool_name");
+  const command = commandText(input["command"]);
+  const file = safeString(input["file_path"], "file_path");
+  let edits;
+  if (file !== "") {
+    edits = [{
+      path: file,
+      addedContent: safeString(input["content"] ?? input["new_string"], "edit content")
+    }];
+  } else {
+    edits = parsePatchEdits(patchText(input));
+  }
+  return { tool, command, edits };
 }
 
 // src/enforcement/runner.ts
@@ -436,6 +606,15 @@ function evaluateRule(rule, rawInput, options) {
   }
   if (rule === "secret-content") return secretContent(call.edits);
   if (rule === "tdd-order") return tddVerdict(options.root, call.edits);
+  const edits = projectEdits(options.root, call.edits);
+  if (rule === "no-any") return noAny(edits);
+  if (rule === "no-as-cast") return noAsCast(edits);
+  if (rule === "no-console") return noConsole(edits);
+  if (rule === "no-null") return noNull(edits);
+  if (rule === "no-focused-test") return noFocusedTest(edits);
+  if (rule === "boundary-direction") return boundaryDirection(edits);
+  if (rule === "test-name") return testName(edits);
+  if (rule === "design-slop") return designSlop(edits);
   rule;
   throw new Error("UNKNOWN_ENFORCEMENT_RULE");
 }
@@ -1143,9 +1322,17 @@ async function recordRuntimeEventFromCli(raw, argv, env) {
 // src/cli.ts
 var RULES = /* @__PURE__ */ new Set([
   "dangerous-command",
+  "boundary-direction",
+  "design-slop",
+  "no-any",
+  "no-as-cast",
+  "no-console",
+  "no-focused-test",
+  "no-null",
   "protected-file",
   "secret-content",
-  "tdd-order"
+  "tdd-order",
+  "test-name"
 ]);
 async function readStdin() {
   const chunks = [];

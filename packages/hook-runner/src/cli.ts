@@ -2,17 +2,25 @@ import {
   discoverProjectRoot,
   evaluateRule,
   MAX_HOOK_INPUT_BYTES,
-  parseHookText,
   parseHookPayload,
+  parseHookText,
   type RuleName,
 } from './enforcement/runner.js';
 import { recordRuntimeEventFromCli } from './record.js';
 
 const RULES = new Set<RuleName>([
   'dangerous-command',
+  'boundary-direction',
+  'design-slop',
+  'no-any',
+  'no-as-cast',
+  'no-console',
+  'no-focused-test',
+  'no-null',
   'protected-file',
   'secret-content',
   'tdd-order',
+  'test-name',
 ]);
 
 async function readStdin(): Promise<Buffer> {

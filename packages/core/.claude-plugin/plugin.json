@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-any-grep.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce no-any"
           }
         ]
       },
@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-as-cast-grep.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce no-as-cast"
           }
         ]
       },
@@ -49,7 +49,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-console-log-grep.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce no-console"
           }
         ]
       },
@@ -58,7 +58,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-null-grep.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce no-null"
           }
         ]
       },
@@ -67,7 +67,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-only-no-skip.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce no-focused-test"
           }
         ]
       },
@@ -76,7 +76,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/boundary-direction-check.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce boundary-direction"
           }
         ]
       },
@@ -85,7 +85,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/test-name-lint.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce test-name"
           }
         ]
       },
@@ -112,7 +112,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-ai-design-slop.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce design-slop"
           }
         ]
       },

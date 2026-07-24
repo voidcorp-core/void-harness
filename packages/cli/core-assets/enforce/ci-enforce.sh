@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # ci-enforce — replay the void-harness enforcement floor over a PR diff.
 #
-# Critical path, secret-content and TDD rules execute through the SAME portable
-# Node bundle as local PreToolUse hooks. The remaining boundary rule is sourced
-# from hooks/_checks.sh until its Step 7 port.
+# Critical path, secret-content, TDD and boundary rules execute through the SAME
+# portable Node bundle as local PreToolUse hooks.
 #
 # FAIL-CLOSED (DEV-393, the #62-64 class): a missing prerequisite or an
 # unresolvable base ref is an explicit RED check, never a silent green.
@@ -12,7 +11,6 @@
 # Exit:  0 = clean, 1 = violations found OR fail-closed error.
 
 set -uo pipefail
-source "${BASH_SOURCE[0]%/*}/../hooks/_checks.sh"
 RUNNER="${BASH_SOURCE[0]%/*}/../hooks/_void-hook.mjs"
 
 BASE=""
@@ -173,12 +171,15 @@ while IFS= read -r -d '' status; do
     annotate error "$path" 1 "${tdd//$'\n'/ }"
   fi
 
-  if hits=$(printf '%s' "$added_text" | checks_boundary_imports "$path"); then :; else
+  if hits=$(printf '%s' "$added_text" | "$NODE_BIN" "$RUNNER" enforce-ci boundary-direction "$path" 2>&1); then :; else
+    FOUND=0
     while IFS= read -r hit; do
-      [[ -z "$hit" ]] && continue
-      rel=${hit%%:*}
-      annotate error "$path" "${LNOS[rel - 1]:-1}" "forbidden @repo/* import: ${hit#*:}"
+      [[ "$hit" =~ ^-\ .+:([0-9]+)\ \-\>\ (.+)$ ]] || continue
+      FOUND=1
+      rel="${BASH_REMATCH[1]}"
+      annotate error "$path" "${LNOS[rel - 1]:-1}" "forbidden @repo/* import: ${BASH_REMATCH[2]}"
     done <<<"$hits"
+    [[ "$FOUND" -eq 1 ]] || annotate error "$path" 1 "boundary scan failed closed: ${hits//$'\n'/ }"
   fi
   # NB: checks_dangerous_command (the local Bash runtime guard) is deliberately
   # NOT replayed over the diff. A destructive PATTERN committed into a file is a

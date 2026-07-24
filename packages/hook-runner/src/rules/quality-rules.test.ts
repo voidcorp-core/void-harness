@@ -17,7 +17,7 @@ describe('profile-scoped TypeScript rules', () => {
   });
 
   it('allows Python, tests, generated code and documented exceptions', () => {
-    expect(noAny(edit('src/user.py', 'value: any = input')) .allow).toBe(true);
+    expect(noAny(edit('src/user.py', 'value: any = input')).allow).toBe(true);
     expect(noAny(edit('src/user.test.ts', 'const fixture: any = 1;')).allow).toBe(true);
     expect(noAsCast(edit('src/__generated__/api.ts', 'value as User')).allow).toBe(true);
     expect(noAny(edit('src/user.ts', 'const fixture: any = 1; // allow-any: vendor boundary')).allow).toBe(true);

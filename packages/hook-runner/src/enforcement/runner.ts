@@ -14,27 +14,43 @@ import {
   relative,
   resolve,
 } from 'node:path';
+import { boundaryDirection } from '../rules/boundary-direction.js';
+import { dangerousCommand } from '../rules/dangerous-command.js';
+import { designSlop } from '../rules/design-slop.js';
+import { noAny } from '../rules/no-any.js';
+import { noAsCast } from '../rules/no-as-cast.js';
+import { noConsole } from '../rules/no-console.js';
+import { noFocusedTest } from '../rules/no-focused-test.js';
+import { noNull } from '../rules/no-null.js';
+import { protectedFile } from '../rules/protected-file.js';
+import { secretContent } from '../rules/secret-content.js';
+import {
+  type TddMode,
+  tddOrder,
+} from '../rules/tdd-order.js';
+import { testName } from '../rules/test-name.js';
+import { allow } from '../rules/verdict.js';
+import { normalizeToolCall } from './normalize.js';
 import type {
   NormalizedEdit,
   RuleVerdict,
 } from './types.js';
-import { normalizeToolCall } from './normalize.js';
-import { dangerousCommand } from '../rules/dangerous-command.js';
-import { protectedFile } from '../rules/protected-file.js';
-import { secretContent } from '../rules/secret-content.js';
-import {
-  tddOrder,
-  type TddMode,
-} from '../rules/tdd-order.js';
-import { allow } from '../rules/verdict.js';
 
 export const MAX_HOOK_INPUT_BYTES = 1024 * 1024;
 
 export type RuleName =
   | 'dangerous-command'
+  | 'boundary-direction'
+  | 'design-slop'
+  | 'no-any'
+  | 'no-as-cast'
+  | 'no-console'
+  | 'no-focused-test'
+  | 'no-null'
   | 'protected-file'
   | 'secret-content'
-  | 'tdd-order';
+  | 'tdd-order'
+  | 'test-name';
 
 export interface EvaluateRuleOptions {
   readonly root: string;
@@ -224,6 +240,15 @@ export function evaluateRule(
   }
   if (rule === 'secret-content') return secretContent(call.edits);
   if (rule === 'tdd-order') return tddVerdict(options.root, call.edits);
+  const edits = projectEdits(options.root, call.edits);
+  if (rule === 'no-any') return noAny(edits);
+  if (rule === 'no-as-cast') return noAsCast(edits);
+  if (rule === 'no-console') return noConsole(edits);
+  if (rule === 'no-null') return noNull(edits);
+  if (rule === 'no-focused-test') return noFocusedTest(edits);
+  if (rule === 'boundary-direction') return boundaryDirection(edits);
+  if (rule === 'test-name') return testName(edits);
+  if (rule === 'design-slop') return designSlop(edits);
   rule satisfies never;
   throw new Error('UNKNOWN_ENFORCEMENT_RULE');
 }
