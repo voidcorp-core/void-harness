@@ -139,3 +139,41 @@ export async function wireClaudeLocalAssets(
     hookConfiguration: compileClaudeHooks(manifest.hooks),
   };
 }
+
+export async function localPackAssetIssues(
+  projectRoot: string,
+  sourceRoot: string,
+  packDirectories: readonly string[],
+  runtimes: readonly ('claude' | 'codex')[],
+): Promise<string[]> {
+  const issues: string[] = [];
+  for (const packDirectory of packDirectories) {
+    const source = packSkillsDir(sourceRoot, packDirectory);
+    if (source === undefined) {
+      issues.push(`${packDirectory}: bundled skills missing`);
+      continue;
+    }
+    const entries = await readdir(source, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const markdown = await readOrUndefined(join(source, entry.name, 'SKILL.md'));
+      if (markdown === undefined) continue;
+      const frontmatter = parseFrontmatter(markdown);
+      if (
+        runtimes.includes('claude')
+        && isClaudeEligible(frontmatter)
+        && !existsSync(join(projectRoot, '.claude', 'skills', entry.name, 'SKILL.md'))
+      ) {
+        issues.push(`${packDirectory}/${entry.name}: Claude asset missing`);
+      }
+      if (
+        runtimes.includes('codex')
+        && isCodexEligible(frontmatter)
+        && !existsSync(join(projectRoot, '.agents', 'skills', entry.name, 'SKILL.md'))
+      ) {
+        issues.push(`${packDirectory}/${entry.name}: Codex asset missing`);
+      }
+    }
+  }
+  return issues;
+}

@@ -14,6 +14,7 @@ import { patchExistingRuntimeDocs } from '../lib/claude-md.js';
 import { enabledPluginNames, type PackConfig, resolveEffectivePin, withPackPins } from '../lib/pack-config.js';
 import { enabledPluginsKey, findPack, MARKETPLACE_REPO, PACKS } from '../lib/packs.js';
 import { resolveCorePin } from '../lib/remote.js';
+import { readInstallReceipt } from '../lib/receipts.js';
 import {
   marketplaceRepoFrom,
   mergeSettings,
@@ -21,6 +22,7 @@ import {
   settingsPathFor,
   writeSettings,
 } from '../lib/settings.js';
+import { init } from './init.js';
 
 
 export async function add(args: readonly string[]): Promise<void> {
@@ -31,6 +33,11 @@ export async function add(args: readonly string[]): Promise<void> {
   }
 
   const projectRoot = process.cwd();
+  const receipt = await readInstallReceipt(projectRoot);
+  if (receipt?.source === 'local') {
+    await addLocalPacks(projectRoot, args);
+    return;
+  }
   const settingsPath = settingsPathFor(projectRoot);
   const existing = await readSettings(settingsPath);
   const currentEnabled = (existing.enabledPlugins ?? {}) as Record<string, unknown>;
@@ -73,6 +80,39 @@ export async function add(args: readonly string[]): Promise<void> {
 
   p.log.success(`Added: ${newlyAdded.join(', ')} (marketplace: ${marketplaceRepo})`);
   p.log.info('Restart Claude Code to pick up the new plugin.');
+}
+
+async function configuredPacks(projectRoot: string): Promise<string[]> {
+  try {
+    const config = JSON.parse(await readFile(join(projectRoot, '.void', 'config.json'), 'utf8')) as PackConfig;
+    return Object.keys(config.packs ?? {}).map((key) => key.replace(/^@voidcorp\//, ''));
+  } catch {
+    return [];
+  }
+}
+
+async function addLocalPacks(projectRoot: string, names: readonly string[]): Promise<void> {
+  const current = new Set(await configuredPacks(projectRoot));
+  const added: string[] = [];
+  for (const name of names) {
+    const pack = findPack(name);
+    if (!pack) {
+      p.log.warn(`Unknown pack '${name}', skipping. Available: ${PACKS.map((candidate) => candidate.name).join(', ')}`);
+    } else if (current.has(pack.name)) {
+      p.log.info(`'${pack.name}' is already active.`);
+    } else {
+      current.add(pack.name);
+      added.push(pack.name);
+    }
+  }
+  if (added.length === 0) {
+    p.log.info('Nothing to add.');
+    return;
+  }
+  const initArgs = ['--no-interactive', '--replace-packs'];
+  for (const name of current) initArgs.push('--pack', name);
+  await init(initArgs);
+  p.log.success(`Added locally: ${added.join(', ')}`);
 }
 
 async function syncVoidConfig(

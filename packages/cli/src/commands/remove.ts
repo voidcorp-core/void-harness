@@ -20,6 +20,8 @@ import {
   settingsPathFor,
   writeSettings,
 } from '../lib/settings.js';
+import { readInstallReceipt } from '../lib/receipts.js';
+import { init } from './init.js';
 
 
 export async function remove(args: readonly string[]): Promise<void> {
@@ -29,6 +31,11 @@ export async function remove(args: readonly string[]): Promise<void> {
   }
 
   const projectRoot = process.cwd();
+  const receipt = await readInstallReceipt(projectRoot);
+  if (receipt?.source === 'local') {
+    await removeLocalPacks(projectRoot, args);
+    return;
+  }
   const settingsPath = settingsPathFor(projectRoot);
   const existing = await readSettings(settingsPath);
   const currentEnabled = { ...((existing.enabledPlugins ?? {}) as Record<string, unknown>) };
@@ -78,6 +85,38 @@ export async function remove(args: readonly string[]): Promise<void> {
 
   p.log.success(`Removed: ${removed.join(', ')} (marketplace: ${marketplaceRepo})`);
   p.log.info('Restart Claude Code to drop the plugin.');
+}
+
+async function configuredPacks(projectRoot: string): Promise<string[]> {
+  try {
+    const config = JSON.parse(await readFile(join(projectRoot, '.void', 'config.json'), 'utf8')) as PackConfig;
+    return Object.keys(config.packs ?? {}).map((key) => key.replace(/^@voidcorp\//, ''));
+  } catch {
+    return [];
+  }
+}
+
+async function removeLocalPacks(projectRoot: string, names: readonly string[]): Promise<void> {
+  const current = new Set(await configuredPacks(projectRoot));
+  const removed: string[] = [];
+  for (const name of names) {
+    const pack = findPack(name);
+    if (!pack) {
+      p.log.warn(`Unknown pack '${name}', skipping.`);
+    } else if (!current.delete(pack.name)) {
+      p.log.info(`'${pack.name}' was not active.`);
+    } else {
+      removed.push(pack.name);
+    }
+  }
+  if (removed.length === 0) {
+    p.log.info('Nothing to remove.');
+    return;
+  }
+  const initArgs = ['--no-interactive', '--replace-packs'];
+  for (const name of current) initArgs.push('--pack', name);
+  await init(initArgs);
+  p.log.success(`Removed locally: ${removed.join(', ')}`);
 }
 
 async function unsyncVoidConfig(projectRoot: string, removedPacks: readonly string[]): Promise<void> {

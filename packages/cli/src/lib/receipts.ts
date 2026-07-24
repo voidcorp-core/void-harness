@@ -104,6 +104,14 @@ export function parseReceipt(body: string): InstallReceipt | undefined {
   };
 }
 
+export async function readInstallReceipt(projectRoot: string): Promise<InstallReceipt | undefined> {
+  try {
+    return parseReceipt(await readFile(join(projectRoot, ...INSTALL_RECEIPT_PATH.split('/')), 'utf8'));
+  } catch {
+    return undefined;
+  }
+}
+
 async function pruneEmptyParents(projectRoot: string, filePath: string): Promise<void> {
   const root = resolve(projectRoot);
   let cursor = dirname(filePath);

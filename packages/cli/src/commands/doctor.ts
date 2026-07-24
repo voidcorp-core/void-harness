@@ -14,7 +14,7 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS } from '../lib/packs.js';
+import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../lib/packs.js';
 import { marketplaceRepoFrom, readSettings, settingsPathFor } from '../lib/settings.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { checkEnforceWorkflow, checkGh, checkJq, type CheckResult } from '../lib/prerequisites.js';
@@ -23,6 +23,9 @@ import { compareVersions, normalizeVersion } from '../lib/version.js';
 import { detectedAdapters } from '../lib/runtime-adapters.js';
 import { selfRepoDoctorTarget } from '../lib/self-repo.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
+import { readInstallReceipt } from '../lib/receipts.js';
+import { findCoreSource } from '../lib/paths.js';
+import { localPackAssetIssues } from '../lib/runtime-assets.js';
 
 /** Plain pack names (no @voidcorp/ prefix, core excluded) pinned in config.packs. */
 function configPackNames(config: { packs?: Record<string, string> }): string[] {
@@ -103,6 +106,8 @@ export async function doctor(args: readonly string[]): Promise<void> {
   // branches on a runtime name — it iterates the detected adapters.
   const detected = detectedAdapters(root);
   const claudeDetected = detected.some((a) => a.id === 'claude');
+  const receipt = await readInstallReceipt(root);
+  const marketplaceInstall = receipt?.source === 'marketplace';
   if (detected.length === 0) {
     // No footprint at all ⇒ nothing is wired. Without this, a project that has
     // .void/config.json but no CLAUDE.md/.claude or AGENTS.md/.codex would run
@@ -140,7 +145,31 @@ export async function doctor(args: readonly string[]): Promise<void> {
   // Coherence: a pack enabled in settings.json but not pinned in config (or the
   // reverse). Claude-marketplace concern — only when Claude is wired and both
   // files are readable (#68).
-  if (claudeDetected && configReadable && existsSync(settingsPathFor(root))) {
+  if (configReadable && receipt?.source === 'local') {
+    const packNames = configPackNames(parsedConfig);
+    const packDirectories = packNames
+      .map(packDirForName)
+      .filter((directory): directory is string => directory !== undefined);
+    let issues: string[];
+    try {
+      issues = await localPackAssetIssues(
+        root,
+        await findCoreSource(),
+        packDirectories,
+        detected.map((adapter) => adapter.id),
+      );
+    } catch (error) {
+      issues = [`could not inspect bundled pack assets: ${(error as Error).message}`];
+    }
+    checks.push(issues.length === 0
+      ? { name: 'packs coherence', ok: true, message: 'local pack assets match .void/config.json' }
+      : {
+          name: 'packs coherence',
+          ok: false,
+          message: issues.join('; '),
+          fix: 'void-harness init to reconcile local pack assets',
+        });
+  } else if (claudeDetected && configReadable && existsSync(settingsPathFor(root))) {
     const settings = await readSettings(settingsPathFor(root));
     const issues = packsCoherenceIssues(enabledPackNames(settings.enabledPlugins ?? {}), configPackNames(parsedConfig));
     if (issues.length === 0) {
@@ -164,7 +193,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
   // Plugin cache + remote version checks are Claude-marketplace concerns — only
   // relevant when Claude is wired. gh gates the private-marketplace fetch, so it
   // rides with the remote checks (--no-remote is a fully offline run).
-  if (claudeDetected) {
+  if (claudeDetected && marketplaceInstall) {
     if (!skipRemote) {
       checks.push(checkGh());
       checks.push(await checkRemoteVersions(root));

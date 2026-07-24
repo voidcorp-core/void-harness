@@ -128,6 +128,8 @@ npx voidharness runtime add codex    # wire Codex on a Claude project (or vice-v
 
 `runtime add codex` stages Codex's safety floor (`.codex/hooks.json` + hook scripts) and writes
 `AGENTS.md`, leaving your Claude setup byte-for-byte untouched. See [`docs/CODEX.md`](docs/CODEX.md).
+`add`, `remove` and `update` reconcile local assets through the same staged transaction; a pack
+removal deletes only unchanged files owned by the receipt and preserves adjacent or edited files.
 
 `status` reads a frozen capability certification and local telemetry to show, per capability, the
 five-state lifecycle (`available → installed → verified → used → effective`) and a blocker/gauge

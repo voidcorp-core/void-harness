@@ -49,6 +49,8 @@ interface InitOptions {
   readonly allPacks: boolean;
   readonly interactive: boolean;
   readonly force: boolean;
+  /** Internal pack lifecycle mode: config.packs becomes exactly explicitPacks. */
+  readonly replacePacks: boolean;
   readonly marketplaceRepo: string;
   readonly source: InstallSource;
   readonly explicitRuntimes: readonly Runtime[];
@@ -63,6 +65,7 @@ function parseArgs(args: readonly string[]): InitOptions {
   let allPacks = false;
   let interactive = true;
   let force = false;
+  let replacePacks = false;
   let marketplaceRepo = MARKETPLACE_REPO;
   const source = resolveInstallSource(args);
 
@@ -78,6 +81,8 @@ function parseArgs(args: readonly string[]): InitOptions {
       interactive = false;
     } else if (a === '--force') {
       force = true;
+    } else if (a === '--replace-packs') {
+      replacePacks = true;
     } else if (a === '--marketplace-repo' && i + 1 < args.length) {
       const next = args[i + 1];
       if (next !== undefined) marketplaceRepo = next;
@@ -98,7 +103,7 @@ function parseArgs(args: readonly string[]): InitOptions {
   // If --pack flags are present, default to non-interactive (script-friendly).
   if (explicitPacks.length > 0 || allPacks) interactive = false;
 
-  return { explicitPacks, allPacks, interactive, force, marketplaceRepo, source, explicitRuntimes, invalidRuntimeArgs };
+  return { explicitPacks, allPacks, interactive, force, replacePacks, marketplaceRepo, source, explicitRuntimes, invalidRuntimeArgs };
 }
 
 export function resolveInstallSource(args: readonly string[]): InstallSource {
@@ -317,7 +322,9 @@ export async function init(args: readonly string[]): Promise<void> {
     const label = `${i + 1}. ${item}`;
     line(`  ${failed ? c.red(label) : c.dim(label)}`);
   });
-  footer(`skills appear as ${c.bold('/harness:<name>')}, ${c.bold('/harness-<stack>:<name>')}`);
+  footer(opts.source === 'local'
+    ? `project-local skills are discoverable by name in each selected runtime`
+    : `skills appear as ${c.bold('/harness:<name>')}, ${c.bold('/harness-<stack>:<name>')}`);
 }
 
 async function choosePacks(projectRoot: string, opts: InitOptions): Promise<readonly PackDescriptor[]> {
@@ -412,6 +419,17 @@ async function writeConfig(
   // version — an activated pack is always recorded with a valid version, never
   // added-in-message-only (the fake-pack bug).
   const effectivePin = pin ?? resolveEffectivePin(existing) ?? `^${cliVersion()}`;
+  if (opts.replacePacks) {
+    const exactPacks: Record<string, string> = {};
+    for (const pack of packs) {
+      const key = `@voidcorp/${pack.name}`;
+      exactPacks[key] = currentPacks[key] ?? effectivePin;
+    }
+    const merged = { ...existing, packs: exactPacks };
+    await writeFile(configPath, `${JSON.stringify(merged, null, 2)}\n`);
+    tag(`reconciled (${packs.length} selected pack${packs.length === 1 ? '' : 's'})`);
+    return;
+  }
   const added: string[] = [];
   for (const pack of packs) {
     const key = `@voidcorp/${pack.name}`;

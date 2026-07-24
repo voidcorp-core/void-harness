@@ -12,7 +12,7 @@ import {
   buildInstallReceipt,
   encodeReceipt,
   INSTALL_RECEIPT_PATH,
-  parseReceipt,
+  readInstallReceipt,
   type InstallReceipt,
   type ReceiptFileInput,
 } from './receipts.js';
@@ -90,14 +90,6 @@ async function collectStageFiles(stageRoot: string): Promise<ReceiptFileInput[]>
   return files.sort((a, b) => a.path.localeCompare(b.path));
 }
 
-async function loadReceipt(projectRoot: string): Promise<InstallReceipt | undefined> {
-  try {
-    return parseReceipt(await readFile(join(projectRoot, ...INSTALL_RECEIPT_PATH.split('/')), 'utf8'));
-  } catch {
-    return undefined;
-  }
-}
-
 function sameOwnedFile(
   content: Uint8Array,
   mode: number,
@@ -130,7 +122,7 @@ export interface PreparedInstall {
  */
 export async function prepareInstallCommit(input: PrepareInstallInput): Promise<PreparedInstall> {
   const staged = await collectStageFiles(input.stageRoot);
-  const previous = await loadReceipt(input.projectRoot);
+  const previous = await readInstallReceipt(input.projectRoot);
   const previousFiles = new Map((previous?.files ?? []).map((file) => [file.path, file]));
   const stagedPaths = new Set(staged.map((file) => file.path));
   const owned: ReceiptFileInput[] = [];
