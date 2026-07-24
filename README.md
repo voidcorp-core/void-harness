@@ -5,7 +5,7 @@
 Install a top-5% development doctrine on any project in one command, run it across several agent runtimes, and read locally what is installed, actually active, and worth improving.
 
 - **Craftsman skills** — TDD strict, TigerStyle, hexagonal, DDD — enforced by hooks, not vibes.
-- **Multi-runtime by construction** — one doctrine, compiled to **Claude Code** (`CLAUDE.md` + marketplace plugin) and **Codex** (`AGENTS.md` + a `.codex/` safety floor) through a runtime-adapter seam. Add a runtime later without a reinstall (`void-harness runtime add codex`).
+- **Multi-runtime by construction** — one doctrine, compiled to **Claude Code** (`CLAUDE.md` + marketplace plugin) and **Codex** (`AGENTS.md` + `.codex/hooks.json` + `.agents/skills`) through a runtime-adapter seam. Both runtimes get the *same* enforcement: the hooks are a full mirror, and the read-only agents are compiled into Codex skills rather than re-authored. What genuinely cannot cross over is listed in `docs/CODEX.md` instead of being papered over. Add a runtime later without a reinstall (`void-harness runtime add codex`).
 - **Pluggable stack packs** — Next.js, monorepo, React, server, PWA, mobile — activated per project.
 - **Free and account-free** — `npx voidharness init`. No Claude account, no subscription, no API key. The Claude Code marketplace is an optional secondary channel.
 
@@ -13,9 +13,12 @@ Born at VoidCorp, released for anyone.
 
 ## Status
 
-**1.0.0 — live on npm**, public MIT. Install with `npx voidharness init`. Releases are
-provenance-signed and published tokenlessly from CI (npm Trusted Publishing). See `docs/RELEASING.md`
-for the release flow, `plans/` for design specs, and `docs/DECISIONS.md` for the decision log.
+**2.0.0 — live on npm**, public MIT. Install with `npx voidharness init`. Releases are cut
+from Conventional Commits and published from CI, tokenlessly and provenance-signed (npm
+Trusted Publishing). One exception, stated rather than glossed: **2.0.0 itself was published
+manually and carries no provenance attestation**, because the trusted publisher has to be
+re-linked after the package rename. See `docs/RELEASING.md` for the release flow, `plans/`
+for design specs, and `docs/DECISIONS.md` for the decision log.
 
 ## Philosophy
 
