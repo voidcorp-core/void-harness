@@ -86,15 +86,21 @@ Rules:
 
 `void-harness self-host sync` is the only supported dogfood compiler for this
 meta-repository. It hashes bounded, symlink-free current inputs, builds the hook
-runner directly from TypeScript, and compiles both runtime adapters into
-`.void/generated/.staging-*`. Publication swaps the complete directory to
-`.void/generated/current`; a failed swap restores the last green artifact.
+runner and a disposable runtime-adapter worker directly from TypeScript, then
+wires `.void/generated/.staging-*` through that current-source worker. The
+source set is hashed again before publication; concurrent drift aborts.
+Publication swaps the complete directory to `.void/generated/current`; a
+failed swap restores the last green artifact.
 
 The deterministic receipt records the source hash, rollout mode and every owned
 file's bytes + mode. An identical sync is a no-op. `self-host doctor` separately
 reports source staleness, artifact drift, discovery, adapter hook smoke,
 canonical event replay and native runtime availability. Missing runtime CLIs are
 degraded, never certified or silently green.
+
+Doctor probes receive a minimal portable child environment plus their explicit
+`VOID_*` contract. Provider credentials, registry tokens, home paths and other
+ambient configuration never cross that process boundary.
 
 This boundary never writes `packages/core/`, root `CLAUDE.md`/`AGENTS.md`, or
 root `.claude`/`.codex`/`.agents` surfaces. All generated files and runtime probe

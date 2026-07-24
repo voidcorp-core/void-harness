@@ -16,6 +16,7 @@ import {
   type BuildHookBundle,
 } from './compile.js';
 import { readSelfHostReceipt } from './receipt.js';
+import { wireSelfHostRuntimeSurfaces } from './wire.js';
 
 const REPO = resolve(import.meta.dirname, '../../../../..');
 const roots: string[] = [];
@@ -67,6 +68,7 @@ describe('syncSelfHost', () => {
     const first = await syncSelfHost(REPO, {
       generatedRoot,
       buildHookBundle: copyCommittedRunner,
+      wireRuntimeSurfaces: wireSelfHostRuntimeSurfaces,
       mode: 'shadow',
     });
     const current = join(generatedRoot, 'current');
@@ -74,6 +76,7 @@ describe('syncSelfHost', () => {
     const second = await syncSelfHost(REPO, {
       generatedRoot,
       buildHookBundle: copyCommittedRunner,
+      wireRuntimeSurfaces: wireSelfHostRuntimeSurfaces,
       mode: 'shadow',
     });
 
@@ -89,12 +92,14 @@ describe('syncSelfHost', () => {
     await syncSelfHost(REPO, {
       generatedRoot,
       buildHookBundle: copyCommittedRunner,
+      wireRuntimeSurfaces: wireSelfHostRuntimeSurfaces,
       mode: 'shadow',
     });
 
     await expect(syncSelfHost(REPO, {
       generatedRoot,
       buildHookBundle: copyCommittedRunner,
+      wireRuntimeSurfaces: wireSelfHostRuntimeSurfaces,
       mode: 'warn',
       failAfterBackup: true,
     })).rejects.toThrow('injected self-host publication failure');
@@ -110,6 +115,7 @@ describe('syncSelfHost', () => {
     await expect(syncSelfHost(REPO, {
       generatedRoot,
       buildHookBundle: copyCommittedRunner,
+      wireRuntimeSurfaces: wireSelfHostRuntimeSurfaces,
       computeSourceHash: async () => {
         hashCalls += 1;
         return (hashCalls === 1 ? 'a' : 'b').repeat(64);

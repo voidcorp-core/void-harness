@@ -13,8 +13,6 @@ import {
 } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { adaptersFor } from '../runtime-adapters.js';
-import { CORE_PLUGIN_NAME } from '../packs.js';
 import { isHarnessSourceRepo } from '../self-repo.js';
 import {
   buildSelfHostReceipt,
@@ -25,6 +23,10 @@ import {
   SELF_HOST_RECEIPT_PATH,
   selfHostReceiptDrift,
 } from './receipt.js';
+import type {
+  WireSelfHostRuntimeInput,
+  WireSelfHostRuntimeSurfaces,
+} from './wire.js';
 
 const MAX_SOURCE_FILES = 10_000;
 const MAX_SOURCE_BYTES = 128 * 1024 * 1024;
@@ -59,6 +61,8 @@ export type BuildHookBundle = (
 export interface SyncSelfHostOptions {
   readonly generatedRoot?: string;
   readonly buildHookBundle?: BuildHookBundle;
+  readonly wireRuntimeSurfaces?: WireSelfHostRuntimeSurfaces;
+  readonly computeSourceHash?: (root: string) => Promise<string>;
   readonly mode: SelfHostMode;
   /** Test-only fault injection after the previous artifact is backed up. */
   readonly failAfterBackup?: boolean;
@@ -128,12 +132,16 @@ export async function hashSelfHostSource(root: string): Promise<string> {
   return hash.digest('hex');
 }
 
-const defaultBuildHookBundle: BuildHookBundle = async ({ root, outfile }) => {
+async function sourceBuilder(root: string) {
   const requireFromSource = createSourceRequire(
     join(root, 'packages', 'cli', 'package.json'),
   );
   const esbuildUrl = pathToFileURL(requireFromSource.resolve('esbuild')).href;
-  const { build } = await import(esbuildUrl);
+  return import(esbuildUrl);
+}
+
+const defaultBuildHookBundle: BuildHookBundle = async ({ root, outfile }) => {
+  const { build } = await sourceBuilder(root);
   await build({
     absWorkingDir: root,
     entryPoints: [join(root, 'packages/hook-runner/src/cli.ts')],
@@ -150,6 +158,36 @@ const defaultBuildHookBundle: BuildHookBundle = async ({ root, outfile }) => {
     outfile,
     logLevel: 'silent',
   });
+};
+
+const defaultWireRuntimeSurfaces = async (
+  input: WireSelfHostRuntimeInput & { readonly root: string },
+): Promise<void> => {
+  const worker = join(dirname(input.overlayRoot), 'wire-runtime.cjs');
+  const { build } = await sourceBuilder(input.root);
+  await build({
+    absWorkingDir: input.root,
+    entryPoints: [join(input.root, 'packages/cli/src/lib/self-host/wire.ts')],
+    alias: {
+      '@voidcorp/mission-engine/events': join(
+        input.root,
+        'packages/mission-engine/src/events/index.ts',
+      ),
+    },
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node22',
+    outfile: worker,
+    logLevel: 'silent',
+  });
+  const sourceModule = createSourceRequire(import.meta.url)(worker) as {
+    readonly wireSelfHostRuntimeSurfaces?: WireSelfHostRuntimeSurfaces;
+  };
+  if (sourceModule.wireSelfHostRuntimeSurfaces === undefined) {
+    throw new Error('compiled self-host runtime worker has no wire entry point');
+  }
+  await sourceModule.wireSelfHostRuntimeSurfaces(input);
 };
 
 async function copyCompilerCore(root: string, destination: string): Promise<void> {
@@ -211,6 +249,7 @@ async function compileArtifact(input: {
   readonly sourceHash: string;
   readonly mode: SelfHostMode;
   readonly buildHookBundle: BuildHookBundle;
+  readonly wireRuntimeSurfaces: WireSelfHostRuntimeSurfaces;
 }): Promise<number> {
   await copyCompilerCore(input.root, input.overlayRoot);
   await input.buildHookBundle({
@@ -240,18 +279,7 @@ async function compileArtifact(input: {
       join(input.artifactRoot, '.void', 'PROJECT-DOCTRINE.md'),
     ),
   ]);
-  for (const adapter of adaptersFor(['claude', 'codex'])) {
-    await adapter.wire({
-      projectRoot: input.artifactRoot,
-      installationRoot: input.finalRoot,
-      sourceRoot: input.overlayRoot,
-      enabledPlugins: [CORE_PLUGIN_NAME],
-      enabledPacks: [],
-      source: 'local',
-      marketplaceRepo: '',
-      pinVersion: undefined,
-    });
-  }
+  await input.wireRuntimeSurfaces(input);
   const files = await collectArtifactFiles(input.artifactRoot);
   const receipt = buildSelfHostReceipt({
     sourceHash: input.sourceHash,
@@ -333,7 +361,8 @@ export async function syncSelfHost(
     options.generatedRoot === undefined ? [join(canonicalRoot, '.void')] : [],
   );
   const artifactRoot = join(generatedRoot, 'current');
-  const sourceHash = await hashSelfHostSource(canonicalRoot);
+  const computeSourceHash = options.computeSourceHash ?? hashSelfHostSource;
+  const sourceHash = await computeSourceHash(canonicalRoot);
   const currentReceipt = await readSelfHostReceipt(artifactRoot);
   if (
     currentReceipt?.sourceHash === sourceHash
@@ -362,7 +391,15 @@ export async function syncSelfHost(
       sourceHash,
       mode: options.mode,
       buildHookBundle: options.buildHookBundle ?? defaultBuildHookBundle,
+      wireRuntimeSurfaces: options.wireRuntimeSurfaces
+        ?? ((input) => defaultWireRuntimeSurfaces({
+          ...input,
+          root: canonicalRoot,
+        })),
     });
+    if (await computeSourceHash(canonicalRoot) !== sourceHash) {
+      throw new Error('self-host sources changed during compilation');
+    }
     await publishArtifact(
       generatedRoot,
       stagedArtifact,

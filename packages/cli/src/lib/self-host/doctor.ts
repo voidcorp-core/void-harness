@@ -56,11 +56,40 @@ export interface DiagnoseSelfHostOptions {
   readonly mode?: SelfHostMode;
 }
 
+const SAFE_CHILD_ENVIRONMENT = [
+  'COMSPEC',
+  'FORCE_COLOR',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+  'NO_COLOR',
+  'PATH',
+  'PATHEXT',
+  'SYSTEMROOT',
+  'TEMP',
+  'TERM',
+  'TMP',
+  'TMPDIR',
+  'WINDIR',
+] as const;
+
+export function selfHostChildEnvironment(
+  ambient: Readonly<NodeJS.ProcessEnv>,
+  overrides: Readonly<Record<string, string>> = {},
+): NodeJS.ProcessEnv {
+  const result: NodeJS.ProcessEnv = {};
+  for (const key of SAFE_CHILD_ENVIRONMENT) {
+    const value = ambient[key];
+    if (value !== undefined) result[key] = value;
+  }
+  return { ...result, ...overrides };
+}
+
 function commandAvailable(command: Runtime): boolean {
   const suffixes = process.platform === 'win32'
     ? ['', '.exe', '.cmd', '.bat']
     : [''];
-  for (const directory of (process.env['PATH'] ?? '').split(delimiter)) {
+  for (const directory of (process.env.PATH ?? '').split(delimiter)) {
     if (directory === '') continue;
     for (const suffix of suffixes) {
       const candidate = join(directory, `${command}${suffix}`);
@@ -72,6 +101,7 @@ function commandAvailable(command: Runtime): boolean {
         );
         const smoke = spawnSync(candidate, ['--version'], {
           encoding: 'utf8',
+          env: selfHostChildEnvironment(process.env),
           shell: false,
           timeout: 5_000,
           maxBuffer: 1024 * 1024,
@@ -123,13 +153,12 @@ async function probeRuntimeEvent(
     [runner, 'activation', runtime],
     {
       cwd: root,
-      env: {
-        ...process.env,
+      env: selfHostChildEnvironment(process.env, {
         VOID_PROJECT_ROOT: root,
         VOID_GLOBAL_DIR: join(root, '.void', 'generated', '.global'),
         VOID_AGENT_RUNTIME: runtime,
         VOID_MISSION_ID: missionId,
-      },
+      }),
       input: JSON.stringify({
         hook_event_name: 'PreToolUse',
         session_id: `self-host-${runtime}`,

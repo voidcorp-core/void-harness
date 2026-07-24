@@ -15,6 +15,7 @@ import {
   syncSelfHost,
   type BuildHookBundle,
 } from './compile.js';
+import { wireSelfHostRuntimeSurfaces } from './wire.js';
 
 const REPO = resolve(import.meta.dirname, '../../../../..');
 const roots: string[] = [];
@@ -34,6 +35,7 @@ async function generatedFixture(): Promise<string> {
   await syncSelfHost(REPO, {
     generatedRoot: root,
     buildHookBundle,
+    wireRuntimeSurfaces: wireSelfHostRuntimeSurfaces,
     mode: 'shadow',
   });
   return root;
