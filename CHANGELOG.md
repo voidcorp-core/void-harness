@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.1](https://github.com/voidcorp-core/void-harness/compare/v2.0.0...v2.0.1) (2026-07-24)
+
+
+### Bug Fixes
+
+* **ci:** build before typecheck in the publish gate ([#150](https://github.com/voidcorp-core/void-harness/issues/150)) ([3772698](https://github.com/voidcorp-core/void-harness/commit/377269847e8b476759f7b6324f82acd5a043be2d))
+* **ci:** drop setup-node's registry-url, which silently disabled OIDC publishing ([#153](https://github.com/voidcorp-core/void-harness/issues/153)) ([4615574](https://github.com/voidcorp-core/void-harness/commit/4615574401f1c583861344a128da7ba7a4e7c1c2))
+
 ## [2.0.0](https://github.com/voidcorp-core/void-harness/compare/v1.2.0...v2.0.0) (2026-07-24)
 
 
