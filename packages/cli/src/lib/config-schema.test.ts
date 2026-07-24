@@ -12,18 +12,37 @@ const VALID = {
   packs: { '@voidcorp/harness-nextjs': '^0.14.0' },
   stack: { packageManager: 'pnpm', testRunner: 'vitest', e2eRunner: 'none' },
   paths: { business: 'apps/*/src/**', tests: 'apps/*/src/**/*.test.ts' },
-  commands: { test: 'pnpm test' },
+  commands: { test: ['pnpm', 'test'] },
   modes: { tdd: 'auto', codeReview: 'auto' },
 };
 
 describe('validateConfig', () => {
   it('accepts a well-formed config', () => {
-    expect(validateConfig(VALID)).toEqual({ ok: true, issues: [] });
+    expect(validateConfig(VALID)).toEqual({ ok: true, issues: [], warnings: [] });
   });
 
   it('accepts a legacy minimal config (all fields optional)', () => {
     expect(validateConfig({ paths: { business: 'src/**' } }).ok).toBe(true);
     expect(validateConfig({}).ok).toBe(true);
+  });
+
+  it('accepts legacy command strings with a migration warning', () => {
+    const result = validateConfig({ commands: { test: 'pnpm test' } });
+    expect(result.ok).toBe(true);
+    expect(result.issues).toEqual([]);
+    expect(result.warnings).toEqual([
+      'commands.test: legacy shell string; migrate to argv, e.g. ["pnpm","test"]',
+    ]);
+  });
+
+  it('rejects empty argv commands and non-string arguments', () => {
+    const empty = validateConfig({ commands: { test: [] } });
+    expect(empty.ok).toBe(false);
+    expect(empty.issues.some((issue) => issue.startsWith('commands.test:'))).toBe(true);
+
+    const typed = validateConfig({ commands: { test: ['pnpm', 42] } });
+    expect(typed.ok).toBe(false);
+    expect(typed.issues.some((issue) => issue.startsWith('commands.test.1:'))).toBe(true);
   });
 
   it('tolerates unknown/extra top-level keys (forward compatible)', () => {
