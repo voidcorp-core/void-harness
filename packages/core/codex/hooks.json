@@ -1,5 +1,5 @@
 {
-  "$comment": "Codex CLI hooks manifest — the Codex-side safety floor, mirror of the Claude Code PreToolUse hooks wired in ../.claude-plugin/plugin.json. Codex's hook system shares Claude's event names, schema, and exit-code-2-blocks convention, so the same scripts run unchanged. Install: copy this to <project>/.codex/hooks.json (or ~/.codex/hooks.json) and make the void hook scripts resolvable at the referenced path. See ../../../docs/CODEX.md. Matchers list both tool names for the command surface — `Bash` (per the official Codex hooks docs) and `shell` (legacy) — so the floor fires whichever a given Codex build emits; apply_patch is the file-edit tool. Paths use ${VOID_HOOKS_DIR}, resolved from the Git root at run time so a session started in a subdirectory still finds the scripts.",
+  "$comment": "Codex CLI hooks manifest — the Codex-side MIRROR of the Claude Code hooks wired in ../.claude-plugin/plugin.json. Codex's hook system shares Claude's event names, stdin schema, and exit-code-2-blocks convention (per the official Codex hooks docs), so the same scripts run unchanged; `_hooklib.sh` normalizes the one real difference — Claude's single-file Edit|Write versus Codex's multi-file apply_patch. Install: copy this to <project>/.codex/hooks.json (or ~/.codex/hooks.json) and make the void hook scripts resolvable at the referenced path — `void-harness init` does both. Matchers name every tool a given Codex build may emit: `Bash`/`shell` for the command surface, `apply_patch` (plus `Edit`/`Write`) for file edits. Paths use ${VOID_HOOKS_DIR}, resolved from the Git root at run time so a session started in a subdirectory still finds the scripts. NOT mirrored, deliberately: trim-large-output, whose PostToolUse output rewriting (updatedToolOutput) is unconfirmed on Codex — wiring it would spill files to disk for no context benefit. See ../../../docs/CODEX.md.",
   "hooks": {
     "PreToolUse": [
       {
@@ -9,9 +9,108 @@
         ]
       },
       {
-        "matcher": "apply_patch|Bash|shell",
+        "matcher": "apply_patch|Edit|Write|Bash|shell",
         "hooks": [
           { "type": "command", "command": "${VOID_HOOKS_DIR}/protect-sensitive-files.sh" }
+        ]
+      },
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${VOID_HOOKS_DIR}/secret-in-content.sh" }
+        ]
+      },
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${VOID_HOOKS_DIR}/tdd-guard.sh" }
+        ]
+      },
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${VOID_HOOKS_DIR}/no-any-grep.sh" }
+        ]
+      },
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${VOID_HOOKS_DIR}/no-as-cast-grep.sh" }
+        ]
+      },
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${VOID_HOOKS_DIR}/no-console-log-grep.sh" }
+        ]
+      },
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${VOID_HOOKS_DIR}/no-null-grep.sh" }
+        ]
+      },
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${VOID_HOOKS_DIR}/no-only-no-skip.sh" }
+        ]
+      },
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${VOID_HOOKS_DIR}/boundary-direction-check.sh" }
+        ]
+      },
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${VOID_HOOKS_DIR}/test-name-lint.sh" }
+        ]
+      },
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${VOID_HOOKS_DIR}/no-ai-design-slop.sh" }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "${VOID_HOOKS_DIR}/activation-meter.sh" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "${VOID_HOOKS_DIR}/auto-format.sh" }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "${VOID_HOOKS_DIR}/outcome-meter.sh" }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "${VOID_HOOKS_DIR}/sessionstart-context.sh" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "${VOID_HOOKS_DIR}/outcome-meter.sh" }
+        ]
+      },
+      {
+        "hooks": [
+          { "type": "command", "command": "${VOID_HOOKS_DIR}/stop-typecheck.sh" }
         ]
       }
     ]

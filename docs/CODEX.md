@@ -53,36 +53,57 @@ So on a Codex-only project the usage counts reflect Claude usage only — a low
 count means "not observed", not "not useful". This is a Codex limitation, not a
 gap in the harness; nothing to instrument until Codex surfaces skill use.
 
-## The hooks (guardrails, not the floor)
+## The hooks (a full mirror, not a floor)
 
 The safety *floor* for an unattended run is the deny-by-default permission scope
 (`.codex/hooks.json` allow/deny + a sandbox), not the blocklist hooks. The hooks
-are guardrails on top. Codex's hook system mirrors Claude's: same event names
-(`PreToolUse`, …), same `hooks.json` schema, same "exit 2 blocks" convention, so
-the void hook scripts run on Codex unchanged:
+are enforcement on top. Codex's hook system mirrors Claude's: same event names
+(`PreToolUse`, `PostToolUse`, `SessionStart`, `Stop`), same `hooks.json` schema
+(events under a top-level `hooks` key), same "exit 2 blocks" convention, so the
+void hook scripts run on Codex unchanged.
 
-- `block-dangerous-bash.sh` is a **best-effort** blocklist of common footguns
-  (recursive root/home deletes, force-push, raw-device writes, destructive SQL).
-  It reads Codex's `shell` command as a string or an argv array. It will miss
-  novel forms — treat it as a tripwire, not a boundary.
-- `protect-sensitive-files.sh` is a deny-list of never-edit files. It reads
-  `.tool_input.file_path` (Claude `Edit`/`Write`) **and** scans `apply_patch`
-  envelope headers (`*** Update File: <path>`), handling Codex's string or
-  argv-array command shape, case-insensitively. Covered by tests.
+Codex used to receive only two guardrails where Claude received eighteen. It now
+receives the **same enforcement surface**: the blocking greps (`no-any`,
+`no-console-log`, `secret-in-content`, `boundary-direction-check`, `tdd-guard`,
+…), plus `auto-format` on `PostToolUse`, `sessionstart-context`, and the
+`stop-typecheck` gate on `Stop`.
 
-### Wiring the Codex floor (auto-wired by `init`)
+### The one real difference: `apply_patch`
 
-`void-harness init` wires the Codex floor automatically whenever Codex is a
-selected runtime (auto-detected from a `.codex/` dir or `AGENTS.md`, or forced
-with `--runtime codex` / `--runtime both`). It:
+Claude edits **one file** per call (`Edit`/`Write`, carrying `file_path` +
+`new_string`). Codex edits through **`apply_patch`, a multi-file diff**. Wiring
+the content-scanning hooks without accounting for that would have fired them
+against an empty payload — they would have passed everything while reading green.
+A wired-but-dead hook is worse than an honest absence.
 
-1. Stages the floor's hook scripts into `<project>/.void/hooks/`
-   (`block-dangerous-bash.sh`, `protect-sensitive-files.sh`, and the two sourced
-   libraries `_hooklib.sh` + `_checks.sh`).
+`_hooklib.sh` therefore exposes `hooklib_edits`: a runtime-agnostic stream of one
+`<path, new-content>` record per edited file. Every content-scanning hook iterates
+it. Two properties matter:
+
+- only **added (`+`) lines** are collected, so removing or merely surrounding an
+  offending line never trips a scan;
+- **every file in the patch is scanned**, not just the first — a secret added in
+  the second file of a multi-file patch is blocked and names the right file.
+
+Without `jq` the stream degrades to the pure-bash `file_path`, so the path-only
+hooks (`tdd-guard`, `auto-format`) keep enforcing as before; the content-scanning
+hooks still fail **closed** via `hooklib_require_jq`.
+
+### Wiring the Codex hooks (auto-wired by `init`)
+
+`void-harness init` wires the hooks automatically whenever Codex is a selected
+runtime (auto-detected from a `.codex/` dir or `AGENTS.md`, or forced with
+`--runtime codex` / `--runtime both`). It:
+
+1. Stages the hook scripts into `<project>/.void/hooks/` — every hook the
+   manifest wires, plus the two sourced libraries `_hooklib.sh` + `_checks.sh`.
+   The set is enumerated explicitly in `CODEX_FLOOR_SCRIPTS`, never globbed:
+   this is a security surface, so growing it must be a deliberate act, and a
+   drift-guard test asserts the set still covers every command the template
+   references.
 2. Compiles `<project>/.codex/hooks.json` from `packages/core/codex/hooks.json`,
-   substituting `${VOID_HOOKS_DIR}` with the project-relative `.void/hooks`
-   (committable, portable — assumes Codex runs hooks with cwd at the project
-   root, mirroring Claude Code).
+   substituting `${VOID_HOOKS_DIR}` with a Git-root-resolved `.void/hooks` path
+   (a relative path dies the moment a Codex session starts in a subdirectory).
 
 The one remaining human step is to **trust the project-local `.codex/` layer**
 per Codex's config. `void-harness doctor` verifies the floor: every hook the
@@ -95,14 +116,60 @@ The former manual copy is no longer needed. `packages/core/codex/hooks.json`
 remains the single source `init` compiles from; its `$comment` still documents
 the manual path for anyone wiring `~/.codex/hooks.json` by hand.
 
+## The agents (compiled, not re-authored)
+
+Claude runs five read-only critics — `doctrine-critic`, `silent-failure-hunter`,
+`type-design-analyzer`, `code-explorer`, `migration-planner` — as context-isolated
+**subagents** shipped in the marketplace plugin. Codex has no stable equivalent to
+spawn: its subagents are still experimental, and its custom prompts are deprecated
+in favour of **skills**, which its own docs name as the reusable-capability
+primitive.
+
+So `init` **compiles** each agent definition into a Codex skill under
+`.agents/skills/<name>/`, rather than hand-writing a second copy. One authored
+doctrine per capability, rendered per runtime — which is what the runtime seam is
+for. The Claude-only frontmatter keys (`tools`, `model`, `color`) are dropped
+instead of carried as a promise Codex cannot honour, and each compiled file states
+its own origin so nobody hand-edits a generated copy.
+
+**Honest degradation**: Codex gets the capability, not the *context isolation*. A
+skill runs inline in the main Codex context where Claude spawns a separate one.
+
+## The commands
+
+Claude gets `/void-graph`, `/void-doctor`, `/void-audit`, `/void-feedback` and
+`/backlog-autopilot` as plugin commands. Nothing is missing on Codex:
+
+- `backlog-autopilot` **is already a skill**, so it is staged like any other.
+- The `void-*` commands are thin wrappers around the CLI, which is
+  runtime-agnostic. Under Codex, invoke it directly: `void-harness doctor`,
+  `void-harness audit`, `void-graph`. Codex custom prompts are not an option
+  regardless — they are deprecated and live only in `~/.codex`, never in a repo.
+
+## The irreducible residual
+
+Everything above was closed by filling the gap. These cannot be, and saying so
+plainly is the point — this is the only place where "prerequisite" keeps meaning:
+
+| Not available on Codex | Why | Affects |
+| --- | --- | --- |
+| `Workflow` tool | Claude-Code-only orchestration primitive | `backlog-autopilot`'s parallel fan-out (the sequential path still works) |
+| claude-in-chrome MCP | a Claude-bound browser extension | `qa`, `ui-review` live browser passes |
+| `@voidcorp/make-pdf` | package not published | the `make-pdf` skill |
+| `trim-large-output` hook | its `PostToolUse` output rewriting (`updatedToolOutput`) is unconfirmed on Codex, and a sibling field is documented as failing there | token-frugality trimming only; deliberately not wired rather than shipped dead |
+| subagent context isolation | Codex subagents still experimental | the five compiled critics run inline |
+
 ## Status (verified vs pending)
 
-- **Verified**: sister-doc gate, `init` emits `AGENTS.md` **and auto-wires the
-  `.codex/hooks.json` floor** (staged scripts + compiled manifest, unit-tested),
-  `doctor` checks the floor, the two security hooks parse the Codex payload
-  shapes (unit-tested).
-- **Pending a real-Codex run**: end-to-end firing of `.codex/hooks.json`
-  (including confirming the project-relative hook-path resolution), and a
-  `RUNTIME=codex` backend for `autonomous-backlog-loop` (the orchestrator
+- **Verified**: sister-doc gate; `init` emits `AGENTS.md` and auto-wires
+  `.codex/hooks.json` (staged scripts + compiled manifest, unit-tested); `doctor`
+  checks the wiring; the hooks parse both runtimes' payload shapes, including
+  multi-file `apply_patch` (unit-tested); the five agents compile from the real
+  `packages/core` tree (integration-tested); a real `init --runtime codex` stages
+  19 scripts + 41 discoverable skills, and the staged hooks block a violation
+  added in the second file of a multi-file patch.
+- **Pending a real-Codex run**: end-to-end firing of `.codex/hooks.json` by Codex
+  itself (the hooks are verified by direct invocation, not yet by a live Codex
+  session), and a `RUNTIME=codex` backend for the backlog orchestrator (it
   currently invokes `claude -p`; `codex exec` is the intended swap). Tracked in
   `docs/DECISIONS.md` (2026-06-04, 2026-07-22) and the skill audit.

@@ -31,14 +31,39 @@ async function isExecutable(path: string): Promise<boolean> {
   }
 }
 
-// The floor is a fixed, enumerable set: the two guardrail hooks plus the two
-// libraries they source relative to their own location (`${BASH_SOURCE[0]%/*}`).
-// Kept explicit rather than globbed because this is a security surface — growing
-// it must be a deliberate act, and the drift-guard test below asserts this set
-// still covers every command the template references.
+// The staged set is fixed and enumerable: every hook the Codex manifest wires,
+// plus the two libraries they source relative to their own location
+// (`${BASH_SOURCE[0]%/*}`). Kept explicit rather than globbed because this is a
+// security surface — growing it must be a deliberate act, and the drift-guard
+// test below asserts this set still covers every command the template references.
+//
+// It started as a two-hook SAFETY FLOOR. It is now the full mirror of the Claude
+// enforcement surface: Codex shares Claude's hook events and exit-code-2
+// convention, and `_hooklib.sh` normalizes single-file Edit|Write against
+// multi-file apply_patch, so there is no longer a reason for a Codex project to
+// get less enforcement than a Claude one. Deliberately NOT here:
+// trim-large-output (its PostToolUse output rewriting is unconfirmed on Codex).
 export const CODEX_FLOOR_SCRIPTS = [
+  // PreToolUse — blocking guardrails
   'block-dangerous-bash.sh',
   'protect-sensitive-files.sh',
+  'secret-in-content.sh',
+  'tdd-guard.sh',
+  'no-any-grep.sh',
+  'no-as-cast-grep.sh',
+  'no-console-log-grep.sh',
+  'no-null-grep.sh',
+  'no-only-no-skip.sh',
+  'boundary-direction-check.sh',
+  'test-name-lint.sh',
+  'no-ai-design-slop.sh',
+  'activation-meter.sh',
+  // PostToolUse / SessionStart / Stop — repair, telemetry, lifecycle gates
+  'auto-format.sh',
+  'outcome-meter.sh',
+  'sessionstart-context.sh',
+  'stop-typecheck.sh',
+  // sourced libraries (never invoked directly)
   '_hooklib.sh',
   '_checks.sh',
 ] as const;
