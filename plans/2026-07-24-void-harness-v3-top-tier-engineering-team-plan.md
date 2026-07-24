@@ -1261,6 +1261,72 @@ reste ouvert.
 `REDUCTION` au niveau de chaque PR, `SELECTIVE` au niveau du programme. Le MVP s'arrête à Step 11 ;
 Mission Control visuel et écosystème ne peuvent pas grossir ce cut.
 
+## Linear execution handoff
+
+Ce bloc est le handoff durable pour une session qui charge le MCP Linear après ouverture. La cible
+est le workspace `voidcorp`, team `DEV`, projet `void harness`, via le serveur
+`linear-voidcorp`. L'OAuth local est connecté au 2026-07-24, mais aucun ticket de ce programme
+n'a encore été créé. Toujours rechercher les doublons dans le projet avant le premier write.
+
+La source de vérité d'un ticket reste la Step complète correspondante ci-dessus, la spec liée, les
+ADR applicables et `AGENTS.md`. Utiliser `ticket-writer` : contexte, in/out, fichiers, critères
+d'acceptation, DoD, edges, TDD, passes attendues, estimate natif, labels existants, projet,
+priorité et relations `blockedBy` sont obligatoires. Inspecter d'abord les conventions `DEV` et
+mapper les tailles ci-dessous vers son barème ; ne jamais inventer labels ou valeurs d'estimate.
+
+Le découpage comporte 26 tickets d'implémentation et deux gates humaines. Chaque ticket reste au
+plus `L`; les anciens XL sont scindés par ownership, preuve ou rollback :
+
+| Ref | Ticket impératif | Taille | Priorité | `blockedBy` |
+|---|---|---:|---|---|
+| GA | Valider le Checkpoint A Foundation | XS | high | - |
+| L09 | Compiler le DAG mission et les policies de risque | L | high | GA |
+| L10 | Compiler les spécialistes Architecture, Sécurité et QA | L | high | L09 |
+| L11 | Orchestrer le MVP team dans ticket-runner | L | high | L09, L10 |
+| L12 | Ajouter fast, team, fortress et la reprise idempotente | L | high | L11 |
+| L13 | Intégrer le double-pass UX/UI et le TDD frontend | L | high | L10, L12 |
+| L14A | Compiler les profils stack applicables et frais | L | high | L09 |
+| L14B | Compléter les spécialistes techniques et leur routing | L | high | L10, L14A |
+| L15A | Automatiser la baseline sécurité et le pentest autorisé | L | high | L12, L14B |
+| L15B | Orchestrer la rétrospective evidence-backed et HITL | M | normal | L12, L14B |
+| L16 | Introduire l'enveloppe Graph v3 compatible v1 | L | high | GA |
+| L17A | Extraire le ProjectGraph incrémental natif | L | high | L16 |
+| L17B | Exposer les requêtes ProjectGraph et leurs benchmarks | L | high | L17A |
+| L18 | Compiler les context packs bornés par rôle | L | high | L09, L14A, L14B, L17B |
+| L19 | Importer Graphify et décider par benchmark | L | normal | L17B, L18 |
+| L20 | Attribuer tokens, temps et coût sans double comptage | L | high | L18 |
+| L21A | Durcir les gates déterministes de certification | L | high | L11, L12, L14B, L15A, L18, L20 |
+| L21B | Certifier les runtimes Claude et Codex réels | L | high | L21A |
+| L21C | Mesurer l'efficacité adversariale des spécialistes | L | high | L21A, L21B |
+| L22A | Construire la conformance consommateurs et la migration v2 vers v3 | L | high | L15A, L21C |
+| L22B | Certifier void-harness en release-gate | M | high | L22A |
+| L22C | Dogfooder et certifier Declik | L | high | L22A |
+| L22D | Dogfooder et certifier Sesame | L | high | L22A |
+| L22E | Dogfooder et certifier Solaar | L | high | L22A |
+| GB | Valider le Checkpoint B Release Candidate | XS | high | L13, L15B, L19, L22B, L22C, L22D, L22E |
+| L23A | Servir le data plane Mission Control authentifié | L | normal | GB |
+| L23B | Brainstormer et spécifier Mission Control x10 | M | normal | L23A |
+| L24 | Livrer le seam local d'extensions | L | low | GB, L09, L10, L16, L21C |
+
+Les quatre rollouts L22B-E sont séparés : checkouts, secrets locaux, fenêtres de validation et
+rollback ne partagent pas le même ownership. Le projet et les relations Linear sont natifs, jamais
+seulement répétés dans la description. GA et GB sont des tickets de contrôle humain, non des
+prétextes pour simuler une approbation.
+
+Lanes parallèles autorisées après GA :
+
+- Team : L09 -> L10 -> L11 -> L12, avec L14A/L14B puis L13 et L15 en branches contrôlées ;
+- Graph : L16 -> L17A -> L17B, rejoint Team en L18 ;
+- Economics : L18 -> L20 ;
+- Certification : join L11/L12/L14B/L15A/L18/L20 -> L21 -> L22 ;
+- post-RC seulement : L23 et L24.
+
+Shared-artifact rule : lockfile, migrations, `packages/core` généré, `certification.json` et tout
+autre artefact à ownership unique restent séquentiels. `pnpm typecheck` ne doit pas courir en
+parallèle avec `pnpm check:publish` ou un `prepack` : ces gates reconstruisent/nettoient `dist` et
+peuvent créer un faux rouge malgré deux runs séquentiels verts. Le futur DAG doit déclarer les
+gates qui écrivent un artefact et leur appliquer un single-writer lock.
+
 ## Resume point
 
 **Next step**: Checkpoint A - validation humaine du socle alpha
