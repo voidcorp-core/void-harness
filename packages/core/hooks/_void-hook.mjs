@@ -393,7 +393,7 @@ var GENERIC_NAME = /\b(?:it|test)\(\s*['"]should\s|\b(?:it|test)\(\s*['"]works?\
 function testName(edits) {
   return evidenceVerdict(
     "GENERIC_TEST_NAME",
-    "test name must describe observable behavior",
+    "generic test name must describe observable behavior",
     lineEvidence(edits, isTestPath, (line) => GENERIC_NAME.test(line))
   );
 }
@@ -1143,11 +1143,12 @@ function runGit2(root, args, env) {
   };
 }
 function changedTypeScript(root, env) {
-  const tracked = runGit2(
+  const head = runGit2(root, ["rev-parse", "--verify", "HEAD"], env);
+  const tracked = head.ok ? runGit2(
     root,
     ["diff", "--name-only", "--diff-filter=ACM", "HEAD"],
     env
-  );
+  ) : { ok: true, output: "" };
   const untracked = runGit2(
     root,
     ["ls-files", "--others", "--exclude-standard"],

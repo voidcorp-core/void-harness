@@ -35,11 +35,14 @@ function runGit(
 }
 
 function changedTypeScript(root: string, env: Environment): string[] | undefined {
-  const tracked = runGit(
-    root,
-    ['diff', '--name-only', '--diff-filter=ACM', 'HEAD'],
-    env,
-  );
+  const head = runGit(root, ['rev-parse', '--verify', 'HEAD'], env);
+  const tracked = head.ok
+    ? runGit(
+        root,
+        ['diff', '--name-only', '--diff-filter=ACM', 'HEAD'],
+        env,
+      )
+    : { ok: true, output: '' };
   const untracked = runGit(
     root,
     ['ls-files', '--others', '--exclude-standard'],

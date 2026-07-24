@@ -14,7 +14,7 @@ const GENERIC_NAME =
 export function testName(edits: readonly NormalizedEdit[]): RuleVerdict {
   return evidenceVerdict(
     'GENERIC_TEST_NAME',
-    'test name must describe observable behavior',
+    'generic test name must describe observable behavior',
     lineEvidence(edits, isTestPath, (line) => GENERIC_NAME.test(line)),
   );
 }

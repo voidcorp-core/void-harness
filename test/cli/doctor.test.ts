@@ -56,9 +56,9 @@ describe('doctor', () => {
     expect(out).toContain('failed');
   });
 
-  it('always checks jq but skips the gh check under --no-remote (fully offline)', async () => {
+  it('requires neither jq nor gh under --no-remote (fully offline)', async () => {
     const out = await runDoctor();
-    expect(out).toContain('jq');
+    expect(out).not.toContain('jq');
     expect(out).not.toContain('gh CLI');
   });
 
