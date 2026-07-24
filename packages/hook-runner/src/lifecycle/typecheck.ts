@@ -9,7 +9,7 @@ import {
 export type TypecheckConfig =
   | { readonly argv: readonly string[] }
   | { readonly warning: string }
-  | {};
+  | { readonly argv?: never; readonly warning?: never };
 
 function record(value: unknown): Record<string, unknown> | undefined {
   return typeof value === 'object' && value !== null && !Array.isArray(value)

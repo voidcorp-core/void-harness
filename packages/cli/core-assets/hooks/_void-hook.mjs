@@ -619,21 +619,576 @@ function evaluateRule(rule, rawInput, options) {
   throw new Error("UNKNOWN_ENFORCEMENT_RULE");
 }
 
+// src/lifecycle/context.ts
+function sessionStartOutput(version) {
+  const installed = version.trim() === "" ? "unknown" : version.trim();
+  return {
+    hookSpecificOutput: {
+      hookEventName: "SessionStart",
+      additionalContext: `void-harness ${installed} is active. Non-negotiable floor: never edit secrets, keys or lockfiles; never run destructive shell commands; tests and fresh evidence gate "done". Capture durable project rules explicitly. Run \`void-harness doctor\` if runtime health is uncertain.`
+    }
+  };
+}
+
+// src/lifecycle/context-executor.ts
+import { join as join3 } from "node:path";
+
+// src/lifecycle/executor-shared.ts
+import {
+  accessSync,
+  constants,
+  lstatSync,
+  readFileSync as readFileSync2,
+  realpathSync as realpathSync2
+} from "node:fs";
+import { delimiter, isAbsolute as isAbsolute2, join as join2, relative as relative2 } from "node:path";
+function record3(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
+}
+function boundedInteger(value, fallback, min, max) {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= min && parsed <= max ? parsed : fallback;
+}
+function within(root, target) {
+  const rel = relative2(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute2(rel);
+}
+function executable(path) {
+  try {
+    accessSync(path, process.platform === "win32" ? constants.F_OK : constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function findExecutable(name, root, env) {
+  if ((isAbsolute2(name) || name.includes("/") || name.includes("\\")) && executable(name)) {
+    return name;
+  }
+  const suffixes = process.platform === "win32" ? ["", ".cmd", ".exe", ".bat"] : [""];
+  const local = join2(root, "node_modules", ".bin", name);
+  for (const suffix of suffixes) {
+    if (executable(`${local}${suffix}`)) return `${local}${suffix}`;
+  }
+  for (const directory of (env["PATH"] ?? "").split(delimiter)) {
+    if (directory === "") continue;
+    for (const suffix of suffixes) {
+      const candidate = join2(directory, `${name}${suffix}`);
+      if (executable(candidate)) return candidate;
+    }
+  }
+  return void 0;
+}
+function safeExistingFiles(paths, root) {
+  const canonicalRoot = realpathSync2(root);
+  return paths.filter((path) => {
+    try {
+      const info = lstatSync(path);
+      if (!info.isFile() || info.isSymbolicLink()) return false;
+      return within(canonicalRoot, realpathSync2(path));
+    } catch {
+      return false;
+    }
+  });
+}
+function readJson(path) {
+  try {
+    return JSON.parse(readFileSync2(path, "utf8"));
+  } catch {
+    return void 0;
+  }
+}
+
+// src/lifecycle/context-executor.ts
+function installedVersion(root, env) {
+  const explicit = env["VOID_HARNESS_VERSION"];
+  if (explicit !== void 0 && /^[0-9A-Za-z.+-]{1,64}$/.test(explicit)) return explicit;
+  const pluginRoot = env["CLAUDE_PLUGIN_ROOT"];
+  const candidates = [
+    pluginRoot === void 0 ? void 0 : join3(pluginRoot, ".claude-plugin", "plugin.json"),
+    join3(root, ".void", "receipts", "install-v1.json")
+  ];
+  for (const path of candidates) {
+    if (path === void 0) continue;
+    const version = record3(readJson(path))?.["version"];
+    if (typeof version === "string" && /^[0-9A-Za-z.+-]{1,64}$/.test(version)) {
+      return version;
+    }
+  }
+  return "unknown";
+}
+
+// src/lifecycle/format-executor.ts
+import { spawnSync } from "node:child_process";
+
+// src/lifecycle/format.ts
+import {
+  isAbsolute as isAbsolute3,
+  relative as relative3,
+  resolve as resolve2
+} from "node:path";
+var FORMATTABLE = /\.(?:ts|tsx|js|jsx|mjs|cjs|json|jsonc|css)$/;
+function within2(root, target) {
+  const rel = relative3(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute3(rel);
+}
+function formatCandidates(touchedPaths, projectRoot2) {
+  const root = resolve2(projectRoot2);
+  const found = /* @__PURE__ */ new Set();
+  for (const touchedPath of touchedPaths) {
+    const target = resolve2(root, touchedPath);
+    if (touchedPath.trim() !== "" && FORMATTABLE.test(touchedPath.replaceAll("\\", "/")) && within2(root, target)) {
+      found.add(target);
+    }
+  }
+  return [...found];
+}
+
+// src/lifecycle/format-executor.ts
+function executeFormat(rawInput, root, env) {
+  const call = normalizeToolCall(rawInput);
+  if (call.tool !== "Edit" && call.tool !== "Write" && call.tool !== "apply_patch") {
+    return { status: "skipped", details: { reason: "tool-not-applicable" } };
+  }
+  const files = safeExistingFiles(
+    formatCandidates(call.edits.map((edit) => edit.path), root),
+    root
+  );
+  if (files.length === 0) {
+    return { status: "skipped", details: { reason: "no-formattable-touched-file" } };
+  }
+  const biome = findExecutable("biome", root, env);
+  if (biome === void 0) {
+    return { status: "skipped", details: { reason: "formatter-unavailable" } };
+  }
+  const timeout = boundedInteger(
+    env["VOID_HARNESS_FORMAT_TIMEOUT_MS"],
+    1e4,
+    100,
+    3e4
+  );
+  let formatted = 0;
+  for (const file of files) {
+    const result = spawnSync(biome, ["format", "--write", file], {
+      cwd: root,
+      env: { ...process.env, ...env },
+      shell: false,
+      stdio: "ignore",
+      timeout
+    });
+    if (result.error !== void 0 || result.status !== 0) {
+      const timedOut = result.error?.message.includes("ETIMEDOUT") ?? false;
+      return {
+        status: "degraded",
+        details: {
+          reason: timedOut ? "timeout" : "formatter-error",
+          formatted,
+          timeoutMs: timeout
+        }
+      };
+    }
+    formatted += 1;
+  }
+  return { status: "ok", details: { formatted } };
+}
+
+// src/lifecycle/trim-executor.ts
+import { createHash } from "node:crypto";
+import {
+  lstatSync as lstatSync2,
+  mkdirSync,
+  realpathSync as realpathSync3,
+  writeFileSync
+} from "node:fs";
+import { join as join4, relative as relative4 } from "node:path";
+
+// src/lifecycle/trim.ts
+function record4(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
+}
+function contentText(value) {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return "";
+  return value.map((item) => {
+    if (typeof item === "string") return item;
+    const block2 = record4(item);
+    return typeof block2?.["text"] === "string" ? block2["text"] : "";
+  }).filter((item) => item !== "").join("\n");
+}
+function responseText(value) {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return contentText(value);
+  const response = record4(value);
+  if (response === void 0) return "";
+  return [
+    response["stdout"],
+    response["stderr"],
+    response["output"],
+    response["result"],
+    contentText(response["content"])
+  ].filter((item) => typeof item === "string" && item !== "").join("\n");
+}
+function extractToolOutput(value) {
+  const raw = record4(value);
+  if (raw === void 0) return void 0;
+  const tool = raw["tool_name"];
+  if (typeof tool !== "string" || tool !== "Bash" && tool !== "shell" && !tool.startsWith("mcp__")) {
+    return void 0;
+  }
+  const text2 = responseText(raw["tool_response"]);
+  return text2 === "" ? void 0 : { tool, text: text2 };
+}
+function errorEvidence(text2) {
+  return text2.split(/\r?\n/).filter(
+    (line) => /error|fail|exception|traceback|fatal|panic|not ok|assert/i.test(line)
+  ).join("\n").slice(0, 1500);
+}
+function planOutputTrim(text2, options) {
+  const originalBytes = Buffer.byteLength(text2, "utf8");
+  if (originalBytes <= options.thresholdBytes) return void 0;
+  const head = text2.slice(0, 3e3);
+  const tail = text2.slice(-3e3);
+  const errors = errorEvidence(text2);
+  const updatedToolOutput = `${head}
+
+[trimmed ${originalBytes} bytes. Full output: ${options.spillPath}]
+
+${tail}
+
+[error-like lines]
+${errors}
+`;
+  return {
+    fullOutput: text2,
+    originalBytes,
+    updatedToolOutput,
+    note: `trim-large-output: ${options.tool} result ${originalBytes}B trimmed; full output at ${options.spillPath}`
+  };
+}
+
+// src/lifecycle/trim-executor.ts
+function safeOutputDirectory(root) {
+  try {
+    const canonicalRoot = realpathSync3(root);
+    const directory = join4(root, ".void", "outputs");
+    mkdirSync(directory, { recursive: true, mode: 448 });
+    const info = lstatSync2(directory);
+    const canonicalDirectory = realpathSync3(directory);
+    if (!info.isDirectory() || info.isSymbolicLink() || !within(canonicalRoot, canonicalDirectory)) {
+      return void 0;
+    }
+    return canonicalDirectory;
+  } catch {
+    return void 0;
+  }
+}
+function executeTrim(rawInput, root, env) {
+  if (env["VOID_HARNESS_NO_TRIM"] === "1") {
+    return { status: "skipped", details: { reason: "disabled" } };
+  }
+  const extracted = extractToolOutput(rawInput);
+  if (extracted === void 0) {
+    return { status: "skipped", details: { reason: "output-not-applicable" } };
+  }
+  const thresholdBytes = boundedInteger(
+    env["VOID_HARNESS_TRIM_BYTES"],
+    12e3,
+    1,
+    10 * 1024 * 1024
+  );
+  if (Buffer.byteLength(extracted.text, "utf8") <= thresholdBytes) {
+    return { status: "skipped", details: { reason: "below-threshold" } };
+  }
+  const directory = safeOutputDirectory(root);
+  if (directory === void 0) {
+    return {
+      status: "degraded",
+      details: { reason: "unsafe-output-directory" }
+    };
+  }
+  const hash = createHash("sha256").update(extracted.text).digest("hex").slice(0, 12);
+  const tool = extracted.tool.replaceAll(/[^A-Za-z0-9_]/g, "_").slice(0, 80);
+  const file = join4(directory, `${tool}-${process.pid}-${Date.now()}-${hash}.log`);
+  const spillPath = relative4(realpathSync3(root), file).replaceAll("\\", "/");
+  const plan = planOutputTrim(extracted.text, {
+    tool: extracted.tool,
+    thresholdBytes,
+    spillPath
+  });
+  if (plan === void 0) {
+    return { status: "skipped", details: { reason: "below-threshold" } };
+  }
+  try {
+    writeFileSync(file, plan.fullOutput, {
+      encoding: "utf8",
+      flag: "wx",
+      mode: 384
+    });
+  } catch {
+    return { status: "degraded", details: { reason: "spill-write-failed" } };
+  }
+  return {
+    status: "ok",
+    details: {
+      originalBytes: plan.originalBytes,
+      spillPath
+    },
+    output: {
+      hookSpecificOutput: {
+        hookEventName: "PostToolUse",
+        updatedToolOutput: plan.updatedToolOutput,
+        additionalContext: plan.note
+      }
+    }
+  };
+}
+
+// src/lifecycle/typecheck-executor.ts
+import { existsSync as existsSync2 } from "node:fs";
+import { join as join6 } from "node:path";
+import { spawnSync as spawnSync2 } from "node:child_process";
+
+// src/lifecycle/typecheck.ts
+import {
+  dirname as dirname2,
+  isAbsolute as isAbsolute4,
+  join as join5,
+  relative as relative5,
+  resolve as resolve3
+} from "node:path";
+function record5(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
+}
+function configuredTypecheck(value) {
+  const root = record5(value);
+  const commands = record5(root?.["commands"]);
+  const configured = commands?.["typecheck"];
+  if (Array.isArray(configured) && configured.length > 0 && configured.every((argument) => typeof argument === "string")) {
+    return { argv: configured };
+  }
+  if (typeof configured === "string") {
+    return {
+      warning: "legacy commands.typecheck string ignored; migrate it to argv"
+    };
+  }
+  return {};
+}
+function within3(root, target) {
+  const rel = relative5(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute4(rel);
+}
+function nearestTsconfigs(changedPaths, projectRoot2, hasFile) {
+  const root = resolve3(projectRoot2);
+  const found = /* @__PURE__ */ new Set();
+  for (const changedPath of changedPaths) {
+    if (!/\.(?:ts|tsx)$/.test(changedPath) || changedPath.endsWith(".d.ts")) continue;
+    const target = resolve3(root, changedPath);
+    if (!within3(root, target)) continue;
+    let current = dirname2(target);
+    while (within3(root, current)) {
+      const config = join5(current, "tsconfig.json");
+      if (hasFile(config)) {
+        found.add(config);
+        break;
+      }
+      if (current === root) break;
+      current = dirname2(current);
+    }
+  }
+  return [...found];
+}
+
+// src/lifecycle/typecheck-executor.ts
+function runGit(root, args, env) {
+  const git = findExecutable("git", root, env);
+  if (git === void 0) return { ok: false, output: "" };
+  const result = spawnSync2(git, args, {
+    cwd: root,
+    env: { ...process.env, ...env },
+    encoding: "utf8",
+    shell: false,
+    timeout: 5e3,
+    maxBuffer: 1024 * 1024
+  });
+  return {
+    ok: result.status === 0,
+    output: result.status === 0 ? result.stdout : ""
+  };
+}
+function changedTypeScript(root, env) {
+  const tracked = runGit(
+    root,
+    ["diff", "--name-only", "--diff-filter=ACM", "HEAD"],
+    env
+  );
+  const untracked = runGit(
+    root,
+    ["ls-files", "--others", "--exclude-standard"],
+    env
+  );
+  if (!tracked.ok || !untracked.ok) return void 0;
+  return [...new Set(`${tracked.output}
+${untracked.output}`.split(/\r?\n/))].filter((path) => /\.(?:ts|tsx)$/.test(path) && !path.endsWith(".d.ts"));
+}
+function typeErrors(output) {
+  return output.split(/\r?\n/).filter((line) => /error TS\d+|error:/i.test(line)).slice(0, 20).join("\n").slice(0, 12e3);
+}
+function executeTypecheck(root, env) {
+  const changed = changedTypeScript(root, env);
+  if (changed === void 0) {
+    return { status: "skipped", details: { reason: "non-git-or-git-unavailable" } };
+  }
+  if (changed.length === 0) {
+    return { status: "skipped", details: { reason: "no-touched-typescript" } };
+  }
+  const configs = nearestTsconfigs(changed, root, existsSync2);
+  const configured = configuredTypecheck(readJson(join6(root, ".void", "config.json")));
+  const configuredArgv = "argv" in configured ? configured.argv : void 0;
+  const warning = "warning" in configured ? configured.warning : void 0;
+  const fallback = findExecutable("tsc", root, env);
+  const argv = configuredArgv ?? (fallback === void 0 ? void 0 : [fallback, "--noEmit"]);
+  if (argv === void 0) {
+    return {
+      status: "skipped",
+      details: {
+        reason: "typechecker-unavailable",
+        ...warning === void 0 ? {} : { warning }
+      },
+      ...warning === void 0 ? {} : { diagnostic: `stop-typecheck: ${warning}
+` }
+    };
+  }
+  const executablePath = findExecutable(argv[0] ?? "", root, env);
+  if (executablePath === void 0) {
+    return {
+      status: "degraded",
+      details: { reason: "configured-executable-unavailable" }
+    };
+  }
+  const timeout = boundedInteger(
+    env["VOID_HARNESS_TYPECHECK_TIMEOUT_MS"],
+    45e3,
+    100,
+    12e4
+  );
+  const args = argv.slice(1);
+  const isTsc = argv.some(
+    (argument) => /(?:^|[\\/])tsc(?:\.cmd|\.exe)?$/.test(argument)
+  );
+  const invocations = isTsc && configs.length > 0 ? configs.map((config) => [...args, "-p", config]) : [args];
+  let errors = "";
+  for (const invocation of invocations) {
+    const result = spawnSync2(executablePath, invocation, {
+      cwd: root,
+      env: { ...process.env, ...env },
+      encoding: "utf8",
+      shell: false,
+      timeout,
+      maxBuffer: 1024 * 1024
+    });
+    if (result.error !== void 0) {
+      const timedOut = result.error.message.includes("ETIMEDOUT");
+      return {
+        status: "degraded",
+        details: {
+          reason: timedOut ? "timeout" : "execution-error",
+          timeoutMs: timeout
+        },
+        diagnostic: timedOut ? `stop-typecheck: typecheck exceeded ${timeout}ms; advisory result degraded.
+` : "stop-typecheck: typecheck could not execute; advisory result degraded.\n"
+      };
+    }
+    if (result.status !== 0) {
+      errors += `${typeErrors(`${result.stdout}
+${result.stderr}`)}
+`;
+    }
+  }
+  const bounded = errors.trim().slice(0, 12e3);
+  if (bounded !== "") {
+    return {
+      status: "degraded",
+      details: { reason: "type-errors", configs: invocations.length },
+      diagnostic: `stop-typecheck (advisory): type errors in the touched TypeScript surface:
+${bounded}
+Resolve before claiming done. This never blocks.
+`
+    };
+  }
+  return {
+    status: "ok",
+    details: {
+      checkedConfigs: invocations.length,
+      ...warning === void 0 ? {} : { warning }
+    },
+    ...warning === void 0 ? {} : { diagnostic: `stop-typecheck: ${warning}
+` }
+  };
+}
+
 // src/record.ts
 import { homedir } from "node:os";
-import { resolve as resolve5 } from "node:path";
+import { resolve as resolve7 } from "node:path";
+
+// src/project-registry.ts
+import { createHash as createHash2 } from "node:crypto";
+import { lstat, mkdir, open, readFile, realpath } from "node:fs/promises";
+import { isAbsolute as isAbsolute5, join as join7, relative as relative6, resolve as resolve4 } from "node:path";
+function code(error) {
+  return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
+}
+function within4(root, target) {
+  const rel = relative6(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute5(rel);
+}
+async function registerProjectRoot(root, globalDir) {
+  const canonicalRoot = await realpath(resolve4(root));
+  const base = resolve4(globalDir);
+  await mkdir(base, { recursive: true, mode: 448 });
+  const canonicalBase = await realpath(base);
+  const projects = join7(base, "projects");
+  await mkdir(projects, { recursive: true, mode: 448 });
+  const info = await lstat(projects);
+  if (!info.isDirectory() || info.isSymbolicLink()) {
+    throw new Error("HOOK_UNSAFE_REGISTRY: projects must be a real directory");
+  }
+  const canonicalProjects = await realpath(projects);
+  if (!within4(canonicalBase, canonicalProjects)) {
+    throw new Error("HOOK_REGISTRY_ESCAPE: projects resolves outside global dir");
+  }
+  const slug = createHash2("sha256").update(canonicalRoot).digest("hex").slice(0, 32);
+  const pointer = join7(projects, `${slug}.path`);
+  try {
+    const handle = await open(pointer, "wx", 384);
+    try {
+      await handle.writeFile(`${canonicalRoot}
+`, "utf8");
+    } finally {
+      await handle.close();
+    }
+  } catch (error) {
+    if (code(error) !== "EEXIST") throw error;
+    const pointerInfo = await lstat(pointer);
+    if (!pointerInfo.isFile() || pointerInfo.isSymbolicLink()) {
+      throw new Error("HOOK_UNSAFE_REGISTRY: pointer must be a regular file");
+    }
+    if ((await readFile(pointer, "utf8")).trim() !== canonicalRoot) {
+      throw new Error("HOOK_REGISTRY_COLLISION: pointer owns another root");
+    }
+  }
+}
 
 // src/runtime-input.ts
-import { createHash } from "node:crypto";
+import { createHash as createHash3 } from "node:crypto";
 import {
   basename as basename3,
   extname,
-  isAbsolute as isAbsolute2,
-  relative as relative2,
-  resolve as resolve2
+  isAbsolute as isAbsolute6,
+  relative as relative7,
+  resolve as resolve5
 } from "node:path";
 var MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
-function record3(value) {
+function record6(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
 }
 function text(value, fallback = "") {
@@ -676,7 +1231,7 @@ function nameFor(tool, category, input) {
   return tool || "unknown";
 }
 function safePaths(input, root) {
-  const absoluteRoot = resolve2(root);
+  const absoluteRoot = resolve5(root);
   const candidates = [
     input["file_path"],
     input["path"],
@@ -685,19 +1240,19 @@ function safePaths(input, root) {
   const paths = [];
   for (const candidate of candidates) {
     if (typeof candidate !== "string" || candidate.length > 2e3) continue;
-    if (!isAbsolute2(candidate)) {
+    if (!isAbsolute6(candidate)) {
       if (!candidate.startsWith("..")) paths.push(candidate.slice(0, 500));
       continue;
     }
-    const rel = relative2(absoluteRoot, resolve2(candidate));
-    if (rel !== "" && !rel.startsWith("..") && !isAbsolute2(rel)) {
+    const rel = relative7(absoluteRoot, resolve5(candidate));
+    if (rel !== "" && !rel.startsWith("..") && !isAbsolute6(rel)) {
       paths.push(rel.slice(0, 500));
     }
   }
   return paths;
 }
 function outcomeStatus(raw) {
-  const response = record3(raw["tool_response"]);
+  const response = record6(raw["tool_response"]);
   if (response === void 0) return "unknown";
   if (response["success"] === false || response["is_error"] === true || response["error"] !== void 0) {
     return "error";
@@ -705,7 +1260,7 @@ function outcomeStatus(raw) {
   return "ok";
 }
 function adaptRuntimeInput(value, options) {
-  const raw = record3(value);
+  const raw = record6(value);
   if (raw === void 0) return void 0;
   const runtimeSessionId = runtimeSession(raw);
   if (options.phase === "stop" || text(raw["hook_event_name"]) === "Stop") {
@@ -718,7 +1273,7 @@ function adaptRuntimeInput(value, options) {
     };
   }
   const tool = text(raw["tool_name"], "unknown");
-  const input = record3(raw["tool_input"]) ?? {};
+  const input = record6(raw["tool_input"]) ?? {};
   const category = categoryFor(tool);
   const name = nameFor(tool, category, input);
   const fileGlobs = safePaths(input, options.root);
@@ -737,38 +1292,38 @@ function adaptRuntimeInput(value, options) {
     }
   };
 }
-function deriveMissionId(explicit, runtime2, runtimeSessionId, root) {
+function deriveMissionId(explicit, runtime3, runtimeSessionId, root) {
   if (explicit !== void 0 && explicit !== "") {
     if (!MISSION_ID.test(explicit)) {
       throw new Error("HOOK_INVALID_MISSION_ID: expected mis_<opaque-id>");
     }
     return explicit;
   }
-  const opaque = createHash("sha256").update(`${runtime2}\0${runtimeSessionId || "unknown"}\0${resolve2(root)}`).digest("hex").slice(0, 32);
+  const opaque = createHash3("sha256").update(`${runtime3}\0${runtimeSessionId || "unknown"}\0${resolve5(root)}`).digest("hex").slice(0, 32);
   return `mis_${opaque}`;
 }
 
 // src/sequenced-writer.ts
 import { randomUUID as nodeRandomUUID } from "node:crypto";
 import {
-  constants
+  constants as constants2
 } from "node:fs";
 import {
-  lstat,
-  mkdir,
-  open,
-  readFile,
-  realpath,
+  lstat as lstat2,
+  mkdir as mkdir2,
+  open as open2,
+  readFile as readFile2,
+  realpath as realpath2,
   rename,
   stat,
   unlink
 } from "node:fs/promises";
 import {
-  dirname as dirname2,
-  isAbsolute as isAbsolute3,
-  join as join2,
-  relative as relative3,
-  resolve as resolve3
+  dirname as dirname3,
+  isAbsolute as isAbsolute7,
+  join as join8,
+  relative as relative8,
+  resolve as resolve6
 } from "node:path";
 
 // ../mission-engine/dist/events/schema.js
@@ -809,7 +1364,7 @@ function isPrintable(value) {
   }
   return true;
 }
-function record4(value) {
+function record7(value) {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return void 0;
   }
@@ -829,7 +1384,7 @@ function isJsonValue(value, depth, budget) {
   if (Array.isArray(value)) {
     return value.every((entry) => isJsonValue(entry, depth + 1, budget));
   }
-  const object = record4(value);
+  const object = record7(value);
   if (object === void 0)
     return false;
   return Object.entries(object).every(([key, entry]) => key.length <= 100 && isPrintable(key) && isJsonValue(entry, depth + 1, budget));
@@ -844,7 +1399,7 @@ function contractError(message) {
   };
 }
 function parseEvent(value) {
-  const raw = record4(value);
+  const raw = record7(value);
   if (raw === void 0)
     return contractError("event must be a plain object");
   const unknownKeys = Object.keys(raw).filter((key) => !EVENT_KEYS.has(key));
@@ -1017,19 +1572,19 @@ var MISSION_ID3 = /^mis_[A-Za-z0-9_-]{8,100}$/;
 var DEFAULT_LOCK_STALE_MS = 3e4;
 var DEFAULT_LOCK_ATTEMPTS = 2e3;
 var LOCK_RETRY_MS = 2;
-function code(error) {
+function code2(error) {
   return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
 }
-function within(root, target) {
-  const rel = relative3(root, target);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute3(rel);
+function within5(root, target) {
+  const rel = relative8(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute7(rel);
 }
 async function exists(path) {
   try {
-    await lstat(path);
+    await lstat2(path);
     return true;
   } catch (error) {
-    if (code(error) === "ENOENT") return false;
+    if (code2(error) === "ENOENT") return false;
     throw error;
   }
 }
@@ -1037,34 +1592,34 @@ async function safeRunDirectory(root, missionId) {
   if (!MISSION_ID3.test(missionId)) {
     throw new Error("HOOK_INVALID_MISSION_ID: expected mis_<opaque-id>");
   }
-  const absoluteRoot = resolve3(root);
-  const canonicalRoot = await realpath(absoluteRoot);
-  const run = join2(absoluteRoot, ".void", "runs", missionId);
+  const absoluteRoot = resolve6(root);
+  const canonicalRoot = await realpath2(absoluteRoot);
+  const run = join8(absoluteRoot, ".void", "runs", missionId);
   let ancestor = run;
   while (!await exists(ancestor)) {
-    const parent = dirname2(ancestor);
+    const parent = dirname3(ancestor);
     if (parent === ancestor) break;
     ancestor = parent;
   }
-  const canonicalAncestor = await realpath(ancestor);
-  if (!within(canonicalRoot, canonicalAncestor)) {
+  const canonicalAncestor = await realpath2(ancestor);
+  if (!within5(canonicalRoot, canonicalAncestor)) {
     throw new Error("HOOK_PATH_ESCAPE: run directory resolves outside project");
   }
-  await mkdir(run, { recursive: true, mode: 448 });
-  const canonicalRun = await realpath(run);
-  if (!within(canonicalRoot, canonicalRun)) {
+  await mkdir2(run, { recursive: true, mode: 448 });
+  const canonicalRun = await realpath2(run);
+  if (!within5(canonicalRoot, canonicalRun)) {
     throw new Error("HOOK_PATH_ESCAPE: run directory resolves outside project");
   }
   return run;
 }
 async function rejectSymlink(path) {
   try {
-    const info = await lstat(path);
+    const info = await lstat2(path);
     if (info.isSymbolicLink() || !info.isFile()) {
       throw new Error(`HOOK_UNSAFE_FILE: ${path} must be a regular file`);
     }
   } catch (error) {
-    if (code(error) !== "ENOENT") throw error;
+    if (code2(error) !== "ENOENT") throw error;
   }
 }
 async function wait(ms) {
@@ -1076,7 +1631,7 @@ async function acquireLock(path, staleMs, attempts) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const token = nodeRandomUUID();
     try {
-      const handle = await open(path, "wx", 384);
+      const handle = await open2(path, "wx", 384);
       try {
         await handle.writeFile(
           JSON.stringify({ token, pid: process.pid, acquiredAt: Date.now() }),
@@ -1087,9 +1642,9 @@ async function acquireLock(path, staleMs, attempts) {
       }
       return { path, token };
     } catch (error) {
-      if (code(error) !== "EEXIST") throw error;
-      const info = await lstat(path).catch((statError) => {
-        if (code(statError) === "ENOENT") return void 0;
+      if (code2(error) !== "EEXIST") throw error;
+      const info = await lstat2(path).catch((statError) => {
+        if (code2(statError) === "ENOENT") return void 0;
         throw statError;
       });
       if (info === void 0) continue;
@@ -1098,7 +1653,7 @@ async function acquireLock(path, staleMs, attempts) {
       }
       if (Date.now() - info.mtimeMs > staleMs) {
         await unlink(path).catch((unlinkError) => {
-          if (code(unlinkError) !== "ENOENT") throw unlinkError;
+          if (code2(unlinkError) !== "ENOENT") throw unlinkError;
         });
         continue;
       }
@@ -1109,27 +1664,27 @@ async function acquireLock(path, staleMs, attempts) {
 }
 async function releaseLock(lock) {
   try {
-    const raw = await readFile(lock.path, "utf8");
+    const raw = await readFile2(lock.path, "utf8");
     const parsed = JSON.parse(raw);
     if (parsed.token === lock.token) await unlink(lock.path);
   } catch (error) {
-    if (code(error) !== "ENOENT") throw error;
+    if (code2(error) !== "ENOENT") throw error;
   }
 }
 async function readSequenceState(statePath, logPath, logBytes) {
   try {
-    const raw = JSON.parse(await readFile(statePath, "utf8"));
+    const raw = JSON.parse(await readFile2(statePath, "utf8"));
     if (Number.isSafeInteger(raw.seq) && (raw.seq ?? -1) >= 0 && raw.logBytes === logBytes) {
       return raw.seq ?? 0;
     }
   } catch {
   }
   if (logBytes === 0) return 0;
-  return replayEventLog(await readFile(logPath, "utf8")).lastSeq;
+  return replayEventLog(await readFile2(logPath, "utf8")).lastSeq;
 }
 async function ensureLineBoundary(logPath, logBytes) {
   if (logBytes === 0) return 0;
-  const handle = await open(logPath, "r");
+  const handle = await open2(logPath, "r");
   try {
     const finalByte = Buffer.alloc(1);
     await handle.read(finalByte, 0, 1, logBytes - 1);
@@ -1137,9 +1692,9 @@ async function ensureLineBoundary(logPath, logBytes) {
   } finally {
     await handle.close();
   }
-  const append = await open(
+  const append = await open2(
     logPath,
-    constants.O_APPEND | constants.O_WRONLY | (constants.O_NOFOLLOW ?? 0)
+    constants2.O_APPEND | constants2.O_WRONLY | (constants2.O_NOFOLLOW ?? 0)
   );
   try {
     await append.writeFile("\n", "utf8");
@@ -1149,8 +1704,8 @@ async function ensureLineBoundary(logPath, logBytes) {
   return logBytes + 1;
 }
 async function appendLine(logPath, line) {
-  const flags = constants.O_APPEND | constants.O_CREAT | constants.O_WRONLY | (constants.O_NOFOLLOW ?? 0);
-  const handle = await open(logPath, flags, 384);
+  const flags = constants2.O_APPEND | constants2.O_CREAT | constants2.O_WRONLY | (constants2.O_NOFOLLOW ?? 0);
+  const handle = await open2(logPath, flags, 384);
   try {
     await handle.writeFile(`${line}
 `, "utf8");
@@ -1161,7 +1716,7 @@ async function appendLine(logPath, line) {
 }
 async function writeSequenceState(statePath, state, randomUUID) {
   const temporary = `${statePath}.${randomUUID()}.tmp`;
-  const handle = await open(temporary, "wx", 384);
+  const handle = await open2(temporary, "wx", 384);
   try {
     await handle.writeFile(JSON.stringify(state), "utf8");
   } finally {
@@ -1171,9 +1726,9 @@ async function writeSequenceState(statePath, state, randomUUID) {
 }
 async function writeSequencedEvent(options) {
   const run = await safeRunDirectory(options.root, options.missionId);
-  const logPath = join2(run, "events.jsonl");
-  const statePath = join2(run, ".seq.state");
-  const lockPath = join2(run, ".seq.lock");
+  const logPath = join8(run, "events.jsonl");
+  const statePath = join8(run, ".seq.state");
+  const lockPath = join8(run, ".seq.lock");
   await Promise.all([
     rejectSymlink(logPath),
     rejectSymlink(statePath),
@@ -1188,7 +1743,7 @@ async function writeSequencedEvent(options) {
   try {
     await rejectSymlink(logPath);
     const currentBytes = await stat(logPath).then((value) => value.size).catch((error) => {
-      if (code(error) === "ENOENT") return 0;
+      if (code2(error) === "ENOENT") return 0;
       throw error;
     });
     if (currentBytes >= MAX_EVENT_LOG_BYTES) {
@@ -1224,54 +1779,6 @@ async function writeSequencedEvent(options) {
   }
 }
 
-// src/project-registry.ts
-import { createHash as createHash2 } from "node:crypto";
-import { lstat as lstat2, mkdir as mkdir2, open as open2, readFile as readFile2, realpath as realpath2 } from "node:fs/promises";
-import { isAbsolute as isAbsolute4, join as join3, relative as relative4, resolve as resolve4 } from "node:path";
-function code2(error) {
-  return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
-}
-function within2(root, target) {
-  const rel = relative4(root, target);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute4(rel);
-}
-async function registerProjectRoot(root, globalDir) {
-  const canonicalRoot = await realpath2(resolve4(root));
-  const base = resolve4(globalDir);
-  await mkdir2(base, { recursive: true, mode: 448 });
-  const canonicalBase = await realpath2(base);
-  const projects = join3(base, "projects");
-  await mkdir2(projects, { recursive: true, mode: 448 });
-  const info = await lstat2(projects);
-  if (!info.isDirectory() || info.isSymbolicLink()) {
-    throw new Error("HOOK_UNSAFE_REGISTRY: projects must be a real directory");
-  }
-  const canonicalProjects = await realpath2(projects);
-  if (!within2(canonicalBase, canonicalProjects)) {
-    throw new Error("HOOK_REGISTRY_ESCAPE: projects resolves outside global dir");
-  }
-  const slug = createHash2("sha256").update(canonicalRoot).digest("hex").slice(0, 32);
-  const pointer = join3(projects, `${slug}.path`);
-  try {
-    const handle = await open2(pointer, "wx", 384);
-    try {
-      await handle.writeFile(`${canonicalRoot}
-`, "utf8");
-    } finally {
-      await handle.close();
-    }
-  } catch (error) {
-    if (code2(error) !== "EEXIST") throw error;
-    const pointerInfo = await lstat2(pointer);
-    if (!pointerInfo.isFile() || pointerInfo.isSymbolicLink()) {
-      throw new Error("HOOK_UNSAFE_REGISTRY: pointer must be a regular file");
-    }
-    if ((await readFile2(pointer, "utf8")).trim() !== canonicalRoot) {
-      throw new Error("HOOK_REGISTRY_COLLISION: pointer owns another root");
-    }
-  }
-}
-
 // src/record.ts
 async function recordRuntimeEvent(options) {
   const adapted = adaptRuntimeInput(options.rawInput, options);
@@ -1296,7 +1803,43 @@ async function recordRuntimeEvent(options) {
   });
   await registerProjectRoot(
     options.root,
-    options.globalDir ?? resolve5(homedir(), ".void")
+    options.globalDir ?? resolve7(homedir(), ".void")
+  ).catch(() => {
+  });
+  return event;
+}
+async function recordHookEvent(options) {
+  if (!/^[a-z0-9][a-z0-9-]{0,99}$/.test(options.hook)) {
+    throw new Error("HOOK_INVALID_NAME: expected a bounded kebab-case name");
+  }
+  const adapted = adaptRuntimeInput(options.rawInput ?? {}, {
+    root: options.root,
+    runtime: options.runtime,
+    phase: "outcome"
+  });
+  const missionId = deriveMissionId(
+    options.missionId,
+    options.runtime,
+    adapted?.runtimeSessionId ?? "",
+    options.root
+  );
+  const event = await writeSequencedEvent({
+    root: options.root,
+    missionId,
+    draft: {
+      source: `runtime:${options.runtime}`,
+      kind: "hook.completed",
+      subject: `hook:${options.hook}`,
+      correlationId: missionId,
+      payload: {
+        status: options.status,
+        ...options.details ?? {}
+      }
+    }
+  });
+  await registerProjectRoot(
+    options.root,
+    options.globalDir ?? resolve7(homedir(), ".void")
   ).catch(() => {
   });
   return event;
@@ -1314,7 +1857,7 @@ async function recordRuntimeEventFromCli(raw, argv, env) {
     runtime: runtime(argv[3] ?? env["VOID_AGENT_RUNTIME"]),
     phase: phase(argv[2]),
     rawInput: raw,
-    globalDir: env["VOID_GLOBAL_DIR"] ?? resolve5(homedir(), ".void"),
+    globalDir: env["VOID_GLOBAL_DIR"] ?? resolve7(homedir(), ".void"),
     ...env["VOID_MISSION_ID"] === void 0 ? {} : { missionId: env["VOID_MISSION_ID"] }
   });
 }
@@ -1352,8 +1895,72 @@ ${verdict.evidence.map((item) => `- ${item}`).join("\n")}`;
   write(`${verdict.code}: ${verdict.message}${evidence}
 `);
 }
+function runtime2(value) {
+  return value === "claude" || value === "codex" ? value : "unknown";
+}
+function projectRoot() {
+  return process.env["VOID_PROJECT_ROOT"] ?? process.env["CLAUDE_PROJECT_DIR"] ?? discoverProjectRoot(process.cwd());
+}
+function optionalPayload(input) {
+  if (input.byteLength === 0) return {};
+  try {
+    return parseHookPayload(input);
+  } catch {
+    return void 0;
+  }
+}
+async function observeHook(hook, execution, rawInput, agentRuntime, root) {
+  await recordHookEvent({
+    root,
+    runtime: agentRuntime,
+    hook,
+    status: execution.status,
+    rawInput,
+    details: execution.details,
+    ...process.env["VOID_GLOBAL_DIR"] === void 0 ? {} : { globalDir: process.env["VOID_GLOBAL_DIR"] },
+    ...process.env["VOID_MISSION_ID"] === void 0 ? {} : { missionId: process.env["VOID_MISSION_ID"] }
+  }).catch(() => {
+  });
+}
+async function runLifecycle(input) {
+  const hook = process.argv[3] ?? "";
+  const agentRuntime = runtime2(process.argv[4] ?? process.env["VOID_AGENT_RUNTIME"]);
+  const root = projectRoot();
+  const rawInput = optionalPayload(input);
+  if (hook === "context") {
+    const execution2 = { status: "ok", details: {} };
+    process.stdout.write(
+      `${JSON.stringify(sessionStartOutput(installedVersion(root, process.env)))}
+`
+    );
+    await observeHook(hook, execution2, rawInput ?? {}, agentRuntime, root);
+    return;
+  }
+  if (rawInput === void 0) {
+    await observeHook(
+      hook || "unknown",
+      { status: "degraded", details: { reason: "invalid-hook-input" } },
+      {},
+      agentRuntime,
+      root
+    );
+    return;
+  }
+  const execution = hook === "format" ? executeFormat(rawInput, root, process.env) : hook === "trim" ? executeTrim(rawInput, root, process.env) : hook === "typecheck" ? executeTypecheck(root, process.env) : void 0;
+  if (execution === void 0) return;
+  if (execution.diagnostic !== void 0) process.stderr.write(execution.diagnostic);
+  if ("output" in execution && execution.output !== void 0) {
+    process.stdout.write(`${JSON.stringify(execution.output)}
+`);
+  }
+  await observeHook(hook, execution, rawInput, agentRuntime, root);
+}
 async function main() {
   const input = await readStdin();
+  if (process.argv[2] === "lifecycle") {
+    await runLifecycle(input);
+    return;
+  }
   if (process.argv[2] !== "enforce" && process.argv[2] !== "enforce-ci") {
     try {
       await recordRuntimeEventFromCli(
@@ -1379,10 +1986,25 @@ async function main() {
       rule,
       rawInput,
       {
-        root: process.env["VOID_PROJECT_ROOT"] ?? process.env["CLAUDE_PROJECT_DIR"] ?? discoverProjectRoot(process.cwd()),
+        root: projectRoot(),
         env: process.env
       }
     );
+    if (process.argv[2] === "enforce") {
+      await observeHook(
+        rule,
+        {
+          status: verdict.allow ? "ok" : "blocked",
+          details: {
+            code: verdict.code,
+            evidenceCount: verdict.evidence.length
+          }
+        },
+        rawInput,
+        runtime2(process.argv[4] ?? process.env["VOID_AGENT_RUNTIME"]),
+        projectRoot()
+      );
+    }
     writeVerdict(verdict, (message) => process.stderr.write(message));
     if (!verdict.allow) process.exitCode = 2;
   } catch (error) {

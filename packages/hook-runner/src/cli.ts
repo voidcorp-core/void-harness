@@ -6,7 +6,17 @@ import {
   parseHookText,
   type RuleName,
 } from './enforcement/runner.js';
-import { recordRuntimeEventFromCli } from './record.js';
+import { sessionStartOutput } from './lifecycle/context.js';
+import { installedVersion } from './lifecycle/context-executor.js';
+import type { LifecycleExecution } from './lifecycle/executor-shared.js';
+import { executeFormat } from './lifecycle/format-executor.js';
+import { executeTrim } from './lifecycle/trim-executor.js';
+import { executeTypecheck } from './lifecycle/typecheck-executor.js';
+import {
+  recordHookEvent,
+  recordRuntimeEventFromCli,
+} from './record.js';
+import type { AgentRuntime } from './runtime-input.js';
 
 const RULES = new Set<RuleName>([
   'dangerous-command',
@@ -46,8 +56,96 @@ function writeVerdict(
   write(`${verdict.code}: ${verdict.message}${evidence}\n`);
 }
 
+function runtime(value: string | undefined): AgentRuntime {
+  return value === 'claude' || value === 'codex' ? value : 'unknown';
+}
+
+function projectRoot(): string {
+  return process.env['VOID_PROJECT_ROOT']
+    ?? process.env['CLAUDE_PROJECT_DIR']
+    ?? discoverProjectRoot(process.cwd());
+}
+
+function optionalPayload(input: Uint8Array): unknown {
+  if (input.byteLength === 0) return {};
+  try {
+    return parseHookPayload(input);
+  } catch {
+    return undefined;
+  }
+}
+
+async function observeHook(
+  hook: string,
+  execution: Omit<LifecycleExecution, 'status'> & {
+    readonly status: LifecycleExecution['status'] | 'blocked';
+  },
+  rawInput: unknown,
+  agentRuntime: AgentRuntime,
+  root: string,
+): Promise<void> {
+  await recordHookEvent({
+    root,
+    runtime: agentRuntime,
+    hook,
+    status: execution.status,
+    rawInput,
+    details: execution.details,
+    ...(process.env['VOID_GLOBAL_DIR'] === undefined
+      ? {}
+      : { globalDir: process.env['VOID_GLOBAL_DIR'] }),
+    ...(process.env['VOID_MISSION_ID'] === undefined
+      ? {}
+      : { missionId: process.env['VOID_MISSION_ID'] }),
+  }).catch(() => {
+    // Observability is advisory and must never alter hook behavior.
+  });
+}
+
+async function runLifecycle(input: Uint8Array): Promise<void> {
+  const hook = process.argv[3] ?? '';
+  const agentRuntime = runtime(process.argv[4] ?? process.env['VOID_AGENT_RUNTIME']);
+  const root = projectRoot();
+  const rawInput = optionalPayload(input);
+  if (hook === 'context') {
+    const execution: LifecycleExecution = { status: 'ok', details: {} };
+    process.stdout.write(
+      `${JSON.stringify(sessionStartOutput(installedVersion(root, process.env)))}\n`,
+    );
+    await observeHook(hook, execution, rawInput ?? {}, agentRuntime, root);
+    return;
+  }
+  if (rawInput === undefined) {
+    await observeHook(
+      hook || 'unknown',
+      { status: 'degraded', details: { reason: 'invalid-hook-input' } },
+      {},
+      agentRuntime,
+      root,
+    );
+    return;
+  }
+  const execution = hook === 'format'
+    ? executeFormat(rawInput, root, process.env)
+    : hook === 'trim'
+      ? executeTrim(rawInput, root, process.env)
+      : hook === 'typecheck'
+        ? executeTypecheck(root, process.env)
+        : undefined;
+  if (execution === undefined) return;
+  if (execution.diagnostic !== undefined) process.stderr.write(execution.diagnostic);
+  if ('output' in execution && execution.output !== undefined) {
+    process.stdout.write(`${JSON.stringify(execution.output)}\n`);
+  }
+  await observeHook(hook, execution, rawInput, agentRuntime, root);
+}
+
 async function main(): Promise<void> {
   const input = await readStdin();
+  if (process.argv[2] === 'lifecycle') {
+    await runLifecycle(input);
+    return;
+  }
   if (process.argv[2] !== 'enforce' && process.argv[2] !== 'enforce-ci') {
     try {
       await recordRuntimeEventFromCli(
@@ -77,12 +175,25 @@ async function main(): Promise<void> {
       rule as RuleName,
       rawInput,
       {
-        root: process.env['VOID_PROJECT_ROOT']
-          ?? process.env['CLAUDE_PROJECT_DIR']
-          ?? discoverProjectRoot(process.cwd()),
+        root: projectRoot(),
         env: process.env,
       },
     );
+    if (process.argv[2] === 'enforce') {
+      await observeHook(
+        rule as RuleName,
+        {
+          status: verdict.allow ? 'ok' : 'blocked',
+          details: {
+            code: verdict.code,
+            evidenceCount: verdict.evidence.length,
+          },
+        },
+        rawInput,
+        runtime(process.argv[4] ?? process.env['VOID_AGENT_RUNTIME']),
+        projectRoot(),
+      );
+    }
     writeVerdict(verdict, (message) => process.stderr.write(message));
     if (!verdict.allow) process.exitCode = 2;
   } catch (error) {

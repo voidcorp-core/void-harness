@@ -5,79 +5,79 @@
       {
         "matcher": "Bash|shell",
         "hooks": [
-          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce dangerous-command" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce dangerous-command codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write|Bash|shell",
         "hooks": [
-          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce protected-file" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce protected-file codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce secret-content" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce secret-content codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce tdd-order" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce tdd-order codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce no-any" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce no-any codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce no-as-cast" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce no-as-cast codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce no-console" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce no-console codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce no-null" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce no-null codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce no-focused-test" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce no-focused-test codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce boundary-direction" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce boundary-direction codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce test-name" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce test-name codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce design-slop" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce design-slop codex" }
         ]
       },
       {
         "matcher": "*",
         "hooks": [
-          { "type": "command", "command": "VOID_AGENT_RUNTIME=codex \"${VOID_HOOKS_DIR}/activation-meter.sh\"" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" activation codex" }
         ]
       }
     ],
@@ -85,32 +85,32 @@
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "\"${VOID_HOOKS_DIR}/auto-format.sh\"" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" lifecycle format codex" }
         ]
       },
       {
         "matcher": "*",
         "hooks": [
-          { "type": "command", "command": "VOID_AGENT_RUNTIME=codex \"${VOID_HOOKS_DIR}/outcome-meter.sh\"" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" outcome codex" }
         ]
       }
     ],
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "\"${VOID_HOOKS_DIR}/sessionstart-context.sh\"" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" lifecycle context codex" }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "VOID_AGENT_RUNTIME=codex \"${VOID_HOOKS_DIR}/outcome-meter.sh\"" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" stop codex" }
         ]
       },
       {
         "hooks": [
-          { "type": "command", "command": "\"${VOID_HOOKS_DIR}/stop-typecheck.sh\"" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" lifecycle typecheck codex" }
         ]
       }
     ]
