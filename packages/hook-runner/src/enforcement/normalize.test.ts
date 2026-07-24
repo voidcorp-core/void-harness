@@ -34,6 +34,7 @@ describe('normalizeToolCall', () => {
       edits: [
         { path: 'apps/web/.env', addedContent: 'TOKEN=added\n' },
         { path: 'apps/web/src/a.ts', addedContent: 'export const a = 1;\n' },
+        { path: 'apps/web/src/old.ts', addedContent: '' },
       ],
     });
   });

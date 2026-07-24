@@ -1,5 +1,3 @@
-import { fileURLToPath } from 'node:url';
-import { realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import type {
@@ -14,8 +12,6 @@ import {
 } from './runtime-input.js';
 import { writeSequencedEvent } from './sequenced-writer.js';
 import { registerProjectRoot } from './project-registry.js';
-
-export const MAX_HOOK_INPUT_BYTES = 1024 * 1024;
 
 export interface RecordRuntimeEventOptions {
   readonly root: string;
@@ -58,20 +54,6 @@ export async function recordRuntimeEvent(
   return event;
 }
 
-async function readStdin(): Promise<string> {
-  const chunks: Buffer[] = [];
-  let bytes = 0;
-  for await (const raw of process.stdin) {
-    const chunk = Buffer.isBuffer(raw) ? raw : Buffer.from(String(raw));
-    bytes += chunk.byteLength;
-    if (bytes > MAX_HOOK_INPUT_BYTES) {
-      throw new Error('HOOK_INPUT_TOO_LARGE');
-    }
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks).toString('utf8');
-}
-
 function runtime(value: string | undefined): AgentRuntime {
   return value === 'claude' || value === 'codex' ? value : 'unknown';
 }
@@ -81,45 +63,21 @@ function phase(value: string | undefined): HookPhase {
   return 'activation';
 }
 
-async function main(): Promise<void> {
-  const input = await readStdin();
-  let raw: unknown;
-  try {
-    raw = JSON.parse(input);
-  } catch {
-    return;
-  }
+export async function recordRuntimeEventFromCli(
+  raw: unknown,
+  argv: readonly string[],
+  env: Readonly<Record<string, string | undefined>>,
+): Promise<void> {
   await recordRuntimeEvent({
-    root: process.env['VOID_PROJECT_ROOT']
-      ?? process.env['CLAUDE_PROJECT_DIR']
+    root: env['VOID_PROJECT_ROOT']
+      ?? env['CLAUDE_PROJECT_DIR']
       ?? process.cwd(),
-    runtime: runtime(process.argv[3] ?? process.env['VOID_AGENT_RUNTIME']),
-    phase: phase(process.argv[2]),
+    runtime: runtime(argv[3] ?? env['VOID_AGENT_RUNTIME']),
+    phase: phase(argv[2]),
     rawInput: raw,
-    globalDir: process.env['VOID_GLOBAL_DIR'] ?? resolve(homedir(), '.void'),
-    ...(process.env['VOID_MISSION_ID'] === undefined
+    globalDir: env['VOID_GLOBAL_DIR'] ?? resolve(homedir(), '.void'),
+    ...(env['VOID_MISSION_ID'] === undefined
       ? {}
-      : { missionId: process.env['VOID_MISSION_ID'] }),
-  });
-}
-
-function physicalPath(path: string): string {
-  try {
-    return realpathSync(path);
-  } catch {
-    return resolve(path);
-  }
-}
-
-const invokedPath = process.argv[1] === undefined
-  ? undefined
-  : physicalPath(process.argv[1]);
-if (
-  invokedPath !== undefined
-  && physicalPath(fileURLToPath(import.meta.url)) === invokedPath
-) {
-  main().catch(() => {
-    // Telemetry is best-effort and must never block the runtime tool call.
-    process.exitCode = 0;
+      : { missionId: env['VOID_MISSION_ID'] }),
   });
 }

@@ -12,7 +12,7 @@ describe('secretContent', () => {
   it('blocks mixed generic assignments and allows documented placeholders', () => {
     expect(secretContent([{
       path: 'src/config.ts',
-      addedContent: 'SERVICE_TOKEN="abcDEF1234567890abcDEF123456"',
+      addedContent: 'SERVICE_TOKEN="abcGHJ1234567890abcGHJ123456"',
     }]).allow).toBe(false);
     expect(secretContent([{
       path: 'src/config.ts',

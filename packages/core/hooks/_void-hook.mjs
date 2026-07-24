@@ -1,20 +1,436 @@
+// src/enforcement/runner.ts
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readFileSync,
+  readSync,
+  realpathSync
+} from "node:fs";
+import {
+  isAbsolute,
+  join,
+  relative,
+  resolve
+} from "node:path";
+
+// src/enforcement/normalize.ts
+var MAX_FIELD_BYTES = 1024 * 1024;
+function record(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
+}
+function safeString(value, label) {
+  if (typeof value !== "string") return "";
+  if (value.includes("\0") || Buffer.byteLength(value) > MAX_FIELD_BYTES) {
+    throw new Error(`unsafe hook input: ${label}`);
+  }
+  return value;
+}
+function commandText(value) {
+  if (Array.isArray(value)) return value.map((part) => safeString(part, "command")).join(" ");
+  return safeString(value, "command");
+}
+function patchText(input) {
+  const candidates = [
+    input["patch"],
+    input["input"],
+    input["content"],
+    input["command"]
+  ];
+  return candidates.map((value) => commandText(value)).filter((value) => value.includes("*** Begin Patch")).join("\n");
+}
+function parsePatchEdits(patch) {
+  const edits = [];
+  let path = "";
+  let added = "";
+  const emit = () => {
+    if (path !== "") edits.push({ path, addedContent: added });
+  };
+  for (const line of patch.split(/\r?\n/)) {
+    const section = line.match(/^\*\*\* (Add|Update|Delete) File: (.+)$/);
+    if (section !== null) {
+      emit();
+      path = safeString(section[2] ?? "", "patch path");
+      added = "";
+      continue;
+    }
+    if (path !== "" && line.startsWith("+") && !line.startsWith("+++")) {
+      added += `${line.slice(1)}
+`;
+    }
+  }
+  emit();
+  return edits;
+}
+function normalizeToolCall(value) {
+  const raw = record(value);
+  if (raw === void 0) throw new Error("invalid hook input: expected object");
+  const input = record(raw["tool_input"]) ?? {};
+  const tool = safeString(raw["tool_name"], "tool_name");
+  const command = commandText(input["command"]);
+  const file = safeString(input["file_path"], "file_path");
+  let edits;
+  if (file !== "") {
+    edits = [{
+      path: file,
+      addedContent: safeString(input["content"] ?? input["new_string"], "edit content")
+    }];
+  } else {
+    edits = parsePatchEdits(patchText(input));
+  }
+  return { tool, command, edits };
+}
+
+// src/rules/verdict.ts
+function allow(code3 = "ALLOW", message = "allowed") {
+  return { allow: true, code: code3, message, evidence: [] };
+}
+function block(code3, message, evidence) {
+  return { allow: false, code: code3, message, evidence };
+}
+
+// src/rules/dangerous-command.ts
+var BRACED_HOME = `$${"{"}HOME}`;
+var ROOT_TARGETS = /* @__PURE__ */ new Set([
+  "/",
+  "/*",
+  "~",
+  "~/",
+  "~/*",
+  "$HOME",
+  "$HOME/",
+  "$HOME/*",
+  BRACED_HOME,
+  `${BRACED_HOME}/`,
+  `${BRACED_HOME}/*`,
+  ".",
+  "./",
+  "./*",
+  "*"
+]);
+function unquote(command) {
+  return command.replaceAll('"', "").replaceAll("'", "");
+}
+function shellSegments(command) {
+  return command.split(/&&|\|\||[;\n]/).map((segment) => segment.trim()).filter(Boolean);
+}
+function recursiveRootOperation(segment, operation) {
+  const tokens = unquote(segment).split(/\s+/);
+  const index = tokens.indexOf(operation);
+  if (index < 0) return false;
+  const args = tokens.slice(index + 1);
+  const recursive = args.some(
+    (token) => token === "--recursive" || /^-[A-Za-z]*R[A-Za-z]*$/.test(token) || /^-[A-Za-z]*r[A-Za-z]*$/.test(token)
+  );
+  if (!recursive) return false;
+  const target = args.at(-1) ?? "";
+  return ROOT_TARGETS.has(target);
+}
+function violation(command) {
+  if (/:\(\)\s*\{\s*:\s*\|\s*:/.test(command)) return "fork bomb";
+  if (/(^|\s)mkfs(?:\.[a-z0-9]+)?(?:\s|$)/i.test(command)) return "filesystem / raw-device write";
+  if (/(^|\s)dd\b[^|]*\bof=\/dev\//i.test(command) || />\s*\/dev\/(?:sd|nvme|hd|disk)/i.test(command)) {
+    return "raw-device write";
+  }
+  if (/\b(?:drop\s+(?:database|table|schema)|truncate\s+table)\b/i.test(command)) {
+    return "destructive SQL (DROP / TRUNCATE)";
+  }
+  for (const segment of shellSegments(command)) {
+    if (recursiveRootOperation(segment, "rm")) return "recursive delete of a root path";
+    if (recursiveRootOperation(segment, "chmod") || recursiveRootOperation(segment, "chown")) {
+      return "recursive permission/ownership change on a root path";
+    }
+    if (/\bgit\s+push\b/.test(segment) && /(?:^|\s)(?:--force(?:\s|$)|-f(?:\s|$))/.test(segment) && !/--force-with-lease/.test(segment)) {
+      return "git push --force (use --force-with-lease)";
+    }
+    if (/\bgit(?:\s+-\S+)*\s+(?:rebase|am|apply|cherry-pick)\b/.test(segment) && /(?:--exec(?:\s|=|$)|--rebase-merges|--strategy-option|--unsafe-paths)/.test(segment)) {
+      return "git command-execution / unsafe-path flag";
+    }
+  }
+  return void 0;
+}
+function dangerousCommand(command) {
+  const evidence = violation(command);
+  return evidence === void 0 ? allow() : block(
+    "DANGEROUS_COMMAND",
+    "refusing a destructive command; use the reviewed one-shot override only when deliberate",
+    [evidence]
+  );
+}
+
+// src/rules/protected-file.ts
+import { basename } from "node:path";
+function protectedReason(path) {
+  const normalized = path.replaceAll("\\", "/").toLowerCase();
+  const base = basename(normalized);
+  if (/^\.env(?:\..+)?$/.test(base) && !/\.(?:example|sample|template|dist)$/.test(base)) {
+    return "environment file with secrets";
+  }
+  if (/\.(?:pem|key|p12|pfx|keystore|jks|asc)$/.test(base) || /^id_(?:rsa|ed25519|ecdsa|dsa)$/.test(base)) {
+    return "private key / certificate";
+  }
+  if (/(?:\.npmrc|\.netrc|\.pgpass)$/.test(base)) return "credential file";
+  if (!base.endsWith(".md") && /(?:secret|credential)/.test(base)) return "credential file";
+  if ((/* @__PURE__ */ new Set([
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "bun.lockb",
+    "cargo.lock",
+    "poetry.lock",
+    "composer.lock"
+  ])).has(base)) {
+    return "lockfile (regenerate via the package manager, do not hand-edit)";
+  }
+  if (/(^|\/)\.git\//.test(normalized)) return "internal git metadata";
+  return void 0;
+}
+function protectedFile(paths) {
+  for (const path of paths) {
+    const reason = protectedReason(path);
+    if (reason !== void 0) {
+      return block("PROTECTED_FILE", `refusing to edit ${path}`, [`${path}: ${reason}`]);
+    }
+  }
+  return allow();
+}
+
+// src/rules/secret-content.ts
+var HIGH_CONFIDENCE = [
+  /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/,
+  /\bgh[posru]_[A-Za-z0-9]{36}\b/,
+  /\bgithub_pat_[A-Za-z0-9_]{40,}\b/,
+  /\b(?:sk|rk)_live_[A-Za-z0-9]{20,}\b/,
+  /\bsk-(?:ant|proj)-[A-Za-z0-9_-]{40,}\b/,
+  /\bsk-[A-Za-z0-9]{40,}\b/,
+  /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/,
+  /\bAIza[0-9A-Za-z_-]{35}\b/,
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----/
+];
+var GENERIC_ASSIGNMENT = /(?:_KEY|_SECRET|_TOKEN|_PASSWORD|_PASSWD|_APIKEY)["' ]*[:=]\s*["']([A-Za-z0-9+/=_-]{24,})["']/i;
+var PLACEHOLDER = /process\.env|import\.meta\.env|xxx|changeme|example|redacted|your[-_]|<[a-z]|placeholder|todo/i;
+var EXEMPT_PATH = /\.(?:test|spec)\.|\/__tests__\/|\/__fixtures__\/|\/fixtures\/|\/__generated__\//;
+function lineHasSecret(line) {
+  if (line.includes("allow-secret-pattern:")) return false;
+  if (HIGH_CONFIDENCE.some((pattern) => pattern.test(line))) return true;
+  const assignment = line.match(GENERIC_ASSIGNMENT);
+  if (assignment === null || PLACEHOLDER.test(line)) return false;
+  const value = assignment[1] ?? "";
+  if (/^[0-9a-f]+$/i.test(value) || /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value)) {
+    return false;
+  }
+  return /[A-Za-z]/.test(value) && /[0-9]/.test(value);
+}
+function secretContent(edits) {
+  const evidence = [];
+  for (const edit of edits) {
+    if (EXEMPT_PATH.test(edit.path.replaceAll("\\", "/"))) continue;
+    edit.addedContent.split(/\r?\n/).forEach((line, index) => {
+      if (lineHasSecret(line)) evidence.push(`${edit.path}:${index + 1}`);
+    });
+  }
+  return evidence.length === 0 ? allow() : block("SECRET_IN_CONTENT", "likely secret detected in edited content", evidence);
+}
+
+// src/rules/tdd-order.ts
+function globRegExp(glob) {
+  let pattern = "^";
+  for (let index = 0; index < glob.length; index += 1) {
+    const char = glob[index] ?? "";
+    if (char === "*" && glob[index + 1] === "*") {
+      pattern += ".*";
+      index += 1;
+    } else if (char === "*") {
+      pattern += "[^/]*";
+    } else {
+      pattern += char.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+    }
+  }
+  return new RegExp(`${pattern}$`);
+}
+function matches(path, globs) {
+  return globs.some((glob) => globRegExp(glob).test(path));
+}
+function bypass(path, spikeGlobs) {
+  return /\.(?:md|mdx|txt)$/.test(path) || /(^|\/)docs\//.test(path) || /\.(?:test|spec)\.(?:ts|tsx|js|jsx)$/.test(path) || /\.d\.ts$/.test(path) || /\/(?:tests?|__tests__)\/fixtures\/|\/seed\/|\/migrations\/|\/drizzle\/meta\/|\/codemods?\//.test(path) || /\/__generated__\//.test(path) || matches(path, spikeGlobs);
+}
+function fileMode(path, input) {
+  const header = (input.existingHeaders[path] ?? "").split(/\r?\n/).slice(0, 5).join("\n");
+  const marker = header.match(/\/\/\s*tdd-mode:\s*(strict|souple|exploratory)/)?.[1];
+  return marker === "strict" || marker === "souple" || marker === "exploratory" ? marker : input.mode;
+}
+function siblingFor(path) {
+  if (path.endsWith(".tsx")) return `${path.slice(0, -4)}.test.tsx`;
+  if (path.endsWith(".ts")) return `${path.slice(0, -3)}.test.ts`;
+  if (path.endsWith(".jsx")) return `${path.slice(0, -4)}.test.jsx`;
+  if (path.endsWith(".js")) return `${path.slice(0, -3)}.test.js`;
+  return `${path}.test`;
+}
+function tddOrder(input) {
+  const warnings = [];
+  for (const edit of input.edits) {
+    const path = edit.path.replaceAll("\\", "/");
+    if (bypass(path, input.spikeGlobs) || !matches(path, input.businessGlobs)) continue;
+    const mode = fileMode(path, input);
+    if (mode === "exploratory") continue;
+    const sibling = siblingFor(path);
+    if (input.siblingTests.has(sibling)) continue;
+    const evidence = `${path} -> ${sibling}`;
+    if (mode === "souple") {
+      warnings.push(evidence);
+      continue;
+    }
+    return block(
+      "TDD_SIBLING_TEST_MISSING",
+      "production edit requires an existing sibling test in strict/auto mode",
+      [evidence]
+    );
+  }
+  return warnings.length === 0 ? allow() : {
+    allow: true,
+    code: "TDD_SIBLING_TEST_WARNING",
+    message: "souple mode: sibling test missing",
+    evidence: warnings
+  };
+}
+
+// src/enforcement/runner.ts
+var MAX_HOOK_INPUT_BYTES = 1024 * 1024;
+function containsNul(value) {
+  if (typeof value === "string") return value.includes("\0");
+  if (Array.isArray(value)) return value.some((item) => containsNul(item));
+  if (typeof value !== "object" || value === null) return false;
+  return Object.values(value).some((item) => containsNul(item));
+}
+function parseHookPayload(input) {
+  if (input.byteLength > MAX_HOOK_INPUT_BYTES) {
+    throw new Error("HOOK_INPUT_TOO_LARGE");
+  }
+  const text2 = new TextDecoder("utf-8", { fatal: true }).decode(input);
+  if (text2.includes("\0")) throw new Error("HOOK_INPUT_BINARY");
+  const parsed = JSON.parse(text2);
+  if (containsNul(parsed)) throw new Error("HOOK_INPUT_BINARY");
+  return parsed;
+}
+function physicalPath(path) {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
+}
+function projectRelativePath(root, path) {
+  const physicalRoot = physicalPath(root);
+  const absolute = isAbsolute(path) ? physicalPath(path) : resolve(physicalRoot, path);
+  const projectPath = relative(physicalRoot, absolute).replaceAll("\\", "/");
+  return projectPath === ".." || projectPath.startsWith("../") || isAbsolute(projectPath) ? void 0 : projectPath;
+}
+function projectEdits(root, edits) {
+  return edits.flatMap((edit) => {
+    const path = projectRelativePath(root, edit.path);
+    return path === void 0 ? [] : [{ ...edit, path }];
+  });
+}
+function record2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
+}
+function configuredString(parent, key, fallback) {
+  const value = parent?.[key];
+  return typeof value === "string" ? value : fallback;
+}
+function readTddConfig(root) {
+  let config = {};
+  try {
+    config = record2(JSON.parse(readFileSync(join(root, ".void/config.json"), "utf8"))) ?? {};
+  } catch {
+  }
+  const modes = record2(config["modes"]);
+  const paths = record2(config["paths"]);
+  const configuredMode = configuredString(modes, "tdd", "auto");
+  const mode = configuredMode === "strict" || configuredMode === "souple" || configuredMode === "exploratory" ? configuredMode : "auto";
+  return {
+    mode,
+    businessGlob: configuredString(paths, "business", "apps/*/src/**"),
+    spikesGlob: configuredString(paths, "spikes", "apps/*/scripts/spike-*")
+  };
+}
+function readHeader(path) {
+  let descriptor;
+  try {
+    descriptor = openSync(path, "r");
+    const buffer = Buffer.alloc(8192);
+    const bytes = readSync(descriptor, buffer, 0, buffer.byteLength, 0);
+    return buffer.subarray(0, bytes).toString("utf8");
+  } catch {
+    return "";
+  } finally {
+    if (descriptor !== void 0) closeSync(descriptor);
+  }
+}
+function tddVerdict(root, edits) {
+  const physicalRoot = physicalPath(root);
+  const projectChanges = projectEdits(physicalRoot, edits);
+  const config = readTddConfig(physicalRoot);
+  const existingHeaders = {};
+  const siblingTests = /* @__PURE__ */ new Set();
+  for (const edit of projectChanges) {
+    existingHeaders[edit.path] = readHeader(join(physicalRoot, edit.path));
+    for (const sibling of [
+      edit.path.replace(/\.tsx$/, ".test.tsx"),
+      edit.path.replace(/\.ts$/, ".test.ts"),
+      edit.path.replace(/\.jsx$/, ".test.jsx"),
+      edit.path.replace(/\.js$/, ".test.js")
+    ]) {
+      if (sibling !== edit.path && existsSync(join(physicalRoot, sibling))) {
+        siblingTests.add(sibling);
+      }
+    }
+  }
+  return tddOrder({
+    edits: projectChanges,
+    mode: config.mode,
+    businessGlobs: [config.businessGlob],
+    spikeGlobs: [config.spikesGlob],
+    existingHeaders,
+    siblingTests
+  });
+}
+function evaluateRule(rule, rawInput, options) {
+  const call = normalizeToolCall(rawInput);
+  const env = options.env ?? process.env;
+  if (rule === "dangerous-command") {
+    if (call.tool !== "Bash" && call.tool !== "shell") return allow();
+    if (env["VOID_HARNESS_ALLOW_DANGEROUS"] === "1") return allow("OVERRIDE", "one-shot override");
+    return dangerousCommand(call.command);
+  }
+  if (call.tool !== "Edit" && call.tool !== "Write" && call.tool !== "apply_patch" && call.tool !== "Bash" && call.tool !== "shell") {
+    return allow();
+  }
+  if (rule === "protected-file") {
+    if (env["VOID_HARNESS_ALLOW_SECRET_EDIT"] === "1") return allow("OVERRIDE", "one-shot override");
+    return protectedFile(call.edits.map((edit) => edit.path));
+  }
+  if (rule === "secret-content") return secretContent(call.edits);
+  if (rule === "tdd-order") return tddVerdict(options.root, call.edits);
+  rule;
+  throw new Error("UNKNOWN_ENFORCEMENT_RULE");
+}
+
 // src/record.ts
-import { fileURLToPath } from "node:url";
-import { realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { resolve as resolve4 } from "node:path";
+import { resolve as resolve5 } from "node:path";
 
 // src/runtime-input.ts
 import { createHash } from "node:crypto";
 import {
-  basename,
+  basename as basename2,
   extname,
-  isAbsolute,
-  relative,
-  resolve
+  isAbsolute as isAbsolute2,
+  relative as relative2,
+  resolve as resolve2
 } from "node:path";
 var MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
-function record(value) {
+function record3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
 }
 function text(value, fallback = "") {
@@ -52,12 +468,12 @@ function nameFor(tool, category, input) {
     const explicit = text(input["name"]);
     if (explicit !== "") return explicit;
     const script = text(input["scriptPath"]);
-    return script === "" || script.endsWith("/") ? "inline" : basename(script).replace(/(?:\.workflow)?\.js$/, "") || "inline";
+    return script === "" || script.endsWith("/") ? "inline" : basename2(script).replace(/(?:\.workflow)?\.js$/, "") || "inline";
   }
   return tool || "unknown";
 }
 function safePaths(input, root) {
-  const absoluteRoot = resolve(root);
+  const absoluteRoot = resolve2(root);
   const candidates = [
     input["file_path"],
     input["path"],
@@ -66,19 +482,19 @@ function safePaths(input, root) {
   const paths = [];
   for (const candidate of candidates) {
     if (typeof candidate !== "string" || candidate.length > 2e3) continue;
-    if (!isAbsolute(candidate)) {
+    if (!isAbsolute2(candidate)) {
       if (!candidate.startsWith("..")) paths.push(candidate.slice(0, 500));
       continue;
     }
-    const rel = relative(absoluteRoot, resolve(candidate));
-    if (rel !== "" && !rel.startsWith("..") && !isAbsolute(rel)) {
+    const rel = relative2(absoluteRoot, resolve2(candidate));
+    if (rel !== "" && !rel.startsWith("..") && !isAbsolute2(rel)) {
       paths.push(rel.slice(0, 500));
     }
   }
   return paths;
 }
 function outcomeStatus(raw) {
-  const response = record(raw["tool_response"]);
+  const response = record3(raw["tool_response"]);
   if (response === void 0) return "unknown";
   if (response["success"] === false || response["is_error"] === true || response["error"] !== void 0) {
     return "error";
@@ -86,7 +502,7 @@ function outcomeStatus(raw) {
   return "ok";
 }
 function adaptRuntimeInput(value, options) {
-  const raw = record(value);
+  const raw = record3(value);
   if (raw === void 0) return void 0;
   const runtimeSessionId = runtimeSession(raw);
   if (options.phase === "stop" || text(raw["hook_event_name"]) === "Stop") {
@@ -99,7 +515,7 @@ function adaptRuntimeInput(value, options) {
     };
   }
   const tool = text(raw["tool_name"], "unknown");
-  const input = record(raw["tool_input"]) ?? {};
+  const input = record3(raw["tool_input"]) ?? {};
   const category = categoryFor(tool);
   const name = nameFor(tool, category, input);
   const fileGlobs = safePaths(input, options.root);
@@ -125,7 +541,7 @@ function deriveMissionId(explicit, runtime2, runtimeSessionId, root) {
     }
     return explicit;
   }
-  const opaque = createHash("sha256").update(`${runtime2}\0${runtimeSessionId || "unknown"}\0${resolve(root)}`).digest("hex").slice(0, 32);
+  const opaque = createHash("sha256").update(`${runtime2}\0${runtimeSessionId || "unknown"}\0${resolve2(root)}`).digest("hex").slice(0, 32);
   return `mis_${opaque}`;
 }
 
@@ -146,10 +562,10 @@ import {
 } from "node:fs/promises";
 import {
   dirname,
-  isAbsolute as isAbsolute2,
-  join,
-  relative as relative2,
-  resolve as resolve2
+  isAbsolute as isAbsolute3,
+  join as join2,
+  relative as relative3,
+  resolve as resolve3
 } from "node:path";
 
 // ../mission-engine/dist/events/schema.js
@@ -190,7 +606,7 @@ function isPrintable(value) {
   }
   return true;
 }
-function record2(value) {
+function record4(value) {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return void 0;
   }
@@ -210,7 +626,7 @@ function isJsonValue(value, depth, budget) {
   if (Array.isArray(value)) {
     return value.every((entry) => isJsonValue(entry, depth + 1, budget));
   }
-  const object = record2(value);
+  const object = record4(value);
   if (object === void 0)
     return false;
   return Object.entries(object).every(([key, entry]) => key.length <= 100 && isPrintable(key) && isJsonValue(entry, depth + 1, budget));
@@ -225,7 +641,7 @@ function contractError(message) {
   };
 }
 function parseEvent(value) {
-  const raw = record2(value);
+  const raw = record4(value);
   if (raw === void 0)
     return contractError("event must be a plain object");
   const unknownKeys = Object.keys(raw).filter((key) => !EVENT_KEYS.has(key));
@@ -402,8 +818,8 @@ function code(error) {
   return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
 }
 function within(root, target) {
-  const rel = relative2(root, target);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute2(rel);
+  const rel = relative3(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute3(rel);
 }
 async function exists(path) {
   try {
@@ -418,9 +834,9 @@ async function safeRunDirectory(root, missionId) {
   if (!MISSION_ID3.test(missionId)) {
     throw new Error("HOOK_INVALID_MISSION_ID: expected mis_<opaque-id>");
   }
-  const absoluteRoot = resolve2(root);
+  const absoluteRoot = resolve3(root);
   const canonicalRoot = await realpath(absoluteRoot);
-  const run = join(absoluteRoot, ".void", "runs", missionId);
+  const run = join2(absoluteRoot, ".void", "runs", missionId);
   let ancestor = run;
   while (!await exists(ancestor)) {
     const parent = dirname(ancestor);
@@ -552,9 +968,9 @@ async function writeSequenceState(statePath, state, randomUUID) {
 }
 async function writeSequencedEvent(options) {
   const run = await safeRunDirectory(options.root, options.missionId);
-  const logPath = join(run, "events.jsonl");
-  const statePath = join(run, ".seq.state");
-  const lockPath = join(run, ".seq.lock");
+  const logPath = join2(run, "events.jsonl");
+  const statePath = join2(run, ".seq.state");
+  const lockPath = join2(run, ".seq.lock");
   await Promise.all([
     rejectSymlink(logPath),
     rejectSymlink(statePath),
@@ -608,20 +1024,20 @@ async function writeSequencedEvent(options) {
 // src/project-registry.ts
 import { createHash as createHash2 } from "node:crypto";
 import { lstat as lstat2, mkdir as mkdir2, open as open2, readFile as readFile2, realpath as realpath2 } from "node:fs/promises";
-import { isAbsolute as isAbsolute3, join as join2, relative as relative3, resolve as resolve3 } from "node:path";
+import { isAbsolute as isAbsolute4, join as join3, relative as relative4, resolve as resolve4 } from "node:path";
 function code2(error) {
   return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
 }
 function within2(root, target) {
-  const rel = relative3(root, target);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute3(rel);
+  const rel = relative4(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute4(rel);
 }
 async function registerProjectRoot(root, globalDir) {
-  const canonicalRoot = await realpath2(resolve3(root));
-  const base = resolve3(globalDir);
+  const canonicalRoot = await realpath2(resolve4(root));
+  const base = resolve4(globalDir);
   await mkdir2(base, { recursive: true, mode: 448 });
   const canonicalBase = await realpath2(base);
-  const projects = join2(base, "projects");
+  const projects = join3(base, "projects");
   await mkdir2(projects, { recursive: true, mode: 448 });
   const info = await lstat2(projects);
   if (!info.isDirectory() || info.isSymbolicLink()) {
@@ -632,7 +1048,7 @@ async function registerProjectRoot(root, globalDir) {
     throw new Error("HOOK_REGISTRY_ESCAPE: projects resolves outside global dir");
   }
   const slug = createHash2("sha256").update(canonicalRoot).digest("hex").slice(0, 32);
-  const pointer = join2(projects, `${slug}.path`);
+  const pointer = join3(projects, `${slug}.path`);
   try {
     const handle = await open2(pointer, "wx", 384);
     try {
@@ -654,7 +1070,6 @@ async function registerProjectRoot(root, globalDir) {
 }
 
 // src/record.ts
-var MAX_HOOK_INPUT_BYTES = 1024 * 1024;
 async function recordRuntimeEvent(options) {
   const adapted = adaptRuntimeInput(options.rawInput, options);
   if (adapted === void 0) return void 0;
@@ -678,23 +1093,10 @@ async function recordRuntimeEvent(options) {
   });
   await registerProjectRoot(
     options.root,
-    options.globalDir ?? resolve4(homedir(), ".void")
+    options.globalDir ?? resolve5(homedir(), ".void")
   ).catch(() => {
   });
   return event;
-}
-async function readStdin() {
-  const chunks = [];
-  let bytes = 0;
-  for await (const raw of process.stdin) {
-    const chunk = Buffer.isBuffer(raw) ? raw : Buffer.from(String(raw));
-    bytes += chunk.byteLength;
-    if (bytes > MAX_HOOK_INPUT_BYTES) {
-      throw new Error("HOOK_INPUT_TOO_LARGE");
-    }
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks).toString("utf8");
 }
 function runtime(value) {
   return value === "claude" || value === "codex" ? value : "unknown";
@@ -703,37 +1105,78 @@ function phase(value) {
   if (value === "outcome" || value === "stop") return value;
   return "activation";
 }
+async function recordRuntimeEventFromCli(raw, argv, env) {
+  await recordRuntimeEvent({
+    root: env["VOID_PROJECT_ROOT"] ?? env["CLAUDE_PROJECT_DIR"] ?? process.cwd(),
+    runtime: runtime(argv[3] ?? env["VOID_AGENT_RUNTIME"]),
+    phase: phase(argv[2]),
+    rawInput: raw,
+    globalDir: env["VOID_GLOBAL_DIR"] ?? resolve5(homedir(), ".void"),
+    ...env["VOID_MISSION_ID"] === void 0 ? {} : { missionId: env["VOID_MISSION_ID"] }
+  });
+}
+
+// src/cli.ts
+var RULES = /* @__PURE__ */ new Set([
+  "dangerous-command",
+  "protected-file",
+  "secret-content",
+  "tdd-order"
+]);
+async function readStdin() {
+  const chunks = [];
+  let bytes = 0;
+  for await (const raw of process.stdin) {
+    const chunk = Buffer.isBuffer(raw) ? raw : Buffer.from(String(raw));
+    bytes += chunk.byteLength;
+    if (bytes > MAX_HOOK_INPUT_BYTES) throw new Error("HOOK_INPUT_TOO_LARGE");
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+function writeVerdict(verdict, write) {
+  if (verdict.code === "ALLOW" || verdict.code === "OVERRIDE") return;
+  const evidence = verdict.evidence.length === 0 ? "" : `
+${verdict.evidence.map((item) => `- ${item}`).join("\n")}`;
+  write(`${verdict.code}: ${verdict.message}${evidence}
+`);
+}
 async function main() {
   const input = await readStdin();
-  let raw;
-  try {
-    raw = JSON.parse(input);
-  } catch {
+  if (process.argv[2] !== "enforce") {
+    try {
+      await recordRuntimeEventFromCli(
+        parseHookPayload(input),
+        process.argv,
+        process.env
+      );
+    } catch {
+    }
     return;
   }
-  await recordRuntimeEvent({
-    root: process.env["VOID_PROJECT_ROOT"] ?? process.env["CLAUDE_PROJECT_DIR"] ?? process.cwd(),
-    runtime: runtime(process.argv[3] ?? process.env["VOID_AGENT_RUNTIME"]),
-    phase: phase(process.argv[2]),
-    rawInput: raw,
-    globalDir: process.env["VOID_GLOBAL_DIR"] ?? resolve4(homedir(), ".void"),
-    ...process.env["VOID_MISSION_ID"] === void 0 ? {} : { missionId: process.env["VOID_MISSION_ID"] }
-  });
-}
-function physicalPath(path) {
   try {
-    return realpathSync(path);
-  } catch {
-    return resolve4(path);
+    const rule = process.argv[3];
+    if (!RULES.has(rule)) throw new Error("UNKNOWN_ENFORCEMENT_RULE");
+    const verdict = evaluateRule(
+      rule,
+      parseHookPayload(input),
+      {
+        root: process.env["VOID_PROJECT_ROOT"] ?? process.env["CLAUDE_PROJECT_DIR"] ?? process.cwd(),
+        env: process.env
+      }
+    );
+    writeVerdict(verdict, (message) => process.stderr.write(message));
+    if (!verdict.allow) process.exitCode = 2;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "UNKNOWN_ENFORCEMENT_ERROR";
+    process.stderr.write(`HOOK_INPUT_REJECTED: ${message}
+`);
+    process.exitCode = 2;
   }
 }
-var invokedPath = process.argv[1] === void 0 ? void 0 : physicalPath(process.argv[1]);
-if (invokedPath !== void 0 && physicalPath(fileURLToPath(import.meta.url)) === invokedPath) {
-  main().catch(() => {
-    process.exitCode = 0;
-  });
-}
-export {
-  MAX_HOOK_INPUT_BYTES,
-  recordRuntimeEvent
-};
+main().catch((error) => {
+  const message = error instanceof Error ? error.message : "UNKNOWN_ENFORCEMENT_ERROR";
+  process.stderr.write(`HOOK_RUNNER_FAILED: ${message}
+`);
+  process.exitCode = process.argv[2] === "enforce" ? 2 : 0;
+});
