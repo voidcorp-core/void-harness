@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.0.0](https://github.com/voidcorp-core/void-harness/compare/v1.2.0...v2.0.0) (2026-07-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **init:** transactional install — preflight before writing, rollback on failure ([#142](https://github.com/voidcorp-core/void-harness/issues/142))
+* **cli:** the CLI npm package is now `voidharness`, not `@voidfactory/harness`. Requires a one-time npm Trusted Publisher re-bootstrap under the new name (see docs/RELEASING.md "First publish").
+
+### Features
+
+* **cli:** rename npm package @voidfactory/harness -&gt; voidharness, add `vh` bin alias ([#140](https://github.com/voidcorp-core/void-harness/issues/140)) ([ffa1f5d](https://github.com/voidcorp-core/void-harness/commit/ffa1f5da89c533afd46a566a807b644472969834))
+* **codex:** mirror the full Claude enforcement surface and compile the agents ([58013d1](https://github.com/voidcorp-core/void-harness/commit/58013d1c524a8f7e1ab9d267d78c8ec490dc217a))
+* **codex:** stage skills into .agents/skills so Codex can discover them ([#125](https://github.com/voidcorp-core/void-harness/issues/125)) ([#131](https://github.com/voidcorp-core/void-harness/issues/131)) ([d6b6938](https://github.com/voidcorp-core/void-harness/commit/d6b6938af2633b5f7ae4eb2f316d783849cbda7c))
+* **marketplace:** self-host the plugin catalog in this repo ([#133](https://github.com/voidcorp-core/void-harness/issues/133)) ([366dc3f](https://github.com/voidcorp-core/void-harness/commit/366dc3f3ab18cda863a3d22f8215aeb1047836f2))
+* **status:** enforcement scored as coverage, not the strongest single tier ([#126](https://github.com/voidcorp-core/void-harness/issues/126)) ([#135](https://github.com/voidcorp-core/void-harness/issues/135)) ([ee2cba2](https://github.com/voidcorp-core/void-harness/commit/ee2cba20647eb781f08e44567308f80fd0f1e133))
+* **status:** install-state filters by activated packs, not the whole catalog ([#126](https://github.com/voidcorp-core/void-harness/issues/126)) ([#134](https://github.com/voidcorp-core/void-harness/issues/134)) ([171a779](https://github.com/voidcorp-core/void-harness/commit/171a77996ba3c566bfb2542418e7562dd0c5a2f3))
+
+
+### Bug Fixes
+
+* **init:** --pack installs the pack's skills instead of reporting a fake success ([ba501e2](https://github.com/voidcorp-core/void-harness/commit/ba501e2b57471d01d71b35d3d5e69a8c46745126))
+* **init:** transactional install — preflight before writing, rollback on failure ([#142](https://github.com/voidcorp-core/void-harness/issues/142)) ([ac9e3cd](https://github.com/voidcorp-core/void-harness/commit/ac9e3cd12849b71dfdc857626ada7b0528d0a171))
+* **skills:** valid-YAML frontmatter for the 7 colon-carrying descriptions ([#130](https://github.com/voidcorp-core/void-harness/issues/130)) ([#136](https://github.com/voidcorp-core/void-harness/issues/136)) ([9bf17f7](https://github.com/voidcorp-core/void-harness/commit/9bf17f7e5a488b49691290defddaf90e408d940c))
+* **status:** activation is pending when usage is unobservable (Codex), not 0 ([#143](https://github.com/voidcorp-core/void-harness/issues/143)) ([feca777](https://github.com/voidcorp-core/void-harness/commit/feca7778a021c626c76f8932cbf0f8c05e4008b2))
+* **status:** call it "structure score" until there's behavioral evidence ([#6](https://github.com/voidcorp-core/void-harness/issues/6)) ([#146](https://github.com/voidcorp-core/void-harness/issues/146)) ([479420a](https://github.com/voidcorp-core/void-harness/commit/479420a43b20e452658c3fcf8cab2979568d2cce))
+
 ## [1.2.0](https://github.com/voidcorp-core/void-harness/compare/v1.1.0...v1.2.0) (2026-07-22)
 
 
