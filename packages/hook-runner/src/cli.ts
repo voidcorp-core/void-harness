@@ -10,6 +10,7 @@ import { sessionStartOutput } from './lifecycle/context.js';
 import { installedVersion } from './lifecycle/context-executor.js';
 import type { LifecycleExecution } from './lifecycle/executor-shared.js';
 import { executeFormat } from './lifecycle/format-executor.js';
+import { executeLargeChange } from './lifecycle/large-change-executor.js';
 import { executeTrim } from './lifecycle/trim-executor.js';
 import { executeTypecheck } from './lifecycle/typecheck-executor.js';
 import {
@@ -131,6 +132,8 @@ async function runLifecycle(input: Uint8Array): Promise<void> {
       ? executeTrim(rawInput, root, process.env)
       : hook === 'typecheck'
         ? executeTypecheck(root, process.env)
+        : hook === 'large-change'
+          ? executeLargeChange(root, process.env)
         : undefined;
   if (execution === undefined) return;
   if (execution.diagnostic !== undefined) process.stderr.write(execution.diagnostic);

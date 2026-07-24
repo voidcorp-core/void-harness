@@ -792,6 +792,133 @@ function executeFormat(rawInput, root, env) {
   return { status: "ok", details: { formatted } };
 }
 
+// src/lifecycle/large-change-executor.ts
+import { spawnSync as spawnSync2 } from "node:child_process";
+
+// src/lifecycle/large-change.ts
+function parseAddedLines(numstat) {
+  return numstat.split(/\r?\n/).reduce((total, line) => {
+    const [added] = line.split("	", 1);
+    const count = Number(added);
+    if (!Number.isSafeInteger(count) || count < 0) return total;
+    return Math.min(Number.MAX_SAFE_INTEGER, total + count);
+  }, 0);
+}
+function hasLargeChangeJustification(text2) {
+  return /^\s*large-cl-justification\s*:\s*\S.*$/imu.test(text2);
+}
+function assessLargeChange(assessment) {
+  if (assessment.addedLines <= assessment.threshold || assessment.justified) {
+    return allow();
+  }
+  return {
+    allow: true,
+    code: "LARGE_CHANGE_WARNING",
+    message: `change adds ${assessment.addedLines} lines (threshold ${assessment.threshold}); split it or justify why it is atomic`,
+    evidence: ["large-cl-justification: <reason>"]
+  };
+}
+
+// src/lifecycle/large-change-executor.ts
+function runGit(git, root, args, env) {
+  const result = spawnSync2(git, args, {
+    cwd: root,
+    env: { ...process.env, ...env },
+    encoding: "utf8",
+    shell: false,
+    timeout: 5e3,
+    maxBuffer: 2 * 1024 * 1024
+  });
+  return {
+    ok: result.status === 0,
+    output: result.status === 0 ? result.stdout.trim() : ""
+  };
+}
+function verifiedRef(git, root, ref, env) {
+  if (ref === "" || /[\r\n\u0000]/u.test(ref)) return false;
+  return runGit(
+    git,
+    root,
+    ["rev-parse", "--verify", "--quiet", "--end-of-options", `${ref}^{commit}`],
+    env
+  ).ok;
+}
+function baseRef(git, root, env) {
+  const configured = env["VOID_HARNESS_BASE_REF"]?.trim();
+  if (configured !== void 0 && configured !== "") {
+    return verifiedRef(git, root, configured, env) ? configured : void 0;
+  }
+  const upstream = runGit(
+    git,
+    root,
+    ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
+    env
+  );
+  const candidates = [
+    upstream.ok ? upstream.output : "",
+    "origin/main",
+    "origin/master",
+    "main",
+    "master"
+  ];
+  return candidates.find((candidate) => verifiedRef(git, root, candidate, env));
+}
+function executeLargeChange(root, env) {
+  const git = findExecutable("git", root, env);
+  if (git === void 0) {
+    return { status: "skipped", details: { reason: "git-unavailable" } };
+  }
+  const base = baseRef(git, root, env);
+  if (base === void 0) {
+    const configuredBase = env["VOID_HARNESS_BASE_REF"]?.trim();
+    return {
+      status: "skipped",
+      details: {
+        reason: configuredBase === void 0 || configuredBase === "" ? "base-ref-unavailable" : "configured-base-ref-invalid"
+      }
+    };
+  }
+  const mergeBase = runGit(git, root, ["merge-base", "HEAD", base], env);
+  if (!mergeBase.ok) {
+    return { status: "degraded", details: { reason: "merge-base-failed" } };
+  }
+  const range = `${mergeBase.output}..HEAD`;
+  const diff = runGit(
+    git,
+    root,
+    ["diff", "--numstat", "--no-renames", range, "--"],
+    env
+  );
+  const messages = runGit(git, root, ["log", "--format=%B", range, "--"], env);
+  if (!diff.ok || !messages.ok) {
+    return { status: "degraded", details: { reason: "change-query-failed" } };
+  }
+  const threshold = boundedInteger(
+    env["VOID_HARNESS_LARGE_CHANGE_THRESHOLD"] ?? env["VOIDCORP_LARGE_CL_THRESHOLD"],
+    400,
+    1,
+    1e6
+  );
+  const addedLines = parseAddedLines(diff.output);
+  const justified = hasLargeChangeJustification(messages.output);
+  const verdict = assessLargeChange({ addedLines, threshold, justified });
+  const details = {
+    baseRef: base,
+    addedLines,
+    threshold,
+    justified,
+    code: verdict.code
+  };
+  if (verdict.code === "ALLOW") return { status: "ok", details };
+  return {
+    status: "degraded",
+    details,
+    diagnostic: `${verdict.code}: ${verdict.message}
+- ${verdict.evidence.join("\n- ")}
+`
+  };
+}
+
 // src/lifecycle/trim-executor.ts
 import { createHash } from "node:crypto";
 import {
@@ -946,7 +1073,7 @@ function executeTrim(rawInput, root, env) {
 // src/lifecycle/typecheck-executor.ts
 import { existsSync as existsSync2 } from "node:fs";
 import { join as join6 } from "node:path";
-import { spawnSync as spawnSync2 } from "node:child_process";
+import { spawnSync as spawnSync3 } from "node:child_process";
 
 // src/lifecycle/typecheck.ts
 import {
@@ -999,10 +1126,10 @@ function nearestTsconfigs(changedPaths, projectRoot2, hasFile) {
 }
 
 // src/lifecycle/typecheck-executor.ts
-function runGit(root, args, env) {
+function runGit2(root, args, env) {
   const git = findExecutable("git", root, env);
   if (git === void 0) return { ok: false, output: "" };
-  const result = spawnSync2(git, args, {
+  const result = spawnSync3(git, args, {
     cwd: root,
     env: { ...process.env, ...env },
     encoding: "utf8",
@@ -1016,12 +1143,12 @@ function runGit(root, args, env) {
   };
 }
 function changedTypeScript(root, env) {
-  const tracked = runGit(
+  const tracked = runGit2(
     root,
     ["diff", "--name-only", "--diff-filter=ACM", "HEAD"],
     env
   );
-  const untracked = runGit(
+  const untracked = runGit2(
     root,
     ["ls-files", "--others", "--exclude-standard"],
     env
@@ -1078,7 +1205,7 @@ function executeTypecheck(root, env) {
   const invocations = isTsc && configs.length > 0 ? configs.map((config) => [...args, "-p", config]) : [args];
   let errors = "";
   for (const invocation of invocations) {
-    const result = spawnSync2(executablePath, invocation, {
+    const result = spawnSync3(executablePath, invocation, {
       cwd: root,
       env: { ...process.env, ...env },
       encoding: "utf8",
@@ -1946,7 +2073,7 @@ async function runLifecycle(input) {
     );
     return;
   }
-  const execution = hook === "format" ? executeFormat(rawInput, root, process.env) : hook === "trim" ? executeTrim(rawInput, root, process.env) : hook === "typecheck" ? executeTypecheck(root, process.env) : void 0;
+  const execution = hook === "format" ? executeFormat(rawInput, root, process.env) : hook === "trim" ? executeTrim(rawInput, root, process.env) : hook === "typecheck" ? executeTypecheck(root, process.env) : hook === "large-change" ? executeLargeChange(root, process.env) : void 0;
   if (execution === void 0) return;
   if (execution.diagnostic !== void 0) process.stderr.write(execution.diagnostic);
   if ("output" in execution && execution.output !== void 0) {
