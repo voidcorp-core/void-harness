@@ -34,6 +34,13 @@ describe('tddOrder', () => {
     })).allow).toBe(true);
   });
 
+  it.each([
+    'apps/web/src/styles.css',
+    'apps/web/src/icon.svg',
+  ])('routes non-executable UI assets to UI verification instead of dummy sibling tests: %s', (path) => {
+    expect(tddOrder(input(path)).allow).toBe(true);
+  });
+
   it('warns without blocking in souple mode', () => {
     const verdict = tddOrder(input('apps/web/src/Card.tsx', { mode: 'souple' }));
     expect(verdict.allow).toBe(true);
