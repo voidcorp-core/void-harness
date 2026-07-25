@@ -12,6 +12,23 @@ function fmt(ms: number): string {
   return new Date(ms).toISOString().slice(11, 19); // HH:MM:SS (UTC)
 }
 
+export interface ScrubberView {
+  readonly active: boolean;
+  readonly dataStatus: string;
+  readonly liveLabel: string;
+  readonly timeLabel: string;
+}
+
+export function scrubberView(state: LiveState): ScrubberView {
+  const status = visibleLiveStatus(state);
+  return {
+    active: status === 'LIVE',
+    dataStatus: status.toLowerCase(),
+    liveLabel: status,
+    timeLabel: state.mode === 'live' ? status.toLowerCase() : fmt(state.cursorMs),
+  };
+}
+
 /** Mount the scrubber into `host`, wiring its controls to the live controller. */
 export function mountScrubber(host: HTMLElement, ctrl: LiveController): void {
   host.classList.add('scrubber');
@@ -64,11 +81,11 @@ export function mountScrubber(host: HTMLElement, ctrl: LiveController): void {
     slider.disabled = !hasRange;
     playBtn.textContent = s.playing ? '⏸' : '▶';
     playBtn.disabled = !hasRange;
-    const status = visibleLiveStatus(s);
-    liveBtn.textContent = status;
-    liveBtn.classList.toggle('is-active', status === 'LIVE');
-    liveBtn.setAttribute('data-status', status.toLowerCase());
-    time.textContent = s.mode === 'live' ? status.toLowerCase() : fmt(s.cursorMs);
+    const view = scrubberView(s);
+    liveBtn.textContent = view.liveLabel;
+    liveBtn.classList.toggle('is-active', view.active);
+    liveBtn.setAttribute('data-status', view.dataStatus);
+    time.textContent = view.timeLabel;
   };
 
   ctrl.onState(sync);
