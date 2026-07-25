@@ -3,7 +3,7 @@ schemaVersion: 1
 id: "adr:077c5419-ffe2-454f-a50e-9c147cf15ce9"
 createdAt: "2026-07-25T08:25:35.923Z"
 title: "Autopilot owns autonomous ticket clusters and stops at human PR merge"
-status: proposed
+status: accepted
 deciders: ["Folpe"]
 supersedes: ["legacy:2026-06-21-consolidate-backlog-skills-into-backlog-autopilot-in-session","legacy:2026-06-21-auto-merge-is-risk-gated-and-sequential-not-a-deterministic","legacy:2026-06-26-backlog-autopilot-auto-merge-method-configurable-default-mer"]
 ---

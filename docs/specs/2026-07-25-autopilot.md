@@ -1,7 +1,7 @@
 ---
 title: Autopilot - clusters de tickets autonomes, une PR de réconciliation
 date: 2026-07-25
-status: in-design
+status: approved
 author: Folpe + Codex
 supersedes:
   - docs/specs/2026-06-21-backlog-autopilot.md
