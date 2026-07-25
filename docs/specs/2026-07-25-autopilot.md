@@ -74,6 +74,7 @@ L'autonomie est opt-in par projet. Le pointeur de programme
 
 ```yaml
 autopilot:
+  schemaVersion: 1
   enabled: true
   tracker:
     workspace: voidcorp
@@ -152,9 +153,17 @@ ACTIVE.md + Linear + GitHub
 ```
 
 Le skill L0 orchestre les outils en session et garde un contexte mince. Le CLI
-calcule les décisions reproductibles sans accès implicite au réseau. Workflow
-isole et ordonnance les exécutions. `ticket-runner` possède tout le cycle qualité
-d'un ticket. Le reconciler possède tout ce qui est partagé ou transversal.
+calcule les décisions reproductibles sans accès implicite au réseau et émet un
+`OrchestrationPlan` commun. Un adapter Claude l'exécute avec Workflow ; un
+adapter Codex l'exécute avec les subagents natifs. Dans les deux cas, le
+contrôleur crée les worktrees et transmet à chaque worker un checkout explicite.
+`ticket-runner` possède tout le cycle qualité d'un ticket. Le reconciler possède
+tout ce qui est partagé ou transversal.
+
+Un capability preflight prouve l'adapter runtime, les connectors, les
+permissions Git, les worktrees et la protection de la base avant toute mutation
+Linear. Un runtime qui ne peut pas honorer le contrat échoue fermé ; il ne prend
+aucun ticket.
 
 ## Sélection et réservation du cluster
 
@@ -177,17 +186,22 @@ Les tickets du premier incrément sont indépendants dans le graphe Linear. Le
 support de composants dépendants dans un même cluster reste compatible avec
 l'architecture, mais n'est pas requis pour activer l'autonomie.
 
-Après planification, Autopilot réserve atomiquement le cluster :
+Après planification, Autopilot réserve le cluster avec une atomicité logique,
+sans prétendre à une transaction multi-issue fournie par Linear :
 
-- identifiant opaque `clusterId` ;
+- identifiants opaques `programId`, `runId` et `clusterId` ;
 - passage des tickets en cours ;
-- commentaire machine-readable sur chaque ticket avec `clusterId`, base et
-  branche d'intégration ;
+- commentaire machine-readable versionné sur chaque ticket avec les trois
+  identifiants, base SHA, branche d'intégration et expiration de lease ;
 - écriture atomique du curseur local.
 
 Plusieurs tickets peuvent être en cours simultanément seulement s'ils portent le
 même `clusterId`. Une réservation partielle est réparée ou annulée avant de
-lancer un worker.
+lancer un worker. Le protocole observe tous les candidats, émet une intention,
+applique des mutations idempotentes, réobserve l'ensemble, puis active le run
+seulement si tous les marqueurs convergent. Erreur GraphQL partielle, rate limit
+ou résultat réseau inconnu suspendent la réservation et déclenchent reprise ou
+compensation, jamais un worker.
 
 ## Exécution mono-ticket
 
@@ -265,6 +279,16 @@ reprise. Il reste lié au `clusterId` tant qu'il est récupérable ; s'il est
 réellement bloqué, Autopilot utilise le statut natif bloqué du tracker ou le
 statut prêt accompagné d'un commentaire explicite.
 
+Le lifecycle tracker est fermé et réobservé :
+
+- lease convergé : `In Progress` ;
+- plage incluse dans une PR ouverte : `In Review`, lien PR et commits ;
+- PR fermée sans merge : reprise ou blocage explicite, jamais `Done` ;
+- PR fusionnée et checks requis verts : `Done` pour les tickets inclus ;
+- abort : lease libéré de façon idempotente, commentaire et refs préservées.
+
+Une write Linear partielle garde le run en `tracker-reconciliation`.
+
 Si aucun ticket n'est vert, aucune PR vide n'est ouverte. Si au moins un ticket
 est vert, la PR précise les tickets inclus, exclus et les conséquences. Une
 erreur de réseau ou de connector suspend l'étape concernée sans fabriquer
@@ -287,6 +311,18 @@ Au resume, l'ordre de réconciliation est :
 commits et les preuves sont encore valides. `abort` libère la réservation et
 arrête l'automatisme, mais préserve les branches et commits non fusionnés.
 
+Le chemin nominal ne demande jamais de `runId`. Le bootstrap hydrate Linear et
+GitHub, reprend l'unique lease non terminal du programme, crée un run si aucun
+lease n'existe, et bloque avec `competing-runs` si plusieurs leases
+incompatibles sont observés. Un `--run` explicite reste disponible uniquement
+pour le diagnostic opérateur.
+
+Le premier incrément promet une reprise après crash, compaction ou nouvelle
+session dans le même clone. Il ne prétend pas récupérer des branches worker
+locales après perte du clone ou de la machine. Un curseur absent est reconstruit
+uniquement depuis les marqueurs distants et les refs Git réellement présentes ;
+un worker n'est jamais déclaré terminé sans sa plage de commits.
+
 ## Gate humain et cycle de vie
 
 La fusion de la PR de réconciliation est l'unique gate humain. Avant ce point,
@@ -302,7 +338,11 @@ Après détection de la fusion :
 2. passe les tickets inclus à Done et ajoute le lien de PR ;
 3. laisse les tickets exclus dans leur état explicite ;
 4. clôt le `clusterId` et nettoie seulement les worktrees récupérables ;
-5. peut planifier le cluster suivant si le programme reste actif.
+5. rend le programme éligible au cluster suivant, mais le premier incrément
+   s'arrête ici ; l'enchaînement multi-cluster vient plus tard.
+
+Le nettoyage refuse tout worktree sale, commit non intégré ou branche non
+archivée. Aucune suppression forcée n'appartient au chemin nominal.
 
 ## Sécurité et limites
 
@@ -326,7 +366,7 @@ invalidations de preuves et plan de triggers CI sont testés en TDD strict. La
 composition CLI et les erreurs opérateur sont testées avec de vrais dépôts Git
 éphémères quand l'ascendance compte.
 
-Le Workflow a des fixtures pour :
+Les deux adapters d'orchestration ont des fixtures de conformance communes pour :
 
 - quatre tickets disjoints en parallèle ;
 - overlap et migration en séquentiel ;
@@ -341,17 +381,44 @@ Le Workflow a des fixtures pour :
 Un dogfood sur un projet consommateur valide les connectors, les worktrees, la
 PR réelle et le coût CI. Aucun test automatisé ne fusionne une PR de production.
 
-## Déploiement progressif
+La matrice de fautes couvre aussi : Linear absent, auth refusée, rate limit,
+GraphQL partiel, timeout avant/après write ; GitHub absent, PR fermée, checks
+annulés, head réécrit et base avancée ; ref Git absente, plage non linéaire,
+worktree sale, disque plein et interruption aux frontières d'écriture. Nil, vide,
+erreur amont et état contradictoire sont des résultats distincts.
 
-1. **Plan only** : nouveau nom, configuration persistante, sélection et preview,
-   sans mutation.
-2. **Un cluster autonome** : jusqu'à quatre tickets, une PR, fusion humaine.
-3. **Reprise inter-session** : bootstrap automatique et récupération distante.
-4. **Multi-cluster** : enchaînement après chaque fusion humaine.
-5. **Backend headless** : même contrat, transport différé.
+## Cutover atomique
 
-Chaque phase conserve `ticket-runner` comme moteur mono-ticket et la fusion
-humaine comme frontière d'autorité.
+Le plan-only, le fan-out, la réconciliation et la reprise sont des checkpoints
+internes d'une seule branche d'intégration, pas des releases intermédiaires.
+L'ancien moteur reste celui de la branche principale jusqu'à ce que quatre
+plages de tickets verticales soient réunies dans une PR de cutover :
+
+1. bounded context, activation, preview, lease et reprise zéro-argument ;
+2. exécution `ticket-runner` dans les adapters Claude et Codex ;
+3. réconciliation, suite locale, une PR et lifecycle Linear complet ;
+4. bascule publique, suppression du legacy, conformance et dogfood.
+
+La suppression de l'ancien moteur et l'activation du nouveau nom arrivent dans
+la dernière plage. Les quatre plages gardent leurs commits attribuables, mais
+une seule PR est fusionnée. Multi-cluster et backend headless restent des
+incréments ultérieurs ; `ticket-runner` et la fusion humaine restent les mêmes
+frontières.
+
+## Parcours opérateur mesuré
+
+Le chemin nominal est `/harness:autopilot` sans argument. Le CLI expose une
+sortie humaine lisible et un `--json` versionné pour le skill. Le dogfood mesure :
+
+- activation initiale, harness installé et connectors autorisés : ACTIVE valide
+  et preview en moins de cinq minutes ;
+- session suivante : statut cohérent ou erreur actionnable en moins de trente
+  secondes hors latence exceptionnelle du provider ;
+- cluster prêt : premier worker lancé en moins de deux minutes.
+
+Le temps jusqu'à la PR dépend des tickets et n'est pas présenté comme une
+constante. La preuve de run inclut durées, appels providers, suite locale,
+triggers CI et attente du gate humain.
 
 ## Critères de succès
 
@@ -364,3 +431,7 @@ humaine comme frontière d'autorité.
 6. Autopilot corrige seul réconciliation et CI jusqu'à `ready for merge`.
 7. Linear, GitHub, Git et le curseur convergent après crash ou compaction.
 8. La seule action humaine du cycle nominal est de fusionner la PR.
+9. Claude et Codex exécutent le même `OrchestrationPlan` et produisent le même
+   schéma `WorkerResult`.
+10. Une nouvelle session reprend sans demander tracker, programme, ticket ou
+    `runId`.
