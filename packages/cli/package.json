@@ -45,7 +45,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "prepack": "pnpm --filter @voidcorp/harness-graph build && pnpm --filter @voidcorp/mission-engine build && pnpm --filter @voidcorp/hook-runner build && pnpm run build && pnpm run build:assets"
+    "prepack": "pnpm -w build:cli && pnpm run build:assets"
   },
   "engines": {
     "node": ">=22.12"
