@@ -750,12 +750,12 @@ Le découpage cible exactement quatre tickets d'implémentation dans une seule P
 projet et crée les vraies relations `blockedBy`. Il ne crée ni ne remplace
 `plans/ACTIVE.md` tant qu'un autre programme y est `executing`.
 
-| Ref | Ticket impératif | Taille | Priorité | `blockedBy` | Plage |
-|---|---|---:|---|---|---|
-| APA | Fonder Autopilot et reprendre sans repointage | L | high | DEV-433 | A1–A4 |
-| APB | Exécuter ticket-runner sur Claude et Codex | L | high | APA, DEV-441, DEV-442 | B1–B2 |
-| APC | Réconcilier, publier et tenir Linear jusqu'au merge | L | high | APB | C1–C4 |
-| APD | Basculer atomiquement et certifier les consommateurs | L | high | APC | D1 |
+| Ref | Linear | Ticket impératif | Taille | Priorité | `blockedBy` | Plage |
+|---|---|---|---:|---|---|---|
+| APA | DEV-462 | Fonder Autopilot et reprendre sans repointage | L | high | DEV-433 | A1–A4 |
+| APB | DEV-463 | Exécuter ticket-runner sur Claude et Codex | L | high | DEV-462, DEV-441, DEV-442 | B1–B2 |
+| APC | DEV-464 | Réconcilier, publier et tenir Linear jusqu'au merge | L | high | DEV-463 | C1–C4 |
+| APD | DEV-465 | Basculer atomiquement vers Autopilot et certifier les consommateurs | L | high | DEV-464 | D1 |
 
 Les quatre tickets sont volontairement dépendants et s'exécutent
 séquentiellement sur la même branche d'intégration, avec une plage de commits
@@ -766,8 +766,10 @@ plan retire.
 
 ## Resume point
 
-**Next step**: exécuter `harness:ticket-writer` pour créer APA–APD dans
-`voidcorp / DEV / void harness`, sans modifier le programme actif.
+**Next step**: attendre que DEV-433 soit débloqué et terminé, puis lancer
+`harness:ticket-runner` sur DEV-462 depuis la branche d'intégration unique.
+Chaque reprise relit ce ticket dans Linear et le plan global ; aucun repointage
+manuel de `ACTIVE.md` n'est requis.
 
 **Completed**:
 
@@ -776,14 +778,15 @@ plan retire.
 - plan-review CEO/Design/Engineering/DevEx terminé ;
 - cutover atomique en quatre plages approuvé et replié ;
 - adapters Claude/Codex, lease logique, reprise zéro-argument, recovery même
-  clone, lifecycle Linear et parcours DevEx repliés.
+  clone, lifecycle Linear et parcours DevEx repliés ;
+- tickets créés dans `voidcorp / DEV / void harness` :
+  DEV-462, DEV-463, DEV-464 et DEV-465, avec relations `blockedBy` vérifiées.
 
 **Pending**:
 
-- création des tickets APA–APD avec `ticket-writer` ;
-- ajout explicite au programme v3 ou attente de sa clôture, sans repointage
-  automatique de `ACTIVE.md` ;
-- exécution séquentielle APA→APD sur une branche, une PR au terme ;
+- clôture de DEV-433, actuellement bloqué par DEV-461 ;
+- disponibilité de DEV-441 puis DEV-442 avant DEV-463 ;
+- exécution séquentielle DEV-462→DEV-465 sur une branche, une PR au terme ;
 - brainstorming/spec séparée de `void-harness cheatsheet`, sans l'inclure dans
   APA–APD.
 
