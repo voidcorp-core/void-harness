@@ -6,11 +6,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
+import { packageManagerCommand } from './conformance-process.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '..', '..', '..');
 const PACKAGE_ROOT = resolve(HERE, '..');
-const executable = (name) => process.platform === 'win32' ? `${name}.cmd` : name;
 
 async function run(command, args, cwd, env = {}) {
   await new Promise((resolveRun, rejectRun) => {
@@ -38,10 +38,19 @@ function requirePath(path, label) {
 
 const temporary = await mkdtemp(join(tmpdir(), 'void-install-conformance-'));
 const npmCache = join(temporary, 'npm-cache');
+const pnpm = packageManagerCommand('pnpm');
+const npm = packageManagerCommand('npm');
 await mkdir(npmCache, { recursive: true });
 await run(
-  executable('pnpm'),
-  ['--filter', 'voidharness', 'pack', '--pack-destination', temporary],
+  pnpm.executable,
+  [
+    ...pnpm.prefixArguments,
+    '--filter',
+    'voidharness',
+    'pack',
+    '--pack-destination',
+    temporary,
+  ],
   REPO_ROOT,
 );
 const tarballName = (await readdir(temporary)).find((name) => name.endsWith('.tgz'));
@@ -54,8 +63,16 @@ for (const runtime of ['claude', 'codex', 'both']) {
   await mkdir(fixture, { recursive: true });
   const started = performance.now();
   await run(
-    executable('npm'),
-    ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', tarball],
+    npm.executable,
+    [
+      ...npm.prefixArguments,
+      'install',
+      '--offline',
+      '--ignore-scripts',
+      '--no-audit',
+      '--no-fund',
+      tarball,
+    ],
     fixture,
     { npm_config_cache: npmCache },
   );

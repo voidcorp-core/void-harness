@@ -18,6 +18,7 @@ import {
   assertCanonicalHookReplay,
   runtimesForMode,
 } from './conformance-hooks-lib.mjs';
+import { packageManagerCommand } from './conformance-process.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '..', '..', '..');
@@ -25,10 +26,6 @@ const MAX_OUTPUT_BYTES = 64 * 1024;
 const MAX_HOOK_INPUT_BYTES = 1024 * 1024;
 const COMMAND_TIMEOUT_MS = 120_000;
 const HOOK_TIMEOUT_MS = 5_000;
-
-function executable(name) {
-  return process.platform === 'win32' ? `${name}.cmd` : name;
-}
 
 function childEnvironment(extra = {}) {
   const allowed = [
@@ -283,8 +280,16 @@ async function exerciseFixture(temporary, tarball, npmCache, mode) {
     npm_config_offline: 'true',
   });
   await run(
-    executable('npm'),
-    ['install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', tarball],
+    npm.executable,
+    [
+      ...npm.prefixArguments,
+      'install',
+      '--offline',
+      '--ignore-scripts',
+      '--no-audit',
+      '--no-fund',
+      tarball,
+    ],
     { cwd: fixture, env },
   );
   const bin = join(
@@ -330,13 +335,22 @@ async function exerciseFixture(temporary, tarball, npmCache, mode) {
   });
 }
 
+const pnpm = packageManagerCommand('pnpm');
+const npm = packageManagerCommand('npm');
 const temporary = await mkdtemp(join(tmpdir(), 'void hook conformance-'));
 try {
   const npmCache = join(temporary, 'npm-cache');
   await mkdir(npmCache, { recursive: true });
   await run(
-    executable('pnpm'),
-    ['--filter', 'voidharness', 'pack', '--pack-destination', temporary],
+    pnpm.executable,
+    [
+      ...pnpm.prefixArguments,
+      '--filter',
+      'voidharness',
+      'pack',
+      '--pack-destination',
+      temporary,
+    ],
     { cwd: REPO_ROOT, env: childEnvironment() },
   );
   const tarballName = (await readdir(temporary))
