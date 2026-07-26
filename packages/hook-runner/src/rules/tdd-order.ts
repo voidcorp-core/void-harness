@@ -36,7 +36,7 @@ function matches(path: string, globs: readonly string[]): boolean {
 }
 
 function bypass(path: string, spikeGlobs: readonly string[]): boolean {
-  return /\.(?:md|mdx|txt)$/.test(path)
+  return !/\.(?:ts|tsx|js|jsx)$/.test(path)
     || /(^|\/)docs\//.test(path)
     || /\.(?:test|spec)\.(?:ts|tsx|js|jsx)$/.test(path)
     || /\.d\.ts$/.test(path)
