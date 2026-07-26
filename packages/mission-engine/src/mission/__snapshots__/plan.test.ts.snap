@@ -1,0 +1,73 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`compileMissionPlan > produces a stable canonical DAG for declik 1`] = `
+[
+  "product[not-applicable]<-",
+  "architecture[not-applicable]<-product",
+  "tdd[pending]<-architecture",
+  "qa[pending]<-tdd",
+  "security[pending]<-architecture,tdd",
+  "observability[not-applicable]<-tdd",
+  "migration[not-applicable]<-architecture",
+  "ux-ui[pending]<-tdd",
+  "accessibility[pending]<-ux-ui",
+  "performance[not-applicable]<-tdd",
+  "stack-patterns[pending]<-architecture",
+  "pdf[not-applicable]<-qa",
+  "retrospective[not-applicable]<-product,architecture,tdd,qa,security,observability,migration,ux-ui,accessibility,performance,stack-patterns,pdf",
+]
+`;
+
+exports[`compileMissionPlan > produces a stable canonical DAG for sesame 1`] = `
+[
+  "product[not-applicable]<-",
+  "architecture[not-applicable]<-product",
+  "tdd[pending]<-architecture",
+  "qa[pending]<-tdd",
+  "security[pending]<-architecture,tdd",
+  "observability[not-applicable]<-tdd",
+  "migration[not-applicable]<-architecture",
+  "ux-ui[not-applicable]<-tdd",
+  "accessibility[not-applicable]<-ux-ui",
+  "performance[not-applicable]<-tdd",
+  "stack-patterns[pending]<-architecture",
+  "pdf[not-applicable]<-qa",
+  "retrospective[not-applicable]<-product,architecture,tdd,qa,security,observability,migration,ux-ui,accessibility,performance,stack-patterns,pdf",
+]
+`;
+
+exports[`compileMissionPlan > produces a stable canonical DAG for solaar 1`] = `
+[
+  "product[not-applicable]<-",
+  "architecture[not-applicable]<-product",
+  "tdd[pending]<-architecture",
+  "qa[pending]<-tdd",
+  "security[pending]<-architecture,tdd",
+  "observability[not-applicable]<-tdd",
+  "migration[not-applicable]<-architecture",
+  "ux-ui[not-applicable]<-tdd",
+  "accessibility[not-applicable]<-ux-ui",
+  "performance[pending]<-tdd",
+  "stack-patterns[pending]<-architecture",
+  "pdf[pending]<-qa",
+  "retrospective[not-applicable]<-product,architecture,tdd,qa,security,observability,migration,ux-ui,accessibility,performance,stack-patterns,pdf",
+]
+`;
+
+exports[`compileMissionPlan > produces a stable canonical DAG for void-harness 1`] = `
+[
+  "product[pending]<-",
+  "architecture[pending]<-product",
+  "tdd[pending]<-architecture",
+  "qa[pending]<-tdd",
+  "security[pending]<-architecture,tdd",
+  "observability[pending]<-tdd",
+  "migration[not-applicable]<-architecture",
+  "ux-ui[not-applicable]<-tdd",
+  "accessibility[not-applicable]<-ux-ui",
+  "performance[not-applicable]<-tdd",
+  "stack-patterns[pending]<-architecture",
+  "pdf[not-applicable]<-qa",
+  "retrospective[not-applicable]<-product,architecture,tdd,qa,security,observability,migration,ux-ui,accessibility,performance,stack-patterns,pdf",
+]
+`;
