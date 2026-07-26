@@ -23,6 +23,12 @@ export interface AdapterConfig {
   readonly timeoutMs: number;
   /** Bounded retries on an infra failure (timeout / crash), not on a bad result. */
   readonly retries: number;
+  /** Override only when an eval must remain read-only or invoke native agents. */
+  readonly permissionMode?: 'acceptEdits' | 'dontAsk';
+  /** Runtime tools available to the eval. Defaults to the bounded editing pilot set. */
+  readonly allowedTools?: string;
+  /** Project settings are enabled only when the fixture intentionally installs native agents. */
+  readonly settingSources?: '' | 'project';
 }
 
 export const DEFAULT_ADAPTER: AdapterConfig = { model: 'haiku', timeoutMs: 180_000, retries: 1 };
@@ -69,7 +75,20 @@ function invokeClaude(
   // inherited CLAUDE.md; verified the user-level CLAUDE.md does NOT leak). OAuth
   // auth stays intact (we do NOT relocate CLAUDE_CONFIG_DIR). The only difference
   // between the two conditions is the appended prose.
-  const args = ['-p', prompt, '--model', cfg.model, '--output-format', 'json', '--setting-sources', '', '--permission-mode', 'acceptEdits', '--allowedTools', ALLOWED_TOOLS];
+  const args = [
+    '-p',
+    prompt,
+    '--model',
+    cfg.model,
+    '--output-format',
+    'json',
+    '--setting-sources',
+    cfg.settingSources ?? '',
+    '--permission-mode',
+    cfg.permissionMode ?? 'acceptEdits',
+    '--allowedTools',
+    cfg.allowedTools ?? ALLOWED_TOOLS,
+  ];
   if (skillBody !== undefined) args.push('--append-system-prompt', skillBody);
   try {
     const raw = execFileSync('claude', args, { cwd: dir, encoding: 'utf8', timeout: cfg.timeoutMs, maxBuffer: 64 * 1024 * 1024, env: scrubbedEnv() });

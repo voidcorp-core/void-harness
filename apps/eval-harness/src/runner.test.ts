@@ -65,6 +65,37 @@ describe('runEval — aggregation over N runs per condition', () => {
     expect(report.runsPerCondition).toBe(3);
   });
 
+  it('counts named deterministic signals for absolute suite gates', async () => {
+    const scorer: Scorer = (result) => ({
+      score: 1,
+      signals: { blockerFound: result.ok, noFalseGreen: true },
+    });
+    const report = await runEval(evalCase(scorer), 'SKILL PROSE', fakePort(1, 0), {
+      runs: 2,
+    });
+
+    expect(report.withSkill.signalCounts).toEqual({
+      blockerFound: 2,
+      noFalseGreen: 2,
+    });
+    expect(report.withoutSkill.signalCounts).toEqual({
+      blockerFound: 2,
+      noFalseGreen: 2,
+    });
+  });
+
+  it('retains canonical replay logs only for runs that emit them', async () => {
+    const eventLog = `${JSON.stringify({ schemaVersion: 1 })}\n`;
+    const port: RunOnce = ({ skillBody }) => Promise.resolve(outcome(
+      skillBody === undefined ? 0 : 1,
+      skillBody === undefined ? {} : { eventLog },
+    ));
+    const report = await runEval(evalCase(), 'SKILL PROSE', port, { runs: 1 });
+
+    expect(report.withSkill.eventLogs).toEqual([eventLog]);
+    expect(report.withoutSkill.eventLogs).toBeUndefined();
+  });
+
   it('reports a positive delta and a skill-helps verdict when the skill lifts the score', async () => {
     const report = await runEval(evalCase(), 'SKILL PROSE', fakePort(0.9, 0.2), { runs: 3 });
     expect(report.delta).toBeCloseTo(0.7);

@@ -29,12 +29,25 @@ async function runCondition(
   // await each score: a judgeScorer is async (it calls the injected LLM judge);
   // a deterministic scorer returns synchronously and awaiting it is a no-op.
   const scores: number[] = [];
-  for (const o of outcomes) scores.push((await evalCase.scorer(o)).score);
+  const signalCounts: Record<string, number> = {};
+  for (const outcome of outcomes) {
+    const result = await evalCase.scorer(outcome);
+    scores.push(result.score);
+    for (const [name, passed] of Object.entries(result.signals)) {
+      if (passed) signalCounts[name] = (signalCounts[name] ?? 0) + 1;
+    }
+  }
   return {
     scores,
     meanScore: mean(scores),
     okRuns: outcomes.filter((o) => o.ok).length,
     costUsd: sum(outcomes.map((o) => o.costUsd)),
+    signalCounts,
+    ...(
+      outcomes.some((outcome) => outcome.eventLog !== undefined)
+        ? { eventLogs: outcomes.flatMap((outcome) => outcome.eventLog ?? []) }
+        : {}
+    ),
   };
 }
 
