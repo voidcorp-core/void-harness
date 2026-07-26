@@ -561,6 +561,12 @@ check, never a silent green. Escape hatch: `.github/void-enforce-allow` lists
 path globs the driver skips (each skip logged) — the committed, reviewable
 equivalent of the local `VOID_HARNESS_ALLOW_SECRET_EDIT` override, for files
 legitimately named like a secret store.
+An exact generated artifact may also be exempt only when its authored sources
+remain scanned and a deterministic freshness gate verifies the artifact in the
+same CI. This repository applies that rule to the single-file consumer graph
+bundle, whose size exceeds the bounded hook protocol; `graph:check-bundle`
+proves its source/model correspondence. Broad generated-directory globs remain
+forbidden.
 `void-harness doctor` reports (advisory, never blocking) whether a project has
 adopted the workflow. v1 replays three checks: sensitive-path, secret-content,
 boundary-direction. Destructive-shell stays a local runtime guard only — a
