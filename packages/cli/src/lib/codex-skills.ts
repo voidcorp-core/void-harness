@@ -58,7 +58,7 @@ function runtimesFallback(body: string): Record<string, unknown> {
  * no frontmatter. Never throws.
  */
 export function parseFrontmatter(md: string): Record<string, unknown> {
-  const match = md.match(/^---\n([\s\S]*?)\n---/);
+  const match = md.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
   if (!match) return {};
   const body = match[1] ?? '';
   try {
