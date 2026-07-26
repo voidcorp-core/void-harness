@@ -141,6 +141,13 @@ export function parseSpecialistCompletion(
       `SPECIALIST_OUTPUT_INVALID: wrong contract version ${result.data.contractVersion}, expected ${contract.version}`,
     );
   }
+  if (
+    contract.failurePolicy === 'block-on-critical'
+    && result.data.findings.some((finding) => finding.severity === 'critical')
+    && result.data.verdict !== 'blocked'
+  ) {
+    throw new Error('SPECIALIST_OUTPUT_INVALID: a critical finding requires a blocked verdict');
+  }
   if (acceptedCompletionIds.includes(result.data.completionId)) {
     throw new Error(`SPECIALIST_OUTPUT_INVALID: duplicate completion '${result.data.completionId}'`);
   }

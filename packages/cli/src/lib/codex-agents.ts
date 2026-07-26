@@ -92,7 +92,14 @@ export async function codexSpecialistsHealth(projectRoot: string): Promise<Codex
         continue;
       }
       const content = await readFile(path, 'utf8');
-      if (!content.includes(`name = "${name}"`) || !content.includes('sandbox_mode = "read-only"')) {
+      const required = [
+        `name = "${name}"`,
+        'sandbox_mode = "read-only"',
+        'web_search = "disabled"',
+        'mcp_servers = {}',
+        `Canonical contract: \`core:${name}\``,
+      ];
+      if (!required.every((fragment) => content.includes(fragment))) {
         missing.push(name);
       }
     } catch {

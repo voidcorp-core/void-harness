@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   CODEX_AGENTS_DIR,
   compileAgentToToml,
+  codexSpecialistsHealth,
   wireCodexAgents,
 } from './codex-agents.js';
 
@@ -142,5 +143,20 @@ describe('wireCodexAgents', () => {
       expect(toml).toMatch(new RegExp(`^name = "${name}"$`, 'm'));
       expect(toml).toMatch(/^sandbox_mode = "read-only"$/m);
     }
+  });
+
+  it('rejects a discovered specialist that lost its canonical identity or network floor', async () => {
+    const project = tmp('void-codex-agenthealth-');
+    await wireCodexAgents(project, CORE_ROOT);
+    await expect(codexSpecialistsHealth(project)).resolves.toMatchObject({ ok: true });
+
+    writeFileSync(
+      join(project, CODEX_AGENTS_DIR, 'security-engineer.toml'),
+      'name = "security-engineer"\nsandbox_mode = "read-only"\n',
+    );
+    await expect(codexSpecialistsHealth(project)).resolves.toMatchObject({
+      ok: false,
+      detail: expect.stringContaining('security-engineer'),
+    });
   });
 });

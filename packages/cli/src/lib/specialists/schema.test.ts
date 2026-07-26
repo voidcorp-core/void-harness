@@ -79,4 +79,17 @@ describe('parseSpecialistCompletion', () => {
       [],
     )).toThrow(/unrecognized/i);
   });
+
+  it('enforces the canonical block-on-critical failure policy', () => {
+    expect(() => parseSpecialistCompletion(JSON.stringify(completion({
+      verdict: 'pass',
+      findings: [{
+        id: 'critical-boundary',
+        severity: 'critical',
+        summary: 'The boundary permits an unrecoverable violation.',
+        evidence: [{ path: 'src/boundary.ts', line: 7, detail: 'The guard is bypassed.' }],
+        recommendation: 'Restore the guard before continuing.',
+      }],
+    })), ARCHITECT_CONTRACT, [])).toThrow(/critical.*blocked/i);
+  });
 });
