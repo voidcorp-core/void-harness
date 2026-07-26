@@ -114,26 +114,32 @@ version (only on real drift), so a Codex project catches floor-script updates th
 same way the Claude side catches marketplace bumps.
 
 The former manual copy is no longer needed. `packages/core/codex/hooks.json`
-remains the single source `init` compiles from.
+remains the single source `init` compiles from. Its top level uses only the
+Codex-supported `description` and `hooks` fields; a live `--strict-config` smoke
+guards that boundary in addition to the compiler regression test.
 
-## The agents (compiled, not re-authored)
+## Native agents and specialists
 
-Claude runs five read-only critics — `doctrine-critic`, `silent-failure-hunter`,
-`type-design-analyzer`, `code-explorer`, `migration-planner` — as context-isolated
-**subagents** shipped in the marketplace plugin. Codex has no stable equivalent to
-spawn: its subagents are still experimental, and its custom prompts are deprecated
-in favour of **skills**, which its own docs name as the reusable-capability
-primitive.
+Codex now discovers project-scoped custom agents from `.codex/agents/*.toml`.
+`init` compiles the five authored Markdown critics to that native format, so the
+former `.agents/skills/<critic>/SKILL.md` fallback is gone. Skills remain inline
+teaching contracts; agents provide fresh context.
 
-So `init` **compiles** each agent definition into a Codex skill under
-`.agents/skills/<name>/`, rather than hand-writing a second copy. One authored
-doctrine per capability, rendered per runtime — which is what the runtime seam is
-for. The Claude-only frontmatter keys (`tools`, `model`, `color`) are dropped
-instead of carried as a promise Codex cannot honour, and each compiled file states
-its own origin so nobody hand-edits a generated copy.
+The first v3 specialists, `solution-architect`, `security-engineer`, and
+`test-qa-engineer`, are authored once under `packages/core/specialists/*.yaml`.
+The Claude and Codex compilers embed the exact same scope, applicability, budget,
+failure policy, and JSON result contract in their native files. Manual and
+orchestrated invocation therefore parse through one identity/version-aware output
+boundary.
 
-**Honest degradation**: Codex gets the capability, not the *context isolation*. A
-skill runs inline in the main Codex context where Claude spawns a separate one.
+Codex agents declare `sandbox_mode = "read-only"`, disable web search, and clear
+inherited MCP servers. This is not called enforced isolation: Codex reapplies the
+parent turn's live sandbox overrides, including `--yolo`, and exposes no per-agent
+process allowlist. `doctor` reports native discovery but keeps team mode degraded
+until an equivalent runtime isolation proof exists. See the official [Codex
+subagent configuration].
+
+[Codex subagent configuration]: https://learn.chatgpt.com/docs/agent-configuration/subagents
 
 ## The commands
 
@@ -157,17 +163,19 @@ plainly is the point — this is the only place where "prerequisite" keeps meani
 | claude-in-chrome MCP | a Claude-bound browser extension | `qa`, `ui-review` live browser passes |
 | `@voidcorp/make-pdf` | package not published | the `make-pdf` skill |
 | `trim-large-output` hook | its `PostToolUse` output rewriting (`updatedToolOutput`) is unconfirmed on Codex, and a sibling field is documented as failing there | token-frugality trimming only; deliberately not wired rather than shipped dead |
-| subagent context isolation | Codex subagents still experimental | the five compiled critics run inline |
+| enforced specialist read-only isolation | parent sandbox overrides and no per-agent process allowlist | native agents work, but team mode stays degraded |
 
 ## Status (verified vs pending)
 
 - **Verified**: sister-doc gate; `init` emits `AGENTS.md` and auto-wires
   `.codex/hooks.json` (one staged runner + compiled manifest, unit-tested); `doctor`
   checks the wiring; the hooks parse both runtimes' payload shapes, including
-  multi-file `apply_patch` (unit-tested); the five agents compile from the real
-  `packages/core` tree (integration-tested); a real `init --runtime codex` stages
-  one runner plus the discoverable skills, and the staged hooks block a violation
-  added in the second file of a multi-file patch.
+  multi-file `apply_patch` (unit-tested); all eight agents compile from the real
+  `packages/core` tree to native TOML (integration-tested); a real `init --runtime codex` stages
+  one runner plus the discoverable skills and agents; live trusted-project Codex sessions discover
+  and launch all three specialists, accept the hooks manifest under `--strict-config`, and return
+  outputs accepted by the shared parser. The staged hooks also block a violation added in the
+  second file of a multi-file patch when invoked directly.
 - **Pending a real-Codex run**: end-to-end firing of `.codex/hooks.json` by Codex
   itself (the hooks are verified by direct invocation, not yet by a live Codex
   session), and a `RUNTIME=codex` backend for the backlog orchestrator (it

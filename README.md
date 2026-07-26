@@ -11,7 +11,7 @@ Install a top-5% development doctrine on any project in one command, run it acro
 
 - **Craftsman skills** — TDD strict, TigerStyle, hexagonal, DDD — enforced by hooks, not vibes.
 - **Evidence-bound missions** — append-only local proofs, findings and honest verdicts that become stale when their inputs change.
-- **Multi-runtime by construction** — one doctrine, compiled locally to **Claude Code** (`CLAUDE.md` + `.claude/skills` + `.claude/agents`) and **Codex** (`AGENTS.md` + `.codex/hooks.json` + `.agents/skills`) through a runtime-adapter seam. Both runtimes get the *same* enforcement: the hooks are a full mirror, and the read-only agents are compiled into Codex skills rather than re-authored. What genuinely cannot cross over is listed in `docs/CODEX.md` instead of being papered over. Add a runtime later without a reinstall (`void-harness runtime add codex`).
+- **Multi-runtime by construction** — one doctrine, compiled locally to **Claude Code** (`CLAUDE.md` + `.claude/skills` + `.claude/agents`) and **Codex** (`AGENTS.md` + `.agents/skills` + `.codex/agents` + hooks) through a runtime-adapter seam. Both runtimes get native fresh-context agents; what cannot reach equivalent isolation stays explicitly degraded in `docs/CODEX.md`. Add a runtime later without a reinstall (`void-harness runtime add codex`).
 - **Pluggable stack packs** — Next.js, monorepo, React, server, PWA, mobile — activated per project.
 - **Free and account-free** — `npx voidharness init`. No Claude account, no subscription, no API key. The Claude Code marketplace is an optional secondary channel.
 
@@ -55,7 +55,8 @@ void-harness/
 │   │   └── core-assets/           # bundled plugin + frozen model/certification (self-contained npx)
 │   ├── core/                      # harness plugin (static assets, not an npm package)
 │   │   ├── skills/                # craftsman skills
-│   │   ├── agents/                # doctrine-critic (read-only doctrine conformance review)
+│   │   ├── agents/                # doctrine-critic + native/generated Claude agents
+│   │   ├── specialists/           # canonical architecture, security, and QA contracts
 │   │   ├── hooks/                 # tdd-guard, no-any-grep, no-console-log-grep, etc.
 │   │   ├── codex/                 # Codex safety-floor manifest (hooks.json)
 │   │   └── modules/               # CLAUDE.md modules (composable)
@@ -135,10 +136,18 @@ npx voidharness runtime list        # which runtimes are wired
 npx voidharness runtime add codex    # wire Codex on a Claude project (or vice-versa)
 ```
 
-`runtime add codex` stages Codex's safety floor (`.codex/hooks.json` + one portable Node runner) and writes
+`runtime add codex` stages Codex's safety floor, native agents (`.codex/agents/*.toml`) and one portable Node runner, then writes
 `AGENTS.md`, leaving your Claude setup byte-for-byte untouched. See [`docs/CODEX.md`](docs/CODEX.md).
 `add`, `remove` and `update` reconcile local assets through the same staged transaction; a pack
 removal deletes only unchanged files owned by the receipt and preserves adjacent or edited files.
+
+### Native specialists
+
+After `init`, invoke `solution-architect`, `security-engineer`, or `test-qa-engineer` by name. Claude
+supports `claude --agent solution-architect`; in Codex, ask the parent session to use the named
+custom agent. An orchestrator uses those same installed definitions rather than a parallel prompt.
+Every invocation must return the same raw, identity/version-aware JSON contract. `doctor` verifies
+discovery and reports `team degraded` while either runtime's read-only isolation remains incomplete.
 
 `status` reads a frozen capability certification and local telemetry to show, per capability, the
 five-state lifecycle (`available → installed → verified → used → effective`) and a blocker/gauge
