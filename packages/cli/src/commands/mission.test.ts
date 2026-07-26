@@ -1,5 +1,13 @@
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { missionVerdictExitCode, parseMissionArgs } from './mission.js';
+import {
+  missionVerdictExitCode,
+  parseMissionArgs,
+  planMission,
+  renderMissionFailure,
+} from './mission.js';
 
 describe('parseMissionArgs', () => {
   it('defaults mission start to team mode', () => {
@@ -77,11 +85,75 @@ describe('parseMissionArgs', () => {
     });
   });
 
+  it('parses deterministic mission planning', () => {
+    expect(parseMissionArgs([
+      'plan',
+      '--ticket',
+      'tickets/DEV-435.md',
+      '--json',
+    ])).toEqual({
+      kind: 'plan',
+      ticketPath: 'tickets/DEV-435.md',
+      json: true,
+    });
+  });
+
+  it.each([
+    [['plan'], 'missing required option --ticket'],
+    [['plan', '--ticket'], 'missing value for --ticket'],
+    [['plan', '--ticket', 'ticket.md', '--unknown'], "unknown option '--unknown'"],
+  ] as const)('rejects invalid plan arguments', (args, problem) => {
+    expect(parseMissionArgs(args)).toMatchObject({
+      kind: 'invalid',
+      code: 'MISSION_USAGE',
+      problem,
+    });
+  });
+
   it('fails the process for stale, blocked, or degraded verdicts', () => {
     expect(missionVerdictExitCode('verified')).toBe(0);
     expect(missionVerdictExitCode('shipped-with-exception')).toBe(0);
     expect(missionVerdictExitCode('unverified')).toBe(1);
     expect(missionVerdictExitCode('blocked')).toBe(1);
     expect(missionVerdictExitCode('degraded')).toBe(1);
+  });
+
+  it('plans a real ticket deterministically and degrades outside git', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'void-mission-plan-'));
+    await writeFile(join(root, 'package.json'), JSON.stringify({
+      packageManager: 'pnpm@10.34.5',
+      devDependencies: { vitest: '^4.1.9' },
+    }));
+    await writeFile(
+      join(root, 'DEV-435.md'),
+      '# Compile policies\n\nAdd a tested API module with observability.\n',
+    );
+    const first = await planMission(
+      root,
+      'DEV-435.md',
+      '2026-07-26T00:00:00Z',
+    );
+    const second = await planMission(
+      root,
+      'DEV-435.md',
+      '2026-07-26T00:01:00Z',
+    );
+    expect(first.planHash).toBe(second.planHash);
+    expect(first.context).toMatchObject({ status: 'degraded' });
+    expect(first.applicability).toHaveLength(13);
+  });
+
+  it('renders structured JSON failures without hiding the root cause', () => {
+    expect(JSON.parse(renderMissionFailure(
+      new Error('POLICY_PATH_ESCAPE: policy resolves outside root'),
+      true,
+    ))).toEqual({
+      error: {
+        code: 'POLICY_PATH_ESCAPE',
+        problem: 'mission command could not complete',
+        cause: 'policy resolves outside root',
+        fix: 'correct the reported input or policy and retry',
+      },
+    });
   });
 });

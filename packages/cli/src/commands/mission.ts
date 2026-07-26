@@ -1,5 +1,17 @@
+import { execFile as nodeExecFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import type { MissionVerdictStatus } from '@voidcorp/mission-engine';
+import { existsSync } from 'node:fs';
+import { readFile, realpath, stat } from 'node:fs/promises';
+import { basename, extname, isAbsolute, join, relative, resolve } from 'node:path';
+import { promisify } from 'node:util';
+import {
+  compileMissionPlan,
+  mergePolicies,
+  type MissionPlan,
+  type MissionVerdictStatus,
+} from '@voidcorp/mission-engine';
+import { findCoreSource } from '../lib/paths.js';
+import { loadProjectPolicies } from '../lib/policy-loader.js';
 import { archiveMission, pruneMissions } from '../lib/runs/archive.js';
 import { inspectCurrentMission } from '../lib/runs/inspect-current.js';
 import { collectKnownSecrets } from '../lib/runs/redact.js';
@@ -8,8 +20,11 @@ import {
   type MissionMode,
 } from '../lib/runs/store.js';
 import { verifyMissionCommand } from '../lib/runs/verify.js';
+import { detectStack } from '../lib/stack.js';
 
 const MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
+const execFile = promisify(nodeExecFile);
+const MAX_TICKET_BYTES = 100_000;
 
 interface InvalidArgs {
   readonly kind: 'invalid';
@@ -19,6 +34,11 @@ interface InvalidArgs {
 }
 
 export type MissionArgs =
+  | {
+      readonly kind: 'plan';
+      readonly ticketPath: string;
+      readonly json: boolean;
+    }
   | {
       readonly kind: 'start';
       readonly title: string;
@@ -149,6 +169,23 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
       json: options.includes('--json'),
     };
   }
+  if (subcommand === 'plan') {
+    if (divider !== -1) {
+      return invalid('plan does not accept a command', 'remove the -- separator');
+    }
+    const optionError = validateOptions(options, ['--ticket'], ['--json']);
+    if (optionError !== undefined) {
+      return invalid(optionError, 'void-harness mission plan --help');
+    }
+    const ticketPath = valueAfter(options, '--ticket');
+    if (ticketPath === undefined) {
+      return invalid(
+        'missing required option --ticket',
+        'pass --ticket <markdown-file>',
+      );
+    }
+    return { kind: 'plan', ticketPath, json: options.includes('--json') };
+  }
   if (subcommand === 'verify') {
     const optionError = validateOptions(
       options,
@@ -229,8 +266,115 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
   }
   return invalid(
     `unknown mission subcommand '${subcommand}'`,
-    'use start, verify, inspect, archive, or prune',
+    'use plan, start, verify, inspect, archive, or prune',
   );
+}
+
+function isWithin(root: string, target: string): boolean {
+  const path = relative(root, target);
+  return path === '' || (!path.startsWith('..') && !isAbsolute(path));
+}
+
+async function readTicket(root: string, ticketPath: string): Promise<{
+  readonly id: string;
+  readonly title: string;
+  readonly body: string;
+}> {
+  const canonicalRoot = await realpath(resolve(root));
+  const canonicalTicket = await realpath(resolve(canonicalRoot, ticketPath));
+  if (!isWithin(canonicalRoot, canonicalTicket)) {
+    throw new Error('MISSION_TICKET_PATH_ESCAPE: ticket resolves outside project root');
+  }
+  const metadata = await stat(canonicalTicket);
+  if (!metadata.isFile() || metadata.size > MAX_TICKET_BYTES) {
+    throw new Error(
+      `MISSION_TICKET_INVALID: ticket must be a file under ${MAX_TICKET_BYTES} bytes`,
+    );
+  }
+  const body = await readFile(canonicalTicket, 'utf8');
+  if (body.trim() === '') throw new Error('MISSION_TICKET_INVALID: ticket is empty');
+  const heading = body.split('\n').find((line) => /^#\s+\S/.test(line));
+  const fallback = basename(canonicalTicket, extname(canonicalTicket));
+  return Object.freeze({
+    id: fallback.slice(0, 128),
+    title: (heading?.replace(/^#\s+/, '').trim() ?? fallback).slice(0, 200),
+    body,
+  });
+}
+
+interface DetectedFiles {
+  readonly files: readonly string[];
+  readonly status: 'known' | 'unknown';
+}
+
+async function gitFiles(root: string): Promise<DetectedFiles> {
+  try {
+    const options = { cwd: root, encoding: 'utf8' as const, maxBuffer: 1_000_000, timeout: 5_000 };
+    const [changed, untracked] = await Promise.all([
+      execFile('git', ['diff', '--name-only', '--relative', 'HEAD'], options),
+      execFile('git', ['ls-files', '--others', '--exclude-standard'], options),
+    ]);
+    return Object.freeze({
+      files: Object.freeze(
+        [...new Set(`${changed.stdout}\n${untracked.stdout}`.split('\n').filter(Boolean))].sort(),
+      ),
+      status: 'known',
+    });
+  } catch {
+    return Object.freeze({ files: Object.freeze([]), status: 'unknown' });
+  }
+}
+
+function detectedStack(root: string): {
+  readonly technologies: readonly string[];
+  readonly status: 'known' | 'unknown';
+} {
+  const markers = [
+    'package.json',
+    'pnpm-lock.yaml',
+    'package-lock.json',
+    'yarn.lock',
+    'bun.lock',
+    'bun.lockb',
+  ];
+  if (!markers.some((marker) => existsSync(join(root, marker)))) {
+    return Object.freeze({ technologies: Object.freeze([]), status: 'unknown' });
+  }
+  const stack = detectStack(root);
+  return Object.freeze({
+    technologies: Object.freeze(Object.values(stack)),
+    status: 'known',
+  });
+}
+
+export async function planMission(
+  root: string,
+  ticketPath: string,
+  generatedAt = new Date().toISOString(),
+): Promise<MissionPlan> {
+  const [ticket, coreRoot, diff] = await Promise.all([
+    readTicket(root, ticketPath),
+    findCoreSource(),
+    gitFiles(root),
+  ]);
+  const policies = await loadProjectPolicies(root, join(coreRoot, 'policies', 'core.yaml'));
+  const stack = detectedStack(root);
+  return compileMissionPlan({
+    schemaVersion: 1,
+    ticket,
+    diff,
+    stack,
+    policy: mergePolicies(policies, generatedAt),
+  }, { generatedAt });
+}
+
+function renderPlan(plan: MissionPlan): string {
+  const applicable = plan.applicability.filter((item) => item.state === 'pending').length;
+  return [
+    `${plan.ticketId} risk=${plan.risk.level} mode=${plan.risk.requiredMode}`,
+    `passes applicable=${applicable} total=${plan.applicability.length}`,
+    `plan ${plan.planHash}`,
+  ].join('\n');
 }
 
 function renderInspection(
@@ -256,6 +400,7 @@ function usage(): string {
   return `void-harness mission
 
   mission start --title <title> [--mode fast|team|fortress] [--json]
+  mission plan --ticket <markdown-file> [--json]
   mission verify --id <id> [--shell] [--json] -- <command...>
   mission inspect --id <id> [--json]
   mission archive --id <id> [--json]
@@ -266,6 +411,32 @@ Prune is a dry-run unless --apply is present.
 `;
 }
 
+interface MissionFailure {
+  readonly code: string;
+  readonly problem: string;
+  readonly cause: string;
+  readonly fix: string;
+}
+
+function missionFailure(error: unknown): MissionFailure {
+  const message = error instanceof Error ? error.message : String(error);
+  const match = /^([A-Z][A-Z0-9_]+):\s*(.*)$/s.exec(message);
+  return Object.freeze({
+    code: match?.[1] ?? 'MISSION_FAILED',
+    problem: 'mission command could not complete',
+    cause: match?.[2] ?? message,
+    fix: 'correct the reported input or policy and retry',
+  });
+}
+
+export function renderMissionFailure(error: unknown, json: boolean): string {
+  const failure = missionFailure(error);
+  if (json) return `${JSON.stringify({ error: failure })}\n`;
+  return `${failure.code}: ${failure.problem}\n`
+    + `Cause: ${failure.cause}\n`
+    + `Fix: ${failure.fix}.\n`;
+}
+
 export async function mission(args: readonly string[]): Promise<void> {
   const parsed = parseMissionArgs(args);
   if (parsed.kind === 'help') {
@@ -273,14 +444,30 @@ export async function mission(args: readonly string[]): Promise<void> {
     return;
   }
   if (parsed.kind === 'invalid') {
-    process.stderr.write(
-      `${parsed.code}: ${parsed.problem}\nFix: ${parsed.fix}\n`,
-    );
+    if (args.includes('--json')) {
+      process.stderr.write(`${JSON.stringify({
+        error: {
+          code: parsed.code,
+          problem: parsed.problem,
+          cause: 'arguments did not satisfy the mission command contract',
+          fix: parsed.fix,
+        },
+      })}\n`);
+    } else {
+      process.stderr.write(
+        `${parsed.code}: ${parsed.problem}\nFix: ${parsed.fix}\n`,
+      );
+    }
     process.exitCode = 2;
     return;
   }
   const root = process.cwd();
   try {
+    if (parsed.kind === 'plan') {
+      const plan = await planMission(root, parsed.ticketPath);
+      process.stdout.write(parsed.json ? `${JSON.stringify(plan)}\n` : `${renderPlan(plan)}\n`);
+      return;
+    }
     if (parsed.kind === 'start') {
       const missionId = `mis_${randomUUID()}`;
       await createMission(root, {
@@ -360,8 +547,7 @@ export async function mission(args: readonly string[]): Promise<void> {
       ? result.exitCode
       : missionVerdictExitCode(result.verdict);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    process.stderr.write(`MISSION_FAILED: ${message}\n`);
+    process.stderr.write(renderMissionFailure(error, parsed.json));
     process.exitCode = 1;
   }
 }
