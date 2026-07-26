@@ -15,13 +15,15 @@
   },
   "scripts": {
     "build": "pnpm -r --filter '!void-harness' build",
+    "build:cli": "pnpm --filter @voidcorp/mission-engine build && pnpm --filter @voidcorp/harness-graph build && pnpm --filter @voidcorp/hook-runner build && pnpm --filter voidharness build",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "biome lint",
     "typecheck": "pnpm -r --filter '!void-harness' typecheck",
     "anti-bloat:check": "bash scripts/anti-bloat-check.sh",
-    "decisions:build": "node scripts/build-decisions-index.mjs",
-    "decisions:check": "node scripts/build-decisions-index.mjs --check",
+    "decisions:render": "pnpm build:cli && node scripts/build-decisions-index.mjs",
+    "decisions:build": "pnpm decisions:render",
+    "decisions:check": "pnpm build:cli && node scripts/build-decisions-index.mjs --check",
     "sync:docs": "bash scripts/sync-agent-docs.sh",
     "version:check": "node scripts/check-version-lockstep.mjs",
     "check:publish": "node scripts/check-publish-safety.mjs",
@@ -31,6 +33,9 @@
     "certification:check": "pnpm --filter @voidcorp/harness-graph build && pnpm --filter voidharness build:certification -- --check",
     "graph:check": "pnpm --filter @voidcorp/harness-graph build && node packages/cli/bin/void-harness.mjs graph check",
     "graph:check-bundle": "node packages/cli/bin/void-harness.mjs graph check-bundle",
+    "hooks:build": "pnpm --filter @voidcorp/mission-engine build && pnpm --filter @voidcorp/hook-runner build",
+    "conformance:install": "node packages/cli/scripts/conformance-install.mjs",
+    "conformance:hooks": "node packages/cli/scripts/conformance-hooks.mjs",
     "eval": "pnpm --filter @voidcorp/eval-harness run eval --"
   },
   "devDependencies": {
@@ -46,7 +51,8 @@
   "packageManager": "pnpm@10.34.5",
   "pnpm": {
     "overrides": {
-      "esbuild": ">=0.28.1"
+      "esbuild": ">=0.28.1",
+      "postcss": ">=8.5.18"
     }
   },
   "keywords": [

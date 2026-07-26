@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 # ci-enforce — replay the void-harness enforcement floor over a PR diff.
 #
-# Uses the SAME detection as the local PreToolUse hooks (sourced from
-# hooks/_checks.sh), so the floor is identical whoever authored the change —
-# human, local agent, or cloud agent. Reports GitHub workflow-command
-# annotations on stdout (file/line when known).
+# Critical path, secret-content, TDD and boundary rules execute through the SAME
+# portable Node bundle as local PreToolUse hooks.
 #
 # FAIL-CLOSED (DEV-393, the #62-64 class): a missing prerequisite or an
 # unresolvable base ref is an explicit RED check, never a silent green.
@@ -13,7 +11,7 @@
 # Exit:  0 = clean, 1 = violations found OR fail-closed error.
 
 set -uo pipefail
-source "${BASH_SOURCE[0]%/*}/../hooks/_checks.sh"
+RUNNER="${BASH_SOURCE[0]%/*}/../hooks/_void-hook.mjs"
 
 BASE=""
 while [[ $# -gt 0 ]]; do
@@ -31,6 +29,8 @@ fail_closed() {
 }
 
 command -v git >/dev/null 2>&1 || fail_closed "git not found on runner (cannot compute the diff)"
+NODE_BIN=$(command -v node 2>/dev/null) || fail_closed "Node.js not found on runner (cannot execute the shared floor)"
+[[ -f "$RUNNER" ]] || fail_closed "shared Node enforcement bundle missing at '$RUNNER'"
 [[ -n "$BASE" ]] || fail_closed "no base ref given (pass --base <ref>)"
 git rev-parse --verify "${BASE}^{commit}" >/dev/null 2>&1 \
   || fail_closed "base ref '${BASE}' is unresolvable (checkout with fetch-depth: 0 and fetch the base)"
@@ -133,37 +133,53 @@ while IFS= read -r -d '' status; do
   fi
 
   # 1) Never-edit file (path only): lockfile / key / secret filename / .git.
-  if reason=$(checks_sensitive_path "$path"); then :; else
+  if protected=$("$NODE_BIN" "$RUNNER" enforce-ci protected-file "$path" </dev/null 2>&1); then :; else
     # A lockfile is allowed when a manifest changed in the same diff (legitimate
     # dependency op, reviewer-visible in the manifest). Alone, it stays blocked.
-    if [[ "$reason" == lockfile* && "$MANIFEST_CHANGED" -eq 1 ]]; then
+    if [[ "$protected" == *lockfile* && "$MANIFEST_CHANGED" -eq 1 ]]; then
       printf 'void-enforce: %s allowed (lockfile change accompanied by a package manifest change)\n' "$path"
       continue
     fi
-    annotate error "$path" 1 "protected file: ${reason}"
+    protected_reason="${protected##*: }"
+    annotate error "$path" 1 "protected file: ${protected_reason//$'\n'/ }"
     continue    # no point content-scanning a file that must not be edited at all
   fi
 
   # 2+3) Content checks over the ADDED lines, with real line numbers.
   diff_added=$(added_lines "$path") || fail_closed "git diff failed for '${path}' (cannot scan its content)"
   [[ -z "$diff_added" ]] && continue
-  mapfile -t LNOS < <(printf '%s\n' "$diff_added" | cut -f1)
+  LNOS=()
+  while IFS= read -r line_number; do
+    LNOS+=("$line_number")
+  done < <(printf '%s\n' "$diff_added" | cut -f1)
   added_text=$(printf '%s\n' "$diff_added" | cut -f2-)
 
-  if hits=$(printf '%s' "$added_text" | checks_secret_content "$path"); then :; else
+  if hits=$(printf '%s' "$added_text" | "$NODE_BIN" "$RUNNER" enforce-ci secret-content "$path" 2>&1); then :; else
+    FOUND=0
     while IFS= read -r hit; do
-      [[ -z "$hit" ]] && continue
-      rel=${hit%%:*}
+      [[ "$hit" =~ ^-\ .+:([0-9]+)$ ]] || continue
+      FOUND=1
+      rel="${BASH_REMATCH[1]}"
       annotate error "$path" "${LNOS[rel - 1]:-1}" "leaked secret (see harness:security-guidance)"
     done <<<"$hits"
+    [[ "$FOUND" -eq 1 ]] || annotate error "$path" 1 "secret scan failed closed: ${hits//$'\n'/ }"
   fi
 
-  if hits=$(printf '%s' "$added_text" | checks_boundary_imports "$path"); then :; else
+  if tdd=$(printf '%s' "$added_text" | "$NODE_BIN" "$RUNNER" enforce-ci tdd-order "$path" 2>&1); then
+    [[ -z "$tdd" ]] || printf 'void-enforce: %s\n' "${tdd//$'\n'/ }"
+  else
+    annotate error "$path" 1 "${tdd//$'\n'/ }"
+  fi
+
+  if hits=$(printf '%s' "$added_text" | "$NODE_BIN" "$RUNNER" enforce-ci boundary-direction "$path" 2>&1); then :; else
+    FOUND=0
     while IFS= read -r hit; do
-      [[ -z "$hit" ]] && continue
-      rel=${hit%%:*}
-      annotate error "$path" "${LNOS[rel - 1]:-1}" "forbidden @repo/* import: ${hit#*:}"
+      [[ "$hit" =~ ^-\ .+:([0-9]+)\ \-\>\ (.+)$ ]] || continue
+      FOUND=1
+      rel="${BASH_REMATCH[1]}"
+      annotate error "$path" "${LNOS[rel - 1]:-1}" "forbidden @repo/* import: ${BASH_REMATCH[2]}"
     done <<<"$hits"
+    [[ "$FOUND" -eq 1 ]] || annotate error "$path" 1 "boundary scan failed closed: ${hits//$'\n'/ }"
   fi
   # NB: checks_dangerous_command (the local Bash runtime guard) is deliberately
   # NOT replayed over the diff. A destructive PATTERN committed into a file is a

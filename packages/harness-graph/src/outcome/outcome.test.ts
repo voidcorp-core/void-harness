@@ -41,6 +41,50 @@ describe('parseOutcomes', () => {
     ].join('\n');
     expect(parseOutcomes(jsonl)).toEqual([]);
   });
+
+  it('adapts canonical completion and stop events', () => {
+    const base = {
+      schemaVersion: 1,
+      missionId: 'mis_0123456789abcdef0123456789abcdef',
+      source: 'runtime:claude',
+      correlationId: 'mis_0123456789abcdef0123456789abcdef',
+      ts: '2026-07-24T12:00:00.000Z',
+      payload: {},
+    };
+    const jsonl = [
+      JSON.stringify({
+        ...base,
+        seq: 1,
+        eventId: 'evt_00000000-0000-4000-8000-000000000001',
+        kind: 'runtime.tool.completed',
+        subject: 'tool:Bash',
+        payload: { category: 'tool', tool: 'Bash', status: 'error' },
+      }),
+      JSON.stringify({
+        ...base,
+        seq: 2,
+        eventId: 'evt_00000000-0000-4000-8000-000000000002',
+        kind: 'runtime.session.stopped',
+        subject: 'runtime:claude',
+      }),
+    ].join('\n');
+
+    expect(parseOutcomes(jsonl)).toEqual([
+      {
+        event: 'PostToolUse',
+        ts: base.ts,
+        kind: 'tool',
+        name: 'Bash',
+        status: 'error',
+        sessionId: base.missionId,
+      },
+      {
+        event: 'Stop',
+        ts: base.ts,
+        sessionId: base.missionId,
+      },
+    ]);
+  });
 });
 
 describe('analyzeOutcomes', () => {

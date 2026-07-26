@@ -14,6 +14,9 @@ void-harness/
 │   │   ├── skills/                # craftsman skills (TDD, refactor, hexagonal, ...)
 │   │   ├── agents/                # doctrine-critic (read-only doctrine conformance review)
 │   │   └── hooks/                 # tdd-guard.sh, no-any-grep.sh, no-console-log-grep.sh
+│   ├── mission-engine/            # pure event/evidence contracts and verdict reducers
+│   ├── hook-runner/               # Node adapter compiled into the portable hook asset
+│   ├── harness-graph/             # graph kernel + telemetry projections
 │   └── packs/                     # one workspace + plugin per capability
 │       ├── pack-monorepo/         # @voidcorp/pack-monorepo  (plugin harness-monorepo)
 │       ├── pack-react/            # @voidcorp/pack-react      (plugin harness-react)
@@ -24,11 +27,33 @@ void-harness/
 ├── apps/                          # private, unpublished tooling
 │   ├── graph-studio/              # the graph visualiser (Vite)
 │   └── eval-harness/              # @voidcorp/eval-harness — behavioral skill evals
-├── plans/                         # specs + ADRs of the harness itself
+├── plans/                         # specs and implementation plans
 │   └── skill-audits/              # one audit note per vendored skill
 ├── test/                          # automated skill tests (citypaul-style)
-└── docs/                          # PHILOSOPHY, ARCHITECTURE, DECISIONS, RELEASING
+└── docs/                          # doctrine, architecture, release and decisions
+    └── decisions-log/             # one immutable, collision-free file per ADR
 ```
+
+## Decision records
+
+ADRs are an append-only data model, not a generated document:
+
+- `void-harness decisions new` creates one exclusively-owned file with a UUID
+  identity; concurrent workers never allocate a shared counter or index.
+- `void-harness decisions check` validates the schema, unique identities,
+  supersession links and cycles. In CI, `DECISIONS_BASE` also rejects edits,
+  renames or deletions of accepted records.
+- Decision loading is root-confined, rejects symlinks and bounds each record to
+  256 KiB before parsing.
+- `void-harness decisions render --format markdown|json` produces a read-only
+  projection on stdout. It never commits or rewrites a shared artifact.
+- `docs/DECISIONS.md` is only the frozen pre-v3 landing page. Existing repos keep
+  their detected ADR directory; new consumer projects default to
+  `docs/decisions/`.
+
+The public contract is plain Markdown plus YAML frontmatter, so it works without
+an agent runtime. The CLI is deterministic validation and ergonomics, not a
+storage dependency.
 
 ## Stack baseline
 
@@ -38,9 +63,9 @@ A future Rust/Go/Python flavor lives in a sibling repo, reusing mechanics not sk
 
 ## Agent runtime parity (Claude Code + Codex) — the adapter seam
 
-The harness authors **one doctrine** and compiles it to each agent runtime through a **runtime adapter** (`packages/cli/src/lib/runtime-adapters.ts`). Today: **Claude Code** (via `CLAUDE.md` + the marketplace plugin) and **Codex CLI** (via `AGENTS.md` + a `.codex/` safety floor). This is the *agent-runtime* axis; the orthogonal *model-provider* axis (Anthropic / OpenAI-compatible / Ollama / custom) is a separate seam and is deliberately not conflated.
+The harness authors **one doctrine** and compiles it to each agent runtime through a **runtime adapter** (`packages/cli/src/lib/runtime-adapters.ts`). Today: **Claude Code** (via `CLAUDE.md` + native `.claude/skills`, `.claude/agents` and project hooks) and **Codex CLI** (via `AGENTS.md` + `.agents/skills` + a `.codex/` safety floor). The npm tarball is the default source; the Claude marketplace is an explicit secondary adapter. This is the *agent-runtime* axis; the orthogonal *model-provider* axis (Anthropic / OpenAI-compatible / Ollama / custom) is a separate seam and is deliberately not conflated.
 
-The seam is the load-bearing rule: **core commands never branch on a runtime name.** `init`, `runtime add`, and `doctor` iterate the adapters. Adding a runtime (Codex exec, Hermes, a local agent) is a new adapter object registered in `ADAPTERS`, with zero edits to the commands. Each adapter owns exactly its runtime-specific surface: `detect`, `prerequisites`, `wire` (its active layer + **its own** doctrine doc), and `doctorChecks`.
+The seam is the load-bearing rule: **core commands never branch on a runtime name.** `init`, `runtime add`, `doctor`, and `status` iterate the adapters. Adding a runtime (Codex exec, Hermes, a local agent) is a new adapter object registered in `ADAPTERS`, with zero edits to the commands. Each adapter owns exactly its runtime-specific surface: `detect`, `prerequisites`, `wire` (its active layer + **its own** doctrine doc), `inspect` (executable postconditions), and `doctorChecks`.
 
 Rules:
 
@@ -48,9 +73,39 @@ Rules:
 - `scripts/sync-agent-docs.sh` enforces parity on the harness repo itself: `--staged` (a commit touching one sister doc must touch the other) via `.githooks/pre-commit` (`git config core.hooksPath .githooks`), and section-heading parity in CI (`pnpm sync:docs`). This is a **harness-repo** rule; a consumer project only carries the doc(s) of the runtime(s) it wired.
 - No file is auto-generated from the other. Auto-generation risks losing intentional adaptations. Manual authoring + mechanical gate is the safer trade-off.
 - **Doc ownership is per-runtime.** Each adapter's `wire` writes only its own doctrine doc — a Claude-only project has just `CLAUDE.md`, a Codex-only project just `AGENTS.md`. `doctor` checks only the docs of *detected* runtimes, so a Codex-only project is never dinged for a missing `CLAUDE.md`. (`add` / `remove` still patch whichever docs exist, keeping active docs current.)
-- **`init` wires each selected runtime's layer via its adapter**, gated by `--runtime <claude|codex|both>` (default: auto-detected footprint, else both). Claude's layer is the marketplace registration in `.claude/settings.json`; Codex's is the safety floor — the guardrail hook scripts staged into `.void/hooks/` and `.codex/hooks.json` compiled from `packages/core/codex/hooks.json` (relative `${VOID_HOOKS_DIR}` → `.void/hooks`). A Codex-only wire skips the `gh`/marketplace prerequisites and the Claude "restart + trust" steps; a Claude-only wire skips the Codex floor.
+- **`init` wires each selected runtime's layer via its adapter**, gated by `--runtime <claude|codex|both>` (default: auto-detected footprint, else both). Claude receives native project-local skills, agents, commands and hooks; Codex receives `.agents/skills`, the compiled critics and `.codex/hooks.json`. The package is bundled with all CLI runtime dependencies, so a tarball installs offline. `--source marketplace` is opt-in and is the only path that checks `gh`/marketplace access.
+- **Publication is transactional.** `init` seeds only shared merge targets into an isolated stage, compiles and executes each selected adapter's doctor smoke there, then atomically publishes a finite mutation set. Every target is snapshotted before the first write; a failure restores bytes and modes and removes only transaction-created paths. `.void/receipts/install-v1.json` hashes files the install created or already owned. Unowned native conflicts fail unless `--force`, and even force never grants deletion ownership over a pre-existing file.
 - **Runtimes are added a posteriori without friction**: `void-harness runtime add <runtime>` wires exactly that runtime's layer on an already-`init`-ed project, touching nothing the other runtime owns (verified byte-for-byte in tests). `runtime list` shows which are wired. This is the `void runtime add` command from the multi-runtime spec.
-- `doctor` iterates the *detected* adapters for each runtime's wiring + doc health; Claude-marketplace checks (`gh`, plugin cache, remote versions, packs coherence) run only when Claude is wired. See `docs/CODEX.md`.
+- **Pack and update lifecycle uses the same transaction.** Local `add`/`remove` compile the exact
+  config pack set and prune only unchanged receipt-owned stale assets. Local `update` recompiles
+  from the running CLI without a remote fetch. Legacy/explicit marketplace receipts retain their
+  cache and remote-pin adapter.
+- `doctor` iterates the *detected* adapters for each runtime's wiring + doc health; Claude marketplace checks (`gh`, plugin cache, remote versions) apply only to an explicit marketplace install. Adapter inspection distinguishes `installed`, `wired`, `fired`, and `observed`. The `fired` postcondition executes the installed Node runner against an isolated fixture and reads back its canonical event; a zero exit without that event stays red. In the source repository, `doctor` delegates to the self-host receipt and current-source checks instead of applying consumer assumptions. See `docs/CODEX.md`.
+
+### Source self-host boundary
+
+`void-harness self-host sync` is the only supported dogfood compiler for this
+meta-repository. It hashes bounded, symlink-free current inputs, builds the hook
+runner and a disposable runtime-adapter worker directly from TypeScript, then
+wires `.void/generated/.staging-*` through that current-source worker. The
+source set is hashed again before publication; concurrent drift aborts.
+Publication swaps the complete directory to `.void/generated/current`; a
+failed swap restores the last green artifact.
+
+The deterministic receipt records the source hash, rollout mode and every owned
+file's bytes + mode. An identical sync is a no-op. `self-host doctor` separately
+reports source staleness, artifact drift, discovery, adapter hook smoke,
+canonical event replay and native runtime availability. Missing runtime CLIs are
+degraded, never certified or silently green.
+
+Doctor probes receive a minimal portable child environment plus their explicit
+`VOID_*` contract. Provider credentials, registry tokens, home paths and other
+ambient configuration never cross that process boundary.
+
+This boundary never writes `packages/core/`, root `CLAUDE.md`/`AGENTS.md`, or
+root `.claude`/`.codex`/`.agents` surfaces. All generated files and runtime probe
+metadata are gitignored. Modes `shadow` and `warn` are advisory; `enforce` and
+`release-gate` fail on structural blockers.
 
 ## Agent model tiers
 
@@ -80,31 +135,27 @@ Every agent declares an explicit `model:` in its frontmatter, chosen by the work
 
 **Rule**: a file in `core/` may assume TypeScript, Zod, `tsc`, vitest-style discovery. It may NOT assume a specific framework (Next vs Remix vs SvelteKit), a specific runtime (Node vs Bun vs Deno), or specific monorepo tooling. Those decisions live in packs and are read from `.void/config.json` at runtime.
 
-### Hook libraries (`_`-prefixed)
+### Portable hook runtime
 
-Hooks are one file each and capped at 100 LOC (anti-bloat rule 5). Shared hook
-logic lives in an **underscore-prefixed sourced library** (`core/hooks/_hooklib.sh`),
-never executed on its own and excluded from the per-hook size cap. `_hooklib.sh`
-carries the single guarded stdin parse: it reads the Claude Code / Codex tool-call
-JSON once, extracts scalars with a pure-bash fallback, and — critically — **fails
-closed** when `jq` is absent (a content-scanning hook blocks with an explicit
-message instead of exiting 127, which the runtime treats as non-blocking and which
-silently disabled the whole enforcement layer before). It also owns the physical
-root-relative path normalization the enforcement globs depend on. A hook sources it
-with `source "${BASH_SOURCE[0]%/*}/_hooklib.sh"`; `activation-meter.sh` /
-`outcome-meter.sh` (self-guarded, non-blocking meters) and `sessionstart-context.sh`
-(not a tool-call parser) are the deliberate non-consumers.
+Inline enforcement rules live as pure TypeScript in
+`packages/hook-runner/src/rules/`. Lifecycle policies and bounded imperative
+adapters live under `packages/hook-runner/src/lifecycle/`. The generated
+`_void-hook.mjs` normalizes Claude and Codex inputs, bounds invalid/binary
+payloads, executes commands with `shell:false`, applies timeouts and maps common
+verdicts to exit 0/2.
 
-A second sourced library, **`core/hooks/_checks.sh`**, carries the *pure
-detection* the floor hooks share with the server-side Action (see "Server-side
-floor" below). Where `_hooklib.sh` owns the Claude-runtime stdin/jq plumbing,
-`_checks.sh` owns runtime-agnostic predicates — `checks_sensitive_path`,
-`checks_secret_content`, `checks_boundary_imports`, `checks_dangerous_command`
-— that take a path and/or content and return a verdict. The floor hooks
-(`protect-sensitive-files`, `secret-in-content`, `boundary-direction-check`,
-`block-dangerous-bash`) are thin wrappers over it, so the local hook and the CI
-diff driver can never diverge on *what* the floor is (DEV-393). Also
-`_`-prefixed, also exempt from the size cap, also `bash -n`-checked.
+Native Claude and Codex manifests invoke that bundle directly. A local install
+stages exactly one runtime asset, regardless of platform. The short shell files
+under `core/hooks/` are compatibility adapters for older installs; v3 manifests,
+receipts and health checks do not depend on them. `_hooklib.sh` and `_checks.sh`
+remain characterization inputs only and are not part of the active runtime.
+The local runtime therefore requires Node only, not `jq` or a POSIX shell.
+
+Every active hook records a bounded, redacted `hook.completed` event. Lifecycle
+states distinguish `ok`, `skipped` and `degraded`; enforcement additionally
+records `blocked`. Formatting touches only files named by the tool call. Output
+trimming spills the full result under `.void/outputs/`, and typecheck is scoped
+to changed TypeScript plus the nearest tsconfig where the command supports it.
 
 Two content-aware hooks sit beside the filename/path guards:
 
@@ -221,31 +272,82 @@ reaches consumers with zero npm publish. The `/void-graph` command runs it from
 
 On a consumer the CLI runs in **bundled mode**: it loads the baked model instead of scanning a
 source tree (no monorepo paths), filters it to the packs enabled in `.claude/settings.json`, and
-correlates it with local telemetry (`.void/activations.jsonl`, transcripts). `graph live` serves
-the inlined studio and a `/studio-data.json` endpoint on `localhost` — fully offline. Freshness
+correlates it with local mission journals (`.void/runs/*/events.jsonl`, plus
+read-only v2 import, and transcripts). `graph live` serves the inlined studio
+and a `/studio-data.json` endpoint on loopback - fully offline. Freshness
 is gated by `graph check-bundle` (the artifact's embedded model must match `model.json`); see
 DECISIONS.md (2026-07-01). The artifact is excluded from the `core-assets` mirror.
 
-## Telemetry: the cost/value ledger (`.void/*.jsonl`)
+## Mission event journal (`.void/runs/<mission-id>/events.jsonl`)
 
-Two universal meters, both best-effort (never block, always exit 0), both privacy-scoped to
-names/kinds/status only — never file content, output, or secrets:
+All runtimes now emit one strict, versioned event contract. `@voidcorp/mission-engine`
+validates bounded JSON and reduces it without I/O. `@voidcorp/hook-runner` adapts
+Claude/Codex hook payloads, redacts content, derives an opaque mission ID and
+assigns a continuous per-mission sequence under an exclusive cross-platform lock.
 
-- **attempts** — `activation-meter.sh` (PreToolUse, matcher `*`) appends one event per tool call
-  to `.void/activations.jsonl`: `{ ts, kind, name, trigger, sessionId }`. The single source of
-  truth for what fired (issue #70); `void-harness audit` and the graph cost/behavior kernels read
-  it.
-- **outcomes** — `outcome-meter.sh` (PostToolUse `*` + Stop) appends completions to
-  `.void/outcomes.jsonl`: `{ ts, event, kind, name, status, sessionId }` for a finished tool call
-  (status best-effort from `tool_response`) and `{ event: "Stop", sessionId }` when a session ends
-  cleanly (issue #71). This is the **value** side: `analyzeCost` joins it per component (by kind +
-  bare name) so `graph cost` shows a `yield` column (ok/(ok+error)) next to the token cost. A
-  session with no Stop (interrupted) leaves its attempts uncounted as failures — orphan attempts
-  are not errors.
+The canonical append-only line contains `schemaVersion`, `seq`, opaque `eventId`
+and `missionId`, UTC time, source, dotted kind, subject, correlation and bounded
+payload. Attempts, outcomes and Stop therefore share one writer and one ordering.
+The writer rejects path escapes and symlinks, isolates a partial tail, uses
+user-only modes where supported and never blocks the agent runtime on telemetry
+failure. The same generated dependency-free Node bundle also owns the critical
+inline/CI enforcement rules. It is rebuilt by `pnpm hooks:build` and gated for
+drift before `core-assets` is mirrored.
 
-The two files never disagree because each has exactly one writer, and cost/value are correlated by
-`sessionId`. Cross-project aggregation and opt-in finding push ride on top of these files (issue
-#72), and are deliberately out of the meters themselves.
+Graph behavior, cost, audit, status and Studio consume the canonical journal.
+Legacy `.void/activations.jsonl`, `.void/outcomes.jsonl` and `.void/usage.log`
+remain read-only transition inputs; current hooks never append to them. Each
+project self-registers an opaque pointer under `~/.void/projects/` for opt-in
+cross-project aggregation.
+
+`graph live` binds loopback only. A random launch token is exchanged once for a
+process-local `HttpOnly; SameSite=Strict` cookie, foreign browser origins are
+rejected, and every data/SSE route requires the session. SSE uses the stable
+event ID, honors `Last-Event-ID` (or the first-connect `after` cursor), backfills
+the bounded snapshot and reports discontinuity as `PARTIAL`, never as live truth.
+Studio renders `LIVE`, `RECONNECTING`, `STALE`, `PARTIAL`, `REPLAY` and `OFFLINE`.
+
+### Evidence, findings and verdicts
+
+The journal is also the single source for mission quality. A run keeps immutable
+metadata in `mission.json`, canonical events in `events.jsonl` and optional
+redacted quarantine copies under `quarantine/`. Findings, resolutions,
+exceptions and evidence are event kinds, not independently mutable ledgers.
+Separate `findings.jsonl`, `evidence.jsonl` or UI summaries may exist only as
+rebuildable projections.
+
+Command evidence records redacted argv, exit code, start/end/duration, producer,
+source, confidence, bounded output, affected file nodes, input hash, diff hash
+and typed dependency hashes. `canonicalJson` sorts object keys recursively before
+SHA-256 sealing. The checksum proves canonical integrity and detects corruption;
+it is deliberately not described as a signature against a user who controls the
+local machine.
+
+The pure verdict reducer compares only declared dependency hashes. A changed Git
+worktree invalidates diff-dependent evidence without invalidating an unrelated
+proof. Open non-waivable blockers remain blocking; accepted waivers yield
+`shipped-with-exception`, never `verified`. Missing/stale proof yields
+`unverified`; malformed, duplicate, cross-mission or integrity-broken input
+yields `degraded`. The projection carries no evaluation timestamp, so replay of
+the same journal and dependency context is byte-for-byte deterministic.
+
+`void-harness mission` exposes the operator lifecycle:
+
+- `start --title ... [--mode fast|team|fortress]` creates a team-mode run by
+  default;
+- `verify --id ... -- <argv...>` executes with `shell:false`, captures a redacted
+  bounded proof and returns the current verdict; `--shell` is explicit;
+- `inspect --id ... [--json]` recomputes the current Git diff and exits non-zero
+  unless the verdict is shippable;
+- `archive --id ...` writes an explicit `.jsonl.gz` snapshot only for
+  `verified` or `shipped-with-exception`;
+- `prune --older-than ...` is a dry-run unless `--apply` is supplied and removes
+  only runs that already have an archive.
+
+Invalid journal lines are preserved for forensics and copied once, redacted and
+bounded, into quarantine; they are never silently repaired. Runtime journals and
+archives are local artifacts ignored by Git. There is no automatic retention or
+network upload.
 
 ## Node frontmatter: `activation` (graph liveness)
 
@@ -333,19 +435,26 @@ reads it until Phase B's ProjectState) and the eval-harness JSON emission that p
 
 `ProjectState` is the project's legible state: a **deterministic, offline, LLM-free** join of the
 frozen `certification.json` (repo-authored proof) with **local signals** (which capabilities are
-installed here, which fired in `.void/activations.jsonl`, which runtimes are detected). The pure core
+materially installed, which passed executable runtime postconditions, which fired in canonical
+mission events, and the tri-state runtime evidence). The pure core
 lives in `packages/harness-graph/src/state/` — `computeProjectState` derives each capability's
-five-state (`available → installed → verified → used → effective`; `effective` requires certified
-proof **and** real local use), and `scoreProjectState` scores the eight dimensions (blocker/gauge,
+five-state (`available → installed → verified → used → effective`). Local `verified` now requires a
+compatible runtime with `installed=yes`, `wired=yes` and `fired=yes`; the frozen structural proof is
+reported separately as `certified`. `effective` requires both that local chain and certified
+behavioral proof plus real local use. Each runtime carries independent `installed`, `wired`,
+`fired`, `observed` and `certified` fields; `null` means `unknown`, never success.
+`scoreProjectState` scores the eight dimensions (blocker/gauge,
 cap-69 on a red failure-predicate, pending dimensions excluded, confidence band, impact-ranked next
 actions — see DECISIONS.md 2026-07-21). Both are pure: no I/O, no clock, no model call.
 
 `void-harness status` (`packages/cli/src/commands/status.ts`) is the imperative shell: it reads the
-certification + model + telemetry, calls the pure core, renders the terminal surface, and persists
+certification + model + telemetry, executes each detected adapter's bounded local postconditions,
+calls the pure core, renders the terminal surface, and persists
 `.void/state.json` plus a `.void/history/<ts>.json` snapshot (both git-ignored, per-project runtime
-state). `generatedAt` is stamped by the shell so the core stays deterministic — the same telemetry
-yields the same state. Consumer-side bundled-certificate resolution and pack-aware `installed`
-filtering land with Phase C distribution.
+state). `generatedAt` is stamped by the shell so the core stays deterministic. Missing runtime,
+cost, smoke or observation data stays `unknown`/pending and is excluded from scores instead of being
+invented. Consumer-side bundled-certificate resolution and pack-aware filtering remain local and
+offline.
 
 ## .void/config.json (consumer-side)
 
@@ -410,6 +519,7 @@ Implemented today in `.github/workflows/ci.yml` (all block the PR on failure):
 | Publish safety | packs each npm package with pnpm and fails if a `workspace:` specifier survives into the tarball |
 | Lint | `pnpm lint` (Biome) over first-party TypeScript |
 | Build | `pnpm build` (packs must build before typecheck resolves their exports) |
+| Self-host release gate | compiles current sources in isolation; rejects source/receipt/hook/replay drift |
 | Graph integrity | `pnpm graph:check` — model.json drift + broken routes + capability governance (owner/runtimes) |
 | Certification freshness | `pnpm certification:check` — committed `certification.json` matches the model + eval reports |
 | Consumer bundle freshness | `pnpm graph:check-bundle` — the shipped `void-graph.mjs` embeds the current `model.json` |
@@ -432,7 +542,8 @@ requires.
 
 - `core/enforce/ci-enforce.sh` — the diff driver. Given `--base <ref>`, it walks
   the PR diff (`git diff base...HEAD`), runs the ADDED lines / changed paths
-  through the same `_checks.sh` predicates the hooks use, and emits GitHub
+  through the shared Node rules (protected path, secret content, TDD) plus the
+  transitional `_checks.sh` boundary predicate, and emits GitHub
   `::error file=,line=::` annotations. It lives under `enforce/` (not `hooks/`)
   because it is a CI tool, not a Claude-runtime hook: that keeps the `hooks/ =
   runtime` boundary honest and keeps the driver out of the 100-LOC hook cap.
@@ -450,6 +561,12 @@ check, never a silent green. Escape hatch: `.github/void-enforce-allow` lists
 path globs the driver skips (each skip logged) — the committed, reviewable
 equivalent of the local `VOID_HARNESS_ALLOW_SECRET_EDIT` override, for files
 legitimately named like a secret store.
+An exact generated artifact may also be exempt only when its authored sources
+remain scanned and a deterministic freshness gate verifies the artifact in the
+same CI. This repository applies that rule to the single-file consumer graph
+bundle, whose size exceeds the bounded hook protocol; `graph:check-bundle`
+proves its source/model correspondence. Broad generated-directory globs remain
+forbidden.
 `void-harness doctor` reports (advisory, never blocking) whether a project has
 adopted the workflow. v1 replays three checks: sensitive-path, secret-content,
 boundary-direction. Destructive-shell stays a local runtime guard only — a

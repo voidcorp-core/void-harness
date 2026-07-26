@@ -65,5 +65,9 @@ a:hover { color: var(--holo-cyan); }
 .scrubber button:hover { background: rgba(54, 224, 255, 0.18); box-shadow: 0 0 14px rgba(54, 224, 255, 0.35); }
 .scrubber button:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
 .scrubber .scrubber-live.is-active { background: rgba(94, 234, 212, 0.2); color: var(--holo-teal); border-color: var(--holo-teal); }
+.scrubber .scrubber-live[data-status='partial'] { color: #f6c453; border-color: rgba(246, 196, 83, 0.72); }
+.scrubber .scrubber-live[data-status='stale'] { color: #ff7b91; border-color: rgba(255, 123, 145, 0.72); }
+.scrubber .scrubber-live[data-status='reconnecting'] { color: var(--holo-cyan); border-style: dashed; }
+.scrubber .scrubber-live[data-status='offline'] { color: var(--ink-dim); border-color: rgba(130, 148, 180, 0.35); }
 .scrubber-range { flex: 1; accent-color: var(--holo-cyan); }
 .scrubber-time { min-width: 70px; text-align: right; color: var(--ink-dim); font-variant-numeric: tabular-nums; }

@@ -7,10 +7,34 @@ on:
     branches: [main]
 
 jobs:
+  install-conformance:
+    name: install conformance (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Offline tarball install and hook execution for Claude, Codex and both
+        run: |
+          pnpm conformance:install
+          pnpm conformance:hooks
+
   validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # decisions:check compares accepted records with the PR base SHA.
+          # checkout fetches one commit by default, so retain the base history.
+          fetch-depth: 0
 
       - name: Setup pnpm
         # No `version:` here: action-setup reads it from packageManager in
@@ -47,11 +71,23 @@ jobs:
         # the agent description cap go unenforced in CI (it only ran locally).
         run: pnpm anti-bloat:check
 
-      - name: Decisions index in sync with decisions-log
-        # docs/DECISIONS.md is generated from docs/decisions-log/<date>-<slug>.md
-        # (one file per decision, so parallel workers never race a shared append).
-        # Fail if the committed index drifts from the per-decision files.
+      - name: Decision records valid and accepted records immutable
+        # Each decision owns one file. The optional PR base also proves that an
+        # accepted record was superseded, never rewritten or deleted in place.
+        env:
+          DECISIONS_BASE: ${{ github.event.pull_request.base.sha }}
         run: pnpm decisions:check
+
+      - name: Generated hook runner is current
+        # Runtime hooks execute a checked-in, dependency-free bundle. Rebuild it
+        # before mirroring core so source and shipped hot paths cannot diverge.
+        run: |
+          pnpm hooks:build
+          if [ -n "$(git status --porcelain -- packages/core/hooks/_void-hook.mjs)" ]; then
+            echo "FAIL: generated hook runner is stale." >&2
+            echo "Run: pnpm hooks:build && commit the artifact." >&2
+            exit 1
+          fi
 
       - name: core-assets in sync with core
         # The CLI bundles packages/core as packages/cli/core-assets via
@@ -81,6 +117,14 @@ jobs:
         # (e.g. @voidcorp/pack-monorepo/result) through their dist exports,
         # so the type declarations must exist first.
         run: pnpm build
+
+      - name: Self-host release gate
+        # Compile current sources into an isolated, gitignored Claude+Codex
+        # artifact. The strict doctor rejects source-hash or owned-file drift;
+        # unavailable native CLIs stay degraded until their certification lane.
+        run: |
+          node packages/cli/bin/void-harness.mjs self-host sync --mode release-gate
+          node packages/cli/bin/void-harness.mjs self-host doctor --mode release-gate
 
       - name: Graph integrity (model drift + broken routes)
         run: pnpm graph:check

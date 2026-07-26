@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { isHarnessSourceRepo } from './self-repo.js';
+import { isHarnessSourceRepo, selfRepoDoctorTarget } from './self-repo.js';
 
 describe('isHarnessSourceRepo', () => {
   let root: string;
@@ -52,5 +52,15 @@ describe('isHarnessSourceRepo', () => {
     writeFileSync(join(root, 'package.json'), '{ not valid json');
     makeWorkspace();
     expect(isHarnessSourceRepo(root)).toBe(false);
+  });
+
+  it('reports a source checkout without generated self-host assets as not-installed', () => {
+    writePkg('void-harness');
+    makeWorkspace();
+
+    expect(selfRepoDoctorTarget(root)).toEqual({
+      kind: 'self-host',
+      command: 'void-harness self-host sync',
+    });
   });
 });

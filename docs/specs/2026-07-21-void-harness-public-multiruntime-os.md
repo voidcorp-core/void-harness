@@ -1,7 +1,8 @@
 ---
 title: void-harness as a public, multi-runtime, multi-model harness OS
 date: 2026-07-21
-status: in-design
+status: superseded
+superseded_by: docs/specs/2026-07-24-void-harness-v3-top-tier-engineering-team.md
 author: Folpe + Claude
 related:
   - docs/specs/2026-06-26-harness-graph-viz.md

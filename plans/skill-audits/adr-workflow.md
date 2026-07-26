@@ -3,25 +3,47 @@ skill: adr-workflow
 pack: core
 status: shipped
 strategy: native
-target_loc: 200
+target_loc: 160
 matrix_row: plans/skill-decision-matrix.md#adr-workflow
-audit_date: 2026-06-04
-auditor: Folpe + Claude Opus 4.8
+audit_date: 2026-07-24
+auditor: Folpe + Codex
 ---
-
-> **Promoted from pack-monorepo to core on 2026-06-04.** ADRs are a universal
-> craftsman concern (the repo meta-rule already mandates logging non-obvious
-> decisions), not monorepo-specific. The skill kept its content; the "monorepo"
-> wording was generalized to "codebase". See `docs/DECISIONS.md`.
 
 # Audit: core:adr-workflow
 
-**Need.** Monorepo-scale structural decisions get lost when only documented in commit messages. Without an ADR convention, the "why" of foundational choices (Drizzle over Prisma, RSC by default, `(actions)` route group) decays into folklore.
+**Need.** Structural decisions decay into folklore when only commit messages
+preserve the rationale. Parallel agent branches add a second failure mode:
+sequential ADR numbers and generated indexes turn independent work into merge
+coordination.
 
-**Wins.** Force-naming credible alternatives kills weak decisions before they merge. 50-line cap keeps ADRs read. Lifecycle (proposed → accepted → superseded, never edited) preserves audit trail.
+**Load-bearing principles retained.**
 
-**Loses to.** Bugfixes, refactors, personal opinions, anything already in PHILOSOPHY/PROJECT-DOCTRINE. Single-app projects (no monorepo scale).
+- Nygard's Context / Decision / Consequences and immutable record lifecycle.
+- MADR status and explicit supersession.
+- Terse records with accountable deciders.
+- Credible rejected alternatives and explicit reversal cost.
 
-**Composes with.** `harness:writing-plans` (plans = work, ADRs = decisions). `harness-monorepo:dependency-direction` (boundary choices are ADR-worthy). `harness:commit-discipline` (paragraph-long commit "why" should become an ADR).
+**Adaptations.**
 
-**Why not in core.** ADRs as practiced here are scoped to monorepo conventions (file naming, `@repo/*` boundaries). Single-app or non-monorepo projects use other patterns (Notion, Linear).
+- Promoted from monorepo-specific to universal core in 2026-06-04.
+- Replaced `NNNN` allocation with `adr:<uuid>` identity and a readable
+  date/slug/UUID filename.
+- One decision owns one file; projections are stdout-only and never merge
+  artifacts.
+- Accepted records cannot be edited, renamed or deleted. Reversal creates a new
+  record with `supersedes`.
+- The Markdown + YAML contract remains usable without void-harness or a specific
+  model runtime; the CLI adds exclusive creation and deterministic validation.
+
+**Rejected.**
+
+- Shared counters: readable ordering does not justify a race between workers.
+- A committed generated index: it recreates the merge hotspot after source files
+  were isolated.
+- Database-backed ADRs: unnecessary infrastructure and weaker repository
+  portability.
+- Bugfix/refactor ADRs: commit and issue history are enough.
+
+**Composes with.** `writing-plans`, `source-driven-development`,
+`commit-discipline`, and `learning-capture`. It does not own planning, research
+or doctrine extraction.

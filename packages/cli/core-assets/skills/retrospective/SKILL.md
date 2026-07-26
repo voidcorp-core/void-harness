@@ -30,7 +30,7 @@ Read only sources that survive any tool teardown. **Never** `~/.gstack/` or gsta
 - **git log** over the window: commits with author, timestamp, subject, files changed, insertions/deletions. The spine of the retro.
 - **Conventional-commit types** parsed from subjects: `feat` / `fix` / `refactor` / `test` / `chore` / `docs`.
 - **PRs** via `gh pr list --state merged --search "merged:>=<date>"` when a GitHub remote exists.
-- **`.void/usage.log`** (and `.void/activations.jsonl` when present): which skills actually fired.
+- **`.void/runs/*/events.jsonl`** (plus legacy logs when present): which skills actually fired.
 - **Test vs production files**: classify changed paths (`test/`, `spec/`, `__tests__/`, `*.test.*`) to compute the test-to-prod ratio.
 
 If a source is absent (no remote, no `.void/`), note it and proceed with what exists.

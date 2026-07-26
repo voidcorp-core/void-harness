@@ -30,3 +30,22 @@ export function isHarnessSourceRepo(root: string): boolean {
     return false;
   }
 }
+
+export type SelfRepoDoctorTarget =
+  | { readonly kind: 'consumer' }
+  | {
+      readonly kind: 'self-host';
+      readonly command: 'void-harness self-host sync';
+    };
+
+/**
+ * Route source checkouts to the executable self-host doctor. It validates the
+ * generated receipt and current source hash instead of consumer root files.
+ */
+export function selfRepoDoctorTarget(root: string): SelfRepoDoctorTarget {
+  if (!isHarnessSourceRepo(root)) return { kind: 'consumer' };
+  return {
+    kind: 'self-host',
+    command: 'void-harness self-host sync',
+  };
+}

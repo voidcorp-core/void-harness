@@ -29,7 +29,10 @@ export function startLive(handle: LiveTarget, model: GraphModel, baseUrl: string
   let source: EventSource | undefined;
   let raf = 0;
   let running = false;
+  let generation = 0;
   let lastFrameTs = 0;
+  let staleTimer = 0;
+  let knownPartial = false;
   const listeners = new Set<(s: LiveState) => void>();
 
   const emit = (): void => {
@@ -51,9 +54,15 @@ export function startLive(handle: LiveTarget, model: GraphModel, baseUrl: string
     if (running) raf = requestAnimationFrame(tick);
   };
 
-  const seedHistory = async (): Promise<void> => {
+  const seedHistory = async (): Promise<string> => {
     try {
-      const events = (await (await fetch(`${baseUrl}/history`)).json()) as StudioActivation[];
+      const response = await fetch(`${baseUrl}/history`, { credentials: 'include' });
+      if (!response.ok) throw new Error(`history fetch failed: ${response.status}`);
+      knownPartial = response.headers.get('x-void-continuity') === 'partial';
+      if (knownPartial) {
+        dispatch({ type: 'setConnection', connection: 'PARTIAL' });
+      }
+      const events = (await response.json()) as StudioActivation[];
       const seeded: Lit[] = [];
       for (const ev of events) {
         const l = toLit(index, ev);
@@ -63,8 +72,10 @@ export function startLive(handle: LiveTarget, model: GraphModel, baseUrl: string
       const first = seeded[0];
       const last = seeded[seeded.length - 1];
       if (first && last) dispatch({ type: 'setRange', min: first.ts, max: last.ts });
+      return response.headers.get('x-void-last-event-id') ?? '';
     } catch {
-      // tolerant: live still works without history (scrubber range stays empty)
+      dispatch({ type: 'setConnection', connection: 'STALE' });
+      return '';
     }
   };
 
@@ -73,8 +84,36 @@ export function startLive(handle: LiveTarget, model: GraphModel, baseUrl: string
     dispatch({ type: 'setRange', min: state.range.max === 0 ? ts : state.range.min, max: ts });
   };
 
-  const connect = (): void => {
-    source = new EventSource(`${baseUrl}/events`);
+  const connect = (after: string): void => {
+    const url = new URL(`${baseUrl}/events`);
+    if (after !== '') url.searchParams.set('after', after);
+    source = new EventSource(url, { withCredentials: true });
+    source.onopen = () => {
+      window.clearTimeout(staleTimer);
+      dispatch({
+        type: 'setConnection',
+        connection: knownPartial ? 'PARTIAL' : 'LIVE',
+      });
+    };
+    source.onerror = () => {
+      dispatch({ type: 'setConnection', connection: 'RECONNECTING' });
+      window.clearTimeout(staleTimer);
+      staleTimer = window.setTimeout(() => {
+        if (running) dispatch({ type: 'setConnection', connection: 'STALE' });
+      }, 5_000);
+    };
+    source.addEventListener('stream-status', (event) => {
+      try {
+        const value = JSON.parse((event as MessageEvent).data) as { state?: unknown };
+        knownPartial = value.state === 'PARTIAL';
+        dispatch({
+          type: 'setConnection',
+          connection: knownPartial ? 'PARTIAL' : 'LIVE',
+        });
+      } catch {
+        dispatch({ type: 'setConnection', connection: 'PARTIAL' });
+      }
+    });
     source.addEventListener('activation', (e) => {
       try {
         const ev = JSON.parse((e as MessageEvent).data) as StudioActivation;
@@ -92,14 +131,19 @@ export function startLive(handle: LiveTarget, model: GraphModel, baseUrl: string
   const setEnabled = (on: boolean): void => {
     if (on === running) return;
     running = on;
+    generation += 1;
+    const currentGeneration = generation;
     if (on) {
-      void seedHistory();
-      connect();
+      dispatch({ type: 'setConnection', connection: 'RECONNECTING' });
+      void seedHistory().then((after) => {
+        if (running && generation === currentGeneration) connect(after);
+      });
       lastFrameTs = 0;
       raf = requestAnimationFrame(tick);
     } else {
       source?.close();
       source = undefined;
+      window.clearTimeout(staleTimer);
       cancelAnimationFrame(raf);
       handle.applyLiveFrame(new Map()); // reset every pulse
       lits = [];

@@ -10,7 +10,8 @@
 Install a top-5% development doctrine on any project in one command, run it across several agent runtimes, and read locally what is installed, actually active, and worth improving.
 
 - **Craftsman skills** — TDD strict, TigerStyle, hexagonal, DDD — enforced by hooks, not vibes.
-- **Multi-runtime by construction** — one doctrine, compiled to **Claude Code** (`CLAUDE.md` + marketplace plugin) and **Codex** (`AGENTS.md` + `.codex/hooks.json` + `.agents/skills`) through a runtime-adapter seam. Both runtimes get the *same* enforcement: the hooks are a full mirror, and the read-only agents are compiled into Codex skills rather than re-authored. What genuinely cannot cross over is listed in `docs/CODEX.md` instead of being papered over. Add a runtime later without a reinstall (`void-harness runtime add codex`).
+- **Evidence-bound missions** — append-only local proofs, findings and honest verdicts that become stale when their inputs change.
+- **Multi-runtime by construction** — one doctrine, compiled locally to **Claude Code** (`CLAUDE.md` + `.claude/skills` + `.claude/agents`) and **Codex** (`AGENTS.md` + `.codex/hooks.json` + `.agents/skills`) through a runtime-adapter seam. Both runtimes get the *same* enforcement: the hooks are a full mirror, and the read-only agents are compiled into Codex skills rather than re-authored. What genuinely cannot cross over is listed in `docs/CODEX.md` instead of being papered over. Add a runtime later without a reinstall (`void-harness runtime add codex`).
 - **Pluggable stack packs** — Next.js, monorepo, React, server, PWA, mobile — activated per project.
 - **Free and account-free** — `npx voidharness init`. No Claude account, no subscription, no API key. The Claude Code marketplace is an optional secondary channel.
 
@@ -31,7 +32,7 @@ curl https://registry.npmjs.org/-/npm/v1/attestations/voidharness@2.0.2
 ```
 
 See `docs/RELEASING.md` for the release flow, `plans/` for design specs, and
-`docs/DECISIONS.md` for the decision log.
+`docs/DECISIONS.md` for the legacy decision landing page and `void-harness decisions render` for the current projection.
 
 ## Philosophy
 
@@ -58,6 +59,8 @@ void-harness/
 │   │   ├── hooks/                 # tdd-guard, no-any-grep, no-console-log-grep, etc.
 │   │   ├── codex/                 # Codex safety-floor manifest (hooks.json)
 │   │   └── modules/               # CLAUDE.md modules (composable)
+│   ├── mission-engine/            # pure mission/event contracts and reducers
+│   ├── hook-runner/               # portable Node hook event writer
 │   ├── harness-graph/             # graph kernel + frozen model.json / certification.json
 │   └── packs/
 │       ├── pack-monorepo/         # Turbo / ADR / 5+5 layout
@@ -83,14 +86,30 @@ npx voidharness init
 > On a pnpm project, prefer `pnpm dlx voidharness init` — `npx` (npm) prints harmless
 > "Unknown project config" warnings when it reads your pnpm-only `.npmrc` keys; `pnpm dlx` doesn't.
 
-It detects the project and installed runtimes (Claude Code / Codex), wires each through its adapter
-(marketplace for Claude, safety floor for Codex), writes `.void/config.json` + the doctrine docs, and
-prints what to do next. Then, at any time:
+It detects the project and installed runtimes (Claude Code / Codex), compiles the bundled tarball
+into each runtime's native project directories, smokes the staged hooks, then publishes the finite
+file set transactionally. `.void/receipts/install-v1.json` records deletion ownership; rollback
+restores the previous bytes and adjacent user files are never claimed. No marketplace, `gh`,
+GitHub authentication or network fetch is part of the default path.
 
 ```
 npx voidharness status     # deterministic, offline, LLM-free project health
 npx voidharness doctor     # health check
 ```
+
+For an auditable local execution:
+
+```bash
+npx voidharness mission start --title "Ship feature"
+npx voidharness mission verify --id mis_<returned-id> -- pnpm test
+npx voidharness mission inspect --id mis_<returned-id> --json
+npx voidharness mission archive --id mis_<returned-id>
+```
+
+Verification runs argv directly with `shell:false`; shell interpretation is
+available only through explicit `--shell`. Mission evidence stays under
+`.void/runs/`, is redacted and bounded, and compressed archives remain local
+under `.void/archives/`.
 
 ### Multiple runtimes, added when you need them
 
@@ -107,8 +126,10 @@ npx voidharness runtime list        # which runtimes are wired
 npx voidharness runtime add codex    # wire Codex on a Claude project (or vice-versa)
 ```
 
-`runtime add codex` stages Codex's safety floor (`.codex/hooks.json` + hook scripts) and writes
+`runtime add codex` stages Codex's safety floor (`.codex/hooks.json` + one portable Node runner) and writes
 `AGENTS.md`, leaving your Claude setup byte-for-byte untouched. See [`docs/CODEX.md`](docs/CODEX.md).
+`add`, `remove` and `update` reconcile local assets through the same staged transaction; a pack
+removal deletes only unchanged files owned by the receipt and preserves adjacent or edited files.
 
 `status` reads a frozen capability certification and local telemetry to show, per capability, the
 five-state lifecycle (`available → installed → verified → used → effective`) and a blocker/gauge
@@ -130,10 +151,13 @@ is self-hosted here: [`.claude-plugin/marketplace.json`](.claude-plugin/marketpl
 plugin as a local subdirectory (`./packages/core`, `./packages/packs/*`), versioned by each
 `plugin.json`.
 
+The CLI equivalent is explicit: `void-harness init --source marketplace` (or
+`--marketplace`). Local bundled assets remain the default.
+
 ### Enforce the floor on every PR (void-enforce Action)
 
-The local hooks (no editing secrets/keys/lockfiles, no forbidden `@repo/*`
-imports, no leaked tokens, no destructive shell) only run on the machine that
+The local hooks (TDD order, no editing secrets/keys/lockfiles, no forbidden
+`@repo/*` imports, no leaked tokens, no destructive shell) only run on the machine that
 has the plugin. To make the same floor incontournable server-side — for cloud
 agents, `--dangerously-skip-permissions` runs, or any author — add the reusable
 workflow to your repo. Five lines, `.github/workflows/void-enforce.yml`:
@@ -146,8 +170,9 @@ jobs:
     uses: voidcorp-core/void-harness/.github/workflows/enforce.yml@main
 ```
 
-It replays the exact `_checks.sh` detection the hooks use (one source of truth),
-reports per-file/line annotations, and **fails closed** — a missing dependency or
+It runs protected-path, secret-content, TDD and boundary checks through the
+exact portable Node bundle used inline. It reports per-file/line annotations
+and **fails closed** — a missing dependency or
 unresolvable base is a red check, never a silent pass. Pin `@main` to a release
 tag for a stable floor. It enforces the doctrine floor only; keep your own
 lint/test CI. `void-harness doctor` reports (advisory) whether it is adopted.
@@ -163,7 +188,12 @@ pnpm build && pnpm link --global        # once, exposes `void-harness` on PATH
 void-harness init --pack nextjs --pack monorepo   # wire the current project
 void-harness status                     # deterministic project health
 void-harness doctor                     # health check
+void-harness self-host sync --mode shadow  # compile this repo as its own consumer
+void-harness self-host doctor              # prove receipt, hooks and event replay
 ```
+
+Self-host artifacts stay under the gitignored `.void/generated/` boundary and
+never overwrite the authored core or native root agent configuration.
 
 ## Relation to other VoidCorp repos
 

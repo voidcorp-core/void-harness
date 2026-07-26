@@ -16,8 +16,35 @@ const semverRange = z
   .regex(/^[\^~]?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/, 'not a semver range (e.g. ^0.14.0)');
 
 // Every field is optional so a legacy or partial config is tolerated; what is
-// PRESENT is type-checked. `packs` values must be semver ranges; `paths` and
-// `commands` values must be strings.
+// PRESENT is type-checked. `packs` values must be semver ranges; `paths` values
+// are strings. Commands use argv arrays in v3; legacy shell strings remain
+// readable for one migration window and are surfaced as warnings.
+const command = z
+  .unknown()
+  .superRefine((value, context) => {
+    if (typeof value === 'string') return;
+    if (!Array.isArray(value)) {
+      context.addIssue({
+        code: 'custom',
+        message: 'command must be an argv array or a legacy shell string',
+      });
+      return;
+    }
+    if (value.length === 0) {
+      context.addIssue({ code: 'custom', message: 'command argv must not be empty' });
+    }
+    value.forEach((argument, index) => {
+      if (typeof argument !== 'string') {
+        context.addIssue({
+          code: 'custom',
+          path: [index],
+          message: 'command argument must be a string',
+        });
+      }
+    });
+  })
+  .transform((value) => value as string | string[]);
+
 export const configSchema = z.object({
   core: semverRange.optional(),
   packs: z.record(z.string(), semverRange).optional(),
@@ -30,7 +57,7 @@ export const configSchema = z.object({
     })
     .optional(),
   paths: z.record(z.string(), z.string()).optional(),
-  commands: z.record(z.string(), z.string()).optional(),
+  commands: z.record(z.string(), command).optional(),
   modes: z.record(z.string(), z.string()).optional(),
 });
 
@@ -40,6 +67,8 @@ export interface ConfigValidation {
   readonly ok: boolean;
   /** One human line per problem, each prefixed with the offending JSON path. */
   readonly issues: readonly string[];
+  /** Valid but deprecated shapes that should be migrated. */
+  readonly warnings: readonly string[];
 }
 
 /** Render a zod issue path (["paths","business"]) as `paths.business`, `(root)` when empty. */
@@ -53,9 +82,21 @@ function formatPath(path: ReadonlyArray<PropertyKey>): string {
  */
 export function validateConfig(raw: unknown): ConfigValidation {
   const result = configSchema.safeParse(raw);
-  if (result.success) return { ok: true, issues: [] };
+  const warnings = legacyCommandWarnings(raw);
+  if (result.success) return { ok: true, issues: [], warnings };
   const issues = result.error.issues.map((issue) => `${formatPath(issue.path)}: ${issue.message}`);
-  return { ok: false, issues };
+  return { ok: false, issues, warnings };
+}
+
+function legacyCommandWarnings(raw: unknown): string[] {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return [];
+  const commands = (raw as Record<string, unknown>)['commands'];
+  if (typeof commands !== 'object' || commands === null || Array.isArray(commands)) return [];
+  return Object.entries(commands)
+    .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+    .map(([name]) =>
+      `commands.${name}: legacy shell string; migrate to argv, e.g. ["pnpm","test"]`,
+    );
 }
 
 /**

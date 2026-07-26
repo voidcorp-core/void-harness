@@ -3,11 +3,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-// Characterization tests for the four "floor" PreToolUse hooks. They lock the
-// WRAPPER contract (stdin parsing, tool matcher, env override, exit-code
-// mapping) that survives the DEV-393 refactor to delegate detection to
-// _checks.sh. The detection logic itself is covered by _checks.test.ts; here we
-// only prove the glue still blocks (exit 2) and allows (exit 0) correctly.
+// Characterization tests for the floor compatibility adapters. Critical rules
+// execute in the shared Node bundle; these prove stdin, overrides and exit-code
+// mapping stay stable for existing shell integrations.
 const here = dirname(fileURLToPath(import.meta.url));
 const BASH = process.env.SHELL?.includes('bash') ? process.env.SHELL : '/opt/homebrew/bin/bash';
 

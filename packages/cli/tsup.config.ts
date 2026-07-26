@@ -11,10 +11,21 @@ export default defineConfig({
   sourcemap: false,
   clean: true,
   splitting: false,
-  shims: false,
+  // Bundled CommonJS internals (notably yaml) need createRequire in the ESM
+  // artifact; without the shim an extracted offline tarball crashes at startup.
+  shims: true,
+  banner: {
+    js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);",
+  },
   treeshake: true,
-  // Bundle the workspace kernel INTO the CLI so the published package has no internal-scope runtime
-  // dependency. `yaml` (the kernel's only runtime dep) stays external — a normal public npm package,
-  // declared in this CLI's dependencies, so Node handles its CommonJS interop.
-  noExternal: ['@voidcorp/harness-graph'],
+  // Bundle every runtime dependency so the npm tarball itself runs offline.
+  // These packages remain devDependencies for compilation/tests only.
+  noExternal: [
+    '@clack/prompts',
+    '@voidcorp/harness-graph',
+    '@voidcorp/hook-runner',
+    '@voidcorp/mission-engine',
+    'yaml',
+    'zod',
+  ],
 });

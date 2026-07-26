@@ -15,18 +15,23 @@ const ROOT = '$' + '{CLAUDE_PLUGIN_ROOT}';
 const MANIFEST = {
   hooks: {
     PreToolUse: [
-      { hooks: [{ command: `${ROOT}/hooks/tdd-guard.sh` }, { command: 'bash hooks/no-any-grep.sh' }] },
+      {
+        hooks: [
+          { command: `node ${ROOT}/hooks/_void-hook.mjs enforce tdd-order` },
+          { command: 'bash hooks/no-any-grep.sh' },
+        ],
+      },
     ],
     SessionStart: [{ hooks: [{ command: `${ROOT}/hooks/sessionstart-context.sh` }] }],
   },
 };
 
 describe('wiredHooks', () => {
-  it('extracts the distinct hooks/*.sh references, sorted', () => {
+  it('extracts distinct shell and Node hook assets, sorted', () => {
     expect(wiredHooks(MANIFEST)).toEqual([
+      'hooks/_void-hook.mjs',
       'hooks/no-any-grep.sh',
       'hooks/sessionstart-context.sh',
-      'hooks/tdd-guard.sh',
     ]);
   });
 
@@ -49,7 +54,7 @@ function pluginFixture(hooks: Record<string, { exec: boolean }>): string {
 describe('hookHealthIssues', () => {
   it('reports nothing when every wired hook exists and is executable', () => {
     const dir = pluginFixture({
-      'tdd-guard.sh': { exec: true },
+      '_void-hook.mjs': { exec: false },
       'no-any-grep.sh': { exec: true },
       'sessionstart-context.sh': { exec: true },
     });
@@ -61,7 +66,7 @@ describe('hookHealthIssues', () => {
   });
 
   it('flags a missing wired hook', () => {
-    const dir = pluginFixture({ 'tdd-guard.sh': { exec: true }, 'sessionstart-context.sh': { exec: true } });
+    const dir = pluginFixture({ '_void-hook.mjs': { exec: false }, 'sessionstart-context.sh': { exec: true } });
     try {
       const issues = hookHealthIssues(dir, MANIFEST);
       expect(issues.some((i) => i.includes('no-any-grep.sh') && i.includes('missing'))).toBe(true);
@@ -72,13 +77,13 @@ describe('hookHealthIssues', () => {
 
   it('flags a present-but-non-executable hook', () => {
     const dir = pluginFixture({
-      'tdd-guard.sh': { exec: false },
+      '_void-hook.mjs': { exec: false },
       'no-any-grep.sh': { exec: true },
-      'sessionstart-context.sh': { exec: true },
+      'sessionstart-context.sh': { exec: false },
     });
     try {
       const issues = hookHealthIssues(dir, MANIFEST);
-      expect(issues.some((i) => i.includes('tdd-guard.sh') && i.includes('not executable'))).toBe(true);
+      expect(issues.some((i) => i.includes('sessionstart-context.sh') && i.includes('not executable'))).toBe(true);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

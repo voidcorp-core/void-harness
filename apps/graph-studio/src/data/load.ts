@@ -27,7 +27,7 @@ export function loadData(): StudioData {
 
 /** Fetch the server-computed StudioData from a `graph live` server (same-origin). */
 export async function loadDataFromServer(origin: string): Promise<StudioData> {
-  const res = await fetch(`${origin}/studio-data.json`);
+  const res = await fetch(`${origin}/studio-data.json`, { credentials: 'include' });
   if (!res.ok) throw new Error(`studio-data fetch failed: ${res.status}`);
   return (await res.json()) as StudioData;
 }

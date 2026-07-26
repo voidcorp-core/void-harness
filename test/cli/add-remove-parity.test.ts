@@ -6,10 +6,11 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdtempSync, rmSync, readFileSync, existsSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { add } from '../../packages/cli/src/commands/add.js';
+import { init } from '../../packages/cli/src/commands/init.js';
 import { remove } from '../../packages/cli/src/commands/remove.js';
 
 const BLOCK = '<!-- void-harness:begin -->\nold\n<!-- void-harness:end -->\n';
@@ -51,5 +52,20 @@ describe('add / remove refresh existing docs per-runtime', () => {
     await remove(['harness-nextjs']);
     expect(readFileSync(join(dir, 'CLAUDE.md'), 'utf8')).not.toContain('harness-nextjs');
     expect(readFileSync(join(dir, 'AGENTS.md'), 'utf8')).not.toContain('harness-nextjs');
+  });
+
+  it('materializes and removes only receipt-owned local pack assets', async () => {
+    await init(['--runtime', 'claude', '--no-interactive']);
+    await add(['harness-nextjs']);
+    const packSkill = join(dir, '.claude', 'skills', 'cache-component-pattern', 'SKILL.md');
+    const adjacent = join(dir, '.claude', 'skills', 'private', 'SKILL.md');
+    expect(existsSync(packSkill)).toBe(true);
+    mkdirSync(join(dir, '.claude', 'skills', 'private'), { recursive: true });
+    writeFileSync(adjacent, '# private\n');
+
+    await remove(['harness-nextjs']);
+
+    expect(existsSync(packSkill)).toBe(false);
+    expect(readFileSync(adjacent, 'utf8')).toBe('# private\n');
   });
 });

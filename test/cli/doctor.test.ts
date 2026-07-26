@@ -12,6 +12,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { doctor } from '../../packages/cli/src/commands/doctor.js';
+import { init } from '../../packages/cli/src/commands/init.js';
 
 let originalCwd: string;
 let dir: string;
@@ -55,9 +56,9 @@ describe('doctor', () => {
     expect(out).toContain('failed');
   });
 
-  it('always checks jq but skips the gh check under --no-remote (fully offline)', async () => {
+  it('requires neither jq nor gh under --no-remote (fully offline)', async () => {
     const out = await runDoctor();
-    expect(out).toContain('jq');
+    expect(out).not.toContain('jq');
     expect(out).not.toContain('gh CLI');
   });
 
@@ -108,5 +109,29 @@ describe('doctor', () => {
     expect(out).toContain('codex floor');
     expect(out).not.toContain('settings.json');
     expect(out).not.toContain('gh CLI');
+  });
+
+  it('checks local pack assets against config instead of marketplace settings', async () => {
+    await init(['--runtime', 'claude', '--pack', 'nextjs', '--no-interactive']);
+    output = '';
+
+    const out = await runDoctor();
+
+    expect(out).toContain('packs coherence');
+    expect(out).toContain('local pack assets match');
+    expect(out).not.toContain('pinned in config but not enabled');
+  });
+
+  it('reports the source repository as self-host not-installed instead of skipping green', async () => {
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'void-harness' }));
+    mkdirSync(join(dir, 'packages', 'cli'), { recursive: true });
+    mkdirSync(join(dir, 'packages', 'core'), { recursive: true });
+
+    const out = await runDoctor();
+
+    expect(out).toContain('self-host');
+    expect(out).toContain('not-installed');
+    expect(out).not.toContain('skipped');
+    expect(out).not.toContain('nothing to fix');
   });
 });

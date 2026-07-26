@@ -21,8 +21,9 @@ runtime, so a Codex-only project is never flagged for a missing `CLAUDE.md`.
 
 ## The skills
 
-Skill content is runtime-agnostic prose and applies to both. Claude Code
-auto-discovers the harness plugin's skills from the marketplace. Codex discovers
+Skill content is runtime-agnostic prose and applies to both. The default local
+install materializes Claude skills under `.claude/skills` and Codex skills under
+`.agents/skills`; both are native project-local discovery surfaces. Codex discovers
 skills two ways: by **directory convention** — scanning `.agents/skills` from the
 cwd up to the repo root — and, more recently, through a **native plugin channel**
 (`.codex-plugin/plugin.json` + `codex plugin marketplace add owner/repo`, bundling
@@ -38,7 +39,9 @@ reports how many are discoverable; `update` re-stages them to the running CLI's
 version. This is chosen because it is universal, reproducible, and account-free
 (no marketplace fetch); the native Codex plugin channel is a viable
 **complementary** channel we may add later (tracked as an issue) so both runtimes
-resolve the same artifacts from a plugin.
+resolve the same artifacts from a plugin. Claude's own project configuration
+supports `.claude/skills`, `.claude/agents` and `.claude/settings.json`; its
+plugin marketplace remains available only through explicit opt-in.
 
 [build-skills]: https://learn.chatgpt.com/docs/build-skills
 [build-plugins]: https://learn.chatgpt.com/docs/build-plugins
@@ -60,7 +63,7 @@ The safety *floor* for an unattended run is the deny-by-default permission scope
 are enforcement on top. Codex's hook system mirrors Claude's: same event names
 (`PreToolUse`, `PostToolUse`, `SessionStart`, `Stop`), same `hooks.json` schema
 (events under a top-level `hooks` key), same "exit 2 blocks" convention, so the
-void hook scripts run on Codex unchanged.
+the same portable Node runner serves both runtimes.
 
 Codex used to receive only two guardrails where Claude received eighteen. It now
 receives the **same enforcement surface**: the blocking greps (`no-any`,
@@ -76,18 +79,18 @@ the content-scanning hooks without accounting for that would have fired them
 against an empty payload — they would have passed everything while reading green.
 A wired-but-dead hook is worse than an honest absence.
 
-`_hooklib.sh` therefore exposes `hooklib_edits`: a runtime-agnostic stream of one
-`<path, new-content>` record per edited file. Every content-scanning hook iterates
-it. Two properties matter:
+The generated `_void-hook.mjs` runner normalizes both forms before applying
+every active content rule. Two
+properties matter:
 
 - only **added (`+`) lines** are collected, so removing or merely surrounding an
   offending line never trips a scan;
 - **every file in the patch is scanned**, not just the first — a secret added in
   the second file of a multi-file patch is blocked and names the right file.
 
-Without `jq` the stream degrades to the pure-bash `file_path`, so the path-only
-hooks (`tdd-guard`, `auto-format`) keep enforcing as before; the content-scanning
-hooks still fail **closed** via `hooklib_require_jq`.
+Enforcement, formatting, session context, advisory typecheck and telemetry are
+dependency-free beyond the Node runtime required by the CLI. No native Codex
+hook requires `jq`, Bash or an executable file bit.
 
 ### Wiring the Codex hooks (auto-wired by `init`)
 
@@ -95,26 +98,23 @@ hooks still fail **closed** via `hooklib_require_jq`.
 runtime (auto-detected from a `.codex/` dir or `AGENTS.md`, or forced with
 `--runtime codex` / `--runtime both`). It:
 
-1. Stages the hook scripts into `<project>/.void/hooks/` — every hook the
-   manifest wires, plus the two sourced libraries `_hooklib.sh` + `_checks.sh`.
-   The set is enumerated explicitly in `CODEX_FLOOR_SCRIPTS`, never globbed:
-   this is a security surface, so growing it must be a deliberate act, and a
-   drift-guard test asserts the set still covers every command the template
-   references.
+1. Stages one asset into `<project>/.void/hooks/`: `_void-hook.mjs`.
+   `CODEX_FLOOR_SCRIPTS` is explicit and a drift guard proves every manifest
+   command resolves to that asset.
 2. Compiles `<project>/.codex/hooks.json` from `packages/core/codex/hooks.json`,
-   substituting `${VOID_HOOKS_DIR}` with a Git-root-resolved `.void/hooks` path
-   (a relative path dies the moment a Codex session starts in a subdirectory).
+   substituting `${VOID_HOOKS_DIR}` with the final project's absolute
+   `.void/hooks` path. The path is JSON-escaped and shell-quoted, so Windows,
+   spaces and sessions started in a subdirectory do not weaken the floor.
 
 The one remaining human step is to **trust the project-local `.codex/` layer**
-per Codex's config. `void-harness doctor` verifies the floor: every hook the
-manifest invokes must be a staged, executable script under `.void/hooks/`. After
+per Codex's config. `void-harness doctor` verifies the floor by executing the
+staged runner and requiring its canonical event. After
 a CLI upgrade, `void-harness update` re-stages the floor to the running CLI's
 version (only on real drift), so a Codex project catches floor-script updates the
 same way the Claude side catches marketplace bumps.
 
 The former manual copy is no longer needed. `packages/core/codex/hooks.json`
-remains the single source `init` compiles from; its `$comment` still documents
-the manual path for anyone wiring `~/.codex/hooks.json` by hand.
+remains the single source `init` compiles from.
 
 ## The agents (compiled, not re-authored)
 
@@ -162,11 +162,11 @@ plainly is the point — this is the only place where "prerequisite" keeps meani
 ## Status (verified vs pending)
 
 - **Verified**: sister-doc gate; `init` emits `AGENTS.md` and auto-wires
-  `.codex/hooks.json` (staged scripts + compiled manifest, unit-tested); `doctor`
+  `.codex/hooks.json` (one staged runner + compiled manifest, unit-tested); `doctor`
   checks the wiring; the hooks parse both runtimes' payload shapes, including
   multi-file `apply_patch` (unit-tested); the five agents compile from the real
   `packages/core` tree (integration-tested); a real `init --runtime codex` stages
-  19 scripts + 41 discoverable skills, and the staged hooks block a violation
+  one runner plus the discoverable skills, and the staged hooks block a violation
   added in the second file of a multi-file patch.
 - **Pending a real-Codex run**: end-to-end firing of `.codex/hooks.json` by Codex
   itself (the hooks are verified by direct invocation, not yet by a live Codex

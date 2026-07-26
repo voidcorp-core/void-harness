@@ -65,9 +65,9 @@
       "id": "command:void-audit",
       "type": "command",
       "name": "void-audit",
-      "description": "Run the void-harness outbound audit — skills not invoked recently (from .void/usage.log), upstream deprecations, decision-matrix conflicts — and surface proposed deprecations.",
+      "description": "Run the outbound audit from local mission events and surface stale skills, upstream deprecations, conflicts, and HITL proposals.",
       "lines": 13,
-      "staticTokens": 182,
+      "staticTokens": 172,
       "pack": null,
       "source": "packages/core/commands/void-audit.md"
     },
@@ -75,9 +75,9 @@
       "id": "command:void-doctor",
       "type": "command",
       "name": "void-doctor",
-      "description": "Run the void-harness install health check and summarize the result (config, doctrine files, settings, jq/gh availability, version drift).",
+      "description": "Run harness health checks for config, doctrine, runtime wiring, lifecycle proof, optional marketplace access, and version drift.",
       "lines": 13,
-      "staticTokens": 146,
+      "staticTokens": 143,
       "pack": null,
       "source": "packages/core/commands/void-doctor.md"
     },
@@ -126,8 +126,8 @@
       "type": "hook",
       "name": "activation-meter",
       "description": "",
-      "lines": 93,
-      "staticTokens": 1204,
+      "lines": 14,
+      "staticTokens": 108,
       "pack": null,
       "source": "packages/core/hooks/activation-meter.sh"
     },
@@ -146,16 +146,10 @@
       "type": "hook",
       "name": "auto-format",
       "description": "",
-      "lines": 44,
-      "staticTokens": 380,
+      "lines": 10,
+      "staticTokens": 84,
       "pack": null,
-      "source": "packages/core/hooks/auto-format.sh",
-      "triggers": {
-        "tools": [
-          "Edit",
-          "Write"
-        ]
-      }
+      "source": "packages/core/hooks/auto-format.sh"
     },
     {
       "id": "hook:axe-precommit",
@@ -172,15 +166,10 @@
       "type": "hook",
       "name": "block-dangerous-bash",
       "description": "",
-      "lines": 38,
-      "staticTokens": 441,
+      "lines": 11,
+      "staticTokens": 96,
       "pack": null,
-      "source": "packages/core/hooks/block-dangerous-bash.sh",
-      "triggers": {
-        "tools": [
-          "Bash"
-        ]
-      }
+      "source": "packages/core/hooks/block-dangerous-bash.sh"
     },
     {
       "id": "hook:block-protected-push",
@@ -197,24 +186,18 @@
       "type": "hook",
       "name": "boundary-direction-check",
       "description": "",
-      "lines": 47,
-      "staticTokens": 519,
+      "lines": 11,
+      "staticTokens": 96,
       "pack": null,
-      "source": "packages/core/hooks/boundary-direction-check.sh",
-      "triggers": {
-        "tools": [
-          "Edit",
-          "Write"
-        ]
-      }
+      "source": "packages/core/hooks/boundary-direction-check.sh"
     },
     {
       "id": "hook:large-cl-grep",
       "type": "hook",
       "name": "large-cl-grep",
       "description": "",
-      "lines": 36,
-      "staticTokens": 296,
+      "lines": 10,
+      "staticTokens": 83,
       "pack": null,
       "source": "packages/core/hooks/large-cl-grep.sh"
     },
@@ -253,104 +236,68 @@
       "type": "hook",
       "name": "no-ai-design-slop",
       "description": "",
-      "lines": 82,
-      "staticTokens": 1032,
+      "lines": 11,
+      "staticTokens": 94,
       "pack": null,
-      "source": "packages/core/hooks/no-ai-design-slop.sh",
-      "triggers": {
-        "tools": [
-          "Edit",
-          "Write"
-        ]
-      }
+      "source": "packages/core/hooks/no-ai-design-slop.sh"
     },
     {
       "id": "hook:no-any-grep",
       "type": "hook",
       "name": "no-any-grep",
       "description": "",
-      "lines": 44,
-      "staticTokens": 401,
+      "lines": 11,
+      "staticTokens": 93,
       "pack": null,
-      "source": "packages/core/hooks/no-any-grep.sh",
-      "triggers": {
-        "tools": [
-          "Edit",
-          "Write"
-        ]
-      }
+      "source": "packages/core/hooks/no-any-grep.sh"
     },
     {
       "id": "hook:no-as-cast-grep",
       "type": "hook",
       "name": "no-as-cast-grep",
       "description": "",
-      "lines": 48,
-      "staticTokens": 535,
+      "lines": 11,
+      "staticTokens": 94,
       "pack": null,
-      "source": "packages/core/hooks/no-as-cast-grep.sh",
-      "triggers": {
-        "tools": [
-          "Edit",
-          "Write"
-        ]
-      }
+      "source": "packages/core/hooks/no-as-cast-grep.sh"
     },
     {
       "id": "hook:no-console-log-grep",
       "type": "hook",
       "name": "no-console-log-grep",
       "description": "",
-      "lines": 46,
-      "staticTokens": 467,
+      "lines": 11,
+      "staticTokens": 94,
       "pack": null,
-      "source": "packages/core/hooks/no-console-log-grep.sh",
-      "triggers": {
-        "tools": [
-          "Edit",
-          "Write"
-        ]
-      }
+      "source": "packages/core/hooks/no-console-log-grep.sh"
     },
     {
       "id": "hook:no-null-grep",
       "type": "hook",
       "name": "no-null-grep",
       "description": "",
-      "lines": 64,
-      "staticTokens": 650,
+      "lines": 11,
+      "staticTokens": 93,
       "pack": null,
-      "source": "packages/core/hooks/no-null-grep.sh",
-      "triggers": {
-        "tools": [
-          "Edit",
-          "Write"
-        ]
-      }
+      "source": "packages/core/hooks/no-null-grep.sh"
     },
     {
       "id": "hook:no-only-no-skip",
       "type": "hook",
       "name": "no-only-no-skip",
       "description": "",
-      "lines": 39,
-      "staticTokens": 373,
+      "lines": 11,
+      "staticTokens": 95,
       "pack": null,
-      "source": "packages/core/hooks/no-only-no-skip.sh",
-      "triggers": {
-        "tools": [
-          "Edit",
-          "Write"
-        ]
-      }
+      "source": "packages/core/hooks/no-only-no-skip.sh"
     },
     {
       "id": "hook:outcome-meter",
       "type": "hook",
       "name": "outcome-meter",
       "description": "",
-      "lines": 68,
-      "staticTokens": 859,
+      "lines": 14,
+      "staticTokens": 104,
       "pack": null,
       "source": "packages/core/hooks/outcome-meter.sh"
     },
@@ -369,16 +316,10 @@
       "type": "hook",
       "name": "protect-sensitive-files",
       "description": "",
-      "lines": 60,
-      "staticTokens": 665,
+      "lines": 11,
+      "staticTokens": 95,
       "pack": null,
-      "source": "packages/core/hooks/protect-sensitive-files.sh",
-      "triggers": {
-        "tools": [
-          "Edit",
-          "Write"
-        ]
-      }
+      "source": "packages/core/hooks/protect-sensitive-files.sh"
     },
     {
       "id": "hook:refactor-named-grep",
@@ -395,24 +336,18 @@
       "type": "hook",
       "name": "secret-in-content",
       "description": "",
-      "lines": 39,
-      "staticTokens": 446,
+      "lines": 11,
+      "staticTokens": 95,
       "pack": null,
-      "source": "packages/core/hooks/secret-in-content.sh",
-      "triggers": {
-        "tools": [
-          "Edit",
-          "Write"
-        ]
-      }
+      "source": "packages/core/hooks/secret-in-content.sh"
     },
     {
       "id": "hook:sessionstart-context",
       "type": "hook",
       "name": "sessionstart-context",
       "description": "",
-      "lines": 31,
-      "staticTokens": 325,
+      "lines": 10,
+      "staticTokens": 84,
       "pack": null,
       "source": "packages/core/hooks/sessionstart-context.sh"
     },
@@ -421,8 +356,8 @@
       "type": "hook",
       "name": "stop-typecheck",
       "description": "",
-      "lines": 56,
-      "staticTokens": 604,
+      "lines": 10,
+      "staticTokens": 84,
       "pack": null,
       "source": "packages/core/hooks/stop-typecheck.sh"
     },
@@ -431,32 +366,20 @@
       "type": "hook",
       "name": "tdd-guard",
       "description": "",
-      "lines": 100,
-      "staticTokens": 1053,
+      "lines": 11,
+      "staticTokens": 94,
       "pack": null,
-      "source": "packages/core/hooks/tdd-guard.sh",
-      "triggers": {
-        "tools": [
-          "Edit",
-          "Write"
-        ]
-      }
+      "source": "packages/core/hooks/tdd-guard.sh"
     },
     {
       "id": "hook:test-name-lint",
       "type": "hook",
       "name": "test-name-lint",
       "description": "",
-      "lines": 41,
-      "staticTokens": 426,
+      "lines": 11,
+      "staticTokens": 94,
       "pack": null,
-      "source": "packages/core/hooks/test-name-lint.sh",
-      "triggers": {
-        "tools": [
-          "Edit",
-          "Write"
-        ]
-      }
+      "source": "packages/core/hooks/test-name-lint.sh"
     },
     {
       "id": "hook:tidying-commit-prefix",
@@ -473,8 +396,8 @@
       "type": "hook",
       "name": "trim-large-output",
       "description": "",
-      "lines": 73,
-      "staticTokens": 833,
+      "lines": 10,
+      "staticTokens": 83,
       "pack": null,
       "source": "packages/core/hooks/trim-large-output.sh"
     },
@@ -608,9 +531,9 @@
       "id": "skill:adr-workflow",
       "type": "skill",
       "name": "adr-workflow",
-      "description": "Capture architecture decisions as ADRs (decisions/0001-NNNN.md) — when to write one, when not, format, lifecycle (proposed → accepted → superseded). Distinct from generic plans.",
-      "lines": 113,
-      "staticTokens": 1116,
+      "description": "Capture structural choices as one immutable ADR file with collision-free identity, explicit alternatives, reversal cost, and supersession. Use when future code depends on why.",
+      "lines": 148,
+      "staticTokens": 1072,
       "pack": null,
       "source": "packages/core/skills/adr-workflow/SKILL.md",
       "owner": "folpe",
@@ -717,8 +640,8 @@
       "type": "skill",
       "name": "backlog-autopilot",
       "description": "Opt-in parallel drain of independent Linear tickets, each in its own worktree subagent, reconciled into one integration PR gated by the full suite. Use when clearing independent tickets at once.",
-      "lines": 249,
-      "staticTokens": 4129,
+      "lines": 248,
+      "staticTokens": 3796,
       "pack": null,
       "source": "packages/core/skills/backlog-autopilot/SKILL.md",
       "owner": "folpe",
@@ -808,7 +731,7 @@
       "name": "code-review",
       "description": "Pre-PR critical pass. Six dimensions (correctness, tests, security, structure, readability, perf). Two modes (strict/souple). Composes the native /code-review and codex CLI. Use on a diff.",
       "lines": 229,
-      "staticTokens": 2747,
+      "staticTokens": 2766,
       "pack": null,
       "source": "packages/core/skills/code-review/SKILL.md",
       "activation": "always",
@@ -1060,7 +983,7 @@
       "name": "learning-capture",
       "description": "Capture a lesson when it appears — a stated project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a harness gap. Routes to PROJECT-DOCTRINE, a GitHub issue, or nothing. HITL strict.",
       "lines": 219,
-      "staticTokens": 2865,
+      "staticTokens": 2876,
       "pack": null,
       "source": "packages/core/skills/learning-capture/SKILL.md",
       "owner": "folpe",
@@ -2153,7 +2076,7 @@
       "name": "retrospective",
       "description": "Periodic engineering retro over a window: read git log / PRs / .void, surface signals (hotspots, test ratio, commit types, regressions), turn them into improvement decisions feeding learning-capture.",
       "lines": 82,
-      "staticTokens": 1427,
+      "staticTokens": 1426,
       "pack": null,
       "source": "packages/core/skills/retrospective/SKILL.md",
       "activation": "on-demand",

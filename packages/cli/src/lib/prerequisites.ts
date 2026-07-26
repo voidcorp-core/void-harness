@@ -1,6 +1,6 @@
 // Shared prerequisite checks for the harness install. `doctor` and `init` both
-// need to know whether jq (required by every enforcement hook), gh (required to
-// reach the public marketplace), and the marketplace repo itself are usable.
+// need to know whether gh (required only for an optional marketplace install)
+// and the marketplace repo itself are usable.
 // Extracted here so the two commands can never drift in what "healthy" means
 // (audit 2026-07-09, issue #67).
 
@@ -12,27 +12,9 @@ import { fetchRemoteMarketplace } from './remote.js';
 export interface CheckResult {
   readonly name: string;
   readonly ok: boolean;
+  readonly status?: 'pass' | 'fail' | 'unknown' | 'advisory';
   readonly message: string;
   readonly fix?: string;
-}
-
-/**
- * jq is parsed from stdin by every PreToolUse hook (tdd-guard, no-any,
- * boundary-direction-check, ...). Without it those hooks now fail CLOSED (#63),
- * but a consumer still needs to know their machine cannot run enforcement.
- */
-export function checkJq(): CheckResult {
-  try {
-    execSync('jq --version', { stdio: 'ignore' });
-    return { name: 'jq', ok: true, message: 'available (required by hooks)' };
-  } catch {
-    return {
-      name: 'jq',
-      ok: false,
-      message: 'jq not installed: enforcement hooks cannot run',
-      fix: 'brew install jq OR https://jqlang.github.io/jq/download/',
-    };
-  }
 }
 
 /**
@@ -111,7 +93,12 @@ export function checkEnforceWorkflow(root: string): CheckResult {
         }
       });
   } catch (err) {
-    return { name: 'enforce Action', ok: true, message: `could not inspect .github/workflows (${(err as Error).message})` };
+    return {
+      name: 'enforce Action',
+      ok: true,
+      status: 'unknown',
+      message: `unknown: could not inspect .github/workflows (${(err as Error).message})`,
+    };
   }
   if (adopted) {
     return { name: 'enforce Action', ok: true, message: 'void-enforce workflow adopted (server-side floor)' };

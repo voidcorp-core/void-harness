@@ -90,9 +90,9 @@ The companion hook `pre-PR-review-evidence` warns if the PR body lacks this bloc
 PRs larger than ~400 LOC of diff should either:
 
 - Be split into multiple PRs each focused on one concern
-- Or include a `large-cl-justification: <reason>` marker in the PR body
+- Or include a `large-cl-justification: <reason>` marker in a commit message
 
-Review quality decays after ~400 LOC. The companion hook `large-cl-grep` warns on PRs exceeding the threshold without the justification marker.
+Review quality decays after ~400 added LOC. The optional `large-cl-grep` adapter warns without blocking when a branch exceeds the threshold. It reads Git only: no forge, `gh`, or `jq` dependency.
 
 ---
 
@@ -186,7 +186,7 @@ Disagreements are surfaced. Not averaged. The user decides.
 ## Companion hooks
 
 - **`pre-PR-review-evidence`** (pre-push) — warn if PR body lacks the Review Evidence block (strict mode)
-- **`large-cl-grep`** (pre-push) — warn if PR contains > 400 LOC of diff without `large-cl-justification:` marker
+- **`large-cl-grep`** (optional pre-push) — warn if the branch adds > 400 LOC without a commit-message `large-cl-justification:` marker
 - **`blocker-prefix-grep`** (post-review) — informational: count BLOCKER vs NIT comments for the evidence block
 
 See `../../hooks/`.

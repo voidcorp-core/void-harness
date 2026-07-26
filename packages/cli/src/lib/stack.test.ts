@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
 import {
   commandsFor,
   detectPackageManager,
@@ -84,26 +84,26 @@ describe('commandsFor', () => {
   it('uses pnpm exec for pnpm', () => {
     const stack: Stack = { packageManager: 'pnpm', testRunner: 'vitest', e2eRunner: 'playwright', mutationRunner: 'none' };
     const cmd = commandsFor(stack);
-    expect(cmd.typecheck).toBe('pnpm exec tsc --noEmit');
-    expect(cmd.testUnit).toBe('pnpm exec vitest run');
-    expect(cmd.testE2e).toBe('pnpm exec playwright test');
+    expect(cmd.typecheck).toEqual(['pnpm', 'exec', 'tsc', '--noEmit']);
+    expect(cmd.testUnit).toEqual(['pnpm', 'exec', 'vitest', 'run']);
+    expect(cmd.testE2e).toEqual(['pnpm', 'exec', 'playwright', 'test']);
   });
 
   it('uses bunx for bun', () => {
     const stack: Stack = { packageManager: 'bun', testRunner: 'vitest', e2eRunner: 'playwright', mutationRunner: 'none' };
-    expect(commandsFor(stack).typecheck).toBe('bunx tsc --noEmit');
+    expect(commandsFor(stack).typecheck).toEqual(['bunx', 'tsc', '--noEmit']);
   });
 
   it('uses npx for npm', () => {
     const stack: Stack = { packageManager: 'npm', testRunner: 'jest', e2eRunner: 'none', mutationRunner: 'none' };
     const cmd = commandsFor(stack);
-    expect(cmd.typecheck).toBe('npx tsc --noEmit');
-    expect(cmd.testUnit).toBe('npx jest');
+    expect(cmd.typecheck).toEqual(['npx', 'tsc', '--noEmit']);
+    expect(cmd.testUnit).toEqual(['npx', 'jest']);
   });
 
   it('uses yarn dlx-equivalent for yarn', () => {
     const stack: Stack = { packageManager: 'yarn', testRunner: 'vitest', e2eRunner: 'none', mutationRunner: 'none' };
-    expect(commandsFor(stack).typecheck).toBe('yarn tsc --noEmit');
+    expect(commandsFor(stack).typecheck).toEqual(['yarn', 'tsc', '--noEmit']);
   });
 
   it('omits testE2e and mutation entirely when neither tool is detected', () => {
@@ -116,7 +116,7 @@ describe('commandsFor', () => {
 
   it('emits mutation only when Stryker is present', () => {
     const withStryker: Stack = { packageManager: 'pnpm', testRunner: 'vitest', e2eRunner: 'none', mutationRunner: 'stryker' };
-    expect(commandsFor(withStryker).mutation).toBe('pnpm exec stryker run');
+    expect(commandsFor(withStryker).mutation).toEqual(['pnpm', 'exec', 'stryker', 'run']);
   });
 });
 

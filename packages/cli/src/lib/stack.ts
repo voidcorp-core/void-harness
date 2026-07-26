@@ -26,13 +26,13 @@ export interface Stack {
 }
 
 export interface StackCommands {
-  readonly typecheck: string;
-  readonly testUnit: string;
+  readonly typecheck: readonly string[];
+  readonly testUnit: readonly string[];
   // Only emitted when the corresponding tool is actually detected — inventing a
   // `playwright`/`stryker` command with no signal writes a config that fails the
   // first time it runs. Absent means "no such tool here", not "run the default".
-  readonly testE2e?: string;
-  readonly mutation?: string;
+  readonly testE2e?: readonly string[];
+  readonly mutation?: readonly string[];
 }
 
 interface RootPkg {
@@ -110,40 +110,41 @@ export function detectStack(root: string): Stack {
 }
 
 /** Map a package manager to its one-shot-binary launcher (npx-equivalent). */
-function dlx(pm: PackageManager): string {
+function dlx(pm: PackageManager): readonly string[] {
   switch (pm) {
     case 'pnpm':
-      return 'pnpm exec';
+      return ['pnpm', 'exec'];
     case 'bun':
-      return 'bunx';
+      return ['bunx'];
     case 'yarn':
-      return 'yarn';
+      return ['yarn'];
     case 'npm':
-      return 'npx';
+      return ['npx'];
   }
 }
 
 /** Build the `.void/config.json` commands for a detected stack. */
 export function commandsFor(stack: Stack): StackCommands {
   const dx = dlx(stack.packageManager);
-  const typecheck = `${dx} tsc --noEmit`;
+  const typecheck = [...dx, 'tsc', '--noEmit'];
 
-  let testUnit: string;
-  if (stack.testRunner === 'vitest') testUnit = `${dx} vitest run`;
-  else if (stack.testRunner === 'jest') testUnit = `${dx} jest`;
-  else if (stack.testRunner === 'bun') testUnit = 'bun test';
-  else testUnit = `${dx} vitest run`;
+  let testUnit: readonly string[];
+  if (stack.testRunner === 'vitest') testUnit = [...dx, 'vitest', 'run'];
+  else if (stack.testRunner === 'jest') testUnit = [...dx, 'jest'];
+  else if (stack.testRunner === 'bun') testUnit = ['bun', 'test'];
+  else testUnit = [...dx, 'vitest', 'run'];
 
   // E2E + mutation commands are emitted ONLY on a real signal. No detected e2e
   // runner ⇒ no testE2e key; no Stryker in deps ⇒ no mutation key. The `.void`
-  // hooks read these with `jq '// empty'`, so an absent key is a clean no-op —
-  // far better than a fabricated `playwright`/`stryker` command that errors on
-  // first run.
-  let testE2e: string | undefined;
-  if (stack.e2eRunner === 'playwright') testE2e = `${dx} playwright test`;
-  else if (stack.e2eRunner === 'cypress') testE2e = `${dx} cypress run`;
+  // An absent key is a clean no-op, far better than a fabricated
+  // `playwright`/`stryker` command that errors on first run.
+  let testE2e: readonly string[] | undefined;
+  if (stack.e2eRunner === 'playwright') testE2e = [...dx, 'playwright', 'test'];
+  else if (stack.e2eRunner === 'cypress') testE2e = [...dx, 'cypress', 'run'];
 
-  const mutation = stack.mutationRunner === 'stryker' ? `${dx} stryker run` : undefined;
+  const mutation = stack.mutationRunner === 'stryker'
+    ? [...dx, 'stryker', 'run']
+    : undefined;
 
   return {
     typecheck,

@@ -20,7 +20,7 @@ These are not style preferences. A PR violating them fails `validate`:
 | Skills ≤ 400 lines, hooks ≤ 100 lines, frontmatter `description` ≤ 200 chars | `pnpm anti-bloat:check` |
 | `CLAUDE.md` and `AGENTS.md` stay in section parity | `pnpm sync:docs` |
 | Every version-carrying manifest at the same version | `pnpm version:check` |
-| `docs/DECISIONS.md` regenerated from `docs/decisions-log/` | `pnpm decisions:check` |
+| Decision schemas, links, cycles and accepted-record immutability | `pnpm decisions:check` |
 | `packages/cli/core-assets` mirrors `packages/core` | rebuild with `pnpm --filter voidharness build:assets` |
 | `model.json` and the embedded consumer bundle current | `pnpm graph:check`, `pnpm graph:check-bundle` |
 
@@ -36,7 +36,7 @@ and commit the result. Editing a hook also changes its line count, which the gra
 
 - **Conventional Commits, and the PR title matters.** PRs are squash-merged, so the *PR title* becomes the commit release-please reads. A non-conventional title is silently ignored and your change vanishes from the changelog. This has happened twice; do not make it three.
 - **Every commit message ends with *why*, not just *what*.** The git log is documentation.
-- **Any non-obvious decision** (one where a credible alternative existed) gets a new dated file in `docs/decisions-log/`. Never edit `docs/DECISIONS.md` by hand — it is generated.
+- **Any non-obvious decision** gets its own collision-free file through `void-harness decisions new`. Never edit an accepted record or `docs/DECISIONS.md`; supersede the record instead.
 - **Any new convention** must land in `docs/*.md` in the same commit.
 - **TDD is not optional** for logic. Write the failing test first; `tdd-guard` blocks production files without a sibling test.
 

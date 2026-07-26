@@ -42,9 +42,9 @@ Open the served URL in a real browser (WebGL needs a GPU; headless CI cannot ren
 ## How data flows
 
 `scripts/prepare-data.ts` (Node, run by tsx in predev/prebuild) reads `model.json`
-+ `.void/usage.log`, runs `analyze()`, extracts each workflow's `meta.phases`, and
-writes four gitignored blobs into `src/generated/`. The browser bundle is a pure
-renderer of those blobs (no `node:fs`, no kernel runtime import).
++ canonical `.void/runs/*/events.jsonl` telemetry (with legacy fallback), runs
+`analyze()`, extracts each workflow's `meta.phases`, and writes gitignored blobs
+into `src/generated/`. The browser bundle is a pure renderer of those blobs.
 
 ## Layers (HUD toggles)
 
@@ -67,14 +67,15 @@ SSE server; the studio stays a static app). Start the server in the repo root, t
 run the studio pointing at it:
 
 ```bash
-void-harness graph live                 # serves GET /model.json, /events (SSE) on :4317
+void-harness graph live                 # prints a one-shot authenticated local URL
 VITE_LIVE_URL=http://localhost:4317 pnpm --filter @voidcorp/graph-studio dev
 ```
 
-`VITE_LIVE_URL` defaults to `http://localhost:4317`. Toggle the **Live** layer on;
-trigger harness activity (the `activation-meter` hook appends to
-`.void/activations.jsonl`) and watch the matching nodes light up. `prefers-reduced-motion`
-switches the pulse to a binary on/off (no continuous motion).
+Open the printed auth URL once before using a cross-port dev Studio.
+`VITE_LIVE_URL` defaults to `http://localhost:4317`. Toggle the **Live** layer;
+canonical mission events pulse matching nodes and the scrubber reports transport
+truth (`LIVE`, `RECONNECTING`, `STALE`, `PARTIAL`, `REPLAY`, `OFFLINE`).
+`prefers-reduced-motion` switches the pulse to binary on/off.
 
 ## Boundaries
 

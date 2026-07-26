@@ -3,6 +3,13 @@
 // timers, no clock here.
 
 export type LiveMode = 'live' | 'replay';
+export type LiveConnection =
+  | 'OFFLINE'
+  | 'RECONNECTING'
+  | 'LIVE'
+  | 'STALE'
+  | 'PARTIAL';
+export type VisibleLiveStatus = LiveConnection | 'REPLAY';
 
 export interface TimeRange {
   readonly min: number;
@@ -15,6 +22,7 @@ export interface LiveState {
   readonly playing: boolean;
   readonly speed: number;
   readonly range: TimeRange;
+  readonly connection: LiveConnection;
 }
 
 export type LiveAction =
@@ -25,6 +33,7 @@ export type LiveAction =
   | { readonly type: 'toLive' }
   | { readonly type: 'toReplay'; readonly atMs: number }
   | { readonly type: 'setRange'; readonly min: number; readonly max: number }
+  | { readonly type: 'setConnection'; readonly connection: LiveConnection }
   | { readonly type: 'tick'; readonly deltaMs: number };
 
 const MIN_SPEED = 0.25;
@@ -35,7 +44,18 @@ export function clampCursor(ms: number, range: TimeRange): number {
 }
 
 export function defaultLiveState(): LiveState {
-  return { mode: 'live', cursorMs: 0, playing: false, speed: 1, range: { min: 0, max: 0 } };
+  return {
+    mode: 'live',
+    cursorMs: 0,
+    playing: false,
+    speed: 1,
+    range: { min: 0, max: 0 },
+    connection: 'OFFLINE',
+  };
+}
+
+export function visibleLiveStatus(state: LiveState): VisibleLiveStatus {
+  return state.mode === 'replay' ? 'REPLAY' : state.connection;
 }
 
 export function liveReducer(state: LiveState, action: LiveAction): LiveState {
@@ -56,6 +76,8 @@ export function liveReducer(state: LiveState, action: LiveAction): LiveState {
       const range = { min: action.min, max: action.max };
       return { ...state, range, cursorMs: clampCursor(state.cursorMs, range) };
     }
+    case 'setConnection':
+      return { ...state, connection: action.connection };
     case 'tick':
       if (state.mode !== 'replay' || !state.playing) return state;
       return { ...state, cursorMs: clampCursor(state.cursorMs + action.deltaMs * state.speed, state.range) };

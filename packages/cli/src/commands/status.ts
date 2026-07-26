@@ -13,10 +13,13 @@ import {
   type LocalSignals,
   parseActivations,
   type ProjectState,
+  type RuntimeEvidence,
   type Score,
   scoreProjectState,
 } from '@voidcorp/harness-graph';
+import { loadTelemetryStream } from '../lib/graph-io.js';
 import { configPackDirs } from '../lib/packs.js';
+import { detectedAdapters } from '../lib/runtime-adapters.js';
 import { banner, blank, c, footer, line } from '../lib/render.js';
 
 // dist/main.js -> the package root (packages/cli in the monorepo, node_modules/voidharness once published).
@@ -104,7 +107,15 @@ export function statusLines(state: ProjectState, score: Score): string[] {
   out.push(`  ${order.map((s) => `${counts.get(s) ?? 0} ${s}`).join(' · ')}`);
   out.push('');
   out.push('RUNTIMES');
-  out.push(`  ${state.runtimes.map((r) => `${r.runtime} ${r.detected ? 'verified' : 'missing'}`).join(' · ')}`);
+  const show = (value: boolean | null): string =>
+    value === null ? 'unknown' : value ? 'yes' : 'no';
+  for (const runtime of state.runtimes) {
+    const ev = runtime.evidence;
+    out.push(
+      `  ${runtime.runtime} installed=${show(ev.installed)} wired=${show(ev.wired)} `
+      + `fired=${show(ev.fired)} observed=${show(ev.observed)} certified=${show(ev.certified)}`,
+    );
+  }
   // Honesty: skill usage is only observable on Claude (its Skill tool fires the
   // meter). When Codex is the only runtime, usage is unmeasurable — activation is
   // pending, and this note explains why a project can look "0 used" yet be active.
@@ -123,13 +134,6 @@ export function statusLines(state: ProjectState, score: Score): string[] {
 function readJson<T>(path: string): T {
   const parsed: T = JSON.parse(readFileSync(path, 'utf8'));
   return parsed;
-}
-
-function detectRuntimes(cwd: string): Set<string> {
-  const detected = new Set<string>();
-  if (existsSync(join(cwd, 'CLAUDE.md'))) detected.add('claude');
-  if (existsSync(join(cwd, 'AGENTS.md'))) detected.add('codex');
-  return detected;
 }
 
 export async function status(_args: readonly string[]): Promise<void> {
@@ -151,20 +155,56 @@ export async function status(_args: readonly string[]): Promise<void> {
   const staticTokensById = new Map<string, number>();
   for (const n of model.nodes) if (typeof n.staticTokens === 'number') staticTokensById.set(n.id, n.staticTokens);
 
-  const actPath = join(cwd, '.void', 'activations.jsonl');
-  const events = existsSync(actPath) ? parseActivations(readFileSync(actPath, 'utf8')) : [];
+  const events = parseActivations(loadTelemetryStream(cwd, 'activations.jsonl'));
   // Installed = core capabilities + only the packs this project activated (read
   // from .void/config.json). Absent config ⇒ no packs ⇒ core only — never the
   // whole catalog, which overstated the surface.
   const configPath = join(cwd, '.void', 'config.json');
   const config = existsSync(configPath) ? readJson<{ packs?: Record<string, string> }>(configPath) : {};
+  const declaredIds = installedCapabilityIds(
+    cert.capabilities.map((cp) => cp.id),
+    activatedPackDirs(config),
+  );
+  const inspections = await Promise.all(
+    detectedAdapters(cwd).map((adapter) => adapter.inspect(cwd)),
+  );
+  const operational = new Map<string, (typeof inspections)[number]['evidence']>(
+    inspections.map((inspection) => [
+    inspection.runtime,
+    inspection.evidence,
+    ]),
+  );
+  const installedIds = new Set<string>();
+  const verifiedIds = new Set<string>();
+  for (const cap of cert.capabilities) {
+    if (!declaredIds.has(cap.id)) continue;
+    const evidence = cap.runtimes
+      .map((runtime) => operational.get(runtime))
+      .filter((value) => value !== undefined);
+    if (evidence.some((value) => value.installed === true)) installedIds.add(cap.id);
+    if (evidence.some((value) => value.wired === true && value.fired === true)) {
+      verifiedIds.add(cap.id);
+    }
+  }
+  const runtimeEvidence = new Map<string, RuntimeEvidence>();
+  for (const inspection of inspections) {
+    const relevant = cert.capabilities.filter((cap) =>
+      declaredIds.has(cap.id)
+      && cap.runtimes.includes(inspection.runtime),
+    );
+    const certified = relevant.length === 0
+      ? null
+      : relevant.every((cap) => cap.proof.verified);
+    runtimeEvidence.set(inspection.runtime, {
+      ...inspection.evidence,
+      certified,
+    });
+  }
   const signals: LocalSignals = {
-    installedIds: installedCapabilityIds(
-      cert.capabilities.map((cp) => cp.id),
-      activatedPackDirs(config),
-    ),
+    installedIds,
+    verifiedIds,
     usedCounts: usedCountsById(events, cert),
-    runtimesDetected: detectRuntimes(cwd),
+    runtimeEvidence,
   };
 
   const state = computeProjectState(cert, signals, cert.harnessVersion);

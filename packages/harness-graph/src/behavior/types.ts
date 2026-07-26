@@ -1,5 +1,5 @@
 // Behavioral analysis (M8): types for the activation stream consumed from
-// .void/activations.jsonl and the advisory findings it produces. Pure domain.
+// Canonical/legacy activation projections and their advisory findings. Pure domain.
 
 export type ActivationKind = 'skill' | 'agent' | 'workflow' | 'tool';
 

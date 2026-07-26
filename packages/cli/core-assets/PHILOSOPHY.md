@@ -69,7 +69,7 @@ Maximum efficiency, minimum motion. Every dependency, every layer, every file ea
 - Runtime feature flag services — env vars and build-time activation suffice
 - Hand-rolled accessibility — wrap Radix, do not re-derive ARIA
 
-If a credible alternative exists, it is logged in `docs/DECISIONS.md` with the reason it was rejected.
+If a credible alternative exists, it is logged as one immutable file under `docs/decisions/` (or the detected equivalent) with the reason it was rejected.
 
 ## "Ultra moderne, exceptionnel" — the Folpe quality bar
 
@@ -132,7 +132,7 @@ While coding in any project consuming the harness, when the model (or the user) 
 
 A recurring auto-evaluation that questions the harness's current surface:
 
-1. Each skill invocation logs to `.void/activations.jsonl` (local, never shipped).
+1. Each invocation logs a redacted canonical event to `.void/runs/<mission-id>/events.jsonl` (local, never shipped); legacy logs remain read-only history.
 2. `void-harness audit` produces a report: skills that are active, stale, or never invoked (per the local telemetry). Upstream-source deprecation and decision-matrix-conflict detection are a planned extension of the same command.
 3. The report **proposes** deprecations, fusions, or rewrites. Nothing is auto-applied. Each proposal becomes a PR after human review.
 

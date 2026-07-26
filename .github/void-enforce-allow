@@ -8,3 +8,12 @@
 # source and its generated CLI mirror.
 packages/core/hooks/secret-in-content.sh
 packages/cli/core-assets/hooks/secret-in-content.sh
+
+# The TypeScript detector and its test are the authored successors of the shell
+# adapter above. Their names describe the rule and contain no credentials.
+packages/hook-runner/src/rules/secret-content.ts
+packages/hook-runner/src/rules/secret-content.test.ts
+
+# This deterministic single-file consumer bundle exceeds the hook input bound.
+# Its authored sources remain scanned and graph:check-bundle proves freshness.
+packages/core/graph/void-graph.mjs

@@ -40,4 +40,16 @@ describe('printHelp', () => {
   it('points at the self-hosted marketplace repo as the optional secondary channel', () => {
     expect(capture()).toContain('voidcorp-core/void-harness');
   });
+
+  it('exposes conflict-free decision authoring', () => {
+    expect(capture()).toContain('decisions <sub>');
+  });
+
+  it('exposes the local mission evidence lifecycle', () => {
+    expect(capture()).toContain('mission <sub>');
+  });
+
+  it('exposes isolated source dogfooding', () => {
+    expect(capture()).toContain('self-host <sync|doctor>');
+  });
 });

@@ -13,7 +13,7 @@
 // logic — they format results this module returns.
 
 import { chmod, cp, mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 async function readOrUndefined(path: string): Promise<string | undefined> {
   try {
@@ -31,60 +31,40 @@ async function isExecutable(path: string): Promise<boolean> {
   }
 }
 
-// The staged set is fixed and enumerable: every hook the Codex manifest wires,
-// plus the two libraries they source relative to their own location
-// (`${BASH_SOURCE[0]%/*}`). Kept explicit rather than globbed because this is a
-// security surface — growing it must be a deliberate act, and the drift-guard
-// test below asserts this set still covers every command the template references.
-//
-// It started as a two-hook SAFETY FLOOR. It is now the full mirror of the Claude
-// enforcement surface: Codex shares Claude's hook events and exit-code-2
-// convention, and `_hooklib.sh` normalizes single-file Edit|Write against
-// multi-file apply_patch, so there is no longer a reason for a Codex project to
-// get less enforcement than a Claude one. Deliberately NOT here:
-// trim-large-output (its PostToolUse output rewriting is unconfirmed on Codex).
+// Codex stages one self-contained Node runner. Compatibility shell adapters stay
+// in the source package for older installs, but native manifests never reference
+// or copy them into a consumer project.
 export const CODEX_FLOOR_SCRIPTS = [
-  // PreToolUse — blocking guardrails
-  'block-dangerous-bash.sh',
-  'protect-sensitive-files.sh',
-  'secret-in-content.sh',
-  'tdd-guard.sh',
-  'no-any-grep.sh',
-  'no-as-cast-grep.sh',
-  'no-console-log-grep.sh',
-  'no-null-grep.sh',
-  'no-only-no-skip.sh',
-  'boundary-direction-check.sh',
-  'test-name-lint.sh',
-  'no-ai-design-slop.sh',
-  'activation-meter.sh',
-  // PostToolUse / SessionStart / Stop — repair, telemetry, lifecycle gates
-  'auto-format.sh',
-  'outcome-meter.sh',
-  'sessionstart-context.sh',
-  'stop-typecheck.sh',
-  // sourced libraries (never invoked directly)
-  '_hooklib.sh',
-  '_checks.sh',
+  '_void-hook.mjs',
 ] as const;
 
 // Project-relative directory the scripts are staged into on disk (mkdir/cp/chmod
 // target). Kept relative so it composes with any projectRoot.
 export const CODEX_HOOKS_DIR = '.void/hooks';
 
-// The value substituted for the template's ${VOID_HOOKS_DIR} placeholder in the
-// compiled manifest's `command`s. Resolved from the Git root at hook-run time,
-// per the official Codex hooks guidance ("prefer resolving from the git root
-// instead of a relative path"): a relative `.void/hooks/...` breaks the moment
-// a Codex session starts in a subdirectory, silently killing the safety floor.
-// Codex runs each `command` through a shell, so the `$(...)` is expanded there.
-export const CODEX_MANIFEST_HOOKS_DIR = '$(git rev-parse --show-toplevel)/.void/hooks';
+// Pure-compilation default. Production wiring passes the final project's
+// absolute hooks directory so sessions started in subdirectories remain live
+// without POSIX-only command substitution. The compiler JSON-escapes Windows
+// separators after replacement.
+export const CODEX_MANIFEST_HOOKS_DIR = CODEX_HOOKS_DIR;
 
 // biome-ignore lint/suspicious/noTemplateCurlyInString: this IS the literal placeholder token, matched verbatim.
 const PLACEHOLDER = '${VOID_HOOKS_DIR}';
 
 function substituteHooksDir(template: string, hooksDir: string): string {
   return template.split(PLACEHOLDER).join(hooksDir);
+}
+
+function substituteHooksDirInValue(value: unknown, hooksDir: string): unknown {
+  if (typeof value === 'string') return substituteHooksDir(value, hooksDir);
+  if (Array.isArray(value)) return value.map((item) => substituteHooksDirInValue(item, hooksDir));
+  if (typeof value !== 'object' || value === null) return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, child]) => [
+      key,
+      substituteHooksDirInValue(child, hooksDir),
+    ]),
+  );
 }
 
 /**
@@ -96,7 +76,7 @@ function substituteHooksDir(template: string, hooksDir: string): string {
  * fail loudly at wire time, never write a garbage manifest).
  */
 export function compileCodexHooksManifest(template: string, hooksDir: string = CODEX_MANIFEST_HOOKS_DIR): string {
-  const parsed: unknown = JSON.parse(substituteHooksDir(template, hooksDir));
+  const parsed: unknown = substituteHooksDirInValue(JSON.parse(template), hooksDir);
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
     throw new Error('codex hooks template is not a JSON object');
   }
@@ -109,26 +89,46 @@ export function compileCodexHooksManifest(template: string, hooksDir: string = C
 }
 
 /**
- * Every script basename the manifest invokes. Accepts the raw template (with the
+ * Every hook asset basename the manifest invokes. Accepts the raw template (with the
  * ${VOID_HOOKS_DIR} placeholder), a compiled manifest (Git-root `$(...)` paths),
- * or an absolute/relative on-disk one — it keys on the command's trailing `.sh`
- * basename, so it is robust to whatever prefix the hooks dir resolves to. Pure
- * string scan — never parses/mutates, so a malformed (non-object) manifest
+ * or an absolute/relative on-disk one. Commands may invoke a shell adapter or
+ * pass a bundled `.mjs` file to Node. A malformed (non-object) manifest
  * yields `[]` rather than throwing. Drift guard: the result must be a subset of
  * CODEX_FLOOR_SCRIPTS, else a hook would be wired-but-absent after `init`.
  */
 export function referencedScripts(manifest: string): string[] {
   const found = new Set<string>();
-  for (const match of manifest.matchAll(/"command"\s*:\s*"([^"]+)"/g)) {
-    const base = (match[1] ?? '').split('/').pop() ?? '';
-    if (base.endsWith('.sh')) found.add(base);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(manifest);
+  } catch {
+    return [];
+  }
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (typeof value !== 'object' || value === null) return;
+    for (const [key, child] of Object.entries(value)) {
+      if (key === 'command' && typeof child === 'string') {
+        for (const match of child.matchAll(/([A-Za-z0-9._-]+\.(?:sh|mjs))(?=["\s]|$)/g)) {
+          if (match[1] !== undefined) found.add(match[1]);
+        }
+      } else {
+        visit(child);
+      }
+    }
+  };
+  if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+    visit(parsed);
   }
   return [...found];
 }
 
 /**
  * Stage the Codex safety floor into a consumer project (imperative shell): copy
- * the floor scripts into <project>/.void/hooks/ and compile
+ * the floor assets into <project>/.void/hooks/ and compile
  * <project>/.codex/hooks.json from the shipped template. Shared by `init` (first
  * wire) and `update` (refresh to the running CLI's version), so the two can
  * never drift in how the floor is materialized. Idempotent: re-running
@@ -139,7 +139,11 @@ export function referencedScripts(manifest: string): string[] {
  * The manifest is written via a temp-file rename so a reader never observes a
  * half-written .codex/hooks.json.
  */
-export async function wireCodexFloor(projectRoot: string, sourceRoot: string): Promise<number> {
+export async function wireCodexFloor(
+  projectRoot: string,
+  sourceRoot: string,
+  installationRoot: string = projectRoot,
+): Promise<number> {
   const hooksSrc = join(sourceRoot, 'hooks');
   const hooksDst = join(projectRoot, CODEX_HOOKS_DIR);
   await mkdir(hooksDst, { recursive: true });
@@ -148,15 +152,16 @@ export async function wireCodexFloor(projectRoot: string, sourceRoot: string): P
   }
 
   const template = await readFile(join(sourceRoot, 'codex', 'hooks.json'), 'utf8');
-  // npm/pnpm pack normalizes file modes to 0644, so the hooks shipped inside the
-  // published package arrive NON-executable — `cp` then propagates that, leaving
-  // a wired-but-dead floor. Codex runs the entry-point hooks as commands, so set
-  // +x explicitly instead of trusting a preserved mode.
+  // Shell assets would require an executable bit after npm packing. The native
+  // manifest passes `.mjs` assets to Node, so their mode is deliberately irrelevant.
   for (const hook of referencedScripts(template)) {
-    await chmod(join(hooksDst, hook), 0o755);
+    if (hook.endsWith('.sh')) await chmod(join(hooksDst, hook), 0o755);
   }
 
-  const manifest = compileCodexHooksManifest(template);
+  const manifest = compileCodexHooksManifest(
+    template,
+    join(resolve(installationRoot), CODEX_HOOKS_DIR),
+  );
   const codexDir = join(projectRoot, '.codex');
   await mkdir(codexDir, { recursive: true });
   const manifestPath = join(codexDir, 'hooks.json');
@@ -187,7 +192,9 @@ export async function codexFloorDrift(projectRoot: string, sourceRoot: string): 
   }
 
   const template = await readOrUndefined(join(sourceRoot, 'codex', 'hooks.json'));
-  const expected = template === undefined ? undefined : compileCodexHooksManifest(template);
+  const expected = template === undefined
+    ? undefined
+    : compileCodexHooksManifest(template, join(resolve(projectRoot), CODEX_HOOKS_DIR));
   const actual = await readOrUndefined(join(projectRoot, '.codex', 'hooks.json'));
   const trimEnd = (s: string | undefined): string => (s ?? '').replace(/\n+$/, '');
   if (trimEnd(actual) !== trimEnd(expected)) drift.push('hooks.json');
@@ -206,9 +213,8 @@ export interface CodexFloorHealth {
  * actually live, not merely present:
  *   - manifest exists, is valid JSON, and is an object;
  *   - it references at least one staged command;
- *   - EVERY floor script is staged (entry hooks AND the libs they source — a
- *     missing _hooklib.sh makes the hooks fail at runtime);
- *   - the referenced entry hooks are executable.
+ *   - every floor asset is staged;
+ *   - a referenced shell adapter is executable (Node assets need only exist).
  */
 export async function codexFloorHealth(projectRoot: string): Promise<CodexFloorHealth> {
   const manifest = await readOrUndefined(join(projectRoot, '.codex', 'hooks.json'));
@@ -237,7 +243,9 @@ export async function codexFloorHealth(projectRoot: string): Promise<CodexFloorH
 
   const notExecutable: string[] = [];
   for (const hook of entryHooks) {
-    if (!(await isExecutable(join(hooksDir, hook)))) notExecutable.push(hook);
+    if (hook.endsWith('.sh') && !(await isExecutable(join(hooksDir, hook)))) {
+      notExecutable.push(hook);
+    }
   }
   if (notExecutable.length > 0) {
     return { ok: false, detail: `staged hooks not executable: ${notExecutable.join(', ')}` };
@@ -245,7 +253,7 @@ export async function codexFloorHealth(projectRoot: string): Promise<CodexFloorH
 
   return {
     ok: true,
-    detail: `wired: ${CODEX_FLOOR_SCRIPTS.length} scripts staged in ${CODEX_HOOKS_DIR}/ (${entryHooks.length} executable hook(s))`,
+    detail: `wired: ${CODEX_FLOOR_SCRIPTS.length} portable runner staged in ${CODEX_HOOKS_DIR}/`,
   };
 }
 

@@ -47,10 +47,10 @@ vocabulary to enforce.)
 ## Trade-offs already decided (link to ADRs)
 
 The agent MUST NOT re-litigate these. Each entry points to the rationale
-in `docs/DECISIONS.md` (or equivalent) so future contributors can audit
+in its own file under `docs/decisions/` (or equivalent) so future contributors can audit
 the choice without paging the original team.
 
-- `docs/DECISIONS.md#<adr-id>` — <one-line summary of the decision>
+- `docs/decisions/<date>-<slug>--<id>.md` — <one-line summary of the decision>
 - ...
 
 (Add your decisions as they happen.)

@@ -1,4 +1,4 @@
-// The outbound self-evolution audit (issue #17 cluster C): read .void/usage.log
+// The outbound self-evolution audit: classify normalized local usage entries.
 // (written by the skill-usage-meter hook, one `<iso>\t<skill>` line per Skill
 // invocation) and classify each harness skill as active / stale / never-used —
 // the signal a human weighs when proposing a deprecation. Pure + clock-injected

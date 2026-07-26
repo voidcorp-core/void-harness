@@ -33,6 +33,38 @@ describe('parseActivations', () => {
     expect(events[0]?.trigger).toEqual({ tool: 'Bash', fileGlobs: [], ext: [] });
   });
 
+  it('adapts canonical run events while retaining legacy input support', () => {
+    const events = parseActivations(line({
+      schemaVersion: 1,
+      seq: 7,
+      eventId: 'evt_00000000-0000-4000-8000-000000000007',
+      missionId: 'mis_0123456789abcdef0123456789abcdef',
+      ts: '2026-07-24T12:00:00.000Z',
+      source: 'runtime:codex',
+      kind: 'runtime.tool.started',
+      subject: 'skill:harness:tdd',
+      correlationId: 'mis_0123456789abcdef0123456789abcdef',
+      payload: {
+        category: 'skill',
+        tool: 'Skill',
+        fileGlobs: ['src/a.ts'],
+        extensions: ['ts'],
+      },
+    }));
+
+    expect(events).toEqual([{
+      ts: '2026-07-24T12:00:00.000Z',
+      kind: 'skill',
+      name: 'harness:tdd',
+      trigger: {
+        tool: 'Skill',
+        fileGlobs: ['src/a.ts'],
+        ext: ['ts'],
+      },
+      sessionId: 'mis_0123456789abcdef0123456789abcdef',
+    }]);
+  });
+
   it('returns empty for empty input', () => {
     expect(parseActivations('')).toEqual([]);
   });

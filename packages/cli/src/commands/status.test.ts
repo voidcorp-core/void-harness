@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Certification, ProjectState, Score } from '@voidcorp/harness-graph';
 import { capabilityPackDir } from '@voidcorp/harness-graph';
@@ -90,12 +90,20 @@ describe('statusLines', () => {
     schemaVersion: 1,
     harnessVersion: '0.16.0',
     capabilities: [
-      { id: 'skill:tdd', state: 'used', verified: true, usedCount: 4 },
-      { id: 'skill:qa', state: 'installed', verified: true, usedCount: 0 },
+      { id: 'skill:tdd', state: 'used', verified: true, certified: true, usedCount: 4 },
+      { id: 'skill:qa', state: 'installed', verified: false, certified: true, usedCount: 0 },
     ],
     runtimes: [
-      { runtime: 'claude', detected: true },
-      { runtime: 'hermes', detected: false },
+      {
+        runtime: 'claude',
+        detected: true,
+        evidence: { installed: true, wired: true, fired: true, observed: true, certified: true },
+      },
+      {
+        runtime: 'hermes',
+        detected: false,
+        evidence: { installed: null, wired: null, fired: null, observed: null, certified: null },
+      },
     ],
   };
   const score: Score = {
@@ -122,14 +130,29 @@ describe('statusLines', () => {
     // state has claude detected -> usage observable -> no note
     expect(statusLines(state, score).join('\n')).not.toContain('not observable on Codex');
     // codex-only -> note
-    const codexOnly: ProjectState = { ...state, runtimes: [{ runtime: 'codex', detected: true }] };
+    const codexOnly: ProjectState = {
+      ...state,
+      runtimes: [{
+        runtime: 'codex',
+        detected: true,
+        evidence: { installed: true, wired: true, fired: true, observed: false, certified: true },
+      }],
+    };
     expect(statusLines(codexOnly, score).join('\n')).toContain('not observable on Codex');
     // both claude + codex -> usage observable via Claude -> no note
     const both: ProjectState = {
       ...state,
       runtimes: [
-        { runtime: 'claude', detected: true },
-        { runtime: 'codex', detected: true },
+        {
+          runtime: 'claude',
+          detected: true,
+          evidence: { installed: true, wired: true, fired: true, observed: true, certified: true },
+        },
+        {
+          runtime: 'codex',
+          detected: true,
+          evidence: { installed: true, wired: true, fired: true, observed: false, certified: true },
+        },
       ],
     };
     expect(statusLines(both, score).join('\n')).not.toContain('not observable on Codex');
@@ -145,8 +168,8 @@ describe('statusLines', () => {
     const text = statusLines(state, score).join('\n');
     expect(text).toContain('1 used');
     expect(text).toContain('1 installed');
-    expect(text).toContain('claude verified');
-    expect(text).toContain('hermes missing');
+    expect(text).toContain('claude installed=yes wired=yes fired=yes observed=yes certified=yes');
+    expect(text).toContain('hermes installed=unknown wired=unknown fired=unknown observed=unknown certified=unknown');
     expect(text).toContain('1. Evaluate critical capabilities');
   });
 

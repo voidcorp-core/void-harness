@@ -1,14 +1,20 @@
 /**
  * Tests for the lifecycle-event hooks added beyond PreToolUse:
  *   - auto-format.sh        (PostToolUse, non-blocking, fail-open)
- *   - activation-meter.sh   (universal PreToolUse meter; usage.log for skills, activations.jsonl for all)
+ *   - activation-meter.sh   (universal PreToolUse adapter; canonical run events)
  *   - sessionstart-context.sh (SessionStart, injects additionalContext; also
  *                              covers post-compaction via source=compact)
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -21,6 +27,16 @@ function run(hook: string, json: string, env?: Record<string, string>) {
     env: { ...process.env, ...(env ?? {}) },
   });
   return { code: proc.status ?? 1, stdout: proc.stdout ?? '' };
+}
+
+function runEvents(root: string): Record<string, unknown>[] {
+  const runs = join(root, '.void', 'runs');
+  const mission = readdirSync(runs)[0];
+  if (mission === undefined) return [];
+  const raw = readFileSync(join(runs, mission, 'events.jsonl'), 'utf8').trim();
+  return raw === ''
+    ? []
+    : raw.split('\n').map((line) => JSON.parse(line) as Record<string, unknown>);
 }
 
 describe('auto-format.sh', () => {
@@ -39,31 +55,37 @@ describe('activation-meter.sh', () => {
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-  it('records a Skill invocation to activations.jsonl and never the legacy usage.log (#70)', () => {
+  it('records a Skill invocation in the canonical run and never recreates legacy logs', () => {
     const r = run('activation-meter.sh', '{"tool_name":"Skill","tool_input":{"skill":"tdd"}}', {
       CLAUDE_PROJECT_DIR: dir,
       VOID_GLOBAL_DIR: join(dir, "_global"),
     });
     expect(r.code).toBe(0);
-    // activations.jsonl is now the single source of truth.
-    const jsonl = join(dir, '.void', 'activations.jsonl');
-    expect(existsSync(jsonl)).toBe(true);
-    expect(readFileSync(jsonl, 'utf8')).toContain('"name":"tdd"');
-    // The legacy usage.log writer is gone: the meter must not recreate it.
+    expect(runEvents(dir)[0]).toMatchObject({
+      schemaVersion: 1,
+      seq: 1,
+      kind: 'runtime.tool.started',
+      subject: 'skill:tdd',
+    });
+    expect(existsSync(join(dir, '.void', 'activations.jsonl'))).toBe(false);
     expect(existsSync(join(dir, '.void', 'usage.log'))).toBe(false);
   });
 
-  it('records a non-Skill tool as kind=tool and writes no usage.log', () => {
+  it('records a non-Skill tool without persisting its command', () => {
     run('activation-meter.sh', '{"tool_name":"Bash","tool_input":{"command":"ls"}}', {
       CLAUDE_PROJECT_DIR: dir,
       VOID_GLOBAL_DIR: join(dir, "_global"),
     });
-    const jsonl = join(dir, '.void', 'activations.jsonl');
-    expect(readFileSync(jsonl, 'utf8')).toContain('"kind":"tool"');
-    expect(existsSync(join(dir, '.void', 'usage.log'))).toBe(false);
+    const events = runEvents(dir);
+    expect(events[0]).toMatchObject({
+      kind: 'runtime.tool.started',
+      subject: 'tool:Bash',
+      payload: { category: 'tool', tool: 'Bash' },
+    });
+    expect(JSON.stringify(events)).not.toContain('"command"');
   });
 
-  it('appends one valid JSON event to activations.jsonl', () => {
+  it('appends one valid sequenced canonical event', () => {
     const payload = JSON.stringify({
       tool_name: 'Skill',
       tool_input: { skill: 'harness:tdd' },
@@ -72,12 +94,15 @@ describe('activation-meter.sh', () => {
     });
     const r = run('activation-meter.sh', payload, { CLAUDE_PROJECT_DIR: dir, VOID_GLOBAL_DIR: join(dir, "_global") });
     expect(r.code).toBe(0);
-    const jsonlPath = join(dir, '.void', 'activations.jsonl');
-    expect(existsSync(jsonlPath)).toBe(true);
-    const lines = readFileSync(jsonlPath, 'utf8').trim().split('\n');
-    expect(lines).toHaveLength(1);
-    const ev = JSON.parse(lines[0] ?? '{}');
-    expect(ev).toMatchObject({ kind: 'skill', name: 'harness:tdd', event: 'PreToolUse' });
+    const events = runEvents(dir);
+    expect(events).toHaveLength(1);
+    const ev = events[0] ?? {};
+    expect(ev).toMatchObject({
+      schemaVersion: 1,
+      seq: 1,
+      kind: 'runtime.tool.started',
+      subject: 'skill:harness:tdd',
+    });
     expect(typeof ev.ts).toBe('string');
   });
 

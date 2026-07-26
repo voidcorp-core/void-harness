@@ -1,10 +1,9 @@
 // `void-harness update` — bring a project's harness materializations to the
 // current version without the heavier `init --force` (which rewrites everything).
 //
-//   1. refresh Claude Code's marketplace cache (git pull)
-//   2. sync .void/config.json pins to marketplace HEAD (paths/commands/modes untouched)
-//   3. re-stage the Codex safety floor (.void/hooks/ + .codex/hooks.json) to the
-//      running CLI's version — only on real drift, only when Codex is wired
+// Local receipts recompile every selected runtime from the running CLI's
+// bundled assets, then smoke + publish through the same transaction as init.
+// Marketplace receipts keep the legacy cache/pin reconciliation below.
 //
 // Use case: after `/plugin marketplace update` inside Claude Code the runtime
 // loads the new plugin version but the local pin is unchanged; and after a CLI
@@ -20,10 +19,15 @@ import { CODEX_HOOKS_DIR, refreshCodexFloor } from '../lib/codex-floor.js';
 import { CODEX_SKILLS_DIR, wireCodexSkills } from '../lib/codex-skills.js';
 import { computePinBumps } from '../lib/pack-config.js';
 import { configPackDirs, CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO } from '../lib/packs.js';
-import { findCoreSource } from '../lib/paths.js';
+import { cliVersion, findCoreSource } from '../lib/paths.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { banner, blank, c, footer, glyph, line, meta, row, status } from '../lib/render.js';
 import { readSettings, settingsPathFor } from '../lib/settings.js';
+import {
+  readInstallReceipt,
+  type InstallReceipt,
+} from '../lib/receipts.js';
+import { init } from './init.js';
 
 
 interface LocalConfig {
@@ -49,6 +53,11 @@ function parseArgs(args: readonly string[]): UpdateOptions {
 export async function update(args: readonly string[]): Promise<void> {
   const opts = parseArgs(args);
   const projectRoot = process.cwd();
+  const receipt = await readInstallReceipt(projectRoot);
+  if (updateModeFor(receipt) === 'local' && receipt !== undefined) {
+    await updateLocal(projectRoot, receipt, opts.dryRun);
+    return;
+  }
 
   banner('update');
 
@@ -114,6 +123,43 @@ export async function update(args: readonly string[]): Promise<void> {
   const claudeTouched = pinsTouched > 0 || cacheRefreshed === 'pulled';
   const tail = claudeTouched ? ` ${glyph.emdash} ${c.bold('restart Claude Code to load the new version')}` : '';
   footer(`${parts.join(' + ')}${tail}`);
+}
+
+export function updateModeFor(receipt: InstallReceipt | undefined): InstallReceipt['source'] {
+  return receipt?.source ?? 'marketplace';
+}
+
+async function updateLocal(
+  projectRoot: string,
+  receipt: InstallReceipt,
+  dryRun: boolean,
+): Promise<void> {
+  let packs: string[] = [];
+  try {
+    const config = JSON.parse(await readFile(join(projectRoot, '.void', 'config.json'), 'utf8')) as {
+      packs?: Record<string, string>;
+    };
+    packs = Object.keys(config.packs ?? {}).map((key) => key.replace(/^@voidcorp\//, ''));
+  } catch {
+    // init will surface the invalid/missing config and rebuild only when safe.
+  }
+  banner('update');
+  meta('source', 'bundled local package');
+  meta('installed', receipt.version);
+  meta('available', cliVersion());
+  if (dryRun) {
+    blank();
+    footer(c.dim('dry-run — local assets would be recompiled, smoked and reconciled transactionally'));
+    return;
+  }
+  const initArgs = [
+    '--no-interactive',
+    '--replace-packs',
+    '--runtime',
+    receipt.runtimes.join(','),
+  ];
+  for (const pack of packs) initArgs.push('--pack', pack);
+  await init(initArgs);
 }
 
 /**

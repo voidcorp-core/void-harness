@@ -1,83 +1,83 @@
 {
-  "$comment": "Codex CLI hooks manifest — the Codex-side MIRROR of the Claude Code hooks wired in ../.claude-plugin/plugin.json. Codex's hook system shares Claude's event names, stdin schema, and exit-code-2-blocks convention (per the official Codex hooks docs), so the same scripts run unchanged; `_hooklib.sh` normalizes the one real difference — Claude's single-file Edit|Write versus Codex's multi-file apply_patch. Install: copy this to <project>/.codex/hooks.json (or ~/.codex/hooks.json) and make the void hook scripts resolvable at the referenced path — `void-harness init` does both. Matchers name every tool a given Codex build may emit: `Bash`/`shell` for the command surface, `apply_patch` (plus `Edit`/`Write`) for file edits. Paths use ${VOID_HOOKS_DIR}, resolved from the Git root at run time so a session started in a subdirectory still finds the scripts. NOT mirrored, deliberately: trim-large-output, whose PostToolUse output rewriting (updatedToolOutput) is unconfirmed on Codex — wiring it would spill files to disk for no context benefit. See ../../../docs/CODEX.md.",
+  "$comment": "Codex CLI hooks manifest — the Codex-side mirror of the Claude Code hooks wired in ../.claude-plugin/plugin.json. Both runtimes invoke the same portable Node rules; the runner normalizes Claude single-file Edit/Write and Codex multi-file apply_patch. `void-harness init` stages the runner and compiles absolute paths so sessions started in subdirectories still work. NOT mirrored, deliberately: trim-large-output, whose PostToolUse output rewriting is unconfirmed on Codex. See ../../../docs/CODEX.md.",
   "hooks": {
     "PreToolUse": [
       {
         "matcher": "Bash|shell",
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/block-dangerous-bash.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce dangerous-command codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write|Bash|shell",
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/protect-sensitive-files.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce protected-file codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/secret-in-content.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce secret-content codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/tdd-guard.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce tdd-order codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/no-any-grep.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce no-any codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/no-as-cast-grep.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce no-as-cast codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/no-console-log-grep.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce no-console codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/no-null-grep.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce no-null codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/no-only-no-skip.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce no-focused-test codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/boundary-direction-check.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce boundary-direction codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/test-name-lint.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce test-name codex" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/no-ai-design-slop.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" enforce design-slop codex" }
         ]
       },
       {
         "matcher": "*",
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/activation-meter.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" activation codex" }
         ]
       }
     ],
@@ -85,32 +85,32 @@
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/auto-format.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" lifecycle format codex" }
         ]
       },
       {
         "matcher": "*",
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/outcome-meter.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" outcome codex" }
         ]
       }
     ],
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/sessionstart-context.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" lifecycle context codex" }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/outcome-meter.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" stop codex" }
         ]
       },
       {
         "hooks": [
-          { "type": "command", "command": "${VOID_HOOKS_DIR}/stop-typecheck.sh" }
+          { "type": "command", "command": "node \"${VOID_HOOKS_DIR}/_void-hook.mjs\" lifecycle typecheck codex" }
         ]
       }
     ]

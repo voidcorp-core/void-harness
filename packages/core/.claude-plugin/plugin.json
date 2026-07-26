@@ -22,7 +22,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/tdd-guard.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce tdd-order claude"
           }
         ]
       },
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-any-grep.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce no-any claude"
           }
         ]
       },
@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-as-cast-grep.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce no-as-cast claude"
           }
         ]
       },
@@ -49,7 +49,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-console-log-grep.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce no-console claude"
           }
         ]
       },
@@ -58,7 +58,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-null-grep.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce no-null claude"
           }
         ]
       },
@@ -67,7 +67,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-only-no-skip.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce no-focused-test claude"
           }
         ]
       },
@@ -76,7 +76,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/boundary-direction-check.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce boundary-direction claude"
           }
         ]
       },
@@ -85,7 +85,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/test-name-lint.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce test-name claude"
           }
         ]
       },
@@ -94,7 +94,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/protect-sensitive-files.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce protected-file claude"
           }
         ]
       },
@@ -103,7 +103,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/block-dangerous-bash.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce dangerous-command claude"
           }
         ]
       },
@@ -112,7 +112,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/no-ai-design-slop.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce design-slop claude"
           }
         ]
       },
@@ -121,7 +121,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/activation-meter.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" activation claude"
           }
         ]
       },
@@ -130,7 +130,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/secret-in-content.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" enforce secret-content claude"
           }
         ]
       }
@@ -141,7 +141,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/auto-format.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" lifecycle format claude"
           }
         ]
       },
@@ -150,7 +150,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/trim-large-output.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" lifecycle trim claude"
           }
         ]
       },
@@ -159,7 +159,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/outcome-meter.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" outcome claude"
           }
         ]
       }
@@ -169,7 +169,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/sessionstart-context.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" lifecycle context claude"
           }
         ]
       }
@@ -179,7 +179,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/outcome-meter.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" stop claude"
           }
         ]
       },
@@ -187,7 +187,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-typecheck.sh"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/_void-hook.mjs\" lifecycle typecheck claude"
           }
         ]
       }

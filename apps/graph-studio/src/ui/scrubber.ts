@@ -1,5 +1,5 @@
 import type { LiveController } from '../render/live.js';
-import type { LiveState } from './live-state.js';
+import { type LiveState, visibleLiveStatus } from './live-state.js';
 
 // Imperative shell: the replay timeline. Renders the live/replay controls and
 // drives the pure liveReducer (via the controller). The render loop reads the
@@ -10,6 +10,23 @@ const SPEEDS = [0.5, 1, 2, 4] as const;
 function fmt(ms: number): string {
   if (ms <= 0) return '--:--:--';
   return new Date(ms).toISOString().slice(11, 19); // HH:MM:SS (UTC)
+}
+
+export interface ScrubberView {
+  readonly active: boolean;
+  readonly dataStatus: string;
+  readonly liveLabel: string;
+  readonly timeLabel: string;
+}
+
+export function scrubberView(state: LiveState): ScrubberView {
+  const status = visibleLiveStatus(state);
+  return {
+    active: status === 'LIVE',
+    dataStatus: status.toLowerCase(),
+    liveLabel: status,
+    timeLabel: state.mode === 'live' ? status.toLowerCase() : fmt(state.cursorMs),
+  };
 }
 
 /** Mount the scrubber into `host`, wiring its controls to the live controller. */
@@ -64,8 +81,11 @@ export function mountScrubber(host: HTMLElement, ctrl: LiveController): void {
     slider.disabled = !hasRange;
     playBtn.textContent = s.playing ? '⏸' : '▶';
     playBtn.disabled = !hasRange;
-    liveBtn.classList.toggle('is-active', s.mode === 'live');
-    time.textContent = s.mode === 'live' ? 'live' : fmt(s.cursorMs);
+    const view = scrubberView(s);
+    liveBtn.textContent = view.liveLabel;
+    liveBtn.classList.toggle('is-active', view.active);
+    liveBtn.setAttribute('data-status', view.dataStatus);
+    time.textContent = view.timeLabel;
   };
 
   ctrl.onState(sync);

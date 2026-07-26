@@ -16,12 +16,12 @@ function ratio(num: number, den: number): number | null { // allow-null: a pendi
   return den <= 0 ? null : Math.round((num / den) * 100); // allow-null: nothing to measure
 }
 
-/** Per-runtime enforcement **coverage**: the mean inline tier across the capabilities that declare
+/** Per-runtime declared enforcement **coverage**: the mean inline tier across capabilities that declare
  * enforcement for that runtime — not the single strongest one. A runtime where one capability is
  * `pretooluse` and the rest are `ci-only` scores well below 100, honestly reflecting that most of
  * the surface is not strongly enforced. Computed only over capabilities that actually declare the
  * runtime — a detected-but-untargeted runtime is not an enforcement concern. */
-function enforcementByRuntime(cert: Certification): Record<string, number> {
+function declaredEnforcementByRuntime(cert: Certification): Record<string, number> {
   const runtimes = new Set<string>();
   for (const cap of cert.capabilities) for (const r of Object.keys(cap.enforcement?.inline ?? {})) runtimes.add(r);
   const out: Record<string, number> = {};
@@ -73,24 +73,55 @@ export function scoreProjectState(
     detail: ownerless > 0 ? `${ownerless} capabilities without owner/runtimes` : 'every capability has an owner + proof status',
   };
 
-  const perRuntime = enforcementByRuntime(cert);
+  const declaredEnforcement = declaredEnforcementByRuntime(cert);
+  const runtimeByName = new Map(state.runtimes.map((runtime) => [runtime.runtime, runtime]));
+  const perRuntime: Record<string, number> = {};
+  const unknownEnforcement: string[] = [];
+  const failedEnforcement: string[] = [];
+  for (const [runtime, declaredScore] of Object.entries(declaredEnforcement)) {
+    const evidence = runtimeByName.get(runtime)?.evidence;
+    if (evidence?.fired === true) {
+      perRuntime[runtime] = declaredScore;
+    } else if (evidence?.installed === true && evidence.fired === false) {
+      perRuntime[runtime] = 0;
+      failedEnforcement.push(runtime);
+    } else {
+      unknownEnforcement.push(runtime);
+    }
+  }
   const enfVals = Object.values(perRuntime);
   const enforcement: Dimension = {
     key: 'enforcement',
     kind: 'blocker',
     score: enfVals.length ? Math.round(enfVals.reduce((a, b) => a + b, 0) / enfVals.length) : null, // allow-null: pending when no capability declares an inline tier
-    red: false, // a pretooluse-capable runtime failing to enforce would be red; not observable at rest
+    red: failedEnforcement.length > 0,
     perRuntime,
-    detail: enfVals.length ? Object.entries(perRuntime).map(([r, v]) => `${r} ${v}`).join(' · ') : 'no capability declares enforcement',
+    detail: [
+      ...Object.entries(perRuntime).map(([runtime, value]) => `${runtime} ${value}`),
+      ...(unknownEnforcement.length > 0
+        ? [`unknown: ${unknownEnforcement.join(', ')}`]
+        : []),
+    ].join(' · ') || 'no capability declares enforcement',
   };
 
-  const detected = state.runtimes.filter((r) => r.detected).length;
-  const portability: Dimension = { key: 'portability', kind: 'gauge', score: ratio(detected, state.runtimes.length), detail: `${detected}/${state.runtimes.length} runtimes detected` };
+  const testedRuntimes = state.runtimes.filter((runtime) => runtime.evidence.fired !== null);
+  const firedRuntimes = testedRuntimes.filter((runtime) => runtime.evidence.fired === true);
+  const portability: Dimension = {
+    key: 'portability',
+    kind: 'gauge',
+    score: ratio(firedRuntimes.length, testedRuntimes.length),
+    detail: testedRuntimes.length === 0
+      ? 'runtime execution not tested'
+      : `${firedRuntimes.length}/${testedRuntimes.length} runtimes fired an installed hook`,
+  };
   // Skill usage is only observable on Claude (its `Skill` tool fires the meter);
   // Codex loads skills as context with no hook event. So when no Claude runtime is
   // detected, activation is PENDING (unmeasurable), never a real 0 — a 0 here would
   // read as "these skills go unused" and spawn a bogus "prune unused" next action.
-  const usageObservable = state.runtimes.some((r) => r.runtime === 'claude' && r.detected);
+  const usageObservable = state.runtimes.some((runtime) =>
+    runtime.runtime === 'claude'
+    && runtime.evidence.fired === true,
+  );
   const activation: Dimension = usageObservable
     ? { key: 'activation', kind: 'gauge', score: ratio(usedN, nInstalled), detail: `${usedN}/${nInstalled} installed capabilities used` }
     : { key: 'activation', kind: 'gauge', score: null, detail: 'usage not observable (no Claude runtime; Codex does not surface skill use)' }; // allow-null: pending, distinct from a real 0
@@ -103,7 +134,21 @@ export function scoreProjectState(
       ? { key: 'performance', kind: 'gauge', score: null, detail: 'context cost not measured (no model data)' } // allow-null: pending without token data
       : { key: 'performance', kind: 'gauge', score: ratio(nInstalled - heavy, nInstalled), detail: heavy > 0 ? `${heavy} context-heavy capabilities` : 'context budgets respected' };
 
-  const installation: Dimension = { key: 'installation', kind: 'blocker', score: null, red: false, detail: 'transactional-install signal lands with void init (Phase C)' }; // allow-null: pending dimension
+  const knownInstallations = state.runtimes.filter((runtime) => runtime.evidence.installed !== null);
+  const installedRuntimes = knownInstallations.filter((runtime) => runtime.evidence.installed === true);
+  const brokenInstallations = installedRuntimes.filter((runtime) => runtime.evidence.wired === false);
+  const installation: Dimension = {
+    key: 'installation',
+    kind: 'blocker',
+    score: ratio(installedRuntimes.length, knownInstallations.length),
+    red: brokenInstallations.length > 0,
+    detail: knownInstallations.length === 0
+      ? 'installation not inspected'
+      : `${installedRuntimes.length}/${knownInstallations.length} runtimes installed`
+        + (brokenInstallations.length > 0
+          ? `; unwired: ${brokenInstallations.map((runtime) => runtime.runtime).join(', ')}`
+          : ''),
+  };
   const dx: Dimension = { key: 'dx', kind: 'gauge', score: null, detail: 'no deterministic local DX signal yet (devex-audit)' }; // allow-null: pending dimension
 
   const dimensions: Dimension[] = [installation, portability, activation, efficacy, enforcement, dx, performance, governance];

@@ -56,18 +56,21 @@ export function printHelp(): void {
   write(`  ${c.muted('on pnpm? use')} ${c.muted('pnpm dlx voidharness …')} ${c.muted('to silence npm config warnings.')}\n`);
 
   heading('Commands');
-  cmd('init [--pack] [--runtime]', 'Wire the current project: detect runtimes + stack, activate packs, write doctrine. --runtime claude|codex|both, --all-packs, --force.');
+  cmd('init [--pack] [--runtime]', 'Install bundled local assets by default: detect runtimes + stack, activate packs, write doctrine. --runtime claude|codex|both, --source marketplace, --force.');
   cmd('runtime <list|add <r>>', 'Show which runtimes are wired, or add one (claude|codex) a posteriori without a reinstall — touches only that runtime.');
   cmd('add <pack>', 'Activate a stack pack in the current project.');
   cmd('remove <pack>', 'Deactivate a pack (core cannot be removed).');
   cmd('list', 'Show active and available packs.');
   cmd('status', 'Project health: the five-state capability lifecycle + a score. Deterministic, offline, no LLM.');
   cmd('doctor [--no-remote]', 'Health-check the install (config, doctrine, per-runtime wiring). --no-remote runs fully offline.');
-  cmd('update [--dry-run]', 'Sync the marketplace cache + .void pins + the Codex floor to the current version.');
+  cmd('update [--dry-run]', 'Recompile local receipt-owned assets from this CLI; marketplace cache/pins only for explicit marketplace installs.');
   cmd('check [--doctrine]', 'Report local vs remote version drift. --doctrine also diffs PHILOSOPHY.md.');
   cmd('graph <sub>', 'Build / gate / report the skill-agent graph (build, check, audit, live, behavior).');
   cmd('audit', 'Self-evolution audit: surface stale / never-fired skills as deprecation candidates. HITL.');
   cmd('adoption', 'Maintainer: pull public npm + GitHub stats (tier-1 telemetry, zero phone-home).');
+  cmd('decisions <sub>', 'Create, validate, or render one-file ADRs without a shared counter or index.');
+  cmd('mission <sub>', 'Start, verify, inspect, archive, or explicitly prune an auditable local mission run.');
+  cmd('self-host <sync|doctor>', 'Maintainer: compile current sources into an isolated dogfood artifact and verify source, hooks, events, replay, and runtime availability.');
   cmd('version · help', 'Print the version (also -v) · print this reference.');
 
   heading('Packs');
@@ -84,9 +87,12 @@ export function printHelp(): void {
   example('void-harness init', 'interactive, auto-detects runtimes + packs');
   example('void-harness init --pack nextjs --pack monorepo', 'script-friendly');
   example('void-harness init --runtime codex', 'Codex-only: wire its safety floor');
+  example('void-harness init --marketplace', 'explicit opt-in to the secondary Claude marketplace');
   example('void-harness runtime add codex', 'add Codex to a Claude project, later');
   example('void-harness status', 'offline project health');
   example('void-harness update --dry-run', 'preview version + floor drift');
+  example('void-harness decisions new --title "Use X" --slug use-x', 'create one conflict-free ADR');
+  example('void-harness mission start --title "Ship feature"', 'start a local team-mode evidence ledger');
 
   blank();
   write(`  ${c.muted('Skills load as')} ${c.accent('/harness:<name>')} ${c.muted('and')} ${c.accent('/harness-<stack>:<name>')}${c.muted('.')}\n`);

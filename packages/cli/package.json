@@ -45,7 +45,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "prepack": "pnpm --filter @voidcorp/harness-graph build && pnpm run build && pnpm run build:assets"
+    "prepack": "pnpm -w build:cli && pnpm run build:assets"
   },
   "engines": {
     "node": ">=22.12"
@@ -57,14 +57,14 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@voidcorp/harness-graph": "workspace:*",
+    "@voidcorp/hook-runner": "workspace:*",
+    "@voidcorp/mission-engine": "workspace:*",
+    "@clack/prompts": "^1.5.0",
     "esbuild": "^0.28.0",
     "tsup": "^8.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
-    "vitest": "^4.1.9"
-  },
-  "dependencies": {
-    "@clack/prompts": "^1.5.0",
+    "vitest": "^4.1.9",
     "yaml": "^2.5.0",
     "zod": "^4.4.3"
   }

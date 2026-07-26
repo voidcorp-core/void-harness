@@ -1,5 +1,5 @@
+import { spawnSync } from 'node:child_process';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,7 +28,8 @@ describe('compileCodexHooksManifest', () => {
     const out = compileCodexHooksManifest(template);
     // biome-ignore lint/suspicious/noTemplateCurlyInString: asserting the literal placeholder is gone.
     expect(out).not.toContain('${VOID_HOOKS_DIR}');
-    expect(out).toContain(`${CODEX_HOOKS_DIR}/block-dangerous-bash.sh`);
+    expect(out).toContain(`${CODEX_HOOKS_DIR}/_void-hook.mjs`);
+    expect(out).toContain('enforce dangerous-command');
   });
 
   it('produces valid JSON', () => {
@@ -37,7 +38,7 @@ describe('compileCodexHooksManifest', () => {
 
   it('honors a custom hooks dir', () => {
     const out = compileCodexHooksManifest(template, '/abs/hooks');
-    expect(out).toContain('/abs/hooks/protect-sensitive-files.sh');
+    expect(out).toContain('/abs/hooks/_void-hook.mjs');
   });
 
   it('throws on a template that is valid JSON but not an object', () => {
@@ -46,16 +47,22 @@ describe('compileCodexHooksManifest', () => {
     expect(() => compileCodexHooksManifest('[1,2]')).toThrow(/not a JSON object/);
   });
 
-  it('resolves hook paths from the Git root, not relative to the CWD (subdir-safe)', () => {
-    const out = compileCodexHooksManifest(template);
-    // A relative `.void/hooks/...` silently dies when Codex starts in a subdir;
-    // the compiled command must resolve from the Git root instead.
-    expect(out).toContain('$(git rev-parse --show-toplevel)/.void/hooks/block-dangerous-bash.sh');
+  it('quotes an absolute hook path containing spaces', () => {
+    const out = compileCodexHooksManifest(template, '/tmp/project with spaces/.void/hooks');
+    expect(out).toContain('node \\"/tmp/project with spaces/.void/hooks/_void-hook.mjs\\"');
+  });
+
+  it('escapes a Windows hook path as valid JSON', () => {
+    const out = compileCodexHooksManifest(template, 'C:\\work tree\\.void\\hooks');
+    expect(() => JSON.parse(out)).not.toThrow();
+    expect(JSON.parse(out).hooks.PreToolUse[0].hooks[0].command).toContain(
+      'C:\\work tree\\.void\\hooks/_void-hook.mjs',
+    );
   });
 });
 
 describe('safety-floor matcher coverage', () => {
-  /** PreToolUse entries as (script basename -> matcher) pairs. */
+  /** PreToolUse entries as (rule or script basename -> matcher) pairs. */
   function preToolUseMatchers(): Map<string, string> {
     const manifest = JSON.parse(compileCodexHooksManifest(template));
     const pairs = new Map<string, string>();
@@ -63,7 +70,11 @@ describe('safety-floor matcher coverage', () => {
       matcher: string;
       hooks: { command: string }[];
     }[]) {
-      for (const h of entry.hooks) pairs.set(h.command.split('/').pop() ?? '', entry.matcher);
+      for (const hook of entry.hooks) {
+        const rule = hook.command.match(/\benforce ([a-z-]+)\b/)?.[1];
+        const script = hook.command.match(/([A-Za-z0-9_-]+\.sh)\b/)?.[1];
+        pairs.set(rule ?? script ?? '', entry.matcher);
+      }
     }
     return pairs;
   }
@@ -72,7 +83,7 @@ describe('safety-floor matcher coverage', () => {
   // emits, the hook never fires and its enforcement is silently dead. The two
   // surfaces have different tool names, so they are asserted separately.
   it('matches the Bash tool name documented by Codex, and keeps legacy shell', () => {
-    const matcher = preToolUseMatchers().get('block-dangerous-bash.sh');
+    const matcher = preToolUseMatchers().get('dangerous-command');
     expect(matcher).toContain('Bash');
     expect(matcher).toContain('shell');
   });
@@ -87,26 +98,50 @@ describe('safety-floor matcher coverage', () => {
   // Edit|Write would leave every content-scanning hook dead on that runtime.
   it('covers apply_patch on every file-edit hook', () => {
     const matchers = preToolUseMatchers();
-    for (const script of [
-      'protect-sensitive-files.sh',
-      'secret-in-content.sh',
-      'tdd-guard.sh',
-      'no-any-grep.sh',
-      'no-as-cast-grep.sh',
-      'no-console-log-grep.sh',
-      'no-null-grep.sh',
-      'no-only-no-skip.sh',
-      'boundary-direction-check.sh',
-      'test-name-lint.sh',
-      'no-ai-design-slop.sh',
+    for (const rule of [
+      'protected-file',
+      'secret-content',
+      'tdd-order',
+      'no-any',
+      'no-as-cast',
+      'no-console',
+      'no-null',
+      'no-focused-test',
+      'boundary-direction',
+      'test-name',
+      'design-slop',
     ]) {
-      expect(matchers.get(script), `${script} must be wired`).toBeDefined();
-      expect(matchers.get(script), `${script} must match apply_patch`).toContain('apply_patch');
+      expect(matchers.get(rule), `${rule} must be wired`).toBeDefined();
+      expect(matchers.get(rule), `${rule} must match apply_patch`).toContain('apply_patch');
+    }
+  });
+
+  it('runs every inline rule through the portable Node bundle', () => {
+    const manifest = compileCodexHooksManifest(template);
+    for (const rule of [
+      'dangerous-command',
+      'protected-file',
+      'secret-content',
+      'tdd-order',
+      'no-any',
+      'no-as-cast',
+      'no-console',
+      'no-null',
+      'no-focused-test',
+      'boundary-direction',
+      'test-name',
+      'design-slop',
+    ]) {
+      expect(manifest).toContain(`_void-hook.mjs\\" enforce ${rule}`);
     }
   });
 });
 
 describe('referencedScripts drift guard', () => {
+  it('stages only the self-contained Node runner', () => {
+    expect(CODEX_FLOOR_SCRIPTS).toEqual(['_void-hook.mjs']);
+  });
+
   it('every script the template invokes is in the staged floor set', () => {
     const referenced = referencedScripts(template);
     expect(referenced.length).toBeGreaterThan(0);
@@ -124,28 +159,56 @@ describe('referencedScripts drift guard', () => {
 
 describe('wireCodexFloor', () => {
   it('stages every floor script and writes a valid, placeholder-free manifest', async () => {
-    const project = mkdtempSync(join(tmpdir(), 'void-codex-floor-'));
+    const project = mkdtempSync(join(tmpdir(), 'void codex floor '));
     await wireCodexFloor(project, CORE_ROOT);
 
     for (const script of CODEX_FLOOR_SCRIPTS) {
       expect(existsSync(join(project, CODEX_HOOKS_DIR, script))).toBe(true);
     }
-    // The two entry-point hooks (invoked as commands) keep their executable bit;
-    // the sourced libraries (_hooklib.sh, _checks.sh) are not executed, so mode
-    // is copied verbatim rather than force-set.
-    for (const entry of ['block-dangerous-bash.sh', 'protect-sensitive-files.sh']) {
-      expect(statSync(join(project, CODEX_HOOKS_DIR, entry)).mode & 0o100).toBeTruthy();
-    }
+    expect(statSync(join(project, CODEX_HOOKS_DIR, '_void-hook.mjs')).mode & 0o100).toBeFalsy();
 
     const manifest = readFileSync(join(project, '.codex', 'hooks.json'), 'utf8');
     // biome-ignore lint/suspicious/noTemplateCurlyInString: asserting the literal placeholder is gone.
     expect(manifest).not.toContain('${VOID_HOOKS_DIR}');
     expect(() => JSON.parse(manifest)).not.toThrow();
-    expect(manifest).toContain('.void/hooks/block-dangerous-bash.sh');
+    expect(manifest).toContain('.void/hooks/_void-hook.mjs');
+    expect(manifest).toContain(project);
+    expect(manifest).not.toContain('$(git rev-parse');
     // every referenced script actually landed on disk (no wired-but-absent hook)
     for (const script of referencedScripts(manifest)) {
       expect(existsSync(join(project, CODEX_HOOKS_DIR, script))).toBe(true);
     }
+  });
+
+  it('executes the native Node TDD rule from a project subdirectory', async () => {
+    const project = mkdtempSync(join(tmpdir(), 'void codex native '));
+    await wireCodexFloor(project, CORE_ROOT);
+    mkdirSync(join(project, '.void'), { recursive: true });
+    writeFileSync(join(project, '.void', 'config.json'), '{}\n');
+    mkdirSync(join(project, 'apps', 'web', 'src'), { recursive: true });
+    writeFileSync(join(project, 'apps', 'web', 'src', 'Card.tsx'), 'export const Card = 1;\n');
+    writeFileSync(join(project, 'apps', 'web', 'src', 'Card.test.tsx'), 'test("Card", () => {});\n');
+    const nested = join(project, 'apps', 'web');
+    const manifest = JSON.parse(readFileSync(join(project, '.codex', 'hooks.json'), 'utf8'));
+    const command = manifest.hooks.PreToolUse
+      .flatMap((entry: { hooks: Array<{ command: string }> }) => entry.hooks)
+      .find((hook: { command: string }) => hook.command.includes('enforce tdd-order'))
+      ?.command;
+    expect(command).toBeDefined();
+
+    const result = spawnSync(command, {
+      cwd: nested,
+      shell: true,
+      input: JSON.stringify({
+        tool_name: 'apply_patch',
+        tool_input: {
+          patch: '*** Begin Patch\n*** Update File: apps/web/src/Card.tsx\n+export const Card = 2;\n*** End Patch',
+        },
+      }),
+      encoding: 'utf8',
+    });
+
+    expect(result.status, result.stderr).toBe(0);
   });
 
   it('returns the staged-script count and is idempotent', async () => {
@@ -154,8 +217,7 @@ describe('wireCodexFloor', () => {
     await expect(wireCodexFloor(project, CORE_ROOT)).resolves.toBe(CODEX_FLOOR_SCRIPTS.length);
   });
 
-  it('makes the entry hooks executable even when the source lost its exec bit (npm/pnpm pack)', async () => {
-    // Simulate the published package: a source tree whose hook scripts are 0644.
+  it('keeps Node assets healthy when npm/pnpm pack strips their executable bit', async () => {
     const src = mkdtempSync(join(tmpdir(), 'void-codex-src-'));
     mkdirSync(join(src, 'hooks'), { recursive: true });
     mkdirSync(join(src, 'codex'), { recursive: true });
@@ -168,11 +230,9 @@ describe('wireCodexFloor', () => {
     const project = mkdtempSync(join(tmpdir(), 'void-codex-floor-'));
     await wireCodexFloor(project, src);
 
-    // The floor must be live: codexFloorHealth checks the entry hooks are executable.
+    // Node reads the bundle as data; the executable bit is irrelevant.
     expect((await codexFloorHealth(project)).ok).toBe(true);
-    for (const entry of ['block-dangerous-bash.sh', 'protect-sensitive-files.sh']) {
-      expect(statSync(join(project, CODEX_HOOKS_DIR, entry)).mode & 0o111).toBeTruthy();
-    }
+    expect(statSync(join(project, CODEX_HOOKS_DIR, '_void-hook.mjs')).mode & 0o111).toBeFalsy();
   });
 });
 
@@ -193,9 +253,9 @@ describe('codexFloorDrift', () => {
   it('flags a staged script whose content diverged', async () => {
     const project = mkdtempSync(join(tmpdir(), 'void-codex-drift-'));
     await wireCodexFloor(project, CORE_ROOT);
-    writeFileSync(join(project, CODEX_HOOKS_DIR, 'block-dangerous-bash.sh'), '# tampered\n');
+    writeFileSync(join(project, CODEX_HOOKS_DIR, '_void-hook.mjs'), '// tampered\n');
     const drift = await codexFloorDrift(project, CORE_ROOT);
-    expect(drift).toEqual(['block-dangerous-bash.sh']);
+    expect(drift).toEqual(['_void-hook.mjs']);
   });
 
   it('ignores a trailing-newline-only difference in the manifest', async () => {
@@ -243,22 +303,19 @@ describe('codexFloorHealth', () => {
     expect(health.detail).toContain('not valid JSON');
   });
 
-  it('flags a missing sourced library, not just a missing entry hook (wired-but-dead)', async () => {
+  it('does not stage shell libraries that the native manifest no longer invokes', async () => {
     const project = mkdtempSync(join(tmpdir(), 'void-codex-health-'));
     await wireCodexFloor(project, CORE_ROOT);
-    await rm(join(project, CODEX_HOOKS_DIR, '_hooklib.sh'));
-    const health = await codexFloorHealth(project);
-    expect(health.ok).toBe(false);
-    expect(health.detail).toContain('_hooklib.sh');
+    expect(existsSync(join(project, CODEX_HOOKS_DIR, '_hooklib.sh'))).toBe(false);
+    expect((await codexFloorHealth(project)).ok).toBe(true);
   });
 
-  it('flags an entry hook that lost its executable bit', async () => {
+  it('keeps a Node entry healthy without an executable bit', async () => {
     const project = mkdtempSync(join(tmpdir(), 'void-codex-health-'));
     await wireCodexFloor(project, CORE_ROOT);
-    chmodSync(join(project, CODEX_HOOKS_DIR, 'block-dangerous-bash.sh'), 0o644);
+    chmodSync(join(project, CODEX_HOOKS_DIR, '_void-hook.mjs'), 0o644);
     const health = await codexFloorHealth(project);
-    expect(health.ok).toBe(false);
-    expect(health.detail).toContain('not executable');
+    expect(health.ok).toBe(true);
   });
 });
 
@@ -274,18 +331,18 @@ describe('refreshCodexFloor', () => {
   it('previews a re-stage under dry-run without touching the file', async () => {
     const project = mkdtempSync(join(tmpdir(), 'void-codex-refresh-'));
     await wireCodexFloor(project, CORE_ROOT);
-    const staged = join(project, CODEX_HOOKS_DIR, 'block-dangerous-bash.sh');
+    const staged = join(project, CODEX_HOOKS_DIR, '_void-hook.mjs');
     writeFileSync(staged, '# tampered\n');
     const result = await refreshCodexFloor(project, CORE_ROOT, true);
     expect(result.status).toBe('would-refresh');
-    expect(result.drift).toEqual(['block-dangerous-bash.sh']);
+    expect(result.drift).toEqual(['_void-hook.mjs']);
     expect(readFileSync(staged, 'utf8')).toBe('# tampered\n'); // untouched
   });
 
   it('re-stages on drift when not a dry-run, restoring the file', async () => {
     const project = mkdtempSync(join(tmpdir(), 'void-codex-refresh-'));
     await wireCodexFloor(project, CORE_ROOT);
-    const staged = join(project, CODEX_HOOKS_DIR, 'block-dangerous-bash.sh');
+    const staged = join(project, CODEX_HOOKS_DIR, '_void-hook.mjs');
     writeFileSync(staged, '# tampered\n');
     const result = await refreshCodexFloor(project, CORE_ROOT, false);
     expect(result.status).toBe('refreshed');

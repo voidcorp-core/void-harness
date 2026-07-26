@@ -1,10 +1,9 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import {
   CODEX_SKILLS_DIR,
   codexSkillsHealth,
@@ -43,6 +42,12 @@ describe('parseFrontmatter', () => {
   it('extracts the leading YAML block', () => {
     const fm = parseFrontmatter('---\nname: tdd\nruntimes: [claude, codex]\n---\nbody');
     expect(fm.name).toBe('tdd');
+    expect(fm.runtimes).toEqual(['claude', 'codex']);
+  });
+
+  it('extracts frontmatter after a Windows checkout converts line endings', () => {
+    const fm = parseFrontmatter('---\r\nname: tdd\r\nruntimes: [claude, codex]\r\n---\r\nbody');
+
     expect(fm.runtimes).toEqual(['claude', 'codex']);
   });
 

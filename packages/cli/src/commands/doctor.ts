@@ -6,25 +6,25 @@
 //   3. .claude/settings.json has extraKnownMarketplaces.void-harness + at
 //      least harness@voidcorp in enabledPlugins
 //   4. CLAUDE.md contains the void-harness block
-//   5. jq is available (required by the PreToolUse + pre-commit hooks, which
-//      parse the Claude Code tool-call JSON from stdin) — always checked
-//   6. gh CLI is available and authenticated (required for the private repo
+//   5. gh CLI is available and authenticated (required for the optional
 //      marketplace fetch) — only when remote checks run; --no-remote skips it
 
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS } from '../lib/packs.js';
-import { marketplaceRepoFrom, readSettings, settingsPathFor } from '../lib/settings.js';
-import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
-import { checkEnforceWorkflow, checkGh, checkJq, type CheckResult } from '../lib/prerequisites.js';
 import { packsCoherenceIssues, validateConfig } from '../lib/config-schema.js';
-import { hookHealthIssues, locatePluginDir } from '../lib/plugin-cache.js';
-import { compareVersions, normalizeVersion } from '../lib/version.js';
-import { detectedAdapters } from '../lib/runtime-adapters.js';
-import { isHarnessSourceRepo } from '../lib/self-repo.js';
+import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../lib/packs.js';
+import { findCoreSource } from '../lib/paths.js';
+import { type CheckResult, checkEnforceWorkflow, checkGh } from '../lib/prerequisites.js';
+import { readInstallReceipt } from '../lib/receipts.js';
+import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
-import { homedir } from 'node:os';
+import { detectedAdapters } from '../lib/runtime-adapters.js';
+import { localPackAssetIssues } from '../lib/runtime-assets.js';
+import { selfRepoDoctorTarget } from '../lib/self-repo.js';
+import { runSelfHostDoctor } from './self-host.js';
+import { marketplaceRepoFrom, readSettings, settingsPathFor } from '../lib/settings.js';
+import { compareVersions, normalizeVersion } from '../lib/version.js';
 
 /** Plain pack names (no @voidcorp/ prefix, core excluded) pinned in config.packs. */
 function configPackNames(config: { packs?: Record<string, string> }): string[] {
@@ -46,17 +46,9 @@ export async function doctor(args: readonly string[]): Promise<void> {
   const checks: CheckResult[] = [];
   const root = process.cwd();
 
-  // Running inside the void-harness source repo? The consumer checks below
-  // (config, doctrine files, wired runtime) don't apply here — the source repo
-  // produces the harness, it doesn't install it — so report that plainly
-  // instead of a wall of irrelevant failures that reads as a broken install.
-  if (isHarnessSourceRepo(root)) {
-    banner('doctor');
-    blank();
-    line(`${c.muted(glyph.dot)}  this is the ${c.accent('void-harness')} source repo — the harness is not installed here`);
-    line(c.dim('   consumer checks (config, doctrine, runtime wiring) do not apply; nothing to fix'));
-    line(c.dim(`   ${glyph.to} to dogfood the installer, run it in a throwaway project, not the source tree`));
-    footer(c.dim('source repo — skipped'));
+  const target = selfRepoDoctorTarget(root);
+  if (target.kind === 'self-host') {
+    await runSelfHostDoctor(root, args);
     return;
   }
 
@@ -77,7 +69,13 @@ export async function doctor(args: readonly string[]): Promise<void> {
       // JSON path (#68).
       const validation = validateConfig(parsedConfig);
       if (validation.ok) {
-        checks.push({ name: 'project config', ok: true, message: 'valid JSON + schema' });
+        checks.push({
+          name: 'project config',
+          ok: true,
+          message: validation.warnings.length === 0
+            ? 'valid JSON + schema'
+            : `valid with migration warning: ${validation.warnings.join('; ')}`,
+        });
       } else {
         checks.push({
           name: 'project config',
@@ -108,6 +106,8 @@ export async function doctor(args: readonly string[]): Promise<void> {
   // branches on a runtime name — it iterates the detected adapters.
   const detected = detectedAdapters(root);
   const claudeDetected = detected.some((a) => a.id === 'claude');
+  const receipt = await readInstallReceipt(root);
+  const marketplaceInstall = receipt?.source === 'marketplace';
   if (detected.length === 0) {
     // No footprint at all ⇒ nothing is wired. Without this, a project that has
     // .void/config.json but no CLAUDE.md/.claude or AGENTS.md/.codex would run
@@ -120,13 +120,56 @@ export async function doctor(args: readonly string[]): Promise<void> {
     });
   }
   for (const adapter of detected) {
-    checks.push(...(await adapter.doctorChecks(root)));
+    const inspection = await adapter.inspect(root);
+    checks.push(...inspection.checks);
+    const show = (value: boolean | null): string =>
+      value === null ? 'unknown' : value ? 'yes' : 'no';
+    const lifecycleUnknown = Object.values(inspection.evidence)
+      .some((value) => value === null);
+    checks.push({
+      name: `${adapter.id} lifecycle`,
+      ok: inspection.evidence.fired === true,
+      ...(lifecycleUnknown ? { status: 'unknown' as const } : {}),
+      message: [
+        `installed=${show(inspection.evidence.installed)}`,
+        `wired=${show(inspection.evidence.wired)}`,
+        `fired=${show(inspection.evidence.fired)}`,
+        `observed=${show(inspection.evidence.observed)}`,
+      ].join(' '),
+      ...(inspection.evidence.fired === true
+        ? {}
+        : { fix: `void-harness runtime add ${adapter.id}` }),
+    });
   }
 
   // Coherence: a pack enabled in settings.json but not pinned in config (or the
   // reverse). Claude-marketplace concern — only when Claude is wired and both
   // files are readable (#68).
-  if (claudeDetected && configReadable && existsSync(settingsPathFor(root))) {
+  if (configReadable && receipt?.source === 'local') {
+    const packNames = configPackNames(parsedConfig);
+    const packDirectories = packNames
+      .map(packDirForName)
+      .filter((directory): directory is string => directory !== undefined);
+    let issues: string[];
+    try {
+      issues = await localPackAssetIssues(
+        root,
+        await findCoreSource(),
+        packDirectories,
+        detected.map((adapter) => adapter.id),
+      );
+    } catch (error) {
+      issues = [`could not inspect bundled pack assets: ${(error as Error).message}`];
+    }
+    checks.push(issues.length === 0
+      ? { name: 'packs coherence', ok: true, message: 'local pack assets match .void/config.json' }
+      : {
+          name: 'packs coherence',
+          ok: false,
+          message: issues.join('; '),
+          fix: 'void-harness init to reconcile local pack assets',
+        });
+  } else if (claudeDetected && configReadable && existsSync(settingsPathFor(root))) {
     const settings = await readSettings(settingsPathFor(root));
     const issues = packsCoherenceIssues(enabledPackNames(settings.enabledPlugins ?? {}), configPackNames(parsedConfig));
     if (issues.length === 0) {
@@ -141,17 +184,14 @@ export async function doctor(args: readonly string[]): Promise<void> {
     }
   }
 
-  // jq is needed by the local enforcement hooks on every runtime, so it is
-  // always checked. Advisory: is the same floor also enforced server-side
-  // (void-enforce Action)? Never a blocker (ok stays true).
-  checks.push(checkJq());
+  // Advisory: is the same floor also enforced server-side (void-enforce
+  // Action)? Never a blocker (ok stays true).
   checks.push(checkEnforceWorkflow(root));
 
   // Plugin cache + remote version checks are Claude-marketplace concerns — only
   // relevant when Claude is wired. gh gates the private-marketplace fetch, so it
   // rides with the remote checks (--no-remote is a fully offline run).
-  if (claudeDetected) {
-    checks.push(await checkPluginCacheHooks());
+  if (claudeDetected && marketplaceInstall) {
     if (!skipRemote) {
       checks.push(checkGh());
       checks.push(await checkRemoteVersions(root));
@@ -161,48 +201,25 @@ export async function doctor(args: readonly string[]): Promise<void> {
   banner('doctor');
   blank();
   for (const check of checks) {
-    const markFn = check.ok ? c.green(glyph.check) : c.red('x');
+    const markFn = check.status === 'unknown'
+      ? c.yellow('?')
+      : check.ok
+        ? c.green(glyph.check)
+        : c.red('x');
     line(`${markFn}  ${c.dim(check.name.padEnd(18))}${check.message}`);
     if (!check.ok && check.fix) line(c.dim(`     ${glyph.to} ${check.fix}`));
   }
 
   const blockers = checks.filter((ck) => !ck.ok).length;
+  const unknown = checks.filter((check) => check.status === 'unknown').length;
   if (blockers === 0) {
-    footer(c.dim('all checks passed'));
+    footer(unknown === 0
+      ? c.dim('all checks passed')
+      : c.yellow(`checks passed with ${unknown} unknown`));
   } else {
     footer(c.red(`${blockers} check${blockers > 1 ? 's' : ''} failed`));
     process.exit(1);
   }
-}
-
-async function checkPluginCacheHooks(): Promise<CheckResult> {
-  // Claude Code caches marketplace plugins under ~/.claude/plugins/cache.
-  const cacheRoot = join(homedir(), '.claude', 'plugins', 'cache');
-  const pluginDir = locatePluginDir(cacheRoot, CORE_PLUGIN_NAME);
-  if (!pluginDir) {
-    return {
-      name: 'plugin cache',
-      ok: true,
-      message: 'not installed in cache yet (restart Claude Code to fetch it)',
-    };
-  }
-  const manifestPath = join(pluginDir, '.claude-plugin', 'plugin.json');
-  let manifest: Record<string, unknown>;
-  try {
-    manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
-  } catch (err) {
-    return { name: 'plugin cache', ok: false, message: `unreadable manifest: ${(err as Error).message}` };
-  }
-  const issues = hookHealthIssues(pluginDir, manifest);
-  if (issues.length === 0) {
-    return { name: 'plugin cache', ok: true, message: 'wired hooks present + executable' };
-  }
-  return {
-    name: 'plugin cache',
-    ok: false,
-    message: issues.join('; '),
-    fix: '/plugin marketplace update (inside Claude Code) to refetch the plugin',
-  };
 }
 
 async function checkRemoteVersions(root: string): Promise<CheckResult> {
@@ -214,7 +231,8 @@ async function checkRemoteVersions(root: string): Promise<CheckResult> {
     return {
       name: 'remote versions',
       ok: true,
-      message: `skipped (could not fetch ${repo}: ${remote.error})`,
+      status: 'unknown',
+      message: `unknown (could not fetch ${repo}: ${remote.error})`,
     };
   }
 
@@ -267,4 +285,3 @@ async function checkRemoteVersions(root: string): Promise<CheckResult> {
     fix: '/plugin marketplace update (inside Claude Code)',
   };
 }
-

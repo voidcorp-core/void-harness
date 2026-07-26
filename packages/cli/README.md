@@ -54,6 +54,21 @@ npx voidharness doctor [--no-remote]
 
 `list` shows packs and their detection status; `check` reports version drift; `update` refreshes pinned versions.
 
+### `decisions`
+
+Creates, validates and projects ADRs without a shared counter or generated
+index. Existing decision directories are preserved; new projects default to
+`docs/decisions/`.
+
+```bash
+npx voidharness decisions new --title "Use X" --slug use-x
+npx voidharness decisions check [--base <git-ref>]
+npx voidharness decisions render --format markdown|json
+```
+
+Each accepted ADR is immutable. Reverse it with a new record and
+`--supersedes <adr:id>`.
+
 ### `install --global`
 
 Escape hatch (rare): installs the `harness` plugin at the user-global level (`~/.claude-plugin/plugins/harness/`) instead of per-project. The recommended flow is `init`.
