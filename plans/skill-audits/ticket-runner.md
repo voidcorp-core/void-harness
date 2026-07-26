@@ -77,3 +77,20 @@ See `docs/DECISIONS.md` 2026-07-10.
 ## gstack /ship vendoring (DEV-388, de-gstackification Vague 2)
 
 /ship's pre-PR checklist is mostly ALREADY covered here (review, tests, commit, PR) + by verification-before-completion + commit-discipline. **Integrated** (the genuine cycle-level deltas): Test-Failure-Ownership triage (adjudicate a red suite in-branch vs pre-existing before proceeding — this skill assumed green), the independent fresh-context adversarial review pass (attacker/chaos lens, FIXABLE/INVESTIGATE, name the single most exploitable finding), and bisectable commit ordering (infra→domain→edge, each independently valid). **Rejected**: the Review-Army roster (7 named specialists + adaptive gating) as an over-engineered release-gate apparatus for a single ticket — kept only its *idea* (scope-gated fresh-context lenses); and the VERSION/CHANGELOG/release-please steps (release-please owns versioning here). The plan-completion-audit half of /ship went to verification-before-completion, not here.
+
+## 2026-07-26 — native team orchestration (DEV-441)
+
+The former review pass named several skills and critics but could still be satisfied by one parent
+context composing prose. That is not an independent team and allowed a command proof to produce a
+false green while Architecture, Security, or QA never completed.
+
+The skill now loads the canonical mission plan and delegates execution truth to the pure,
+event-sourced controller. One lead writer owns implementation and correction; native read-only
+specialists run in fresh contexts and emit structured completions. The correction loop is capped at
+two rounds, invalidates only changed input hashes, and blocks on missing, malformed, duplicate,
+wrong-role, timed-out, stale, or degraded review evidence. Linear moves to In Review when the PR
+opens and to Done only after merge.
+
+Sources consulted: official Claude Code subagent and headless-mode docs; official Codex subagent and
+non-interactive-mode docs. Adapted rather than copied. Rejected: sequential self-review, reviewer
+writes, majority voting, all-proof invalidation, unbounded retries, and timeout-as-success.
