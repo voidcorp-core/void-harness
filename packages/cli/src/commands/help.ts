@@ -69,7 +69,7 @@ export function printHelp(): void {
   cmd('audit', 'Self-evolution audit: surface stale / never-fired skills as deprecation candidates. HITL.');
   cmd('adoption', 'Maintainer: pull public npm + GitHub stats (tier-1 telemetry, zero phone-home).');
   cmd('decisions <sub>', 'Create, validate, or render one-file ADRs without a shared counter or index.');
-  cmd('mission <sub>', 'Start, verify, inspect, archive, or explicitly prune an auditable local mission run.');
+  cmd('mission <sub>', 'Plan a deterministic DAG, then start, verify, inspect, archive, or explicitly prune an auditable local mission run.');
   cmd('self-host <sync|doctor>', 'Maintainer: compile current sources into an isolated dogfood artifact and verify source, hooks, events, replay, and runtime availability.');
   cmd('version · help', 'Print the version (also -v) · print this reference.');
 
@@ -93,6 +93,7 @@ export function printHelp(): void {
   example('void-harness update --dry-run', 'preview version + floor drift');
   example('void-harness decisions new --title "Use X" --slug use-x', 'create one conflict-free ADR');
   example('void-harness mission start --title "Ship feature"', 'start a local team-mode evidence ledger');
+  example('void-harness mission plan --ticket ticket.md --json', 'compile risk, applicability, and DAG');
 
   blank();
   write(`  ${c.muted('Skills load as')} ${c.accent('/harness:<name>')} ${c.muted('and')} ${c.accent('/harness-<stack>:<name>')}${c.muted('.')}\n`);

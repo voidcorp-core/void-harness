@@ -1,0 +1,167 @@
+import { describe, expect, it } from 'vitest';
+import { mergePolicies } from '../policy/merge.js';
+import { parsePolicy, type PolicyDocument } from '../policy/schema.js';
+import { compileMissionPlan } from './plan.js';
+
+const PASSES = [
+  'product',
+  'architecture',
+  'tdd',
+  'qa',
+  'security',
+  'observability',
+  'migration',
+  'ux-ui',
+  'accessibility',
+  'performance',
+  'stack-patterns',
+  'pdf',
+  'retrospective',
+] as const;
+
+function corePolicy(): PolicyDocument {
+  const parsed = parsePolicy({
+    schemaVersion: 1,
+    id: 'core:quality-floor',
+    version: 1,
+    layer: 'core',
+    rules: PASSES.map((pass) => ({
+      id: `core:${pass}`,
+      pass,
+      strength: 'required',
+      baseline: pass === 'security' || pass === 'qa',
+      appliesWhen: { any: [pass] },
+    })),
+  });
+  if (!parsed.ok) throw new Error(parsed.issue.message);
+  return parsed.value;
+}
+
+const PROJECT_FIXTURES = {
+  declik: {
+    body: 'Build an accessible authentication UI flow with tests.',
+    files: ['apps/web/src/auth.tsx', 'apps/web/src/auth.test.tsx'],
+  },
+  sesame: {
+    body: 'Migrate multi-tenant customer data with recovery tests.',
+    files: ['packages/db/migrations/tenant-data.ts'],
+  },
+  solaar: {
+    body: 'Parse an untrusted PDF and measure the hot path.',
+    files: ['src/pdf/parse.ts', 'src/pdf/parse.test.ts'],
+  },
+  'void-harness': {
+    body: 'Add a tested CLI API module with observability.',
+    files: ['packages/cli/src/api.ts', 'packages/cli/src/api.test.ts'],
+  },
+} as const;
+
+function input(project: keyof typeof PROJECT_FIXTURES) {
+  const fixture = PROJECT_FIXTURES[project];
+  return {
+    schemaVersion: 1 as const,
+    ticket: {
+      id: `fixture:${project}`,
+      title: `Plan ${project}`,
+      body: fixture.body,
+    },
+    diff: { files: [...fixture.files] },
+    stack: { technologies: ['typescript', project] },
+    policy: mergePolicies([corePolicy()], '2026-07-26T00:00:00Z'),
+  };
+}
+
+describe('compileMissionPlan', () => {
+  it('gives every minimal pass an initial state and applicability proof', () => {
+    const plan = compileMissionPlan(input('void-harness'), {
+      generatedAt: '2026-07-26T00:00:00Z',
+    });
+    expect(plan.applicability.map((item) => item.pass)).toEqual(PASSES);
+    expect(plan.applicability.every((item) => item.proof.inputHash !== '')).toBe(true);
+    expect(plan.applicability.every((item) => item.proof.inputs.length > 0)).toBe(true);
+    expect(plan.dag.nodes.map((node) => node.id)).toEqual(PASSES);
+    const seen = new Set<string>();
+    for (const node of plan.dag.nodes) {
+      expect(node.dependsOn.every((dependency) => seen.has(dependency))).toBe(true);
+      seen.add(node.id);
+    }
+  });
+
+  it('keeps the plan deterministic outside generatedAt', () => {
+    const first = compileMissionPlan(input('void-harness'), {
+      generatedAt: '2026-07-26T00:00:00Z',
+    });
+    const second = compileMissionPlan(input('void-harness'), {
+      generatedAt: '2026-07-26T00:01:00Z',
+    });
+    expect(first.planHash).toBe(second.planHash);
+    expect({ ...first, generatedAt: '' }).toEqual({ ...second, generatedAt: '' });
+  });
+
+  it.each(['declik', 'sesame', 'solaar', 'void-harness'] as const) (
+    'produces a stable canonical DAG for %s',
+    (project) => {
+      const plan = compileMissionPlan(input(project), {
+        generatedAt: '2026-07-26T00:00:00Z',
+      });
+      const snapshot = plan.dag.nodes.map((node) =>
+        `${node.id}[${node.initialState}]<-${node.dependsOn.join(',')}`,
+      );
+      expect(snapshot).toMatchSnapshot();
+    },
+  );
+
+  it('rejects unresolved policy conflicts', () => {
+    const conflicted = input('void-harness');
+    conflicted.policy = {
+      ...conflicted.policy,
+      conflicts: [{
+        code: 'policy-weakening' as const,
+        ruleId: 'core:security',
+        sourcePolicyId: 'project:unsafe',
+        message: 'unsafe',
+      }],
+    };
+    expect(() => compileMissionPlan(conflicted, {
+      generatedAt: '2026-07-26T00:00:00Z',
+    })).toThrow(/MISSION_POLICY_CONFLICT/);
+  });
+
+  it('normalizes duplicated diff paths but rejects path escapes', () => {
+    const duplicated = input('void-harness');
+    duplicated.diff.files = [
+      'packages/cli/src/api.ts',
+      'packages/cli/src/api.ts',
+      'packages/cli/src/api.test.ts',
+    ];
+    const canonical = compileMissionPlan(duplicated, {
+      generatedAt: '2026-07-26T00:00:00Z',
+    });
+    expect(canonical.inputHash).toBe(compileMissionPlan(input('void-harness'), {
+      generatedAt: '2026-07-26T00:00:00Z',
+    }).inputHash);
+
+    const escaped = input('void-harness');
+    escaped.diff.files = ['../outside.ts'];
+    expect(() => compileMissionPlan(escaped, {
+      generatedAt: '2026-07-26T00:00:00Z',
+    })).toThrow(/MISSION_INPUT_INVALID/);
+  });
+
+  it('stays degraded when repository context is unavailable', () => {
+    const incomplete = input('void-harness');
+    incomplete.diff = { files: [], status: 'unknown' as const };
+    const plan = compileMissionPlan(incomplete, {
+      generatedAt: '2026-07-26T00:00:00Z',
+    });
+    expect(plan.context).toEqual({
+      status: 'degraded',
+      issues: ['diff-unavailable'],
+    });
+    expect(plan.risk.level).toBe('unknown');
+    expect(plan.applicability.find((item) => item.pass === 'migration')).toMatchObject({
+      state: 'unknown',
+      depth: 'unknown',
+    });
+  });
+});

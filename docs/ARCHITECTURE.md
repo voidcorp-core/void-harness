@@ -280,6 +280,31 @@ DECISIONS.md (2026-07-01). The artifact is excluded from the `core-assets` mirro
 
 ## Mission event journal (`.void/runs/<mission-id>/events.jsonl`)
 
+### Deterministic mission planning
+
+Before runtime orchestration, `@voidcorp/mission-engine` compiles bounded ticket, diff, stack, and
+policy values into an explained risk classification, a complete applicability matrix, and a
+canonical DAG. The package remains pure: YAML, filesystem confinement, Git inspection, and stack
+detection stay in the `voidharness` CLI shell.
+
+Policy precedence is `core < profile < organization < project`. Overrides are monotonic by default;
+weakening requires a visible, approved, expiring waiver. The compiler rejects unresolved conflicts
+and gives every quality-floor pass an initial state plus an input hash. `planHash` excludes only the
+observation timestamp. The paths, schema, failure contract, and rollback are documented in
+[`POLICIES.md`](POLICIES.md).
+
+The public boundary is:
+
+```text
+strict YAML + root-confined files ──> CLI policy loader
+                                      │
+                                      v
+                         pure policy/risk/mission compiler
+                                      │
+                                      v
+                    risk + applicability + canonical DAG
+```
+
 All runtimes now emit one strict, versioned event contract. `@voidcorp/mission-engine`
 validates bounded JSON and reduces it without I/O. `@voidcorp/hook-runner` adapts
 Claude/Codex hook payloads, redacts content, derives an opaque mission ID and

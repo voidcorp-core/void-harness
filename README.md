@@ -97,6 +97,15 @@ npx voidharness status     # deterministic, offline, LLM-free project health
 npx voidharness doctor     # health check
 ```
 
+Compile a ticket into an explained risk classification, applicability matrix, and canonical DAG
+before any specialist runs:
+
+```bash
+npx voidharness mission plan --ticket tickets/DEV-435.md --json
+```
+
+Policies compose monotonically from core to project; see [`docs/POLICIES.md`](docs/POLICIES.md).
+
 For an auditable local execution:
 
 ```bash
