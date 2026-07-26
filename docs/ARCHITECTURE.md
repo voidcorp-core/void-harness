@@ -12,7 +12,8 @@ void-harness/
 │   │   ├── .claude-plugin/        # plugin.json — wires hooks, declares the plugin
 │   │   ├── modules/               # 01-philosophy.md, 02-tdd.md, 03-tigerstyle.md...
 │   │   ├── skills/                # craftsman skills (TDD, refactor, hexagonal, ...)
-│   │   ├── agents/                # doctrine-critic (read-only doctrine conformance review)
+│   │   ├── agents/                # doctrine-critic and peers + generated specialist agents
+│   │   ├── specialists/           # canonical, runtime-neutral specialist YAML
 │   │   └── hooks/                 # tdd-guard.sh, no-any-grep.sh, no-console-log-grep.sh
 │   ├── mission-engine/            # pure event/evidence contracts and verdict reducers
 │   ├── hook-runner/               # Node adapter compiled into the portable hook asset
@@ -63,7 +64,7 @@ A future Rust/Go/Python flavor lives in a sibling repo, reusing mechanics not sk
 
 ## Agent runtime parity (Claude Code + Codex) — the adapter seam
 
-The harness authors **one doctrine** and compiles it to each agent runtime through a **runtime adapter** (`packages/cli/src/lib/runtime-adapters.ts`). Today: **Claude Code** (via `CLAUDE.md` + native `.claude/skills`, `.claude/agents` and project hooks) and **Codex CLI** (via `AGENTS.md` + `.agents/skills` + a `.codex/` safety floor). The npm tarball is the default source; the Claude marketplace is an explicit secondary adapter. This is the *agent-runtime* axis; the orthogonal *model-provider* axis (Anthropic / OpenAI-compatible / Ollama / custom) is a separate seam and is deliberately not conflated.
+The harness authors **one doctrine** and compiles it to each agent runtime through a **runtime adapter** (`packages/cli/src/lib/runtime-adapters.ts`). Today: **Claude Code** (via `CLAUDE.md` + native `.claude/skills`, `.claude/agents` and project hooks) and **Codex CLI** (via `AGENTS.md` + `.agents/skills`, native `.codex/agents` and a `.codex/` safety floor). The npm tarball is the default source; the Claude marketplace is an explicit secondary adapter. This is the *agent-runtime* axis; the orthogonal *model-provider* axis (Anthropic / OpenAI-compatible / Ollama / custom) is a separate seam and is deliberately not conflated.
 
 The seam is the load-bearing rule: **core commands never branch on a runtime name.** `init`, `runtime add`, `doctor`, and `status` iterate the adapters. Adding a runtime (Codex exec, Hermes, a local agent) is a new adapter object registered in `ADAPTERS`, with zero edits to the commands. Each adapter owns exactly its runtime-specific surface: `detect`, `prerequisites`, `wire` (its active layer + **its own** doctrine doc), `inspect` (executable postconditions), and `doctorChecks`.
 
@@ -73,7 +74,7 @@ Rules:
 - `scripts/sync-agent-docs.sh` enforces parity on the harness repo itself: `--staged` (a commit touching one sister doc must touch the other) via `.githooks/pre-commit` (`git config core.hooksPath .githooks`), and section-heading parity in CI (`pnpm sync:docs`). This is a **harness-repo** rule; a consumer project only carries the doc(s) of the runtime(s) it wired.
 - No file is auto-generated from the other. Auto-generation risks losing intentional adaptations. Manual authoring + mechanical gate is the safer trade-off.
 - **Doc ownership is per-runtime.** Each adapter's `wire` writes only its own doctrine doc — a Claude-only project has just `CLAUDE.md`, a Codex-only project just `AGENTS.md`. `doctor` checks only the docs of *detected* runtimes, so a Codex-only project is never dinged for a missing `CLAUDE.md`. (`add` / `remove` still patch whichever docs exist, keeping active docs current.)
-- **`init` wires each selected runtime's layer via its adapter**, gated by `--runtime <claude|codex|both>` (default: auto-detected footprint, else both). Claude receives native project-local skills, agents, commands and hooks; Codex receives `.agents/skills`, the compiled critics and `.codex/hooks.json`. The package is bundled with all CLI runtime dependencies, so a tarball installs offline. `--source marketplace` is opt-in and is the only path that checks `gh`/marketplace access.
+- **`init` wires each selected runtime's layer via its adapter**, gated by `--runtime <claude|codex|both>` (default: auto-detected footprint, else both). Claude receives native project-local skills, agents, commands and hooks; Codex receives `.agents/skills`, native `.codex/agents` and `.codex/hooks.json`. The package is bundled with all CLI runtime dependencies, so a tarball installs offline. `--source marketplace` is opt-in and is the only path that checks `gh`/marketplace access.
 - **Publication is transactional.** `init` seeds only shared merge targets into an isolated stage, compiles and executes each selected adapter's doctor smoke there, then atomically publishes a finite mutation set. Every target is snapshotted before the first write; a failure restores bytes and modes and removes only transaction-created paths. `.void/receipts/install-v1.json` hashes files the install created or already owned. Unowned native conflicts fail unless `--force`, and even force never grants deletion ownership over a pre-existing file.
 - **Runtimes are added a posteriori without friction**: `void-harness runtime add <runtime>` wires exactly that runtime's layer on an already-`init`-ed project, touching nothing the other runtime owns (verified byte-for-byte in tests). `runtime list` shows which are wired. This is the `void runtime add` command from the multi-runtime spec.
 - **Pack and update lifecycle uses the same transaction.** Local `add`/`remove` compile the exact
@@ -109,7 +110,7 @@ metadata are gitignored. Modes `shadow` and `warn` are advisory; `enforce` and
 
 ## Agent model tiers
 
-Every agent declares an explicit `model:` in its frontmatter, chosen by the work's leverage, not by default. The tiering (distilled from `wshobson/agents`):
+Authored legacy agents declare an explicit `model:` in their Claude frontmatter, chosen by the work's leverage, not by default. Canonical specialists deliberately omit a model: both compilers inherit the selected parent runtime model so the provider-neutral contract cannot pin a provider-specific tier. The tiering (distilled from `wshobson/agents`):
 
 | Tier | Use for |
 |---|---|
@@ -118,7 +119,25 @@ Every agent declares an explicit `model:` in its frontmatter, chosen by the work
 | **haiku** | Mechanical, fast ops — formatting, simple lookups, deterministic transforms |
 | **inherit** | Work whose complexity varies run to run; let the calling session's model carry through |
 
-**Rule**: any new agent MUST declare an explicit `model:` per this tiering. The existing `doctrine-critic` agent (read-only doctrine conformance) is the canonical example: it runs on `sonnet`.
+**Rule**: a new authored runtime-specific agent MUST declare an explicit `model:` per this tiering. A new cross-runtime specialist MUST instead inherit and put its hard limits in the canonical budget. The existing `doctrine-critic` is the authored-agent example; `solution-architect` is the canonical-specialist example.
+
+## Native specialist contracts
+
+Architecture, security, and QA live under `packages/core/specialists/*.yaml`. The strict loader
+bounds files, disables YAML aliases, rejects unknown keys and duplicate identities, then each
+runtime compiler embeds the same instructions and structured result schema. Claude receives
+`.claude/agents/*.md`; Codex receives `.codex/agents/*.toml`. The five older Markdown critics also
+compile to native Codex TOML, so no agent is represented as an inline skill.
+
+The Claude marketplace needs discoverable `agents/*.md` in the source tree. Those three files are
+generated artifacts, not a second doctrine source: tests compare them byte-for-byte with the YAML
+compiler. Installed files are receipt-owned and updated transactionally.
+
+Both adapters report specialist team mode as degraded today. Claude can remove mutating built-ins
+but agent frontmatter cannot deny unknown inherited MCP tools; Codex declares `sandbox_mode =
+"read-only"`, disables web search and MCP servers, but the parent turn can override its sandbox and
+Codex has no per-agent process allowlist. Discovery remains useful; orchestration may not claim
+enforced isolation until a runtime probe proves it.
 
 ## Boundary principles
 

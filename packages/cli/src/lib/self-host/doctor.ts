@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import {
   accessSync,
   constants,
@@ -13,8 +13,8 @@ import type { Runtime } from '../runtime.js';
 import { adaptersFor } from '../runtime-adapters.js';
 import { hashSelfHostSource } from './compile.js';
 import {
-  type SelfHostMode,
   readSelfHostReceipt,
+  type SelfHostMode,
   selfHostReceiptDrift,
 } from './receipt.js';
 
@@ -120,9 +120,11 @@ function discoveryCheck(artifactRoot: string): SelfHostCheck {
     '.claude/settings.json',
     '.claude/skills/tdd/SKILL.md',
     '.claude/agents/doctrine-critic.md',
+    '.claude/agents/solution-architect.md',
     '.codex/hooks.json',
     '.agents/skills/tdd/SKILL.md',
-    '.agents/skills/doctrine-critic/SKILL.md',
+    '.codex/agents/doctrine-critic.toml',
+    '.codex/agents/solution-architect.toml',
     '.void/hooks/_void-hook.mjs',
   ];
   const missing = required.filter((path) =>

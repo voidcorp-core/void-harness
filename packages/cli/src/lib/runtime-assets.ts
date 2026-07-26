@@ -1,8 +1,10 @@
 import { existsSync } from 'node:fs';
-import { chmod, cp, mkdir, readdir, readFile } from 'node:fs/promises';
+import { chmod, cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join, sep } from 'node:path';
 import { isCodexEligible, packSkillsDir, parseFrontmatter } from './codex-skills.js';
 import { wiredHooks } from './plugin-cache.js';
+import { compileClaudeSpecialist } from './specialists/compile-claude.js';
+import { loadSpecialists } from './specialists/load.js';
 
 export type InstallSource = 'local' | 'marketplace';
 
@@ -25,6 +27,10 @@ async function readOrUndefined(path: string): Promise<string | undefined> {
   } catch {
     return undefined;
   }
+}
+
+function canonicalNewlines(value: string): string {
+  return value.replaceAll('\r\n', '\n');
 }
 
 async function stageSkills(
@@ -61,6 +67,30 @@ async function stageMarkdownDirectory(source: string, destination: string): Prom
     count += 1;
   }
   return count;
+}
+
+async function stageClaudeAgents(
+  sourceRoot: string,
+  destination: string,
+): Promise<number> {
+  const authored = await stageMarkdownDirectory(join(sourceRoot, 'agents'), destination);
+  const specialists = await loadSpecialists(sourceRoot);
+  await mkdir(destination, { recursive: true });
+  let added = 0;
+  for (const contract of specialists) {
+    const compiled = compileClaudeSpecialist(contract);
+    const target = join(destination, `${compiled.name}.md`);
+    const current = await readOrUndefined(target);
+    if (
+      current !== undefined
+      && canonicalNewlines(current) !== canonicalNewlines(compiled.content)
+    ) {
+      throw new Error(`Claude agent '${compiled.name}' conflicts with its canonical specialist`);
+    }
+    if (current === undefined) added += 1;
+    await writeFile(target, compiled.content);
+  }
+  return authored + added;
 }
 
 function rewriteHookCommand(command: string): string {
@@ -132,7 +162,7 @@ export async function wireClaudeLocalAssets(
   if (manifest.hooks === undefined) throw new Error('core Claude manifest has no hooks');
   const hookAssets = wiredHooks({ hooks: manifest.hooks });
   const [agents, commands, hooks] = await Promise.all([
-    stageMarkdownDirectory(join(sourceRoot, 'agents'), join(projectRoot, '.claude', 'agents')),
+    stageClaudeAgents(sourceRoot, join(projectRoot, '.claude', 'agents')),
     stageMarkdownDirectory(join(sourceRoot, 'commands'), join(projectRoot, '.claude', 'commands')),
     stageHooks(projectRoot, sourceRoot, hookAssets),
   ]);

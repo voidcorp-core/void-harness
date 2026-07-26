@@ -32,6 +32,16 @@
       "source": "packages/core/agents/migration-planner.md"
     },
     {
+      "id": "agent:security-engineer",
+      "type": "agent",
+      "name": "security-engineer",
+      "description": "Reviews concrete trust boundaries and exploitable security risk without editing or attacking systems.",
+      "lines": 51,
+      "staticTokens": 568,
+      "pack": null,
+      "source": "packages/core/agents/security-engineer.md"
+    },
+    {
       "id": "agent:silent-failure-hunter",
       "type": "agent",
       "name": "silent-failure-hunter",
@@ -40,6 +50,26 @@
       "staticTokens": 1167,
       "pack": null,
       "source": "packages/core/agents/silent-failure-hunter.md"
+    },
+    {
+      "id": "agent:solution-architect",
+      "type": "agent",
+      "name": "solution-architect",
+      "description": "Reviews architecture boundaries, trade-offs, and reversibility without editing the project.",
+      "lines": 49,
+      "staticTokens": 550,
+      "pack": null,
+      "source": "packages/core/agents/solution-architect.md"
+    },
+    {
+      "id": "agent:test-qa-engineer",
+      "type": "agent",
+      "name": "test-qa-engineer",
+      "description": "Reviews behavioral coverage, failure paths, and release evidence without editing the project.",
+      "lines": 51,
+      "staticTokens": 555,
+      "pack": null,
+      "source": "packages/core/agents/test-qa-engineer.md"
     },
     {
       "id": "agent:type-design-analyzer",
