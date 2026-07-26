@@ -1,5 +1,10 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +16,14 @@ import { beforeEach, describe, expect, it } from 'vitest';
 // never a silent green (the #62-64 class the ticket forbids reproducing).
 const here = dirname(fileURLToPath(import.meta.url));
 const driver = join(here, 'ci-enforce.sh');
+const repositoryAllowlist = join(
+  here,
+  '..',
+  '..',
+  '..',
+  '.github',
+  'void-enforce-allow',
+);
 const BASH = process.env.SHELL?.includes('bash') ? process.env.SHELL : '/opt/homebrew/bin/bash';
 
 const AWS_KEY = 'AKIA' + 'IOSFODNN7EXAMPLE1'; // split so the driver's own repo never trips the secret hook
@@ -174,6 +187,35 @@ describe('ci-enforce — clean diff is green', () => {
     const { code, stdout } = run(repo, base);
     expect(code).toBe(0);
     expect(stdout).toMatch(/skipped|allowlist/i);
+  });
+
+  it('skips only certified generated artifacts and self-referential detector sources', () => {
+    write(
+      repo,
+      '.github/void-enforce-allow',
+      readFileSync(repositoryAllowlist, 'utf8'),
+    );
+    write(
+      repo,
+      'packages/core/graph/void-graph.mjs',
+      `export const bundled = '${'x'.repeat(1_100_000)}';\n`,
+    );
+    write(
+      repo,
+      'packages/hook-runner/src/rules/secret-content.ts',
+      'export const detector = true;\n',
+    );
+    write(
+      repo,
+      'packages/hook-runner/src/rules/secret-content.test.ts',
+      'test("detector", () => {});\n',
+    );
+    git(repo, 'add', '-A');
+    git(repo, 'commit', '-q', '-m', 'regenerate certified floor assets');
+
+    const { code, stdout } = run(repo, base);
+    expect(code).toBe(0);
+    expect(stdout.match(/skipped/g)).toHaveLength(3);
   });
 });
 
