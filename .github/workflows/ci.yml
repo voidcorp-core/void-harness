@@ -31,6 +31,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # decisions:check compares accepted records with the PR base SHA.
+          # checkout fetches one commit by default, so retain the base history.
+          fetch-depth: 0
 
       - name: Setup pnpm
         # No `version:` here: action-setup reads it from packageManager in
