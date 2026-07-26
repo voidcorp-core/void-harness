@@ -28,7 +28,11 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { parseEventLine } from '@voidcorp/mission-engine/events';
 import { docFileFor, HARNESS_BLOCK_MARKER, patchRuntimeDoc } from './claude-md.js';
-import { wireCodexAgents } from './codex-agents.js';
+import {
+  CODEX_AGENTS_DIR,
+  codexSpecialistsHealth,
+  wireCodexAgents,
+} from './codex-agents.js';
 import {
   CODEX_HOOKS_DIR,
   codexFloorHealth,
@@ -161,6 +165,45 @@ async function docBlockCheck(projectRoot: string, runtime: Runtime): Promise<Che
     : { name: file, ok: false, message: 'void-harness block missing', fix: `void-harness runtime add ${runtime}` };
 }
 
+const NATIVE_SPECIALISTS = [
+  'solution-architect',
+  'security-engineer',
+  'test-qa-engineer',
+] as const;
+
+async function claudeSpecialistsCheck(agentsRoot: string | undefined): Promise<CheckResult> {
+  const missing: string[] = [];
+  for (const name of NATIVE_SPECIALISTS) {
+    if (agentsRoot === undefined) {
+      missing.push(name);
+      continue;
+    }
+    const path = join(agentsRoot, `${name}.md`);
+    if (!await safeRegularFile(path)) {
+      missing.push(name);
+      continue;
+    }
+    const content = await readFile(path, 'utf8');
+    if (!content.includes(`name: ${name}`) || !content.includes(`core:${name}`)) {
+      missing.push(name);
+    }
+  }
+  if (missing.length > 0) {
+    return {
+      name: 'claude agents',
+      ok: false,
+      message: `missing or invalid native specialists: ${missing.join(', ')}`,
+      fix: 'void-harness runtime add claude',
+    };
+  }
+  return {
+    name: 'claude agents',
+    ok: true,
+    status: 'advisory',
+    message: '3 native specialists discovered; team degraded because unknown inherited MCP tools cannot be denied in agent frontmatter',
+  };
+}
+
 const claudeAdapter: RuntimeAdapter = {
   id: 'claude',
   label: 'Claude Code',
@@ -243,6 +286,7 @@ const claudeAdapter: RuntimeAdapter = {
 
     let installed = false;
     let activationHook: string | undefined;
+    let agentsRoot: string | undefined;
     const localRunner = join(projectRoot, '.void', 'hooks', '_void-hook.mjs');
     const localSkill = join(projectRoot, '.claude', 'skills', 'tdd', 'SKILL.md');
     const localAgent = join(projectRoot, '.claude', 'agents', 'doctrine-critic.md');
@@ -254,6 +298,7 @@ const claudeAdapter: RuntimeAdapter = {
     ) {
       installed = true;
       activationHook = localRunner;
+      agentsRoot = join(projectRoot, '.claude', 'agents');
       checks.push({
         name: 'local assets',
         ok: true,
@@ -285,6 +330,7 @@ const claudeAdapter: RuntimeAdapter = {
                 fix: 'restart Claude Code to refetch the plugin',
               });
           activationHook = join(pluginDir, 'hooks', '_void-hook.mjs');
+          agentsRoot = join(pluginDir, 'agents');
         } catch (error) {
           checks.push({
             name: 'plugin cache',
@@ -295,12 +341,14 @@ const claudeAdapter: RuntimeAdapter = {
         }
       }
     }
+    checks.push(await claudeSpecialistsCheck(agentsRoot));
     const wiringChecks = checks.filter((check) =>
       check.name === 'settings.json'
       || check.name === 'CLAUDE.md'
+      || check.name === 'claude agents'
       || check.name === (localSettings ? 'local assets' : 'plugin cache'),
     );
-    const wired = installed && wiringChecks.length === 3 && wiringChecks.every((check) => check.ok);
+    const wired = installed && wiringChecks.length === 4 && wiringChecks.every((check) => check.ok);
     const smoke = wired && activationHook !== undefined
       ? await smokeInstalledHook(activationHook, 'claude')
       : { fired: false as const, detail: 'hook smoke blocked by failed installation or wiring' };
@@ -335,11 +383,9 @@ const codexAdapter: RuntimeAdapter = {
     // source dir pack-<x>). Native Codex plugin channel: tracked in #144.
     const packDirs = ctx.enabledPacks.map((p) => packDirForName(p.name)).filter((d): d is string => d !== undefined);
     const skills = await wireCodexSkills(ctx.projectRoot, ctx.sourceRoot, packDirs);
-    // Claude gets the five read-only critics as context-isolated SUBAGENTS from
-    // the plugin. Codex has no stable equivalent (its subagents are still
-    // experimental, its custom prompts deprecated in favour of skills), so we
-    // compile the same authored agent definitions into Codex skills rather than
-    // author a second copy that would drift. See codex-agents.ts.
+    // Both the five authored critics and the canonical v3 specialists compile
+    // into native project-agent TOML. Skills remain a separate inline teaching
+    // surface and never impersonate fresh-context agents.
     const agents = await wireCodexAgents(ctx.projectRoot, ctx.sourceRoot);
     const docResult = await patchRuntimeDoc(ctx.projectRoot, 'codex', {
       enabledPlugins: ctx.enabledPlugins,
@@ -348,7 +394,7 @@ const codexAdapter: RuntimeAdapter = {
     return {
       statusLines: [
         `.codex/hooks.json: ${staged} hook scripts wired → ${CODEX_HOOKS_DIR}/`,
-        `${CODEX_SKILLS_DIR}/: ${skills} skills + ${agents} compiled agents wired for Codex discovery`,
+        `${CODEX_SKILLS_DIR}/: ${skills} skills; ${CODEX_AGENTS_DIR}/: ${agents} native agents wired`,
         `AGENTS.md: ${docResult}`,
       ],
       nextSteps: ['trust the project .codex/ layer per your Codex config (the safety floor is wired)'],
@@ -360,6 +406,7 @@ const codexAdapter: RuntimeAdapter = {
   async inspect(projectRoot) {
     const floor = await codexFloorHealth(projectRoot);
     const skills = await codexSkillsHealth(projectRoot);
+    const specialists = await codexSpecialistsHealth(projectRoot);
     const doc = await docBlockCheck(projectRoot, 'codex');
     const checks: CheckResult[] = [
       {
@@ -374,11 +421,20 @@ const codexAdapter: RuntimeAdapter = {
         message: skills.detail,
         ...(skills.ok ? {} : { fix: 'void-harness runtime add codex' }),
       },
+      {
+        name: 'codex agents',
+        ok: specialists.ok,
+        ...(specialists.ok ? { status: 'advisory' as const } : {}),
+        message: specialists.ok
+          ? `${specialists.detail}; team degraded because parent sandbox overrides can weaken read-only`
+          : specialists.detail,
+        ...(specialists.ok ? {} : { fix: 'void-harness runtime add codex' }),
+      },
       doc,
     ];
     const runner = join(projectRoot, CODEX_HOOKS_DIR, '_void-hook.mjs');
     const installed = await safeRegularFile(runner);
-    const wired = installed && floor.ok && skills.ok && doc.ok;
+    const wired = installed && floor.ok && skills.ok && specialists.ok && doc.ok;
     const smoke = wired
       ? await smokeInstalledHook(runner, 'codex')
       : { fired: false as const, detail: 'hook smoke blocked by failed installation or wiring' };

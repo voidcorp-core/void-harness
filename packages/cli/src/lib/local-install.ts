@@ -4,20 +4,20 @@ import {
   cp,
   lstat,
   mkdir,
-  readFile,
   readdir,
+  readFile,
 } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import {
   buildInstallReceipt,
   encodeReceipt,
   INSTALL_RECEIPT_PATH,
-  readInstallReceipt,
   type InstallReceipt,
   type ReceiptFileInput,
+  readInstallReceipt,
 } from './receipts.js';
-import type { InstallSource } from './runtime-assets.js';
 import type { Runtime } from './runtime.js';
+import type { InstallSource } from './runtime-assets.js';
 import type { FileMutation } from './transaction.js';
 
 const SHARED_FILES = [
@@ -34,6 +34,7 @@ const MANAGED_PREFIXES = [
   '.claude/agents/',
   '.claude/commands/',
   '.agents/skills/',
+  '.codex/agents/',
 ] as const;
 
 const MANAGED_FILES = new Set([

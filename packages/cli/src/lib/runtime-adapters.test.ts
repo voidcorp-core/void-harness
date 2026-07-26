@@ -77,8 +77,8 @@ describe('codex adapter', () => {
     await adapterFor('codex').wire(ctxFor(dir));
     const checks = await adapterFor('codex').doctorChecks(dir);
     expect(checks.find((c) => c.name === 'codex floor')?.ok).toBe(true);
-    expect(checks.find((c) => c.name === 'codex specialists')?.status).toBe('advisory');
-    expect(checks.find((c) => c.name === 'codex specialists')?.message).toMatch(/team degraded/i);
+    expect(checks.find((c) => c.name === 'codex agents')?.status).toBe('advisory');
+    expect(checks.find((c) => c.name === 'codex agents')?.message).toMatch(/team degraded/i);
     expect(checks.find((c) => c.name === 'AGENTS.md')?.ok).toBe(true);
   });
 
@@ -150,6 +150,9 @@ describe('claude adapter', () => {
     expect(JSON.stringify(settings.hooks)).toContain('$CLAUDE_PROJECT_DIR/.void/hooks/');
     expect(settings.extraKnownMarketplaces).toBeUndefined();
     expect(outcome.nextSteps.join(' ')).toContain('restart Claude Code');
+    const checks = await adapterFor('claude').doctorChecks(dir);
+    expect(checks.find((c) => c.name === 'claude agents')?.status).toBe('advisory');
+    expect(checks.find((c) => c.name === 'claude agents')?.message).toMatch(/team degraded/i);
   });
 
   it('keeps the marketplace behind an explicit adapter mode', async () => {

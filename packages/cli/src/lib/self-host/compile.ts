@@ -1,26 +1,26 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { createRequire as createSourceRequire } from 'node:module';
 import {
   cp,
   lstat,
   mkdir,
   mkdtemp,
-  readFile,
   readdir,
+  readFile,
   rename,
   rm,
   writeFile,
 } from 'node:fs/promises';
+import { createRequire as createSourceRequire } from 'node:module';
 import { dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isHarnessSourceRepo } from '../self-repo.js';
 import {
   buildSelfHostReceipt,
   encodeSelfHostReceipt,
-  type SelfHostMode,
-  type SelfHostReceiptFileInput,
   readSelfHostReceipt,
   SELF_HOST_RECEIPT_PATH,
+  type SelfHostMode,
+  type SelfHostReceiptFileInput,
   selfHostReceiptDrift,
 } from './receipt.js';
 import type {
@@ -197,6 +197,7 @@ async function copyCompilerCore(root: string, destination: string): Promise<void
     'agents',
     'commands',
     'skills',
+    'specialists',
     'codex',
     'PHILOSOPHY.md',
     'PROJECT-DOCTRINE.template.md',
