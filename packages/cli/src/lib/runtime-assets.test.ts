@@ -56,9 +56,10 @@ describe('wireClaudeLocalAssets', () => {
     const result = await wireClaudeLocalAssets(root, CORE_ROOT, []);
 
     expect(result.skills).toBeGreaterThan(20);
-    expect(result.agents).toBe(5);
+    expect(result.agents).toBe(8);
     expect(existsSync(join(root, '.claude/skills/tdd/SKILL.md'))).toBe(true);
     expect(existsSync(join(root, '.claude/agents/doctrine-critic.md'))).toBe(true);
+    expect(existsSync(join(root, '.claude/agents/solution-architect.md'))).toBe(true);
     expect(existsSync(join(root, '.claude/commands/void-doctor.md'))).toBe(true);
     expect(existsSync(join(root, '.void/hooks/_void-hook.mjs'))).toBe(true);
     expect(existsSync(join(root, '.void/hooks/_hooklib.sh'))).toBe(false);

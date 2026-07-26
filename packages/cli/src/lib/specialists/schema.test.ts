@@ -1,0 +1,82 @@
+import { describe, expect, it } from 'vitest';
+import { ARCHITECT_CONTRACT } from './__fixtures__/contract.js';
+import {
+  MAX_SPECIALIST_OUTPUT_BYTES,
+  parseSpecialistCompletion,
+  parseSpecialistContract,
+} from './schema.js';
+
+function completion(overrides: Readonly<Record<string, unknown>> = {}): Record<string, unknown> {
+  return {
+    schemaVersion: 1,
+    specialistId: 'core:solution-architect',
+    contractVersion: 1,
+    completionId: 'completion-architecture-001',
+    verdict: 'pass',
+    findings: [],
+    evidenceRequests: [],
+    limitations: [],
+    ...overrides,
+  };
+}
+
+describe('parseSpecialistContract', () => {
+  it('accepts one strict, bounded canonical contract', () => {
+    expect(ARCHITECT_CONTRACT).toMatchObject({
+      id: 'core:solution-architect',
+      independence: 'fresh-context',
+      writeAccess: 'none',
+      budgets: { contextTokens: 12_000, maxTurns: 2 },
+    });
+  });
+
+  it('rejects empty, unknown, and unsafe contract shapes', () => {
+    expect(() => parseSpecialistContract(undefined, 'empty.yaml')).toThrow(/SPECIALIST_CONTRACT_INVALID.*empty\.yaml/);
+    expect(() => parseSpecialistContract({ ...ARCHITECT_CONTRACT, surprise: true }, 'unknown.yaml')).toThrow(/unrecognized/i);
+    expect(() => parseSpecialistContract({ ...ARCHITECT_CONTRACT, writeAccess: 'project' }, 'write.yaml')).toThrow(/writeAccess/);
+    expect(() => parseSpecialistContract({ ...ARCHITECT_CONTRACT, independence: 'shared-context' }, 'context.yaml')).toThrow(/independence/);
+  });
+});
+
+describe('parseSpecialistCompletion', () => {
+  it('accepts the common structured output contract', () => {
+    expect(parseSpecialistCompletion(JSON.stringify(completion()), ARCHITECT_CONTRACT, [])).toMatchObject({
+      specialistId: ARCHITECT_CONTRACT.id,
+      completionId: 'completion-architecture-001',
+      verdict: 'pass',
+    });
+  });
+
+  it('rejects empty, malformed, oversized, wrong-role, and double completions', () => {
+    expect(() => parseSpecialistCompletion('', ARCHITECT_CONTRACT, [])).toThrow(/SPECIALIST_OUTPUT_INVALID.*empty/i);
+    expect(() => parseSpecialistCompletion('{', ARCHITECT_CONTRACT, [])).toThrow(/SPECIALIST_OUTPUT_INVALID.*JSON/i);
+    expect(() => parseSpecialistCompletion('x'.repeat(MAX_SPECIALIST_OUTPUT_BYTES + 1), ARCHITECT_CONTRACT, [])).toThrow(/exceeds/i);
+    expect(() => parseSpecialistCompletion(
+      JSON.stringify(completion({ specialistId: 'core:security-engineer' })),
+      ARCHITECT_CONTRACT,
+      [],
+    )).toThrow(/wrong specialist/i);
+    expect(() => parseSpecialistCompletion(
+      JSON.stringify(completion()),
+      ARCHITECT_CONTRACT,
+      ['completion-architecture-001'],
+    )).toThrow(/duplicate completion/i);
+  });
+
+  it('rejects ungrounded findings and extra output fields', () => {
+    expect(() => parseSpecialistCompletion(JSON.stringify(completion({
+      findings: [{
+        id: 'architecture-001',
+        severity: 'high',
+        summary: 'A boundary is reversed.',
+        evidence: [],
+        recommendation: 'Restore inward dependency direction.',
+      }],
+    })), ARCHITECT_CONTRACT, [])).toThrow(/evidence/i);
+    expect(() => parseSpecialistCompletion(
+      JSON.stringify(completion({ commentary: 'looks good' })),
+      ARCHITECT_CONTRACT,
+      [],
+    )).toThrow(/unrecognized/i);
+  });
+});

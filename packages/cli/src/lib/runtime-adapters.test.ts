@@ -60,6 +60,8 @@ describe('codex adapter', () => {
     const dir = scratch();
     const outcome = await adapterFor('codex').wire(ctxFor(dir));
     expect(existsSync(join(dir, '.codex', 'hooks.json'))).toBe(true);
+    expect(existsSync(join(dir, '.codex', 'agents', 'solution-architect.toml'))).toBe(true);
+    expect(existsSync(join(dir, '.agents', 'skills', 'doctrine-critic', 'SKILL.md'))).toBe(false);
     expect(existsSync(join(dir, 'AGENTS.md'))).toBe(true);
     expect(existsSync(join(dir, 'CLAUDE.md'))).toBe(false);
     expect(outcome.nextSteps.join(' ')).toContain('.codex/ layer');
@@ -75,6 +77,8 @@ describe('codex adapter', () => {
     await adapterFor('codex').wire(ctxFor(dir));
     const checks = await adapterFor('codex').doctorChecks(dir);
     expect(checks.find((c) => c.name === 'codex floor')?.ok).toBe(true);
+    expect(checks.find((c) => c.name === 'codex specialists')?.status).toBe('advisory');
+    expect(checks.find((c) => c.name === 'codex specialists')?.message).toMatch(/team degraded/i);
     expect(checks.find((c) => c.name === 'AGENTS.md')?.ok).toBe(true);
   });
 
@@ -134,6 +138,7 @@ describe('claude adapter', () => {
     expect(existsSync(join(dir, '.claude', 'settings.json'))).toBe(true);
     expect(existsSync(join(dir, '.claude', 'skills', 'tdd', 'SKILL.md'))).toBe(true);
     expect(existsSync(join(dir, '.claude', 'agents', 'doctrine-critic.md'))).toBe(true);
+    expect(existsSync(join(dir, '.claude', 'agents', 'security-engineer.md'))).toBe(true);
     expect(existsSync(join(dir, '.void', 'hooks', '_void-hook.mjs'))).toBe(true);
     expect(existsSync(join(dir, 'CLAUDE.md'))).toBe(true);
     expect(existsSync(join(dir, 'AGENTS.md'))).toBe(false);
