@@ -29,6 +29,10 @@ async function readOrUndefined(path: string): Promise<string | undefined> {
   }
 }
 
+function canonicalNewlines(value: string): string {
+  return value.replaceAll('\r\n', '\n');
+}
+
 async function stageSkills(
   sourceDirectory: string,
   destination: string,
@@ -77,7 +81,10 @@ async function stageClaudeAgents(
     const compiled = compileClaudeSpecialist(contract);
     const target = join(destination, `${compiled.name}.md`);
     const current = await readOrUndefined(target);
-    if (current !== undefined && current !== compiled.content) {
+    if (
+      current !== undefined
+      && canonicalNewlines(current) !== canonicalNewlines(compiled.content)
+    ) {
       throw new Error(`Claude agent '${compiled.name}' conflicts with its canonical specialist`);
     }
     if (current === undefined) added += 1;
