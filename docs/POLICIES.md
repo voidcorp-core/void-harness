@@ -45,6 +45,11 @@ rules:
 applicability, enable a baseline, or raise strength. It cannot change a rule's pass or weaken a
 lower layer silently.
 
+Core policy version 2 overlays high-risk predicates onto Architecture, QA, and Security as blocking
+deep passes. Destructive migration also activates a blocking Migration recovery pass. Fortress-only
+assurance requirements such as the second critical proof remain in the mode contract; policy rules
+select passes and do not duplicate runtime orchestration semantics.
+
 A necessary weakening requires an organization or project waiver:
 
 ```yaml

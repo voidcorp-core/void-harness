@@ -14,6 +14,7 @@ import { replayEventLog } from '@voidcorp/mission-engine';
 import {
   MAX_EVENT_LOG_BYTES,
   writeSequencedEvent,
+  writeSequencedEventOnce,
 } from './sequenced-writer.js';
 
 const MISSION_ID = 'mis_0123456789abcdef0123456789abcdef';
@@ -56,6 +57,57 @@ describe('writeSequencedEvent', () => {
     expect(replayed.events).toHaveLength(100);
     expect(replayed.continuity).toBe('complete');
   }, 30_000);
+
+  it('appends a stable event ID once under concurrent retries', async () => {
+    const root = await tempRoot();
+    const writes = await Promise.all(
+      Array.from({ length: 10 }, () => writeSequencedEventOnce({
+        root,
+        missionId: MISSION_ID,
+        eventId: `evt_${'a'.repeat(64)}`,
+        draft: draft(1),
+      })),
+    );
+    const replayed = replayEventLog(await readFile(
+      join(root, '.void', 'runs', MISSION_ID, 'events.jsonl'),
+      'utf8',
+    ));
+
+    expect(replayed.events).toHaveLength(1);
+    expect(writes.filter((item) => item.appended)).toHaveLength(1);
+    expect(new Set(writes.map((item) => item.event.eventId))).toEqual(
+      new Set([`evt_${'a'.repeat(64)}`]),
+    );
+
+    await expect(writeSequencedEventOnce({
+      root,
+      missionId: MISSION_ID,
+      eventId: `evt_${'a'.repeat(64)}`,
+      draft: draft(2),
+    })).rejects.toThrow('HOOK_EVENT_ID_CONFLICT');
+  });
+
+  it('rejects invalid stable IDs and partial logs for idempotent writes', async () => {
+    const invalidRoot = await tempRoot();
+    await expect(writeSequencedEventOnce({
+      root: invalidRoot,
+      missionId: MISSION_ID,
+      eventId: 'caller-controlled',
+      draft: draft(1),
+    })).rejects.toThrow('HOOK_INVALID_EVENT_ID');
+
+    const partialRoot = await tempRoot();
+    const run = join(partialRoot, '.void', 'runs', MISSION_ID);
+    await mkdir(run, { recursive: true });
+    await writeFile(join(run, 'events.jsonl'), '{"partial"\n', 'utf8');
+
+    await expect(writeSequencedEventOnce({
+      root: partialRoot,
+      missionId: MISSION_ID,
+      eventId: `evt_${'b'.repeat(64)}`,
+      draft: draft(1),
+    })).rejects.toThrow('HOOK_EVENT_LOG_INTEGRITY');
+  });
 
   it('isolates a partial tail before appending the next valid event', async () => {
     const root = await tempRoot();

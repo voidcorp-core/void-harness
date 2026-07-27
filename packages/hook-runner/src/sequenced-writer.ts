@@ -28,6 +28,7 @@ import {
 
 export const MAX_EVENT_LOG_BYTES = 8 * 1024 * 1024;
 const MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
+const EVENT_ID = /^evt_[A-Za-z0-9_-]{8,100}$/;
 const DEFAULT_LOCK_STALE_MS = 30_000;
 const DEFAULT_LOCK_ATTEMPTS = 2_000;
 const LOCK_RETRY_MS = 2;
@@ -41,6 +42,19 @@ export interface SequencedWriteOptions {
   readonly lockStaleMs?: number;
   readonly lockAttempts?: number;
 }
+
+export interface IdempotentSequencedWriteOptions extends SequencedWriteOptions {
+  readonly eventId: string;
+}
+
+export interface SequencedWriteResult {
+  readonly event: CanonicalEvent;
+  readonly appended: boolean;
+}
+
+type InternalWriteOptions = SequencedWriteOptions & {
+  readonly eventId?: string;
+};
 
 function code(error: unknown): string | undefined {
   return typeof error === 'object'
@@ -240,9 +254,42 @@ async function writeSequenceState(
   await rename(temporary, statePath);
 }
 
-export async function writeSequencedEvent(
-  options: SequencedWriteOptions,
-): Promise<CanonicalEvent> {
+function sameDraft(
+  event: CanonicalEvent,
+  options: InternalWriteOptions,
+): boolean {
+  return event.missionId === options.missionId
+    && event.source === options.draft.source
+    && event.kind === options.draft.kind
+    && event.subject === options.draft.subject
+    && event.correlationId === options.draft.correlationId
+    && event.causationId === options.draft.causationId
+    && JSON.stringify(event.payload) === JSON.stringify(options.draft.payload);
+}
+
+async function existingIdempotentEvent(
+  logPath: string,
+  options: InternalWriteOptions,
+  currentBytes: number,
+): Promise<CanonicalEvent | undefined> {
+  if (options.eventId === undefined || currentBytes === 0) return undefined;
+  const stream = replayEventLog(await readFile(logPath, 'utf8'));
+  if (stream.continuity === 'partial' || stream.duplicateEventIds > 0) {
+    throw new Error('HOOK_EVENT_LOG_INTEGRITY: continuity cannot be proved');
+  }
+  const existing = stream.events.find((event) => event.eventId === options.eventId);
+  if (existing !== undefined && !sameDraft(existing, options)) {
+    throw new Error('HOOK_EVENT_ID_CONFLICT: event ID belongs to another draft');
+  }
+  return existing;
+}
+
+async function writeSequencedEventInternal(
+  options: InternalWriteOptions,
+): Promise<SequencedWriteResult> {
+  if (options.eventId !== undefined && !EVENT_ID.test(options.eventId)) {
+    throw new Error('HOOK_INVALID_EVENT_ID: expected evt_<opaque-id>');
+  }
   const run = await safeRunDirectory(options.root, options.missionId);
   const logPath = join(run, 'events.jsonl');
   const statePath = join(run, '.seq.state');
@@ -266,6 +313,17 @@ export async function writeSequencedEvent(
         if (code(error) === 'ENOENT') return 0;
         throw error;
       });
+    if (currentBytes > MAX_EVENT_LOG_BYTES) {
+      throw new Error('HOOK_EVENT_LOG_FULL: rotate or archive the run');
+    }
+    const existing = await existingIdempotentEvent(
+      logPath,
+      options,
+      currentBytes,
+    );
+    if (existing !== undefined) {
+      return Object.freeze({ event: existing, appended: false });
+    }
     if (currentBytes >= MAX_EVENT_LOG_BYTES) {
       throw new Error('HOOK_EVENT_LOG_FULL: rotate or archive the run');
     }
@@ -278,7 +336,7 @@ export async function writeSequencedEvent(
     const event: CanonicalEvent = {
       schemaVersion: 1,
       seq: previousSeq + 1,
-      eventId: `evt_${randomUUID()}`,
+      eventId: options.eventId ?? `evt_${randomUUID()}`,
       missionId: options.missionId,
       ts: (options.now ?? new Date()).toISOString(),
       ...options.draft,
@@ -293,8 +351,20 @@ export async function writeSequencedEvent(
       { seq: event.seq, logBytes },
       randomUUID,
     );
-    return event;
+    return Object.freeze({ event, appended: true });
   } finally {
     await releaseLock(lock);
   }
+}
+
+export async function writeSequencedEvent(
+  options: SequencedWriteOptions,
+): Promise<CanonicalEvent> {
+  return (await writeSequencedEventInternal(options)).event;
+}
+
+export async function writeSequencedEventOnce(
+  options: IdempotentSequencedWriteOptions,
+): Promise<SequencedWriteResult> {
+  return writeSequencedEventInternal(options);
 }

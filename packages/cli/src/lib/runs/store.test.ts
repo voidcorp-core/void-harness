@@ -205,6 +205,7 @@ describe('mission run store', () => {
       correlationId: ID,
       payload: {
         tier: 'critical',
+        inputHash: INPUT,
         independenceEssential: true,
         sideEffectKey: 'effect:security-review',
       },
@@ -224,6 +225,7 @@ describe('mission run store', () => {
       payload: {
         nodeId: 'security-review',
         receiptId: 'rcp_security_001',
+        inputHash: INPUT,
       },
     });
 

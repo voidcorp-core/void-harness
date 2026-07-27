@@ -11,6 +11,8 @@ import { isAbsolute, join, relative, resolve } from 'node:path';
 import {
   deriveMissionVerdict,
   parseEventLine,
+  planMissionRecovery,
+  recoveryCheckpoint,
   replayEventLog,
   type Evidence,
   type EvidenceContext,
@@ -18,10 +20,12 @@ import {
   type EventStreamState,
   type JsonValue,
   type MissionVerdict,
+  type RecoveryDecision,
 } from '@voidcorp/mission-engine';
 import {
   MAX_EVENT_LOG_BYTES,
   writeSequencedEvent,
+  writeSequencedEventOnce,
 } from '@voidcorp/hook-runner';
 import { collectKnownSecrets, redactText } from './redact.js';
 
@@ -33,6 +37,8 @@ export interface CreateMissionInput {
   readonly missionId: string;
   readonly title: string;
   readonly mode: MissionMode;
+  readonly requestedMode?: MissionMode;
+  readonly promotionReason?: 'high-risk-predicate' | 'risk-not-explicitly-low';
   readonly now?: Date;
 }
 
@@ -40,6 +46,11 @@ export interface MissionInspection {
   readonly stream: EventStreamState;
   readonly verdict: MissionVerdict;
   readonly quarantineFiles: readonly string[];
+}
+
+export interface MissionResumeResult {
+  readonly decision: RecoveryDecision;
+  readonly recorded: boolean;
 }
 
 function errorCode(error: unknown): string | undefined {
@@ -94,6 +105,10 @@ async function writeMissionMetadata(
         missionId: input.missionId,
         title: input.title,
         mode: input.mode,
+        requestedMode: input.requestedMode ?? input.mode,
+        ...(input.promotionReason === undefined
+          ? {}
+          : { promotionReason: input.promotionReason }),
         createdAt,
       })}\n`,
       'utf8',
@@ -139,6 +154,14 @@ export async function createMission(
   ) {
     throw new Error('MISSION_INVALID_MODE: expected fast, team, or fortress');
   }
+  if (
+    input.requestedMode !== undefined
+    && input.requestedMode !== 'fast'
+    && input.requestedMode !== 'team'
+    && input.requestedMode !== 'fortress'
+  ) {
+    throw new Error('MISSION_INVALID_MODE: requested mode is invalid');
+  }
   const safeInput = {
     ...input,
     title: redactText(input.title, collectKnownSecrets()),
@@ -162,6 +185,10 @@ export async function createMission(
       payload: {
         title: safeInput.title,
         mode: safeInput.mode,
+        requestedMode: safeInput.requestedMode ?? safeInput.mode,
+        ...(safeInput.promotionReason === undefined
+          ? {}
+          : { promotionReason: safeInput.promotionReason }),
       },
     },
     input.now,
@@ -259,6 +286,56 @@ export async function inspectMission(
     verdict: deriveMissionVerdict(stream, { ...context, missionId }),
     quarantineFiles,
   };
+}
+
+function resumedCheckpoint(event: EventStreamState['events'][number]): string | undefined {
+  if (event.kind !== 'mission.resumed') return undefined;
+  if (typeof event.payload !== 'object' || event.payload === null || Array.isArray(event.payload)) {
+    return undefined;
+  }
+  const payload = event.payload as Readonly<Record<string, JsonValue>> & {
+    readonly checkpointEventId?: JsonValue;
+  };
+  const checkpoint = payload.checkpointEventId;
+  return typeof checkpoint === 'string' ? checkpoint : undefined;
+}
+
+export async function resumeMission(
+  root: string,
+  missionId: string,
+): Promise<MissionResumeResult> {
+  const inspected = await inspectMission(root, missionId, { dependencies: {} });
+  const decision = planMissionRecovery(inspected.stream);
+  const checkpointEventId = recoveryCheckpoint(inspected.stream);
+  const alreadyRecorded = inspected.stream.events.some((event) =>
+    resumedCheckpoint(event) === checkpointEventId
+  );
+  if (alreadyRecorded) {
+    return Object.freeze({ decision, recorded: false });
+  }
+  const eventId = `evt_${createHash('sha256')
+    .update(`${missionId}\0resume\0${checkpointEventId}`)
+    .digest('hex')}`;
+  const written = await writeSequencedEventOnce({
+    root,
+    missionId,
+    eventId,
+    draft: {
+      source: 'void-harness:mission.resume',
+      kind: 'mission.resumed',
+      subject: decision.action.kind === 'run-node'
+        || decision.action.kind === 'finalize-node'
+        ? decision.action.nodeId
+        : 'mission',
+      correlationId: missionId,
+      payload: {
+        checkpointEventId,
+        status: decision.status,
+        action: decision.action,
+      } as unknown as JsonValue,
+    },
+  });
+  return Object.freeze({ decision, recorded: written.appended });
 }
 
 export async function eventLogPath(

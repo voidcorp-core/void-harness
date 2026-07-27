@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { MissionPlan } from '../mission/plan.js';
 import { classifyRisk } from '../risk/classify.js';
-import { resolveFastMode } from './fast.js';
+import {
+  resolveFastMode,
+  resolveMissionMode,
+  selectMissionMode,
+} from './fast.js';
 import { fortressModeContract } from './fortress.js';
 import { teamModeContract } from './team.js';
 
@@ -65,6 +69,30 @@ describe('mission mode contracts', () => {
       });
     },
   );
+
+  it('imposes fortress even when high-risk work requests team', () => {
+    const risk = classifyRisk({
+      ticket: 'Change authentication permissions',
+      files: [],
+      stack: [],
+      complete: true,
+    });
+
+    expect(selectMissionMode(risk, 'team')).toMatchObject({
+      requestedMode: 'team',
+      effectiveMode: 'fortress',
+      promotion: { reason: 'high-risk-predicate' },
+    });
+    expect(selectMissionMode(risk, 'fortress')).toEqual({
+      requestedMode: 'fortress',
+      effectiveMode: 'fortress',
+    });
+    expect(resolveMissionMode(plan(risk), 'team')).toMatchObject({
+      requestedMode: 'team',
+      effectiveMode: 'fortress',
+      assuranceRequirements: expect.arrayContaining(['threat-model']),
+    });
+  });
 
   it('promotes fast to team when risk is not explicitly low', () => {
     const unknown = classifyRisk({

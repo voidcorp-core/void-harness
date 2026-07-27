@@ -111,6 +111,7 @@ For an auditable local execution:
 
 ```bash
 npx voidharness mission start --title "Ship feature"
+npx voidharness mission resume --id mis_<returned-id>
 npx voidharness mission verify --id mis_<returned-id> -- pnpm test
 npx voidharness mission inspect --id mis_<returned-id> --json
 npx voidharness mission archive --id mis_<returned-id>
@@ -120,6 +121,12 @@ Verification runs argv directly with `shell:false`; shell interpretation is
 available only through explicit `--shell`. Mission evidence stays under
 `.void/runs/`, is redacted and bounded, and compressed archives remain local
 under `.void/archives/`.
+
+`fast` is accepted only for explicitly low-risk work and keeps the same mandatory quality passes as
+`team`; medium/unknown work promotes to `team`, while every high-risk predicate promotes to
+`fortress`. Budget transitions at 70/90/100% remove context or optional redundancy but never waive
+a pass. Resume replays the append-only journal and stable idempotency keys: a durable receipt
+prevents an already-proven external effect from being dispatched again.
 
 ### Multiple runtimes, added when you need them
 

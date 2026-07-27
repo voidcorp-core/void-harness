@@ -6,9 +6,12 @@ import { basename, extname, isAbsolute, join, relative, resolve } from 'node:pat
 import { promisify } from 'node:util';
 import {
   compileMissionPlan,
+  classifyRisk,
   mergePolicies,
+  selectMissionMode,
   type MissionPlan,
   type MissionVerdictStatus,
+  type RecoveryDecision,
 } from '@voidcorp/mission-engine';
 import { findCoreSource } from '../lib/paths.js';
 import { loadProjectPolicies } from '../lib/policy-loader.js';
@@ -17,6 +20,7 @@ import { inspectCurrentMission } from '../lib/runs/inspect-current.js';
 import { collectKnownSecrets } from '../lib/runs/redact.js';
 import {
   createMission,
+  resumeMission,
   type MissionMode,
 } from '../lib/runs/store.js';
 import { verifyMissionCommand } from '../lib/runs/verify.js';
@@ -54,6 +58,11 @@ export type MissionArgs =
     }
   | {
       readonly kind: 'inspect';
+      readonly missionId: string;
+      readonly json: boolean;
+    }
+  | {
+      readonly kind: 'resume';
       readonly missionId: string;
       readonly json: boolean;
     }
@@ -218,7 +227,7 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
       json: options.includes('--json'),
     };
   }
-  if (subcommand === 'inspect' || subcommand === 'archive') {
+  if (subcommand === 'inspect' || subcommand === 'archive' || subcommand === 'resume') {
     if (divider !== -1) {
       return invalid(
         `${subcommand} does not accept a command`,
@@ -266,7 +275,7 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
   }
   return invalid(
     `unknown mission subcommand '${subcommand}'`,
-    'use plan, start, verify, inspect, archive, or prune',
+    'use plan, start, resume, verify, inspect, archive, or prune',
   );
 }
 
@@ -396,12 +405,19 @@ export function missionVerdictExitCode(
   return status === 'verified' || status === 'shipped-with-exception' ? 0 : 1;
 }
 
+export function missionRecoveryExitCode(
+  status: RecoveryDecision['status'],
+): 0 | 1 {
+  return status === 'active' || status === 'complete' ? 0 : 1;
+}
+
 function usage(): string {
   return `void-harness mission
 
   mission start --title <title> [--mode fast|team|fortress] [--json]
   mission plan --ticket <markdown-file> [--json]
   mission verify --id <id> [--shell] [--json] -- <command...>
+  mission resume --id <id> [--json]
   mission inspect --id <id> [--json]
   mission archive --id <id> [--json]
   mission prune --older-than <days> [--apply] [--json]
@@ -469,17 +485,41 @@ export async function mission(args: readonly string[]): Promise<void> {
       return;
     }
     if (parsed.kind === 'start') {
+      const diff = await gitFiles(root);
+      const stack = detectedStack(root);
+      const selection = selectMissionMode(classifyRisk({
+        ticket: parsed.title,
+        files: diff.files,
+        stack: stack.technologies,
+        complete: diff.status === 'known' && stack.status === 'known',
+      }), parsed.mode);
       const missionId = `mis_${randomUUID()}`;
       await createMission(root, {
         missionId,
         title: parsed.title,
-        mode: parsed.mode,
+        mode: selection.effectiveMode,
+        requestedMode: selection.requestedMode,
+        ...(selection.promotion === undefined
+          ? {}
+          : { promotionReason: selection.promotion.reason }),
       });
       process.stdout.write(
         parsed.json
-          ? `${JSON.stringify({ missionId, mode: parsed.mode })}\n`
-          : `${missionId}\n`,
+          ? `${JSON.stringify({ missionId, ...selection })}\n`
+          : `${missionId}\n${selection.promotion === undefined
+            ? ''
+            : `mode ${selection.requestedMode} -> ${selection.effectiveMode}\n`}`,
       );
+      return;
+    }
+    if (parsed.kind === 'resume') {
+      const resumed = await resumeMission(root, parsed.missionId);
+      process.stdout.write(
+        parsed.json
+          ? `${JSON.stringify(resumed)}\n`
+          : `${resumed.decision.status}: ${resumed.decision.action.kind}\n`,
+      );
+      process.exitCode = missionRecoveryExitCode(resumed.decision.status);
       return;
     }
     if (parsed.kind === 'prune') {

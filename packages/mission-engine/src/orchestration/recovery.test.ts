@@ -3,6 +3,7 @@ import { replayEventLog, serializeEvent } from '../events/index.js';
 import type { CanonicalEvent } from '../events/types.js';
 import { event } from '../test/events.js';
 import {
+  MAX_RECOVERY_NODES,
   planMissionRecovery,
   type RecoveryNode,
 } from './recovery.js';
@@ -10,6 +11,7 @@ import {
 const SECURITY_NODE: RecoveryNode = {
   id: 'security-review',
   tier: 'critical',
+  inputHash: `sha256:${'a'.repeat(64)}`,
   independenceEssential: true,
   replacement: { id: 'security-review-backup', tier: 'critical' },
   sideEffectKey: 'effect:security-review',
@@ -120,10 +122,16 @@ describe('mission recovery', () => {
     };
     const events = [
       lifecycle('orchestration.node-started', 1, node.id, { attempt: 'initial' }),
-      lifecycle('orchestration.node-failed', 2, node.id, { attempt: 'initial' }),
+      lifecycle('orchestration.node-failed', 2, node.id, {
+        attempt: 'initial',
+        transient: true,
+      }),
       lifecycle('orchestration.node-started', 3, node.id, { attempt: 'retry' }),
       lifecycle('orchestration.node-failed', 4, node.id, { attempt: 'retry' }),
-      lifecycle('orchestration.node-started', 5, node.id, { attempt: 'replacement' }),
+      lifecycle('orchestration.node-started', 5, node.id, {
+        attempt: 'replacement',
+        specialistId: 'security-review-backup',
+      }),
       lifecycle('orchestration.node-failed', 6, node.id, { attempt: 'replacement' }),
     ];
 
@@ -138,6 +146,7 @@ describe('mission recovery', () => {
     const qa: RecoveryNode = {
       id: 'qa-review',
       tier: 'standard',
+      inputHash: `sha256:${'c'.repeat(64)}`,
       independenceEssential: false,
     };
     const completed = lifecycle(
@@ -163,7 +172,11 @@ describe('mission recovery', () => {
       'side-effect.completed',
       2,
       SECURITY_NODE.sideEffectKey,
-      { nodeId: SECURITY_NODE.id, receiptId: 'rcp_security_001' },
+      {
+        nodeId: SECURITY_NODE.id,
+        receiptId: 'rcp_security_001',
+        inputHash: SECURITY_NODE.inputHash,
+      },
     );
     const resumed = planMissionRecovery(stream([started, receipt]), [SECURITY_NODE]);
 
@@ -173,6 +186,129 @@ describe('mission recovery', () => {
       receiptId: 'rcp_security_001',
     });
     expect(calls).toEqual(['effect:security-review']);
+  });
+
+  it('fails closed on a malformed or conflicting side-effect receipt', () => {
+    const malformed = lifecycle(
+      'side-effect.completed',
+      1,
+      SECURITY_NODE.sideEffectKey,
+      { nodeId: SECURITY_NODE.id },
+    );
+    const first = lifecycle(
+      'side-effect.completed',
+      1,
+      SECURITY_NODE.sideEffectKey,
+      {
+        nodeId: SECURITY_NODE.id,
+        receiptId: 'rcp_security_001',
+        inputHash: SECURITY_NODE.inputHash,
+      },
+    );
+    const conflict = lifecycle(
+      'side-effect.completed',
+      2,
+      SECURITY_NODE.sideEffectKey,
+      {
+        nodeId: SECURITY_NODE.id,
+        receiptId: 'rcp_security_002',
+        inputHash: SECURITY_NODE.inputHash,
+      },
+    );
+
+    expect(planMissionRecovery(stream([malformed]), [SECURITY_NODE]))
+      .toMatchObject({ status: 'degraded', action: { kind: 'stop' } });
+    expect(planMissionRecovery(stream([first, conflict]), [SECURITY_NODE]))
+      .toMatchObject({ status: 'degraded', action: { kind: 'stop' } });
+  });
+
+  it('fails closed when a receipt claims the node under another side-effect key', () => {
+    const mismatched = lifecycle(
+      'side-effect.completed',
+      1,
+      'effect:another-operation',
+      {
+        nodeId: SECURITY_NODE.id,
+        receiptId: 'rcp_security_wrong_key',
+        inputHash: SECURITY_NODE.inputHash,
+      },
+    );
+
+    expect(planMissionRecovery(stream([mismatched]), [SECURITY_NODE]))
+      .toMatchObject({ status: 'degraded', action: { kind: 'stop' } });
+  });
+
+  it('validates side-effect receipts even after the node is marked complete', () => {
+    const completed = lifecycle(
+      'orchestration.node-completed',
+      1,
+      SECURITY_NODE.id,
+    );
+    const malformed = lifecycle(
+      'side-effect.completed',
+      2,
+      SECURITY_NODE.sideEffectKey,
+      { nodeId: SECURITY_NODE.id },
+    );
+
+    expect(planMissionRecovery(stream([completed, malformed]), [SECURITY_NODE]))
+      .toMatchObject({ status: 'degraded', action: { kind: 'stop' } });
+  });
+
+  it('fails closed when a side-effect receipt belongs to stale inputs', () => {
+    const stale = lifecycle(
+      'side-effect.completed',
+      1,
+      SECURITY_NODE.sideEffectKey,
+      {
+        nodeId: SECURITY_NODE.id,
+        receiptId: 'rcp_security_stale',
+        inputHash: `sha256:${'b'.repeat(64)}`,
+      },
+    );
+
+    expect(planMissionRecovery(stream([stale]), [SECURITY_NODE]))
+      .toMatchObject({ status: 'degraded', action: { kind: 'stop' } });
+  });
+
+  it('fails closed on a duplicate event ID', () => {
+    const started = lifecycle('orchestration.node-started', 1, SECURITY_NODE.id, {
+      attempt: 'initial',
+    });
+    const duplicate = replayEventLog(
+      `${serializeEvent(started)}\n${serializeEvent(started)}\n`,
+    );
+
+    expect(planMissionRecovery(duplicate, [SECURITY_NODE]))
+      .toMatchObject({ status: 'degraded', action: { kind: 'stop' } });
+  });
+
+  it('rejects forged replacement identity and forbidden sequential fallback', () => {
+    const wrongReplacement = lifecycle(
+      'orchestration.node-started',
+      1,
+      SECURITY_NODE.id,
+      { attempt: 'replacement', specialistId: 'security-review-cheap' },
+    );
+    const forbiddenSequential = lifecycle(
+      'orchestration.node-started',
+      1,
+      SECURITY_NODE.id,
+      { attempt: 'sequential' },
+    );
+    const prematureReplacement = lifecycle(
+      'orchestration.node-started',
+      1,
+      SECURITY_NODE.id,
+      { attempt: 'replacement', specialistId: 'security-review-backup' },
+    );
+
+    expect(planMissionRecovery(stream([wrongReplacement]), [SECURITY_NODE]))
+      .toMatchObject({ status: 'degraded', action: { kind: 'stop' } });
+    expect(planMissionRecovery(stream([forbiddenSequential]), [SECURITY_NODE]))
+      .toMatchObject({ status: 'degraded', action: { kind: 'stop' } });
+    expect(planMissionRecovery(stream([prematureReplacement]), [SECURITY_NODE]))
+      .toMatchObject({ status: 'degraded', action: { kind: 'stop' } });
   });
 
   it('fails closed when event continuity cannot be proved', () => {
@@ -186,5 +322,32 @@ describe('mission recovery', () => {
       status: 'degraded',
       action: { kind: 'stop' },
     });
+  });
+
+  it('rejects cross-mission linkage and an unbounded recovery plan', () => {
+    const crossMission = lifecycle(
+      'orchestration.node-started',
+      1,
+      SECURITY_NODE.id,
+      { attempt: 'initial' },
+    );
+    const corrupted = stream([{
+      ...crossMission,
+      missionId: 'mis_ffffffffffffffffffffffffffffffff',
+    }]);
+    const oversized = Array.from(
+      { length: MAX_RECOVERY_NODES + 1 },
+      (_, index): RecoveryNode => ({
+        id: `node-${index}`,
+        tier: 'standard',
+        inputHash: `sha256:${'d'.repeat(64)}`,
+        independenceEssential: false,
+      }),
+    );
+
+    expect(planMissionRecovery(corrupted, [SECURITY_NODE]))
+      .toMatchObject({ status: 'degraded', action: { kind: 'stop' } });
+    expect(planMissionRecovery(stream([]), oversized))
+      .toMatchObject({ status: 'degraded', action: { kind: 'stop' } });
   });
 });
