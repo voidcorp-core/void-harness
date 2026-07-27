@@ -20,6 +20,7 @@ export interface LiveServerOptions {
   readonly port: number;
   readonly logPath: string;
   readonly modelJson: string;
+  readonly catalogJson?: string | undefined;
   readonly launchToken: string;
   readonly studioHtml?: string | undefined;
   readonly studioDataJson?: string | undefined;
@@ -254,6 +255,15 @@ function handle(
   }
   if (url.pathname === '/model.json') {
     json(res, cors, opts.modelJson);
+    return;
+  }
+  if (url.pathname === '/catalog.v3.json') {
+    if (opts.catalogJson === undefined) {
+      res.writeHead(404, { ...cors, ...securityHeaders(), 'Content-Type': 'text/plain' });
+      res.end('CatalogGraph v3 not computed');
+      return;
+    }
+    json(res, cors, opts.catalogJson);
     return;
   }
   if (url.pathname === '/studio-data.json') {

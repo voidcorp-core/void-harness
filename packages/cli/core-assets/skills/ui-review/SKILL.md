@@ -19,7 +19,7 @@ eval_targets: [claude/anthropic/opus]
 
 It proposes findings and edits at the component level; it does not rewrite the brand (`DESIGN.md` owns that) and it does not re-teach the build rules (`frontend-design` owns those — this skill assumes them and checks against them).
 
-**Attribution**: see `.source`. Vendored from `impeccable` (the audit/critique/refine methodology) + gstack `/design-review` (designer's-eye QA) + gstack `/design-consultation`/`/design-shotgun` (the pieces that stayed here; recon/design-prompt went to `forge`). Live browser audit is deferred to Vague 4 (claude-in-chrome MCP).
+**Attribution**: see `.source`. Vendored from `impeccable` (the audit/critique/refine methodology) + gstack `/design-review` (designer's-eye QA) + gstack `/design-consultation`/`/design-shotgun` (the pieces that stayed here; recon/design-prompt went to `forge`). Live browser operation is delegated to `harness:qa`.
 
 ---
 
@@ -56,6 +56,15 @@ Cross-register slop (the absolute bans — side-stripe, gradient text, glassmorp
 - **Responsive** — per-viewport intent; test heading copy at every breakpoint for overflow; mobile-first dual-quality (composes with `frontend-design`).
 - **Performance** — LCP budget, no layout-thrash animation, image sizing (composes with the perf tooling).
 
+## Independent post-build verdict
+
+For a changed UI, `harness:qa` supplies current-diff screenshots and behavioral proof, then
+`core:visual-craft-director` reviews them in a fresh context distinct from the builder and pre-build
+designer. It scores hierarchy, information architecture, interaction states, responsive intent,
+distinctiveness, and accessibility; every dimension must reach 8/10. Missing browser access,
+mobile/desktop or applicable-state captures, current-diff binding, or test proof blocks approval.
+Model judgment alone is never visual certification.
+
 ## Refine modes
 
 Once findings exist, drive a focused refine rather than a vague "make it better":
@@ -73,6 +82,7 @@ The live layer — screenshotting the running UI, driving interactions, checking
 ## Composition & boundaries
 
 - **With `frontend-design`** — the build-time floor to this audit ceiling; the bans and build specifics live there, this skill checks against them and does not restate them (no > 30% overlap).
+- **With `core:visual-craft-director`** — this skill supplies the rubric; the specialist supplies the independent post-build verdict over evidence captured by `qa`.
 - **With `accessibility-first`** — the a11y audit dimension composes with it.
 - **Not `plan-review`'s Design lens** — that judges a *written plan* before any code exists (does the plan name the states, the responsive intent?); this judges the *shipped UI*. Different artifact, different lifecycle stage.
 - **Not `devex-audit`** — that audits a shipped dev-facing surface (the API/CLI/SDK/docs journey: naming, errors, TTHW); this audits the visual/interaction UI. Sibling audit skills, different subject.
@@ -83,7 +93,7 @@ The live layer — screenshotting the running UI, driving interactions, checking
 
 - MUST NOT decide brand identity — `DESIGN.md` owns palette/type/motion.
 - MUST NOT restate `frontend-design`'s build rules — assume and check against them.
-- MUST NOT drive a browser or make live requests — defer to Vague 4; review from code.
+- MUST NOT drive a browser or make live requests — compose `harness:qa` and review its current-diff evidence.
 - MUST NOT rewrite a UI wholesale under a refine mode — a refine is a scoped, finding-driven edit.
 - MUST NOT vendor the gstack/impeccable runtime (scripts, reference command files, comparison board).
 

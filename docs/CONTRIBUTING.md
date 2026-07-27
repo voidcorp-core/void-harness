@@ -14,7 +14,7 @@ The working rules for this repo live in `CLAUDE.md` (mirrored as `AGENTS.md` for
 - `pnpm test` — the suite is the gate before "done".
 - `pnpm lint` and `pnpm typecheck` — zero errors.
 - `pnpm anti-bloat:check` — the seven anti-bloat rules (skill ≤400 LOC, hook ≤100 LOC, description ≤200 chars, `.source` + audit note per skill, ...).
-- `pnpm graph:check` / `pnpm graph:check-bundle` — regenerate `model.json` and the bundle when you add or remove a skill/hook/command.
+- `pnpm graph:check` / `pnpm graph:check-bundle` — regenerate `catalog.v3.json`, its `model.json` compatibility projection, and the bundle when graph inputs change.
 - `pnpm conformance:install` / `pnpm conformance:hooks` — pack the local CLI, then prove
   account-free install and installed-hook execution for Claude, Codex, and both. CI runs both
   commands on Linux, macOS, and Windows.

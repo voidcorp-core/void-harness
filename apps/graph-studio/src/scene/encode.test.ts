@@ -11,7 +11,7 @@ describe('sizeForLines', () => {
 
 describe('colorForType', () => {
   it('maps every node type to a distinct hex color', () => {
-    const colors = (['skill', 'agent', 'hook', 'command', 'pack', 'workflow-def'] as const).map(colorForType);
+    const colors = (['skill', 'agent', 'hook', 'command', 'pack', 'profile', 'workflow-def'] as const).map(colorForType);
     expect(new Set(colors).size).toBe(colors.length);
     for (const c of colors) expect(c).toMatch(/^#[0-9a-f]{6}$/i);
   });

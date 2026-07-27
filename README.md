@@ -64,7 +64,7 @@ void-harness/
 │   │   └── modules/               # CLAUDE.md modules (composable)
 │   ├── mission-engine/            # pure mission/event contracts and reducers
 │   ├── hook-runner/               # portable Node hook event writer
-│   ├── harness-graph/             # graph kernel + frozen model.json / certification.json
+│   ├── harness-graph/             # Graph v3 kernel + v1 projection + frozen certification
 │   └── packs/
 │       ├── pack-monorepo/         # Turbo / ADR / 5+5 layout
 │       ├── pack-react/            # React 19 component-layer purity

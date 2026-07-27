@@ -296,6 +296,20 @@ v1. See `apps/eval-harness/README.md` for the method.
 
 ## Consumer graph delivery (`/void-graph`)
 
+The graph kernel uses a common node-link envelope at `schemaVersion: 3` for CatalogGraph,
+MissionGraph, EvidenceGraph, and the future ProjectGraph. Every node, edge, and hyperedge has a
+namespaced stable ID, typed origin, numeric confidence, and bounded provenance. The source carries
+its producer version and a SHA-256 `rootHash`; validation rejects duplicate IDs, dangling
+relations, invalid observation timestamps, path escapes, oversized payloads, and hash drift.
+Graph deltas name their base and resulting root hashes and are applied only after both the delta and
+the resulting snapshot validate.
+
+The current source catalog is adapted to v3 first. `catalog.v3.json` is the canonical versioned
+snapshot; `model.json` is its read-only v1 compatibility projection for Graph Studio, audit,
+certification, status, and the existing consumer bundle. Those readers also pass v1 through the v3
+validator before use. `graph live` serves both `/catalog.v3.json` and `/model.json`. Rollback can
+restore direct v1 reads and remove the v3 artifact because the adapter never mutates its input.
+
 The graph tooling also ships to consumers, not just the monorepo. A build step
 (`packages/cli/scripts/build-void-graph.ts`) bundles the kernel + `graph` CLI into one
 self-contained `packages/core/graph/void-graph.mjs`: `model.json` is baked in via the
@@ -309,7 +323,8 @@ source tree (no monorepo paths), filters it to the packs enabled in `.claude/set
 correlates it with local mission journals (`.void/runs/*/events.jsonl`, plus
 read-only v2 import, and transcripts). `graph live` serves the inlined studio
 and a `/studio-data.json` endpoint on loopback - fully offline. Freshness
-is gated by `graph check-bundle` (the artifact's embedded model must match `model.json`); see
+is gated by `graph check-bundle` (the artifact's embedded compatibility model must match
+`model.json`); see
 DECISIONS.md (2026-07-01). The artifact is excluded from the `core-assets` mirror.
 
 ## Mission event journal (`.void/runs/<mission-id>/events.jsonl`)
@@ -643,7 +658,7 @@ Implemented today in `.github/workflows/ci.yml` (all block the PR on failure):
 | Lint | `pnpm lint` (Biome) over first-party TypeScript |
 | Build | `pnpm build` (packs must build before typecheck resolves their exports) |
 | Self-host release gate | compiles current sources in isolation; rejects source/receipt/hook/replay drift |
-| Graph integrity | `pnpm graph:check` — model.json drift + broken routes + capability governance (owner/runtimes) |
+| Graph integrity | `pnpm graph:check` — CatalogGraph v3 + model.json projection drift, broken routes, capability governance |
 | Certification freshness | `pnpm certification:check` — committed `certification.json` matches the model + eval reports |
 | Consumer bundle freshness | `pnpm graph:check-bundle` — the shipped `void-graph.mjs` embeds the current `model.json` |
 | Skill tests | `pnpm vitest run` |

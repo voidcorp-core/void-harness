@@ -6,12 +6,14 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  adaptCatalogV1,
   type Certification,
   computeProjectState,
   type GraphModel,
   installedCapabilityIds,
   type LocalSignals,
   parseActivations,
+  projectCatalogV3ToV1,
   type ProjectState,
   type RuntimeEvidence,
   type Score,
@@ -151,7 +153,10 @@ export async function status(_args: readonly string[]): Promise<void> {
     process.exit(1);
   }
   const modelPath = findData('model.json');
-  const model = modelPath ? readJson<GraphModel>(modelPath) : { version: 1, nodes: [], edges: [] };
+  const legacyModel: GraphModel = modelPath
+    ? readJson<GraphModel>(modelPath)
+    : { version: 1, nodes: [], edges: [] };
+  const model = projectCatalogV3ToV1(adaptCatalogV1(legacyModel));
   const staticTokensById = new Map<string, number>();
   for (const n of model.nodes) if (typeof n.staticTokens === 'number') staticTokensById.set(n.id, n.staticTokens);
 

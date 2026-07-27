@@ -7,6 +7,7 @@ export const TYPE_COLORS: Record<NodeType, string> = {
   hook: '#ffb547', // holo-amber
   command: '#36e0ff', // holo-cyan
   pack: '#f472b6', // holo-magenta
+  profile: '#fb7185', // holo-rose
   'workflow-def': '#9ae600', // holo-lime
 };
 

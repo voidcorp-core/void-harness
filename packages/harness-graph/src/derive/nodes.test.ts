@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { deriveNodes } from './nodes.js';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { deriveNodes, scanSourceTree } from './nodes.js';
 
 const tree = {
   skills: [
@@ -10,8 +13,17 @@ const tree = {
   hooks: [{ name: 'tdd-guard', source: 'packages/core/hooks/tdd-guard.sh', text: '#!/bin/sh\n' }],
   commands: [{ name: 'backlog-autopilot', source: 'packages/core/commands/backlog-autopilot.md', text: '---\ndescription: cmd.\n---\n' }],
   packs: [{ name: 'pack-nextjs', source: 'packages/packs/pack-nextjs', text: '' }],
+  profiles: [{ name: 'typescript', source: 'packages/core/profiles/typescript.yaml', text: 'name: typescript\n' }],
   workflowDefs: [{ name: 'backlog-autopilot', source: 'packages/core/skills/backlog-autopilot/workflows/backlog-autopilot.workflow.js', text: '' }],
 };
+
+const temporaryRoots: string[] = [];
+
+afterEach(() => {
+  for (const root of temporaryRoots.splice(0)) {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 describe('deriveNodes', () => {
   it('produces one node per component with a stable id', () => {
@@ -22,6 +34,7 @@ describe('deriveNodes', () => {
     expect(ids).toContain('hook:tdd-guard');
     expect(ids).toContain('command:backlog-autopilot');
     expect(ids).toContain('pack:pack-nextjs');
+    expect(ids).toContain('profile:typescript');
     expect(ids).toContain('workflow-def:backlog-autopilot');
   });
 
@@ -123,5 +136,21 @@ describe('deriveNodes', () => {
     expect(node?.triggers).toEqual({ globs: ['**/*.test.ts'] });
     const plain = deriveNodes(tree).find((n) => n.id === 'skill:tdd');
     expect(plain?.triggers).toBeUndefined();
+  });
+});
+
+describe('scanSourceTree path boundary', () => {
+  it('rejects a symlinked source before reading outside the declared core root', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-graph-source-'));
+    temporaryRoots.push(root);
+    const core = join(root, 'packages', 'core');
+    const packs = join(root, 'packages', 'packs');
+    const outside = join(root, 'outside.md');
+    mkdirSync(join(core, 'agents'), { recursive: true });
+    mkdirSync(packs, { recursive: true });
+    writeFileSync(outside, 'outside');
+    symlinkSync(outside, join(core, 'agents', 'escaped.md'));
+
+    expect(() => scanSourceTree(core, packs)).toThrow(/GRAPH_SOURCE_PATH_ESCAPE/);
   });
 });

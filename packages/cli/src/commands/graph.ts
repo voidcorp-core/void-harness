@@ -22,16 +22,19 @@ import {
   analyze,
   analyzeBehavior,
   analyzeCost,
+  adaptCatalogV1,
   assembleModel,
   blockingFindings,
   DEFAULT_PRICING,
   mergePricing,
   parseActivations,
   parseOutcomes,
+  projectCatalogV3ToV1,
   scanSourceTree,
+  serializeGraphSnapshot,
   serializeModel,
 } from '@voidcorp/harness-graph';
-import type { CostRow, GraphModel } from '@voidcorp/harness-graph';
+import type { CostRow, GraphModel, GraphSnapshotV3 } from '@voidcorp/harness-graph';
 import { BUNDLED_MODEL_JSON, resolveBundledModel } from '../lib/bundled-model.js';
 import { BUNDLED_STUDIO_HTML } from '../lib/bundled-studio.js';
 import { readSessionCosts } from '../lib/transcript-cost.js';
@@ -86,6 +89,9 @@ function packsDirFor(_coreSource: string): string {
 function modelPath(_coreSource: string): string {
   return join(PKGS_ROOT, 'harness-graph', 'model.json');
 }
+function catalogPath(_coreSource: string): string {
+  return join(PKGS_ROOT, 'harness-graph', 'catalog.v3.json');
+}
 function relationsPath(_coreSource: string): string {
   return join(PKGS_ROOT, 'harness-graph', 'relations.graph.yaml');
 }
@@ -130,11 +136,15 @@ function loadPricing(args: readonly string[]) {
   }
 }
 
-async function loadModel(coreSource: string) {
+async function loadCatalogGraph(coreSource: string): Promise<GraphSnapshotV3> {
   const tree = scanSourceTree(coreSource, packsDirFor(coreSource));
   const rp = relationsPath(coreSource);
   const declared = existsSync(rp) ? readFileSync(rp, 'utf8') : '';
-  return assembleModel(tree, declared);
+  return adaptCatalogV1(assembleModel(tree, declared));
+}
+
+async function loadModel(coreSource: string): Promise<GraphModel> {
+  return projectCatalogV3ToV1(await loadCatalogGraph(coreSource));
 }
 
 /**
@@ -224,24 +234,36 @@ export async function graph(
   }
 
   if (sub === 'build') {
-    const model = await loadModel(coreSource);
+    const catalog = await loadCatalogGraph(coreSource);
+    const model = projectCatalogV3ToV1(catalog);
+    writeFileSync(catalogPath(coreSource), serializeGraphSnapshot(catalog));
     writeFileSync(modelPath(coreSource), serializeModel(model));
     banner('graph build');
     blank();
-    line(`  ${c.green(`${model.nodes.length} nodes`)} ${c.dim(glyph.dot)} ${c.green(`${model.edges.length} edges`)} -> ${c.dim('harness-graph/model.json')}`);
-    footer(c.dim('model.json regenerated. Commit it; the check gate fails on drift.'));
+    line(`  ${c.green(`${model.nodes.length} nodes`)} ${c.dim(glyph.dot)} ${c.green(`${model.edges.length} edges`)} -> ${c.dim('harness-graph/catalog.v3.json')}`);
+    footer(c.dim('CatalogGraph v3 and its read-only model.json compatibility projection regenerated.'));
     return;
   }
 
   if (sub === 'check') {
-    const model = await loadModel(coreSource);
+    const catalog = await loadCatalogGraph(coreSource);
+    const model = projectCatalogV3ToV1(catalog);
     const onDisk = existsSync(modelPath(coreSource)) ? readFileSync(modelPath(coreSource), 'utf8') : '';
-    const drift = onDisk !== serializeModel(model);
+    const catalogOnDisk = existsSync(catalogPath(coreSource))
+      ? readFileSync(catalogPath(coreSource), 'utf8')
+      : '';
+    const legacyDrift = onDisk !== serializeModel(model);
+    const catalogDrift = catalogOnDisk !== serializeGraphSnapshot(catalog);
+    const drift = legacyDrift || catalogDrift;
     const blocking = blockingFindings(analyze(model, ctxFor()));
     banner('graph check');
     blank();
     if (drift) {
-      line(`  ${c.red('model.json is stale')} -- run \`void-harness graph build\` and commit.`);
+      line(`  ${c.red('graph snapshot is stale')} -- run \`void-harness graph build\` and commit.`);
+      if (catalogDrift) line(`    ${c.dim('catalog.v3.json differs from the validated source graph')}`);
+      if (!legacyDrift) {
+        line(`    ${c.dim('model.json compatibility projection is current')}`);
+      }
       const fresh = serializeModel(model).split('\n');
       const old = onDisk.split('\n');
       let shown = 0;
@@ -370,6 +392,7 @@ export async function graph(
     const historyMax = numFlag(args, '--history-max', 5000);
     const model = await resolveModel(coreSource, bundled);
     const modelJson = serializeModel(model);
+    const catalogJson = serializeGraphSnapshot(adaptCatalogV1(model));
     const ctx = ctxFor();
     // Server-fed studio data: computed once here (kernel analyze + cost), served at
     // /studio-data.json. workflows stay {} on the consumer (phase metadata is build-time only).
@@ -403,6 +426,7 @@ export async function graph(
       port,
       logPath,
       modelJson,
+      catalogJson,
       launchToken,
       historyMax,
       studioHtml,
@@ -415,10 +439,10 @@ export async function graph(
           `http://localhost:${actualPort}/auth?token=${encodeURIComponent(launchToken)}`;
         line(`  serving on ${c.green(launchUrl)}`);
         if (studioHtml !== undefined) {
-          line(`  ${c.dim('routes')} GET / ${c.dim('(studio)')} ${c.dim(glyph.dot)} /model.json ${c.dim(glyph.dot)} /studio-data.json ${c.dim(glyph.dot)} /history ${c.dim(glyph.dot)} /events`);
+          line(`  ${c.dim('routes')} GET / ${c.dim('(studio)')} ${c.dim(glyph.dot)} /catalog.v3.json ${c.dim(glyph.dot)} /model.json ${c.dim(glyph.dot)} /studio-data.json ${c.dim(glyph.dot)} /history ${c.dim(glyph.dot)} /events`);
           line(`  ${c.dim('open the URL above in a browser')}`);
         } else {
-          line(`  ${c.dim('routes')} GET /model.json ${c.dim(glyph.dot)} GET /history ${c.dim(glyph.dot)} GET /events ${c.dim('(SSE)')}`);
+          line(`  ${c.dim('routes')} GET /catalog.v3.json ${c.dim(glyph.dot)} GET /model.json ${c.dim(glyph.dot)} GET /history ${c.dim(glyph.dot)} GET /events ${c.dim('(SSE)')}`);
           line(`  ${c.dim('point the studio at it via')} VITE_LIVE_URL`);
         }
         footer(c.dim('Ctrl+C to stop.'));

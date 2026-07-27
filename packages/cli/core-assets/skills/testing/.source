@@ -11,3 +11,6 @@ Sources for `testing` skill (see plans/skill-audits/testing.md for full audit):
 - pglite — https://pglite.dev — in-memory Postgres for fast integration tests
 
 Strategy: distill. Author from sources; framework specifics live in packs. Hooks: no-only-no-skip, test-name-lint, no-business-mock, no-snapshot-default.
+
+DEV-444 adaptation: Testing Library's role-first principle is extended to keyboard input and explicit
+applicable-state coverage without moving TDD cycle ownership into this skill.

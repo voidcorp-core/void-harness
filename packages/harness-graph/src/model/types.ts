@@ -1,4 +1,4 @@
-export type NodeType = 'skill' | 'agent' | 'hook' | 'command' | 'pack' | 'workflow-def';
+export type NodeType = 'skill' | 'agent' | 'hook' | 'command' | 'pack' | 'profile' | 'workflow-def';
 export type EdgeKind =
   | 'routes-to'
   | 'composes'

@@ -1,5 +1,18 @@
 export const KERNEL_VERSION = 1 as const;
 export * from './model/types.js';
+export * from './model/v3/types.js';
+export * from './model/v3/ids.js';
+export * from './model/v3/provenance.js';
+export * from './model/v3/schema.js';
+export { buildCatalogGraph } from './catalog/build.js';
+export { buildMissionGraph } from './mission/build.js';
+export { buildEvidenceGraph } from './evidence/build.js';
+export type { EvidenceGraphInput } from './evidence/build.js';
+export {
+  adaptCatalogV1,
+  projectCatalogV3ToV1,
+} from './compat/catalog-v1.js';
+export { parseCatalogV1 } from './compat/v1-schema.js';
 export { filterByEnabledPacks } from './model/filter.js';
 export { scanSourceTree } from './derive/nodes.js';
 export { assembleModel, serializeModel } from './build-model.js';

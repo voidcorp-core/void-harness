@@ -1,9 +1,13 @@
-import type { CostReport, Finding, GraphModel } from '@voidcorp/harness-graph';
-import model from '../generated/model.json' with { type: 'json' };
+import type {
+  CostReport,
+  Finding,
+  GraphModel,
+} from '@voidcorp/harness-graph';
+import cost from '../generated/cost.json' with { type: 'json' };
 import findings from '../generated/findings.json' with { type: 'json' };
+import model from '../generated/model.json' with { type: 'json' };
 import usage from '../generated/usage-summary.json' with { type: 'json' };
 import workflows from '../generated/workflows.json' with { type: 'json' };
-import cost from '../generated/cost.json' with { type: 'json' };
 import type { UsageSummary, WorkflowMeta } from './types.js';
 
 export interface StudioData {
@@ -17,6 +21,7 @@ export interface StudioData {
 
 export function loadData(): StudioData {
   return {
+    // prepare-data validates through CatalogGraph v3 before writing this read-only v1 projection.
     model: model as GraphModel,
     findings: findings as readonly Finding[],
     usage: usage as UsageSummary,

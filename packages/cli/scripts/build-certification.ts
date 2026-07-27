@@ -7,7 +7,12 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildCertification, serializeCertification } from '@voidcorp/harness-graph';
+import {
+  adaptCatalogV1,
+  buildCertification,
+  projectCatalogV3ToV1,
+  serializeCertification,
+} from '@voidcorp/harness-graph';
 import type { Certification, EvalReportLite, GraphModel } from '@voidcorp/harness-graph';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -51,7 +56,9 @@ function loadReports(): EvalReportLite[] {
   return out;
 }
 
-const model: GraphModel = JSON.parse(readFileSync(modelPath, 'utf8'));
+const model = projectCatalogV3ToV1(adaptCatalogV1(
+  JSON.parse(readFileSync(modelPath, 'utf8')) as GraphModel,
+));
 const version: unknown = JSON.parse(readFileSync(cliPkgPath, 'utf8')).version;
 if (typeof version !== 'string' || version === '') {
   process.stderr.write(`certification: cannot read a harness version from ${cliPkgPath}\n`);

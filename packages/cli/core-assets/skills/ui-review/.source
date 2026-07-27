@@ -6,4 +6,7 @@ Sources for `ui-review` skill (see plans/skill-audits/ui-review.md for the full 
 - gstack /design-shotgun (1331 LOC) — the multi-variant + anti-convergence method went to forge:design-prompt (issues); its comparison board is Vague 4.
 - Steve Krug "Don't Make Me Think" — the reading model (scan/satisfice/muddle) went to frontend-design; cited, not pasted.
 
-Strategy: distill + split. Build-time craft → frontend-design (enriched, DEV-389); audit-time methodology → this new skill (the ceiling). Mirrors security-guidance/security-audit and writing-plans/plan-review. Companion `.void/SLOP-REGISTRY` and the browser layer are out of scope (forge + Vague 4).
+Strategy: distill + split. Build-time craft → frontend-design (enriched, DEV-389); audit-time methodology → this new skill (the ceiling). Mirrors security-guidance/security-audit and writing-plans/plan-review. Browser capture is composed through `qa`; the comparison board and `.void/SLOP-REGISTRY` remain outside this skill.
+
+DEV-444 adaptation: the rubric now feeds a fresh-context Visual Craft Director with a six-dimension
+8/10 floor. Browser/current-diff evidence stays owned by qa; LLM-only certification is rejected.
