@@ -47,3 +47,92 @@ export const tddScorer =
     const signals = { testExists, testTargetsCode };
     return { score: mean(Object.values(signals)), signals };
   };
+
+export const frontendTddScorer =
+  (cfg: { readonly targetSymbol: string }) =>
+  (outcome: RunOutcome): ScoreResult => {
+    const tests = Object.entries(outcome.files).filter(([path]) =>
+      /\.(test|spec)\.[cm]?tsx?$/.test(path)
+    );
+    const bodies = tests.map(([, content]) => content);
+    const signals = {
+      testExists: tests.length > 0,
+      targetsComponent: bodies.some((body) => body.includes(cfg.targetSymbol)),
+      keyboardRegression: bodies.some((body) =>
+        /(?:userEvent\.keyboard|fireEvent\.keyDown)/.test(body)
+        && /(?:Enter|Escape|ArrowDown|ArrowUp)/.test(body)
+      ),
+      accessibleQuery: bodies.some((body) => /(?:get|find|query)By(?:Role|LabelText)/.test(body)),
+    };
+    return { score: mean(Object.values(signals)), signals };
+  };
+
+const UI_DIMENSIONS = [
+  'hierarchy',
+  'information-architecture',
+  'interaction-states',
+  'responsive-intent',
+  'distinctiveness',
+  'accessibility',
+] as const;
+const SHA256 = /^sha256:[a-f0-9]{64}$/;
+
+function uiEvidence(body: string | undefined): Record<string, unknown> | undefined {
+  if (body === undefined || body.length > 64 * 1024) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(body);
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function currentUiProof(evidence: Record<string, unknown> | undefined): boolean {
+  if (evidence === undefined || typeof evidence['diffHash'] !== 'string') return false;
+  const diffHash = evidence['diffHash'];
+  if (!SHA256.test(diffHash) || !Array.isArray(evidence['screenshots'])) return false;
+  if (!Array.isArray(evidence['tests'])) return false;
+  const screenshots = evidence['screenshots'].filter((item): item is Record<string, unknown> =>
+    typeof item === 'object' && item !== null && !Array.isArray(item)
+  );
+  const required = ['default:mobile', 'default:desktop', 'error:mobile', 'error:desktop'];
+  const covered = new Set(screenshots
+    .filter((shot) => shot['diffHash'] === diffHash)
+    .map((shot) => `${String(shot['state'])}:${String(shot['viewport'])}`));
+  const tests = evidence['tests'].filter((item): item is Record<string, unknown> =>
+    typeof item === 'object' && item !== null && !Array.isArray(item)
+  );
+  return required.every((key) => covered.has(key))
+    && tests.some((test) => test['status'] === 'passed' && test['diffHash'] === diffHash);
+}
+
+function craftFloor(evidence: Record<string, unknown> | undefined): boolean {
+  const scores = evidence?.['scores'];
+  if (typeof scores !== 'object' || scores === null || Array.isArray(scores)) return false;
+  const record = scores as Record<string, unknown>;
+  return UI_DIMENSIONS.every((dimension) =>
+    typeof record[dimension] === 'number'
+    && Number.isFinite(record[dimension])
+    && Number(record[dimension]) >= 8
+    && Number(record[dimension]) <= 10
+  );
+}
+
+export const uiCraftScorer = (outcome: RunOutcome): ScoreResult => {
+  const surface = Object.entries(outcome.files)
+    .filter(([path]) => /\.(?:html|css|tsx|jsx)$/.test(path))
+    .map(([, content]) => content)
+    .join('\n');
+  const evidence = uiEvidence(outcome.files['artifacts/ui-quality.json']);
+  const signals = {
+    avoidsGenericSlop: !/(?:linear-gradient|backdrop-filter|glass-card|build faster|ship smarter)/i.test(surface),
+    responsiveIntent: /@media\s*\(/.test(surface),
+    focusVisible: /:focus-visible/.test(surface),
+    stateCoverage: /data-state=["'][^"']+["']/.test(surface),
+    deterministicEvidence: currentUiProof(evidence),
+    craftFloor: craftFloor(evidence),
+  };
+  return { score: mean(Object.values(signals)), signals };
+};

@@ -36,15 +36,15 @@ await cp(SOURCE, TARGET, {
 });
 console.log(`copy-core-assets: copied ${SOURCE} -> ${TARGET}`);
 
-// Ship the frozen state inputs the `status` command reads (certification.json + model.json), so a
-// published npm tarball can render project health with no monorepo. Small JSON, not the 1.9MB bundle.
+// Ship the frozen state inputs the `status` command reads plus the canonical CatalogGraph v3, so a
+// published npm tarball can render project health with no monorepo and expose the versioned graph.
 const HG = resolve(HERE, '..', '..', 'harness-graph');
 const DATA = join(TARGET, 'data');
 await mkdir(DATA, { recursive: true });
-for (const f of ['certification.json', 'model.json']) {
+for (const f of ['catalog.v3.json', 'certification.json', 'model.json']) {
   await cp(join(HG, f), join(DATA, f));
 }
-console.log(`copy-core-assets: copied data (certification.json, model.json) -> ${DATA}`);
+console.log(`copy-core-assets: copied data (catalog.v3.json, certification.json, model.json) -> ${DATA}`);
 
 // Bundle each pack's skills so a --pack install can materialize them for Codex
 // (packs are not a separate npm package; without this a pack install on Codex

@@ -10,6 +10,8 @@ describe('eval case registry', () => {
       'tdd',
       'brainstorming',
       'security-audit',
+      'frontend-tdd',
+      'ui-craft',
       'mission-team',
     ]);
   });

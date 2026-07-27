@@ -40,6 +40,12 @@ De-gstackification Vague 4 (REBUILD). The gstack QA methodology (`/qa`, `/qa-onl
 
 claude-in-chrome drives the user's real interactive Chrome. QA in a headless cloud/cron session with no interactive browser is **out of scope** — a capability the browse daemon had and this does not. The skill states this rather than faking a result. If walk-away/headless QA is ever needed, that is a separate initiative (a headless driver), not this ticket.
 
+## DEV-444 evidence adaptation
+
+- `qa` remains the browser driver and now binds mobile/desktop applicable-state captures to the current diff.
+- Visual methodology stays in `ui-review`; independent verdict ownership stays with Visual Craft Director.
+- Missing browser proof blocks UI certification instead of falling back to model judgment.
+
 ## Dogfood (AC — observed 2026-07-10)
 
 Ran the skill end-to-end via claude-in-chrome against a real running app (`sesame`, an authenticated Next.js real-estate app on localhost:3000), report-only to protect live data. Exercised: `tabs_context_mcp` → new tab → navigate → Orient (nav map, framework, console) → Explore (dashboard, missions) → **empty state** (search with no match → clean "Aucun ordre…") → form input → console/network checks → responsive attempt. Surfaced two app findings (filter buttons with no accessible name; a subtitle count that ignores the active search filter) and one **skill/tooling** finding, folded back in: `resize_window` resized the window but the screenshot stayed desktop-width (1232px), i.e. no true mobile-viewport re-render on this setup — the skill's responsive step now says to verify the screenshot dimensions changed before trusting a "mobile" shot. AC "a full QA flow end-to-end on a real site, observed" met.

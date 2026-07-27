@@ -61,6 +61,8 @@ describe('codex adapter', () => {
     const outcome = await adapterFor('codex').wire(ctxFor(dir));
     expect(existsSync(join(dir, '.codex', 'hooks.json'))).toBe(true);
     expect(existsSync(join(dir, '.codex', 'agents', 'solution-architect.toml'))).toBe(true);
+    expect(existsSync(join(dir, '.codex', 'agents', 'experience-designer.toml'))).toBe(true);
+    expect(existsSync(join(dir, '.codex', 'agents', 'visual-craft-director.toml'))).toBe(true);
     expect(existsSync(join(dir, '.agents', 'skills', 'doctrine-critic', 'SKILL.md'))).toBe(false);
     expect(existsSync(join(dir, 'AGENTS.md'))).toBe(true);
     expect(existsSync(join(dir, 'CLAUDE.md'))).toBe(false);
@@ -139,6 +141,8 @@ describe('claude adapter', () => {
     expect(existsSync(join(dir, '.claude', 'skills', 'tdd', 'SKILL.md'))).toBe(true);
     expect(existsSync(join(dir, '.claude', 'agents', 'doctrine-critic.md'))).toBe(true);
     expect(existsSync(join(dir, '.claude', 'agents', 'security-engineer.md'))).toBe(true);
+    expect(existsSync(join(dir, '.claude', 'agents', 'experience-designer.md'))).toBe(true);
+    expect(existsSync(join(dir, '.claude', 'agents', 'visual-craft-director.md'))).toBe(true);
     expect(existsSync(join(dir, '.void', 'hooks', '_void-hook.mjs'))).toBe(true);
     expect(existsSync(join(dir, 'CLAUDE.md'))).toBe(true);
     expect(existsSync(join(dir, 'AGENTS.md'))).toBe(false);

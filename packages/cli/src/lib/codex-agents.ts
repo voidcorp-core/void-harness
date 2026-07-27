@@ -10,6 +10,13 @@ import { compileCodexSpecialist, tomlString } from './specialists/compile-codex.
 import { loadSpecialists } from './specialists/load.js';
 
 export const CODEX_AGENTS_DIR = '.codex/agents';
+export const NATIVE_SPECIALIST_NAMES = Object.freeze([
+  'solution-architect',
+  'security-engineer',
+  'test-qa-engineer',
+  'experience-designer',
+  'visual-craft-director',
+] as const);
 
 export interface CompiledCodexAgent {
   readonly name: string;
@@ -81,9 +88,8 @@ export interface CodexAgentHealth {
 
 /** Native specialist discovery health. Runtime sandbox strength is reported separately. */
 export async function codexSpecialistsHealth(projectRoot: string): Promise<CodexAgentHealth> {
-  const required = ['solution-architect', 'security-engineer', 'test-qa-engineer'];
   const missing: string[] = [];
-  for (const name of required) {
+  for (const name of NATIVE_SPECIALIST_NAMES) {
     const path = join(projectRoot, CODEX_AGENTS_DIR, `${name}.toml`);
     try {
       const metadata = await lstat(path);
@@ -107,6 +113,6 @@ export async function codexSpecialistsHealth(projectRoot: string): Promise<Codex
     }
   }
   return missing.length === 0
-    ? { ok: true, detail: '3 native specialist TOML files discovered' }
+    ? { ok: true, detail: `${NATIVE_SPECIALIST_NAMES.length} native specialist TOML files discovered` }
     : { ok: false, detail: `missing or invalid native specialists: ${missing.join(', ')}` };
 }

@@ -37,6 +37,16 @@ Every UI is designed mobile-first AND must reach first-class quality on both vie
 
 ---
 
+## Pre-build experience pass
+
+Before implementation, invoke `core:experience-designer` in a fresh read-only context with the
+ticket, product intent, `DESIGN.md`, and existing interface evidence. Its build brief names the IA,
+primary action, keyboard path, responsive intent, and applicable UI states. Missing or stale
+pre-build attestation blocks implementation. This skill consumes that brief and owns the build; it
+does not self-approve the post-build result.
+
+---
+
 ## Anti-AI-slop — banned patterns
 
 ### Banned copy
@@ -228,6 +238,7 @@ import { Button } from '@repo/ui';
 - **With `code-review`**: dimensions `readability` and `correctness` include UI quality flags.
 - **With `pack-nextjs`**: provides `@repo/ui` + design system tokens + Tailwind config + shadcn preset matching this discipline.
 - **With `harness:ui-review`**: the audit/critique ceiling to this build-time floor — it catches on an existing UI what this skill prevents while building. Downstream.
+- **With `core:experience-designer`**: the read-only pre-build brief upstream; this skill implements it without absorbing product or audit ownership.
 - **With `DESIGN.md`**: the brand contract (palette, type, motion, decisions) is UPSTREAM; this skill consumes it. The file is produced by `impeccable document`/`init` or authored by hand — the schema is the interface, not a gstack workflow.
 - **With `forge`** (voidcorp plugin): market recon, 12-dimension critique, and multi-variant design prompts live there (the design-shotgun/consultation exploration), bridged by the `docs/specs/` `source: forge` artifact contract, not a code dependency.
 

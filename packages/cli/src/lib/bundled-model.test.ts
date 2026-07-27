@@ -62,4 +62,22 @@ describe('resolveBundledModel', () => {
     const drifted = JSON.stringify({ ...MODEL, version: 2 });
     expect(() => resolveBundledModel(drifted, root)).toThrow(/version 2 does not match kernel 1/);
   });
+
+  it('rejects duplicate nodes and dangling relations before the v1 Studio projection', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-bundled-'));
+    expect(() => resolveBundledModel(JSON.stringify({
+      ...MODEL,
+      nodes: [MODEL.nodes[0], MODEL.nodes[0]],
+    }), root)).toThrow(/GRAPH_V1_INVALID/);
+    expect(() => resolveBundledModel(JSON.stringify({
+      ...MODEL,
+      edges: [{
+        from: 'skill:tdd',
+        to: 'skill:missing',
+        kind: 'invokes',
+        origin: 'declared',
+        evidence: 'invalid fixture',
+      }],
+    }), root)).toThrow(/GRAPH_V1_INVALID/);
+  });
 });

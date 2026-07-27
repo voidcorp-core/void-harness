@@ -57,6 +57,13 @@ test('retry', () => {
 
 For UI: query by accessible role / label, not by class or `data-testid`. `data-testid` is the escape hatch when no semantic query works, not the default.
 
+For interactive UI, pair the accessible query with the user input that proves the contract:
+`userEvent.keyboard` for keyboard paths, pointer input only for pointer behavior, and visible output
+for state transitions. Test loading, empty, error, success, and partial states only when applicable,
+but make that applicability explicit. Component, hook, and store tests stay at their observable
+boundaries; a broad E2E test does not substitute for the focused regression that identifies which
+contract broke.
+
 ### 2. Sociable tests over solitary tests
 
 Let collaborators run inside the test by default. Only mock at infrastructure boundaries:

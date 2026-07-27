@@ -9,7 +9,11 @@ import {
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { analyze, analyzeCost, parseActivations } from '@voidcorp/harness-graph';
-import type { GraphModel } from '@voidcorp/harness-graph';
+import {
+  adaptCatalogV1,
+  projectCatalogV3ToV1,
+  type GraphModel,
+} from '@voidcorp/harness-graph';
 import { extractMeta } from '../src/data/extract-meta.js';
 import {
   summarizeActivations,
@@ -57,7 +61,9 @@ function readMissionEvents(root: string): string {
 mkdirSync(outDir, { recursive: true });
 
 const modelText = readFileSync(resolve(repoRoot, 'packages/harness-graph/model.json'), 'utf8');
-const model = JSON.parse(modelText) as GraphModel;
+const model = projectCatalogV3ToV1(
+  adaptCatalogV1(JSON.parse(modelText) as GraphModel),
+);
 
 const activationBody = [
   readMissionEvents(repoRoot),

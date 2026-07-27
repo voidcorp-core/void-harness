@@ -16,6 +16,13 @@ const FIXTURE = join(
 const CORE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'core');
 
 describe('compileClaudeSpecialist', () => {
+  it('loads both UI specialists from the canonical core source', async () => {
+    await expect(loadSpecialists(CORE_ROOT)).resolves.toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'core:experience-designer' }),
+      expect.objectContaining({ id: 'core:visual-craft-director' }),
+    ]));
+  });
+
   it('matches the native Claude golden file', () => {
     expect(compileClaudeSpecialist(ARCHITECT_CONTRACT).content).toBe(readFileSync(FIXTURE, 'utf8'));
   });

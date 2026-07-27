@@ -1,8 +1,24 @@
 # @voidcorp/harness-graph
 
-The semantic graph kernel for the void-harness. Parses the installed harness
-(skills, hooks, agents, packs, commands) and produces `model.json` -- a
-snapshot of every node and every edge, both derived and declared.
+The semantic graph kernel for void-harness. CatalogGraph, MissionGraph,
+EvidenceGraph, and the future ProjectGraph share a strict node-link envelope at
+`schemaVersion: 3`. The source catalog still produces `model.json` as a read-only
+v1 projection so existing analyzers and Graph Studio migrate without a flag day.
+
+## Graph v3 envelope
+
+Every snapshot declares `graphId`, `graphType`, source kind/version/root hash,
+and bounded node, edge, and hyperedge collections. Entities have namespaced
+stable IDs, origin, confidence, and provenance. Timestamps are allowed only for
+observed relations. Invalid hashes, duplicate IDs, dangling relations, unsafe
+provenance paths, oversized inputs, and invalid deltas fail before projection.
+
+`catalog.v3.json` is the canonical catalog snapshot. `model.json` is generated
+from it through `projectCatalogV3ToV1`; the adapter validates first and never
+mutates either input. The reverse `adaptCatalogV1` path preserves every v1 node,
+edge, and legacy metadata. Rollback is therefore to keep `model.json`, restore
+direct v1 reads, and remove `catalog.v3.json`; schema v3 data remains readable by
+the versioned package API.
 
 ## Node types
 
@@ -14,6 +30,7 @@ snapshot of every node and every edge, both derived and declared.
 | `agent`        | `packages/core/agents/*/`                 | `agent:doctrine-critic`             |
 | `pack`         | `packages/packs/*/`                       | `pack:pack-nextjs`                  |
 | `command`      | `packages/core/commands/*/`               | `command:void-audit`                |
+| `profile`      | `packages/core/profiles/*.yaml`            | `profile:typescript`                |
 | `workflow-def` | `packages/core/workflows/*/`              | `workflow-def:backlog-autopilot`    |
 
 ## Edge kinds
@@ -41,7 +58,7 @@ be derived mechanically. Rules:
 - Quantity is not the goal. A dozen well-evidenced edges outperforms a hundred
   invented ones.
 
-## model.json
+## Catalog artifacts
 
 Generated file. Do not edit by hand.
 
@@ -51,8 +68,9 @@ Regenerate after any harness change:
 void-harness graph build
 ```
 
-Then commit the updated `model.json`. The CI drift gate (`void-harness graph check`)
-fails if the committed model diverges from a fresh build.
+Then commit `catalog.v3.json` and its generated `model.json` compatibility
+projection. The CI drift gate (`void-harness graph check`) fails if either
+artifact diverges from a fresh validated build.
 
 ## Audit
 
@@ -69,7 +87,7 @@ void-harness graph audit
 void-harness graph live [--port 4317] [--log <legacy-or-canonical.jsonl>] [--history-max 5000]
 ```
 
-Serves the model + a reconnectable SSE projection of canonical mission events
+Serves `/catalog.v3.json`, the `/model.json` v1 projection, and a reconnectable SSE projection of canonical mission events
 from `.void/runs/*/events.jsonl`. The printed one-shot URL exchanges its token
 for a local HttpOnly cookie; model, history, studio data and SSE are protected.
 Legacy activation logs remain readable through `--log`. The Studio can also

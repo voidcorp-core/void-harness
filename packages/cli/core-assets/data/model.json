@@ -2,545 +2,638 @@
   "version": 1,
   "nodes": [
     {
-      "id": "agent:code-explorer",
-      "type": "agent",
-      "name": "code-explorer",
       "description": "Read-only mapper of an unfamiliar codebase. Returns a compact structured map — entrypoints, main flows, dependencies, where things live. Does not judge or fix. Protects the main context window.",
+      "id": "agent:code-explorer",
       "lines": 95,
+      "name": "code-explorer",
+      "pack": null,
+      "source": "packages/core/agents/code-explorer.md",
       "staticTokens": 1019,
-      "pack": null,
-      "source": "packages/core/agents/code-explorer.md"
+      "type": "agent"
     },
     {
-      "id": "agent:doctrine-critic",
-      "type": "agent",
-      "name": "doctrine-critic",
       "description": "Judges a diff against VoidCorp doctrine that hooks/reviewers miss: weak tests, over-abstraction, broken boundaries, anti-bloat. Read-only; routes security to security-audit, bugs to /code-review.",
+      "id": "agent:doctrine-critic",
       "lines": 90,
+      "name": "doctrine-critic",
+      "pack": null,
+      "source": "packages/core/agents/doctrine-critic.md",
       "staticTokens": 1090,
-      "pack": null,
-      "source": "packages/core/agents/doctrine-critic.md"
+      "type": "agent"
     },
     {
-      "id": "agent:migration-planner",
-      "type": "agent",
-      "name": "migration-planner",
+      "description": "Produces a build-ready UX brief from product intent, states, responsive needs, and accessibility constraints before UI implementation.",
+      "id": "agent:experience-designer",
+      "lines": 54,
+      "name": "experience-designer",
+      "pack": null,
+      "source": "packages/core/agents/experience-designer.md",
+      "staticTokens": 766,
+      "type": "agent"
+    },
+    {
       "description": "Read-only planner producing a sequenced, reversible migration plan (expand-contract, two-phase). Planning only, never execution. Complements migrations-safety; routes execution to tdd/writing-plans.",
+      "id": "agent:migration-planner",
       "lines": 98,
+      "name": "migration-planner",
+      "pack": null,
+      "source": "packages/core/agents/migration-planner.md",
       "staticTokens": 1158,
-      "pack": null,
-      "source": "packages/core/agents/migration-planner.md"
+      "type": "agent"
     },
     {
-      "id": "agent:security-engineer",
-      "type": "agent",
-      "name": "security-engineer",
       "description": "Reviews concrete trust boundaries and exploitable security risk without editing or attacking systems.",
+      "id": "agent:security-engineer",
       "lines": 54,
+      "name": "security-engineer",
+      "pack": null,
+      "source": "packages/core/agents/security-engineer.md",
       "staticTokens": 681,
-      "pack": null,
-      "source": "packages/core/agents/security-engineer.md"
+      "type": "agent"
     },
     {
-      "id": "agent:silent-failure-hunter",
-      "type": "agent",
-      "name": "silent-failure-hunter",
       "description": "Read-only hunter for silent failures only — empty catches, swallowed errors, un-awaited promises, ignored return codes, .catch(()=>{}). Not a general review. Routes bugs to /code-review.",
+      "id": "agent:silent-failure-hunter",
       "lines": 95,
+      "name": "silent-failure-hunter",
+      "pack": null,
+      "source": "packages/core/agents/silent-failure-hunter.md",
       "staticTokens": 1167,
-      "pack": null,
-      "source": "packages/core/agents/silent-failure-hunter.md"
+      "type": "agent"
     },
     {
-      "id": "agent:solution-architect",
-      "type": "agent",
-      "name": "solution-architect",
       "description": "Reviews architecture boundaries, trade-offs, and reversibility without editing the project.",
+      "id": "agent:solution-architect",
       "lines": 52,
+      "name": "solution-architect",
+      "pack": null,
+      "source": "packages/core/agents/solution-architect.md",
       "staticTokens": 662,
-      "pack": null,
-      "source": "packages/core/agents/solution-architect.md"
+      "type": "agent"
     },
     {
-      "id": "agent:test-qa-engineer",
-      "type": "agent",
-      "name": "test-qa-engineer",
       "description": "Reviews behavioral coverage, failure paths, and release evidence without editing the project.",
+      "id": "agent:test-qa-engineer",
       "lines": 54,
+      "name": "test-qa-engineer",
+      "pack": null,
+      "source": "packages/core/agents/test-qa-engineer.md",
       "staticTokens": 667,
-      "pack": null,
-      "source": "packages/core/agents/test-qa-engineer.md"
+      "type": "agent"
     },
     {
-      "id": "agent:type-design-analyzer",
-      "type": "agent",
-      "name": "type-design-analyzer",
       "description": "Read-only judge of TYPE DESIGN only — illegal states representable, primitive obsession, missing discriminated unions, leaky boundary types. Not a general review. Routes bugs to /code-review.",
+      "id": "agent:type-design-analyzer",
       "lines": 94,
+      "name": "type-design-analyzer",
+      "pack": null,
+      "source": "packages/core/agents/type-design-analyzer.md",
       "staticTokens": 1180,
-      "pack": null,
-      "source": "packages/core/agents/type-design-analyzer.md"
+      "type": "agent"
     },
     {
-      "id": "command:backlog-autopilot",
-      "type": "command",
-      "name": "backlog-autopilot",
+      "description": "Independently reviews rendered UI craft, responsive states, accessibility, and current-diff visual evidence after implementation.",
+      "id": "agent:visual-craft-director",
+      "lines": 57,
+      "name": "visual-craft-director",
+      "pack": null,
+      "source": "packages/core/agents/visual-craft-director.md",
+      "staticTokens": 813,
+      "type": "agent"
+    },
+    {
       "description": "Attended parallel backlog drain — work several independent Linear tickets at once, each in its own worktree subagent, reconciled into one integration PR. Opt-in, needs the Workflow tool.",
+      "id": "command:backlog-autopilot",
       "lines": 33,
+      "name": "backlog-autopilot",
+      "pack": null,
+      "source": "packages/core/commands/backlog-autopilot.md",
       "staticTokens": 575,
-      "pack": null,
-      "source": "packages/core/commands/backlog-autopilot.md"
+      "type": "command"
     },
     {
-      "id": "command:void-audit",
-      "type": "command",
-      "name": "void-audit",
       "description": "Run the outbound audit from local mission events and surface stale skills, upstream deprecations, conflicts, and HITL proposals.",
+      "id": "command:void-audit",
       "lines": 13,
+      "name": "void-audit",
+      "pack": null,
+      "source": "packages/core/commands/void-audit.md",
       "staticTokens": 172,
-      "pack": null,
-      "source": "packages/core/commands/void-audit.md"
+      "type": "command"
     },
     {
-      "id": "command:void-doctor",
-      "type": "command",
-      "name": "void-doctor",
       "description": "Run harness health checks for config, doctrine, runtime wiring, lifecycle proof, optional marketplace access, and version drift.",
+      "id": "command:void-doctor",
       "lines": 13,
+      "name": "void-doctor",
+      "pack": null,
+      "source": "packages/core/commands/void-doctor.md",
       "staticTokens": 143,
-      "pack": null,
-      "source": "packages/core/commands/void-doctor.md"
+      "type": "command"
     },
     {
-      "id": "command:void-feedback",
-      "type": "command",
-      "name": "void-feedback",
       "description": "File a void-harness feedback issue (a gap or friction in the harness) directly on voidcorp-core/void-harness. HITL — drafted, confirmed, then opened; never fixes the harness from here.",
+      "id": "command:void-feedback",
       "lines": 27,
+      "name": "void-feedback",
+      "pack": null,
+      "source": "packages/core/commands/void-feedback.md",
       "staticTokens": 404,
-      "pack": null,
-      "source": "packages/core/commands/void-feedback.md"
+      "type": "command"
     },
     {
-      "id": "command:void-graph",
-      "type": "command",
-      "name": "void-graph",
       "description": "Run the bundled void-graph on the installed harness — no arg opens the local live studio (localhost, offline); audit/cost/behavior print a terminal report of dead/underused/expensive components.",
+      "id": "command:void-graph",
       "lines": 34,
+      "name": "void-graph",
+      "pack": null,
+      "source": "packages/core/commands/void-graph.md",
       "staticTokens": 485,
-      "pack": null,
-      "source": "packages/core/commands/void-graph.md"
+      "type": "command"
     },
     {
+      "description": "",
       "id": "hook:_checks",
-      "type": "hook",
-      "name": "_checks",
-      "description": "",
       "lines": 146,
+      "name": "_checks",
+      "pack": null,
+      "source": "packages/core/hooks/_checks.sh",
       "staticTokens": 2113,
-      "pack": null,
-      "source": "packages/core/hooks/_checks.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:_hooklib",
-      "type": "hook",
-      "name": "_hooklib",
-      "description": "",
       "lines": 164,
+      "name": "_hooklib",
+      "pack": null,
+      "source": "packages/core/hooks/_hooklib.sh",
       "staticTokens": 1969,
-      "pack": null,
-      "source": "packages/core/hooks/_hooklib.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:activation-meter",
-      "type": "hook",
+      "lines": 14,
       "name": "activation-meter",
-      "description": "",
-      "lines": 14,
+      "pack": null,
+      "source": "packages/core/hooks/activation-meter.sh",
       "staticTokens": 108,
-      "pack": null,
-      "source": "packages/core/hooks/activation-meter.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:anti-ai-slop-grep",
-      "type": "hook",
-      "name": "anti-ai-slop-grep",
-      "description": "",
       "lines": 39,
+      "name": "anti-ai-slop-grep",
+      "pack": null,
+      "source": "packages/core/hooks/anti-ai-slop-grep.sh",
       "staticTokens": 366,
-      "pack": null,
-      "source": "packages/core/hooks/anti-ai-slop-grep.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:auto-format",
-      "type": "hook",
+      "lines": 10,
       "name": "auto-format",
-      "description": "",
-      "lines": 10,
-      "staticTokens": 84,
       "pack": null,
-      "source": "packages/core/hooks/auto-format.sh"
+      "source": "packages/core/hooks/auto-format.sh",
+      "staticTokens": 84,
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:axe-precommit",
-      "type": "hook",
-      "name": "axe-precommit",
-      "description": "",
       "lines": 36,
+      "name": "axe-precommit",
+      "pack": null,
+      "source": "packages/core/hooks/axe-precommit.sh",
       "staticTokens": 329,
-      "pack": null,
-      "source": "packages/core/hooks/axe-precommit.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:block-dangerous-bash",
-      "type": "hook",
+      "lines": 11,
       "name": "block-dangerous-bash",
-      "description": "",
-      "lines": 11,
-      "staticTokens": 96,
       "pack": null,
-      "source": "packages/core/hooks/block-dangerous-bash.sh"
+      "source": "packages/core/hooks/block-dangerous-bash.sh",
+      "staticTokens": 96,
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:block-protected-push",
-      "type": "hook",
-      "name": "block-protected-push",
-      "description": "",
       "lines": 82,
+      "name": "block-protected-push",
+      "pack": null,
+      "source": "packages/core/hooks/block-protected-push.sh",
       "staticTokens": 971,
-      "pack": null,
-      "source": "packages/core/hooks/block-protected-push.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:boundary-direction-check",
-      "type": "hook",
+      "lines": 11,
       "name": "boundary-direction-check",
-      "description": "",
-      "lines": 11,
+      "pack": null,
+      "source": "packages/core/hooks/boundary-direction-check.sh",
       "staticTokens": 96,
-      "pack": null,
-      "source": "packages/core/hooks/boundary-direction-check.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:large-cl-grep",
-      "type": "hook",
+      "lines": 10,
       "name": "large-cl-grep",
-      "description": "",
-      "lines": 10,
-      "staticTokens": 83,
       "pack": null,
-      "source": "packages/core/hooks/large-cl-grep.sh"
+      "source": "packages/core/hooks/large-cl-grep.sh",
+      "staticTokens": 83,
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:llm-cost-precommit",
-      "type": "hook",
+      "lines": 56,
       "name": "llm-cost-precommit",
-      "description": "",
-      "lines": 56,
+      "pack": null,
+      "source": "packages/core/hooks/llm-cost-precommit.sh",
       "staticTokens": 538,
-      "pack": null,
-      "source": "packages/core/hooks/llm-cost-precommit.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:migration-lint",
-      "type": "hook",
+      "lines": 59,
       "name": "migration-lint",
-      "description": "",
-      "lines": 59,
+      "pack": null,
+      "source": "packages/core/hooks/migration-lint.sh",
       "staticTokens": 644,
-      "pack": null,
-      "source": "packages/core/hooks/migration-lint.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:migration-pr-template",
-      "type": "hook",
-      "name": "migration-pr-template",
-      "description": "",
       "lines": 56,
+      "name": "migration-pr-template",
+      "pack": null,
+      "source": "packages/core/hooks/migration-pr-template.sh",
       "staticTokens": 429,
-      "pack": null,
-      "source": "packages/core/hooks/migration-pr-template.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:no-ai-design-slop",
-      "type": "hook",
+      "lines": 11,
       "name": "no-ai-design-slop",
-      "description": "",
-      "lines": 11,
-      "staticTokens": 94,
       "pack": null,
-      "source": "packages/core/hooks/no-ai-design-slop.sh"
+      "source": "packages/core/hooks/no-ai-design-slop.sh",
+      "staticTokens": 94,
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:no-any-grep",
-      "type": "hook",
+      "lines": 11,
       "name": "no-any-grep",
-      "description": "",
-      "lines": 11,
-      "staticTokens": 93,
       "pack": null,
-      "source": "packages/core/hooks/no-any-grep.sh"
+      "source": "packages/core/hooks/no-any-grep.sh",
+      "staticTokens": 93,
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:no-as-cast-grep",
-      "type": "hook",
+      "lines": 11,
       "name": "no-as-cast-grep",
-      "description": "",
-      "lines": 11,
-      "staticTokens": 94,
       "pack": null,
-      "source": "packages/core/hooks/no-as-cast-grep.sh"
+      "source": "packages/core/hooks/no-as-cast-grep.sh",
+      "staticTokens": 94,
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:no-console-log-grep",
-      "type": "hook",
+      "lines": 11,
       "name": "no-console-log-grep",
-      "description": "",
-      "lines": 11,
-      "staticTokens": 94,
       "pack": null,
-      "source": "packages/core/hooks/no-console-log-grep.sh"
+      "source": "packages/core/hooks/no-console-log-grep.sh",
+      "staticTokens": 94,
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:no-null-grep",
-      "type": "hook",
+      "lines": 11,
       "name": "no-null-grep",
-      "description": "",
-      "lines": 11,
+      "pack": null,
+      "source": "packages/core/hooks/no-null-grep.sh",
       "staticTokens": 93,
-      "pack": null,
-      "source": "packages/core/hooks/no-null-grep.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:no-only-no-skip",
-      "type": "hook",
+      "lines": 11,
       "name": "no-only-no-skip",
-      "description": "",
-      "lines": 11,
-      "staticTokens": 95,
       "pack": null,
-      "source": "packages/core/hooks/no-only-no-skip.sh"
+      "source": "packages/core/hooks/no-only-no-skip.sh",
+      "staticTokens": 95,
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:outcome-meter",
-      "type": "hook",
-      "name": "outcome-meter",
-      "description": "",
       "lines": 14,
+      "name": "outcome-meter",
+      "pack": null,
+      "source": "packages/core/hooks/outcome-meter.sh",
       "staticTokens": 104,
-      "pack": null,
-      "source": "packages/core/hooks/outcome-meter.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:pre-PR-review-evidence",
-      "type": "hook",
-      "name": "pre-PR-review-evidence",
-      "description": "",
       "lines": 48,
+      "name": "pre-PR-review-evidence",
+      "pack": null,
+      "source": "packages/core/hooks/pre-PR-review-evidence.sh",
       "staticTokens": 375,
-      "pack": null,
-      "source": "packages/core/hooks/pre-PR-review-evidence.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:protect-sensitive-files",
-      "type": "hook",
+      "lines": 11,
       "name": "protect-sensitive-files",
-      "description": "",
-      "lines": 11,
-      "staticTokens": 95,
       "pack": null,
-      "source": "packages/core/hooks/protect-sensitive-files.sh"
+      "source": "packages/core/hooks/protect-sensitive-files.sh",
+      "staticTokens": 95,
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:refactor-named-grep",
-      "type": "hook",
-      "name": "refactor-named-grep",
-      "description": "",
       "lines": 50,
+      "name": "refactor-named-grep",
+      "pack": null,
+      "source": "packages/core/hooks/refactor-named-grep.sh",
       "staticTokens": 368,
-      "pack": null,
-      "source": "packages/core/hooks/refactor-named-grep.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:secret-in-content",
-      "type": "hook",
+      "lines": 11,
       "name": "secret-in-content",
-      "description": "",
-      "lines": 11,
+      "pack": null,
+      "source": "packages/core/hooks/secret-in-content.sh",
       "staticTokens": 95,
-      "pack": null,
-      "source": "packages/core/hooks/secret-in-content.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:sessionstart-context",
-      "type": "hook",
+      "lines": 10,
       "name": "sessionstart-context",
-      "description": "",
-      "lines": 10,
-      "staticTokens": 84,
       "pack": null,
-      "source": "packages/core/hooks/sessionstart-context.sh"
+      "source": "packages/core/hooks/sessionstart-context.sh",
+      "staticTokens": 84,
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:stop-typecheck",
-      "type": "hook",
+      "lines": 10,
       "name": "stop-typecheck",
-      "description": "",
-      "lines": 10,
+      "pack": null,
+      "source": "packages/core/hooks/stop-typecheck.sh",
       "staticTokens": 84,
-      "pack": null,
-      "source": "packages/core/hooks/stop-typecheck.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:tdd-guard",
-      "type": "hook",
+      "lines": 11,
       "name": "tdd-guard",
-      "description": "",
-      "lines": 11,
-      "staticTokens": 94,
       "pack": null,
-      "source": "packages/core/hooks/tdd-guard.sh"
+      "source": "packages/core/hooks/tdd-guard.sh",
+      "staticTokens": 94,
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:test-name-lint",
-      "type": "hook",
-      "name": "test-name-lint",
-      "description": "",
       "lines": 11,
+      "name": "test-name-lint",
+      "pack": null,
+      "source": "packages/core/hooks/test-name-lint.sh",
       "staticTokens": 94,
-      "pack": null,
-      "source": "packages/core/hooks/test-name-lint.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:tidying-commit-prefix",
-      "type": "hook",
-      "name": "tidying-commit-prefix",
-      "description": "",
       "lines": 38,
+      "name": "tidying-commit-prefix",
+      "pack": null,
+      "source": "packages/core/hooks/tidying-commit-prefix.sh",
       "staticTokens": 300,
-      "pack": null,
-      "source": "packages/core/hooks/tidying-commit-prefix.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:trim-large-output",
-      "type": "hook",
-      "name": "trim-large-output",
-      "description": "",
       "lines": 10,
+      "name": "trim-large-output",
+      "pack": null,
+      "source": "packages/core/hooks/trim-large-output.sh",
       "staticTokens": 83,
-      "pack": null,
-      "source": "packages/core/hooks/trim-large-output.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:tsc-noemit-precommit",
-      "type": "hook",
-      "name": "tsc-noemit-precommit",
-      "description": "",
       "lines": 23,
+      "name": "tsc-noemit-precommit",
+      "pack": null,
+      "source": "packages/core/hooks/tsc-noemit-precommit.sh",
       "staticTokens": 192,
-      "pack": null,
-      "source": "packages/core/hooks/tsc-noemit-precommit.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:ubiquitous-language-lint",
-      "type": "hook",
-      "name": "ubiquitous-language-lint",
-      "description": "",
       "lines": 59,
+      "name": "ubiquitous-language-lint",
+      "pack": null,
+      "source": "packages/core/hooks/ubiquitous-language-lint.sh",
       "staticTokens": 533,
-      "pack": null,
-      "source": "packages/core/hooks/ubiquitous-language-lint.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "hook:viewport-screenshot-gate",
-      "type": "hook",
-      "name": "viewport-screenshot-gate",
-      "description": "",
       "lines": 49,
+      "name": "viewport-screenshot-gate",
+      "pack": null,
+      "source": "packages/core/hooks/viewport-screenshot-gate.sh",
       "staticTokens": 544,
-      "pack": null,
-      "source": "packages/core/hooks/viewport-screenshot-gate.sh"
+      "type": "hook"
     },
     {
+      "description": "",
       "id": "pack:pack-mobile",
-      "type": "pack",
+      "lines": 0,
       "name": "pack-mobile",
-      "description": "",
-      "lines": 0,
-      "staticTokens": 0,
       "pack": null,
-      "source": "packages/packs/pack-mobile"
+      "source": "packages/packs/pack-mobile",
+      "staticTokens": 0,
+      "type": "pack"
     },
     {
+      "description": "",
       "id": "pack:pack-monorepo",
-      "type": "pack",
+      "lines": 0,
       "name": "pack-monorepo",
-      "description": "",
-      "lines": 0,
-      "staticTokens": 0,
       "pack": null,
-      "source": "packages/packs/pack-monorepo"
+      "source": "packages/packs/pack-monorepo",
+      "staticTokens": 0,
+      "type": "pack"
     },
     {
+      "description": "",
       "id": "pack:pack-nextjs",
-      "type": "pack",
+      "lines": 0,
       "name": "pack-nextjs",
-      "description": "",
-      "lines": 0,
-      "staticTokens": 0,
       "pack": null,
-      "source": "packages/packs/pack-nextjs"
+      "source": "packages/packs/pack-nextjs",
+      "staticTokens": 0,
+      "type": "pack"
     },
     {
+      "description": "",
       "id": "pack:pack-pwa",
-      "type": "pack",
+      "lines": 0,
       "name": "pack-pwa",
-      "description": "",
-      "lines": 0,
-      "staticTokens": 0,
       "pack": null,
-      "source": "packages/packs/pack-pwa"
+      "source": "packages/packs/pack-pwa",
+      "staticTokens": 0,
+      "type": "pack"
     },
     {
+      "description": "",
       "id": "pack:pack-react",
-      "type": "pack",
+      "lines": 0,
       "name": "pack-react",
-      "description": "",
-      "lines": 0,
-      "staticTokens": 0,
       "pack": null,
-      "source": "packages/packs/pack-react"
+      "source": "packages/packs/pack-react",
+      "staticTokens": 0,
+      "type": "pack"
     },
     {
+      "description": "",
       "id": "pack:pack-server",
-      "type": "pack",
-      "name": "pack-server",
-      "description": "",
       "lines": 0,
-      "staticTokens": 0,
+      "name": "pack-server",
       "pack": null,
-      "source": "packages/packs/pack-server"
+      "source": "packages/packs/pack-server",
+      "staticTokens": 0,
+      "type": "pack"
     },
     {
-      "id": "skill:accessibility-first",
-      "type": "skill",
-      "name": "accessibility-first",
-      "description": "WCAG 2.2 AA floor. Radix primitives only, touch >=44x44, keyboard parity, semantic HTML, form labels, aria-live errors, mobile-first dual-quality. Use when building or modifying UI.",
-      "lines": 288,
-      "staticTokens": 2256,
+      "description": "",
+      "id": "profile:base",
+      "lines": 30,
+      "name": "base",
       "pack": null,
-      "source": "packages/core/skills/accessibility-first/SKILL.md",
-      "triggers": {
-        "extensions": [
-          "tsx"
-        ]
-      },
+      "source": "packages/core/profiles/base.yaml",
+      "staticTokens": 184,
+      "type": "profile"
+    },
+    {
+      "description": "",
+      "id": "profile:expo",
+      "lines": 46,
+      "name": "expo",
+      "pack": null,
+      "source": "packages/core/profiles/expo.yaml",
+      "staticTokens": 369,
+      "type": "profile"
+    },
+    {
+      "description": "",
+      "id": "profile:monorepo",
+      "lines": 35,
+      "name": "monorepo",
+      "pack": null,
+      "source": "packages/core/profiles/monorepo.yaml",
+      "staticTokens": 273,
+      "type": "profile"
+    },
+    {
+      "description": "",
+      "id": "profile:nextjs",
+      "lines": 41,
+      "name": "nextjs",
+      "pack": null,
+      "source": "packages/core/profiles/nextjs.yaml",
+      "staticTokens": 300,
+      "type": "profile"
+    },
+    {
+      "description": "",
+      "id": "profile:node-server",
+      "lines": 33,
+      "name": "node-server",
+      "pack": null,
+      "source": "packages/core/profiles/node-server.yaml",
+      "staticTokens": 256,
+      "type": "profile"
+    },
+    {
+      "description": "",
+      "id": "profile:pwa",
+      "lines": 35,
+      "name": "pwa",
+      "pack": null,
+      "source": "packages/core/profiles/pwa.yaml",
+      "staticTokens": 285,
+      "type": "profile"
+    },
+    {
+      "description": "",
+      "id": "profile:react",
+      "lines": 41,
+      "name": "react",
+      "pack": null,
+      "source": "packages/core/profiles/react.yaml",
+      "staticTokens": 264,
+      "type": "profile"
+    },
+    {
+      "description": "",
+      "id": "profile:sql",
+      "lines": 43,
+      "name": "sql",
+      "pack": null,
+      "source": "packages/core/profiles/sql.yaml",
+      "staticTokens": 324,
+      "type": "profile"
+    },
+    {
+      "description": "",
+      "id": "profile:typescript",
+      "lines": 41,
+      "name": "typescript",
+      "pack": null,
+      "source": "packages/core/profiles/typescript.yaml",
+      "staticTokens": 285,
+      "type": "profile"
+    },
+    {
       "activation": "always",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
+      "description": "WCAG 2.2 AA floor. Radix primitives only, touch >=44x44, keyboard parity, semantic HTML, form labels, aria-live errors, mobile-first dual-quality. Use when building or modifying UI.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -551,26 +644,31 @@
       },
       "evalTargets": [
         {
-          "runtime": "claude",
           "provider": "anthropic",
+          "runtime": "claude",
           "tier": "opus"
         }
-      ]
-    },
-    {
-      "id": "skill:adr-workflow",
-      "type": "skill",
-      "name": "adr-workflow",
-      "description": "Capture structural choices as one immutable ADR file with collision-free identity, explicit alternatives, reversal cost, and supersession. Use when future code depends on why.",
-      "lines": 148,
-      "staticTokens": 1072,
-      "pack": null,
-      "source": "packages/core/skills/adr-workflow/SKILL.md",
+      ],
+      "id": "skill:accessibility-first",
+      "lines": 288,
+      "name": "accessibility-first",
       "owner": "folpe",
+      "pack": null,
       "runtimes": [
         "claude",
         "codex"
       ],
+      "source": "packages/core/skills/accessibility-first/SKILL.md",
+      "staticTokens": 2256,
+      "triggers": {
+        "extensions": [
+          "tsx"
+        ]
+      },
+      "type": "skill"
+    },
+    {
+      "description": "Capture structural choices as one immutable ADR file with collision-free identity, explicit alternatives, reversal cost, and supersession. Use when future code depends on why.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -581,21 +679,52 @@
       },
       "evalTargets": [
         {
-          "runtime": "claude",
           "provider": "anthropic",
+          "runtime": "claude",
           "tier": "opus"
         }
-      ]
+      ],
+      "id": "skill:adr-workflow",
+      "lines": 148,
+      "name": "adr-workflow",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/adr-workflow/SKILL.md",
+      "staticTokens": 1072,
+      "type": "skill"
     },
     {
-      "id": "skill:api-and-interface-design",
-      "type": "skill",
-      "name": "api-and-interface-design",
       "description": "Contract-first design of any public interface — package exports, HTTP/REST, RPC/tRPC, SDK, module boundary. Minimal surface, stable boundary types, versioning. Use when shaping a public API.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:api-and-interface-design",
       "lines": 243,
-      "staticTokens": 3421,
+      "name": "api-and-interface-design",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/api-and-interface-design/SKILL.md",
+      "staticTokens": 3421,
       "triggers": {
         "globs": [
           "**/src/index.ts",
@@ -604,11 +733,10 @@
           "**/trpc/**/router.ts"
         ]
       },
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
+      "type": "skill"
+    },
+    {
+      "description": "Idempotency by design. At-least-once with consumer dedup. Signature verify, replay window, idempotency keys, outbox, bounded retries, DLQ. Use for async/webhook/job/cron code.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -619,21 +747,22 @@
       },
       "evalTargets": [
         {
-          "runtime": "claude",
           "provider": "anthropic",
+          "runtime": "claude",
           "tier": "opus"
         }
-      ]
-    },
-    {
+      ],
       "id": "skill:async-safety",
-      "type": "skill",
-      "name": "async-safety",
-      "description": "Idempotency by design. At-least-once with consumer dedup. Signature verify, replay window, idempotency keys, outbox, bounded retries, DLQ. Use for async/webhook/job/cron code.",
       "lines": 299,
-      "staticTokens": 3100,
+      "name": "async-safety",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/async-safety/SKILL.md",
+      "staticTokens": 3100,
       "triggers": {
         "globs": [
           "**/webhooks/**",
@@ -644,224 +773,193 @@
           "**/*.worker.ts"
         ]
       },
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "type": "skill"
     },
     {
-      "id": "skill:backlog-autopilot",
-      "type": "skill",
-      "name": "backlog-autopilot",
       "description": "Opt-in parallel drain of independent Linear tickets, each in its own worktree subagent, reconciled into one integration PR gated by the full suite. Use when clearing independent tickets at once.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:backlog-autopilot",
       "lines": 248,
-      "staticTokens": 3796,
+      "name": "backlog-autopilot",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/backlog-autopilot/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 3796,
+      "type": "skill"
     },
     {
-      "id": "skill:brainstorming",
-      "type": "skill",
-      "name": "brainstorming",
       "description": "Explore intent before code: pressure-test a raw idea, one question at a time, 2-3 approaches, design in sections, spec written and approved. HARD GATE — no code until the spec is approved.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:brainstorming",
       "lines": 234,
-      "staticTokens": 3523,
+      "name": "brainstorming",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/brainstorming/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 3523,
+      "type": "skill"
     },
     {
-      "id": "skill:claude-md-authoring",
-      "type": "skill",
-      "name": "claude-md-authoring",
       "description": "Author a lean, runnable CLAUDE.md (or AGENTS.md). Only universal instructions; defer detail to docs; push style to linters and certainties to hooks. Use when writing or auditing a project CLAUDE.md.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:claude-md-authoring",
       "lines": 190,
-      "staticTokens": 2695,
+      "name": "claude-md-authoring",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/claude-md-authoring/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 2695,
+      "type": "skill"
     },
     {
-      "id": "skill:code-review",
-      "type": "skill",
-      "name": "code-review",
+      "activation": "always",
       "description": "Pre-PR critical pass. Six dimensions (correctness, tests, security, structure, readability, perf). Two modes (strict/souple). Composes the native /code-review and codex CLI. Use on a diff.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:code-review",
       "lines": 229,
-      "staticTokens": 2766,
+      "name": "code-review",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/code-review/SKILL.md",
-      "activation": "always",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 2766,
+      "type": "skill"
     },
     {
-      "id": "skill:commit-discipline",
-      "type": "skill",
-      "name": "commit-discipline",
+      "activation": "always",
       "description": "Conventional Commits + mandatory \"why\" in body + scope + breaking-change marking. ASCII-only (no em dash, no emoji). Co-author trailer for AI pair. The git log is documentation. Use at every commit.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:commit-discipline",
       "lines": 222,
-      "staticTokens": 1926,
+      "name": "commit-discipline",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/commit-discipline/SKILL.md",
-      "activation": "always",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1926,
+      "type": "skill"
     },
     {
-      "id": "skill:context-management",
-      "type": "skill",
-      "name": "context-management",
       "description": "Context is the agent's core constraint. Use when a task spans many files, a session mixes subjects, corrections loop, or replies forget earlier constraints. Clear, compact, delegate to subagents.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:context-management",
       "lines": 171,
-      "staticTokens": 2634,
+      "name": "context-management",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/context-management/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 2634,
+      "type": "skill"
     },
     {
-      "id": "skill:devex-audit",
-      "type": "skill",
-      "name": "devex-audit",
-      "description": "Audit an EXISTING dev-facing surface (API/CLI/SDK/docs): measured TTHW, real error-path tracing, evidence-backed DX scorecard, scoped refine. The audit ceiling to plan-review's DevEx-lens.",
-      "lines": 124,
-      "staticTokens": 2145,
-      "pack": null,
-      "source": "packages/core/skills/devex-audit/SKILL.md",
       "activation": "on-demand",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
+      "description": "Audit an EXISTING dev-facing surface (API/CLI/SDK/docs): measured TTHW, real error-path tracing, evidence-backed DX scorecard, scoped refine. The audit ceiling to plan-review's DevEx-lens.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -872,27 +970,27 @@
       },
       "evalTargets": [
         {
-          "runtime": "claude",
           "provider": "anthropic",
+          "runtime": "claude",
           "tier": "opus"
         }
-      ]
-    },
-    {
-      "id": "skill:domain-driven-design",
-      "type": "skill",
-      "name": "domain-driven-design",
-      "description": "Bounded contexts, aggregates as consistency boundaries, value objects as branded types, always-valid domain, ubiquitous language. No CQRS, event sourcing, or generic Repository<T>. Use on the domain.",
-      "lines": 303,
-      "staticTokens": 3180,
-      "pack": null,
-      "source": "packages/core/skills/domain-driven-design/SKILL.md",
-      "activation": "always",
+      ],
+      "id": "skill:devex-audit",
+      "lines": 124,
+      "name": "devex-audit",
       "owner": "folpe",
+      "pack": null,
       "runtimes": [
         "claude",
         "codex"
       ],
+      "source": "packages/core/skills/devex-audit/SKILL.md",
+      "staticTokens": 2145,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "Bounded contexts, aggregates as consistency boundaries, value objects as branded types, always-valid domain, ubiquitous language. No CQRS, event sourcing, or generic Repository<T>. Use on the domain.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -903,124 +1001,124 @@
       },
       "evalTargets": [
         {
-          "runtime": "claude",
           "provider": "anthropic",
+          "runtime": "claude",
           "tier": "opus"
         }
-      ]
+      ],
+      "id": "skill:domain-driven-design",
+      "lines": 303,
+      "name": "domain-driven-design",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/domain-driven-design/SKILL.md",
+      "staticTokens": 3180,
+      "type": "skill"
     },
     {
-      "id": "skill:frontend-design",
-      "type": "skill",
-      "name": "frontend-design",
+      "activation": "always",
       "description": "Anti-AI-slop UI. Density first, 3-size hierarchy, motion <250ms, components via @repo/ui (Radix/shadcn), mobile-first dual-quality. Brand from DESIGN.md. Use when building or modifying UI.",
-      "lines": 276,
-      "staticTokens": 3486,
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:frontend-design",
+      "lines": 287,
+      "name": "frontend-design",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/frontend-design/SKILL.md",
+      "staticTokens": 3641,
       "triggers": {
         "extensions": [
           "tsx"
         ]
       },
-      "activation": "always",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "type": "skill"
     },
     {
-      "id": "skill:functional",
-      "type": "skill",
-      "name": "functional",
+      "activation": "always",
       "description": "Pure-by-default, errors as values (Result<T, E>), discriminated unions for state, immutability defaults, functional core / imperative shell. Side effects at adapters. Use for data flow or state.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:functional",
       "lines": 323,
-      "staticTokens": 2840,
+      "name": "functional",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/functional/SKILL.md",
-      "activation": "always",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 2840,
+      "type": "skill"
     },
     {
-      "id": "skill:hexagonal-architecture",
-      "type": "skill",
-      "name": "hexagonal-architecture",
+      "activation": "always",
       "description": "Ports + adapters. Domain owns interfaces, adapters at the edge, function-parameter injection only, no DI / CQRS / mediator. Use when placing code or crossing module boundaries.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:hexagonal-architecture",
       "lines": 287,
-      "staticTokens": 2758,
+      "name": "hexagonal-architecture",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/hexagonal-architecture/SKILL.md",
-      "activation": "always",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 2758,
+      "type": "skill"
     },
     {
-      "id": "skill:learning-capture",
-      "type": "skill",
-      "name": "learning-capture",
       "description": "Capture a lesson when it appears — a stated project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a harness gap. Routes to PROJECT-DOCTRINE, a GitHub issue, or nothing. HITL strict.",
-      "lines": 219,
-      "staticTokens": 2876,
-      "pack": null,
-      "source": "packages/core/skills/learning-capture/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -1031,27 +1129,27 @@
       },
       "evalTargets": [
         {
-          "runtime": "claude",
           "provider": "anthropic",
+          "runtime": "claude",
           "tier": "opus"
         }
-      ]
-    },
-    {
-      "id": "skill:llm-cost-discipline",
-      "type": "skill",
-      "name": "llm-cost-discipline",
-      "description": "Sonnet default (Opus needs comment), prompt caching for >1024-token prompts, batch API for non-interactive, max_tokens declared, bounded retries, no full prompts in logs. Use on LLM API calls.",
-      "lines": 310,
-      "staticTokens": 2553,
-      "pack": null,
-      "source": "packages/core/skills/llm-cost-discipline/SKILL.md",
-      "activation": "always",
+      ],
+      "id": "skill:learning-capture",
+      "lines": 219,
+      "name": "learning-capture",
       "owner": "folpe",
+      "pack": null,
       "runtimes": [
         "claude",
         "codex"
       ],
+      "source": "packages/core/skills/learning-capture/SKILL.md",
+      "staticTokens": 2876,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "Sonnet default (Opus needs comment), prompt caching for >1024-token prompts, batch API for non-interactive, max_tokens declared, bounded retries, no full prompts in logs. Use on LLM API calls.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -1062,27 +1160,27 @@
       },
       "evalTargets": [
         {
-          "runtime": "claude",
           "provider": "anthropic",
+          "runtime": "claude",
           "tier": "opus"
         }
-      ]
-    },
-    {
-      "id": "skill:make-pdf",
-      "type": "skill",
-      "name": "make-pdf",
-      "description": "Turn a markdown file into a publication-quality PDF — marked + puppeteer-core on the system Chrome, with page-number footers. No gstack daemon. For signed deliverables (DECLIK audits).",
-      "lines": 56,
-      "staticTokens": 835,
-      "pack": null,
-      "source": "packages/core/skills/make-pdf/SKILL.md",
-      "activation": "on-demand",
+      ],
+      "id": "skill:llm-cost-discipline",
+      "lines": 310,
+      "name": "llm-cost-discipline",
       "owner": "folpe",
+      "pack": null,
       "runtimes": [
         "claude",
         "codex"
       ],
+      "source": "packages/core/skills/llm-cost-discipline/SKILL.md",
+      "staticTokens": 2553,
+      "type": "skill"
+    },
+    {
+      "activation": "on-demand",
+      "description": "Turn a markdown file into a publication-quality PDF — marked + puppeteer-core on the system Chrome, with page-number footers. No gstack daemon. For signed deliverables (DECLIK audits).",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -1093,1151 +1191,1151 @@
       },
       "evalTargets": [
         {
-          "runtime": "claude",
           "provider": "anthropic",
+          "runtime": "claude",
           "tier": "opus"
         }
-      ]
+      ],
+      "id": "skill:make-pdf",
+      "lines": 56,
+      "name": "make-pdf",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/make-pdf/SKILL.md",
+      "staticTokens": 835,
+      "type": "skill"
     },
     {
-      "id": "skill:migrations-safety",
-      "type": "skill",
-      "name": "migrations-safety",
+      "activation": "always",
       "description": "Zero-downtime Postgres migrations. Two-phase changes, batched backfills, locking analysis, banned DDL patterns, CONCURRENTLY indexes, dev branch test, immutable after merge. Use on DB schema changes.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:migrations-safety",
       "lines": 277,
-      "staticTokens": 2250,
+      "name": "migrations-safety",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/migrations-safety/SKILL.md",
+      "staticTokens": 2250,
       "triggers": {
         "globs": [
           "**/migrations/**",
           "**/*.sql"
         ]
       },
-      "activation": "always",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "type": "skill"
     },
     {
-      "id": "skill:observability",
-      "type": "skill",
-      "name": "observability",
+      "activation": "always",
       "description": "Structured logs (no string interp), trace IDs end-to-end, error boundaries at async boundaries, anonymized user scope, no PII/secrets ever. Use @repo/core/logger not console.log. Use for prod code.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:observability",
       "lines": 256,
-      "staticTokens": 2245,
+      "name": "observability",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/observability/SKILL.md",
-      "activation": "always",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 2245,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-mobile/eas-build-profile",
-      "type": "skill",
-      "name": "eas-build-profile",
       "description": "Configure eas.json profiles (development, preview, production) with the right env, bundle ID, signing, distribution. The 3-profile structure that fits 95% of Expo apps.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-mobile/eas-build-profile",
       "lines": 174,
-      "staticTokens": 1519,
+      "name": "eas-build-profile",
+      "owner": "folpe",
       "pack": "pack-mobile",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-mobile/skills/eas-build-profile/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1519,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-mobile/expo-config-plugins",
-      "type": "skill",
-      "name": "expo-config-plugins",
       "description": "Add native functionality to an Expo app via config plugins, never by ejecting. Pick existing Expo modules first, write a custom plugin only when none fits. Document everything in app.config.ts.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-mobile/expo-config-plugins",
       "lines": 188,
-      "staticTokens": 1612,
+      "name": "expo-config-plugins",
+      "owner": "folpe",
       "pack": "pack-mobile",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-mobile/skills/expo-config-plugins/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1612,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-mobile/expo-router-pattern",
-      "type": "skill",
-      "name": "expo-router-pattern",
       "description": "File-based routing in Expo via expo-router — layouts, tabs, modals, deep links. Mirrors Next.js App Router so monorepos can share mental model. Stack-aware navigation patterns.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-mobile/expo-router-pattern",
       "lines": 219,
-      "staticTokens": 1661,
+      "name": "expo-router-pattern",
+      "owner": "folpe",
       "pack": "pack-mobile",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-mobile/skills/expo-router-pattern/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1661,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-mobile/ota-update-strategy",
-      "type": "skill",
-      "name": "ota-update-strategy",
       "description": "Ship JS-only fixes via EAS Update; full rebuild via EAS Build. Runtime versions, channels, rollback. The \"when can I OTA vs when do I rebuild\" decision.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-mobile/ota-update-strategy",
       "lines": 204,
-      "staticTokens": 1796,
+      "name": "ota-update-strategy",
+      "owner": "folpe",
       "pack": "pack-mobile",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-mobile/skills/ota-update-strategy/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1796,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-monorepo/dependency-direction",
-      "type": "skill",
-      "name": "dependency-direction",
       "description": "Enforce the @repo/* import direction in a Turborepo workspace. Concrete violations + fixes. Composes with core:hexagonal-architecture and the boundary-direction-check hook.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-monorepo/dependency-direction",
       "lines": 170,
-      "staticTokens": 1468,
+      "name": "dependency-direction",
+      "owner": "folpe",
       "pack": "pack-monorepo",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-monorepo/skills/dependency-direction/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1468,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-monorepo/package-extraction",
-      "type": "skill",
-      "name": "package-extraction",
       "description": "Decide whether code in apps/<app>/ should be extracted into a new packages/<name>/ workspace. Most extractions are premature; this skill is the decision gate.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-monorepo/package-extraction",
       "lines": 80,
-      "staticTokens": 1119,
+      "name": "package-extraction",
+      "owner": "folpe",
       "pack": "pack-monorepo",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-monorepo/skills/package-extraction/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1119,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-monorepo/service-package",
-      "type": "skill",
-      "name": "service-package",
       "description": "Create or extend a packages/<name>/ service in a harness-monorepo workspace: the 5+5 file layout, @repo/* boundaries, ports-and-adapters direction. Composes with hexagonal-architecture, DDD.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-monorepo/service-package",
       "lines": 132,
-      "staticTokens": 1517,
+      "name": "service-package",
+      "owner": "folpe",
       "pack": "pack-monorepo",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-monorepo/skills/service-package/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1517,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-monorepo/turbo-pipeline-tuning",
-      "type": "skill",
-      "name": "turbo-pipeline-tuning",
       "description": "Configure turbo.json tasks correctly — dependsOn, outputs, cache keys, persistent tasks, remote cache. Get build speed right without over-engineering.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-monorepo/turbo-pipeline-tuning",
       "lines": 126,
-      "staticTokens": 1338,
+      "name": "turbo-pipeline-tuning",
+      "owner": "folpe",
       "pack": "pack-monorepo",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-monorepo/skills/turbo-pipeline-tuning/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1338,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-nextjs/cache-component-pattern",
-      "type": "skill",
-      "name": "cache-component-pattern",
       "description": "Use Next.js 16 Cache Components correctly — when to opt in ('use cache'), when to opt out ('use no cache'), cache key strategy, scoping by user/org. Default is cached; uncache deliberately.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-nextjs/cache-component-pattern",
       "lines": 172,
-      "staticTokens": 1767,
+      "name": "cache-component-pattern",
+      "owner": "folpe",
       "pack": "pack-nextjs",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-nextjs/skills/cache-component-pattern/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1767,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-nextjs/instrumentation-setup",
-      "type": "skill",
-      "name": "instrumentation-setup",
       "description": "Wire instrumentation.ts in Next.js 16 — Sentry, pino logger, OpenTelemetry traces. Edge vs Node runtime split. The single place observability is bootstrapped.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-nextjs/instrumentation-setup",
       "lines": 171,
-      "staticTokens": 1445,
+      "name": "instrumentation-setup",
+      "owner": "folpe",
       "pack": "pack-nextjs",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-nextjs/skills/instrumentation-setup/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1445,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-nextjs/loading-error-boundaries",
-      "type": "skill",
-      "name": "loading-error-boundaries",
       "description": "Place loading.tsx, error.tsx, not-found.tsx files at the right level — neither too high (poor UX) nor too low (unhandled errors). The skeleton matches the layout it replaces.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-nextjs/loading-error-boundaries",
       "lines": 186,
-      "staticTokens": 1713,
+      "name": "loading-error-boundaries",
+      "owner": "folpe",
       "pack": "pack-nextjs",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-nextjs/skills/loading-error-boundaries/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1713,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-nextjs/parallel-routes-slots",
-      "type": "skill",
-      "name": "parallel-routes-slots",
       "description": "Use Next.js parallel routes (@slot) and intercepting routes ((.)foo) — when they're the right tool, when they're an anti-pattern. The \"modal that's also a deep-linkable page\" archetype.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-nextjs/parallel-routes-slots",
       "lines": 139,
-      "staticTokens": 1365,
+      "name": "parallel-routes-slots",
+      "owner": "folpe",
       "pack": "pack-nextjs",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-nextjs/skills/parallel-routes-slots/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1365,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-nextjs/route-group-decision",
-      "type": "skill",
-      "name": "route-group-decision",
       "description": "Decide when to use a (route-group), what to name it, and how to share layouts. The void-harness convention groups by trust boundary, not by visual section.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-nextjs/route-group-decision",
       "lines": 117,
-      "staticTokens": 1341,
+      "name": "route-group-decision",
+      "owner": "folpe",
       "pack": "pack-nextjs",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-nextjs/skills/route-group-decision/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1341,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-pwa/install-prompt-ux",
-      "type": "skill",
-      "name": "install-prompt-ux",
       "description": "Surface the PWA install prompt at the right moment (engagement signal) with the right UI (custom button, not auto-prompt). Capture beforeinstallprompt, defer, recover declined.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-pwa/install-prompt-ux",
       "lines": 163,
-      "staticTokens": 1706,
+      "name": "install-prompt-ux",
+      "owner": "folpe",
       "pack": "pack-pwa",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-pwa/skills/install-prompt-ux/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1706,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-pwa/manifest-checklist",
-      "type": "skill",
-      "name": "manifest-checklist",
       "description": "Get manifest.webmanifest right the first time — required fields, icon sizes (192, 512, maskable), display modes, scope, start_url. Single artifact: every field motivated, no dead options.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-pwa/manifest-checklist",
       "lines": 214,
-      "staticTokens": 1614,
+      "name": "manifest-checklist",
+      "owner": "folpe",
       "pack": "pack-pwa",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-pwa/skills/manifest-checklist/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1614,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-pwa/offline-first-mutation",
-      "type": "skill",
-      "name": "offline-first-mutation",
       "description": "Implement a UI mutation that works offline via the capture-queue + sync pattern: IndexedDB, optimistic UI, idempotency keys, retry, conflict resolution. Self-contained, no harness wrappers.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-pwa/offline-first-mutation",
       "lines": 276,
-      "staticTokens": 2544,
+      "name": "offline-first-mutation",
+      "owner": "folpe",
       "pack": "pack-pwa",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-pwa/skills/offline-first-mutation/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 2544,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-pwa/service-worker-strategy",
-      "type": "skill",
-      "name": "service-worker-strategy",
       "description": "Pick caching strategy per route class (NetworkFirst, CacheFirst, StaleWhileRevalidate, NetworkOnly), version your caches, handle update activation. Use Serwist (Next) or vite-plugin-pwa.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-pwa/service-worker-strategy",
       "lines": 188,
-      "staticTokens": 1869,
+      "name": "service-worker-strategy",
+      "owner": "folpe",
       "pack": "pack-pwa",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-pwa/skills/service-worker-strategy/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1869,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-react/accessibility-check",
-      "type": "skill",
-      "name": "accessibility-check",
       "description": "Per-component accessibility checklist: semantic HTML, ARIA, keyboard, focus, contrast, touch targets. Auto-applies on any React component edit. Composes with harness:accessibility-first.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-react/accessibility-check",
       "lines": 146,
-      "staticTokens": 1585,
+      "name": "accessibility-check",
+      "owner": "folpe",
       "pack": "pack-react",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-react/skills/accessibility-check/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1585,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-react/client-vs-server-component",
-      "type": "skill",
-      "name": "client-vs-server-component",
       "description": "Decide which components run on server vs client in a React 19 / Next.js app and place the 'use client' boundary correctly. Server Components by default; client is the exception.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-react/client-vs-server-component",
       "lines": 126,
-      "staticTokens": 1362,
+      "name": "client-vs-server-component",
+      "owner": "folpe",
       "pack": "pack-react",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-react/skills/client-vs-server-component/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1362,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-react/form-pattern",
-      "type": "skill",
-      "name": "form-pattern",
       "description": "Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with harness-server:server-action.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-react/form-pattern",
       "lines": 167,
-      "staticTokens": 1746,
+      "name": "form-pattern",
+      "owner": "folpe",
       "pack": "pack-react",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-react/skills/form-pattern/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1746,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-react/state-architecture",
-      "type": "skill",
-      "name": "state-architecture",
       "description": "Decide where state lives — local, lifted, URL, server, client global. The decision tree to avoid useState-in-the-wrong-place sprawl. Default to URL or server before reaching for global stores.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-react/state-architecture",
       "lines": 170,
-      "staticTokens": 1726,
+      "name": "state-architecture",
+      "owner": "folpe",
       "pack": "pack-react",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-react/skills/state-architecture/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1726,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-server/background-job-pattern",
-      "type": "skill",
-      "name": "background-job-pattern",
       "description": "Run async work outside the request lifecycle: when to use a queue (Inngest, Trigger, Cloudflare Queues) vs a cron route. Idempotency, retry, dead-letter. Self-contained, no harness wrappers.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-server/background-job-pattern",
       "lines": 224,
-      "staticTokens": 2285,
+      "name": "background-job-pattern",
+      "owner": "folpe",
       "pack": "pack-server",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-server/skills/background-job-pattern/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 2285,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-server/drizzle-migration-safe",
-      "type": "skill",
-      "name": "drizzle-migration-safe",
       "description": "Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. Composes with harness:migrations-safety for the generic discipline.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-server/drizzle-migration-safe",
       "lines": 178,
-      "staticTokens": 2159,
+      "name": "drizzle-migration-safe",
+      "owner": "folpe",
       "pack": "pack-server",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-server/skills/drizzle-migration-safe/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 2159,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-server/env-validation",
-      "type": "skill",
-      "name": "env-validation",
       "description": "Validate environment variables at boot via Zod in @repo/core/env. Separate PUBLIC (NEXT_PUBLIC_*) from server-only. Fail fast at startup; never raw process.env in business code.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-server/env-validation",
       "lines": 141,
-      "staticTokens": 1457,
+      "name": "env-validation",
+      "owner": "folpe",
       "pack": "pack-server",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-server/skills/env-validation/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1457,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-server/rate-limit-strategy",
-      "type": "skill",
-      "name": "rate-limit-strategy",
       "description": "Choose rate limit window, max, and key strategy per action class. Per-user for authed, per-IP for public, escalation for auth-adjacent. Default values + when to deviate.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-server/rate-limit-strategy",
       "lines": 159,
-      "staticTokens": 1770,
+      "name": "rate-limit-strategy",
+      "owner": "folpe",
       "pack": "pack-server",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-server/skills/rate-limit-strategy/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1770,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-server/server-action",
-      "type": "skill",
-      "name": "server-action",
       "description": "Create a Next.js 16 Server Action with the void trust-boundary checklist: Zod ingress, auth, rate limit, observability, structured errors. Composes with security-guidance, async-safety.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-server/server-action",
       "lines": 191,
-      "staticTokens": 2174,
+      "name": "server-action",
+      "owner": "folpe",
       "pack": "pack-server",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-server/skills/server-action/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 2174,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-server/testing-server-modules",
-      "type": "skill",
-      "name": "testing-server-modules",
       "description": "Unit-test modules guarded by server-only / client-only under Vitest by aliasing those packages to an empty stub. Test-time only; never a substitute for the real build-time boundary.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-server/testing-server-modules",
       "lines": 83,
-      "staticTokens": 969,
+      "name": "testing-server-modules",
+      "owner": "folpe",
       "pack": "pack-server",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-server/skills/testing-server-modules/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 969,
+      "type": "skill"
     },
     {
-      "id": "skill:pack-server/webhook-handler-pattern",
-      "type": "skill",
-      "name": "webhook-handler-pattern",
       "description": "Build a webhook handler with signature verification, idempotency, and dead-letter routing. Per-source patterns (Stripe, Resend, GitHub). Self-contained — no harness wrappers required.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-server/webhook-handler-pattern",
       "lines": 215,
-      "staticTokens": 2171,
+      "name": "webhook-handler-pattern",
+      "owner": "folpe",
       "pack": "pack-server",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/packs/pack-server/skills/webhook-handler-pattern/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 2171,
+      "type": "skill"
     },
     {
-      "id": "skill:plan-review",
-      "type": "skill",
-      "name": "plan-review",
+      "activation": "on-demand",
       "description": "Critique a written plan (not a diff) via four lenses: CEO premise/ambition, Eng test-coverage, Design states/slop, DevEx time-to-first-value. Proposes findings; the author disposes.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:plan-review",
       "lines": 139,
-      "staticTokens": 2735,
+      "name": "plan-review",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/plan-review/SKILL.md",
-      "activation": "on-demand",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 2735,
+      "type": "skill"
     },
     {
-      "id": "skill:qa",
-      "type": "skill",
-      "name": "qa",
+      "activation": "on-demand",
       "description": "Live browser QA of a running web app via the claude-in-chrome MCP: systematic exploration, edge/error/empty states, atomic fix loop, evidence-backed report. Report-only mode available.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:qa",
       "lines": 114,
-      "staticTokens": 2587,
+      "name": "qa",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/qa/SKILL.md",
-      "activation": "on-demand",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 2667,
+      "type": "skill"
     },
     {
-      "id": "skill:refactoring",
-      "type": "skill",
-      "name": "refactoring",
+      "activation": "always",
       "description": "Tidy-First. Tidyings commit separately from behavior changes (Two-Hat). Named Fowler refactors only. Tests stay green. Two modes (strict/souple). Use when improving structure without behavior change.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:refactoring",
       "lines": 231,
-      "staticTokens": 2472,
+      "name": "refactoring",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/refactoring/SKILL.md",
-      "activation": "always",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 2472,
+      "type": "skill"
     },
     {
-      "id": "skill:retrospective",
-      "type": "skill",
-      "name": "retrospective",
+      "activation": "on-demand",
       "description": "Periodic engineering retro over a window: read git log / PRs / .void, surface signals (hotspots, test ratio, commit types, regressions), turn them into improvement decisions feeding learning-capture.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:retrospective",
       "lines": 82,
-      "staticTokens": 1426,
+      "name": "retrospective",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/retrospective/SKILL.md",
-      "activation": "on-demand",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 1426,
+      "type": "skill"
     },
     {
-      "id": "skill:security-audit",
-      "type": "skill",
-      "name": "security-audit",
+      "activation": "on-demand",
       "description": "Periodic deep security audit — OWASP Top 10, STRIDE, secrets, supply chain, CI/CD, infra, LLM. Phase-driven, read-only, zero-noise. The ceiling above security-guidance's daily floor.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:security-audit",
       "lines": 138,
-      "staticTokens": 3801,
+      "name": "security-audit",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/security-audit/SKILL.md",
-      "activation": "on-demand",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 3801,
+      "type": "skill"
     },
     {
-      "id": "skill:security-guidance",
-      "type": "skill",
-      "name": "security-guidance",
+      "activation": "always",
       "description": "Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. Escalate to security-audit for deep audits. Use on trust-boundary code.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:security-guidance",
       "lines": 266,
-      "staticTokens": 2512,
+      "name": "security-guidance",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/security-guidance/SKILL.md",
-      "activation": "always",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 2512,
+      "type": "skill"
     },
     {
-      "id": "skill:source-driven-development",
-      "type": "skill",
-      "name": "source-driven-development",
+      "activation": "always",
       "description": "Ground every third-party config or API usage in the official docs for the installed version, not training memory. Verify the version, cite the reference. Use before writing any tool config.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:source-driven-development",
       "lines": 173,
-      "staticTokens": 2426,
+      "name": "source-driven-development",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/source-driven-development/SKILL.md",
-      "activation": "always",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "staticTokens": 2426,
+      "type": "skill"
     },
     {
-      "id": "skill:systematic-debugging",
-      "type": "skill",
-      "name": "systematic-debugging",
       "description": "Four phases (investigate, analyze, hypothesize, implement). Iron Law: no fix without a failing test reproducing the bug AND a root cause. Bug fix commit pairs. Use on bug or test failure.",
-      "lines": 221,
-      "staticTokens": 2375,
-      "pack": null,
-      "source": "packages/core/skills/systematic-debugging/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -2248,27 +2346,27 @@
       },
       "evalTargets": [
         {
-          "runtime": "claude",
           "provider": "anthropic",
+          "runtime": "claude",
           "tier": "opus"
         }
-      ]
-    },
-    {
-      "id": "skill:tdd",
-      "type": "skill",
-      "name": "tdd",
-      "description": "TDD with three modes (strict/souple/exploratory) auto-selected by path. Iron Law in strict (no prod code without a failing test), mutation gate, anti-rustine. Use for any feature, bugfix, refactor.",
-      "lines": 379,
-      "staticTokens": 3337,
-      "pack": null,
-      "source": "packages/core/skills/tdd/SKILL.md",
-      "activation": "always",
+      ],
+      "id": "skill:systematic-debugging",
+      "lines": 221,
+      "name": "systematic-debugging",
       "owner": "folpe",
+      "pack": null,
       "runtimes": [
         "claude",
         "codex"
       ],
+      "source": "packages/core/skills/systematic-debugging/SKILL.md",
+      "staticTokens": 2375,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "TDD with three modes (strict/souple/exploratory) auto-selected by path. Iron Law in strict (no prod code without a failing test), mutation gate, anti-rustine. Use for any feature, bugfix, refactor.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -2279,33 +2377,124 @@
       },
       "evalTargets": [
         {
-          "runtime": "claude",
           "provider": "anthropic",
+          "runtime": "claude",
           "tier": "opus"
         }
-      ]
+      ],
+      "id": "skill:tdd",
+      "lines": 388,
+      "name": "tdd",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/tdd/SKILL.md",
+      "staticTokens": 3480,
+      "type": "skill"
     },
     {
-      "id": "skill:testing",
-      "type": "skill",
-      "name": "testing",
+      "activation": "always",
       "description": "How to write a good test. Behavior over implementation, real code over mocks, factories over beforeEach, pyramid respected, pristine output, no snapshot creep. Use when writing or modifying tests.",
-      "lines": 289,
-      "staticTokens": 2703,
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:testing",
+      "lines": 296,
+      "name": "testing",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/testing/SKILL.md",
+      "staticTokens": 2829,
       "triggers": {
         "globs": [
           "**/*.test.ts",
           "**/*.spec.ts"
         ]
       },
-      "activation": "always",
+      "type": "skill"
+    },
+    {
+      "description": "Use when taking a single ticket from ready through shipped at expert-team quality. Triggers on starting a ticket, taking an issue, or picking up a backlog item to execute.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:ticket-runner",
+      "lines": 130,
+      "name": "ticket-runner",
       "owner": "folpe",
+      "pack": null,
       "runtimes": [
         "claude",
         "codex"
       ],
+      "source": "packages/core/skills/ticket-runner/SKILL.md",
+      "staticTokens": 2947,
+      "type": "skill"
+    },
+    {
+      "description": "Use when turning a finished brainstorm, plan, or design decision into a tracker ticket. Triggers on creating a ticket or issue, logging work, or breaking an approved spec into tickets.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:ticket-writer",
+      "lines": 106,
+      "name": "ticket-writer",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/ticket-writer/SKILL.md",
+      "staticTokens": 1548,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "TS strict baseline. Zero any budget, branded types for domain primitives, discriminated unions over enums, exhaustive switches via never, satisfies over as. Use when editing TypeScript code.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -2316,124 +2505,33 @@
       },
       "evalTargets": [
         {
-          "runtime": "claude",
           "provider": "anthropic",
+          "runtime": "claude",
           "tier": "opus"
         }
-      ]
-    },
-    {
-      "id": "skill:ticket-runner",
-      "type": "skill",
-      "name": "ticket-runner",
-      "description": "Use when taking a single ticket from ready through shipped at expert-team quality. Triggers on starting a ticket, taking an issue, or picking up a backlog item to execute.",
-      "lines": 130,
-      "staticTokens": 2947,
-      "pack": null,
-      "source": "packages/core/skills/ticket-runner/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
       ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
-    },
-    {
-      "id": "skill:ticket-writer",
-      "type": "skill",
-      "name": "ticket-writer",
-      "description": "Use when turning a finished brainstorm, plan, or design decision into a tracker ticket. Triggers on creating a ticket or issue, logging work, or breaking an approved spec into tickets.",
-      "lines": 106,
-      "staticTokens": 1548,
-      "pack": null,
-      "source": "packages/core/skills/ticket-writer/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
-    },
-    {
       "id": "skill:typescript-strict",
-      "type": "skill",
-      "name": "typescript-strict",
-      "description": "TS strict baseline. Zero any budget, branded types for domain primitives, discriminated unions over enums, exhaustive switches via never, satisfies over as. Use when editing TypeScript code.",
       "lines": 307,
-      "staticTokens": 2720,
+      "name": "typescript-strict",
+      "owner": "folpe",
       "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
       "source": "packages/core/skills/typescript-strict/SKILL.md",
+      "staticTokens": 2720,
       "triggers": {
         "extensions": [
           "ts",
           "tsx"
         ]
       },
-      "activation": "always",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "runtime": "claude",
-          "provider": "anthropic",
-          "tier": "opus"
-        }
-      ]
+      "type": "skill"
     },
     {
-      "id": "skill:ui-review",
-      "type": "skill",
-      "name": "ui-review",
-      "description": "Audit and polish an EXISTING UI: the AI-slop test, heuristic critique, technical audit (contrast/a11y/responsive/perf), refine modes. The audit ceiling to frontend-design's build floor.",
-      "lines": 98,
-      "staticTokens": 1818,
-      "pack": null,
-      "source": "packages/core/skills/ui-review/SKILL.md",
       "activation": "on-demand",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
+      "description": "Audit and polish an EXISTING UI: the AI-slop test, heuristic critique, technical audit (contrast/a11y/responsive/perf), refine modes. The audit ceiling to frontend-design's build floor.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -2444,27 +2542,27 @@
       },
       "evalTargets": [
         {
-          "runtime": "claude",
           "provider": "anthropic",
+          "runtime": "claude",
           "tier": "opus"
         }
-      ]
+      ],
+      "id": "skill:ui-review",
+      "lines": 108,
+      "name": "ui-review",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/ui-review/SKILL.md",
+      "staticTokens": 2004,
+      "type": "skill"
     },
     {
-      "id": "skill:verification-before-completion",
-      "type": "skill",
-      "name": "verification-before-completion",
-      "description": "Final pre-flight checklist. Twelve items observed (not assumed) — typecheck, tests, hooks, mobile+desktop, commit why, review evidence. Skipping requires reason. Use at end of every task.",
-      "lines": 186,
-      "staticTokens": 2005,
-      "pack": null,
-      "source": "packages/core/skills/verification-before-completion/SKILL.md",
       "activation": "always",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
+      "description": "Final pre-flight checklist. Twelve items observed (not assumed) — typecheck, tests, hooks, mobile+desktop, commit why, review evidence. Skipping requires reason. Use at end of every task.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -2475,26 +2573,26 @@
       },
       "evalTargets": [
         {
-          "runtime": "claude",
           "provider": "anthropic",
+          "runtime": "claude",
           "tier": "opus"
         }
-      ]
+      ],
+      "id": "skill:verification-before-completion",
+      "lines": 186,
+      "name": "verification-before-completion",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/verification-before-completion/SKILL.md",
+      "staticTokens": 2005,
+      "type": "skill"
     },
     {
-      "id": "skill:writing-plans",
-      "type": "skill",
-      "name": "writing-plans",
       "description": "Turn an approved spec into an executable plan. Steps with goal, deps, verification gate, TDD mode per step, expected commits. Resume point updated. Use after brainstorming approves a spec.",
-      "lines": 240,
-      "staticTokens": 2440,
-      "pack": null,
-      "source": "packages/core/skills/writing-plans/SKILL.md",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -2505,21 +2603,33 @@
       },
       "evalTargets": [
         {
-          "runtime": "claude",
           "provider": "anthropic",
+          "runtime": "claude",
           "tier": "opus"
         }
-      ]
+      ],
+      "id": "skill:writing-plans",
+      "lines": 240,
+      "name": "writing-plans",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/writing-plans/SKILL.md",
+      "staticTokens": 2440,
+      "type": "skill"
     },
     {
-      "id": "workflow-def:backlog-autopilot",
-      "type": "workflow-def",
-      "name": "backlog-autopilot",
       "description": "",
+      "id": "workflow-def:backlog-autopilot",
       "lines": 0,
-      "staticTokens": 0,
+      "name": "backlog-autopilot",
       "pack": null,
-      "source": "packages/core/skills/backlog-autopilot/workflows/backlog-autopilot.workflow.js"
+      "source": "packages/core/skills/backlog-autopilot/workflows/backlog-autopilot.workflow.js",
+      "staticTokens": 0,
+      "type": "workflow-def"
     }
   ],
   "edges": [

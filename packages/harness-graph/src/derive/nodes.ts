@@ -1,5 +1,11 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join, relative, resolve } from 'node:path';
+import {
+  existsSync,
+  lstatSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+} from 'node:fs';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import { type GraphNode, type NodeTriggers, type NodeType, nodeId } from '../model/types.js';
 import { parseHookMatchers } from './hook-matchers.js';
 import { countLines, estimateTokens, readFrontmatter } from './read-frontmatter.js';
@@ -18,7 +24,51 @@ export interface SourceTree {
   readonly hooks: readonly SourceEntry[];
   readonly commands: readonly SourceEntry[];
   readonly packs: readonly SourceEntry[];
+  readonly profiles: readonly SourceEntry[];
   readonly workflowDefs: readonly SourceEntry[];
+}
+
+const MAX_SOURCE_BYTES = 1024 * 1024;
+const MAX_DIRECTORY_ENTRIES = 10_000;
+
+function within(boundary: string, target: string): boolean {
+  const path = relative(boundary, target);
+  return path === '' || (!path.startsWith('..') && !isAbsolute(path));
+}
+
+function sourceNames(boundary: string, directory: string): readonly string[] {
+  if (!existsSync(directory)) return [];
+  const canonicalBoundary = realpathSync(boundary);
+  const metadata = lstatSync(directory);
+  if (metadata.isSymbolicLink()) {
+    throw new Error(`GRAPH_SOURCE_PATH_ESCAPE: directory is a symlink: ${directory}`);
+  }
+  const canonicalDirectory = realpathSync(directory);
+  if (!metadata.isDirectory() || !within(canonicalBoundary, canonicalDirectory)) {
+    throw new Error(`GRAPH_SOURCE_PATH_ESCAPE: directory leaves its declared root: ${directory}`);
+  }
+  const names = readdirSync(canonicalDirectory).sort(cmp);
+  if (names.length > MAX_DIRECTORY_ENTRIES) {
+    throw new Error(`GRAPH_SOURCE_LIMIT: ${directory} exceeds ${MAX_DIRECTORY_ENTRIES} entries`);
+  }
+  return names;
+}
+
+function sourceText(boundary: string, path: string): string | undefined {
+  if (!existsSync(path)) return undefined;
+  const metadata = lstatSync(path);
+  if (metadata.isSymbolicLink()) {
+    throw new Error(`GRAPH_SOURCE_PATH_ESCAPE: source is a symlink: ${path}`);
+  }
+  const canonicalBoundary = realpathSync(boundary);
+  const canonicalPath = realpathSync(path);
+  if (!metadata.isFile() || !within(canonicalBoundary, canonicalPath)) {
+    throw new Error(`GRAPH_SOURCE_PATH_ESCAPE: source leaves its declared root: ${path}`);
+  }
+  if (metadata.size > MAX_SOURCE_BYTES) {
+    throw new Error(`GRAPH_SOURCE_LIMIT: ${path} exceeds ${MAX_SOURCE_BYTES} bytes`);
+  }
+  return readFileSync(canonicalPath, 'utf8');
 }
 
 function toNode(type: NodeType, e: SourceEntry): GraphNode {
@@ -62,6 +112,7 @@ export function deriveNodes(tree: SourceTree): GraphNode[] {
     ...tree.hooks.map((e) => toNode('hook', e)),
     ...tree.commands.map((e) => toNode('command', e)),
     ...tree.packs.map((e) => toNode('pack', e)),
+    ...tree.profiles.map((e) => toNode('profile', e)),
     ...tree.workflowDefs.map((e) => toNode('workflow-def', e)),
   ].sort((a, b) => cmp(a.id, b.id));
 }
@@ -76,59 +127,69 @@ export function scanSourceTree(coreDir: string, packsDir: string): SourceTree {
   const skills: SourceEntry[] = [];
   const skillsDir = join(coreDir, 'skills');
   if (existsSync(skillsDir)) {
-    for (const name of readdirSync(skillsDir)) {
+    for (const name of sourceNames(coreDir, skillsDir)) {
       const f = join(skillsDir, name, 'SKILL.md');
-      if (existsSync(f)) skills.push({ name, pack: null, source: rel(f), text: readFileSync(f, 'utf8') }); // allow-null: core skills have no pack
+      const text = sourceText(coreDir, f);
+      if (text !== undefined) skills.push({ name, pack: null, source: rel(f), text }); // allow-null: core skills have no pack
     }
   }
-  const agents = readMdDir(join(coreDir, 'agents'), rel);
+  const agents = readMdDir(coreDir, join(coreDir, 'agents'), rel);
   // Hooks get their triggers (tools) from the plugin manifest matchers, not from
   // frontmatter (.sh files have none). Path/glob scoping is not recoverable here.
   const pluginPath = join(coreDir, '.claude-plugin', 'plugin.json');
-  const hookMatchers = existsSync(pluginPath) ? parseHookMatchers(readFileSync(pluginPath, 'utf8')) : new Map<string, NodeTriggers>();
-  const hooks = readDir(join(coreDir, 'hooks'), '.sh', rel).map((e) => {
+  const pluginText = sourceText(coreDir, pluginPath);
+  const hookMatchers = pluginText === undefined ? new Map<string, NodeTriggers>() : parseHookMatchers(pluginText);
+  const hooks = readDir(coreDir, join(coreDir, 'hooks'), '.sh', rel).map((e) => {
     const triggers = hookMatchers.get(e.name);
     return triggers ? { ...e, triggers } : e;
   });
-  const commands = readMdDir(join(coreDir, 'commands'), rel);
+  const commands = readMdDir(coreDir, join(coreDir, 'commands'), rel);
+  const profiles = readDir(coreDir, join(coreDir, 'profiles'), '.yaml', rel);
   const packs: SourceEntry[] = [];
   const workflowDefs: SourceEntry[] = [];
   if (existsSync(packsDir)) {
-    for (const pack of readdirSync(packsDir)) {
+    for (const pack of sourceNames(packsDir, packsDir)) {
       packs.push({ name: pack, pack: null, source: rel(join(packsDir, pack)), text: '' }); // allow-null: pack nodes are not scoped to a pack themselves
       const packSkillsDir = join(packsDir, pack, 'skills');
       if (existsSync(packSkillsDir)) {
-        for (const name of readdirSync(packSkillsDir)) {
+        for (const name of sourceNames(packsDir, packSkillsDir)) {
           const f = join(packSkillsDir, name, 'SKILL.md');
-          if (existsSync(f)) skills.push({ name, pack, source: rel(f), text: readFileSync(f, 'utf8') });
+          const text = sourceText(packsDir, f);
+          if (text !== undefined) skills.push({ name, pack, source: rel(f), text });
         }
       }
     }
   }
   // workflow defs live next to skills as *.workflow.js
   if (existsSync(skillsDir)) {
-    for (const name of readdirSync(skillsDir)) {
+    for (const name of sourceNames(coreDir, skillsDir)) {
       const wfDir = join(skillsDir, name, 'workflows');
       if (!existsSync(wfDir)) continue;
-      for (const f of readdirSync(wfDir)) {
+      for (const f of sourceNames(coreDir, wfDir)) {
         if (f.endsWith('.workflow.js')) {
-          workflowDefs.push({ name: f.replace(/\.workflow\.js$/, ''), source: rel(join(wfDir, f)), text: '' });
+          const path = join(wfDir, f);
+          if (sourceText(coreDir, path) !== undefined) {
+            workflowDefs.push({ name: f.replace(/\.workflow\.js$/, ''), source: rel(path), text: '' });
+          }
         }
       }
     }
   }
-  return { skills, agents, hooks, commands, packs, workflowDefs };
+  return { skills, agents, hooks, commands, packs, profiles, workflowDefs };
 }
 
-function readMdDir(dir: string, rel: (abs: string) => string): SourceEntry[] {
-  return readDir(dir, '.md', rel);
+function readMdDir(boundary: string, dir: string, rel: (abs: string) => string): SourceEntry[] {
+  return readDir(boundary, dir, '.md', rel);
 }
-function readDir(dir: string, ext: string, rel: (abs: string) => string): SourceEntry[] {
+function readDir(boundary: string, dir: string, ext: string, rel: (abs: string) => string): SourceEntry[] {
   if (!existsSync(dir)) return [];
-  return readdirSync(dir)
+  return sourceNames(boundary, dir)
     .filter((f) => f.endsWith(ext))
-    .map((f) => {
+    .flatMap((f) => {
       const full = join(dir, f);
-      return { name: f.slice(0, -ext.length), source: rel(full), text: readFileSync(full, 'utf8') };
+      const text = sourceText(boundary, full);
+      return text === undefined
+        ? []
+        : [{ name: f.slice(0, -ext.length), source: rel(full), text }];
     });
 }

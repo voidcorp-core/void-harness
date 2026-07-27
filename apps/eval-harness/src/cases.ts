@@ -1,6 +1,8 @@
+import { FRONTEND_TDD_CASE } from './cases/frontend-tdd.js';
+import { MISSION_TEAM_CASE } from './cases/mission-team.js';
+import { UI_CRAFT_CASE } from './cases/ui-craft.js';
 import { commitDisciplineScorer, tddScorer } from './scorers.js';
 import type { EvalCase, Scorer } from './types.js';
-import { MISSION_TEAM_CASE } from './cases/mission-team.js';
 
 // A judge-case declares a `judge` grid; its conversational value has no file
 // residue, so the CLI ALWAYS resolves its scorer to `judgeScorer(realJudge, grid)`
@@ -79,7 +81,7 @@ const securityAudit: EvalCase = {
       "import { db } from './db';\n\n" +
       'export async function getUser(req: { query: { id: string; role: string } }): Promise<unknown> {\n' +
       '  // no auth check; id concatenated straight into SQL\n' +
-      "  const rows = await db.raw(`SELECT * FROM users WHERE id = '${req.query.id}'`);\n" +
+      `  const rows = await db.raw(\`SELECT * FROM users WHERE id = '\${req.query.id}'\`);\n` +
       '  return rows;\n' +
       '}\n',
     'package.json': `${JSON.stringify({ name: 'fixture-audit', private: true, version: '0.0.0' }, null, 2)}\n`,
@@ -101,5 +103,7 @@ export const CASES: Readonly<Record<string, EvalCase>> = {
   tdd,
   brainstorming,
   'security-audit': securityAudit,
+  'frontend-tdd': FRONTEND_TDD_CASE,
+  'ui-craft': UI_CRAFT_CASE,
   'mission-team': MISSION_TEAM_CASE,
 };

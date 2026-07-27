@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { corsFor, startLiveServer, type LiveServerOptions } from './graph-live-server.js';
 
 const MODEL = JSON.stringify({ version: 1, nodes: [], edges: [] });
+const CATALOG = JSON.stringify({ schemaVersion: 3, graphId: 'catalog:test' });
 const LAUNCH_TOKEN = 'launch-token-with-enough-entropy-for-tests';
 
 function canonical(seq: number): string {
@@ -85,6 +86,14 @@ describe('graph live server', () => {
     expect(await res.text()).toBe(MODEL);
     // A same-origin / non-browser request (no Origin) gets no CORS header — not a wildcard.
     expect(res.headers.get('access-control-allow-origin')).toBeNull();
+  });
+
+  it('serves the validated v3 catalog beside the read-only v1 Studio projection', async () => {
+    const port = await start({ catalogJson: CATALOG });
+    const res = await get(port, '/catalog.v3.json');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('application/json');
+    expect(await res.text()).toBe(CATALOG);
   });
 
   it('returns 404 on GET / when no studio is bundled (data-only server)', async () => {

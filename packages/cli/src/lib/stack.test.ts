@@ -1,10 +1,11 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   commandsFor,
   detectPackageManager,
+  detectProfileInput,
   detectStack,
   type Stack,
 } from './stack.js';
@@ -14,6 +15,7 @@ function tmp(): string {
 }
 
 function writePkg(root: string, pkg: object): void {
+  mkdirSync(root, { recursive: true });
   writeFileSync(join(root, 'package.json'), JSON.stringify(pkg, null, 2));
 }
 
@@ -131,5 +133,74 @@ describe('detectMutationRunner', () => {
     const root = tmp();
     writePkg(root, { devDependencies: { vitest: '^2.0.0' } });
     expect(detectStack(root).mutationRunner).toBe('none');
+  });
+});
+
+describe('detectProfileInput', () => {
+  function monorepo(): string {
+    const root = tmp();
+    writePkg(root, {
+      packageManager: 'pnpm@10.34.5',
+      workspaces: ['apps/*', 'packages/*'],
+      devDependencies: { typescript: '^5.9.2' },
+    });
+    writePkg(join(root, 'apps', 'web app'), {
+      dependencies: { next: '^16.1.0', react: '^19.2.0' },
+    });
+    writePkg(join(root, 'apps', 'mobile'), {
+      dependencies: { expo: '~55.0.0', 'react-native': '0.82.0' },
+    });
+    writePkg(join(root, 'packages', 'db'), {
+      dependencies: { 'drizzle-orm': '^0.45.0' },
+    });
+    return root;
+  }
+
+  it('emits deterministic project-scoped technologies for a monorepo with spaces', () => {
+    const detected = detectProfileInput(monorepo(), [
+      'packages/db/migrations/001.sql',
+      'apps/web app/app/page.tsx',
+    ]);
+
+    expect(detected).toMatchObject({
+      schemaVersion: 1,
+      status: 'complete',
+      files: ['apps/web app/app/page.tsx', 'packages/db/migrations/001.sql'],
+    });
+    expect(detected.projects.map((project) => project.path)).toEqual([
+      '.',
+      'apps/mobile',
+      'apps/web app',
+      'packages/db',
+    ]);
+    expect(detected.projects.find((project) => project.path === '.')?.technologies).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'node', version: expect.stringMatching(/^\d+\.\d+\.\d+$/) }),
+        expect.objectContaining({ id: 'pnpm', version: '10.34.5' }),
+        expect.objectContaining({ id: 'typescript', version: '5.9.2' }),
+      ]),
+    );
+    expect(detected.projects.find((project) => project.path === 'apps/web app')?.technologies).toEqual([
+      { id: 'nextjs', version: '16.1.0', sources: ['apps/web app/package.json:next'] },
+      { id: 'react', version: '19.2.0', sources: ['apps/web app/package.json:react'] },
+    ]);
+  });
+
+  it('marks an unparseable workspace dependency version unknown instead of guessing', () => {
+    const root = tmp();
+    writePkg(root, { workspaces: ['packages/*'] });
+    writePkg(join(root, 'packages', 'shared'), {
+      dependencies: { typescript: 'workspace:*' },
+    });
+
+    expect(detectProfileInput(root, ['packages/shared/index.ts']).projects[1]?.technologies).toEqual([
+      { id: 'typescript', version: null, sources: ['packages/shared/package.json:typescript'] },
+    ]);
+  });
+
+  it('rejects traversal in changed-file inputs', () => {
+    expect(() => detectProfileInput(monorepo(), ['../outside.ts'])).toThrow(
+      /PROFILE_INPUT_INVALID/,
+    );
   });
 });

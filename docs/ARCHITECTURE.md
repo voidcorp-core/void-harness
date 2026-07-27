@@ -14,6 +14,7 @@ void-harness/
 │   │   ├── skills/                # craftsman skills (TDD, refactor, hexagonal, ...)
 │   │   ├── agents/                # doctrine-critic and peers + generated specialist agents
 │   │   ├── specialists/           # canonical, runtime-neutral specialist YAML
+│   │   ├── profiles/              # versioned stack expertise and applicability selectors
 │   │   └── hooks/                 # tdd-guard.sh, no-any-grep.sh, no-console-log-grep.sh
 │   ├── mission-engine/            # pure event/evidence contracts and verdict reducers
 │   ├── hook-runner/               # Node adapter compiled into the portable hook asset
@@ -61,6 +62,20 @@ storage dependency.
 The harness assumes **TypeScript + web**. The core is not framework-agnostic across language families. See `docs/PHILOSOPHY.md` § "Stack assumption".
 
 A future Rust/Go/Python flavor lives in a sibling repo, reusing mechanics not skills.
+
+## Stack profile compilation
+
+`packages/core/profiles/*.yaml` is the certified stack-knowledge catalog. Consumer extensions use
+`.void/profiles/*.profile.yaml`; the explicit suffix lets policy overlays coexist in the same
+directory. The CLI loads both through a bounded, alias-free, root-confined YAML adapter and the
+mission engine validates and routes the resulting declarative contracts without filesystem I/O.
+
+Routing is file-owner scoped. Each changed path belongs to its longest matching workspace package;
+root technologies are inherited, while sibling technologies are not. A web TSX change can select
+TypeScript, React, and Next.js without selecting Expo or SQL from neighboring packages. Every
+decision is `applicable`, `not-applicable`, or `degraded`, carries the detector inputs and a stable
+hash, and is compiled into the mission plan. Expired profiles and unknown or uncovered versions
+degrade and require review against the profile's official sources. See `docs/PROFILES.md`.
 
 ## Agent runtime parity (Claude Code + Codex) — the adapter seam
 
@@ -281,6 +296,20 @@ v1. See `apps/eval-harness/README.md` for the method.
 
 ## Consumer graph delivery (`/void-graph`)
 
+The graph kernel uses a common node-link envelope at `schemaVersion: 3` for CatalogGraph,
+MissionGraph, EvidenceGraph, and the future ProjectGraph. Every node, edge, and hyperedge has a
+namespaced stable ID, typed origin, numeric confidence, and bounded provenance. The source carries
+its producer version and a SHA-256 `rootHash`; validation rejects duplicate IDs, dangling
+relations, invalid observation timestamps, path escapes, oversized payloads, and hash drift.
+Graph deltas name their base and resulting root hashes and are applied only after both the delta and
+the resulting snapshot validate.
+
+The current source catalog is adapted to v3 first. `catalog.v3.json` is the canonical versioned
+snapshot; `model.json` is its read-only v1 compatibility projection for Graph Studio, audit,
+certification, status, and the existing consumer bundle. Those readers also pass v1 through the v3
+validator before use. `graph live` serves both `/catalog.v3.json` and `/model.json`. Rollback can
+restore direct v1 reads and remove the v3 artifact because the adapter never mutates its input.
+
 The graph tooling also ships to consumers, not just the monorepo. A build step
 (`packages/cli/scripts/build-void-graph.ts`) bundles the kernel + `graph` CLI into one
 self-contained `packages/core/graph/void-graph.mjs`: `model.json` is baked in via the
@@ -294,7 +323,8 @@ source tree (no monorepo paths), filters it to the packs enabled in `.claude/set
 correlates it with local mission journals (`.void/runs/*/events.jsonl`, plus
 read-only v2 import, and transcripts). `graph live` serves the inlined studio
 and a `/studio-data.json` endpoint on loopback - fully offline. Freshness
-is gated by `graph check-bundle` (the artifact's embedded model must match `model.json`); see
+is gated by `graph check-bundle` (the artifact's embedded compatibility model must match
+`model.json`); see
 DECISIONS.md (2026-07-01). The artifact is excluded from the `core-assets` mirror.
 
 ## Mission event journal (`.void/runs/<mission-id>/events.jsonl`)
@@ -323,6 +353,14 @@ strict YAML + root-confined files ──> CLI policy loader
                                       v
                     risk + applicability + canonical DAG
 ```
+
+Applicable UI work adds a pure fail-closed quality gate after planning. An Experience Designer
+attestation must match the current mission input before implementation. After implementation, QA
+captures each applicable state at mobile and desktop sizes, and a Visual Craft Director reviews
+that evidence in a distinct fresh context. Tests, captures, and the post-build review carry the
+current diff hash; a later component or CSS change makes them stale. Six named craft dimensions
+must each reach 8/10, and unavailable browser proof blocks instead of falling back to LLM-only
+approval. The gate is exported by `@voidcorp/mission-engine`; browser I/O remains in runtime adapters.
 
 All runtimes now emit one strict, versioned event contract. `@voidcorp/mission-engine`
 validates bounded JSON and reduces it without I/O. `@voidcorp/hook-runner` adapts
@@ -421,8 +459,8 @@ low risk and retains the same evaluated and required passes as `team`; it remove
 redundancy. Unknown or medium risk promotes to `team`. Any high-risk predicate promotes to
 `fortress`, which adds threat modeling, an independent adversarial security review,
 rollback/recovery proof, safe DAST when executable, and a second proof for critical invariants.
-These assurance requirements overlay the core pass policy; they do not weaken or duplicate
-`core.yaml` rules.
+These assurance requirements overlay the core pass policies; they do not weaken or duplicate the
+bundled `policies/*.yaml` rules.
 
 The budget reducer accepts cumulative, sourced observations. Crossing 70% drops unloaded context,
 90% reduces optional redundancy and favors still-valid proof, and 100% pauses work. A jump emits
@@ -620,7 +658,7 @@ Implemented today in `.github/workflows/ci.yml` (all block the PR on failure):
 | Lint | `pnpm lint` (Biome) over first-party TypeScript |
 | Build | `pnpm build` (packs must build before typecheck resolves their exports) |
 | Self-host release gate | compiles current sources in isolation; rejects source/receipt/hook/replay drift |
-| Graph integrity | `pnpm graph:check` — model.json drift + broken routes + capability governance (owner/runtimes) |
+| Graph integrity | `pnpm graph:check` — CatalogGraph v3 + model.json projection drift, broken routes, capability governance |
 | Certification freshness | `pnpm certification:check` — committed `certification.json` matches the model + eval reports |
 | Consumer bundle freshness | `pnpm graph:check-bundle` — the shipped `void-graph.mjs` embeds the current `model.json` |
 | Skill tests | `pnpm vitest run` |

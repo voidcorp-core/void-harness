@@ -121,10 +121,14 @@ function discoveryCheck(artifactRoot: string): SelfHostCheck {
     '.claude/skills/tdd/SKILL.md',
     '.claude/agents/doctrine-critic.md',
     '.claude/agents/solution-architect.md',
+    '.claude/agents/experience-designer.md',
+    '.claude/agents/visual-craft-director.md',
     '.codex/hooks.json',
     '.agents/skills/tdd/SKILL.md',
     '.codex/agents/doctrine-critic.toml',
     '.codex/agents/solution-architect.toml',
+    '.codex/agents/experience-designer.toml',
+    '.codex/agents/visual-craft-director.toml',
     '.void/hooks/_void-hook.mjs',
   ];
   const missing = required.filter((path) =>

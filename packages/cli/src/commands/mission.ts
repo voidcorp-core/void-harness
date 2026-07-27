@@ -15,6 +15,7 @@ import {
 } from '@voidcorp/mission-engine';
 import { findCoreSource } from '../lib/paths.js';
 import { loadProjectPolicies } from '../lib/policy-loader.js';
+import { loadProfiles } from '../lib/profile-loader.js';
 import { archiveMission, pruneMissions } from '../lib/runs/archive.js';
 import { inspectCurrentMission } from '../lib/runs/inspect-current.js';
 import { collectKnownSecrets } from '../lib/runs/redact.js';
@@ -24,7 +25,7 @@ import {
   type MissionMode,
 } from '../lib/runs/store.js';
 import { verifyMissionCommand } from '../lib/runs/verify.js';
-import { detectStack } from '../lib/stack.js';
+import { detectProfileInput, detectStack } from '../lib/stack.js';
 
 const MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
 const execFile = promisify(nodeExecFile);
@@ -334,7 +335,7 @@ async function gitFiles(root: string): Promise<DetectedFiles> {
   }
 }
 
-function detectedStack(root: string): {
+function detectedStack(root: string, profileInput: ReturnType<typeof detectProfileInput>): {
   readonly technologies: readonly string[];
   readonly status: 'known' | 'unknown';
 } {
@@ -351,7 +352,11 @@ function detectedStack(root: string): {
   }
   const stack = detectStack(root);
   return Object.freeze({
-    technologies: Object.freeze(Object.values(stack)),
+    technologies: Object.freeze([...new Set([
+      ...Object.values(stack),
+      ...profileInput.projects.flatMap((project) =>
+        project.technologies.map((technology) => technology.id)),
+    ])].sort()),
     status: 'known',
   });
 }
@@ -366,14 +371,22 @@ export async function planMission(
     findCoreSource(),
     gitFiles(root),
   ]);
-  const policies = await loadProjectPolicies(root, join(coreRoot, 'policies', 'core.yaml'));
-  const stack = detectedStack(root);
+  const [policies, profiles] = await Promise.all([
+    loadProjectPolicies(root, join(coreRoot, 'policies')),
+    loadProfiles(root, join(coreRoot, 'profiles')),
+  ]);
+  const profileInput = detectProfileInput(root, diff.files);
+  const stack = detectedStack(root, profileInput);
   return compileMissionPlan({
     schemaVersion: 1,
     ticket,
     diff,
     stack,
     policy: mergePolicies(policies, generatedAt),
+    profiles: {
+      catalog: profiles,
+      input: profileInput,
+    },
   }, { generatedAt });
 }
 
@@ -486,7 +499,7 @@ export async function mission(args: readonly string[]): Promise<void> {
     }
     if (parsed.kind === 'start') {
       const diff = await gitFiles(root);
-      const stack = detectedStack(root);
+      const stack = detectedStack(root, detectProfileInput(root, diff.files));
       const selection = selectMissionMode(classifyRisk({
         ticket: parsed.title,
         files: diff.files,

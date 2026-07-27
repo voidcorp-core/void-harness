@@ -128,6 +128,12 @@ The discipline is uniform. Brand expression varies per project (DESIGN.md); the 
 - [ ] Sister-doc parity: AGENTS.md flavor matches CLAUDE.md flavor (Codex uses gstack the same way Claude does)
 - [ ] Audit status moved from `reviewed` → `shipped` after first project consumes the skill
 
+## DEV-444 pre-build adaptation
+
+- Added the Experience Designer as a fresh read-only upstream brief, not a second build skill.
+- The builder consumes IA, state, responsive, keyboard, and accessibility intent without self-approval.
+- Post-build craft judgment remains in `ui-review` and the Visual Craft Director to keep overlap bounded.
+
 ## Open questions
 
 - **Vendor verbatim from Vercel plugin vs fork**: lean fork. The mobile-first dual-quality invariant is non-trivial addition.

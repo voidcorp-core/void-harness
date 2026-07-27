@@ -14,14 +14,20 @@ core < profile < organization < project
 
 | Layer | Location | Files loaded |
 |---|---|---|
-| core | bundled `policies/core.yaml` | certified artifact |
+| core | bundled `policies/` | every `*.yaml` / `*.yml` certified artifact |
 | profile | `.void/profiles/` | `*.policy.yaml` or `*.policy.yml` |
 | organization | `.void/organization/` | `*.policy.yaml` or `*.policy.yml` |
 | project | `.void/policies/` | `*.yaml` or `*.yml` |
 
-Profile policies use the explicit `.policy.yaml` suffix so future stack profile documents can live
-beside them without being interpreted as policy. Files are sorted, root-confined, limited to 64
-KiB each, and parsed as strict YAML 1.2 with duplicate keys and aliases rejected.
+Core policy is split by subject (`core.yaml`, `ui.yaml`) so independently governed quality floors do
+not turn one file into a catch-all. Profile policies use the explicit `.policy.yaml` suffix so
+future stack profile documents can live beside them without being interpreted as policy. Files are
+sorted, root-confined, limited to 64 KiB each, and parsed as strict YAML 1.2 with duplicate keys and
+aliases rejected.
+
+Stack expertise is a separate contract compiled into the same mission plan. Files named
+`*.profile.yaml` are handled by the profile loader, never by policy precedence; see
+`docs/PROFILES.md`.
 
 ## Contract
 
@@ -45,8 +51,9 @@ rules:
 applicability, enable a baseline, or raise strength. It cannot change a rule's pass or weaken a
 lower layer silently.
 
-Core policy version 2 overlays high-risk predicates onto Architecture, QA, and Security as blocking
-deep passes. Destructive migration also activates a blocking Migration recovery pass. Fortress-only
+The core quality policy overlays high-risk predicates onto Architecture, QA, and Security as
+blocking deep passes. The UI policy makes frontend TDD, UX/UI, and accessibility blocking when
+their signals apply. Destructive migration also activates a blocking Migration recovery pass. Fortress-only
 assurance requirements such as the second critical proof remain in the mode contract; policy rules
 select passes and do not duplicate runtime orchestration semantics.
 

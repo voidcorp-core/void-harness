@@ -4,7 +4,7 @@ import { assembleModel, serializeModel } from './build-model.js';
 const tree = {
   skills: [{ name: 'tdd', pack: null, source: 's', text: '---\ndescription: x\n---\n' }],
   agents: [], hooks: [{ name: 'tdd-guard', source: 's', text: '#!/bin/sh\n' }],
-  commands: [], packs: [], workflowDefs: [],
+  commands: [], packs: [], profiles: [], workflowDefs: [],
 };
 
 describe('assembleModel', () => {

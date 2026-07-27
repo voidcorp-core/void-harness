@@ -13,6 +13,7 @@ Install a top-5% development doctrine on any project in one command, run it acro
 - **Evidence-bound missions** — append-only local proofs, findings and honest verdicts that become stale when their inputs change.
 - **Multi-runtime by construction** — one doctrine, compiled locally to **Claude Code** (`CLAUDE.md` + `.claude/skills` + `.claude/agents`) and **Codex** (`AGENTS.md` + `.agents/skills` + `.codex/agents` + hooks) through a runtime-adapter seam. Both runtimes get native fresh-context agents; what cannot reach equivalent isolation stays explicitly degraded in `docs/CODEX.md`. Add a runtime later without a reinstall (`void-harness runtime add codex`).
 - **Pluggable stack packs** — Next.js, monorepo, React, server, PWA, mobile — activated per project.
+- **Fresh stack profiles** — project-scoped, version-covered guidance with official sources and explicit expiry.
 - **Free and account-free** — `npx voidharness init`. No Claude account, no subscription, no API key. The Claude Code marketplace is an optional secondary channel.
 
 Born at VoidCorp, released for anyone.
@@ -56,13 +57,14 @@ void-harness/
 │   ├── core/                      # harness plugin (static assets, not an npm package)
 │   │   ├── skills/                # craftsman skills
 │   │   ├── agents/                # doctrine-critic + native/generated Claude agents
-│   │   ├── specialists/           # canonical architecture, security, and QA contracts
+│   │   ├── specialists/           # canonical architecture, security, QA, and UI contracts
+│   │   ├── profiles/              # versioned stack guidance selected per changed project
 │   │   ├── hooks/                 # tdd-guard, no-any-grep, no-console-log-grep, etc.
 │   │   ├── codex/                 # Codex safety-floor manifest (hooks.json)
 │   │   └── modules/               # CLAUDE.md modules (composable)
 │   ├── mission-engine/            # pure mission/event contracts and reducers
 │   ├── hook-runner/               # portable Node hook event writer
-│   ├── harness-graph/             # graph kernel + frozen model.json / certification.json
+│   ├── harness-graph/             # Graph v3 kernel + v1 projection + frozen certification
 │   └── packs/
 │       ├── pack-monorepo/         # Turbo / ADR / 5+5 layout
 │       ├── pack-react/            # React 19 component-layer purity
@@ -105,7 +107,9 @@ before any specialist runs:
 npx voidharness mission plan --ticket tickets/DEV-435.md --json
 ```
 
-Policies compose monotonically from core to project; see [`docs/POLICIES.md`](docs/POLICIES.md).
+Policies compose monotonically from core to project; stack profiles are selected by the changed
+file's owning workspace and fail degraded when stale or version-unknown. See
+[`docs/POLICIES.md`](docs/POLICIES.md) and [`docs/PROFILES.md`](docs/PROFILES.md).
 
 For an auditable local execution:
 

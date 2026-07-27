@@ -199,6 +199,27 @@ describe('parseMissionArgs', () => {
     });
   });
 
+  it('loads the UI core policy and makes frontend TDD, craft, and accessibility deep passes', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'void-mission-ui-'));
+    await writeFile(join(root, 'package.json'), JSON.stringify({
+      packageManager: 'pnpm@10.34.5',
+    }));
+    await writeFile(
+      join(root, 'DEV-444.md'),
+      '# Accessible action menu UI\n\nAdd a keyboard-accessible React component and error state.\n',
+    );
+
+    const plan = await planMission(root, 'DEV-444.md', '2026-07-27T00:00:00Z');
+    const decisions = Object.fromEntries(
+      plan.applicability.map((item) => [item.pass, item]),
+    );
+
+    expect(plan.policySources).toContain('core:ui-quality');
+    expect(decisions.tdd).toMatchObject({ state: 'pending', depth: 'deep' });
+    expect(decisions['ux-ui']).toMatchObject({ state: 'pending', depth: 'deep' });
+    expect(decisions.accessibility).toMatchObject({ state: 'pending', depth: 'deep' });
+  });
+
   it('renders structured JSON failures without hiding the root cause', () => {
     expect(JSON.parse(renderMissionFailure(
       new Error('POLICY_PATH_ESCAPE: policy resolves outside root'),

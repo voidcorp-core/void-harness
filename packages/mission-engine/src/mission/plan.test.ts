@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mergePolicies } from '../policy/merge.js';
 import { parsePolicy, type PolicyDocument } from '../policy/schema.js';
+import { parseProfile, type ProfileDocument } from '../profile/schema.js';
 import { compileMissionPlan } from './plan.js';
 
 const PASSES = [
@@ -71,6 +72,39 @@ function input(project: keyof typeof PROJECT_FIXTURES) {
   };
 }
 
+function typescriptProfile(): ProfileDocument {
+  const parsed = parseProfile({
+    schemaVersion: 1,
+    id: 'core:typescript',
+    version: 1,
+    name: 'typescript',
+    technologies: [{
+      id: 'typescript',
+      minimumVersion: '5.0.0',
+      maximumVersionExclusive: '7.0.0',
+    }],
+    detectors: {
+      always: false,
+      technologies: ['typescript'],
+      files: { extensions: ['.ts'], names: [], pathSegments: [] },
+    },
+    sources: [{ title: 'TypeScript documentation', url: 'https://www.typescriptlang.org/docs/' }],
+    reviewedAt: '2026-07-26',
+    expiresAfterDays: 180,
+    invariants: ['Keep strict type checking enabled.'],
+    patterns: [{
+      id: 'typed-source',
+      appliesWhen: {
+        technologies: ['typescript'],
+        files: { extensions: ['.ts'], names: [], pathSegments: [] },
+      },
+      guidance: 'Apply typed guidance only to matching source files.',
+    }],
+  });
+  if (!parsed.ok) throw new Error(parsed.issue.message);
+  return parsed.value;
+}
+
 describe('compileMissionPlan', () => {
   it('gives every minimal pass an initial state and applicability proof', () => {
     const plan = compileMissionPlan(input('void-harness'), {
@@ -96,6 +130,37 @@ describe('compileMissionPlan', () => {
     });
     expect(first.planHash).toBe(second.planHash);
     expect({ ...first, generatedAt: '' }).toEqual({ ...second, generatedAt: '' });
+  });
+
+  it('compiles project-scoped profile decisions into the mission plan', () => {
+    const plan = compileMissionPlan({
+      ...input('void-harness'),
+      profiles: {
+        catalog: [typescriptProfile()],
+        input: {
+          schemaVersion: 1,
+          status: 'complete',
+          files: ['packages/cli/src/api.ts'],
+          projects: [{
+            path: '.',
+            technologies: [{
+              id: 'typescript',
+              version: '5.9.2',
+              sources: ['package.json:typescript'],
+            }],
+          }],
+        },
+      },
+    }, { generatedAt: '2026-07-26T00:00:00Z' });
+
+    expect(plan.profiles).toEqual([
+      expect.objectContaining({
+        profileId: 'core:typescript',
+        state: 'applicable',
+        activePatternIds: ['typed-source'],
+      }),
+    ]);
+    expect(plan.context.status).toBe('complete');
   });
 
   it.each(['declik', 'sesame', 'solaar', 'void-harness'] as const) (

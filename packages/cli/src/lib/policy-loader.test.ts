@@ -22,8 +22,14 @@ rules:
 
 async function fixture(): Promise<{ root: string; core: string }> {
   const root = await mkdtemp(join(tmpdir(), 'void-policy-loader-'));
-  const core = join(root, 'core.yaml');
-  await writeFile(core, CORE_POLICY, 'utf8');
+  const core = join(root, 'core');
+  await mkdir(core, { recursive: true });
+  await writeFile(join(core, 'core.yaml'), CORE_POLICY, 'utf8');
+  await writeFile(
+    join(core, 'ui.yaml'),
+    CORE_POLICY.replaceAll('quality-floor', 'ui-quality').replaceAll('security', 'ux-ui'),
+    'utf8',
+  );
   return { root, core };
 }
 
@@ -49,7 +55,7 @@ describe('parsePolicyYaml', () => {
 });
 
 describe('loadProjectPolicies', () => {
-  it('loads core before project policies regardless of directory order', async () => {
+  it('loads every bundled core policy before project policies regardless of directory order', async () => {
     const { root, core } = await fixture();
     const policies = join(root, '.void', 'policies');
     await mkdir(policies, { recursive: true });
@@ -62,7 +68,11 @@ describe('loadProjectPolicies', () => {
       'utf8',
     );
     const loaded = await loadProjectPolicies(root, core);
-    expect(loaded.map((item) => item.layer)).toEqual(['core', 'project']);
+    expect(loaded.map((item) => item.id)).toEqual([
+      'core:quality-floor',
+      'core:ui-quality',
+      'project:quality-floor',
+    ]);
   });
 
   it('rejects a symlinked policy that escapes the project root', async () => {

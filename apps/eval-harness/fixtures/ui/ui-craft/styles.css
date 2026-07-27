@@ -1,0 +1,14 @@
+body {
+  background: linear-gradient(135deg, #5b21b6, #2563eb);
+  font-family: sans-serif;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+.glass-card {
+  backdrop-filter: blur(18px);
+  border-radius: 24px;
+  padding: 4rem;
+  text-align: center;
+}

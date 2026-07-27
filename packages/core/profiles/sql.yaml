@@ -1,0 +1,42 @@
+schemaVersion: 1
+id: core:sql
+version: 1
+name: sql
+technologies:
+  - id: drizzle
+    minimumVersion: 0.30.0
+    maximumVersionExclusive: 2.0.0
+  - id: prisma
+    minimumVersion: 6.0.0
+    maximumVersionExclusive: 9.0.0
+  - id: postgres
+    minimumVersion: 8.0.0
+    maximumVersionExclusive: 11.0.0
+detectors:
+  always: false
+  technologies: [drizzle, prisma, postgres]
+  files:
+    extensions: [.sql]
+    names: [schema.ts, schema.prisma, drizzle.config.ts]
+    pathSegments: [migrations]
+sources:
+  - title: PostgreSQL documentation
+    url: https://www.postgresql.org/docs/current/
+  - title: Drizzle ORM documentation
+    url: https://orm.drizzle.team/docs/overview
+  - title: Prisma documentation
+    url: https://www.prisma.io/docs/
+reviewedAt: 2026-07-27
+expiresAfterDays: 120
+invariants:
+  - Make schema changes forward-compatible, observable, reversible, and safe under live traffic.
+  - Keep constraints and transactions aligned with domain invariants.
+patterns:
+  - id: schema-migration
+    appliesWhen:
+      technologies: [drizzle, prisma, postgres]
+      files:
+        extensions: [.sql]
+        names: [schema.ts, schema.prisma]
+        pathSegments: [migrations]
+    guidance: Plan expand-migrate-contract sequencing, rollback, backfill, locking, and production observability.

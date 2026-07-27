@@ -8,6 +8,12 @@ import {
 import { classifyRisk, RISK_CLASSIFIER_VERSION } from '../risk/classify.js';
 import { deriveMissionSignals } from '../risk/predicates.js';
 import {
+  routeProfiles,
+  type ProfileRoutingDecision,
+  type ProfileRoutingInput,
+} from '../profile/routing.js';
+import type { ProfileDocument } from '../profile/schema.js';
+import {
   buildMissionDag,
   type MissionDag,
   type MissionPassState,
@@ -29,6 +35,10 @@ export interface MissionPlanInput {
     readonly status?: 'known' | 'unknown';
   };
   readonly policy: MergedPolicy;
+  readonly profiles?: {
+    readonly catalog: readonly ProfileDocument[];
+    readonly input: ProfileRoutingInput;
+  };
 }
 
 export interface ApplicabilityProof {
@@ -60,6 +70,7 @@ export interface MissionPlan {
   };
   readonly risk: ReturnType<typeof classifyRisk>;
   readonly applicability: readonly ApplicabilityDecision[];
+  readonly profiles: readonly ProfileRoutingDecision[];
   readonly dag: MissionDag;
 }
 
@@ -130,6 +141,7 @@ function normalizeInput(input: MissionPlanInput): MissionPlanInput {
       status: input.stack.status ?? 'known',
     }),
     policy: input.policy,
+    ...(input.profiles === undefined ? {} : { profiles: input.profiles }),
   });
 }
 
@@ -207,10 +219,17 @@ function planHashInput(plan: Omit<MissionPlan, 'generatedAt' | 'planHash'>): unk
   return plan;
 }
 
-function missionContext(input: MissionPlanInput): MissionPlan['context'] {
+function missionContext(
+  input: MissionPlanInput,
+  profiles: readonly ProfileRoutingDecision[],
+): MissionPlan['context'] {
   const issues: string[] = [];
   if (input.diff.status === 'unknown') issues.push('diff-unavailable');
   if (input.stack.status === 'unknown') issues.push('stack-unavailable');
+  if (input.profiles?.input.status === 'degraded') issues.push('profile-detection-incomplete');
+  for (const profile of profiles) {
+    if (profile.state === 'degraded') issues.push(`profile-degraded:${profile.profileId}`);
+  }
   return Object.freeze({
     status: issues.length === 0 ? 'complete' : 'degraded',
     issues: Object.freeze(issues),
@@ -237,6 +256,9 @@ export function compileMissionPlan(
     complete: input.diff.status === 'known' && input.stack.status === 'known',
   };
   const inputHash = canonicalJsonHash(input);
+  const profiles = input.profiles === undefined
+    ? Object.freeze([])
+    : routeProfiles(input.profiles.catalog, input.profiles.input, { now: generatedAt });
   const risk = classifyRisk(classifierInput);
   const signals = deriveMissionSignals(classifierInput);
   const knownInputs = classifierInput.complete
@@ -256,9 +278,10 @@ export function compileMissionPlan(
     ticketId: input.ticket.id,
     policySources: input.policy.sources,
     policyWaivers: input.policy.waivers,
-    context: missionContext(input),
+    context: missionContext(input, profiles),
     risk,
     applicability,
+    profiles,
     dag,
   });
   return Object.freeze({

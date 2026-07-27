@@ -12,6 +12,7 @@ const tree = {
   hooks: [{ name: 'tdd-guard', source: 's', text: '#!/bin/sh\n' }],
   commands: [],
   packs: [{ name: 'pack-nextjs', pack: null, source: 's', text: '' }],
+  profiles: [],
   workflowDefs: [],
 };
 
