@@ -125,8 +125,9 @@ Codex now discovers project-scoped custom agents from `.codex/agents/*.toml`.
 former `.agents/skills/<critic>/SKILL.md` fallback is gone. Skills remain inline
 teaching contracts; agents provide fresh context.
 
-The first v3 specialists, `solution-architect`, `security-engineer`, and
-`test-qa-engineer`, are authored once under `packages/core/specialists/*.yaml`.
+The v3 specialists, `solution-architect`, `security-engineer`, `test-qa-engineer`,
+`experience-designer`, and `visual-craft-director`, are authored once under
+`packages/core/specialists/*.yaml`.
 The Claude and Codex compilers embed the exact same scope, applicability, budget,
 failure policy, and JSON result contract in their native files. Manual and
 orchestrated invocation therefore parse through one identity/version-aware output
@@ -170,13 +171,14 @@ plainly is the point — this is the only place where "prerequisite" keeps meani
 - **Verified**: sister-doc gate; `init` emits `AGENTS.md` and auto-wires
   `.codex/hooks.json` (one staged runner + compiled manifest, unit-tested); `doctor`
   checks the wiring; the hooks parse both runtimes' payload shapes, including
-  multi-file `apply_patch` (unit-tested); all eight agents compile from the real
+  multi-file `apply_patch` (unit-tested); all ten agents compile from the real
   `packages/core` tree to native TOML (integration-tested); a real `init --runtime codex` stages
   one runner plus the discoverable skills and agents; live trusted-project Codex sessions discover
-  and launch all three specialists, accept the hooks manifest under `--strict-config`, and return
+  and launch the architecture/security/QA specialists, accept the hooks manifest under
+  `--strict-config`, and return
   outputs accepted by the shared parser. The staged hooks also block a violation added in the
   second file of a multi-file patch when invoked directly.
-- **Pending a real-Codex run**: end-to-end firing of `.codex/hooks.json` by Codex
+- **Pending a real-Codex run**: live invocation of the two UI specialists; end-to-end firing of `.codex/hooks.json` by Codex
   itself (the hooks are verified by direct invocation, not yet by a live Codex
   session), and a `RUNTIME=codex` backend for the backlog orchestrator (it
   currently invokes `claude -p`; `codex exec` is the intended swap). Tracked in

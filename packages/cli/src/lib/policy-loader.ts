@@ -68,7 +68,7 @@ async function readPolicy(path: string, expectedLayer: PolicyLayer): Promise<Pol
 }
 
 function acceptsPolicyFile(name: string, layer: PolicyLayer): boolean {
-  if (layer === 'project') return /\.ya?ml$/i.test(name);
+  if (layer === 'core' || layer === 'project') return /\.ya?ml$/i.test(name);
   return /\.policy\.ya?ml$/i.test(name);
 }
 
@@ -117,16 +117,20 @@ async function directoryPolicies(
 
 export async function loadProjectPolicies(
   root: string,
-  corePolicyPath: string,
+  corePolicyDirectory: string,
 ): Promise<readonly PolicyDocument[]> {
   const canonicalRoot = await realpath(resolve(root));
-  const core = await readPolicy(await realpath(corePolicyPath), 'core');
+  const canonicalCore = await realpath(resolve(corePolicyDirectory));
+  const core = await directoryPolicies(canonicalCore, canonicalCore, 'core');
+  if (core.length === 0) {
+    throw new Error(`POLICY_CORE_MISSING: ${canonicalCore} has no YAML policy`);
+  }
   const locations: ReadonlyArray<readonly [PolicyLayer, string]> = [
     ['profile', join(canonicalRoot, '.void', 'profiles')],
     ['organization', join(canonicalRoot, '.void', 'organization')],
     ['project', join(canonicalRoot, '.void', 'policies')],
   ];
-  const policies: PolicyDocument[] = [core];
+  const policies: PolicyDocument[] = [...core];
   for (const [layer, directory] of locations) {
     policies.push(...await directoryPolicies(canonicalRoot, directory, layer));
   }

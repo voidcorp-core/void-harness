@@ -200,6 +200,15 @@ If you touch a schema in `<config.paths.contracts>` (Zod schemas at trust bounda
 
 The contract is the **single source of truth**, never redefined in tests.
 
+### Frontend behavior (strict)
+
+For a UI change, RED lives at the smallest observable surface: component, hook, store, accessibility
+contract, or rendered state. Cover every applicable loading/empty/error/success/partial state named
+by the pre-build experience brief. An interactive control needs a role-first keyboard regression
+test before any E2E proof; E2E may confirm the journey but cannot be the first place a keyboard bug
+is caught. Record passing test evidence against the current diff hash so a later UI edit invalidates
+the proof instead of inheriting green.
+
 ### Anti-pattern detected too often
 
 Mocking the DB or Server Actions to make a test pass: it breaks at the next refactor without

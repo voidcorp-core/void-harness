@@ -69,18 +69,6 @@ rules:
     baseline: false
     appliesWhen:
       any: [destructive-migration]
-  - id: core:ux-ui
-    pass: ux-ui
-    strength: required
-    baseline: false
-    appliesWhen:
-      any: [ux-ui]
-  - id: core:accessibility
-    pass: accessibility
-    strength: required
-    baseline: false
-    appliesWhen:
-      any: [accessibility]
   - id: core:performance
     pass: performance
     strength: required

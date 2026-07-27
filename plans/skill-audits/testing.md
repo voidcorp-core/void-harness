@@ -117,6 +117,12 @@ Within a TDD mode (`strict` / `souple` / `exploratory`), the `testing` disciplin
 - [ ] Sister-doc parity: AGENTS.md flavor matches CLAUDE.md flavor
 - [ ] Audit status moved from `reviewed` → `shipped` after first project consumes the skill
 
+## DEV-444 frontend adaptation
+
+- Kept test technique here while TDD retains cycle and timing ownership.
+- Added role-first keyboard input and explicit applicable-state coverage at component/hook/store boundaries.
+- Rejected E2E as a substitute for the focused regression that identifies a broken interaction contract.
+
 ## Open questions
 
 - **Snapshot whitelist mechanism**: `**/__visual__/**` directory convention vs `// allow-snapshot: <reason>` magic comment. Lean directory convention (simpler enforcement, harder to abuse).

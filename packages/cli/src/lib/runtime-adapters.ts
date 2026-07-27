@@ -30,6 +30,7 @@ import { parseEventLine } from '@voidcorp/mission-engine/events';
 import { docFileFor, HARNESS_BLOCK_MARKER, patchRuntimeDoc } from './claude-md.js';
 import {
   CODEX_AGENTS_DIR,
+  NATIVE_SPECIALIST_NAMES,
   codexSpecialistsHealth,
   wireCodexAgents,
 } from './codex-agents.js';
@@ -165,15 +166,9 @@ async function docBlockCheck(projectRoot: string, runtime: Runtime): Promise<Che
     : { name: file, ok: false, message: 'void-harness block missing', fix: `void-harness runtime add ${runtime}` };
 }
 
-const NATIVE_SPECIALISTS = [
-  'solution-architect',
-  'security-engineer',
-  'test-qa-engineer',
-] as const;
-
 async function claudeSpecialistsCheck(agentsRoot: string | undefined): Promise<CheckResult> {
   const missing: string[] = [];
-  for (const name of NATIVE_SPECIALISTS) {
+  for (const name of NATIVE_SPECIALIST_NAMES) {
     if (agentsRoot === undefined) {
       missing.push(name);
       continue;
@@ -200,7 +195,7 @@ async function claudeSpecialistsCheck(agentsRoot: string | undefined): Promise<C
     name: 'claude agents',
     ok: true,
     status: 'advisory',
-    message: '3 native specialists discovered; team degraded because unknown inherited MCP tools cannot be denied in agent frontmatter',
+    message: `${NATIVE_SPECIALIST_NAMES.length} native specialists discovered; team degraded because unknown inherited MCP tools cannot be denied in agent frontmatter`,
   };
 }
 

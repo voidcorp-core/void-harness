@@ -56,10 +56,12 @@ describe('wireClaudeLocalAssets', () => {
     const result = await wireClaudeLocalAssets(root, CORE_ROOT, []);
 
     expect(result.skills).toBeGreaterThan(20);
-    expect(result.agents).toBe(8);
+    expect(result.agents).toBe(10);
     expect(existsSync(join(root, '.claude/skills/tdd/SKILL.md'))).toBe(true);
     expect(existsSync(join(root, '.claude/agents/doctrine-critic.md'))).toBe(true);
     expect(existsSync(join(root, '.claude/agents/solution-architect.md'))).toBe(true);
+    expect(existsSync(join(root, '.claude/agents/experience-designer.md'))).toBe(true);
+    expect(existsSync(join(root, '.claude/agents/visual-craft-director.md'))).toBe(true);
     expect(existsSync(join(root, '.claude/commands/void-doctor.md'))).toBe(true);
     expect(existsSync(join(root, '.void/hooks/_void-hook.mjs'))).toBe(true);
     expect(existsSync(join(root, '.void/hooks/_hooklib.sh'))).toBe(false);
@@ -75,7 +77,7 @@ describe('wireClaudeLocalAssets', () => {
     writeFileSync(generated, readFileSync(generated, 'utf8').replaceAll('\n', '\r\n'));
 
     const project = scratch();
-    await expect(wireClaudeLocalAssets(project, source, [])).resolves.toMatchObject({ agents: 8 });
+    await expect(wireClaudeLocalAssets(project, source, [])).resolves.toMatchObject({ agents: 10 });
     expect(readFileSync(join(project, '.claude', 'agents', 'security-engineer.md'), 'utf8')).not.toContain('\r\n');
   });
 });

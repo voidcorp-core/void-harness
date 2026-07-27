@@ -128,7 +128,7 @@ describe('wireCodexAgents', () => {
   it('compiles every authored agent plus every canonical specialist this repo ships', async () => {
     const proj = tmp('void-codex-agentproj-');
     const staged = await wireCodexAgents(proj, CORE_ROOT);
-    expect(staged).toBe(8);
+    expect(staged).toBe(10);
     for (const name of [
       'doctrine-critic',
       'silent-failure-hunter',
@@ -138,6 +138,8 @@ describe('wireCodexAgents', () => {
       'solution-architect',
       'security-engineer',
       'test-qa-engineer',
+      'experience-designer',
+      'visual-craft-director',
     ]) {
       const toml = readFileSync(join(proj, CODEX_AGENTS_DIR, `${name}.toml`), 'utf8');
       expect(toml).toMatch(new RegExp(`^name = "${name}"$`, 'm'));

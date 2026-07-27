@@ -10,3 +10,6 @@ Sources for `qa` skill (see plans/skill-audits/qa.md for the full distribution m
 Strategy: distill + repoint. One skill, one subject ("live browser QA of a running web app"). qa-only folds in as a mode; the visual pass composes ui-review; the regression test composes tdd/testing. < 30% overlap is structural: this drives the browser + functional/fix loop; ui-review judges visuals; devex-audit audits dev surfaces; tdd/testing author suites.
 
 Companion change (same ticket, gated by Folpe): the "Never use mcp__claude-in-chrome__*" rule in ~/.claude/CLAUDE.md predates the claude-in-chrome adoption and makes this skill unusable; it is lifted in the same move.
+
+DEV-444 adaptation: UI evidence now covers mobile and desktop applicable states, carries the current
+diff identity, and is handed to a fresh Visual Craft Director; unavailable browser proof blocks.

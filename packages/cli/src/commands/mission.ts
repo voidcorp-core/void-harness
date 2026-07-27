@@ -366,7 +366,7 @@ export async function planMission(
     findCoreSource(),
     gitFiles(root),
   ]);
-  const policies = await loadProjectPolicies(root, join(coreRoot, 'policies', 'core.yaml'));
+  const policies = await loadProjectPolicies(root, join(coreRoot, 'policies'));
   const stack = detectedStack(root);
   return compileMissionPlan({
     schemaVersion: 1,

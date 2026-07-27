@@ -14,3 +14,6 @@ Strategy: vendor-plugin + distill. Fork Vercel plugin for the void-harness invar
 Companion hooks: viewport-screenshot-gate (shared with accessibility-first), anti-ai-slop-grep.
 
 Stack-specific @repo/ui + design system tokens + Tailwind config in pack-nextjs-pwa.
+
+DEV-444 adaptation: consumes a fresh-context Experience Designer brief before build; independent
+post-build judgment remains downstream in ui-review and Visual Craft Director.

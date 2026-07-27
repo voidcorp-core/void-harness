@@ -56,7 +56,7 @@ void-harness/
 │   ├── core/                      # harness plugin (static assets, not an npm package)
 │   │   ├── skills/                # craftsman skills
 │   │   ├── agents/                # doctrine-critic + native/generated Claude agents
-│   │   ├── specialists/           # canonical architecture, security, and QA contracts
+│   │   ├── specialists/           # canonical architecture, security, QA, and UI contracts
 │   │   ├── hooks/                 # tdd-guard, no-any-grep, no-console-log-grep, etc.
 │   │   ├── codex/                 # Codex safety-floor manifest (hooks.json)
 │   │   └── modules/               # CLAUDE.md modules (composable)

@@ -130,6 +130,12 @@ Total adapted lines: estimated ≤ 30. Functional equivalence preserved.
 - [ ] Sister-doc parity: AGENTS.md flavor of `tdd` matches CLAUDE.md flavor (terminology adjusted, doctrine identical)
 - [ ] Audit note status moved from `draft` → `reviewed` after user review
 
+## DEV-444 frontend adaptation
+
+- Kept TDD's ownership to sequence and proof timing; `testing` still owns test technique.
+- Added focused component/hook/store/a11y/state RED and keyboard-before-E2E evidence tied to the current diff.
+- Rejected E2E-only frontend proof because it catches interaction regressions too late and too broadly.
+
 ## Open questions
 
 - **Stack-agnostic command resolution**: should `voidcorp.config.json` expose primitive commands (`test`, `e2e`, `mutation`) or composed commands (`test:unit`, `test:integration`, `test:e2e`)? Lean toward primitive + the skill composes — but defer to first real consumer.

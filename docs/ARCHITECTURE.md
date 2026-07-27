@@ -324,6 +324,14 @@ strict YAML + root-confined files ──> CLI policy loader
                     risk + applicability + canonical DAG
 ```
 
+Applicable UI work adds a pure fail-closed quality gate after planning. An Experience Designer
+attestation must match the current mission input before implementation. After implementation, QA
+captures each applicable state at mobile and desktop sizes, and a Visual Craft Director reviews
+that evidence in a distinct fresh context. Tests, captures, and the post-build review carry the
+current diff hash; a later component or CSS change makes them stale. Six named craft dimensions
+must each reach 8/10, and unavailable browser proof blocks instead of falling back to LLM-only
+approval. The gate is exported by `@voidcorp/mission-engine`; browser I/O remains in runtime adapters.
+
 All runtimes now emit one strict, versioned event contract. `@voidcorp/mission-engine`
 validates bounded JSON and reduces it without I/O. `@voidcorp/hook-runner` adapts
 Claude/Codex hook payloads, redacts content, derives an opaque mission ID and
@@ -421,8 +429,8 @@ low risk and retains the same evaluated and required passes as `team`; it remove
 redundancy. Unknown or medium risk promotes to `team`. Any high-risk predicate promotes to
 `fortress`, which adds threat modeling, an independent adversarial security review,
 rollback/recovery proof, safe DAST when executable, and a second proof for critical invariants.
-These assurance requirements overlay the core pass policy; they do not weaken or duplicate
-`core.yaml` rules.
+These assurance requirements overlay the core pass policies; they do not weaken or duplicate the
+bundled `policies/*.yaml` rules.
 
 The budget reducer accepts cumulative, sourced observations. Crossing 70% drops unloaded context,
 90% reduces optional redundancy and favors still-valid proof, and 100% pauses work. A jump emits

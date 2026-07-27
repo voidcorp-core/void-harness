@@ -10,3 +10,6 @@ Sources for `tdd` skill (see plans/skill-audits/tdd.md for full audit):
 Strategy: port-DECLIK with three minimal stack-agnostic adaptations (paths/commands read from voidcorp.config.json, DECLIK-specific refs moved to pack-monorepo).
 
 Companion hook: packages/core/claude/hooks/tdd-guard.sh (94 LOC, all 10 bypasses).
+
+DEV-444 adaptation: frontend RED now targets component/hook/store/a11y/state behavior, requires a
+keyboard regression before E2E for interactive controls, and binds proof to the current diff.
