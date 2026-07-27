@@ -85,6 +85,19 @@ describe('parseMissionArgs', () => {
     });
   });
 
+  it('parses an idempotent mission resume request', () => {
+    expect(parseMissionArgs([
+      'resume',
+      '--id',
+      'mis_0123456789abcdef0123456789abcdef',
+      '--json',
+    ])).toEqual({
+      kind: 'resume',
+      missionId: 'mis_0123456789abcdef0123456789abcdef',
+      json: true,
+    });
+  });
+
   it('parses deterministic mission planning', () => {
     expect(parseMissionArgs([
       'plan',
