@@ -1,11 +1,11 @@
 # eval: ticket-runner — refuse a false green across architecture, security, and QA blockers
 
-verdict: **skill-helps**  (delta +75%, 1 runs/condition)
+verdict: **skill-helps**  (delta +75%, 3 runs/condition)
 
 | condition | mean score | ok runs | cost |
 |---|---|---|---|
-| with skill | 100% | 1/1 | $0.0000 |
-| without skill | 25% | 1/1 | $0.0000 |
+| with skill | 100% | 3/3 | $0.0000 |
+| without skill | 25% | 3/3 | $0.0000 |
 
 total cost: $0.0000
 

@@ -1697,6 +1697,7 @@ function replayEventLog(text2) {
 // src/sequenced-writer.ts
 var MAX_EVENT_LOG_BYTES = 8 * 1024 * 1024;
 var MISSION_ID3 = /^mis_[A-Za-z0-9_-]{8,100}$/;
+var EVENT_ID2 = /^evt_[A-Za-z0-9_-]{8,100}$/;
 var DEFAULT_LOCK_STALE_MS = 3e4;
 var DEFAULT_LOCK_ATTEMPTS = 2e3;
 var LOCK_RETRY_MS = 2;
@@ -1852,7 +1853,25 @@ async function writeSequenceState(statePath, state, randomUUID) {
   }
   await rename(temporary, statePath);
 }
-async function writeSequencedEvent(options) {
+function sameDraft(event, options) {
+  return event.missionId === options.missionId && event.source === options.draft.source && event.kind === options.draft.kind && event.subject === options.draft.subject && event.correlationId === options.draft.correlationId && event.causationId === options.draft.causationId && JSON.stringify(event.payload) === JSON.stringify(options.draft.payload);
+}
+async function existingIdempotentEvent(logPath, options, currentBytes) {
+  if (options.eventId === void 0 || currentBytes === 0) return void 0;
+  const stream = replayEventLog(await readFile2(logPath, "utf8"));
+  if (stream.continuity === "partial" || stream.duplicateEventIds > 0) {
+    throw new Error("HOOK_EVENT_LOG_INTEGRITY: continuity cannot be proved");
+  }
+  const existing = stream.events.find((event) => event.eventId === options.eventId);
+  if (existing !== void 0 && !sameDraft(existing, options)) {
+    throw new Error("HOOK_EVENT_ID_CONFLICT: event ID belongs to another draft");
+  }
+  return existing;
+}
+async function writeSequencedEventInternal(options) {
+  if (options.eventId !== void 0 && !EVENT_ID2.test(options.eventId)) {
+    throw new Error("HOOK_INVALID_EVENT_ID: expected evt_<opaque-id>");
+  }
   const run = await safeRunDirectory(options.root, options.missionId);
   const logPath = join8(run, "events.jsonl");
   const statePath = join8(run, ".seq.state");
@@ -1874,6 +1893,17 @@ async function writeSequencedEvent(options) {
       if (code2(error) === "ENOENT") return 0;
       throw error;
     });
+    if (currentBytes > MAX_EVENT_LOG_BYTES) {
+      throw new Error("HOOK_EVENT_LOG_FULL: rotate or archive the run");
+    }
+    const existing = await existingIdempotentEvent(
+      logPath,
+      options,
+      currentBytes
+    );
+    if (existing !== void 0) {
+      return Object.freeze({ event: existing, appended: false });
+    }
     if (currentBytes >= MAX_EVENT_LOG_BYTES) {
       throw new Error("HOOK_EVENT_LOG_FULL: rotate or archive the run");
     }
@@ -1886,7 +1916,7 @@ async function writeSequencedEvent(options) {
     const event = {
       schemaVersion: 1,
       seq: previousSeq + 1,
-      eventId: `evt_${randomUUID()}`,
+      eventId: options.eventId ?? `evt_${randomUUID()}`,
       missionId: options.missionId,
       ts: (options.now ?? /* @__PURE__ */ new Date()).toISOString(),
       ...options.draft
@@ -1901,10 +1931,13 @@ async function writeSequencedEvent(options) {
       { seq: event.seq, logBytes },
       randomUUID
     );
-    return event;
+    return Object.freeze({ event, appended: true });
   } finally {
     await releaseLock(lock);
   }
+}
+async function writeSequencedEvent(options) {
+  return (await writeSequencedEventInternal(options)).event;
 }
 
 // src/record.ts

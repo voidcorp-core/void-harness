@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   missionVerdictExitCode,
+  missionRecoveryExitCode,
   parseMissionArgs,
   planMission,
   renderMissionFailure,
@@ -85,6 +86,19 @@ describe('parseMissionArgs', () => {
     });
   });
 
+  it('parses an idempotent mission resume request', () => {
+    expect(parseMissionArgs([
+      'resume',
+      '--id',
+      'mis_0123456789abcdef0123456789abcdef',
+      '--json',
+    ])).toEqual({
+      kind: 'resume',
+      missionId: 'mis_0123456789abcdef0123456789abcdef',
+      json: true,
+    });
+  });
+
   it('parses deterministic mission planning', () => {
     expect(parseMissionArgs([
       'plan',
@@ -118,6 +132,14 @@ describe('parseMissionArgs', () => {
     expect(missionVerdictExitCode('degraded')).toBe(1);
   });
 
+  it('fails resume when no safe recovery decision is actionable', () => {
+    expect(missionRecoveryExitCode('active')).toBe(0);
+    expect(missionRecoveryExitCode('complete')).toBe(0);
+    expect(missionRecoveryExitCode('waiting')).toBe(1);
+    expect(missionRecoveryExitCode('blocked')).toBe(1);
+    expect(missionRecoveryExitCode('degraded')).toBe(1);
+  });
+
   it('plans a real ticket deterministically and degrades outside git', async () => {
     const root = await mkdtemp(join(tmpdir(), 'void-mission-plan-'));
     await writeFile(join(root, 'package.json'), JSON.stringify({
@@ -141,6 +163,40 @@ describe('parseMissionArgs', () => {
     expect(first.planHash).toBe(second.planHash);
     expect(first.context).toMatchObject({ status: 'degraded' });
     expect(first.applicability).toHaveLength(13);
+  });
+
+  it('applies fortress policy overlays to high-risk planning', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'void-mission-fortress-'));
+    await writeFile(join(root, 'package.json'), JSON.stringify({
+      packageManager: 'pnpm@10.34.5',
+    }));
+    await writeFile(
+      join(root, 'DEV-442.md'),
+      '# Authentication permissions\n\nHarden auth permissions.\n',
+    );
+
+    const plan = await planMission(
+      root,
+      'DEV-442.md',
+      '2026-07-27T00:00:00Z',
+    );
+    const decisions = Object.fromEntries(
+      plan.applicability.map((item) => [item.pass, item]),
+    );
+
+    expect(plan.risk.requiredMode).toBe('fortress');
+    expect(decisions.architecture).toMatchObject({
+      state: 'pending',
+      depth: 'deep',
+    });
+    expect(decisions.security).toMatchObject({
+      state: 'pending',
+      depth: 'deep',
+    });
+    expect(decisions.qa).toMatchObject({
+      state: 'pending',
+      depth: 'deep',
+    });
   });
 
   it('renders structured JSON failures without hiding the root cause', () => {

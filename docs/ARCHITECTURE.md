@@ -402,6 +402,9 @@ contract shared by the skill and runtime adapters.
 
 - `start --title ... [--mode fast|team|fortress]` creates a team-mode run by
   default;
+- `resume --id ... [--json]` replays the durable journal, records one resume
+  checkpoint, and returns the next safe action without dispatching a proven
+  side effect again;
 - `verify --id ... -- <argv...>` executes with `shell:false`, captures a redacted
   bounded proof and returns the current verdict; `--shell` is explicit;
 - `inspect --id ... [--json]` recomputes the current Git diff and exits non-zero
@@ -410,6 +413,36 @@ contract shared by the skill and runtime adapters.
   `verified` or `shipped-with-exception`;
 - `prune --older-than ...` is a dry-run unless `--apply` is supplied and removes
   only runs that already have an archive.
+
+### Modes, budgets, and recovery
+
+Mode selection is a pure contract over the canonical plan. `fast` is accepted only for explicit
+low risk and retains the same evaluated and required passes as `team`; it removes only optional
+redundancy. Unknown or medium risk promotes to `team`. Any high-risk predicate promotes to
+`fortress`, which adds threat modeling, an independent adversarial security review,
+rollback/recovery proof, safe DAST when executable, and a second proof for critical invariants.
+These assurance requirements overlay the core pass policy; they do not weaken or duplicate
+`core.yaml` rules.
+
+The budget reducer accepts cumulative, sourced observations. Crossing 70% drops unloaded context,
+90% reduces optional redundancy and favors still-valid proof, and 100% pauses work. A jump emits
+every crossed transition once. Unknown cost stays `unknown`, never zero, and the reducer carries
+the mandatory pass set unchanged through every state.
+
+Recovery is event-sourced and bounded. A transient failure gets one reduced-context retry, then a
+same-tier replacement. Sequential fallback is legal only when independence is declared
+non-essential; otherwise recovery blocks. Side-effect adapters receive a stable idempotency key and
+current input hash, then must append `side-effect.completed` with both in its receipt. On resume, a
+valid fresh receipt yields only a logical finalization action; stale, malformed, or conflicting
+receipts and partial event streams fail closed. The
+mission engine remains I/O-free, while `mission resume` is the filesystem adapter that appends at
+most one `mission.resumed` event for the current non-resume checkpoint.
+
+`mission resume` reports `active`, `complete`, `waiting`, `blocked`, or `degraded`. `active` and
+`complete` exit 0; all other recovery states exit 1 because no safe forward action completed.
+Invalid arguments exit 2. Filesystem, schema, and journal failures use the existing structured
+`MISSION_*` error envelope and exit 1. `--json` returns the decision plus whether this checkpoint
+created a new `mission.resumed` event.
 
 Invalid journal lines are preserved for forensics and copied once, redacted and
 bounded, into quarantine; they are never silently repaired. Runtime journals and

@@ -1,13 +1,13 @@
 # eval: ticket-runner — refuse a false green across architecture, security, and QA blockers
 
-verdict: **skill-helps**  (delta +75%, 1 runs/condition)
+verdict: **skill-helps**  (delta +75%, 3 runs/condition)
 
 | condition | mean score | ok runs | cost |
 |---|---|---|---|
-| with skill | 100% | 1/1 | $0.3352 |
-| without skill | 25% | 1/1 | $0.0703 |
+| with skill | 100% | 3/3 | $0.9820 |
+| without skill | 25% | 3/3 | $0.2611 |
 
-total cost: $0.4055
+total cost: $1.2431
 
 ## mission-team absolute gate
 

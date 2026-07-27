@@ -13,9 +13,11 @@ import { sealEvidence } from '@voidcorp/mission-engine';
 import { archiveMission } from './archive.js';
 import { computeProjectState } from './project-state.js';
 import {
+  appendMissionEvent,
   createMission,
   inspectMission,
   recordMissionEvidence,
+  resumeMission,
 } from './store.js';
 
 const roots: string[] = [];
@@ -186,5 +188,61 @@ describe('mission run store', () => {
     expect(withEvidence.diffHash).toBe(initial.diffHash);
     expect(changed.diffHash).not.toBe(initial.diffHash);
     expect(changed.affectedNodes).toContain('file:tracked.ts');
+  });
+
+  it('records one resume checkpoint and never replays a proven side effect', async () => {
+    const root = await fixture();
+    await createMission(root, {
+      missionId: ID,
+      title: 'Resume safely',
+      mode: 'team',
+      now: new Date('2026-07-24T12:00:00.000Z'),
+    });
+    await appendMissionEvent(root, ID, {
+      source: 'runtime:codex',
+      kind: 'orchestration.node-defined',
+      subject: 'security-review',
+      correlationId: ID,
+      payload: {
+        tier: 'critical',
+        inputHash: INPUT,
+        independenceEssential: true,
+        sideEffectKey: 'effect:security-review',
+      },
+    });
+    await appendMissionEvent(root, ID, {
+      source: 'runtime:codex',
+      kind: 'orchestration.node-started',
+      subject: 'security-review',
+      correlationId: ID,
+      payload: { attempt: 'initial' },
+    });
+    await appendMissionEvent(root, ID, {
+      source: 'runtime:codex',
+      kind: 'side-effect.completed',
+      subject: 'effect:security-review',
+      correlationId: ID,
+      payload: {
+        nodeId: 'security-review',
+        receiptId: 'rcp_security_001',
+        inputHash: INPUT,
+      },
+    });
+
+    const first = await resumeMission(root, ID);
+    const second = await resumeMission(root, ID);
+    const inspected = await inspectMission(root, ID, { dependencies: {} });
+
+    expect(first).toMatchObject({
+      recorded: true,
+      decision: { action: { kind: 'finalize-node' } },
+    });
+    expect(second).toMatchObject({
+      recorded: false,
+      decision: { action: { kind: 'finalize-node' } },
+    });
+    expect(inspected.stream.events.filter((item) =>
+      item.kind === 'mission.resumed'
+    )).toHaveLength(1);
   });
 });

@@ -1,6 +1,6 @@
 schemaVersion: 1
 id: core:quality-floor
-version: 1
+version: 2
 layer: core
 rules:
   - id: core:product
@@ -15,6 +15,12 @@ rules:
     baseline: false
     appliesWhen:
       any: [architecture]
+  - id: core:fortress-threat-model
+    pass: architecture
+    strength: blocking
+    baseline: false
+    appliesWhen:
+      any: [auth, pii, tenancy, destructive-migration, upload, code-execution, llm-tools, supply-chain]
   - id: core:tdd
     pass: tdd
     strength: blocking
@@ -27,12 +33,24 @@ rules:
     baseline: true
     appliesWhen:
       any: [qa]
+  - id: core:fortress-critical-verification
+    pass: qa
+    strength: blocking
+    baseline: false
+    appliesWhen:
+      any: [auth, pii, tenancy, destructive-migration, upload, code-execution, llm-tools, supply-chain]
   - id: core:security
     pass: security
     strength: blocking
     baseline: true
     appliesWhen:
       any: [security]
+  - id: core:fortress-adversarial-security
+    pass: security
+    strength: blocking
+    baseline: false
+    appliesWhen:
+      any: [auth, pii, tenancy, destructive-migration, upload, code-execution, llm-tools, supply-chain]
   - id: core:observability
     pass: observability
     strength: required
@@ -45,6 +63,12 @@ rules:
     baseline: false
     appliesWhen:
       any: [migration]
+  - id: core:fortress-destructive-recovery
+    pass: migration
+    strength: blocking
+    baseline: false
+    appliesWhen:
+      any: [destructive-migration]
   - id: core:ux-ui
     pass: ux-ui
     strength: required
