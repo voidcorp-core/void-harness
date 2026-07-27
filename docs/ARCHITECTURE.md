@@ -375,6 +375,29 @@ proof. Open non-waivable blockers remain blocking; accepted waivers yield
 yields `degraded`. The projection carries no evaluation timestamp, so replay of
 the same journal and dependency context is byte-for-byte deterministic.
 
+### Team review controller
+
+`packages/mission-engine/src/orchestration/` owns the provider-neutral ticket cycle. The controller
+consumes the canonical mission plan and event stream; it never launches a process or writes a file.
+One lead writer owns implementation and every correction. Applicable Architecture, Security, and QA
+specialists run through runtime-native adapters in separate fresh contexts and return the shared
+structured completion contract. Each receives a bounded plan slice and one assigned lens; findings
+outside that lens belong to the specialist that owns it.
+
+Interactive runs prefer the runtime's native subagent primitive. Headless certification launches a
+fresh native role session directly when parent-to-child delegation cannot prove an attributable
+completion: Claude selects the installed project agent; Codex compiles the installed TOML role into
+an ephemeral session. Both remain read-only. Codex specialists may use sandboxed commands only to
+locate, search, and read repository text; project scripts, builds, tests, package managers,
+interpreters, and VCS mutations remain prohibited.
+
+The review reducer accepts each completion ID and context ID once, deduplicates findings by concrete
+evidence, and compares per-specialist input hashes. A correction therefore stales only affected
+reviews. The MVP loop is capped at two rounds. Missing, malformed, wrong-role, duplicate, timed-out,
+stale, or degraded specialist evidence cannot produce `verified`; persistent blockers end
+`blocked`. `packages/core/workflows/ticket-runner.workflow.yaml` is the human-authored conductor
+contract shared by the skill and runtime adapters.
+
 `void-harness mission` exposes the operator lifecycle:
 
 - `start --title ... [--mode fast|team|fortress]` creates a team-mode run by

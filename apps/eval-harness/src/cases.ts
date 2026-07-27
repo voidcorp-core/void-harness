@@ -1,5 +1,6 @@
 import { commitDisciplineScorer, tddScorer } from './scorers.js';
 import type { EvalCase, Scorer } from './types.js';
+import { MISSION_TEAM_CASE } from './cases/mission-team.js';
 
 // A judge-case declares a `judge` grid; its conversational value has no file
 // residue, so the CLI ALWAYS resolves its scorer to `judgeScorer(realJudge, grid)`
@@ -100,4 +101,5 @@ export const CASES: Readonly<Record<string, EvalCase>> = {
   tdd,
   brainstorming,
   'security-audit': securityAudit,
+  'mission-team': MISSION_TEAM_CASE,
 };

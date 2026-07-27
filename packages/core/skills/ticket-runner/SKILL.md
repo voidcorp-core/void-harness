@@ -22,6 +22,33 @@ One ticket, taken from ready to shipped, with the coverage a senior expert team 
 
 ---
 
+## Canonical team orchestration
+
+For `team` missions, the prose below is not the execution record. Load the canonical mission plan
+before invoking an agent, then follow `workflows/ticket-runner.workflow.yaml`. The pure Mission
+Engine controller is the authority for the next action and verdict.
+
+1. Keep one `leadWriterId` for implementation and every correction. Reviewers never edit.
+2. After implementation, invoke each applicable native specialist in a separate fresh context:
+   `solution-architect`, `security-engineer`, and `test-qa-engineer`. Run independent reviews in
+   parallel when the runtime supports it. Give each specialist only its plan slice and bounded
+   context pack; explicitly assign one review lens and leave the other lenses to their owners.
+3. Parse each raw JSON result through the specialist completion contract. Append exactly one
+   `specialist.completed` event for an accepted completion; append `specialist.failed` for timeout,
+   malformed output, wrong role, duplicate completion, or unavailable isolation.
+4. Treat specialist output as structured findings, evidence requests, and limitations. It is never
+   authoritative free-form prose and never grants write ownership.
+5. Send one coherent correction batch to the same lead writer. Recompute review input hashes and
+   rerun only specialists whose inputs changed.
+6. Stop after two review rounds. A missing completion, stale proof, timeout, degraded specialist,
+   or persistent blocker ends `blocked`/`degraded`, never green.
+
+Claude and Codex use their installed native agent definitions. A sequential self-review in the
+parent context is not a substitute for a missing subagent primitive. If the runtime cannot provide
+fresh context or the declared read-only boundary, report the limitation and refuse certification.
+
+---
+
 ## When to invoke
 
 - Starting any single ticket or issue you intend to implement and ship.
@@ -36,17 +63,17 @@ Do NOT use this to plan several tickets (that is `harness:writing-plans`) or to 
 
 Run in order. Each pass names the skill it composes and the predicate that fires it. `ALWAYS` passes never skip; conditional passes skip only when their predicate is false. You ALWAYS evaluate every predicate yourself against the actual change: a ticket-writer declaration may ADD a pass, never cancel one whose predicate fired.
 
-1. **Ingest + completeness gate** (ALWAYS). Read the ticket: scope, AC, DoD, edge cases, declared passes. Confirm nothing is missing or ambiguous. If a gap or uncovered angle exists, loop back to `harness:ticket-writer` to complete it before coding, do not paper over it. Move the ticket to **In Progress**.
+1. **Ingest + completeness gate** (ALWAYS). Read the ticket: scope, AC, DoD, edge cases, declared passes. Confirm nothing is missing or ambiguous. If a gap or uncovered angle exists, loop back to `harness:ticket-writer` to complete it before coding, do not paper over it. Move the ticket to **In Progress**. Load or compile the canonical mission plan and verify its hash before any specialist invocation; missing or conflicting plan data is degraded, not guessed.
 2. **Architecture pass** (IF it touches structure, a module boundary, the data model, or public types). Compose `harness:hexagonal-architecture`, `harness:domain-driven-design`, agents `type-design-analyzer` + `doctrine-critic`. Confirm the applicable ADR is honored.
 3. **Migration safety** (IF it changes a DB schema or ships a migration). Compose `harness:migrations-safety` (and `harness-server:drizzle-migration-safe` on a Drizzle/Postgres stack): zero-downtime, two-phase, batched backfill, locking analysis. **Once the migration is generated and safety-reviewed, apply it to the dev/local database before the TDD and E2E passes run** — otherwise those tests execute against a stale schema and prove nothing about the new shape. **This cycle only ever applies to dev/local; production migrations run through CI / GitHub Actions on merge, never from a worker or this session** (see the `harness:migrations-safety` anti-rule). A schema change must never reach the rest of the cycle without this pass.
-4. **TDD implementation** (ALWAYS). Compose `harness:tdd` + `harness:testing`. Red, green, refactor. Unit tests for the behavior, green before moving on.
+4. **TDD implementation** (ALWAYS). The single lead writer composes `harness:tdd` + `harness:testing`. Red, green, refactor. Unit tests for the behavior, green before moving on. Review specialists remain read-only.
 5. **Async + idempotency** (IF it sends email, calls an external side-effecting API, enqueues a job, or mints a single-use token). Compose `harness:async-safety`: idempotency keys, replay/dedup window, bounded retries, single-use enforcement.
 6. **End-to-end tests** (IF it touches a user-facing flow). Write/extend the E2E suite (Playwright). The path a user actually walks, not just the unit.
 7. **UX/UI pass** (IF it touches a UI surface). The interface is held to production craft, not just "it renders". Compose `harness:frontend-design` (build-time craft) + `harness:ui-review` (the audit/critique ceiling: AI-slop test, squint test, interaction-state coverage, technical audit) + `harness:accessibility-first`, across the baseline (BACK+FRONT parity, mobile and desktop, and the states a user actually hits — loading / error / empty). Browser-verified QA (live screenshots) runs via `harness:qa` (the claude-in-chrome MCP). A UI ticket is not shippable until this pass is **verified, not assumed**.
 8. **Security pass** (ALWAYS a quick scan; DEEP if it touches a trust boundary: external input, auth, RLS/tenancy, untrusted content, secrets, or a side-effecting action). Compose `harness:security-guidance` + `harness:security-audit`.
-9. **Review** (ALWAYS). Compose `harness:code-review` + agents `doctrine-critic` + `silent-failure-hunter` + the project's own reviewer (e.g. a `pr-reviewer` agent) when present. On a high-stakes diff, add one **independent fresh-context adversarial pass** (a subagent thinking like an attacker + chaos engineer, blind to the authoring thread); classify each finding FIXABLE vs INVESTIGATE, and end on a recommendation that names the single most exploitable finding (a generic reason disqualifies it). Findings agreed by more than one independent pass are high-confidence. *Vendored from gstack `/ship`.*
-10. **Verification before completion** (ALWAYS). Compose `harness:verification-before-completion`: typecheck, tests, hooks, both viewports, all observed not assumed. **A red suite is adjudicated before proceeding** (from gstack `/ship`): each failure is *in-branch* (you touched the test/code, or it traces to the diff → it is yours, fix it) or *pre-existing* (neither touched → offer fix / TODO / skip); ambiguous defaults to in-branch. Test on the **merged base**, not the stale branch.
-11. **Ship** (ALWAYS). Compose `harness:commit-discipline`, open the PR, move the ticket to **Done**. Commits are **bisectable** — one logical change each, dependency-ordered (infra → domain + tests → edge/UI + tests), each independently valid. In backlog-autopilot the worker never opens the PR (the reconciliation subagent does); it stops at green branch.
+9. **Review** (ALWAYS). Run the canonical team orchestration above. Compose `harness:code-review` for the integration lens; `doctrine-critic`, `silent-failure-hunter`, and project reviewers may add scoped findings but never replace the required Architecture, Security, and QA completion events. Findings are deduplicated by concrete evidence, not reviewer majority. On a high-stakes diff, add one independent fresh-context adversarial pass; classify each finding FIXABLE vs INVESTIGATE and name the single most exploitable finding. *Vendored from gstack `/ship`.*
+10. **Verification before completion** (ALWAYS). Compose `harness:verification-before-completion`: typecheck, tests, hooks, both viewports, all observed not assumed. **A red suite is adjudicated before proceeding** (from gstack `/ship`): each failure is *in-branch* (you touched the test/code, or it traces to the diff → it is yours, fix it) or *pre-existing* (neither touched → offer fix / TODO / skip); ambiguous defaults to in-branch. Test on the **merged base**, not the stale branch. The controller may return `verified` only when every applicable specialist completion and required proof is fresh.
+11. **Ship** (ALWAYS). Compose `harness:commit-discipline`, open the PR, and move the ticket to **In Review**. Move it to **Done only after the PR is merged**. Commits are **bisectable** — one logical change each, dependency-ordered (infra → domain + tests → edge/UI + tests), each independently valid. In backlog-autopilot the worker never opens the PR (the reconciliation subagent does); it stops at green branch.
 
 ---
 
@@ -99,4 +126,4 @@ Tokens follow stakes: mechanical work runs cheap, judgment runs at full strength
 
 ## Composition
 
-Upstream: `harness:ticket-writer` produces the ticket and declares its conditional passes. Caller: `harness:backlog-autopilot` runs this once per ticket in parallel worktrees. Every pass here is an existing skill or agent; this skill is the conductor, not a reimplementation of any of them.
+Upstream: `harness:ticket-writer` produces the ticket and declares its conditional passes. Caller: `harness:backlog-autopilot` runs this once per ticket in parallel worktrees. The skill conducts; the Mission Engine controller decides state, invalidation, and verdict; native specialists own their bounded reviews.

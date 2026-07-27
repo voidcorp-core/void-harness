@@ -2,12 +2,34 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CASES } from './cases.js';
-import { createClaudeHeadToHeadJudge, createClaudeJudge, createClaudeRunOnce, DEFAULT_ADAPTER } from './claude-adapter.js';
+import {
+  formatMissionTeamGate,
+  missionTeamGate,
+} from './cases/mission-team.js';
+import {
+  createClaudeHeadToHeadJudge,
+  createClaudeJudge,
+} from './claude-adapter.js';
+import {
+  parseEvalArgs,
+  type EvalArgs,
+  type EvalRuntime,
+} from './cli-args.js';
 import { gutSkill, skillBody } from './gut-skill.js';
 import { judgeScorer } from './judge.js';
 import { formatHeadToHead, formatReport } from './reporter.js';
 import { runEval, runHeadToHead } from './runner.js';
-import type { EvalCase } from './types.js';
+import {
+  createClaudeRunOnce,
+  DEFAULT_ADAPTER,
+} from './runtime/claude.js';
+import {
+  createCodexRunOnce,
+  DEFAULT_CODEX_ADAPTER,
+} from './runtime/codex.js';
+import { provisionNativeSpecialists } from './runtime/native-specialists.js';
+import { createMissionTeamRunOnce } from './runtime/mission-team.js';
+import type { EvalCase, RunOnce } from './types.js';
 
 // The CLI's product is terminal output; the harness bans the logger-of-last-resort,
 // so we write to the streams directly.
@@ -20,115 +42,209 @@ const repoRoot = join(here, '..', '..', '..');
 const skillBodyFor = (skill: string): string =>
   readFileSync(join(repoRoot, 'packages', 'core', 'skills', skill, 'SKILL.md'), 'utf8');
 
-function strFlag(argv: readonly string[], name: string): string | undefined {
-  const i = argv.indexOf(`--${name}`);
-  return i >= 0 ? argv[i + 1] : undefined;
+function runOnceFor(
+  runtime: EvalRuntime,
+  evalCase: EvalCase,
+  missionTeam: boolean,
+): RunOnce {
+  const runtimeCase = missionTeam
+    ? {
+        ...evalCase,
+        fixture: {
+          ...evalCase.fixture,
+          ...provisionNativeSpecialists(repoRoot, runtime),
+        },
+      }
+    : evalCase;
+  if (runtime === 'codex') {
+    const baseline = createCodexRunOnce(evalCase, {
+      ...DEFAULT_CODEX_ADAPTER,
+      timeoutMs: missionTeam ? 120_000 : DEFAULT_CODEX_ADAPTER.timeoutMs,
+      retries: missionTeam ? 0 : DEFAULT_CODEX_ADAPTER.retries,
+      sandbox: missionTeam ? 'read-only' : 'workspace-write',
+    });
+    return missionTeam
+      ? createMissionTeamRunOnce(runtime, runtimeCase, baseline)
+      : baseline;
+  }
+  const baseline = createClaudeRunOnce(evalCase, missionTeam
+    ? {
+        ...DEFAULT_ADAPTER,
+        timeoutMs: 120_000,
+        retries: 0,
+        permissionMode: 'dontAsk',
+        allowedTools: 'Read,Glob,Grep',
+      }
+    : DEFAULT_ADAPTER);
+  return missionTeam
+    ? createMissionTeamRunOnce(runtime, runtimeCase, baseline)
+    : baseline;
 }
 
-function parseArgs(argv: readonly string[]): {
-  skill: string | undefined;
-  runs: number;
-  threshold: number;
-  sensitivity: boolean;
-  headToHead: string | undefined;
-} {
-  const num = (name: string, def: number, min: number, max: number, integer: boolean): number => {
-    const i = argv.indexOf(`--${name}`);
-    if (i < 0) return def;
-    // A bad or out-of-range value must fail LOUDLY. Number(...) yields NaN and
-    // `NaN ?? def` does NOT fall back (?? only catches null/undefined), which
-    // would silently run zero evaluations; an unclamped --runs 10000 would torch
-    // the token budget. Both are caught here.
-    const parsed = Number(argv[i + 1]);
-    if (!Number.isFinite(parsed) || parsed < min || parsed > max || (integer && !Number.isInteger(parsed))) {
-      warn(`--${name} must be ${integer ? 'an integer' : 'a number'} in [${min}, ${max}] (got ${String(argv[i + 1])})`);
-      process.exit(1);
+function reportFile(caseKey: string, runtime: EvalRuntime, multiRuntime: boolean): string {
+  return multiRuntime || runtime !== 'claude'
+    ? `${caseKey}.${runtime}.md`
+    : `${caseKey}.md`;
+}
+
+function resolveCase(rawCase: EvalCase): EvalCase {
+  return rawCase.judge === undefined
+    ? rawCase
+    : { ...rawCase, scorer: judgeScorer(createClaudeJudge(), rawCase.judge) };
+}
+
+async function runHeadToHeadMode(
+  args: EvalArgs,
+  caseKey: string,
+  rawCase: EvalCase,
+  evalCase: EvalCase,
+  body: string,
+): Promise<void> {
+  if (args.headToHead === undefined) return;
+  if (args.runtimes.length !== 1 || args.runtimes[0] !== 'claude') {
+    throw new Error('--head-to-head currently supports only --runtime claude');
+  }
+  const runOnce = runOnceFor('claude', evalCase, args.suite === 'mission-team');
+  const sourceBody = skillBody(readFileSync(args.headToHead, 'utf8'));
+  const grid = rawCase.judge ?? {
+    criteria: ['better accomplishes the task with higher quality'],
+  };
+  print(
+    `head-to-head ${caseKey}: distillate vs ${args.headToHead}, `
+      + `${args.runs} blind comparisons (this spends tokens)...`,
+  );
+  const report = await runHeadToHead(
+    { skill: rawCase.skill, title: evalCase.title },
+    body,
+    sourceBody,
+    runOnce,
+    createClaudeHeadToHeadJudge(),
+    grid,
+    args.runs,
+  );
+  const text = formatHeadToHead(report);
+  print(text);
+  const reportsDir = join(here, '..', 'reports');
+  mkdirSync(reportsDir, { recursive: true });
+  const output = join(reportsDir, `${caseKey}.head-to-head.md`);
+  writeFileSync(
+    output,
+    `${text}\n_generated by @voidcorp/eval-harness — a real blind run, `
+      + 'archived (DEV-397)._\n',
+  );
+  print(`report archived: ${output}`);
+}
+
+async function sensitivityText(
+  args: EvalArgs,
+  evalCase: EvalCase,
+  body: string,
+  runOnce: RunOnce,
+  fullScore: number,
+  fullDelta: number,
+): Promise<string> {
+  if (!args.sensitivity) return '';
+  print('sensitivity: re-running with a GUTTED skill (prose stripped, H1 kept)...');
+  const gutted = await runEval(evalCase, gutSkill(body), runOnce, {
+    runs: args.runs,
+    threshold: args.threshold,
+  });
+  const fullWith = Math.round(fullScore * 100);
+  const guttedWith = Math.round(gutted.withSkill.meanScore * 100);
+  const sensitive = fullScore - gutted.withSkill.meanScore > args.threshold;
+  return `\n## sensitivity check (gutted skill — prose removed, H1 kept)\n\n`
+    + `${formatReport(gutted)}\n`
+    + `with-skill score: full ${fullWith}% vs gutted ${guttedWith}% `
+    + `(delta ${(fullDelta * 100).toFixed(0)}% vs `
+    + `${(gutted.delta * 100).toFixed(0)}%) — `
+    + `${sensitive
+      ? 'SENSITIVE: removing the prose drops the score, so the eval measures the prose.'
+      : 'NOT sensitive — investigate the task/scorer.'}\n`;
+}
+
+async function runRuntimeEval(
+  args: EvalArgs,
+  caseKey: string,
+  runtime: EvalRuntime,
+  evalCase: EvalCase,
+  body: string,
+  reportsDir: string,
+): Promise<void> {
+  const model = runtime === 'claude' ? DEFAULT_ADAPTER.model : 'configured Codex model';
+  print(
+    `eval ${caseKey} [${runtime}]: ${args.runs} runs/condition on ${model} `
+      + '(this spends tokens)...',
+  );
+  const runOnce = runOnceFor(runtime, evalCase, args.suite === 'mission-team');
+  const report = await runEval(evalCase, body, runOnce, {
+    runs: args.runs,
+    threshold: args.threshold,
+  });
+  const text = formatReport(report);
+  print(text);
+  let gateText = '';
+  if (args.suite === 'mission-team') {
+    const gate = missionTeamGate(report);
+    gateText = `\n${formatMissionTeamGate(gate)}\n`;
+    print(gateText);
+    if (!gate.passed) process.exitCode = 1;
+  }
+  const sensitivity = await sensitivityText(
+    args,
+    evalCase,
+    body,
+    runOnce,
+    report.withSkill.meanScore,
+    report.delta,
+  );
+  if (sensitivity !== '') print(sensitivity);
+  const file = join(
+    reportsDir,
+    reportFile(caseKey, runtime, args.runtimes.length > 1 || args.suite !== undefined),
+  );
+  writeFileSync(
+    file,
+    `${text}${gateText}${sensitivity}\n_generated by @voidcorp/eval-harness — a real run, `
+      + 'archived per DEV-394._\n',
+  );
+  print(`report archived: ${file}`);
+  if (args.suite === 'mission-team') {
+    for (const [index, eventLog] of (report.withSkill.eventLogs ?? []).entries()) {
+      const eventsFile = join(
+        reportsDir,
+        `mission-team.${runtime}.run-${String(index + 1)}.events.jsonl`,
+      );
+      writeFileSync(eventsFile, eventLog);
+      print(`replay log archived: ${eventsFile}`);
     }
-    return parsed;
-  };
-  return {
-    skill: argv[0],
-    runs: num('runs', 3, 1, 20, true),
-    threshold: num('threshold', 0.15, 0, 1, false),
-    sensitivity: argv.includes('--sensitivity'),
-    headToHead: strFlag(argv, 'head-to-head'),
-  };
+  }
 }
 
 async function main(): Promise<void> {
-  // pnpm forwards a literal `--` separator into argv; drop it.
-  const { skill, runs, threshold, sensitivity, headToHead } = parseArgs(process.argv.slice(2).filter((a) => a !== '--'));
-  const rawCase = skill === undefined ? undefined : CASES[skill];
-  if (skill === undefined || rawCase === undefined) {
+  const args = parseEvalArgs(process.argv.slice(2));
+  const caseKey = args.caseKey;
+  const rawCase = caseKey === undefined ? undefined : CASES[caseKey];
+  if (caseKey === undefined || rawCase === undefined) {
     warn(
-      `usage: pnpm eval <${Object.keys(CASES).join(' | ')}> [--runs N] [--threshold T] [--sensitivity] [--head-to-head <source-SKILL.md>]`,
+      `usage: pnpm eval <${Object.keys(CASES).join(' | ')}> `
+        + '[--runtime claude|codex|both] [--runs N] [--threshold T] '
+        + '[--sensitivity] [--head-to-head <source-SKILL.md>]\n'
+        + '       pnpm eval -- --suite mission-team --runtime claude,codex',
     );
     process.exit(1);
     return;
   }
-
-  // Inject the skill BODY (a loaded skill contributes its instructions, not its
-  // frontmatter — whose description would leak the signal into the gutted run).
-  const body = skillBody(skillBodyFor(skill));
-
-  // A conversational case grades on a judge grid, not file residue: resolve its
-  // placeholder scorer to a real judge-backed scorer (the last resort, DEV-397).
-  const evalCase: EvalCase =
-    rawCase.judge !== undefined ? { ...rawCase, scorer: judgeScorer(createClaudeJudge(), rawCase.judge) } : rawCase;
-  const runOnce = createClaudeRunOnce(evalCase, DEFAULT_ADAPTER);
-
-  // Head-to-head: distillate (this skill's body) vs a source prose, blind judge.
-  if (headToHead !== undefined) {
-    const sourceBody = skillBody(readFileSync(headToHead, 'utf8'));
-    const grid = rawCase.judge ?? { criteria: ['better accomplishes the task with higher quality'] };
-    print(`head-to-head ${skill}: distillate vs ${headToHead}, ${runs} blind comparisons (this spends tokens)...`);
-    const h2h = await runHeadToHead(
-      { skill, title: evalCase.title },
-      body,
-      sourceBody,
-      runOnce,
-      createClaudeHeadToHeadJudge(),
-      grid,
-      runs,
-    );
-    const h2hText = formatHeadToHead(h2h);
-    print(h2hText);
-    const dir = join(here, '..', 'reports');
-    mkdirSync(dir, { recursive: true });
-    const out = join(dir, `${skill}.head-to-head.md`);
-    writeFileSync(out, `${h2hText}\n_generated by @voidcorp/eval-harness — a real blind run, archived (DEV-397)._\n`);
-    print(`report archived: ${out}`);
+  const body = skillBody(skillBodyFor(rawCase.skill));
+  const evalCase = resolveCase(rawCase);
+  if (args.headToHead !== undefined) {
+    await runHeadToHeadMode(args, caseKey, rawCase, evalCase, body);
     return;
   }
-
-  print(`eval ${skill}: ${runs} runs/condition on model ${DEFAULT_ADAPTER.model} (this spends tokens)...`);
-  const report = await runEval(evalCase, body, runOnce, { runs, threshold });
-  const text = formatReport(report);
-  print(text);
-
-  let extra = '';
-  if (sensitivity) {
-    print('sensitivity: re-running with a GUTTED skill (prose stripped, frontmatter kept)...');
-    const gutted = await runEval(evalCase, gutSkill(body), runOnce, { runs, threshold });
-    const fullWith = Math.round(report.withSkill.meanScore * 100);
-    const guttedWith = Math.round(gutted.withSkill.meanScore * 100);
-    // Primary signal: does removing the prose drop the with-skill score? (The
-    // delta comparison is a secondary lens — noisier, since each eval has its own
-    // baseline runs.) SENSITIVE when the score falls by more than the threshold.
-    const sensitive = report.withSkill.meanScore - gutted.withSkill.meanScore > threshold;
-    extra =
-      `\n## sensitivity check (gutted skill — prose removed, H1 kept)\n\n${formatReport(gutted)}\n` +
-      `with-skill score: full ${fullWith}% vs gutted ${guttedWith}% ` +
-      `(delta ${(report.delta * 100).toFixed(0)}% vs ${(gutted.delta * 100).toFixed(0)}%) — ` +
-      `${sensitive ? 'SENSITIVE: removing the prose drops the score, so the eval measures the prose.' : 'NOT sensitive — investigate the task/scorer.'}\n`;
-    print(extra);
-  }
-
   const reportsDir = join(here, '..', 'reports');
   mkdirSync(reportsDir, { recursive: true });
-  const file = join(reportsDir, `${skill}.md`);
-  writeFileSync(file, `${text}${extra}\n_generated by @voidcorp/eval-harness — a real run, archived per DEV-394._\n`);
-  print(`report archived: ${file}`);
+  for (const runtime of args.runtimes) {
+    await runRuntimeEval(args, caseKey, runtime, evalCase, body, reportsDir);
+  }
 }
 
 main().catch((err: unknown) => {

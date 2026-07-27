@@ -22,6 +22,8 @@ export interface RunOutcome {
    * pushback, security-audit's findings. Empty string when the run produced none.
    */
   readonly transcript: string;
+  /** Canonical JSONL emitted by orchestration evals; absent for plain baselines. */
+  readonly eventLog?: string;
   /** Populated when ok is false. */
   readonly error?: string;
 }
@@ -114,6 +116,10 @@ export interface ConditionResult {
   /** How many of the N runs completed (outcome.ok) — reliability, not quality. */
   readonly okRuns: number;
   readonly costUsd: number;
+  /** Count of runs where each deterministic signal was true. */
+  readonly signalCounts: Readonly<Record<string, number>>;
+  /** One independently replayable event log per run that emitted canonical events. */
+  readonly eventLogs?: readonly string[];
 }
 
 /** The comparison the harness exists to produce. */

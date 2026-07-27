@@ -149,6 +149,12 @@ custom agent. An orchestrator uses those same installed definitions rather than 
 Every invocation must return the same raw, identity/version-aware JSON contract. `doctor` verifies
 discovery and reports `team degraded` while either runtime's read-only isolation remains incomplete.
 
+`ticket-runner` loads the canonical mission plan, keeps one lead writer, invokes Architecture,
+Security, and QA in independent native contexts, and feeds their structured completions to a pure
+two-round controller. Missing or stale specialist evidence blocks the verdict; only review inputs
+changed by a correction are rerun. The PR is the human merge gate: Linear becomes `In Review` when
+the PR opens and `Done` only after merge.
+
 `status` reads a frozen capability certification and local telemetry to show, per capability, the
 five-state lifecycle (`available → installed → verified → used → effective`) and a blocker/gauge
 score — no model call, no network. See [`docs/DECISIONS.md`](docs/DECISIONS.md) (2026-07-21) for the

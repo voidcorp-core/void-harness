@@ -4,6 +4,7 @@ import {
   MAX_SPECIALIST_OUTPUT_BYTES,
   parseSpecialistCompletion,
   parseSpecialistContract,
+  renderSpecialistInstructions,
 } from './schema.js';
 
 function completion(overrides: Readonly<Record<string, unknown>> = {}): Record<string, unknown> {
@@ -35,6 +36,15 @@ describe('parseSpecialistContract', () => {
     expect(() => parseSpecialistContract({ ...ARCHITECT_CONTRACT, surprise: true }, 'unknown.yaml')).toThrow(/unrecognized/i);
     expect(() => parseSpecialistContract({ ...ARCHITECT_CONTRACT, writeAccess: 'project' }, 'write.yaml')).toThrow(/writeAccess/);
     expect(() => parseSpecialistContract({ ...ARCHITECT_CONTRACT, independence: 'shared-context' }, 'context.yaml')).toThrow(/independence/);
+  });
+
+  it('renders the failure-policy invariants into every native agent contract', () => {
+    const instructions = renderSpecialistInstructions(ARCHITECT_CONTRACT);
+
+    expect(instructions).toContain('`critical` finding requires the `blocked` verdict');
+    expect(instructions).toContain('`blocked` or `degraded` verdict requires');
+    expect(instructions).toContain('sandboxed command tool');
+    expect(instructions).toContain('never run scripts, builds, tests');
   });
 });
 

@@ -12,3 +12,5 @@ export * from './risk/predicates.js';
 export * from './risk/classify.js';
 export * from './mission/dag.js';
 export * from './mission/plan.js';
+export * from './orchestration/review-loop.js';
+export * from './orchestration/controller.js';

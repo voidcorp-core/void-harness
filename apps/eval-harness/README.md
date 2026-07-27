@@ -21,6 +21,7 @@ Private maintainer tooling. Never published; not part of the distributed plugin.
 pnpm eval commit-discipline                 # 3 runs/condition (default)
 pnpm eval tdd --runs 5                       # more runs = less noise, more cost
 pnpm eval commit-discipline --sensitivity    # also run a GUTTED skill, prove the prose carries the signal
+pnpm eval -- --suite mission-team --runtime claude,codex --runs 1
 ```
 
 Each run spends tokens (a cheap model, `haiku`, by default). Cost is printed and archived
@@ -28,6 +29,13 @@ in the report. A run is executed in a throwaway git sandbox; nothing touches you
 
 Output: a verdict (`skill-helps` / `no-signal` / `skill-hurts`), the mean score per
 condition, reliability (`ok runs`), and total cost. Archived to `reports/<skill>.md`.
+
+The `mission-team` suite uses the same vulnerable auth, dependency-boundary, and untested-branch
+fixture on Claude and Codex. Its deterministic scorer requires all three blockers and assigns zero
+to a false-green verdict. Runtime adapters normalize native structured output to the same
+`specialist.completed`/`specialist.failed` envelope before replay.
+Each specialist is a fresh native role session using the installed definition. The reports retain
+the scorecard while adjacent `.events.jsonl` files retain the canonical replay evidence.
 
 ## How isolation works (and its limits)
 
