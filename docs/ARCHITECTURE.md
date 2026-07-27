@@ -14,6 +14,7 @@ void-harness/
 │   │   ├── skills/                # craftsman skills (TDD, refactor, hexagonal, ...)
 │   │   ├── agents/                # doctrine-critic and peers + generated specialist agents
 │   │   ├── specialists/           # canonical, runtime-neutral specialist YAML
+│   │   ├── profiles/              # versioned stack expertise and applicability selectors
 │   │   └── hooks/                 # tdd-guard.sh, no-any-grep.sh, no-console-log-grep.sh
 │   ├── mission-engine/            # pure event/evidence contracts and verdict reducers
 │   ├── hook-runner/               # Node adapter compiled into the portable hook asset
@@ -61,6 +62,20 @@ storage dependency.
 The harness assumes **TypeScript + web**. The core is not framework-agnostic across language families. See `docs/PHILOSOPHY.md` § "Stack assumption".
 
 A future Rust/Go/Python flavor lives in a sibling repo, reusing mechanics not skills.
+
+## Stack profile compilation
+
+`packages/core/profiles/*.yaml` is the certified stack-knowledge catalog. Consumer extensions use
+`.void/profiles/*.profile.yaml`; the explicit suffix lets policy overlays coexist in the same
+directory. The CLI loads both through a bounded, alias-free, root-confined YAML adapter and the
+mission engine validates and routes the resulting declarative contracts without filesystem I/O.
+
+Routing is file-owner scoped. Each changed path belongs to its longest matching workspace package;
+root technologies are inherited, while sibling technologies are not. A web TSX change can select
+TypeScript, React, and Next.js without selecting Expo or SQL from neighboring packages. Every
+decision is `applicable`, `not-applicable`, or `degraded`, carries the detector inputs and a stable
+hash, and is compiled into the mission plan. Expired profiles and unknown or uncovered versions
+degrade and require review against the profile's official sources. See `docs/PROFILES.md`.
 
 ## Agent runtime parity (Claude Code + Codex) — the adapter seam
 

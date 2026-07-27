@@ -25,6 +25,10 @@ future stack profile documents can live beside them without being interpreted as
 sorted, root-confined, limited to 64 KiB each, and parsed as strict YAML 1.2 with duplicate keys and
 aliases rejected.
 
+Stack expertise is a separate contract compiled into the same mission plan. Files named
+`*.profile.yaml` are handled by the profile loader, never by policy precedence; see
+`docs/PROFILES.md`.
+
 ## Contract
 
 Every document is versioned and every rule targets one known mission pass:

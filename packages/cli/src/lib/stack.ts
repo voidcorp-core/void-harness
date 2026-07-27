@@ -11,7 +11,16 @@
 //   4. Fallback: bun (the void-harness opinionated default)
 
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { posix, join } from 'node:path';
+import type {
+  DetectedTechnology,
+  ProfileRoutingInput,
+} from '@voidcorp/mission-engine';
+import {
+  workspacePackages,
+  type WorkspacePackage,
+  type WorkspacePackageJson,
+} from './workspace.js';
 
 export type PackageManager = 'bun' | 'pnpm' | 'yarn' | 'npm';
 export type TestRunner = 'vitest' | 'jest' | 'bun' | 'node';
@@ -41,6 +50,23 @@ interface RootPkg {
   readonly devDependencies?: Record<string, string>;
   readonly peerDependencies?: Record<string, string>;
 }
+
+const TECHNOLOGY_DEPENDENCIES = Object.freeze(new Map<string, string>([
+  ['typescript', 'typescript'],
+  ['react', 'react'],
+  ['next', 'nextjs'],
+  ['expo', 'expo'],
+  ['react-native', 'react-native'],
+  ['turbo', 'turbo'],
+  ['drizzle-orm', 'drizzle'],
+  ['prisma', 'prisma'],
+  ['@prisma/client', 'prisma'],
+  ['pg', 'postgres'],
+  ['next-pwa', 'pwa'],
+  ['workbox-window', 'pwa'],
+  ['serwist', 'pwa'],
+  ['@serwist/next', 'pwa'],
+]));
 
 function readPkg(root: string): RootPkg | undefined {
   const path = join(root, 'package.json');
@@ -107,6 +133,109 @@ export function detectStack(root: string): Stack {
     e2eRunner: detectE2ERunner(root, pkg),
     mutationRunner: detectMutationRunner(root, pkg),
   };
+}
+
+function exactVersion(value: string | undefined): string | null {
+  if (value === undefined || value.startsWith('workspace:')) return null;
+  return /(?:^|[^\d])(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:$|[^\d])/.exec(value)?.slice(1, 4).join('.') ?? null;
+}
+
+function dependencyEntries(pkg: WorkspacePackageJson): readonly [string, string][] {
+  return Object.entries({
+    ...(pkg.dependencies ?? {}),
+    ...(pkg.devDependencies ?? {}),
+    ...(pkg.peerDependencies ?? {}),
+  }).sort(([left], [right]) => left.localeCompare(right));
+}
+
+function technology(
+  id: string,
+  version: string | null,
+  source: string,
+): DetectedTechnology {
+  return Object.freeze({ id, version, sources: Object.freeze([source]) });
+}
+
+function packageTechnologies(workspace: WorkspacePackage): readonly DetectedTechnology[] {
+  const technologies = new Map<string, DetectedTechnology>();
+  const source = workspace.path === '.' ? 'package.json' : `${workspace.path}/package.json`;
+  for (const [dependency, version] of dependencyEntries(workspace.packageJson)) {
+    const id = TECHNOLOGY_DEPENDENCIES.get(dependency)
+      ?? (dependency.startsWith('@serwist/') ? 'pwa' : undefined);
+    if (id === undefined) continue;
+    const current = technologies.get(id);
+    const next = technology(id, exactVersion(version), `${source}:${dependency}`);
+    if (current === undefined || next.sources[0]!.localeCompare(current.sources[0]!) < 0) {
+      technologies.set(id, next);
+    }
+  }
+  if (workspace.path === '.') {
+    technologies.set('node', technology('node', exactVersion(process.versions.node), 'runtime:node'));
+    const packageManager = workspace.packageJson.packageManager;
+    if (packageManager !== undefined) {
+      const separator = packageManager.indexOf('@');
+      const id = separator < 0 ? packageManager : packageManager.slice(0, separator);
+      if (id === 'pnpm' || id === 'npm' || id === 'yarn' || id === 'bun') {
+        technologies.set(id, technology(
+          id,
+          exactVersion(separator < 0 ? undefined : packageManager.slice(separator + 1)),
+          'package.json:packageManager',
+        ));
+      }
+    }
+    const workspaces = workspace.packageJson.workspaces;
+    if (workspaces !== undefined) {
+      technologies.set('monorepo', technology('monorepo', '1.0.0', 'package.json:workspaces'));
+    }
+  }
+  if (
+    existsSync(join(workspace.directory, 'public', 'manifest.webmanifest'))
+    || existsSync(join(workspace.directory, 'public', 'manifest.json'))
+  ) {
+    technologies.set('pwa', technology('pwa', '1.0.0', `${source}:manifest`));
+  }
+  return Object.freeze([...technologies.values()].sort((left, right) => left.id.localeCompare(right.id)));
+}
+
+function validChangedFile(file: string): boolean {
+  return file.length > 0
+    && !file.startsWith('/')
+    && !file.startsWith('../')
+    && !file.includes('/../')
+    && !file.includes('\\')
+    && posix.normalize(file) === file;
+}
+
+/** Build the project-scoped, deterministic input consumed by profile routing. */
+export function detectProfileInput(root: string, files: readonly string[]): ProfileRoutingInput {
+  if (!files.every(validChangedFile)) {
+    throw new Error('PROFILE_INPUT_INVALID: changed files must remain inside the project root');
+  }
+  const workspaces = workspacePackages(root);
+  const rootWorkspace = workspaces.find((workspace) => workspace.path === '.');
+  const projects = workspaces.map((workspace) => Object.freeze({
+    path: workspace.path,
+    technologies: packageTechnologies(workspace),
+  }));
+  if (projects.length > 1) {
+    const rootProject = projects.find((project) => project.path === '.');
+    if (rootProject !== undefined && !rootProject.technologies.some((item) => item.id === 'monorepo')) {
+      const index = projects.indexOf(rootProject);
+      projects[index] = Object.freeze({
+        ...rootProject,
+        technologies: Object.freeze([
+          ...rootProject.technologies,
+          technology('monorepo', '1.0.0', 'workspace:discovery'),
+        ].sort((left, right) => left.id.localeCompare(right.id))),
+      });
+    }
+  }
+  return Object.freeze({
+    schemaVersion: 1,
+    status: rootWorkspace === undefined ? 'degraded' : 'complete',
+    files: Object.freeze([...new Set(files)].sort()),
+    projects: Object.freeze(projects),
+  });
 }
 
 /** Map a package manager to its one-shot-binary launcher (npx-equivalent). */
