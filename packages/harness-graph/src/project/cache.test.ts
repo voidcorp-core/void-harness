@@ -385,3 +385,33 @@ describe('ProjectGraph cache lineage', () => {
 		).toThrow(/cyclic or exceeds 64 hops/);
 	});
 });
+
+describe('projectCacheRootKey canonicalisation', () => {
+	it('agrees with the root port for the same directory', async () => {
+		const dir = await mkdtemp(join(tmpdir(), 'void-rootkey-'));
+		const root = await createNodeProjectRootPort().open(dir);
+		expect(projectCacheRootKey(dir)).toBe(projectCacheRootKey(root.path));
+	});
+
+	it('is stable across path casing on a case-insensitive volume', async () => {
+		// The root port canonicalises with the async `realpath`, which restores the
+		// on-disk casing. A key derived with the plain `realpathSync` does not, so the
+		// published rootKey and the verified one drift apart and publication fails with
+		// PROJECT_CACHE_INVALID. Windows hits this on every run because callers hand
+		// down paths with varying drive-letter and segment casing.
+		const base = await mkdtemp(join(tmpdir(), 'void-RootCase-'));
+		const dir = join(base, 'CasedProject');
+		await mkdir(dir);
+		const lowered = join(base, 'casedproject');
+
+		const port = createNodeProjectRootPort();
+		let root: Awaited<ReturnType<typeof port.open>>;
+		try {
+			root = await port.open(lowered);
+		} catch {
+			return; // case-sensitive volume: the alternate spelling is a different path
+		}
+
+		expect(projectCacheRootKey(lowered)).toBe(projectCacheRootKey(root.path));
+	});
+});

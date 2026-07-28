@@ -86,7 +86,12 @@ function cacheError(message: string): never {
 }
 
 export function projectCacheRootKey(root: string): string {
-	return projectCacheRootKeyFromCanonical(realpathSync(root));
+	// `realpathSync.native`, not `realpathSync`: only the native binding restores
+	// the on-disk casing, exactly like the async `realpath` the root port uses to
+	// canonicalise `root.path`. With the plain sync version the published rootKey
+	// and the verified one drift apart on any case-insensitive volume, which
+	// Windows hits on every run because callers pass varying path casing.
+	return projectCacheRootKeyFromCanonical(realpathSync.native(root));
 }
 
 function projectCacheRootKeyFromCanonical(root: string): string {
