@@ -23,6 +23,8 @@ import { loadTelemetryStream } from '../lib/graph-io.js';
 import { configPackDirs } from '../lib/packs.js';
 import { detectedAdapters } from '../lib/runtime-adapters.js';
 import { banner, blank, c, footer, line } from '../lib/render.js';
+import { freshnessNotice, resolveFreshness } from '@voidcorp/hook-runner';
+import { readInstallReceipt } from '../lib/receipts.js';
 
 // dist/main.js -> the package root (packages/cli in the monorepo, node_modules/voidharness once published).
 const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -236,5 +238,19 @@ export async function status(_args: readonly string[]): Promise<void> {
   }
   blank();
   if (score.capped) line(c.red(`  score capped by ${score.blockers.join(', ')}`));
+
+  // Advisory, and last: an outdated install still works, so this never touches the
+  // score. Answered from cache when one is fresh, so `status` normally stays offline.
+  const receipt = await readInstallReceipt(cwd);
+  const notice = freshnessNotice(
+    await resolveFreshness({
+      installed: receipt?.version ?? 'unknown',
+      env: process.env,
+      now: Date.now(),
+    }),
+    receipt?.source,
+  );
+  if (notice !== undefined) line(c.yellow(`  ${notice}`));
+
   footer(persisted ? c.green('state written to .void/state.json') : c.dim('.void not writable — render only'));
 }

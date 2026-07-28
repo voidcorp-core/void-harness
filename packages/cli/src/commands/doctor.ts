@@ -17,6 +17,9 @@ import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../li
 import { findCoreSource } from '../lib/paths.js';
 import { type CheckResult, checkEnforceWorkflow, checkGh } from '../lib/prerequisites.js';
 import { readInstallReceipt } from '../lib/receipts.js';
+import { publishedVersionCheck } from '../lib/freshness-check.js';
+import { checkGlyph, checkShowsFix } from '../lib/doctor-render.js';
+import { resolveFreshness } from '@voidcorp/hook-runner';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
 import { detectedAdapters } from '../lib/runtime-adapters.js';
@@ -198,16 +201,24 @@ export async function doctor(args: readonly string[]): Promise<void> {
     }
   }
 
+  // Registry freshness is a concern of the PRIMARY npm channel, so unlike the
+  // marketplace checks above it is not gated on Claude being wired. --no-remote
+  // still skips it: that flag promises a fully offline run.
+  if (!skipRemote) {
+    checks.push(await checkPublishedVersion(root));
+  }
+
   banner('doctor');
   blank();
   for (const check of checks) {
-    const markFn = check.status === 'unknown'
-      ? c.yellow('?')
-      : check.ok
-        ? c.green(glyph.check)
-        : c.red('x');
-    line(`${markFn}  ${c.dim(check.name.padEnd(18))}${check.message}`);
-    if (!check.ok && check.fix) line(c.dim(`     ${glyph.to} ${check.fix}`));
+    const marks: Record<ReturnType<typeof checkGlyph>, string> = {
+      unknown: c.yellow('?'),
+      advisory: c.yellow('!'),
+      pass: c.green(glyph.check),
+      fail: c.red('x'),
+    };
+    line(`${marks[checkGlyph(check)]}  ${c.dim(check.name.padEnd(18))}${check.message}`);
+    if (checkShowsFix(check) && check.fix) line(c.dim(`     ${glyph.to} ${check.fix}`));
   }
 
   const blockers = checks.filter((ck) => !ck.ok).length;
@@ -220,6 +231,14 @@ export async function doctor(args: readonly string[]): Promise<void> {
     footer(c.red(`${blockers} check${blockers > 1 ? 's' : ''} failed`));
     process.exit(1);
   }
+}
+
+/** Compare the installed harness against the version published on the npm registry. */
+async function checkPublishedVersion(root: string): Promise<CheckResult> {
+  const receipt = await readInstallReceipt(root);
+  const installed = receipt?.version ?? 'unknown';
+  const freshness = await resolveFreshness({ installed, env: process.env, now: Date.now() });
+  return publishedVersionCheck(freshness, receipt?.source);
 }
 
 async function checkRemoteVersions(root: string): Promise<CheckResult> {

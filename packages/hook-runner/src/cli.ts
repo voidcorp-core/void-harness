@@ -7,7 +7,10 @@ import {
   type RuleName,
 } from './enforcement/runner.js';
 import { sessionStartOutput } from './lifecycle/context.js';
-import { installedVersion } from './lifecycle/context-executor.js';
+import { resolveInstall } from './lifecycle/context-executor.js';
+import { readFreshnessCache } from './freshness/cache.js';
+import { compareFreshness } from './freshness/compare.js';
+import { freshnessNotice, resolveFreshness } from './freshness/notice.js';
 import type { LifecycleExecution } from './lifecycle/executor-shared.js';
 import { executeFormat } from './lifecycle/format-executor.js';
 import { executeLargeChange } from './lifecycle/large-change-executor.js';
@@ -76,6 +79,27 @@ function optionalPayload(input: Uint8Array): unknown {
   }
 }
 
+/**
+ * Refresh the cached published version for the NEXT session.
+ *
+ * Called after stdout is written, so it can never delay a launch beyond its own
+ * short timeout, and only reaches the network when the cache has actually expired.
+ * Advisory like `observeHook`: every failure is swallowed, because a version check
+ * must never be able to break a session.
+ */
+async function refreshFreshnessInBackground(installed: string): Promise<void> {
+  try {
+    await resolveFreshness({
+      installed,
+      env: process.env,
+      now: Date.now(),
+      timeoutMs: 1_000,
+    });
+  } catch {
+    // Freshness is advisory and must never alter hook behavior.
+  }
+}
+
 async function observeHook(
   hook: string,
   execution: Omit<LifecycleExecution, 'status'> & {
@@ -110,9 +134,17 @@ async function runLifecycle(input: Uint8Array): Promise<void> {
   const rawInput = optionalPayload(input);
   if (hook === 'context') {
     const execution: LifecycleExecution = { status: 'ok', details: {} };
-    process.stdout.write(
-      `${JSON.stringify(sessionStartOutput(installedVersion(root, process.env)))}\n`,
-    );
+    const install = resolveInstall(root, process.env);
+    // Read the cache only: session start must never wait on a network round-trip.
+    // The refresh below happens after stdout is written, so a slow or dead registry
+    // costs the next session a stale answer, never this one a slow launch.
+    const cached = readFreshnessCache(process.env, Date.now());
+    const notice =
+      cached === undefined
+        ? undefined
+        : freshnessNotice(compareFreshness(install.version, cached.latest), install.source);
+    process.stdout.write(`${JSON.stringify(sessionStartOutput(install.version, notice))}\n`);
+    await refreshFreshnessInBackground(install.version);
     await observeHook(hook, execution, rawInput ?? {}, agentRuntime, root);
     return;
   }

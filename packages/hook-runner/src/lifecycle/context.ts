@@ -5,15 +5,22 @@ export interface SessionStartOutput {
   };
 }
 
-export function sessionStartOutput(version: string): SessionStartOutput {
+/**
+ * @param notice Optional upgrade line, appended after the floor. Absent whenever
+ *   the install is current, undetermined, or not updatable by this CLI — a session
+ *   banner must never carry a guess.
+ */
+export function sessionStartOutput(version: string, notice?: string): SessionStartOutput {
   const installed = version.trim() === '' ? 'unknown' : version.trim();
+  const base =
+    `void-harness ${installed} is active. Non-negotiable floor: never edit secrets, keys or lockfiles; ` +
+    'never run destructive shell commands; tests and fresh evidence gate "done". ' +
+    'Capture durable project rules explicitly. Run `void-harness doctor` if runtime health is uncertain.';
+  const suffix = notice === undefined || notice.trim() === '' ? '' : ` ${notice.trim()}`;
   return {
     hookSpecificOutput: {
       hookEventName: 'SessionStart',
-      additionalContext:
-        `void-harness ${installed} is active. Non-negotiable floor: never edit secrets, keys or lockfiles; ` +
-        'never run destructive shell commands; tests and fresh evidence gate "done". ' +
-        'Capture durable project rules explicitly. Run `void-harness doctor` if runtime health is uncertain.',
+      additionalContext: `${base}${suffix}`,
     },
   };
 }
