@@ -80,9 +80,6 @@ jobs:
         # the agent description cap go unenforced in CI (it only ran locally).
         run: pnpm anti-bloat:check
 
-      - name: ProjectGraph performance and native capability report
-        run: pnpm benchmark:project
-
       - name: Decision records valid and accepted records immutable
         # Each decision owns one file. The optional PR base also proves that an
         # accepted record was superseded, never rewritten or deleted in place.
@@ -129,6 +126,12 @@ jobs:
         # (e.g. @voidcorp/pack-monorepo/result) through their dist exports,
         # so the type declarations must exist first.
         run: pnpm build
+
+      - name: ProjectGraph performance and native capability report
+        # Must run AFTER the build: it bundles harness-graph, whose sources import
+        # @voidcorp/mission-engine through that package's dist exports. Placed
+        # earlier it fails to resolve them, exactly as the comment above warns.
+        run: pnpm benchmark:project
 
       - name: Self-host release gate
         # Compile current sources into an isolated, gitignored Claude+Codex
