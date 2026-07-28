@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.2.0](https://github.com/voidcorp-core/void-harness/compare/v2.1.0...v2.2.0) (2026-07-28)
+
+
+### Features
+
+* **cli:** render the active-program bootstrap because consumers lose the thread between sessions ([6076da4](https://github.com/voidcorp-core/void-harness/commit/6076da4ca6a5dae31dd33c183358ce05d3154786))
+* **cli:** report the published version in status and doctor ([f68ce97](https://github.com/voidcorp-core/void-harness/commit/f68ce9708e9f654b4b4a6b0dd1d8f4ab00812f10))
+* **freshness:** compare the installed harness against the published version ([2d89911](https://github.com/voidcorp-core/void-harness/commit/2d89911e598ffaeaf0fc5ba2f885d70dbc205cdc))
+* **hook:** tell a session once when its harness is outdated ([6ab45b1](https://github.com/voidcorp-core/void-harness/commit/6ab45b11fd491c08c2797898a4dba4a6df7e4b59))
+* recover the active program across sessions ([faf4cf6](https://github.com/voidcorp-core/void-harness/commit/faf4cf64a6eec129e952fe55b896e2f108a8e3d3))
+* **skills:** make the tracker lifecycle part of execution because a PR is not completion ([9c6e909](https://github.com/voidcorp-core/void-harness/commit/9c6e909c5cb11a6a3d6824e522a5fc79469163b0))
+* tell a project when its harness is behind the published version ([fb92025](https://github.com/voidcorp-core/void-harness/commit/fb92025f3fdc465d735379b98f26be2f97d2358f))
+
 ## [2.1.0](https://github.com/voidcorp-core/void-harness/compare/v2.0.2...v2.1.0) (2026-07-28)
 
 
