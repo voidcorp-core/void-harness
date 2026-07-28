@@ -3,9 +3,10 @@ import { cp, mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { packageManagerCommand } from '../packages/cli/scripts/conformance-process.mjs';
 
 const repository = dirname(dirname(fileURLToPath(import.meta.url)));
-const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+const pnpm = packageManagerCommand('pnpm');
 const temporary = await mkdtemp(join(tmpdir(), 'void-project-graph-conformance-'));
 const consumer = join(temporary, 'consumer');
 
@@ -14,10 +15,8 @@ function run(command, args, cwd) {
 }
 
 try {
-	run(pnpm, ['--filter', '@voidcorp/harness-graph', 'build'], repository);
-	run(
-		pnpm,
-		['--filter', '@voidcorp/harness-graph', 'pack', '--pack-destination', temporary],
+	run(pnpm.executable, [...pnpm.prefixArguments, '--filter', '@voidcorp/harness-graph', 'build'], repository);
+	run(pnpm.executable, [...pnpm.prefixArguments, '--filter', '@voidcorp/harness-graph', 'pack', '--pack-destination', temporary],
 		repository,
 	);
 	const tarballName = (await readdir(temporary)).find((name) => name.endsWith('.tgz'));
@@ -33,7 +32,7 @@ try {
 			dependencies: { '@voidcorp/harness-graph': 'file:./harness-graph.tgz' },
 		}),
 	);
-	run(pnpm, ['install', '--prefer-offline', '--ignore-scripts', '--no-frozen-lockfile'], consumer);
+	run(pnpm.executable, [...pnpm.prefixArguments, 'install', '--prefer-offline', '--ignore-scripts', '--no-frozen-lockfile'], consumer);
 	await writeFile(
 		join(consumer, 'smoke.mjs'),
 		[

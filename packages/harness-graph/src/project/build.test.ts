@@ -38,6 +38,8 @@ import {
 	type ProjectWatchPort,
 } from './journal.js';
 import { createExactProjectChangeJournal } from './test-support.js';
+// @ts-expect-error -- shared JS conformance helper, no type declarations
+import { packageManagerCommand } from '../../../cli/scripts/conformance-process.mjs';
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'test-fixtures', 'monorepo');
 const run = promisify(execFile);
@@ -537,9 +539,22 @@ it(
 		await mkdir(join(root, path), { recursive: true });
 		await writeFile(join(root, path, 'package.json'), JSON.stringify({ name, private: true }));
 	}
-	const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+	// Windows rejects a bare `pnpm.cmd` through spawn (EINVAL); the shared helper
+	// launches the shim through Node instead. Same fix as commit 256933d.
+	const pnpm = packageManagerCommand('pnpm');
 	const listed = JSON.parse(
-		(await run(pnpm, ['--dir', root, 'list', '--recursive', '--depth', '-1', '--json'])).stdout,
+		(
+			await run(pnpm.executable, [
+				...pnpm.prefixArguments,
+				'--dir',
+				root,
+				'list',
+				'--recursive',
+				'--depth',
+				'-1',
+				'--json',
+			])
+		).stdout,
 	) as { readonly name?: string }[];
 	const expected = listed.flatMap((entry) => (entry.name === undefined ? [] : [entry.name])).sort();
 
