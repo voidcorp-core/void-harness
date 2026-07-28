@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: Turn an approved spec into an executable plan. Steps with goal, deps, verification gate, TDD mode per step, expected commits. Resume point updated. Use after brainstorming approves a spec.
+description: Turn an approved spec into vertical slices with dependencies, TDD mode, verification gates, checkpoints, and a tracker handoff. Use after brainstorming approves a spec.
 owner: folpe
 runtimes: [claude, codex]
 enforcement:
@@ -14,7 +14,7 @@ eval_targets: [claude/anthropic/opus]
 
 # writing-plans — voidcorp craftsman edition
 
-The spec answers "what should we build." This skill answers "in what order, with what gates, and where to resume if a session ends." Plans live on disk. Every implementation step declares its TDD mode. Verification gates between steps prevent regressions.
+The spec answers "what should we build." This skill answers "in what order, with what gates, and how later sessions recover the work." Plans live on disk. Every implementation step declares its TDD mode. Verification gates between steps prevent regressions.
 
 **Attribution**: see `.source`. Primary source: superpowers/writing-plans, adapted for void-harness.
 
@@ -50,7 +50,7 @@ Then sections:
 1. **Goal** — one paragraph from the spec
 2. **Steps** — numbered, each with the structure below
 3. **Review checkpoints** — explicit points where the user reviews work-to-date
-4. **Resume point** — pointer to the next step to execute (updated as steps complete)
+4. **Execution handoff** — dependency/order table for tracker-backed programs, or a resume point for a standalone sequential plan
 
 ---
 
@@ -127,7 +127,7 @@ Checkpoints prevent "I shipped 10 steps before you noticed step 3 was wrong."
 
 ## Resume point
 
-The last section. Updated by the execution skill as steps complete. Format:
+Use this only for a standalone sequential plan that is not decomposed into tracker tickets. The execution skill updates it as steps complete. Format:
 
 ```markdown
 ## Resume point
@@ -147,7 +147,9 @@ The last section. Updated by the execution skill as steps complete. Format:
 - ⏳ Step 8: E2E happy-path test
 ```
 
-The next session reads the resume point and continues. We used exactly this pattern to ship Phase B and Phase C of the harness itself.
+The next session reads the resume point and continues.
+
+For a tracker-backed multi-ticket program, do not maintain a second mutable next-step pointer in the plan. Instead, add a final `Execution handoff` table that gives each plan unit a stable order key, title, dependency keys, estimate, and human-gate flag. After `harness:ticket-writer` creates the native tickets and dependency relations, it installs `plans/ACTIVE.md`; the tracker then owns current state and the next ready ticket.
 
 ---
 
@@ -159,7 +161,7 @@ After writing the plan, scan for:
 2. **Missing verification gates** — every step has one? Fix.
 3. **Missing TDD mode** — every implementation step declares one? Fix.
 4. **Unrealistic dependencies** — does step N actually need step N-1, or could they parallelize?
-5. **Missing resume point** — present and correct as "Next step: Step 1"?
+5. **Missing execution handoff** — a standalone plan has a correct resume point; a tracker-backed program has the complete stable order/dependency table?
 6. **Frontmatter `spec:`** — links back to the approved spec?
 7. **Executability gate** (vendored from gstack `/spec`) — could an *unfamiliar* implementer or agent execute this plan with **zero follow-up questions**? Walk one step as if you'd never seen the codebase: is every file named, every metric quantified, every acceptance criterion observable? Any "figure it out at implementation time" is an ambiguity to resolve now.
 
@@ -181,12 +183,11 @@ Wait for response. If changes requested, make them and re-run self-review.
 
 After plan approval, transition to:
 
-- **`superpowers:executing-plans`** for sequential execution with review checkpoints
-- **`superpowers:subagent-driven-development`** for plans with parallelizable independent steps
+- **`harness:ticket-writer`** when the plan becomes multiple tracker tickets. It writes native dependencies and the active-program pointer after the pool is approved.
+- **`harness:ticket-runner`** for a named single ticket or standalone implementation unit.
+- **`harness:backlog-autopilot`** only when the user requests its attended independent-ticket flow.
 
-These remain external — they are solid, no improvement vector. The harness's job ends at "approved plan." Execution is theirs.
-
-Resume-point updates happen during execution (the executing skill mutates the plan file).
+For a tracker-backed program, later sessions recover work from the tracker through `plans/ACTIVE.md`; they do not mutate the plan to repoint the next ticket.
 
 ---
 
@@ -209,7 +210,9 @@ Set `high_risk: true` when the plan touches:
 ## Composition with other skills
 
 - **Upstream — `brainstorming`**: the approved spec is the input.
-- **Downstream — `superpowers:executing-plans` or `superpowers:subagent-driven-development`**: takes the plan, runs the steps.
+- **Downstream — `ticket-writer`**: converts a multi-ticket plan into native tracker items and installs its active handoff.
+- **Downstream — `ticket-runner`**: executes one complete ticket and maintains its tracker lifecycle.
+- **With `backlog-autopilot`**: drains independent ready tickets only through its attended flow.
 - **With `tdd`**: per-step mode selection lives in the plan.
 - **With `code-review`**: review checkpoints declared in the plan are honored.
 - **With `verification-before-completion`**: the plan's "Done" criteria feed the completion checklist.
@@ -223,7 +226,7 @@ Set `high_risk: true` when the plan touches:
 - MUST NOT plan without an approved spec.
 - MUST NOT skip TDD mode declaration per implementation step.
 - MUST NOT skip verification gates per step.
-- MUST NOT skip the resume point.
+- MUST NOT omit the applicable execution handoff: resume point for standalone work, tracker table for a multi-ticket program.
 - MUST NOT skip the spec link in frontmatter.
 - MUST NOT execute the plan (downstream skills do that).
 
@@ -232,7 +235,7 @@ Set `high_risk: true` when the plan touches:
 ## Final rule
 
 ```
-Approved spec → plan written → self-review → user approves → transition to executing-plans.
+Approved spec → plan written → self-review → user approves → ticket-writer or ticket-runner.
 Otherwise → it is not voidcorp writing-plans.
 ```
 

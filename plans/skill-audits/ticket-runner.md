@@ -78,6 +78,19 @@ See `docs/DECISIONS.md` 2026-07-10.
 
 /ship's pre-PR checklist is mostly ALREADY covered here (review, tests, commit, PR) + by verification-before-completion + commit-discipline. **Integrated** (the genuine cycle-level deltas): Test-Failure-Ownership triage (adjudicate a red suite in-branch vs pre-existing before proceeding — this skill assumed green), the independent fresh-context adversarial review pass (attacker/chaos lens, FIXABLE/INVESTIGATE, name the single most exploitable finding), and bisectable commit ordering (infra→domain→edge, each independently valid). **Rejected**: the Review-Army roster (7 named specialists + adaptive gating) as an over-engineered release-gate apparatus for a single ticket — kept only its *idea* (scope-gated fresh-context lenses); and the VERSION/CHANGELOG/release-please steps (release-please owns versioning here). The plan-completion-audit half of /ship went to verification-before-completion, not here.
 
+## 2026-07-24 — tracker lifecycle becomes part of execution
+
+The runner previously moved a ticket to `In Progress` without assigning it, then
+marked it `Done` as soon as a PR opened. That made interrupted cross-session work
+ambiguous and overstated completion. The cycle now fetches native relations, claims
+and assigns before edits, leaves a bounded resume comment when unfinished, moves to
+`In Review` with PR/evidence, and reaches `Done` only after merge plus final
+verification. Human gates remain human, and an active program fails closed when its
+tracker cannot be updated.
+
+Rejected: a local current-ticket file or plan resume pointer for tracker-backed
+work. Either would duplicate mutable tracker state and create a drift path.
+
 ## 2026-07-26 — native team orchestration (DEV-441)
 
 The former review pass named several skills and critics but could still be satisfied by one parent

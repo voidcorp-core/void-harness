@@ -63,7 +63,7 @@ Do NOT use this to plan several tickets (that is `harness:writing-plans`) or to 
 
 Run in order. Each pass names the skill it composes and the predicate that fires it. `ALWAYS` passes never skip; conditional passes skip only when their predicate is false. You ALWAYS evaluate every predicate yourself against the actual change: a ticket-writer declaration may ADD a pass, never cancel one whose predicate fired.
 
-1. **Ingest + completeness gate** (ALWAYS). Read the ticket: scope, AC, DoD, edge cases, declared passes. Confirm nothing is missing or ambiguous. If a gap or uncovered angle exists, loop back to `harness:ticket-writer` to complete it before coding, do not paper over it. Move the ticket to **In Progress**. Load or compile the canonical mission plan and verify its hash before any specialist invocation; missing or conflicting plan data is degraded, not guessed.
+1. **Ingest + completeness gate** (ALWAYS). Fetch the complete ticket, including native relations: scope, AC, DoD, edge cases, declared passes, blockers. If `plans/ACTIVE.md` scopes the ticket, also read its global plan and spec. Confirm the ticket is ready and nothing is missing or ambiguous. If a gap or uncovered angle exists, loop back to `harness:ticket-writer` to complete it before coding, do not paper over it. For a tracker-backed ticket, move it to **In Progress** and assign it to the current maintainer before the first implementation edit. Load or compile the canonical mission plan and verify its hash before any specialist invocation; missing or conflicting plan data is degraded, not guessed.
 2. **Architecture pass** (IF it touches structure, a module boundary, the data model, or public types). Compose `harness:hexagonal-architecture`, `harness:domain-driven-design`, agents `type-design-analyzer` + `doctrine-critic`. Confirm the applicable ADR is honored.
 3. **Migration safety** (IF it changes a DB schema or ships a migration). Compose `harness:migrations-safety` (and `harness-server:drizzle-migration-safe` on a Drizzle/Postgres stack): zero-downtime, two-phase, batched backfill, locking analysis. **Once the migration is generated and safety-reviewed, apply it to the dev/local database before the TDD and E2E passes run** — otherwise those tests execute against a stale schema and prove nothing about the new shape. **This cycle only ever applies to dev/local; production migrations run through CI / GitHub Actions on merge, never from a worker or this session** (see the `harness:migrations-safety` anti-rule). A schema change must never reach the rest of the cycle without this pass.
 4. **TDD implementation** (ALWAYS). The single lead writer composes `harness:tdd` + `harness:testing`. Red, green, refactor. Unit tests for the behavior, green before moving on. Review specialists remain read-only.
@@ -73,7 +73,22 @@ Run in order. Each pass names the skill it composes and the predicate that fires
 8. **Security pass** (ALWAYS a quick scan; DEEP if it touches a trust boundary: external input, auth, RLS/tenancy, untrusted content, secrets, or a side-effecting action). Compose `harness:security-guidance` + `harness:security-audit`.
 9. **Review** (ALWAYS). Run the canonical team orchestration above. Compose `harness:code-review` for the integration lens; `doctrine-critic`, `silent-failure-hunter`, and project reviewers may add scoped findings but never replace the required Architecture, Security, and QA completion events. Findings are deduplicated by concrete evidence, not reviewer majority. On a high-stakes diff, add one independent fresh-context adversarial pass; classify each finding FIXABLE vs INVESTIGATE and name the single most exploitable finding. *Vendored from gstack `/ship`.*
 10. **Verification before completion** (ALWAYS). Compose `harness:verification-before-completion`: typecheck, tests, hooks, both viewports, all observed not assumed. **A red suite is adjudicated before proceeding** (from gstack `/ship`): each failure is *in-branch* (you touched the test/code, or it traces to the diff → it is yours, fix it) or *pre-existing* (neither touched → offer fix / TODO / skip); ambiguous defaults to in-branch. Test on the **merged base**, not the stale branch. The controller may return `verified` only when every applicable specialist completion and required proof is fresh.
-11. **Ship** (ALWAYS). Compose `harness:commit-discipline`, open the PR, and move the ticket to **In Review**. Move it to **Done only after the PR is merged**. Commits are **bisectable** — one logical change each, dependency-ordered (infra → domain + tests → edge/UI + tests), each independently valid. In backlog-autopilot the worker never opens the PR (the reconciliation subagent does); it stops at green branch.
+11. **Ship** (ALWAYS). Compose `harness:commit-discipline`, open the PR, attach the PR and verification evidence, then move a tracker-backed ticket to **In Review**. Move it to **Done** only after merge and final verification of the merged state. Commits are **bisectable** — one logical change each, dependency-ordered (infra → domain + tests → edge/UI + tests), each independently valid. In backlog-autopilot the worker never opens the PR or changes review state (the reconciliation subagent does); it stops at a green committed branch.
+
+---
+
+## Tracker lifecycle
+
+For every tracker-backed ticket, the tracker is part of execution, not an after-the-fact mirror:
+
+- **Claim before edits**: re-fetch status and relations, verify blockers are complete, then set `In Progress` and assign the current maintainer.
+- **Keep it truthful**: maintain native blockers and add a concise comment when a material blocker, scope decision, or external dependency changes the contract.
+- **Leave a bounded handoff**: when a session ends unfinished, keep `In Progress` and comment with branch/worktree, last verified result, remaining work, blocker, and exact next action.
+- **Review before done**: after ticket gates pass, attach PR/evidence and use `In Review`; use `Done` only after merge and final verification.
+- **Respect human gates**: collect evidence and request approval, but never complete a gate or merge without the declared human action.
+- **Fail closed**: when `plans/ACTIVE.md` requires tracker-backed execution and the tracker cannot be read or updated, stop. Do not select another ticket or maintain a competing local next-ticket pointer.
+
+Never place secrets, full prompts, full model responses, or private source in tracker comments.
 
 ---
 
