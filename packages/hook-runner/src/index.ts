@@ -15,3 +15,23 @@ export {
   type EvaluateRuleOptions,
   type RuleName,
 } from './enforcement/runner.js';
+export {
+  compareFreshness,
+  type Freshness,
+  type FreshnessVerdict,
+} from './freshness/compare.js';
+export {
+  CACHE_TTL_MS,
+  cacheFilePath,
+  readFreshnessCache,
+  writeFreshnessCache,
+  type FreshnessCacheEntry,
+} from './freshness/cache.js';
+export {
+  DEFAULT_REGISTRY,
+  NPM_PACKAGE,
+  fetchLatestVersion,
+  resolveRegistry,
+} from './freshness/registry.js';
+export { freshnessNotice, resolveFreshness, type InstallSource } from './freshness/notice.js';
+export { readNpmrc } from './freshness/npmrc.js';
