@@ -1,5 +1,57 @@
 # Changelog
 
+## [2.1.0](https://github.com/voidcorp-core/void-harness/compare/v2.0.2...v2.1.0) (2026-07-28)
+
+
+### Features
+
+* add UI quality, stack profiles, and Graph v3 ([afa4275](https://github.com/voidcorp-core/void-harness/commit/afa4275925eaa92f7601069ec3c2c060d3125d35))
+* build v3 Foundation and prove installed hooks ([bf2c4f0](https://github.com/voidcorp-core/void-harness/commit/bf2c4f0bc65fd324046b3c49e930a70156824806))
+* **config:** emit argv commands because portable execution must avoid shell parsing ([4ffba37](https://github.com/voidcorp-core/void-harness/commit/4ffba37176c6d1ab0d6e616c77c527f7450bae28))
+* **conformance:** execute installed hooks across runtimes ([5336596](https://github.com/voidcorp-core/void-harness/commit/5336596955caec5fc590eee6f7911a293fc55ab1))
+* **decisions:** isolate ADR writes because parallel agents need conflict-free ownership ([a39d8ad](https://github.com/voidcorp-core/void-harness/commit/a39d8adab4828d8cd36b7e1ab8cd01079f202266))
+* **enforce:** port critical guards to Node because the safety floor must be cross-platform ([7cc4071](https://github.com/voidcorp-core/void-harness/commit/7cc4071ab0956159745099b0544bd9ffb583e0b9))
+* **events:** add canonical mission replay because live truth must expose gaps ([74b2e6c](https://github.com/voidcorp-core/void-harness/commit/74b2e6c96ecdd8d59571ddec12aadcf23d601916))
+* **events:** record hook outcomes because lifecycle degradation must be observable ([49811da](https://github.com/voidcorp-core/void-harness/commit/49811daea085d47e5a4f7b52c9c2312b86cccf03))
+* **evidence:** bind verdicts to fresh proofs because stale success must stay red ([f079a6e](https://github.com/voidcorp-core/void-harness/commit/f079a6ec7644ef12236526211df139028180e9de))
+* **graph:** add a validated v3 envelope because compatibility must preserve provenance ([8c3f8da](https://github.com/voidcorp-core/void-harness/commit/8c3f8da7ff94472656ca62cfc133b2a88b864e52))
+* **hooks:** make size review provider-agnostic because advisory evidence must travel with Git ([6909c40](https://github.com/voidcorp-core/void-harness/commit/6909c405dfc24f7dc460939d6f8aefd513d4e276))
+* **hooks:** port scoped quality rules because agnostic enforcement must stay relevant ([fc4f819](https://github.com/voidcorp-core/void-harness/commit/fc4f819b0494f5b38107ff0c629c3fdf6bb59425))
+* **init:** add ownership receipts because updates and removal must be reversible ([2aa2223](https://github.com/voidcorp-core/void-harness/commit/2aa2223648113d127356b7d532e7e44e2c2b5cc5))
+* **init:** materialize local runtime assets because account-free install is the primary path ([650f983](https://github.com/voidcorp-core/void-harness/commit/650f983502f594ba46353aa75e04b57daef6aadd))
+* **lifecycle:** add pure portable plans because adapters need deterministic policy ([4579b6e](https://github.com/voidcorp-core/void-harness/commit/4579b6ec6cedc6c9ed3ea6ac59de905a11208721))
+* **lifecycle:** replace shell policy with bounded Node adapters because hooks must degrade visibly ([e7f610a](https://github.com/voidcorp-core/void-harness/commit/e7f610ae5497f4e747a05038824d071ecd4a0816))
+* **mission-engine:** gate team reviews because command proof cannot replace specialists ([ef0b6a6](https://github.com/voidcorp-core/void-harness/commit/ef0b6a6a3a9a53d5c66aedc0f7f563d01399c149))
+* **mission:** add risk modes and idempotent recovery ([73ff56a](https://github.com/voidcorp-core/void-harness/commit/73ff56a3e304f2ecf12cb928f3f0fc776fa0de32))
+* **mission:** add risk modes and idempotent recovery because quality must survive interruption ([753cb79](https://github.com/voidcorp-core/void-harness/commit/753cb7919629b8547ba24fc02f464f71c49c46cc))
+* **mission:** compile policies because every pass needs proof ([4870cf5](https://github.com/voidcorp-core/void-harness/commit/4870cf547650e3dac300809342776d064f4a058b))
+* **packs:** reconcile local assets because lifecycle commands must honor receipts ([079420e](https://github.com/voidcorp-core/void-harness/commit/079420e6fca657667340b8ecc8c6179e5b814b5d))
+* **profiles:** route fresh stack guidance because monorepos need local expertise ([4823cc9](https://github.com/voidcorp-core/void-harness/commit/4823cc9d0080ebc1d31a9f7d64912c1a6ac79a25))
+* **runtime:** install one Node asset because native hooks must be dependency-free ([fc6f018](https://github.com/voidcorp-core/void-harness/commit/fc6f01868ec8b4e5c9d608f542c10d99fc7a3e3f))
+* **self-host:** compile local runtime assets because the harness must consume itself ([f281525](https://github.com/voidcorp-core/void-harness/commit/f281525e85348f6075f647b62fbac4fc35da81aa))
+* **specialists:** compile native architecture, security, and QA agents ([#160](https://github.com/voidcorp-core/void-harness/issues/160)) ([b6bc309](https://github.com/voidcorp-core/void-harness/commit/b6bc3097462087582c2ec82a29af3839f7c9ffae))
+* **ticket-runner:** orchestrate the native MVP team ([6de2865](https://github.com/voidcorp-core/void-harness/commit/6de2865ab86646c6a08bc71b7f44e6ecf27d8323))
+* **ticket-runner:** scope native reviews because one writer needs independent proof ([2ef4bac](https://github.com/voidcorp-core/void-harness/commit/2ef4bac8d4bdb53e7ca41f6159ad74515c2d41db))
+* **ui:** gate approval on fresh evidence because builders cannot self-certify ([a6c0b51](https://github.com/voidcorp-core/void-harness/commit/a6c0b51be11d0b6191741fa799c49b019bacb89a))
+
+
+### Bug Fixes
+
+* **build:** order clean checkout CLI dependencies ([2ad7d52](https://github.com/voidcorp-core/void-harness/commit/2ad7d5200553a7d361fd0e66f74e1b491bd755b8))
+* **ci:** fetch ADR comparison base because immutability must fail honestly ([e1758f2](https://github.com/voidcorp-core/void-harness/commit/e1758f2ca7f644cde90620e71c79b4299dabc6b7))
+* **conformance:** launch package managers through Node because Windows rejects cmd shims ([256933d](https://github.com/voidcorp-core/void-harness/commit/256933deab3100ccdc9890491baf15320cd598ed))
+* **doctor:** execute runtime postconditions because installed must not mean working ([3852ae0](https://github.com/voidcorp-core/void-harness/commit/3852ae0c71d24e056dddcd576024e2d55dd5811d))
+* **enforce:** exempt certified artifacts because bounded scans must fail usefully ([dd8cc73](https://github.com/voidcorp-core/void-harness/commit/dd8cc73711099ee97a5fafd4a83c3cb1e50c9f81))
+* **hooks:** preserve executable adapters because compatibility must remain live ([234af19](https://github.com/voidcorp-core/void-harness/commit/234af19e32071dec20c292c3cad48fcade93fbf9))
+* **hooks:** preserve lifecycle edge contracts because portability must not hide failures ([3ec8700](https://github.com/voidcorp-core/void-harness/commit/3ec8700de3bb7e6ea26cbfe6471ef1d0971a4185))
+* **hooks:** reject malformed refs without control regexes because the lint gate is part of portability ([b726059](https://github.com/voidcorp-core/void-harness/commit/b726059f87cd07f1bab68b776d50d5ab728e430e))
+* **release:** drop obsolete marketplace dispatch because releases are self-hosted (DEV-519) ([c359a06](https://github.com/voidcorp-core/void-harness/commit/c359a06873913bce855670772b89743350856f76))
+* **release:** drop obsolete void-plugins dispatch (DEV-519) ([673ea6a](https://github.com/voidcorp-core/void-harness/commit/673ea6ae21617b07eb8e7008c504a0d18d85734b))
+* **self-host:** close source and credential gaps because dogfood must be trustworthy ([bce4130](https://github.com/voidcorp-core/void-harness/commit/bce41305c5e5e1822823f5333f650b85a1728738))
+* **skills:** parse CRLF frontmatter because Windows installs must retain the skill surface ([5e70780](https://github.com/voidcorp-core/void-harness/commit/5e70780ff39a240f8f689364c1f451a668ae2738))
+* **studio:** project scrubber status through pure state ([126f83d](https://github.com/voidcorp-core/void-harness/commit/126f83d43eb8e44f89393b6bc9846606503625ee))
+* **tdd:** ignore non-executable assets because UI proof is not a sibling file ([2b8af76](https://github.com/voidcorp-core/void-harness/commit/2b8af76bd5f9e8dd5118096b197c6eb2a9e1642a))
+
 ## [2.0.2](https://github.com/voidcorp-core/void-harness/compare/v2.0.1...v2.0.2) (2026-07-24)
 
 
