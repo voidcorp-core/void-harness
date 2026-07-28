@@ -98,6 +98,27 @@ Rules:
   cache and remote-pin adapter.
 - `doctor` iterates the *detected* adapters for each runtime's wiring + doc health; Claude marketplace checks (`gh`, plugin cache, remote versions) apply only to an explicit marketplace install. Adapter inspection distinguishes `installed`, `wired`, `fired`, and `observed`. The `fired` postcondition executes the installed Node runner against an isolated fixture and reads back its canonical event; a zero exit without that event stays red. In the source repository, `doctor` delegates to the self-host receipt and current-source checks instead of applying consumer assumptions. See `docs/CODEX.md`.
 
+### Consumer active-program handoff
+
+Every generated `CLAUDE.md` or `AGENTS.md` carries the same conditional bootstrap: if
+`plans/ACTIVE.md` exists with `status: executing`, the runtime reads its plan and spec before
+choosing implementation work. A plain continue/start/resume request recovers exactly one started
+scoped ticket, or selects the first ready ticket from the pointer's stable issue order and the
+tracker’s native blocker relations. The complete ticket is then executed through `ticket-runner`.
+More than one started scoped ticket is a competing-claim error, never an implicit selection.
+
+The pointer is opt-in and project-owned. `init`, `update`, and runtime adapters never create or
+mutate it. `ticket-writer` creates it only after a human-approved multi-ticket plan has been fully
+materialized in a capable tracker. It stores immutable routing only: program, plan/spec links,
+provider scope, ordered ticket identifiers, lifecycle-state names, and human gates. Mutable
+status, assignee, blockers, resume comments, and PR/evidence links live only in the tracker.
+
+Automatic continuity is capability-gated rather than Linear-specific: the configured provider
+must support reading and updating status, relations, assignee, comments, and review evidence. If
+that surface is unavailable, the runtime stops instead of inferring progress from local files.
+Human gates and merges remain human. A standalone ticket or sequential plan keeps using its normal
+ticket or resume-point flow and does not need an active pointer.
+
 ### Source self-host boundary
 
 `void-harness self-host sync` is the only supported dogfood compiler for this

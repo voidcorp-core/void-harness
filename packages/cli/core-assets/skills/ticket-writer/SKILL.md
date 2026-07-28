@@ -64,6 +64,36 @@ Native tracker fields (REQUIRED, set the real field, not prose):
 
 ---
 
+## Multi-ticket active-program handoff
+
+After creating a complete pool of two or more tracker tickets intended to run across sessions, create `plans/ACTIVE.md` in the same change. Do this only after the plan and ticket pool are human-approved and every native dependency is saved. A single standalone ticket does not need an active pointer.
+
+Use tracker-agnostic routing frontmatter:
+
+```yaml
+---
+status: executing
+program: <stable-program-slug>
+plan: <repository-relative-plan-path>
+spec: <repository-relative-spec-path>
+tracker:
+  provider: <linear | github | jira | other>
+  scope: <native workspace/project/repository query>
+  issues: [<ordered immutable ticket identifiers>]
+  readyStates: [<native ready states>]
+  startedState: <native started state>
+  reviewState: <native review state>
+  doneStates: [<native completed states>]
+humanGates: [<ticket identifiers requiring explicit approval>]
+---
+```
+
+The body states that the plan supplies global intent, the complete tracker ticket is the executable unit, native blocker relations decide readiness, and `harness:ticket-runner` owns the per-ticket lifecycle. `tracker.issues` is the deterministic tie-break order among simultaneously ready tickets; it is scope, not mutable progress. Never store a current/next ticket, copied status, assignee, or completion checklist in ACTIVE.
+
+Do not replace an unrelated executing pointer. Stop and surface the collision. When the same program already has an ACTIVE file, preserve its immutable routing unless the user explicitly changes program scope. Automatic selection requires a tracker surface that can read and update status, relations, assignee, comments, and PR/evidence links; if those capabilities are unavailable, do not claim automatic continuity.
+
+---
+
 ## All-angles sweep before saving
 
 Run a quick expert sweep so nothing is missed, then fold what surfaces into Edge cases or the applicable-passes slot:

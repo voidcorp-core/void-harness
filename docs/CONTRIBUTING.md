@@ -27,6 +27,33 @@ Self-host rollout modes are `shadow`, `warn`, `enforce`, and `release-gate`.
 native runtime executables that are unavailable remain an explicit degraded
 state until their dedicated certification lane.
 
+## Active program handoff
+
+An executing multi-session program may install a single `plans/ACTIVE.md` pointer. Root
+`AGENTS.md` and `CLAUDE.md` load it before choosing implementation work, so a later session can
+resume from a plain “continue” without being told the plan or ticket again.
+
+The active file records immutable routing only: global plan, approved spec, tracker workspace/team/
+project, issue scope, selection policy, lifecycle rules, and human gates. It does not duplicate a
+mutable “next ticket”. The tracker is the execution ledger:
+
+- recover an existing `In Progress` issue before claiming new work;
+- claim the selected ready issue in `In Progress` and assign it before editing;
+- add a bounded resume comment when a session stops with work unfinished;
+- attach the PR/evidence and move to `In Review` only after the ticket gates pass;
+- move to `Done` only after merge and final verification;
+- never auto-complete a human gate.
+
+Ready means every native `blockedBy` relation is complete. If tracker reads or writes fail, the
+session stops instead of maintaining a competing local pointer. A specific user request still
+overrides automatic selection. When every scoped issue and human gate is complete, the final
+program change marks `plans/ACTIVE.md` completed; it never repoints itself to unrelated work.
+
+The same protocol ships to consumer projects through the managed runtime-doc block. It is
+provider-agnostic and dormant unless the consumer has a project-owned `plans/ACTIVE.md` with
+`status: executing`; `ticket-writer` creates that pointer only after an approved multi-ticket pool
+and native dependencies exist.
+
 ## Commits
 
 Conventional Commits, and every message ends with **why**, not just what (see `harness:commit-discipline`). Any new convention added in a commit must be reflected in `docs/*.md` in the same commit. Create each non-obvious decision with `void-harness decisions new`; never edit an accepted decision or a shared index. `pnpm decisions:check` validates the records and their immutability.

@@ -21,6 +21,19 @@ describe('harnessBlock', () => {
     expect(block).toContain('Codex doctrine active');
     expect(block).toContain('read at the start');
   });
+
+  it.each([
+    ['claude', '`harness:ticket-runner`'],
+    ['codex', '`ticket-runner`'],
+  ] as const)('installs the active-program bootstrap for %s', (runtime, runner) => {
+    const block = harnessBlock(input, runtime);
+    expect(block).toContain('`plans/ACTIVE.md`');
+    expect(block).toContain('`status: executing`');
+    expect(block).toContain('The tracker owns mutable execution state');
+    expect(block).toContain(runner);
+    expect(block).toContain('competing claims');
+    expect(block).toContain('stop rather than infer progress locally');
+  });
 });
 
 describe('patchClaudeMd / patchAgentsMd', () => {

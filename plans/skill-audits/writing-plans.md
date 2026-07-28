@@ -15,22 +15,22 @@ auditor: Folpe + Claude Opus 4.7
 
 ## Need
 
-Without `writing-plans`, an approved design jumps directly to code. The plan is implicit, dependencies are missed, verification gates between steps are absent, review checkpoints get forgotten, and the order of steps drifts as work proceeds. Worse, sessions end mid-implementation with no shared resume point, and the next session re-litigates the order. `writing-plans` turns an approved spec into an executable plan with explicit sequencing, dependencies, verification gates, and resume points.
+Without `writing-plans`, an approved design jumps directly to code. The plan is implicit, dependencies are missed, verification gates between steps are absent, review checkpoints get forgotten, and the order of steps drifts as work proceeds. Worse, sessions end mid-implementation with no durable handoff, and the next session re-litigates the order. `writing-plans` turns an approved spec into an executable plan with explicit sequencing, dependencies, verification gates, and either a standalone resume point or a tracker execution handoff.
 
 ## Decision matrix anchor
 
-- **Wins**: turning an approved design into an executable plan. Sequencing, dependencies, verification gates between phases, review checkpoints, resume points for multi-session work
+- **Wins**: turning an approved design into an executable plan. Sequencing, dependencies, verification gates between phases, review checkpoints, and an explicit execution handoff
 - **Loses to**: `brainstorming` on intent and design choices (the plan does not re-litigate design)
 - **Cannot decide**: feature scope (planning is sequencing, not scoping). Architecture (defers to architecture skills consumed at planning time via the spec)
-- **Composes with**: `brainstorming` (upstream — produces the spec), `executing-plans` (downstream — keep external in superpowers/gstack), `tdd` (per-step mode selection)
+- **Composes with**: `brainstorming` (upstream), `ticket-writer` (multi-ticket decomposition), `ticket-runner` (single-unit execution), `backlog-autopilot` (attended independent-ticket drain), `tdd` (per-step mode selection)
 
 ## Sources audited
 
 | Source | URL | Status | Verdict |
 |---|---|---|---|
 | superpowers/writing-plans | superpowers/skills | reviewed | kept as primary source (proven structure, used to ship Phase A–C of this very harness) |
-| superpowers/executing-plans | superpowers/skills | reviewed | KEEP EXTERNAL — we do not vendor execution. Plans transition to it. |
-| superpowers/subagent-driven-development | superpowers/skills | reviewed | reference (alternative execution style for parallelizable tasks) |
+| superpowers/executing-plans | superpowers/skills | reviewed | historical source; no longer the default downstream because `ticket-runner` owns execution |
+| superpowers/subagent-driven-development | superpowers/skills | reviewed | historical source; attended parallel work routes through `backlog-autopilot` |
 | citypaul plan templates (in `plans/`) | citypaul/.dotfiles | reviewed | partially kept (sectioning style, numbered steps with verification gates) |
 | gstack `/autoplan` | gstack/skills | vendored (DEV-385) | its methodology is now `harness:plan-review` (the `all` mode) — a different niche (REVIEWS an existing plan via CEO/Eng/Design/DevEx lenses). Composes with this skill: plan-review is invoked after writing-plans to validate a high-risk plan |
 
@@ -39,7 +39,7 @@ Without `writing-plans`, an approved design jumps directly to code. The plan is 
 `distill`. Rewrite superpowers/writing-plans for void-harness. Three deliberate changes:
 
 1. **TDD mode per step**: every implementation step declares its TDD mode (`strict` / `souple` / `exploratory`) inline. Why: prevents re-litigation at implementation time and surfaces the cost up front.
-2. **Resume points are first-class**: every plan has a "Resume point" section listing where to pick up if a session ends mid-execution. Why: we ship cross-session (we did exactly this in the void-harness build itself).
+2. **Execution handoff is first-class**: standalone plans use a resume point; tracker-backed programs use a stable ordering/dependency table and let tracker state choose the next ticket. Why: one mutable execution ledger prevents cross-session drift.
 3. **Verification gates between steps**: each step ends with explicit `tsc --noEmit && test:affected` (and optionally `mutation` in strict mode). Why: catches regressions at the step boundary, not at the end.
 
 ## What we keep (verbatim or near-verbatim)
@@ -49,8 +49,8 @@ Without `writing-plans`, an approved design jumps directly to code. The plan is 
 - **Verification gates between steps must pass** before moving to the next step. Composes with `pre-commit typecheck+test` hook.
 - **Review checkpoints are declared explicitly** (superpowers): no implicit "review at the end." A 5-step plan typically has 1–2 review checkpoints; the user is asked to review work-to-date before proceeding.
 - **Plans link back to their spec** (superpowers): the YAML frontmatter `spec:` points to `docs/specs/<spec-file>`. The spec links to its plan. Bidirectional.
-- **No code before plan is approved** (superpowers): like brainstorming's hard gate, planning has its own gate — the plan is written, self-reviewed, user-reviewed, then execution begins via `executing-plans` or `subagent-driven-development`.
-- **Plan self-review pass** (superpowers, mirrors brainstorming): after writing the plan, scan for placeholders, missing verification gates, unrealistic dependencies, missing resume points. Fix inline.
+- **No code before plan is approved** (superpowers): like brainstorming's hard gate, planning has its own gate — the plan is written, self-reviewed, user-reviewed, then handed to `ticket-writer` or `ticket-runner`.
+- **Plan self-review pass** (superpowers, mirrors brainstorming): after writing the plan, scan for placeholders, missing verification gates, unrealistic dependencies, and a missing execution handoff. Fix inline.
 
 ## What we adapt
 
@@ -62,13 +62,13 @@ Without `writing-plans`, an approved design jumps directly to code. The plan is 
   - Verification: tsc --noEmit && vitest run --coverage --filter checkoutCart
   ```
   Why: makes the discipline cost visible at planning; the user can see "this plan is 3 strict + 2 souple + 1 exploratory" and adjust.
-- **Resume point is mandatory**: every plan's last section is "Resume point" listing the next step to execute. Updated by the execution skill as steps complete. Why: cross-session shipping.
+- **Handoff varies by execution model**: a standalone plan ends with a mutable resume point. A tracker-backed multi-ticket program ends with a stable order/dependency table; `ticket-writer` creates `plans/ACTIVE.md` only after the native pool exists. Why: cross-session shipping without duplicating tracker state.
 - **Verification gates compose with hooks** (new): each step's gate maps to specific harness hooks (`pre-commit typecheck+test`, `tdd-guard`, `tigerstyle-check`). Plans state which hooks must succeed at that step. Why: explicit composition surfaces what protects each step.
 - **Composition with `plan-review`** (was gstack `autoplan`, vendored DEV-385): plans that target high-risk surface (payment, auth, prod migrations) can be reviewed by `harness:plan-review` (`all` mode) after writing. Plans include a flag in frontmatter (`high_risk: true`) that triggers a plan-review recommendation. Why: catch design issues without re-litigating brainstorming.
 
 ## What we reject
 
-- **Vendoring `executing-plans` into voidcorp**: rejected. superpowers/executing-plans + subagent-driven-development are solid; no improvement vector identified. Keep external; void-harness's `writing-plans` transitions to them.
+- **Using external executing-plans as the default downstream**: rejected after `ticket-runner` became the harness's canonical ready-to-shipped unit and `backlog-autopilot` became its attended parallel coordinator. Keeping a second default execution path would split lifecycle doctrine.
 - **Plans-as-conversations**: rejected. Always written to disk.
 - **Implicit dependencies**: rejected. Step N's dependencies on prior steps are explicit in the frontmatter or step header.
 - **Plans that combine design and sequencing**: rejected. The spec (from brainstorming) has the design. The plan has the sequence. They are linked but distinct.
@@ -79,13 +79,16 @@ Without `writing-plans`, an approved design jumps directly to code. The plan is 
 - **Plans live in `plans/YYYY-MM-DD-<topic>.md` and are committed**. Enforced by: SKILL.md + `code-review` flags PRs implementing a spec without a linked plan (for non-trivial work).
 - **Every step has a verification gate**. Enforced by: SKILL.md template + `code-review`.
 - **Every implementation step declares its TDD mode**. Enforced by: SKILL.md template + plan self-review pass.
-- **Plans have a Resume point**. Enforced by: SKILL.md template.
+- **Plans have exactly one applicable handoff**: resume point for standalone execution, stable tracker table for a multi-ticket program. Enforced by: SKILL.md self-review.
 - **No code before plan approval**. Enforced by: SKILL.md gate (mirrors brainstorming).
 - **Plans link back to their spec via frontmatter `spec:`**. Enforced by: SKILL.md template.
 
-## Modes — none
+## Execution handoff variants
 
-The planning discipline is uniform. The plan's content scales to project complexity, but the structure (frontmatter + steps + verification + resume point) is invariant.
+The planning discipline is uniform through steps and verification. Only the final handoff varies:
+
+- standalone sequential work uses the plan's resume point;
+- tracker-backed multi-ticket work uses an immutable execution table, then `ticket-writer` materializes native dependencies and `plans/ACTIVE.md`.
 
 ## Companion hooks
 
@@ -94,7 +97,9 @@ None. Planning is a process discipline; the verification gates leverage existing
 ## Composition with other skills
 
 - **Upstream — `brainstorming`**: the approved spec is the input. Plans does not re-litigate design.
-- **Downstream — `superpowers:executing-plans` or `superpowers:subagent-driven-development`**: takes the plan, runs the steps.
+- **Downstream — `ticket-writer`**: creates the native pool and active handoff for multi-ticket programs.
+- **Downstream — `ticket-runner`**: takes one named unit from ready through shipped.
+- **With `backlog-autopilot`**: runs explicitly requested parallel work through the attended coordinator.
 - **With `tdd`**: per-step mode selection lives in the plan.
 - **With `code-review`**: review checkpoints declared in the plan are honored.
 - **With `verification-before-completion`**: the plan's "Done" criteria feed the completion checklist.
@@ -113,12 +118,12 @@ None. Planning is a process discipline; the verification gates leverage existing
 ## Verification checklist for shipping this skill
 
 - [ ] SKILL.md drafted at target ≤ 300 LOC
-- [ ] Frontmatter `description` ≤ 200 chars, mentions plan-to-disk + steps with verification gates + TDD mode per step + resume point as headline
-- [ ] `.source` file lists superpowers/writing-plans + superpowers/executing-plans (external) + citypaul plan templates + harness:plan-review (was gstack/autoplan, vendored DEV-385)
+- [ ] Frontmatter `description` ≤ 200 chars, mentions vertical slices, verification gates, TDD mode, checkpoints, and tracker handoff
+- [ ] `.source` file lists superpowers/writing-plans + historical execution sources + citypaul plan templates + harness:plan-review (was gstack/autoplan, vendored DEV-385)
 - [ ] No companion hooks needed (process discipline)
 - [ ] Plan template published in `packages/core/claude/skills/writing-plans/TEMPLATE.md`
 - [ ] Matrix row in `plans/skill-decision-matrix.md` matches this audit note
-- [ ] Skill tests in `test/writing-plans/` cover: plan-link-check, missing-verification-gate detection, missing-resume-point detection, missing-spec-frontmatter detection
+- [ ] Skill tests in `test/writing-plans/` cover: plan-link-check, missing-verification-gate detection, missing-handoff detection, missing-spec-frontmatter detection
 - [ ] No overlap > 30% with `brainstorming` (this skill = sequence; brainstorming = design)
 - [ ] No overlap > 30% with `plan-review` (this skill = author; plan-review = review)
 - [ ] Sister-doc parity: AGENTS.md flavor matches CLAUDE.md flavor
@@ -127,9 +132,8 @@ None. Planning is a process discipline; the verification gates leverage existing
 ## Open questions
 
 - **Plan template location**: in `packages/core/claude/skills/writing-plans/TEMPLATE.md` (skill-local) vs `templates/plan-template.md` (top-level). Lean skill-local for self-containment.
-- **Auto-transition to executing-plans**: explicit user command vs automatic after approval. Lean explicit (matches brainstorming → plans convention).
 - **Plan size cap**: should there be a soft cap (e.g., > 20 steps = decompose)? Lean yes, document as advisory rule. Refine after first 10 real plans.
-- **Composition with subagent-driven-development**: how does the plan declare "step N can run in parallel with step M"? Lean: explicit `parallelizable_with: [step-3]` field per step. Defer mechanics to first multi-agent plan.
+- **Parallel hints**: should the execution table declare `parallelizable_with`, or are dependencies plus `backlog-autopilot` footprint analysis sufficient? Defer until measured ambiguity appears.
 - **High-risk flag mechanics**: who sets `high_risk: true`? Lean: the author (during plan self-review). Document heuristics (payment, auth, prod data migration, security-sensitive code).
 
 ## gstack /spec vendoring (DEV-388, de-gstackification Vague 2)
