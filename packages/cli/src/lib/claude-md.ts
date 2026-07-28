@@ -45,6 +45,7 @@ export function harnessBlock(input: ClaudeMdBlockInputs, runtime: Runtime = 'cla
   const captureLine = isClaude
     ? `To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The \`capture-rule\` skill auto-invokes, classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.`
     : `To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The capture-rule workflow classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.`;
+  const ticketRunner = isClaude ? '`harness:ticket-runner`' : '`ticket-runner`';
   return [
     BEGIN_MARKER,
     '',
@@ -62,6 +63,10 @@ export function harnessBlock(input: ClaudeMdBlockInputs, runtime: Runtime = 'cla
     `\`PHILOSOPHY.md\` is the universal void-harness doctrine (managed — overwritten on init). \`PROJECT-DOCTRINE.md\` holds project-specific rules: context, ADRs, in-flight decisions (created once, never overwritten by init).`,
     '',
     captureLine,
+    '',
+    `### Active program — when present`,
+    '',
+    `If \`plans/ACTIVE.md\` exists with \`status: executing\`, read it and its linked plan/spec before choosing implementation work. On a continue/start/resume request without a named ticket, recover the scoped ticket if exactly one is started; if several are started, stop and surface the competing claims; otherwise select the first ready ticket from the declared order and native blocker relations. Fetch the complete ticket before running ${ticketRunner}. The tracker owns mutable execution state: keep status, assignee, blockers, resume comments, and evidence/PR links current; ACTIVE never stores a current or next ticket. If the tracker cannot be read or updated, stop rather than infer progress locally. A specific user request overrides selection; human gates and merges remain human.`,
     '',
     `Run \`void-harness doctor\` to verify the install.`,
     '',
