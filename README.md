@@ -100,6 +100,12 @@ npx voidharness status     # deterministic, offline, LLM-free project health
 npx voidharness doctor     # health check
 ```
 
+Both surfaces also report whether the installed harness is behind the version published on npm, and
+session start says so once when it is. The check is advisory and never fails a run: it reads the
+public dist-tags document, sends nothing about the machine, caches the answer for a day under
+`XDG_CACHE_HOME` (never inside your repository), and reports `unknown` with a cause when the registry
+cannot be reached rather than claiming you are current. `doctor --no-remote` skips it entirely.
+
 Compile a ticket into an explained risk classification, applicability matrix, and canonical DAG
 before any specialist runs:
 
