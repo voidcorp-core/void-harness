@@ -19,6 +19,23 @@ A **public, MIT** harness installed free and account-free via `npx voidharness` 
 3. `docs/ARCHITECTURE.md` — package boundaries + dependency direction
 4. `plans/` — current and past design specs
 
+## Active program bootstrap
+
+`plans/ACTIVE.md` is the durable cross-session handoff when it exists with
+`status: executing`. Before choosing implementation work, read it, then read the global plan and
+spec it references. If the user asks to continue, start, or resume without naming a ticket, do not
+ask them to repoint the session:
+
+1. query the configured tracker scope and recover any already-started ticket;
+2. otherwise select the next ready ticket from native tracker state and `blockedBy` relations;
+3. fetch the complete ticket and relations before acting;
+4. execute that unit with `ticket-runner`;
+5. keep the tracker state, assignee, evidence/PR links, blockers, and resume comment current.
+
+The tracker owns mutable execution state; `plans/ACTIVE.md` never stores a hand-maintained “next
+ticket”. If the tracker is unavailable, stop rather than infer progress locally. A specific user
+request overrides automatic selection. Human gates and merges remain human.
+
 ## Anti-bloat discipline
 
 Seven hard rules. **Any PR violating these is blocked.**
