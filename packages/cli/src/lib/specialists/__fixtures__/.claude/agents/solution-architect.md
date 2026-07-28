@@ -25,6 +25,11 @@ Run when any condition matches:
 - architecture-impact
 - boundary-change
 
+## Invocation stages
+
+- pre-implementation
+- post-implementation
+
 ## Inputs
 
 - ticket

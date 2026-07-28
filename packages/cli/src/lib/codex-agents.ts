@@ -6,17 +6,12 @@
 import { existsSync } from 'node:fs';
 import { lstat, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { findCoreSource } from './paths.js';
 import { compileCodexSpecialist, tomlString } from './specialists/compile-codex.js';
 import { loadSpecialists } from './specialists/load.js';
+import type { SpecialistContract } from './specialists/schema.js';
 
 export const CODEX_AGENTS_DIR = '.codex/agents';
-export const NATIVE_SPECIALIST_NAMES = Object.freeze([
-  'solution-architect',
-  'security-engineer',
-  'test-qa-engineer',
-  'experience-designer',
-  'visual-craft-director',
-] as const);
 
 export interface CompiledCodexAgent {
   readonly name: string;
@@ -86,10 +81,35 @@ export interface CodexAgentHealth {
   readonly detail: string;
 }
 
+/** The canonical catalog is the only specialist identity registry. */
+export async function canonicalSpecialistContracts(
+  sourceRoot?: string,
+): Promise<readonly SpecialistContract[]> {
+  const root = sourceRoot ?? await findCoreSource();
+  const contracts = await loadSpecialists(root);
+  if (contracts.length === 0) {
+    throw new Error('canonical specialist catalog is empty');
+  }
+  return contracts;
+}
+
 /** Native specialist discovery health. Runtime sandbox strength is reported separately. */
-export async function codexSpecialistsHealth(projectRoot: string): Promise<CodexAgentHealth> {
+export async function codexSpecialistsHealth(
+  projectRoot: string,
+  sourceRoot?: string,
+): Promise<CodexAgentHealth> {
+  let contracts: readonly SpecialistContract[];
+  try {
+    contracts = await canonicalSpecialistContracts(sourceRoot);
+  } catch (error) {
+    return {
+      ok: false,
+      detail: `canonical specialist catalog unavailable: ${(error as Error).message}`,
+    };
+  }
   const missing: string[] = [];
-  for (const name of NATIVE_SPECIALIST_NAMES) {
+  for (const contract of contracts) {
+    const name = contract.name;
     const path = join(projectRoot, CODEX_AGENTS_DIR, `${name}.toml`);
     try {
       const metadata = await lstat(path);
@@ -103,7 +123,7 @@ export async function codexSpecialistsHealth(projectRoot: string): Promise<Codex
         'sandbox_mode = "read-only"',
         'web_search = "disabled"',
         'mcp_servers = {}',
-        `Canonical contract: \`core:${name}\``,
+        `Canonical contract: \`${contract.id}\` v${contract.version}.`,
       ];
       if (!required.every((fragment) => content.includes(fragment))) {
         missing.push(name);
@@ -113,6 +133,6 @@ export async function codexSpecialistsHealth(projectRoot: string): Promise<Codex
     }
   }
   return missing.length === 0
-    ? { ok: true, detail: `${NATIVE_SPECIALIST_NAMES.length} native specialist TOML files discovered` }
+    ? { ok: true, detail: `${contracts.length} version-matched native specialist TOML files discovered` }
     : { ok: false, detail: `missing or invalid native specialists: ${missing.join(', ')}` };
 }

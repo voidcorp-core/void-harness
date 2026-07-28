@@ -159,15 +159,17 @@ Authored legacy agents declare an explicit `model:` in their Claude frontmatter,
 
 ## Native specialist contracts
 
-Architecture, security, and QA live under `packages/core/specialists/*.yaml`. The strict loader
+The 16 canonical product, architecture, engineering, review, and conditional PDF roles live under
+`packages/core/specialists/*.yaml`. The strict loader
 bounds files, disables YAML aliases, rejects unknown keys and duplicate identities, then each
 runtime compiler embeds the same instructions and structured result schema. Claude receives
 `.claude/agents/*.md`; Codex receives `.codex/agents/*.toml`. The five older Markdown critics also
 compile to native Codex TOML, so no agent is represented as an inline skill.
 
-The Claude marketplace needs discoverable `agents/*.md` in the source tree. Those three files are
+The Claude marketplace needs discoverable `agents/*.md` in the source tree. Those 16 files are
 generated artifacts, not a second doctrine source: tests compare them byte-for-byte with the YAML
-compiler. Installed files are receipt-owned and updated transactionally.
+compiler. Runtime health derives the expected identities from that same catalog rather than a
+parallel role list. Installed files are receipt-owned and updated transactionally.
 
 Both adapters report specialist team mode as degraded today. Claude can remove mutating built-ins
 but agent frontmatter cannot deny unknown inherited MCP tools; Codex declares `sandbox_mode =
@@ -405,10 +407,11 @@ DECISIONS.md (2026-07-01). The artifact is excluded from the `core-assets` mirro
 
 ### Deterministic mission planning
 
-Before runtime orchestration, `@voidcorp/mission-engine` compiles bounded ticket, diff, stack, and
-policy values into an explained risk classification, a complete applicability matrix, and a
-canonical DAG. The package remains pure: YAML, filesystem confinement, Git inspection, and stack
-detection stay in the `voidharness` CLI shell.
+Before runtime orchestration, `@voidcorp/mission-engine` compiles bounded ticket, diff, stack,
+policy, profile, and specialist-catalog values into an explained risk classification, complete pass
+and specialist applicability matrices, and a canonical DAG. The package remains pure: YAML,
+filesystem confinement, Git inspection, stack detection, and native agent materialization stay in
+the `voidharness` CLI shell.
 
 Policy precedence is `core < profile < organization < project`. Overrides are monotonic by default;
 weakening requires a visible, approved, expiring waiver. The compiler rejects unresolved conflicts
@@ -425,8 +428,18 @@ strict YAML + root-confined files ──> CLI policy loader
                          pure policy/risk/mission compiler
                                       │
                                       v
-                    risk + applicability + canonical DAG
+              risk + pass/specialist applicability + canonical DAG
 ```
+
+Every canonical specialist is evaluated. Mission signals and applicable profile/pattern signals
+select roles; a complete non-match emits `not-applicable`, while unavailable diff/stack evidence or
+a matching degraded profile emits `degraded`. Each decision records the predicate, examined inputs,
+reason, canonical mission-input hash, contract version, and classifier version. Schema/SQL evidence
+activates Data & Migration, Observability/SRE, and QA. Baseline policy rules activate their
+accountable QA and Security specialists even for an otherwise narrow change. CSS activates
+frontend/accessibility roles without fabricating data work. PDF is selected only for a PDF input or
+deliverable. This specialist-bearing input is mission-plan `schemaVersion: 2`; legacy v1 callers
+receive an explicit migration error before catalog access.
 
 Applicable UI work adds a pure fail-closed quality gate after planning. An Experience Designer
 attestation must match the current mission input before implementation. After implementation, QA
@@ -491,10 +504,16 @@ the same journal and dependency context is byte-for-byte deterministic.
 
 `packages/mission-engine/src/orchestration/` owns the provider-neutral ticket cycle. The controller
 consumes the canonical mission plan and event stream; it never launches a process or writes a file.
-One lead writer owns implementation and every correction. Applicable Architecture, Security, and QA
-specialists run through runtime-native adapters in separate fresh contexts and return the shared
-structured completion contract. Each receives a bounded plan slice and one assigned lens; findings
-outside that lens belong to the specialist that owns it.
+One lead writer owns implementation and every correction. Every specialist whose canonical routing
+decision is `applicable` runs through a runtime-native adapter in a separate fresh context and
+returns the shared structured completion contract. The controller has no fixed role list: it
+consumes specialist IDs and exact contract versions from the mission plan. Each receives a bounded
+plan slice and one assigned lens; findings outside that lens belong to the specialist that owns it.
+Each contract declares `pre-implementation`, `post-implementation`, or both. Applicable upstream
+specialists must pass before the lead writer starts; post-implementation reviewers receive a new
+context and completion identity, so an upstream approval cannot satisfy downstream review. Input
+hashes are keyed by stage: the pre-build snapshot stays frozen while post-build and correction
+hashes follow the implemented diff.
 
 Interactive runs prefer the runtime's native subagent primitive. Headless certification launches a
 fresh native role session directly when parent-to-child delegation cannot prove an attributable
@@ -503,12 +522,30 @@ an ephemeral session. Both remain read-only. Codex specialists may use sandboxed
 locate, search, and read repository text; project scripts, builds, tests, package managers,
 interpreters, and VCS mutations remain prohibited.
 
-The review reducer accepts each completion ID and context ID once, deduplicates findings by concrete
-evidence, and compares per-specialist input hashes. A correction therefore stales only affected
-reviews. The MVP loop is capped at two rounds. Missing, malformed, wrong-role, duplicate, timed-out,
-stale, or degraded specialist evidence cannot produce `verified`; persistent blockers end
-`blocked`. `packages/core/workflows/ticket-runner.workflow.yaml` is the human-authored conductor
-contract shared by the skill and runtime adapters.
+The controller also requires the adapter's effective specialist-runtime capability, independently
+of the declared runtime name. Each CLI `RuntimeInspection` produces that capability from native
+asset health plus the runtime's enforceable isolation limits. Both current adapters honestly report
+`degraded` until parent overrides, inherited MCP tools, and conditional PDF/browser capabilities can
+be probed; `degraded`, `unavailable`, or missing effective isolation stops the mission. A runtime can
+therefore reach `verified` only after its actual adapter or probe reports the required fresh-context
+specialist capability as available.
+
+Direct and orchestrated invocation share the mission engine's one strict completion parser; unknown
+fields or malformed nested evidence are rejected identically. The review reducer accepts each
+completion ID and context ID once, checks the stage and planned contract version, deduplicates
+findings by concrete evidence, and compares per-specialist input hashes. Completions must be
+attributed to the runtime selected at mission start; upstream evidence must precede the first writer
+completion and downstream evidence must follow the latest writer completion. A
+correction therefore supersedes downstream reviews recorded after the initial implementation but
+before the latest writer completion; they preserve the attempted-round history without becoming
+malformed evidence, while the sequence-derived next round, fresh identities, and fresh hashes
+remain mandatory for the next review. Inside one implementation boundary, a higher round can retry
+only a missing or failed specialist; it cannot replace a completed review or erase its findings. The
+loop is capped at two rounds. Missing input
+hashes, missing or mismatched contract versions, malformed, wrong-role, duplicate, timed-out, stale,
+or degraded specialist evidence cannot produce `verified`; persistent blockers end `blocked`.
+`packages/core/workflows/ticket-runner.workflow.yaml` is the human-authored conductor contract shared
+by the skill and runtime adapters.
 
 `void-harness mission` exposes the operator lifecycle:
 

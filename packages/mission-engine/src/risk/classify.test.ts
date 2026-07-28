@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { classifyRisk } from './classify.js';
+import { deriveMissionSignals } from './predicates.js';
 
 const HIGH_RISK_CASES = [
   ['auth', 'Change authentication and authorization'],
@@ -69,5 +70,53 @@ describe('classifyRisk', () => {
       files: [],
       stack: [],
     })).toThrow(/RISK_INPUT_TOO_LARGE/);
+  });
+});
+
+describe('deriveMissionSignals', () => {
+  it('derives bounded technical-role signals from ticket and diff evidence', () => {
+    const signals = deriveMissionSignals({
+      ticket: 'Add a domain aggregate and expose it through an API webhook with runtime metrics.',
+      files: [
+        'src/domain/order.ts',
+        'src/api/webhooks/order.ts',
+        'docs/sdk/orders.md',
+      ],
+      stack: ['node', 'typescript'],
+    });
+
+    expect([...signals]).toEqual(expect.arrayContaining([
+      'domain-design',
+      'api-integration',
+      'runtime-change',
+      'devex-docs',
+      'code-change',
+    ]));
+  });
+
+  it('routes CSS to frontend and accessibility without fabricating migration evidence', () => {
+    const signals = deriveMissionSignals({
+      ticket: 'Adjust card spacing and focus styles.',
+      files: ['apps/web/src/card.css'],
+      stack: ['react'],
+    });
+
+    expect(signals).toEqual(expect.objectContaining({}));
+    expect(signals.has('frontend-change')).toBe(true);
+    expect(signals.has('accessibility')).toBe(true);
+    expect(signals.has('migration')).toBe(false);
+  });
+
+  it('routes schema files to migration, observability, QA, and API integration', () => {
+    const signals = deriveMissionSignals({
+      ticket: 'Change the customer schema and OpenAPI contract.',
+      files: ['packages/db/schema.prisma', 'openapi.yaml'],
+      stack: ['postgres'],
+    });
+
+    expect(signals.has('migration')).toBe(true);
+    expect(signals.has('observability')).toBe(true);
+    expect(signals.has('qa')).toBe(true);
+    expect(signals.has('api-integration')).toBe(true);
   });
 });

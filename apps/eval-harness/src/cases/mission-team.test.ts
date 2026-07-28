@@ -27,13 +27,14 @@ function completion(
     subject: specialistId,
     correlationId: 'mis_mission_team_eval_0001',
     payload: {
+      stage: 'post-implementation',
       reviewRound: 1,
       inputHash: HASH,
       contextId: `ctx_${specialistId.slice(5)}`,
       completion: {
         schemaVersion: 1,
         specialistId,
-        contractVersion: 1,
+        contractVersion: 2,
         completionId: `cmp_${specialistId.slice(5)}`,
         verdict: 'changes-requested',
         findings: [{

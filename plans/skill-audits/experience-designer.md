@@ -35,4 +35,5 @@ brand identity, review post-build polish, implement, drive a browser, or own pro
 ## Verification
 
 Strict YAML schema, bounded inputs and turns, fresh read-only compilation for both runtimes, native
-discovery, and a UI gate that blocks missing or stale pre-build attestation.
+discovery, an explicit pre-implementation-only stage, and a UI gate that blocks missing or stale
+pre-build attestation. Contract v2 records that invocation-order guarantee.

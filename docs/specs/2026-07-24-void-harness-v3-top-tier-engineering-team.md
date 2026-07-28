@@ -432,8 +432,9 @@ ingest
   -> brainstorm produit / domaine / UX / menaces
   -> design et arbitrages
   -> plan de tranches verticales
+  -> spécialistes amont applicables et corrections de préparation
   -> implémentation TDD par lead writer
-  -> revues indépendantes en parallèle
+  -> spécialistes aval applicables dans de nouveaux contextes
   -> boucle de correction bornée
   -> vérification et verdict
   -> capture de rétrospective proposée
@@ -448,6 +449,7 @@ input les invalide.
 
 - Tous les rôles sont évalués.
 - Chaque spécialiste applicable est réellement invoqué comme subagent natif.
+- Les rôles amont passent avant le lead writer ; les rôles aval ne réutilisent jamais leur contexte.
 - Un seul lead writer possède une tranche verticale.
 - Les revues pertinentes utilisent un contexte frais.
 - Les findings bloquants doivent être corrigés ou explicitement dérogés.
@@ -498,6 +500,12 @@ Après implémentation :
 La boucle est bornée par une politique de tours. Si un blocker persiste, la mission devient
 `blocked`. Elle ne passe pas en vert par épuisement de budget.
 
+Le controller n'infère pas la sécurité effective du seul nom du runtime. L'adapter lui fournit un
+état de capacité spécialiste effectif ; une isolation `degraded`, indisponible ou inconnue interdit
+le verdict `verified`. Les adapters actuels restent honnêtement `degraded` tant que les overrides du
+parent, les MCP hérités et les outils PDF/browser conditionnels ne sont pas prouvés. Les hashes sont
+conservés par stage afin que le snapshot amont ne masque ni n'invalide le diff aval.
+
 ## 6. Équipe de spécialistes
 
 ### 6.1 Conducteurs visibles
@@ -536,9 +544,15 @@ Le Mission Engine sélectionne dans une équipe extensible :
 | Performance Engineer | review ciblée | budgets et profils |
 | DevEx/Docs Engineer | finition | TTHW, API/CLI/docs, adoption |
 | Independent Code Reviewer | post-diff | défauts, simplicité, maintenabilité |
+| PDF Specialist | review ciblée | sûreté d'entrée, rendu, pagination, accessibilité, artefact |
 
-Ces rôles ne deviennent pas tous quinze prompts chargés dans chaque mission. Le CatalogGraph et le
+Ces rôles ne deviennent pas tous seize prompts chargés dans chaque mission. Le CatalogGraph et le
 classifieur chargent seulement les contrats applicables.
+
+Le PDF Specialist est l'extension conditionnelle du tableau d'équipe : il n'est applicable que si
+la mission manipule une entrée PDF ou produit un livrable PDF. Il ne demande un moteur de rendu ou
+d'inspection que dans ce cas ; un outil requis absent produit `degraded` ou `blocked`, jamais un
+faux `completed`.
 
 Chaque rôle est aussi matérialisé comme subagent natif directement invocable par l'utilisateur. Une
 invocation manuelle et une invocation orchestrée utilisent le même contrat, les mêmes permissions

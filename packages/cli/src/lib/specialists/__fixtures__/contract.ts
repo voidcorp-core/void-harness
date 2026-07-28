@@ -9,6 +9,7 @@ export const ARCHITECT_CONTRACT: SpecialistContract = parseSpecialistContract({
   scope: 'architecture',
   independence: 'fresh-context',
   writeAccess: 'none',
+  stages: ['pre-implementation', 'post-implementation'],
   appliesWhen: { any: ['architecture-impact', 'boundary-change'] },
   inputs: ['ticket', 'plan', 'diff', 'project-context'],
   outputs: ['verdict', 'findings', 'evidenceRequests', 'limitations'],

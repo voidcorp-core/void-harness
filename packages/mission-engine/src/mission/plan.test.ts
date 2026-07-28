@@ -3,6 +3,7 @@ import { mergePolicies } from '../policy/merge.js';
 import { parsePolicy, type PolicyDocument } from '../policy/schema.js';
 import { parseProfile, type ProfileDocument } from '../profile/schema.js';
 import { compileMissionPlan } from './plan.js';
+import type { SpecialistRoutingContract } from '../specialist/routing.js';
 
 const PASSES = [
   'product',
@@ -60,7 +61,7 @@ const PROJECT_FIXTURES = {
 function input(project: keyof typeof PROJECT_FIXTURES) {
   const fixture = PROJECT_FIXTURES[project];
   return {
-    schemaVersion: 1 as const,
+    schemaVersion: 2 as const,
     ticket: {
       id: `fixture:${project}`,
       title: `Plan ${project}`,
@@ -69,8 +70,33 @@ function input(project: keyof typeof PROJECT_FIXTURES) {
     diff: { files: [...fixture.files] },
     stack: { technologies: ['typescript', project] },
     policy: mergePolicies([corePolicy()], '2026-07-26T00:00:00Z'),
+    specialists: { catalog: SPECIALISTS },
   };
 }
+
+const SPECIALISTS: readonly SpecialistRoutingContract[] = [
+  {
+    id: 'core:data-migration-engineer',
+    version: 1,
+    name: 'data-migration-engineer',
+    stages: ['pre-implementation', 'post-implementation'],
+    appliesWhen: { any: ['migration', 'profile-sql'] },
+  },
+  {
+    id: 'core:frontend-engineer',
+    version: 1,
+    name: 'frontend-engineer',
+    stages: ['post-implementation'],
+    appliesWhen: { any: ['ux-ui', 'profile-react'] },
+  },
+  {
+    id: 'core:pdf-specialist',
+    version: 1,
+    name: 'pdf-specialist',
+    stages: ['pre-implementation', 'post-implementation'],
+    appliesWhen: { any: ['pdf'] },
+  },
+];
 
 function typescriptProfile(): ProfileDocument {
   const parsed = parseProfile({
@@ -106,6 +132,16 @@ function typescriptProfile(): ProfileDocument {
 }
 
 describe('compileMissionPlan', () => {
+  it('fails closed with a migration error for legacy plans without specialist routing', () => {
+    const { specialists: _specialists, ...legacy } = input('void-harness');
+    expect(() => compileMissionPlan({
+      ...legacy,
+      schemaVersion: 1,
+    } as unknown as Parameters<typeof compileMissionPlan>[0])).toThrow(
+      /MISSION_INPUT_INVALID: schemaVersion must be 2/,
+    );
+  });
+
   it('gives every minimal pass an initial state and applicability proof', () => {
     const plan = compileMissionPlan(input('void-harness'), {
       generatedAt: '2026-07-26T00:00:00Z',
@@ -132,6 +168,23 @@ describe('compileMissionPlan', () => {
     expect({ ...first, generatedAt: '' }).toEqual({ ...second, generatedAt: '' });
   });
 
+  it('canonicalizes specialist catalog and predicate ordering', () => {
+    const first = input('void-harness');
+    first.specialists = { catalog: [...SPECIALISTS].reverse().map((contract) => ({
+      ...contract,
+      appliesWhen: { any: [...contract.appliesWhen.any].reverse() },
+    })) };
+    const canonical = compileMissionPlan(input('void-harness'), {
+      generatedAt: '2026-07-26T00:00:00Z',
+    });
+    const reordered = compileMissionPlan(first, {
+      generatedAt: '2026-07-26T00:00:00Z',
+    });
+
+    expect(reordered.inputHash).toBe(canonical.inputHash);
+    expect(reordered.planHash).toBe(canonical.planHash);
+  });
+
   it('compiles project-scoped profile decisions into the mission plan', () => {
     const plan = compileMissionPlan({
       ...input('void-harness'),
@@ -151,6 +204,7 @@ describe('compileMissionPlan', () => {
           }],
         },
       },
+      specialists: { catalog: SPECIALISTS },
     }, { generatedAt: '2026-07-26T00:00:00Z' });
 
     expect(plan.profiles).toEqual([
@@ -161,6 +215,64 @@ describe('compileMissionPlan', () => {
       }),
     ]);
     expect(plan.context.status).toBe('complete');
+    expect(plan.specialists).toEqual([
+      expect.objectContaining({ specialistId: 'core:data-migration-engineer', state: 'not-applicable' }),
+      expect.objectContaining({ specialistId: 'core:frontend-engineer', state: 'not-applicable' }),
+      expect.objectContaining({ specialistId: 'core:pdf-specialist', state: 'not-applicable' }),
+    ]);
+  });
+
+  it('evaluates every specialist and activates schema, runtime, UI, and PDF roles narrowly', () => {
+    const schema = compileMissionPlan({
+      ...input('sesame'),
+      specialists: { catalog: SPECIALISTS },
+    }, { generatedAt: '2026-07-26T00:00:00Z' });
+    const css = compileMissionPlan({
+      ...input('declik'),
+      ticket: { id: 'css', title: 'Polish styles', body: 'Adjust visual spacing.' },
+      diff: { files: ['apps/web/src/card.css'] },
+      specialists: { catalog: SPECIALISTS },
+    }, { generatedAt: '2026-07-26T00:00:00Z' });
+    const pdf = compileMissionPlan({
+      ...input('solaar'),
+      specialists: { catalog: SPECIALISTS },
+    }, { generatedAt: '2026-07-26T00:00:00Z' });
+
+    expect(schema.specialists.find((item) => item.specialistId === 'core:data-migration-engineer')?.state).toBe('applicable');
+    expect(css.specialists.find((item) => item.specialistId === 'core:data-migration-engineer')?.state).toBe('not-applicable');
+    expect(css.specialists.find((item) => item.specialistId === 'core:frontend-engineer')?.state).toBe('applicable');
+    expect(pdf.specialists.find((item) => item.specialistId === 'core:pdf-specialist')?.state).toBe('applicable');
+  });
+
+  it('routes baseline QA and security policies into accountable specialist reviews', () => {
+    const plan = compileMissionPlan({
+      ...input('void-harness'),
+      ticket: { id: 'docs', title: 'Fix wording', body: 'Correct contributor wording.' },
+      diff: { files: ['docs/CONTRIBUTING.md'] },
+      specialists: { catalog: [
+        ...SPECIALISTS,
+        {
+          id: 'core:security-engineer',
+          version: 2,
+          name: 'security-engineer',
+          stages: ['pre-implementation', 'post-implementation'],
+          appliesWhen: { any: ['security', 'security-baseline'] },
+        },
+        {
+          id: 'core:test-qa-engineer',
+          version: 2,
+          name: 'test-qa-engineer',
+          stages: ['pre-implementation', 'post-implementation'],
+          appliesWhen: { any: ['qa', 'qa-baseline'] },
+        },
+      ] },
+    }, { generatedAt: '2026-07-26T00:00:00Z' });
+
+    expect(plan.specialists.filter((item) => item.state === 'applicable').map((item) =>
+      item.specialistId)).toEqual(expect.arrayContaining([
+      'core:security-engineer',
+      'core:test-qa-engineer',
+    ]));
   });
 
   it.each(['declik', 'sesame', 'solaar', 'void-harness'] as const) (

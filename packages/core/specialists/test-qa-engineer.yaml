@@ -1,17 +1,18 @@
 schemaVersion: 1
 id: core:test-qa-engineer
-version: 1
+version: 2
 name: test-qa-engineer
 description: Reviews behavioral coverage, failure paths, and release evidence without editing the project.
 scope: quality
 independence: fresh-context
 writeAccess: none
+stages: [pre-implementation, post-implementation]
 appliesWhen:
   any:
-    - behavior-change
-    - test-impact
-    - release-risk
-    - regression-risk
+    - qa-baseline
+    - qa
+    - tdd
+    - code-change
 inputs:
   - ticket
   - acceptance-criteria

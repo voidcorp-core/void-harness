@@ -50,7 +50,7 @@ export const SPECIALIST_OUTPUT_SCHEMA = {
   properties: {
     schemaVersion: { type: 'integer', const: 1 },
     specialistId: { type: 'string', pattern: '^core:[a-z0-9]+(?:-[a-z0-9]+)*$' },
-    contractVersion: { type: 'integer', const: 1 },
+    contractVersion: { type: 'integer', const: 2 },
     completionId: { type: 'string', minLength: 8, maxLength: 160 },
     verdict: {
       type: 'string',
@@ -184,7 +184,10 @@ function canonicalEvent(
     kind: draft.kind,
     subject: draft.subject,
     correlationId: MISSION_ID,
-    payload: draft.payload as unknown as JsonValue,
+    payload: {
+      ...(draft.payload as unknown as Readonly<Record<string, JsonValue>>),
+      stage: 'post-implementation',
+    },
   };
   const parsed = parseEvent(candidate);
   if (!parsed.ok) throw new Error(`mission-team event is not replayable: ${parsed.issue.message}`);

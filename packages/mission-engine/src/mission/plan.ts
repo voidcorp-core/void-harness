@@ -14,13 +14,19 @@ import {
 } from '../profile/routing.js';
 import type { ProfileDocument } from '../profile/schema.js';
 import {
+  routeSpecialists,
+  type SpecialistRoutingContract,
+  type SpecialistRoutingDecision,
+  validateSpecialistCatalog,
+} from '../specialist/routing.js';
+import {
   buildMissionDag,
   type MissionDag,
   type MissionPassState,
 } from './dag.js';
 
 export interface MissionPlanInput {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 2;
   readonly ticket: {
     readonly id: string;
     readonly title: string;
@@ -38,6 +44,9 @@ export interface MissionPlanInput {
   readonly profiles?: {
     readonly catalog: readonly ProfileDocument[];
     readonly input: ProfileRoutingInput;
+  };
+  readonly specialists: {
+    readonly catalog: readonly SpecialistRoutingContract[];
   };
 }
 
@@ -57,7 +66,7 @@ export interface ApplicabilityDecision {
 }
 
 export interface MissionPlan {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 2;
   readonly generatedAt: string;
   readonly inputHash: string;
   readonly planHash: string;
@@ -71,6 +80,7 @@ export interface MissionPlan {
   readonly risk: ReturnType<typeof classifyRisk>;
   readonly applicability: readonly ApplicabilityDecision[];
   readonly profiles: readonly ProfileRoutingDecision[];
+  readonly specialists: readonly SpecialistRoutingDecision[];
   readonly dag: MissionDag;
 }
 
@@ -116,9 +126,27 @@ function normalizeFiles(values: readonly string[]): readonly string[] {
   return files;
 }
 
+function normalizeSpecialists(
+  specialists: MissionPlanInput['specialists'] | undefined,
+): MissionPlanInput['specialists'] {
+  if (specialists === undefined || !Array.isArray(specialists.catalog)) {
+    throw new Error('MISSION_INPUT_INVALID: specialists.catalog is required in schemaVersion 2');
+  }
+  validateSpecialistCatalog(specialists.catalog);
+  const catalog = specialists.catalog.map((contract) => Object.freeze({
+    ...contract,
+    stages: Object.freeze([...contract.stages].sort()),
+    appliesWhen: Object.freeze({
+      ...contract.appliesWhen,
+      any: Object.freeze([...contract.appliesWhen.any].sort()),
+    }),
+  })).sort((left, right) => left.id.localeCompare(right.id));
+  return Object.freeze({ catalog: Object.freeze(catalog) });
+}
+
 function normalizeInput(input: MissionPlanInput): MissionPlanInput {
-  if (input.schemaVersion !== 1) {
-    throw new Error('MISSION_INPUT_INVALID: schemaVersion must be 1');
+  if (input.schemaVersion !== 2) {
+    throw new Error('MISSION_INPUT_INVALID: schemaVersion must be 2');
   }
   if (!bounded(input.ticket.id, 1, 128)) {
     throw new Error('MISSION_INPUT_INVALID: ticket.id is not bounded');
@@ -130,7 +158,7 @@ function normalizeInput(input: MissionPlanInput): MissionPlanInput {
     throw new Error('MISSION_INPUT_INVALID: ticket.body exceeds 100000 characters');
   }
   return Object.freeze({
-    schemaVersion: 1,
+    schemaVersion: 2,
     ticket: Object.freeze({ ...input.ticket }),
     diff: Object.freeze({
       files: normalizeFiles(input.diff.files),
@@ -142,6 +170,7 @@ function normalizeInput(input: MissionPlanInput): MissionPlanInput {
     }),
     policy: input.policy,
     ...(input.profiles === undefined ? {} : { profiles: input.profiles }),
+    specialists: normalizeSpecialists(input.specialists),
   });
 }
 
@@ -260,7 +289,21 @@ export function compileMissionPlan(
     ? Object.freeze([])
     : routeProfiles(input.profiles.catalog, input.profiles.input, { now: generatedAt });
   const risk = classifyRisk(classifierInput);
-  const signals = deriveMissionSignals(classifierInput);
+  const signals = new Set(deriveMissionSignals(classifierInput));
+  for (const rule of input.policy.rules) {
+    if (rule.baseline) signals.add(`${rule.pass}-baseline`);
+  }
+  const context = missionContext(input, profiles);
+  const routingContextStatus = classifierInput.complete
+    && (input.profiles === undefined || input.profiles.input.status === 'complete')
+    ? 'complete'
+    : 'degraded';
+  const specialists = routeSpecialists(input.specialists.catalog, {
+    signals,
+    profiles,
+    contextStatus: routingContextStatus,
+    inputHash,
+  });
   const knownInputs = classifierInput.complete
     && (
       classifierInput.ticket.trim() !== ''
@@ -273,15 +316,16 @@ export function compileMissionPlan(
   const states = new Map(applicability.map((item) => [item.pass, item.state]));
   const dag = buildMissionDag(states, MISSION_PASS_IDS);
   const stable = Object.freeze({
-    schemaVersion: 1 as const,
+    schemaVersion: 2 as const,
     inputHash,
     ticketId: input.ticket.id,
     policySources: input.policy.sources,
     policyWaivers: input.policy.waivers,
-    context: missionContext(input, profiles),
+    context,
     risk,
     applicability,
     profiles,
+    specialists,
     dag,
   });
   return Object.freeze({

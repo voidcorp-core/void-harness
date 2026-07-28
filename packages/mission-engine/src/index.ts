@@ -23,3 +23,5 @@ export * from './ui/quality-gate.js';
 export * from './profile/schema.js';
 export * from './profile/freshness.js';
 export * from './profile/routing.js';
+export * from './specialist/completion.js';
+export * from './specialist/routing.js';

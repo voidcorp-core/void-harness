@@ -23,6 +23,21 @@ describe('compileClaudeSpecialist', () => {
     ]));
   });
 
+  it('preserves technical acronyms in generated role titles', async () => {
+    const contracts = await loadSpecialists(CORE_ROOT);
+    const byName = new Map(contracts.map((contract) => [contract.name, contract]));
+
+    expect(compileClaudeSpecialist(byName.get('api-integration-engineer')!).content).toContain(
+      '# API Integration Engineer',
+    );
+    expect(compileClaudeSpecialist(byName.get('observability-sre-engineer')!).content).toContain(
+      '# Observability SRE Engineer',
+    );
+    expect(compileClaudeSpecialist(byName.get('pdf-specialist')!).content).toContain(
+      '# PDF Specialist',
+    );
+  });
+
   it('matches the native Claude golden file', () => {
     expect(compileClaudeSpecialist(ARCHITECT_CONTRACT).content).toBe(readFileSync(FIXTURE, 'utf8'));
   });

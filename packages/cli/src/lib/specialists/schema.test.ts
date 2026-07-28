@@ -82,12 +82,12 @@ describe('parseSpecialistCompletion', () => {
         evidence: [],
         recommendation: 'Restore inward dependency direction.',
       }],
-    })), ARCHITECT_CONTRACT, [])).toThrow(/evidence/i);
+    })), ARCHITECT_CONTRACT, [])).toThrow(/canonical completion contract/i);
     expect(() => parseSpecialistCompletion(
       JSON.stringify(completion({ commentary: 'looks good' })),
       ARCHITECT_CONTRACT,
       [],
-    )).toThrow(/unrecognized/i);
+    )).toThrow(/canonical completion contract/i);
   });
 
   it('enforces the canonical block-on-critical failure policy', () => {
@@ -100,6 +100,6 @@ describe('parseSpecialistCompletion', () => {
         evidence: [{ path: 'src/boundary.ts', line: 7, detail: 'The guard is bypassed.' }],
         recommendation: 'Restore the guard before continuing.',
       }],
-    })), ARCHITECT_CONTRACT, [])).toThrow(/critical.*blocked/i);
+    })), ARCHITECT_CONTRACT, [])).toThrow(/canonical completion contract/i);
   });
 });

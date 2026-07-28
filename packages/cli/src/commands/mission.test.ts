@@ -163,6 +163,17 @@ describe('parseMissionArgs', () => {
     expect(first.planHash).toBe(second.planHash);
     expect(first.context).toMatchObject({ status: 'degraded' });
     expect(first.applicability).toHaveLength(13);
+    expect(first.specialists).toHaveLength(16);
+    expect(first.specialists.map((item) => item.specialistId)).toEqual(expect.arrayContaining([
+      'core:data-migration-engineer',
+      'core:api-integration-engineer',
+      'core:observability-sre-engineer',
+      'core:accessibility-specialist',
+      'core:devex-docs-engineer',
+      'core:independent-code-reviewer',
+      'core:pdf-specialist',
+    ]));
+    expect(first.specialists.every((item) => item.proof.inputHash === first.inputHash)).toBe(true);
   });
 
   it('applies fortress policy overlays to high-risk planning', async () => {

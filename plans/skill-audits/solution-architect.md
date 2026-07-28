@@ -36,4 +36,5 @@ operational fit. It does not own implementation, security, QA, product, or visua
 ## Verification
 
 Strict schema and YAML parsing, golden Claude/Codex outputs, native discovery, write-tool denial,
-shared instruction equality, output identity/version checks, and duplicate-completion rejection.
+shared instruction equality, output identity/version checks, stage-isolated completions, and
+duplicate-completion rejection. Contract v2 explicitly covers pre- and post-implementation review.

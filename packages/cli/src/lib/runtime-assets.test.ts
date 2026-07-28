@@ -56,7 +56,7 @@ describe('wireClaudeLocalAssets', () => {
     const result = await wireClaudeLocalAssets(root, CORE_ROOT, []);
 
     expect(result.skills).toBeGreaterThan(20);
-    expect(result.agents).toBe(10);
+    expect(result.agents).toBe(21);
     expect(existsSync(join(root, '.claude/skills/tdd/SKILL.md'))).toBe(true);
     expect(existsSync(join(root, '.claude/agents/doctrine-critic.md'))).toBe(true);
     expect(existsSync(join(root, '.claude/agents/solution-architect.md'))).toBe(true);
@@ -77,7 +77,7 @@ describe('wireClaudeLocalAssets', () => {
     writeFileSync(generated, readFileSync(generated, 'utf8').replaceAll('\n', '\r\n'));
 
     const project = scratch();
-    await expect(wireClaudeLocalAssets(project, source, [])).resolves.toMatchObject({ agents: 10 });
+    await expect(wireClaudeLocalAssets(project, source, [])).resolves.toMatchObject({ agents: 21 });
     expect(readFileSync(join(project, '.claude', 'agents', 'security-engineer.md'), 'utf8')).not.toContain('\r\n');
   });
 });

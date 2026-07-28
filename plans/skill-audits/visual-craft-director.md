@@ -35,5 +35,6 @@ proof. It supplies visual judgment; `qa` owns browser driving and functional exp
 
 ## Verification
 
-Strict YAML schema, bounded fresh read-only runtime agents, five-specialist discovery health, a pure
-fail-closed UI gate, and deterministic anti-slop and current-proof behavioral evals.
+Strict YAML schema, bounded fresh read-only runtime agents, canonical-catalog discovery health, a
+post-implementation-only v2 contract, a pure fail-closed UI gate, and deterministic anti-slop and
+current-proof behavioral evals.

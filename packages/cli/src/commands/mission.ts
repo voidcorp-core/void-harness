@@ -16,6 +16,7 @@ import {
 import { findCoreSource } from '../lib/paths.js';
 import { loadProjectPolicies } from '../lib/policy-loader.js';
 import { loadProfiles } from '../lib/profile-loader.js';
+import { loadSpecialists } from '../lib/specialists/load.js';
 import { archiveMission, pruneMissions } from '../lib/runs/archive.js';
 import { inspectCurrentMission } from '../lib/runs/inspect-current.js';
 import { collectKnownSecrets } from '../lib/runs/redact.js';
@@ -371,14 +372,15 @@ export async function planMission(
     findCoreSource(),
     gitFiles(root),
   ]);
-  const [policies, profiles] = await Promise.all([
+  const [policies, profiles, specialists] = await Promise.all([
     loadProjectPolicies(root, join(coreRoot, 'policies')),
     loadProfiles(root, join(coreRoot, 'profiles')),
+    loadSpecialists(coreRoot),
   ]);
   const profileInput = detectProfileInput(root, diff.files);
   const stack = detectedStack(root, profileInput);
   return compileMissionPlan({
-    schemaVersion: 1,
+    schemaVersion: 2,
     ticket,
     diff,
     stack,
@@ -387,14 +389,17 @@ export async function planMission(
       catalog: profiles,
       input: profileInput,
     },
+    specialists: { catalog: specialists },
   }, { generatedAt });
 }
 
 function renderPlan(plan: MissionPlan): string {
   const applicable = plan.applicability.filter((item) => item.state === 'pending').length;
+  const specialists = plan.specialists.filter((item) => item.state === 'applicable').length;
   return [
     `${plan.ticketId} risk=${plan.risk.level} mode=${plan.risk.requiredMode}`,
     `passes applicable=${applicable} total=${plan.applicability.length}`,
+    `specialists applicable=${specialists} total=${plan.specialists.length}`,
     `plan ${plan.planHash}`,
   ].join('\n');
 }
