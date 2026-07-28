@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:b4a8fce14ddce400d2d8740725bff053452535e830f789fb7053ba16feab730e"
+    "rootHash": "sha256:894096959a5ab9cbc71ef8e21df0deb3029fe362b8258abcf2a494d8a5ab7eee"
   },
   "nodes": [
     {
@@ -4640,7 +4640,7 @@
             }
           ],
           "id": "skill:ticket-runner",
-          "lines": 130,
+          "lines": 145,
           "name": "ticket-runner",
           "owner": "folpe",
           "pack": null,
@@ -4649,7 +4649,7 @@
             "codex"
           ],
           "source": "packages/core/skills/ticket-runner/SKILL.md",
-          "staticTokens": 2947,
+          "staticTokens": 3339,
           "type": "skill"
         }
       },
@@ -4688,7 +4688,7 @@
             }
           ],
           "id": "skill:ticket-writer",
-          "lines": 106,
+          "lines": 136,
           "name": "ticket-writer",
           "owner": "folpe",
           "pack": null,
@@ -4697,7 +4697,7 @@
             "codex"
           ],
           "source": "packages/core/skills/ticket-writer/SKILL.md",
-          "staticTokens": 1548,
+          "staticTokens": 1989,
           "type": "skill"
         }
       },
@@ -4872,7 +4872,7 @@
       "label": "writing-plans",
       "data": {
         "legacy": {
-          "description": "Turn an approved spec into an executable plan. Steps with goal, deps, verification gate, TDD mode per step, expected commits. Resume point updated. Use after brainstorming approves a spec.",
+          "description": "Turn an approved spec into vertical slices with dependencies, TDD mode, verification gates, checkpoints, and a tracker handoff. Use after brainstorming approves a spec.",
           "enforcement": {
             "floor": "ci",
             "inline": {
@@ -4889,7 +4889,7 @@
             }
           ],
           "id": "skill:writing-plans",
-          "lines": 240,
+          "lines": 243,
           "name": "writing-plans",
           "owner": "folpe",
           "pack": null,
@@ -4898,7 +4898,7 @@
             "codex"
           ],
           "source": "packages/core/skills/writing-plans/SKILL.md",
-          "staticTokens": 2440,
+          "staticTokens": 2675,
           "type": "skill"
         }
       },
