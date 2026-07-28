@@ -5,6 +5,9 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # Release Please uses GITHUB_TOKEN, so its PR events do not run unattended.
+  # release.yml dispatches this workflow explicitly on the release PR branch.
+  workflow_dispatch: {}
 
 jobs:
   install-conformance:

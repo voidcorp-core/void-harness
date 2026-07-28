@@ -51,11 +51,14 @@ already enforces. No one runs the bump script by hand in the normal path.
 2. **release-please maintains a single "release PR"** (`.github/workflows/release.yml`).
    It computes the next version, bumps it across **every** manifest at once (via
    `extra-files` in `release-please-config.json` — the same file list as the bump
-   script, plus the core-assets mirror), and writes `CHANGELOG.md`.
+   script, plus the core-assets mirror), writes `CHANGELOG.md`, then dispatches
+   `ci.yml` and `void-enforce.yml` on that PR's exact head. This explicit dispatch
+   avoids a PAT while satisfying the protected `main` checks.
 3. **Merge the release PR when you want to cut the release.** That tags `vX.Y.Z`,
    creates the GitHub release, and (once the one-time bootstrap below is done)
-   **automatically publishes** `voidharness` to npm. This merge is the
-   only human gate (HITL) — there is no separate publish step and no stored token.
+   **automatically publishes** `voidharness` to npm. Merge only after `validate`,
+   `enforce` and all three install-conformance checks pass. This merge is the only
+   human gate (HITL) — there is no separate publish step and no stored token.
 4. **Automated publish (`.github/workflows/release.yml`, `publish` job)** via npm
    **Trusted Publishing (OIDC) — tokenless**. Gated on `release_created`, it runs
    under `id-token: write` (no `NODE_AUTH_TOKEN`, no secret): `pnpm check:publish`
@@ -103,6 +106,14 @@ artifact: `pnpm version:check` (every manifest at the canonical version) and
 its `harnessVersion` stamp). Both the release-please flow (via `extra-files`) and
 the manual script bump the certification's `harnessVersion` in lockstep, so a
 release never breaks CI on a forgotten regenerate.
+
+Release PRs receive the same five checks as feature PRs. Release Please reports
+`prs_created` when it creates or updates its PR; the release workflow then uses
+GitHub's always-runnable `workflow_dispatch` event for `ci.yml` and
+`void-enforce.yml`. It resolves exactly one open `autorelease: pending` PR and
+fails closed on zero or multiple candidates. The publish job still reruns its
+release safety suite against the tagged tree as defense in depth and for manual
+re-publish runs.
 
 The CI validation lane also runs `self-host sync --mode release-gate` followed
 by the strict self-host doctor. It builds the hook runner directly from current
