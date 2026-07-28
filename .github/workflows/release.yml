@@ -22,6 +22,7 @@ on:
   workflow_dispatch: {}
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
@@ -37,6 +38,27 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      # A PR created with GITHUB_TOKEN does not run the required workflows
+      # unattended. workflow_dispatch is the tokenless exception: resolve the
+      # single bounded Release Please candidate, then run every branch-protection
+      # check on its exact head. Missing or duplicate candidates fail closed.
+      - name: Dispatch required CI for the release PR
+        if: ${{ steps.release.outputs.prs_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release_pr="$(gh pr list --state open --label 'autorelease: pending' --limit 2 --json baseRefName,headRefName,number)"
+          release_count="$(jq 'length' <<< "$release_pr")"
+          if [ "$release_count" -ne 1 ]; then
+            echo "FAIL: expected exactly one open autorelease: pending PR; found $release_count." >&2
+            jq -c '[.[] | {number, baseRefName, headRefName}]' <<< "$release_pr" >&2
+            exit 1
+          fi
+          release_branch="$(jq -er '.[0].headRefName | select(length > 0)' <<< "$release_pr")"
+          release_base="$(jq -er '.[0].baseRefName | select(length > 0)' <<< "$release_pr")"
+          gh workflow run ci.yml --ref "$release_branch"
+          gh workflow run void-enforce.yml --ref "$release_branch" -f base-ref="origin/$release_base"
 
       # No downstream catalog to notify: the marketplace is self-hosted in this
       # repo (`.claude-plugin/marketplace.json`, local `./packages/...` sources
@@ -90,17 +112,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      # The release PR carries NO checks of its own: GitHub deliberately does not
-      # trigger workflows for a pull request opened by the bot's GITHUB_TOKEN
-      # (anti-recursion), so `ci.yml` never runs on release-please--branches--main.
-      # Merging it therefore used to tag and publish a tree that no suite had run
-      # against — the version bumps in particular are exactly what `version:check`
-      # exists to catch, and they only ever appear on that unchecked branch.
-      #
-      # So the gate lives HERE, on the tree actually being published, rather than
-      # trusting that main was green when the PR was cut. Publishing to npm is
-      # irreversible; a failing step here costs a re-run, a bad publish costs a
-      # deprecation notice forever.
+      # The release PR now receives the normal branch-protection checks through
+      # the dispatch above. This remains a separate, stronger publish gate: it
+      # validates the exact tagged tree and also covers manual workflow_dispatch
+      # re-publishes. Publishing to npm is irreversible; defense in depth here is
+      # intentional.
       #
       # `pnpm build` FIRST, mirroring ci.yml: packs resolve cross-package imports
       # through their dist exports, so the type declarations must exist before

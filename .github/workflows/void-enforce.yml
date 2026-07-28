@@ -10,6 +10,14 @@ name: void-enforce
 on:
   pull_request:
     branches: [main]
+  # release.yml dispatches this workflow on Release Please PRs so the same
+  # doctrine floor required by branch protection runs before their merge.
+  workflow_dispatch:
+    inputs:
+      base-ref:
+        description: Trusted base ref used to enforce the dispatched branch diff.
+        required: true
+        type: string
 
 jobs:
   enforce:
@@ -19,3 +27,5 @@ jobs:
         with:
           fetch-depth: 0
       - uses: ./.github/actions/void-enforce
+        with:
+          base-ref: ${{ inputs.base-ref }}
