@@ -38,23 +38,9 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-      # When a release is actually cut, tell the downstream marketplace to
-      # refresh its pinned shas. void-plugins groups the bumps by upstream repo,
-      # so this opens a single consolidated PR there (merged manually). Needs a
-      # fine-grained PAT scoped to voidcorp-core/void-plugins with
-      # "Actions: read and write", stored as the VOID_PLUGINS_DISPATCH_TOKEN secret.
-      #
-      # Pass the exact tag: void-plugins resolves it via git/ref/tags (immediately
-      # consistent) instead of the CDN-cached releases/latest, so the bump never
-      # races the release that just fired this step. Requires the `ref` input on
-      # void-plugins/bump-shas.yml (land that change first).
-      - name: Trigger downstream pin bump (void-plugins)
-        if: steps.release.outputs.release_created == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.VOID_PLUGINS_DISPATCH_TOKEN }}
-        run: |
-          gh workflow run bump-shas.yml -R voidcorp-core/void-plugins -f ref="${{ steps.release.outputs.tag_name }}"
-          echo "Triggered void-plugins/bump-shas for ${{ steps.release.outputs.tag_name }}"
+      # No downstream catalog to notify: the marketplace is self-hosted in this
+      # repo (`.claude-plugin/marketplace.json`, local `./packages/...` sources
+      # resolved at HEAD), so a release needs no sha re-pinning anywhere.
 
   # Tokenless, provenance-signed publish of voidharness via npm Trusted
   # Publishing (OIDC), gated on a release having been cut (i.e. a human merged the

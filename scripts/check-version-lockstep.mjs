@@ -42,8 +42,8 @@ async function readVersionField(root, rel) {
 }
 
 export async function collect(root) {
-  // The catalog lives in voidcorp-core/void-plugins; in this repo the core
-  // plugin manifest is the canonical version.
+  // The catalog is self-hosted in this repo; the core plugin manifest is the
+  // canonical version.
   const canonical = await readVersionField(root, PLUGIN_MANIFESTS[0]);
   const entries = [];
   for (const rel of [...PLUGIN_MANIFESTS, ...NPM_PACKAGES]) {

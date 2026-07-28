@@ -141,7 +141,7 @@ async function main() {
   console.log(`  3. Tag: git tag v${next}`);
   console.log(`  4. Push: git push && git push --tags`);
   console.log(`  5. (when npm publishing) pnpm -r --filter './packages/**' publish`);
-  console.log(`  6. Merge the sha-bump PR in voidcorp-core/void-plugins, then consumers refresh via void-harness update.`);
+  console.log(`  6. Consumers refresh via void-harness update.`);
 }
 
 main().catch((err) => {
