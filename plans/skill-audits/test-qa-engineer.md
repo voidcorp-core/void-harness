@@ -35,4 +35,5 @@ and verification evidence. It reviews but does not write tests or decide release
 ## Verification
 
 Strict canonical parsing, golden runtime compilation, native discovery, scope separation, bounded
-output, evidence-required findings, and duplicate-completion rejection.
+output, evidence-required findings, and duplicate-completion rejection. Contract v2 supplies both
+pre-build test strategy and post-build evidence review, selected by the baseline QA policy.

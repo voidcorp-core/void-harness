@@ -12,6 +12,7 @@ description: Reviews architecture without editing the project.
 scope: architecture
 independence: fresh-context
 writeAccess: none
+stages: [pre-implementation, post-implementation]
 appliesWhen:
   any: [architecture-impact]
 inputs: [ticket, plan, diff]

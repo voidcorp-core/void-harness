@@ -7,7 +7,7 @@ import {
 const CODEX_LIMITATION =
   'Codex parent runtime overrides can replace the agent sandbox and no per-agent process allowlist is available.';
 
-const CODEX_SAFETY = Object.freeze({
+export const CODEX_SPECIALIST_SAFETY = Object.freeze({
   readOnly: 'declared' as const,
   isolation: 'fresh-context' as const,
   teamMode: 'degraded' as const,
@@ -34,6 +34,6 @@ export function compileCodexSpecialist(contract: SpecialistContract): CompiledSp
     relativePath: `.codex/agents/${contract.name}.toml`,
     content,
     instructions,
-    safety: CODEX_SAFETY,
+    safety: CODEX_SPECIALIST_SAFETY,
   };
 }

@@ -16,6 +16,9 @@ const INPUTS: Readonly<Record<MvpSpecialistId, string>> = {
   'core:security-engineer': HASH_A,
   'core:test-qa-engineer': HASH_A,
 };
+const CONTRACT_VERSIONS = Object.fromEntries(
+  MVP_SPECIALIST_IDS.map((id) => [id, 1]),
+);
 
 function completion(
   specialistId: MvpSpecialistId,
@@ -30,6 +33,7 @@ function completion(
     readonly limitations?: readonly string[];
     readonly reviewRound?: number;
     readonly contractVersion?: number;
+    readonly stage?: 'pre-implementation' | 'post-implementation';
   } = {},
 ): CanonicalEvent {
   const seq = overrides.seq ?? MVP_SPECIALIST_IDS.indexOf(specialistId) + 1;
@@ -40,6 +44,7 @@ function completion(
     kind: 'specialist.completed',
     subject: specialistId,
     payload: {
+      stage: overrides.stage ?? 'post-implementation',
       reviewRound: overrides.reviewRound ?? 1,
       inputHash: overrides.inputHash ?? HASH_A,
       contextId: overrides.contextId ?? `ctx_${specialistId.slice(5)}`,
@@ -59,8 +64,11 @@ function completion(
 
 function review(events: readonly CanonicalEvent[], currentInputHashes = INPUTS) {
   return reduceReviewLoop({
+    stage: 'post-implementation',
+    expectedSource: 'runtime:codex',
     events,
     requiredSpecialists: MVP_SPECIALIST_IDS,
+    contractVersions: CONTRACT_VERSIONS,
     currentInputHashes,
     maxRounds: 2,
   });
@@ -142,21 +150,23 @@ describe('MVP specialist review loop', () => {
   });
 
   it('blocks instead of turning green when a required specialist times out', () => {
-    const failed = event({
-      seq: 3,
-      eventId: 'evt_00000000-0000-4000-8000-000000000003',
+    const failed = (seq: number, reviewRound: number) => event({
+      seq,
+      eventId: `evt_00000000-0000-4000-8000-${String(seq).padStart(12, '0')}`,
       kind: 'specialist.failed',
       subject: 'core:test-qa-engineer',
       payload: {
-        reviewRound: 2,
+        stage: 'post-implementation',
+        reviewRound,
         inputHash: HASH_A,
         reason: 'timeout',
       },
     });
     const state = review([
-      completion('core:solution-architect', { reviewRound: 2 }),
-      completion('core:security-engineer', { reviewRound: 2 }),
-      failed,
+      completion('core:solution-architect'),
+      completion('core:security-engineer'),
+      failed(3, 1),
+      failed(4, 2),
     ]);
 
     expect(state.status).toBe('blocked');
@@ -170,7 +180,12 @@ describe('MVP specialist review loop', () => {
       eventId: `evt_00000000-0000-4000-8000-${String(seq).padStart(12, '0')}`,
       kind: 'specialist.failed',
       subject: 'core:test-qa-engineer',
-      payload: { reviewRound, inputHash: HASH_A, reason: 'timeout' },
+      payload: {
+        stage: 'post-implementation',
+        reviewRound,
+        inputHash: HASH_A,
+        reason: 'timeout',
+      },
     });
     const firstAttempt = [
       completion('core:solution-architect'),
@@ -188,7 +203,7 @@ describe('MVP specialist review loop', () => {
     expect(exhausted.reviewRound).toBe(2);
   });
 
-  it('degrades malformed, wrong-role, duplicate, and reused-context completions', () => {
+  it('degrades malformed, duplicate, and reused-context completions', () => {
     const duplicateId = 'cmp_duplicate';
     const reusedContext = 'ctx_reused';
     const state = review([
@@ -214,10 +229,28 @@ describe('MVP specialist review loop', () => {
       expect.arrayContaining([
         'duplicate-completion',
         'reused-context',
-        'wrong-specialist',
+        'invalid-completion',
       ]),
     );
     expect(state.readyForVerdict).toBe(false);
+  });
+
+  it('degrades stale contract versions and missing current-input evidence', () => {
+    const wrongVersion = reduceReviewLoop({
+      stage: 'post-implementation',
+      expectedSource: 'runtime:codex',
+      events: MVP_SPECIALIST_IDS.map((specialistId) => completion(specialistId)),
+      requiredSpecialists: MVP_SPECIALIST_IDS,
+      contractVersions: { ...CONTRACT_VERSIONS, 'core:security-engineer': 2 },
+      currentInputHashes: { ...INPUTS, 'core:test-qa-engineer': '' },
+      maxRounds: 2,
+    });
+
+    expect(wrongVersion.status).toBe('degraded');
+    expect(wrongVersion.issues.map((issue) => issue.code)).toEqual(
+      expect.arrayContaining(['wrong-contract-version', 'missing-input-hash']),
+    );
+    expect(wrongVersion.readyForVerdict).toBe(false);
   });
 
   it('deduplicates by concrete evidence rather than reviewer majority', () => {
@@ -251,13 +284,31 @@ describe('MVP specialist review loop', () => {
   it.each([
     {
       label: 'a Windows absolute evidence path',
+      code: 'invalid-completion',
       event: completion('core:solution-architect', {
         findings: [finding('absolute-path', 'high', 'C:\\repo\\src\\domain.ts', 1)],
         verdict: 'changes-requested',
       }),
     },
     {
+      label: 'a Windows UNC evidence path',
+      code: 'invalid-completion',
+      event: completion('core:solution-architect', {
+        findings: [finding('unc-path', 'high', '\\\\server\\share\\secret', 1)],
+        verdict: 'changes-requested',
+      }),
+    },
+    {
+      label: 'a Windows root-relative evidence path',
+      code: 'invalid-completion',
+      event: completion('core:solution-architect', {
+        findings: [finding('root-path', 'high', '\\Windows\\System32\\file', 1)],
+        verdict: 'changes-requested',
+      }),
+    },
+    {
       label: 'a critical finding without a blocked verdict',
+      code: 'invalid-completion',
       event: completion('core:security-engineer', {
         findings: [finding('critical-auth', 'critical', 'src/auth.ts', 1)],
         verdict: 'changes-requested',
@@ -265,10 +316,12 @@ describe('MVP specialist review loop', () => {
     },
     {
       label: 'a degraded completion without a limitation',
+      code: 'invalid-completion',
       event: completion('core:test-qa-engineer', { verdict: 'degraded' }),
     },
     {
       label: 'a finding id outside the canonical lowercase kebab format',
+      code: 'invalid-completion',
       event: completion('core:solution-architect', {
         findings: [finding('ARCH-001', 'high', 'src/domain.ts', 1)],
         verdict: 'changes-requested',
@@ -276,13 +329,57 @@ describe('MVP specialist review loop', () => {
     },
     {
       label: 'a completion from a different contract version',
+      code: 'wrong-contract-version',
       event: completion('core:solution-architect', { contractVersion: 2 }),
     },
-  ])('degrades $label instead of accepting unsafe specialist output', ({ event }) => {
+  ])('degrades $label instead of accepting unsafe specialist output', ({ event, code }) => {
     const state = review([event]);
 
     expect(state.status).toBe('degraded');
     expect(state.issues).toEqual([
+      expect.objectContaining({ code }),
+    ]);
+  });
+
+  it('keeps pre-implementation completions isolated from post-implementation review', () => {
+    const state = review(MVP_SPECIALIST_IDS.map((specialistId) =>
+      completion(specialistId, { stage: 'pre-implementation' })));
+
+    expect(state.stage).toBe('post-implementation');
+    expect(state.status).toBe('awaiting-review');
+    expect(state.missingSpecialists).toEqual(MVP_SPECIALIST_IDS);
+  });
+
+  it('rejects reused completion and context identities regardless of stage order', () => {
+    const post = completion('core:solution-architect', { seq: 1 });
+    const pre = completion('core:solution-architect', {
+      seq: 2,
+      stage: 'pre-implementation',
+    });
+    const state = review([post, pre]);
+
+    expect(state.status).toBe('degraded');
+    expect(state.issues.map((issue) => issue.code)).toEqual(expect.arrayContaining([
+      'duplicate-completion',
+      'reused-context',
+    ]));
+  });
+
+  it('rejects unknown completion fields through the shared strict parser', () => {
+    const valid = completion('core:solution-architect');
+    const payload = valid.payload as Record<string, unknown>;
+    const malformed = {
+      ...valid,
+      payload: {
+        ...payload,
+        completion: {
+          ...(payload.completion as Record<string, unknown>),
+          commentary: 'looks good',
+        },
+      },
+    } as CanonicalEvent;
+
+    expect(review([malformed]).issues).toEqual([
       expect.objectContaining({ code: 'invalid-completion' }),
     ]);
   });

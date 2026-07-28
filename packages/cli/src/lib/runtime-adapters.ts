@@ -26,11 +26,12 @@ import { existsSync } from 'node:fs';
 import { lstat, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import type { SpecialistRuntimeCapability } from '@voidcorp/mission-engine';
 import { parseEventLine } from '@voidcorp/mission-engine/events';
 import { docFileFor, HARNESS_BLOCK_MARKER, patchRuntimeDoc } from './claude-md.js';
 import {
   CODEX_AGENTS_DIR,
-  NATIVE_SPECIALIST_NAMES,
+  canonicalSpecialistContracts,
   codexSpecialistsHealth,
   wireCodexAgents,
 } from './codex-agents.js';
@@ -64,6 +65,8 @@ import {
   settingsPathFor,
   writeSettings,
 } from './settings.js';
+import { CLAUDE_SPECIALIST_SAFETY } from './specialists/compile-claude.js';
+import { CODEX_SPECIALIST_SAFETY } from './specialists/compile-codex.js';
 
 /** Everything an adapter's `wire` may need. Runtime-agnostic inputs the command computed. */
 export interface RuntimeWireContext {
@@ -97,6 +100,7 @@ export interface RuntimeInspectionEvidence {
 export interface RuntimeInspection {
   readonly runtime: Runtime;
   readonly evidence: RuntimeInspectionEvidence;
+  readonly specialistCapability: SpecialistRuntimeCapability;
   readonly checks: readonly CheckResult[];
 }
 
@@ -126,6 +130,21 @@ async function safeRegularFile(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function effectiveSpecialistCapability(
+  healthy: boolean,
+  healthDetail: string,
+  safety: typeof CLAUDE_SPECIALIST_SAFETY | typeof CODEX_SPECIALIST_SAFETY,
+): SpecialistRuntimeCapability {
+  if (!healthy) return { status: 'unavailable', limitations: [healthDetail] };
+  return {
+    status: safety.teamMode,
+    limitations: [
+      ...safety.limitations,
+      'Conditional PDF and browser capabilities are not yet proven by a runtime probe.',
+    ],
+  };
 }
 
 function observedRuntime(projectRoot: string, runtime: Runtime): boolean | null {
@@ -167,8 +186,20 @@ async function docBlockCheck(projectRoot: string, runtime: Runtime): Promise<Che
 }
 
 async function claudeSpecialistsCheck(agentsRoot: string | undefined): Promise<CheckResult> {
+  let contracts: Awaited<ReturnType<typeof canonicalSpecialistContracts>>;
+  try {
+    contracts = await canonicalSpecialistContracts();
+  } catch (error) {
+    return {
+      name: 'claude agents',
+      ok: false,
+      message: `canonical specialist catalog unavailable: ${(error as Error).message}`,
+      fix: 'reinstall voidharness',
+    };
+  }
   const missing: string[] = [];
-  for (const name of NATIVE_SPECIALIST_NAMES) {
+  for (const contract of contracts) {
+    const name = contract.name;
     if (agentsRoot === undefined) {
       missing.push(name);
       continue;
@@ -179,7 +210,10 @@ async function claudeSpecialistsCheck(agentsRoot: string | undefined): Promise<C
       continue;
     }
     const content = await readFile(path, 'utf8');
-    if (!content.includes(`name: ${name}`) || !content.includes(`core:${name}`)) {
+    if (
+      !content.includes(`name: ${name}`)
+      || !content.includes(`Canonical contract: \`${contract.id}\` v${contract.version}.`)
+    ) {
       missing.push(name);
     }
   }
@@ -195,7 +229,7 @@ async function claudeSpecialistsCheck(agentsRoot: string | undefined): Promise<C
     name: 'claude agents',
     ok: true,
     status: 'advisory',
-    message: `${NATIVE_SPECIALIST_NAMES.length} native specialists discovered; team degraded because unknown inherited MCP tools cannot be denied in agent frontmatter`,
+    message: `${contracts.length} version-matched native specialists discovered; team degraded because unknown inherited MCP tools cannot be denied in agent frontmatter`,
   };
 }
 
@@ -336,7 +370,8 @@ const claudeAdapter: RuntimeAdapter = {
         }
       }
     }
-    checks.push(await claudeSpecialistsCheck(agentsRoot));
+    const specialistCheck = await claudeSpecialistsCheck(agentsRoot);
+    checks.push(specialistCheck);
     const wiringChecks = checks.filter((check) =>
       check.name === 'settings.json'
       || check.name === 'CLAUDE.md'
@@ -350,6 +385,11 @@ const claudeAdapter: RuntimeAdapter = {
     checks.push(smokeCheck('claude', smoke.fired, smoke.detail));
     return {
       runtime: 'claude',
+      specialistCapability: effectiveSpecialistCapability(
+        specialistCheck.ok,
+        specialistCheck.message,
+        CLAUDE_SPECIALIST_SAFETY,
+      ),
       evidence: {
         installed,
         wired,
@@ -436,6 +476,11 @@ const codexAdapter: RuntimeAdapter = {
     checks.push(smokeCheck('codex', smoke.fired, smoke.detail));
     return {
       runtime: 'codex',
+      specialistCapability: effectiveSpecialistCapability(
+        specialists.ok,
+        specialists.detail,
+        CODEX_SPECIALIST_SAFETY,
+      ),
       evidence: {
         installed,
         wired,

@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import {
+  parseSpecialistCompletionValue,
+  type SpecialistCompletion,
+} from '@voidcorp/mission-engine';
+
+export type { SpecialistCompletion } from '@voidcorp/mission-engine';
 
 export const MAX_SPECIALIST_OUTPUT_BYTES = 64 * 1024;
 
@@ -14,6 +20,7 @@ const specialistContractSchema = z.strictObject({
   scope: slug,
   independence: z.literal('fresh-context'),
   writeAccess: z.literal('none'),
+  stages: z.array(z.enum(['pre-implementation', 'post-implementation'])).min(1).max(2),
   appliesWhen: z.strictObject({
     any: z.array(slug).min(1).max(16),
   }),
@@ -38,49 +45,16 @@ const specialistContractSchema = z.strictObject({
       message: `must equal core:${contract.name}`,
     });
   }
-});
-
-const evidencePath = z.string().min(1).max(500).superRefine((path, context) => {
-  const segments = path.replaceAll('\\', '/').split('/');
-  if (path.startsWith('/') || /^[A-Za-z]:/.test(path) || segments.includes('..')) {
-    context.addIssue({ code: 'custom', message: 'must be repository-relative without traversal' });
-  }
-});
-
-const specialistCompletionSchema = z.strictObject({
-  schemaVersion: z.literal(1),
-  specialistId: z.string().regex(/^core:[a-z0-9]+(?:-[a-z0-9]+)*$/),
-  contractVersion: z.number().int().positive().max(10_000),
-  completionId: z.string().min(8).max(160).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
-  verdict: z.enum(['pass', 'changes-requested', 'blocked', 'degraded']),
-  findings: z.array(z.strictObject({
-    id: slug,
-    severity: z.enum(['critical', 'high', 'medium', 'low']),
-    summary: boundedText(500),
-    evidence: z.array(z.strictObject({
-      path: evidencePath,
-      line: z.number().int().positive().max(10_000_000),
-      detail: boundedText(1_000),
-    })).min(1).max(16),
-    recommendation: boundedText(1_000),
-  })).max(32),
-  evidenceRequests: z.array(boundedText(1_000)).max(16),
-  limitations: z.array(boundedText(1_000)).max(16),
-}).superRefine((completion, context) => {
-  if (
-    (completion.verdict === 'blocked' || completion.verdict === 'degraded')
-    && completion.limitations.length === 0
-  ) {
+  if (new Set(contract.stages).size !== contract.stages.length) {
     context.addIssue({
       code: 'custom',
-      path: ['limitations'],
-      message: `${completion.verdict} completions must state at least one limitation`,
+      path: ['stages'],
+      message: 'must not contain duplicates',
     });
   }
 });
 
 export type SpecialistContract = z.infer<typeof specialistContractSchema>;
-export type SpecialistCompletion = z.infer<typeof specialistCompletionSchema>;
 
 export interface SpecialistSafety {
   readonly readOnly: 'enforced' | 'declared';
@@ -127,37 +101,39 @@ export function parseSpecialistCompletion(
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`SPECIALIST_OUTPUT_INVALID: invalid JSON: ${message}`);
   }
-  const result = specialistCompletionSchema.safeParse(input);
-  if (!result.success) {
-    throw new Error(`SPECIALIST_OUTPUT_INVALID: ${issueText(result.error)}`);
+  const completion = parseSpecialistCompletionValue(input);
+  if (completion === undefined) {
+    throw new Error('SPECIALIST_OUTPUT_INVALID: output violates the strict canonical completion contract');
   }
-  if (result.data.specialistId !== contract.id) {
+  if (completion.specialistId !== contract.id) {
     throw new Error(
-      `SPECIALIST_OUTPUT_INVALID: wrong specialist '${result.data.specialistId}', expected '${contract.id}'`,
+      `SPECIALIST_OUTPUT_INVALID: wrong specialist '${completion.specialistId}', expected '${contract.id}'`,
     );
   }
-  if (result.data.contractVersion !== contract.version) {
+  if (completion.contractVersion !== contract.version) {
     throw new Error(
-      `SPECIALIST_OUTPUT_INVALID: wrong contract version ${result.data.contractVersion}, expected ${contract.version}`,
+      `SPECIALIST_OUTPUT_INVALID: wrong contract version ${completion.contractVersion}, expected ${contract.version}`,
     );
   }
-  if (
-    contract.failurePolicy === 'block-on-critical'
-    && result.data.findings.some((finding) => finding.severity === 'critical')
-    && result.data.verdict !== 'blocked'
-  ) {
-    throw new Error('SPECIALIST_OUTPUT_INVALID: a critical finding requires a blocked verdict');
+  if (acceptedCompletionIds.includes(completion.completionId)) {
+    throw new Error(`SPECIALIST_OUTPUT_INVALID: duplicate completion '${completion.completionId}'`);
   }
-  if (acceptedCompletionIds.includes(result.data.completionId)) {
-    throw new Error(`SPECIALIST_OUTPUT_INVALID: duplicate completion '${result.data.completionId}'`);
-  }
-  return result.data;
+  return completion;
 }
 
 function title(name: string): string {
+  const acronyms: Readonly<Record<string, string>> = {
+    api: 'API',
+    devex: 'DevEx',
+    pdf: 'PDF',
+    qa: 'QA',
+    sre: 'SRE',
+    ui: 'UI',
+    ux: 'UX',
+  };
   return name
     .split('-')
-    .map((part) => part === 'qa' ? 'QA' : `${part[0]?.toUpperCase() ?? ''}${part.slice(1)}`)
+    .map((part) => acronyms[part] ?? `${part[0]?.toUpperCase() ?? ''}${part.slice(1)}`)
     .join(' ');
 }
 
@@ -194,6 +170,10 @@ export function renderSpecialistInstructions(contract: SpecialistContract): stri
     '',
     'Run when any condition matches:',
     ...contract.appliesWhen.any.map((condition) => `- ${condition}`),
+    '',
+    '## Invocation stages',
+    '',
+    ...contract.stages.map((stage) => `- ${stage}`),
     '',
     '## Inputs',
     '',

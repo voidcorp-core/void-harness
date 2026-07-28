@@ -96,6 +96,10 @@ describe('codex adapter', () => {
       fired: true,
       observed: false,
     });
+    expect(inspection.specialistCapability).toMatchObject({
+      status: 'degraded',
+      limitations: expect.arrayContaining([expect.stringContaining('parent runtime overrides')]),
+    });
     expect(inspection.checks.find((check) => check.name === 'codex hook smoke')?.ok).toBe(true);
   });
 
@@ -159,6 +163,25 @@ describe('claude adapter', () => {
     expect(checks.find((c) => c.name === 'claude agents')?.message).toMatch(/team degraded/i);
   });
 
+  it('reports a stale Claude specialist contract version as unhealthy', async () => {
+    const dir = scratch();
+    await adapterFor('claude').wire(ctxFor(dir));
+    const security = join(dir, '.claude', 'agents', 'security-engineer.md');
+    writeFileSync(
+      security,
+      readFileSync(security, 'utf8').replace(
+        'Canonical contract: `core:security-engineer` v2.',
+        'Canonical contract: `core:security-engineer` v1.',
+      ),
+    );
+
+    const checks = await adapterFor('claude').doctorChecks(dir);
+    expect(checks.find((check) => check.name === 'claude agents')).toMatchObject({
+      ok: false,
+      message: expect.stringContaining('security-engineer'),
+    });
+  });
+
   it('keeps the marketplace behind an explicit adapter mode', async () => {
     const dir = scratch();
     const marketplace = { ...ctxFor(dir), source: 'marketplace' as const, pinVersion: undefined };
@@ -190,6 +213,10 @@ describe('claude adapter', () => {
       wired: true,
       fired: true,
       observed: false,
+    });
+    expect(inspection.specialistCapability).toMatchObject({
+      status: 'degraded',
+      limitations: expect.arrayContaining([expect.stringContaining('inherited MCP tools')]),
     });
   });
 });

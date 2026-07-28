@@ -1,5 +1,15 @@
 import type { CanonicalEvent } from '../events/types.js';
 import { canonicalJsonHash } from '../evidence/canonical-json.js';
+import {
+  parseSpecialistCompletionValue,
+  type SpecialistCompletion,
+  type SpecialistEvidence,
+  type SpecialistFindingSeverity,
+} from '../specialist/completion.js';
+import type {
+  SpecialistId,
+  SpecialistInvocationStage,
+} from '../specialist/routing.js';
 
 export const MVP_SPECIALIST_IDS = Object.freeze([
   'core:solution-architect',
@@ -14,13 +24,8 @@ export type ReviewLoopStatus =
   | 'ready-for-verdict'
   | 'blocked'
   | 'degraded';
-export type ReviewFindingSeverity = 'critical' | 'high' | 'medium' | 'low';
-
-export interface ReviewEvidence {
-  readonly path: string;
-  readonly line: number;
-  readonly detail: string;
-}
+export type ReviewFindingSeverity = SpecialistFindingSeverity;
+export type ReviewEvidence = SpecialistEvidence;
 
 export interface NormalizedReviewFinding {
   readonly findingId: string;
@@ -29,14 +34,19 @@ export interface NormalizedReviewFinding {
   readonly summary: string;
   readonly evidence: readonly ReviewEvidence[];
   readonly recommendation: string;
-  readonly reportedBy: readonly MvpSpecialistId[];
+  readonly reportedBy: readonly SpecialistId[];
 }
 
 export type ReviewLoopIssueCode =
   | 'invalid-completion'
   | 'wrong-specialist'
+  | 'wrong-contract-version'
   | 'duplicate-completion'
-  | 'reused-context';
+  | 'reused-context'
+  | 'missing-input-hash'
+  | 'out-of-order-completion'
+  | 'wrong-review-round'
+  | 'wrong-source';
 
 export interface ReviewLoopIssue {
   readonly code: ReviewLoopIssueCode;
@@ -45,42 +55,33 @@ export interface ReviewLoopIssue {
 }
 
 export interface ReviewLoopInput {
+  readonly stage: SpecialistInvocationStage;
+  readonly expectedSource: 'runtime:claude' | 'runtime:codex';
+  readonly stageStartSeqExclusive?: number;
+  readonly afterSeqExclusive?: number;
+  readonly beforeSeqExclusive?: number;
   readonly events: readonly CanonicalEvent[];
-  readonly requiredSpecialists: readonly MvpSpecialistId[];
-  readonly currentInputHashes: Readonly<Record<MvpSpecialistId, string>>;
+  readonly requiredSpecialists: readonly SpecialistId[];
+  readonly contractVersions: Readonly<Record<string, number>>;
+  readonly currentInputHashes: Readonly<Record<string, string>>;
   readonly maxRounds: number;
 }
 
 export interface ReviewLoopState {
+  readonly stage: SpecialistInvocationStage;
   readonly status: ReviewLoopStatus;
   readonly reviewRound: number;
-  readonly missingSpecialists: readonly MvpSpecialistId[];
-  readonly staleSpecialists: readonly MvpSpecialistId[];
-  readonly specialistsToRun: readonly MvpSpecialistId[];
+  readonly missingSpecialists: readonly SpecialistId[];
+  readonly staleSpecialists: readonly SpecialistId[];
+  readonly specialistsToRun: readonly SpecialistId[];
   readonly findings: readonly NormalizedReviewFinding[];
   readonly issues: readonly ReviewLoopIssue[];
   readonly readyForVerdict: boolean;
 }
 
-interface SpecialistFinding {
-  readonly id: string;
-  readonly severity: ReviewFindingSeverity;
-  readonly summary: string;
-  readonly evidence: readonly ReviewEvidence[];
-  readonly recommendation: string;
-}
-
-interface SpecialistCompletion {
-  readonly specialistId: MvpSpecialistId;
-  readonly completionId: string;
-  readonly verdict: 'pass' | 'changes-requested' | 'blocked' | 'degraded';
-  readonly findings: readonly SpecialistFinding[];
-  readonly evidenceRequests: readonly string[];
-  readonly limitations: readonly string[];
-}
-
 interface CompletionEnvelope {
   readonly event: CanonicalEvent;
+  readonly stage: SpecialistInvocationStage;
   readonly reviewRound: number;
   readonly inputHash: string;
   readonly contextId: string;
@@ -88,9 +89,7 @@ interface CompletionEnvelope {
 }
 
 const SHA256 = /^sha256:[a-f0-9]{64}$/;
-const COMPLETION_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$/;
 const CONTEXT_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{3,159}$/;
-const FINDING_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SEVERITY_RANK: Readonly<Record<ReviewFindingSeverity, number>> = {
   low: 0,
   medium: 1,
@@ -98,27 +97,12 @@ const SEVERITY_RANK: Readonly<Record<ReviewFindingSeverity, number>> = {
   critical: 3,
 };
 
-interface ReviewRecord extends Record<string, unknown> {
-  readonly path?: unknown;
-  readonly line?: unknown;
-  readonly detail?: unknown;
-  readonly id?: unknown;
-  readonly severity?: unknown;
-  readonly summary?: unknown;
-  readonly evidence?: unknown;
-  readonly recommendation?: unknown;
-  readonly findings?: unknown;
-  readonly schemaVersion?: unknown;
-  readonly specialistId?: unknown;
-  readonly contractVersion?: unknown;
-  readonly completionId?: unknown;
-  readonly verdict?: unknown;
-  readonly evidenceRequests?: unknown;
-  readonly limitations?: unknown;
+interface ReviewRecord extends Readonly<Record<string, unknown>> {
   readonly reviewRound?: unknown;
   readonly completion?: unknown;
   readonly inputHash?: unknown;
   readonly contextId?: unknown;
+  readonly stage?: unknown;
 }
 
 function record(value: unknown): ReviewRecord | undefined {
@@ -128,126 +112,15 @@ function record(value: unknown): ReviewRecord | undefined {
   return value as ReviewRecord;
 }
 
-function boundedText(value: unknown, maximum: number): value is string {
+function specialistId(value: unknown): value is SpecialistId {
   return typeof value === 'string'
-    && value.trim().length > 0
-    && value.length <= maximum
-    && !value.includes('\0');
-}
-
-function specialistId(value: unknown): value is MvpSpecialistId {
-  return typeof value === 'string'
-    && MVP_SPECIALIST_IDS.some((candidate) => candidate === value);
-}
-
-function findingSeverity(value: unknown): value is ReviewFindingSeverity {
-  return value === 'critical'
-    || value === 'high'
-    || value === 'medium'
-    || value === 'low';
-}
-
-function parseEvidence(value: unknown): ReviewEvidence | undefined {
-  const raw = record(value);
-  if (
-    raw === undefined
-    || !boundedText(raw.path, 500)
-    || raw.path.startsWith('/')
-    || /^[A-Za-z]:/.test(raw.path)
-    || raw.path.split(/[\\/]/).includes('..')
-    || !Number.isSafeInteger(raw.line)
-    || Number(raw.line) <= 0
-    || Number(raw.line) > 10_000_000
-    || !boundedText(raw.detail, 1_000)
-  ) {
-    return undefined;
-  }
-  return { path: raw.path, line: Number(raw.line), detail: raw.detail };
-}
-
-function parseFinding(value: unknown): SpecialistFinding | undefined {
-  const raw = record(value);
-  if (
-    raw === undefined
-    || !boundedText(raw.id, 80)
-    || !FINDING_ID.test(raw.id)
-    || !findingSeverity(raw.severity)
-    || !boundedText(raw.summary, 500)
-    || !Array.isArray(raw.evidence)
-    || raw.evidence.length === 0
-    || raw.evidence.length > 16
-    || !boundedText(raw.recommendation, 1_000)
-  ) {
-    return undefined;
-  }
-  const evidence = raw.evidence.map(parseEvidence);
-  if (evidence.some((item) => item === undefined)) return undefined;
-  return {
-    id: raw.id,
-    severity: raw.severity,
-    summary: raw.summary,
-    evidence: evidence as readonly ReviewEvidence[],
-    recommendation: raw.recommendation,
-  };
-}
-
-function parseTextList(value: unknown): readonly string[] | undefined {
-  if (!Array.isArray(value) || value.length > 16) return undefined;
-  return value.every((item) => boundedText(item, 1_000))
-    ? value as readonly string[]
-    : undefined;
-}
-
-function parseCompletion(value: unknown): SpecialistCompletion | undefined {
-  const raw = record(value);
-  const findingsRaw = raw?.findings;
-  if (
-    raw === undefined
-    || raw.schemaVersion !== 1
-    || !specialistId(raw.specialistId)
-    || raw.contractVersion !== 1
-    || typeof raw.completionId !== 'string'
-    || !COMPLETION_ID.test(raw.completionId)
-    || !['pass', 'changes-requested', 'blocked', 'degraded'].includes(
-      String(raw.verdict),
-    )
-    || !Array.isArray(findingsRaw)
-    || findingsRaw.length > 32
-  ) {
-    return undefined;
-  }
-  const findings = findingsRaw.map(parseFinding);
-  const evidenceRequests = parseTextList(raw.evidenceRequests);
-  const limitations = parseTextList(raw.limitations);
-  if (
-    findings.some((item) => item === undefined)
-    || evidenceRequests === undefined
-    || limitations === undefined
-    || (
-      (raw.verdict === 'blocked' || raw.verdict === 'degraded')
-      && limitations.length === 0
-    )
-    || (
-      findings.some((finding) => finding?.severity === 'critical')
-      && raw.verdict !== 'blocked'
-    )
-  ) {
-    return undefined;
-  }
-  return {
-    specialistId: raw.specialistId,
-    completionId: raw.completionId,
-    verdict: raw.verdict as SpecialistCompletion['verdict'],
-    findings: findings as readonly SpecialistFinding[],
-    evidenceRequests,
-    limitations,
-  };
+    && /^core:[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value);
 }
 
 function parseEnvelope(event: CanonicalEvent): CompletionEnvelope | undefined {
   const payload = record(event.payload);
   const reviewRound = payload?.reviewRound;
-  const completion = parseCompletion(payload?.completion);
+  const completion = parseSpecialistCompletionValue(payload?.completion);
   if (
     payload === undefined
     || !Number.isSafeInteger(reviewRound)
@@ -257,12 +130,14 @@ function parseEnvelope(event: CanonicalEvent): CompletionEnvelope | undefined {
     || !SHA256.test(payload.inputHash)
     || typeof payload.contextId !== 'string'
     || !CONTEXT_ID.test(payload.contextId)
+    || (payload.stage !== 'pre-implementation' && payload.stage !== 'post-implementation')
     || completion === undefined
   ) {
     return undefined;
   }
   return {
     event,
+    stage: payload.stage,
     reviewRound: Number(reviewRound),
     inputHash: payload.inputHash,
     contextId: payload.contextId,
@@ -270,7 +145,15 @@ function parseEnvelope(event: CanonicalEvent): CompletionEnvelope | undefined {
   };
 }
 
-function collectCompletions(events: readonly CanonicalEvent[]): {
+function collectCompletions(
+  events: readonly CanonicalEvent[],
+  stage: SpecialistInvocationStage,
+  expectedSource: ReviewLoopInput['expectedSource'],
+  stageStartSeqExclusive: number | undefined,
+  afterSeqExclusive: number | undefined,
+  beforeSeqExclusive: number | undefined,
+  maxRounds: number,
+): {
   readonly accepted: readonly CompletionEnvelope[];
   readonly issues: readonly ReviewLoopIssue[];
   readonly highestRound: number;
@@ -279,12 +162,35 @@ function collectCompletions(events: readonly CanonicalEvent[]): {
   const issues: ReviewLoopIssue[] = [];
   const completionIds = new Set<string>();
   const contextIds = new Set<string>();
-  let highestRound = 0;
+  const currentFailedRounds: { readonly event: CanonicalEvent; readonly round: number }[] = [];
+  let historicalHighestRound = 0;
+  const inStageWindow = (event: CanonicalEvent): boolean =>
+    (afterSeqExclusive === undefined || event.seq > afterSeqExclusive)
+    && (beforeSeqExclusive === undefined || event.seq < beforeSeqExclusive);
   for (const event of events) {
     const payload = record(event.payload);
     if (event.kind === 'specialist.failed') {
       const round = payload?.reviewRound;
-      if (Number.isSafeInteger(round)) highestRound = Math.max(highestRound, Number(round));
+      if (payload?.stage === stage && event.source !== expectedSource) {
+        issues.push({
+          code: 'wrong-source',
+          eventId: event.eventId,
+          detail: `${event.source} != ${expectedSource}`,
+        });
+      } else if (
+        payload?.stage === stage
+        && Number.isSafeInteger(round)
+      ) {
+        if (
+          stageStartSeqExclusive !== undefined
+          && event.seq > stageStartSeqExclusive
+          && !inStageWindow(event)
+        ) {
+          historicalHighestRound = Math.max(historicalHighestRound, Number(round));
+        } else if (inStageWindow(event)) {
+          currentFailedRounds.push({ event, round: Number(round) });
+        }
+      }
       continue;
     }
     if (event.kind !== 'specialist.completed') continue;
@@ -294,12 +200,19 @@ function collectCompletions(events: readonly CanonicalEvent[]): {
       issues.push({ code, eventId: event.eventId, detail: 'completion envelope is invalid' });
       continue;
     }
-    highestRound = Math.max(highestRound, envelope.reviewRound);
     if (envelope.completion.specialistId !== event.subject) {
       issues.push({
         code: 'wrong-specialist',
         eventId: event.eventId,
         detail: 'event subject does not match completion specialist',
+      });
+      continue;
+    }
+    if (event.source !== expectedSource) {
+      issues.push({
+        code: 'wrong-source',
+        eventId: event.eventId,
+        detail: `${event.source} != ${expectedSource}`,
       });
       continue;
     }
@@ -320,15 +233,96 @@ function collectCompletions(events: readonly CanonicalEvent[]): {
     }
     completionIds.add(envelope.completion.completionId);
     contextIds.add(envelope.contextId);
+    if (envelope.stage !== stage) continue;
+    if (stageStartSeqExclusive !== undefined && event.seq <= stageStartSeqExclusive) {
+      issues.push({
+        code: 'out-of-order-completion',
+        eventId: event.eventId,
+        detail: `${stage} completion is outside its implementation boundary`,
+      });
+      continue;
+    }
+    if (!inStageWindow(event)) {
+      if (stageStartSeqExclusive !== undefined) {
+        historicalHighestRound = Math.max(historicalHighestRound, envelope.reviewRound);
+        continue;
+      }
+      issues.push({
+        code: 'out-of-order-completion',
+        eventId: event.eventId,
+        detail: `${stage} completion is outside its implementation boundary`,
+      });
+      continue;
+    }
     accepted.push(envelope);
   }
-  return { accepted, issues, highestRound };
+  const firstCurrentRound = historicalHighestRound + 1;
+  const currentRounds = [
+    ...accepted.map((envelope) => ({
+      event: envelope.event,
+      round: envelope.reviewRound,
+      specialistId: envelope.completion.specialistId,
+      succeeded: true,
+      envelope,
+    })),
+    ...currentFailedRounds.map(({ event, round }) => ({
+      event,
+      round,
+      specialistId: specialistId(event.subject) ? event.subject : undefined,
+      succeeded: false,
+    })),
+  ].sort((left, right) => left.event.seq - right.event.seq);
+  const invalidRoundEvents = new Set<string>();
+  const completedInWindow = new Set<SpecialistId>();
+  const failedRoundBySpecialist = new Map<SpecialistId, number>();
+  let activeRound: number | undefined;
+  for (const current of currentRounds) {
+    const expected = activeRound === undefined
+      ? [firstCurrentRound]
+      : [activeRound, activeRound + 1];
+    const specialistAlreadyCompleted = current.specialistId !== undefined
+      && completedInWindow.has(current.specialistId);
+    const priorFailureRound = current.specialistId === undefined
+      ? undefined
+      : failedRoundBySpecialist.get(current.specialistId);
+    const retriesFailureInNextRound = priorFailureRound === undefined
+      || current.round === priorFailureRound + 1;
+    const respectsImplementationBoundary = stageStartSeqExclusive === undefined
+      || (!specialistAlreadyCompleted && retriesFailureInNextRound);
+    if (
+      current.round <= maxRounds
+      && expected.includes(current.round)
+      && respectsImplementationBoundary
+    ) {
+      activeRound = Math.max(activeRound ?? current.round, current.round);
+      if (current.specialistId !== undefined) {
+        if (current.succeeded) {
+          completedInWindow.add(current.specialistId);
+        } else {
+          failedRoundBySpecialist.set(current.specialistId, current.round);
+        }
+      }
+      continue;
+    }
+    invalidRoundEvents.add(current.event.eventId);
+    issues.push({
+      code: 'wrong-review-round',
+      eventId: current.event.eventId,
+      detail: specialistAlreadyCompleted
+        ? `${current.specialistId} already completed within the current implementation boundary`
+        : `${current.round} not in [${expected.join(', ')}], max ${maxRounds}`,
+    });
+  }
+  const validAccepted = accepted.filter((envelope) =>
+    !invalidRoundEvents.has(envelope.event.eventId));
+  const highestRound = Math.max(historicalHighestRound, activeRound ?? 0);
+  return { accepted: validAccepted, issues, highestRound };
 }
 
 function latestBySpecialist(
   completions: readonly CompletionEnvelope[],
-): ReadonlyMap<MvpSpecialistId, CompletionEnvelope> {
-  const latest = new Map<MvpSpecialistId, CompletionEnvelope>();
+): ReadonlyMap<SpecialistId, CompletionEnvelope> {
+  const latest = new Map<SpecialistId, CompletionEnvelope>();
   for (const completion of completions) {
     const current = latest.get(completion.completion.specialistId);
     if (current === undefined || completion.event.seq > current.event.seq) {
@@ -378,8 +372,8 @@ function mergeFindings(
 function decideStatus(input: {
   readonly issues: readonly ReviewLoopIssue[];
   readonly current: readonly CompletionEnvelope[];
-  readonly missing: readonly MvpSpecialistId[];
-  readonly stale: readonly MvpSpecialistId[];
+  readonly missing: readonly SpecialistId[];
+  readonly stale: readonly SpecialistId[];
   readonly findings: readonly NormalizedReviewFinding[];
   readonly attemptedRound: number;
   readonly maxRounds: number;
@@ -408,12 +402,79 @@ export function reduceReviewLoop(input: ReviewLoopInput): ReviewLoopState {
   if (!Number.isSafeInteger(input.maxRounds) || input.maxRounds < 1 || input.maxRounds > 8) {
     throw new Error('REVIEW_LOOP_INVALID: maxRounds must be an integer in [1, 8]');
   }
-  const collected = collectCompletions(input.events);
+  if (
+    new Set(input.requiredSpecialists).size !== input.requiredSpecialists.length
+    || input.requiredSpecialists.some((id) => !specialistId(id))
+  ) {
+    throw new Error('REVIEW_LOOP_INVALID: required specialists must be unique core ids');
+  }
+  if (
+    (input.stageStartSeqExclusive !== undefined
+      && (!Number.isSafeInteger(input.stageStartSeqExclusive)
+        || input.stageStartSeqExclusive < 1))
+    || (input.afterSeqExclusive !== undefined
+      && (!Number.isSafeInteger(input.afterSeqExclusive) || input.afterSeqExclusive < 1))
+    || (input.beforeSeqExclusive !== undefined
+      && (!Number.isSafeInteger(input.beforeSeqExclusive) || input.beforeSeqExclusive < 1))
+    || (
+      input.stageStartSeqExclusive !== undefined
+      && input.afterSeqExclusive !== undefined
+      && input.stageStartSeqExclusive > input.afterSeqExclusive
+    )
+    || (
+      input.afterSeqExclusive !== undefined
+      && input.beforeSeqExclusive !== undefined
+      && input.afterSeqExclusive >= input.beforeSeqExclusive
+    )
+  ) {
+    throw new Error('REVIEW_LOOP_INVALID: event sequence boundaries are invalid');
+  }
+  const collected = collectCompletions(
+    input.events,
+    input.stage,
+    input.expectedSource,
+    input.stageStartSeqExclusive,
+    input.afterSeqExclusive,
+    input.beforeSeqExclusive,
+    input.maxRounds,
+  );
+  const configurationIssues: ReviewLoopIssue[] = input.requiredSpecialists.flatMap((id) => {
+    const version = input.contractVersions[id];
+    if (!Number.isSafeInteger(version) || Number(version) < 1 || Number(version) > 10_000) {
+      throw new Error(`REVIEW_LOOP_INVALID: missing contract version for '${id}'`);
+    }
+    return SHA256.test(input.currentInputHashes[id] ?? '')
+      ? []
+      : [{
+        code: 'missing-input-hash' as const,
+        eventId: 'configuration',
+        detail: id,
+      }];
+  });
   const latest = latestBySpecialist(collected.accepted);
+  const versionIssues: ReviewLoopIssue[] = input.requiredSpecialists.flatMap((id) => {
+    const completion = latest.get(id);
+    return completion !== undefined
+      && completion.completion.contractVersion !== input.contractVersions[id]
+      ? [{
+        code: 'wrong-contract-version' as const,
+        eventId: completion.event.eventId,
+        detail: `${completion.completion.contractVersion} != ${input.contractVersions[id]}`,
+      }]
+      : [];
+  });
+  const issues = Object.freeze([
+    ...collected.issues,
+    ...configurationIssues,
+    ...versionIssues,
+  ]);
   const missing = input.requiredSpecialists.filter((id) => !latest.has(id));
   const stale = input.requiredSpecialists.filter((id) => {
     const completion = latest.get(id);
-    return completion !== undefined && completion.inputHash !== input.currentInputHashes[id];
+    return completion !== undefined && (
+      completion.inputHash !== input.currentInputHashes[id]
+      || completion.completion.contractVersion !== input.contractVersions[id]
+    );
   });
   const current = input.requiredSpecialists.flatMap((id) => {
     const completion = latest.get(id);
@@ -421,7 +482,7 @@ export function reduceReviewLoop(input: ReviewLoopInput): ReviewLoopState {
   });
   const findings = mergeFindings(current);
   const status = decideStatus({
-    issues: collected.issues,
+    issues,
     current,
     missing,
     stale,
@@ -433,6 +494,7 @@ export function reduceReviewLoop(input: ReviewLoopInput): ReviewLoopState {
     ? Math.min(input.maxRounds, Math.max(1, collected.highestRound + 1))
     : Math.max(1, collected.highestRound);
   return {
+    stage: input.stage,
     status,
     reviewRound,
     missingSpecialists: missing,
@@ -441,7 +503,7 @@ export function reduceReviewLoop(input: ReviewLoopInput): ReviewLoopState {
       missing.includes(id) || stale.includes(id)
     ),
     findings,
-    issues: collected.issues,
+    issues,
     readyForVerdict: status === 'ready-for-verdict',
   };
 }

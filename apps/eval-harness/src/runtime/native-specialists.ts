@@ -47,7 +47,7 @@ export function nativeSpecialistFixture(
   return fixture;
 }
 
-/** Install through the real local CLI, then retain only the three native team agents. */
+/** Install through the real local CLI, then retain the three roles exercised by this eval case. */
 export function provisionNativeSpecialists(
   repoRoot: string,
   runtime: EvalRuntime,

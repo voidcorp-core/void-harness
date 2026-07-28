@@ -4,7 +4,7 @@ import {
   type SpecialistContract,
 } from './schema.js';
 
-const CLAUDE_SAFETY = Object.freeze({
+export const CLAUDE_SPECIALIST_SAFETY = Object.freeze({
   readOnly: 'declared' as const,
   isolation: 'fresh-context' as const,
   teamMode: 'degraded' as const,
@@ -29,6 +29,6 @@ export function compileClaudeSpecialist(contract: SpecialistContract): CompiledS
     relativePath: `.claude/agents/${contract.name}.md`,
     content: `${frontmatter}\n\n<!-- Generated from ${contract.id} v${contract.version}. Do not edit. -->\n\n${instructions}\n`,
     instructions,
-    safety: CLAUDE_SAFETY,
+    safety: CLAUDE_SPECIALIST_SAFETY,
   };
 }

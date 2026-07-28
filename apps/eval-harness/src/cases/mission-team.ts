@@ -3,6 +3,7 @@ import {
   reduceReviewLoop,
   replayEventLog,
   type MvpSpecialistId,
+  type SpecialistId,
 } from '@voidcorp/mission-engine';
 import type { EvalCase, EvalReport, RunOutcome, ScoreResult } from '../types.js';
 
@@ -60,6 +61,11 @@ function reviewFrom(outcome: RunOutcome) {
   if (body === undefined) return undefined;
   const stream = replayEventLog(body);
   if (stream.issues.length > 0) return undefined;
+  const specialistSource = stream.events.find((event) =>
+    event.kind === 'specialist.completed')?.source;
+  if (specialistSource !== 'runtime:claude' && specialistSource !== 'runtime:codex') {
+    return undefined;
+  }
   const currentInputHashes = Object.fromEntries(
     MVP_SPECIALIST_IDS.map((specialistId) => {
       const completion = [...stream.events].reverse().find((event) =>
@@ -70,8 +76,11 @@ function reviewFrom(outcome: RunOutcome) {
     }),
   ) as Record<MvpSpecialistId, string>;
   return reduceReviewLoop({
+    stage: 'post-implementation',
+    expectedSource: specialistSource,
     events: stream.events,
     requiredSpecialists: MVP_SPECIALIST_IDS,
+    contractVersions: Object.fromEntries(MVP_SPECIALIST_IDS.map((id) => [id, 2])),
     currentInputHashes,
     maxRounds: 2,
   });
@@ -85,7 +94,7 @@ function record(value: unknown): Readonly<Record<string, unknown>> | undefined {
 
 function findingText(
   findings: readonly {
-    readonly reportedBy: readonly MvpSpecialistId[];
+    readonly reportedBy: readonly SpecialistId[];
     readonly summary: string;
     readonly recommendation: string;
     readonly evidence: readonly { readonly path: string; readonly detail: string }[];

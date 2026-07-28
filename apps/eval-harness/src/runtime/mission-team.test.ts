@@ -51,7 +51,7 @@ function completion(specialistId: string): Record<string, unknown> {
   return {
     schemaVersion: 1,
     specialistId,
-    contractVersion: 1,
+    contractVersion: 2,
     completionId: `cmp_${specialistId.slice(5)}`,
     verdict: 'changes-requested',
     findings: [{

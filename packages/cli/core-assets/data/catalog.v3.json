@@ -5,9 +5,65 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:894096959a5ab9cbc71ef8e21df0deb3029fe362b8258abcf2a494d8a5ab7eee"
+    "rootHash": "sha256:707fbe0cbd7055bb19f49f296ac138fee706df916ae265745b01997e6ab8be0d"
   },
   "nodes": [
+    {
+      "id": "catalog:agent:agent:accessibility-specialist",
+      "kind": "agent",
+      "label": "accessibility-specialist",
+      "data": {
+        "legacy": {
+          "description": "Reviews applicable WCAG 2.2 AA semantics, keyboard and focus behavior, names, contrast, targets, errors, and assistive evidence.",
+          "id": "agent:accessibility-specialist",
+          "lines": 58,
+          "name": "accessibility-specialist",
+          "pack": null,
+          "source": "packages/core/agents/accessibility-specialist.md",
+          "staticTokens": 707,
+          "type": "agent"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/agents/accessibility-specialist.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:agent:agent:api-integration-engineer",
+      "kind": "agent",
+      "label": "api-integration-engineer",
+      "data": {
+        "legacy": {
+          "description": "Reviews public API and integration contracts for compatibility, validation, failure semantics, idempotency, and operability.",
+          "id": "agent:api-integration-engineer",
+          "lines": 58,
+          "name": "api-integration-engineer",
+          "pack": null,
+          "source": "packages/core/agents/api-integration-engineer.md",
+          "staticTokens": 709,
+          "type": "agent"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/agents/api-integration-engineer.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
     {
       "id": "catalog:agent:agent:code-explorer",
       "kind": "agent",
@@ -31,6 +87,62 @@
           {
             "kind": "path",
             "ref": "packages/core/agents/code-explorer.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:agent:agent:data-migration-engineer",
+      "kind": "agent",
+      "label": "data-migration-engineer",
+      "data": {
+        "legacy": {
+          "description": "Reviews persistent schema changes, compatibility, backfills, locking, rollback, and production migration evidence.",
+          "id": "agent:data-migration-engineer",
+          "lines": 58,
+          "name": "data-migration-engineer",
+          "pack": null,
+          "source": "packages/core/agents/data-migration-engineer.md",
+          "staticTokens": 701,
+          "type": "agent"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/agents/data-migration-engineer.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:agent:agent:devex-docs-engineer",
+      "kind": "agent",
+      "label": "devex-docs-engineer",
+      "data": {
+        "legacy": {
+          "description": "Reviews developer-facing APIs, CLI, SDK, docs, onboarding, errors, examples, upgrades, and measured time to first success.",
+          "id": "agent:devex-docs-engineer",
+          "lines": 56,
+          "name": "devex-docs-engineer",
+          "pack": null,
+          "source": "packages/core/agents/devex-docs-engineer.md",
+          "staticTokens": 693,
+          "type": "agent"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/agents/devex-docs-engineer.md",
             "hashOrVersion": "catalog-v1"
           }
         ]
@@ -65,6 +177,34 @@
       }
     },
     {
+      "id": "catalog:agent:agent:domain-architect",
+      "kind": "agent",
+      "label": "domain-architect",
+      "data": {
+        "legacy": {
+          "description": "Reviews domain language, bounded contexts, aggregates, invariants, and translation boundaries without choosing infrastructure.",
+          "id": "agent:domain-architect",
+          "lines": 55,
+          "name": "domain-architect",
+          "pack": null,
+          "source": "packages/core/agents/domain-architect.md",
+          "staticTokens": 681,
+          "type": "agent"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/agents/domain-architect.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:agent:agent:experience-designer",
       "kind": "agent",
       "label": "experience-designer",
@@ -72,11 +212,11 @@
         "legacy": {
           "description": "Produces a build-ready UX brief from product intent, states, responsive needs, and accessibility constraints before UI implementation.",
           "id": "agent:experience-designer",
-          "lines": 54,
+          "lines": 58,
           "name": "experience-designer",
           "pack": null,
           "source": "packages/core/agents/experience-designer.md",
-          "staticTokens": 766,
+          "staticTokens": 776,
           "type": "agent"
         }
       },
@@ -87,6 +227,62 @@
           {
             "kind": "path",
             "ref": "packages/core/agents/experience-designer.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:agent:agent:frontend-engineer",
+      "kind": "agent",
+      "label": "frontend-engineer",
+      "data": {
+        "legacy": {
+          "description": "Reviews frontend implementation structure, state modeling, responsive behavior, rendering boundaries, and design-system composition.",
+          "id": "agent:frontend-engineer",
+          "lines": 59,
+          "name": "frontend-engineer",
+          "pack": null,
+          "source": "packages/core/agents/frontend-engineer.md",
+          "staticTokens": 708,
+          "type": "agent"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/agents/frontend-engineer.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:agent:agent:independent-code-reviewer",
+      "kind": "agent",
+      "label": "independent-code-reviewer",
+      "data": {
+        "legacy": {
+          "description": "Performs an independent diff review for correctness, maintainability, boundary compliance, and evidence-backed release blockers.",
+          "id": "agent:independent-code-reviewer",
+          "lines": 56,
+          "name": "independent-code-reviewer",
+          "pack": null,
+          "source": "packages/core/agents/independent-code-reviewer.md",
+          "staticTokens": 705,
+          "type": "agent"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/agents/independent-code-reviewer.md",
             "hashOrVersion": "catalog-v1"
           }
         ]
@@ -121,6 +317,118 @@
       }
     },
     {
+      "id": "catalog:agent:agent:observability-sre-engineer",
+      "kind": "agent",
+      "label": "observability-sre-engineer",
+      "data": {
+        "legacy": {
+          "description": "Reviews runtime reliability, telemetry, SLOs, failure containment, capacity, recovery, and actionable operational evidence.",
+          "id": "agent:observability-sre-engineer",
+          "lines": 58,
+          "name": "observability-sre-engineer",
+          "pack": null,
+          "source": "packages/core/agents/observability-sre-engineer.md",
+          "staticTokens": 705,
+          "type": "agent"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/agents/observability-sre-engineer.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:agent:agent:pdf-specialist",
+      "kind": "agent",
+      "label": "pdf-specialist",
+      "data": {
+        "legacy": {
+          "description": "Reviews PDF inputs or deliverables for safe handling, faithful rendering, pagination, accessibility, and artifact evidence.",
+          "id": "agent:pdf-specialist",
+          "lines": 57,
+          "name": "pdf-specialist",
+          "pack": null,
+          "source": "packages/core/agents/pdf-specialist.md",
+          "staticTokens": 696,
+          "type": "agent"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/agents/pdf-specialist.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:agent:agent:performance-engineer",
+      "kind": "agent",
+      "label": "performance-engineer",
+      "data": {
+        "legacy": {
+          "description": "Reviews measured latency, throughput, memory, bundle, query, and cost budgets against representative workloads.",
+          "id": "agent:performance-engineer",
+          "lines": 57,
+          "name": "performance-engineer",
+          "pack": null,
+          "source": "packages/core/agents/performance-engineer.md",
+          "staticTokens": 694,
+          "type": "agent"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/agents/performance-engineer.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:agent:agent:product-challenger",
+      "kind": "agent",
+      "label": "product-challenger",
+      "data": {
+        "legacy": {
+          "description": "Challenges product value, user outcome, scope, and acceptance criteria before implementation without inventing strategy.",
+          "id": "agent:product-challenger",
+          "lines": 54,
+          "name": "product-challenger",
+          "pack": null,
+          "source": "packages/core/agents/product-challenger.md",
+          "staticTokens": 686,
+          "type": "agent"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/agents/product-challenger.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:agent:agent:security-engineer",
       "kind": "agent",
       "label": "security-engineer",
@@ -128,11 +436,11 @@
         "legacy": {
           "description": "Reviews concrete trust boundaries and exploitable security risk without editing or attacking systems.",
           "id": "agent:security-engineer",
-          "lines": 54,
+          "lines": 65,
           "name": "security-engineer",
           "pack": null,
           "source": "packages/core/agents/security-engineer.md",
-          "staticTokens": 681,
+          "staticTokens": 708,
           "type": "agent"
         }
       },
@@ -184,11 +492,11 @@
         "legacy": {
           "description": "Reviews architecture boundaries, trade-offs, and reversibility without editing the project.",
           "id": "agent:solution-architect",
-          "lines": 52,
+          "lines": 56,
           "name": "solution-architect",
           "pack": null,
           "source": "packages/core/agents/solution-architect.md",
-          "staticTokens": 662,
+          "staticTokens": 673,
           "type": "agent"
         }
       },
@@ -212,11 +520,11 @@
         "legacy": {
           "description": "Reviews behavioral coverage, failure paths, and release evidence without editing the project.",
           "id": "agent:test-qa-engineer",
-          "lines": 54,
+          "lines": 59,
           "name": "test-qa-engineer",
           "pack": null,
           "source": "packages/core/agents/test-qa-engineer.md",
-          "staticTokens": 667,
+          "staticTokens": 677,
           "type": "agent"
         }
       },
@@ -268,11 +576,11 @@
         "legacy": {
           "description": "Independently reviews rendered UI craft, responsive states, accessibility, and current-diff visual evidence after implementation.",
           "id": "agent:visual-craft-director",
-          "lines": 57,
+          "lines": 61,
           "name": "visual-craft-director",
           "pack": null,
           "source": "packages/core/agents/visual-craft-director.md",
-          "staticTokens": 813,
+          "staticTokens": 825,
           "type": "agent"
         }
       },

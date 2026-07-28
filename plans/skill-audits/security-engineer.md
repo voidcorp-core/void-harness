@@ -34,4 +34,6 @@ bounded code review, not the full periodic `security-audit` skill and never a li
 ## Verification
 
 Strict schema and YAML parsing, golden runtime compilation, deny-by-default built-ins/network
-configuration, native discovery, grounded findings, and degraded state when isolation is incomplete.
+configuration, canonical-catalog discovery, grounded findings, and degraded state when isolation is
+incomplete. Contract v2 runs before and after implementation and is selected by the blocking
+baseline security policy even when no deeper risk signal matches.

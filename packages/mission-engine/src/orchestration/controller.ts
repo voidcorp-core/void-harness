@@ -1,5 +1,5 @@
 import type { EventStreamState } from '../events/reducer.js';
-import type { JsonValue } from '../events/types.js';
+import type { CanonicalEvent, JsonValue } from '../events/types.js';
 import type { EvidenceContext } from '../evidence/types.js';
 import {
   deriveMissionVerdict,
@@ -8,13 +8,16 @@ import {
 } from '../evidence/verdict.js';
 import type { MissionPlan } from '../mission/plan.js';
 import {
-  MVP_SPECIALIST_IDS,
   reduceReviewLoop,
-  type MvpSpecialistId,
   type ReviewLoopState,
 } from './review-loop.js';
+import type {
+  SpecialistId,
+  SpecialistInvocationStage,
+} from '../specialist/routing.js';
 
 export type MissionTeamPhase =
+  | 'preparation'
   | 'implementation'
   | 'review'
   | 'correction'
@@ -27,8 +30,14 @@ export type MissionTeamAction =
   | { readonly kind: 'run-lead-writer'; readonly writerId: string }
   | {
       readonly kind: 'invoke-specialists';
-      readonly specialistIds: readonly MvpSpecialistId[];
+      readonly specialistIds: readonly SpecialistId[];
       readonly reviewRound: number;
+      readonly stage: SpecialistInvocationStage;
+    }
+  | {
+      readonly kind: 'run-preparation-correction';
+      readonly writerId: string;
+      readonly findingIds: readonly string[];
     }
   | {
       readonly kind: 'run-correction';
@@ -39,12 +48,21 @@ export type MissionTeamAction =
   | { readonly kind: 'complete' }
   | { readonly kind: 'stop'; readonly reasons: readonly string[] };
 
+export interface SpecialistRuntimeCapability {
+  readonly status: 'available' | 'degraded' | 'unavailable';
+  readonly limitations: readonly string[];
+}
+
 export interface MissionTeamControllerInput {
   readonly plan: MissionPlan;
   readonly stream: EventStreamState;
   readonly evidenceContext: EvidenceContext;
-  readonly currentInputHashes: Readonly<Record<MvpSpecialistId, string>>;
+  readonly currentInputHashesByStage: Readonly<Record<
+    SpecialistInvocationStage,
+    Readonly<Record<string, string>>
+  >>;
   readonly maxReviewRounds: number;
+  readonly specialistRuntime: SpecialistRuntimeCapability;
 }
 
 export interface MissionTeamDecision {
@@ -59,6 +77,7 @@ interface MissionStart {
   readonly leadWriterId: string;
   readonly planHash: string;
   readonly valid: boolean;
+  readonly runtime: 'claude' | 'codex' | undefined;
 }
 
 interface TeamEventPayload extends Readonly<Record<string, JsonValue>> {
@@ -85,6 +104,7 @@ function missionStart(input: MissionTeamControllerInput): MissionStart {
   return {
     leadWriterId: typeof leadWriterId === 'string' ? leadWriterId : '',
     planHash: typeof planHash === 'string' ? planHash : '',
+    runtime: runtime === 'claude' || runtime === 'codex' ? runtime : undefined,
     valid: events.length === 1
       && payload?.mode === 'team'
       && typeof leadWriterId === 'string'
@@ -95,17 +115,23 @@ function missionStart(input: MissionTeamControllerInput): MissionStart {
   };
 }
 
-function requiredSpecialists(plan: MissionPlan): readonly MvpSpecialistId[] {
-  const pending = new Set(
-    plan.applicability
-      .filter((item) => item.state === 'pending')
-      .map((item) => item.pass),
-  );
-  return MVP_SPECIALIST_IDS.filter((id) => {
-    if (id === 'core:solution-architect') return pending.has('architecture');
-    if (id === 'core:security-engineer') return pending.has('security');
-    return pending.has('qa');
-  });
+function requiredSpecialists(
+  plan: MissionPlan,
+  stage: SpecialistInvocationStage,
+): readonly SpecialistId[] {
+  if (!Array.isArray(plan.specialists)) return [];
+  return plan.specialists
+    .filter((specialist) =>
+      specialist.state === 'applicable' && specialist.stages?.includes(stage))
+    .map((specialist) => specialist.specialistId);
+}
+
+function contractVersions(plan: MissionPlan): Readonly<Record<string, number>> {
+  if (!Array.isArray(plan.specialists)) return {};
+  return Object.fromEntries(plan.specialists.map((specialist) => [
+    specialist.specialistId,
+    specialist.contractVersion,
+  ]));
 }
 
 function writerViolation(input: MissionTeamControllerInput, expected: string): boolean {
@@ -117,8 +143,8 @@ function writerViolation(input: MissionTeamControllerInput, expected: string): b
     });
 }
 
-function hasWriterCompletion(input: MissionTeamControllerInput): boolean {
-  return input.stream.events.some((event) => event.kind === 'lead-writer.completed');
+function writerCompletions(input: MissionTeamControllerInput): readonly CanonicalEvent[] {
+  return input.stream.events.filter((event) => event.kind === 'lead-writer.completed');
 }
 
 function overrideVerdict(
@@ -153,6 +179,7 @@ function decideReviewPhase(
   start: MissionStart,
   review: ReviewLoopState,
   baseVerdict: MissionVerdict,
+  stage: SpecialistInvocationStage,
 ): MissionTeamDecision {
   if (review.status === 'degraded') {
     const reasons = review.issues.map((issue) => `review issue: ${issue.code}`);
@@ -164,11 +191,12 @@ function decideReviewPhase(
   if (review.status === 'awaiting-review') {
     const reasons = ['required specialist completion is missing or stale'];
     return {
-      phase: 'review',
+      phase: stage === 'pre-implementation' ? 'preparation' : 'review',
       action: {
         kind: 'invoke-specialists',
         specialistIds: review.specialistsToRun,
         reviewRound: review.reviewRound,
+        stage,
       },
       review,
       verdict: overrideVerdict(baseVerdict, 'unverified', reasons),
@@ -176,14 +204,22 @@ function decideReviewPhase(
     };
   }
   if (review.status === 'correction-required') {
-    const reasons = ['specialist findings require lead-writer correction'];
+    const reasons = [stage === 'pre-implementation'
+      ? 'specialist findings require preparation correction'
+      : 'specialist findings require lead-writer correction'];
     return {
-      phase: 'correction',
-      action: {
-        kind: 'run-correction',
-        writerId: start.leadWriterId,
-        findingIds: review.findings.map((finding) => finding.findingId),
-      },
+      phase: stage === 'pre-implementation' ? 'preparation' : 'correction',
+      action: stage === 'pre-implementation'
+        ? {
+            kind: 'run-preparation-correction',
+            writerId: start.leadWriterId,
+            findingIds: review.findings.map((finding) => finding.findingId),
+          }
+        : {
+            kind: 'run-correction',
+            writerId: start.leadWriterId,
+            findingIds: review.findings.map((finding) => finding.findingId),
+          },
       review,
       verdict: overrideVerdict(baseVerdict, 'blocked', reasons),
       reasons,
@@ -214,28 +250,98 @@ export function orchestrateMissionTeam(
   input: MissionTeamControllerInput,
 ): MissionTeamDecision {
   const start = missionStart(input);
-  const review = reduceReviewLoop({
+  const completions = writerCompletions(input);
+  const firstWriterSeq = completions.length === 0
+    ? undefined
+    : Math.min(...completions.map((event) => event.seq));
+  const lastWriterSeq = completions.length === 0
+    ? undefined
+    : Math.max(...completions.map((event) => event.seq));
+  const expectedSource = start.runtime === 'claude' ? 'runtime:claude' : 'runtime:codex';
+  const preReview = reduceReviewLoop({
+    stage: 'pre-implementation',
+    expectedSource,
+    ...(firstWriterSeq === undefined ? {} : { beforeSeqExclusive: firstWriterSeq }),
     events: input.stream.events,
-    requiredSpecialists: requiredSpecialists(input.plan),
-    currentInputHashes: input.currentInputHashes,
+    requiredSpecialists: requiredSpecialists(input.plan, 'pre-implementation'),
+    contractVersions: contractVersions(input.plan),
+    currentInputHashes: input.currentInputHashesByStage['pre-implementation'],
     maxRounds: input.maxReviewRounds,
   });
   const baseVerdict = deriveMissionVerdict(input.stream, input.evidenceContext);
+  const invalidRuntime = input.specialistRuntime === undefined
+    || !Array.isArray(input.specialistRuntime.limitations)
+    || input.specialistRuntime.limitations.some((item) =>
+      typeof item !== 'string' || item.trim() === '')
+    || !['available', 'degraded', 'unavailable'].includes(input.specialistRuntime.status);
+  if (invalidRuntime) {
+    return stopped('degraded', preReview, baseVerdict, [
+      'effective specialist runtime capability is invalid or missing',
+    ]);
+  }
+  if (input.specialistRuntime.status !== 'available') {
+    const phase = input.specialistRuntime.status === 'unavailable' ? 'blocked' : 'degraded';
+    const limitations = input.specialistRuntime.limitations.length > 0
+      ? input.specialistRuntime.limitations
+      : ['effective specialist runtime capability is not available'];
+    return stopped(phase, preReview, baseVerdict, limitations.map((item) =>
+      `specialist runtime: ${item}`));
+  }
+  if (!Array.isArray(input.plan.specialists)) {
+    return stopped('degraded', preReview, baseVerdict, ['specialist routing is missing from the plan']);
+  }
+  const invalidStages = input.plan.specialists.filter((specialist) =>
+    !Array.isArray(specialist.stages)
+    || specialist.stages.length === 0
+    || specialist.stages.some((stage: SpecialistInvocationStage) =>
+      stage !== 'pre-implementation' && stage !== 'post-implementation'));
+  if (invalidStages.length > 0) {
+    return stopped('degraded', preReview, baseVerdict, invalidStages.map((specialist) =>
+      `specialist invocation stages missing or invalid: ${specialist.specialistId}`));
+  }
+  if (input.plan.context?.status === 'degraded') {
+    return stopped('degraded', preReview, baseVerdict, input.plan.context.issues.map((issue) =>
+      `mission context degraded: ${issue}`));
+  }
+  const degradedRouting = Array.isArray(input.plan.specialists)
+    ? input.plan.specialists.filter((specialist) => specialist.state === 'degraded')
+    : [];
+  if (degradedRouting.length > 0) {
+    return stopped('degraded', preReview, baseVerdict, degradedRouting.map((specialist) =>
+      `specialist routing degraded: ${specialist.specialistId}`));
+  }
   if (!start.valid) {
-    return stopped('degraded', review, baseVerdict, ['team mission metadata is invalid']);
+    return stopped('degraded', preReview, baseVerdict, ['team mission metadata is invalid']);
   }
   if (writerViolation(input, start.leadWriterId)) {
-    return stopped('degraded', review, baseVerdict, ['lead writer ownership changed']);
+    return stopped('degraded', preReview, baseVerdict, ['lead writer ownership changed']);
   }
-  if (!hasWriterCompletion(input)) {
+  if (!preReview.readyForVerdict) {
+    return decideReviewPhase(start, preReview, baseVerdict, 'pre-implementation');
+  }
+  if (completions.length === 0) {
     const reasons = ['lead writer implementation is incomplete'];
     return {
       phase: 'implementation',
       action: { kind: 'run-lead-writer', writerId: start.leadWriterId },
-      review,
+      review: preReview,
       verdict: overrideVerdict(baseVerdict, 'unverified', reasons),
       reasons,
     };
   }
-  return decideReviewPhase(start, review, baseVerdict);
+  if (firstWriterSeq === undefined || lastWriterSeq === undefined) {
+    throw new Error('MISSION_TEAM_INVARIANT: writer completion boundary is missing');
+  }
+  const postReview = reduceReviewLoop({
+    stage: 'post-implementation',
+    expectedSource,
+    stageStartSeqExclusive: firstWriterSeq,
+    afterSeqExclusive: lastWriterSeq,
+    events: input.stream.events,
+    requiredSpecialists: requiredSpecialists(input.plan, 'post-implementation'),
+    contractVersions: contractVersions(input.plan),
+    currentInputHashes: input.currentInputHashesByStage['post-implementation'],
+    maxRounds: input.maxReviewRounds,
+  });
+  return decideReviewPhase(start, postReview, baseVerdict, 'post-implementation');
 }

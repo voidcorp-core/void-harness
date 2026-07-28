@@ -29,6 +29,12 @@ jobs:
         run: |
           pnpm conformance:install
           pnpm conformance:hooks
+      - name: ProjectGraph tests and typecheck
+        run: |
+          pnpm --filter @voidcorp/harness-graph test
+          pnpm --filter @voidcorp/harness-graph typecheck
+      - name: Deterministic packed ProjectGraph subpath conformance
+        run: pnpm conformance:project-graph
 
   validate:
     runs-on: ubuntu-latest
@@ -120,6 +126,12 @@ jobs:
         # (e.g. @voidcorp/pack-monorepo/result) through their dist exports,
         # so the type declarations must exist first.
         run: pnpm build
+
+      - name: ProjectGraph performance and native capability report
+        # Must run AFTER the build: it bundles harness-graph, whose sources import
+        # @voidcorp/mission-engine through that package's dist exports. Placed
+        # earlier it fails to resolve them, exactly as the comment above warns.
+        run: pnpm benchmark:project
 
       - name: Self-host release gate
         # Compile current sources into an isolated, gitignored Claude+Codex

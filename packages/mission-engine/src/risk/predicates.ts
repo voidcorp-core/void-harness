@@ -129,7 +129,7 @@ const SIGNAL_PATTERNS: ReadonlyArray<
     /observabilit[ée]|m[ée]trique|ex[ée]cution/i,
   ]],
   ['migration', [
-    /\b(?:migration|persistent|database|schema|backfill)\b/i,
+    /\b(?:migrate|migration|persistent|database|schema|backfill)\b/i,
     /persistant|base de donn[ée]es|sch[ée]ma/i,
   ]],
   ['ux-ui', [
@@ -148,6 +148,22 @@ const SIGNAL_PATTERNS: ReadonlyArray<
   ['retrospective', [
     /\b(?:retrospective|incident|postmortem|release)\b/i,
     /r[ée]trospective/i,
+  ]],
+  ['domain-design', [
+    /\b(?:aggregate|bounded context|domain model|ubiquitous language|value object|ddd)\b/i,
+    /agr[ée]gat|contexte born[ée]|mod[èe]le de domaine/i,
+  ]],
+  ['api-integration', [
+    /\b(?:api|endpoint|webhook|integration|openapi|sdk contract)\b/i,
+    /int[ée]gration|point de terminaison/i,
+  ]],
+  ['runtime-change', [
+    /\b(?:runtime|production|deploy|worker|queue|background job|slo|reliability)\b/i,
+    /production|d[ée]ploiement|fiabilit[ée]|t[âa]che de fond/i,
+  ]],
+  ['devex-docs', [
+    /\b(?:developer experience|devex|documentation|docs|readme|cli|sdk|onboarding)\b/i,
+    /exp[ée]rience d[ée]veloppeur|documentation|prise en main/i,
   ]],
 ];
 
@@ -194,6 +210,45 @@ export function deriveMissionSignals(
   if (input.files.some((file) => /\.(?:tsx|jsx|css|html)$/.test(file))) {
     signals.add('ux-ui');
     signals.add('accessibility');
+    signals.add('frontend-change');
+  }
+  if (input.files.some((file) =>
+    /\.(?:ts|tsx|mts|cts|js|jsx|mjs|cjs|py|rs|go|java|kt|swift|css|scss|html|sql)$/.test(file)
+  )) {
+    signals.add('code-change');
+  }
+  if (input.files.some((file) =>
+    /(?:^|\/)(?:domain|domains|model|models|entities|aggregates)(?:\/|\.)/i.test(file)
+  )) {
+    signals.add('domain-design');
+  }
+  if (input.files.some((file) =>
+    /(?:^|\/)(?:api|routes|webhooks|integrations?|sdk)(?:\/|\.)/i.test(file)
+    || /(?:^|\/)(?:openapi|swagger)(?:\.|\/)/i.test(file)
+  )) {
+    signals.add('api-integration');
+  }
+  if (input.files.some((file) =>
+    /(?:^|\/)(?:server|workers?|jobs?|queues?|runtime)(?:\/|\.)/i.test(file)
+    || /(?:^|\/)(?:api|routes|webhooks)(?:\/|\.)/i.test(file)
+  )) {
+    signals.add('runtime-change');
+  }
+  if (input.files.some((file) =>
+    /(?:^|\/)(?:docs?|examples?|sdk|cli)(?:\/|\.)/i.test(file)
+    || /(?:^|\/)(?:readme|contributing)(?:\.|$)/i.test(file)
+  )) {
+    signals.add('devex-docs');
+  }
+  if (input.files.some((file) =>
+    /(?:^|\/)migrations?(?:\/|\.)/i.test(file)
+    || /(?:^|\/)(?:schema\.prisma|drizzle\.config\.ts)$/i.test(file)
+    || /(?:^|\/)(?:db|database)(?:\/|\.).*(?:schema|migration)/i.test(file)
+    || /\.sql$/i.test(file)
+  )) {
+    signals.add('migration');
+    signals.add('observability');
+    signals.add('qa');
   }
   if (input.stack.length > 0) signals.add('stack-patterns');
   for (const match of evaluateHighRiskPredicates(input)) {

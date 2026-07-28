@@ -9,6 +9,7 @@ import {
   codexSpecialistsHealth,
   wireCodexAgents,
 } from './codex-agents.js';
+import { loadSpecialists } from './specialists/load.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CORE_ROOT = resolve(here, '..', '..', '..', 'core'); // the real agents source
@@ -128,18 +129,16 @@ describe('wireCodexAgents', () => {
   it('compiles every authored agent plus every canonical specialist this repo ships', async () => {
     const proj = tmp('void-codex-agentproj-');
     const staged = await wireCodexAgents(proj, CORE_ROOT);
-    expect(staged).toBe(10);
+    expect(staged).toBe(21);
+    const contracts = await loadSpecialists(CORE_ROOT);
+    const specialistNames = contracts.map((contract) => contract.name);
     for (const name of [
       'doctrine-critic',
       'silent-failure-hunter',
       'type-design-analyzer',
       'code-explorer',
       'migration-planner',
-      'solution-architect',
-      'security-engineer',
-      'test-qa-engineer',
-      'experience-designer',
-      'visual-craft-director',
+      ...specialistNames,
     ]) {
       const toml = readFileSync(join(proj, CODEX_AGENTS_DIR, `${name}.toml`), 'utf8');
       expect(toml).toMatch(new RegExp(`^name = "${name}"$`, 'm'));
@@ -147,18 +146,41 @@ describe('wireCodexAgents', () => {
     }
   });
 
-  it('rejects a discovered specialist that lost its canonical identity or network floor', async () => {
+  it('rejects a discovered specialist that is stale or lost its safety floor', async () => {
     const project = tmp('void-codex-agenthealth-');
     await wireCodexAgents(project, CORE_ROOT);
-    await expect(codexSpecialistsHealth(project)).resolves.toMatchObject({ ok: true });
+    await expect(codexSpecialistsHealth(project, CORE_ROOT)).resolves.toMatchObject({ ok: true });
 
+    const security = join(project, CODEX_AGENTS_DIR, 'security-engineer.toml');
     writeFileSync(
-      join(project, CODEX_AGENTS_DIR, 'security-engineer.toml'),
-      'name = "security-engineer"\nsandbox_mode = "read-only"\n',
+      security,
+      readFileSync(security, 'utf8').replace(
+        'Canonical contract: `core:security-engineer` v2.',
+        'Canonical contract: `core:security-engineer` v1.',
+      ),
     );
-    await expect(codexSpecialistsHealth(project)).resolves.toMatchObject({
+    await expect(codexSpecialistsHealth(project, CORE_ROOT)).resolves.toMatchObject({
       ok: false,
       detail: expect.stringContaining('security-engineer'),
+    });
+
+    writeFileSync(
+      security,
+      'name = "security-engineer"\nsandbox_mode = "read-only"\n',
+    );
+    await expect(codexSpecialistsHealth(project, CORE_ROOT)).resolves.toMatchObject({
+      ok: false,
+      detail: expect.stringContaining('security-engineer'),
+    });
+  });
+
+  it('fails health when the canonical catalog is empty', async () => {
+    await expect(codexSpecialistsHealth(
+      tmp('void-codex-agenthealth-'),
+      tmp('void-empty-specialist-catalog-'),
+    )).resolves.toMatchObject({
+      ok: false,
+      detail: expect.stringContaining('catalog is empty'),
     });
   });
 });

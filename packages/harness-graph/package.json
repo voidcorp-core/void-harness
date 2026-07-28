@@ -10,6 +10,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./project": {
+      "import": "./dist/project/index.js",
+      "types": "./dist/project/index.d.ts"
     }
   },
   "files": [
@@ -28,13 +32,15 @@
     "access": "public"
   },
   "dependencies": {
+    "picomatch": "^4.0.5",
+    "typescript": "^5.6.0",
     "yaml": "^2.5.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/picomatch": "^4.0.3",
     "@voidcorp/mission-engine": "workspace:*",
     "tsup": "^8.0.0",
-    "typescript": "^5.6.0",
     "vitest": "^4.1.9"
   }
 }

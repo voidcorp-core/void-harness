@@ -36,7 +36,7 @@ afterEach(() => {
 
 describe('native specialist fixture', () => {
   it.each(['claude', 'codex'] as const)(
-    'loads only the three installed %s team specialists',
+    'loads only the three installed %s specialists exercised by this eval case',
     (runtime) => {
       const root = scratch();
       seedRuntime(root, runtime);
