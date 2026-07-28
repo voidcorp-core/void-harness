@@ -1,0 +1,9 @@
+{
+	"name": "@fixture/core",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./index.js": "./src/index.ts",
+		"./secondary.js": "./src/secondary.ts"
+	}
+}

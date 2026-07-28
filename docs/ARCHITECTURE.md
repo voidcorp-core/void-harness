@@ -318,12 +318,65 @@ v1. See `apps/eval-harness/README.md` for the method.
 ## Consumer graph delivery (`/void-graph`)
 
 The graph kernel uses a common node-link envelope at `schemaVersion: 3` for CatalogGraph,
-MissionGraph, EvidenceGraph, and the future ProjectGraph. Every node, edge, and hyperedge has a
+MissionGraph, EvidenceGraph, and ProjectGraph. Every node, edge, and hyperedge has a
 namespaced stable ID, typed origin, numeric confidence, and bounded provenance. The source carries
 its producer version and a SHA-256 `rootHash`; validation rejects duplicate IDs, dangling
 relations, invalid observation timestamps, path escapes, oversized payloads, and hash drift.
 Graph deltas name their base and resulting root hashes and are applied only after both the delta and
 the resulting snapshot validate.
+
+ProjectGraph is extracted locally through replaceable root-identity, filesystem, workspace,
+Git, cache, change-journal, and TypeScript Compiler API ports. The default Node adapters skip
+project-entry symlinks, stream directory entries, revalidate canonical root, parent, and descriptor
+identities at use, bound file/entry/directory/depth/aggregate/peak-heap/cache/process resources,
+and execute a trusted absolute Git through argv without a shell, protocols, hooks, external diff,
+textconv, repository clean/process filters, or ambient config. Git HEAD, changes, and ownership
+report degradation separately. Validated `HEAD` reads bracket their complete collection; a mismatch
+degrades the whole Git snapshot rather than combining evidence from different repository states.
+Commands that depend on a commit use the initial object ID, which also closes `HEAD` ABA transitions.
+SHA-256 extraction records plus an explicitly authoritative accepted change-journal generation make
+unchanged builds perform zero traversal, extraction reads, hashing, and AST passes without trusting
+mutable JSON. The default Node `fs.watch` journal is advisory, so default builds verify sources before
+reuse; callers may inject an authoritative loss-detecting journal to unlock the fast path.
+The builder's default is a bounded LRU memory cache scoped to the current process. The explicit Node
+repository-cache adapter ignores all repository cache bytes and refuses publication because a
+repository author can reseal a self-hash and portable Node cannot close path-based parent-swap races.
+A complete build whose selected cache port cannot publish remains usable but reports `degraded`.
+Trusted ports prepare and commit an invisible candidate. Finalize validates canonical
+root identity and the same change-journal generation, then publishes with an immediate
+compare-and-swap and no async interleaving; abort only releases pending state. It does not re-read or
+re-hash the tree. The resulting `observed-content-v1` token commits to the canonical root key and
+root/parent identity, root-entry journal generation, observed path/device/inode/size/mtime/ctime and
+content-hash manifest, Git state, and extractor version. The ordinary file-change generation gates
+acceptance and publication without becoming part of the content token. Later mutation is a new
+observation rather than retroactive invalidation. Cached tokens are never accepted as freshness
+evidence. The same memory adapter is injectable for isolated workflows and tests. `.void/cache/` is
+gitignored.
+A stable advisory Node watcher brackets Git with two complete bounded source observations. A watcher
+unavailable before extraction forces a complete degraded rebuild; capability lost during
+the build produces partial or degraded evidence according to the last validated phase. Neither path
+reuses or publishes cache state.
+Cached tombstones, bounded composed lineage with its original Git HEAD/ref proofs, and Git HEAD
+preserve deleted/renamed identity across
+unchanged builds and committed renames. A partial or concurrently-mutated build
+keeps the last green cache and stays explicitly `partial`, so downstream context
+selection falls back to source instead of trusting incomplete topology. Git
+proof is the only authority for `previous-id` rename continuity.
+ProjectGraph is exposed from `@voidcorp/harness-graph/project`, keeping its
+TypeScript runtime adapter out of the legacy single-file CatalogGraph bundle.
+The extractor resolves bounded root-confined string or ordered-array `tsconfig` inheritance with
+official Compiler API option origins, treats `pnpm-workspace.yaml` as authoritative over the package
+workspace fallback, applies pnpm-compatible positive and `!`-excluded patterns before indexing child
+manifests, recognizes a bounded Vitest call grammar, and preserves
+volume-specific case behavior. ESM clauses, re-exports, wildcards, and
+defaults are explicit export surfaces; CommonJS assignment exports are limited to JavaScript input.
+Non-literal dynamic imports and invalid config chains remain explicit partial evidence. CI runs
+package tests/typecheck, a two-track ProjectGraph benchmark, and a packed
+`@voidcorp/harness-graph/project` consumer import on Ubuntu, macOS, and Windows. The performance
+track injects a deterministic authoritative journal port and explicitly emits every fixture mutation,
+while a separate native track classifies the real watcher as advisory, unavailable, or mixed. The
+native track never claims fast-path latency; unavailable and mixed are supported degraded capabilities,
+never relabeled as performance.
 
 The current source catalog is adapted to v3 first. `catalog.v3.json` is the canonical versioned
 snapshot; `model.json` is its read-only v1 compatibility projection for Graph Studio, audit,

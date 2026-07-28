@@ -16,6 +16,7 @@
   "scripts": {
     "build": "pnpm -r --filter '!void-harness' build",
     "build:cli": "pnpm --filter @voidcorp/mission-engine build && pnpm --filter @voidcorp/harness-graph build && pnpm --filter @voidcorp/hook-runner build && pnpm --filter voidharness build",
+    "benchmark:project": "pnpm --filter @voidcorp/harness-graph build && node packages/harness-graph/benchmarks/project-graph/run.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "biome lint",
@@ -36,6 +37,7 @@
     "hooks:build": "pnpm --filter @voidcorp/mission-engine build && pnpm --filter @voidcorp/hook-runner build",
     "conformance:install": "node packages/cli/scripts/conformance-install.mjs",
     "conformance:hooks": "node packages/cli/scripts/conformance-hooks.mjs",
+    "conformance:project-graph": "node scripts/conformance-project-graph.mjs",
     "eval": "pnpm build:cli && pnpm --filter @voidcorp/eval-harness run eval --"
   },
   "devDependencies": {

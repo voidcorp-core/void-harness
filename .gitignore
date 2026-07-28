@@ -46,6 +46,8 @@ Thumbs.db
 # does not trip the next run's clean-tree preflight (issue #17 cluster A, A2).
 .void/autonomous-runs/
 .void/worktrees/
+# ProjectGraph caches are local runtime accelerators and never trusted repository input.
+.void/cache/
 # Enriched activation telemetry log (local, runtime-only; analyzed in Phase 2).
 .void/activations.jsonl
 # Full tool outputs spilled by the trim-large-output hook (runtime-only pointers).

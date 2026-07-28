@@ -2,5 +2,5 @@
   "extends": "../packs/pack-monorepo/tsconfig.strict.json",
   "compilerOptions": { "outDir": "./dist", "rootDir": "./src", "module": "NodeNext", "moduleResolution": "NodeNext" },
   "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules", "src/**/*.test.ts"]
+  "exclude": ["dist", "node_modules", "src/**/*.test.ts", "src/project/test-fixtures"]
 }
