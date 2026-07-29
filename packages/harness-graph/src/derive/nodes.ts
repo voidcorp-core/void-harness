@@ -109,7 +109,11 @@ export function deriveNodes(tree: SourceTree): GraphNode[] {
   return [
     ...tree.skills.map((e) => toNode('skill', e)),
     ...tree.agents.map((e) => toNode('agent', e)),
-    ...tree.hooks.map((e) => toNode('hook', e)),
+    // `_`-prefixed files are sourced hook LIBRARIES, not hooks: CLAUDE.md rule 5
+    // exempts them from the per-hook cap precisely because they are shared logic
+    // rather than an enforcement point. Counting them inflates the floor and
+    // makes the model contradict the doctrine it is supposed to map.
+    ...tree.hooks.filter((e) => !e.name.startsWith('_')).map((e) => toNode('hook', e)),
     ...tree.commands.map((e) => toNode('command', e)),
     ...tree.packs.map((e) => toNode('pack', e)),
     ...tree.profiles.map((e) => toNode('profile', e)),

@@ -71,6 +71,13 @@ Agents work the same way: `doctrine-critic` judges a diff against the doctrine,
 while `solution-architect`, `security-engineer` and `test-qa-engineer` each
 review in their own fresh context.
 
+**[The cheat sheet](docs/CHEATSHEET.md) lists every one of them**, grouped by
+what it is for, with what each hook actually blocks. It is generated from the
+same catalogue these counts come from, so it cannot drift from what ships.
+
+For your own project rather than the catalogue, `npx voidharness status` reports
+what is installed, active and actually used.
+
 The commands worth knowing are the ones no sentence can trigger, because they
 report or change state rather than shape behaviour:
 
