@@ -33,6 +33,10 @@ describe('harnessBlock', () => {
     expect(block).toContain(runner);
     expect(block).toContain('competing claims');
     expect(block).toContain('stop rather than infer progress locally');
+    // Consent is never inferred from silence: without an enabled autopilot
+    // block, no autonomous selection may happen at all.
+    expect(block).toContain('autopilot');
+    expect(block).toContain('enabled: false');
   });
 });
 

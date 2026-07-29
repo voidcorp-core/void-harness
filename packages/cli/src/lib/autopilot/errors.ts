@@ -9,6 +9,7 @@
 export type AutopilotErrorCode =
   | 'AUTOPILOT_USAGE'
   | 'AUTOPILOT_INPUT'
+  | 'AUTOPILOT_ACTIVE_PROGRAM'
   | 'AUTOPILOT_CONTRACT';
 
 export interface AutopilotFailure {
@@ -22,7 +23,10 @@ export class AutopilotError extends Error {
   readonly failure: AutopilotFailure;
 
   constructor(failure: AutopilotFailure) {
-    super(`${failure.code}: ${failure.problem}`);
+    // The message carries the whole failure, not just the headline: wherever it
+    // surfaces — a log line, a stack trace, an agent's transcript — the reader
+    // gets the field that broke and the one action that fixes it.
+    super(`${failure.code}: ${failure.problem}\nCause: ${failure.cause}\nFix: ${failure.fix}`);
     this.name = 'AutopilotError';
     this.failure = Object.freeze({ ...failure });
   }

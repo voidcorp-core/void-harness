@@ -85,10 +85,16 @@ tracker:
   reviewState: <native review state>
   doneStates: [<native completed states>]
 humanGates: [<ticket identifiers requiring explicit approval>]
+autopilot:
+  schemaVersion: 1
+  enabled: <true | false>
+  mergeGate: human
 ---
 ```
 
 The body states that the plan supplies global intent, the complete tracker ticket is the executable unit, native blocker relations decide readiness, and `harness:ticket-runner` owns the per-ticket lifecycle. `tracker.issues` is the deterministic tie-break order among simultaneously ready tickets; it is scope, not mutable progress. Never store a current/next ticket, copied status, assignee, or completion checklist in ACTIVE.
+
+The `autopilot` block is required, because consent to autonomous execution is never inferred from silence: a program that does not want it declares `enabled: false`. `mergeGate: human` is the only accepted value. Add `clusterSize` (1..4), `base`, `verifyCommands` (argv arrays, run with `shell:false`) and `ownership.sequential` / `ownership.reconcileOnly` only when the program enables autopilot.
 
 Do not replace an unrelated executing pointer. Stop and surface the collision. When the same program already has an ACTIVE file, preserve its immutable routing unless the user explicitly changes program scope. Automatic selection requires a tracker surface that can read and update status, relations, assignee, comments, and PR/evidence links; if those capabilities are unavailable, do not claim automatic continuity.
 

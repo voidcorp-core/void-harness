@@ -110,8 +110,15 @@ More than one started scoped ticket is a competing-claim error, never an implici
 The pointer is opt-in and project-owned. `init`, `update`, and runtime adapters never create or
 mutate it. `ticket-writer` creates it only after a human-approved multi-ticket plan has been fully
 materialized in a capable tracker. It stores immutable routing only: program, plan/spec links,
-provider scope, ordered ticket identifiers, lifecycle-state names, and human gates. Mutable
-status, assignee, blockers, resume comments, and PR/evidence links live only in the tracker.
+provider scope, ordered ticket identifiers, lifecycle-state names, human gates, and the required
+`autopilot` consent block. Mutable status, assignee, blockers, resume comments, and PR/evidence
+links live only in the tracker.
+
+`packages/cli/src/lib/autopilot/active-program.ts` is the only parser of that contract. It
+validates every field on read and refuses a file that is present but wrong, rather than falling
+back to a default: a typo in `mergeGate` must never be what hands a merge to a machine. Paths
+declared in the file stay repo-relative and non-escaping, so a program cannot point at `/etc` with
+a YAML syntax.
 
 Automatic continuity is capability-gated rather than Linear-specific: the configured provider
 must support reading and updating status, relations, assignee, comments, and review evidence. If

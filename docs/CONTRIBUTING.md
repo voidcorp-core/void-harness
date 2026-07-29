@@ -33,9 +33,10 @@ An executing multi-session program may install a single `plans/ACTIVE.md` pointe
 `AGENTS.md` and `CLAUDE.md` load it before choosing implementation work, so a later session can
 resume from a plain “continue” without being told the plan or ticket again.
 
-The active file records immutable routing only: global plan, approved spec, tracker workspace/team/
-project, issue scope, selection policy, lifecycle rules, and human gates. It does not duplicate a
-mutable “next ticket”. The tracker is the execution ledger:
+The active file records immutable routing only: global plan, approved spec, tracker provider and
+native scope, issue order, ready/started/review/done states, selection policy, lifecycle rules,
+human gates, and the `autopilot` consent block. It does not duplicate a mutable “next ticket”. The
+tracker is the execution ledger:
 
 - recover an existing `In Progress` issue before claiming new work;
 - claim the selected ready issue in `In Progress` and assign it before editing;
@@ -43,6 +44,12 @@ mutable “next ticket”. The tracker is the execution ledger:
 - attach the PR/evidence and move to `In Review` only after the ticket gates pass;
 - move to `Done` only after merge and final verification;
 - never auto-complete a human gate.
+
+The `autopilot` block is required and carries consent to autonomous execution: `schemaVersion: 1`,
+an explicit `enabled`, and `mergeGate: human`. A program that does not want autopilot declares
+`enabled: false` rather than omitting the block, because consent is never inferred from silence.
+`packages/cli/src/lib/autopilot/active-program.ts` is the single parser of this contract, and its
+tests validate this repository's own `plans/ACTIVE.md` so the schema and the file cannot drift.
 
 Ready means every native `blockedBy` relation is complete. If tracker reads or writes fail, the
 session stops instead of maintaining a competing local pointer. A specific user request still
