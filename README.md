@@ -2,206 +2,153 @@
 
 [![npm](https://img.shields.io/npm/v/voidharness?color=0b7285&label=voidharness)](https://www.npmjs.com/package/voidharness)
 [![ci](https://github.com/voidcorp-core/void-harness/actions/workflows/ci.yml/badge.svg)](https://github.com/voidcorp-core/void-harness/actions/workflows/ci.yml)
-[![provenance](https://img.shields.io/badge/npm-provenance%20signed-0b7285)](https://registry.npmjs.org/-/npm/v1/attestations/voidharness@2.0.2)
+[![provenance](https://img.shields.io/badge/npm-provenance%20signed-0b7285)](https://www.npmjs.com/package/voidharness)
 [![license](https://img.shields.io/badge/license-MIT-0b7285)](./LICENSE)
 
-> A development-doctrine operating system for coding agents. Multi-runtime by construction, public, MIT.
+Coding agents forget your standards between sessions. You explain the testing
+discipline, the architecture boundaries, the naming, and the next session starts
+from nothing. Repos drift one helpful suggestion at a time.
 
-Install a top-5% development doctrine on any project in one command, run it across several agent runtimes, and read locally what is installed, actually active, and worth improving.
-
-- **Craftsman skills** — TDD strict, TigerStyle, hexagonal, DDD — enforced by hooks, not vibes.
-- **Evidence-bound missions** — append-only local proofs, findings and honest verdicts that become stale when their inputs change.
-- **Multi-runtime by construction** — one doctrine, compiled locally to **Claude Code** (`CLAUDE.md` + `.claude/skills` + `.claude/agents`) and **Codex** (`AGENTS.md` + `.agents/skills` + `.codex/agents` + hooks) through a runtime-adapter seam. Both runtimes get native fresh-context agents; what cannot reach equivalent isolation stays explicitly degraded in `docs/CODEX.md`. Add a runtime later without a reinstall (`void-harness runtime add codex`).
-- **Pluggable stack packs** — Next.js, monorepo, React, server, PWA, mobile — activated per project.
-- **Fresh stack profiles** — project-scoped, version-covered guidance with official sources and explicit expiry.
-- **Free and account-free** — `npx voidharness init`. No Claude account, no subscription, no API key. The Claude Code marketplace is an optional secondary channel.
-
-Born at VoidCorp, released for anyone.
-
-## Status
-
-**2.0.2 — live on npm**, public MIT. Install with `npx voidharness init`. Releases are cut
-from Conventional Commits and published from CI **tokenlessly** via npm Trusted Publishing
-(OIDC) — no npm token exists in this repo or its secrets — and carry a **provenance
-attestation** signed by GitHub Actions and recorded in the sigstore transparency log.
-
-Verify it yourself rather than taking this line's word for it:
-
-```bash
-npm audit signatures                                     # in a project that installs it
-curl https://registry.npmjs.org/-/npm/v1/attestations/voidharness@2.0.2
-```
-
-See `docs/RELEASING.md` for the release flow, `plans/` for design specs, and
-`docs/DECISIONS.md` for the legacy decision landing page and `void-harness decisions render` for the current projection.
-
-## Philosophy
-
-Three non-negotiables, in order:
-
-1. **Safety** — every line of production code is test-first, every assertion is paired, every boundary is schema-validated
-2. **Performance** — back-of-the-envelope sketches before code; mechanical sympathy; batch over react
-3. **Developer experience** — fast feedback loops, zero magic, every convention motivated in writing
-
-Inspired by Wing Chun (economy of means), TigerStyle (TigerBeetle), Citypaul dotfiles, and the compound-engineering loop.
-
-> *"Du vide naît la structure"* (VoidCorp motto, kept in French by design) — Build More. Move Fast. Be Better.
-
-## Architecture
-
-```
-void-harness/
-├── packages/
-│   ├── cli/                       # voidharness — the CLI (the only npm package)
-│   │   └── core-assets/           # bundled plugin + frozen model/certification (self-contained npx)
-│   ├── core/                      # harness plugin (static assets, not an npm package)
-│   │   ├── skills/                # craftsman skills
-│   │   ├── agents/                # doctrine-critic + native/generated Claude agents
-│   │   ├── specialists/           # canonical architecture, security, QA, and UI contracts
-│   │   ├── profiles/              # versioned stack guidance selected per changed project
-│   │   ├── hooks/                 # tdd-guard, no-any-grep, no-console-log-grep, etc.
-│   │   ├── codex/                 # Codex safety-floor manifest (hooks.json)
-│   │   └── modules/               # CLAUDE.md modules (composable)
-│   ├── mission-engine/            # pure mission/event contracts and reducers
-│   ├── hook-runner/               # portable Node hook event writer
-│   ├── harness-graph/             # Graph v3 kernel + v1 projection + frozen certification
-│   └── packs/
-│       ├── pack-monorepo/         # Turbo / ADR / 5+5 layout
-│       ├── pack-react/            # React 19 component-layer purity
-│       ├── pack-nextjs/           # Next.js App Router conventions
-│       ├── pack-server/           # backend service conventions
-│       ├── pack-pwa/              # installable PWA conventions
-│       └── pack-mobile/           # Expo / React Native conventions
-├── plans/                         # specs + skill audits
-├── test/                          # automated skill + CLI tests
-├── docs/                          # PHILOSOPHY / ARCHITECTURE / CODEX / CONTRIBUTING / DECISIONS / RELEASING
-└── scripts/                       # bump-version, anti-bloat, copy-core-assets, check-publish-safety
-```
-
-## Usage
-
-Install free, account-free (no Claude account, no subscription, no API key), in one command:
+void-harness installs those standards as files the agent reads, and as hooks
+that stop the work when they are broken. It runs on Claude Code and Codex from
+one source, and it tells you what is actually installed and active rather than
+what should be.
 
 ```
 npx voidharness init
 ```
 
-> On a pnpm project, prefer `pnpm dlx voidharness init` — `npx` (npm) prints harmless
-> "Unknown project config" warnings when it reads your pnpm-only `.npmrc` keys; `pnpm dlx` doesn't.
+Free, no account, no API key, no network fetch on the default path.
 
-It detects the project and installed runtimes (Claude Code / Codex), compiles the bundled tarball
-into each runtime's native project directories, smokes the staged hooks, then publishes the finite
-file set transactionally. `.void/receipts/install-v1.json` records deletion ownership; rollback
-restores the previous bytes and adjacent user files are never claimed. No marketplace, `gh`,
-GitHub authentication or network fetch is part of the default path.
+## What lands in your project
+
+`init` detects the project and the agent runtimes you have, then writes each
+runtime's native files:
+
+| Runtime | Doctrine document | Skills | Agents | Hooks |
+|---|---|---|---|---|
+| Claude Code | `CLAUDE.md` | `.claude/skills` | `.claude/agents` | `.claude/settings.json` |
+| Codex | `AGENTS.md` | `.agents/skills` | `.codex/agents` | portable Node runner |
+
+Alongside them, a receipt at `.void/receipts/install-v1.json` records exactly
+which files the harness owns. `update` and `remove` only ever touch those; a
+file you edited is preserved, and a rollback restores the previous bytes.
+
+What the doctrine covers: test-first discipline, hexagonal and DDD boundaries,
+TypeScript strictness, security review, migration safety, frontend craft. Hooks
+enforce the parts a machine can check, such as TDD ordering, no edits to
+secrets or lockfiles, no forbidden cross-package imports.
+
+Stack packs add conventions for what you actually use:
 
 ```
-npx voidharness status     # deterministic, offline, LLM-free project health
-npx voidharness doctor     # health check
+npx voidharness init --pack nextjs --pack monorepo
 ```
 
-Both surfaces also report whether the installed harness is behind the version published on npm, and
-session start says so once when it is. The check is advisory and never fails a run: it reads the
-public dist-tags document, sends nothing about the machine, caches the answer for a day under
-`XDG_CACHE_HOME` (never inside your repository), and reports `unknown` with a cause when the registry
-cannot be reached rather than claiming you are current. `doctor --no-remote` skips it entirely.
+Available: `nextjs`, `monorepo`, `react`, `server`, `pwa`, `mobile`.
 
-Compile a ticket into an explained risk classification, applicability matrix, and canonical DAG
-before any specialist runs:
+## Most of it never needs a command
+
+This is the part that surprises people, so it goes first: you do not drive the
+harness. You describe what you want in plain language, and the relevant skill
+loads itself because its description matched. Hooks fire on their own, on the
+tool call, before the damage. Asking "add a test for this" pulls the TDD
+discipline in without anyone typing `tdd`.
+
+What is installed, in numbers:
+
+| | Count | How it fires |
+|---|---|---|
+| Core skills | 37 | Automatically, when what you are doing matches |
+| Stack pack skills | 28 | Same, for the packs you activated |
+| Hooks | 31 | On the tool call, before the write lands |
+| Agents | 21 | Delegated by a skill, or invoked by name |
+| Specialists | 16 | Invoked in their own fresh context during review |
+
+You can still call a skill explicitly when you want that one and not the one
+that would have matched: `/harness:tdd` on Claude Code, or by name on Codex.
+Agents work the same way: `doctrine-critic` judges a diff against the doctrine,
+while `solution-architect`, `security-engineer` and `test-qa-engineer` each
+review in their own fresh context.
+
+The commands worth knowing are the ones no sentence can trigger, because they
+report or change state rather than shape behaviour:
+
+```
+npx voidharness status            # what is installed, active, and actually used
+npx voidharness doctor            # health-check the wiring
+npx voidharness add <pack>        # activate a stack pack
+npx voidharness runtime add codex # wire a second runtime
+npx voidharness update            # recompile owned assets from a newer CLI
+```
+
+## What it does not do
+
+It does not make an agent good. It removes the failure modes that come from an
+agent having no standing context, and it makes the remaining gaps visible. The
+judgement is still the model's.
+
+Some things are honestly incomplete:
+
+- Codex reaches the same doctrine but not yet the same read-only isolation for
+  every agent. Where it falls short, `doctor` reports `degraded` rather than
+  claiming parity. The current state is written down in [`docs/CODEX.md`](docs/CODEX.md).
+- Local hooks only run on a machine that installed them. Cloud agents and
+  `--dangerously-skip-permissions` runs bypass them entirely, which is why the
+  server-side floor below exists.
+- Stack profiles carry an explicit expiry. Past it they fail degraded instead
+  of serving guidance that may have aged out.
+
+## See what is actually there
+
+```
+npx voidharness status     # per-capability lifecycle, offline, no model call
+npx voidharness doctor     # health check of the wiring itself
+```
+
+`status` reads a frozen capability certification plus local telemetry and shows
+each capability's state: `available`, `installed`, `verified`, `used`,
+`effective`. The distinction is the point. A skill that is installed and never
+invoked is not doing anything for you, and the report says so instead of
+counting it as a win.
+
+Both surfaces also report whether your install is behind the version published
+on npm. That check is advisory, never fails a run, sends nothing about your
+machine, and reports `unknown` with a cause when the registry is unreachable
+rather than claiming you are current. `doctor --no-remote` skips it.
+
+## Verify the supply chain yourself
+
+Releases are published from CI with no npm token anywhere in this repo, through
+npm Trusted Publishing (OIDC), and carry a provenance attestation signed by
+GitHub Actions and recorded in the sigstore transparency log.
+
+Rather than take that sentence's word for it:
 
 ```bash
-npx voidharness mission plan --ticket tickets/DEV-435.md --json
+npm audit signatures     # in a project that installs it
+npm view voidharness dist.attestations
 ```
 
-Policies compose monotonically from core to project; stack profiles are selected by the changed
-file's owning workspace and fail degraded when stale or version-unknown. See
-[`docs/POLICIES.md`](docs/POLICIES.md) and [`docs/PROFILES.md`](docs/PROFILES.md).
+The release flow is in [`docs/RELEASING.md`](docs/RELEASING.md).
 
-For an auditable local execution:
+## Add a runtime later
 
-```bash
-npx voidharness mission start --title "Ship feature"
-npx voidharness mission resume --id mis_<returned-id>
-npx voidharness mission verify --id mis_<returned-id> -- pnpm test
-npx voidharness mission inspect --id mis_<returned-id> --json
-npx voidharness mission archive --id mis_<returned-id>
-```
-
-Verification runs argv directly with `shell:false`; shell interpretation is
-available only through explicit `--shell`. Mission evidence stays under
-`.void/runs/`, is redacted and bounded, and compressed archives remain local
-under `.void/archives/`.
-
-`fast` is accepted only for explicitly low-risk work and keeps the same mandatory quality passes as
-`team`; medium/unknown work promotes to `team`, while every high-risk predicate promotes to
-`fortress`. Budget transitions at 70/90/100% remove context or optional redundancy but never waive
-a pass. Resume replays the append-only journal and stable idempotency keys: a durable receipt
-prevents an already-proven external effect from being dispatched again.
-
-### Multiple runtimes, added when you need them
-
-The harness is runtime-agnostic by construction: one doctrine, compiled to each agent runtime
-through an adapter. `init` wires the runtimes it detects (or `--runtime claude|codex|both`). Each
-runtime owns its own layer and doctrine doc — a Claude-only project has just `CLAUDE.md`, a
-Codex-only project just `AGENTS.md`.
-
-Add a runtime **later, without friction** — no reinstall, nothing touched on the runtime you
-already use:
+The harness is runtime-agnostic by construction: one doctrine, compiled through
+an adapter per runtime. A Claude-only project has only `CLAUDE.md`; a Codex-only
+project only `AGENTS.md`. Adding the other one later touches nothing you already
+have.
 
 ```
-npx voidharness runtime list        # which runtimes are wired
-npx voidharness runtime add codex    # wire Codex on a Claude project (or vice-versa)
+npx voidharness runtime list
+npx voidharness runtime add codex
 ```
 
-`runtime add codex` stages Codex's safety floor, native agents (`.codex/agents/*.toml`) and one portable Node runner, then writes
-`AGENTS.md`, leaving your Claude setup byte-for-byte untouched. See [`docs/CODEX.md`](docs/CODEX.md).
-`add`, `remove` and `update` reconcile local assets through the same staged transaction; a pack
-removal deletes only unchanged files owned by the receipt and preserves adjacent or edited files.
+## Enforce the floor on every pull request
 
-### Native specialists
-
-After `init`, invoke `solution-architect`, `security-engineer`, or `test-qa-engineer` by name. Claude
-supports `claude --agent solution-architect`; in Codex, ask the parent session to use the named
-custom agent. An orchestrator uses those same installed definitions rather than a parallel prompt.
-Every invocation must return the same raw, identity/version-aware JSON contract. `doctor` verifies
-discovery and reports `team degraded` while either runtime's read-only isolation remains incomplete.
-
-`ticket-runner` loads the canonical mission plan, keeps one lead writer, invokes Architecture,
-Security, and QA in independent native contexts, and feeds their structured completions to a pure
-two-round controller. Missing or stale specialist evidence blocks the verdict; only review inputs
-changed by a correction are rerun. The PR is the human merge gate: Linear becomes `In Review` when
-the PR opens and `Done` only after merge.
-
-`status` reads a frozen capability certification and local telemetry to show, per capability, the
-five-state lifecycle (`available → installed → verified → used → effective`) and a blocker/gauge
-score — no model call, no network. See [`docs/DECISIONS.md`](docs/DECISIONS.md) (2026-07-21) for the
-public-MIT distribution decision (supersedes the earlier marketplace-only stance).
-
-### Claude Code marketplace (optional, secondary)
-
-Claude-Code users who prefer the plugin channel can still install from the **voidcorp** marketplace:
-
-```
-/plugin marketplace add voidcorp-core/void-harness
-/plugin install harness@voidcorp
-/plugin install harness-nextjs@voidcorp     # add a stack pack
-```
-
-Skills then auto-load as `/harness:<name>` (core) and `/harness-<stack>:<name>` (packs). The catalog
-is self-hosted here: [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) lists every
-plugin as a local subdirectory (`./packages/core`, `./packages/packs/*`), versioned by each
-`plugin.json`.
-
-The CLI equivalent is explicit: `void-harness init --source marketplace` (or
-`--marketplace`). Local bundled assets remain the default.
-
-### Enforce the floor on every PR (void-enforce Action)
-
-The local hooks (TDD order, no editing secrets/keys/lockfiles, no forbidden
-`@repo/*` imports, no leaked tokens, no destructive shell) only run on the machine that
-has the plugin. To make the same floor incontournable server-side — for cloud
-agents, `--dangerously-skip-permissions` runs, or any author — add the reusable
-workflow to your repo. Five lines, `.github/workflows/void-enforce.yml`:
+Local hooks protect the machine that has them. To make the same floor
+unavoidable server-side, add the reusable workflow. Five lines in
+`.github/workflows/void-enforce.yml`:
 
 ```yaml
 name: void-enforce
@@ -211,52 +158,59 @@ jobs:
     uses: voidcorp-core/void-harness/.github/workflows/enforce.yml@main
 ```
 
-It runs protected-path, secret-content, TDD and boundary checks through the
-exact portable Node bundle used inline. It reports per-file/line annotations
-and **fails closed** — a missing dependency or
-unresolvable base is a red check, never a silent pass. Pin `@main` to a release
-tag for a stable floor. It enforces the doctrine floor only; keep your own
-lint/test CI. `void-harness doctor` reports (advisory) whether it is adopted.
+It runs protected-path, secret-content, TDD and boundary checks through the same
+portable Node bundle used inline, annotates the offending lines, and fails
+closed: a missing dependency or an unresolvable base is a red check, never a
+silent pass. Pin `@main` to a release tag for a stable floor. It enforces the
+doctrine floor only; keep your own lint and test CI.
 
-### CLI (from a checkout, for contributors)
+## Going further
 
-The `void-harness` CLI is the consumer entry point (via `npx`, above): it wires config per-project
-(`.void/config.json`, CLAUDE.md / AGENTS.md patches), reports project state (`status`), and
-health-checks a setup (`doctor`). Contributors run it from a checkout of this repo:
+- **Missions** turn a ticket into a risk classification, an applicability
+  matrix, and an execution plan with append-only local evidence:
+  `npx voidharness mission plan --ticket <path> --json`. Verification runs argv
+  directly with `shell:false`; evidence stays under `.void/runs/`, redacted and
+  bounded. See [`docs/POLICIES.md`](docs/POLICIES.md).
+- **Native specialists** (`solution-architect`, `security-engineer`,
+  `test-qa-engineer`) are installed as real agent definitions, invocable by
+  name, each returning the same versioned JSON contract. An orchestrator uses
+  those same definitions rather than a parallel prompt of its own.
+- **Claude Code marketplace** is an optional secondary channel:
+  `/plugin marketplace add voidcorp-core/void-harness`. The bundled local
+  assets remain the default.
+
+## Contributing
 
 ```bash
-pnpm build && pnpm link --global        # once, exposes `void-harness` on PATH
-void-harness init --pack nextjs --pack monorepo   # wire the current project
-void-harness status                     # deterministic project health
-void-harness doctor                     # health check
-void-harness self-host sync --mode shadow  # compile this repo as its own consumer
-void-harness self-host doctor              # prove receipt, hooks and event replay
+pnpm install
+pnpm verify     # every gate CI runs, in its order
 ```
 
-Self-host artifacts stay under the gitignored `.void/generated/` boundary and
-never overwrite the authored core or native root agent configuration.
+`pnpm verify --artifacts` runs just the generated-artefact gates in seconds, and
+`pnpm verify --fix` regenerates them. Start with
+[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md), then
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the package boundaries.
 
-## Relation to other VoidCorp repos
+Seven anti-bloat rules gate every pull request: a skill stays under 400 lines
+and covers one subject, two skills may not overlap by more than 30%, a
+frontmatter description stays under 200 characters, hooks stay under 100 lines
+with no home-grown DSL, agents keep an explicit scope, and skill tests gate the
+release. They exist because a doctrine that grows without limit stops being
+read.
 
-- [`voidcorp-core/forge`](https://github.com/voidcorp-core/forge) — ideation pipeline plugin, distributed as `forge@voidcorp`.
-- [`voidcorp-core/void-plugins`](https://github.com/voidcorp-core/void-plugins) — legacy dedicated catalog; superseded by this repo's self-hosted `.claude-plugin/marketplace.json`. Kept for back-compat with installs that still point at it.
-- [`voidcorp-core/void-starter`](https://github.com/voidcorp-core/void-starter) — Next.js template. Its CLAUDE.md will reference `@voidcorp/pack-nextjs` + `@voidcorp/pack-monorepo`.
-- [`voidcorp-core/voidcorp`](https://github.com/voidcorp-core/voidcorp) — marketing site, will use `@voidcorp/pack-marketing-site` (future).
+## Philosophy
 
-## Anti-bloat discipline
+Three non-negotiables, in order: **safety** (test-first, paired assertions,
+schema-validated boundaries), **performance** (back-of-the-envelope before code,
+mechanical sympathy, batch over react), **developer experience** (fast feedback,
+no magic, every convention motivated in writing).
 
-Seven hard rules enforced on every PR (see the "Anti-bloat discipline" section of `CLAUDE.md`):
+Inspired by Wing Chun's economy of means, TigerStyle from TigerBeetle, the
+citypaul dotfiles, and the compound-engineering loop. Read
+[`docs/PHILOSOPHY.md`](docs/PHILOSOPHY.md) for the reasoning and the sources.
 
-1. Each skill ≤ 400 lines
-2. One skill = one subject (split if two)
-3. No duplication of responsibility between skills (>30% overlap → fusion or boundary clarification)
-4. Frontmatter `description` ≤ 200 chars, precise enough for auto-discovery
-5. Hooks ≤ 100 lines, shell or simple TS — no maison DSL
-6. Agents with explicit scope, no spillover into adjacent concerns (QA stays in gstack)
-7. Skill tests in CI gate the release
+> *Du vide naît la structure.* Build more, move fast, be better.
 
 ## License
 
-MIT — see `LICENSE`.
-
-Crafted by Folpe @ VoidCorp.
+MIT. Built at VoidCorp by Folpe, released for anyone.
