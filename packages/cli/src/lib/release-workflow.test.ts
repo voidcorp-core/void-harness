@@ -62,7 +62,17 @@ describe('release pull request CI workflow', () => {
 
   it('fails closed when both required runs could not be approved', () => {
     const step = releaseWorkflow.split('Dispatch required CI for the release PR')[1] ?? '';
-    expect(step).toContain('"$approved" -lt 2');
+    expect(step).toContain('"$approved_count" -lt 2');
+  });
+
+  it('approves only the runs on the pull request head, never the branch history', () => {
+    // The release branch is long-lived and accumulates never-approved runs from
+    // previous cycles. On 2.4.0 a branch-scoped query met the quota with those,
+    // leaving the current head still waiting. Only checks on THIS commit count.
+    const step = releaseWorkflow.split('Dispatch required CI for the release PR')[1] ?? '';
+    expect(step).toContain('headRefOid');
+    expect(step).toContain('head_sha=$release_sha');
+    expect(step).not.toContain('actions/runs?branch=');
   });
 
   it('approves the pull-request-context runs because only they satisfy branch protection', () => {

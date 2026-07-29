@@ -123,6 +123,12 @@ approves the waiting `pull_request` runs on that branch. Approving runs the
 workflow's own bot just queued is not a review bypass: the human gate is merging
 the release PR, and it is untouched.
 
+The approval is scoped to the pull request's **head SHA**, not to its branch,
+and 2.4.0 is why. `release-please--branches--main` is long-lived and accumulates
+never-approved runs from previous cycles; a branch-scoped query met its quota
+with those while the current head still waited. Only the checks on the exact
+commit can satisfy branch protection.
+
 Both halves poll, and 2.3.1 is why. `prs_created` turns true when the API call
 returns, not when the PR becomes searchable by label: the step listed zero
 candidates one second before the PR appeared, and failed closed on a race rather
