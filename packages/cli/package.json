@@ -55,11 +55,12 @@
     "provenance": true
   },
   "devDependencies": {
+    "@clack/prompts": "^1.5.0",
     "@types/node": "^22.0.0",
+    "@types/picomatch": "^4.0.3",
     "@voidcorp/harness-graph": "workspace:*",
     "@voidcorp/hook-runner": "workspace:*",
     "@voidcorp/mission-engine": "workspace:*",
-    "@clack/prompts": "^1.5.0",
     "esbuild": "^0.28.0",
     "tsup": "^8.0.0",
     "tsx": "^4.19.0",
@@ -67,5 +68,8 @@
     "vitest": "^4.1.9",
     "yaml": "^2.5.0",
     "zod": "^4.4.3"
+  },
+  "dependencies": {
+    "picomatch": "^4.0.5"
   }
 }

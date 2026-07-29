@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:abaf97b3e7d4e9dcc515103220251ac3707c2222122b746f8758edb569e955aa"
+    "rootHash": "sha256:287c2f894aa4380cb6a2ea33a5aa9f40dcc54c0c9b36aa0aeda55b98b075f632"
   },
   "nodes": [
     {
@@ -5265,6 +5265,34 @@
           {
             "kind": "path",
             "ref": "packages/core/skills/writing-plans/SKILL.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:workflow-def:workflow-def:autopilot",
+      "kind": "workflow-def",
+      "label": "autopilot",
+      "data": {
+        "legacy": {
+          "description": "",
+          "id": "workflow-def:autopilot",
+          "lines": 0,
+          "name": "autopilot",
+          "pack": null,
+          "source": "packages/core/skills/autopilot/workflows/autopilot.workflow.js",
+          "staticTokens": 0,
+          "type": "workflow-def"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/skills/autopilot/workflows/autopilot.workflow.js",
             "hashOrVersion": "catalog-v1"
           }
         ]

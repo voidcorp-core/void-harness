@@ -2763,6 +2763,16 @@
     },
     {
       "description": "",
+      "id": "workflow-def:autopilot",
+      "lines": 0,
+      "name": "autopilot",
+      "pack": null,
+      "source": "packages/core/skills/autopilot/workflows/autopilot.workflow.js",
+      "staticTokens": 0,
+      "type": "workflow-def"
+    },
+    {
+      "description": "",
       "id": "workflow-def:backlog-autopilot",
       "lines": 0,
       "name": "backlog-autopilot",
