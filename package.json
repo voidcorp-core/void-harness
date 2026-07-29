@@ -38,7 +38,8 @@
     "conformance:install": "node packages/cli/scripts/conformance-install.mjs",
     "conformance:hooks": "node packages/cli/scripts/conformance-hooks.mjs",
     "conformance:project-graph": "node scripts/conformance-project-graph.mjs",
-    "eval": "pnpm build:cli && pnpm --filter @voidcorp/eval-harness run eval --"
+    "eval": "pnpm build:cli && pnpm --filter @voidcorp/eval-harness run eval --",
+    "verify": "node scripts/verify.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",

@@ -11,6 +11,17 @@ The working rules for this repo live in `CLAUDE.md` (mirrored as `AGENTS.md` for
 
 ## The gates (run before you push)
 
+**`pnpm verify` runs all of them**, in CI's own order. It is the one command to
+know; the list below is what it covers and why each entry exists.
+
+- `pnpm verify --artifacts` — only the generated-artefact gates, in seconds.
+  Adding a skill moves the graph, `certification.json`, the consumer bundle AND
+  the `core-assets` mirror; this is the class of failure that otherwise gets
+  discovered from CI, one round trip at a time.
+- `pnpm verify --fix` — regenerate those artefacts instead of being told they
+  are stale, then verify them. Never implicit: regenerating a committed file is
+  a change, and a change happens because someone asked for it.
+
 - `pnpm test` — the suite is the gate before "done".
 - `pnpm lint` and `pnpm typecheck` — zero errors.
 - `pnpm anti-bloat:check` — the seven anti-bloat rules (skill ≤400 LOC, hook ≤100 LOC, description ≤200 chars, `.source` + audit note per skill, ...).
