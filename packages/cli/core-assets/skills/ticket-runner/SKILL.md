@@ -141,4 +141,4 @@ Tokens follow stakes: mechanical work runs cheap, judgment runs at full strength
 
 ## Composition
 
-Upstream: `harness:ticket-writer` produces the ticket and declares its conditional passes. Caller: `harness:backlog-autopilot` runs this once per ticket in parallel worktrees. The skill conducts; the Mission Engine controller decides state, invalidation, and verdict; native specialists own their bounded reviews.
+Upstream: `harness:ticket-writer` produces the ticket and declares its conditional passes. Caller: `harness:backlog-autopilot` runs this once per ticket in parallel worktrees — `harness:autopilot` replaces it at the cutover and calls this skill the same way, whole and once per ticket. Neither restates a pass of this cycle: it has one owner so a ticket gets the same standard however it was started. The skill conducts; the Mission Engine controller decides state, invalidation, and verdict; native specialists own their bounded reviews.

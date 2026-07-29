@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:4e463a75033136d6370e5b76bf41a557a06f62be04bbf3c6dedc2155bc56b0b0"
+    "rootHash": "sha256:abaf97b3e7d4e9dcc515103220251ac3707c2222122b746f8758edb569e955aa"
   },
   "nodes": [
     {
@@ -2291,6 +2291,54 @@
           {
             "kind": "path",
             "ref": "packages/core/skills/async-safety/SKILL.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:skill:skill:autopilot",
+      "kind": "skill",
+      "label": "autopilot",
+      "data": {
+        "legacy": {
+          "description": "Use to drain a bounded cluster of independent ready tickets, each run end-to-end by ticket-runner in its own worktree, reconciled into one integration PR a human merges.",
+          "enforcement": {
+            "floor": "ci",
+            "inline": {
+              "claude": "pretooluse",
+              "codex": "pretooluse",
+              "hermes": "ci-only"
+            }
+          },
+          "evalTargets": [
+            {
+              "provider": "anthropic",
+              "runtime": "claude",
+              "tier": "opus"
+            }
+          ],
+          "id": "skill:autopilot",
+          "lines": 116,
+          "name": "autopilot",
+          "owner": "folpe",
+          "pack": null,
+          "runtimes": [
+            "claude",
+            "codex"
+          ],
+          "source": "packages/core/skills/autopilot/SKILL.md",
+          "staticTokens": 1446,
+          "type": "skill"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/skills/autopilot/SKILL.md",
             "hashOrVersion": "catalog-v1"
           }
         ]
@@ -4957,7 +5005,7 @@
             "codex"
           ],
           "source": "packages/core/skills/ticket-runner/SKILL.md",
-          "staticTokens": 3339,
+          "staticTokens": 3395,
           "type": "skill"
         }
       },

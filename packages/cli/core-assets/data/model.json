@@ -886,6 +886,36 @@
       "type": "skill"
     },
     {
+      "description": "Use to drain a bounded cluster of independent ready tickets, each run end-to-end by ticket-runner in its own worktree, reconciled into one integration PR a human merges.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:autopilot",
+      "lines": 116,
+      "name": "autopilot",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/autopilot/SKILL.md",
+      "staticTokens": 1446,
+      "type": "skill"
+    },
+    {
       "description": "Opt-in parallel drain of independent Linear tickets, each in its own worktree subagent, reconciled into one integration PR gated by the full suite. Use when clearing independent tickets at once.",
       "enforcement": {
         "floor": "ci",
@@ -2569,7 +2599,7 @@
         "codex"
       ],
       "source": "packages/core/skills/ticket-runner/SKILL.md",
-      "staticTokens": 3339,
+      "staticTokens": 3395,
       "type": "skill"
     },
     {
