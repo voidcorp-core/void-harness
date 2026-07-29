@@ -25,6 +25,7 @@ export default defineConfig({
     '@voidcorp/harness-graph',
     '@voidcorp/hook-runner',
     '@voidcorp/mission-engine',
+    'picomatch',
     'yaml',
     'zod',
   ],
