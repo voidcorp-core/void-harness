@@ -81,6 +81,12 @@ export const STEPS = [
     artifact: true,
     fix: ['pnpm', '--filter', 'voidharness', 'build:void-graph'],
   },
+  {
+    name: 'cheat sheet freshness',
+    run: ['pnpm', 'cheatsheet:check'],
+    artifact: true,
+    fix: ['pnpm', 'cheatsheet:build'],
+  },
   { name: 'tests', run: ['pnpm', 'vitest', 'run'], slow: true },
   { name: 'typecheck', run: ['pnpm', '-r', 'typecheck'], slow: true },
 ];

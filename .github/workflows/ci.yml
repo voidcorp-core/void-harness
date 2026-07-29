@@ -156,6 +156,12 @@ jobs:
         # change regenerated model.json, rebuild: pnpm -F voidharness build:void-graph
         run: pnpm graph:check-bundle
 
+      - name: Cheat sheet freshness (docs/CHEATSHEET.md matches the catalogue)
+        # The cheat sheet is rendered from model.json. A skill added without
+        # regenerating it turns the one page that claims to list everything into
+        # a page that lists almost everything, which is worse than none.
+        run: pnpm cheatsheet:check
+
       - name: Skill tests
         run: pnpm vitest run
 
