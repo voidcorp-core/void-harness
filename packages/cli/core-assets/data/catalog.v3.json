@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:f354df8501954f7041c4379d0e45257ca61a8eea28c77cd8530b5315e65cef92"
+    "rootHash": "sha256:18c998ac7938a94c2614768b6c6bada805c122c88e07cddf6a56a736721dd947"
   },
   "nodes": [
     {
@@ -2291,7 +2291,7 @@
             }
           ],
           "id": "skill:autopilot",
-          "lines": 116,
+          "lines": 166,
           "name": "autopilot",
           "owner": "folpe",
           "pack": null,
@@ -2300,7 +2300,7 @@
             "codex"
           ],
           "source": "packages/core/skills/autopilot/SKILL.md",
-          "staticTokens": 1446,
+          "staticTokens": 2398,
           "type": "skill"
         }
       },
