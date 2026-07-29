@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.4.0](https://github.com/voidcorp-core/void-harness/compare/v2.3.0...v2.4.0) (2026-07-29)
+
+
+### Features
+
+* **autopilot:** add the isolated planning core because cutover needs a tested destination ([91cec27](https://github.com/voidcorp-core/void-harness/commit/91cec270727ac66a267f28fb365a4cb87b451ffc))
+* **autopilot:** load the active program contract because sessions need durable authority ([5790fdc](https://github.com/voidcorp-core/void-harness/commit/5790fdc0ea0bc37bb393dc925e8e7a611ecd4f81))
+* **autopilot:** persist one versioned run state because sessions need idempotent recovery ([7157252](https://github.com/voidcorp-core/void-harness/commit/7157252007d9e405b4372350fc28eff0e44b699c))
+* **autopilot:** plan a reobserved lease because workers need converged ownership ([c987ed0](https://github.com/voidcorp-core/void-harness/commit/c987ed021b7048ab585a5f1736c00964638803b7))
+* **autopilot:** range A — planner, active program contract, lease and run state ([a60ee28](https://github.com/voidcorp-core/void-harness/commit/a60ee28f9827fdbd787cd20066908f29abbbb36d))
+
+
+### Bug Fixes
+
+* **release:** approve by head sha because the release branch outlives its runs ([addb271](https://github.com/voidcorp-core/void-harness/commit/addb271ef0fe995a3e17ae84287e5e7a9dcbdd9e))
+* **release:** approve by head sha, not by branch ([05361bf](https://github.com/voidcorp-core/void-harness/commit/05361bf8bb5184c3a1ae191d08400e76954dd2bc))
+* **release:** approve the waiting PR checks ([a0281ec](https://github.com/voidcorp-core/void-harness/commit/a0281eccd5cf1907ca4b776af04eda66d256e6cd))
+* **release:** approve the waiting PR checks because dispatched runs do not unblock a merge ([c1fc393](https://github.com/voidcorp-core/void-harness/commit/c1fc393cc4eee8c9d39d1b98f3747c1c869c2bf5))
+* **release:** poll for the release PR and its runs ([201e511](https://github.com/voidcorp-core/void-harness/commit/201e5119b17d37fd142b45bf99244fd7c683b788))
+* **release:** poll for the release PR and its runs because both appear after the signal that announces them ([714a999](https://github.com/voidcorp-core/void-harness/commit/714a999f7eed2f3dd5ab7271afda5b2b275b2719))
+
 ## [2.3.0](https://github.com/voidcorp-core/void-harness/compare/v2.2.0...v2.3.0) (2026-07-29)
 
 
