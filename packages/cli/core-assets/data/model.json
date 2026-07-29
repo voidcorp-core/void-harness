@@ -222,6 +222,16 @@
       "type": "command"
     },
     {
+      "description": "Close the current work session — route each fact to where state lives, then write the residue the next session cannot re-derive, ending on one exact next action.",
+      "id": "command:session-handoff",
+      "lines": 24,
+      "name": "session-handoff",
+      "pack": null,
+      "source": "packages/core/commands/session-handoff.md",
+      "staticTokens": 342,
+      "type": "command"
+    },
+    {
       "description": "Run the outbound audit from local mission events and surface stale skills, upstream deprecations, conflicts, and HITL proposals.",
       "id": "command:void-audit",
       "lines": 13,
@@ -2421,6 +2431,36 @@
       ],
       "source": "packages/core/skills/security-guidance/SKILL.md",
       "staticTokens": 2512,
+      "type": "skill"
+    },
+    {
+      "description": "Close a work session so the next one starts without re-deriving anything. Routes state to where state lives, writes only what nothing else holds, ends on one exact next action.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:session-handoff",
+      "lines": 181,
+      "name": "session-handoff",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/session-handoff/SKILL.md",
+      "staticTokens": 2153,
       "type": "skill"
     },
     {

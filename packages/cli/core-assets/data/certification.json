@@ -1433,6 +1433,32 @@
       }
     },
     {
+      "id": "skill:session-handoff",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
       "id": "skill:source-driven-development",
       "owner": "folpe",
       "runtimes": [

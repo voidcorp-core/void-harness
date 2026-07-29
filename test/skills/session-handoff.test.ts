@@ -1,0 +1,140 @@
+/**
+ * The session-handoff skill is a contract, and two clauses carry its whole value.
+ *
+ * The first is that it routes before it writes: a handoff that duplicates the
+ * tracker, the diff or the doctrine creates a second copy of a fact, and within a
+ * day one of them is wrong with no way to tell which. The second is that it names
+ * the things no artefact holds — dead ends, unverified assumptions, proof
+ * freshness, one executable next action. Both decay the same way: a helpful edit
+ * turns the skill into "summarise the session", which is pleasant to write and
+ * useless to read.
+ */
+
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+
+const SKILL = readFileSync(
+  new URL('../../packages/core/skills/session-handoff/SKILL.md', import.meta.url),
+  'utf8',
+);
+const COMMAND = readFileSync(
+  new URL('../../packages/core/commands/session-handoff.md', import.meta.url),
+  'utf8',
+);
+
+function frontmatter(source: string): string {
+  return /^---\r?\n([\s\S]*?)\r?\n---/.exec(source)?.[1] ?? '';
+}
+
+function body(source: string): string {
+  return source.slice(source.indexOf('\n---', 4) + 4);
+}
+
+/** Markdown reflows; these assertions are about wording, not line breaks. */
+function flat(source: string): string {
+  return source.replace(/\s+/g, ' ');
+}
+
+describe('session-handoff frontmatter', () => {
+  it('declares both runtimes, because a handoff is not a Claude-only artefact', () => {
+    expect(frontmatter(SKILL)).toContain('runtimes: [claude, codex]');
+  });
+
+  it('keeps its description within the discovery budget', () => {
+    const description = /^description:\s*(.*)$/m.exec(frontmatter(SKILL))?.[1] ?? '';
+    expect(description.length).toBeGreaterThan(0);
+    expect(description.length).toBeLessThanOrEqual(200);
+  });
+
+  it('stays under the skill size cap', () => {
+    expect(SKILL.split('\n').length).toBeLessThanOrEqual(400);
+  });
+});
+
+describe('routing comes before writing', () => {
+  it('sends execution state to the tracker rather than into the handoff', () => {
+    expect(flat(body(SKILL))).toMatch(/Execution state[\s\S]{0,80}tracker/i);
+  });
+
+  it('names every authoritative destination, so the residue is what is left', () => {
+    for (const destination of ['tracker', 'diff', 'doctrine', 'memory', 'ADR']) {
+      expect(body(SKILL), destination).toMatch(new RegExp(destination, 'i'));
+    }
+  });
+
+  it('requires the authoritative write to happen first, not to be promised', () => {
+    expect(flat(body(SKILL))).toMatch(/write it there \*\*first\*\*/i);
+  });
+});
+
+describe('the residue it exists to capture', () => {
+  it('asks for the dead ends, which are the half no artefact records', () => {
+    expect(flat(body(SKILL))).toMatch(/did not work/i);
+    expect(flat(body(SKILL))).toMatch(/why you stopped/i);
+  });
+
+  it('separates a proven claim from an assumed one', () => {
+    expect(flat(body(SKILL))).toMatch(/label every unverified belief as unverified/i);
+  });
+
+  it('binds a proof to the commit it was proven against', () => {
+    expect(flat(body(SKILL))).toMatch(/which command, on which commit/i);
+  });
+
+  it('demands one next action specific enough to execute', () => {
+    expect(flat(body(SKILL))).toMatch(/is not a next action/i);
+  });
+});
+
+describe('what it refuses to become', () => {
+  it('refuses to be a narrative of the session', () => {
+    expect(flat(body(SKILL))).toMatch(/not a plan for what is next/i);
+  });
+
+  it('states why no automatic hook writes it', () => {
+    // A stop event cannot tell an interruption from a closed unit of work, and a
+    // handoff written on a false positive is authoritative and wrong.
+    expect(flat(body(SKILL))).toMatch(/no automatic hook/i);
+    expect(flat(body(SKILL))).toMatch(/false positive/i);
+  });
+
+  it('keeps closing a session apart from completing a unit of work', () => {
+    expect(flat(body(SKILL))).toMatch(/a session ending is not a unit completing/i);
+    expect(flat(COMMAND)).toMatch(/a session ending is not a unit completing/i);
+  });
+
+  it('refuses to carry a secret into a shared destination', () => {
+    expect(flat(body(SKILL))).toMatch(/secret[\s\S]{0,120}redact/i);
+  });
+});
+
+describe('the exit test can actually fail', () => {
+  it('asks whether a stranger could act on it without asking a question', () => {
+    expect(flat(body(SKILL))).toMatch(/without asking a question/i);
+  });
+
+  it('asks whether a reader would repeat a dead end', () => {
+    expect(flat(body(SKILL))).toMatch(/repeat one of your dead ends/i);
+  });
+});
+
+describe('provenance', () => {
+  it('ships a .source recording what it took and what it refused', () => {
+    const source = readFileSync(
+      new URL('../../packages/core/skills/session-handoff/.source', import.meta.url),
+      'utf8',
+    );
+    expect(source).toMatch(/context-save/i);
+    expect(source).toMatch(/Rejected/i);
+  });
+
+  it('records the boundary with the skills it sits next to', () => {
+    const audit = readFileSync(
+      new URL('../../plans/skill-audits/session-handoff.md', import.meta.url),
+      'utf8',
+    );
+    expect(audit).toMatch(/Boundary with `learning-capture`/);
+    expect(audit).toMatch(/Boundary with `retrospective`/);
+    expect(audit).toMatch(/What was rejected/i);
+  });
+});
