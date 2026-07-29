@@ -47,6 +47,38 @@ npx voidharness init --pack nextjs --pack monorepo
 
 Available: `nextjs`, `monorepo`, `react`, `server`, `pwa`, `mobile`.
 
+## Most of it never needs a command
+
+This is the part that surprises people, so it goes first: you do not drive the
+harness. You describe what you want in plain language, and the relevant skill
+loads itself because its description matched. Hooks fire on their own, on the
+tool call, before the damage. Asking "add a test for this" pulls the TDD
+discipline in without anyone typing `tdd`.
+
+What is installed, in numbers:
+
+| | Count | How it fires |
+|---|---|---|
+| Core skills | 37 | Automatically, when what you are doing matches |
+| Stack pack skills | 28 | Same, for the packs you activated |
+| Hooks | 31 | On the tool call, before the write lands |
+| Agents | 21 | Delegated by a skill, or invoked by name |
+| Specialists | 16 | Invoked in their own fresh context during review |
+
+You can still call a skill explicitly when you want that one and not the one
+that would have matched: `/harness:tdd` on Claude Code, or by name on Codex.
+
+The commands worth knowing are the ones no sentence can trigger, because they
+report or change state rather than shape behaviour:
+
+```
+npx voidharness status            # what is installed, active, and actually used
+npx voidharness doctor            # health-check the wiring
+npx voidharness add <pack>        # activate a stack pack
+npx voidharness runtime add codex # wire a second runtime
+npx voidharness update            # recompile owned assets from a newer CLI
+```
+
 ## What it does not do
 
 It does not make an agent good. It removes the failure modes that come from an
