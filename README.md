@@ -61,7 +61,7 @@ What is installed, in numbers:
 |---|---|---|
 | Core skills | 37 | Automatically, when what you are doing matches |
 | Stack pack skills | 28 | Same, for the packs you activated |
-| Hooks | 31 | On the tool call, before the write lands |
+| Hooks | 33 | On the tool call, before the write lands |
 | Agents | 21 | Delegated by a skill, or invoked by name |
 | Specialists | 16 | Invoked in their own fresh context during review |
 
@@ -70,6 +70,12 @@ that would have matched: `/harness:tdd` on Claude Code, or by name on Codex.
 Agents work the same way: `doctrine-critic` judges a diff against the doctrine,
 while `solution-architect`, `security-engineer` and `test-qa-engineer` each
 review in their own fresh context.
+
+There is no single page listing all of it yet. `void-harness cheatsheet` will
+generate one from the same catalogue these counts come from; until it ships,
+`npx voidharness status` reports what is installed and active in your project,
+and the skills themselves live under
+[`packages/core/skills`](packages/core/skills).
 
 The commands worth knowing are the ones no sentence can trigger, because they
 report or change state rather than shape behaviour:
