@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:707fbe0cbd7055bb19f49f296ac138fee706df916ae265745b01997e6ab8be0d"
+    "rootHash": "sha256:4e463a75033136d6370e5b76bf41a557a06f62be04bbf3c6dedc2155bc56b0b0"
   },
   "nodes": [
     {
@@ -4996,7 +4996,7 @@
             }
           ],
           "id": "skill:ticket-writer",
-          "lines": 136,
+          "lines": 142,
           "name": "ticket-writer",
           "owner": "folpe",
           "pack": null,
@@ -5005,7 +5005,7 @@
             "codex"
           ],
           "source": "packages/core/skills/ticket-writer/SKILL.md",
-          "staticTokens": 1989,
+          "staticTokens": 2107,
           "type": "skill"
         }
       },

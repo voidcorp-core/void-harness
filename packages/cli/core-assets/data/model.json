@@ -2590,7 +2590,7 @@
         }
       ],
       "id": "skill:ticket-writer",
-      "lines": 136,
+      "lines": 142,
       "name": "ticket-writer",
       "owner": "folpe",
       "pack": null,
@@ -2599,7 +2599,7 @@
         "codex"
       ],
       "source": "packages/core/skills/ticket-writer/SKILL.md",
-      "staticTokens": 1989,
+      "staticTokens": 2107,
       "type": "skill"
     },
     {

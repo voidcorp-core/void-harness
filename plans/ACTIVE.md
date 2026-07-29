@@ -4,14 +4,39 @@ program: void-harness-v3-top-tier-engineering-team
 plan: plans/2026-07-24-void-harness-v3-top-tier-engineering-team-plan.md
 spec: docs/specs/2026-07-24-void-harness-v3-top-tier-engineering-team.md
 tracker:
-  workspace: voidcorp
-  team: DEV
-  project: void harness
-  firstIssue: DEV-433
-  lastIssue: DEV-461
+  provider: linear
+  scope: voidcorp/DEV/void harness
+  issues:
+    [
+      DEV-433, DEV-435, DEV-438, DEV-441, DEV-442, DEV-444, DEV-437, DEV-440,
+      DEV-445, DEV-447, DEV-434, DEV-436, DEV-439, DEV-443, DEV-448, DEV-446,
+      DEV-449, DEV-450, DEV-451, DEV-452, DEV-453, DEV-454, DEV-455, DEV-456,
+      DEV-457, DEV-459, DEV-460, DEV-458, DEV-461, DEV-462, DEV-463, DEV-464,
+      DEV-465,
+    ]
+  readyStates: [Backlog, Todo]
+  startedState: In Progress
+  reviewState: In Review
+  doneStates: [Done, Canceled]
 humanGates:
   - DEV-433
   - DEV-457
+autopilot:
+  schemaVersion: 1
+  enabled: false
+  clusterSize: 4
+  base: auto
+  mergeGate: human
+  verifyCommands:
+    - [pnpm, build]
+    - [pnpm, test]
+  ownership:
+    sequential:
+      - pnpm-lock.yaml
+      - packages/cli/core-assets/**
+      - packages/harness-graph/model.json
+      - packages/harness-graph/catalog.v3.json
+    reconcileOnly: []
 ---
 
 # Active program: void-harness v3
@@ -38,8 +63,8 @@ Do not implement from a remembered or summarized ticket.
 When the user asks to continue, start, resume, or otherwise execute the active program without
 naming a ticket:
 
-1. List issues `DEV-433` through `DEV-461` in Linear workspace `voidcorp`, team `DEV`, project
-   `void harness`.
+1. List the issues named by `tracker.issues` in the Linear scope declared in frontmatter
+   (`voidcorp`, team `DEV`, project `void harness`).
 2. Fetch full details and relations for every candidate needed to decide readiness.
 3. If exactly one program issue is `In Progress`, resume it.
 4. If more than one is `In Progress`, do not guess ownership. Resume the issue explicitly named by
@@ -50,7 +75,7 @@ naming a ticket:
 7. Move it to `In Progress`, assign it to the current maintainer, then execute it with
    `ticket-runner` (`harness:ticket-runner` on Claude Code).
 
-Do not ask the user to restate the plan, tracker, project, ticket range, or selection rules. A
+Do not ask the user to restate the plan, tracker, project, ticket scope, or selection rules. A
 specific user request or explicit ticket always overrides automatic selection.
 
 ## Mandatory Linear lifecycle
