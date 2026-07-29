@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:287c2f894aa4380cb6a2ea33a5aa9f40dcc54c0c9b36aa0aeda55b98b075f632"
+    "rootHash": "sha256:a815ce3e6ae4ed07bf95483a60c375ac476a1c2bb9d5c5c3dba821952b9ed8fb"
   },
   "nodes": [
     {
@@ -731,62 +731,6 @@
           {
             "kind": "path",
             "ref": "packages/core/commands/void-graph.md",
-            "hashOrVersion": "catalog-v1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:hook:hook:_checks",
-      "kind": "hook",
-      "label": "_checks",
-      "data": {
-        "legacy": {
-          "description": "",
-          "id": "hook:_checks",
-          "lines": 146,
-          "name": "_checks",
-          "pack": null,
-          "source": "packages/core/hooks/_checks.sh",
-          "staticTokens": 2113,
-          "type": "hook"
-        }
-      },
-      "provenance": {
-        "origin": "extracted",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "path",
-            "ref": "packages/core/hooks/_checks.sh",
-            "hashOrVersion": "catalog-v1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:hook:hook:_hooklib",
-      "kind": "hook",
-      "label": "_hooklib",
-      "data": {
-        "legacy": {
-          "description": "",
-          "id": "hook:_hooklib",
-          "lines": 164,
-          "name": "_hooklib",
-          "pack": null,
-          "source": "packages/core/hooks/_hooklib.sh",
-          "staticTokens": 1969,
-          "type": "hook"
-        }
-      },
-      "provenance": {
-        "origin": "extracted",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "path",
-            "ref": "packages/core/hooks/_hooklib.sh",
             "hashOrVersion": "catalog-v1"
           }
         ]

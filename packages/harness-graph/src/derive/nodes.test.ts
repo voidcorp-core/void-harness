@@ -154,3 +154,21 @@ describe('scanSourceTree path boundary', () => {
     expect(() => scanSourceTree(core, packs)).toThrow(/GRAPH_SOURCE_PATH_ESCAPE/);
   });
 });
+
+describe('shared hook libraries are not hooks', () => {
+  it('excludes an `_`-prefixed library from the hook nodes', () => {
+    // CLAUDE.md rule 5: shared logic lives in a sourced `_`-prefixed library,
+    // explicitly exempt from the per-hook cap. Counting it as a hook overstates
+    // the floor and, worse, makes the model disagree with the doctrine it maps.
+    const ids = deriveNodes({
+      ...tree,
+      hooks: [
+        { name: '_hooklib', source: 'packages/core/hooks/_hooklib.sh', text: '#!/bin/sh\n' },
+        { name: 'tdd-guard', source: 'packages/core/hooks/tdd-guard.sh', text: '#!/bin/sh\n' },
+      ],
+    }).map((n) => n.id);
+
+    expect(ids).toContain('hook:tdd-guard');
+    expect(ids).not.toContain('hook:_hooklib');
+  });
+});

@@ -61,7 +61,7 @@ What is installed, in numbers:
 |---|---|---|
 | Core skills | 37 | Automatically, when what you are doing matches |
 | Stack pack skills | 28 | Same, for the packs you activated |
-| Hooks | 33 | On the tool call, before the write lands |
+| Hooks | 31 | On the tool call, before the write lands |
 | Agents | 21 | Delegated by a skill, or invoked by name |
 | Specialists | 16 | Invoked in their own fresh context during review |
 

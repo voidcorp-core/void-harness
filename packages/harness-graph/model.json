@@ -263,26 +263,6 @@
     },
     {
       "description": "",
-      "id": "hook:_checks",
-      "lines": 146,
-      "name": "_checks",
-      "pack": null,
-      "source": "packages/core/hooks/_checks.sh",
-      "staticTokens": 2113,
-      "type": "hook"
-    },
-    {
-      "description": "",
-      "id": "hook:_hooklib",
-      "lines": 164,
-      "name": "_hooklib",
-      "pack": null,
-      "source": "packages/core/hooks/_hooklib.sh",
-      "staticTokens": 1969,
-      "type": "hook"
-    },
-    {
-      "description": "",
       "id": "hook:activation-meter",
       "lines": 14,
       "name": "activation-meter",
