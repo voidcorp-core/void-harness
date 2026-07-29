@@ -41,6 +41,13 @@ describe('renderLeaseMarker', () => {
     expect(() => renderLeaseMarker({ ...MARKER, programId: '' })).toThrow(/programId/);
   });
 
+  it('refuses an identifier walking up out of its directory', () => {
+    // These become branch names and worktree path segments downstream.
+    expect(() => renderLeaseMarker({ ...MARKER, integrationBranch: 'autopilot/../../etc' })).toThrow(
+      /integrationBranch/,
+    );
+  });
+
   it('refuses a base sha that is not a commit id', () => {
     expect(() => renderLeaseMarker({ ...MARKER, baseSha: 'HEAD~1' })).toThrow(/baseSha/);
   });

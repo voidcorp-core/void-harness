@@ -1,6 +1,10 @@
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { runAutopilotCommand } from './autopilot.js';
+import type { RunState } from '../lib/autopilot/run-state.js';
+import { readRun, writeRun } from '../lib/autopilot/state-store.js';
+import { type AutopilotCommandContext, runAutopilotCommand } from './autopilot.js';
 
 function observation(over: Record<string, unknown> = {}): string {
   return JSON.stringify({
@@ -124,6 +128,183 @@ describe('runAutopilotCommand', () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain('autopilot plan');
     expect(result.stderr).toBe('');
+  });
+});
+
+describe('operator subcommands', () => {
+  const SHA = '2b0e24dc054cf4b7bde36d2e346db341f31501a5';
+  const NOW = '2026-07-29T12:00:00.000Z';
+
+  function ctx(root: string): AutopilotCommandContext {
+    return { root, now: NOW };
+  }
+
+  function repo(): string {
+    return mkdtempSync(join(tmpdir(), 'vh-autopilot-cmd-'));
+  }
+
+  function runState(over: Partial<RunState> = {}): RunState {
+    return {
+      schemaVersion: 1,
+      runId: 'run-a',
+      clusterId: 'cluster-1',
+      programId: 'void-harness-v3',
+      startedAt: '2026-07-29T10:00:00.000Z',
+      base: { branch: 'main', sha: SHA },
+      tickets: [{ id: 'DEV-1', phase: 'pending', branch: null, commits: [], proofs: [], blocker: null }],
+      integration: { branch: null, headSha: null, prUrl: null, prState: 'none' },
+      trackerSynced: false,
+      ...over,
+    };
+  }
+
+  const remote = JSON.stringify({
+    tracker: { kind: 'value', value: 'held' },
+    pullRequest: { kind: 'nil' },
+    workerRefs: { kind: 'value', value: [] },
+  });
+
+  it('reports the local cursor and asks for a remote read when status gets no observation', () => {
+    const root = repo();
+    writeRun(root, runState());
+
+    const result = runAutopilotCommand(['status', '--json'], '', ctx(root));
+
+    expect(result.exitCode).toBe(0);
+    const payload = JSON.parse(result.stdout);
+    expect(payload.state.runId).toBe('run-a');
+    expect(payload.next.kind).toBe('remote-required');
+  });
+
+  it('resolves the only run in flight without being told its id', () => {
+    const root = repo();
+    writeRun(root, runState());
+
+    const result = runAutopilotCommand(['status', '--json'], remote, ctx(root));
+
+    expect(JSON.parse(result.stdout).next.kind).toBe('run-workers');
+  });
+
+  it('returns competing-runs when several runs are in flight, without touching any', () => {
+    const root = repo();
+    writeRun(root, runState());
+    writeRun(root, runState({ runId: 'run-b', clusterId: 'cluster-2' }));
+
+    const result = runAutopilotCommand(['status'], remote, ctx(root));
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain('competing-runs');
+    expect(result.stderr).toContain('--run');
+  });
+
+  it('ignores a terminal run when resolving the run in flight', () => {
+    const root = repo();
+    writeRun(root, runState());
+    writeRun(
+      root,
+      runState({
+        runId: 'run-done',
+        integration: { branch: 'autopilot/c', headSha: SHA, prUrl: 'https://github.com/o/r/pull/1', prState: 'merged' },
+        trackerSynced: true,
+      }),
+    );
+
+    expect(runAutopilotCommand(['status', '--json'], remote, ctx(root)).exitCode).toBe(0);
+  });
+
+  it('refuses to resume from the local cursor alone', () => {
+    const root = repo();
+    writeRun(root, runState());
+
+    const result = runAutopilotCommand(['resume'], '', ctx(root));
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toMatch(/observation/);
+  });
+
+  it('returns one next action on resume', () => {
+    const root = repo();
+    writeRun(root, runState());
+
+    const result = runAutopilotCommand(['resume', '--json'], remote, ctx(root));
+
+    expect(JSON.parse(result.stdout).next).toMatchObject({ kind: 'run-workers' });
+  });
+
+  it('reports a run this clone never started', () => {
+    const result = runAutopilotCommand(['status', '--run', 'run-elsewhere'], remote, ctx(repo()));
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain('run-elsewhere');
+  });
+
+  it('refuses --run without a value instead of consuming the next flag', () => {
+    const result = runAutopilotCommand(['status', '--run', '--json'], remote, ctx(repo()));
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain('--run');
+  });
+
+  it('writes no cursor when a reservation did not converge', () => {
+    const root = repo();
+    const receipt = JSON.stringify({
+      state: runState(),
+      intent: {
+        schemaVersion: 1,
+        programId: 'void-harness-v3',
+        runId: 'run-a',
+        clusterId: 'cluster-1',
+        cluster: ['DEV-1'],
+        assigneeId: 'user-folpe',
+        states: { ready: ['Backlog'], started: 'In Progress', done: ['Done'] },
+        marker: {
+          schemaVersion: 1,
+          programId: 'void-harness-v3',
+          runId: 'run-a',
+          clusterId: 'cluster-1',
+          baseBranch: 'main',
+          baseSha: SHA,
+          integrationBranch: 'autopilot/cluster-1',
+          expiresAt: '2026-07-29T18:00:00.000Z',
+        },
+      },
+      applied: [{ issueId: 'DEV-1', kind: 'comment', result: 'failed', detail: 'RATELIMITED' }],
+      reobservation: {
+        schemaVersion: 1,
+        observedAt: NOW,
+        issues: [{ id: 'DEV-1', state: 'Backlog', assigneeId: null, comments: [], blockedBy: [] }],
+      },
+    });
+
+    const result = runAutopilotCommand(['start', '--json'], receipt, ctx(root));
+
+    expect(result.exitCode).toBe(0);
+    expect(JSON.parse(result.stdout).kind).toBe('blocked');
+    expect(readRun(root, 'run-a')).toBeUndefined();
+  });
+
+  it('plans a release on abort while preserving every branch and the cursor', () => {
+    const root = repo();
+    writeRun(
+      root,
+      runState({
+        tickets: [{ id: 'DEV-1', phase: 'committed', branch: 'autopilot-worker/c/DEV-1', commits: [SHA], proofs: ['test'], blocker: null }],
+        integration: { branch: 'autopilot/cluster-1', headSha: SHA, prUrl: null, prState: 'none' },
+      }),
+    );
+
+    const result = runAutopilotCommand(['abort', '--json'], '', ctx(root));
+
+    expect(result.exitCode).toBe(0);
+    const payload = JSON.parse(result.stdout);
+    expect(payload.releaseTickets).toEqual(['DEV-1']);
+    expect(payload.preserved.workerBranches).toEqual(['autopilot-worker/c/DEV-1']);
+    // Abort gives the claim back; it never destroys work.
+    expect(readRun(root, 'run-a')?.tickets[0]?.commits).toEqual([SHA]);
+  });
+
+  it('refuses a stateful subcommand invoked without an execution context', () => {
+    expect(runAutopilotCommand(['status'], '').exitCode).toBe(2);
   });
 });
 

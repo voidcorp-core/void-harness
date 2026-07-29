@@ -48,7 +48,10 @@ function isIsoInstant(value: unknown): value is string {
 function validate(marker: LeaseMarker): void {
   for (const field of SLUG_FIELDS) {
     const value = marker[field];
-    if (typeof value !== 'string' || !SLUG.test(value)) {
+    // `..` is refused even though its characters are legal: these identifiers
+    // become branch names and worktree path segments downstream, so one would
+    // be a directory traversal wearing a branch name.
+    if (typeof value !== 'string' || !SLUG.test(value) || value.split('/').includes('..')) {
       throw new Error(
         `autopilot: lease marker \`${field}\` must be a slug of letters, digits, dot, dash, slash or underscore, received ${JSON.stringify(value)}. Derive it from an identifier, never from a free-form title.`,
       );
