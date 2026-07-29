@@ -54,8 +54,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          release_pr="$(gh pr list --state open --label 'autorelease: pending' --limit 2 --json baseRefName,headRefName,number)"
-          release_count="$(jq 'length' <<< "$release_pr")"
+          # `prs_created` is true the moment the API call returns, but the PR is
+          # not searchable by label immediately: on 2.3.1 this listed zero
+          # candidates one second before the PR appeared. Poll instead of
+          # sampling once — still fail closed, just not on a race.
+          release_pr='[]'
+          release_count=0
+          for _ in $(seq 1 12); do
+            release_pr="$(gh pr list --state open --label 'autorelease: pending' --limit 2 --json baseRefName,headRefName,number)"
+            release_count="$(jq 'length' <<< "$release_pr")"
+            [ "$release_count" -ge 1 ] && break
+            sleep 5
+          done
           if [ "$release_count" -ne 1 ]; then
             echo "FAIL: expected exactly one open autorelease: pending PR; found $release_count." >&2
             jq -c '[.[] | {number, baseRefName, headRefName}]' <<< "$release_pr" >&2
@@ -75,11 +85,25 @@ jobs:
           # Approving a run this workflow's own bot just queued is not a review
           # bypass: the human gate is merging the release PR, and that is
           # untouched.
-          for run_id in $(gh api "repos/$GH_REPO/actions/runs?branch=$release_branch&status=action_required&per_page=20" \
-            --jq '.workflow_runs[].id'); do
-            echo "Approving waiting run $run_id on $release_branch."
-            gh api -X POST "repos/$GH_REPO/actions/runs/$run_id/approve" >/dev/null
+          #
+          # Polled for the same reason as above: GitHub queues those runs on its
+          # own schedule, so a single pass can look at the branch before they
+          # exist. Both required workflows must end up approved.
+          approved=0
+          for _ in $(seq 1 12); do
+            for run_id in $(gh api "repos/$GH_REPO/actions/runs?branch=$release_branch&status=action_required&per_page=20" \
+              --jq '.workflow_runs[].id'); do
+              echo "Approving waiting run $run_id on $release_branch."
+              gh api -X POST "repos/$GH_REPO/actions/runs/$run_id/approve" >/dev/null && approved=$((approved + 1))
+            done
+            [ "$approved" -ge 2 ] && break
+            sleep 5
           done
+          if [ "$approved" -lt 2 ]; then
+            echo "FAIL: approved $approved waiting run(s) on $release_branch; both required workflows must run." >&2
+            echo "Approve them from the Actions tab, or re-run this workflow." >&2
+            exit 1
+          fi
 
       # No downstream catalog to notify: the marketplace is self-hosted in this
       # repo (`.claude-plugin/marketplace.json`, local `./packages/...` sources
