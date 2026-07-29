@@ -43,10 +43,16 @@ jobs:
       # unattended. workflow_dispatch is the tokenless exception: resolve the
       # single bounded Release Please candidate, then run every branch-protection
       # check on its exact head. Missing or duplicate candidates fail closed.
+      #
+      # GH_REPO is load-bearing: this job talks to the API only and has no
+      # `actions/checkout`, so `gh` finds no git remote to infer the repository
+      # from and every call aborts on "not a git repository". Checking out a
+      # whole worktree just to name the repo would be the expensive way round.
       - name: Dispatch required CI for the release PR
         if: ${{ steps.release.outputs.prs_created == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           release_pr="$(gh pr list --state open --label 'autorelease: pending' --limit 2 --json baseRefName,headRefName,number)"
           release_count="$(jq 'length' <<< "$release_pr")"

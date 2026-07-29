@@ -35,6 +35,20 @@ describe('release pull request CI workflow', () => {
     expect(releaseWorkflow).toContain("steps.release.outputs.prs_created == 'true'");
   });
 
+  it('names the repository explicitly because the dispatching job never checks out a worktree', () => {
+    const releasePleaseJob = releaseWorkflow
+      .split('\n  release-please:\n')[1]
+      ?.split(/\n {2}[\w-]+:\n/)[0];
+
+    expect(releasePleaseJob).toBeDefined();
+    // `gh` infers the repository from the git remote. This job runs
+    // release-please directly against the API and deliberately skips
+    // `actions/checkout`, so every `gh` call would abort on "not a git
+    // repository" unless GH_REPO supplies the target.
+    expect(releasePleaseJob).not.toContain('uses: actions/checkout');
+    expect(releasePleaseJob).toContain('GH_REPO: ${{ github.repository }}');
+  });
+
   it('resolves exactly one bounded release pull request before dispatching its branch', () => {
     expect(releaseWorkflow).toContain("--label 'autorelease: pending'");
     expect(releaseWorkflow).toContain('--limit 2');
