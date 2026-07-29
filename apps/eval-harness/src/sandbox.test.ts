@@ -7,7 +7,10 @@ const dirs: string[] = [];
 afterEach(() => {
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
 });
-const track = (r: { dir: string; baseSha: string }): { dir: string; baseSha: string } => (dirs.push(r.dir), r);
+const track = (r: { dir: string; baseSha: string }): { dir: string; baseSha: string } => {
+  dirs.push(r.dir);
+  return r;
+};
 
 describe('setupSandbox', () => {
   it('materializes the fixture into a git repo with an initial commit', () => {
