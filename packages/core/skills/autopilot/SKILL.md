@@ -17,10 +17,10 @@ eval_targets: [claude/anthropic/opus]
 Take up to four independent ready tickets, work each one properly, hand back a single
 integration PR. You stay the merge gate.
 
-> **In construction.** Range A (planner, active-program contract, tracker lease, run state)
-> and range B (worker contract, worktree fan-out) exist. Reconciliation, the public command
-> and the removal of `backlog-autopilot` land in ranges C and D. Until then the installed
-> surface is still `backlog-autopilot`.
+> **In construction.** Range A (planner, active-program contract, tracker lease, run state),
+> range B (worker contract, worktree fan-out) and range C (reconciliation, local proof,
+> publication) exist. The public command and the removal of `backlog-autopilot` land in
+> range D. Until then the installed surface is still `backlog-autopilot`.
 
 **Attribution**: see `.source`.
 
@@ -77,7 +77,26 @@ with native subagents. Both read the *same* `OrchestrationPlan` and return the *
    parallel, whatever the estimate says.
 7. **Collect.** Parse every result against the schema. Prose is not a result. A worker that
    was interrupted after committing is re-observed through its git ref, never replayed blind.
-8. **Reconcile** (range C). One integration branch, the full suite, one PR.
+8. **Reconcile.** One integration branch, cut from the *pinned* base commit. Each verified
+   range is merged `--no-ff` so the PR body can claim per-ticket provenance honestly. A range
+   whose ancestry was not proven is excluded before the branch exists — a clean `git merge`
+   exit code says nothing about *what* was merged. Files the plan marks `reconcileOnly` are
+   reverted to the base and rebuilt once, at the end.
+9. **Seal.** Run the full suite on the integrated tree. Every proof is bound to the
+   integration SHA, the diff hash and the exact argv; rebase, conflict or a moved base makes
+   it stale and it is re-run. Nothing is published on a proof about a tree that no longer
+   exists.
+10. **Publish.** One explicit, non-forced refspec, one branch, one PR. Never a worker branch:
+    pushing one publishes unreviewed history under an official-looking name and starts CI on
+    it. The body carries included and excluded tickets with their commit ranges, the conflicts
+    resolved and why, the local proofs and the remote runs actually spent.
+11. **Drive the checks.** A red check this diff explains is fixed locally and the *same*
+    branch is pushed again — counting the extra run rather than hiding it. A red check the
+    diff does not explain is escalated, never silenced: no required check is ever disabled to
+    make a run finish. When every required check is green the PR is left ready, and the
+    included tickets move to In Review with the PR link and their range.
+12. **Close on proof.** Done comes from an observed merge, never from a local cursor: an
+    absent PR is not a merge, and a closed one is not a merge either.
 
 ---
 
@@ -105,6 +124,9 @@ plan itself, not only in the prompt, so an adapter that honours the plan cannot 
 | "Only one ticket failed, ship the other three" | That is exactly right — and it is what partial success does. But the failed one keeps its branch and its blocker. |
 | "The cluster is only three tickets, skip the review budget" | The budget is what shrank it to three. |
 | "Autopilot should run the tests too" | `ticket-runner` runs them. Autopilot runs the full suite once, at reconciliation, on the integrated branch. |
+| "The suite was green before the rebase, publish" | The proof was about a tree that no longer exists. Re-run it. |
+| "That check is flaky, turn it off and the PR goes green" | The check is the gate. A failure it does not own is escalated, not silenced. |
+| "The PR is gone from the list, it must have been merged" | An absent pull request proves nothing. Done comes from an observed merge SHA. |
 
 ---
 
