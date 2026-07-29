@@ -7,7 +7,7 @@ import { createMemoryProjectCachePort, type ProjectCachePort } from './cache.js'
 import { projectFileId, type ProjectGitSnapshot } from './extractors/types.js';
 import type { ProjectChangeJournal } from './journal.js';
 import { createNodeProjectRootPort } from './root.js';
-import { createExactProjectChangeJournal } from './test-support.js';
+import { createExactProjectChangeJournal, fixtureCompilerLookup } from './test-support.js';
 
 function availableGit(): ProjectGitSnapshot {
 	return Object.freeze({
@@ -85,6 +85,7 @@ function buildOptions(root: string, cache: ProjectCachePort) {
 	return {
 		root,
 		cache,
+		compilerLookup: fixtureCompilerLookup(),
 		git: { inspect: async () => availableGit() },
 		journal: createExactProjectChangeJournal(),
 	};

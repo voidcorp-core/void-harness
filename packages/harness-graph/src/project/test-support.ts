@@ -2,6 +2,10 @@ import { execFile } from 'node:child_process';
 import { lstat, readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
+import {
+	type CompilerLookup,
+	createNodeCompilerLookup,
+} from './extractors/compiler-host.js';
 import { projectPathIsIgnored } from './extractors/filesystem.js';
 import type { ProjectRootIdentity } from './extractors/types.js';
 import type {
@@ -217,4 +221,22 @@ class ExactProjectJournal implements ProjectChangeJournal {
 
 export function createExactProjectChangeJournal(): ProjectChangeJournal {
 	return Object.freeze(new ExactProjectJournal());
+}
+
+
+/**
+ * The compiler a fixture project is analysed with.
+ *
+ * Fixtures are throwaway trees with no `node_modules`, so they resolve no
+ * compiler of their own and would every one of them build a partial snapshot.
+ * Injecting this repository's compiler is what keeps those tests about the thing
+ * they are testing. It is a TEST affordance on purpose: production never falls
+ * back to the harness's compiler, which is the whole point of the port.
+ */
+export function fixtureCompilerLookup(): CompilerLookup {
+	const node = createNodeCompilerLookup();
+	return Object.freeze({
+		resolve: () => node.resolve(process.cwd()),
+		load: (modulePath: string) => node.load(modulePath),
+	});
 }

@@ -18,6 +18,15 @@ import type {
 	ProjectRootIdentity,
 	ProjectRootPort,
 } from './extractors/types.js';
+import {
+	type CompilerLookup,
+	type CompilerResolution,
+	createNodeCompilerLookup,
+	LOST_WITHOUT_COMPILER,
+	resolveProjectCompiler,
+	selectCompilerAdapter,
+	type TypeScriptApi,
+} from './extractors/compiler-host.js';
 import { createTypeScriptExtractor } from './extractors/typescript.js';
 import {
 	defaultProjectChangeJournal,
@@ -49,6 +58,8 @@ export interface ProjectGraphBuildOptions {
 	readonly cache?: ProjectCachePort;
 	readonly git?: ProjectGitPort;
 	readonly extractor?: ProjectExtractor;
+	/** How the analysed project's compiler is found; injected in tests. */
+	readonly compilerLookup?: CompilerLookup;
 	readonly rootPort?: ProjectRootPort;
 	readonly journal?: ProjectChangeJournal;
 	readonly now?: () => number;
@@ -95,6 +106,8 @@ export interface ProjectBuildContext {
 	readonly cache: ProjectCachePort;
 	readonly gitPort: ProjectGitPort;
 	readonly extractor: ProjectExtractor;
+	readonly compiler: CompilerResolution;
+	readonly compilerApi: TypeScriptApi | undefined;
 	readonly extractionKey: string;
 	readonly now: () => number;
 	readonly heapUsed: () => number;
@@ -122,6 +135,8 @@ interface PreparedEnvironment {
 	readonly cache: ProjectCachePort;
 	readonly gitPort: ProjectGitPort;
 	readonly extractor: ProjectExtractor;
+	readonly compiler: CompilerResolution;
+	readonly compilerApi: TypeScriptApi | undefined;
 	readonly extractionKey: string;
 	readonly now: () => number;
 	readonly heapUsed: () => number;
@@ -172,6 +187,52 @@ function scanLimits(options: ProjectGraphBuildOptions): ProjectBuildContext['sca
 	});
 }
 
+/**
+ * The extractor used when the project resolves no usable compiler.
+ *
+ * It supports nothing, so extraction is empty rather than wrong. The build issue
+ * raised alongside it is what turns "empty" into "partial, and here is why".
+ */
+function unavailableExtractor(): ProjectExtractor {
+	return Object.freeze({
+		id: 'typescript-unavailable',
+		version: 'none',
+		supports: () => false,
+		extract: () =>
+			Object.freeze({
+				imports: Object.freeze([]),
+				exports: Object.freeze([]),
+				symbols: Object.freeze([]),
+				tests: Object.freeze([]),
+				diagnostics: Object.freeze([]),
+			}),
+	});
+}
+
+/**
+ * Resolve the compiler of the project being analysed.
+ *
+ * A resolved compiler whose major this codebase was not written against is
+ * treated as unusable, not as close enough. Module resolution and tsconfig
+ * inheritance are exactly what these extractors depend on, and those rules move
+ * between majors — running anyway would produce a graph that is wrong in a way
+ * nothing downstream can detect.
+ */
+async function resolveAnalysedCompiler(
+	projectRoot: string,
+	lookup: CompilerLookup | undefined,
+): Promise<CompilerResolution> {
+	const resolution = await resolveProjectCompiler(projectRoot, lookup ?? createNodeCompilerLookup());
+	if (resolution.kind !== 'resolved') return resolution;
+	const selection = selectCompilerAdapter(resolution.version);
+	if (selection.kind === 'supported') return resolution;
+	return Object.freeze({
+		kind: 'unloadable',
+		detail: selection.detail,
+		lost: LOST_WITHOUT_COMPILER,
+	});
+}
+
 async function prepareEnvironment(options: ProjectGraphBuildOptions): Promise<PreparedEnvironment> {
 	const limits = scanLimits(options);
 	const maxPeakHeapDeltaBytes = boundedHeapLimit(
@@ -183,7 +244,11 @@ async function prepareEnvironment(options: ProjectGraphBuildOptions): Promise<Pr
 	const filesystem = options.filesystem ?? createNodeFileSystemPort();
 	const cache = options.cache ?? defaultProjectCachePort();
 	const gitPort = options.git ?? createNodeGitPort();
-	const extractor = options.extractor ?? createTypeScriptExtractor();
+	const compiler = await resolveAnalysedCompiler(projectRoot.path, options.compilerLookup);
+	const compilerApi = compiler.kind === 'resolved' ? compiler.api : undefined;
+	const extractor =
+		options.extractor ??
+		(compilerApi === undefined ? unavailableExtractor() : createTypeScriptExtractor(compilerApi));
 	const extractionKey = `${PROJECT_EXTRACTION_VERSION}:${extractor.id}@${extractor.version}`;
 	const now = options.now ?? (() => performance.now());
 	const heapUsed = options.heapUsed ?? (() => process.memoryUsage().heapUsed);
@@ -200,6 +265,8 @@ async function prepareEnvironment(options: ProjectGraphBuildOptions): Promise<Pr
 		cache,
 		gitPort,
 		extractor,
+		compiler,
+		compilerApi,
 		extractionKey,
 		now,
 		heapUsed,
@@ -400,8 +467,27 @@ export async function prepareProjectBuild(
 		ledger: createLedger(rootStable, journalState.available, peakHeap),
 	};
 	recordUnknownCaseSensitivity(context);
+	recordUnavailableCompiler(context);
 	await validateInitialEvidence(context, loaded);
 	return context;
+}
+
+/**
+ * Say, once, that this snapshot was built without the project's compiler.
+ *
+ * The message names the cause and what the snapshot therefore does not carry.
+ * A partial result that explains itself can be acted on; a silently empty one
+ * reads as a project with no imports.
+ */
+function recordUnavailableCompiler(context: ProjectBuildContext): void {
+	if (context.compiler.kind === 'resolved') return;
+	context.ledger.issues.push(
+		Object.freeze({
+			code: 'compiler-unavailable',
+			path: '.',
+			message: `${context.compiler.detail}. Lost: ${context.compiler.lost.join('; ')}`,
+		}),
+	);
 }
 
 export function projectBuildMetrics(

@@ -1,5 +1,13 @@
+// Module resolution, performed by the ANALYSED project's compiler.
+//
+// The type-only import is erased; every value arrives as `api`. Resolution is
+// the other area whose rules move between majors, and a specifier this project
+// resolves under its own compiler but not under ours becomes an import edge that
+// silently is not in the graph.
+
 import { posix } from 'node:path';
-import ts from 'typescript';
+import type ts from 'typescript';
+import type { TypeScriptApi } from './compiler-host.js';
 import { normalizeProjectPath } from './filesystem.js';
 import { virtualProjectPath } from './typescript-config.js';
 import type { ProjectCaseSensitivity, ProjectWorkspace, TypeScriptConfig } from './types.js';
@@ -214,6 +222,7 @@ function resolveWorkspaceSpecifier(
 }
 
 function compilerSetting(
+	api: TypeScriptApi,
 	settings: Map<string, CompilerResolutionSetting>,
 	caseKey: CaseKey,
 	config?: TypeScriptConfig,
@@ -224,28 +233,29 @@ function compilerSetting(
 	const basePath = config?.basePath ?? '.';
 	const converted =
 		config?.resolvedOptions === undefined
-			? ts.convertCompilerOptionsFromJson(config?.options ?? {}, virtualProjectPath(basePath))
+			? api.convertCompilerOptionsFromJson(config?.options ?? {}, virtualProjectPath(basePath))
 			: { options: config.resolvedOptions as ts.CompilerOptions, errors: [] };
 	if (converted.errors.length > 0) return undefined;
 	const options: ts.CompilerOptions = { ...converted.options, allowJs: true, noEmit: true };
 	const created = Object.freeze({
 		options,
-		cache: ts.createModuleResolutionCache('/project', caseKey, options),
+		cache: api.createModuleResolutionCache('/project', caseKey, options),
 	});
 	settings.set(key, created);
 	return created;
 }
 
 function resolveCompilerSpecifier(
+	api: TypeScriptApi,
 	specifier: string,
 	containingPath: string,
 	config: TypeScriptConfig | undefined,
 	settings: Map<string, CompilerResolutionSetting>,
 	index: VirtualProjectIndex,
 ): string | undefined {
-	const configured = compilerSetting(settings, index.caseKey, config);
+	const configured = compilerSetting(api, settings, index.caseKey, config);
 	if (configured === undefined) return undefined;
-	const resolved = ts.resolveModuleName(
+	const resolved = api.resolveModuleName(
 		specifier,
 		virtualProjectPath(containingPath),
 		configured.options,
@@ -266,9 +276,10 @@ function unresolvedResolver(
 }
 
 export function createTypeScriptModuleResolver(
+	api: TypeScriptApi,
 	projectFiles: ReadonlySet<string>,
 	workspaces: readonly ProjectWorkspace[] = [],
-	caseSensitive: ProjectCaseSensitivity = ts.sys.useCaseSensitiveFileNames,
+	caseSensitive: ProjectCaseSensitivity = api.sys.useCaseSensitiveFileNames,
 ): TypeScriptModuleResolver {
 	const workspaceNameCollisions = findDuplicateWorkspaceNames(workspaces);
 	if (caseSensitive === 'unknown') return unresolvedResolver(workspaceNameCollisions);
@@ -283,20 +294,28 @@ export function createTypeScriptModuleResolver(
 			containingPath: string,
 			config?: TypeScriptConfig,
 		): string | undefined {
-			const compiler = resolveCompilerSpecifier(specifier, containingPath, config, settings, index);
+			const compiler = resolveCompilerSpecifier(
+					api,
+					specifier,
+					containingPath,
+					config,
+					settings,
+					index,
+				);
 			return compiler ?? resolveWorkspaceSpecifier(specifier, indexedWorkspaces, resolveCandidate);
 		},
 	});
 }
 
 export function resolveTypeScriptModule(
+	api: TypeScriptApi,
 	specifier: string,
 	containingPath: string,
 	projectFiles: ReadonlySet<string>,
 	config?: TypeScriptConfig,
 	workspaces: readonly ProjectWorkspace[] = [],
-	caseSensitive: ProjectCaseSensitivity = ts.sys.useCaseSensitiveFileNames,
+	caseSensitive: ProjectCaseSensitivity = api.sys.useCaseSensitiveFileNames,
 ): string | undefined {
-	const resolver = createTypeScriptModuleResolver(projectFiles, workspaces, caseSensitive);
+	const resolver = createTypeScriptModuleResolver(api, projectFiles, workspaces, caseSensitive);
 	return resolver.resolve(specifier, containingPath, config);
 }

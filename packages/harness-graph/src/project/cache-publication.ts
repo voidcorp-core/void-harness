@@ -40,6 +40,7 @@ function assembleRendering(
 		context.projectRoot.caseSensitive,
 		evidence.configsByPath,
 		evidence.snapshot.id,
+		context.compiler,
 	);
 }
 

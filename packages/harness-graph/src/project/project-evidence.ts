@@ -189,8 +189,12 @@ function collectTypeScriptConfigs(
 	context: ProjectBuildContext,
 	entries: readonly ProjectGraphCacheEntry[],
 ): ReadonlyMap<string, TypeScriptConfig> {
+	// Without the project's own compiler there is no inheritance to resolve, and
+	// resolving it with another one is how a path alias quietly changes meaning.
+	if (context.compilerApi === undefined) return new Map();
 	try {
 		return resolveTypeScriptConfigInheritance(
+			context.compilerApi,
 			entries.flatMap((entry) =>
 				entry.extraction.typeScriptConfig === undefined ? [] : [entry.extraction.typeScriptConfig],
 			),

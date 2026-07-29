@@ -29,6 +29,7 @@ import {
 	type ProjectGraphCache,
 	sealProjectGraphCache,
 } from './cache.js';
+import ts from 'typescript';
 import { createNodeFileSystemPort } from './extractors/filesystem.js';
 import { projectFileId, type ProjectGitSnapshot } from './extractors/types.js';
 import { createTypeScriptExtractor } from './extractors/typescript.js';
@@ -37,7 +38,7 @@ import {
 	createNodeProjectChangeJournal,
 	type ProjectWatchPort,
 } from './journal.js';
-import { createExactProjectChangeJournal } from './test-support.js';
+import { createExactProjectChangeJournal, fixtureCompilerLookup } from './test-support.js';
 // @ts-expect-error -- shared JS conformance helper, no type declarations
 import { packageManagerCommand } from '../../../cli/scripts/conformance-process.mjs';
 
@@ -73,7 +74,14 @@ function controlledChangeJournal() {
 }
 
 function buildProjectGraphNative(options: ProjectGraphBuildOptions) {
-	return buildProjectGraphUnbound({ journal: trustedJournal, ...options });
+	// Fixtures carry no node_modules, so they resolve no compiler of their own
+	// and would every one of them build a partial snapshot. Production never
+	// falls back like this; see `fixtureCompilerLookup`.
+	return buildProjectGraphUnbound({
+		journal: trustedJournal,
+		compilerLookup: fixtureCompilerLookup(),
+		...options,
+	});
 }
 
 function buildProjectGraph(options: ProjectGraphBuildOptions) {
@@ -895,7 +903,7 @@ it(
 
 it('invalidates extraction records when their producer changes', async () => {
 	const root = await fixtureCopy();
-	const baseExtractor = createTypeScriptExtractor();
+	const baseExtractor = createTypeScriptExtractor(ts);
 	await buildProjectGraph({
 		root,
 		extractor: { ...baseExtractor, id: 'fixture-extractor', version: '1' },
@@ -1383,7 +1391,7 @@ it.each([
 
 it('converts invalid extractor output into a bounded partial graph', async () => {
 	const root = await fixtureCopy();
-	const base = createTypeScriptExtractor();
+	const base = createTypeScriptExtractor(ts);
 	const result = await buildProjectGraph({
 		root,
 		extractor: {

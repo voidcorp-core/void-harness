@@ -29,7 +29,13 @@ try {
 		JSON.stringify({
 			private: true,
 			type: 'module',
-			dependencies: { '@voidcorp/harness-graph': 'file:./harness-graph.tgz' },
+			dependencies: {
+				'@voidcorp/harness-graph': 'file:./harness-graph.tgz',
+				// The consumer installs its own compiler, as a real project does.
+				// harness-graph does not hand one over: the analysed project's
+				// compiler is the one that must do the analysis.
+				typescript: '^5.6.0',
+			},
 		}),
 	);
 	run(pnpm.executable, [...pnpm.prefixArguments, 'install', '--prefer-offline', '--ignore-scripts', '--no-frozen-lockfile'], consumer);
@@ -41,10 +47,11 @@ try {
 			"import { join } from 'node:path';",
 			"import { buildProjectGraph } from '@voidcorp/harness-graph/project';",
 			"import { createMemoryProjectCachePort } from '@voidcorp/harness-graph/project';",
-			"const root = await mkdtemp(join(tmpdir(), 'void-project-graph-import-'));",
-			'try {',
-			"await writeFile(join(root, 'package.json'), JSON.stringify({ name: 'fixture' }));",
-			"await writeFile(join(root, 'index.ts'), 'export const value = 1;\\n');",
+			// The analysed project lives INSIDE the consumer, so it resolves the',
+			"// consumer's own TypeScript. That is the contract this package now",
+			'// holds: a project is analysed by its own compiler, never by one the',
+			'// harness carries. A fixture in the system temp directory resolves',
+			'// none, and is asserted below to degrade rather than to borrow ours.',
 			'const git = { inspect: async () => ({',
 			"  head: 'a'.repeat(40), changed: [], deleted: [], renames: [], owners: {},",
 			'  availability: {',
@@ -60,11 +67,17 @@ try {
 			"  validate: async () => 'valid',",
 			'  accept: () => true, dispose: () => undefined, close: () => undefined,',
 			'});',
+			"const root = await mkdtemp(join(process.cwd(), 'project-'));",
+			'try {',
+			"await writeFile(join(root, 'package.json'), JSON.stringify({ name: 'fixture' }));",
+			"await writeFile(join(root, 'index.ts'), 'export const value = 1;\\n');",
 			'const result = await buildProjectGraph({',
 			'  root, git, cache: createMemoryProjectCachePort(), journal,',
 			'});',
 			"if (result.state !== 'fresh' || result.metrics.extractedFiles !== 2)",
 			"  throw new Error('packed ProjectGraph smoke failed');",
+			"if (!result.graph.source.version.includes('+typescript.5.'))",
+			"  throw new Error('packed ProjectGraph did not record its compiler version');",
 			'if (!/^sha256:[a-f0-9]{64}$/.test(result.snapshot.id)',
 			"  || result.snapshot.semantics !== 'observed-content-v1')",
 			"  throw new Error('packed ProjectGraph snapshot identity failed');",
@@ -74,10 +87,31 @@ try {
 			'} finally {',
 			'  await rm(root, { recursive: true, force: true });',
 			'}',
+			'',
+			'// Same build, on a project that resolves no compiler at all.',
+			"const orphan = await mkdtemp(join(tmpdir(), 'void-project-graph-orphan-'));",
+			'try {',
+			"await writeFile(join(orphan, 'package.json'), JSON.stringify({ name: 'orphan' }));",
+			"await writeFile(join(orphan, 'index.ts'), 'export const value = 1;\\n');",
+			'const degraded = await buildProjectGraph({',
+			'  root: orphan, git, cache: createMemoryProjectCachePort(), journal,',
+			'});',
+			"if (degraded.state === 'fresh')",
+			"  throw new Error('a project with no compiler must not build a complete snapshot');",
+			"const issue = degraded.issues.find((entry) => entry.code === 'compiler-unavailable');",
+			'if (issue === undefined || !/Lost:/.test(issue.message))',
+			"  throw new Error('a missing compiler must name itself and what it cost');",
+			'} finally {',
+			'  await rm(orphan, { recursive: true, force: true });',
+			'}',
 		].join('\n'),
 	);
 	run(process.execPath, ['smoke.mjs'], consumer);
 	process.stdout.write('ProjectGraph packed subpath conformance passed.\n');
 } finally {
-	await rm(temporary, { recursive: true, force: true });
+	if (process.env['VOID_KEEP_CONFORMANCE'] === undefined) {
+		await rm(temporary, { recursive: true, force: true });
+	} else {
+		process.stdout.write(`kept ${temporary}\n`);
+	}
 }

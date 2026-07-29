@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, rename, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fixtureCompilerLookup } from './test-support.js';
 import { describe, expect, it } from 'vitest';
 import { buildProjectGraph } from './build.js';
 import { createMemoryProjectCachePort } from './cache.js';
@@ -47,6 +48,7 @@ async function expectUnavailableJournalBuild(
 	journal: ProjectChangeJournal,
 ): Promise<void> {
 	const result = await buildProjectGraph({
+			compilerLookup: fixtureCompilerLookup(),
 		root,
 		journal,
 		cache: createMemoryProjectCachePort(),

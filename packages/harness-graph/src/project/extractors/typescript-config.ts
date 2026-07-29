@@ -1,5 +1,13 @@
+// Config parsing, performed by the ANALYSED project's compiler.
+//
+// The type-only import is erased; every value arrives as `api`, resolved from
+// the project by `compiler-host`. tsconfig inheritance is one of the two areas
+// whose rules genuinely move between majors, so reading a project's config with
+// a compiler it did not choose is how path aliases silently stop applying.
+
 import { posix } from 'node:path';
-import ts from 'typescript';
+import type ts from 'typescript';
+import type { TypeScriptApi } from './compiler-host.js';
 import { normalizeProjectPath } from './filesystem.js';
 import type { TypeScriptConfig } from './types.js';
 
@@ -45,11 +53,15 @@ export function virtualProjectPath(path: string): string {
 	return posix.join('/project', normalizeProjectPath(path));
 }
 
-export function parseTypeScriptConfig(path: string, content: string): TypeScriptConfig {
+export function parseTypeScriptConfig(
+	api: TypeScriptApi,
+	path: string,
+	content: string,
+): TypeScriptConfig {
 	const normalized = normalizeProjectPath(path);
-	const parsed = ts.parseConfigFileTextToJson(normalized, content);
+	const parsed = api.parseConfigFileTextToJson(normalized, content);
 	if (parsed.error !== undefined) {
-		const message = ts.flattenDiagnosticMessageText(parsed.error.messageText, '\n');
+		const message = api.flattenDiagnosticMessageText(parsed.error.messageText, '\n');
 		return configError(message);
 	}
 	const config = jsonRecord(parsed.config, 'config');
@@ -57,10 +69,10 @@ export function parseTypeScriptConfig(path: string, content: string): TypeScript
 		config['compilerOptions'] === undefined
 			? Object.freeze({})
 			: jsonRecord(config['compilerOptions'], 'compilerOptions');
-	const converted = ts.convertCompilerOptionsFromJson(options, posix.dirname(normalized));
+	const converted = api.convertCompilerOptionsFromJson(options, posix.dirname(normalized));
 	const firstError = converted.errors[0];
 	if (firstError !== undefined) {
-		return configError(ts.flattenDiagnosticMessageText(firstError.messageText, '\n'));
+		return configError(api.flattenDiagnosticMessageText(firstError.messageText, '\n'));
 	}
 	return Object.freeze({
 		path: normalized,
@@ -71,9 +83,13 @@ export function parseTypeScriptConfig(path: string, content: string): TypeScript
 	});
 }
 
-function parseResolvedConfig(config: TypeScriptConfig, host: ts.ParseConfigHost): TypeScriptConfig {
+function parseResolvedConfig(
+	api: TypeScriptApi,
+	config: TypeScriptConfig,
+	host: ts.ParseConfigHost,
+): TypeScriptConfig {
 	const mutableRaw = JSON.parse(JSON.stringify(config.raw)) as unknown;
-	const parsed = ts.parseJsonConfigFileContent(
+	const parsed = api.parseJsonConfigFileContent(
 		jsonRecord(mutableRaw, 'config'),
 		host,
 		virtualProjectPath(posix.dirname(config.path)),
@@ -82,7 +98,7 @@ function parseResolvedConfig(config: TypeScriptConfig, host: ts.ParseConfigHost)
 	);
 	const firstError = parsed.errors.find((diagnostic) => diagnostic.code !== 18003);
 	if (firstError !== undefined) {
-		return configError(ts.flattenDiagnosticMessageText(firstError.messageText, '\n'));
+		return configError(api.flattenDiagnosticMessageText(firstError.messageText, '\n'));
 	}
 	const pathsBasePath = parsed.options['pathsBasePath'];
 	const basePath =
@@ -97,6 +113,7 @@ function parseResolvedConfig(config: TypeScriptConfig, host: ts.ParseConfigHost)
 }
 
 function resolveConfig(
+	api: TypeScriptApi,
 	config: TypeScriptConfig,
 	byFile: ReadonlyMap<string, TypeScriptConfig>,
 	caseKey: CaseKey,
@@ -114,9 +131,9 @@ function resolveConfig(
 	for (const extendsPath of config.extendsPaths) {
 		const parent = byFile.get(caseKey(extendsPath));
 		if (parent === undefined) return configError(`extends target ${extendsPath} is missing`);
-		resolveConfig(parent, byFile, caseKey, host, resolved, visiting, depth + 1);
+		resolveConfig(api, parent, byFile, caseKey, host, resolved, visiting, depth + 1);
 	}
-	const value = parseResolvedConfig(config, host);
+	const value = parseResolvedConfig(api, config, host);
 	visiting.delete(identity);
 	resolved.set(identity, value);
 	return value;
@@ -232,8 +249,9 @@ function indexConfigDirectories(
 }
 
 export function resolveTypeScriptConfigInheritance(
+	api: TypeScriptApi,
 	configs: readonly TypeScriptConfig[],
-	caseSensitive: boolean | 'unknown' = ts.sys.useCaseSensitiveFileNames,
+	caseSensitive: boolean | 'unknown',
 ): ReadonlyMap<string, TypeScriptConfig> {
 	if (caseSensitive === 'unknown') return new Map();
 	const caseKey: CaseKey = caseSensitive ? (path) => path : (path) => path.toLowerCase();
@@ -258,7 +276,7 @@ export function resolveTypeScriptConfigInheritance(
 	const resolved = new Map<string, TypeScriptConfig>();
 	const visiting = new Set<string>();
 	for (const config of configs) {
-		resolveConfig(config, byFile, caseKey, host, resolved, visiting, 0);
+		resolveConfig(api, config, byFile, caseKey, host, resolved, visiting, 0);
 	}
 	return indexConfigDirectories([...resolved.values()], byFile, caseKey);
 }

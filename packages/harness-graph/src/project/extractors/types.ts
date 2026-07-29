@@ -76,6 +76,7 @@ export interface ProjectScannedFile {
 export type ProjectBuildIssueCode =
 	| 'binary-file'
 	| 'cache-unavailable'
+	| 'compiler-unavailable'
 	| 'case-sensitivity-unknown'
 	| 'concurrent-change'
 	| 'byte-limit'
