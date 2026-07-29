@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.3.0](https://github.com/voidcorp-core/void-harness/compare/v2.2.0...v2.3.0) (2026-07-29)
+
+
+### Features
+
+* add native project topology and dynamic specialist routing (DEV-436, DEV-440) ([e1cd55d](https://github.com/voidcorp-core/void-harness/commit/e1cd55d1861807bab83bcc9c5e3a3f5cff429ab6))
+* **graph:** add native project topology extraction ([ea32cfa](https://github.com/voidcorp-core/void-harness/commit/ea32cfab4b8b8e8f8977829dee7a761fcd4129c0))
+* **specialists:** complete dynamic team routing ([7078014](https://github.com/voidcorp-core/void-harness/commit/707801492b5499ca89b35fa03129ec1b0409d209))
+
+
+### Bug Fixes
+
+* **benchmark:** honour the stability signal because an advisory journal is not an invariant ([031a8b4](https://github.com/voidcorp-core/void-harness/commit/031a8b4e77ef39dc292f24a85115ccc262dad0fa))
+* **ci:** build before the ProjectGraph benchmark because it resolves cross-package dist exports ([26401d3](https://github.com/voidcorp-core/void-harness/commit/26401d3017acca1de453257465a381d9c2013272))
+* **project-graph:** canonicalise the cache root key with the native realpath because casing must match the root port ([ad2ea29](https://github.com/voidcorp-core/void-harness/commit/ad2ea29ea37548777b555279b5b6776f873c1679))
+* **project-graph:** launch pnpm through the shared helper because Windows rejects cmd shims ([c3e3e5d](https://github.com/voidcorp-core/void-harness/commit/c3e3e5d12170a16956444ff2127d9609e80149cf))
+* **release:** name the repository for the CI dispatch ([c92da52](https://github.com/voidcorp-core/void-harness/commit/c92da52973cebd5e038d6f7879821da5a039b069))
+* **release:** name the repository for the CI dispatch because gh has no worktree to infer it from ([d6f5c0b](https://github.com/voidcorp-core/void-harness/commit/d6f5c0b6c9a1de09c3924bd35b68af471375cc1a))
+* **test:** mirror the root test timeout because a filtered run must not judge differently ([4dffb7b](https://github.com/voidcorp-core/void-harness/commit/4dffb7b703b963e3d7b2c961adf8a6b4993e785f))
+
 ## [2.2.0](https://github.com/voidcorp-core/void-harness/compare/v2.1.0...v2.2.0) (2026-07-28)
 
 

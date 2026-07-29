@@ -1,6 +1,6 @@
 {
   "name": "harness-server",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Server-side conventions for the void-harness: Server Actions trust boundary (defineAction, defineFormAction), webhook safety (withWebhookSafety), Zod ingress, rate limit, Drizzle migrations, structured errors. Works across Next.js, Hono, and standalone Node/Bun servers.",
   "author": {
     "name": "VoidCorp",
