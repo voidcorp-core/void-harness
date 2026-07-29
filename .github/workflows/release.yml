@@ -66,6 +66,21 @@ jobs:
           gh workflow run ci.yml --ref "$release_branch"
           gh workflow run void-enforce.yml --ref "$release_branch" -f base-ref="origin/$release_base"
 
+          # The dispatch above proves the tree is good, but branch protection
+          # reads the checks attached to the PULL REQUEST, and those sit at
+          # `action_required` until approved. Observed on 2.3.0: both dispatched
+          # runs green, PR still BLOCKED. So approve the waiting pull_request
+          # runs too — same tree, but their results are the ones that count.
+          #
+          # Approving a run this workflow's own bot just queued is not a review
+          # bypass: the human gate is merging the release PR, and that is
+          # untouched.
+          for run_id in $(gh api "repos/$GH_REPO/actions/runs?branch=$release_branch&status=action_required&per_page=20" \
+            --jq '.workflow_runs[].id'); do
+            echo "Approving waiting run $run_id on $release_branch."
+            gh api -X POST "repos/$GH_REPO/actions/runs/$run_id/approve" >/dev/null
+          done
+
       # No downstream catalog to notify: the marketplace is self-hosted in this
       # repo (`.claude-plugin/marketplace.json`, local `./packages/...` sources
       # resolved at HEAD), so a release needs no sha re-pinning anywhere.

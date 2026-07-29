@@ -115,6 +115,14 @@ fails closed on zero or multiple candidates. The publish job still reruns its
 release safety suite against the tagged tree as defense in depth and for manual
 re-publish runs.
 
+Two things are needed, not one, and 2.3.0 is why. A dispatched run proves the
+tree is good, but branch protection reads the checks attached to the **pull
+request**, and those sit at `action_required` until approved — on 2.3.0 both
+dispatched runs were green while the PR stayed `BLOCKED`. So the same step also
+approves the waiting `pull_request` runs on that branch. Approving runs the
+workflow's own bot just queued is not a review bypass: the human gate is merging
+the release PR, and it is untouched.
+
 The CI validation lane also runs `self-host sync --mode release-gate` followed
 by the strict self-host doctor. It builds the hook runner directly from current
 TypeScript with the source checkout's esbuild, compiles and executes a

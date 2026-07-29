@@ -49,6 +49,16 @@ describe('release pull request CI workflow', () => {
     expect(releasePleaseJob).toContain('GH_REPO: ${{ github.repository }}');
   });
 
+  it('approves the pull-request-context runs because only they satisfy branch protection', () => {
+    // A dispatched run proves the tree is good, but branch protection reads the
+    // checks attached to the PR — and those sit at `action_required` until
+    // someone approves them. Observed on release 2.3.0: both dispatched runs
+    // were green while the PR stayed BLOCKED. Approving is what unblocks.
+    expect(releaseWorkflow).toContain('/actions/runs/');
+    expect(releaseWorkflow).toContain('/approve');
+    expect(releaseWorkflow).toContain('action_required');
+  });
+
   it('resolves exactly one bounded release pull request before dispatching its branch', () => {
     expect(releaseWorkflow).toContain("--label 'autorelease: pending'");
     expect(releaseWorkflow).toContain('--limit 2');
