@@ -49,6 +49,22 @@ describe('release pull request CI workflow', () => {
     expect(releasePleaseJob).toContain('GH_REPO: ${{ github.repository }}');
   });
 
+  it('polls for the release pull request because prs_created precedes its indexing', () => {
+    // Observed on 2.3.1: the label search returned zero candidates one second
+    // before the PR appeared, and the step failed closed on a race rather than
+    // on a real condition.
+    const step = releaseWorkflow.split('Dispatch required CI for the release PR')[1] ?? '';
+    expect(step).toMatch(/for _ in \$\(seq 1 \d+\); do/);
+    expect(step).toContain('sleep 5');
+    // Failing closed on a genuinely missing candidate must survive the polling.
+    expect(step).toContain('"$release_count" -ne 1');
+  });
+
+  it('fails closed when both required runs could not be approved', () => {
+    const step = releaseWorkflow.split('Dispatch required CI for the release PR')[1] ?? '';
+    expect(step).toContain('"$approved" -lt 2');
+  });
+
   it('approves the pull-request-context runs because only they satisfy branch protection', () => {
     // A dispatched run proves the tree is good, but branch protection reads the
     // checks attached to the PR — and those sit at `action_required` until

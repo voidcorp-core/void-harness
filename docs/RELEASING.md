@@ -123,6 +123,14 @@ approves the waiting `pull_request` runs on that branch. Approving runs the
 workflow's own bot just queued is not a review bypass: the human gate is merging
 the release PR, and it is untouched.
 
+Both halves poll, and 2.3.1 is why. `prs_created` turns true when the API call
+returns, not when the PR becomes searchable by label: the step listed zero
+candidates one second before the PR appeared, and failed closed on a race rather
+than on a real condition. GitHub also queues the `pull_request` runs on its own
+schedule, so a single pass can look at the branch before they exist. Both loops
+are bounded and still fail closed — a genuinely missing candidate, or fewer than
+two approved runs, stops the release.
+
 The CI validation lane also runs `self-host sync --mode release-gate` followed
 by the strict self-host doctor. It builds the hook runner directly from current
 TypeScript with the source checkout's esbuild, compiles and executes a
