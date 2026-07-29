@@ -67,6 +67,9 @@ What is installed, in numbers:
 
 You can still call a skill explicitly when you want that one and not the one
 that would have matched: `/harness:tdd` on Claude Code, or by name on Codex.
+Agents work the same way: `doctrine-critic` judges a diff against the doctrine,
+while `solution-architect`, `security-engineer` and `test-qa-engineer` each
+review in their own fresh context.
 
 The commands worth knowing are the ones no sentence can trigger, because they
 report or change state rather than shape behaviour:
