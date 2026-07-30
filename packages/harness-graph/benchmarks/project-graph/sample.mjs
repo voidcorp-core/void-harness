@@ -5,9 +5,20 @@ import { fileURLToPath } from 'node:url';
 import {
 	buildProjectGraph,
 	createMemoryProjectCachePort,
+	createNodeCompilerLookup,
 	createNodeProjectChangeJournal,
 	createNodeProjectRootPort,
 } from '../../dist/project/index.js';
+
+// The benchmark fixture is a bare tree in the system temp directory: it resolves
+// no compiler of its own and would measure a degraded build. Pointing the lookup
+// at this repository keeps the measurement about extraction speed. Production
+// never substitutes a compiler this way — see `compiler-host`.
+const nodeLookup = createNodeCompilerLookup();
+const compilerLookup = {
+	resolve: () => nodeLookup.resolve(process.cwd()),
+	load: (modulePath) => nodeLookup.load(modulePath),
+};
 
 const track = process.argv[2];
 const scenario = process.argv[3];
@@ -119,7 +130,7 @@ try {
 	const capabilitySequence =
 		track === 'nativeNodeJournal' ? [await probeCapability(identity)] : undefined;
 	globalThis.gc?.();
-	let result = await buildProjectGraph({ root, git, cache, journal });
+	let result = await buildProjectGraph({ root, git, cache, journal, compilerLookup });
 	if (capabilitySequence !== undefined) capabilitySequence.push(await probeCapability(identity));
 	const initialSnapshotId = result.snapshot.id;
 	const initialRootHash = result.graph.source.rootHash;
@@ -136,7 +147,7 @@ try {
 			controlled?.emitSiblingActivity();
 		}
 		globalThis.gc?.();
-		result = await buildProjectGraph({ root, git, cache, journal });
+		result = await buildProjectGraph({ root, git, cache, journal, compilerLookup });
 		if (capabilitySequence !== undefined) capabilitySequence.push(await probeCapability(identity));
 	}
 	const capabilities = capabilitySequence === undefined ? undefined : new Set(capabilitySequence);

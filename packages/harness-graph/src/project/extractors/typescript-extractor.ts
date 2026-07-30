@@ -1,4 +1,14 @@
-import ts from 'typescript';
+// Syntactic extraction, performed by the ANALYSED project's compiler.
+//
+// `ts` is a parameter here, never an import. The type-only import below is
+// erased at compile time and pulls nothing in at runtime; every value comes from
+// the compiler `compiler-host` resolved out of the project being analysed. That
+// is what lets a monorepo whose workspaces pin different compilers be analysed
+// correctly, one workspace at a time, and what keeps the published CLI free of a
+// runtime dependency on `typescript`.
+
+import type ts from 'typescript';
+import type { TypeScriptApi } from './compiler-host.js';
 import type {
 	ProjectExtractor,
 	ProjectFileExtraction,
@@ -20,88 +30,88 @@ interface ExtractionState {
 	readonly diagnostics: string[];
 }
 
-function sourceKind(path: string): ts.ScriptKind {
-	if (/\.tsx$/.test(path)) return ts.ScriptKind.TSX;
-	if (/\.jsx$/.test(path)) return ts.ScriptKind.JSX;
-	if (/\.(?:c|m)?js$/.test(path)) return ts.ScriptKind.JS;
-	return ts.ScriptKind.TS;
+function sourceKind(api: TypeScriptApi, path: string): ts.ScriptKind {
+	if (/\.tsx$/.test(path)) return api.ScriptKind.TSX;
+	if (/\.jsx$/.test(path)) return api.ScriptKind.JSX;
+	if (/\.(?:c|m)?js$/.test(path)) return api.ScriptKind.JS;
+	return api.ScriptKind.TS;
 }
 
-function hasModifier(node: ts.Node, kind: ts.SyntaxKind): boolean {
+function hasModifier(api: TypeScriptApi, node: ts.Node, kind: ts.SyntaxKind): boolean {
 	return (
-		ts.canHaveModifiers(node) &&
-		ts.getModifiers(node)?.some((modifier) => modifier.kind === kind) === true
+		api.canHaveModifiers(node) &&
+		api.getModifiers(node)?.some((modifier) => modifier.kind === kind) === true
 	);
 }
 
-function exported(node: ts.Node): boolean {
+function exported(api: TypeScriptApi, node: ts.Node): boolean {
 	return (
-		hasModifier(node, ts.SyntaxKind.ExportKeyword) &&
-		!hasModifier(node, ts.SyntaxKind.DefaultKeyword)
+		hasModifier(api, node, api.SyntaxKind.ExportKeyword) &&
+		!hasModifier(api, node, api.SyntaxKind.DefaultKeyword)
 	);
 }
 
-function namedSymbol(node: ts.Statement): ProjectSymbol | undefined {
+function namedSymbol(api: TypeScriptApi, node: ts.Statement): ProjectSymbol | undefined {
 	let name: ts.Identifier | undefined;
 	let kind: ProjectSymbolKind | undefined;
-	if (ts.isClassDeclaration(node)) [name, kind] = [node.name, 'class'];
-	else if (ts.isEnumDeclaration(node)) [name, kind] = [node.name, 'enum'];
-	else if (ts.isFunctionDeclaration(node)) [name, kind] = [node.name, 'function'];
-	else if (ts.isInterfaceDeclaration(node)) [name, kind] = [node.name, 'interface'];
-	else if (ts.isTypeAliasDeclaration(node)) [name, kind] = [node.name, 'type'];
+	if (api.isClassDeclaration(node)) [name, kind] = [node.name, 'class'];
+	else if (api.isEnumDeclaration(node)) [name, kind] = [node.name, 'enum'];
+	else if (api.isFunctionDeclaration(node)) [name, kind] = [node.name, 'function'];
+	else if (api.isInterfaceDeclaration(node)) [name, kind] = [node.name, 'interface'];
+	else if (api.isTypeAliasDeclaration(node)) [name, kind] = [node.name, 'type'];
 	if (name === undefined || kind === undefined) return undefined;
-	return Object.freeze({ name: name.text, kind, exported: exported(node) });
+	return Object.freeze({ name: name.text, kind, exported: exported(api, node) });
 }
 
-function bindingNames(name: ts.BindingName): readonly string[] {
-	if (ts.isIdentifier(name)) return [name.text];
+function bindingNames(api: TypeScriptApi, name: ts.BindingName): readonly string[] {
+	if (api.isIdentifier(name)) return [name.text];
 	return name.elements.flatMap((element) =>
-		ts.isOmittedExpression(element) ? [] : bindingNames(element.name),
+		api.isOmittedExpression(element) ? [] : bindingNames(api, element.name),
 	);
 }
 
-function variableSymbols(node: ts.Statement): readonly ProjectSymbol[] {
-	if (!ts.isVariableStatement(node)) return [];
+function variableSymbols(api: TypeScriptApi, node: ts.Statement): readonly ProjectSymbol[] {
+	if (!api.isVariableStatement(node)) return [];
 	return node.declarationList.declarations.flatMap((declaration) =>
-		bindingNames(declaration.name).map((name) =>
+		bindingNames(api, declaration.name).map((name) =>
 			Object.freeze({
 				name,
 				kind: 'variable' as const,
-				exported: exported(node),
+				exported: exported(api, node),
 			}),
 		),
 	);
 }
 
-function stringArgument(call: ts.CallExpression): string | undefined {
+function stringArgument(api: TypeScriptApi, call: ts.CallExpression): string | undefined {
 	const first = call.arguments[0];
-	return first !== undefined && ts.isStringLiteralLike(first) ? first.text : undefined;
+	return first !== undefined && api.isStringLiteralLike(first) ? first.text : undefined;
 }
 
-function vitestCallee(expression: ts.Expression): readonly string[] | undefined {
+function vitestCallee(api: TypeScriptApi, expression: ts.Expression): readonly string[] | undefined {
 	const segments: string[] = [];
 	let current = expression;
-	while (ts.isPropertyAccessExpression(current)) {
+	while (api.isPropertyAccessExpression(current)) {
 		segments.unshift(current.name.text);
 		current = current.expression;
 		if (segments.length > 2) return undefined;
 	}
-	return ts.isIdentifier(current) && (current.text === 'it' || current.text === 'test')
+	return api.isIdentifier(current) && (current.text === 'it' || current.text === 'test')
 		? Object.freeze(segments)
 		: undefined;
 }
 
-function vitestTestTitle(call: ts.CallExpression): string | undefined {
-	const direct = vitestCallee(call.expression);
+function vitestTestTitle(api: TypeScriptApi, call: ts.CallExpression): string | undefined {
+	const direct = vitestCallee(api, call.expression);
 	if (
 		direct !== undefined &&
 		(direct.length === 0 || (direct.length === 1 && VITEST_MODIFIERS.has(direct[0] ?? '')))
 	)
-		return stringArgument(call);
-	if (!ts.isCallExpression(call.expression)) return undefined;
-	const table = vitestCallee(call.expression.expression);
+		return stringArgument(api, call);
+	if (!api.isCallExpression(call.expression)) return undefined;
+	const table = vitestCallee(api, call.expression.expression);
 	if (table?.length === 1 && VITEST_CONDITIONALS.has(table[0] ?? '')) {
-		return stringArgument(call);
+		return stringArgument(api, call);
 	}
 	if (
 		table === undefined ||
@@ -110,27 +120,27 @@ function vitestTestTitle(call: ts.CallExpression): string | undefined {
 		table.slice(0, -1).some((modifier) => !VITEST_MODIFIERS.has(modifier))
 	)
 		return undefined;
-	return stringArgument(call);
+	return stringArgument(api, call);
 }
 
-function commonJsExportName(node: ts.Node): string | undefined {
-	if (!ts.isBinaryExpression(node) || node.operatorToken.kind !== ts.SyntaxKind.EqualsToken) {
+function commonJsExportName(api: TypeScriptApi, node: ts.Node): string | undefined {
+	if (!api.isBinaryExpression(node) || node.operatorToken.kind !== api.SyntaxKind.EqualsToken) {
 		return undefined;
 	}
 	const target = node.left;
-	if (!ts.isPropertyAccessExpression(target)) return undefined;
-	if (ts.isIdentifier(target.expression) && target.expression.text === 'exports') {
+	if (!api.isPropertyAccessExpression(target)) return undefined;
+	if (api.isIdentifier(target.expression) && target.expression.text === 'exports') {
 		return target.name.text;
 	}
 	if (
-		ts.isIdentifier(target.expression) &&
+		api.isIdentifier(target.expression) &&
 		target.expression.text === 'module' &&
 		target.name.text === 'exports'
 	)
 		return 'default';
 	if (
-		ts.isPropertyAccessExpression(target.expression) &&
-		ts.isIdentifier(target.expression.expression) &&
+		api.isPropertyAccessExpression(target.expression) &&
+		api.isIdentifier(target.expression.expression) &&
 		target.expression.expression.text === 'module' &&
 		target.expression.name.text === 'exports'
 	)
@@ -164,75 +174,86 @@ function addModuleImport(state: ExtractionState, specifier: string, dynamic: boo
 	state.imports.push({ specifier, dynamic });
 }
 
-function collectTopLevelDeclarations(source: ts.SourceFile, state: ExtractionState): void {
+function collectTopLevelDeclarations(
+	api: TypeScriptApi,
+	source: ts.SourceFile,
+	state: ExtractionState,
+): void {
 	for (const statement of source.statements) {
-		if (ts.isImportDeclaration(statement) && ts.isStringLiteralLike(statement.moduleSpecifier)) {
+		if (api.isImportDeclaration(statement) && api.isStringLiteralLike(statement.moduleSpecifier)) {
 			addModuleImport(state, statement.moduleSpecifier.text, false);
-		} else if (ts.isExportDeclaration(statement)) {
+		} else if (api.isExportDeclaration(statement)) {
 			const specifier = statement.moduleSpecifier;
-			if (specifier !== undefined && ts.isStringLiteralLike(specifier)) {
+			if (specifier !== undefined && api.isStringLiteralLike(specifier)) {
 				addModuleImport(state, specifier.text, false);
 			}
-			if (statement.exportClause !== undefined && ts.isNamedExports(statement.exportClause)) {
-				const names = statement.exportClause.elements.map((element) => element.name.text);
+			if (statement.exportClause !== undefined && api.isNamedExports(statement.exportClause)) {
+				const names = statement.exportClause.elements.map(
+					(element) => element.name.text);
 				state.exportNames.push(...names);
 			} else if (
 				statement.exportClause !== undefined &&
-				ts.isNamespaceExport(statement.exportClause)
+				api.isNamespaceExport(statement.exportClause)
 			)
 				state.exportNames.push(statement.exportClause.name.text);
 			else if (statement.exportClause === undefined) state.exportNames.push('*');
-		} else if (ts.isExportAssignment(statement)) state.exportNames.push('default');
-		else collectImportEquals(statement, state);
-		if (hasModifier(statement, ts.SyntaxKind.DefaultKeyword)) state.exportNames.push('default');
-		const symbol = namedSymbol(statement);
+		} else if (api.isExportAssignment(statement)) state.exportNames.push('default');
+		else collectImportEquals(api, statement, state);
+		if (hasModifier(api, statement, api.SyntaxKind.DefaultKeyword))
+			state.exportNames.push('default');
+		const symbol = namedSymbol(api, statement);
 		if (symbol !== undefined) state.symbols.push(symbol);
-		state.symbols.push(...variableSymbols(statement));
+		state.symbols.push(...variableSymbols(api, statement));
 	}
 }
 
-function collectImportEquals(statement: ts.Statement, state: ExtractionState): void {
+function collectImportEquals(
+	api: TypeScriptApi,
+	statement: ts.Statement,
+	state: ExtractionState,
+): void {
 	if (
-		!ts.isImportEqualsDeclaration(statement) ||
-		!ts.isExternalModuleReference(statement.moduleReference)
+		!api.isImportEqualsDeclaration(statement) ||
+		!api.isExternalModuleReference(statement.moduleReference)
 	)
 		return;
 	const expression = statement.moduleReference.expression;
-	if (expression !== undefined && ts.isStringLiteralLike(expression)) {
+	if (expression !== undefined && api.isStringLiteralLike(expression)) {
 		addModuleImport(state, expression.text, false);
 	}
 }
 
 function collectSyntaxEvidence(
+	api: TypeScriptApi,
 	source: ts.SourceFile,
 	input: ProjectFileInput,
 	state: ExtractionState,
 ): void {
 	const visit = (node: ts.Node): void => {
-		if (ts.isCallExpression(node)) {
-			const specifier = stringArgument(node);
-			if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+		if (api.isCallExpression(node)) {
+			const specifier = stringArgument(api, node);
+			if (node.expression.kind === api.SyntaxKind.ImportKeyword) {
 				if (specifier === undefined) {
 					state.diagnostics.push('dynamic import must use a string literal');
 				} else addModuleImport(state, specifier, true);
 			} else if (
-				ts.isIdentifier(node.expression) &&
+				api.isIdentifier(node.expression) &&
 				node.expression.text === 'require' &&
 				specifier !== undefined
 			)
 				addModuleImport(state, specifier, false);
 			else {
-				const testTitle = vitestTestTitle(node);
+				const testTitle = vitestTestTitle(api, node);
 				if (testTitle !== undefined) state.tests.push(testTitle);
 			}
 		}
 		if (/\.(?:c?js|jsx)$/.test(input.path)) {
-			const commonJsName = commonJsExportName(node);
+			const commonJsName = commonJsExportName(api, node);
 			if (commonJsName !== undefined) state.exportNames.push(commonJsName);
 		}
-		ts.forEachChild(node, visit);
+		api.forEachChild(node, visit);
 	};
-	ts.forEachChild(source, visit);
+	api.forEachChild(source, visit);
 }
 
 function completeExportSurface(
@@ -254,25 +275,25 @@ function completeExportSurface(
 	return surfaceSymbols;
 }
 
-function compilerDiagnostics(input: ProjectFileInput): readonly string[] {
+function compilerDiagnostics(api: TypeScriptApi, input: ProjectFileInput): readonly string[] {
 	const diagnostics =
-		ts.transpileModule(input.content, {
+		api.transpileModule(input.content, {
 			fileName: input.path,
 			compilerOptions: { allowJs: true, noEmit: true },
 			reportDiagnostics: true,
 		}).diagnostics ?? [];
 	return diagnostics
-		.filter((diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error)
-		.map((diagnostic) => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'));
+		.filter((diagnostic) => diagnostic.category === api.DiagnosticCategory.Error)
+		.map((diagnostic) => api.flattenDiagnosticMessageText(diagnostic.messageText, '\n'));
 }
 
-function extractTypeScript(input: ProjectFileInput): ProjectFileExtraction {
-	const source = ts.createSourceFile(
+function extractTypeScript(api: TypeScriptApi, input: ProjectFileInput): ProjectFileExtraction {
+	const source = api.createSourceFile(
 		input.path,
 		input.content,
-		ts.ScriptTarget.Latest,
+		api.ScriptTarget.Latest,
 		true,
-		sourceKind(input.path),
+		sourceKind(api, input.path),
 	);
 	const state: ExtractionState = {
 		imports: [],
@@ -281,8 +302,8 @@ function extractTypeScript(input: ProjectFileInput): ProjectFileExtraction {
 		exportNames: [],
 		diagnostics: [],
 	};
-	collectTopLevelDeclarations(source, state);
-	collectSyntaxEvidence(source, input, state);
+	collectTopLevelDeclarations(api, source, state);
+	collectSyntaxEvidence(api, source, input, state);
 	for (const symbol of state.symbols) {
 		if (symbol.exported) state.exportNames.push(symbol.name);
 	}
@@ -295,15 +316,22 @@ function extractTypeScript(input: ProjectFileInput): ProjectFileExtraction {
 		exports: Object.freeze([...new Set(state.exportNames)].sort()),
 		symbols: uniqueSorted(surfaceSymbols, (entry) => `${entry.name}:${entry.kind}`),
 		tests: Object.freeze([...new Set(state.tests)].sort()),
-		diagnostics: Object.freeze([...state.diagnostics, ...compilerDiagnostics(input)]),
+		diagnostics: Object.freeze([...state.diagnostics, ...compilerDiagnostics(api, input)]),
 	});
 }
 
-export function createTypeScriptExtractor(): ProjectExtractor {
+/**
+ * Build the extractor around one project's compiler.
+ *
+ * `version` reports the compiler that did the work, so a snapshot carries the
+ * provenance of its own analysis rather than the version the harness was built
+ * with.
+ */
+export function createTypeScriptExtractor(api: TypeScriptApi): ProjectExtractor {
 	return Object.freeze({
 		id: 'typescript-compiler-api',
-		version: ts.version,
+		version: api.version,
 		supports: (path: string) => SOURCE_EXTENSION.test(path),
-		extract: extractTypeScript,
+		extract: (input: ProjectFileInput) => extractTypeScript(api, input),
 	});
 }

@@ -12,7 +12,8 @@
         "systematic-debugging",
         "refactoring",
         "verification-before-completion",
-        "context-management"
+        "context-management",
+        "session-handoff"
       ]
     },
     {

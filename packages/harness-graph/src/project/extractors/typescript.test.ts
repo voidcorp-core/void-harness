@@ -11,7 +11,7 @@ import {
 
 describe('TypeScript Compiler API declaration extractor', () => {
 	it('extracts imports, exports, symbols, dynamic imports, and tests from AST nodes', () => {
-		const extraction = createTypeScriptExtractor().extract({
+		const extraction = createTypeScriptExtractor(ts).extract({
 			path: 'src/example.test.ts',
 			hash: `sha256:${'a'.repeat(64)}`,
 			kind: 'test',
@@ -37,7 +37,7 @@ describe('TypeScript Compiler API declaration extractor', () => {
 	});
 
 	it('extracts every local name from exported object and array bindings', () => {
-		const extraction = createTypeScriptExtractor().extract({
+		const extraction = createTypeScriptExtractor(ts).extract({
 			path: 'src/bindings.ts',
 			hash: `sha256:${'7'.repeat(64)}`,
 			kind: 'source',
@@ -60,7 +60,7 @@ describe('TypeScript Compiler API declaration extractor', () => {
 
 describe('TypeScript syntax evidence', () => {
 	it('recognizes bounded Vitest calls without treating arbitrary methods as tests', () => {
-		const extraction = createTypeScriptExtractor().extract({
+		const extraction = createTypeScriptExtractor(ts).extract({
 			path: 'src/variants.ts',
 			hash: `sha256:${'9'.repeat(64)}`,
 			kind: 'source',
@@ -99,7 +99,7 @@ describe('TypeScript syntax evidence', () => {
 	});
 
 	it('resolves aliases and extension substitution through Compiler API', () => {
-		const config = parseTypeScriptConfig(
+		const config = parseTypeScriptConfig(ts, 
 			'tsconfig.json',
 			JSON.stringify({
 				compilerOptions: {
@@ -112,14 +112,14 @@ describe('TypeScript syntax evidence', () => {
 		);
 		const files = new Set(['packages/app/src/index.ts', 'packages/core/src/value.ts']);
 		expect(
-			resolveTypeScriptModule('@fixture/value.js', 'packages/app/src/index.ts', files, config),
+			resolveTypeScriptModule(ts, '@fixture/value.js', 'packages/app/src/index.ts', files, config),
 		).toBe('packages/core/src/value.ts');
 	});
 });
 
 describe('TypeScript extraction diagnostics', () => {
 	it('gives compiler paths precedence over a same-named workspace package', () => {
-		const config = parseTypeScriptConfig(
+		const config = parseTypeScriptConfig(ts, 
 			'tsconfig.json',
 			JSON.stringify({
 				compilerOptions: {
@@ -136,7 +136,7 @@ describe('TypeScript extraction diagnostics', () => {
 			entrypoints: ['packages/core/src/index.ts'],
 			exports: { '.': ['packages/core/src/index.ts'] },
 		};
-		const resolver = createTypeScriptModuleResolver(
+		const resolver = createTypeScriptModuleResolver(ts, 
 			new Set(['overrides/core.ts', 'packages/core/src/index.ts']),
 			[workspace],
 		);
@@ -145,7 +145,7 @@ describe('TypeScript extraction diagnostics', () => {
 	});
 
 	it('surfaces parse diagnostics while preserving the recoverable AST', () => {
-		const extraction = createTypeScriptExtractor().extract({
+		const extraction = createTypeScriptExtractor(ts).extract({
 			path: 'src/broken.ts',
 			hash: `sha256:${'b'.repeat(64)}`,
 			kind: 'source',
@@ -156,7 +156,7 @@ describe('TypeScript extraction diagnostics', () => {
 	});
 
 	it('turns an overlong module specifier into a diagnostic', () => {
-		const extraction = createTypeScriptExtractor().extract({
+		const extraction = createTypeScriptExtractor(ts).extract({
 			path: 'src/hostile.ts',
 			hash: `sha256:${'c'.repeat(64)}`,
 			kind: 'source',
@@ -168,7 +168,7 @@ describe('TypeScript extraction diagnostics', () => {
 	});
 
 	it('reports a non-literal dynamic import instead of silently dropping topology', () => {
-		const extraction = createTypeScriptExtractor().extract({
+		const extraction = createTypeScriptExtractor(ts).extract({
 			path: 'src/dynamic.ts',
 			hash: `sha256:${'d'.repeat(64)}`,
 			kind: 'source',
@@ -182,22 +182,22 @@ describe('TypeScript extraction diagnostics', () => {
 
 describe('TypeScript config inheritance', () => {
 	it('resolves bounded root-confined tsconfig inheritance for monorepo aliases', () => {
-		const base = parseTypeScriptConfig(
+		const base = parseTypeScriptConfig(ts, 
 			'tsconfig.base.json',
 			JSON.stringify({
 				compilerOptions: { paths: { '@core/*': ['packages/core/src/*'] } },
 			}),
 		);
-		const app = parseTypeScriptConfig(
+		const app = parseTypeScriptConfig(ts, 
 			'packages/app/tsconfig.json',
 			JSON.stringify({
 				extends: '../../tsconfig.base.json',
 				compilerOptions: { module: 'NodeNext', moduleResolution: 'NodeNext' },
 			}),
 		);
-		const configs = resolveTypeScriptConfigInheritance([base, app]);
+		const configs = resolveTypeScriptConfigInheritance(ts, [base, app]);
 		const inherited = configs.get('packages/app');
-		const resolver = createTypeScriptModuleResolver(
+		const resolver = createTypeScriptModuleResolver(ts, 
 			new Set(['packages/app/src/index.ts', 'packages/core/src/value.ts']),
 		);
 
@@ -218,9 +218,9 @@ describe('TypeScript config inheritance', () => {
 			extends: '../../tsconfig.base.json',
 			compilerOptions: { paths: { '@app/*': ['src/*'] } },
 		};
-		const base = parseTypeScriptConfig('tsconfig.base.json', JSON.stringify(baseRaw));
-		const app = parseTypeScriptConfig('packages/app/tsconfig.json', JSON.stringify(appRaw));
-		const inherited = resolveTypeScriptConfigInheritance([base, app]).get('packages/app');
+		const base = parseTypeScriptConfig(ts, 'tsconfig.base.json', JSON.stringify(baseRaw));
+		const app = parseTypeScriptConfig(ts, 'packages/app/tsconfig.json', JSON.stringify(appRaw));
+		const inherited = resolveTypeScriptConfigInheritance(ts, [base, app]).get('packages/app');
 		const rawByPath = new Map([
 			['/project/tsconfig.base.json', JSON.stringify(baseRaw)],
 			['/project/packages/app/tsconfig.json', JSON.stringify(appRaw)],
@@ -237,7 +237,7 @@ describe('TypeScript config inheritance', () => {
 			undefined,
 			'/project/packages/app/tsconfig.json',
 		);
-		const resolver = createTypeScriptModuleResolver(new Set(['shared/value.ts', 'src/value.ts']));
+		const resolver = createTypeScriptModuleResolver(ts, new Set(['shared/value.ts', 'src/value.ts']));
 
 		expect(inherited?.resolvedOptions).toMatchObject({
 			baseUrl: official.options.baseUrl,
@@ -253,21 +253,21 @@ describe('TypeScript config inheritance', () => {
 
 describe('TypeScript effective config selection', () => {
 	it('keeps child-relative paths at the declaring config when no baseUrl overrides them', () => {
-		const base = parseTypeScriptConfig(
+		const base = parseTypeScriptConfig(ts, 
 			'tsconfig.base.json',
 			JSON.stringify({
 				compilerOptions: { strict: true },
 			}),
 		);
-		const app = parseTypeScriptConfig(
+		const app = parseTypeScriptConfig(ts, 
 			'packages/app/tsconfig.json',
 			JSON.stringify({
 				extends: '../../tsconfig.base.json',
 				compilerOptions: { paths: { '@app/*': ['src/*'] } },
 			}),
 		);
-		const inherited = resolveTypeScriptConfigInheritance([base, app]).get('packages/app');
-		const resolver = createTypeScriptModuleResolver(new Set(['packages/app/src/value.ts']));
+		const inherited = resolveTypeScriptConfigInheritance(ts, [base, app]).get('packages/app');
+		const resolver = createTypeScriptModuleResolver(ts, new Set(['packages/app/src/value.ts']));
 
 		expect(inherited?.resolvedOptions?.['pathsBasePath']).toBe('/project/packages/app');
 		expect(resolver.resolve('@app/value', 'packages/app/index.ts', inherited)).toBe(
@@ -276,29 +276,29 @@ describe('TypeScript effective config selection', () => {
 	});
 
 	it('indexes a referenced Vite app config at its included source directory', () => {
-		const root = parseTypeScriptConfig(
+		const root = parseTypeScriptConfig(ts, 
 			'tsconfig.json',
 			JSON.stringify({
 				files: [],
 				references: [{ path: './tsconfig.app.json' }, { path: './tsconfig.node.json' }],
 			}),
 		);
-		const app = parseTypeScriptConfig(
+		const app = parseTypeScriptConfig(ts, 
 			'tsconfig.app.json',
 			JSON.stringify({
 				compilerOptions: { baseUrl: '.', paths: { '@/*': ['src/*'] } },
 				include: ['src'],
 			}),
 		);
-		const node = parseTypeScriptConfig(
+		const node = parseTypeScriptConfig(ts, 
 			'tsconfig.node.json',
 			JSON.stringify({
 				include: ['vite.config.ts'],
 			}),
 		);
-		const configs = resolveTypeScriptConfigInheritance([root, app, node], true);
+		const configs = resolveTypeScriptConfigInheritance(ts, [root, app, node], true);
 		const effective = configs.get('src');
-		const resolver = createTypeScriptModuleResolver(
+		const resolver = createTypeScriptModuleResolver(ts, 
 			new Set(['src/main.ts', 'src/components/Button.ts']),
 		);
 
@@ -312,24 +312,24 @@ describe('TypeScript effective config selection', () => {
 
 it('distinguishes implicit config scope from an explicit empty files list', () => {
 	const referencedRoot = (path: string) =>
-		parseTypeScriptConfig(
+		parseTypeScriptConfig(ts, 
 			'tsconfig.json',
 			JSON.stringify({ files: [], references: [{ path }] }),
 		);
-	const implicit = parseTypeScriptConfig('tsconfig.app.json', JSON.stringify({}));
-	const explicitEmpty = parseTypeScriptConfig(
+	const implicit = parseTypeScriptConfig(ts, 'tsconfig.app.json', JSON.stringify({}));
+	const explicitEmpty = parseTypeScriptConfig(ts, 
 		'tsconfig.empty.json',
 		JSON.stringify({ files: [], references: [{ path: './leaf/tsconfig.json' }] }),
 	);
-	const leaf = parseTypeScriptConfig(
+	const leaf = parseTypeScriptConfig(ts, 
 		'leaf/tsconfig.json',
 		JSON.stringify({ compilerOptions: { composite: true } }),
 	);
-	const implicitConfigs = resolveTypeScriptConfigInheritance(
+	const implicitConfigs = resolveTypeScriptConfigInheritance(ts, 
 		[referencedRoot('./tsconfig.app.json'), implicit],
 		true,
 	);
-	const explicitConfigs = resolveTypeScriptConfigInheritance(
+	const explicitConfigs = resolveTypeScriptConfigInheritance(ts, 
 		[referencedRoot('./tsconfig.empty.json'), explicitEmpty, leaf],
 		true,
 	);
@@ -340,39 +340,39 @@ it('distinguishes implicit config scope from an explicit empty files list', () =
 
 describe('TypeScript effective config case behavior', () => {
 	it('honors the project case contract while resolving config inheritance', () => {
-		const base = parseTypeScriptConfig(
+		const base = parseTypeScriptConfig(ts, 
 			'Config/Base.json',
 			JSON.stringify({
 				compilerOptions: { paths: { '@core/*': ['src/*'] } },
 			}),
 		);
-		const app = parseTypeScriptConfig(
+		const app = parseTypeScriptConfig(ts, 
 			'tsconfig.json',
 			JSON.stringify({
 				extends: './config/base.json',
 			}),
 		);
 
-		expect(() => resolveTypeScriptConfigInheritance([base, app], true)).toThrow(/missing/);
-		expect(resolveTypeScriptConfigInheritance([base, app], false).get('.')?.path).toBe(
+		expect(() => resolveTypeScriptConfigInheritance(ts, [base, app], true)).toThrow(/missing/);
+		expect(resolveTypeScriptConfigInheritance(ts, [base, app], false).get('.')?.path).toBe(
 			'tsconfig.json',
 		);
 	});
 
 	it('indexes effective config scopes using the project case contract', () => {
-		const root = parseTypeScriptConfig(
+		const root = parseTypeScriptConfig(ts, 
 			'tsconfig.json',
 			JSON.stringify({
 				references: [{ path: './tsconfig.app.json' }],
 			}),
 		);
-		const app = parseTypeScriptConfig(
+		const app = parseTypeScriptConfig(ts, 
 			'tsconfig.app.json',
 			JSON.stringify({
 				include: ['Src'],
 			}),
 		);
-		const configs = resolveTypeScriptConfigInheritance([root, app], false);
+		const configs = resolveTypeScriptConfigInheritance(ts, [root, app], false);
 
 		expect(configs.get('src')?.path).toBe('tsconfig.app.json');
 	});
@@ -380,7 +380,7 @@ describe('TypeScript effective config case behavior', () => {
 
 describe('TypeScript export surfaces', () => {
 	it('extracts named clauses, re-exports, wildcard namespaces, and default exports', () => {
-		const extraction = createTypeScriptExtractor().extract({
+		const extraction = createTypeScriptExtractor(ts).extract({
 			path: 'src/exports.ts',
 			hash: `sha256:${'e'.repeat(64)}`,
 			kind: 'source',
@@ -411,7 +411,7 @@ describe('TypeScript export surfaces', () => {
 			'./star.js',
 		]);
 
-		const anonymous = createTypeScriptExtractor().extract({
+		const anonymous = createTypeScriptExtractor(ts).extract({
 			path: 'src/anonymous.ts',
 			hash: `sha256:${'a'.repeat(64)}`,
 			kind: 'source',
@@ -428,7 +428,7 @@ describe('TypeScript export surfaces', () => {
 
 describe('TypeScript default export surfaces', () => {
 	it('represents valid default type surfaces for named and anonymous declarations', () => {
-		const extractor = createTypeScriptExtractor();
+		const extractor = createTypeScriptExtractor(ts);
 		const specimens = [
 			['interface', 'export default interface Contract {}', 'Contract', 'interface'],
 			['named class', 'export default class Service {}', 'Service', 'class'],
@@ -464,7 +464,7 @@ describe('TypeScript default export surfaces', () => {
 
 describe('TypeScript config rejection and arrays', () => {
 	it('extracts CommonJS exports only from supported JavaScript inputs', () => {
-		const extractor = createTypeScriptExtractor();
+		const extractor = createTypeScriptExtractor(ts);
 		const javascript = extractor.extract({
 			path: 'src/exports.cjs',
 			hash: `sha256:${'f'.repeat(64)}`,
@@ -485,22 +485,22 @@ describe('TypeScript config rejection and arrays', () => {
 
 describe('TypeScript rejected and array config inheritance', () => {
 	it('rejects cyclic and root-escaping tsconfig inheritance', () => {
-		const first = parseTypeScriptConfig(
+		const first = parseTypeScriptConfig(ts, 
 			'tsconfig.json',
 			JSON.stringify({
 				extends: './tsconfig.base.json',
 			}),
 		);
-		const second = parseTypeScriptConfig(
+		const second = parseTypeScriptConfig(ts, 
 			'tsconfig.base.json',
 			JSON.stringify({
 				extends: './tsconfig.json',
 			}),
 		);
 
-		expect(() => resolveTypeScriptConfigInheritance([first, second])).toThrow(/cyclic/);
+		expect(() => resolveTypeScriptConfigInheritance(ts, [first, second])).toThrow(/cyclic/);
 		expect(() =>
-			parseTypeScriptConfig(
+			parseTypeScriptConfig(ts, 
 				'tsconfig.json',
 				JSON.stringify({
 					extends: '../outside.json',
@@ -510,55 +510,55 @@ describe('TypeScript rejected and array config inheritance', () => {
 	});
 
 	it('rejects absolute project reference and include paths', () => {
-		const outside = parseTypeScriptConfig('outside.json', '{}');
-		const reference = parseTypeScriptConfig(
+		const outside = parseTypeScriptConfig(ts, 'outside.json', '{}');
+		const reference = parseTypeScriptConfig(ts, 
 			'tsconfig.json',
 			JSON.stringify({
 				references: [{ path: '/outside.json' }],
 			}),
 		);
-		expect(() => resolveTypeScriptConfigInheritance([reference, outside])).toThrow(/references/);
+		expect(() => resolveTypeScriptConfigInheritance(ts, [reference, outside])).toThrow(/references/);
 
-		const root = parseTypeScriptConfig(
+		const root = parseTypeScriptConfig(ts, 
 			'tsconfig.json',
 			JSON.stringify({
 				references: [{ path: './tsconfig.app.json' }],
 			}),
 		);
-		const app = parseTypeScriptConfig(
+		const app = parseTypeScriptConfig(ts, 
 			'tsconfig.app.json',
 			JSON.stringify({
 				include: ['/src'],
 			}),
 		);
-		expect(() => resolveTypeScriptConfigInheritance([root, app])).toThrow(/include/);
+		expect(() => resolveTypeScriptConfigInheritance(ts, [root, app])).toThrow(/include/);
 	});
 });
 
 describe('TypeScript array config inheritance', () => {
 	it('matches TypeScript 5.9 ordered extends-array merging and option origins', () => {
-		const strict = parseTypeScriptConfig(
+		const strict = parseTypeScriptConfig(ts, 
 			'configs/strict.json',
 			JSON.stringify({
 				compilerOptions: { strict: true },
 			}),
 		);
-		const paths = parseTypeScriptConfig(
+		const paths = parseTypeScriptConfig(ts, 
 			'configs/paths.json',
 			JSON.stringify({
 				compilerOptions: { noUncheckedIndexedAccess: true, paths: { '@lib/*': ['src/*'] } },
 			}),
 		);
-		const child = parseTypeScriptConfig(
+		const child = parseTypeScriptConfig(ts, 
 			'packages/app/tsconfig.json',
 			JSON.stringify({
 				extends: ['../../configs/strict.json', '../../configs/paths.json'],
 			}),
 		);
-		const inherited = resolveTypeScriptConfigInheritance([strict, paths, child]).get(
+		const inherited = resolveTypeScriptConfigInheritance(ts, [strict, paths, child]).get(
 			'packages/app',
 		);
-		const resolver = createTypeScriptModuleResolver(new Set(['configs/src/value.ts']));
+		const resolver = createTypeScriptModuleResolver(ts, new Set(['configs/src/value.ts']));
 
 		expect(inherited?.resolvedOptions).toMatchObject({
 			strict: true,
@@ -572,17 +572,17 @@ describe('TypeScript array config inheritance', () => {
 	});
 
 	it('rejects cycles and over-depth branches introduced through extends arrays', () => {
-		const cycleA = parseTypeScriptConfig('a.json', JSON.stringify({ extends: ['./b.json'] }));
-		const cycleB = parseTypeScriptConfig('b.json', JSON.stringify({ extends: ['./a.json'] }));
-		expect(() => resolveTypeScriptConfigInheritance([cycleA, cycleB])).toThrow(/cyclic/);
+		const cycleA = parseTypeScriptConfig(ts, 'a.json', JSON.stringify({ extends: ['./b.json'] }));
+		const cycleB = parseTypeScriptConfig(ts, 'b.json', JSON.stringify({ extends: ['./a.json'] }));
+		expect(() => resolveTypeScriptConfigInheritance(ts, [cycleA, cycleB])).toThrow(/cyclic/);
 
 		const chain = Array.from({ length: 18 }, (_, index) =>
-			parseTypeScriptConfig(
+			parseTypeScriptConfig(ts, 
 				`depth/${index}.json`,
 				JSON.stringify(index === 17 ? {} : { extends: [`./${index + 1}.json`] }),
 			),
 		);
-		expect(() => resolveTypeScriptConfigInheritance(chain)).toThrow(/16 levels/);
+		expect(() => resolveTypeScriptConfigInheritance(ts, chain)).toThrow(/16 levels/);
 	});
 });
 
@@ -600,7 +600,7 @@ describe('TypeScript workspace resolution', () => {
 			entrypoints: [`packages/package-${index}/src/index.ts`],
 			exports: { '.': [`packages/package-${index}/src/index.ts`] },
 		}));
-		const resolver = createTypeScriptModuleResolver(new Set(), workspaces);
+		const resolver = createTypeScriptModuleResolver(ts, new Set(), workspaces);
 		const readsAfterIndexing = nameReads;
 
 		expect(resolver.resolve('@missing/package', 'src/index.ts')).toBeUndefined();
@@ -619,7 +619,7 @@ describe('TypeScript workspace resolution', () => {
 				'./secondary': ['packages/core/src/secondary.ts'],
 			},
 		};
-		const resolver = createTypeScriptModuleResolver(
+		const resolver = createTypeScriptModuleResolver(ts, 
 			new Set(['packages/core/src/index.ts', 'packages/core/src/secondary.ts']),
 			[workspace],
 		);
@@ -639,7 +639,7 @@ describe('TypeScript workspace resolution', () => {
 			entrypoints: [`${path}/src/index.ts`],
 			exports: { '.': [`${path}/src/index.ts`] },
 		});
-		const resolver = createTypeScriptModuleResolver(
+		const resolver = createTypeScriptModuleResolver(ts, 
 			new Set(['packages/a/src/index.ts', 'packages/b/src/index.ts']),
 			[workspace('packages/a'), workspace('packages/b')],
 		);
@@ -656,7 +656,7 @@ describe('TypeScript workspace resolution', () => {
 
 describe('TypeScript workspace wildcards and casing', () => {
 	it('matches one bounded package export wildcard and substitutes its capture', () => {
-		const resolver = createTypeScriptModuleResolver(
+		const resolver = createTypeScriptModuleResolver(ts, 
 			new Set(['packages/core/src/features/value.ts']),
 			[
 				{
@@ -677,8 +677,8 @@ describe('TypeScript workspace wildcards and casing', () => {
 
 	it('uses the project volume case contract instead of the host TypeScript default', () => {
 		const files = new Set(['src/Foo.ts', 'src/foo.ts']);
-		const sensitive = createTypeScriptModuleResolver(files, [], true);
-		const insensitive = createTypeScriptModuleResolver(new Set(['src/Foo.ts']), [], false);
+		const sensitive = createTypeScriptModuleResolver(ts, files, [], true);
+		const insensitive = createTypeScriptModuleResolver(ts, new Set(['src/Foo.ts']), [], false);
 
 		expect(sensitive.resolve('./Foo.js', 'src/index.ts')).toBe('src/Foo.ts');
 		expect(sensitive.resolve('./foo.js', 'src/index.ts')).toBe('src/foo.ts');
@@ -686,10 +686,10 @@ describe('TypeScript workspace wildcards and casing', () => {
 	});
 
 	it('does not infer case-sensitive behavior when the volume contract is unknown', () => {
-		const config = parseTypeScriptConfig('tsconfig.json', '{}');
-		const resolver = createTypeScriptModuleResolver(new Set(['src/Foo.ts']), [], 'unknown');
+		const config = parseTypeScriptConfig(ts, 'tsconfig.json', '{}');
+		const resolver = createTypeScriptModuleResolver(ts, new Set(['src/Foo.ts']), [], 'unknown');
 
 		expect(resolver.resolve('./Foo.js', 'src/index.ts', config)).toBeUndefined();
-		expect(resolveTypeScriptConfigInheritance([config], 'unknown').size).toBe(0);
+		expect(resolveTypeScriptConfigInheritance(ts, [config], 'unknown').size).toBe(0);
 	});
 });

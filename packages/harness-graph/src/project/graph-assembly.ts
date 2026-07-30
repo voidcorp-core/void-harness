@@ -18,6 +18,7 @@ import {
 	type ProjectWorkspace,
 	type TypeScriptConfig,
 } from './extractors/types.js';
+import type { CompilerResolution, TypeScriptApi } from './extractors/compiler-host.js';
 import { createTypeScriptModuleResolver } from './extractors/typescript.js';
 import {
 	findDuplicateWorkspaceNames,
@@ -56,6 +57,9 @@ interface AssemblyContext {
 	readonly workspacesByPath: ReadonlyMap<string, ProjectWorkspace>;
 	readonly filePaths: ReadonlySet<string>;
 	readonly changedPaths: ReadonlySet<string>;
+	/** The analysed project's compiler, absent when it resolves none. */
+	readonly compilerApi: TypeScriptApi | undefined;
+	readonly compilerVersion: string;
 }
 
 function mergeWorkspaceDeclarations(
@@ -251,6 +255,7 @@ function createAssemblyContext(
 	git: ProjectGitSnapshot,
 	caseSensitive: boolean | 'unknown',
 	configsByPath: ReadonlyMap<string, TypeScriptConfig>,
+	compiler: CompilerResolution,
 ): AssemblyContext {
 	const workspaces = mergedProjectWorkspaces(entries);
 	return {
@@ -268,6 +273,8 @@ function createAssemblyContext(
 		workspacesByPath: new Map(workspaces.map((workspace) => [workspace.path, workspace])),
 		filePaths: new Set(entries.map((entry) => entry.path)),
 		changedPaths: new Set(git.changed),
+		compilerApi: compiler.kind === 'resolved' ? compiler.api : undefined,
+		compilerVersion: compiler.kind === 'resolved' ? compiler.version : 'absent',
 	};
 }
 
@@ -467,7 +474,12 @@ function addImportEdge(
 }
 
 function addImportEdges(context: AssemblyContext): void {
+	// No compiler, no module resolution. The graph then carries files without
+	// import edges, which the build issue names as the capability lost — better
+	// than edges derived by a compiler this project never chose.
+	if (context.compilerApi === undefined) return;
 	const resolver = createTypeScriptModuleResolver(
+		context.compilerApi,
 		context.filePaths,
 		context.workspaces,
 		context.caseSensitive,
@@ -556,7 +568,12 @@ function sealProjectGraph(context: AssemblyContext): GraphSnapshotV3 {
 		schemaVersion: 3,
 		graphId: 'project:current',
 		graphType: 'project',
-		source: { kind: 'native', version: `${GRAPH_CONTRACT_VERSION}+project.1` },
+		source: {
+			kind: 'native',
+			// The compiler that produced the analysis is provenance, not trivia:
+			// the same tree read by two compilers can yield two graphs.
+			version: `${GRAPH_CONTRACT_VERSION}+project.1+typescript.${context.compilerVersion}`,
+		},
 		nodes: [...context.writer.nodes.values()],
 		edges: [...context.writer.edges.values()],
 		hyperedges: [],
@@ -572,8 +589,16 @@ export function assembleProjectGraph(
 	caseSensitive: boolean | 'unknown',
 	configsByPath: ReadonlyMap<string, TypeScriptConfig>,
 	snapshotId: string,
+	compiler: CompilerResolution,
 ): GraphSnapshotV3 {
-	const context = createAssemblyContext(entries, tombstones, git, caseSensitive, configsByPath);
+	const context = createAssemblyContext(
+		entries,
+		tombstones,
+		git,
+		caseSensitive,
+		configsByPath,
+		compiler,
+	);
 	addRootNode(context, state, issueCount, snapshotId);
 	addWorkspaceNodes(context);
 	addEntryNodes(context);

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildProjectGraph } from './build.js';
 import { createMemoryProjectCachePort } from './cache.js';
+import { fixtureCompilerLookup } from './test-support.js';
 import { type ProjectGitSnapshot, projectFileId } from './extractors/types.js';
 import type {
 	ProjectChangeAuthority,
@@ -80,6 +81,7 @@ describe('ProjectGraph structural delta safety', () => {
 		const cache = createMemoryProjectCachePort();
 		const controlled = controlledJournal();
 		const options = {
+			compilerLookup: fixtureCompilerLookup(),
 			root,
 			cache,
 			journal: controlled.journal,
@@ -106,6 +108,7 @@ describe('ProjectGraph advisory journal verification', () => {
 		const cache = createMemoryProjectCachePort();
 		const controlled = controlledJournal('advisory');
 		const options = {
+			compilerLookup: fixtureCompilerLookup(),
 			root,
 			cache,
 			journal: controlled.journal,
@@ -130,6 +133,7 @@ describe('ProjectGraph advisory journal verification', () => {
 		const controlled = controlledJournal('advisory');
 		let mutateDuringGit = false;
 		const options = {
+			compilerLookup: fixtureCompilerLookup(),
 			root,
 			cache,
 			journal: controlled.journal,

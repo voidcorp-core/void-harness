@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { buildProjectGraph } from './build.js';
 import { createMemoryProjectCachePort } from './cache.js';
 import { projectFileId, type ProjectGitSnapshot } from './extractors/types.js';
-import { createExactProjectChangeJournal } from './test-support.js';
+import { createExactProjectChangeJournal, fixtureCompilerLookup } from './test-support.js';
 
 function availableGit(): ProjectGitSnapshot {
 	return Object.freeze({
@@ -40,6 +40,7 @@ async function build(root: string) {
 	const journal = createExactProjectChangeJournal();
 	try {
 		return await buildProjectGraph({
+			compilerLookup: fixtureCompilerLookup(),
 			root,
 			cache: createMemoryProjectCachePort(),
 			git: { inspect: async () => availableGit() },

@@ -94,6 +94,7 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 | Auditing a live dev surface (API/CLI/SDK/docs) | `harness:devex-audit` (measured TTHW, error-path tracing, evidence-backed DX scorecard) |
 | Live browser QA of a running web app     | `harness:qa` (claude-in-chrome MCP: explore, states, atomic fix loop, report; `--report-only` for no-fix) |
 | Periodic engineering retrospective       | `harness:retrospective` (window signals → improvement decisions → learning-capture)  |
+| Closing a session with work still open   | `harness:session-handoff` (route state to its owner, record the residue, one exact next action) |
 | Ship a PR                                | `harness:ticket-runner` pass 11 + `harness:commit-discipline` + `gh` (release-please owns versions/changelog) |
 
 ## On gstack and superpowers

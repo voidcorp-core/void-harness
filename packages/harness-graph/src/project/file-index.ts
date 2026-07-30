@@ -6,6 +6,7 @@ import type {
 	ProjectFileKind,
 	ProjectScannedFile,
 } from './extractors/types.js';
+import type { TypeScriptApi } from './extractors/compiler-host.js';
 import { parseTypeScriptConfig } from './extractors/typescript.js';
 import { extractPnpmWorkspace, extractWorkspaceManifest } from './extractors/workspace.js';
 import {
@@ -36,7 +37,11 @@ function hasSortedPathBelow(paths: readonly string[], directory: string): boolea
 	return paths[lower]?.startsWith(prefix) === true;
 }
 
-function workspaceExtraction(path: string, content: string): Partial<ProjectFileExtraction> {
+function workspaceExtraction(
+	api: TypeScriptApi | undefined,
+	path: string,
+	content: string,
+): Partial<ProjectFileExtraction> {
 	if (posix.basename(path) === 'package.json') {
 		return { workspace: extractWorkspaceManifest(path, content) };
 	}
@@ -45,7 +50,10 @@ function workspaceExtraction(path: string, content: string): Partial<ProjectFile
 	}
 	const basename = posix.basename(path);
 	if (/^tsconfig(?:\.[^/]+)?\.json$/.test(basename) || basename === 'jsconfig.json') {
-		return { typeScriptConfig: parseTypeScriptConfig(path, content) };
+		// No compiler, no config: parsing it with a different one would produce
+		// aliases the project does not actually have.
+		if (api === undefined) return {};
+		return { typeScriptConfig: parseTypeScriptConfig(api, path, content) };
 	}
 	return {};
 }
@@ -60,7 +68,10 @@ function extractFile(
 	const extracted = context.extractor.supports(path)
 		? context.extractor.extract({ path, content, hash, kind })
 		: EMPTY_EXTRACTION;
-	return Object.freeze({ ...extracted, ...workspaceExtraction(path, content) });
+	return Object.freeze({
+		...extracted,
+		...workspaceExtraction(context.compilerApi, path, content),
+	});
 }
 
 function refreshedEntry(

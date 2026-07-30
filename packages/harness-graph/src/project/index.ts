@@ -70,13 +70,22 @@ export type {
 	TypeScriptConfig,
 } from './extractors/types.js';
 export {
+	createNodeCompilerLookup,
 	createTypeScriptExtractor,
 	createTypeScriptModuleResolver,
 	parseTypeScriptConfig,
+	resolveProjectCompiler,
 	resolveTypeScriptConfigInheritance,
 	resolveTypeScriptModule,
+	selectCompilerAdapter,
 } from './extractors/typescript.js';
-export type { TypeScriptModuleResolver } from './extractors/typescript.js';
+export type {
+	AdapterSelection,
+	CompilerLookup,
+	CompilerResolution,
+	TypeScriptApi,
+	TypeScriptModuleResolver,
+} from './extractors/typescript.js';
 export { extractPnpmWorkspace, extractWorkspaceManifest } from './extractors/workspace.js';
 export { createNodeProjectChangeJournal } from './journal.js';
 export type {

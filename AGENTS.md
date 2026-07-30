@@ -94,6 +94,7 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 | Auditing a live dev surface (API/CLI/SDK/docs) | `devex-audit` skill (measured TTHW, error-path tracing, evidence-backed DX scorecard) |
 | Live browser QA of a running web app | `qa` skill (claude-in-chrome MCP: explore, states, atomic fix loop, report; `--report-only` for no-fix) |
 | Periodic engineering retrospective | `retrospective` skill (window signals → improvement decisions → learning-capture) |
+| Closing a session with work still open | `session-handoff` skill (route state to its owner, record the residue, one exact next action) |
 | Ship a PR | `ticket-runner` pass 11 + `commit-discipline` + `gh` (release-please owns versions/changelog) |
 
 ## On gstack and superpowers (Codex perspective)
