@@ -12,6 +12,8 @@
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { readActiveProgram } from '../lib/autopilot/active-program.js';
+import { autopilotPreflight } from '../lib/autopilot/preflight.js';
 import { packsCoherenceIssues, validateConfig } from '../lib/config-schema.js';
 import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../lib/packs.js';
 import { findCoreSource } from '../lib/paths.js';
@@ -208,6 +210,15 @@ export async function doctor(args: readonly string[]): Promise<void> {
     checks.push(await checkPublishedVersion(root));
   }
 
+  // Autopilot's preconditions, but only for a project that declares a program:
+  // adding seven checks to every other project would be noise about a feature
+  // they do not use. Non-mutating throughout — doctor must stay safe to run
+  // while a cluster is in flight, so nothing here touches a tracker, a remote
+  // or a git ref, and what it cannot read reports as unknown rather than false.
+  if (existsSync(join(root, 'plans', 'ACTIVE.md'))) {
+    checks.push(...autopilotPreflight(observeAutopilot(root)));
+  }
+
   banner('doctor');
   blank();
   for (const check of checks) {
@@ -302,5 +313,45 @@ async function checkRemoteVersions(root: string): Promise<CheckResult> {
     ok: true,
     message: `update available: ${drifted.join(', ')}`,
     fix: '/plugin marketplace update (inside Claude Code)',
+  };
+}
+
+
+/**
+ * Observe autopilot's preconditions without touching anything.
+ *
+ * The two remote-backed facts — is the tracker reachable, is the base protected
+ * — are deliberately reported as unknown rather than probed. Probing them here
+ * would make `doctor` depend on a network and a token, and `--no-remote`
+ * promises a fully offline run. Autopilot itself proves both at preflight,
+ * before it claims; this reports what can be read from disk.
+ */
+function observeAutopilot(root: string): Parameters<typeof autopilotPreflight>[0] {
+  let program: ReturnType<typeof readActiveProgram> | null = null;
+  try {
+    program = readActiveProgram(root) ?? null;
+  } catch {
+    // A malformed ACTIVE is reported by the check below as a failure of the
+    // program, not as a crash of doctor.
+    program = null;
+  }
+
+  return {
+    activeProgram:
+      program === null
+        ? null
+        : {
+            status: program.status,
+            autopilot: {
+              enabled: program.autopilot.enabled,
+              clusterSize: program.autopilot.clusterSize,
+              mergeGate: program.autopilot.mergeGate,
+              verifyCommands: program.autopilot.verifyCommands,
+            },
+          },
+    adapters: detectedAdapters(root).map((adapter) => adapter.id),
+    trackerConnector: null,
+    worktreesUsable: existsSync(join(root, '.git')) ? true : null,
+    baseProtected: null,
   };
 }

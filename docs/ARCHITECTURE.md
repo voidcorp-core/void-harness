@@ -618,7 +618,7 @@ earns its place:
   skill is the target of an `enforces` edge, or its principle is stated in `PHILOSOPHY.md`.
   16 skills qualify.
 - `on-demand` — a workflow triggered **actively** (brainstorming, writing-plans, ticket-*,
-  backlog-autopilot, ...), or a conditional skill with no structural backing (async-safety,
+  autopilot, ...), or a conditional skill with no structural backing (async-safety,
   api-and-interface-design, ...). If never invoked, a low count is a real signal — historical
   behavior.
 
@@ -793,7 +793,7 @@ Local PreToolUse hooks only enforce the floor on the machine running them — a
 cloud agent, a `--dangerously-skip-permissions` run, or any non-Claude author
 never sees them. The **void-enforce Action** replays the same floor on every PR,
 server-side, so the floor is incontournable regardless of author. It complements
-(does not replace) the server-side branch protection `backlog-autopilot` already
+(does not replace) the server-side branch protection `autopilot` already
 requires.
 
 - `core/enforce/ci-enforce.sh` — the diff driver. Given `--base <ref>`, it walks

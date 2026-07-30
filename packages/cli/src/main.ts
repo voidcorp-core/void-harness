@@ -9,7 +9,7 @@ import { list } from './commands/list.js';
 import { doctor } from './commands/doctor.js';
 import { check } from './commands/check.js';
 import { update } from './commands/update.js';
-import { backlogAutopilot } from './commands/backlog-autopilot.js';
+import { autopilot } from './commands/autopilot.js';
 import { graph } from './commands/graph.js';
 import { audit } from './commands/audit.js';
 import { status } from './commands/status.js';
@@ -53,8 +53,8 @@ export async function main(argv: readonly string[]): Promise<void> {
     case 'install':
       await install(rest);
       return;
-    case 'backlog-autopilot':
-      await backlogAutopilot(rest);
+    case 'autopilot':
+      await autopilot(rest);
       return;
     case 'graph':
       await graph(rest);

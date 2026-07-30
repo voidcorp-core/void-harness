@@ -86,9 +86,9 @@ describe('activation-meter — classification', () => {
 
   it('derives a scriptPath-launched Workflow name from its basename (matches the workflow-def node)', () => {
     const { activations } = runHook(
-      pre('Workflow', { scriptPath: 'packages/core/skills/backlog-autopilot/workflows/backlog-autopilot.workflow.js' }),
+      pre('Workflow', { scriptPath: 'packages/core/skills/autopilot/workflows/autopilot.workflow.js' }),
     );
-    expect(activations[0]).toMatchObject({ subject: 'workflow:backlog-autopilot' });
+    expect(activations[0]).toMatchObject({ subject: 'workflow:autopilot' });
   });
 
   it('prefers an explicit name over scriptPath for a Workflow', () => {

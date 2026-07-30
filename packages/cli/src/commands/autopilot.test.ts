@@ -306,16 +306,166 @@ describe('operator subcommands', () => {
   it('refuses a stateful subcommand invoked without an execution context', () => {
     expect(runAutopilotCommand(['status'], '').exitCode).toBe(2);
   });
+
+  describe('remote recovery and tracker lifecycle', () => {
+    const MERGE = '00000000000000000000000000000000000000c0';
+
+    function published(over: Partial<RunState> = {}): RunState {
+      return runState({
+        tickets: [
+          { id: 'DEV-1', phase: 'committed', branch: 'autopilot-worker/c/DEV-1', commits: [SHA], proofs: ['test'], blocker: null },
+        ],
+        integration: {
+          branch: 'autopilot/cluster-1',
+          headSha: SHA,
+          prUrl: 'https://github.com/o/r/pull/7',
+          prState: 'open',
+        },
+        ...over,
+      });
+    }
+
+    function detailed(pr: Record<string, unknown>, extra: Record<string, unknown> = {}): string {
+      return JSON.stringify({
+        tracker: { kind: 'value', value: 'held' },
+        pullRequest: {
+          kind: 'value',
+          value: {
+            number: 7,
+            state: 'open',
+            headRef: 'autopilot/cluster-1',
+            headSha: SHA,
+            baseRef: 'main',
+            baseSha: SHA,
+            mergeSha: null,
+            checks: [{ name: 'validate', required: true, conclusion: 'success', ownedByDiff: true }],
+            ...pr,
+          },
+        },
+        workerRefs: { kind: 'value', value: ['autopilot-worker/c/DEV-1'] },
+        ...extra,
+      });
+    }
+
+    it('reads a detailed pull request observation and reports the recovery verdict', () => {
+      const root = repo();
+      writeRun(root, published());
+
+      const result = runAutopilotCommand(['status', '--json'], detailed({}), ctx(root));
+
+      expect(result.exitCode).toBe(0);
+      const payload = JSON.parse(result.stdout);
+      expect(payload.recovery).toMatchObject({ kind: 'ready', pullRequestNumber: 7 });
+      expect(payload.next.kind).toBe('waiting-merge');
+    });
+
+    it('still accepts the plain observation, which carries no recovery verdict', () => {
+      const root = repo();
+      writeRun(root, runState());
+
+      const payload = JSON.parse(runAutopilotCommand(['status', '--json'], remote, ctx(root)).stdout);
+
+      expect(payload.recovery).toBeUndefined();
+      expect(payload.next.kind).toBe('run-workers');
+    });
+
+    it('surfaces base drift as a rebase with stale proofs', () => {
+      const root = repo();
+      writeRun(root, published());
+
+      const payload = JSON.parse(
+        runAutopilotCommand(['status', '--json'], detailed({ baseSha: MERGE }), ctx(root)).stdout,
+      );
+
+      expect(payload.recovery).toMatchObject({ kind: 'rebase', staleProofs: true });
+    });
+
+    it('never reports a merge for a closed pull request', () => {
+      const root = repo();
+      writeRun(root, published());
+
+      const payload = JSON.parse(
+        runAutopilotCommand(['status', '--json'], detailed({ state: 'closed' }), ctx(root)).stdout,
+      );
+
+      expect(payload.recovery.kind).toBe('blocked');
+      expect(payload.lifecycle).toBeUndefined();
+    });
+
+    it('plans the review transitions once the checks are green and the states are known', () => {
+      const root = repo();
+      writeRun(root, published());
+
+      const payload = JSON.parse(
+        runAutopilotCommand(
+          ['status', '--json'],
+          detailed({}, { trackerStates: { review: 'In Review', done: 'Done' } }),
+          ctx(root),
+        ).stdout,
+      );
+
+      expect(payload.lifecycle.stage).toBe('published');
+      expect(payload.lifecycle.actions).toContainEqual(
+        expect.objectContaining({ ticketId: 'DEV-1', kind: 'set-state', toState: 'In Review' }),
+      );
+    });
+
+    it('plans the closing transitions only from an observed merge commit', () => {
+      const root = repo();
+      writeRun(root, published());
+
+      const payload = JSON.parse(
+        runAutopilotCommand(
+          ['resume', '--json'],
+          detailed(
+            { state: 'merged', mergeSha: MERGE },
+            { trackerStates: { review: 'In Review', done: 'Done' } },
+          ),
+          ctx(root),
+        ).stdout,
+      );
+
+      expect(payload.recovery).toMatchObject({ kind: 'merged', mergeSha: MERGE });
+      expect(payload.lifecycle.stage).toBe('merged');
+      expect(payload.lifecycle.actions).toContainEqual(
+        expect.objectContaining({ ticketId: 'DEV-1', kind: 'set-state', toState: 'Done' }),
+      );
+    });
+
+    it('plans no lifecycle when the observation does not name the tracker states', () => {
+      const root = repo();
+      writeRun(root, published());
+
+      const payload = JSON.parse(
+        runAutopilotCommand(['status', '--json'], detailed({ state: 'merged', mergeSha: MERGE }), ctx(root)).stdout,
+      );
+
+      expect(payload.recovery.kind).toBe('merged');
+      expect(payload.lifecycle).toBeUndefined();
+    });
+
+    it('reports the recovery verdict in the human view too', () => {
+      const root = repo();
+      writeRun(root, published());
+
+      const stdout = runAutopilotCommand(['status'], detailed({ headSha: MERGE }), ctx(root)).stdout;
+
+      expect(stdout).toMatch(/recovery: republish/);
+    });
+  });
 });
 
-describe('cutover safety', () => {
+describe('cutover', () => {
   const mainSource = readFileSync(new URL('../main.ts', import.meta.url), 'utf8');
 
-  it('keeps backlog-autopilot as the public surface until the cutover range', () => {
-    // Range A builds the destination; it does not move anyone onto it. Wiring
-    // this command into main.ts early would publish two engines in one release.
-    expect(mainSource).toContain("case 'backlog-autopilot':");
-    expect(mainSource).not.toContain("case 'autopilot':");
-    expect(mainSource).not.toContain("from './commands/autopilot.js'");
+  // Through ranges A to C this asserted the OPPOSITE: that autopilot was not
+  // wired, because building the destination is not moving anyone onto it and an
+  // early wiring would have published two engines in one release. Range D flips
+  // it. What replaced the old assertion is `lib/autopilot/legacy-boundary.test.ts`,
+  // which holds the stronger property — that the superseded engine is gone
+  // rather than merely unrouted.
+  it('routes the canonical surface', () => {
+    expect(mainSource).toContain("case 'autopilot':");
+    expect(mainSource).toContain("from './commands/autopilot.js'");
   });
 });

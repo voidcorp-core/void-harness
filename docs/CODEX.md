@@ -145,13 +145,27 @@ subagent configuration].
 ## The commands
 
 Claude gets `/void-graph`, `/void-doctor`, `/void-audit`, `/void-feedback` and
-`/backlog-autopilot` as plugin commands. Nothing is missing on Codex:
+`/autopilot` as plugin commands. Nothing is missing on Codex:
 
-- `backlog-autopilot` **is already a skill**, so it is staged like any other.
+- `autopilot` **is already a skill**, so it is staged like any other.
 - The `void-*` commands are thin wrappers around the CLI, which is
   runtime-agnostic. Under Codex, invoke it directly: `void-harness doctor`,
   `void-harness audit`, `void-graph`. Codex custom prompts are not an option
   regardless — they are deprecated and live only in `~/.codex`, never in a repo.
+
+## Parallel fan-out
+
+Codex has no `Workflow` tool, and for a while this document listed that as a
+residual gap. It is not one. Autopilot's fan-out is defined by an
+`OrchestrationPlan` the CLI computes and an adapter executes: Claude runs it
+through `Workflow`, Codex through its **native subagents**. Both consume the
+same plan, derive execution from it rather than re-deriving it, and return the
+same `WorkerResult`; `test/autopilot/autopilot-codex-subagents.test.ts` pins
+that contract parity so the two cannot drift into deciding different things.
+
+What is still open is BEHAVIOURAL parity of a real Codex run, which needs an
+execution conformance gate and belongs to the certification range. Contract
+parity is proven; runtime equivalence is asserted, not measured.
 
 ## The irreducible residual
 
@@ -160,7 +174,6 @@ plainly is the point — this is the only place where "prerequisite" keeps meani
 
 | Not available on Codex | Why | Affects |
 | --- | --- | --- |
-| `Workflow` tool | Claude-Code-only orchestration primitive | `backlog-autopilot`'s parallel fan-out (the sequential path still works) |
 | claude-in-chrome MCP | a Claude-bound browser extension | `qa`, `ui-review` live browser passes |
 | `@voidcorp/make-pdf` | package not published | the `make-pdf` skill |
 | `trim-large-output` hook | its `PostToolUse` output rewriting (`updatedToolOutput`) is unconfirmed on Codex, and a sibling field is documented as failing there | token-frugality trimming only; deliberately not wired rather than shipped dead |

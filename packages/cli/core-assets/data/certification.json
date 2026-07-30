@@ -133,32 +133,6 @@
       }
     },
     {
-      "id": "skill:backlog-autopilot",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "proof": {
-        "verified": true
-      }
-    },
-    {
       "id": "skill:brainstorming",
       "owner": "folpe",
       "runtimes": [

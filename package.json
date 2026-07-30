@@ -37,6 +37,7 @@
     "hooks:build": "pnpm --filter @voidcorp/mission-engine build && pnpm --filter @voidcorp/hook-runner build",
     "conformance:install": "node packages/cli/scripts/conformance-install.mjs",
     "conformance:hooks": "node packages/cli/scripts/conformance-hooks.mjs",
+    "conformance:autopilot": "node packages/cli/scripts/conformance-autopilot.mjs",
     "conformance:project-graph": "node scripts/conformance-project-graph.mjs",
     "eval": "pnpm build:cli && pnpm --filter @voidcorp/eval-harness run eval --",
     "verify": "node scripts/verify.mjs",
