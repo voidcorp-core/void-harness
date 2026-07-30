@@ -52,4 +52,16 @@ describe('printHelp', () => {
   it('exposes isolated source dogfooding', () => {
     expect(capture()).toContain('self-host <sync|doctor>');
   });
+
+  it('exposes autopilot, and only under its canonical name', () => {
+    const out = capture();
+    expect(out).toContain('autopilot [sub]');
+    // The retired name is a signpost reachable by typing it, not an entry in
+    // the reference — listing it would advertise a command that always fails.
+    expect(out).not.toContain('backlog-autopilot');
+  });
+
+  it('says autopilot resumes on its own, because that is what makes it usable', () => {
+    expect(capture()).toMatch(/ACTIVE\.md/);
+  });
 });

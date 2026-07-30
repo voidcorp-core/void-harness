@@ -17,11 +17,6 @@ eval_targets: [claude/anthropic/opus]
 Take up to four independent ready tickets, work each one properly, hand back a single
 integration PR. You stay the merge gate.
 
-> **In construction.** Range A (planner, active-program contract, tracker lease, run state),
-> range B (worker contract, worktree fan-out) and range C (reconciliation, local proof,
-> publication) exist. The public command and the removal of `backlog-autopilot` land in
-> range D. Until then the installed surface is still `backlog-autopilot`.
-
 **Attribution**: see `.source`.
 
 ---

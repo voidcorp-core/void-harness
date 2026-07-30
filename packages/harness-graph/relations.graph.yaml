@@ -401,4 +401,4 @@ edges:
   - { from: hook:pre-PR-review-evidence, to: skill:code-review, kind: enforces, evidence: "pre-PR-review-evidence requires review evidence before a PR — enforces code-review" }
   - { from: hook:large-cl-grep, to: skill:commit-discipline, kind: enforces, evidence: "large-cl-grep warns on oversized changelists — enforces commit-discipline (small commits)" }
   - { from: hook:boundary-direction-check, to: skill:hexagonal-architecture, kind: enforces, evidence: "boundary-direction-check enforces the import direction — enforces hexagonal-architecture" }
-  - { from: hook:block-protected-push, to: skill:backlog-autopilot, kind: enforces, evidence: "block-protected-push guards protected-branch pushes for commit-only autopilot workers — enforces backlog-autopilot" }
+  - { from: hook:block-protected-push, to: skill:autopilot, kind: enforces, evidence: "block-protected-push guards protected-branch pushes for commit-only autopilot workers — enforces autopilot" }

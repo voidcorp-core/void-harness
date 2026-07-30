@@ -455,14 +455,17 @@ describe('operator subcommands', () => {
   });
 });
 
-describe('cutover safety', () => {
+describe('cutover', () => {
   const mainSource = readFileSync(new URL('../main.ts', import.meta.url), 'utf8');
 
-  it('keeps backlog-autopilot as the public surface until the cutover range', () => {
-    // Range A builds the destination; it does not move anyone onto it. Wiring
-    // this command into main.ts early would publish two engines in one release.
-    expect(mainSource).toContain("case 'backlog-autopilot':");
-    expect(mainSource).not.toContain("case 'autopilot':");
-    expect(mainSource).not.toContain("from './commands/autopilot.js'");
+  // Through ranges A to C this asserted the OPPOSITE: that autopilot was not
+  // wired, because building the destination is not moving anyone onto it and an
+  // early wiring would have published two engines in one release. Range D flips
+  // it. What replaced the old assertion is `lib/autopilot/legacy-boundary.test.ts`,
+  // which holds the stronger property — that the superseded engine is gone
+  // rather than merely unrouted.
+  it('routes the canonical surface', () => {
+    expect(mainSource).toContain("case 'autopilot':");
+    expect(mainSource).toContain("from './commands/autopilot.js'");
   });
 });

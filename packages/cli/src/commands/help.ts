@@ -66,6 +66,7 @@ export function printHelp(): void {
   cmd('update [--dry-run]', 'Recompile local receipt-owned assets from this CLI; marketplace cache/pins only for explicit marketplace installs.');
   cmd('check [--doctrine]', 'Report local vs remote version drift. --doctrine also diffs PHILOSOPHY.md.');
   cmd('graph <sub>', 'Build / gate / report the skill-agent graph (build, check, audit, live, behavior).');
+  cmd('autopilot [sub]', 'Drain a bounded cluster of ready tickets into one integration PR you merge. plan · start · status · resume · abort; --json for the skill. Resumes from plans/ACTIVE.md, so no ticket or run id is passed.');
   cmd('audit', 'Self-evolution audit: surface stale / never-fired skills as deprecation candidates. HITL.');
   cmd('adoption', 'Maintainer: pull public npm + GitHub stats (tier-1 telemetry, zero phone-home).');
   cmd('decisions <sub>', 'Create, validate, or render one-file ADRs without a shared counter or index.');
@@ -90,6 +91,8 @@ export function printHelp(): void {
   example('void-harness init --marketplace', 'explicit opt-in to the secondary Claude marketplace');
   example('void-harness runtime add codex', 'add Codex to a Claude project, later');
   example('void-harness status', 'offline project health');
+  example('void-harness autopilot status', 'where the cluster in flight stands');
+  example('void-harness autopilot abort', 'give the cluster back, losing no commit');
   example('void-harness update --dry-run', 'preview version + floor drift');
   example('void-harness decisions new --title "Use X" --slug use-x', 'create one conflict-free ADR');
   example('void-harness mission start --title "Ship feature"', 'start a local team-mode evidence ledger');

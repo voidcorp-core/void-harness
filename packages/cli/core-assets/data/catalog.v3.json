@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:18c998ac7938a94c2614768b6c6bada805c122c88e07cddf6a56a736721dd947"
+    "rootHash": "sha256:5c3f888824c150dcc131d9d93bf187c056bb6761dc47bade70bf899f65e19654"
   },
   "nodes": [
     {
@@ -597,17 +597,17 @@
       }
     },
     {
-      "id": "catalog:command:command:backlog-autopilot",
+      "id": "catalog:command:command:autopilot",
       "kind": "command",
-      "label": "backlog-autopilot",
+      "label": "autopilot",
       "data": {
         "legacy": {
-          "description": "Attended parallel backlog drain — work several independent Linear tickets at once, each in its own worktree subagent, reconciled into one integration PR. Opt-in, needs the Workflow tool.",
-          "id": "command:backlog-autopilot",
-          "lines": 33,
-          "name": "backlog-autopilot",
+          "description": "Drain a bounded cluster of independent ready tickets — each worked end-to-end by ticket-runner in its own worktree — into one integration PR the human merges.",
+          "id": "command:autopilot",
+          "lines": 38,
+          "name": "autopilot",
           "pack": null,
-          "source": "packages/core/commands/backlog-autopilot.md",
+          "source": "packages/core/commands/autopilot.md",
           "staticTokens": 575,
           "type": "command"
         }
@@ -618,7 +618,7 @@
         "sources": [
           {
             "kind": "path",
-            "ref": "packages/core/commands/backlog-autopilot.md",
+            "ref": "packages/core/commands/autopilot.md",
             "hashOrVersion": "catalog-v1"
           }
         ]
@@ -2291,7 +2291,7 @@
             }
           ],
           "id": "skill:autopilot",
-          "lines": 166,
+          "lines": 161,
           "name": "autopilot",
           "owner": "folpe",
           "pack": null,
@@ -2300,7 +2300,7 @@
             "codex"
           ],
           "source": "packages/core/skills/autopilot/SKILL.md",
-          "staticTokens": 2398,
+          "staticTokens": 2312,
           "type": "skill"
         }
       },
@@ -2311,54 +2311,6 @@
           {
             "kind": "path",
             "ref": "packages/core/skills/autopilot/SKILL.md",
-            "hashOrVersion": "catalog-v1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:skill:skill:backlog-autopilot",
-      "kind": "skill",
-      "label": "backlog-autopilot",
-      "data": {
-        "legacy": {
-          "description": "Opt-in parallel drain of independent Linear tickets, each in its own worktree subagent, reconciled into one integration PR gated by the full suite. Use when clearing independent tickets at once.",
-          "enforcement": {
-            "floor": "ci",
-            "inline": {
-              "claude": "pretooluse",
-              "codex": "pretooluse",
-              "hermes": "ci-only"
-            }
-          },
-          "evalTargets": [
-            {
-              "provider": "anthropic",
-              "runtime": "claude",
-              "tier": "opus"
-            }
-          ],
-          "id": "skill:backlog-autopilot",
-          "lines": 248,
-          "name": "backlog-autopilot",
-          "owner": "folpe",
-          "pack": null,
-          "runtimes": [
-            "claude",
-            "codex"
-          ],
-          "source": "packages/core/skills/backlog-autopilot/SKILL.md",
-          "staticTokens": 3796,
-          "type": "skill"
-        }
-      },
-      "provenance": {
-        "origin": "extracted",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "path",
-            "ref": "packages/core/skills/backlog-autopilot/SKILL.md",
             "hashOrVersion": "catalog-v1"
           }
         ]
@@ -5025,7 +4977,7 @@
             "codex"
           ],
           "source": "packages/core/skills/ticket-runner/SKILL.md",
-          "staticTokens": 3395,
+          "staticTokens": 3359,
           "type": "skill"
         }
       },
@@ -5274,7 +5226,7 @@
             "codex"
           ],
           "source": "packages/core/skills/writing-plans/SKILL.md",
-          "staticTokens": 2675,
+          "staticTokens": 2671,
           "type": "skill"
         }
       },
@@ -5313,34 +5265,6 @@
           {
             "kind": "path",
             "ref": "packages/core/skills/autopilot/workflows/autopilot.workflow.js",
-            "hashOrVersion": "catalog-v1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:workflow-def:workflow-def:backlog-autopilot",
-      "kind": "workflow-def",
-      "label": "backlog-autopilot",
-      "data": {
-        "legacy": {
-          "description": "",
-          "id": "workflow-def:backlog-autopilot",
-          "lines": 0,
-          "name": "backlog-autopilot",
-          "pack": null,
-          "source": "packages/core/skills/backlog-autopilot/workflows/backlog-autopilot.workflow.js",
-          "staticTokens": 0,
-          "type": "workflow-def"
-        }
-      },
-      "provenance": {
-        "origin": "extracted",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "path",
-            "ref": "packages/core/skills/backlog-autopilot/workflows/backlog-autopilot.workflow.js",
             "hashOrVersion": "catalog-v1"
           }
         ]
@@ -7637,6 +7561,32 @@
       }
     },
     {
+      "id": "catalog:edge:enforces:903ff4e25a424a1881787a51b03a62da",
+      "from": "catalog:hook:hook:block-protected-push",
+      "to": "catalog:skill:skill:autopilot",
+      "kind": "enforces",
+      "data": {
+        "legacy": {
+          "evidence": "block-protected-push guards protected-branch pushes for commit-only autopilot workers — enforces autopilot",
+          "from": "hook:block-protected-push",
+          "kind": "enforces",
+          "origin": "declared",
+          "to": "skill:autopilot"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:enforces:95fee87ff86d3da7be26fa4718679c38",
       "from": "catalog:hook:hook:llm-cost-precommit",
       "to": "catalog:skill:skill:llm-cost-discipline",
@@ -7856,32 +7806,6 @@
           "kind": "enforces",
           "origin": "declared",
           "to": "skill:frontend-design"
-        }
-      },
-      "provenance": {
-        "origin": "declared",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "contract",
-            "ref": "relations:v1",
-            "hashOrVersion": "1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:edge:enforces:e017d5bf64b8077cff50fa8120e1009e",
-      "from": "catalog:hook:hook:block-protected-push",
-      "to": "catalog:skill:skill:backlog-autopilot",
-      "kind": "enforces",
-      "data": {
-        "legacy": {
-          "evidence": "block-protected-push guards protected-branch pushes for commit-only autopilot workers — enforces backlog-autopilot",
-          "from": "hook:block-protected-push",
-          "kind": "enforces",
-          "origin": "declared",
-          "to": "skill:backlog-autopilot"
         }
       },
       "provenance": {

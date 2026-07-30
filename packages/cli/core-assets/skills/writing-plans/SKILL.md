@@ -185,7 +185,7 @@ After plan approval, transition to:
 
 - **`harness:ticket-writer`** when the plan becomes multiple tracker tickets. It writes native dependencies and the active-program pointer after the pool is approved.
 - **`harness:ticket-runner`** for a named single ticket or standalone implementation unit.
-- **`harness:backlog-autopilot`** only when the user requests its attended independent-ticket flow.
+- **`harness:autopilot`** only when the user requests its attended independent-ticket flow.
 
 For a tracker-backed program, later sessions recover work from the tracker through `plans/ACTIVE.md`; they do not mutate the plan to repoint the next ticket.
 
@@ -212,7 +212,7 @@ Set `high_risk: true` when the plan touches:
 - **Upstream — `brainstorming`**: the approved spec is the input.
 - **Downstream — `ticket-writer`**: converts a multi-ticket plan into native tracker items and installs its active handoff.
 - **Downstream — `ticket-runner`**: executes one complete ticket and maintains its tracker lifecycle.
-- **With `backlog-autopilot`**: drains independent ready tickets only through its attended flow.
+- **With `autopilot`**: drains independent ready tickets only through its attended flow.
 - **With `tdd`**: per-step mode selection lives in the plan.
 - **With `code-review`**: review checkpoints declared in the plan are honored.
 - **With `verification-before-completion`**: the plan's "Done" criteria feed the completion checklist.

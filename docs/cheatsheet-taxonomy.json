@@ -61,7 +61,6 @@
         "ticket-writer",
         "ticket-runner",
         "autopilot",
-        "backlog-autopilot",
         "retrospective",
         "make-pdf"
       ]

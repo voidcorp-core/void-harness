@@ -9,6 +9,7 @@ import { list } from './commands/list.js';
 import { doctor } from './commands/doctor.js';
 import { check } from './commands/check.js';
 import { update } from './commands/update.js';
+import { autopilot } from './commands/autopilot.js';
 import { backlogAutopilot } from './commands/backlog-autopilot.js';
 import { graph } from './commands/graph.js';
 import { audit } from './commands/audit.js';
@@ -53,8 +54,13 @@ export async function main(argv: readonly string[]): Promise<void> {
     case 'install':
       await install(rest);
       return;
+    case 'autopilot':
+      await autopilot(rest);
+      return;
+    // Kept routed for one migration cycle: a deleted command prints a generic
+    // "unknown command" and leaves the reader to guess what happened to theirs.
     case 'backlog-autopilot':
-      await backlogAutopilot(rest);
+      process.exitCode = await backlogAutopilot(rest);
       return;
     case 'graph':
       await graph(rest);

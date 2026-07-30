@@ -14,7 +14,7 @@ eval_targets: [claude/anthropic/opus]
 
 # ticket-runner
 
-One ticket, taken from ready to shipped, with the coverage a senior expert team would give it: architecture, tests, end-to-end, UX, security, review. This is the single canonical definition of "execute one ticket well." Both interactive work and `harness:backlog-autopilot` delegate here, so the cycle is defined once and improving it improves both.
+One ticket, taken from ready to shipped, with the coverage a senior expert team would give it: architecture, tests, end-to-end, UX, security, review. This is the single canonical definition of "execute one ticket well." Both interactive work and `harness:autopilot` delegate here, so the cycle is defined once and improving it improves both.
 
 **Core principle:** Speed comes from skipping ceremony on trivial work, never from skipping a pass whose trigger fired. The triage is keyed to observable predicates (does it touch a boundary, a UI, a trust edge), not to a feeling that the change "looks simple."
 
@@ -52,7 +52,7 @@ fresh context or the declared read-only boundary, report the limitation and refu
 ## When to invoke
 
 - Starting any single ticket or issue you intend to implement and ship.
-- Once per ticket by `harness:backlog-autopilot` (the per-ticket cycle IS this skill, run inside a worktree subagent).
+- Once per ticket by `harness:autopilot` (the per-ticket cycle IS this skill, run inside a worktree subagent).
 - After `harness:ticket-writer` produced the ticket: its declared passes are an accelerator HINT. You ALWAYS evaluate the predicates yourself; a declaration may only ADD a pass, never cancel one whose predicate fired.
 
 Do NOT use this to plan several tickets (that is `harness:writing-plans`) or to author the ticket itself (`harness:ticket-writer`).
@@ -73,7 +73,7 @@ Run in order. Each pass names the skill it composes and the predicate that fires
 8. **Security pass** (ALWAYS a quick scan; DEEP if it touches a trust boundary: external input, auth, RLS/tenancy, untrusted content, secrets, or a side-effecting action). Compose `harness:security-guidance` + `harness:security-audit`.
 9. **Review** (ALWAYS). Run the canonical team orchestration above. Compose `harness:code-review` for the integration lens; `doctrine-critic`, `silent-failure-hunter`, and project reviewers may add scoped findings but never replace the required Architecture, Security, and QA completion events. Findings are deduplicated by concrete evidence, not reviewer majority. On a high-stakes diff, add one independent fresh-context adversarial pass; classify each finding FIXABLE vs INVESTIGATE and name the single most exploitable finding. *Vendored from gstack `/ship`.*
 10. **Verification before completion** (ALWAYS). Compose `harness:verification-before-completion`: typecheck, tests, hooks, both viewports, all observed not assumed. **A red suite is adjudicated before proceeding** (from gstack `/ship`): each failure is *in-branch* (you touched the test/code, or it traces to the diff → it is yours, fix it) or *pre-existing* (neither touched → offer fix / TODO / skip); ambiguous defaults to in-branch. Test on the **merged base**, not the stale branch. The controller may return `verified` only when every applicable specialist completion and required proof is fresh.
-11. **Ship** (ALWAYS). Compose `harness:commit-discipline`, open the PR, attach the PR and verification evidence, then move a tracker-backed ticket to **In Review**. Move it to **Done** only after merge and final verification of the merged state. Commits are **bisectable** — one logical change each, dependency-ordered (infra → domain + tests → edge/UI + tests), each independently valid. In backlog-autopilot the worker never opens the PR or changes review state (the reconciliation subagent does); it stops at a green committed branch.
+11. **Ship** (ALWAYS). Compose `harness:commit-discipline`, open the PR, attach the PR and verification evidence, then move a tracker-backed ticket to **In Review**. Move it to **Done** only after merge and final verification of the merged state. Commits are **bisectable** — one logical change each, dependency-ordered (infra → domain + tests → edge/UI + tests), each independently valid. Under autopilot the worker never opens the PR or changes review state (the reconciler does); it stops at a green committed branch.
 
 ---
 
@@ -137,8 +137,8 @@ Tokens follow stakes: mechanical work runs cheap, judgment runs at full strength
 - **Mechanical (may run a cheaper model)**: the ingest read, artifact/mirror regeneration, a trivial edit whose predicate fired nothing else.
 - **Judgment (stay top-tier)**: architecture, DEEP security, the review adversarial pass, verification adjudication of a red suite, and any brainstorm/design step.
 - **Subagents carry their own tier**: `doctrine-critic` / `silent-failure-hunter` / `code-explorer` run sonnet; `type-design-analyzer` runs sonnet, `migration-planner` opus (see the agent frontmatter). This skill composes them; it does not override their tier.
-- **Interactive vs worker**: run interactively, the cycle uses the session model (the human's choice); the tiering above is realized when the cycle runs as a `harness:backlog-autopilot` **worker**, where the worker's model is set from the ticket's stakes (`workerTier`, top-tier by default). A light ticket's whole cycle runs cheaper; a high-stakes one stays full-strength.
+- **Interactive vs worker**: run interactively, the cycle uses the session model (the human's choice); the tiering above is realized when the cycle runs as a `harness:autopilot` **worker**, where the worker's model is set from the ticket's stakes (`workerTier`, top-tier by default). A light ticket's whole cycle runs cheaper; a high-stakes one stays full-strength.
 
 ## Composition
 
-Upstream: `harness:ticket-writer` produces the ticket and declares its conditional passes. Caller: `harness:backlog-autopilot` runs this once per ticket in parallel worktrees — `harness:autopilot` replaces it at the cutover and calls this skill the same way, whole and once per ticket. Neither restates a pass of this cycle: it has one owner so a ticket gets the same standard however it was started. The skill conducts; the Mission Engine controller decides state, invalidation, and verdict; native specialists own their bounded reviews.
+Upstream: `harness:ticket-writer` produces the ticket and declares its conditional passes. Caller: `harness:autopilot` runs this once per ticket in parallel worktrees, whole and once. Neither restates a pass of this cycle: it has one owner so a ticket gets the same standard however it was started. The skill conducts; the Mission Engine controller decides state, invalidation, and verdict; native specialists own their bounded reviews.

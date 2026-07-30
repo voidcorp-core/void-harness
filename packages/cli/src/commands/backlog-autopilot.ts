@@ -1,177 +1,39 @@
-// `void-harness backlog-autopilot` — the deterministic planning surface for the
-// attended parallel batch mode. The in-session launcher (the /harness:backlog-autopilot
-// skill) gathers Linear tickets via the MCP and footprint estimates via the
-// estimator subagent, pipes them here as JSON, and gets back the parallel /
-// sequential plan it shows the human before invoking the Workflow.
+// `void-harness backlog-autopilot` — retired. This is a signpost, not a command.
 //
-// The CLI deliberately does only the deterministic computation — it has no MCP
-// and spawns no agents. Cluster detection, ordering and partition are the
-// unit-tested core; the launcher shows the plan (a --dry-run preview by default)
-// and confirms with the human before any fan-out.
+// The engine it fronted was replaced by `autopilot`, whose boundaries differ
+// enough that forwarding would be a lie: workers are commit-only, merging is a
+// human gate with no flag, and the run resumes from the active program rather
+// than from arguments. An alias would keep old invocations "working" while
+// giving them different behaviour, which is worse than failing.
+//
+// So it fails, loudly, with the one command that replaces it. It is kept routed
+// rather than deleted for exactly one cycle: a removed command prints a generic
+// "unknown command" and leaves the reader to guess what happened to theirs.
+//
+// It imports nothing. `legacy-boundary.test.ts` holds that, because the way a
+// stub becomes an engine again is one helpful import at a time.
 
-import { join } from 'node:path';
-import { type AutopilotPlan, type AutopilotPlanInput, buildAutopilotPlan } from '../lib/backlog/autopilot-plan.js';
-import { blockedClusters, summarizeRun } from '../lib/backlog/autopilot-run.js';
-import { resolveMergeDecision } from '../lib/backlog/merge-decision.js';
-import { type RunState, nextPending, readState } from '../lib/backlog/run-state.js';
+type Emit = (line: string) => void;
 
-function readStdin(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let data = '';
-    process.stdin.setEncoding('utf8');
-    process.stdin.on('data', (chunk) => {
-      data += chunk;
-    });
-    process.stdin.on('end', () => resolve(data));
-    process.stdin.on('error', reject);
-  });
-}
+const MESSAGE = `
+backlog-autopilot has been replaced by autopilot.
 
-function printHelp(): void {
-  process.stdout.write(
-    `
-void-harness backlog-autopilot — deterministic planning for the attended parallel mode.
+  void-harness autopilot --help
 
-This is invoked by the /harness:backlog-autopilot launcher, not usually by hand. It
-reads a JSON plan input on stdin and prints the parallel/sequential plan as JSON.
+What changed, beyond the name:
+  - workers commit only; the reconciler owns push, pull request and tracker state
+  - merging is a human gate — there is no --auto-merge, on any path
+  - a run resumes from plans/ACTIVE.md, so no ticket, cluster or run id is passed
 
-Usage:
-  echo '<json>' | void-harness backlog-autopilot plan
-  echo '<json>' | void-harness backlog-autopilot merge-decision
-  void-harness backlog-autopilot status <runId>
-  void-harness backlog-autopilot resume <runId>
-  void-harness backlog-autopilot explain-blocked <runId>
-  void-harness backlog-autopilot abort <runId>
+There is no alias: the two engines do not behave the same, and a silent
+forward would give your existing invocation different semantics.
+`.trimStart();
 
-Operator subcommands read .void/autopilot/<runId>/state.json (status, the resume
-cursor, blocked clusters + reasons). They never spawn agents; the actual resume
-drives the Workflow in session.
-
-stdin JSON:
-  {
-    "tickets":   [{ "id", "priority", "boardOrder", "blockedByOpen",
-                    "dependsOn": [], "parentId"?, "labels"?: [] }],
-    "estimates": [{ "id", "areas": [], "highRisk": false, "confidence": 0..1 }],
-    "batchSize":      4,    // optional independent-leftover batch size (default 4)
-    "maxClusterSize": 6,    // optional cap before a cluster is split
-    "minConfidence":  0.5   // optional; below it, route sequential
-  }
-
-stdout JSON:
-  {
-    "clusters": [{ "id", "tickets": [], "reason", "confidence", "oversized",
-                   "parallel": [], "sequential": [], "order": [] }],
-    "batch":    { "parallel": [ids], "sequential": [ids] },
-    "excluded": [ids]
-  }
-`.trimStart(),
-  );
-}
-
-async function planCmd(): Promise<void> {
-  const raw = await readStdin();
-  let input: AutopilotPlanInput;
-  try {
-    input = JSON.parse(raw) as AutopilotPlanInput;
-  } catch {
-    process.stderr.write('backlog-autopilot plan: stdin is not valid JSON.\n');
-    process.exitCode = 2;
-    return;
-  }
-  const plan: AutopilotPlan = buildAutopilotPlan(input);
-  process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
-}
-
-async function mergeDecisionCmd(args: readonly string[]): Promise<void> {
-  // Decision only — this NEVER merges. The launcher acts on {arm} via gh.
-  const result = resolveMergeDecision(args, await readStdin(), process.env);
-  if (!result.ok) {
-    process.stderr.write(`backlog-autopilot merge-decision: ${result.error}\n`);
-    process.exitCode = 2;
-    return;
-  }
-  process.stdout.write(`${JSON.stringify(result.decision, null, 2)}\n`);
-}
-
-function runDir(runId: string): string {
-  return join(process.cwd(), '.void', 'autopilot', runId);
-}
-
-/** Read a run's state, or write an error and return undefined. */
-function loadRun(runId: string | undefined): RunState | undefined {
-  if (runId === undefined) {
-    process.stderr.write('backlog-autopilot: a <runId> is required.\n');
-    process.exitCode = 2;
-    return undefined;
-  }
-  const state = readState(runDir(runId));
-  if (state === undefined) {
-    process.stderr.write(`backlog-autopilot: no run '${runId}' under .void/autopilot/.\n`);
-    process.exitCode = 2;
-    return undefined;
-  }
-  return state;
-}
-
-function emit(value: unknown): void {
-  process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
-}
-
-function statusCmd(runId: string | undefined): void {
-  const state = loadRun(runId);
-  if (state !== undefined) emit({ runId: state.runId, base: state.base, ...summarizeRun(state) });
-}
-
-function explainBlockedCmd(runId: string | undefined): void {
-  const state = loadRun(runId);
-  if (state !== undefined) emit({ runId: state.runId, blocked: blockedClusters(state) });
-}
-
-function resumeCmd(runId: string | undefined): void {
-  const state = loadRun(runId);
-  if (state === undefined) return;
-  // The actual resume drives the Workflow in session; the CLI reports readiness.
-  const next = nextPending(state);
-  emit({ runId: state.runId, base: state.base, next: next?.id ?? null, summary: summarizeRun(state) });
-}
-
-function abortCmd(runId: string | undefined): void {
-  const state = loadRun(runId);
-  if (state !== undefined) {
-    emit({ runId: state.runId, aborted: true, note: 'state preserved for inspection; no branches deleted' });
-  }
-}
-
-export async function backlogAutopilot(args: readonly string[]): Promise<void> {
-  const [sub, runId] = args;
-  switch (sub) {
-    case 'plan':
-      await planCmd();
-      return;
-    case 'merge-decision':
-      await mergeDecisionCmd(args);
-      return;
-    case 'status':
-      statusCmd(runId);
-      return;
-    case 'resume':
-      resumeCmd(runId);
-      return;
-    case 'explain-blocked':
-      explainBlockedCmd(runId);
-      return;
-    case 'abort':
-      abortCmd(runId);
-      return;
-    case 'help':
-    case '--help':
-    case '-h':
-    case undefined:
-      printHelp();
-      return;
-    default:
-      process.stderr.write(`backlog-autopilot: unknown subcommand '${sub}'\n\n`);
-      printHelp();
-      process.exitCode = 2;
-  }
+/**
+ * Always exits 2. Not 0 with a warning: a script that pipes into this command
+ * must fail rather than continue against output that will never come.
+ */
+export function backlogAutopilot(_argv: readonly string[], emit: Emit = (line) => process.stderr.write(line)): Promise<2> {
+  emit(MESSAGE);
+  return Promise.resolve(2);
 }

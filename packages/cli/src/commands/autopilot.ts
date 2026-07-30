@@ -531,3 +531,40 @@ export function runAutopilotCommand(
     return fail(renderAutopilotFailure(toAutopilotFailure(error), json));
   }
 }
+
+/**
+ * The imperative shell around the pure surface above.
+ *
+ * `runAutopilotCommand` is a function of (argv, stdin, context); this reads the
+ * two things it cannot — the pipe and the clock — writes what comes back, and
+ * propagates the exit code. Everything decidable stays on the other side of that
+ * line, which is why the whole contract is testable without a process.
+ *
+ * stdin is read only for the subcommands that take it. `plan` without a pipe
+ * would otherwise hang on a terminal, waiting for input nobody is going to type.
+ */
+export async function autopilot(argv: readonly string[]): Promise<void> {
+  const wantsStdin = argv.some((arg) => ['plan', 'start', 'status', 'resume'].includes(arg));
+  const stdin = wantsStdin && !process.stdin.isTTY ? await readAllStdin() : '';
+
+  const result = runAutopilotCommand(argv, stdin, {
+    root: process.cwd(),
+    now: new Date().toISOString(),
+  });
+
+  if (result.stdout !== '') process.stdout.write(result.stdout);
+  if (result.stderr !== '') process.stderr.write(result.stderr);
+  if (result.exitCode !== 0) process.exitCode = result.exitCode;
+}
+
+function readAllStdin(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', (chunk) => {
+      data += chunk;
+    });
+    process.stdin.on('end', () => resolve(data));
+    process.stdin.on('error', reject);
+  });
+}
