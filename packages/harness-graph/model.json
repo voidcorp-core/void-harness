@@ -2360,7 +2360,7 @@
         }
       ],
       "id": "skill:security-audit",
-      "lines": 138,
+      "lines": 149,
       "name": "security-audit",
       "owner": "folpe",
       "pack": null,
@@ -2369,7 +2369,7 @@
         "codex"
       ],
       "source": "packages/core/skills/security-audit/SKILL.md",
-      "staticTokens": 3801,
+      "staticTokens": 4224,
       "type": "skill"
     },
     {
