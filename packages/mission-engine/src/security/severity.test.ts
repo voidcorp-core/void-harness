@@ -1,15 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import {
   classifySecurityFinding,
+  describeSecurityPosture,
   judgeScan,
   NON_WAIVABLE_CLASSES,
   type SecurityClass,
-  type SecurityMode,
+  type SecurityPosture,
 } from './severity.js';
 
-const MODES: SecurityMode[] = ['fast', 'team', 'fortress', 'prelaunch'];
+/** Every combination, because mode and phase are independent by construction. */
+const POSTURES: SecurityPosture[] = [
+  { mode: 'fast', prelaunch: false },
+  { mode: 'team', prelaunch: false },
+  { mode: 'fortress', prelaunch: false },
+  { mode: 'fast', prelaunch: true },
+  { mode: 'team', prelaunch: true },
+  { mode: 'fortress', prelaunch: true },
+];
 
-describe('three classes are never waivable, in any mode', () => {
+const label = (posture: SecurityPosture): string => describeSecurityPosture(posture);
+
+describe('three classes are never waivable, in any posture', () => {
   it('names exactly the three the doctrine forbids waiving', () => {
     expect([...NON_WAIVABLE_CLASSES].sort()).toEqual([
       'destructive-migration-without-recovery',
@@ -20,11 +31,11 @@ describe('three classes are never waivable, in any mode', () => {
 
   it('refuses to waive them even in fast mode', () => {
     for (const securityClass of NON_WAIVABLE_CLASSES) {
-      for (const mode of MODES) {
-        const verdict = classifySecurityFinding({ securityClass, reportedSeverity: 'low', mode });
+      for (const posture of POSTURES) {
+        const verdict = classifySecurityFinding({ securityClass, reportedSeverity: 'low', posture });
 
-        expect(verdict.waivable, `${securityClass}/${mode}`).toBe(false);
-        expect(verdict.blocking, `${securityClass}/${mode}`).toBe(true);
+        expect(verdict.waivable, `${securityClass}/${label(posture)}`).toBe(false);
+        expect(verdict.blocking, `${securityClass}/${label(posture)}`).toBe(true);
       }
     }
   });
@@ -35,7 +46,7 @@ describe('three classes are never waivable, in any mode', () => {
     const verdict = classifySecurityFinding({
       securityClass: 'secret-exposure',
       reportedSeverity: 'info',
-      mode: 'fast',
+      posture: { mode: 'fast', prelaunch: false },
     });
 
     expect(verdict.severity).toBe('critical');
@@ -46,7 +57,7 @@ describe('three classes are never waivable, in any mode', () => {
     const verdict = classifySecurityFinding({
       securityClass: 'tenant-isolation',
       reportedSeverity: 'high',
-      mode: 'team',
+      posture: { mode: 'team', prelaunch: false },
     });
 
     expect(verdict.rationale).toMatch(/tenant/i);
@@ -58,7 +69,7 @@ describe('an ordinary class', () => {
     const verdict = classifySecurityFinding({
       securityClass: 'dependency',
       reportedSeverity: 'high',
-      mode: 'team',
+      posture: { mode: 'team', prelaunch: false },
     });
 
     expect(verdict.severity).toBe('high');
@@ -71,7 +82,7 @@ describe('an ordinary class', () => {
       const verdict = classifySecurityFinding({
         securityClass: 'misconfiguration',
         reportedSeverity: reported,
-        mode: 'fast',
+        posture: { mode: 'fast', prelaunch: false },
       });
 
       expect(verdict.severity, reported).toBe(reported);
@@ -82,7 +93,7 @@ describe('an ordinary class', () => {
     const verdict = classifySecurityFinding({
       securityClass: 'dependency',
       reportedSeverity: 'medium',
-      mode: 'team',
+      posture: { mode: 'team', prelaunch: false },
     });
 
     expect(verdict.waivable).toBe(true);
@@ -93,30 +104,72 @@ describe('the mode sets what blocks, not what may be waived', () => {
   it('blocks a medium finding in fortress but not in fast', () => {
     const shape = { securityClass: 'injection' as SecurityClass, reportedSeverity: 'medium' as const };
 
-    expect(classifySecurityFinding({ ...shape, mode: 'fortress' }).blocking).toBe(true);
-    expect(classifySecurityFinding({ ...shape, mode: 'fast' }).blocking).toBe(false);
+    expect(
+      classifySecurityFinding({ ...shape, posture: { mode: 'fortress', prelaunch: false } }).blocking,
+    ).toBe(true);
+    expect(classifySecurityFinding({ ...shape, posture: { mode: 'fast', prelaunch: false } }).blocking).toBe(
+      false,
+    );
   });
 
-  it('blocks critical everywhere, because no mode is a reason to ship one', () => {
-    for (const mode of MODES) {
+  it('blocks critical everywhere, because no posture is a reason to ship one', () => {
+    for (const posture of POSTURES) {
       const verdict = classifySecurityFinding({
         securityClass: 'injection',
         reportedSeverity: 'critical',
-        mode,
+        posture,
       });
 
-      expect(verdict.blocking, mode).toBe(true);
+      expect(verdict.blocking, label(posture)).toBe(true);
     }
   });
 
-  it('leaves informational findings non-blocking in every mode', () => {
-    for (const mode of MODES) {
+  it('leaves informational findings non-blocking in every posture', () => {
+    for (const posture of POSTURES) {
       expect(
-        classifySecurityFinding({ securityClass: 'misconfiguration', reportedSeverity: 'info', mode })
+        classifySecurityFinding({ securityClass: 'misconfiguration', reportedSeverity: 'info', posture })
           .blocking,
-        mode,
+        label(posture),
       ).toBe(false);
     }
+  });
+});
+
+describe('pre-launch is a phase of the project, not a mode of the mission', () => {
+  // The two are independent: a team-mode mission can be days from launch, and a
+  // fortress mission can be nowhere near one. Collapsing them into a single
+  // enum made those states inexpressible.
+  const shape = { securityClass: 'injection' as SecurityClass, reportedSeverity: 'medium' as const };
+
+  it('hardens a mode that would otherwise let a medium finding through', () => {
+    expect(classifySecurityFinding({ ...shape, posture: { mode: 'fast', prelaunch: false } }).blocking).toBe(
+      false,
+    );
+    expect(classifySecurityFinding({ ...shape, posture: { mode: 'fast', prelaunch: true } }).blocking).toBe(
+      true,
+    );
+  });
+
+  it('never softens a mode that already blocks lower', () => {
+    // Pre-launch may only tighten. If it could loosen, the phase closest to
+    // shipping would be the one that lets the most through.
+    for (const posture of POSTURES) {
+      const strictest = classifySecurityFinding({ ...shape, posture: { ...posture, prelaunch: true } });
+      const asIs = classifySecurityFinding({ ...shape, posture });
+
+      expect(strictest.blocking || !asIs.blocking, label(posture)).toBe(true);
+    }
+  });
+
+  it('names both dimensions in its rationale, so a verdict can be traced', () => {
+    const verdict = classifySecurityFinding({ ...shape, posture: { mode: 'team', prelaunch: true } });
+
+    expect(verdict.rationale).toContain('team');
+    expect(verdict.rationale).toMatch(/pre-launch/i);
+  });
+
+  it('describes an ordinary posture by its mode alone', () => {
+    expect(describeSecurityPosture({ mode: 'fortress', prelaunch: false })).toBe('fortress');
   });
 });
 
@@ -125,7 +178,7 @@ describe('an unclassified finding', () => {
     const verdict = classifySecurityFinding({
       securityClass: 'unknown',
       reportedSeverity: 'info',
-      mode: 'team',
+      posture: { mode: 'team', prelaunch: false },
     });
 
     // Nobody decided this is safe; nobody decided it is not. It stays visible.
@@ -135,56 +188,83 @@ describe('an unclassified finding', () => {
 
   it('blocks in fortress, where an unexplained finding is not acceptable', () => {
     expect(
-      classifySecurityFinding({ securityClass: 'unknown', reportedSeverity: 'info', mode: 'fortress' })
-        .blocking,
+      classifySecurityFinding({
+        securityClass: 'unknown',
+        reportedSeverity: 'info',
+        posture: { mode: 'fortress', prelaunch: false },
+      }).blocking,
     ).toBe(true);
   });
 });
 
 describe('judgeScan — an incomplete scan is never green', () => {
   it('is green only when the scan actually completed', () => {
-    for (const mode of MODES) {
-      expect(judgeScan({ completeness: 'complete', mode, missingTools: [] }).verdict, mode).toBe('green');
+    for (const posture of POSTURES) {
+      expect(judgeScan({ completeness: 'complete', posture, missingTools: [] }).verdict, label(posture)).toBe(
+        'green',
+      );
     }
   });
 
-  it('degrades a partial scan in every mode', () => {
-    for (const mode of MODES) {
-      const judged = judgeScan({ completeness: 'partial', mode, missingTools: [] });
+  it('degrades a partial scan in every posture', () => {
+    for (const posture of POSTURES) {
+      const judged = judgeScan({ completeness: 'partial', posture, missingTools: [] });
 
-      expect(judged.verdict, mode).not.toBe('green');
+      expect(judged.verdict, label(posture)).not.toBe('green');
     }
   });
 
-  it('blocks a missing tool in fortress and prelaunch, degrades it elsewhere', () => {
-    expect(judgeScan({ completeness: 'tool-missing', mode: 'fortress', missingTools: ['zap'] }).verdict).toBe(
-      'blocked',
-    );
-    expect(judgeScan({ completeness: 'tool-missing', mode: 'prelaunch', missingTools: ['zap'] }).verdict).toBe(
-      'blocked',
-    );
-    expect(judgeScan({ completeness: 'tool-missing', mode: 'fast', missingTools: ['zap'] }).verdict).toBe(
-      'degraded',
-    );
+  it('blocks a missing tool in fortress and before a launch, degrades it elsewhere', () => {
+    expect(
+      judgeScan({
+        completeness: 'tool-missing',
+        posture: { mode: 'fortress', prelaunch: false },
+        missingTools: ['zap'],
+      }).verdict,
+    ).toBe('blocked');
+    expect(
+      judgeScan({
+        completeness: 'tool-missing',
+        posture: { mode: 'fast', prelaunch: true },
+        missingTools: ['zap'],
+      }).verdict,
+    ).toBe('blocked');
+    expect(
+      judgeScan({
+        completeness: 'tool-missing',
+        posture: { mode: 'fast', prelaunch: false },
+        missingTools: ['zap'],
+      }).verdict,
+    ).toBe('degraded');
   });
 
   it('names the missing tool, because "degraded" alone is not actionable', () => {
-    const judged = judgeScan({ completeness: 'tool-missing', mode: 'team', missingTools: ['zap', 'semgrep'] });
+    const judged = judgeScan({
+      completeness: 'tool-missing',
+      posture: { mode: 'team', prelaunch: false },
+      missingTools: ['zap', 'semgrep'],
+    });
 
     expect(judged.detail).toContain('zap');
     expect(judged.detail).toContain('semgrep');
   });
 
   it('blocks an errored scan everywhere, since a crash proves nothing', () => {
-    for (const mode of MODES) {
-      expect(judgeScan({ completeness: 'errored', mode, missingTools: [] }).verdict, mode).toBe('blocked');
+    for (const posture of POSTURES) {
+      expect(judgeScan({ completeness: 'errored', posture, missingTools: [] }).verdict, label(posture)).toBe(
+        'blocked',
+      );
     }
   });
 
   it('refuses to call a scan complete while it also reports a missing tool', () => {
     // A contradiction between the two inputs is resolved against the run, not
     // in its favour: something was not measured.
-    const judged = judgeScan({ completeness: 'complete', mode: 'team', missingTools: ['zap'] });
+    const judged = judgeScan({
+      completeness: 'complete',
+      posture: { mode: 'team', prelaunch: false },
+      missingTools: ['zap'],
+    });
 
     expect(judged.verdict).not.toBe('green');
     expect(judged.detail).toMatch(/contradic|missing/i);

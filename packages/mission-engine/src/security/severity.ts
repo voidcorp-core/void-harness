@@ -19,9 +19,18 @@
 // Mode sets what BLOCKS, never what may be waived. `fast` may let a medium
 // finding through; it may not waive a leaked secret.
 //
+// A verdict is read against a POSTURE, which is two independent things: the
+// mission's mode, and whether the project is about to launch. A mode says how
+// much rigour this run of work is being given; pre-launch says where the
+// product is in its life. A team-mode mission can be three days from a launch,
+// and a fortress mission can be nowhere near one — so they are two axes, not
+// four values of one enum. Pre-launch may only ever tighten what blocks: if it
+// could loosen, the moment closest to shipping would be the most permissive.
+//
 // Pure. It classifies and judges; running scanners is somebody else's job.
 
 import type { FindingSeverity } from '../findings/types.js';
+import type { MissionMode } from '../modes/team.js';
 
 export type SecurityClass =
   | 'secret-exposure'
@@ -35,7 +44,16 @@ export type SecurityClass =
   | 'misconfiguration'
   | 'unknown';
 
-export type SecurityMode = 'fast' | 'team' | 'fortress' | 'prelaunch';
+export interface SecurityPosture {
+  readonly mode: MissionMode;
+  /** Whether the project is close enough to a launch to be held tighter. */
+  readonly prelaunch: boolean;
+}
+
+/** How a posture reads in a rationale a human has to act on. */
+export function describeSecurityPosture(posture: SecurityPosture): string {
+  return posture.prelaunch ? `${posture.mode} (pre-launch)` : posture.mode;
+}
 
 /** Waiving one of these is not a judgement call, so it is not offered. */
 export const NON_WAIVABLE_CLASSES = Object.freeze([
@@ -64,15 +82,29 @@ const FLOOR: Partial<Record<SecurityClass, FindingSeverity>> = {
 };
 
 /** Lowest severity that blocks, per mode. */
-const BLOCKS_AT: Record<SecurityMode, FindingSeverity> = {
+const BLOCKS_AT: Record<MissionMode, FindingSeverity> = {
   fast: 'high',
   team: 'high',
   fortress: 'medium',
-  prelaunch: 'medium',
 };
+
+/** Lowest severity that blocks once a launch is near, whatever the mode allows. */
+const PRELAUNCH_BLOCKS_AT: FindingSeverity = 'medium';
 
 function rank(severity: FindingSeverity): number {
   return ORDER.indexOf(severity);
+}
+
+/** The stricter of the two axes wins, so pre-launch can only tighten. */
+function blocksAt(posture: SecurityPosture): FindingSeverity {
+  const byMode = BLOCKS_AT[posture.mode];
+  if (!posture.prelaunch) return byMode;
+  return rank(PRELAUNCH_BLOCKS_AT) < rank(byMode) ? PRELAUNCH_BLOCKS_AT : byMode;
+}
+
+/** A posture that demands proof rather than accepting an unmeasured surface. */
+function demandsProof(posture: SecurityPosture): boolean {
+  return posture.mode === 'fortress' || posture.prelaunch;
 }
 
 function isNonWaivable(securityClass: SecurityClass): boolean {
@@ -83,10 +115,11 @@ export interface ClassificationInput {
   readonly securityClass: SecurityClass;
   /** What the rule or scanner claimed. Treated as a lower bound, never a cap. */
   readonly reportedSeverity: FindingSeverity;
-  readonly mode: SecurityMode;
+  readonly posture: SecurityPosture;
 }
 
 export function classifySecurityFinding(input: ClassificationInput): ClassifiedFinding {
+  const posture = describeSecurityPosture(input.posture);
   const floor = FLOOR[input.securityClass];
   const raised = floor !== undefined && rank(floor) > rank(input.reportedSeverity);
   const severity = raised ? (floor as FindingSeverity) : input.reportedSeverity;
@@ -102,13 +135,13 @@ export function classifySecurityFinding(input: ClassificationInput): ClassifiedF
     });
   }
 
-  const blocking = rank(severity) >= rank(BLOCKS_AT[input.mode]);
+  const blocking = rank(severity) >= rank(blocksAt(input.posture));
   const rationale =
     input.securityClass === 'unknown'
       ? `the finding is not classified, so it is held at ${severity} rather than assumed harmless${
-          blocking ? ` and blocks in ${input.mode}` : ''
+          blocking ? ` and blocks in ${posture}` : ''
         }`
-      : `${severity} ${blocking ? 'blocks' : 'does not block'} in ${input.mode} mode`;
+      : `${severity} ${blocking ? 'blocks' : 'does not block'} in ${posture} mode`;
 
   return Object.freeze({ severity, blocking, waivable: true, rationale });
 }
@@ -123,12 +156,10 @@ export interface ScanJudgement {
 
 export interface ScanInput {
   readonly completeness: ScanCompleteness;
-  readonly mode: SecurityMode;
+  readonly posture: SecurityPosture;
   /** Tools the scan needed and could not find. */
   readonly missingTools: readonly string[];
 }
-
-const STRICT_MODES: readonly SecurityMode[] = ['fortress', 'prelaunch'];
 
 /**
  * Judge a scan as a whole.
@@ -140,7 +171,7 @@ const STRICT_MODES: readonly SecurityMode[] = ['fortress', 'prelaunch'];
  */
 export function judgeScan(input: ScanInput): ScanJudgement {
   const missing = input.missingTools.filter((tool) => typeof tool === 'string' && tool.trim() !== '');
-  const strict = STRICT_MODES.includes(input.mode);
+  const strict = demandsProof(input.posture);
 
   if (input.completeness === 'errored') {
     return Object.freeze({
@@ -159,7 +190,7 @@ export function judgeScan(input: ScanInput): ScanJudgement {
     return Object.freeze({
       verdict: strict ? 'blocked' : 'degraded',
       detail: `${contradiction}missing: ${missing.join(', ') || 'an unnamed tool'}${
-        strict ? `; ${input.mode} requires the proof this tool produces` : ''
+        strict ? `; ${describeSecurityPosture(input.posture)} requires the proof this tool produces` : ''
       }`,
     });
   }
