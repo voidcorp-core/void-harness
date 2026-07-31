@@ -1,20 +1,24 @@
 // src/enforcement/runner.ts
 import {
   closeSync,
-  existsSync as existsSync2,
+  existsSync as existsSync3,
   openSync,
-  readFileSync as readFileSync2,
+  readFileSync as readFileSync3,
   readSync,
   realpathSync
 } from "node:fs";
 import {
   basename as basename2,
-  dirname,
+  dirname as dirname2,
   isAbsolute,
-  join as join2,
+  join as join3,
   relative,
-  resolve
+  resolve as resolve2
 } from "node:path";
+
+// src/rules/boundary-direction.ts
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 
 // src/rules/verdict.ts
 function allow(code3 = "ALLOW", message = "allowed") {
@@ -51,24 +55,56 @@ function evidenceVerdict(code3, message, evidence) {
 }
 
 // src/rules/boundary-direction.ts
-function boundaryDirection(edits) {
-  const evidence = [];
-  for (const edit of edits) {
-    const path = normalizedPath(edit.path);
-    const match = path.match(/^packages\/([^/]+)\/.+\.(?:ts|tsx)$/);
-    if (match === null || match[1] === "core" || isTestPath(path) || isGeneratedPath(path)) continue;
-    const sourcePackage = match[1];
-    edit.addedContent.split(/\r?\n/).forEach((line, index) => {
-      if (line.includes("allow-boundary:")) return;
-      const target = line.match(/\bfrom\s+['"]@repo\/([A-Za-z0-9-]+)/)?.[1];
-      if (target !== void 0 && target !== "core" && target !== sourcePackage) {
-        evidence.push(`${path}:${index + 1} -> @repo/${target}`);
+var IMPORT = /\bfrom\s+['"](@[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+)/;
+function nearestManifest(projectRoot2, filePath) {
+  const root = resolve(projectRoot2);
+  let directory = dirname(resolve(projectRoot2, filePath));
+  while (directory.startsWith(root)) {
+    const candidate = join(directory, "package.json");
+    if (existsSync(candidate)) {
+      try {
+        const parsed = JSON.parse(readFileSync(candidate, "utf8"));
+        return {
+          ...parsed.name === void 0 ? {} : { name: parsed.name },
+          declared: /* @__PURE__ */ new Set([
+            ...Object.keys(parsed.dependencies ?? {}),
+            ...Object.keys(parsed.devDependencies ?? {}),
+            ...Object.keys(parsed.peerDependencies ?? {}),
+            ...Object.keys(parsed.optionalDependencies ?? {})
+          ])
+        };
+      } catch {
+        return void 0;
       }
-    });
+    }
+    const parent = dirname(directory);
+    if (parent === directory) break;
+    directory = parent;
+  }
+  return void 0;
+}
+function boundaryDirection(edits, projectRoot2) {
+  const evidence = [];
+  if (projectRoot2 !== void 0) {
+    const manifests = /* @__PURE__ */ new Map();
+    for (const edit of edits) {
+      const path = normalizedPath(edit.path);
+      if (!/\.(?:ts|tsx|js|jsx)$/.test(path) || isTestPath(path) || isGeneratedPath(path)) continue;
+      if (!manifests.has(path)) manifests.set(path, nearestManifest(projectRoot2, path));
+      const manifest = manifests.get(path);
+      if (manifest === void 0) continue;
+      edit.addedContent.split(/\r?\n/).forEach((line, index) => {
+        if (line.includes("allow-boundary:")) return;
+        const target = line.match(IMPORT)?.[1];
+        if (target === void 0 || target === manifest.name) return;
+        if (manifest.declared.has(target)) return;
+        evidence.push(`${path}:${index + 1} -> ${target}`);
+      });
+    }
   }
   return evidenceVerdict(
-    "MONOREPO_BOUNDARY_DIRECTION",
-    "forbidden @repo/* import; package may import only itself or @repo/core",
+    "MONOREPO_UNDECLARED_DEPENDENCY",
+    "imports a workspace package this one does not declare; add it to package.json dependencies",
     evidence
   );
 }
@@ -204,8 +240,8 @@ function noAsCast(edits) {
 }
 
 // src/rules/project-config.ts
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync as existsSync2, readFileSync as readFileSync2 } from "node:fs";
+import { join as join2 } from "node:path";
 var CONFIGS = ["biome.json", "biome.jsonc"];
 function normalize(path) {
   return path.replaceAll("\\", "/").replace(/^\.\//, "");
@@ -296,10 +332,10 @@ function stripJsonc(text2) {
 }
 function readConfig(root) {
   for (const name of CONFIGS) {
-    const path = join(root, name);
-    if (!existsSync(path)) continue;
+    const path = join2(root, name);
+    if (!existsSync2(path)) continue;
     try {
-      return JSON.parse(stripJsonc(readFileSync(path, "utf8")));
+      return JSON.parse(stripJsonc(readFileSync2(path, "utf8")));
     } catch {
       return void 0;
     }
@@ -617,14 +653,14 @@ function parseHookPayload(input) {
   return parsed;
 }
 function physicalPath(path) {
-  const absolute = resolve(path);
+  const absolute = resolve2(path);
   let existing = absolute;
   const suffix = [];
   while (true) {
     try {
-      return join2(realpathSync(existing), ...suffix);
+      return join3(realpathSync(existing), ...suffix);
     } catch {
-      const parent = dirname(existing);
+      const parent = dirname2(existing);
       if (parent === existing) return absolute;
       suffix.unshift(basename2(existing));
       existing = parent;
@@ -634,17 +670,17 @@ function physicalPath(path) {
 function discoverProjectRoot(start) {
   let current = physicalPath(start);
   while (true) {
-    if (existsSync2(join2(current, ".void", "config.json")) || existsSync2(join2(current, ".git"))) {
+    if (existsSync3(join3(current, ".void", "config.json")) || existsSync3(join3(current, ".git"))) {
       return current;
     }
-    const parent = dirname(current);
+    const parent = dirname2(current);
     if (parent === current) return physicalPath(start);
     current = parent;
   }
 }
 function projectRelativePath(root, path) {
   const physicalRoot = physicalPath(root);
-  const absolute = physicalPath(isAbsolute(path) ? path : resolve(physicalRoot, path));
+  const absolute = physicalPath(isAbsolute(path) ? path : resolve2(physicalRoot, path));
   const projectPath = relative(physicalRoot, absolute).replaceAll("\\", "/");
   return projectPath === ".." || projectPath.startsWith("../") || isAbsolute(projectPath) ? void 0 : projectPath;
 }
@@ -664,7 +700,7 @@ function configuredString(parent, key, fallback) {
 function readTddConfig(root) {
   let config = {};
   try {
-    config = record2(JSON.parse(readFileSync2(join2(root, ".void/config.json"), "utf8"))) ?? {};
+    config = record2(JSON.parse(readFileSync3(join3(root, ".void/config.json"), "utf8"))) ?? {};
   } catch {
   }
   const modes = record2(config["modes"]);
@@ -697,14 +733,14 @@ function tddVerdict(root, edits) {
   const existingHeaders = {};
   const siblingTests = /* @__PURE__ */ new Set();
   for (const edit of projectChanges) {
-    existingHeaders[edit.path] = readHeader(join2(physicalRoot, edit.path));
+    existingHeaders[edit.path] = readHeader(join3(physicalRoot, edit.path));
     for (const sibling of [
       edit.path.replace(/\.tsx$/, ".test.tsx"),
       edit.path.replace(/\.ts$/, ".test.ts"),
       edit.path.replace(/\.jsx$/, ".test.jsx"),
       edit.path.replace(/\.js$/, ".test.js")
     ]) {
-      if (sibling !== edit.path && existsSync2(join2(physicalRoot, sibling))) {
+      if (sibling !== edit.path && existsSync3(join3(physicalRoot, sibling))) {
         siblingTests.add(sibling);
       }
     }
@@ -741,7 +777,7 @@ function evaluateRule(rule, rawInput, options) {
   if (rule === "no-console") return noConsole(edits, options.root);
   if (rule === "no-null") return noNull(edits);
   if (rule === "no-focused-test") return noFocusedTest(edits);
-  if (rule === "boundary-direction") return boundaryDirection(edits);
+  if (rule === "boundary-direction") return boundaryDirection(edits, options.root);
   if (rule === "test-name") return testName(edits);
   if (rule === "design-slop") return designSlop(edits);
   rule;
@@ -762,17 +798,17 @@ function sessionStartOutput(version, notice) {
 }
 
 // src/lifecycle/context-executor.ts
-import { join as join4 } from "node:path";
+import { join as join5 } from "node:path";
 
 // src/lifecycle/executor-shared.ts
 import {
   accessSync,
   constants,
   lstatSync,
-  readFileSync as readFileSync3,
+  readFileSync as readFileSync4,
   realpathSync as realpathSync2
 } from "node:fs";
-import { delimiter, isAbsolute as isAbsolute2, join as join3, relative as relative2 } from "node:path";
+import { delimiter, isAbsolute as isAbsolute2, join as join4, relative as relative2 } from "node:path";
 function record3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
 }
@@ -797,14 +833,14 @@ function findExecutable(name, root, env) {
     return name;
   }
   const suffixes = process.platform === "win32" ? ["", ".cmd", ".exe", ".bat"] : [""];
-  const local = join3(root, "node_modules", ".bin", name);
+  const local = join4(root, "node_modules", ".bin", name);
   for (const suffix of suffixes) {
     if (executable(`${local}${suffix}`)) return `${local}${suffix}`;
   }
   for (const directory of (env["PATH"] ?? "").split(delimiter)) {
     if (directory === "") continue;
     for (const suffix of suffixes) {
-      const candidate = join3(directory, `${name}${suffix}`);
+      const candidate = join4(directory, `${name}${suffix}`);
       if (executable(candidate)) return candidate;
     }
   }
@@ -824,7 +860,7 @@ function safeExistingFiles(paths, root) {
 }
 function readJson(path) {
   try {
-    return JSON.parse(readFileSync3(path, "utf8"));
+    return JSON.parse(readFileSync4(path, "utf8"));
   } catch {
     return void 0;
   }
@@ -843,10 +879,10 @@ function resolveInstall(root, env) {
   }
   const pluginRoot = env["CLAUDE_PLUGIN_ROOT"];
   if (pluginRoot !== void 0) {
-    const version2 = readVersion(join4(pluginRoot, ".claude-plugin", "plugin.json"));
+    const version2 = readVersion(join5(pluginRoot, ".claude-plugin", "plugin.json"));
     if (version2 !== void 0) return { version: version2, source: "marketplace" };
   }
-  const receipt = record3(readJson(join4(root, ".void", "receipts", "install-v1.json")));
+  const receipt = record3(readJson(join5(root, ".void", "receipts", "install-v1.json")));
   const version = receipt?.["version"];
   if (typeof version === "string" && VERSION_SHAPE.test(version)) {
     const declared = receipt?.["source"];
@@ -857,15 +893,15 @@ function resolveInstall(root, env) {
 }
 
 // src/freshness/cache.ts
-import { mkdirSync, readFileSync as readFileSync4, renameSync, writeFileSync } from "node:fs";
-import { dirname as dirname2, join as join5 } from "node:path";
+import { mkdirSync, readFileSync as readFileSync5, renameSync, writeFileSync } from "node:fs";
+import { dirname as dirname3, join as join6 } from "node:path";
 var CACHE_TTL_MS = 24 * 60 * 60 * 1e3;
 var isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 function cacheFilePath(env) {
   const xdg = env["XDG_CACHE_HOME"]?.trim();
   const home = env["HOME"]?.trim();
-  const base = xdg !== void 0 && xdg !== "" ? xdg : home !== void 0 && home !== "" ? join5(home, ".cache") : void 0;
-  return base === void 0 ? void 0 : join5(base, "void-harness", "freshness.json");
+  const base = xdg !== void 0 && xdg !== "" ? xdg : home !== void 0 && home !== "" ? join6(home, ".cache") : void 0;
+  return base === void 0 ? void 0 : join6(base, "void-harness", "freshness.json");
 }
 function parseEntry(raw) {
   let json;
@@ -885,7 +921,7 @@ function readFreshnessCache(env, now) {
   if (path === void 0) return void 0;
   let raw;
   try {
-    raw = readFileSync4(path, "utf8");
+    raw = readFileSync5(path, "utf8");
   } catch {
     return void 0;
   }
@@ -899,7 +935,7 @@ async function writeFreshnessCache(env, entry) {
   if (path === void 0) return void 0;
   const tmp = `${path}.${process.pid}.tmp`;
   try {
-    mkdirSync(dirname2(path), { recursive: true });
+    mkdirSync(dirname3(path), { recursive: true });
     writeFileSync(tmp, JSON.stringify({ latest: entry.latest, checkedAt: entry.checkedAt }), "utf8");
     renameSync(tmp, path);
   } catch {
@@ -1040,22 +1076,22 @@ async function fetchLatestVersion(options = {}) {
 }
 
 // src/freshness/npmrc.ts
-import { readFileSync as readFileSync5, statSync } from "node:fs";
-import { join as join6 } from "node:path";
+import { readFileSync as readFileSync6, statSync } from "node:fs";
+import { join as join7 } from "node:path";
 var MAX_NPMRC_BYTES = 64 * 1024;
 function readIfSmall(path) {
   try {
     if (statSync(path).size > MAX_NPMRC_BYTES) return void 0;
-    return readFileSync5(path, "utf8");
+    return readFileSync6(path, "utf8");
   } catch {
     return void 0;
   }
 }
 function readNpmrc(cwd, env) {
-  const project = readIfSmall(join6(cwd, ".npmrc"));
+  const project = readIfSmall(join7(cwd, ".npmrc"));
   if (project !== void 0) return project;
   const home = env["HOME"]?.trim();
-  return home === void 0 || home === "" ? void 0 : readIfSmall(join6(home, ".npmrc"));
+  return home === void 0 || home === "" ? void 0 : readIfSmall(join7(home, ".npmrc"));
 }
 
 // src/freshness/notice.ts
@@ -1091,7 +1127,7 @@ import { spawnSync } from "node:child_process";
 import {
   isAbsolute as isAbsolute3,
   relative as relative3,
-  resolve as resolve2
+  resolve as resolve3
 } from "node:path";
 var FORMATTABLE = /\.(?:ts|tsx|js|jsx|mjs|cjs|json|jsonc|css)$/;
 function within2(root, target) {
@@ -1099,10 +1135,10 @@ function within2(root, target) {
   return rel === "" || !rel.startsWith("..") && !isAbsolute3(rel);
 }
 function formatCandidates(touchedPaths, projectRoot2) {
-  const root = resolve2(projectRoot2);
+  const root = resolve3(projectRoot2);
   const found = /* @__PURE__ */ new Set();
   for (const touchedPath of touchedPaths) {
-    const target = resolve2(root, touchedPath);
+    const target = resolve3(root, touchedPath);
     if (touchedPath.trim() !== "" && FORMATTABLE.test(touchedPath.replaceAll("\\", "/")) && within2(root, target)) {
       found.add(target);
     }
@@ -1293,7 +1329,7 @@ import {
   realpathSync as realpathSync3,
   writeFileSync as writeFileSync2
 } from "node:fs";
-import { join as join7, relative as relative4 } from "node:path";
+import { join as join8, relative as relative4 } from "node:path";
 
 // src/lifecycle/trim.ts
 function record4(value) {
@@ -1363,7 +1399,7 @@ ${errors}
 function safeOutputDirectory(root) {
   try {
     const canonicalRoot = realpathSync3(root);
-    const directory = join7(root, ".void", "outputs");
+    const directory = join8(root, ".void", "outputs");
     mkdirSync2(directory, { recursive: true, mode: 448 });
     const info = lstatSync2(directory);
     const canonicalDirectory = realpathSync3(directory);
@@ -1401,7 +1437,7 @@ function executeTrim(rawInput, root, env) {
   }
   const hash = createHash("sha256").update(extracted.text).digest("hex").slice(0, 12);
   const tool = extracted.tool.replaceAll(/[^A-Za-z0-9_]/g, "_").slice(0, 80);
-  const file = join7(directory, `${tool}-${process.pid}-${Date.now()}-${hash}.log`);
+  const file = join8(directory, `${tool}-${process.pid}-${Date.now()}-${hash}.log`);
   const spillPath = relative4(realpathSync3(root), file).replaceAll("\\", "/");
   const plan = planOutputTrim(extracted.text, {
     tool: extracted.tool,
@@ -1437,17 +1473,17 @@ function executeTrim(rawInput, root, env) {
 }
 
 // src/lifecycle/typecheck-executor.ts
-import { existsSync as existsSync3 } from "node:fs";
-import { join as join9 } from "node:path";
+import { existsSync as existsSync4 } from "node:fs";
+import { join as join10 } from "node:path";
 import { spawnSync as spawnSync3 } from "node:child_process";
 
 // src/lifecycle/typecheck.ts
 import {
-  dirname as dirname3,
+  dirname as dirname4,
   isAbsolute as isAbsolute4,
-  join as join8,
+  join as join9,
   relative as relative5,
-  resolve as resolve3
+  resolve as resolve4
 } from "node:path";
 function record5(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
@@ -1471,21 +1507,21 @@ function within3(root, target) {
   return rel === "" || !rel.startsWith("..") && !isAbsolute4(rel);
 }
 function nearestTsconfigs(changedPaths, projectRoot2, hasFile) {
-  const root = resolve3(projectRoot2);
+  const root = resolve4(projectRoot2);
   const found = /* @__PURE__ */ new Set();
   for (const changedPath of changedPaths) {
     if (!/\.(?:ts|tsx)$/.test(changedPath) || changedPath.endsWith(".d.ts")) continue;
-    const target = resolve3(root, changedPath);
+    const target = resolve4(root, changedPath);
     if (!within3(root, target)) continue;
-    let current = dirname3(target);
+    let current = dirname4(target);
     while (within3(root, current)) {
-      const config = join8(current, "tsconfig.json");
+      const config = join9(current, "tsconfig.json");
       if (hasFile(config)) {
         found.add(config);
         break;
       }
       if (current === root) break;
-      current = dirname3(current);
+      current = dirname4(current);
     }
   }
   return [...found];
@@ -1535,8 +1571,8 @@ function executeTypecheck(root, env) {
   if (changed.length === 0) {
     return { status: "skipped", details: { reason: "no-touched-typescript" } };
   }
-  const configs = nearestTsconfigs(changed, root, existsSync3);
-  const configured = configuredTypecheck(readJson(join9(root, ".void", "config.json")));
+  const configs = nearestTsconfigs(changed, root, existsSync4);
+  const configured = configuredTypecheck(readJson(join10(root, ".void", "config.json")));
   const configuredArgv = "argv" in configured ? configured.argv : void 0;
   const warning = "warning" in configured ? configured.warning : void 0;
   const fallback = findExecutable("tsc", root, env);
@@ -1622,12 +1658,12 @@ Resolve before claiming done. This never blocks.
 
 // src/record.ts
 import { homedir } from "node:os";
-import { resolve as resolve7 } from "node:path";
+import { resolve as resolve8 } from "node:path";
 
 // src/project-registry.ts
 import { createHash as createHash2 } from "node:crypto";
 import { lstat, mkdir, open, readFile, realpath } from "node:fs/promises";
-import { isAbsolute as isAbsolute5, join as join10, relative as relative6, resolve as resolve4 } from "node:path";
+import { isAbsolute as isAbsolute5, join as join11, relative as relative6, resolve as resolve5 } from "node:path";
 function code(error) {
   return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
 }
@@ -1636,11 +1672,11 @@ function within4(root, target) {
   return rel === "" || !rel.startsWith("..") && !isAbsolute5(rel);
 }
 async function registerProjectRoot(root, globalDir) {
-  const canonicalRoot = await realpath(resolve4(root));
-  const base = resolve4(globalDir);
+  const canonicalRoot = await realpath(resolve5(root));
+  const base = resolve5(globalDir);
   await mkdir(base, { recursive: true, mode: 448 });
   const canonicalBase = await realpath(base);
-  const projects = join10(base, "projects");
+  const projects = join11(base, "projects");
   await mkdir(projects, { recursive: true, mode: 448 });
   const info = await lstat(projects);
   if (!info.isDirectory() || info.isSymbolicLink()) {
@@ -1651,7 +1687,7 @@ async function registerProjectRoot(root, globalDir) {
     throw new Error("HOOK_REGISTRY_ESCAPE: projects resolves outside global dir");
   }
   const slug = createHash2("sha256").update(canonicalRoot).digest("hex").slice(0, 32);
-  const pointer = join10(projects, `${slug}.path`);
+  const pointer = join11(projects, `${slug}.path`);
   try {
     const handle = await open(pointer, "wx", 384);
     try {
@@ -1679,7 +1715,7 @@ import {
   extname,
   isAbsolute as isAbsolute6,
   relative as relative7,
-  resolve as resolve5
+  resolve as resolve6
 } from "node:path";
 var MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
 function record6(value) {
@@ -1725,7 +1761,7 @@ function nameFor(tool, category, input) {
   return tool || "unknown";
 }
 function safePaths(input, root) {
-  const absoluteRoot = resolve5(root);
+  const absoluteRoot = resolve6(root);
   const candidates = [
     input["file_path"],
     input["path"],
@@ -1738,7 +1774,7 @@ function safePaths(input, root) {
       if (!candidate.startsWith("..")) paths.push(candidate.slice(0, 500));
       continue;
     }
-    const rel = relative7(absoluteRoot, resolve5(candidate));
+    const rel = relative7(absoluteRoot, resolve6(candidate));
     if (rel !== "" && !rel.startsWith("..") && !isAbsolute6(rel)) {
       paths.push(rel.slice(0, 500));
     }
@@ -1793,7 +1829,7 @@ function deriveMissionId(explicit, runtime3, runtimeSessionId, root) {
     }
     return explicit;
   }
-  const opaque = createHash3("sha256").update(`${runtime3}\0${runtimeSessionId || "unknown"}\0${resolve5(root)}`).digest("hex").slice(0, 32);
+  const opaque = createHash3("sha256").update(`${runtime3}\0${runtimeSessionId || "unknown"}\0${resolve6(root)}`).digest("hex").slice(0, 32);
   return `mis_${opaque}`;
 }
 
@@ -1813,11 +1849,11 @@ import {
   unlink
 } from "node:fs/promises";
 import {
-  dirname as dirname4,
+  dirname as dirname5,
   isAbsolute as isAbsolute7,
-  join as join11,
+  join as join12,
   relative as relative8,
-  resolve as resolve6
+  resolve as resolve7
 } from "node:path";
 
 // ../mission-engine/dist/events/schema.js
@@ -2087,12 +2123,12 @@ async function safeRunDirectory(root, missionId) {
   if (!MISSION_ID3.test(missionId)) {
     throw new Error("HOOK_INVALID_MISSION_ID: expected mis_<opaque-id>");
   }
-  const absoluteRoot = resolve6(root);
+  const absoluteRoot = resolve7(root);
   const canonicalRoot = await realpath2(absoluteRoot);
-  const run = join11(absoluteRoot, ".void", "runs", missionId);
+  const run = join12(absoluteRoot, ".void", "runs", missionId);
   let ancestor = run;
   while (!await exists(ancestor)) {
-    const parent = dirname4(ancestor);
+    const parent = dirname5(ancestor);
     if (parent === ancestor) break;
     ancestor = parent;
   }
@@ -2239,9 +2275,9 @@ async function writeSequencedEventInternal(options) {
     throw new Error("HOOK_INVALID_EVENT_ID: expected evt_<opaque-id>");
   }
   const run = await safeRunDirectory(options.root, options.missionId);
-  const logPath = join11(run, "events.jsonl");
-  const statePath = join11(run, ".seq.state");
-  const lockPath = join11(run, ".seq.lock");
+  const logPath = join12(run, "events.jsonl");
+  const statePath = join12(run, ".seq.state");
+  const lockPath = join12(run, ".seq.lock");
   await Promise.all([
     rejectSymlink(logPath),
     rejectSymlink(statePath),
@@ -2330,7 +2366,7 @@ async function recordRuntimeEvent(options) {
   });
   await registerProjectRoot(
     options.root,
-    options.globalDir ?? resolve7(homedir(), ".void")
+    options.globalDir ?? resolve8(homedir(), ".void")
   ).catch(() => {
   });
   return event;
@@ -2366,7 +2402,7 @@ async function recordHookEvent(options) {
   });
   await registerProjectRoot(
     options.root,
-    options.globalDir ?? resolve7(homedir(), ".void")
+    options.globalDir ?? resolve8(homedir(), ".void")
   ).catch(() => {
   });
   return event;
@@ -2384,7 +2420,7 @@ async function recordRuntimeEventFromCli(raw, argv, env) {
     runtime: runtime(argv[3] ?? env["VOID_AGENT_RUNTIME"]),
     phase: phase(argv[2]),
     rawInput: raw,
-    globalDir: env["VOID_GLOBAL_DIR"] ?? resolve7(homedir(), ".void"),
+    globalDir: env["VOID_GLOBAL_DIR"] ?? resolve8(homedir(), ".void"),
     ...env["VOID_MISSION_ID"] === void 0 ? {} : { missionId: env["VOID_MISSION_ID"] }
   });
 }

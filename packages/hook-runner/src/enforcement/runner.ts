@@ -246,7 +246,7 @@ export function evaluateRule(
   if (rule === 'no-console') return noConsole(edits, options.root);
   if (rule === 'no-null') return noNull(edits);
   if (rule === 'no-focused-test') return noFocusedTest(edits);
-  if (rule === 'boundary-direction') return boundaryDirection(edits);
+  if (rule === 'boundary-direction') return boundaryDirection(edits, options.root);
   if (rule === 'test-name') return testName(edits);
   if (rule === 'design-slop') return designSlop(edits);
   rule satisfies never;
