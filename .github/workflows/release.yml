@@ -21,8 +21,10 @@ on:
   # whose auto-publish failed (a CI misconfig), without cutting a new version.
   workflow_dispatch: {}
 
+# `contents` and `pull-requests` are what release-please writes with. `actions:
+# write` is deliberately absent: it existed only to dispatch and approve the
+# release PR's own checks, which the App token makes unnecessary.
 permissions:
-  actions: write
   contents: write
   pull-requests: write
 
@@ -33,87 +35,26 @@ jobs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
+      # A pull request opened with GITHUB_TOKEN does not trigger workflows. That
+      # is a deliberate GitHub anti-recursion rule, not a setting, and it used to
+      # force ~90 lines here: resolve the release PR, dispatch every required
+      # workflow at its head, then approve the runs sitting at `action_required`.
+      # It fought the platform and it broke twice on races.
+      #
+      # A GitHub App token is not GITHUB_TOKEN, so the pull request it opens
+      # triggers workflows like any other. The machinery below it is gone.
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
       - uses: googleapis/release-please-action@v4
         id: release
         with:
+          token: ${{ steps.app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-
-      # A PR created with GITHUB_TOKEN does not run the required workflows
-      # unattended. workflow_dispatch is the tokenless exception: resolve the
-      # single bounded Release Please candidate, then run every branch-protection
-      # check on its exact head. Missing or duplicate candidates fail closed.
-      #
-      # GH_REPO is load-bearing: this job talks to the API only and has no
-      # `actions/checkout`, so `gh` finds no git remote to infer the repository
-      # from and every call aborts on "not a git repository". Checking out a
-      # whole worktree just to name the repo would be the expensive way round.
-      - name: Dispatch required CI for the release PR
-        if: ${{ steps.release.outputs.prs_created == 'true' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          # `prs_created` is true the moment the API call returns, but the PR is
-          # not searchable by label immediately: on 2.3.1 this listed zero
-          # candidates one second before the PR appeared. Poll instead of
-          # sampling once — still fail closed, just not on a race.
-          release_pr='[]'
-          release_count=0
-          for _ in $(seq 1 12); do
-            release_pr="$(gh pr list --state open --label 'autorelease: pending' --limit 2 --json baseRefName,headRefName,headRefOid,number)"
-            release_count="$(jq 'length' <<< "$release_pr")"
-            [ "$release_count" -ge 1 ] && break
-            sleep 5
-          done
-          if [ "$release_count" -ne 1 ]; then
-            echo "FAIL: expected exactly one open autorelease: pending PR; found $release_count." >&2
-            jq -c '[.[] | {number, baseRefName, headRefName}]' <<< "$release_pr" >&2
-            exit 1
-          fi
-          release_branch="$(jq -er '.[0].headRefName | select(length > 0)' <<< "$release_pr")"
-          release_base="$(jq -er '.[0].baseRefName | select(length > 0)' <<< "$release_pr")"
-          release_sha="$(jq -er '.[0].headRefOid | select(length > 0)' <<< "$release_pr")"
-          gh workflow run ci.yml --ref "$release_branch"
-          gh workflow run void-enforce.yml --ref "$release_branch" -f base-ref="origin/$release_base"
-
-          # The dispatch above proves the tree is good, but branch protection
-          # reads the checks attached to the PULL REQUEST, and those sit at
-          # `action_required` until approved. Observed on 2.3.0: both dispatched
-          # runs green, PR still BLOCKED. So approve the waiting pull_request
-          # runs too — same tree, but their results are the ones that count.
-          #
-          # Approving a run this workflow's own bot just queued is not a review
-          # bypass: the human gate is merging the release PR, and that is
-          # untouched.
-          #
-          # Polled for the same reason as above: GitHub queues those runs on its
-          # own schedule, so a single pass can look at the branch before they
-          # exist. Both required workflows must end up approved.
-          #
-          # Scoped to head_sha, NOT to the branch. A branch query returns every
-          # run the branch ever had, and this release branch is long-lived: on
-          # 2.4.0 the quota was met by approving runs from previous release
-          # cycles while the current head still waited. Only the checks on THIS
-          # commit can satisfy branch protection.
-          approved=''
-          for _ in $(seq 1 12); do
-            for run_id in $(gh api "repos/$GH_REPO/actions/runs?head_sha=$release_sha&status=action_required&per_page=20" \
-              --jq '.workflow_runs[].id'); do
-              echo "Approving waiting run $run_id on $release_sha."
-              gh api -X POST "repos/$GH_REPO/actions/runs/$run_id/approve" >/dev/null \
-                && approved="$(printf '%s\n%s' "$approved" "$run_id")"
-            done
-            approved_count="$(printf '%s' "$approved" | grep -c '[0-9]' || true)"
-            [ "$approved_count" -ge 2 ] && break
-            sleep 5
-          done
-          approved_count="$(printf '%s' "$approved" | grep -c '[0-9]' || true)"
-          if [ "$approved_count" -lt 2 ]; then
-            echo "FAIL: approved $approved_count waiting run(s) on $release_sha; both required workflows must run." >&2
-            echo "Approve them from the Actions tab, or re-run this workflow." >&2
-            exit 1
-          fi
 
       # No downstream catalog to notify: the marketplace is self-hosted in this
       # repo (`.claude-plugin/marketplace.json`, local `./packages/...` sources

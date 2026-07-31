@@ -51,9 +51,9 @@ already enforces. No one runs the bump script by hand in the normal path.
 2. **release-please maintains a single "release PR"** (`.github/workflows/release.yml`).
    It computes the next version, bumps it across **every** manifest at once (via
    `extra-files` in `release-please-config.json` — the same file list as the bump
-   script, plus the core-assets mirror), writes `CHANGELOG.md`, then dispatches
-   `ci.yml` and `void-enforce.yml` on that PR's exact head. This explicit dispatch
-   avoids a PAT while satisfying the protected `main` checks.
+   script, plus the core-assets mirror) and writes `CHANGELOG.md`. It opens that
+   PR with a **GitHub App token**, so the PR receives its required checks the way
+   any other PR does.
 3. **Merge the release PR when you want to cut the release.** That tags `vX.Y.Z`,
    creates the GitHub release, and (once the one-time bootstrap below is done)
    **automatically publishes** `voidharness` to npm. Merge only after `validate`,
@@ -107,35 +107,36 @@ its `harnessVersion` stamp). Both the release-please flow (via `extra-files`) an
 the manual script bump the certification's `harnessVersion` in lockstep, so a
 release never breaks CI on a forgotten regenerate.
 
-Release PRs receive the same five checks as feature PRs. Release Please reports
-`prs_created` when it creates or updates its PR; the release workflow then uses
-GitHub's always-runnable `workflow_dispatch` event for `ci.yml` and
-`void-enforce.yml`. It resolves exactly one open `autorelease: pending` PR and
-fails closed on zero or multiple candidates. The publish job still reruns its
-release safety suite against the tagged tree as defense in depth and for manual
-re-publish runs.
+Release PRs receive the same five checks as feature PRs, and getting there took
+three releases to get right — so the reason is worth keeping.
 
-Two things are needed, not one, and 2.3.0 is why. A dispatched run proves the
-tree is good, but branch protection reads the checks attached to the **pull
-request**, and those sit at `action_required` until approved — on 2.3.0 both
-dispatched runs were green while the PR stayed `BLOCKED`. So the same step also
-approves the waiting `pull_request` runs on that branch. Approving runs the
-workflow's own bot just queued is not a review bypass: the human gate is merging
-the release PR, and it is untouched.
+A pull request opened with `GITHUB_TOKEN` triggers **no workflows**. That is a
+deliberate GitHub anti-recursion rule, not a repository setting, and no amount of
+permission granting changes it. ("Allow GitHub Actions to create and approve pull
+requests" is enabled here and was never the blocker.)
 
-The approval is scoped to the pull request's **head SHA**, not to its branch,
-and 2.4.0 is why. `release-please--branches--main` is long-lived and accumulates
-never-approved runs from previous cycles; a branch-scoped query met its quota
-with those while the current head still waited. Only the checks on the exact
-commit can satisfy branch protection.
+The workflow used to answer that by hand: resolve the single open
+`autorelease: pending` PR, dispatch `ci.yml` and `void-enforce.yml` at its exact
+head, then approve the `pull_request` runs sitting at `action_required` — because
+branch protection reads the checks attached to the PR, and on 2.3.0 both
+dispatched runs were green while the PR stayed `BLOCKED`. It also had to scope
+the approval to the head SHA rather than the branch (2.4.0: a long-lived release
+branch met the quota with never-approved runs from previous cycles) and to poll
+rather than sample (2.3.1: `prs_created` turns true before the PR is searchable).
 
-Both halves poll, and 2.3.1 is why. `prs_created` turns true when the API call
-returns, not when the PR becomes searchable by label: the step listed zero
-candidates one second before the PR appeared, and failed closed on a race rather
-than on a real condition. GitHub also queues the `pull_request` runs on its own
-schedule, so a single pass can look at the branch before they exist. Both loops
-are bounded and still fail closed — a genuinely missing candidate, or fewer than
-two approved runs, stops the release.
+All of it is gone. The release job now mints a token from a **GitHub App**
+(`RELEASE_APP_ID` + `RELEASE_APP_PRIVATE_KEY`, `Contents` and `Pull requests` as
+read & write, installed on this repository only) and hands it to release-please.
+An App token is not `GITHUB_TOKEN`, so the pull request it opens triggers
+workflows normally. The `actions: write` permission went with the dispatch.
+
+`packages/cli/src/lib/release-workflow.test.ts` pins this: the App token is used,
+and none of the removed machinery has crept back. A single `GITHUB_TOKEN`
+fallback would restore the whole failure silently and would only be noticed at
+the next release.
+
+The publish job still reruns its release safety suite against the tagged tree, as
+defense in depth and for manual re-publish runs.
 
 The CI validation lane also runs `self-host sync --mode release-gate` followed
 by the strict self-host doctor. It builds the hook runner directly from current
