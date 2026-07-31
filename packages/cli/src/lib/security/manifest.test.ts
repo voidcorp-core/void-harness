@@ -18,6 +18,7 @@ function adapter(overrides: Record<string, unknown> = {}): string {
     reach: 'none',
     provides: ['static-analysis'],
     limits: { timeoutSeconds: 300, maxOutputBytes: 4_194_304 },
+    exitCodes: { clean: [0], findings: [1] },
     ...overrides,
   };
   const lines = Object.entries(base).map(([key, value]) => `    ${key}: ${JSON.stringify(value)}`);
@@ -199,6 +200,7 @@ describe('the file itself is untrusted input', () => {
       '    reach: none',
       '    provides: [static-analysis]',
       '    limits: {timeoutSeconds: 60, maxOutputBytes: 1024}',
+      '    exitCodes: {clean: [0], findings: [1]}',
       '  - *a',
       '',
     ].join('\n');

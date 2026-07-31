@@ -16,6 +16,7 @@ import { status } from './commands/status.js';
 import { adoption } from './commands/adoption.js';
 import { decisions } from './commands/decisions.js';
 import { mission } from './commands/mission.js';
+import { security } from './commands/security.js';
 import { selfHost } from './commands/self-host.js';
 import { printHelp } from './commands/help.js';
 import { version } from '../package.json';
@@ -70,6 +71,9 @@ export async function main(argv: readonly string[]): Promise<void> {
       return;
     case 'decisions':
       await decisions(rest);
+      return;
+    case 'security':
+      await security(rest);
       return;
     case 'mission':
       await mission(rest);

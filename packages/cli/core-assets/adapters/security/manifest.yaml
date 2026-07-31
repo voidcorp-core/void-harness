@@ -27,14 +27,23 @@ adapters:
     limits:
       timeoutSeconds: 900
       maxOutputBytes: 16777216
+    # 0 clean, 1 findings. Everything else (7 is a missing ruleset) is a failure
+    # to run, and a scan that did not run proves nothing.
+    exitCodes:
+      clean: [0]
+      findings: [1]
 
+  # `dir` and not `git`: the baseline runs on every ticket, and walking the
+  # whole history each time costs minutes to re-answer a question that only
+  # changes at the tip. Auditing history is the periodic workflow's job.
+  #
   # `--redact` matters more than it looks: without it, a finding report is
   # itself a place a secret now lives.
   - id: gitleaks
     kind: secrets
-    description: Entropy and pattern scan of git history and the working tree for committed credentials.
+    description: Entropy and pattern scan of the working tree for committed credentials.
     command: gitleaks
-    args: [git, --redact, --no-banner, --report-format, json]
+    args: [dir, --redact, --no-banner, --report-format, json, .]
     versionArgs: [version]
     outputFlag: --report-path
     reach: none
@@ -42,6 +51,9 @@ adapters:
     limits:
       timeoutSeconds: 600
       maxOutputBytes: 8388608
+    exitCodes:
+      clean: [0]
+      findings: [1]
 
   # Queries the OSV database, which is egress but not a target under test. An
   # offline run uses `--offline-vulnerabilities` against a cached database and
@@ -57,6 +69,10 @@ adapters:
     limits:
       timeoutSeconds: 600
       maxOutputBytes: 8388608
+    # 128 is a scan error; 1 is vulnerabilities found.
+    exitCodes:
+      clean: [0]
+      findings: [1]
 
   # Baseline only: it spiders and scans passively, and performs no attack. The
   # target never appears here — it arrives at run time from an authorization
@@ -74,3 +90,7 @@ adapters:
     limits:
       timeoutSeconds: 1800
       maxOutputBytes: 16777216
+    # 0 no alert, 1 fail-level alert, 2 warn-level alert. 3 is a usage error.
+    exitCodes:
+      clean: [0]
+      findings: [1, 2]

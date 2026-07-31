@@ -84,11 +84,29 @@ const adapterSchema = z
     /** The flag that carries a report path, for a tool that will not use stdout. */
     outputFlag: commandArgument.optional(),
     reach: z.enum(['none', 'localhost', 'advisory-service', 'authorized-target']),
+    /**
+     * Whether a run of this tool can change the target's state. False by
+     * default, and stated rather than inferred: a scanner that writes is a
+     * different decision from one that reads, and it may only run against a
+     * grant that says so.
+     */
+    mutates: z.boolean().default(false),
     /** The claims a completed run of this tool supports. */
     provides: z.array(slug).min(1).max(8),
     limits: z.strictObject({
       timeoutSeconds: z.number().int().min(1).max(MAX_TIMEOUT_SECONDS),
       maxOutputBytes: z.number().int().min(1_024).max(MAX_OUTPUT_BYTES),
+    }),
+    /**
+     * Which exit codes mean what, because every scanner disagrees.
+     *
+     * Most exit non-zero when they find something, and non-zero again when they
+     * fail to run at all. Guessing between the two is how a crashed scan gets
+     * filed as a clean one — so anything not listed here is an error.
+     */
+    exitCodes: z.strictObject({
+      clean: z.array(z.number().int().min(0).max(255)).min(1).max(8),
+      findings: z.array(z.number().int().min(0).max(255)).min(1).max(8),
     }),
   })
   .superRefine((adapter, context) => {
@@ -117,6 +135,15 @@ const adapterSchema = z
         code: 'custom',
         path: ['targetFlag'],
         message: `targetFlag is only meaningful for a dast adapter, not for ${adapter.kind}`,
+      });
+    }
+    // One code cannot mean both "nothing found" and "something found".
+    const ambiguous = adapter.exitCodes.clean.filter((code) => adapter.exitCodes.findings.includes(code));
+    if (ambiguous.length > 0) {
+      context.addIssue({
+        code: 'custom',
+        path: ['exitCodes'],
+        message: `exit code ${ambiguous.join(', ')} cannot mean both clean and findings`,
       });
     }
   });

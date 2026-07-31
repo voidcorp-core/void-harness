@@ -1,0 +1,59 @@
+# The security baseline every ticket runs through.
+#
+# Two stages, in this order and not the other: what the code says, then what a
+# running instance says. The second only happens when somebody authorized a
+# target, which is why it cannot be the default.
+#
+# The verdict is never assembled from the scanners alone. A tool that is absent,
+# timed out, or exited a code it never declared leaves surface unmeasured, and
+# unmeasured surface reports degraded or blocked — never green.
+schemaVersion: 1
+id: core:security-baseline
+version: 1
+mode: team
+plan:
+  required: false
+  source: mission-plan
+
+stages:
+  - id: static
+    description: Read the code and its dependencies without touching a running system.
+    adapters: [sast, secrets, dependency]
+    reach: local
+    # Nothing here needs a grant, so nothing here may take a target.
+    targetRequired: false
+
+  - id: dynamic
+    description: Probe a running instance, passively, over a target somebody authorized.
+    adapters: [dast]
+    reach: authorized-target
+    targetRequired: true
+    authorization:
+      required: true
+      # Refused rather than inferred, each of these:
+      mustName: [hosts, authorizedBy, expiresAt]
+      mustBeEphemeral: true
+      destructiveRequiresExplicitGrant: true
+
+review:
+  # The specialist reads what the scanners produced; it does not re-run them.
+  # Its job is the part a pattern cannot do: whether a finding is reachable.
+  specialists:
+    - core:security-engineer
+  independence: fresh-context
+  writeAccess: none
+  context: findings-and-diff
+
+verdict:
+  # The class carries the floor; a scanner may argue a severity upward, never
+  # down. Three classes are never waivable, in any mode.
+  severityFrom: finding-class
+  nonWaivable:
+    - secret-exposure
+    - tenant-isolation
+    - destructive-migration-without-recovery
+  incompleteScan: degraded
+  # Pre-launch is a phase, not a mode: it tightens what blocks in any mode.
+  strictWhen: [fortress, prelaunch]
+  missingToolWhenStrict: blocked
+  erroredScan: blocked
