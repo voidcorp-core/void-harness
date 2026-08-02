@@ -73,7 +73,10 @@ describe('the OWASP fixture', () => {
 });
 
 describe.skipIf(!HAS_SEMGREP)('a real scanner over the fixture', () => {
-  it('finds both planted vulnerabilities', async () => {
+  // Generous timeouts: these shell out to a real scanner, and a cold semgrep
+  // start alone can outlast vitest's default. A flaky green here would be worse
+  // than a slow one.
+  it('finds both planted vulnerabilities', { timeout: 300_000 }, async () => {
     const { stdout } = await execFile(
       'semgrep',
       ['scan', '--config', 'rules.yml', '--json', '--metrics=off', '--quiet', '.'],
@@ -88,7 +91,7 @@ describe.skipIf(!HAS_SEMGREP)('a real scanner over the fixture', () => {
     );
   });
 
-  it('changes nothing it scanned', async () => {
+  it('changes nothing it scanned', { timeout: 300_000 }, async () => {
     // The non-destructive default, proven rather than asserted: a scan reads.
     const before = fingerprint();
     await execFile(

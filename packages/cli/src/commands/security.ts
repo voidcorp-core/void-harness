@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import {
+  classifySecurityFinding,
   describeSecurityPosture,
   judgeScan,
   type ScanCompleteness,
@@ -23,6 +24,7 @@ import {
 } from '@voidcorp/mission-engine';
 import { findCoreSource } from '../lib/paths.js';
 import { loadSecurityManifest, type SecurityAdapter } from '../lib/security/manifest.js';
+import { normalizeScannerOutput, type NormalizedFinding } from '../lib/security/findings.js';
 import { planSecurityScan, type ScanPlan } from '../lib/security/plan.js';
 
 const execFile = promisify(nodeExecFile);
@@ -226,6 +228,16 @@ interface AdapterRun {
   readonly command: string;
   readonly exitCode: number | 'timed-out' | 'failed-to-start';
   readonly outcome: RunOutcome;
+  /** True when the tool reported findings we could not read back. */
+  readonly unreadableOutput?: boolean;
+}
+
+/** A finding, with the severity the engine decided rather than the one reported. */
+interface JudgedFinding extends NormalizedFinding {
+  readonly severity: string;
+  readonly blocking: boolean;
+  readonly waivable: boolean;
+  readonly rationale: string;
 }
 
 export function outcomeOf(adapter: SecurityAdapter, exitCode: number): RunOutcome {
@@ -234,21 +246,56 @@ export function outcomeOf(adapter: SecurityAdapter, exitCode: number): RunOutcom
   return 'errored';
 }
 
-async function runAdapters(plan: Extract<ScanPlan, { kind: 'planned' }>): Promise<readonly AdapterRun[]> {
+/**
+ * Where a tool put what it found: its report file, or its stdout.
+ *
+ * Only read when the tool says it found something. A clean run may legitimately
+ * write nothing at all, and treating that silence as unreadable output would
+ * turn every green scan into an errored one.
+ */
+async function collectFindings(
+  entry: Extract<ScanPlan, { kind: 'planned' }>['run'][number],
+  stdout: string,
+): Promise<{ readonly findings: readonly NormalizedFinding[]; readonly unreadable: boolean }> {
+  const raw =
+    entry.reportPath === undefined ? stdout : await readFile(entry.reportPath, 'utf8').catch(() => '');
+  return normalizeScannerOutput(entry.adapter.id, raw);
+}
+
+async function runAdapters(
+  plan: Extract<ScanPlan, { kind: 'planned' }>,
+): Promise<{ readonly runs: readonly AdapterRun[]; readonly findings: readonly NormalizedFinding[] }> {
   const results: AdapterRun[] = [];
+  const collected: NormalizedFinding[] = [];
   for (const entry of plan.run) {
     const { adapter, argv } = entry;
-    try {
-      await execFile(adapter.command, [...argv], {
-        timeout: adapter.limits.timeoutSeconds * 1_000,
-        maxBuffer: adapter.limits.maxOutputBytes,
-      });
+    const record = async (
+      exitCode: number,
+      stdout: string,
+    ): Promise<void> => {
+      const outcome = outcomeOf(adapter, exitCode);
+      if (outcome !== 'findings') {
+        results.push({ id: adapter.id, command: adapter.command, exitCode, outcome });
+        return;
+      }
+      const read = await collectFindings(entry, stdout);
+      collected.push(...read.findings);
+      // The tool says it found something and we cannot read what. That is worse
+      // than a crash: it is a known non-empty result nobody can act on.
       results.push({
         id: adapter.id,
         command: adapter.command,
-        exitCode: 0,
-        outcome: outcomeOf(adapter, 0),
+        exitCode,
+        outcome: read.unreadable ? 'errored' : 'findings',
+        ...(read.unreadable ? { unreadableOutput: true } : {}),
       });
+    };
+    try {
+      const { stdout } = await execFile(adapter.command, [...argv], {
+        timeout: adapter.limits.timeoutSeconds * 1_000,
+        maxBuffer: adapter.limits.maxOutputBytes,
+      });
+      await record(0, stdout);
     } catch (error) {
       const killed = typeof error === 'object' && error !== null && 'killed' in error && error.killed === true;
       const code =
@@ -260,12 +307,13 @@ async function runAdapters(plan: Extract<ScanPlan, { kind: 'planned' }>): Promis
         continue;
       }
       if (typeof code === 'number') {
-        results.push({
-          id: adapter.id,
-          command: adapter.command,
-          exitCode: code,
-          outcome: outcomeOf(adapter, code),
-        });
+        // Most scanners exit non-zero precisely when they have findings, so the
+        // payload lives on the error object.
+        const stdout =
+          typeof error === 'object' && error !== null && 'stdout' in error
+            ? String((error as { stdout: unknown }).stdout ?? '')
+            : '';
+        await record(code, stdout);
         continue;
       }
       results.push({
@@ -276,7 +324,7 @@ async function runAdapters(plan: Extract<ScanPlan, { kind: 'planned' }>): Promis
       });
     }
   }
-  return results;
+  return { runs: results, findings: collected };
 }
 
 export function completenessOf(
@@ -388,16 +436,29 @@ export async function security(args: readonly string[]): Promise<void> {
     return;
   }
 
-  const runs = await runAdapters(plan);
+  const { runs, findings } = await runAdapters(plan);
+  // Severity is decided here, from the class — never taken from the scanner,
+  // which may only argue a finding upward.
+  const judgedFindings: JudgedFinding[] = findings.map((finding) => {
+    const verdict = classifySecurityFinding({
+      securityClass: finding.securityClass,
+      reportedSeverity: finding.reportedSeverity,
+      posture,
+    });
+    return { ...finding, ...verdict };
+  });
   const judged = judgeScan({
     completeness: completenessOf(runs, plan),
     posture,
     missingTools: plan.missingTools,
   });
+  const blocking = judgedFindings.filter((finding) => finding.blocking);
   const report = {
     verdict: judged.verdict,
     detail: judged.detail,
     posture: describeSecurityPosture(posture),
+    findings: judgedFindings,
+    blockingCount: blocking.length,
     ran: runs,
     skipped: plan.skipped,
     unresponsive: detected.unresponsive,
@@ -411,8 +472,17 @@ export async function security(args: readonly string[]): Promise<void> {
           report.detail,
           ...runs.map((run) => `  ran ${run.id}: ${run.outcome} (exit ${String(run.exitCode)})`),
           ...plan.skipped.map((entry) => `  skipped ${entry.id}: ${entry.reason} — ${entry.detail}`),
+          ...(judgedFindings.length === 0
+            ? []
+            : ['', `findings: ${judgedFindings.length} (${blocking.length} blocking)`]),
+          ...judgedFindings.map(
+            (finding) =>
+              `  [${finding.severity}${finding.blocking ? ' blocking' : ''}${finding.waivable ? '' : ' non-waivable'}] ${finding.securityClass} · ${finding.summary}\n      ${finding.reproduction}\n      fix: ${finding.remediation}`,
+          ),
           '',
         ].join('\n'),
   );
-  if (judged.verdict === 'blocked') process.exitCode = 1;
+  // A blocking finding fails the run even when the scan itself completed: the
+  // scan being complete is what makes the finding trustworthy, not harmless.
+  if (judged.verdict === 'blocked' || blocking.length > 0) process.exitCode = 1;
 }
