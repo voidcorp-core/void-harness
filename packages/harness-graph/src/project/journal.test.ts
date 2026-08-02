@@ -14,6 +14,30 @@ import {
 } from './journal.js';
 import { createNodeProjectRootPort } from './root.js';
 
+/**
+ * Wait for an observation to satisfy `accept`, rather than for a fixed delay.
+ *
+ * `fs.watch` delivers asynchronously and on no schedule anyone controls. A
+ * sleep long enough on an idle laptop is not long enough on a loaded CI runner,
+ * and the failure it produces is indistinguishable from a real regression —
+ * which is how a suite trains people to rerun instead of to read. Polling for
+ * the condition is fast when the event is fast and patient when it is not.
+ */
+async function waitForObservation<T>(
+	observe: () => Promise<T>,
+	accept: (value: T) => boolean,
+	timeoutMs = 5_000,
+	stepMs = 10,
+): Promise<{ readonly value: T; readonly satisfied: boolean }> {
+	const deadline = Date.now() + timeoutMs;
+	let value = await observe();
+	while (!accept(value) && Date.now() < deadline) {
+		await new Promise<void>((resolve) => setTimeout(resolve, stepMs));
+		value = await observe();
+	}
+	return { value, satisfied: accept(value) };
+}
+
 function rootIdentity(path = '/project/root'): ProjectRootIdentity {
 	return {
 		path,
@@ -254,13 +278,21 @@ describe('ProjectChangeJournal native capability', () => {
 				await rename(replacement, root);
 				await rename(root, replacement);
 				await rename(saved, root);
-				await new Promise<void>((resolve) => setTimeout(resolve, 50));
-				const afterAba = await journal.observe(identity);
-				expect(afterAba.kind).toBe('uncertain');
+				const observed = await waitForObservation(
+					() => journal.observe(identity),
+					(candidate) => candidate.kind === 'uncertain',
+				);
+				const afterAba = observed.value;
 				const postAbaCapability = await journal.validate(identity, afterAba);
 				if (postAbaCapability === 'unavailable') {
+					// A platform that cannot keep watching through the swap is a
+					// legitimate outcome; it degrades and must not claim a clean build.
 					await expectUnavailableJournalBuild(root, journal);
 				} else {
+					// Still watching, so the swap had to be noticed. Anything else is a
+					// journal that kept reporting a root it no longer has.
+					expect(observed.satisfied, `root swap went unnoticed; observed ${afterAba.kind}`).toBe(true);
+					expect(afterAba.kind).toBe('uncertain');
 					expect(postAbaCapability).toBe('valid');
 					expect(afterAba.rootGeneration).not.toBe(initial.rootGeneration);
 				}
