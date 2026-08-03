@@ -245,6 +245,8 @@ export async function doctor(args: readonly string[]): Promise<void> {
   for (const check of checks) {
     const marks: Record<ReturnType<typeof checkGlyph>, string> = {
       unknown: c.yellow('?'),
+      // Dim and distinct from `?`: nothing here asks anything of the reader.
+      unprobed: c.dim('-'),
       advisory: c.yellow('!'),
       pass: c.green(glyph.check),
       fail: c.red('x'),
@@ -261,10 +263,16 @@ export async function doctor(args: readonly string[]): Promise<void> {
   // failed` where two things were broken and two were unmeasured — the same
   // conflation this repo refuses everywhere else.
   const unknown = checks.filter((check) => check.status === 'unknown').length;
+  const unprobed = checks.filter((check) => check.status === 'unprobed').length;
   const advisory = checks.filter((check) => check.status === 'advisory').length;
-  const blockers = checks.filter((check) => !check.ok && check.status !== 'unknown').length;
+  const blockers = checks.filter(
+    (check) => !check.ok && check.status !== 'unknown' && check.status !== 'unprobed',
+  ).length;
   const notes = [
     unknown > 0 ? `${unknown} unknown` : undefined,
+    // Named apart in the summary too, so "2 not probed" never reads as two
+    // things left to investigate (#193).
+    unprobed > 0 ? `${unprobed} not probed (proven by autopilot at preflight)` : undefined,
     advisory > 0 ? `${advisory} advisory` : undefined,
   ].filter((note): note is string => note !== undefined);
   if (blockers === 0) {
@@ -356,37 +364,54 @@ async function checkRemoteVersions(root: string): Promise<CheckResult> {
  * Observe autopilot's preconditions without touching anything.
  *
  * The two remote-backed facts — is the tracker reachable, is the base protected
- * — are deliberately reported as unknown rather than probed. Probing them here
- * would make `doctor` depend on a network and a token, and `--no-remote`
- * promises a fully offline run. Autopilot itself proves both at preflight,
- * before it claims; this reports what can be read from disk.
+ * — are deliberately left unprobed. Probing them here would make `doctor` depend
+ * on a network and a token, and `--no-remote` promises a fully offline run.
+ * Autopilot itself proves both at preflight, before it claims; this reports what
+ * can be read from disk.
+ *
+ * They report as `unprobed`, not `unknown`, so the reason reaches the reader:
+ * `unknown` earned a "reconfigure and run it again" fix that no configuration
+ * could ever satisfy here, and operators paid for the detour (#193).
  */
 function observeAutopilot(root: string): Parameters<typeof autopilotPreflight>[0] {
   let program: ReturnType<typeof readActiveProgram> | null = null;
+  let malformed: { problem: string; fix: string } | null = null;
   try {
     program = readActiveProgram(root) ?? null;
-  } catch {
+  } catch (error) {
     // A malformed ACTIVE is reported by the check below as a failure of the
-    // program, not as a crash of doctor.
-    program = null;
+    // program, not as a crash of doctor — and as malformed, not as absent.
+    // Collapsing both into null printed "no plans/ACTIVE.md" in front of a file
+    // that was right there, and threw away the parser's own verdict, which is
+    // exactly the thing the reader needs (#193).
+    const failure = (error as { failure?: { problem?: unknown; fix?: unknown } }).failure;
+    malformed = {
+      problem: typeof failure?.problem === 'string' ? failure.problem : 'the frontmatter is not readable',
+      fix:
+        typeof failure?.fix === 'string'
+          ? failure.fix
+          : 'fix the `---` frontmatter block, then run doctor again',
+    };
   }
 
   return {
     activeProgram:
-      program === null
-        ? null
-        : {
-            status: program.status,
-            autopilot: {
-              enabled: program.autopilot.enabled,
-              clusterSize: program.autopilot.clusterSize,
-              mergeGate: program.autopilot.mergeGate,
-              verifyCommands: program.autopilot.verifyCommands,
+      malformed !== null
+        ? { malformed }
+        : program === null
+          ? null
+          : {
+              status: program.status,
+              autopilot: {
+                enabled: program.autopilot.enabled,
+                clusterSize: program.autopilot.clusterSize,
+                mergeGate: program.autopilot.mergeGate,
+                verifyCommands: program.autopilot.verifyCommands,
+              },
             },
-          },
     adapters: detectedAdapters(root).map((adapter) => adapter.id),
-    trackerConnector: null,
+    trackerConnector: 'unprobed',
     worktreesUsable: existsSync(join(root, '.git')) ? true : null,
-    baseProtected: null,
+    baseProtected: 'unprobed',
   };
 }

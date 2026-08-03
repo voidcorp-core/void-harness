@@ -8,16 +8,22 @@
 
 import type { CheckResult } from './prerequisites.js';
 
-export type CheckGlyph = 'pass' | 'fail' | 'unknown' | 'advisory';
+export type CheckGlyph = 'pass' | 'fail' | 'unknown' | 'unprobed' | 'advisory';
 
 export function checkGlyph(check: CheckResult): CheckGlyph {
+  if (check.status === 'unprobed') return 'unprobed';
   if (check.status === 'unknown') return 'unknown';
   if (!check.ok) return 'fail';
   return check.status === 'advisory' ? 'advisory' : 'pass';
 }
 
-/** A fix is printed when the check failed, or when it is advisory — never on a clean pass. */
+/**
+ * A fix is printed when the check failed, or when it is advisory — never on a
+ * clean pass, and never on an unprobed one: this command does not ask for that
+ * fact, so no reconfiguration by the operator can change the answer (#193).
+ */
 export function checkShowsFix(check: CheckResult): boolean {
   if (check.fix === undefined) return false;
+  if (check.status === 'unprobed') return false;
   return !check.ok || check.status === 'advisory';
 }

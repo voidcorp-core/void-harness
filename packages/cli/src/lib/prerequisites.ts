@@ -12,7 +12,10 @@ import { fetchRemoteMarketplace } from './remote.js';
 export interface CheckResult {
   readonly name: string;
   readonly ok: boolean;
-  readonly status?: 'pass' | 'fail' | 'unknown' | 'advisory';
+  // `unknown` and `unprobed` are both "not a pass", and they are not the same
+  // thing: `unknown` is a fact this run tried to read and could not (actionable),
+  // `unprobed` is a fact this run never asks for by design (nothing to act on).
+  readonly status?: 'pass' | 'fail' | 'unknown' | 'unprobed' | 'advisory';
   readonly message: string;
   readonly fix?: string;
 }

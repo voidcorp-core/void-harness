@@ -18,6 +18,13 @@ describe('checkGlyph', () => {
     // "0.17.0 installed, 2.1.0 published" behind a green tick reads as reassurance.
     expect(checkGlyph({ name: 'x', ok: true, status: 'advisory', message: '' })).toBe('advisory');
   });
+
+  it('keeps a check nobody probed apart from one that could not be read', () => {
+    // Same glyph for both taught the operator to hunt for a misconfiguration
+    // behind a fact this command never even asks for (#193).
+    expect(checkGlyph({ name: 'x', ok: false, status: 'unprobed', message: '' })).toBe('unprobed');
+    expect(checkGlyph({ name: 'x', ok: false, status: 'unknown', message: '' })).toBe('unknown');
+  });
 });
 
 describe('checkShowsFix', () => {
@@ -36,5 +43,11 @@ describe('checkShowsFix', () => {
   it('stays quiet when there is no fix to give', () => {
     expect(checkShowsFix({ name: 'x', ok: false, message: '' })).toBe(false);
     expect(checkShowsFix({ name: 'x', ok: true, status: 'advisory', message: '' })).toBe(false);
+  });
+
+  it('never prints a fix for something this run chose not to probe', () => {
+    // An arrow under an unprobed line reads as a step to take; there is none,
+    // and the operator pays for the detour (#193).
+    expect(checkShowsFix({ name: 'x', ok: false, status: 'unprobed', message: '', fix: 'do it' })).toBe(false);
   });
 });
