@@ -249,18 +249,32 @@ export async function doctor(args: readonly string[]): Promise<void> {
       pass: c.green(glyph.check),
       fail: c.red('x'),
     };
-    line(`${marks[checkGlyph(check)]}  ${c.dim(check.name.padEnd(18))}${check.message}`);
+    // A separator of its own: padding alone collapses for any name at or over
+    // the width, which is how `autopilot worktrees` printed as
+    // `worktreesworktrees usable`.
+    line(`${marks[checkGlyph(check)]}  ${c.dim(check.name.padEnd(18))} ${check.message}`);
     if (checkShowsFix(check) && check.fix) line(c.dim(`     ${glyph.to} ${check.fix}`));
   }
 
-  const blockers = checks.filter((ck) => !ck.ok).length;
+  // Unknown is not failure. A check that could not reach a tracker has not
+  // found a defect, and counting it as one made `doctor` report `4 checks
+  // failed` where two things were broken and two were unmeasured — the same
+  // conflation this repo refuses everywhere else.
   const unknown = checks.filter((check) => check.status === 'unknown').length;
+  const advisory = checks.filter((check) => check.status === 'advisory').length;
+  const blockers = checks.filter((check) => !check.ok && check.status !== 'unknown').length;
+  const notes = [
+    unknown > 0 ? `${unknown} unknown` : undefined,
+    advisory > 0 ? `${advisory} advisory` : undefined,
+  ].filter((note): note is string => note !== undefined);
   if (blockers === 0) {
-    footer(unknown === 0
+    // Never "all checks passed" while a line above says otherwise: a summary
+    // that contradicts its own body teaches people to skip the summary.
+    footer(notes.length === 0
       ? c.dim('all checks passed')
-      : c.yellow(`checks passed with ${unknown} unknown`));
+      : c.yellow(`no blocker; ${notes.join(', ')}`));
   } else {
-    footer(c.red(`${blockers} check${blockers > 1 ? 's' : ''} failed`));
+    footer(c.red([`${blockers} check${blockers > 1 ? 's' : ''} failed`, ...notes].join(', ')));
     process.exit(1);
   }
 }
