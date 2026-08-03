@@ -43,7 +43,7 @@ import {
 import { CODEX_SKILLS_DIR, codexSkillsHealth, wireCodexSkills } from './codex-skills.js';
 import { loadCanonicalEventBody } from './graph-io.js';
 import { smokeInstalledHook } from './hook-smoke.js';
-import { excludeHarnessFromLint } from './lint-exclusion.js';
+import { inspectHarnessLintExclusion } from './lint-exclusion.js';
 import {
   CORE_PLUGIN_NAME,
   enabledPluginsKey,
@@ -277,16 +277,23 @@ const claudeAdapter: RuntimeAdapter = {
     });
     // `.claude/` holds engine-format files this repo wrote. Left inside the
     // project's lint glob they fail on code the project does not own.
-    const lint = await excludeHarnessFromLint(ctx.projectRoot);
+    //
+    // Read against `installationRoot`, never `projectRoot`: the latter is the
+    // isolated stage this transaction writes into, which holds none of the
+    // project's own files — looking for a linter config there finds nothing,
+    // always.
+    //
+    // Reported, not written. The config belongs to the project, and a
+    // transaction that rolls back byte-for-byte cannot roll back an edit to a
+    // file it does not own. Telling the truth beats leaving a surprise behind.
+    const lint = await inspectHarnessLintExclusion(ctx.installationRoot);
     const lintLine =
-      lint.kind === 'added'
+      lint.kind === 'excluded'
         ? `${lint.file}: .claude excluded from lint`
-        : lint.kind === 'already-excluded'
-          ? `${lint.file}: .claude already excluded from lint`
-          : lint.kind === 'manual'
-            ? `lint: ${lint.instruction}`
-            : 'lint: no linter config found, nothing to exclude';
-    if (lint.kind === 'manual') nextSteps.push(lint.instruction);
+        : lint.kind === 'no-linter'
+          ? 'lint: no linter config found, nothing to exclude'
+          : `lint: ${lint.file} lints .claude as project source`;
+    if (lint.kind === 'missing' || lint.kind === 'manual') nextSteps.push(lint.instruction);
     return {
       statusLines: [
         status,

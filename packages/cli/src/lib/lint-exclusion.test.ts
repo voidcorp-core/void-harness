@@ -139,3 +139,17 @@ describe('inspectHarnessLintExclusion', () => {
     expect((await inspectHarnessLintExclusion(root)).kind).toBe('no-linter');
   });
 });
+
+describe('the root that gets inspected', () => {
+  it('finds a config that sits in the project, not in a staging directory', async () => {
+    // The defect this pins: `wire` was handed the transaction's isolated stage
+    // and reported "no linter config found" for every project on earth, because
+    // the stage holds none of the project's own files. Reading the wrong root
+    // is indistinguishable from a project having no linter.
+    const stage = project({});
+    const real = project({ 'biome.json': JSON.stringify({ files: { includes: ['src/**'] } }, null, 2) });
+
+    expect((await inspectHarnessLintExclusion(stage)).kind).toBe('no-linter');
+    expect((await inspectHarnessLintExclusion(real)).kind).toBe('missing');
+  });
+});
