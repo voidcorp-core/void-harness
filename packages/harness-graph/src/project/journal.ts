@@ -1,3 +1,4 @@
+import { stat } from 'node:fs/promises';
 import { watch as watchNode, type FSWatcher } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { normalizeProjectPath, projectPathIsIgnored } from './extractors/filesystem.js';
@@ -153,6 +154,32 @@ function markUncertain(state: JournalState): void {
 function markRootUncertain(state: JournalState): void {
 	state.rootSequence += 1n;
 	markUncertain(state);
+}
+
+/**
+ * Has the directory at this path stopped being the root we opened?
+ *
+ * The watcher cannot answer this everywhere. `fs.watch` on macOS does not
+ * report the replacement of the directory it is watching, so a root swapped out
+ * from under us produces no event at all and the journal keeps reporting
+ * `unchanged` about a root that no longer exists — a cache served for a tree
+ * that is gone. Linux reports it; relying on that is relying on the platform.
+ *
+ * So the identity is checked rather than watched: device and inode, read at
+ * observation time, compared with what we opened.
+ *
+ * An unreadable path answers "do not know", not "replaced". A path this journal
+ * never had on disk — every unit test using an injected watch port — must not
+ * be turned into a permanent uncertainty, and a root that truly vanished still
+ * reaches us as a rename event on the parent.
+ */
+async function rootWasReplaced(state: JournalState): Promise<boolean> {
+	try {
+		const current = await stat(state.root.path, { bigint: false });
+		return current.dev !== state.root.device || current.ino !== state.root.inode;
+	} catch {
+		return false;
+	}
 }
 
 function failState(state: JournalState): void {
@@ -312,6 +339,7 @@ function createJournal(context: JournalContext): ProjectChangeJournal {
 		async observe(root) {
 			const state = stateFor(root, context);
 			await new Promise<void>((resolve) => setImmediate(resolve));
+			if (await rootWasReplaced(state)) markRootUncertain(state);
 			return observation(state, context.authority);
 		},
 		async validate(root, expected) {

@@ -302,3 +302,58 @@ describe('ProjectChangeJournal native capability', () => {
 		}
 	});
 });
+
+describe('ProjectChangeJournal root identity', () => {
+	it('notices a swapped root with no watcher event at all', async () => {
+		// The macOS CI failure, reproduced deterministically: fs.watch there
+		// reports nothing when the watched directory is replaced. With an injected
+		// port that fires no event, the only thing that can catch the swap is
+		// checking the identity rather than watching for it.
+		const parent = await mkdtemp(join(tmpdir(), 'void-journal-identity-'));
+		const root = join(parent, 'root');
+		const saved = join(parent, 'saved');
+		const replacement = join(parent, 'replacement');
+		await mkdir(root);
+		await mkdir(replacement);
+		await writeFile(join(root, 'package.json'), JSON.stringify({ name: 'identity' }));
+		const rootPort = createNodeProjectRootPort();
+		const identity = await rootPort.open(root);
+		const fake = fakeWatchPort();
+		const journal = createNodeProjectChangeJournal({ watchPort: fake.port });
+		try {
+			const initial = await journal.observe(identity);
+			expect(journal.accept(identity, initial)).toBe(true);
+			expect((await journal.observe(identity)).kind).toBe('unchanged');
+
+			await rename(root, saved);
+			await rename(replacement, root);
+
+			const afterSwap = await journal.observe(identity);
+			expect(afterSwap.kind).toBe('uncertain');
+			expect(afterSwap.rootGeneration).not.toBe(initial.rootGeneration);
+		} finally {
+			journal.close();
+		}
+	});
+
+	it('does not cry wolf on a root that never moved', async () => {
+		// The check runs on every observation, so a false positive here would make
+		// every project permanently uncertain and every cache useless.
+		const parent = await mkdtemp(join(tmpdir(), 'void-journal-stable-'));
+		const root = join(parent, 'root');
+		await mkdir(root);
+		await writeFile(join(root, 'package.json'), JSON.stringify({ name: 'stable' }));
+		const identity = await createNodeProjectRootPort().open(root);
+		const fake = fakeWatchPort();
+		const journal = createNodeProjectChangeJournal({ watchPort: fake.port });
+		try {
+			const initial = await journal.observe(identity);
+			expect(journal.accept(identity, initial)).toBe(true);
+			for (let round = 0; round < 3; round += 1) {
+				expect((await journal.observe(identity)).kind).toBe('unchanged');
+			}
+		} finally {
+			journal.close();
+		}
+	});
+});
