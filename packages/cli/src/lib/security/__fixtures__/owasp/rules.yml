@@ -1,0 +1,13 @@
+# Local rules, so the proof needs no registry account and no network.
+rules:
+  - id: sql-query-string-concatenation
+    languages: [javascript]
+    severity: ERROR
+    message: SQL built by concatenation; the caller controls the query.
+    pattern: $DB.query($A + $B)
+
+  - id: shell-command-string-concatenation
+    languages: [javascript]
+    severity: ERROR
+    message: Shell command built by concatenation; the caller controls the command.
+    pattern: exec($A + $B, ...)

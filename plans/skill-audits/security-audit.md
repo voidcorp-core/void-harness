@@ -65,3 +65,22 @@ Grep for `/cso` as a live routing target across `packages/core` is green. The on
 ## Verification
 
 Anti-bloat (≤400 LOC, desc ≤200, name==folder, `.source` + this note present), core-assets mirror sync (`core/` and `cli/core-assets/` byte-identical), the graph gate (`pnpm graph:check` + `graph:check-bundle` after regenerating `model.json` + `void-graph.mjs`), and the full test suite green. Behavioral eval (DEV-394) not authored here: a full-audit skill's output is a findings report, hard to score deterministically without an LLM judge; a scored eval case is a candidate follow-up, not a blocker for the vendoring.
+
+## Revision 2026-07-31 — the deferred live layer landed (DEV-445)
+
+The skill shipped with a section declaring live-surface scanning out of scope, deferred to the `claude-in-chrome` re-point. DEV-445 makes that section wrong: the live layer exists, and it is not browser tooling. It is `void-harness security scan`, a deterministic command with an authorization gate.
+
+**What changed in the skill.** The deferred section is replaced by a routing section, and two anti-rules were added. The removal is deliberate rather than an edit: a deferral that has been resolved is not stale prose, it is a false statement about where a capability lives.
+
+**Why the split holds.** Reading code for a reachable exploit path is judgement, which is what the model is for. Deciding that a host may be probed is a rule, which is what a command is for. Putting the authorization gate inside prose would mean a target could be widened by an argument — and the entire point of the gate is that it cannot be.
+
+**Doctrine the skill now carries, all of it enforced in code rather than asserted here:**
+
+- a scan that did not finish is `degraded` or `blocked`, never green — an unmeasured surface is not a clean one;
+- severity comes from the finding class; a scanner may argue upward, never down; three classes are never waivable;
+- pre-launch is a phase, not a mission mode, and it only ever tightens what blocks;
+- probes are non-destructive unless a grant explicitly says otherwise, and never against a non-ephemeral target.
+
+**Rejected.** Teaching the skill to invoke scanners directly. It would have duplicated the authorization gate in a place where it can be argued with, and made the audit unrunnable without the tools installed — the opposite of the "every scanner is optional" promise the core makes.
+
+**Line count.** 137 → 148, well under the 400 cap.

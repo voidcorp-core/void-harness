@@ -25,3 +25,5 @@ export * from './profile/freshness.js';
 export * from './profile/routing.js';
 export * from './specialist/completion.js';
 export * from './specialist/routing.js';
+export * from './security/scope.js';
+export * from './security/severity.js';

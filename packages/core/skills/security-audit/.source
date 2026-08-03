@@ -1,11 +1,12 @@
 Sources for `security-audit` skill (see plans/skill-audits/security-audit.md for full audit):
 
-- gstack /cso (v1.57.10, ~/.claude/skills/gstack/cso/) — the audit METHODOLOGY only: mode/scope resolution, the phase framework (0 stack model, 1 attack-surface census, 2-11 scope-gated audit, 12 FP filter + confidence gate + verification, 13 findings report). Its runtime plumbing (gbrain sync, telemetry, prior-learnings, plan-mode, voice, AskUserQuestion machinery, gstack-config/learnings binaries) is REJECTED, not vendored.
-- OWASP Top 10 — https://owasp.org/www-project-top-ten/ — the A01-A10 categories in Phase 9.
-- OWASP Top 10 for LLMs — https://owasp.org/www-project-top-10-for-large-language-model-applications/ — Phase 7.
-- STRIDE (Microsoft threat-modeling) — Phase 10 component matrix.
-- Snyk ToxicSkills research — the skill-supply-chain threat (Phase 8).
+- gstack /cso — the phase-driven audit methodology, distilled and rewritten (DEV-387, epic DEV-383).
+- OWASP Top 10 — https://owasp.org/www-project-top-ten/ — phase scoping.
+- OWASP Top 10 for LLMs — https://owasp.org/www-project-top-10-for-large-language-model-applications/ — the P7/P8 prompt-injection and trust-boundary phases.
+- STRIDE — https://learn.microsoft.com/en-us/azure/security/develop/threat-modeling-tool-threats — threat categories per surface.
+- semgrep CLI reference — https://docs.semgrep.dev/cli-reference — confirmed `--config auto` authenticates against the registry and reports usage metrics; the core manifest uses local rules instead (DEV-445).
+- ZAP baseline scan — https://www.zaproxy.org/docs/docker/baseline-scan/ — confirmed passive-only and non-destructive; the basis for the default DAST adapter (DEV-445).
+- gitleaks — https://github.com/gitleaks/gitleaks — `--redact` and the `dir` vs `git` distinction (DEV-445).
+- OSV-Scanner — https://google.github.io/osv-scanner/usage/ — queries a vulnerability database, which motivated the `advisory-service` reach (DEV-445).
 
-Strategy: distill (not compose-gstack). Unlike `security-guidance` which composed /cso for the deep pass, this skill IS the deep pass — the periodic ceiling, vendored in full so it survives the gstack teardown (epic DEV-383, Vague 1). gstack /cso becomes a dead reference; the four core skills that pointed at it now point here.
-
-Deferred, not rejected: live-surface DAST (nuclei, live header/TLS probing, authenticated crawls). Belongs to the claude-in-chrome MCP re-point, epic DEV-383 Vague 4.
+Strategy: distill the methodology, reject the runtime. The prose judges reachability; running tools and refusing unauthorized targets belong to the deterministic `void-harness security` command (DEV-445), never to the skill.
