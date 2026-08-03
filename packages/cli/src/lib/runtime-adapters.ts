@@ -43,6 +43,7 @@ import {
 import { CODEX_SKILLS_DIR, codexSkillsHealth, wireCodexSkills } from './codex-skills.js';
 import { loadCanonicalEventBody } from './graph-io.js';
 import { smokeInstalledHook } from './hook-smoke.js';
+import { excludeHarnessFromLint } from './lint-exclusion.js';
 import {
   CORE_PLUGIN_NAME,
   enabledPluginsKey,
@@ -274,10 +275,23 @@ const claudeAdapter: RuntimeAdapter = {
       enabledPlugins: ctx.enabledPlugins,
       enabledPacks: ctx.enabledPacks,
     });
+    // `.claude/` holds engine-format files this repo wrote. Left inside the
+    // project's lint glob they fail on code the project does not own.
+    const lint = await excludeHarnessFromLint(ctx.projectRoot);
+    const lintLine =
+      lint.kind === 'added'
+        ? `${lint.file}: .claude excluded from lint`
+        : lint.kind === 'already-excluded'
+          ? `${lint.file}: .claude already excluded from lint`
+          : lint.kind === 'manual'
+            ? `lint: ${lint.instruction}`
+            : 'lint: no linter config found, nothing to exclude';
+    if (lint.kind === 'manual') nextSteps.push(lint.instruction);
     return {
       statusLines: [
         status,
         `CLAUDE.md: ${docResult}`,
+        lintLine,
       ],
       nextSteps,
     };

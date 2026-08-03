@@ -128,7 +128,7 @@
       "title": "Architecture, migrations and cost",
       "blurb": "The changes whose damage only shows up later.",
       "hooks": {
-        "boundary-direction-check": "Refuses an import that points the wrong way across a package boundary.",
+        "boundary-direction-check": "Refuses an import of a workspace package the importing package does not declare in its own package.json.",
         "migration-lint": "Refuses a migration that cannot run without downtime.",
         "migration-pr-template": "Requires a migration pull request to carry its rollback and backfill plan.",
         "llm-cost-precommit": "Flags a model call whose cost profile changed without anyone deciding it.",

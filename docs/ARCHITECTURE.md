@@ -825,7 +825,12 @@ proves its source/model correspondence. Broad generated-directory globs remain
 forbidden.
 `void-harness doctor` reports (advisory, never blocking) whether a project has
 adopted the workflow. v1 replays three checks: sensitive-path, secret-content,
-boundary-direction. Destructive-shell stays a local runtime guard only — a
+boundary-direction. `boundary-direction` reads each package's own
+`package.json`: an import of a workspace package the importer declares is
+legitimate, an undeclared one is a phantom dependency and is refused. It does
+not impose a topology of its own, and it allows whenever no manifest is
+readable — a rule that blocks on what it could not determine turns every
+unusual layout into a wall. Destructive-shell stays a local runtime guard only — a
 committed pattern self-matches the detector/docs/fixtures, a net-negative false
 positive for a floor check (see DECISIONS). The project test gate stays the
 consumer's own CI (this Action enforces the doctrine floor, not general quality —

@@ -72,7 +72,8 @@ describe('ci-enforce — violations become red annotations', () => {
     expect(stdout).toMatch(/lockfile/);
   });
 
-  it('flags a forbidden @repo import at the added line', () => {
+  it('flags an undeclared @repo import at the added line', () => {
+    write(repo, 'packages/foo/package.json', JSON.stringify({ name: '@repo/foo' }) + '\n');
     write(repo, 'packages/foo/src/index.ts', "export const x = 1;\nimport { a } from '@repo/bar';\n");
     git(repo, 'add', '-A');
     git(repo, 'commit', '-q', '-m', 'boundary violation');
@@ -113,6 +114,7 @@ describe('ci-enforce — violations become red annotations', () => {
 
   it('reports every distinct violation in one run', () => {
     write(repo, 'pnpm-lock.yaml', 'lockfileVersion: 9\n');
+    write(repo, 'packages/foo/package.json', JSON.stringify({ name: '@repo/foo' }) + '\n');
     write(repo, 'packages/foo/src/index.ts', "import { a } from '@repo/bar';\n");
     git(repo, 'add', '-A');
     git(repo, 'commit', '-q', '-m', 'two violations');
@@ -139,7 +141,8 @@ describe('ci-enforce — clean diff is green', () => {
     expect(run(repo, base).code).toBe(0);
   });
 
-  it('does not flag @repo/core or self imports', () => {
+  it('does not flag a declared import or a self import', () => {
+    write(repo, 'packages/foo/package.json', JSON.stringify({ name: '@repo/foo', dependencies: { '@repo/core': 'workspace:*' } }) + '\n');
     write(repo, 'packages/foo/src/index.ts', "import { a } from '@repo/core';\nimport { b } from '@repo/foo';\n");
     git(repo, 'add', '-A');
     git(repo, 'commit', '-q', '-m', 'legit imports');

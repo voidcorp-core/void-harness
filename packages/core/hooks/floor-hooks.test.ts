@@ -45,23 +45,28 @@ describe('protect-sensitive-files.sh', () => {
 });
 
 describe('boundary-direction-check.sh', () => {
-  it('blocks a forbidden cross-package @repo import', () => {
+  it('blocks an import the nearest manifest does not declare', () => {
     const { code, stderr } = runHook(
       'boundary-direction-check.sh',
       edit('packages/foo/src/index.ts', "import { a } from '@repo/bar';"),
     );
     expect(code).toBe(2);
-    expect(stderr).toMatch(/forbidden/);
+    expect(stderr).toMatch(/does not declare/);
   });
-  it('allows importing @repo/core', () => {
+  it('honours an explicit allow-boundary escape', () => {
     expect(
-      runHook('boundary-direction-check.sh', edit('packages/foo/src/index.ts', "import { a } from '@repo/core';")).code,
+      runHook(
+        'boundary-direction-check.sh',
+        edit('packages/foo/src/index.ts', "import { a } from '@repo/bar'; // allow-boundary: bootstrap"),
+      ).code,
     ).toBe(0);
   });
-  it('does not apply to apps/', () => {
+  it('applies outside packages/ as well, since the layout is the project\'s', () => {
+    // The old rule only matched `^packages/`, so a monorepo laid out any other
+    // way got no enforcement while being told it had some.
     expect(
       runHook('boundary-direction-check.sh', edit('apps/web/index.ts', "import { a } from '@repo/bar';")).code,
-    ).toBe(0);
+    ).toBe(2);
   });
 });
 

@@ -16,6 +16,7 @@ import { readActiveProgram } from '../lib/autopilot/active-program.js';
 import { autopilotPreflight } from '../lib/autopilot/preflight.js';
 import { packsCoherenceIssues, validateConfig } from '../lib/config-schema.js';
 import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../lib/packs.js';
+import { inspectHarnessLintExclusion } from '../lib/lint-exclusion.js';
 import { findCoreSource } from '../lib/paths.js';
 import { type CheckResult, checkEnforceWorkflow, checkGh } from '../lib/prerequisites.js';
 import { readInstallReceipt } from '../lib/receipts.js';
@@ -187,6 +188,26 @@ export async function doctor(args: readonly string[]): Promise<void> {
         fix: 'void-harness add/remove <pack> to realign, or edit .void/config.json',
       });
     }
+  }
+
+  // The harness writes engine-format files into `.claude/`. Left inside the
+  // project's lint glob they fail on code the project does not own and cannot
+  // fix, which is the harness charging its own cost to its consumer.
+  if (claudeDetected) {
+    const lint = await inspectHarnessLintExclusion(root);
+    checks.push(
+      lint.kind === 'excluded'
+        ? { name: 'lint boundary', ok: true, message: `${lint.file}: .claude excluded from project lint` }
+        : lint.kind === 'no-linter'
+          ? { name: 'lint boundary', ok: true, message: 'no linter config found, nothing to exclude' }
+          : {
+              name: 'lint boundary',
+              ok: true,
+              status: 'advisory' as const,
+              message: `${lint.file} lints .claude as project source; harness files are written in engine formats a JS parser rejects`,
+              fix: lint.instruction,
+            },
+    );
   }
 
   // Advisory: is the same floor also enforced server-side (void-enforce

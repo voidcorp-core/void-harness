@@ -243,10 +243,10 @@ export function evaluateRule(
   const edits = projectEdits(options.root, call.edits);
   if (rule === 'no-any') return noAny(edits);
   if (rule === 'no-as-cast') return noAsCast(edits);
-  if (rule === 'no-console') return noConsole(edits);
+  if (rule === 'no-console') return noConsole(edits, options.root);
   if (rule === 'no-null') return noNull(edits);
   if (rule === 'no-focused-test') return noFocusedTest(edits);
-  if (rule === 'boundary-direction') return boundaryDirection(edits);
+  if (rule === 'boundary-direction') return boundaryDirection(edits, options.root);
   if (rule === 'test-name') return testName(edits);
   if (rule === 'design-slop') return designSlop(edits);
   rule satisfies never;

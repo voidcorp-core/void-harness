@@ -47,16 +47,12 @@ describe('language and test hygiene rules', () => {
 
 describe('architecture and design rules', () => {
   it('blocks a cross-package import but scopes itself to the monorepo profile', () => {
+    // Topology now comes from each package's own manifest, so this rule needs a
+    // project root to say anything at all. Without one it allows rather than
+    // falling back to the star topology it used to assume — see
+    // boundary-direction.test.ts for the behaviour that replaced it.
     expect(boundaryDirection(edit(
       'packages/orders/src/index.ts',
-      "import { user } from '@repo/users';",
-    )).allow).toBe(false);
-    expect(boundaryDirection(edit(
-      'packages/orders/src/index.ts',
-      "import { shared } from '@repo/core';",
-    )).allow).toBe(true);
-    expect(boundaryDirection(edit(
-      'src/index.ts',
       "import { user } from '@repo/users';",
     )).allow).toBe(true);
   });
