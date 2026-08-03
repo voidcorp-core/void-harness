@@ -21,8 +21,33 @@ import { selfHost } from './commands/self-host.js';
 import { printHelp } from './commands/help.js';
 import { version } from '../package.json';
 
+/**
+ * Commands that print their own, more specific help.
+ *
+ * Everything else gets the global reference. The list is explicit because the
+ * failure it prevents is silent: a command missing from it does not lose its
+ * help, it MUTATES the project when asked to explain itself.
+ */
+const SELF_DOCUMENTING = new Set(['autopilot', 'decisions', 'mission', 'security']);
+
+/** Did the caller ask for help rather than for the command to run? */
+export function asksForHelp(cmd: string | undefined, rest: readonly string[]): boolean {
+  if (cmd === undefined || SELF_DOCUMENTING.has(cmd)) return false;
+  return rest.includes('--help') || rest.includes('-h');
+}
+
 export async function main(argv: readonly string[]): Promise<void> {
   const [cmd, ...rest] = argv;
+
+  // `--help` explains; it never acts. Before this, `init --help` installed 135
+  // files into the current directory — a command asked to describe itself
+  // instead rewrote the project, which is the least forgivable thing a CLI can
+  // do. Intercepting once here rather than in each command means the next
+  // command added cannot reintroduce it by omission.
+  if (asksForHelp(cmd, rest)) {
+    printHelp();
+    return;
+  }
 
   switch (cmd) {
     case 'init':
