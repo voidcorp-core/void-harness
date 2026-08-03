@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.5.1](https://github.com/voidcorp-core/void-harness/compare/v2.5.0...v2.5.1) (2026-08-03)
+
+
+### Bug Fixes
+
+* **cli:** make --help explain instead of act, and stop calling unknown a failure ([ee030a7](https://github.com/voidcorp-core/void-harness/commit/ee030a7a975ab74889b18450ea1e12b7c85671f0))
+* **cli:** make --help explain instead of act, stop calling unknown a failure, and drop the unproven claim ([933181c](https://github.com/voidcorp-core/void-harness/commit/933181cf38c00e682be125c48fa37ecf01c1b51a))
+* **install:** delete the lint auto-repair, which could have switched a project's linter off ([452751e](https://github.com/voidcorp-core/void-harness/commit/452751e378ec6ec3083ac2c3df4877bb8b62e17c))
+* **install:** read the project root, not the staging directory, when checking lint ([519d280](https://github.com/voidcorp-core/void-harness/commit/519d2803b5b7566cfd0c0600f73334dbb1837052))
+* **install:** read the project root, not the staging directory, when checking lint ([86f7606](https://github.com/voidcorp-core/void-harness/commit/86f760645b5d7c2123853d371ec5175cd407186d))
+* **project-graph:** check the root identity instead of watching for it ([5a76710](https://github.com/voidcorp-core/void-harness/commit/5a7671040d82ecbe0c190918ad5e33c6a97924a7))
+* **test:** wait for the watch event instead of for fifty milliseconds ([4787ebe](https://github.com/voidcorp-core/void-harness/commit/4787ebeba32fbc47e454f10250be45df8f310484))
+* **test:** wait for the watch event instead of for fifty milliseconds ([a110b13](https://github.com/voidcorp-core/void-harness/commit/a110b13f3261b12f1a88d2d1f21a23aeed296ee2))
+* **test:** wait for the watch event instead of for fifty milliseconds ([ee09218](https://github.com/voidcorp-core/void-harness/commit/ee09218a23f61dc94b24c803564c0647af3eb945))
+
 ## [2.5.0](https://github.com/voidcorp-core/void-harness/compare/v2.4.0...v2.5.0) (2026-08-03)
 
 
