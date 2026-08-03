@@ -1,5 +1,43 @@
 # Changelog
 
+## [2.5.0](https://github.com/voidcorp-core/void-harness/compare/v2.4.0...v2.5.0) (2026-08-03)
+
+
+### Features
+
+* **autopilot:** delegate workers to ticket-runner because ticket quality must have one owner ([47b2a48](https://github.com/voidcorp-core/void-harness/commit/47b2a481f8a6062867edc6047962d3a61fe72d67))
+* **autopilot:** publish one reconciliation PR because CI cost belongs at the cluster boundary ([9697e5a](https://github.com/voidcorp-core/void-harness/commit/9697e5a73327976efe479b50af719ed4b6ade68e))
+* **autopilot:** range B — worker contract and worktree fan-out ([9515bfc](https://github.com/voidcorp-core/void-harness/commit/9515bfc558c4a2d0f1cdb0c0cf6128047cc811b9))
+* **autopilot:** reconcile exact ticket ranges because one PR must retain per-ticket provenance ([e5f76f4](https://github.com/voidcorp-core/void-harness/commit/e5f76f4713f339d5e75cabc64c3be127ad8fe2ee))
+* **autopilot:** reconcile remote and tracker state because session resume must be idempotent ([e2c03e8](https://github.com/voidcorp-core/void-harness/commit/e2c03e8ddd5201cf19928aad55be5d854516a83d))
+* **autopilot:** run one bounded ticket cluster because parallelism must stay isolated ([5d86841](https://github.com/voidcorp-core/void-harness/commit/5d868413b48b4ff53189435b64f9da385c67ceaf))
+* **autopilot:** seal local verification because publication must start from a green integration SHA ([3ea6f4b](https://github.com/voidcorp-core/void-harness/commit/3ea6f4b67433613c91fecbe85d4da3d9a905841c))
+* **docs:** generate the cheat sheet from the catalogue, and link it ([695fa02](https://github.com/voidcorp-core/void-harness/commit/695fa0277ccd67b193911ab8ef6e0dfecefe3ad8))
+* **dx:** add one verify command ([bdacc79](https://github.com/voidcorp-core/void-harness/commit/bdacc79d648bbc1cc0c3f1b0a9557c0e6c86b9ef))
+* **dx:** add one verify command because knowing the gate list should not be the gate ([640ab03](https://github.com/voidcorp-core/void-harness/commit/640ab03797c25b21cbee2a8abb81a00f852bebd4))
+* **project-graph:** analyse each project with its own compiler, and record which one ([3090b93](https://github.com/voidcorp-core/void-harness/commit/3090b935d5032f6a5d417c5353a4e586cb121014))
+* **security:** add the security command, and let each scanner declare what its exit codes mean ([16ab47a](https://github.com/voidcorp-core/void-harness/commit/16ab47abc1cc0ef0a2f2332747abeee3481486a0))
+* **security:** baseline sécurité locale et refus par défaut de toute cible non autorisée ([acc315b](https://github.com/voidcorp-core/void-harness/commit/acc315bf23ea5dd657f563d1eda28388f89ed776))
+* **security:** decide severity from the class because a scanner is untrusted input ([1b191cb](https://github.com/voidcorp-core/void-harness/commit/1b191cbf74bcf075918edcb532d5dd6a65f94be7))
+* **security:** describe scanners in a manifest that cannot execute or grade anything ([41571d7](https://github.com/voidcorp-core/void-harness/commit/41571d74840c7c66fb9114f115c39aaae7e2a9d1))
+* **security:** ship the periodic CI template, an OWASP fixture that proves detection, and route the audit skill to the command ([4d0e1ce](https://github.com/voidcorp-core/void-harness/commit/4d0e1cec5bd92428e5761eb5c30018e3639d5b1e))
+* **security:** turn scanner output into findings the engine judges, and never quote a secret back ([14a4e8a](https://github.com/voidcorp-core/void-harness/commit/14a4e8a590a0ae08717522b5b84f12ba9eab4491))
+* **skills:** add session-handoff because the expensive half of a session is what you ruled out ([3d6011c](https://github.com/voidcorp-core/void-harness/commit/3d6011ca4688a31f1ac92d31fc65cd1c138fc0aa))
+
+
+### Bug Fixes
+
+* **cli:** bundle picomatch because the published tarball installs offline ([5e15329](https://github.com/voidcorp-core/void-harness/commit/5e1532918a6aba8f7d9f4bcd19dfcb6e0e051ebf))
+* **graph:** stop counting sourced hook libraries as hooks ([0066107](https://github.com/voidcorp-core/void-harness/commit/006610732ae416fa083004828178135003edc0a4))
+* **hooks:** judge cross-package imports against declared dependencies, not an invented topology ([005ae70](https://github.com/voidcorp-core/void-harness/commit/005ae702b570ec53817e856d7f41f42a2c304c70))
+* **hooks:** let the project's own linter config decide, instead of overruling it ([c162970](https://github.com/voidcorp-core/void-harness/commit/c162970a60d28311a55c66721ae38986725545ee))
+* **install:** keep the harness out of the consumer's lint ([8a62ef0](https://github.com/voidcorp-core/void-harness/commit/8a62ef0b9e774a610893b6dd48ed6879f19f25ca))
+* **install:** keep the harness out of the consumer's lint, because it put the file there ([3c2a8fb](https://github.com/voidcorp-core/void-harness/commit/3c2a8fb0b5bbb673ad19be8353c48b3fd79558c5))
+* **lint:** correct two diagnostics the truncated gate was hiding ([e47e8aa](https://github.com/voidcorp-core/void-harness/commit/e47e8aa1e4fb01f172de5d45578863f178501db9))
+* **lint:** report every diagnostic because a truncated gate is a blind gate ([9e73026](https://github.com/voidcorp-core/void-harness/commit/9e73026780cee878651cddfed7edb1a0f67df7ca))
+* **readme:** count from the graph model ([4e4c779](https://github.com/voidcorp-core/void-harness/commit/4e4c77981219d776b9ec62380bcdfe9569eca28d))
+* **readme:** count from the graph model, because two answers to one question is the bug ([06b38ee](https://github.com/voidcorp-core/void-harness/commit/06b38eeef01d24243b77f5703cb32927797a07f9))
+
 ## [2.4.0](https://github.com/voidcorp-core/void-harness/compare/v2.3.0...v2.4.0) (2026-07-29)
 
 
