@@ -12,6 +12,7 @@ import {
   type LifecycleExecution,
   within,
 } from './executor-shared.js';
+import { voidLocalPath } from '../void-layout.js';
 import {
   extractToolOutput,
   planOutputTrim,
@@ -30,7 +31,9 @@ export interface TrimExecution extends LifecycleExecution {
 function safeOutputDirectory(root: string): string | undefined {
   try {
     const canonicalRoot = realpathSync(root);
-    const directory = join(root, '.void', 'outputs');
+    // Observed state: spilled tool output is this machine's history, so it is
+    // written under `.void/local/` where one ignore rule already covers it.
+    const directory = voidLocalPath(root, 'outputs');
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     const info = lstatSync(directory);
     const canonicalDirectory = realpathSync(directory);

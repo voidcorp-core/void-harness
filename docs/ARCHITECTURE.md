@@ -90,7 +90,7 @@ Rules:
 - No file is auto-generated from the other. Auto-generation risks losing intentional adaptations. Manual authoring + mechanical gate is the safer trade-off.
 - **Doc ownership is per-runtime.** Each adapter's `wire` writes only its own doctrine doc — a Claude-only project has just `CLAUDE.md`, a Codex-only project just `AGENTS.md`. `doctor` checks only the docs of *detected* runtimes, so a Codex-only project is never dinged for a missing `CLAUDE.md`. (`add` / `remove` still patch whichever docs exist, keeping active docs current.)
 - **`init` wires each selected runtime's layer via its adapter**, gated by `--runtime <claude|codex|both>` (default: auto-detected footprint, else both). Claude receives native project-local skills, agents, commands and hooks; Codex receives `.agents/skills`, native `.codex/agents` and `.codex/hooks.json`. The package is bundled with all CLI runtime dependencies, so a tarball installs offline. `--source marketplace` is opt-in and is the only path that checks `gh`/marketplace access.
-- **Publication is transactional.** `init` seeds only shared merge targets into an isolated stage, compiles and executes each selected adapter's doctor smoke there, then atomically publishes a finite mutation set. Every target is snapshotted before the first write; a failure restores bytes and modes and removes only transaction-created paths. `.void/receipts/install-v1.json` hashes files the install created or already owned. Unowned native conflicts fail unless `--force`, and even force never grants deletion ownership over a pre-existing file.
+- **Publication is transactional.** `init` seeds only shared merge targets into an isolated stage, compiles and executes each selected adapter's doctor smoke there, then atomically publishes a finite mutation set. Every target is snapshotted before the first write; a failure restores bytes and modes and removes only transaction-created paths. `.void/local/receipts/install-v1.json` hashes files the install created or already owned. Unowned native conflicts fail unless `--force`, and even force never grants deletion ownership over a pre-existing file.
 - **Runtimes are added a posteriori without friction**: `void-harness runtime add <runtime>` wires exactly that runtime's layer on an already-`init`-ed project, touching nothing the other runtime owns (verified byte-for-byte in tests). `runtime list` shows which are wired. This is the `void runtime add` command from the multi-runtime spec.
 - **Pack and update lifecycle uses the same transaction.** Local `add`/`remove` compile the exact
   config pack set and prune only unchanged receipt-owned stale assets. Local `update` recompiles
@@ -410,7 +410,7 @@ is gated by `graph check-bundle` (the artifact's embedded compatibility model mu
 `model.json`); see
 DECISIONS.md (2026-07-01). The artifact is excluded from the `core-assets` mirror.
 
-## Mission event journal (`.void/runs/<mission-id>/events.jsonl`)
+## Mission event journal (`.void/local/runs/<mission-id>/events.jsonl`)
 
 ### Deterministic mission planning
 
@@ -711,6 +711,39 @@ state). `generatedAt` is stamped by the shell so the core stays deterministic. M
 cost, smoke or observation data stays `unknown`/pending and is excluded from scores instead of being
 invented. Consumer-side bundled-certificate resolution and pack-aware filtering remain local and
 offline.
+
+## `.void/` ownership: declared, derived, observed
+
+Every path the harness materializes carries exactly one ownership class, and that
+class decides what git does with it. The map is code, not prose:
+`VOID_OWNERSHIP` in `packages/hook-runner/src/void-layout.ts` is the single source
+the ignore rule, the migration and `doctor` all read.
+
+| class | what it means | examples | git |
+| --- | --- | --- | --- |
+| `project` | the project authors it; the harness never overwrites it | `config.json`, `PROJECT-DOCTRINE.md`, `policies/`, `profiles/` | tracked |
+| `derived` | `void-harness install` reproduces it from the pin | `PHILOSOPHY.md`, `hooks/` | tracked (see below) |
+| `observed` | this machine's history; meaningless in another checkout | `runs/`, `cache/`, `receipts/`, `state.json`, `*.jsonl` | never |
+
+**Observed state lives under `.void/local/`**, so the ignore rule is a single line
+with no `!` exception and stops needing maintenance: a new runtime artifact is
+born inside `local/` and no ignore file has to learn about it. `init` writes the
+marked block; `update` migrates a pre-split project and never overwrites a
+destination that already holds data; `doctor` proves the result with git
+(`check-ignore` + `ls-files`) rather than trusting that the block is present —
+an ignore rule has no effect on a path that was already tracked.
+
+An entry at the top of `.void/` that the map does not know answers `project`.
+`local/` is a **closed set** — every observed writer in the harness writes inside
+it — so a stranger at the top cannot be harness telemetry, and the failure of
+guessing wrong would be `doctor` telling a project to untrack its own data.
+
+`derived` is classified but deliberately still tracked. It can only move as a
+whole: `.claude/settings.json` is `project` and references
+`.void/hooks/_void-hook.mjs`, so ignoring the hooks without treating settings and
+the runtime skill directories in the same change leaves a repo that is broken on
+clone. Making that move — which would also cover `.claude/skills/` and
+`.agents/skills/` — is its own decision.
 
 ## .void/config.json (consumer-side)
 

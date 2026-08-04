@@ -1,9 +1,10 @@
 // `void-harness status` — the deterministic, offline, LLM-free project health surface.
 // Gathers local signals, joins them with the frozen certification into a ProjectState + score,
-// renders the terminal view, and persists .void/state.json (+ a history snapshot).
+// renders the terminal view, and persists .void/local/state.json (+ a history snapshot).
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { voidLocalDir } from '@voidcorp/hook-runner';
 import { fileURLToPath } from 'node:url';
 import {
   adaptCatalogV1,
@@ -226,10 +227,11 @@ export async function status(_args: readonly string[]): Promise<void> {
   try {
     const generatedAt = new Date().toISOString();
     const body = `${JSON.stringify({ ...state, generatedAt, score }, null, 2)}\n`;
-    const voidDir = join(cwd, '.void');
-    const historyDir = join(voidDir, 'history');
+    // Observed state: a snapshot of what this machine measured, plus its history.
+    const localDir = voidLocalDir(cwd);
+    const historyDir = join(localDir, 'history');
     mkdirSync(historyDir, { recursive: true });
-    writeFileSync(join(voidDir, 'state.json'), body);
+    writeFileSync(join(localDir, 'state.json'), body);
     writeFileSync(join(historyDir, `${generatedAt.replace(/[:.]/g, '-')}.json`), body);
     pruneHistory(historyDir);
     persisted = true;
@@ -252,5 +254,5 @@ export async function status(_args: readonly string[]): Promise<void> {
   );
   if (notice !== undefined) line(c.yellow(`  ${notice}`));
 
-  footer(persisted ? c.green('state written to .void/state.json') : c.dim('.void not writable — render only'));
+  footer(persisted ? c.green('state written to .void/local/state.json') : c.dim('.void not writable — render only'));
 }

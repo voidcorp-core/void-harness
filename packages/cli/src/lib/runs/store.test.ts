@@ -104,7 +104,7 @@ describe('mission run store', () => {
       title: 'Release top-secret-title-value',
       mode: 'team',
     });
-    const run = join(root, '.void', 'runs', ID);
+    const run = join(root, '.void', 'local', 'runs', ID);
     const persisted = [
       await readFile(join(run, 'events.jsonl'), 'utf8'),
       await readFile(join(run, 'mission.json'), 'utf8'),
@@ -127,7 +127,7 @@ describe('mission run store', () => {
       recordMissionEvidence(root, proof('top-secret-proof-value')),
     ).rejects.toThrow('MISSION_EVIDENCE_CONTAINS_SECRET');
     const log = await readFile(
-      join(root, '.void', 'runs', ID, 'events.jsonl'),
+      join(root, '.void', 'local', 'runs', ID, 'events.jsonl'),
       'utf8',
     );
     expect(log).not.toContain('top-secret-proof-value');
@@ -140,7 +140,7 @@ describe('mission run store', () => {
       title: 'Corrupt run',
       mode: 'team',
     });
-    const log = join(root, '.void', 'runs', ID, 'events.jsonl');
+    const log = join(root, '.void', 'local', 'runs', ID, 'events.jsonl');
     await appendFile(log, '{"secret":"super-secret-token"\n', 'utf8');
 
     const inspected = await inspectMission(

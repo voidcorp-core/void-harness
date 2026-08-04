@@ -40,29 +40,15 @@ Thumbs.db
 # Changesets
 # (keep the .changeset/ dir tracked, only ignore status)
 
-# Autonomous backlog-loop run artifacts (logs, plan files, PR drafts) and
-# per-ticket git worktrees. Run-scoped only — keep the rest of .void/ tracked
-# (harness-feedback/, usage.log). These must stay ignored so a run's own output
-# does not trip the next run's clean-tree preflight (issue #17 cluster A, A2).
-.void/autonomous-runs/
-.void/worktrees/
-# ProjectGraph caches are local runtime accelerators and never trusted repository input.
-.void/cache/
-# Enriched activation telemetry log (local, runtime-only; analyzed in Phase 2).
-.void/activations.jsonl
-# Full tool outputs spilled by the trim-large-output hook (runtime-only pointers).
-.void/outputs/
-# Generated project state + history snapshots (void status; deterministic, per-project runtime).
-.void/state.json
-.void/history/
-# Runtime outcome-recording telemetry (local, like activations.jsonl).
-.void/outcomes.jsonl
-# Canonical mission journals and compressed local archives (runtime evidence).
-.void/runs/
-.void/archives/
-# Atomic self-host compilation, receipts and local runtime probes.
-.void/generated/
-# Session self-registration marker (harness writes it on start; runtime-only).
-.void/.registered
+# void-harness:begin
+# Everything the harness OBSERVES (telemetry, run journals, caches, install
+# receipts) lives under .void/local/ and is machine-local. Everything the
+# project DECLARES (config.json, PROJECT-DOCTRINE.md, policies/) stays tracked
+# at the top of .void/ — config.json in particular carries the pack pins and
+# paths.business, which the enforcement runner needs on a fresh clone.
+# One rule, no exception: a new runtime artifact is born inside local/ and this
+# file never has to learn about it.
+.void/local/
+# void-harness:end
 .gstack/
 dist-singlefile/

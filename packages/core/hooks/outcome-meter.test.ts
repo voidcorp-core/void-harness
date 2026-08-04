@@ -23,7 +23,7 @@ function runHook(
     input: JSON.stringify(payload),
     env: { ...process.env, CLAUDE_PROJECT_DIR: dir, ...env },
   });
-  const runs = join(dir, '.void', 'runs');
+  const runs = join(dir, '.void', 'local', 'runs');
   const mission = existsSync(runs)
     ? readdirSync(runs)[0]
     : undefined;

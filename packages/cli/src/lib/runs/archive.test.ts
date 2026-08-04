@@ -78,7 +78,7 @@ describe('mission archive retention', () => {
       ),
     ).toMatchObject([{ missionId: ID, deleted: false }]);
     expect(
-      await stat(join(root, '.void', 'runs', ID)),
+      await stat(join(root, '.void', 'local', 'runs', ID)),
     ).toBeDefined();
 
     expect(
@@ -90,7 +90,7 @@ describe('mission archive retention', () => {
       ),
     ).toMatchObject([{ missionId: ID, deleted: true }]);
     await expect(
-      stat(join(root, '.void', 'runs', ID)),
+      stat(join(root, '.void', 'local', 'runs', ID)),
     ).rejects.toMatchObject({ code: 'ENOENT' });
     expect(await stat(archived.path)).toBeDefined();
   });

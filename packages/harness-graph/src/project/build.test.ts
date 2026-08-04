@@ -92,7 +92,7 @@ async function fixtureCopy(): Promise<string> {
 	const parent = await mkdtemp(join(tmpdir(), 'void-project-build-'));
 	const root = join(parent, 'root');
 	await cp(FIXTURE, root, { recursive: true });
-	await mkdir(join(root, '.void', 'cache'), { recursive: true });
+	await mkdir(join(root, '.void', 'local', 'cache'), { recursive: true });
 	await run('git', ['init', '--quiet'], { cwd: root });
 	await run('git', ['config', 'user.name', 'Fixture Owner'], { cwd: root });
 	await run('git', ['config', 'user.email', 'fixture@example.invalid'], { cwd: root });
@@ -331,7 +331,7 @@ it('ignores a forged and correctly resealed repository cache', async () => {
 		),
 		tombstones: captured.tombstones,
 	});
-	await writeFile(join(root, '.void/cache/project-graph-v1.json'), JSON.stringify(forged));
+	await writeFile(join(root, '.void/local/cache/project-graph-v1.json'), JSON.stringify(forged));
 
 	const result = await buildProjectGraphNative({
 		root,
@@ -855,7 +855,7 @@ it('recomputes snapshot identity instead of trusting the token loaded from cache
 	const seeded = await buildProjectGraphNative({ root, cache: memory });
 	const loaded = await memory.load(
 		await createNodeProjectRootPort().open(root),
-		'.void/cache/project-graph-v1.json',
+		'.void/local/cache/project-graph-v1.json',
 	);
 	if (loaded.status !== 'ready') throw new Error('fixture cache must be ready');
 	const forged = sealProjectGraphCache({
@@ -1111,7 +1111,7 @@ it('composes committed and working-tree rename proofs from the real Git adapter'
 
 it('segments more than sixteen rename proofs without violating Graph v3 provenance', async () => {
 	const root = await isolatedProjectRoot('void-project-long-lineage-');
-	await mkdir(join(root, '.void', 'cache'), { recursive: true });
+	await mkdir(join(root, '.void', 'local', 'cache'), { recursive: true });
 	await writeFile(join(root, 'value-0.ts'), 'export const value = 1;\n');
 	await buildProjectGraph({
 		root,

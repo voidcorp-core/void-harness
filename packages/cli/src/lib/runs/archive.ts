@@ -11,6 +11,7 @@ import {
   unlink,
 } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
+import { voidLocalReadPath } from '@voidcorp/hook-runner';
 import { gzip } from 'node:zlib';
 import { promisify } from 'node:util';
 import type {
@@ -107,7 +108,7 @@ export async function archiveMission(
       `MISSION_NOT_COMPLETED: verdict is ${inspected.verdict.status}`,
     );
   }
-  const directory = await safeDirectory(root, join('.void', 'archives'));
+  const directory = await safeDirectory(root, join('.void', 'local', 'archives'));
   const target = join(directory, `${missionId}.jsonl.gz`);
   if (await exists(target)) {
     throw new Error(`MISSION_ALREADY_ARCHIVED: ${missionId}`);
@@ -153,7 +154,7 @@ export async function pruneMissions(
   ) {
     throw new Error('MISSION_INVALID_RETENTION: days must be a positive integer');
   }
-  const archives = await safeDirectory(root, join('.void', 'archives'));
+  const archives = await safeDirectory(root, join('.void', 'local', 'archives'));
   const entries = await readdir(archives, { withFileTypes: true });
   const cutoff = now.getTime() - olderThanDays * 24 * 60 * 60 * 1_000;
   const candidates: PruneCandidate[] = [];
@@ -170,7 +171,7 @@ export async function pruneMissions(
       continue;
     }
     if (createdAt >= cutoff) continue;
-    const run = join(resolve(root), '.void', 'runs', missionId);
+    const run = voidLocalReadPath(resolve(root), 'runs', missionId);
     const info = await lstat(run);
     const canonicalRoot = await realpath(resolve(root));
     const canonicalRun = await realpath(run);

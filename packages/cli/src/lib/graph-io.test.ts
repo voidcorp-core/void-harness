@@ -80,6 +80,32 @@ describe('loadSkillUsage', () => {
     return root;
   }
 
+  it('reads a project whose history straddles the layout split', () => {
+    // Found by dogfooding the migration: a session running while the harness was
+    // upgraded had 121 missions at the old path and 1 under local/. A reader that
+    // picks whichever exists reports one of them as the whole history — silently,
+    // and forever for a project that never runs `update`.
+    const root = voidProject({});
+    mkdirSync(join(root, '.void', 'runs', 'mis_0123456789abcdef'), { recursive: true });
+    mkdirSync(join(root, '.void', 'local', 'runs', 'mis_fedcba9876543210'), { recursive: true });
+    writeFileSync(
+      join(root, '.void', 'runs', 'mis_0123456789abcdef', 'events.jsonl'),
+      `${canonicalSkill(1, 'harness:tdd')}\n`,
+    );
+    writeFileSync(
+      join(root, '.void', 'local', 'runs', 'mis_fedcba9876543210', 'events.jsonl'),
+      `${canonicalSkill(1, 'harness:code-review').replace('mis_0123456789abcdef', 'mis_fedcba9876543210')}\n`,
+    );
+    try {
+      const skills = loadSkillUsage(root).map((entry) => entry.skill);
+
+      expect(skills).toContain('harness:tdd');
+      expect(skills).toContain('harness:code-review');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it('reads skill firings from activations.jsonl', () => {
     const root = voidProject({
       'activations.jsonl':

@@ -45,12 +45,12 @@ describe('trim-large-output.sh', () => {
     expect(code).toBe(0);
     const out = JSON.parse(stdout);
     const updated = out.hookSpecificOutput.updatedToolOutput as string;
-    expect(updated).toMatch(/\.void\/outputs\//);
+    expect(updated).toMatch(/\.void\/local\/outputs\//);
     expect(updated.length).toBeLessThan(50_000);
     // Full output spilled to disk, intact.
-    const files = readdirSync(join(root, '.void', 'outputs'));
+    const files = readdirSync(join(root, '.void', 'local', 'outputs'));
     expect(files).toHaveLength(1);
-    expect(readFileSync(join(root, '.void', 'outputs', files[0]), 'utf8').length).toBe(50_000);
+    expect(readFileSync(join(root, '.void', 'local', 'outputs', files[0]), 'utf8').length).toBe(50_000);
   });
 
   it('trims a large object result with a stdout field', () => {

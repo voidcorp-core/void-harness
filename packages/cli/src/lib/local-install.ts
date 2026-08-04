@@ -21,6 +21,10 @@ import type { InstallSource } from './runtime-assets.js';
 import type { FileMutation } from './transaction.js';
 
 const SHARED_FILES = [
+  // Co-owned in the strongest sense: the harness owns exactly its marked block,
+  // the project owns every other line. Seeding it here is what lets init patch
+  // the block instead of writing a file over whatever the project had.
+  '.gitignore',
   '.void/config.json',
   '.void/PROJECT-DOCTRINE.md',
   '.claude/settings.json',

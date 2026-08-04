@@ -15,6 +15,7 @@ import { closeSync, fstatSync, fsyncSync, lstatSync, mkdirSync, openSync, readdi
 import { isAbsolute, join, resolve, sep } from 'node:path';
 import { autopilotFailure } from './errors.js';
 import { parseRunState, type RunState, serializeRunState } from './run-state.js';
+import { voidLocalPath } from '@voidcorp/hook-runner';
 
 const STATE_FILE = 'state.json';
 const RUN_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
@@ -34,7 +35,8 @@ function assertRunId(runId: string): string {
 }
 
 export function autopilotDirectory(root: string): string {
-  return join(resolve(root), '.void', 'autopilot');
+  // Observed state: a run's lease, worktrees and journals are this machine's.
+  return voidLocalPath(resolve(root), 'autopilot');
 }
 
 export function runDirectory(root: string, runId: string): string {

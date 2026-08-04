@@ -156,7 +156,7 @@ describe('listRunIds', () => {
   it('ignores a stray file that is not a run directory', () => {
     const root = repo();
     writeRun(root, state());
-    writeFileSync(join(root, '.void', 'autopilot', 'notes.txt'), 'hello');
+    writeFileSync(join(root, '.void', 'local', 'autopilot', 'notes.txt'), 'hello');
 
     expect(listRunIds(root)).toEqual(['run-a']);
   });
@@ -164,7 +164,7 @@ describe('listRunIds', () => {
   it('ignores a run directory carrying no state file', () => {
     const root = repo();
     writeRun(root, state());
-    mkdirSync(join(root, '.void', 'autopilot', 'run-empty'), { recursive: true });
+    mkdirSync(join(root, '.void', 'local', 'autopilot', 'run-empty'), { recursive: true });
 
     expect(listRunIds(root)).toEqual(['run-a']);
   });
