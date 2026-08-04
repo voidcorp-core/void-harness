@@ -7,6 +7,7 @@ import { add } from './commands/add.js';
 import { remove } from './commands/remove.js';
 import { list } from './commands/list.js';
 import { doctor } from './commands/doctor.js';
+import { hydrate } from './commands/hydrate.js';
 import { check } from './commands/check.js';
 import { update } from './commands/update.js';
 import { autopilot } from './commands/autopilot.js';
@@ -67,6 +68,9 @@ export async function main(argv: readonly string[]): Promise<void> {
     case 'ls':
       await list(rest);
       return;
+    case 'hydrate':
+      await hydrate(rest);
+      break;
     case 'doctor':
       await doctor(rest);
       return;

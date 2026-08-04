@@ -11,8 +11,9 @@
 
 import { execFileSync } from 'node:child_process';
 import { isLocalEntry, pendingMigrations, VOID_LOCAL_DIR } from '@voidcorp/hook-runner';
-import { judgeLayout, type LayoutObservation } from '../lib/void-hygiene.js';
-import { existsSync } from 'node:fs';
+import { judgeLayout, type LayoutObservation, type ManifestObservation } from '../lib/void-hygiene.js';
+import { INSTALL_MANIFEST_PATH, parseInstallManifest, verifyInstallManifest } from '../lib/install-manifest.js';
+import { existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { readActiveProgram } from '../lib/autopilot/active-program.js';
@@ -359,6 +360,21 @@ async function checkRemoteVersions(root: string): Promise<CheckResult> {
 }
 
 
+/** Read the committed manifest and check the assets against it. Never throws. */
+function observeManifest(root: string): ManifestObservation {
+  const path = join(root, ...INSTALL_MANIFEST_PATH.split('/'));
+  if (!existsSync(path)) return { kind: 'absent' };
+  let manifest: ReturnType<typeof parseInstallManifest>;
+  try {
+    manifest = parseInstallManifest(readFileSync(path, 'utf8'));
+  } catch {
+    return { kind: 'unreadable' };
+  }
+  if (manifest === undefined) return { kind: 'unreadable' };
+  const report = verifyInstallManifest(root, manifest);
+  return { kind: 'present', version: manifest.version, drifted: report.missingTotal + report.mismatchedTotal };
+}
+
 /**
  * Ask git what it actually does with observed state, rather than trusting that
  * the ignore block is present: a rule can be absent, overridden by a later rule,
@@ -378,7 +394,7 @@ function observeLayout(root: string): LayoutObservation {
 
   const insideRepo = git(['rev-parse', '--is-inside-work-tree'])?.trim() === 'true';
   if (!insideRepo) {
-    return { pending: pendingMigrations(root), localIgnored: null, trackedObserved: [] };
+    return { pending: pendingMigrations(root), localIgnored: null, trackedObserved: [], manifest: observeManifest(root) };
   }
 
   // `check-ignore` exits non-zero when the path is NOT ignored, which the helper
@@ -396,7 +412,7 @@ function observeLayout(root: string): LayoutObservation {
     return isLocalEntry(relative.split('/')[0] ?? '');
   });
 
-  return { pending: pendingMigrations(root), localIgnored, trackedObserved };
+  return { pending: pendingMigrations(root), localIgnored, trackedObserved, manifest: observeManifest(root) };
 }
 
 /**

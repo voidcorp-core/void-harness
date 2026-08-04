@@ -20,7 +20,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { patchGitignore } from '@voidcorp/hook-runner';
 import * as p from '@clack/prompts';
-import { prepareInstallCommit, seedInstallStage } from '../lib/local-install.js';
+import { prepareInstallCommit, seedInstallStage, stageInstallManifest } from '../lib/local-install.js';
 import { type PackConfig, resolveEffectivePin } from '../lib/pack-config.js';
 import {
   CORE_PLUGIN_NAME,
@@ -296,6 +296,10 @@ export async function init(args: readonly string[]): Promise<void> {
         }
       }
     }
+    // The committed record of exactly what this install materialized, so any
+    // other checkout can restore the same bytes and PROVE it did.
+    await stageInstallManifest(stageRoot, cliVersion());
+
     const prepared = await prepareInstallCommit({
       projectRoot,
       stageRoot,
