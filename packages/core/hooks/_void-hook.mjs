@@ -899,6 +899,26 @@ var VOID_OWNERSHIP = Object.freeze({
   "usage.log": "observed",
   ".registered": "observed"
 });
+var MATERIALIZED_OWNERSHIP = Object.freeze({
+  // The project's own wiring: hand-editable, merged rather than regenerated.
+  ".claude/settings.json": "project",
+  // Regenerated verbatim by `install` from the pinned version.
+  ".claude/skills/": "derived",
+  ".claude/agents/": "derived",
+  ".claude/commands/": "derived",
+  ".agents/skills/": "derived",
+  ".codex/agents/": "derived",
+  ".void/hooks/": "derived",
+  ".void/PHILOSOPHY.md": "derived",
+  ".codex/hooks.json": "derived"
+});
+var DERIVED_LOAD_BEARING = Object.freeze([
+  ".void/hooks/",
+  ".codex/hooks.json"
+]);
+var IGNORED_DERIVED = Object.freeze(
+  Object.keys(MATERIALIZED_OWNERSHIP).filter((path) => MATERIALIZED_OWNERSHIP[path] === "derived" && !DERIVED_LOAD_BEARING.includes(path)).sort()
+);
 var LOCAL_ENTRIES = Object.freeze(
   Object.keys(VOID_OWNERSHIP).filter((entry) => VOID_OWNERSHIP[entry] === "observed").sort()
 );

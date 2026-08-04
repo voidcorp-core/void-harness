@@ -3,6 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  DERIVED_LOAD_BEARING,
+  IGNORED_DERIVED,
+  isIgnoredMaterialized,
   LOCAL_ENTRIES,
   VOID_DIR,
   VOID_LOCAL_DIR,
@@ -54,10 +57,10 @@ describe('ownership decides what git keeps', () => {
     expect(ownershipOf('activations.jsonl')).toBe('observed');
   });
 
-  it('does not ignore derived state, because it cannot move alone', () => {
-    // `.claude/settings.json` is project state and references
-    // `.void/hooks/_void-hook.mjs`. Ignoring the hooks without moving settings and
-    // the runtime skill dirs in the same change breaks the repo on clone.
+  it('never moves derived state under local/, whatever git does with it', () => {
+    // Derived state is regenerated in place by `install`; only its git treatment
+    // is in question, never its location. Moving it would break the paths
+    // `.claude/settings.json` and the runtimes resolve by name.
     expect(isLocalEntry('hooks')).toBe(false);
     expect(pendingMigrations('/nonexistent')).not.toContain('hooks');
   });
@@ -131,14 +134,52 @@ describe('what update has to move', () => {
   });
 });
 
+describe('derived state: what breaks stays, what degrades goes', () => {
+  it('ignores the vendored content, which merely degrades when absent', () => {
+    for (const path of ['.claude/skills/', '.claude/agents/', '.agents/skills/', '.void/PHILOSOPHY.md']) {
+      expect(IGNORED_DERIVED, path).toContain(path);
+    }
+  });
+
+  it('keeps the runner tracked, because settings.json names it and settings.json ships', () => {
+    // Ignoring it gives a fresh clone a tracked settings file pointing at a
+    // missing runner, and every tool call fails on it.
+    expect(IGNORED_DERIVED).not.toContain('.void/hooks/');
+    expect(DERIVED_LOAD_BEARING).toContain('.void/hooks/');
+  });
+
+  it('keeps the Codex safety floor tracked, because a missing floor is a silent one', () => {
+    expect(IGNORED_DERIVED).not.toContain('.codex/hooks.json');
+  });
+
+  it('matches a file by its directory prefix, not by exact path', () => {
+    expect(isIgnoredMaterialized('.claude/skills/tdd/SKILL.md')).toBe(true);
+    expect(isIgnoredMaterialized('.void/PHILOSOPHY.md')).toBe(true);
+    expect(isIgnoredMaterialized('.void/hooks/_void-hook.mjs')).toBe(false);
+    expect(isIgnoredMaterialized('.claude/settings.json')).toBe(false);
+    expect(isIgnoredMaterialized('src/index.ts')).toBe(false);
+  });
+
+  it('reads a Windows-style path the same way', () => {
+    expect(isIgnoredMaterialized('.claude\\skills\\tdd\\SKILL.md')).toBe(true);
+  });
+});
+
 describe('the ignore rule', () => {
-  it('is a single line with no exception to maintain', () => {
+  it('carries no exception rule to maintain', () => {
     // The whole point of the split: no `!` rescue rule, because a rescue rule is
     // what silently left config.json ignored in the project that prompted this.
     const rules = gitignoreBlock().split('\n').filter((l) => l !== '' && !l.startsWith('#'));
 
-    expect(rules).toEqual(['.void/local/']);
+    expect(rules).toContain('.void/local/');
     expect(rules.some((rule) => rule.startsWith('!'))).toBe(false);
+  });
+
+  it('lists every ignorable derived path, and no load-bearing one', () => {
+    const rules = gitignoreBlock().split('\n').filter((l) => l !== '' && !l.startsWith('#'));
+
+    for (const path of IGNORED_DERIVED) expect(rules, path).toContain(path);
+    for (const path of DERIVED_LOAD_BEARING) expect(rules, path).not.toContain(path);
   });
 
   it('adds the block to a gitignore that has none', () => {

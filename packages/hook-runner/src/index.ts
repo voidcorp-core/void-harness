@@ -1,5 +1,10 @@
 export {
+  DERIVED_LOAD_BEARING,
+  IGNORED_DERIVED,
+  isIgnoredMaterialized,
   LOCAL_ENTRIES,
+  MATERIALIZED_OWNERSHIP,
+  type Ownership,
   VOID_DIR,
   VOID_LOCAL_DIR,
   gitignoreBlock,

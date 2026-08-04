@@ -97,15 +97,11 @@ Negative:
   approach). Rejected: correct only until the next artifact, and it failed
   exactly that way — `outcomes.jsonl` and `state.json` were each added later, by
   hand, to a list nobody could see was incomplete.
-- **Also ignore `derived` (`hooks/`, `PHILOSOPHY.md`, and by extension
-  `.claude/skills/`, `.agents/skills/`).** Defensible — they are reproducible
-  from the pin, and committing them puts thousands of lines of vendored prose in
-  a product repo's history and its review diffs. Deferred, because the class can
-  only move as a whole: `.claude/settings.json` is `project` and references
-  `.void/hooks/_void-hook.mjs`, so ignoring the hooks alone leaves a repo whose
-  every tool call fails on a fresh clone. It also mass-untracks files in every
-  consumer repository, which is a decision to take deliberately and not as a side
-  effect of this one.
+- **Also ignore `derived`.** Taken, as its own decision in the same change —
+  see `derived-content-is-not-committed`. It is recorded separately because it is
+  independently reversible and because it mass-untracks files in every consumer
+  repository, which had to be decided deliberately rather than inherited as a
+  side effect of the observed/declared split.
 
 ## Reversal cost
 

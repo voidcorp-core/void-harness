@@ -2,7 +2,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { migrateVoidLayout, planVoidMigration } from './void-migration.js';
+import { execFileSync } from 'node:child_process';
+import { migrateVoidLayout, planVoidMigration, untrackDerived } from './void-migration.js';
 
 const temporary: string[] = [];
 
@@ -114,6 +115,71 @@ describe('migrateVoidLayout', () => {
 
     expect(result).toEqual({ moved: [], conflicts: [], gitignoreTouched: false });
     expect(existsSync(join(root, '.gitignore'))).toBe(false);
+  });
+});
+
+describe('untrackDerived', () => {
+  function gitProject(files: Record<string, string>): string {
+    const root = project(files);
+    execFileSync('git', ['init', '-q'], { cwd: root, stdio: 'ignore' });
+    execFileSync('git', ['add', '-A'], { cwd: root, stdio: 'ignore' });
+    execFileSync('git', ['-c', 'user.email=a@b', '-c', 'user.name=c', 'commit', '-qm', 'in'], {
+      cwd: root,
+      stdio: 'ignore',
+    });
+    return root;
+  }
+
+  it('drops regenerated content from the index and leaves every byte on disk', async () => {
+    const root = gitProject({
+      '.claude/skills/tdd/SKILL.md': '# tdd',
+      '.agents/skills/tdd/SKILL.md': '# tdd',
+      '.void/config.json': '{}',
+    });
+
+    const result = await untrackDerived(root);
+    const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' });
+
+    expect(result.untracked).toHaveLength(2);
+    expect(tracked).toContain('.void/config.json');
+    expect(tracked).not.toContain('.claude/skills');
+    // The runtimes keep loading them until the next install.
+    expect(existsSync(join(root, '.claude/skills/tdd/SKILL.md'))).toBe(true);
+  });
+
+  it('never drops what a fresh clone needs to work', async () => {
+    // The runner is named from the tracked settings.json, and hooks.json IS the
+    // Codex floor. Untracking either yields a clone that fails or a silent one.
+    const root = gitProject({
+      '.void/hooks/_void-hook.mjs': '// runner',
+      '.codex/hooks.json': '{}',
+      '.claude/settings.json': '{}',
+    });
+
+    const result = await untrackDerived(root);
+    const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' });
+
+    expect(result.untracked).toEqual([]);
+    expect(tracked).toContain('.void/hooks/_void-hook.mjs');
+    expect(tracked).toContain('.codex/hooks.json');
+    expect(tracked).toContain('.claude/settings.json');
+  });
+
+  it('answers without touching the index in dry-run', async () => {
+    const root = gitProject({ '.claude/skills/tdd/SKILL.md': '# tdd' });
+
+    const result = await untrackDerived(root, true);
+    const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' });
+
+    expect(result.untracked).toEqual(['.claude/skills/tdd/SKILL.md']);
+    expect(tracked).toContain('.claude/skills/tdd/SKILL.md');
+  });
+
+  it('reports rather than throws outside a git repository', async () => {
+    const result = await untrackDerived(project({ '.claude/skills/tdd/SKILL.md': '# tdd' }));
+
+    expect(result.untracked).toEqual([]);
+    expect(result.error).toMatch(/not a git repository/);
   });
 });
 

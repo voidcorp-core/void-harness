@@ -10,7 +10,7 @@
 //      marketplace fetch) — only when remote checks run; --no-remote skips it
 
 import { execFileSync } from 'node:child_process';
-import { isLocalEntry, pendingMigrations, VOID_LOCAL_DIR } from '@voidcorp/hook-runner';
+import { isIgnoredMaterialized, isLocalEntry, pendingMigrations, VOID_LOCAL_DIR } from '@voidcorp/hook-runner';
 import { judgeLayout, type LayoutObservation } from '../lib/void-hygiene.js';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
@@ -378,7 +378,7 @@ function observeLayout(root: string): LayoutObservation {
 
   const insideRepo = git(['rev-parse', '--is-inside-work-tree'])?.trim() === 'true';
   if (!insideRepo) {
-    return { pending: pendingMigrations(root), localIgnored: null, trackedObserved: [] };
+    return { pending: pendingMigrations(root), localIgnored: null, trackedObserved: [], trackedDerivedCount: 0 };
   }
 
   // `check-ignore` exits non-zero when the path is NOT ignored, which the helper
@@ -396,7 +396,14 @@ function observeLayout(root: string): LayoutObservation {
     return isLocalEntry(relative.split('/')[0] ?? '');
   });
 
-  return { pending: pendingMigrations(root), localIgnored, trackedObserved };
+  // Regenerated content still in the index, across every materialized directory.
+  const materialized = git(['ls-files', '-z', '--', '.void', '.claude', '.agents', '.codex']) ?? '';
+  const trackedDerivedCount = materialized
+    .split('\0')
+    .filter((path) => path !== '' && isIgnoredMaterialized(path))
+    .length;
+
+  return { pending: pendingMigrations(root), localIgnored, trackedObserved, trackedDerivedCount };
 }
 
 /**

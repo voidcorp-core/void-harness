@@ -79,6 +79,64 @@ export const VOID_OWNERSHIP: Readonly<Record<string, Ownership>> = Object.freeze
   '.registered': 'observed',
 });
 
+/**
+ * The paths the harness materializes OUTSIDE `.void/`, with their class. Same
+ * axis, wider scope: `.claude/`, `.agents/` and `.codex/` hold the same mix of
+ * project state and regenerated content, and left unclassified they were tracked
+ * by default — 126 files and ~1.2 MB of vendored prose per consumer repository,
+ * rewritten in full on every version bump, in every review diff.
+ *
+ * A trailing slash marks a directory prefix.
+ */
+export const MATERIALIZED_OWNERSHIP: Readonly<Record<string, Ownership>> = Object.freeze({
+  // The project's own wiring: hand-editable, merged rather than regenerated.
+  '.claude/settings.json': 'project',
+
+  // Regenerated verbatim by `install` from the pinned version.
+  '.claude/skills/': 'derived',
+  '.claude/agents/': 'derived',
+  '.claude/commands/': 'derived',
+  '.agents/skills/': 'derived',
+  '.codex/agents/': 'derived',
+  '.void/hooks/': 'derived',
+  '.void/PHILOSOPHY.md': 'derived',
+  '.codex/hooks.json': 'derived',
+});
+
+/**
+ * Derived paths that stay TRACKED regardless, because their absence is an error
+ * rather than a degradation:
+ *
+ * - `.void/hooks/` is referenced by name from `.claude/settings.json`, which is
+ *   project state and therefore committed. Ignoring the runner while keeping the
+ *   reference gives a fresh clone a settings file pointing at a missing file, and
+ *   every tool call fails on it.
+ * - `.codex/hooks.json` IS the Codex safety floor. Absent, the floor is simply
+ *   not there — a silently weaker clone, which is the worst of the three states.
+ *
+ * Everything else in the derived class degrades gracefully: without them the
+ * agent has fewer capabilities until the next `install`, and nothing errors.
+ */
+export const DERIVED_LOAD_BEARING: readonly string[] = Object.freeze([
+  '.void/hooks/',
+  '.codex/hooks.json',
+]);
+
+/** Derived paths that git should ignore: the whole class minus the load-bearing ones. */
+export const IGNORED_DERIVED: readonly string[] = Object.freeze(
+  Object.keys(MATERIALIZED_OWNERSHIP)
+    .filter((path) => MATERIALIZED_OWNERSHIP[path] === 'derived' && !DERIVED_LOAD_BEARING.includes(path))
+    .sort(),
+);
+
+/** True when git should ignore this repo-relative materialized path. */
+export function isIgnoredMaterialized(path: string): boolean {
+  const normalized = path.split('\\').join('/');
+  return IGNORED_DERIVED.some((ignored) =>
+    ignored.endsWith('/') ? normalized.startsWith(ignored) : normalized === ignored,
+  );
+}
+
 /** The observed entries, sorted — what moves under `local/` and what git ignores. */
 export const LOCAL_ENTRIES: readonly string[] = Object.freeze(
   Object.keys(VOID_OWNERSHIP)
@@ -154,7 +212,7 @@ export function pendingMigrations(root: string): string[] {
   return LOCAL_ENTRIES.filter((entry) => existsSync(legacyVoidPath(root, entry))).sort();
 }
 
-/** The managed `.gitignore` block: one rule, no exception, carrying its own why. */
+/** The managed `.gitignore` block: no exception rule, and carrying its own why. */
 export function gitignoreBlock(): string {
   return [
     BEGIN_MARKER,
@@ -163,9 +221,19 @@ export function gitignoreBlock(): string {
     '# project DECLARES (config.json, PROJECT-DOCTRINE.md, policies/) stays tracked',
     '# at the top of .void/ — config.json in particular carries the pack pins and',
     '# paths.business, which the enforcement runner needs on a fresh clone.',
-    '# One rule, no exception: a new runtime artifact is born inside local/ and this',
+    '# No exception rule: a new runtime artifact is born inside local/ and this',
     '# file never has to learn about it.',
     `${VOID_DIR}/${VOID_LOCAL_DIR}/`,
+    '',
+    '# Materialized by `void-harness install` from the version pinned in',
+    '# .void/config.json, exactly the way node_modules comes from a lockfile.',
+    '# Committing them puts ~1.2 MB of vendored prose in this history and rewrites',
+    '# it whole on every version bump, in every review diff. Absent, the agent has',
+    '# fewer capabilities until the next install — it degrades, it does not break.',
+    '# Deliberately NOT ignored: .void/hooks/ (referenced by name from the tracked',
+    '# .claude/settings.json) and .codex/hooks.json (the safety floor itself) —',
+    '# their absence is an error, not a degradation.',
+    ...IGNORED_DERIVED,
     END_MARKER,
   ].join('\n');
 }

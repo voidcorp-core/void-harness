@@ -7,14 +7,18 @@
 // cheap, but silently clobbering a run journal that a reconciliation is reading
 // is not.
 //
-// Nothing here touches git. Moving a tracked file already shows up as a deletion
-// plus an ignored path, which is exactly the change the project should commit;
-// running `git rm` on the user's behalf would stage work they did not ask for.
+// The migration itself never touches git: moving a tracked file already shows up
+// as a deletion plus an ignored path, which is exactly the change the project
+// should commit. `untrackDerived` is the one git-touching function here, and it
+// runs only behind an explicit `--untrack-derived` — rewriting someone's index is
+// their call, not a side effect of updating.
 
+import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
+  isIgnoredMaterialized,
   legacyVoidPath,
   patchGitignore,
   pendingMigrations,
@@ -45,6 +49,52 @@ export function planVoidMigration(root: string): { readonly movable: string[]; r
     else movable.push(entry);
   }
   return { movable, conflicts };
+}
+
+export interface UntrackResult {
+  /** Paths dropped from the index (still on disk), or that would be. */
+  readonly untracked: readonly string[];
+  /** Set when git refused or was unavailable; nothing was changed. */
+  readonly error?: string;
+}
+
+/**
+ * Drop regenerated content from the index while leaving every byte on disk.
+ *
+ * Explicit by construction — `update` only does this behind `--untrack-derived`.
+ * Rewriting a project's index is the project's call: the files are theirs, the
+ * commit is theirs, and a migration that quietly staged 126 deletions would be a
+ * side effect nobody asked for.
+ */
+export async function untrackDerived(root: string, dryRun = false): Promise<UntrackResult> {
+  let listed: string;
+  try {
+    listed = execFileSync('git', ['ls-files', '-z', '--', '.void', '.claude', '.agents', '.codex'], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch {
+    return { untracked: [], error: 'not a git repository, or git is unavailable' };
+  }
+
+  const untracked = listed.split('\0').filter((path) => path !== '' && isIgnoredMaterialized(path));
+  if (untracked.length === 0 || dryRun) return { untracked };
+
+  try {
+    // `--cached` is the whole point: the index forgets them, the working tree
+    // keeps them, and the runtimes keep loading them until the next install.
+    // Batched to stay under the platform argument limit on a large catalogue.
+    for (let index = 0; index < untracked.length; index += 200) {
+      execFileSync('git', ['rm', '--cached', '--quiet', '--', ...untracked.slice(index, index + 200)], {
+        cwd: root,
+        stdio: ['ignore', 'ignore', 'pipe'],
+      });
+    }
+  } catch (error) {
+    return { untracked: [], error: error instanceof Error ? error.message.split('\n')[0] ?? 'git rm failed' : 'git rm failed' };
+  }
+  return { untracked };
 }
 
 /**
