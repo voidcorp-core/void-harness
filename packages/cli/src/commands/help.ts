@@ -63,7 +63,7 @@ export function printHelp(): void {
   cmd('list', 'Show active and available packs.');
   cmd('status', 'Project health: the five-state capability lifecycle + a score. Deterministic, offline, no LLM.');
   cmd('doctor [--no-remote]', 'Health-check the install (config, doctrine, per-runtime wiring). --no-remote runs fully offline.');
-  cmd('update [--dry-run]', 'Recompile local receipt-owned assets from this CLI; marketplace cache/pins only for explicit marketplace installs.');
+  cmd('update [--dry-run] [--untrack-derived]', 'Recompile local receipt-owned assets from this CLI; migrate the .void layout. --untrack-derived drops regenerated files from the git index, keeping them on disk.');
   cmd('check [--doctrine]', 'Report local vs remote version drift. --doctrine also diffs PHILOSOPHY.md.');
   cmd('graph <sub>', 'Build / gate / report the skill-agent graph (build, check, audit, live, behavior).');
   cmd('autopilot [sub]', 'Drain a bounded cluster of ready tickets into one integration PR you merge. plan · start · status · resume · abort; --json for the skill. Resumes from plans/ACTIVE.md, so no ticket or run id is passed.');

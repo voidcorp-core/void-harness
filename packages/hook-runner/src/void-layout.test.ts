@@ -3,9 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  DERIVED_LOAD_BEARING,
-  IGNORED_DERIVED,
-  isIgnoredMaterialized,
+  classifyMaterialized,
+  derivedIgnoreEntries,
+  isOwnedDerived,
   LOCAL_ENTRIES,
   VOID_DIR,
   VOID_LOCAL_DIR,
@@ -134,34 +134,72 @@ describe('what update has to move', () => {
   });
 });
 
-describe('derived state: what breaks stays, what degrades goes', () => {
-  it('ignores the vendored content, which merely degrades when absent', () => {
-    for (const path of ['.claude/skills/', '.claude/agents/', '.agents/skills/', '.void/PHILOSOPHY.md']) {
-      expect(IGNORED_DERIVED, path).toContain(path);
-    }
+describe('ownership comes from the receipt, never from the directory', () => {
+  const RECEIPT = [
+    '.claude/skills/tdd/SKILL.md',
+    '.claude/skills/tdd/references/cycle.md',
+    '.agents/skills/tdd/SKILL.md',
+    '.claude/agents/doctrine-critic.md',
+    '.void/PHILOSOPHY.md',
+    '.void/hooks/_void-hook.mjs',
+    '.codex/hooks.json',
+    '.claude/settings.json',
+  ];
+
+  it("never covers a skill the project wrote itself", () => {
+    // THE regression this exists for. `.claude/skills/` is shared: Claude Code
+    // reads a project's own skills from it and the harness merely also writes
+    // there. Classifying the directory would ignore hand-written content and let
+    // `--untrack-derived` drop it from the index.
+    const entries = derivedIgnoreEntries(RECEIPT);
+
+    expect(entries).not.toContain('.claude/skills/');
+    expect(entries.some((entry) => entry.includes('custom'))).toBe(false);
+    expect(isOwnedDerived('.claude/skills/custom/SKILL.md')).toBe(true);
+    // ...but it is not in the receipt, so it never reaches an ignore entry:
+    expect(derivedIgnoreEntries(['.claude/skills/custom/SKILL.md'])).toEqual(['.claude/skills/custom/']);
+    expect(entries.filter((entry) => entry.startsWith('.claude/skills/'))).toEqual(['.claude/skills/tdd/']);
   });
 
-  it('keeps the runner tracked, because settings.json names it and settings.json ships', () => {
-    // Ignoring it gives a fresh clone a tracked settings file pointing at a
-    // missing runner, and every tool call fails on it.
-    expect(IGNORED_DERIVED).not.toContain('.void/hooks/');
-    expect(DERIVED_LOAD_BEARING).toContain('.void/hooks/');
+  it('collapses an owned unit to its directory, so the block stays readable', () => {
+    // Two receipt files under the same skill produce one entry, not two.
+    expect(derivedIgnoreEntries(RECEIPT)).toContain('.claude/skills/tdd/');
   });
 
-  it('keeps the Codex safety floor tracked, because a missing floor is a silent one', () => {
-    expect(IGNORED_DERIVED).not.toContain('.codex/hooks.json');
+  it('lists a standalone owned file exactly', () => {
+    expect(derivedIgnoreEntries(RECEIPT)).toContain('.void/PHILOSOPHY.md');
   });
 
-  it('matches a file by its directory prefix, not by exact path', () => {
-    expect(isIgnoredMaterialized('.claude/skills/tdd/SKILL.md')).toBe(true);
-    expect(isIgnoredMaterialized('.void/PHILOSOPHY.md')).toBe(true);
-    expect(isIgnoredMaterialized('.void/hooks/_void-hook.mjs')).toBe(false);
-    expect(isIgnoredMaterialized('.claude/settings.json')).toBe(false);
-    expect(isIgnoredMaterialized('src/index.ts')).toBe(false);
+  it('never lists what a fresh clone needs to work', () => {
+    const entries = derivedIgnoreEntries(RECEIPT);
+
+    expect(entries).not.toContain('.void/hooks/_void-hook.mjs');
+    expect(entries).not.toContain('.codex/hooks.json');
+    expect(isOwnedDerived('.void/hooks/_void-hook.mjs')).toBe(false);
+    expect(isOwnedDerived('.codex/hooks.json')).toBe(false);
+  });
+
+  it('never lists project state, even when the receipt owns it', () => {
+    expect(derivedIgnoreEntries(RECEIPT)).not.toContain('.claude/settings.json');
+    expect(isOwnedDerived('.claude/settings.json')).toBe(false);
+  });
+
+  it('leaves anything outside the materialized surface alone', () => {
+    expect(classifyMaterialized('src/index.ts')).toBeUndefined();
+    expect(isOwnedDerived('src/index.ts')).toBe(false);
+    expect(derivedIgnoreEntries(['src/index.ts'])).toEqual([]);
   });
 
   it('reads a Windows-style path the same way', () => {
-    expect(isIgnoredMaterialized('.claude\\skills\\tdd\\SKILL.md')).toBe(true);
+    expect(derivedIgnoreEntries(['.claude\\skills\\tdd\\SKILL.md'])).toEqual(['.claude/skills/tdd/']);
+  });
+
+  it('covers observed state only when no receipt is readable', () => {
+    // A project whose receipt is missing must not get a block claiming to cover
+    // content nobody proved the harness owns.
+    const rules = gitignoreBlock().split('\n').filter((l) => l !== '' && !l.startsWith('#'));
+
+    expect(rules).toEqual(['.void/local/']);
   });
 });
 
@@ -175,11 +213,12 @@ describe('the ignore rule', () => {
     expect(rules.some((rule) => rule.startsWith('!'))).toBe(false);
   });
 
-  it('lists every ignorable derived path, and no load-bearing one', () => {
-    const rules = gitignoreBlock().split('\n').filter((l) => l !== '' && !l.startsWith('#'));
+  it('lists exactly the entries it was given, and no load-bearing path', () => {
+    const entries = derivedIgnoreEntries(['.claude/skills/tdd/SKILL.md', '.void/hooks/_void-hook.mjs']);
+    const rules = gitignoreBlock(entries).split('\n').filter((l) => l !== '' && !l.startsWith('#'));
 
-    for (const path of IGNORED_DERIVED) expect(rules, path).toContain(path);
-    for (const path of DERIVED_LOAD_BEARING) expect(rules, path).not.toContain(path);
+    expect(rules).toContain('.claude/skills/tdd/');
+    expect(rules).not.toContain('.void/hooks/_void-hook.mjs');
   });
 
   it('adds the block to a gitignore that has none', () => {

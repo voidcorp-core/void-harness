@@ -17,8 +17,10 @@ import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { readInstallReceipt } from './receipts.js';
 import {
-  isIgnoredMaterialized,
+  derivedIgnoreEntries,
+  isOwnedDerived,
   legacyVoidPath,
   patchGitignore,
   pendingMigrations,
@@ -51,6 +53,23 @@ export function planVoidMigration(root: string): { readonly movable: string[]; r
   return { movable, conflicts };
 }
 
+/**
+ * The repo-relative paths the install receipt claims AND that are derived and
+ * safe to leave out of a clone. `undefined` when no receipt is readable, which
+ * callers must treat as "prove nothing, touch nothing".
+ */
+export async function ownedDerivedPaths(root: string): Promise<Set<string> | undefined> {
+  const receipt = await readInstallReceipt(root);
+  if (receipt === undefined) return undefined;
+  return new Set(receipt.files.map((file) => file.path).filter((path) => isOwnedDerived(path)));
+}
+
+/** The ignore entries for this project, scoped to what the receipt owns. */
+export async function projectDerivedIgnoreEntries(root: string): Promise<string[]> {
+  const owned = await ownedDerivedPaths(root);
+  return owned === undefined ? [] : derivedIgnoreEntries([...owned]);
+}
+
 export interface UntrackResult {
   /** Paths dropped from the index (still on disk), or that would be. */
   readonly untracked: readonly string[];
@@ -67,6 +86,14 @@ export interface UntrackResult {
  * side effect nobody asked for.
  */
 export async function untrackDerived(root: string, dryRun = false): Promise<UntrackResult> {
+  // The receipt is the ownership truth. Without it there is nothing this may
+  // safely claim: `.claude/skills/` also holds skills the project wrote itself,
+  // and dropping one of those from the index would be data loss by inference.
+  const owned = await ownedDerivedPaths(root);
+  if (owned === undefined) {
+    return { untracked: [], error: 'no readable install receipt — nothing here can be proven harness-owned' };
+  }
+
   let listed: string;
   try {
     listed = execFileSync('git', ['ls-files', '-z', '--', '.void', '.claude', '.agents', '.codex'], {
@@ -78,7 +105,9 @@ export async function untrackDerived(root: string, dryRun = false): Promise<Untr
     return { untracked: [], error: 'not a git repository, or git is unavailable' };
   }
 
-  const untracked = listed.split('\0').filter((path) => path !== '' && isIgnoredMaterialized(path));
+  const untracked = listed
+    .split('\0')
+    .filter((path) => path !== '' && owned.has(path.split('\\').join('/')));
   if (untracked.length === 0 || dryRun) return { untracked };
 
   try {
@@ -108,7 +137,7 @@ export async function migrateVoidLayout(root: string, dryRun = false): Promise<V
   const { movable, conflicts } = planVoidMigration(root);
   const gitignorePath = join(root, '.gitignore');
   const original = existsSync(gitignorePath) ? await readFile(gitignorePath, 'utf8') : '';
-  const patched = patchGitignore(original);
+  const patched = patchGitignore(original, await projectDerivedIgnoreEntries(root));
   const gitignoreTouched = patched !== original;
 
   if (dryRun) return { moved: movable, conflicts, gitignoreTouched };

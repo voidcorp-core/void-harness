@@ -10,8 +10,9 @@
 //      marketplace fetch) — only when remote checks run; --no-remote skips it
 
 import { execFileSync } from 'node:child_process';
-import { isIgnoredMaterialized, isLocalEntry, pendingMigrations, VOID_LOCAL_DIR } from '@voidcorp/hook-runner';
+import { isLocalEntry, pendingMigrations, VOID_LOCAL_DIR } from '@voidcorp/hook-runner';
 import { judgeLayout, type LayoutObservation } from '../lib/void-hygiene.js';
+import { ownedDerivedPaths } from '../lib/void-migration.js';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -236,7 +237,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
 
   // Layout hygiene: does this project actually keep observed state out of its
   // history? Proven with git, not inferred from the ignore file being present.
-  checks.push(...judgeLayout(observeLayout(root)));
+  checks.push(...judgeLayout(await observeLayout(root)));
 
   // Autopilot's preconditions, but only for a project that declares a program:
   // adding seven checks to every other project would be noise about a feature
@@ -367,7 +368,8 @@ async function checkRemoteVersions(root: string): Promise<CheckResult> {
  * Read-only — `check-ignore` and `ls-files` mutate nothing — and every failure to
  * ask resolves to "could not determine", never to a false clean bill.
  */
-function observeLayout(root: string): LayoutObservation {
+async function observeLayout(root: string): Promise<LayoutObservation> {
+  const owned = await ownedDerivedPaths(root);
   const git = (args: readonly string[]): string | null => {
     try {
       return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
@@ -396,12 +398,14 @@ function observeLayout(root: string): LayoutObservation {
     return isLocalEntry(relative.split('/')[0] ?? '');
   });
 
-  // Regenerated content still in the index, across every materialized directory.
+  // Regenerated content still in the index — counted from what the RECEIPT
+  // claims, never from the directory. `.claude/skills/` also holds skills the
+  // project wrote itself, and telling someone to untrack their own work would be
+  // the worst advice this command could give.
   const materialized = git(['ls-files', '-z', '--', '.void', '.claude', '.agents', '.codex']) ?? '';
-  const trackedDerivedCount = materialized
-    .split('\0')
-    .filter((path) => path !== '' && isIgnoredMaterialized(path))
-    .length;
+  const trackedDerivedCount = owned === undefined
+    ? 0
+    : materialized.split('\0').filter((path) => path !== '' && owned.has(path.split('\\').join('/'))).length;
 
   return { pending: pendingMigrations(root), localIgnored, trackedObserved, trackedDerivedCount };
 }

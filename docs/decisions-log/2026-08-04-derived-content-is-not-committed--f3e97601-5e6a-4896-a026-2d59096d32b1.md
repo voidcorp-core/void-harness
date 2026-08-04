@@ -13,7 +13,7 @@ supersedes: []
 ## Context
 
 The observed/declared split (`void-layout-ownership-split`) classified `derived`
-state — everything `void-harness install` reproduces from the pin in
+state — everything `void-harness init` re-materializes from the harness assets pinned in
 `.void/config.json` — and deliberately left it tracked, because the class could
 not move one path at a time.
 
@@ -33,9 +33,11 @@ default because nothing classified them — rewritten in full on every version
 bump, and present in every review diff of every product PR that happens to follow
 an update.
 
-It is the same relationship a lockfile has with `node_modules`: `config.json`
-pins the version, `install` reproduces the bytes deterministically, and the bytes
-themselves are not history worth keeping.
+The relationship resembles a lockfile and `node_modules` — `config.json` names
+the version and the bytes are regenerable — but the resemblance is partial and
+the difference matters: `config.core` is a caret RANGE, not a lock, and `init`
+materializes whatever assets the running CLI carries. See the reproducibility
+limit under Consequences before leaning on the analogy.
 
 ## Decision
 
@@ -52,7 +54,7 @@ Ignore `derived` state, except the paths whose absence from a fresh clone is an
 
 Everything else (`.claude/skills/`, `.claude/agents/`, `.claude/commands/`,
 `.agents/skills/`, `.codex/agents/`, `.void/PHILOSOPHY.md`) is ignored: without
-them the agent has fewer capabilities until the next `install`, and nothing
+them the agent has fewer capabilities until the next `init`, and nothing
 errors.
 
 An ignore rule cannot untrack what the index already holds, so existing projects
@@ -74,9 +76,19 @@ Positive:
 Negative:
 
 - A teammate cloning gets no project-local skills until someone runs
-  `npx voidharness install`. The doctrine docs (`CLAUDE.md`, `AGENTS.md`) and the
+  `npx voidharness init` (NOT `install`, which refuses a project install and
+  redirects to `init`). The doctrine docs (`CLAUDE.md`, `AGENTS.md`) and the
   enforcement runner still ship, so the clone is functional and guarded, but it
-  is less capable until installed.
+  is less capable until re-materialized.
+- **Rehydration is not exact, and this is the honest limit of the decision.**
+  `config.core` is a caret range, not a lock; `init` materializes the assets of
+  the CLI that runs it, and keeps an existing pin rather than resolving it. A
+  clone can therefore receive content from a newer harness version than the
+  author had. Nothing is lost — the content is regenerable — but "identical" is
+  not a promise this makes today. Making it exact needs a committed manifest
+  (exact version plus per-file hashes, `project` class) and a hydrate that
+  installs that version and proves the restored hashes. Until that exists, the
+  guarantee is "you can get A working set back", not "you get THE set back".
 - Existing consumers must run one extra command once, and commit the resulting
   staged deletions.
 
@@ -101,7 +113,7 @@ Negative:
 
 ## Reversal cost
 
-Low on the harness side — the classification is one list, and reverting means
-moving paths out of `IGNORED_DERIVED`. Medium in the field: a consumer that ran
-`--untrack-derived` and committed would need to re-add the files, which `install`
-regenerates anyway.
+Low on the harness side — reverting means classing those paths `project` in
+`MATERIALIZED_OWNERSHIP`, and the ignore block regenerates on the next `update`.
+Medium in the field: a consumer that ran `--untrack-derived` and committed would
+need to re-add the files, which `init` regenerates anyway.

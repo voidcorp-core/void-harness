@@ -1,7 +1,8 @@
 export {
+  classifyMaterialized,
   DERIVED_LOAD_BEARING,
-  IGNORED_DERIVED,
-  isIgnoredMaterialized,
+  derivedIgnoreEntries,
+  isOwnedDerived,
   LOCAL_ENTRIES,
   MATERIALIZED_OWNERSHIP,
   type Ownership,

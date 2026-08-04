@@ -706,7 +706,7 @@ actions — see DECISIONS.md 2026-07-21). Both are pure: no I/O, no clock, no mo
 `void-harness status` (`packages/cli/src/commands/status.ts`) is the imperative shell: it reads the
 certification + model + telemetry, executes each detected adapter's bounded local postconditions,
 calls the pure core, renders the terminal surface, and persists
-`.void/state.json` plus a `.void/history/<ts>.json` snapshot (both git-ignored, per-project runtime
+`.void/local/state.json` plus a `.void/local/history/<ts>.json` snapshot (both git-ignored, per-project runtime
 state). `generatedAt` is stamped by the shell so the core stays deterministic. Missing runtime,
 cost, smoke or observation data stays `unknown`/pending and is excluded from scores instead of being
 invented. Consumer-side bundled-certificate resolution and pack-aware filtering remain local and
@@ -722,7 +722,7 @@ the ignore rule, the migration and `doctor` all read.
 | class | what it means | examples | git |
 | --- | --- | --- | --- |
 | `project` | the project authors it; the harness never overwrites it | `.void/config.json`, `PROJECT-DOCTRINE.md`, `policies/`, `.claude/settings.json` | tracked |
-| `derived` | `void-harness install` reproduces it from the pin | `.claude/skills/`, `.claude/agents/`, `.agents/skills/`, `.codex/agents/`, `PHILOSOPHY.md` | ignored |
+| `derived` | `void-harness init` re-materializes it from the harness assets | `.claude/skills/`, `.claude/agents/`, `.agents/skills/`, `.codex/agents/`, `PHILOSOPHY.md` | ignored, per receipt |
 | `observed` | this machine's history; meaningless in another checkout | `runs/`, `cache/`, `receipts/`, `state.json`, `*.jsonl` | never |
 
 The map covers all four materialized directories (`.void/`, `.claude/`,
