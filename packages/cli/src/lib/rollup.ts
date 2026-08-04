@@ -15,6 +15,7 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
+import { legacyVoidPath, voidLocalPath } from '@voidcorp/hook-runner';
 import { loadCanonicalEventBody } from './graph-io.js';
 
 /** The global rollup index dir. `VOID_GLOBAL_DIR` overrides the base (test seam). */
@@ -66,19 +67,26 @@ export function discoverProjects(indexDir: string = globalIndexDir()): string[] 
 }
 
 /**
- * Concatenate the `.void/<file>` bodies across projects. Each session id is
- * globally unique, so concatenating activation/outcome streams is a valid merge;
- * the downstream tolerant parsers skip any blank separators.
+ * Concatenate the telemetry bodies across projects. Each session id is globally
+ * unique, so concatenating activation/outcome streams is a valid merge; the
+ * downstream tolerant parsers skip any blank separators.
+ *
+ * Reads BOTH halves of the layout split per project: a rollup spans machines and
+ * repositories, so at any moment some projects have migrated and some have not,
+ * and reading one half would silently shrink the very sample this exists to grow.
  */
 export function mergeTelemetry(roots: readonly string[], file: string): string {
   const parts: string[] = [];
   for (const root of roots) {
-    const p = join(root, '.void', file);
-    if (!existsSync(p)) continue;
-    try {
-      parts.push(readFileSync(p, 'utf8'));
-    } catch {
-      // skip an unreadable project file
+    const candidates = [voidLocalPath(root, file), legacyVoidPath(root, file)]
+      .filter((path, index, all) => all.indexOf(path) === index);
+    for (const p of candidates) {
+      if (!existsSync(p)) continue;
+      try {
+        parts.push(readFileSync(p, 'utf8'));
+      } catch {
+        // skip an unreadable project file
+      }
     }
   }
   return parts.join('\n');

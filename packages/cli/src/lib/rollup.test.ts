@@ -96,6 +96,28 @@ describe('mergeTelemetry', () => {
     }
   });
 
+  it('spans a fleet where some projects have migrated and some have not', () => {
+    // A rollup crosses machines and repositories, so both layouts coexist by
+    // definition. Reading one half would shrink the very sample this exists to
+    // grow — and it would do it silently.
+    const base = mkdtempSync(join(tmpdir(), 'void-rollup-split-'));
+    try {
+      const migrated = join(base, 'migrated');
+      const legacy = join(base, 'legacy');
+      mkdirSync(join(migrated, '.void', 'local'), { recursive: true });
+      mkdirSync(join(legacy, '.void'), { recursive: true });
+      writeFileSync(join(migrated, '.void', 'local', 'activations.jsonl'), '{"new":1}\n');
+      writeFileSync(join(legacy, '.void', 'activations.jsonl'), '{"old":2}\n');
+
+      const merged = mergeTelemetry([migrated, legacy], 'activations.jsonl');
+
+      expect(merged).toContain('{"new":1}');
+      expect(merged).toContain('{"old":2}');
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
+  });
+
   it('skips a project that has no such file without crashing', () => {
     const base = scratch();
     try {
