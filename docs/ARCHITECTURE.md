@@ -721,14 +721,9 @@ the ignore rule, the migration and `doctor` all read.
 
 | class | what it means | examples | git |
 | --- | --- | --- | --- |
-| `project` | the project authors it; the harness never overwrites it | `.void/config.json`, `PROJECT-DOCTRINE.md`, `policies/`, `.claude/settings.json` | tracked |
-| `derived` | `void-harness init` re-materializes it from the harness assets | `.claude/skills/`, `.claude/agents/`, `.agents/skills/`, `.codex/agents/`, `PHILOSOPHY.md` | ignored, per receipt |
+| `project` | the project authors it; the harness never overwrites it | `config.json`, `PROJECT-DOCTRINE.md`, `policies/`, `profiles/` | tracked |
+| `derived` | `void-harness install` reproduces it from the pin | `PHILOSOPHY.md`, `hooks/` | tracked (see below) |
 | `observed` | this machine's history; meaningless in another checkout | `runs/`, `cache/`, `receipts/`, `state.json`, `*.jsonl` | never |
-
-The map covers all four materialized directories (`.void/`, `.claude/`,
-`.agents/`, `.codex/`), not just `.void/`: left unclassified they were tracked by
-default, which is 126 files and roughly 1.2 MB of vendored prose per consumer
-repository, rewritten whole on every version bump and in every review diff.
 
 **Observed state lives under `.void/local/`**, so the ignore rule is a single line
 with no `!` exception and stops needing maintenance: a new runtime artifact is
@@ -743,25 +738,12 @@ An entry at the top of `.void/` that the map does not know answers `project`.
 it — so a stranger at the top cannot be harness telemetry, and the failure of
 guessing wrong would be `doctor` telling a project to untrack its own data.
 
-**Two derived paths stay tracked**, and the line between them is *what happens
-when the file is absent from a fresh clone*:
-
-- `.void/hooks/` is named from `.claude/settings.json`, which is `project` and
-  therefore committed. Ignoring the runner while keeping the reference gives a
-  clone a settings file pointing at a missing file, and every tool call fails.
-- `.codex/hooks.json` **is** the Codex safety floor. Absent, the floor is simply
-  not there — a silently weaker clone, the worst of the three states.
-
-Everything else in the class degrades gracefully: fewer capabilities until the
-next `install`, nothing broken. So: **what breaks stays, what degrades goes**
-(`DERIVED_LOAD_BEARING`).
-
-An ignore rule has no effect on a path already in the index, so an existing
-project needs an explicit untrack. `void-harness update --untrack-derived` does
-it in one command — files stay on disk, the index forgets them. It is opt-in and
-never implied: rewriting a project's index is the project's call, not a side
-effect of updating. `doctor` reports the count as **advisory** (nothing is
-broken) with that command as its fix.
+`derived` is classified but deliberately still tracked. It can only move as a
+whole: `.claude/settings.json` is `project` and references
+`.void/hooks/_void-hook.mjs`, so ignoring the hooks without treating settings and
+the runtime skill directories in the same change leaves a repo that is broken on
+clone. Making that move — which would also cover `.claude/skills/` and
+`.agents/skills/` — is its own decision.
 
 ## .void/config.json (consumer-side)
 

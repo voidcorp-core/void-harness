@@ -23,7 +23,7 @@ import { cliVersion, findCoreSource } from '../lib/paths.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { banner, blank, c, footer, glyph, line, meta, row, status } from '../lib/render.js';
 import { readSettings, settingsPathFor } from '../lib/settings.js';
-import { migrateVoidLayout, untrackDerived } from '../lib/void-migration.js';
+import { migrateVoidLayout } from '../lib/void-migration.js';
 import {
   readInstallReceipt,
   type InstallReceipt,
@@ -41,8 +41,6 @@ interface UpdateOptions {
   readonly dryRun: boolean;
   readonly skipPins: boolean;
   readonly skipCache: boolean;
-  /** Explicit opt-in: rewrite the index to drop regenerated content. Never implied. */
-  readonly untrackDerived: boolean;
 }
 
 function parseArgs(args: readonly string[]): UpdateOptions {
@@ -50,7 +48,6 @@ function parseArgs(args: readonly string[]): UpdateOptions {
     dryRun: args.includes('--dry-run'),
     skipPins: args.includes('--cache-only'),
     skipCache: args.includes('--pins-only'),
-    untrackDerived: args.includes('--untrack-derived'),
   };
 }
 
@@ -61,7 +58,6 @@ export async function update(args: readonly string[]): Promise<void> {
   // It also runs before the receipt is read, since the receipt itself is observed
   // state and moves with the rest.
   await reportVoidMigration(projectRoot, opts.dryRun);
-  if (opts.untrackDerived) await reportUntrackDerived(projectRoot, opts.dryRun);
   const receipt = await readInstallReceipt(projectRoot);
   if (updateModeFor(receipt) === 'local' && receipt !== undefined) {
     await updateLocal(projectRoot, receipt, opts.dryRun);
@@ -161,28 +157,6 @@ async function reportVoidMigration(projectRoot: string, dryRun: boolean): Promis
   }
   for (const entry of result.conflicts) {
     line(`${c.yellow(glyph.up)}  ${c.dim('layout'.padEnd(12))}${c.yellow('left in place')}: .void/${entry} — .void/local/${entry} already exists; merge or delete one, readers still fall back`);
-  }
-}
-
-/**
- * Report the explicit untrack. Only ever reached behind `--untrack-derived`:
- * the files stay on disk, the index forgets them, and the project commits the
- * result — which is why this is offered rather than done.
- */
-async function reportUntrackDerived(projectRoot: string, dryRun: boolean): Promise<void> {
-  const result = await untrackDerived(projectRoot, dryRun);
-  if (result.error !== undefined) {
-    line(`${c.yellow(glyph.up)}  ${c.dim('untrack'.padEnd(12))}${c.yellow('skipped')}: ${result.error}`);
-    return;
-  }
-  if (result.untracked.length === 0) {
-    line(`${c.dim(glyph.dot)}  ${c.dim('untrack'.padEnd(12))}${c.dim('no regenerated content in the index')}`);
-    return;
-  }
-  const verb = dryRun ? 'would drop' : 'dropped';
-  line(`${c.green(glyph.check)}  ${c.dim('untrack'.padEnd(12))}${verb} ${result.untracked.length} regenerated file(s) from the index (kept on disk)`);
-  if (!dryRun) {
-    line(`${c.dim(' '.repeat(4))}${c.dim('review and commit the staged deletions; `void-harness install` regenerates them anywhere')}`);
   }
 }
 

@@ -17,8 +17,6 @@ export interface LayoutObservation {
   readonly localIgnored: boolean | null;
   /** Observed paths git currently tracks, which the ignore rule cannot undo. */
   readonly trackedObserved: readonly string[];
-  /** How many ignorable derived files git still tracks (regenerated content). */
-  readonly trackedDerivedCount: number;
 }
 
 function pass(name: string, message: string): CheckResult {
@@ -69,27 +67,7 @@ function trackedCheck(observation: LayoutObservation): CheckResult {
   );
 }
 
-function derivedCheck(observation: LayoutObservation): CheckResult {
-  const name = 'void derived';
-  if (observation.trackedDerivedCount === 0) return pass(name, 'no regenerated content in the index');
-  // Advisory, not a failure: nothing is broken, and untracking rewrites the
-  // project's index — that is the project's call, and it is offered as one
-  // explicit command rather than done as a side effect of `update`.
-  return {
-    name,
-    ok: true,
-    status: 'advisory',
-    message: `git tracks ${observation.trackedDerivedCount} file(s) that \`install\` regenerates from the pin`,
-    fix: 'void-harness update --untrack-derived (keeps the files on disk, drops them from the index)',
-  };
-}
-
 /** Every layout-hygiene verdict, in the order a reader should meet them. */
 export function judgeLayout(observation: LayoutObservation): readonly CheckResult[] {
-  return Object.freeze([
-    layoutCheck(observation),
-    ignoreCheck(observation),
-    trackedCheck(observation),
-    derivedCheck(observation),
-  ]);
+  return Object.freeze([layoutCheck(observation), ignoreCheck(observation), trackedCheck(observation)]);
 }

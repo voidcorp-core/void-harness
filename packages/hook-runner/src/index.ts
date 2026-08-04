@@ -1,11 +1,5 @@
 export {
-  classifyMaterialized,
-  DERIVED_LOAD_BEARING,
-  derivedIgnoreEntries,
-  isOwnedDerived,
   LOCAL_ENTRIES,
-  MATERIALIZED_OWNERSHIP,
-  type Ownership,
   VOID_DIR,
   VOID_LOCAL_DIR,
   gitignoreBlock,

@@ -72,7 +72,7 @@ export async function seedInstallStage(projectRoot: string, stageRoot: string): 
   }
 }
 
-export async function collectStageFiles(stageRoot: string): Promise<ReceiptFileInput[]> {
+async function collectStageFiles(stageRoot: string): Promise<ReceiptFileInput[]> {
   const files: ReceiptFileInput[] = [];
   async function visit(directory: string): Promise<void> {
     const entries = await readdir(directory, { withFileTypes: true });
@@ -125,15 +125,6 @@ export interface PreparedInstall {
  * assets need a prior receipt or explicit force; force still does not seize
  * deletion ownership.
  */
-/**
- * The repo-relative paths this install stages, i.e. exactly what the receipt will
- * claim. `init` uses it to write an ignore block scoped to files the harness
- * owns, rather than to whole runtime directories the project also writes into.
- */
-export async function stagedRelativePaths(stageRoot: string): Promise<string[]> {
-  return (await collectStageFiles(stageRoot)).map((file) => file.path);
-}
-
 export async function prepareInstallCommit(input: PrepareInstallInput): Promise<PreparedInstall> {
   const staged = await collectStageFiles(input.stageRoot);
   const previous = await readInstallReceipt(input.projectRoot);

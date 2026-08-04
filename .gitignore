@@ -46,24 +46,9 @@ Thumbs.db
 # project DECLARES (config.json, PROJECT-DOCTRINE.md, policies/) stays tracked
 # at the top of .void/ — config.json in particular carries the pack pins and
 # paths.business, which the enforcement runner needs on a fresh clone.
-# No exception rule: a new runtime artifact is born inside local/ and this
+# One rule, no exception: a new runtime artifact is born inside local/ and this
 # file never has to learn about it.
 .void/local/
-
-# Materialized by `void-harness install` from the version pinned in
-# .void/config.json, exactly the way node_modules comes from a lockfile.
-# Committing them puts ~1.2 MB of vendored prose in this history and rewrites
-# it whole on every version bump, in every review diff. Absent, the agent has
-# fewer capabilities until the next install — it degrades, it does not break.
-# Deliberately NOT ignored: .void/hooks/ (referenced by name from the tracked
-# .claude/settings.json) and .codex/hooks.json (the safety floor itself) —
-# their absence is an error, not a degradation.
-.agents/skills/
-.claude/agents/
-.claude/commands/
-.claude/skills/
-.codex/agents/
-.void/PHILOSOPHY.md
 # void-harness:end
 .gstack/
 dist-singlefile/
