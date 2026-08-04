@@ -37,9 +37,14 @@ frontmatter is staged as `.agents/skills/<name>/` — the whole skill folder
 doctrine (via `AGENTS.md` + `.void/`) **and** the invocable skills. `doctor`
 reports how many are discoverable; `update` re-stages them to the running CLI's
 version. This is chosen because it is universal, reproducible, and account-free
-(no marketplace fetch); the native Codex plugin channel is a viable
-**complementary** channel we may add later (tracked as an issue) so both runtimes
-resolve the same artifacts from a plugin. Claude's own project configuration
+(no marketplace fetch). The native Codex plugin channel was evaluated as a
+**complementary** path and **declined** on 2026-08-04 (decision log,
+`codex-plugin-channel-declined`): it would invert, for one runtime, the call
+already made for the other — npx primary, marketplace optional, precisely to drop
+the account and marketplace dependency — and would add a second manifest to keep
+in lockstep with artifacts that are identical by construction, unlocking no
+capability. Reopen if directory-convention discovery is degraded, or if something
+becomes reachable only through a plugin. Claude's own project configuration
 supports `.claude/skills`, `.claude/agents` and `.claude/settings.json`; its
 plugin marketplace remains available only through explicit opt-in.
 
