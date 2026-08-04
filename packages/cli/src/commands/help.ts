@@ -63,7 +63,7 @@ export function printHelp(): void {
   cmd('list', 'Show active and available packs.');
   cmd('status', 'Project health: the five-state capability lifecycle + a score. Deterministic, offline, no LLM.');
   cmd('doctor [--no-remote]', 'Health-check the install (config, doctrine, per-runtime wiring). --no-remote runs fully offline.');
-  cmd('update [--dry-run]', 'Recompile local receipt-owned assets from this CLI; marketplace cache/pins only for explicit marketplace installs.');
+  cmd('update [--dry-run] [--untrack-derived]', 'Recompile local receipt-owned assets from this CLI; migrate the .void layout. --untrack-derived drops regenerated files from the git index, keeping them on disk.');
   cmd('hydrate', 'Restore this project\'s harness assets from .void/install-manifest.json and prove every file against its hash. Refuses to run on a different version.');
   cmd('check [--doctrine]', 'Report local vs remote version drift. --doctrine also diffs PHILOSOPHY.md.');
   cmd('graph <sub>', 'Build / gate / report the skill-agent graph (build, check, audit, live, behavior).');
