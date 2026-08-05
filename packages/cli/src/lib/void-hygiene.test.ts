@@ -7,6 +7,7 @@ function observation(over: Partial<LayoutObservation> = {}): LayoutObservation {
     pending: [],
     localIgnored: true,
     trackedObserved: [],
+    trackedDerivedCount: 0,
     manifest: { kind: 'present', version: '2.5.1', drifted: 0 },
     ...over,
   };
@@ -75,6 +76,21 @@ describe('judgeLayout', () => {
 
     expect(check?.status).toBe('fail');
     expect(check?.fix).toContain('restore it from git');
+  });
+
+  it('reports tracked regenerated content as advisory, not as a failure', () => {
+    // Nothing is broken by committing it, so calling it a failure would cry wolf.
+    // But untracking rewrites the project's index, so it is offered, not done.
+    const check = named(judgeLayout(observation({ trackedDerivedCount: 126 })), 'void derived');
+
+    expect(check?.status).toBe('advisory');
+    expect(check?.ok).toBe(true);
+    expect(check?.message).toContain('126');
+    expect(check?.fix).toContain('--untrack-derived');
+  });
+
+  it('stays silent when no regenerated content is tracked', () => {
+    expect(named(judgeLayout(observation()), 'void derived')?.status).toBe('pass');
   });
 
   it('says the consequence, not just the state', () => {

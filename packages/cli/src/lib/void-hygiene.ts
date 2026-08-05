@@ -27,6 +27,8 @@ export interface LayoutObservation {
   readonly trackedObserved: readonly string[];
   /** What `.void/install-manifest.json` says about this project, if anything. */
   readonly manifest: ManifestObservation;
+  /** How many ignorable derived files git still tracks (regenerated content). */
+  readonly trackedDerivedCount: number;
 }
 
 function pass(name: string, message: string): CheckResult {
@@ -104,6 +106,21 @@ function manifestCheck(observation: LayoutObservation): CheckResult {
       );
 }
 
+function derivedCheck(observation: LayoutObservation): CheckResult {
+  const name = 'void derived';
+  if (observation.trackedDerivedCount === 0) return pass(name, 'no regenerated content in the index');
+  // Advisory, not a failure: nothing is broken, and untracking rewrites the
+  // project's index — that is the project's call, and it is offered as one
+  // explicit command rather than done as a side effect of `update`.
+  return {
+    name,
+    ok: true,
+    status: 'advisory',
+    message: `git tracks ${observation.trackedDerivedCount} file(s) that \`hydrate\` restores from the manifest`,
+    fix: 'void-harness update --untrack-derived (keeps the files on disk, drops them from the index)',
+  };
+}
+
 /** Every layout-hygiene verdict, in the order a reader should meet them. */
 export function judgeLayout(observation: LayoutObservation): readonly CheckResult[] {
   return Object.freeze([
@@ -111,5 +128,6 @@ export function judgeLayout(observation: LayoutObservation): readonly CheckResul
     ignoreCheck(observation),
     trackedCheck(observation),
     manifestCheck(observation),
+    derivedCheck(observation),
   ]);
 }

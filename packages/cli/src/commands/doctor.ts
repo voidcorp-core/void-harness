@@ -13,6 +13,7 @@ import { execFileSync } from 'node:child_process';
 import { isLocalEntry, pendingMigrations, VOID_LOCAL_DIR } from '@voidcorp/hook-runner';
 import { judgeLayout, type LayoutObservation, type ManifestObservation } from '../lib/void-hygiene.js';
 import { INSTALL_MANIFEST_PATH, parseInstallManifest, verifyInstallManifest } from '../lib/install-manifest.js';
+import { ownedDerivedPaths } from '../lib/void-migration.js';
 import { existsSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -237,7 +238,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
 
   // Layout hygiene: does this project actually keep observed state out of its
   // history? Proven with git, not inferred from the ignore file being present.
-  checks.push(...judgeLayout(observeLayout(root)));
+  checks.push(...judgeLayout(await observeLayout(root)));
 
   // Autopilot's preconditions, but only for a project that declares a program:
   // adding seven checks to every other project would be noise about a feature
@@ -391,7 +392,8 @@ function observeManifest(root: string): ManifestObservation {
  * Read-only — `check-ignore` and `ls-files` mutate nothing — and every failure to
  * ask resolves to "could not determine", never to a false clean bill.
  */
-function observeLayout(root: string): LayoutObservation {
+async function observeLayout(root: string): Promise<LayoutObservation> {
+  const owned = await ownedDerivedPaths(root);
   const git = (args: readonly string[]): string | null => {
     try {
       return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
@@ -402,7 +404,13 @@ function observeLayout(root: string): LayoutObservation {
 
   const insideRepo = git(['rev-parse', '--is-inside-work-tree'])?.trim() === 'true';
   if (!insideRepo) {
-    return { pending: pendingMigrations(root), localIgnored: null, trackedObserved: [], manifest: observeManifest(root) };
+    return {
+      pending: pendingMigrations(root),
+      localIgnored: null,
+      trackedObserved: [],
+      trackedDerivedCount: 0,
+      manifest: observeManifest(root),
+    };
   }
 
   // `check-ignore` exits non-zero when the path is NOT ignored, which the helper
@@ -420,7 +428,22 @@ function observeLayout(root: string): LayoutObservation {
     return isLocalEntry(relative.split('/')[0] ?? '');
   });
 
-  return { pending: pendingMigrations(root), localIgnored, trackedObserved, manifest: observeManifest(root) };
+  // Regenerated content still in the index — counted from what the MANIFEST
+  // claims, never from the directory. `.claude/skills/` also holds skills the
+  // project wrote itself, and telling someone to untrack their own work would be
+  // the worst advice this command could give.
+  const materialized = git(['ls-files', '-z', '--', '.void', '.claude', '.agents', '.codex']) ?? '';
+  const trackedDerivedCount = owned === undefined
+    ? 0
+    : materialized.split('\0').filter((path) => path !== '' && owned.has(path.split('\\').join('/'))).length;
+
+  return {
+    pending: pendingMigrations(root),
+    localIgnored,
+    trackedObserved,
+    trackedDerivedCount,
+    manifest: observeManifest(root),
+  };
 }
 
 /**
