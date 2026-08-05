@@ -719,6 +719,14 @@ class decides what git does with it. The map is code, not prose:
 `VOID_OWNERSHIP` in `packages/hook-runner/src/void-layout.ts` is the single source
 the ignore rule, the migration and `doctor` all read.
 
+Three decisions built this, in order, and the log is append-only so each records
+what was true when it was taken: `void-layout-ownership-split` (observed state
+moves under `.void/local/`; it classified `derived` and deliberately left it
+tracked), `exact-rehydration-manifest` (the manifest and `hydrate`, which supplied
+the guarantee the next one needed), then `derived-content-is-not-committed` (which
+took the alternative the first had deferred). **This page carries the current
+state; the records carry the reasoning at each step.**
+
 | class | what it means | examples | git |
 | --- | --- | --- | --- |
 | `project` | the project authors it; the harness never overwrites it | `.void/config.json`, `PROJECT-DOCTRINE.md`, `policies/`, `.claude/settings.json` | tracked |
