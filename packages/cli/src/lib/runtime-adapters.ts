@@ -436,7 +436,9 @@ const codexAdapter: RuntimeAdapter = {
     // For Codex we materialize the skills into .agents/skills (its directory-
     // convention discovery) rather than a marketplace fetch — core skills plus the
     // skills of every activated pack (marketplace name harness-<x> maps to the
-    // source dir pack-<x>). Native Codex plugin channel: tracked in #144.
+    // source dir pack-<x>). The native Codex plugin channel was evaluated and
+    // declined (decision log, `codex-plugin-channel-declined`): one surface per
+    // runtime, and no marketplace dependency to install.
     const packDirs = ctx.enabledPacks.map((p) => packDirForName(p.name)).filter((d): d is string => d !== undefined);
     const skills = await wireCodexSkills(ctx.projectRoot, ctx.sourceRoot, packDirs);
     // Both the five authored critics and the canonical v3 specialists compile
