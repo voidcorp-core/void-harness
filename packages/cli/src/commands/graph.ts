@@ -48,6 +48,16 @@ import {
   usedSkillNames,
 } from '../lib/graph-io.js';
 import {
+  openProjectGraphStore,
+  ProjectGraphStoreError,
+  PROJECT_QUERY_NAMES,
+  runProjectQuery,
+  type ProjectGraphStore,
+  type ProjectQueryName,
+  type ProjectQueryProblem,
+} from '../lib/project-graph-store.js';
+import { DEFAULT_PROJECT_QUERY_BUDGET } from '@voidcorp/harness-graph/project';
+import {
   discoverProjects,
   mergeCanonicalTelemetry,
   mergeTelemetry,
@@ -178,11 +188,140 @@ function ctxFor(): { usedSkillNames: Set<string> } {
   return { usedSkillNames: usedSkillNames(loadSkillUsage(process.cwd())) };
 }
 
+/** `--max-nodes`/`--max-depth` for a project query, or the usage problem to print. */
+function projectQueryBudget(
+  args: readonly string[],
+): { maxNodes: number; maxDepth: number } | ProjectQueryProblem {
+  const budget = { ...DEFAULT_PROJECT_QUERY_BUDGET };
+  for (const [flag, key] of [
+    ['--max-nodes', 'maxNodes'],
+    ['--max-depth', 'maxDepth'],
+  ] as const) {
+    const index = args.indexOf(flag);
+    if (index < 0) continue;
+    const raw = args[index + 1] ?? '';
+    // Whole digits only: `parseInt` reads `1e9` as 1 and `12abc` as 12, so a
+    // permissive parse would answer a different question than the one asked and
+    // report it as the one asked. A budget that lies is worse than no budget.
+    const value = /^\d+$/.test(raw) ? Number.parseInt(raw, 10) : Number.NaN;
+    if (Number.isNaN(value)) {
+      return {
+        problem: `${flag} needs a non-negative whole number, got ${raw === '' ? '<nothing>' : raw}`,
+        fix: `${flag} 200`,
+      };
+    }
+    budget[key] = value;
+  }
+  return budget;
+}
+
+/** Positional targets, refusing any option this surface does not define. */
+function projectQueryTargets(args: readonly string[]): readonly string[] | ProjectQueryProblem {
+  const targets: string[] = [];
+  for (let index = 0; index < args.length; index += 1) {
+    const token = args[index] ?? '';
+    if (token === '--max-nodes' || token === '--max-depth') {
+      index += 1;
+      continue;
+    }
+    if (token.startsWith('--')) {
+      return {
+        problem: `unknown option ${token} for a project graph query`,
+        fix: 'the only options here are --max-nodes and --max-depth',
+      };
+    }
+    targets.push(token);
+  }
+  return targets;
+}
+
+function renderProblem(name: string, problem: ProjectQueryProblem, code: number): never {
+  line(`  ${c.red(problem.problem)}`);
+  line(`  ${c.dim(`-> ${problem.fix}`)}`);
+  footer(c.red(`graph ${name} failed.`));
+  process.exit(code);
+}
+
+/**
+ * One of the seven ProjectGraph queries, answered from a bounded read-only store.
+ *
+ * The rendering rule is the surface's whole contract: an incomplete answer is
+ * never printed as a complete one. `fallback` and `truncated` are printed before
+ * and after the answer respectively, and an unknown is printed as an unknown.
+ */
+async function projectQuery(
+  name: ProjectQueryName,
+  rest: readonly string[],
+  open: (root: string) => Promise<ProjectGraphStore>,
+): Promise<void> {
+  banner(`graph ${name}`);
+  blank();
+  const budget = projectQueryBudget(rest);
+  if ('problem' in budget) renderProblem(name, budget, 2);
+  const targets = projectQueryTargets(rest);
+  if ('problem' in targets) renderProblem(name, targets, 2);
+
+  let store: ProjectGraphStore;
+  try {
+    store = await open(process.cwd());
+  } catch (error) {
+    const problem =
+      error instanceof ProjectGraphStoreError
+        ? error
+        : {
+            problem: `could not open the project graph in ${process.cwd()}`,
+            fix: `run from a project root; underlying cause: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          };
+    renderProblem(name, problem, 1);
+  }
+
+  const report = runProjectQuery(store, { name, targets, budget });
+  if (report.error !== undefined) renderProblem(name, report.error, 2);
+  if (report.fallback !== undefined) {
+    line(`  ${c.yellow('fallback')} ${report.fallback}`);
+    blank();
+  }
+  if (report.unknown !== undefined) line(`  ${c.dim(report.unknown)}`);
+  for (const answer of report.answers) line(`  ${answer}`);
+  if (report.truncated) {
+    blank();
+    line(
+      `  ${c.yellow('truncated')} ${c.dim('the budget stopped this walk; raise --max-nodes/--max-depth or narrow the question')}`,
+    );
+  }
+  blank();
+  footer(
+    c.dim(
+      report.fallback === undefined
+        ? 'bounded, read-only, and derived from the extracted tree.'
+        : 'this answer may omit what extraction never saw -- confirm against source.',
+    ),
+  );
+}
+
 export async function graph(
   args: readonly string[],
-  opts: { readonly bundledModelJson?: string } = {},
+  opts: {
+    readonly bundledModelJson?: string;
+    /** Injected in tests; production opens the store from the working directory. */
+    readonly openProjectGraph?: (root: string) => Promise<ProjectGraphStore>;
+  } = {},
 ): Promise<void> {
   const sub = args[0] ?? 'build';
+
+  // Project queries are answered from the project's own graph, so they need
+  // neither the harness source tree nor the bundled model, and are dispatched
+  // before either is resolved.
+  if ((PROJECT_QUERY_NAMES as readonly string[]).includes(sub)) {
+    await projectQuery(
+      sub as ProjectQueryName,
+      args.slice(1),
+      opts.openProjectGraph ?? ((root: string) => openProjectGraphStore(root)),
+    );
+    return;
+  }
   // Bundled model: injected by the bundle build (BUNDLED_MODEL_JSON) or by a test via opts.
   // When present, reporting subcommands read it instead of scanning the source tree.
   const bundled = opts.bundledModelJson ?? BUNDLED_MODEL_JSON;
