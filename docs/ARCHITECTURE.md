@@ -371,6 +371,25 @@ unchanged builds and committed renames. A partial or concurrently-mutated build
 keeps the last green cache and stays explicitly `partial`, so downstream context
 selection falls back to source instead of trusting incomplete topology. Git
 proof is the only authority for `previous-id` rename continuity.
+Seven read-only queries answer the impact and targeted-context questions over an extracted
+snapshot: `explain`, `path`, `impact`, `subgraph`, `owners`, `testsFor`, and `staleness`. Each is
+deterministic, takes a node/depth budget, and reports `truncated` rather than returning a silently
+short answer. `ownersOf` and `testsFor` answer an explicit `unknown` with a reason where nothing was
+extracted, never an empty list, because "the graph does not know" and "nothing owns/tests this" are
+different claims and only one is safe to act on. `impact` walks dependents and counts
+`dynamic-imports` exactly like `imports`, since a dropped dynamic edge under-reports impact. A
+Git-proven rename is followed forward from the retired path, so a caller holding a pre-rename path is
+told what the file became rather than that nothing depends on it. The CLI surface
+(`void-harness graph <query> <file>`, backed by `packages/cli/src/lib/project-graph-store.ts`) takes
+and answers in repository-relative paths, refuses a target outside the project root, renders owners
+by label because an owner id is hashed when the name is not id-safe, and prints an explicit source
+fallback naming the count, codes, and paths extraction left out whenever the build is `partial` or
+`degraded` or the observed root hash moved. Accuracy is proved against a graph the extractor actually
+produced (`query-corpus.test.ts`: cycles, tsconfig aliases, dynamic imports, renames), and the seven
+queries carry their own seeded benchmark and regression gates
+(`benchmarks/project-graph-query/`, `pnpm benchmark:query`), separate from the extraction benchmark
+so a query regression cannot hide behind extraction cost.
+
 ProjectGraph is exposed from `@voidcorp/harness-graph/project`, keeping its
 TypeScript runtime adapter out of the legacy single-file CatalogGraph bundle.
 The extractor resolves bounded root-confined string or ordered-array `tsconfig` inheritance with

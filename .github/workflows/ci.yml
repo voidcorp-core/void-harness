@@ -133,6 +133,12 @@ jobs:
         # earlier it fails to resolve them, exactly as the comment above warns.
         run: pnpm benchmark:project
 
+      - name: ProjectGraph query performance report
+        # Separate from the extraction benchmark above: these gates cover the
+        # seven queries over a seeded corpus, where extraction cost is excluded
+        # by construction so a query regression cannot hide behind it.
+        run: pnpm benchmark:query
+
       - name: Self-host release gate
         # Compile current sources into an isolated, gitignored Claude+Codex
         # artifact. The strict doctor rejects source-hash or owned-file drift;
