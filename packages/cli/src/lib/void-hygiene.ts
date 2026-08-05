@@ -10,6 +10,14 @@
 
 import type { CheckResult } from './prerequisites.js';
 
+export interface ManifestObservation {
+  /** Absent, unreadable, or the version it names. */
+  readonly kind: 'absent' | 'unreadable' | 'present';
+  readonly version?: string;
+  /** Files whose bytes differ from the manifest, when it was verifiable. */
+  readonly drifted?: number;
+}
+
 export interface LayoutObservation {
   /** Observed artifacts still sitting at the pre-split location. */
   readonly pending: readonly string[];
@@ -17,6 +25,8 @@ export interface LayoutObservation {
   readonly localIgnored: boolean | null;
   /** Observed paths git currently tracks, which the ignore rule cannot undo. */
   readonly trackedObserved: readonly string[];
+  /** What `.void/install-manifest.json` says about this project, if anything. */
+  readonly manifest: ManifestObservation;
 }
 
 function pass(name: string, message: string): CheckResult {
@@ -67,7 +77,39 @@ function trackedCheck(observation: LayoutObservation): CheckResult {
   );
 }
 
+function manifestCheck(observation: LayoutObservation): CheckResult {
+  const name = 'void manifest';
+  const manifest = observation.manifest;
+  if (manifest.kind === 'absent') {
+    // Not a failure: a project can run perfectly without ever recording what it
+    // expects. It just cannot prove another checkout got the same bytes.
+    return {
+      name,
+      ok: true,
+      status: 'advisory',
+      message: 'no install manifest — another checkout cannot prove it restored the same assets',
+      fix: 'void-harness init writes it; commit .void/install-manifest.json',
+    };
+  }
+  if (manifest.kind === 'unreadable') {
+    return fail(name, 'the install manifest is present but not readable', 'restore it from git, or re-run void-harness init');
+  }
+  // Drift is a real failure: the working tree claims a version it does not hold.
+  return (manifest.drifted ?? 0) === 0
+    ? pass(name, `assets match manifest ${manifest.version ?? 'unknown'}`)
+    : fail(
+        name,
+        `${manifest.drifted} file(s) differ from manifest ${manifest.version ?? 'unknown'}`,
+        `npx voidharness@${manifest.version ?? 'x.y.z'} hydrate — it restores and proves every file`,
+      );
+}
+
 /** Every layout-hygiene verdict, in the order a reader should meet them. */
 export function judgeLayout(observation: LayoutObservation): readonly CheckResult[] {
-  return Object.freeze([layoutCheck(observation), ignoreCheck(observation), trackedCheck(observation)]);
+  return Object.freeze([
+    layoutCheck(observation),
+    ignoreCheck(observation),
+    trackedCheck(observation),
+    manifestCheck(observation),
+  ]);
 }

@@ -6,8 +6,14 @@ import {
   mkdir,
   readdir,
   readFile,
+  writeFile,
 } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
+import {
+  buildInstallManifest,
+  INSTALL_MANIFEST_PATH,
+  sha256Of,
+} from './install-manifest.js';
 import {
   buildInstallReceipt,
   encodeReceipt,
@@ -42,6 +48,7 @@ const MANAGED_PREFIXES = [
 ] as const;
 
 const MANAGED_FILES = new Set([
+  INSTALL_MANIFEST_PATH,
   '.void/PHILOSOPHY.md',
   '.codex/hooks.json',
 ]);
@@ -125,6 +132,23 @@ export interface PreparedInstall {
  * assets need a prior receipt or explicit force; force still does not seize
  * deletion ownership.
  */
+/**
+ * Write the committed manifest into the stage, so it publishes with everything
+ * else and describes exactly this install. Called before `prepareInstallCommit`,
+ * which then picks it up as one more staged file — the manifest excludes itself,
+ * since a file cannot carry the hash of contents that include that hash.
+ */
+export async function stageInstallManifest(stageRoot: string, version: string): Promise<void> {
+  const staged = await collectStageFiles(stageRoot);
+  const manifest = buildInstallManifest(
+    version,
+    staged.map((file) => ({ path: file.path, sha256: sha256Of(file.content) })),
+  );
+  const target = join(stageRoot, ...INSTALL_MANIFEST_PATH.split('/'));
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, `${JSON.stringify(manifest, null, 2)}\n`);
+}
+
 export async function prepareInstallCommit(input: PrepareInstallInput): Promise<PreparedInstall> {
   const staged = await collectStageFiles(input.stageRoot);
   const previous = await readInstallReceipt(input.projectRoot);

@@ -3,7 +3,13 @@ import type { CheckResult } from './prerequisites.js';
 import { judgeLayout, type LayoutObservation } from './void-hygiene.js';
 
 function observation(over: Partial<LayoutObservation> = {}): LayoutObservation {
-  return { pending: [], localIgnored: true, trackedObserved: [], ...over };
+  return {
+    pending: [],
+    localIgnored: true,
+    trackedObserved: [],
+    manifest: { kind: 'present', version: '2.5.1', drifted: 0 },
+    ...over,
+  };
 }
 
 function named(results: readonly CheckResult[], name: string): CheckResult | undefined {
@@ -41,6 +47,34 @@ describe('judgeLayout', () => {
     expect(check?.status).toBe('fail');
     expect(check?.fix).toContain('git rm --cached');
     expect(check?.fix).toContain('.void/usage.log');
+  });
+
+  it('reports drift against the manifest as a failure, with the pinned command', () => {
+    // The working tree claims a version it does not hold. That is not advisory.
+    const check = named(
+      judgeLayout(observation({ manifest: { kind: 'present', version: '2.5.1', drifted: 3 } })),
+      'void manifest',
+    );
+
+    expect(check?.status).toBe('fail');
+    expect(check?.message).toContain('3 file(s)');
+    expect(check?.fix).toBe('npx voidharness@2.5.1 hydrate — it restores and proves every file');
+  });
+
+  it('treats an absent manifest as advisory, not as a defect', () => {
+    // A project runs fine without one; it just cannot prove another checkout got
+    // the same bytes.
+    const check = named(judgeLayout(observation({ manifest: { kind: 'absent' } })), 'void manifest');
+
+    expect(check?.status).toBe('advisory');
+    expect(check?.ok).toBe(true);
+  });
+
+  it('does not confuse a damaged manifest with a missing one', () => {
+    const check = named(judgeLayout(observation({ manifest: { kind: 'unreadable' } })), 'void manifest');
+
+    expect(check?.status).toBe('fail');
+    expect(check?.fix).toContain('restore it from git');
   });
 
   it('says the consequence, not just the state', () => {
