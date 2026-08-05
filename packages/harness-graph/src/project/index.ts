@@ -1,3 +1,23 @@
+export {
+	DEFAULT_PROJECT_QUERY_BUDGET,
+	explainNode,
+	findPath,
+	impactOf,
+	ownersOf,
+	stalenessOf,
+	subgraphOf,
+	testsFor,
+} from './query.js';
+export type {
+	ExplainResult,
+	ImpactResult,
+	PathResult,
+	ProjectGraphObservation,
+	ProjectQueryAnswer,
+	ProjectQueryBudget,
+	StalenessResult,
+	SubgraphResult,
+} from './query.js';
 export { buildProjectGraph } from './build.js';
 export type {
 	ProjectGraphBuildMetrics,
