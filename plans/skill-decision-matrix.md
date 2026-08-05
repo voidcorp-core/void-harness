@@ -54,7 +54,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 - **Wins**: how to express a test once you know what to test. Mocking strategy, fixture design, test pyramid placement, integration vs unit choice.
 - **Loses to**: `tdd` on **when** to write the test (always: before). `migrations-safety` on testing DB changes.
 - **Cannot decide**: whether a feature deserves a test (TDD's call: yes, always, in strict mode). Production architecture.
-- **Composes with**: `tdd` (provides the cycle), `mutation-testing` (validates the test quality).
+- **Composes with**: `tdd` (provides the cycle); mutation testing validates the suite's quality, and is not a core skill.
 
 ### `hexagonal-architecture`
 
@@ -73,7 +73,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 ### `code-review`
 
 - **Wins**: pre-commit / pre-PR critical pass over a diff. Defects, missing tests, structure issues, security flags.
-- **Loses to**: `doctrine-critic` (agent) for doctrine-conformance review. gstack `/cso` on security-specific concerns.
+- **Loses to**: `doctrine-critic` (agent) for doctrine-conformance review. `security-audit` on security-specific concerns.
 - **Cannot decide**: whether to ship (user). Architecture changes outside the diff scope.
 - **Composes with**: `tdd` (verifies the cycle was respected), `typescript-strict` (verifies types), all hedges.
 
@@ -86,7 +86,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 
 ---
 
-## Process skills (15)
+## Process skills (17)
 
 ### `brainstorming`
 
@@ -100,7 +100,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 - **Wins**: turning an approved design into an executable plan. Sequencing, dependencies, verification gates.
 - **Loses to**: `brainstorming` on intent and design choices.
 - **Cannot decide**: feature scope (it's a planning skill, not a scoping skill). Architecture (defers to architecture skills).
-- **Composes with**: `brainstorming` (upstream), `executing-plans` (downstream — gstack/superpowers).
+- **Composes with**: `brainstorming` (upstream), `ticket-runner` (downstream — one unit taken from ready to shipped).
 
 ### `plan-review`
 
@@ -126,8 +126,8 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 ### `security-guidance`
 
 - **Wins**: any trust-boundary code (input validation, auth, secrets, SQL, LLM input/output). Default-secure patterns.
-- **Loses to**: `cso` (gstack) for full audit mode. `doctrine-critic` (agent) flags trust-boundary code in a diff.
-- **Cannot decide**: full threat model (escalates to `cso`).
+- **Loses to**: `security-audit` for full audit mode. `doctrine-critic` (agent) flags trust-boundary code in a diff.
+- **Cannot decide**: full threat model (escalates to `security-audit`).
 - **Composes with**: `hexagonal-architecture` (boundary discipline), `typescript-strict` (no untyped trust).
 
 ### `commit-discipline`
@@ -172,32 +172,39 @@ The 2026-07-09 fusion of `compounding` + `capture-rule` + `harness-evolution` (i
 - **Wins**: documenting a structural decision that changes how future code is written, with a credible rejected alternative. ADR format, numbering, and lifecycle (proposed → accepted → superseded). Promoted from pack-monorepo to core on 2026-06-04.
 - **Loses to**: `writing-plans` on the *work* plan (an ADR records the *decision*, not the steps).
 - **Cannot decide**: product / org strategy (Notion, Linear); the work sequencing (`writing-plans`).
-- **Composes with**: `writing-plans`, `commit-discipline` (a one-paragraph "why" should become an ADR), `source-driven-development` (alternatives cite docs), `harness-evolution` (harness ADRs live in this repo).
+- **Composes with**: `writing-plans`, `commit-discipline` (a one-paragraph "why" should become an ADR), `source-driven-development` (alternatives cite docs), `learning-capture` (a harness gap becomes an issue on this repo, not a doctrine line).
 
 ### `claude-md-authoring`
 
 - **Wins**: writing or auditing a project CLAUDE.md / AGENTS.md. Length budget, what belongs vs what goes to hooks/linters, `file:line` over snippets, progressive disclosure, runnable-first-try.
-- **Loses to**: `capture-rule` on writing an individual project rule (this skill governs the *document*, not the single rule). `harness-evolution` on harness-level doctrine.
+- **Loses to**: `learning-capture` on capturing an individual project rule or a harness gap (this skill governs the *document*, not the single rule).
 - **Cannot decide**: the project's actual rules (the user owns content); deterministic enforcement (that belongs in hooks/settings, which is precisely the point).
-- **Composes with**: `context-management` (the doc is part of the context budget), `source-driven-development`, `capture-rule` (where a rule lands), `harness-evolution` (the harness produces consumer CLAUDE.md files).
+- **Composes with**: `context-management` (the doc is part of the context budget), `source-driven-development`, `learning-capture` (where a rule lands, and how a harness gap becomes an issue).
 
-### `backlog-autopilot`
+### `autopilot`
 
-The single in-session backlog drainer; consolidates the former `backlog-batch` and the deleted `autonomous-backlog-loop`.
+The single in-session backlog drainer. Replaced `backlog-autopilot` at the 2026-07-30 cutover, which **deleted** the superseded engine rather than deprecating it: two engines in one release means two answers to "how does a cluster get drained".
 
-- **Wins**: an explicitly launched run draining a Linear pool into clean PRs — today the **attended** parallel burst (several **independent** tickets, each in its own worktree subagent, reconciled into one integration PR); cluster auto-detection, an adaptive per-ticket cycle, multi-cluster autonomy and risk-gated auto-merge are being added. Opt-in only; needs the Workflow tool.
-- **Loses to**: any single-ticket interactive session; human judgment on the plan and on merge.
-- **Cannot decide**: whether two tickets truly overlap (the footprint is *estimated*; the reconciliation subagent + full suite are the backstop); whether to merge a risky cluster or a stack root (human, unless `--auto-merge` + green CI on a low-risk cluster).
-- **Composes with**: the Workflow tool (substrate), `using-git-worktrees`, the craftsman cycle inside each worker (`brainstorming`, `source-driven-development`, `writing-plans`, `tdd`, `verification-before-completion`, `commit-discipline`, `learning-capture`, `context-management`); `ticket-writer` upstream (which may ingest a `source: forge` spec), `code-review` + the ship step (`ticket-runner` pass 11 + gh) downstream (human-owned merge).
+- **Wins**: an explicitly launched, attended run draining a pool of **independent** ready tickets — each executed end-to-end by `ticket-runner` in its own worktree worker, reconciled into one integration PR. Routing is parallel where footprints are disjoint, sequential where they collide (lockfiles and migrations always sequential); a **review budget** shrinks the cluster from structural doubt, not from ticket estimates. Opt-in, and the fan-out needs human confirmation.
+- **Loses to**: any single-ticket interactive session; `ticket-runner` on the per-ticket quality cycle (it delegates, it does not redefine); human judgment on the plan and on merge.
+- **Cannot decide**: whether two tickets truly overlap (the footprint is *estimated*; the reconciler plus the full suite sealed against the integration SHA are the backstop); whether to merge — **never**, on any path. There is no `--auto-merge`: the CLI refuses it and a source gate enforces the refusal, because merging is where a human reads the diff as a whole.
+- **Composes with**: the deterministic CLI `void-harness autopilot` (selection, review budget, lease, reconciliation, publication, recovery, tracker lifecycle — it contacts nothing and spawns no agent), the runtime adapter that fans out workers (Workflow on Claude, native subagents on Codex, same `OrchestrationPlan` and same `WorkerResult`), `ticket-runner` inside every worker, `ticket-writer` upstream (which may ingest a `source: forge` spec). Durable boundaries: HITL at backlog curation and PR merge, commit-only workers, server-side branch protection required on the base.
 
 ### `ticket-runner`
 
 The single canonical definition of "execute one ticket well" — one ticket taken from ready to shipped with a senior team's coverage (architecture, TDD, e2e, UX, security, review, verification), each pass keyed to an observable predicate.
 
-- **Wins**: taking a single ready ticket through to a shipped/green branch. Both interactive single-ticket work and each `backlog-autopilot` worker delegate here, so the cycle is defined once.
+- **Wins**: taking a single ready ticket through to a shipped/green branch. Both interactive single-ticket work and each `autopilot` worker delegate here, so the cycle is defined once.
 - **Loses to**: `writing-plans` on sequencing *several* tickets; `ticket-writer` on authoring the ticket; human judgment on merge.
 - **Cannot decide**: whether a triggered pass may be skipped (never — the predicate decides, not a vibe); whether to merge (human).
-- **Composes with**: every code-discipline and process skill (it is the conductor that invokes them per predicate); `ticket-writer` upstream, `backlog-autopilot` as caller.
+- **Composes with**: every code-discipline and process skill (it is the conductor that invokes them per predicate); `ticket-writer` upstream, `autopilot` as caller.
+
+### `session-handoff`
+
+- **Wins**: closing a session with work still open. Routes each piece of state to whatever already owns it (tracker, PR, branch, plan), writes down only the residue nothing else holds — chiefly what was *ruled out* and why — and ends on one exact next action.
+- **Loses to**: `learning-capture` on a lesson that outlives this session (that is a doctrine or harness question, not a handoff note); `ticket-writer` on work that deserves its own ticket rather than a paragraph.
+- **Cannot decide**: whether the work itself is done (`verification-before-completion` owns that); what the next priority is (the tracker and the human own it).
+- **Composes with**: `context-management` (the handoff is what survives a context reset), `verification-before-completion` (runs first — a handoff states what is proven, not what is hoped), `learning-capture` (durable lessons routed out of the note).
 
 ### `ticket-writer`
 
@@ -210,7 +217,7 @@ Turns a finished brainstorm, plan, or design decision into a tracker ticket an i
 
 ---
 
-## Hedge skills (6)
+## Hedge skills (11)
 
 ### `observability`
 
@@ -245,7 +252,7 @@ Turns a finished brainstorm, plan, or design decision into a tracker ticket an i
 
 - **Wins**: any code calling an LLM API. Prompt caching, batch, model selection, token budgets.
 - **Loses to**: `security-guidance` on prompt-injection-aware design (data plane vs control plane).
-- **Cannot decide**: model choice when quality is uncertain (escalates to `benchmark-models` in gstack).
+- **Cannot decide**: model choice when quality is uncertain (escalates to a cross-model benchmark, which is not harness-native).
 - **Composes with**: `claude-api` (already exists in your skills).
 
 ### `frontend-design`
@@ -277,6 +284,20 @@ Turns a finished brainstorm, plan, or design decision into a tracker ticket an i
 - **Cannot decide**: visual design bar (defers to `ui-review`); it does not QA a dev-facing API/CLI/SDK surface (that is `devex-audit`).
 - **Composes with**: `ui-review` (visual pass on live screenshots), `tdd`/`testing` (regression test in the fix loop). Vendored from gstack qa/qa-only + design-review live half, re-pointed onto the claude-in-chrome MCP (DEV-390). Assumed limit: not headless — no cloud/cron QA.
 
+### `security-audit`
+
+- **Wins**: the periodic deep pass — OWASP Top 10, STRIDE, secrets, supply chain, CI/CD, infrastructure, LLM trust boundaries. Phase-driven and **read-only**: it reports, it does not patch.
+- **Loses to**: `security-guidance` on the daily floor (this is the ceiling above it, not a replacement); `code-review` on a single diff; `tdd` on writing the regression test that locks a finding.
+- **Cannot decide**: whether a finding is worth fixing now (the human owns the risk call); it never edits code, and it never becomes the gate that ships a fix.
+- **Composes with**: `security-guidance` (floor to this ceiling), `plan-review` (its Eng lens routes deep security here), `ticket-writer` (a finding worth fixing becomes a ticket).
+
+### `make-pdf`
+
+- **Wins**: turning a finished markdown file into a publication-quality PDF for a signed, external deliverable. On-demand only.
+- **Loses to**: every authoring skill on the *content* — it is a rendering step, invoked once the document is agreed.
+- **Cannot decide**: anything about what the document says.
+- **Composes with**: nothing structurally; it is a terminal step. Uses the system Chrome via puppeteer-core, with no gstack daemon.
+
 ---
 
 ## Cross-cutting boundary rules
@@ -284,7 +305,7 @@ Turns a finished brainstorm, plan, or design decision into a tracker ticket an i
 These are global rules that apply across all skills:
 
 1. **No skill modifies architectural decisions logged in DECISIONS.md without escalating.** The architecture skills `propose`; the user `decides` and records.
-2. **No skill writes to project CLAUDE.md.** Learnings go to `learnings/proposed/`. Only explicit promotion (via `voidcorp:learnings-promote` or manual edit) updates doctrine.
+2. **No skill writes to project CLAUDE.md.** `learning-capture` routes a lesson to `.void/PROJECT-DOCTRINE.md`, to a `voidcorp-core/void-harness` issue, or drops it, and every write is HITL. The `learnings/proposed/` queue and a `learnings-promote` skill were designed and never built (issue #74).
 3. **No skill silently overrides another.** If a skill detects it should defer, it announces "deferring to `X` because Y" and invokes X.
 4. **No skill claims completion of work owned by a dedicated skill/workflow.** QA (`harness:qa`), design (`frontend-design`/`ui-review`), ship (`ticket-runner` pass 11 + gh), and browser interactions (claude-in-chrome) each have an explicit home; a general skill or agent does not silently do their job.
 
@@ -302,4 +323,6 @@ When two skills both claim "I win":
 
 ## Status
 
-Populated for the 29 core skills as of 2026-07-09 — the code-discipline (9), process (14, including the canonical `ticket-runner` cycle, `ticket-writer`, and the fused `learning-capture`), and hedge (6) groups above. `backlog-autopilot` replaced the deleted `autonomous-backlog-loop`; `learning-capture` fused `compounding` + `capture-rule` + `harness-evolution` (issue #75). Refined as each skill's content evolves; any cell that becomes ambiguous in practice triggers an ADR in `docs/DECISIONS.md`.
+Populated for the **37** core skills as of **2026-08-03** — code-discipline (9), process (17, including the canonical `ticket-runner` cycle, `ticket-writer`, `autopilot`, `session-handoff` and the fused `learning-capture`), and hedge (11) groups above. The count is a claim this file must keep honest: it is `ls packages/core/skills | wc -l`, and a matrix that lags the catalogue routes work to skills that no longer exist.
+
+Lineage worth remembering: `autopilot` replaced `backlog-autopilot` at the 2026-07-30 cutover (which itself had replaced the deleted `autonomous-backlog-loop`); `learning-capture` fused `compounding` + `capture-rule` + `harness-evolution` (issue #75). Refined as each skill's content evolves; any cell that becomes ambiguous in practice triggers a decision record via `void-harness decisions new`.

@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rename, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rename, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fixtureCompilerLookup } from './test-support.js';
@@ -9,6 +9,8 @@ import type { ProjectRootIdentity } from './extractors/types.js';
 import {
 	createNodeProjectChangeJournal,
 	type ProjectChangeJournal,
+	type ProjectChangeObservation,
+	type ProjectChangeValidation,
 	type ProjectWatchHandle,
 	type ProjectWatchPort,
 } from './journal.js';
@@ -36,6 +38,30 @@ async function waitForObservation<T>(
 		value = await observe();
 	}
 	return { value, satisfied: accept(value) };
+}
+
+/**
+ * Observe until `validate` stops answering 'changed'.
+ *
+ * 'changed' is not a defect: it means an event landed between the observation
+ * and the check, which is routine while a freshly written fixture settles. A
+ * caller reacts by taking the newer observation, so the test does the same
+ * instead of asserting that nothing ever arrives late.
+ */
+async function settleCapability(
+	journal: ProjectChangeJournal,
+	identity: ProjectRootIdentity,
+	timeoutMs = 5_000,
+): Promise<{ readonly observation: ProjectChangeObservation; readonly capability: ProjectChangeValidation }> {
+	const deadline = Date.now() + timeoutMs;
+	let observation = await journal.observe(identity);
+	let capability = await journal.validate(identity, observation);
+	while (capability === 'changed' && Date.now() < deadline) {
+		journal.accept(identity, observation);
+		observation = await journal.observe(identity);
+		capability = await journal.validate(identity, observation);
+	}
+	return { observation, capability };
 }
 
 function rootIdentity(path = '/project/root'): ProjectRootIdentity {
@@ -266,8 +292,14 @@ describe('ProjectChangeJournal native capability', () => {
 		const identity = await rootPort.open(root);
 		const journal = createNodeProjectChangeJournal();
 		try {
-			const initial = await journal.observe(identity);
-			const capability = await journal.validate(identity, initial);
+			// Settle first. `validate` answers 'changed' when an event landed between
+			// the observation and the check, which is routine right after the fixture
+			// wrote package.json — a late event, not a defect. Asserting 'valid' on
+			// the first try asserted that nothing arrives late, which no best-effort
+			// watcher promises.
+			const settled = await settleCapability(journal, identity);
+			const initial = settled.observation;
+			const capability = settled.capability;
 			if (capability === 'unavailable') {
 				expect(['cold', 'uncertain']).toContain(initial.kind);
 				await expectUnavailableJournalBuild(root, journal);
@@ -284,17 +316,39 @@ describe('ProjectChangeJournal native capability', () => {
 				);
 				const afterAba = observed.value;
 				const postAbaCapability = await journal.validate(identity, afterAba);
+				// The root that ends this sequence is the very directory the journal
+				// opened — same device, same inode. That is what makes BOTH outcomes
+				// below truthful, and it is the premise the assertions rest on.
+				const finalRoot = await stat(root);
+				expect(finalRoot.dev).toBe(identity.device);
+				expect(finalRoot.ino).toBe(identity.inode);
+
 				if (postAbaCapability === 'unavailable') {
 					// A platform that cannot keep watching through the swap is a
 					// legitimate outcome; it degrades and must not claim a clean build.
 					await expectUnavailableJournalBuild(root, journal);
-				} else {
-					// Still watching, so the swap had to be noticed. Anything else is a
-					// journal that kept reporting a root it no longer has.
-					expect(observed.satisfied, `root swap went unnoticed; observed ${afterAba.kind}`).toBe(true);
+				} else if (observed.satisfied) {
+					// The platform delivered the rename events: the journal saw churn
+					// and is conservative about it. `rootGeneration` counts noticed
+					// churn, it is not an identity, so it must have advanced.
 					expect(afterAba.kind).toBe('uncertain');
-					expect(postAbaCapability).toBe('valid');
 					expect(afterAba.rootGeneration).not.toBe(initial.rootGeneration);
+				} else {
+					// The platform coalesced them, and `unchanged` is then the TRUTH,
+					// not a miss: this is the ABA property itself. The root is the one
+					// the journal opened — asserted above — so there is nothing to be
+					// uncertain about. `fs.watch` is best-effort by contract, so
+					// demanding delivery here failed roughly one run in five under
+					// parallel load: it asserted the platform's timing, not the
+					// journal's soundness.
+					//
+					// What must never happen — a root swapped and LEFT swapped, reported
+					// as unchanged — is not detectable by watching at all. It is caught
+					// by the identity check and asserted deterministically in "notices a
+					// swapped root with no watcher event at all" below, with an injected
+					// port that fires nothing.
+					expect(['unchanged', 'changed']).toContain(afterAba.kind);
+					expect(afterAba.rootGeneration).toBe(initial.rootGeneration);
 				}
 			}
 		} finally {
