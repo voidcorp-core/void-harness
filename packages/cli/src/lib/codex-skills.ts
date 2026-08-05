@@ -2,8 +2,9 @@
 // auto-discovers the plugin's skills from the marketplace; for Codex we use its
 // directory-convention discovery, scanning `.agents/skills` from the cwd up to
 // the repo root (per the official Codex skills docs) — universal, reproducible,
-// account-free. (Codex also has a native plugin channel; adding it is tracked in
-// issue #144.) Without this, a Codex-wired project got the doctrine via AGENTS.md
+// account-free. (Codex also has a native plugin channel; adding it alongside was
+// evaluated and declined — decision log, `codex-plugin-channel-declined`.)
+// Without this, a Codex-wired project got the doctrine via AGENTS.md
 // but NONE of the invocable skills — the multi-runtime promise was unmet (#125).
 //
 // Scope: core skills + the skills of every activated pack (both ship in the CLI
