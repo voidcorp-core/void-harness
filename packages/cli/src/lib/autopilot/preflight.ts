@@ -13,28 +13,67 @@
 // `unknown` is a first-class answer. "I could not read the branch protection"
 // is not "the branch is unprotected", and collapsing the two either blocks a
 // healthy project or green-lights an unprotected base.
+//
+// `unprobed` is the third answer, and it is not a weaker `unknown`: it means
+// this caller never asks. `doctor` is offline by contract, so it reports the two
+// remote-backed facts unprobed on every project, forever. Told they were
+// "unknown" with a fix to reconfigure something, operators went hunting for a
+// misconfiguration that did not exist (#193).
 
 import type { CheckResult } from '../prerequisites.js';
 
+export interface ParsedProgram {
+  readonly status?: string;
+  readonly autopilot?: {
+    readonly enabled?: boolean;
+    readonly clusterSize?: number;
+    readonly mergeGate?: string;
+    readonly verifyCommands?: readonly (readonly string[])[];
+  };
+}
+
+/** An `ACTIVE.md` that exists and did not parse, with the parser's own verdict. */
+export interface MalformedProgram {
+  readonly malformed: {
+    readonly problem: string;
+    readonly fix: string;
+  };
+}
+
+function malformedProgram(observation: AutopilotObservation): MalformedProgram['malformed'] | undefined {
+  const program = observation.activeProgram;
+  return program !== null && 'malformed' in program ? program.malformed : undefined;
+}
+
+/** The frontmatter, or undefined when there is none to read (absent or malformed). */
+function parsedProgram(observation: AutopilotObservation): ParsedProgram | undefined {
+  const program = observation.activeProgram;
+  return program === null || 'malformed' in program ? undefined : program;
+}
+
 export interface AutopilotObservation {
-  /** Parsed `plans/ACTIVE.md` frontmatter, or null when the file is absent. */
-  readonly activeProgram: {
-    readonly status?: string;
-    readonly autopilot?: {
-      readonly enabled?: boolean;
-      readonly clusterSize?: number;
-      readonly mergeGate?: string;
-      readonly verifyCommands?: readonly (readonly string[])[];
-    };
-  } | null;
+  /**
+   * Parsed `plans/ACTIVE.md` frontmatter; null when the file is absent, and a
+   * `malformed` record when it exists but could not be parsed — two different
+   * things to tell a reader, and only one of them means "author a program".
+   * The parser already produces a problem and a fix; carrying them here is what
+   * saves the reader from re-deriving the parse error by hand.
+   */
+  readonly activeProgram: ParsedProgram | MalformedProgram | null;
   /** Runtime adapters detected in the project, e.g. `['claude']`. */
   readonly adapters: readonly string[];
-  /** Tracker connector reachability, or null when it could not be determined. */
-  readonly trackerConnector: boolean | null;
+  /**
+   * Tracker connector reachability; null when a probe failed, `'unprobed'` when
+   * the caller does not probe at all.
+   */
+  readonly trackerConnector: boolean | 'unprobed' | null;
   /** Whether git worktrees can be created here, or null when unknown. */
   readonly worktreesUsable: boolean | null;
-  /** Base-branch protection, or null when it could not be read. */
-  readonly baseProtected: boolean | null;
+  /**
+   * Base-branch protection; null when it could not be read, `'unprobed'` when
+   * the caller does not probe at all.
+   */
+  readonly baseProtected: boolean | 'unprobed' | null;
 }
 
 const RUNTIME_ADAPTERS = ['claude', 'codex'];
@@ -52,10 +91,23 @@ function unknown(name: string, message: string, fix: string): CheckResult {
   return { name, ok: false, status: 'unknown', message, fix };
 }
 
+/**
+ * Not a failure, not a pass, and not unknown: something this caller never asks.
+ * Carries no fix on purpose — there is no configuration the reader could change
+ * that would make this run answer it.
+ */
+function unprobed(name: string, message: string): CheckResult {
+  return { name, ok: false, status: 'unprobed', message };
+}
+
 function activeProgramCheck(observation: AutopilotObservation): CheckResult {
   const name = 'autopilot ACTIVE';
-  const program = observation.activeProgram;
-  if (program === null) {
+  const broken = malformedProgram(observation);
+  if (broken !== undefined) {
+    return fail(name, `plans/ACTIVE.md could not be parsed: ${broken.problem}`, broken.fix);
+  }
+  const program = parsedProgram(observation);
+  if (program === undefined) {
     return unknown(
       name,
       'no plans/ACTIVE.md, so there is no program to drain',
@@ -79,9 +131,16 @@ function activeProgramCheck(observation: AutopilotObservation): CheckResult {
   return pass(name, 'executing, autopilot enabled');
 }
 
+// A file that did not parse has no fields to judge. Passing "human merge gate"
+// and failing "no verifyCommands" off an unparsed file states two things the
+// file never said — the same misattribution this preflight exists to avoid.
+const UNPARSED = 'not judged: plans/ACTIVE.md could not be parsed';
+const UNPARSED_FIX = 'fix the frontmatter reported by the ACTIVE check above, then run doctor again';
+
 function mergeGateCheck(observation: AutopilotObservation): CheckResult {
   const name = 'autopilot merge';
-  const gate = observation.activeProgram?.autopilot?.mergeGate;
+  if (malformedProgram(observation) !== undefined) return unknown(name, UNPARSED, UNPARSED_FIX);
+  const gate = parsedProgram(observation)?.autopilot?.mergeGate;
   // The only accepted value. A project cannot opt into automation here: the
   // human merge is the contract the whole design rests on.
   if (gate !== undefined && gate !== 'human') {
@@ -96,7 +155,8 @@ function mergeGateCheck(observation: AutopilotObservation): CheckResult {
 
 function verifyCommandsCheck(observation: AutopilotObservation): CheckResult {
   const name = 'autopilot verify';
-  const commands = observation.activeProgram?.autopilot?.verifyCommands ?? [];
+  if (malformedProgram(observation) !== undefined) return unknown(name, UNPARSED, UNPARSED_FIX);
+  const commands = parsedProgram(observation)?.autopilot?.verifyCommands ?? [];
   if (commands.length === 0) {
     return fail(
       name,
@@ -132,11 +192,14 @@ function adapterCheck(observation: AutopilotObservation): CheckResult {
 
 function connectorCheck(observation: AutopilotObservation): CheckResult {
   const name = 'autopilot tracker';
+  if (observation.trackerConnector === 'unprobed') {
+    return unprobed(name, 'not probed here; autopilot proves the connector at preflight, before it claims a lease');
+  }
   if (observation.trackerConnector === null) {
     return unknown(
       name,
-      'the tracker connector could not be probed',
-      'run the check again with the connector configured; autopilot will not claim on an unknown tracker',
+      'the tracker connector was probed and did not answer',
+      'restore the connector for this runtime and retry; autopilot will not claim on an unknown tracker',
     );
   }
   return observation.trackerConnector
@@ -164,11 +227,20 @@ function worktreeCheck(observation: AutopilotObservation): CheckResult {
 
 function protectionCheck(observation: AutopilotObservation): CheckResult {
   const name = 'autopilot base';
+  if (observation.baseProtected === 'unprobed') {
+    return unprobed(name, 'not probed here; autopilot proves protection at preflight and refuses to start without it');
+  }
   if (observation.baseProtected === null) {
+    // The first suspect used to be the token scope, which was usually already
+    // correct: GitHub answers 403 "Upgrade to GitHub Pro or make this repository
+    // public" on both /protection and /rulesets for a private repo on a free
+    // plan. That is a plan constraint, and it means no server-side gate exists
+    // to find — the human merge gate is then a harness contract and nothing
+    // else (#193).
     return unknown(
       name,
       'branch protection could not be read',
-      'grant the token repository read access, or verify protection by hand before running',
+      'read the API error first: a 403 on a private repository on a free plan means protection cannot exist at all (make it public, upgrade, or accept that the human merge gate is enforced by contract only) — otherwise grant the token repository read access',
     );
   }
   return observation.baseProtected

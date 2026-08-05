@@ -153,6 +153,73 @@ describe('what could not be read is not what is false', () => {
   });
 });
 
+// A caller that never asks is not a caller that failed to read. `doctor` is
+// offline by contract, so its two remote-backed facts are unprobed on every
+// project, forever — reported as "unknown" with a reconfiguration fix, they sent
+// operators after a problem that was not theirs (#193).
+describe('what nobody probed is not what could not be read', () => {
+  it('reports an unprobed tracker as unprobed, with nothing to reconfigure', () => {
+    const check = named(autopilotPreflight(observation({ trackerConnector: 'unprobed' })), 'autopilot tracker');
+
+    expect(check?.status).toBe('unprobed');
+    expect(check?.fix).toBeUndefined();
+    expect(check?.message).toMatch(/preflight/);
+  });
+
+  it('reports an unprobed base as unprobed, with nothing to reconfigure', () => {
+    const check = named(autopilotPreflight(observation({ baseProtected: 'unprobed' })), 'autopilot base');
+
+    expect(check?.status).toBe('unprobed');
+    expect(check?.fix).toBeUndefined();
+    expect(check?.message).toMatch(/preflight/);
+  });
+
+  it('does not blame the token when protection was probed and refused', () => {
+    // The observed 403 was "Upgrade to GitHub Pro or make this repository
+    // public" on a token that already carried `repo`: a plan constraint, not a
+    // scope one. Naming only the scope hid the constraint that mattered.
+    const check = named(autopilotPreflight(observation({ baseProtected: null })), 'autopilot base');
+
+    expect(check?.status).toBe('unknown');
+    expect(check?.fix).toMatch(/private repository on a free plan/i);
+  });
+
+  it('does not report an unparsable ACTIVE as a missing one', () => {
+    // "no plans/ACTIVE.md" in front of a file that is right there sends the
+    // reader to author a program they already wrote (#193, same class).
+    const results = autopilotPreflight(
+      observation({
+        activeProgram: { malformed: { problem: 'clusterSize is 9, above the maximum of 4', fix: 'set clusterSize to 4 or less' } },
+      }),
+    );
+    const check = named(results, 'autopilot ACTIVE');
+
+    expect(check?.status).toBe('fail');
+    expect(check?.message).not.toMatch(/no plans/);
+    // The parser already knew what broke; re-deriving it by hand is the cost.
+    expect(check?.message).toMatch(/could not be parsed: clusterSize is 9/);
+    expect(check?.fix).toBe('set clusterSize to 4 or less');
+  });
+
+  it('judges no field of a file that did not parse', () => {
+    // "human merge gate" ✓ and "no verifyCommands" ✗ off an unparsed file state
+    // two things the file never said.
+    const results = autopilotPreflight(
+      observation({ activeProgram: { malformed: { problem: 'no frontmatter', fix: 'add a --- block' } } }),
+    );
+
+    expect(named(results, 'autopilot merge')?.status).toBe('unknown');
+    expect(named(results, 'autopilot verify')?.status).toBe('unknown');
+  });
+
+  it('counts an unprobed check as neither a pass nor a blocker', () => {
+    const results = autopilotPreflight(observation({ trackerConnector: 'unprobed', baseProtected: 'unprobed' }));
+
+    expect(results.filter((result) => result.status === 'unprobed')).toHaveLength(2);
+    expect(results.filter((result) => result.status === 'fail')).toHaveLength(0);
+  });
+});
+
 describe('the runtime adapter', () => {
   it('fails when none is detected, because no worker could be spawned', () => {
     expect(named(autopilotPreflight(observation({ adapters: [] })), 'autopilot runtime')?.status).toBe('fail');
@@ -181,13 +248,18 @@ describe('the doctor wiring', () => {
   });
 
   it('probes nothing remote, because --no-remote promises an offline run', () => {
+    // Unprobed, not null: the offline contract is the same, but the reader is
+    // told this run never asks instead of being sent to reconfigure (#193).
     const observer = DOCTOR.slice(DOCTOR.indexOf('function observeAutopilot'));
-    expect(observer).toMatch(/trackerConnector: null/);
-    expect(observer).toMatch(/baseProtected: null/);
+    expect(observer).toMatch(/trackerConnector: 'unprobed'/);
+    expect(observer).toMatch(/baseProtected: 'unprobed'/);
   });
 
   it('reports a malformed ACTIVE as a failed check rather than crashing doctor', () => {
     const observer = DOCTOR.slice(DOCTOR.indexOf('function observeAutopilot'));
-    expect(observer).toMatch(/catch \{/);
+    expect(observer).toMatch(/catch \(error\)/);
+    // And as malformed, not as absent: the catch used to collapse both into
+    // null, printing "no plans/ACTIVE.md" over a file that was right there.
+    expect(observer).toMatch(/\{ malformed \}/);
   });
 });
