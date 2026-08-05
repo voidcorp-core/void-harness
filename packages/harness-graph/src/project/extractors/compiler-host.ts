@@ -19,7 +19,10 @@
 // exactly like a correct one, and a partial snapshot that says what it lost is
 // worth more than a complete one that is quietly wrong.
 
-import { createRequire } from 'node:module';
+// Imported under an alias: a bundler that inlines this package next to a host
+// which shims `createRequire` at the top of its own ESM output would otherwise
+// emit the same binding twice and fail to parse its bundle.
+import { createRequire as nodeCreateRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 
 /**
@@ -183,7 +186,7 @@ export function selectCompilerAdapter(version: string): AdapterSelection {
 export function createNodeCompilerLookup(): CompilerLookup {
 	// This package builds as ESM, where `require` does not exist. `createRequire`
 	// brings back the resolution algorithm without bringing back CommonJS.
-	const resolver = createRequire(import.meta.url);
+	const resolver = nodeCreateRequire(import.meta.url);
 	return Object.freeze({
 		resolve(projectRoot: string): string {
 			// `paths` replaces the starting point, so the walk up node_modules
