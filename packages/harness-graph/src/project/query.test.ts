@@ -63,7 +63,8 @@ function fixture(): GraphSnapshotV3 {
 			edge('dynamic-imports', 'file:d', 'file:c'),
 			edge('tests', 'test:b.test', 'file:b'),
 			edge('owned-by', 'file:a', 'owner:alice'),
-			edge('previous-id', 'file:a', 'file:old'),
+			// Lineage is written old -> new, exactly as the extractor emits it.
+			edge('previous-id', 'file:old', 'file:a'),
 		],
 	);
 }
@@ -189,6 +190,51 @@ describe('impactOf', () => {
 	it('is deterministic: the same graph and seed give the same order', () => {
 		expect(impactOf(fixture(), 'file:c').impacted).toEqual(impactOf(fixture(), 'file:c').impacted);
 	});
+
+	it('answers a renamed path with what it became, not with silence', () => {
+		// Reporting nothing would tell the caller the old path is safe to change,
+		// which it never is: the file moved, it did not stop existing.
+		expect(impactOf(fixture(), 'file:old').impacted).toEqual(['file:a']);
+	});
+
+	it('keeps walking dependents from the successor, not just naming it', () => {
+		const moved = snapshot(
+			[node('file:old', 'file'), node('file:new', 'file'), node('file:user', 'file')],
+			[edge('previous-id', 'file:old', 'file:new'), edge('imports', 'file:user', 'file:new')],
+		);
+
+		expect([...impactOf(moved, 'file:old').impacted].sort()).toEqual(['file:new', 'file:user']);
+	});
+
+	it('follows a lineage chain to the current path', () => {
+		const chained = snapshot(
+			[node('file:v1', 'file'), node('file:v2', 'file'), node('file:v3', 'file')],
+			[edge('previous-id', 'file:v1', 'file:v2'), edge('previous-id', 'file:v2', 'file:v3')],
+		);
+
+		expect([...impactOf(chained, 'file:v1').impacted].sort()).toEqual(['file:v2', 'file:v3']);
+	});
+
+	it('terminates on a lineage cycle in a corrupt graph', () => {
+		const looped = snapshot(
+			[node('file:x', 'file'), node('file:y', 'file')],
+			[edge('previous-id', 'file:x', 'file:y'), edge('previous-id', 'file:y', 'file:x')],
+		);
+
+		expect(impactOf(looped, 'file:x').impacted).toEqual(['file:y']);
+	});
+
+	it('counts lineage against the node budget instead of exceeding it', () => {
+		const chained = snapshot(
+			[node('file:v1', 'file'), node('file:v2', 'file'), node('file:v3', 'file')],
+			[edge('previous-id', 'file:v1', 'file:v2'), edge('previous-id', 'file:v2', 'file:v3')],
+		);
+
+		const result = impactOf(chained, 'file:v1', { maxNodes: 1, maxDepth: 5 });
+
+		expect(result.impacted).toEqual(['file:v2']);
+		expect(result.truncated).toBe(true);
+	});
 });
 
 describe('subgraphOf', () => {
@@ -251,6 +297,12 @@ describe('ownersOf and testsFor', () => {
 	it('answers UNKNOWN for a node the graph never saw', () => {
 		expect(ownersOf(fixture(), 'file:nope').kind).toBe('unknown');
 		expect(testsFor(fixture(), 'file:nope').kind).toBe('unknown');
+	});
+
+	it('answers a renamed path from the path it became', () => {
+		// `old.ts` became `a`, which alice owns. The rename did not change who owns
+		// the file, so neither may the answer.
+		expect(ownersOf(fixture(), 'file:old')).toEqual({ kind: 'known', values: ['owner:alice'] });
 	});
 });
 

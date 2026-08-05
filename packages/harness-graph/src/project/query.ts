@@ -81,6 +81,8 @@ const OWNER_KINDS: ReadonlySet<string> = new Set(['owned-by']);
 
 /** Edges traversed backwards to answer "who breaks if this changes". */
 const IMPACT_KINDS: ReadonlySet<string> = new Set([...DEPENDENCY_KINDS, ...TEST_KINDS]);
+/** Edge from a retired path to the path that replaced it, written old -> new. */
+const LINEAGE_KINDS: ReadonlySet<string> = new Set(['previous-id']);
 
 function nodesById(snapshot: GraphSnapshotV3): ReadonlyMap<string, GraphNodeV3> {
 	return new Map(snapshot.nodes.map((node) => [node.id, node]));
@@ -109,6 +111,39 @@ function adjacency(
 		else bucket.push(to);
 	}
 	return out;
+}
+
+/**
+ * The paths `id` became, nearest first, following Git-proven rename lineage.
+ *
+ * A rename moves a file, it does not create one. A caller holding the pre-rename
+ * path — a diff hunk, a stack trace, a note written yesterday — is asking about an
+ * identity, not a string. Answering from the retired path alone returns nothing,
+ * which reads as "nothing depends on this": the one answer that is never true of a
+ * file that merely moved, and the one a caller acts on most readily.
+ *
+ * Bounded and cycle-safe, because a corrupt graph must not be able to spin here.
+ * `explainNode` is deliberately excluded: it describes the node asked for, and its
+ * `previous-id` edge is how the lineage stays visible rather than assumed.
+ */
+function lineageOf(snapshot: GraphSnapshotV3, id: string, maxDepth: number): readonly string[] {
+	const forward = adjacency(snapshot, LINEAGE_KINDS, false);
+	const seen = new Set<string>([id]);
+	const chain: string[] = [];
+	let frontier = [id];
+	for (let depth = 0; depth < maxDepth && frontier.length > 0; depth += 1) {
+		const following: string[] = [];
+		for (const current of frontier) {
+			for (const successor of forward.get(current) ?? []) {
+				if (seen.has(successor)) continue;
+				seen.add(successor);
+				chain.push(successor);
+				following.push(successor);
+			}
+		}
+		frontier = following;
+	}
+	return chain;
 }
 
 /** The node, its provenance, and every edge touching it, in snapshot order. */
@@ -183,6 +218,9 @@ function rebuild(cameFrom: ReadonlyMap<string, string>, from: string, to: string
 /**
  * Everything that breaks if `id` changes: dependents and the tests that cover
  * them, transitively. Never includes `id` itself — a node is not its own impact.
+ *
+ * A renamed path answers for the path it became: the successor is reported (so the
+ * caller learns the file moved) and the walk continues from it.
  */
 export function impactOf(
 	snapshot: GraphSnapshotV3,
@@ -197,6 +235,16 @@ export function impactOf(
 	const impacted: string[] = [];
 	let frontier = [id];
 	let truncated = false;
+
+	for (const successor of lineageOf(snapshot, id, budget.maxDepth)) {
+		if (impacted.length >= budget.maxNodes) {
+			truncated = true;
+			break;
+		}
+		seen.add(successor);
+		impacted.push(successor);
+		frontier.push(successor);
+	}
 
 	for (let depth = 0; depth < budget.maxDepth && frontier.length > 0 && !truncated; depth += 1) {
 		const following: string[] = [];
@@ -271,6 +319,7 @@ const ALL_TRAVERSABLE: ReadonlySet<string> = new Set([
 	...DEPENDENCY_KINDS,
 	...TEST_KINDS,
 	...OWNER_KINDS,
+	...LINEAGE_KINDS,
 	'contains',
 	'declares',
 	'exports',
@@ -286,8 +335,13 @@ function relatedThrough(
 	if (!snapshot.nodes.some((node) => node.id === id)) {
 		return { kind: 'unknown', reason: `${id} is not in this graph` };
 	}
+	// A renamed path answers for the path it became, for the same reason impact
+	// does: the question is about a file, and the file is where the rename left it.
+	const subjects = new Set([id, ...lineageOf(snapshot, id, DEFAULT_PROJECT_QUERY_BUDGET.maxDepth)]);
 	const values = snapshot.edges
-		.filter((edge) => kinds.has(edge.kind) && (reverse ? edge.to === id : edge.from === id))
+		.filter(
+			(edge) => kinds.has(edge.kind) && subjects.has(reverse ? edge.to : edge.from),
+		)
 		.map((edge) => (reverse ? edge.from : edge.to));
 	// Absent is not empty: the graph knowing nothing and there genuinely being
 	// nothing are different facts, and only one of them is safe to act on.
