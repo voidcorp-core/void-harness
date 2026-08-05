@@ -35,7 +35,9 @@ import {
 } from './journal.js';
 import { createNodeProjectRootPort } from './root.js';
 
-const DEFAULT_CACHE_PATH = '.void/cache/project-graph-v1.json';
+// Observed state: a local accelerator, never trusted repository input, so it
+// lives under `.void/local/` where one ignore rule covers it.
+const DEFAULT_CACHE_PATH = '.void/local/cache/project-graph-v1.json';
 const DEFAULT_MAX_FILES = 50_000;
 const DEFAULT_MAX_FILE_BYTES = 1024 * 1024;
 const DEFAULT_MAX_DIRECTORIES = 20_000;

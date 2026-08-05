@@ -9,6 +9,9 @@
 //   5. gh CLI is available and authenticated (required for the optional
 //      marketplace fetch) — only when remote checks run; --no-remote skips it
 
+import { execFileSync } from 'node:child_process';
+import { isLocalEntry, pendingMigrations, VOID_LOCAL_DIR } from '@voidcorp/hook-runner';
+import { judgeLayout, type LayoutObservation } from '../lib/void-hygiene.js';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -231,6 +234,10 @@ export async function doctor(args: readonly string[]): Promise<void> {
     checks.push(await checkPublishedVersion(root));
   }
 
+  // Layout hygiene: does this project actually keep observed state out of its
+  // history? Proven with git, not inferred from the ignore file being present.
+  checks.push(...judgeLayout(observeLayout(root)));
+
   // Autopilot's preconditions, but only for a project that declares a program:
   // adding seven checks to every other project would be noise about a feature
   // they do not use. Non-mutating throughout — doctor must stay safe to run
@@ -359,6 +366,46 @@ async function checkRemoteVersions(root: string): Promise<CheckResult> {
   };
 }
 
+
+/**
+ * Ask git what it actually does with observed state, rather than trusting that
+ * the ignore block is present: a rule can be absent, overridden by a later rule,
+ * or powerless because the path was tracked before the rule existed.
+ *
+ * Read-only — `check-ignore` and `ls-files` mutate nothing — and every failure to
+ * ask resolves to "could not determine", never to a false clean bill.
+ */
+function observeLayout(root: string): LayoutObservation {
+  const git = (args: readonly string[]): string | null => {
+    try {
+      return execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    } catch {
+      return null;
+    }
+  };
+
+  const insideRepo = git(['rev-parse', '--is-inside-work-tree'])?.trim() === 'true';
+  if (!insideRepo) {
+    return { pending: pendingMigrations(root), localIgnored: null, trackedObserved: [] };
+  }
+
+  // `check-ignore` exits non-zero when the path is NOT ignored, which the helper
+  // turns into null; here that is a real answer, not an unknown.
+  const probe = join('.void', 'local', '.probe');
+  const localIgnored = git(['check-ignore', '-q', probe]) !== null;
+
+  // Both halves: the migrated location and anything observed still tracked at the
+  // old one. A project mid-migration leaks through the second.
+  const listed = git(['ls-files', '-z', '--', '.void']) ?? '';
+  const tracked = listed.split('\0').filter((path) => path !== '');
+  const trackedObserved = tracked.filter((path) => {
+    const relative = path.startsWith('.void/') ? path.slice('.void/'.length) : path;
+    if (relative.startsWith(`${VOID_LOCAL_DIR}/`)) return true;
+    return isLocalEntry(relative.split('/')[0] ?? '');
+  });
+
+  return { pending: pendingMigrations(root), localIgnored, trackedObserved };
+}
 
 /**
  * Observe autopilot's preconditions without touching anything.

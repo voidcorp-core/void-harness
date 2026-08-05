@@ -798,7 +798,7 @@ function sessionStartOutput(version, notice) {
 }
 
 // src/lifecycle/context-executor.ts
-import { join as join5 } from "node:path";
+import { join as join6 } from "node:path";
 
 // src/lifecycle/executor-shared.ts
 import {
@@ -866,6 +866,61 @@ function readJson(path) {
   }
 }
 
+// src/void-layout.ts
+import { existsSync as existsSync4 } from "node:fs";
+import { join as join5 } from "node:path";
+var VOID_DIR = ".void";
+var VOID_LOCAL_DIR = "local";
+var VOID_OWNERSHIP = Object.freeze({
+  // Declared: authored or hand-edited, never regenerable from a pin.
+  "config.json": "project",
+  "PROJECT-DOCTRINE.md": "project",
+  "pricing.json": "project",
+  policies: "project",
+  profiles: "project",
+  organization: "project",
+  // Derived: `void-harness install` reproduces these from config.json's pin.
+  "PHILOSOPHY.md": "derived",
+  hooks: "derived",
+  // Observed: this machine's history. Never meaningful in another checkout.
+  runs: "observed",
+  cache: "observed",
+  outputs: "observed",
+  generated: "observed",
+  archives: "observed",
+  autopilot: "observed",
+  receipts: "observed",
+  history: "observed",
+  worktrees: "observed",
+  "autonomous-runs": "observed",
+  "state.json": "observed",
+  "activations.jsonl": "observed",
+  "outcomes.jsonl": "observed",
+  "usage.log": "observed",
+  ".registered": "observed"
+});
+var LOCAL_ENTRIES = Object.freeze(
+  Object.keys(VOID_OWNERSHIP).filter((entry) => VOID_OWNERSHIP[entry] === "observed").sort()
+);
+function voidDir(root) {
+  return join5(root, VOID_DIR);
+}
+function voidLocalDir(root) {
+  return join5(root, VOID_DIR, VOID_LOCAL_DIR);
+}
+function voidLocalPath(root, ...segments) {
+  return join5(voidLocalDir(root), ...segments);
+}
+function legacyVoidPath(root, ...segments) {
+  return join5(voidDir(root), ...segments);
+}
+function voidLocalReadPath(root, ...segments) {
+  const migrated = voidLocalPath(root, ...segments);
+  if (existsSync4(migrated)) return migrated;
+  const legacy = legacyVoidPath(root, ...segments);
+  return existsSync4(legacy) ? legacy : migrated;
+}
+
 // src/lifecycle/context-executor.ts
 var VERSION_SHAPE = /^[0-9A-Za-z.+-]{1,64}$/;
 function readVersion(path) {
@@ -879,10 +934,10 @@ function resolveInstall(root, env) {
   }
   const pluginRoot = env["CLAUDE_PLUGIN_ROOT"];
   if (pluginRoot !== void 0) {
-    const version2 = readVersion(join5(pluginRoot, ".claude-plugin", "plugin.json"));
+    const version2 = readVersion(join6(pluginRoot, ".claude-plugin", "plugin.json"));
     if (version2 !== void 0) return { version: version2, source: "marketplace" };
   }
-  const receipt = record3(readJson(join5(root, ".void", "receipts", "install-v1.json")));
+  const receipt = record3(readJson(voidLocalReadPath(root, "receipts", "install-v1.json")));
   const version = receipt?.["version"];
   if (typeof version === "string" && VERSION_SHAPE.test(version)) {
     const declared = receipt?.["source"];
@@ -894,14 +949,14 @@ function resolveInstall(root, env) {
 
 // src/freshness/cache.ts
 import { mkdirSync, readFileSync as readFileSync5, renameSync, writeFileSync } from "node:fs";
-import { dirname as dirname3, join as join6 } from "node:path";
+import { dirname as dirname3, join as join7 } from "node:path";
 var CACHE_TTL_MS = 24 * 60 * 60 * 1e3;
 var isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 function cacheFilePath(env) {
   const xdg = env["XDG_CACHE_HOME"]?.trim();
   const home = env["HOME"]?.trim();
-  const base = xdg !== void 0 && xdg !== "" ? xdg : home !== void 0 && home !== "" ? join6(home, ".cache") : void 0;
-  return base === void 0 ? void 0 : join6(base, "void-harness", "freshness.json");
+  const base = xdg !== void 0 && xdg !== "" ? xdg : home !== void 0 && home !== "" ? join7(home, ".cache") : void 0;
+  return base === void 0 ? void 0 : join7(base, "void-harness", "freshness.json");
 }
 function parseEntry(raw) {
   let json;
@@ -1077,7 +1132,7 @@ async function fetchLatestVersion(options = {}) {
 
 // src/freshness/npmrc.ts
 import { readFileSync as readFileSync6, statSync } from "node:fs";
-import { join as join7 } from "node:path";
+import { join as join8 } from "node:path";
 var MAX_NPMRC_BYTES = 64 * 1024;
 function readIfSmall(path) {
   try {
@@ -1088,10 +1143,10 @@ function readIfSmall(path) {
   }
 }
 function readNpmrc(cwd, env) {
-  const project = readIfSmall(join7(cwd, ".npmrc"));
+  const project = readIfSmall(join8(cwd, ".npmrc"));
   if (project !== void 0) return project;
   const home = env["HOME"]?.trim();
-  return home === void 0 || home === "" ? void 0 : readIfSmall(join7(home, ".npmrc"));
+  return home === void 0 || home === "" ? void 0 : readIfSmall(join8(home, ".npmrc"));
 }
 
 // src/freshness/notice.ts
@@ -1329,7 +1384,7 @@ import {
   realpathSync as realpathSync3,
   writeFileSync as writeFileSync2
 } from "node:fs";
-import { join as join8, relative as relative4 } from "node:path";
+import { join as join9, relative as relative4 } from "node:path";
 
 // src/lifecycle/trim.ts
 function record4(value) {
@@ -1399,7 +1454,7 @@ ${errors}
 function safeOutputDirectory(root) {
   try {
     const canonicalRoot = realpathSync3(root);
-    const directory = join8(root, ".void", "outputs");
+    const directory = voidLocalPath(root, "outputs");
     mkdirSync2(directory, { recursive: true, mode: 448 });
     const info = lstatSync2(directory);
     const canonicalDirectory = realpathSync3(directory);
@@ -1437,7 +1492,7 @@ function executeTrim(rawInput, root, env) {
   }
   const hash = createHash("sha256").update(extracted.text).digest("hex").slice(0, 12);
   const tool = extracted.tool.replaceAll(/[^A-Za-z0-9_]/g, "_").slice(0, 80);
-  const file = join8(directory, `${tool}-${process.pid}-${Date.now()}-${hash}.log`);
+  const file = join9(directory, `${tool}-${process.pid}-${Date.now()}-${hash}.log`);
   const spillPath = relative4(realpathSync3(root), file).replaceAll("\\", "/");
   const plan = planOutputTrim(extracted.text, {
     tool: extracted.tool,
@@ -1473,15 +1528,15 @@ function executeTrim(rawInput, root, env) {
 }
 
 // src/lifecycle/typecheck-executor.ts
-import { existsSync as existsSync4 } from "node:fs";
-import { join as join10 } from "node:path";
+import { existsSync as existsSync5 } from "node:fs";
+import { join as join11 } from "node:path";
 import { spawnSync as spawnSync3 } from "node:child_process";
 
 // src/lifecycle/typecheck.ts
 import {
   dirname as dirname4,
   isAbsolute as isAbsolute4,
-  join as join9,
+  join as join10,
   relative as relative5,
   resolve as resolve4
 } from "node:path";
@@ -1515,7 +1570,7 @@ function nearestTsconfigs(changedPaths, projectRoot2, hasFile) {
     if (!within3(root, target)) continue;
     let current = dirname4(target);
     while (within3(root, current)) {
-      const config = join9(current, "tsconfig.json");
+      const config = join10(current, "tsconfig.json");
       if (hasFile(config)) {
         found.add(config);
         break;
@@ -1571,8 +1626,8 @@ function executeTypecheck(root, env) {
   if (changed.length === 0) {
     return { status: "skipped", details: { reason: "no-touched-typescript" } };
   }
-  const configs = nearestTsconfigs(changed, root, existsSync4);
-  const configured = configuredTypecheck(readJson(join10(root, ".void", "config.json")));
+  const configs = nearestTsconfigs(changed, root, existsSync5);
+  const configured = configuredTypecheck(readJson(join11(root, ".void", "config.json")));
   const configuredArgv = "argv" in configured ? configured.argv : void 0;
   const warning = "warning" in configured ? configured.warning : void 0;
   const fallback = findExecutable("tsc", root, env);
@@ -1663,7 +1718,7 @@ import { resolve as resolve8 } from "node:path";
 // src/project-registry.ts
 import { createHash as createHash2 } from "node:crypto";
 import { lstat, mkdir, open, readFile, realpath } from "node:fs/promises";
-import { isAbsolute as isAbsolute5, join as join11, relative as relative6, resolve as resolve5 } from "node:path";
+import { isAbsolute as isAbsolute5, join as join12, relative as relative6, resolve as resolve5 } from "node:path";
 function code(error) {
   return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
 }
@@ -1676,7 +1731,7 @@ async function registerProjectRoot(root, globalDir) {
   const base = resolve5(globalDir);
   await mkdir(base, { recursive: true, mode: 448 });
   const canonicalBase = await realpath(base);
-  const projects = join11(base, "projects");
+  const projects = join12(base, "projects");
   await mkdir(projects, { recursive: true, mode: 448 });
   const info = await lstat(projects);
   if (!info.isDirectory() || info.isSymbolicLink()) {
@@ -1687,7 +1742,7 @@ async function registerProjectRoot(root, globalDir) {
     throw new Error("HOOK_REGISTRY_ESCAPE: projects resolves outside global dir");
   }
   const slug = createHash2("sha256").update(canonicalRoot).digest("hex").slice(0, 32);
-  const pointer = join11(projects, `${slug}.path`);
+  const pointer = join12(projects, `${slug}.path`);
   try {
     const handle = await open(pointer, "wx", 384);
     try {
@@ -1851,7 +1906,7 @@ import {
 import {
   dirname as dirname5,
   isAbsolute as isAbsolute7,
-  join as join12,
+  join as join13,
   relative as relative8,
   resolve as resolve7
 } from "node:path";
@@ -2125,7 +2180,7 @@ async function safeRunDirectory(root, missionId) {
   }
   const absoluteRoot = resolve7(root);
   const canonicalRoot = await realpath2(absoluteRoot);
-  const run = join12(absoluteRoot, ".void", "runs", missionId);
+  const run = voidLocalReadPath(absoluteRoot, "runs", missionId);
   let ancestor = run;
   while (!await exists(ancestor)) {
     const parent = dirname5(ancestor);
@@ -2275,9 +2330,9 @@ async function writeSequencedEventInternal(options) {
     throw new Error("HOOK_INVALID_EVENT_ID: expected evt_<opaque-id>");
   }
   const run = await safeRunDirectory(options.root, options.missionId);
-  const logPath = join12(run, "events.jsonl");
-  const statePath = join12(run, ".seq.state");
-  const lockPath = join12(run, ".seq.lock");
+  const logPath = join13(run, "events.jsonl");
+  const statePath = join13(run, ".seq.state");
+  const lockPath = join13(run, ".seq.lock");
   await Promise.all([
     rejectSymlink(logPath),
     rejectSymlink(statePath),

@@ -86,17 +86,17 @@ describe('ProjectGraph cache adapter', () => {
 		const identity = await rootIdentity(root);
 		const port = createMemoryProjectCachePort();
 		const cache = emptyCache(projectCacheRootKey(root));
-		const publication = await port.prepare(identity, '.void/cache/project-graph-v1.json', cache);
+		const publication = await port.prepare(identity, '.void/local/cache/project-graph-v1.json', cache);
 
-		expect(await port.load(identity, '.void/cache/project-graph-v1.json')).toEqual({
+		expect(await port.load(identity, '.void/local/cache/project-graph-v1.json')).toEqual({
 			status: 'missing',
 		});
 		await publication.commit();
-		expect(await port.load(identity, '.void/cache/project-graph-v1.json')).toEqual({
+		expect(await port.load(identity, '.void/local/cache/project-graph-v1.json')).toEqual({
 			status: 'missing',
 		});
 		await publication.finalize();
-		expect(await port.load(identity, '.void/cache/project-graph-v1.json')).toEqual({
+		expect(await port.load(identity, '.void/local/cache/project-graph-v1.json')).toEqual({
 			status: 'ready',
 			cache,
 		});
@@ -105,9 +105,9 @@ describe('ProjectGraph cache adapter', () => {
 	it('never reads or writes repository cache bytes through the default port', async () => {
 		const root = await mkdtemp(join(tmpdir(), 'void-project-cache-read-only-'));
 		const identity = await rootIdentity(root);
-		const cachePath = '.void/cache/project-graph-v1.json';
+		const cachePath = '.void/local/cache/project-graph-v1.json';
 		const cache = emptyCache(projectCacheRootKey(root));
-		await mkdir(join(root, '.void', 'cache'), { recursive: true });
+		await mkdir(join(root, '.void', 'local', 'cache'), { recursive: true });
 		await writeFile(join(root, cachePath), JSON.stringify(cache));
 		const port = createNodeProjectCachePort();
 
@@ -127,7 +127,7 @@ describe('ProjectGraph cache bounds', () => {
 			}),
 		);
 		const port = createMemoryProjectCachePort({ maxEntries: 2 });
-		const path = '.void/cache/project-graph-v1.json';
+		const path = '.void/local/cache/project-graph-v1.json';
 		const publish = async (index: number): Promise<void> => {
 			const fixture = roots[index];
 			if (fixture === undefined) throw new Error('cache fixture is missing');
@@ -161,7 +161,7 @@ describe('ProjectGraph cache isolation', () => {
 	it('detaches, deeply freezes, and revalidates every memory-cache boundary', async () => {
 		const root = await mkdtemp(join(tmpdir(), 'void-project-cache-detached-'));
 		const identity = await rootIdentity(root);
-		const cachePath = '.void/cache/project-graph-v1.json';
+		const cachePath = '.void/local/cache/project-graph-v1.json';
 		const port = createMemoryProjectCachePort();
 		const aliases = ['src/*'];
 		const raw = { compilerOptions: { paths: { '@/*': aliases } } };
@@ -209,7 +209,7 @@ describe('ProjectGraph cache publication', () => {
 	it('aborts a prepared publication without replacing committed state', async () => {
 		const root = await mkdtemp(join(tmpdir(), 'void-project-cache-abort-'));
 		const identity = await rootIdentity(root);
-		const path = '.void/cache/project-graph-v1.json';
+		const path = '.void/local/cache/project-graph-v1.json';
 		const port = createMemoryProjectCachePort();
 		const original = emptyCache(projectCacheRootKey(root));
 		const seeded = await port.prepare(identity, path, original);
@@ -237,7 +237,7 @@ describe('ProjectGraph cache publication', () => {
 	it('keeps concurrent candidates invisible until either candidate settles', async () => {
 		const root = await mkdtemp(join(tmpdir(), 'void-project-cache-interleaving-'));
 		const identity = await rootIdentity(root);
-		const path = '.void/cache/project-graph-v1.json';
+		const path = '.void/local/cache/project-graph-v1.json';
 		const port = createMemoryProjectCachePort();
 		const original = emptyCache(projectCacheRootKey(root));
 		const seeded = await port.prepare(identity, path, original);
@@ -271,7 +271,7 @@ describe('ProjectGraph cache finalization', () => {
 	it('serializes finalization and rejects a stale candidate after validation', async () => {
 		const root = await mkdtemp(join(tmpdir(), 'void-project-cache-nested-finalize-'));
 		const identity = await rootIdentity(root);
-		const path = '.void/cache/project-graph-v1.json';
+		const path = '.void/local/cache/project-graph-v1.json';
 		const port = createMemoryProjectCachePort();
 		const original = emptyCache(projectCacheRootKey(root));
 		const seeded = await port.prepare(identity, path, original);
@@ -307,7 +307,7 @@ describe('ProjectGraph cache finalization', () => {
 	it('keeps finalized state unchanged when the final CAS rejects publication', async () => {
 		const root = await mkdtemp(join(tmpdir(), 'void-project-cache-cas-'));
 		const identity = await rootIdentity(root);
-		const path = '.void/cache/project-graph-v1.json';
+		const path = '.void/local/cache/project-graph-v1.json';
 		const port = createMemoryProjectCachePort();
 		const original = emptyCache(projectCacheRootKey(root));
 		const seeded = await port.prepare(identity, path, original);

@@ -1,4 +1,18 @@
 export {
+  LOCAL_ENTRIES,
+  VOID_DIR,
+  VOID_LOCAL_DIR,
+  gitignoreBlock,
+  isLocalEntry,
+  legacyVoidPath,
+  patchGitignore,
+  pendingMigrations,
+  voidDir,
+  voidLocalDir,
+  voidLocalPath,
+  voidLocalReadPath,
+} from './void-layout.js';
+export {
   MAX_EVENT_LOG_BYTES,
   writeSequencedEvent,
   writeSequencedEventOnce,

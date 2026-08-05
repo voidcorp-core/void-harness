@@ -18,6 +18,7 @@ import { existsSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { patchGitignore } from '@voidcorp/hook-runner';
 import * as p from '@clack/prompts';
 import { prepareInstallCommit, seedInstallStage } from '../lib/local-install.js';
 import { type PackConfig, resolveEffectivePin } from '../lib/pack-config.js';
@@ -260,6 +261,10 @@ export async function init(args: readonly string[]): Promise<void> {
     await writeConfig(stageRoot, packs, opts, { pinVersion, stack });
     // 2. Copy PHILOSOPHY.md + create PROJECT-DOCTRINE.md from template
     await installDoctrineFiles(stageRoot, sourceRoot);
+    // 2b. Declare which half of .void git keeps. Left to each project, this got
+    // invented per repo — and one improvisation ignored config.json along with
+    // the telemetry it meant to exclude.
+    await ensureGitignoreBlock(stageRoot);
     // 3. Wire each selected runtime through its adapter.
     const wireCtx = {
       projectRoot: stageRoot,
@@ -445,6 +450,26 @@ async function writeConfig(
   const merged = { ...existing, packs: currentPacks };
   await writeFile(configPath, `${JSON.stringify(merged, null, 2)}\n`);
   tag(`merged (added ${c.bold(added.join(', '))} at ${effectivePin})`);
+}
+
+/**
+ * Add or refresh the managed `.gitignore` block, preserving every rule the
+ * project wrote itself. Idempotent, and reports "unchanged" rather than claiming
+ * a write it did not make.
+ */
+async function ensureGitignoreBlock(projectRoot: string): Promise<void> {
+  const path = join(projectRoot, '.gitignore');
+  const original = existsSync(path) ? await readFile(path, 'utf8') : '';
+  const patched = patchGitignore(original);
+  if (patched === original) {
+    line(`${c.dim(glyph.dot)}  ${c.dim('.gitignore'.padEnd(18))}${c.dim('block already current')}`);
+    return;
+  }
+  await writeFile(path, patched);
+  line(
+    `${c.green(glyph.check)}  ${c.dim('.gitignore'.padEnd(18))}`
+    + `${original === '' ? 'created' : 'block written'} (.void/local/ ignored, the rest of .void/ tracked)`,
+  );
 }
 
 async function installDoctrineFiles(projectRoot: string, sourceRoot: string): Promise<void> {

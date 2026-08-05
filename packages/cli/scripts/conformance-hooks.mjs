@@ -317,7 +317,7 @@ async function exerciseFixture(temporary, tarball, npmCache, mode) {
     ),
   );
 
-  const log = join(fixture, '.void', 'runs', missionId, 'events.jsonl');
+  const log = join(fixture, '.void', 'local', 'runs', missionId, 'events.jsonl');
   await requireRegularFile(log, `${mode} canonical event log`);
   assertCanonicalHookReplay(await readFile(log, 'utf8'), {
     missionId,

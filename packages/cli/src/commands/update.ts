@@ -23,6 +23,7 @@ import { cliVersion, findCoreSource } from '../lib/paths.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { banner, blank, c, footer, glyph, line, meta, row, status } from '../lib/render.js';
 import { readSettings, settingsPathFor } from '../lib/settings.js';
+import { migrateVoidLayout } from '../lib/void-migration.js';
 import {
   readInstallReceipt,
   type InstallReceipt,
@@ -53,6 +54,10 @@ function parseArgs(args: readonly string[]): UpdateOptions {
 export async function update(args: readonly string[]): Promise<void> {
   const opts = parseArgs(args);
   const projectRoot = process.cwd();
+  // Layout first, and on every install source: this is not a marketplace concern.
+  // It also runs before the receipt is read, since the receipt itself is observed
+  // state and moves with the rest.
+  await reportVoidMigration(projectRoot, opts.dryRun);
   const receipt = await readInstallReceipt(projectRoot);
   if (updateModeFor(receipt) === 'local' && receipt !== undefined) {
     await updateLocal(projectRoot, receipt, opts.dryRun);
@@ -127,6 +132,32 @@ export async function update(args: readonly string[]): Promise<void> {
 
 export function updateModeFor(receipt: InstallReceipt | undefined): InstallReceipt['source'] {
   return receipt?.source ?? 'marketplace';
+}
+
+/**
+ * Move observed state under `.void/local/` and install the managed ignore block,
+ * reporting what moved. Silent on a project that is already migrated, so a
+ * routine update does not grow a paragraph about a one-time change.
+ */
+async function reportVoidMigration(projectRoot: string, dryRun: boolean): Promise<void> {
+  const result = await migrateVoidLayout(projectRoot, dryRun);
+  if (result.moved.length === 0 && result.conflicts.length === 0 && !result.gitignoreTouched) return;
+
+  const verb = dryRun ? 'would move' : 'moved';
+  if (result.moved.length > 0) {
+    line(`${c.green(glyph.check)}  ${c.dim('layout'.padEnd(12))}${verb} ${result.moved.length} observed path(s) ${c.dim(glyph.to)} .void/local/ (${result.moved.join(', ')})`);
+    if (!dryRun) {
+      // Anything that was committed now shows as a deletion. Saying so is the
+      // difference between a clean commit and a confusing `git status`.
+      line(`${c.dim(' '.repeat(4))}${c.dim('git may show these as deletions — commit them; the new path is ignored')}`);
+    }
+  }
+  if (result.gitignoreTouched) {
+    line(`${c.green(glyph.check)}  ${c.dim('gitignore'.padEnd(12))}${dryRun ? 'would write' : 'wrote'} the managed block (.void/local/ ignored, the rest of .void/ tracked)`);
+  }
+  for (const entry of result.conflicts) {
+    line(`${c.yellow(glyph.up)}  ${c.dim('layout'.padEnd(12))}${c.yellow('left in place')}: .void/${entry} — .void/local/${entry} already exists; merge or delete one, readers still fall back`);
+  }
 }
 
 async function updateLocal(

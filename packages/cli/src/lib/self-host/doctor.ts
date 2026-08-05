@@ -8,6 +8,7 @@ import {
 } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { delimiter, join, resolve } from 'node:path';
+import { voidLocalPath, voidLocalReadPath } from '@voidcorp/hook-runner';
 import { replayEventLog } from '@voidcorp/mission-engine/events';
 import type { Runtime } from '../runtime.js';
 import { adaptersFor } from '../runtime-adapters.js';
@@ -161,7 +162,7 @@ async function probeRuntimeEvent(
       cwd: root,
       env: selfHostChildEnvironment(process.env, {
         VOID_PROJECT_ROOT: root,
-        VOID_GLOBAL_DIR: join(root, '.void', 'generated', '.global'),
+        VOID_GLOBAL_DIR: voidLocalPath(root, 'generated', '.global'),
         VOID_AGENT_RUNTIME: runtime,
         VOID_MISSION_ID: missionId,
       }),
@@ -183,7 +184,7 @@ async function probeRuntimeEvent(
       detail: `${runtime} hook probe failed or timed out`,
     };
   }
-  const log = join(root, '.void', 'runs', missionId, 'events.jsonl');
+  const log = join(voidLocalReadPath(root, 'runs'), missionId, 'events.jsonl');
   let body: string;
   try {
     body = await readFile(log, 'utf8');
@@ -246,7 +247,7 @@ export async function diagnoseSelfHost(
 ): Promise<SelfHostDiagnosis> {
   const canonicalRoot = resolve(root);
   const artifactRoot = join(
-    resolve(options.generatedRoot ?? join(canonicalRoot, '.void', 'generated')),
+    resolve(options.generatedRoot ?? voidLocalPath(canonicalRoot, 'generated')),
     'current',
   );
   const receipt = await readSelfHostReceipt(artifactRoot);

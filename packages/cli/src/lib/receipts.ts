@@ -1,10 +1,13 @@
 import { createHash } from 'node:crypto';
 import { lstat, readFile, rmdir, unlink } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
+import { voidLocalReadPath } from '@voidcorp/hook-runner';
 import type { Runtime } from './runtime.js';
 import { isSafeRelativePath } from './transaction.js';
 
-export const INSTALL_RECEIPT_PATH = '.void/receipts/install-v1.json';
+// Observed state: the receipt records what THIS machine installed and the
+// hashes it wrote, so it lives under `.void/local/` with the rest.
+export const INSTALL_RECEIPT_PATH = '.void/local/receipts/install-v1.json';
 
 export interface ReceiptFileInput {
   readonly path: string;
@@ -106,7 +109,7 @@ export function parseReceipt(body: string): InstallReceipt | undefined {
 
 export async function readInstallReceipt(projectRoot: string): Promise<InstallReceipt | undefined> {
   try {
-    return parseReceipt(await readFile(join(projectRoot, ...INSTALL_RECEIPT_PATH.split('/')), 'utf8'));
+    return parseReceipt(await readFile(voidLocalReadPath(projectRoot, 'receipts', 'install-v1.json'), 'utf8'));
   } catch {
     return undefined;
   }

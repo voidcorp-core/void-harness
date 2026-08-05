@@ -19,6 +19,7 @@ import {
   relative,
   resolve,
 } from 'node:path';
+import { voidLocalReadPath } from './void-layout.js';
 import {
   replayEventLog,
   serializeEvent,
@@ -86,7 +87,11 @@ async function safeRunDirectory(root: string, missionId: string): Promise<string
   }
   const absoluteRoot = resolve(root);
   const canonicalRoot = await realpath(absoluteRoot);
-  const run = join(absoluteRoot, '.void', 'runs', missionId);
+  // Per mission, not per project: a mission already journaling at the pre-split
+  // path keeps writing there until it ends. Writing unconditionally to the new
+  // location split an in-flight mission across both halves the moment the harness
+  // was upgraded mid-session, and a sequenced log cannot be concatenated back.
+  const run = voidLocalReadPath(absoluteRoot, 'runs', missionId);
   let ancestor = run;
   while (!(await exists(ancestor))) {
     const parent = dirname(ancestor);
