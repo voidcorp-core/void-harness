@@ -152,6 +152,31 @@ export async function openProjectGraphStore(
   });
 }
 
+/**
+ * Whether this query got the number of targets it needs, checked without a store.
+ *
+ * Opening a store builds or revalidates the graph, which is seconds of work. A
+ * caller who forgot the file argument must learn that immediately, not after the
+ * command has done everything except answer.
+ */
+export function projectQueryArity(
+  name: ProjectQueryName,
+  targetCount: number,
+): ProjectQueryProblem | undefined {
+  if (name === 'staleness') return undefined;
+  if (name === 'path') {
+    return targetCount === 2
+      ? undefined
+      : {
+          problem: 'path needs two files: where to start and where to end',
+          fix: 'void-harness graph path <from> <to>',
+        };
+  }
+  return targetCount > 0
+    ? undefined
+    : { problem: `${name} needs a file to answer about`, fix: `void-harness graph ${name} <file>` };
+}
+
 /** Repository-relative POSIX path for a target, or the reason it is refused. */
 function resolveTarget(store: ProjectGraphStore, target: string): string | ProjectQueryProblem {
   const absolute = isAbsolute(target) ? target : resolve(store.root, target);
@@ -269,19 +294,8 @@ export function runProjectQuery(
     };
   }
 
-  const needsTwo = request.name === 'path';
-  if (needsTwo && resolved.length !== 2) {
-    return fail({
-      problem: 'path needs two files: where to start and where to end',
-      fix: 'void-harness graph path <from> <to>',
-    });
-  }
-  if (!needsTwo && resolved.length === 0) {
-    return fail({
-      problem: `${request.name} needs a file to answer about`,
-      fix: `void-harness graph ${request.name} <file>`,
-    });
-  }
+  const arity = projectQueryArity(request.name, resolved.length);
+  if (arity !== undefined) return fail(arity);
 
   const withFallback = (report: Omit<ProjectQueryReport, 'name'>): ProjectQueryReport => ({
     name: request.name,

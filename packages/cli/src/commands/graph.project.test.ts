@@ -164,6 +164,24 @@ describe('graph <project query>', () => {
     expect(out).toContain('src/core.ts');
   });
 
+  it('reports a missing argument without opening the store, which costs a full build', async () => {
+    let opened = 0;
+    try {
+      await graph(['impact'], {
+        openProjectGraph: async () => {
+          opened += 1;
+          return store();
+        },
+      });
+    } catch (error) {
+      if (!(error instanceof Error) || !error.message.startsWith('exit:')) throw error;
+    }
+
+    expect(opened).toBe(0);
+    expect(out).toMatch(/needs a file/i);
+    expect(exitCode).toBe(2);
+  });
+
   it('asks for both ends when path got one, exit 2', async () => {
     await runGraph(['path', 'src/app.ts']);
 

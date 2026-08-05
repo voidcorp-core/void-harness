@@ -338,11 +338,15 @@ function relatedThrough(
 	// A renamed path answers for the path it became, for the same reason impact
 	// does: the question is about a file, and the file is where the rename left it.
 	const subjects = new Set([id, ...lineageOf(snapshot, id, DEFAULT_PROJECT_QUERY_BUDGET.maxDepth)]);
-	const values = snapshot.edges
-		.filter(
-			(edge) => kinds.has(edge.kind) && subjects.has(reverse ? edge.to : edge.from),
-		)
-		.map((edge) => (reverse ? edge.from : edge.to));
+	// Deduplicated, because a path and its successor may carry the same edge: the
+	// same owner named twice reads as two owners, which the graph never said.
+	const values = [
+		...new Set(
+			snapshot.edges
+				.filter((edge) => kinds.has(edge.kind) && subjects.has(reverse ? edge.to : edge.from))
+				.map((edge) => (reverse ? edge.from : edge.to)),
+		),
+	];
 	// Absent is not empty: the graph knowing nothing and there genuinely being
 	// nothing are different facts, and only one of them is safe to act on.
 	return values.length === 0 ? { kind: 'unknown', reason: missing } : { kind: 'known', values };

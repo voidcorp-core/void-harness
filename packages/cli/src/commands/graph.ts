@@ -51,6 +51,7 @@ import {
   openProjectGraphStore,
   ProjectGraphStoreError,
   PROJECT_QUERY_NAMES,
+  projectQueryArity,
   runProjectQuery,
   type ProjectGraphStore,
   type ProjectQueryName,
@@ -260,6 +261,10 @@ async function projectQuery(
   if ('problem' in budget) renderProblem(name, budget, 2);
   const targets = projectQueryTargets(rest);
   if ('problem' in targets) renderProblem(name, targets, 2);
+  // Before the store: opening it builds the graph, and a missing argument must
+  // not cost the caller a full extraction to be told about.
+  const arity = projectQueryArity(name, targets.length);
+  if (arity !== undefined) renderProblem(name, arity, 2);
 
   let store: ProjectGraphStore;
   try {

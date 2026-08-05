@@ -299,6 +299,21 @@ describe('ownersOf and testsFor', () => {
 		expect(testsFor(fixture(), 'file:nope').kind).toBe('unknown');
 	});
 
+	it('names each owner once when a path and its successor share one', () => {
+		// Two edges, one owner. Reporting it twice reads as two owners, which is a
+		// different fact from the one the graph holds.
+		const moved = snapshot(
+			[node('file:old', 'file'), node('file:new', 'file'), node('owner:ada', 'owner')],
+			[
+				edge('previous-id', 'file:old', 'file:new'),
+				edge('owned-by', 'file:old', 'owner:ada'),
+				edge('owned-by', 'file:new', 'owner:ada'),
+			],
+		);
+
+		expect(ownersOf(moved, 'file:old')).toEqual({ kind: 'known', values: ['owner:ada'] });
+	});
+
 	it('answers a renamed path from the path it became', () => {
 		// `old.ts` became `a`, which alice owns. The rename did not change who owns
 		// the file, so neither may the answer.
