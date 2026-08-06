@@ -38,19 +38,27 @@ only proves that the first run happened.
 
 **Queries are not the cost of asking a question.** Every query here runs against a snapshot already
 in memory. A `void-harness graph <query>` invocation first opens the store, which builds or
-revalidates the ProjectGraph, and that is where the wall-clock goes. On this repository (1,633
+revalidates the ProjectGraph, and that is where the wall-clock goes. On this repository (1,638
 indexed files) on 2026-08-05, one CLI invocation measured ~3.5 s, of which the queries above are
 single-digit milliseconds.
 
-Two facts behind that, both owned by extraction (DEV-436), not by this surface:
+The reason, corrected on 2026-08-06 after reading the code rather than inferring it from behaviour:
 
-- A one-shot CLI process starts with a cold change journal, so it rescans and rehashes the tree.
-  The incremental fast path is real (see `../project-graph/README.md`: 34 ms p95 for one changed
-  file) but it needs a caller that keeps a journal across observations.
-- The cache is published only when the build is `fresh`. This repository builds `partial` — 4
-  oversized files and 3 unparseable sources out of 3,268 scanned — so no cache is ever published
-  and every invocation pays the full cold build. Any project with a single generated artifact over
-  the byte budget is in the same position.
+- **There is no persistent cache, by decision.** The default cache port is an in-memory LRU scoped to
+  the current process, and the repository cache port deliberately never reads or writes
+  (`PROJECT_CACHE_READ_ONLY`) because a repository author can reseal a self-hash and portable Node
+  cannot close path-based parent-swap races. A one-shot CLI process therefore has nothing to reuse,
+  whatever its build state. The incremental fast path measured in `../project-graph/README.md`
+  (34 ms p95 for one changed file) is real and applies within one long-lived process.
+- An earlier version of this file blamed the cost on the build being `partial`. That was wrong: the
+  partial state was one gate in front of another, and the one behind it is a security decision, not
+  an accident. Making a one-shot invocation fast is a separate design question — a safe persistent
+  cache, or a long-lived process — not a bug in this surface.
+
+The same earlier version reported "4 oversized files and 3 unparseable sources". Both counts were
+wrong: an advisory build observes the tree twice and the issues were not deduplicated, and a
+non-literal dynamic import was miscoded as an unparseable source. This repository has **2** oversized
+generated artifacts and **0** unparseable sources.
 
 **`repeated` is not a cache measurement.** The queries build their adjacency index per call by
 design (`query.ts`), so a repeated run that stays close to a cold one is the expected result, not a

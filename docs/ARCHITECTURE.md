@@ -398,7 +398,17 @@ workspace fallback, applies pnpm-compatible positive and `!`-excluded patterns b
 manifests, recognizes a bounded Vitest call grammar, and preserves
 volume-specific case behavior. ESM clauses, re-exports, wildcards, and
 defaults are explicit export surfaces; CommonJS assignment exports are limited to JavaScript input.
-Non-literal dynamic imports and invalid config chains remain explicit partial evidence. CI runs
+An edge static analysis cannot determine — a non-literal dynamic import, a specifier that is not a
+bounded printable string — is reported as `unresolved-import` on the file that holds it and does not
+degrade the build state, because a whole project marked partial by one ordinary lazy import made the
+source fallback fire unconditionally and therefore say nothing; the query surface reports that
+uncertainty against the files in an answer instead. `invalid-source` is kept for a file that genuinely
+does not parse, and declaration files are no longer transpiled for diagnostics (they have no output,
+and asking for one threw). Stable per-path exclusions — oversized, binary, symlink, permission — never
+abandon the advisory verification scan nor count as a path-set change, so one large generated artifact
+can no longer switch off the check that catches a tree mutated during evidence collection; identical
+issues observed by both passes are reported once. Invalid config chains remain explicit partial
+evidence. CI runs
 package tests/typecheck, a two-track ProjectGraph benchmark, and a packed
 `@voidcorp/harness-graph/project` consumer import on Ubuntu, macOS, and Windows. The performance
 track injects a deterministic authoritative journal port and explicitly emits every fixture mutation,
