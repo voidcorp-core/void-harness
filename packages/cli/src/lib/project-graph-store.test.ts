@@ -243,6 +243,62 @@ describe('runProjectQuery — budget and fallback', () => {
     expect(report.fallback).toContain('packages/big/a.ts');
   });
 
+  it('warns about an edge it could not follow, scoped to the files in the answer', () => {
+    const report = runProjectQuery(
+      store({
+        issues: [
+          {
+            code: 'unresolved-import',
+            path: 'packages/app/src/index.ts',
+            message: 'dynamic import specifier is not a string literal',
+          },
+        ],
+      }),
+      { name: 'impact', targets: ['packages/core/src/index.ts'] },
+    );
+
+    // The build stays fresh — one unknowable edge does not discredit a project.
+    // But the caller asking about a file that holds one has to hear about it, or
+    // the warning was not made precise, it was deleted.
+    expect(report.fallback).toBeUndefined();
+    expect(report.uncertain).toMatch(/packages\/app\/src\/index\.ts/);
+    expect(report.uncertain).toMatch(/dynamic import/i);
+  });
+
+  it('stays silent about unfollowed edges in files the answer never mentions', () => {
+    const report = runProjectQuery(
+      store({
+        issues: [
+          {
+            code: 'unresolved-import',
+            path: 'packages/elsewhere/thing.ts',
+            message: 'dynamic import specifier is not a string literal',
+          },
+        ],
+      }),
+      { name: 'impact', targets: ['packages/core/src/index.ts'] },
+    );
+
+    expect(report.uncertain).toBeUndefined();
+  });
+
+  it('warns when the queried file itself holds the unfollowed edge', () => {
+    const report = runProjectQuery(
+      store({
+        issues: [
+          {
+            code: 'unresolved-import',
+            path: 'packages/core/src/index.ts',
+            message: 'dynamic import specifier is not a string literal',
+          },
+        ],
+      }),
+      { name: 'tests-for', targets: ['packages/core/src/index.ts'] },
+    );
+
+    expect(report.uncertain).toMatch(/packages\/core\/src\/index\.ts/);
+  });
+
   it('falls back on a degraded build even when the observation looks complete', () => {
     const report = runProjectQuery(store({ state: 'degraded' }), {
       name: 'tests-for',

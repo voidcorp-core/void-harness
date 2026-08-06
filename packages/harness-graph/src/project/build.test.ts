@@ -1410,7 +1410,7 @@ it('converts invalid extractor output into a bounded partial graph', async () =>
 	expect(result.graph.nodes).toHaveLength(1);
 });
 
-it('marks non-literal dynamic imports partial so callers fall back to source', async () => {
+it('names the file whose dynamic import it could not follow, without condemning the build', async () => {
 	const root = await fixtureCopy();
 	await writeFile(
 		join(root, 'packages/app/src/runtime-import.ts'),
@@ -1422,7 +1422,18 @@ it('marks non-literal dynamic imports partial so callers fall back to source', a
 		git: { inspect: async () => availableGit() },
 	});
 
-	expect(result.state).toBe('partial');
-	expect(result.cachePublished).toBe(false);
-	expect(result.issues).toContainEqual(expect.objectContaining({ code: 'invalid-source' }));
+	// This used to report `invalid-source` and mark the whole build partial, so a
+	// caller would fall back to source. The intent was right and the granularity
+	// was not: the file is valid, one edge is unknowable, and every TypeScript
+	// project that lazy-loads anything was permanently partial. A warning that is
+	// always on is not a warning. The unknown is now reported on the file that
+	// holds it, and consumers scope their fallback to that file.
+	expect(result.issues).toContainEqual(
+		expect.objectContaining({
+			code: 'unresolved-import',
+			path: 'packages/app/src/runtime-import.ts',
+		}),
+	);
+	expect(result.issues.some((issue) => issue.code === 'invalid-source')).toBe(false);
+	expect(result.state).toBe('fresh');
 });

@@ -288,6 +288,10 @@ async function projectQuery(
     line(`  ${c.yellow('fallback')} ${report.fallback}`);
     blank();
   }
+  if (report.uncertain !== undefined) {
+    line(`  ${c.yellow('uncertain')} ${report.uncertain}`);
+    blank();
+  }
   if (report.unknown !== undefined) line(`  ${c.dim(report.unknown)}`);
   for (const answer of report.answers) line(`  ${answer}`);
   if (report.truncated) {

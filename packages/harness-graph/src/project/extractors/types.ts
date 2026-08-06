@@ -52,7 +52,15 @@ export interface ProjectFileExtraction {
 	readonly exports: readonly string[];
 	readonly symbols: readonly ProjectSymbol[];
 	readonly tests: readonly string[];
+	/** The file could not be parsed as written: a defect in the source. */
 	readonly diagnostics: readonly string[];
+	/**
+	 * Edges this analysis cannot determine from a valid file, such as an import
+	 * whose specifier is a variable. Kept apart from `diagnostics` because the two
+	 * demand opposite responses: one is a file to fix, the other is a limit of
+	 * static analysis that no amount of fixing the file will remove.
+	 */
+	readonly unresolved: readonly string[];
 	readonly workspace?: ProjectWorkspace;
 	readonly typeScriptConfig?: TypeScriptConfig;
 }
@@ -92,6 +100,7 @@ export type ProjectBuildIssueCode =
 	| 'oversized-file'
 	| 'permission-denied'
 	| 'symlink-skipped'
+	| 'unresolved-import'
 	| 'unsafe-cache'
 	| 'unsafe-root'
 	| 'unsafe-path';

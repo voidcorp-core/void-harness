@@ -2,6 +2,7 @@ import { posix } from 'node:path';
 import type { ProjectGraphCacheEntry } from './cache.js';
 import { classifyProjectFile, projectPathIsIgnored } from './extractors/filesystem.js';
 import type {
+	ProjectBuildIssue,
 	ProjectFileExtraction,
 	ProjectFileKind,
 	ProjectScannedFile,
@@ -16,12 +17,28 @@ import {
 	validateProjectRoot,
 } from './project-build-context.js';
 
+/**
+ * Scan issues that exclude a named path deterministically, rather than casting
+ * doubt on the path set as a whole.
+ *
+ * The distinction is the whole point: a truncated scan cannot say what it missed,
+ * so nothing built on it can be verified. A file the scan deliberately stepped
+ * over is fully accounted for, and every later observation steps over it too.
+ */
+const STABLE_SCAN_ISSUE_CODES: ReadonlySet<ProjectBuildIssue['code']> = new Set([
+	'oversized-file',
+	'symlink-skipped',
+	'permission-denied',
+	'binary-file',
+]);
+
 const EMPTY_EXTRACTION: ProjectFileExtraction = Object.freeze({
 	imports: Object.freeze([]),
 	exports: Object.freeze([]),
 	symbols: Object.freeze([]),
 	tests: Object.freeze([]),
 	diagnostics: Object.freeze([]),
+	unresolved: Object.freeze([]),
 });
 
 function hasSortedPathBelow(paths: readonly string[], directory: string): boolean {
@@ -140,6 +157,13 @@ async function processProjectFile(
 					file.path,
 					`${extraction.diagnostics.length} parse diagnostics`,
 				),
+			);
+		}
+		if (extraction.unresolved.length > 0) {
+			// Reported where it is true, on the file that holds the edge, and
+			// deliberately not a reason to call the whole build partial.
+			context.ledger.issues.push(
+				projectBuildIssue('unresolved-import', file.path, extraction.unresolved.join('; ')),
 			);
 		}
 		return extractedEntry(file, read.hash, extraction);
@@ -283,12 +307,23 @@ function validateIndexBudget(
 	}
 }
 
+/**
+ * Did the tree move between the two observations?
+ *
+ * A scanned path that was never indexed is not evidence of a mutation when the
+ * read refused it for a stable reason — binary content, a size or permission
+ * refusal. Those paths are listed by every scan and indexed by none. Counting
+ * them as drift turns one unreadable file into a `concurrent-change` against the
+ * whole project, which is both false and alarming.
+ */
 function sameIndexedPaths(
 	entriesByPath: ReadonlyMap<string, ProjectGraphCacheEntry>,
 	scanned: readonly ProjectScannedFile[],
+	unreadable: ReadonlySet<string>,
 ): boolean {
+	const expected = scanned.filter((file) => !unreadable.has(file.path));
 	return (
-		entriesByPath.size === scanned.length && scanned.every((file) => entriesByPath.has(file.path))
+		entriesByPath.size === expected.length && expected.every((file) => entriesByPath.has(file.path))
 	);
 }
 
@@ -341,8 +376,21 @@ export async function verifyIndexedProjectFiles(
 	context.ledger.issues.push(...scan.issues);
 	sampleProjectHeap(context);
 	if (!(await validateProjectRoot(context, 'during verification scan'))) return false;
-	if (scan.issues.length > 0) return false;
-	if (!sameIndexedPaths(entriesByPath, scan.files)) {
+	// Only an issue that puts the observed path set in doubt may abandon
+	// verification. A file that is too big to read, a skipped symlink, or a path
+	// permission denies are deterministic exclusions: the second observation drops
+	// exactly what the first did. Treating them as instability meant one oversized
+	// generated artifact switched off the check that catches a tree mutated
+	// mid-build — on every project that has one, in the default advisory mode.
+	if (scan.issues.some((issue) => !STABLE_SCAN_ISSUE_CODES.has(issue.code))) return false;
+	// Paths this build already refused to read, for reasons that do not change
+	// between two observations of the same bytes.
+	const unreadable = new Set(
+		context.ledger.issues
+			.filter((issue) => STABLE_SCAN_ISSUE_CODES.has(issue.code))
+			.map((issue) => issue.path),
+	);
+	if (!sameIndexedPaths(entriesByPath, scan.files, unreadable)) {
 		return recordVerificationMismatch(
 			context,
 			'.',

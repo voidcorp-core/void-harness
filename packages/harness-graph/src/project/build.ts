@@ -8,6 +8,7 @@ import {
 	type ProjectGraphBuildState,
 } from './cache-publication.js';
 import {
+	distinctProjectIssues,
 	prepareProjectBuild,
 	projectBuildMetrics,
 	type ProjectGraphBuildMetrics,
@@ -48,7 +49,7 @@ export async function buildProjectGraph(
 		state: rendering.state,
 		cacheStatus: context.cacheStatus,
 		cachePublished,
-		issues: Object.freeze(context.ledger.issues),
+		issues: distinctProjectIssues(context.ledger.issues),
 		metrics: projectBuildMetrics(context, entries.length),
 	});
 }

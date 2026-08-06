@@ -2,6 +2,8 @@ import type { GraphSnapshotV3 } from '../model/v3/types.js';
 import { type ProjectCachePublication, sealProjectGraphCache } from './cache.js';
 import { assembleProjectGraph, exceedsProjectGraphBudget } from './graph-assembly.js';
 import {
+	distinctProjectIssues,
+	NON_DEGRADING_ISSUE_CODES,
 	projectBuildIssue,
 	projectPeakHeapDelta,
 	sampleProjectHeap,
@@ -19,10 +21,15 @@ export interface ProjectGraphRendering {
 }
 
 function initialBuildState(context: ProjectBuildContext): ProjectGraphBuildState {
-	if (context.ledger.issues.length === 0) return 'fresh';
-	return context.ledger.issues.every((entry) => entry.code === 'journal-unavailable')
-		? 'degraded'
-		: 'partial';
+	// Only issues that put the graph's completeness in doubt decide the state. An
+	// import whose specifier is not a literal is a bounded local unknown, reported
+	// on its own file; letting it mark a whole project partial would make the word
+	// mean "this project contains TypeScript" and cost it every use it has.
+	const deciding = distinctProjectIssues(context.ledger.issues).filter(
+		(entry) => !NON_DEGRADING_ISSUE_CODES.has(entry.code),
+	);
+	if (deciding.length === 0) return 'fresh';
+	return deciding.every((entry) => entry.code === 'journal-unavailable') ? 'degraded' : 'partial';
 }
 
 function assembleRendering(
@@ -36,7 +43,7 @@ function assembleRendering(
 		renderRootOnly ? [] : evidence.tombstones,
 		evidence.git,
 		state,
-		context.ledger.issues.length,
+		distinctProjectIssues(context.ledger.issues).length,
 		context.projectRoot.caseSensitive,
 		evidence.configsByPath,
 		evidence.snapshot.id,

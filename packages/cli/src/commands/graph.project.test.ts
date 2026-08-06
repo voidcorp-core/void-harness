@@ -114,6 +114,26 @@ describe('graph <project query>', () => {
     expect(out).toContain('src/app.ts');
   });
 
+  it('shows an unfollowed edge as uncertainty, not as a reason to distrust the graph', async () => {
+    await runGraph(
+      ['impact', 'src/core.ts'],
+      store({
+        issues: [
+          {
+            code: 'unresolved-import',
+            path: 'src/app.ts',
+            message: 'dynamic import specifier is not a string literal',
+          },
+        ],
+      }),
+    );
+
+    expect(out).toMatch(/uncertain/i);
+    expect(out).toMatch(/src\/app\.ts/);
+    // Distinct from the source fallback: the graph is sound, one link is unknowable.
+    expect(out).not.toMatch(/fallback/i);
+  });
+
   it('says an answer was truncated rather than showing a short list as complete', async () => {
     await runGraph(['impact', 'src/core.ts', '--max-nodes', '0']);
 

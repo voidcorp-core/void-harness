@@ -96,6 +96,12 @@ export interface ProjectQueryReport {
   readonly unknown?: string;
   /** Set when the caller must read source rather than trust this answer. */
   readonly fallback?: string;
+  /**
+   * Set when a file this answer touches holds an edge the extractor could not
+   * follow. Narrower than `fallback`: the graph is trustworthy, one link in it is
+   * not knowable statically.
+   */
+  readonly uncertain?: string;
   /** Set on a usage or safety error; `answers` is then empty. */
   readonly error?: ProjectQueryProblem;
 }
@@ -228,6 +234,32 @@ function explainLines(graph: GraphSnapshotV3, id: string): readonly string[] {
 const NAMED_GAPS = 3;
 
 /**
+ * Unfollowed edges among the files this answer actually names.
+ *
+ * A dynamic import with a computed specifier used to mark the whole build partial,
+ * which meant every TypeScript project that lazy-loads anything warned on every
+ * query — a warning that is always on is not a warning. It is reported here
+ * instead, against the files in play, so it fires when it bears on the answer and
+ * stays quiet when it does not.
+ */
+function uncertainEdges(
+  store: ProjectGraphStore,
+  paths: readonly string[],
+): string | undefined {
+  const touched = new Set(paths);
+  const relevant = store.issues.filter(
+    (issue) => issue.code === 'unresolved-import' && touched.has(issue.path),
+  );
+  if (relevant.length === 0) return undefined;
+  const named = relevant
+    .slice(0, NAMED_GAPS)
+    .map((issue) => `${issue.path} (${issue.message})`)
+    .join('; ');
+  const more = relevant.length > NAMED_GAPS ? `, +${relevant.length - NAMED_GAPS} more` : '';
+  return `${relevant.length} edge(s) could not be followed from static analysis: ${named}${more}`;
+}
+
+/**
  * What extraction left out, named.
  *
  * "partial" alone is unusable: a caller cannot tell seven skipped files out of
@@ -297,11 +329,17 @@ export function runProjectQuery(
   const arity = projectQueryArity(request.name, resolved.length);
   if (arity !== undefined) return fail(arity);
 
-  const withFallback = (report: Omit<ProjectQueryReport, 'name'>): ProjectQueryReport => ({
-    name: request.name,
-    ...report,
-    ...(fallback === undefined ? {} : { fallback }),
-  });
+  const withFallback = (report: Omit<ProjectQueryReport, 'name'>): ProjectQueryReport => {
+    // Both ends count: the file asked about, and the files answered. An edge the
+    // extractor could not follow bears on the answer from either side.
+    const uncertain = uncertainEdges(store, [...resolved, ...report.answers]);
+    return {
+      name: request.name,
+      ...report,
+      ...(fallback === undefined ? {} : { fallback }),
+      ...(uncertain === undefined ? {} : { uncertain }),
+    };
+  };
 
   const ids = resolved.map((path) => projectFileId(path));
   const known = (index: number): boolean =>
