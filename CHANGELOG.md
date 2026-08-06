@@ -1,5 +1,45 @@
 # Changelog
 
+## [2.6.0](https://github.com/voidcorp-core/void-harness/compare/v2.5.1...v2.6.0) (2026-08-06)
+
+
+### Features
+
+* **cli:** ask the project graph in paths, and never present a partial answer as complete ([57b58c4](https://github.com/voidcorp-core/void-harness/commit/57b58c404382705acf7c6a530dca72fa127acfb9))
+* **cli:** report an unfollowable edge against the files in the answer, not the whole project ([9158b94](https://github.com/voidcorp-core/void-harness/commit/9158b940d845e8c587e979c00d8d9f80ac8e5266))
+* **graph:** a renamed path answers for what it became, proved against a real extraction ([f677e44](https://github.com/voidcorp-core/void-harness/commit/f677e446d8ef77772282530b9ae02c96a117672d))
+* **graph:** the seven ProjectGraph queries, bounded and honest about what they do not know ([f5b47a4](https://github.com/voidcorp-core/void-harness/commit/f5b47a4bb4002ab66202f83c4b7b2834841491bc))
+* **graph:** the seven ProjectGraph queries, their CLI surface, and what the benchmark does not cover ([88f4e4a](https://github.com/voidcorp-core/void-harness/commit/88f4e4a3ab323a7088f88adf22297a99c818dcf1))
+* **hydrate:** an exact manifest, and a restore that proves itself ([1bda140](https://github.com/voidcorp-core/void-harness/commit/1bda14052daef15bd32210d895ca89b7f8bdb9fc))
+* **hydrate:** an exact manifest, and a restore that proves itself ([10a1b03](https://github.com/voidcorp-core/void-harness/commit/10a1b03c8cb8e94f989952ebfe31c1caab94124a))
+* **layout:** reopen the derived decision, now that hydrate can prove the restore ([9d3352a](https://github.com/voidcorp-core/void-harness/commit/9d3352ab33fed9141cd4ddca3b2aa8a8066d88b9))
+* **layout:** reopen the derived decision, now that hydrate can prove the restore ([b959c7f](https://github.com/voidcorp-core/void-harness/commit/b959c7f2faa248f7f7236c7a23e3de5bd9eda34e))
+* **layout:** split .void by ownership so what ships is what the project wrote ([9ca1c6a](https://github.com/voidcorp-core/void-harness/commit/9ca1c6a5c58e1b80a7d234d678a238b9ed08ba64))
+* **layout:** split .void by ownership so what ships is what the project wrote ([0982056](https://github.com/voidcorp-core/void-harness/commit/0982056da44a9e6575cabd0af4214bd253736609))
+* **layout:** stop committing regenerated content, keep what a clone needs to work ([967aa3c](https://github.com/voidcorp-core/void-harness/commit/967aa3c7caa3f0e79ab923abf5a22eec1b4d1c8a))
+* **release:** bound what consumers download instead of discovering it after publish ([5b87c37](https://github.com/voidcorp-core/void-harness/commit/5b87c37c24c55ab479aa16bd4c60ae5a37ae8d5d))
+* **release:** bound what consumers download instead of discovering it after publish ([17f2622](https://github.com/voidcorp-core/void-harness/commit/17f2622198c280f6c1d2eb5f451f7375cff265b3))
+
+
+### Bug Fixes
+
+* **cli:** doctor stops sending operators after problems that are not theirs ([4b4ee9e](https://github.com/voidcorp-core/void-harness/commit/4b4ee9ef974564a8046172aff37453216ce215c1))
+* **cli:** doctor stops sending operators after problems that are not theirs ([b82374c](https://github.com/voidcorp-core/void-harness/commit/b82374c7cdee5fcdbb958ebd868a4a4d8c4050ac))
+* **cli:** stop counting an unfollowable edge as a path extraction missed ([15d6689](https://github.com/voidcorp-core/void-harness/commit/15d6689f870839e9ed2ceb9fae90172f4a958cb6))
+* **cli:** stop counting an unfollowable edge as a path extraction missed ([c4430a4](https://github.com/voidcorp-core/void-harness/commit/c4430a49d54c5e52335a16c421e33010d41e1645))
+* **decisions:** restore the accepted record, and put the forward pointer where it belongs ([19edb25](https://github.com/voidcorp-core/void-harness/commit/19edb2516786f32f15d58b0c96d0beac00c3687e))
+* **graph:** a build is partial when its completeness is in doubt, not when one edge is unknowable ([fcb9c88](https://github.com/voidcorp-core/void-harness/commit/fcb9c88f3ccc1677d7e0d9722dbe24e249adf9a4))
+* **graph:** alias the createRequire import so a bundling host can inline this package ([02d1c1f](https://github.com/voidcorp-core/void-harness/commit/02d1c1f7781385f56ce4500787d3fde7ef47f042))
+* **graph:** dedupe related answers, and refuse a missing argument before the store opens ([d3a51dc](https://github.com/voidcorp-core/void-harness/commit/d3a51dc6089d578f33eca0c80756bf28d5a7ed74))
+* **graph:** make partial mean something again, and stop a big file from switching off verification ([257ad91](https://github.com/voidcorp-core/void-harness/commit/257ad91a8b67e4b1d4e6494a4e4c967e1aaa7a4d))
+* **layout:** carry the split through the conformance scripts and the fleet rollup ([37080ce](https://github.com/voidcorp-core/void-harness/commit/37080cee3a165602db960b448b0e9d5e829cf793))
+* **layout:** ownership comes from the install receipt, never from the directory ([e678905](https://github.com/voidcorp-core/void-harness/commit/e6789059832f82d90f53713419f1eb5ca7f4958a))
+
+
+### Reverts
+
+* **layout:** take the derived-content decision out of this PR ([455d5ec](https://github.com/voidcorp-core/void-harness/commit/455d5ec148bfc8186628b9fe45b5741bd4495264))
+
 ## [2.5.1](https://github.com/voidcorp-core/void-harness/compare/v2.5.0...v2.5.1) (2026-08-03)
 
 
