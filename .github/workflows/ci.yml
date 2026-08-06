@@ -121,6 +121,12 @@ jobs:
       - name: Publish safety (no workspace protocol in npm packages)
         run: pnpm check:publish
 
+      - name: Package size ceilings
+        # Packs the same tarballs as the gate above and bounds what consumers
+        # download. Prints every size on every run, so growth is a trajectory
+        # rather than a one-day surprise.
+        run: pnpm check:size
+
       - name: Build packages
         # Build before typecheck: packs resolve cross-package imports
         # (e.g. @voidcorp/pack-monorepo/result) through their dist exports,

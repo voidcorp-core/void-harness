@@ -29,6 +29,7 @@
     "sync:docs": "bash scripts/sync-agent-docs.sh",
     "version:check": "node scripts/check-version-lockstep.mjs",
     "check:publish": "node scripts/check-publish-safety.mjs",
+    "check:size": "node scripts/check-package-size.mjs",
     "bump": "node scripts/bump-version.mjs",
     "release": "node scripts/check-publish-safety.mjs && pnpm --filter voidharness publish",
     "certification:build": "pnpm --filter @voidcorp/harness-graph build && pnpm --filter voidharness build:certification",
