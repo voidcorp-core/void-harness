@@ -164,6 +164,22 @@ void-harness update    # refresh marketplace cache + bump .void/config.json pins
 # then restart Claude Code
 ```
 
+## Package size ceilings
+
+`pnpm check:size` (`scripts/check-package-size.mjs`, run in CI beside `check:publish`) packs every
+publishable package with `pnpm pack` and fails when a compressed tarball exceeds its declared
+ceiling. The compressed tarball is what a consumer downloads on `npx voidharness`; unpacked and
+bundle sizes are diagnostics, not budgets. Every size prints on every run, breach or not, so growth
+reads as a trajectory rather than a one-day alarm.
+
+Ceilings live in `PACKAGE_LIMITS` in that script, set 2026-08-06 with roughly one sixth of headroom
+over the sizes measured then (voidharness 728.2 kB, harness-graph 85.7 kB, packs under 8 kB).
+
+**Raising a ceiling is normal.** Do it in the same commit as the change that needs the room, with
+the reason in the commit message, so the growth is a decision on the record rather than a drift
+nobody signed. A package published without a ceiling fails the gate: an unbounded package is the one
+that grows.
+
 ## What counts as breaking
 
 For pre-1.0 we use caret-incompatible semver (`^0.5.x` matches `0.5.*`, not `0.6.*`):
