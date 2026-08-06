@@ -279,10 +279,23 @@ function gapSummary(issues: readonly ProjectBuildIssue[]): string {
   return `${issues.length} path(s) not extracted (${codes}): ${named.join(', ')}${more}`;
 }
 
+/**
+ * Issues that mean a path is absent from the graph.
+ *
+ * An `unresolved-import` is not one of them: that file was read, parsed and
+ * indexed, and only one of its edges is unknowable. Counting it as a missing path
+ * both inflates the gap and misstates what is wrong with it — which is the exact
+ * failure this surface exists to avoid.
+ */
+function missedPaths(issues: readonly ProjectBuildIssue[]): readonly ProjectBuildIssue[] {
+  return issues.filter((issue) => issue.code !== 'unresolved-import');
+}
+
 /** Why a caller must read source instead of trusting this store, if they must. */
 function fallbackReason(store: ProjectGraphStore): string | undefined {
   const staleness = stalenessOf(store.graph, store.observation);
-  const gaps = store.issues.length > 0 ? `; ${gapSummary(store.issues)}` : '';
+  const missed = missedPaths(store.issues);
+  const gaps = missed.length > 0 ? `; ${gapSummary(missed)}` : '';
   if (staleness.fallback === 'source') return `${staleness.reason}${gaps}`;
   if (store.state !== 'fresh') {
     return `the build is ${store.state}: read source for what it did not see${gaps}`;

@@ -224,6 +224,31 @@ describe('runProjectQuery — budget and fallback', () => {
     expect(report.answers.length).toBeGreaterThan(0);
   });
 
+  it('counts only paths extraction actually missed, never an edge it could not follow', () => {
+    const report = runProjectQuery(
+      store({
+        state: 'partial',
+        observation: { rootHash: 'sha256:aaa', complete: false },
+        issues: [
+          { code: 'oversized-file', path: 'apps/big/bundle.js', message: 'over the byte budget' },
+          {
+            code: 'unresolved-import',
+            path: 'packages/app/src/index.ts',
+            message: 'dynamic import specifier is not a string literal',
+          },
+        ],
+      }),
+      { name: 'impact', targets: ['packages/core/src/index.ts'] },
+    );
+
+    // The file with the unfollowable edge WAS extracted. Counting it among the
+    // paths extraction missed inflates the gap and misstates what is wrong with
+    // it — the exact failure this whole surface exists to avoid.
+    expect(report.fallback).toMatch(/1 path/);
+    expect(report.fallback).not.toMatch(/unresolved-import/);
+    expect(report.fallback).not.toContain('packages/app/src/index.ts');
+  });
+
   it('names what was left out, so a 7-file gap does not discredit 3000 good files', () => {
     const report = runProjectQuery(
       store({
