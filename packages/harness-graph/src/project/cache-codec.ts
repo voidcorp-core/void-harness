@@ -218,6 +218,7 @@ function parseExtraction(value: unknown, path: string): ProjectFileExtraction {
 		symbols: parseCachedSymbols(input, path),
 		tests: strings(input['tests'], `${path}.tests`, 10_000),
 		diagnostics: strings(input['diagnostics'], `${path}.diagnostics`, 10_000),
+		unresolved: strings(input['unresolved'], `${path}.unresolved`, 10_000),
 		...(workspace === undefined ? {} : { workspace }),
 		...(typeScriptConfig === undefined ? {} : { typeScriptConfig }),
 	});

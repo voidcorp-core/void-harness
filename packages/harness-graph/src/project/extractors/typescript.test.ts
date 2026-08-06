@@ -164,7 +164,10 @@ describe('TypeScript extraction diagnostics', () => {
 		});
 
 		expect(extraction.imports).toEqual([]);
-		expect(extraction.diagnostics).toContain('module specifier must be a bounded printable string');
+		// Not a diagnostic: the file is not defective, the specifier is simply not
+		// something a static reader can turn into an edge.
+		expect(extraction.diagnostics).toEqual([]);
+		expect(extraction.unresolved).toContain('module specifier is not a bounded printable string');
 	});
 
 	it('reports a non-literal dynamic import instead of silently dropping topology', () => {
@@ -176,7 +179,8 @@ describe('TypeScript extraction diagnostics', () => {
 		});
 
 		expect(extraction.imports).toEqual([]);
-		expect(extraction.diagnostics).toContain('dynamic import must use a string literal');
+		expect(extraction.diagnostics).toEqual([]);
+		expect(extraction.unresolved).toContain('dynamic import specifier is not a string literal');
 	});
 });
 

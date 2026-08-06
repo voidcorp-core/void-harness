@@ -162,6 +162,44 @@ export function projectBuildIssue(
 	return Object.freeze({ code, path, message });
 }
 
+/**
+ * Issues that describe a bounded local unknown rather than doubt about the graph.
+ *
+ * They are still reported — a caller asking about that file deserves to know an
+ * edge could not be determined — but they do not move the build state. An
+ * `await import(variable)` is ordinary lazy loading; letting one mark a whole
+ * project partial forever made `partial` mean "this project contains TypeScript",
+ * and a word that is always true carries no warning.
+ */
+export const NON_DEGRADING_ISSUE_CODES: ReadonlySet<ProjectBuildIssue['code']> = new Set([
+	'unresolved-import',
+]);
+
+/**
+ * The same fact seen twice is one fact.
+ *
+ * An advisory build observes the tree twice — index, then verify — and both
+ * observations legitimately report the same skipped file. Reported as two, a
+ * reader counts two oversized files where there is one, and any judgement made
+ * on the count is off by however many times the tree was walked.
+ *
+ * Deduplication is on the whole issue: two identical (code, path, message)
+ * triples carry no information the first does not.
+ */
+export function distinctProjectIssues(
+	issues: readonly ProjectBuildIssue[],
+): readonly ProjectBuildIssue[] {
+	const seen = new Set<string>();
+	const distinct: ProjectBuildIssue[] = [];
+	for (const issue of issues) {
+		const key = `${issue.code} :: ${issue.path} :: ${issue.message}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		distinct.push(issue);
+	}
+	return Object.freeze(distinct);
+}
+
 function boundedHeapLimit(value: number): number {
 	if (!Number.isSafeInteger(value) || value < 1 || value > MAX_HEAP_DELTA) {
 		throw new Error(
@@ -207,6 +245,7 @@ function unavailableExtractor(): ProjectExtractor {
 				symbols: Object.freeze([]),
 				tests: Object.freeze([]),
 				diagnostics: Object.freeze([]),
+				unresolved: Object.freeze([]),
 			}),
 	});
 }

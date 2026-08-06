@@ -47,6 +47,7 @@ function cacheWithNestedConfig(rootKey: string, raw: Record<string, unknown>): P
 					symbols: [],
 					tests: [],
 					diagnostics: [],
+					unresolved: [],
 					typeScriptConfig: {
 						path: 'tsconfig.json',
 						basePath: '.',

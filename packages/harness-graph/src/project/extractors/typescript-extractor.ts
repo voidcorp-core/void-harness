@@ -28,6 +28,7 @@ interface ExtractionState {
 	readonly tests: string[];
 	readonly exportNames: string[];
 	readonly diagnostics: string[];
+	readonly unresolved: string[];
 }
 
 function sourceKind(api: TypeScriptApi, path: string): ts.ScriptKind {
@@ -168,7 +169,9 @@ function addModuleImport(state: ExtractionState, specifier: string, dynamic: boo
 			return point < 0x20 || point === 0x7f;
 		});
 	if (invalid) {
-		state.diagnostics.push('module specifier must be a bounded printable string');
+		// The file is fine; this specifier is simply not something a static reader
+		// can turn into an edge.
+		state.unresolved.push('module specifier is not a bounded printable string');
 		return;
 	}
 	state.imports.push({ specifier, dynamic });
@@ -234,7 +237,9 @@ function collectSyntaxEvidence(
 			const specifier = stringArgument(api, node);
 			if (node.expression.kind === api.SyntaxKind.ImportKeyword) {
 				if (specifier === undefined) {
-					state.diagnostics.push('dynamic import must use a string literal');
+					// Ordinary lazy loading. Nothing is wrong with the file: the target
+					// is chosen at runtime, so no static reader can name it.
+					state.unresolved.push('dynamic import specifier is not a string literal');
 				} else addModuleImport(state, specifier, true);
 			} else if (
 				api.isIdentifier(node.expression) &&
@@ -276,6 +281,11 @@ function completeExportSurface(
 }
 
 function compilerDiagnostics(api: TypeScriptApi, input: ProjectFileInput): readonly string[] {
+	// A declaration file has nothing to emit, and asking the compiler to transpile
+	// one throws "Debug Failure. Output generation failed" — which was then reported
+	// as an invalid source, on a file that is perfectly valid and simply has no
+	// output. Syntax errors in a .d.ts still surface through createSourceFile.
+	if (/\.d\.[cm]?ts$/.test(input.path)) return Object.freeze([]);
 	const diagnostics =
 		api.transpileModule(input.content, {
 			fileName: input.path,
@@ -301,6 +311,7 @@ function extractTypeScript(api: TypeScriptApi, input: ProjectFileInput): Project
 		tests: [],
 		exportNames: [],
 		diagnostics: [],
+		unresolved: [],
 	};
 	collectTopLevelDeclarations(api, source, state);
 	collectSyntaxEvidence(api, source, input, state);
@@ -317,6 +328,7 @@ function extractTypeScript(api: TypeScriptApi, input: ProjectFileInput): Project
 		symbols: uniqueSorted(surfaceSymbols, (entry) => `${entry.name}:${entry.kind}`),
 		tests: Object.freeze([...new Set(state.tests)].sort()),
 		diagnostics: Object.freeze([...state.diagnostics, ...compilerDiagnostics(api, input)]),
+		unresolved: Object.freeze([...new Set(state.unresolved)].sort()),
 	});
 }
 
