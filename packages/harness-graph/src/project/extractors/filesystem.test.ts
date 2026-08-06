@@ -1,7 +1,10 @@
-import { chmod, mkdir, mkdtemp, rename, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, rename, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
+import { cleanupProjectTempDirs, projectTempDir } from '../test-support.js';
+
+afterAll(cleanupProjectTempDirs);
 import {
 	classifyProjectFile,
 	createNodeFileSystemPort,
@@ -40,7 +43,7 @@ describe('ProjectGraph filesystem paths', () => {
 	it(
 		'indexes authored .void files while excluding generated state and ordinary assets',
 		async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-fs-authored-'));
+		const root = await projectTempDir('void-project-fs-authored-');
 		await mkdir(join(root, '.void', 'runs'), { recursive: true });
 		await mkdir(join(root, 'public'));
 		await writeFile(join(root, '.void', 'config.json'), '{}');
@@ -60,7 +63,7 @@ describe('ProjectGraph filesystem paths', () => {
 
 describe('ProjectGraph filesystem root failures', () => {
 	it('returns an explicit issue when the project disappears before a scan', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-fs-removed-'));
+		const root = await projectTempDir('void-project-fs-removed-');
 		const port = createNodeFileSystemPort();
 		await rm(root, { recursive: true });
 
@@ -79,7 +82,7 @@ describe('ProjectGraph filesystem root failures', () => {
 	it.skipIf(process.platform === 'win32')(
 		'returns a partial scan instead of rejecting when the root cannot be read',
 		async () => {
-			const root = await mkdtemp(join(tmpdir(), 'void-project-fs-permission-'));
+			const root = await projectTempDir('void-project-fs-permission-');
 			await writeFile(join(root, 'value.ts'), 'export const value = true;\n');
 			await chmod(root, 0o000);
 			try {
@@ -101,7 +104,7 @@ describe('ProjectGraph filesystem root failures', () => {
 
 describe('ProjectGraph filesystem reads', () => {
 	it('bounds reads, rejects binary data, and reports symlinks without following them', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-fs-'));
+		const root = await projectTempDir('void-project-fs-');
 		await mkdir(join(root, 'src'));
 		await writeFile(join(root, 'src', 'large.ts'), 'x'.repeat(65));
 		await writeFile(join(root, 'src', 'binary.ts'), Buffer.from([0, 1, 2]));
@@ -134,8 +137,8 @@ describe('ProjectGraph filesystem reads', () => {
 	});
 
 	it('fails closed when a scanned parent is swapped for an outside symlink', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-fs-swap-root-'));
-		const outside = await mkdtemp(join(tmpdir(), 'void-project-fs-swap-outside-'));
+		const root = await projectTempDir('void-project-fs-swap-root-');
+		const outside = await projectTempDir('void-project-fs-swap-outside-');
 		await mkdir(join(root, 'src'));
 		await writeFile(join(root, 'src', 'value.ts'), 'safe');
 		await writeFile(join(outside, 'value.ts'), 'leak');
@@ -160,7 +163,7 @@ describe('ProjectGraph filesystem reads', () => {
 
 describe('ProjectGraph filesystem scan limits', () => {
 	it('bounds directory count, depth, and aggregate file bytes', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-fs-limits-'));
+		const root = await projectTempDir('void-project-fs-limits-');
 		await mkdir(join(root, 'a', 'nested'), { recursive: true });
 		await mkdir(join(root, 'b'));
 		await writeFile(join(root, 'a', 'value.ts'), '1234');
@@ -195,7 +198,7 @@ describe('ProjectGraph filesystem scan limits', () => {
 	});
 
 	it('bounds every streamed directory entry, including entries that are never files', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-fs-entries-'));
+		const root = await projectTempDir('void-project-fs-entries-');
 		const type = process.platform === 'win32' ? 'junction' : 'dir';
 		await symlink(tmpdir(), join(root, 'one'), type);
 		await symlink(tmpdir(), join(root, 'two'), type);

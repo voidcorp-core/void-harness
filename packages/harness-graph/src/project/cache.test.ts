@@ -1,7 +1,7 @@
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile } from 'node:fs/promises';
+
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import {
 	createMemoryProjectCachePort,
 	createNodeProjectCachePort,
@@ -12,6 +12,9 @@ import {
 } from './cache.js';
 import type { ProjectRootIdentity } from './extractors/types.js';
 import { createNodeProjectRootPort } from './root.js';
+import { cleanupProjectTempDirs, projectTempDir } from './test-support.js';
+
+afterAll(cleanupProjectTempDirs);
 
 function emptyCache(rootKey: string): ProjectGraphCache {
 	return sealProjectGraphCache({
@@ -83,7 +86,7 @@ async function rootIdentity(root: string): Promise<ProjectRootIdentity> {
 
 describe('ProjectGraph cache adapter', () => {
 	it('prepares, atomically commits, and reloads an explicitly trusted memory cache', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-cache-'));
+		const root = await projectTempDir('void-project-cache-');
 		const identity = await rootIdentity(root);
 		const port = createMemoryProjectCachePort();
 		const cache = emptyCache(projectCacheRootKey(root));
@@ -104,7 +107,7 @@ describe('ProjectGraph cache adapter', () => {
 	});
 
 	it('never reads or writes repository cache bytes through the default port', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-cache-read-only-'));
+		const root = await projectTempDir('void-project-cache-read-only-');
 		const identity = await rootIdentity(root);
 		const cachePath = '.void/local/cache/project-graph-v1.json';
 		const cache = emptyCache(projectCacheRootKey(root));
@@ -123,7 +126,7 @@ describe('ProjectGraph cache bounds', () => {
 	it('bounds session-local caches and evicts the least recently used root', async () => {
 		const roots = await Promise.all(
 			[0, 1, 2].map(async () => {
-				const root = await mkdtemp(join(tmpdir(), 'void-project-cache-lru-'));
+				const root = await projectTempDir('void-project-cache-lru-');
 				return { identity: await rootIdentity(root), cache: emptyCache(projectCacheRootKey(root)) };
 			}),
 		);
@@ -160,7 +163,7 @@ describe('ProjectGraph cache bounds', () => {
 
 describe('ProjectGraph cache isolation', () => {
 	it('detaches, deeply freezes, and revalidates every memory-cache boundary', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-cache-detached-'));
+		const root = await projectTempDir('void-project-cache-detached-');
 		const identity = await rootIdentity(root);
 		const cachePath = '.void/local/cache/project-graph-v1.json';
 		const port = createMemoryProjectCachePort();
@@ -194,7 +197,7 @@ describe('ProjectGraph cache isolation', () => {
 	});
 
 	it('rejects a correctly-shaped cache whose nested bytes no longer match its hash', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-cache-reseal-'));
+		const root = await projectTempDir('void-project-cache-reseal-');
 		const identity = await rootIdentity(root);
 		const raw = { compilerOptions: { paths: { '@/*': ['src/*'] } } };
 		const cache = cacheWithNestedConfig(projectCacheRootKey(root), raw);
@@ -208,7 +211,7 @@ describe('ProjectGraph cache isolation', () => {
 
 describe('ProjectGraph cache publication', () => {
 	it('aborts a prepared publication without replacing committed state', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-cache-abort-'));
+		const root = await projectTempDir('void-project-cache-abort-');
 		const identity = await rootIdentity(root);
 		const path = '.void/local/cache/project-graph-v1.json';
 		const port = createMemoryProjectCachePort();
@@ -236,7 +239,7 @@ describe('ProjectGraph cache publication', () => {
 	});
 
 	it('keeps concurrent candidates invisible until either candidate settles', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-cache-interleaving-'));
+		const root = await projectTempDir('void-project-cache-interleaving-');
 		const identity = await rootIdentity(root);
 		const path = '.void/local/cache/project-graph-v1.json';
 		const port = createMemoryProjectCachePort();
@@ -270,7 +273,7 @@ describe('ProjectGraph cache publication', () => {
 
 describe('ProjectGraph cache finalization', () => {
 	it('serializes finalization and rejects a stale candidate after validation', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-cache-nested-finalize-'));
+		const root = await projectTempDir('void-project-cache-nested-finalize-');
 		const identity = await rootIdentity(root);
 		const path = '.void/local/cache/project-graph-v1.json';
 		const port = createMemoryProjectCachePort();
@@ -306,7 +309,7 @@ describe('ProjectGraph cache finalization', () => {
 	});
 
 	it('keeps finalized state unchanged when the final CAS rejects publication', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-cache-cas-'));
+		const root = await projectTempDir('void-project-cache-cas-');
 		const identity = await rootIdentity(root);
 		const path = '.void/local/cache/project-graph-v1.json';
 		const port = createMemoryProjectCachePort();
@@ -339,7 +342,7 @@ describe('ProjectGraph cache finalization', () => {
 
 describe('ProjectGraph cache lineage', () => {
 	it('rejects cyclic rename lineage before it can enter a cache payload', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-cache-lineage-'));
+		const root = await projectTempDir('void-project-cache-lineage-');
 		const base = {
 			schemaVersion: 1 as const,
 			rootKey: projectCacheRootKey(root),
@@ -389,7 +392,7 @@ describe('ProjectGraph cache lineage', () => {
 
 describe('projectCacheRootKey canonicalisation', () => {
 	it('agrees with the root port for the same directory', async () => {
-		const dir = await mkdtemp(join(tmpdir(), 'void-rootkey-'));
+		const dir = await projectTempDir('void-rootkey-');
 		const root = await createNodeProjectRootPort().open(dir);
 		expect(projectCacheRootKey(dir)).toBe(projectCacheRootKey(root.path));
 	});
@@ -400,7 +403,7 @@ describe('projectCacheRootKey canonicalisation', () => {
 		// published rootKey and the verified one drift apart and publication fails with
 		// PROJECT_CACHE_INVALID. Windows hits this on every run because callers hand
 		// down paths with varying drive-letter and segment casing.
-		const base = await mkdtemp(join(tmpdir(), 'void-RootCase-'));
+		const base = await projectTempDir('void-RootCase-');
 		const dir = join(base, 'CasedProject');
 		await mkdir(dir);
 		const lowered = join(base, 'casedproject');

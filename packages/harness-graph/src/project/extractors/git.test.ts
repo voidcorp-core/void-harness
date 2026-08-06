@@ -1,16 +1,19 @@
 import { execFile } from 'node:child_process';
-import { chmod, mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { createNodeProjectRootPort } from '../root.js';
 import { createNodeGitPort, parseGitNameStatus, parseGitOwnership } from './git.js';
+import { cleanupProjectTempDirs, projectTempDir } from '../test-support.js';
+
+afterAll(cleanupProjectTempDirs);
 
 const run = promisify(execFile);
 
 async function isolatedProjectRoot(prefix: string): Promise<string> {
-	const parent = await mkdtemp(join(tmpdir(), prefix));
+	const parent = await projectTempDir(prefix);
 	const root = join(parent, 'root');
 	await mkdir(root);
 	return root;
@@ -85,7 +88,7 @@ describe('Git extractor commands', () => {
 
 describe('Git extractor repository binding', () => {
 	it('rejects an external gitdir that has no worktree backlink before running Git', async () => {
-		const parent = await mkdtemp(join(tmpdir(), 'void-project-gitdir-hostile-'));
+		const parent = await projectTempDir('void-project-gitdir-hostile-');
 		const root = join(parent, 'root');
 		const externalGitDirectory = join(parent, 'external.git');
 		await mkdir(root);
@@ -111,7 +114,7 @@ describe('Git extractor repository binding', () => {
 	});
 
 	it('accepts a linked worktree only with a backlink to this root', async () => {
-		const parent = await mkdtemp(join(tmpdir(), 'void-project-gitdir-worktree-'));
+		const parent = await projectTempDir('void-project-gitdir-worktree-');
 		const repository = join(parent, 'repository');
 		const worktree = join(parent, 'worktree');
 		await mkdir(repository);
@@ -167,7 +170,7 @@ describe('Git extractor degraded ownership', () => {
 
 describe('Git extractor identity changes', () => {
 	it('degrades evidence when a swapped repository restores the root', async () => {
-		const parent = await mkdtemp(join(tmpdir(), 'void-project-git-aba-'));
+		const parent = await projectTempDir('void-project-git-aba-');
 		const root = join(parent, 'root');
 		const saved = join(parent, 'saved');
 		const mallory = join(parent, 'mallory');

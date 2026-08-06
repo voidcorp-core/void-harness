@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
-import { lstat, readFile, readdir } from 'node:fs/promises';
+import { lstat, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import {
@@ -217,6 +218,36 @@ class ExactProjectJournal implements ProjectChangeJournal {
 	close(): void {
 		this.#states.clear();
 	}
+}
+
+
+/**
+ * A temporary directory that the suite actually takes back.
+ *
+ * `mkdtemp` was called directly in twelve test files and cleaned up in three, so
+ * every run left a few hundred fixture trees behind. Measured on 2026-08-06, the
+ * system temp directory held 119,489 entries and 4.7 GB of them. That is not only
+ * waste: `mkdtemp` has to find an unused name in that directory, and every file
+ * operation inside it pays for its size, so the suite slowly makes itself slower
+ * until timing-sensitive tests start tripping their timeouts.
+ *
+ * Register here, drop the whole tree in `afterAll`.
+ */
+const registeredTempDirs = new Set<string>();
+
+export async function projectTempDir(prefix: string): Promise<string> {
+	const created = await mkdtemp(join(tmpdir(), prefix));
+	registeredTempDirs.add(created);
+	return created;
+}
+
+/** Remove every directory this file handed out. Safe to call more than once. */
+export async function cleanupProjectTempDirs(): Promise<void> {
+	const pending = [...registeredTempDirs];
+	registeredTempDirs.clear();
+	await Promise.all(
+		pending.map((directory) => rm(directory, { recursive: true, force: true, maxRetries: 3 })),
+	);
 }
 
 export function createExactProjectChangeJournal(): ProjectChangeJournal {

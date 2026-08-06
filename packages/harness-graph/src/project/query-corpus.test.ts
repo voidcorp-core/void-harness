@@ -14,12 +14,12 @@
 // the caller reads an incomplete list as a complete one.
 
 import { execFile } from 'node:child_process';
-import { cp, mkdir, mkdtemp, readFile, rename, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { cp, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { expect, it } from 'vitest';
+import { afterAll, expect, it } from 'vitest';
 import type { GraphSnapshotV3 } from '../model/v3/types.js';
 import { buildProjectGraph, type ProjectGraphBuildResult } from './build.js';
 import { createMemoryProjectCachePort } from './cache.js';
@@ -33,7 +33,9 @@ import {
 	subgraphOf,
 	testsFor,
 } from './query.js';
-import { createExactProjectChangeJournal, fixtureCompilerLookup } from './test-support.js';
+import { cleanupProjectTempDirs, createExactProjectChangeJournal, fixtureCompilerLookup, projectTempDir } from './test-support.js';
+
+afterAll(cleanupProjectTempDirs);
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'test-fixtures', 'monorepo');
 const run = promisify(execFile);
@@ -44,7 +46,7 @@ const CORE = 'packages/core/src/index.ts';
 const SECONDARY = 'packages/core/src/secondary.ts';
 
 async function corpusRoot(): Promise<string> {
-	const parent = await mkdtemp(join(tmpdir(), 'void-query-corpus-'));
+	const parent = await projectTempDir('void-query-corpus-');
 	const root = join(parent, 'root');
 	await cp(FIXTURE, root, { recursive: true });
 	await mkdir(join(root, '.void', 'local', 'cache'), { recursive: true });

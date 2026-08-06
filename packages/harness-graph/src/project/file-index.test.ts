@@ -1,11 +1,13 @@
-import { mkdtemp, rename, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { rename, writeFile } from 'node:fs/promises';
+
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { buildProjectGraph } from './build.js';
 import { createMemoryProjectCachePort } from './cache.js';
-import { fixtureCompilerLookup } from './test-support.js';
+import { cleanupProjectTempDirs, fixtureCompilerLookup, projectTempDir } from './test-support.js';
 import { type ProjectGitSnapshot, projectFileId } from './extractors/types.js';
+
+afterAll(cleanupProjectTempDirs);
 import type {
 	ProjectChangeAuthority,
 	ProjectChangeJournal,
@@ -74,7 +76,7 @@ function controlledJournal(authority: ProjectChangeAuthority = 'authoritative') 
 
 describe('ProjectGraph structural delta safety', () => {
 	it('rescans a one-sided rename event instead of retaining both active paths', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-file-index-'));
+		const root = await projectTempDir('void-project-file-index-');
 		const from = 'old.ts';
 		const to = 'new.ts';
 		await writeFile(join(root, from), 'export const value = true;\n');
@@ -103,7 +105,7 @@ describe('ProjectGraph structural delta safety', () => {
 
 describe('ProjectGraph advisory journal verification', () => {
 	it('fully verifies an unchanged advisory observation instead of trusting it', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-file-index-advisory-'));
+		const root = await projectTempDir('void-project-file-index-advisory-');
 		await writeFile(join(root, 'value.ts'), 'export const value = true;\n');
 		const cache = createMemoryProjectCachePort();
 		const controlled = controlledJournal('advisory');
@@ -126,7 +128,7 @@ describe('ProjectGraph advisory journal verification', () => {
 	});
 
 	it('rejects an advisory snapshot when a file changes during Git inspection', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-file-index-race-'));
+		const root = await projectTempDir('void-project-file-index-race-');
 		const path = join(root, 'value.ts');
 		await writeFile(path, 'export const value = true;\n');
 		const cache = createMemoryProjectCachePort();

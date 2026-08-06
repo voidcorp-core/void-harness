@@ -2,7 +2,6 @@ import { execFile } from 'node:child_process';
 import {
 	cp,
 	mkdir,
-	mkdtemp,
 	readFile,
 	rename,
 	rm,
@@ -16,7 +15,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { expect, it } from 'vitest';
+import { afterAll, expect, it } from 'vitest';
 import { parseGraphSnapshot } from '../model/v3/schema.js';
 import {
 	buildProjectGraph as buildProjectGraphUnbound,
@@ -38,9 +37,11 @@ import {
 	createNodeProjectChangeJournal,
 	type ProjectWatchPort,
 } from './journal.js';
-import { createExactProjectChangeJournal, fixtureCompilerLookup } from './test-support.js';
+import { cleanupProjectTempDirs, createExactProjectChangeJournal, fixtureCompilerLookup, projectTempDir } from './test-support.js';
 // @ts-expect-error -- shared JS conformance helper, no type declarations
 import { packageManagerCommand } from '../../../cli/scripts/conformance-process.mjs';
+
+afterAll(cleanupProjectTempDirs);
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'test-fixtures', 'monorepo');
 const run = promisify(execFile);
@@ -89,7 +90,7 @@ function buildProjectGraph(options: ProjectGraphBuildOptions) {
 }
 
 async function fixtureCopy(): Promise<string> {
-	const parent = await mkdtemp(join(tmpdir(), 'void-project-build-'));
+	const parent = await projectTempDir('void-project-build-');
 	const root = join(parent, 'root');
 	await cp(FIXTURE, root, { recursive: true });
 	await mkdir(join(root, '.void', 'local', 'cache'), { recursive: true });
@@ -102,7 +103,7 @@ async function fixtureCopy(): Promise<string> {
 }
 
 async function isolatedProjectRoot(prefix: string): Promise<string> {
-	const parent = await mkdtemp(join(tmpdir(), prefix));
+	const parent = await projectTempDir(prefix);
 	const root = join(parent, 'root');
 	await mkdir(root);
 	return root;
@@ -401,7 +402,7 @@ it('keeps a committed cache candidate invisible when final validation rejects it
 it('rolls back a committed cache candidate when the real root mutates during commit', async () => {
 	const root = await fixtureCopy();
 	const moved = `${root}-moved-during-commit`;
-	const outside = await mkdtemp(join(tmpdir(), 'void-project-commit-outside-'));
+	const outside = await projectTempDir('void-project-commit-outside-');
 	const cache = createMemoryProjectCachePort();
 	const git = { inspect: async () => availableGit() };
 	await buildProjectGraphNative({ root, cache, git });
@@ -435,7 +436,7 @@ it('rolls back a committed cache candidate when the real root mutates during com
 it('does not publish when the root mutates inside cache finalization', async () => {
 	const root = await fixtureCopy();
 	const moved = `${root}-moved-during-finalize`;
-	const outside = await mkdtemp(join(tmpdir(), 'void-project-finalize-outside-'));
+	const outside = await projectTempDir('void-project-finalize-outside-');
 	const cache = createMemoryProjectCachePort();
 	const git = { inspect: async () => availableGit() };
 	await buildProjectGraphNative({ root, cache, git });
@@ -1189,7 +1190,7 @@ it('keeps the last green cache when Git evidence degrades', async () => {
 it('fails closed when the project root identity changes during the build', async () => {
 	const root = await fixtureCopy();
 	const moved = `${root}-moved`;
-	const outside = await mkdtemp(join(tmpdir(), 'void-project-root-outside-'));
+	const outside = await projectTempDir('void-project-root-outside-');
 	const result = await buildProjectGraph({
 		root,
 		git: {
@@ -1208,7 +1209,7 @@ it('fails closed when the project root identity changes during the build', async
 });
 
 it('never publishes provenance observed through a Git root ABA', async () => {
-	const parent = await mkdtemp(join(tmpdir(), 'void-project-git-aba-'));
+	const parent = await projectTempDir('void-project-git-aba-');
 	const root = join(parent, 'root');
 	const moved = join(parent, 'alice');
 	const mallory = join(parent, 'mallory');
