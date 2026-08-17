@@ -51,7 +51,12 @@ function foreignOrigin(origin: string | undefined): boolean {
   return origin !== undefined && !LOCALHOST_ORIGIN.test(origin);
 }
 
-function securityHeaders(): Record<string, string> {
+/**
+ * Exported so every local server the harness starts carries the same posture.
+ * A second definition drifts, and the copy that drifts is the one that stops
+ * refusing to be framed.
+ */
+export function securityHeaders(): Record<string, string> {
   return {
     'Cache-Control': 'no-store',
     'Referrer-Policy': 'no-referrer',
