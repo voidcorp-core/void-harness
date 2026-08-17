@@ -14,6 +14,7 @@ import { autopilot } from './commands/autopilot.js';
 import { graph } from './commands/graph.js';
 import { audit } from './commands/audit.js';
 import { status } from './commands/status.js';
+import { projects } from './commands/projects.js';
 import { adoption } from './commands/adoption.js';
 import { decisions } from './commands/decisions.js';
 import { mission } from './commands/mission.js';
@@ -94,6 +95,9 @@ export async function main(argv: readonly string[]): Promise<void> {
       return;
     case 'status':
       await status(rest);
+      return;
+    case 'projects':
+      await projects(rest);
       return;
     case 'adoption':
       await adoption(rest);
