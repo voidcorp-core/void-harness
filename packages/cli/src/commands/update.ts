@@ -166,6 +166,19 @@ async function reportVoidMigration(projectRoot: string, dryRun: boolean): Promis
   if (result.gitignoreTouched) {
     line(`${c.green(glyph.check)}  ${c.dim('gitignore'.padEnd(12))}${dryRun ? 'would write' : 'wrote'} the managed block (.void/machine/ and .void/installed/ ignored, the rest of .void/ tracked)`);
   }
+  // Say it when git will notice. Moving a TRACKED file shows up as a deletion
+  // plus an untracked one, and finding nine staged deletions you did not ask for
+  // is alarming even when every one of them is correct. Announced at the moment
+  // it happens, it reads as the migration it is.
+  if (!dryRun && result.moved.length > 0) {
+    const trackedMoved = countTrackedUnder(projectRoot, result.moved);
+    if (trackedMoved > 0) {
+      line(
+        `${c.dim(glyph.dot)}  ${c.dim('layout'.padEnd(12))}${c.dim(`${String(trackedMoved)} of them were tracked, so git now shows deletions at the old paths — review and commit`)}`,
+      );
+    }
+  }
+
   // A parked copy is reported, not asked about: the merge already happened and
   // nothing was lost. Telling the operator where the old bytes went is enough.
   for (const entry of result.parked) {
@@ -225,6 +238,27 @@ export function localInitArgs(
   for (const pack of packs) args.push('--pack', pack);
   if (options.force) args.push('--force');
   return args;
+}
+
+/**
+ * How many of the moved entries git was tracking at their old location. Best
+ * effort: not a repository, or git unusable, simply answers zero.
+ */
+function countTrackedUnder(projectRoot: string, moved: readonly string[]): number {
+  try {
+    const listed = execFileSync('git', ['ls-files', '--', '.void'], {
+      cwd: projectRoot,
+      encoding: 'utf8',
+      timeout: 10_000,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    const tracked = listed.split(/\r?\n/).filter((path) => path.trim() !== '');
+    return tracked.filter((path) =>
+      moved.some((entry) => path === `.void/${entry}` || path.startsWith(`.void/${entry}/`)),
+    ).length;
+  } catch {
+    return 0;
+  }
 }
 
 async function updateLocal(

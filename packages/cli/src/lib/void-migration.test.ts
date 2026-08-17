@@ -116,9 +116,14 @@ describe('migrateVoidLayout', () => {
 
     await migrateVoidLayout(root);
 
-    expect(readFileSync(join(root, '.void/installed/PHILOSOPHY.md'), 'utf8')).toBe('doctrine\n');
     expect(readFileSync(join(root, '.void/machine/runs/a/events.jsonl'), 'utf8')).toBe('e\n');
+
+    // Restorable content is DROPPED from the old location, not moved: the
+    // install that runs immediately after fills `installed/`, and it is the only
+    // thing that may write there. Moving a file in by hand hands the install a
+    // managed path it cannot prove it wrote, which it then refuses to overwrite.
     expect(existsSync(join(root, '.void/PHILOSOPHY.md'))).toBe(false);
+    expect(existsSync(join(root, '.void/installed/PHILOSOPHY.md'))).toBe(false);
 
     // `hooks/` is derived AND committed, so it stays at the top: the top is what
     // git keeps, and `.claude/settings.json` — itself committed — resolves this
@@ -149,6 +154,24 @@ describe('migrateVoidLayout', () => {
 
     expect(readFileSync(join(root, '.void/machine/runs/a/events.jsonl'), 'utf8')).toBe('e\n');
     expect(existsSync(join(root, '.void/local'))).toBe(false);
+  });
+
+  /**
+   * Measured on a clone of a real project: the receipt held 168 owned files and
+   * NONE of them was `PHILOSOPHY.md`. The install never owned it at the old
+   * path, so relocating it created a managed file nobody could claim — and the
+   * install refused it, rolling back an update whose layout pass had succeeded.
+   *
+   * Hence the rule above: restorable content is dropped, never relocated. The
+   * receipt therefore never needs rewriting, which is why no code does it.
+   */
+  it('never leaves restorable content where the install cannot claim it', async () => {
+    const root = project({ '.void/PHILOSOPHY.md': 'doctrine\n' });
+
+    await migrateVoidLayout(root);
+
+    expect(existsSync(join(root, '.void/PHILOSOPHY.md'))).toBe(false);
+    expect(existsSync(join(root, '.void/installed/PHILOSOPHY.md'))).toBe(false);
   });
 
   it('leaves nothing to do on a second run after a merge', async () => {
