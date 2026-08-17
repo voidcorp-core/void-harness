@@ -146,7 +146,7 @@ export function updateModeFor(receipt: InstallReceipt | undefined): InstallRecei
 }
 
 /**
- * Move observed state under `.void/local/` and install the managed ignore block,
+ * Move observed state under `.void/machine/` and install the managed ignore block,
  * reporting what moved. Silent on a project that is already migrated, so a
  * routine update does not grow a paragraph about a one-time change.
  */
@@ -156,7 +156,7 @@ async function reportVoidMigration(projectRoot: string, dryRun: boolean): Promis
 
   const verb = dryRun ? 'would move' : 'moved';
   if (result.moved.length > 0) {
-    line(`${c.green(glyph.check)}  ${c.dim('layout'.padEnd(12))}${verb} ${result.moved.length} observed path(s) ${c.dim(glyph.to)} .void/local/ (${result.moved.join(', ')})`);
+    line(`${c.green(glyph.check)}  ${c.dim('layout'.padEnd(12))}${verb} ${result.moved.length} path(s) ${c.dim(glyph.to)} .void/installed/ and .void/machine/ (${result.moved.join(', ')})`);
     if (!dryRun) {
       // Anything that was committed now shows as a deletion. Saying so is the
       // difference between a clean commit and a confusing `git status`.
@@ -164,7 +164,7 @@ async function reportVoidMigration(projectRoot: string, dryRun: boolean): Promis
     }
   }
   if (result.gitignoreTouched) {
-    line(`${c.green(glyph.check)}  ${c.dim('gitignore'.padEnd(12))}${dryRun ? 'would write' : 'wrote'} the managed block (.void/local/ ignored, the rest of .void/ tracked)`);
+    line(`${c.green(glyph.check)}  ${c.dim('gitignore'.padEnd(12))}${dryRun ? 'would write' : 'wrote'} the managed block (.void/machine/ and .void/installed/ ignored, the rest of .void/ tracked)`);
   }
   // A parked copy is reported, not asked about: the merge already happened and
   // nothing was lost. Telling the operator where the old bytes went is enough.

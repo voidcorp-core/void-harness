@@ -10,6 +10,7 @@ import {
   VOID_DIR,
   VOID_MACHINE_DIR,
   VOID_OWNERSHIP,
+  migratedName,
   voidInstalledPath,
   gitignoreBlock,
   isMachineEntry,
@@ -53,12 +54,6 @@ describe('ownership decides what git keeps', () => {
     expect(isMachineEntry('harness-feedback')).toBe(false);
   });
 
-  it('still recognises the pre-split names as observed', () => {
-    // They predate `local/`, so they cannot rely on the closed-set argument.
-    expect(ownershipOf('usage.log')).toBe('observed');
-    expect(ownershipOf('activations.jsonl')).toBe('observed');
-  });
-
   it('never moves derived state under local/, whatever git does with it', () => {
     // Derived state is regenerated in place by `install`; only its git treatment
     // is in question, never its location. Moving it would break the paths
@@ -92,12 +87,23 @@ describe('the three natures of .void', () => {
     expect(atTop).toContain('active.md');
   });
 
-  // Dropped: three telemetry streams nothing writes any more, and three policy
-  // layers referenced by code but present in none of the park's projects.
-  it.each(['activations.jsonl', 'outcomes.jsonl', 'usage.log', 'policies', 'profiles', 'organization'])(
-    'no longer knows %s',
+  // Dropped: three policy layers referenced by code but present in none of the
+  // park's projects. Removing them is safe precisely because they do not exist.
+  it.each(['policies', 'profiles', 'organization'])('no longer knows %s', (entry) => {
+    expect(Object.keys(VOID_OWNERSHIP)).not.toContain(entry);
+  });
+
+  /**
+   * The three legacy telemetry streams stay CLASSIFIED even though nothing reads
+   * or writes them any more. They still exist on disk across the park — 424 KB in
+   * one project — and dropping them here would let them fall through to the
+   * `project` default, at which point doctor tells those projects to commit their
+   * own telemetry. "No longer read" is not "no longer there".
+   */
+  it.each(['activations.jsonl', 'outcomes.jsonl', 'usage.log'])(
+    'still classifies the retired stream %s as observed',
     (entry) => {
-      expect(Object.keys(VOID_OWNERSHIP)).not.toContain(entry);
+      expect(ownershipOf(entry)).toBe('observed');
     },
   );
 
@@ -120,7 +126,13 @@ describe('the three natures of .void', () => {
    */
   it('renames only the status snapshot, never the autopilot cursor', () => {
     expect(isMachineEntry('status.json')).toBe(true);
-    expect(Object.keys(VOID_OWNERSHIP)).not.toContain('state.json');
+    // The old name stays CLASSIFIED — it is still on disk in the park, and
+    // forgetting it would have doctor ask those projects to commit it — while
+    // the rename map sends it to its new name on migration.
+    expect(ownershipOf('state.json')).toBe('observed');
+    expect(migratedName('state.json')).toBe('status.json');
+    // The autopilot cursor lives inside its own run directory and keeps its name.
+    expect(migratedName('autopilot')).toBe('autopilot');
   });
 });
 
@@ -259,7 +271,7 @@ describe('ownership comes from the receipt, never from the directory', () => {
     // content nobody proved the harness owns.
     const rules = gitignoreBlock().split('\n').filter((l) => l !== '' && !l.startsWith('#'));
 
-    expect(rules).toEqual(['.void/local/']);
+    expect(rules).toEqual(['.void/machine/', '.void/installed/', '.void/local/']);
   });
 });
 
@@ -269,6 +281,9 @@ describe('the ignore rule', () => {
     // what silently left config.json ignored in the project that prompted this.
     const rules = gitignoreBlock().split('\n').filter((l) => l !== '' && !l.startsWith('#'));
 
+    expect(rules).toContain('.void/machine/');
+    expect(rules).toContain('.void/installed/');
+    // Kept so a half-finished migration cannot un-ignore what it left behind.
     expect(rules).toContain('.void/local/');
     expect(rules.some((rule) => rule.startsWith('!'))).toBe(false);
   });

@@ -6,8 +6,8 @@ import type { Runtime } from './runtime.js';
 import { isSafeRelativePath } from './transaction.js';
 
 // Observed state: the receipt records what THIS machine installed and the
-// hashes it wrote, so it lives under `.void/local/` with the rest.
-export const INSTALL_RECEIPT_PATH = '.void/local/receipts/install-v1.json';
+// hashes it wrote, so it lives under `.void/machine/` with the rest.
+export const INSTALL_RECEIPT_PATH = '.void/machine/receipts/install-v1.json';
 
 export interface ReceiptFileInput {
   readonly path: string;

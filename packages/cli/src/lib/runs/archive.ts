@@ -108,7 +108,7 @@ export async function archiveMission(
       `MISSION_NOT_COMPLETED: verdict is ${inspected.verdict.status}`,
     );
   }
-  const directory = await safeDirectory(root, join('.void', 'local', 'archives'));
+  const directory = await safeDirectory(root, join('.void', 'machine', 'archives'));
   const target = join(directory, `${missionId}.jsonl.gz`);
   if (await exists(target)) {
     throw new Error(`MISSION_ALREADY_ARCHIVED: ${missionId}`);
@@ -154,7 +154,7 @@ export async function pruneMissions(
   ) {
     throw new Error('MISSION_INVALID_RETENTION: days must be a positive integer');
   }
-  const archives = await safeDirectory(root, join('.void', 'local', 'archives'));
+  const archives = await safeDirectory(root, join('.void', 'machine', 'archives'));
   const entries = await readdir(archives, { withFileTypes: true });
   const cutoff = now.getTime() - olderThanDays * 24 * 60 * 60 * 1_000;
   const candidates: PruneCandidate[] = [];

@@ -1,6 +1,6 @@
 // `void-harness status` — the deterministic, offline, LLM-free project health surface.
 // Gathers local signals, joins them with the frozen certification into a ProjectState + score,
-// renders the terminal view, and persists .void/local/state.json (+ a history snapshot).
+// renders the terminal view, and persists .void/machine/status.json (+ a history snapshot).
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -231,7 +231,9 @@ export async function status(_args: readonly string[]): Promise<void> {
     const localDir = voidMachineDir(cwd);
     const historyDir = join(localDir, 'history');
     mkdirSync(historyDir, { recursive: true });
-    writeFileSync(join(localDir, 'state.json'), body);
+    // `status.json`, not `state.json`: the old name also belonged to an autopilot
+    // run's cursor, and one name for two things is one name too few.
+    writeFileSync(join(localDir, 'status.json'), body);
     writeFileSync(join(historyDir, `${generatedAt.replace(/[:.]/g, '-')}.json`), body);
     pruneHistory(historyDir);
     persisted = true;
@@ -254,5 +256,5 @@ export async function status(_args: readonly string[]): Promise<void> {
   );
   if (notice !== undefined) line(c.yellow(`  ${notice}`));
 
-  footer(persisted ? c.green('state written to .void/local/state.json') : c.dim('.void not writable — render only'));
+  footer(persisted ? c.green('state written to .void/machine/status.json') : c.dim('.void not writable — render only'));
 }

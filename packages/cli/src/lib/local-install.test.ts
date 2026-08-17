@@ -60,7 +60,7 @@ describe('local install staging', () => {
 
     expect(prepared.receipt.files.map((file) => file.path)).toEqual(['.void/hooks/guard.mjs']);
     expect(readFileSync(join(root, 'CLAUDE.md'), 'utf8')).toContain('void-harness');
-    expect(existsSync(join(root, '.void', 'local', 'receipts', 'install-v1.json'))).toBe(true);
+    expect(existsSync(join(root, '.void', 'machine', 'receipts', 'install-v1.json'))).toBe(true);
   });
 
   it('refuses to overwrite an unowned native asset unless force is explicit', async () => {
@@ -86,7 +86,7 @@ describe('local install staging', () => {
     const stage = scratch('void-stage-');
     const claudePath = '.claude/skills/tdd/SKILL.md';
     mkdirSync(join(root, '.claude', 'skills', 'tdd'), { recursive: true });
-    mkdirSync(join(root, '.void', 'local', 'receipts'), { recursive: true });
+    mkdirSync(join(root, '.void', 'machine', 'receipts'), { recursive: true });
     mkdirSync(join(stage, '.codex'), { recursive: true });
     writeFileSync(join(root, ...claudePath.split('/')), '# TDD\n');
     writeFileSync(join(stage, '.codex', 'hooks.json'), '{}\n');

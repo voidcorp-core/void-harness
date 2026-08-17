@@ -87,13 +87,13 @@ describe('loadSkillUsage', () => {
     // and forever for a project that never runs `update`.
     const root = voidProject({});
     mkdirSync(join(root, '.void', 'runs', 'mis_0123456789abcdef'), { recursive: true });
-    mkdirSync(join(root, '.void', 'local', 'runs', 'mis_fedcba9876543210'), { recursive: true });
+    mkdirSync(join(root, '.void', 'machine', 'runs', 'mis_fedcba9876543210'), { recursive: true });
     writeFileSync(
       join(root, '.void', 'runs', 'mis_0123456789abcdef', 'events.jsonl'),
       `${canonicalSkill(1, 'harness:tdd')}\n`,
     );
     writeFileSync(
-      join(root, '.void', 'local', 'runs', 'mis_fedcba9876543210', 'events.jsonl'),
+      join(root, '.void', 'machine', 'runs', 'mis_fedcba9876543210', 'events.jsonl'),
       `${canonicalSkill(1, 'harness:code-review').replace('mis_0123456789abcdef', 'mis_fedcba9876543210')}\n`,
     );
     try {

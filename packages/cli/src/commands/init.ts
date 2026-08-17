@@ -474,7 +474,7 @@ async function ensureGitignoreBlock(projectRoot: string, derivedEntries: readonl
   await writeFile(path, patched);
   line(
     `${c.green(glyph.check)}  ${c.dim('.gitignore'.padEnd(18))}`
-    + `${original === '' ? 'created' : 'block written'} (.void/local/ ignored, the rest of .void/ tracked)`,
+    + `${original === '' ? 'created' : 'block written'} (.void/machine/ and .void/installed/ ignored, the rest of .void/ tracked)`,
   );
 }
 
