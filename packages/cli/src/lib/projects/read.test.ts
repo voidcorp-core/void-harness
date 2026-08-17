@@ -113,6 +113,34 @@ describe('readProjectSummary', () => {
     expect(summary.conformance.map((item) => item.reason)).toContain('decisions-drift');
   });
 
+  // The filename slug reads as `some-title--eb74b522-4442-409f-a5dd-...`, which
+  // is not a sentence anyone wants in a card.
+  it('reads the real title of a per-file decision rather than its filename', () => {
+    const dir = repo('adr');
+    mkdirSync(join(dir, 'docs', 'decisions-log'), { recursive: true });
+    writeFileSync(
+      join(dir, 'docs', 'decisions-log', '2026-08-06-slugified-name--eb74b522-4442.md'),
+      '---\nschemaVersion: 1\ntitle: "A build is partial only when completeness is in doubt"\n---\n\nbody\n',
+    );
+
+    const summary = readProjectSummary({ name: 'adr', path: dir }, NOW);
+
+    expect(summary.decisions.recent[0]?.title).toBe(
+      'A build is partial only when completeness is in doubt',
+    );
+    expect(summary.decisions.recent[0]?.date).toBe('2026-08-06');
+  });
+
+  it('falls back to the filename slug when a record has no title', () => {
+    const dir = repo('untitled');
+    mkdirSync(join(dir, 'docs', 'decisions-log'), { recursive: true });
+    writeFileSync(join(dir, 'docs', 'decisions-log', '2026-08-06-no-frontmatter.md'), 'body\n');
+
+    expect(readProjectSummary({ name: 'untitled', path: dir }, NOW).decisions.recent[0]?.title).toBe(
+      'no-frontmatter',
+    );
+  });
+
   it('counts plans and surfaces an executing program', () => {
     const dir = repo('programme');
     mkdirSync(join(dir, 'plans'), { recursive: true });

@@ -92,23 +92,55 @@ export function readGitSignals(path: string): GitSignals {
   };
 }
 
-function readDecisions(root: string): ReturnType<typeof observeDecisions> {
+/** How many per-file records get their real title read from disk. */
+const TITLED_RECENT = 8;
+
+/**
+ * Per-file decisions.
+ *
+ * The filename carries the date and a collision-free suffix, so the whole set
+ * can be COUNTED and ORDERED without opening anything. Only the most recent few
+ * are opened to recover their real `title:` — the filename slug reads as
+ * `partial-means-completeness-in-doubt--eb74b522-4442-409f...`, which is not a
+ * sentence anyone wants in a card. Reading all 132 in each of 8 projects would
+ * cost a thousand file reads for five lines of output.
+ */
+export function readDecisions(root: string): ReturnType<typeof observeDecisions> {
   const dir = join(root, 'docs', 'decisions-log');
   let perFile: DecisionEntry[] = [];
   try {
     if (existsSync(dir)) {
-      perFile = readdirSync(dir)
+      const names = readdirSync(dir)
         .filter((name) => name.endsWith('.md'))
-        .map((name) => {
-          const date = /^(\d{4}-\d{2}-\d{2})/.exec(name)?.[1];
-          const title = name.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/\.md$/, '');
-          return date === undefined ? { title } : { title, date };
-        });
+        .sort()
+        .reverse();
+      perFile = names.map((name, index) => {
+        const date = /^(\d{4}-\d{2}-\d{2})/.exec(name)?.[1];
+        const slug = name.replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/\.md$/, '');
+        const title =
+          index < TITLED_RECENT ? (frontmatterTitle(join(dir, name)) ?? slug) : slug;
+        return date === undefined ? { title } : { title, date };
+      });
     }
   } catch {
     perFile = [];
   }
   return observeDecisions({ monolith: readText(join(root, 'docs', 'DECISIONS.md')), perFile });
+}
+
+/** The `title:` line of an ADR, without paying for a YAML parse. */
+function frontmatterTitle(path: string): string | undefined {
+  const raw = readText(path);
+  if (raw === undefined) return undefined;
+  const block = /^---\r?\n([\s\S]*?)\r?\n---/.exec(raw)?.[1];
+  if (block === undefined) return undefined;
+  for (const line of block.split(/\r?\n/)) {
+    const match = /^title:\s*(.+?)\s*$/.exec(line) ?? undefined;
+    if (match === undefined) continue;
+    const value = (match[1] ?? '').replace(/^["']|["']$/g, '').trim();
+    return value === '' ? undefined : value;
+  }
+  return undefined;
 }
 
 function readPlanCount(root: string): number {
@@ -124,7 +156,7 @@ function readPlanCount(root: string): number {
  * tracker owns execution state, and reaching it would put the network on the
  * path of a view that must stay offline.
  */
-function readActiveProgramSignal(root: string): ActiveProgramSignal | undefined {
+export function readActiveProgram(root: string): ActiveProgramSignal | undefined {
   const raw = readText(join(root, 'plans', 'ACTIVE.md'));
   if (raw === undefined) return undefined;
   const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(raw)?.[1];
@@ -178,7 +210,7 @@ export function readProjectSummary(ref: DiscoveredProject, now: number): Project
     decisions: readDecisions(ref.path),
     planCount: readPlanCount(ref.path),
     ...(() => {
-      const active = readActiveProgramSignal(ref.path);
+      const active = readActiveProgram(ref.path);
       return active === undefined ? {} : { activeProgram: active };
     })(),
     ...(() => {
