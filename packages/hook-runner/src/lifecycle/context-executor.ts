@@ -4,7 +4,7 @@ import {
   readJson,
   record,
 } from './executor-shared.js';
-import { voidLocalReadPath } from '../void-layout.js';
+import { voidReadPath } from '../void-layout.js';
 
 /** Where the harness in this project came from. Undetermined when the version was
  * forced through the environment or when nothing readable was found — in which case
@@ -38,7 +38,7 @@ export function resolveInstall(root: string, env: Environment): ResolvedInstall 
     if (version !== undefined) return { version, source: 'marketplace' };
   }
 
-  const receipt = record(readJson(voidLocalReadPath(root, 'receipts', 'install-v1.json')));
+  const receipt = record(readJson(voidReadPath(root, 'receipts', 'install-v1.json')));
   const version = receipt?.['version'];
   if (typeof version === 'string' && VERSION_SHAPE.test(version)) {
     const declared = receipt?.['source'];

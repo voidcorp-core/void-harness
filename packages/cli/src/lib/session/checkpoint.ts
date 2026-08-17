@@ -1,4 +1,4 @@
-// `.void/session/current.md` — what was happening just before the stop.
+// `.void/machine/checkpoint.md` — what was happening just before the stop.
 //
 // Pure. Callers read the file; this interprets it.
 //

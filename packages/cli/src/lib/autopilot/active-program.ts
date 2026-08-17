@@ -10,7 +10,7 @@
 // error, never a shrug: silently falling back to a default would let a typo in
 // `mergeGate` hand a merge to a machine.
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, join, resolve, sep } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { autopilotFailure } from './errors.js';
@@ -62,7 +62,23 @@ export interface ActiveProgram {
   readonly autopilot: AutopilotConfig;
 }
 
-const DEFAULT_ACTIVE_PATH = join('plans', 'ACTIVE.md');
+/**
+ * Where the pointer lives now, and where it lived before.
+ *
+ * It is harness machinery — remove the harness and it means nothing — so it
+ * belongs in `.void/`. The previous location is still read, because a project
+ * migrates on `update` and until then a reader that only knew the new path would
+ * report a running program as absent, which is worse than reading an old path.
+ */
+const DEFAULT_ACTIVE_PATH = join('.void', 'active.md');
+export const PREVIOUS_ACTIVE_PATH = join('plans', 'ACTIVE.md');
+
+/** The pointer this project actually has, newest location first. */
+export function activeProgramPath(root: string): string {
+  return existsSync(join(root, DEFAULT_ACTIVE_PATH)) || !existsSync(join(root, PREVIOUS_ACTIVE_PATH))
+    ? DEFAULT_ACTIVE_PATH
+    : PREVIOUS_ACTIVE_PATH;
+}
 const MAX_CLUSTER_SIZE = 4;
 const SUPPORTED_PROVIDERS = ['linear'] as const;
 
@@ -320,7 +336,8 @@ export function parseActiveProgram(text: string): ActiveProgram {
  * is not: it surfaces, because a broken contract that reads as "no program"
  * would silently disable every guarantee the file exists to carry.
  */
-export function readActiveProgram(root: string, relativePath: string = DEFAULT_ACTIVE_PATH): ActiveProgram | undefined {
+export function readActiveProgram(root: string, relativePath?: string): ActiveProgram | undefined {
+  relativePath = relativePath ?? activeProgramPath(root);
   const rootPath = resolve(root);
   const target = resolve(rootPath, relativePath);
   if (isAbsolute(relativePath) || (target !== rootPath && !target.startsWith(rootPath + sep))) {

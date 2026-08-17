@@ -144,11 +144,17 @@ function frontmatterTitle(path: string): string | undefined {
 }
 
 function readPlanCount(root: string): number {
-  try {
-    return readdirSync(join(root, 'plans')).filter((name) => name.endsWith('.md')).length;
-  } catch {
-    return 0;
+  // `docs/plans/` is where a plan belongs — it survives the harness, like an ADR
+  // — but the root `plans/` is where every project still has them today.
+  for (const dir of [join(root, 'docs', 'plans'), join(root, 'plans')]) {
+    try {
+      const count = readdirSync(dir).filter((name) => name.endsWith('.md')).length;
+      if (count > 0) return count;
+    } catch {
+      // try the next location
+    }
   }
+  return 0;
 }
 
 /**
@@ -157,7 +163,10 @@ function readPlanCount(root: string): number {
  * path of a view that must stay offline.
  */
 export function readActiveProgram(root: string): ActiveProgramSignal | undefined {
-  const raw = readText(join(root, 'plans', 'ACTIVE.md'));
+  // The pointer moved into `.void/`; the previous location is still read so a
+  // project that has not run `update` does not read as having no program.
+  const raw =
+    readText(join(root, '.void', 'active.md')) ?? readText(join(root, 'plans', 'ACTIVE.md'));
   if (raw === undefined) return undefined;
   const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(raw)?.[1];
   if (frontmatter === undefined) return undefined;
@@ -183,7 +192,14 @@ export function readActiveProgram(root: string): ActiveProgramSignal | undefined
  * whole view is designed to be useful without it.
  */
 function readCheckpoint(root: string): CheckpointSignal | undefined {
-  const path = join(root, '.void', 'session', 'current.md');
+  // Newest location first, then each older one: a project migrates on `update`.
+  const candidates = [
+    join(root, '.void', 'machine', 'checkpoint.md'),
+    join(root, '.void', 'local', 'checkpoint.md'),
+    join(root, '.void', 'session', 'current.md'),
+  ];
+  const path = candidates.find((candidate) => readText(candidate) !== undefined);
+  if (path === undefined) return undefined;
   const raw = readText(path);
   if (raw === undefined) return undefined;
   // Strip the frontmatter BLOCK, not lines that merely look like it: filtering

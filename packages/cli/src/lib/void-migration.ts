@@ -23,10 +23,15 @@ import {
   derivedIgnoreEntries,
   isOwnedDerived,
   legacyVoidPath,
+  migratedName,
+  ownershipOf,
   patchGitignore,
   pendingMigrations,
-  voidLocalDir,
-  voidLocalPath,
+  previousMachinePath,
+  voidInstalledDir,
+  voidInstalledPath,
+  voidMachineDir,
+  voidMachinePath,
 } from '@voidcorp/hook-runner';
 
 export interface VoidMigrationResult {
@@ -107,7 +112,7 @@ export function planVoidMigration(root: string): { readonly movable: string[]; r
   const movable: string[] = [];
   const conflicts: string[] = [];
   for (const entry of pendingMigrations(root)) {
-    if (existsSync(voidLocalPath(root, entry))) conflicts.push(entry);
+    if (existsSync(voidMachinePath(root, entry))) conflicts.push(entry);
     else movable.push(entry);
   }
   return { movable, conflicts };
@@ -231,14 +236,29 @@ export async function migrateVoidLayout(root: string, dryRun = false): Promise<V
 
   if (dryRun) return { moved: pending, conflicts: [], parked: [], gitignoreTouched };
 
-  if (pending.length > 0) await mkdir(voidLocalDir(root), { recursive: true });
+  if (pending.length > 0) {
+    await mkdir(voidMachineDir(root), { recursive: true });
+    await mkdir(voidInstalledDir(root), { recursive: true });
+  }
   const moved: string[] = [];
   const parked: string[] = [];
   for (const entry of pending) {
     try {
-      if (await mergeInto(legacyVoidPath(root, entry), voidLocalPath(root, entry))) {
-        parked.push(entry);
+      // Derived and observed answer different questions, so they land in
+      // different halves. And a legacy entry may change NAME on the way, not
+      // only directory.
+      const target =
+        ownershipOf(entry) === 'derived'
+          ? voidInstalledPath(root, migratedName(entry))
+          : voidMachinePath(root, migratedName(entry));
+      // Both older layouts are sources: never migrated at all, or migrated once
+      // to `local/` and not since.
+      let touched = false;
+      for (const source of [legacyVoidPath(root, entry), previousMachinePath(root, entry)]) {
+        if (!existsSync(source)) continue;
+        if (await mergeInto(source, target)) touched = true;
       }
+      if (touched) parked.push(entry);
       moved.push(entry);
     } catch {
       // A move that cannot finish (permissions, a cross-device `.void`, a file
@@ -247,6 +267,18 @@ export async function migrateVoidLayout(root: string, dryRun = false): Promise<V
       failed.push(entry);
     }
   }
+  // The emptied legacy directory goes too. Leaving it is not merely untidy: a
+  // `local/` still on disk reads as "not migrated" to anyone looking, and the
+  // whole point of this pass is that the old shape stops existing.
+  try {
+    const previous = join(root, '.void', 'local');
+    if (existsSync(previous) && (await readdir(previous)).length === 0) {
+      await rm(previous, { recursive: true, force: true });
+    }
+  } catch {
+    // An empty directory that will not go is cosmetic; never fail the update for it.
+  }
+
   if (gitignoreTouched) await writeFile(gitignorePath, patched);
 
   return { moved, conflicts: failed.sort(), parked: parked.sort(), gitignoreTouched };

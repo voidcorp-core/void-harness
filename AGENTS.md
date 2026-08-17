@@ -19,7 +19,7 @@ To capture a new rule, just say it ("ajoute la règle…", "always X here", "nev
 
 ### Active program — when present
 
-If `plans/ACTIVE.md` exists with `status: executing`, read it and its linked plan/spec before choosing implementation work. On a continue/start/resume request without a named ticket, recover the scoped ticket if exactly one is started; if several are started, stop and surface the competing claims; otherwise select the first ready ticket from the declared order and native blocker relations. Fetch the complete ticket before running `ticket-runner`. The tracker owns mutable execution state: keep status, assignee, blockers, resume comments, and evidence/PR links current; ACTIVE never stores a current or next ticket. If the tracker cannot be read or updated, stop rather than infer progress locally. A specific user request overrides selection; human gates and merges remain human. The file's `autopilot` block carries consent to autonomous execution and is never inferred: `enabled: false`, an absent block, or an unreadable one forbids autonomous selection entirely.
+If `.void/active.md` exists with `status: executing`, read it and its linked plan/spec before choosing implementation work. On a continue/start/resume request without a named ticket, recover the scoped ticket if exactly one is started; if several are started, stop and surface the competing claims; otherwise select the first ready ticket from the declared order and native blocker relations. Fetch the complete ticket before running `ticket-runner`. The tracker owns mutable execution state: keep status, assignee, blockers, resume comments, and evidence/PR links current; ACTIVE never stores a current or next ticket. If the tracker cannot be read or updated, stop rather than infer progress locally. A specific user request overrides selection; human gates and merges remain human. The file's `autopilot` block carries consent to autonomous execution and is never inferred: `enabled: false`, an absent block, or an unreadable one forbids autonomous selection entirely.
 
 Run `void-harness doctor` to verify the install.
 
@@ -42,11 +42,11 @@ A **public, MIT** harness installed free and account-free via `npx voidharness` 
 1. `README.md` — vision + target architecture
 2. `docs/PHILOSOPHY.md` — three pillars (safety / performance / DX) + sources
 3. `docs/ARCHITECTURE.md` — package boundaries + dependency direction
-4. `plans/` — current and past design specs
+4. `docs/specs/` and `docs/plans/` — approved designs, and how each was executed
 
 ## Active program bootstrap
 
-`plans/ACTIVE.md` is the durable cross-session handoff when it exists with
+`.void/active.md` is the durable cross-session handoff when it exists with
 `status: executing`. Before choosing implementation work, read it, then read the global plan and
 spec it references. If the user asks to continue, start, or resume without naming a ticket, do not
 ask them to repoint the session:
@@ -57,7 +57,7 @@ ask them to repoint the session:
 4. execute that unit with `ticket-runner`;
 5. keep the tracker state, assignee, evidence/PR links, blockers, and resume comment current.
 
-The tracker owns mutable execution state; `plans/ACTIVE.md` never stores a hand-maintained “next
+The tracker owns mutable execution state; `.void/active.md` never stores a hand-maintained “next
 ticket”. If the tracker is unavailable, stop rather than infer progress locally. A specific user
 request overrides automatic selection. Human gates and merges remain human.
 
@@ -82,7 +82,7 @@ For each skill:
 - Read the source, extract the load-bearing principles ("why it works")
 - Rewrite for void-harness, removing what doesn't fit, adding what's missing
 - Add a `.source` file next to the skill listing inspirations + URLs
-- Document the specific adaptations and rejections in `plans/skill-audits/<skill-name>.md` (one audit note per skill)
+- Document the specific adaptations and rejections in `docs/plans/skill-audits/<skill-name>.md` (one audit note per skill)
 - **Never reinvent without justified improvement.** YAGNI applies hardest here.
 
 A skill that ends up 95% the same as its source remains valuable as "voidcorp's deliberately authored version" — but it was rewritten, not pasted.
@@ -129,13 +129,13 @@ Before this, the floor ran in every consumer project and in none of ours — whi
 | Auditing a live dev surface (API/CLI/SDK/docs) | `devex-audit` skill (measured TTHW, error-path tracing, evidence-backed DX scorecard) |
 | Live browser QA of a running web app | `qa` skill (claude-in-chrome MCP: explore, states, atomic fix loop, report; `--report-only` for no-fix) |
 | Periodic engineering retrospective | `retrospective` skill (window signals → improvement decisions → learning-capture) |
-| Closing a session with work still open | `session-handoff` skill (route state to its owner, record the residue, one exact next action) |
+| Closing a session gracefully — before a clear, an interruption, or the end of a day | `checkpoint` skill (route state to its owner, keep the residue, one exact next action) |
 | Ship a PR | `ticket-runner` pass 11 + `commit-discipline` + `gh` (release-please owns versions/changelog) |
 
 ## On gstack and superpowers (Codex perspective)
 
 - **gstack** stays installed globally pending the Vague 6 teardown (DEV-395). QA, design, browser, and ship are now harness-native (`qa`, `ui-review`/`frontend-design`, claude-in-chrome, `ticket-runner`+gh); what remains gstack-provided until teardown is tracked in the gstack-coverage-matrix.
-- **superpowers** is a Claude Code-specific skill bundle. Codex consumers don't interact with it directly; the harness's adapted equivalents (`brainstorming`, `writing-plans`, `tdd`, `systematic-debugging`, `verification-before-completion`, plus `ticket-runner`/`ticket-writer`) target both runtimes and are preferred over the superpowers originals (see the routing table). Document the adaptation in `plans/skill-audits/`.
+- **superpowers** is a Claude Code-specific skill bundle. Codex consumers don't interact with it directly; the harness's adapted equivalents (`brainstorming`, `writing-plans`, `tdd`, `systematic-debugging`, `verification-before-completion`, plus `ticket-runner`/`ticket-writer`) target both runtimes and are preferred over the superpowers originals (see the routing table). Document the adaptation in `docs/plans/skill-audits/`.
 
 ## Self-evolution principle
 

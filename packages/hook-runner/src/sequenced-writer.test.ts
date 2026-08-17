@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { replayEventLog } from '@voidcorp/mission-engine';
-import { voidLocalDir, voidLocalPath } from './void-layout.js';
+import { voidMachineDir, voidMachinePath } from './void-layout.js';
 import {
   MAX_EVENT_LOG_BYTES,
   writeSequencedEvent,
@@ -51,7 +51,7 @@ describe('writeSequencedEvent', () => {
       Array.from({ length: 100 }, (_, index) => index + 1),
     );
     const body = await readFile(
-      join(voidLocalPath(root, 'runs'), MISSION_ID, 'events.jsonl'),
+      join(voidMachinePath(root, 'runs'), MISSION_ID, 'events.jsonl'),
       'utf8',
     );
     const replayed = replayEventLog(body);
@@ -70,7 +70,7 @@ describe('writeSequencedEvent', () => {
       })),
     );
     const replayed = replayEventLog(await readFile(
-      join(voidLocalPath(root, 'runs'), MISSION_ID, 'events.jsonl'),
+      join(voidMachinePath(root, 'runs'), MISSION_ID, 'events.jsonl'),
       'utf8',
     ));
 
@@ -98,7 +98,7 @@ describe('writeSequencedEvent', () => {
     })).rejects.toThrow('HOOK_INVALID_EVENT_ID');
 
     const partialRoot = await tempRoot();
-    const run = join(voidLocalPath(partialRoot, 'runs'), MISSION_ID);
+    const run = join(voidMachinePath(partialRoot, 'runs'), MISSION_ID);
     await mkdir(run, { recursive: true });
     await writeFile(join(run, 'events.jsonl'), '{"partial"\n', 'utf8');
 
@@ -112,7 +112,7 @@ describe('writeSequencedEvent', () => {
 
   it('isolates a partial tail before appending the next valid event', async () => {
     const root = await tempRoot();
-    const run = join(voidLocalPath(root, 'runs'), MISSION_ID);
+    const run = join(voidMachinePath(root, 'runs'), MISSION_ID);
     await mkdir(run, { recursive: true });
     await writeFile(join(run, 'events.jsonl'), '{"partial"', 'utf8');
 
@@ -132,7 +132,7 @@ describe('writeSequencedEvent', () => {
 
   it('recovers a stale lock but never follows a run-root symlink', async () => {
     const root = await tempRoot();
-    const run = join(voidLocalPath(root, 'runs'), MISSION_ID);
+    const run = join(voidMachinePath(root, 'runs'), MISSION_ID);
     await mkdir(run, { recursive: true });
     const lock = join(run, '.seq.lock');
     await writeFile(lock, 'stale', 'utf8');
@@ -150,8 +150,8 @@ describe('writeSequencedEvent', () => {
 
     const escapedRoot = await tempRoot();
     const outside = await tempRoot();
-    await mkdir(voidLocalDir(escapedRoot), { recursive: true });
-    await symlink(outside, voidLocalPath(escapedRoot, 'runs'));
+    await mkdir(voidMachineDir(escapedRoot), { recursive: true });
+    await symlink(outside, voidMachinePath(escapedRoot, 'runs'));
     await expect(
       writeSequencedEvent({
         root: escapedRoot,
@@ -164,7 +164,7 @@ describe('writeSequencedEvent', () => {
 
   it('refuses to append beyond the run log budget', async () => {
     const root = await tempRoot();
-    const run = join(voidLocalPath(root, 'runs'), MISSION_ID);
+    const run = join(voidMachinePath(root, 'runs'), MISSION_ID);
     await mkdir(run, { recursive: true });
     const log = join(run, 'events.jsonl');
     await writeFile(log, Buffer.alloc(MAX_EVENT_LOG_BYTES, 'x'));

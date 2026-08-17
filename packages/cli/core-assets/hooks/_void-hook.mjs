@@ -870,25 +870,28 @@ function readJson(path) {
 import { existsSync as existsSync4 } from "node:fs";
 import { join as join5 } from "node:path";
 var VOID_DIR = ".void";
-var VOID_LOCAL_DIR = "local";
+var VOID_MACHINE_DIR = "machine";
+var VOID_PREVIOUS_MACHINE_DIR = "local";
 var VOID_OWNERSHIP = Object.freeze({
-  // Declared: authored or hand-edited, never regenerable from a pin.
+  // Declared: authored or hand-edited, never regenerable from a pin. These are
+  // the ONLY things at the top of `.void/`, which is what makes "everything at
+  // the top is committed" a rule you can see rather than one you must look up.
   "config.json": "project",
   "PROJECT-DOCTRINE.md": "project",
-  "pricing.json": "project",
-  policies: "project",
-  profiles: "project",
-  organization: "project",
-  // Derived: `void-harness init` re-materializes these from the harness assets.
-  // NOT an exact restore — see the reproducibility limit in the ADR.
+  "active.md": "project",
+  knowledge: "project",
+  // Derived: `void-harness install` re-materializes these, byte for byte from a
+  // pin. Not committed — 1.2 MB of vendored prose rewritten on every bump — but
+  // their absence degrades the agent rather than breaking the project.
   "PHILOSOPHY.md": "derived",
+  // Derived AND committed, which is why it stays at the top rather than moving
+  // into `installed/`. `.claude/settings.json` names this path and is itself
+  // committed, so ignoring the runner would give a fresh clone a settings file
+  // pointing at a missing file and every tool call would fail on it. See
+  // `DERIVED_LOAD_BEARING`: its absence is an error, not a degradation.
   hooks: "derived",
-  // Declared, and therefore TRACKED. The checkpoint is what a fresh clone or
-  // another machine needs to know where the work stood; ignoring it would leave
-  // `void-harness resume` with nothing to read anywhere but the machine that
-  // wrote it, which is the situation it exists to fix.
-  session: "project",
-  // Observed: this machine's history. Never meaningful in another checkout.
+  // Observed: this machine's history. Never meaningful in another checkout, and
+  // losing it costs nothing.
   runs: "observed",
   cache: "observed",
   outputs: "observed",
@@ -899,11 +902,29 @@ var VOID_OWNERSHIP = Object.freeze({
   history: "observed",
   worktrees: "observed",
   "autonomous-runs": "observed",
-  "state.json": "observed",
+  // Renamed from `state.json`, which named two different things: this snapshot
+  // and an autopilot run's cursor. The cursor keeps its name inside its own run
+  // directory, where nothing else competes for it.
+  "status.json": "observed",
+  // The session checkpoint. Observed on purpose: it is what THIS machine was
+  // doing, so committing it would guarantee a conflict on a file rewritten every
+  // evening while serving nobody else.
+  "checkpoint.md": "observed",
+  // Nothing WRITES these any more — the current telemetry is `runs/*/events.jsonl`
+  // — but they still exist on disk in the park (424 KB in one project), and
+  // "no longer read" is not "no longer there". Dropping them from this table
+  // would let them fall through to the `project` default, and doctor would start
+  // telling those projects to commit their own telemetry.
   "activations.jsonl": "observed",
   "outcomes.jsonl": "observed",
   "usage.log": "observed",
-  ".registered": "observed"
+  // The pre-rename name of `status.json`. Classified for the same reason: it is
+  // on disk in the park, and forgetting it here would make doctor ask projects
+  // to commit it. `LEGACY_RENAMES` sends it to its new name on migration.
+  "state.json": "observed"
+});
+var LEGACY_RENAMES = Object.freeze({
+  "state.json": "status.json"
 });
 var MATERIALIZED_OWNERSHIP = Object.freeze({
   // The project's own wiring: hand-editable, merged rather than regenerated.
@@ -915,7 +936,7 @@ var MATERIALIZED_OWNERSHIP = Object.freeze({
   ".agents/skills/": "derived",
   ".codex/agents/": "derived",
   ".void/hooks/": "derived",
-  ".void/PHILOSOPHY.md": "derived",
+  ".void/installed/PHILOSOPHY.md": "derived",
   ".codex/hooks.json": "derived"
 });
 var DERIVED_LOAD_BEARING = Object.freeze([
@@ -929,26 +950,34 @@ var UNIT_ROOTS = Object.freeze([
   ".agents/skills",
   ".codex/agents"
 ]);
-var LOCAL_ENTRIES = Object.freeze(
+var MACHINE_ENTRIES = Object.freeze(
   Object.keys(VOID_OWNERSHIP).filter((entry) => VOID_OWNERSHIP[entry] === "observed").sort()
+);
+var INSTALLED_ENTRIES = Object.freeze(
+  Object.keys(VOID_OWNERSHIP).filter((entry) => VOID_OWNERSHIP[entry] === "derived").filter((entry) => !DERIVED_LOAD_BEARING.includes(`${VOID_DIR}/${entry}/`)).sort()
 );
 function voidDir(root) {
   return join5(root, VOID_DIR);
 }
-function voidLocalDir(root) {
-  return join5(root, VOID_DIR, VOID_LOCAL_DIR);
+function voidMachineDir(root) {
+  return join5(root, VOID_DIR, VOID_MACHINE_DIR);
 }
-function voidLocalPath(root, ...segments) {
-  return join5(voidLocalDir(root), ...segments);
+function previousMachinePath(root, ...segments) {
+  return join5(root, VOID_DIR, VOID_PREVIOUS_MACHINE_DIR, ...segments);
+}
+function voidMachinePath(root, ...segments) {
+  return join5(voidMachineDir(root), ...segments);
 }
 function legacyVoidPath(root, ...segments) {
   return join5(voidDir(root), ...segments);
 }
-function voidLocalReadPath(root, ...segments) {
-  const migrated = voidLocalPath(root, ...segments);
-  if (existsSync4(migrated)) return migrated;
-  const legacy = legacyVoidPath(root, ...segments);
-  return existsSync4(legacy) ? legacy : migrated;
+function voidReadPath(root, ...segments) {
+  const candidates = [
+    voidMachinePath(root, ...segments),
+    previousMachinePath(root, ...segments),
+    legacyVoidPath(root, ...segments)
+  ];
+  return candidates.find((candidate) => existsSync4(candidate)) ?? candidates[0];
 }
 
 // src/lifecycle/context-executor.ts
@@ -967,7 +996,7 @@ function resolveInstall(root, env) {
     const version2 = readVersion(join6(pluginRoot, ".claude-plugin", "plugin.json"));
     if (version2 !== void 0) return { version: version2, source: "marketplace" };
   }
-  const receipt = record3(readJson(voidLocalReadPath(root, "receipts", "install-v1.json")));
+  const receipt = record3(readJson(voidReadPath(root, "receipts", "install-v1.json")));
   const version = receipt?.["version"];
   if (typeof version === "string" && VERSION_SHAPE.test(version)) {
     const declared = receipt?.["source"];
@@ -1484,7 +1513,7 @@ ${errors}
 function safeOutputDirectory(root) {
   try {
     const canonicalRoot = realpathSync3(root);
-    const directory = voidLocalPath(root, "outputs");
+    const directory = voidMachinePath(root, "outputs");
     mkdirSync2(directory, { recursive: true, mode: 448 });
     const info = lstatSync2(directory);
     const canonicalDirectory = realpathSync3(directory);
@@ -2210,7 +2239,7 @@ async function safeRunDirectory(root, missionId) {
   }
   const absoluteRoot = resolve7(root);
   const canonicalRoot = await realpath2(absoluteRoot);
-  const run = voidLocalReadPath(absoluteRoot, "runs", missionId);
+  const run = voidReadPath(absoluteRoot, "runs", missionId);
   let ancestor = run;
   while (!await exists(ancestor)) {
     const parent = dirname5(ancestor);

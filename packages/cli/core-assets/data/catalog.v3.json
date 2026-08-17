@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:b3fa741576b936e45dc63a013114b85654579667f376ed80f8cb461219727a91"
+    "rootHash": "sha256:13b620b695b1bfacb9b1dfc5f8bbc7eefedf75b400d0ad32d93671c02c0c8e33"
   },
   "nodes": [
     {
@@ -625,17 +625,17 @@
       }
     },
     {
-      "id": "catalog:command:command:session-handoff",
+      "id": "catalog:command:command:checkpoint",
       "kind": "command",
-      "label": "session-handoff",
+      "label": "checkpoint",
       "data": {
         "legacy": {
           "description": "Close the current work session — route each fact to where state lives, then write the residue the next session cannot re-derive, ending on one exact next action.",
-          "id": "command:session-handoff",
+          "id": "command:checkpoint",
           "lines": 24,
-          "name": "session-handoff",
+          "name": "checkpoint",
           "pack": null,
-          "source": "packages/core/commands/session-handoff.md",
+          "source": "packages/core/commands/checkpoint.md",
           "staticTokens": 342,
           "type": "command"
         }
@@ -646,7 +646,7 @@
         "sources": [
           {
             "kind": "path",
-            "ref": "packages/core/commands/session-handoff.md",
+            "ref": "packages/core/commands/checkpoint.md",
             "hashOrVersion": "catalog-v1"
           }
         ]
@@ -2359,6 +2359,54 @@
           {
             "kind": "path",
             "ref": "packages/core/skills/brainstorming/SKILL.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:skill:skill:checkpoint",
+      "kind": "skill",
+      "label": "checkpoint",
+      "data": {
+        "legacy": {
+          "description": "Write .void/machine/checkpoint.md before a clear, an interruption, or the end of a day, so the next session resumes without re-deriving anything. Keeps only what no other artefact holds.",
+          "enforcement": {
+            "floor": "ci",
+            "inline": {
+              "claude": "active",
+              "codex": "active",
+              "hermes": "ci-only"
+            }
+          },
+          "evalTargets": [
+            {
+              "provider": "anthropic",
+              "runtime": "claude",
+              "tier": "opus"
+            }
+          ],
+          "id": "skill:checkpoint",
+          "lines": 230,
+          "name": "checkpoint",
+          "owner": "folpe",
+          "pack": null,
+          "runtimes": [
+            "claude",
+            "codex"
+          ],
+          "source": "packages/core/skills/checkpoint/SKILL.md",
+          "staticTokens": 2760,
+          "type": "skill"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/skills/checkpoint/SKILL.md",
             "hashOrVersion": "catalog-v1"
           }
         ]
@@ -4691,54 +4739,6 @@
           {
             "kind": "path",
             "ref": "packages/core/skills/security-guidance/SKILL.md",
-            "hashOrVersion": "catalog-v1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:skill:skill:session-handoff",
-      "kind": "skill",
-      "label": "session-handoff",
-      "data": {
-        "legacy": {
-          "description": "Close a work session so the next one starts without re-deriving anything. Routes state to where state lives, writes only what nothing else holds, ends on one exact next action.",
-          "enforcement": {
-            "floor": "ci",
-            "inline": {
-              "claude": "active",
-              "codex": "active",
-              "hermes": "ci-only"
-            }
-          },
-          "evalTargets": [
-            {
-              "provider": "anthropic",
-              "runtime": "claude",
-              "tier": "opus"
-            }
-          ],
-          "id": "skill:session-handoff",
-          "lines": 218,
-          "name": "session-handoff",
-          "owner": "folpe",
-          "pack": null,
-          "runtimes": [
-            "claude",
-            "codex"
-          ],
-          "source": "packages/core/skills/session-handoff/SKILL.md",
-          "staticTokens": 2590,
-          "type": "skill"
-        }
-      },
-      "provenance": {
-        "origin": "extracted",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "path",
-            "ref": "packages/core/skills/session-handoff/SKILL.md",
             "hashOrVersion": "catalog-v1"
           }
         ]

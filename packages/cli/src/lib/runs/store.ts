@@ -7,7 +7,7 @@ import {
   realpath,
   stat,
 } from 'node:fs/promises';
-import { voidLocalReadPath } from '@voidcorp/hook-runner';
+import { voidReadPath } from '@voidcorp/hook-runner';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import {
   deriveMissionVerdict,
@@ -80,7 +80,7 @@ async function existingRunDirectory(
 ): Promise<string> {
   validMissionId(missionId);
   const canonicalRoot = await realpath(resolve(root));
-  const run = voidLocalReadPath(resolve(root), 'runs', missionId);
+  const run = voidReadPath(resolve(root), 'runs', missionId);
   const info = await lstat(run);
   if (info.isSymbolicLink() || !info.isDirectory()) {
     throw new Error('MISSION_UNSAFE_RUN: run path must be a directory');
@@ -167,7 +167,7 @@ export async function createMission(
     ...input,
     title: redactText(input.title, collectKnownSecrets()),
   };
-  const run = voidLocalReadPath(resolve(root), 'runs', input.missionId);
+  const run = voidReadPath(resolve(root), 'runs', input.missionId);
   try {
     await lstat(run);
     throw new Error(`MISSION_EXISTS: ${input.missionId}`);

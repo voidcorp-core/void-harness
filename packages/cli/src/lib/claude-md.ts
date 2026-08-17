@@ -1,5 +1,5 @@
 // Idempotent patch of the project's agent-doc(s) with a delimited harness block.
-// The block points the agent at .void/PHILOSOPHY.md and .void/PROJECT-DOCTRINE.md
+// The block points the agent at .void/installed/PHILOSOPHY.md and .void/PROJECT-DOCTRINE.md
 // plus a short reminder of how rules are captured.
 //
 // Two runtimes share one doctrine:
@@ -40,8 +40,8 @@ export function harnessBlock(input: ClaudeMdBlockInputs, runtime: Runtime = 'cla
     ? `### Doctrine — loaded into every session`
     : `### Doctrine — read at the start of every session`;
   const imports = isClaude
-    ? [`@.void/PHILOSOPHY.md`, `@.void/PROJECT-DOCTRINE.md`]
-    : [`- \`.void/PHILOSOPHY.md\``, `- \`.void/PROJECT-DOCTRINE.md\``];
+    ? [`@.void/installed/PHILOSOPHY.md`, `@.void/PROJECT-DOCTRINE.md`]
+    : [`- \`.void/installed/PHILOSOPHY.md\``, `- \`.void/PROJECT-DOCTRINE.md\``];
   const captureLine = isClaude
     ? `To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The \`capture-rule\` skill auto-invokes, classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.`
     : `To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The capture-rule workflow classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.`;
@@ -66,7 +66,7 @@ export function harnessBlock(input: ClaudeMdBlockInputs, runtime: Runtime = 'cla
     '',
     `### Active program — when present`,
     '',
-    `If \`plans/ACTIVE.md\` exists with \`status: executing\`, read it and its linked plan/spec before choosing implementation work. On a continue/start/resume request without a named ticket, recover the scoped ticket if exactly one is started; if several are started, stop and surface the competing claims; otherwise select the first ready ticket from the declared order and native blocker relations. Fetch the complete ticket before running ${ticketRunner}. The tracker owns mutable execution state: keep status, assignee, blockers, resume comments, and evidence/PR links current; ACTIVE never stores a current or next ticket. If the tracker cannot be read or updated, stop rather than infer progress locally. A specific user request overrides selection; human gates and merges remain human. The file's \`autopilot\` block carries consent to autonomous execution and is never inferred: \`enabled: false\`, an absent block, or an unreadable one forbids autonomous selection entirely.`,
+    `If \`.void/active.md\` exists with \`status: executing\`, read it and its linked plan/spec before choosing implementation work. On a continue/start/resume request without a named ticket, recover the scoped ticket if exactly one is started; if several are started, stop and surface the competing claims; otherwise select the first ready ticket from the declared order and native blocker relations. Fetch the complete ticket before running ${ticketRunner}. The tracker owns mutable execution state: keep status, assignee, blockers, resume comments, and evidence/PR links current; ACTIVE never stores a current or next ticket. If the tracker cannot be read or updated, stop rather than infer progress locally. A specific user request overrides selection; human gates and merges remain human. The file's \`autopilot\` block carries consent to autonomous execution and is never inferred: \`enabled: false\`, an absent block, or an unreadable one forbids autonomous selection entirely.`,
     '',
     `Run \`void-harness doctor\` to verify the install.`,
     '',

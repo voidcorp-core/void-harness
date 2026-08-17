@@ -104,9 +104,9 @@ describe('mergeTelemetry', () => {
     try {
       const migrated = join(base, 'migrated');
       const legacy = join(base, 'legacy');
-      mkdirSync(join(migrated, '.void', 'local'), { recursive: true });
+      mkdirSync(join(migrated, '.void', 'machine'), { recursive: true });
       mkdirSync(join(legacy, '.void'), { recursive: true });
-      writeFileSync(join(migrated, '.void', 'local', 'activations.jsonl'), '{"new":1}\n');
+      writeFileSync(join(migrated, '.void', 'machine', 'activations.jsonl'), '{"new":1}\n');
       writeFileSync(join(legacy, '.void', 'activations.jsonl'), '{"old":2}\n');
 
       const merged = mergeTelemetry([migrated, legacy], 'activations.jsonl');

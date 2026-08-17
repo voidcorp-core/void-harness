@@ -52,7 +52,7 @@ state until their dedicated certification lane.
 
 ## Active program handoff
 
-An executing multi-session program may install a single `plans/ACTIVE.md` pointer. Root
+An executing multi-session program may install a single `.void/active.md` pointer. Root
 `AGENTS.md` and `CLAUDE.md` load it before choosing implementation work, so a later session can
 resume from a plain “continue” without being told the plan or ticket again.
 
@@ -72,15 +72,15 @@ The `autopilot` block is required and carries consent to autonomous execution: `
 an explicit `enabled`, and `mergeGate: human`. A program that does not want autopilot declares
 `enabled: false` rather than omitting the block, because consent is never inferred from silence.
 `packages/cli/src/lib/autopilot/active-program.ts` is the single parser of this contract, and its
-tests validate this repository's own `plans/ACTIVE.md` so the schema and the file cannot drift.
+tests validate this repository's own `.void/active.md` so the schema and the file cannot drift.
 
 Ready means every native `blockedBy` relation is complete. If tracker reads or writes fail, the
 session stops instead of maintaining a competing local pointer. A specific user request still
 overrides automatic selection. When every scoped issue and human gate is complete, the final
-program change marks `plans/ACTIVE.md` completed; it never repoints itself to unrelated work.
+program change marks `.void/active.md` completed; it never repoints itself to unrelated work.
 
 The same protocol ships to consumer projects through the managed runtime-doc block. It is
-provider-agnostic and dormant unless the consumer has a project-owned `plans/ACTIVE.md` with
+provider-agnostic and dormant unless the consumer has a project-owned `.void/active.md` with
 `status: executing`; `ticket-writer` creates that pointer only after an approved multi-ticket pool
 and native dependencies exist.
 

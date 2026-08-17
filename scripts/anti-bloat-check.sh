@@ -118,7 +118,7 @@ done
 
 # Sourcing discipline: every skill (core + packs) ships a co-located `.source`
 # (provenance that travels with the distributed skill) AND has an audit note in
-# plans/skill-audits/ (the repo-side reasoning). Both are required by the
+# docs/plans/skill-audits/ (the repo-side reasoning). Both are required by the
 # sourcing rule in CLAUDE.md/AGENTS.md; without a gate the rule rots silently.
 echo "  sourcing: .source + audit note per skill"
 while IFS= read -r f; do
@@ -129,8 +129,8 @@ while IFS= read -r f; do
     echo "    FAIL: $f has no co-located .source" >&2
     FAILED=1
   fi
-  if [[ ! -f "plans/skill-audits/$NAME.md" ]]; then
-    echo "    FAIL: skill '$NAME' has no plans/skill-audits/$NAME.md audit note" >&2
+  if [[ ! -f "docs/plans/skill-audits/$NAME.md" ]]; then
+    echo "    FAIL: skill '$NAME' has no docs/plans/skill-audits/$NAME.md audit note" >&2
     FAILED=1
   fi
 done <<<"$SKILL_FILES"

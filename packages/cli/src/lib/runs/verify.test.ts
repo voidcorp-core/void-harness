@@ -52,7 +52,7 @@ describe('mission command verification', () => {
       echo: false,
     });
     const journal = await readFile(
-      join(root, '.void', 'local', 'runs', ID, 'events.jsonl'),
+      join(root, '.void', 'machine', 'runs', ID, 'events.jsonl'),
       'utf8',
     );
 

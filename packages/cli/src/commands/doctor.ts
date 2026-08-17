@@ -10,7 +10,7 @@
 //      marketplace fetch) — only when remote checks run; --no-remote skips it
 
 import { execFileSync } from 'node:child_process';
-import { isLocalEntry, pendingMigrations, VOID_LOCAL_DIR } from '@voidcorp/hook-runner';
+import { isMachineEntry, pendingMigrations, VOID_MACHINE_DIR } from '@voidcorp/hook-runner';
 import { judgeLayout, type LayoutObservation, type ManifestObservation } from '../lib/void-hygiene.js';
 import { INSTALL_MANIFEST_PATH, parseInstallManifest, verifyInstallManifest } from '../lib/install-manifest.js';
 import { ownedDerivedPaths } from '../lib/void-migration.js';
@@ -103,9 +103,13 @@ export async function doctor(args: readonly string[]): Promise<void> {
     }
   }
 
-  const philosophyPath = join(root, '.void', 'PHILOSOPHY.md');
+  // New home first, previous one until the project runs `update`: a doctrine
+  // reported missing while it sits one directory away is a false alarm that
+  // sends someone reinstalling for nothing.
+  const havePhilo =
+    existsSync(join(root, '.void', 'installed', 'PHILOSOPHY.md'))
+    || existsSync(join(root, '.void', 'PHILOSOPHY.md'));
   const doctrinePath = join(root, '.void', 'PROJECT-DOCTRINE.md');
-  const havePhilo = existsSync(philosophyPath);
   const haveDoctrine = existsSync(doctrinePath);
   if (havePhilo && haveDoctrine) {
     checks.push({ name: 'doctrine files', ok: true, message: 'PHILOSOPHY.md + PROJECT-DOCTRINE.md present' });
@@ -474,8 +478,8 @@ async function observeLayout(root: string): Promise<LayoutObservation> {
   const tracked = listed.split('\0').filter((path) => path !== '');
   const trackedObserved = tracked.filter((path) => {
     const relative = path.startsWith('.void/') ? path.slice('.void/'.length) : path;
-    if (relative.startsWith(`${VOID_LOCAL_DIR}/`)) return true;
-    return isLocalEntry(relative.split('/')[0] ?? '');
+    if (relative.startsWith(`${VOID_MACHINE_DIR}/`)) return true;
+    return isMachineEntry(relative.split('/')[0] ?? '');
   });
 
   // Regenerated content still in the index — counted from what the MANIFEST

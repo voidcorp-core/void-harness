@@ -72,23 +72,31 @@ describe('resolveModel — npm consumer reuses the shipped model.json', () => {
 });
 
 // 24 activation events across 3 sessions clears the volume guard (>=20 events, >=3 sessions).
-const activations = () => {
+/**
+ * Canonical mission events, one journal per session. The fixture used to write
+ * `activations.jsonl`; that stream stopped being read on 2026-08-18, and a test
+ * feeding a retired reader proves nothing about the command.
+ */
+const missionEvents = (session: number) => {
+  const missionId = `mis_0123456789abcdef0123456789abcde${session}`;
   const lines: string[] = [];
-  for (let s = 0; s < 3; s += 1) {
-    for (let e = 0; e < 8; e += 1) {
-      lines.push(
-        JSON.stringify({
-          ts: `2026-07-01T10:0${s}:0${e}Z`,
-          kind: 'skill',
-          name: 'tdd',
-          event: 'PreToolUse',
-          trigger: { tool: 'Edit', fileGlobs: [], ext: ['ts'] },
-          sessionId: `sess-${s}`,
-        }),
-      );
-    }
+  for (let e = 0; e < 8; e += 1) {
+    lines.push(
+      JSON.stringify({
+        schemaVersion: 1,
+        seq: e + 1,
+        eventId: `evt_${session}0000000${e}`,
+        missionId,
+        ts: `2026-07-01T10:0${session}:0${e}.000Z`,
+        source: 'runtime:claude',
+        kind: 'runtime.tool.started',
+        subject: 'skill:tdd',
+        correlationId: missionId,
+        payload: { category: 'skill', tool: 'Skill', fileGlobs: [], extensions: ['ts'] },
+      }),
+    );
   }
-  return lines.join('\n');
+  return { missionId, body: lines.join('\n') };
 };
 
 function consumerDir(enabledPacks: Record<string, boolean>): string {
@@ -96,7 +104,12 @@ function consumerDir(enabledPacks: Record<string, boolean>): string {
   mkdirSync(join(root, '.claude'), { recursive: true });
   writeFileSync(join(root, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: enabledPacks }));
   mkdirSync(join(root, '.void'), { recursive: true });
-  writeFileSync(join(root, '.void', 'activations.jsonl'), activations());
+  for (let session = 0; session < 3; session += 1) {
+    const { missionId, body } = missionEvents(session);
+    const dir = join(root, '.void', 'machine', 'runs', missionId);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'events.jsonl'), `${body}\n`);
+  }
   return root;
 }
 

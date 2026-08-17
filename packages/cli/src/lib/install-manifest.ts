@@ -1,6 +1,6 @@
 // What THIS PROJECT expects its harness assets to be, byte for byte.
 //
-// The receipt (`.void/local/receipts/install-v1.json`) records what THIS MACHINE
+// The receipt (`.void/machine/receipts/install-v1.json`) records what THIS MACHINE
 // installed and is `observed`: machine-local, never shipped. The manifest is its
 // mirror image and is `project`: authored by an install, committed, and read by
 // every other checkout. Same shape, opposite lifecycles — the axis the layout
@@ -19,7 +19,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isSafeRelativePath } from './transaction.js';
 
-/** Committed, `project` class — deliberately NOT under `.void/local/`. */
+/** Committed, `project` class — deliberately NOT under `.void/machine/`. */
 export const INSTALL_MANIFEST_PATH = '.void/install-manifest.json';
 
 /** How many drifting paths a report names before it just counts them. */

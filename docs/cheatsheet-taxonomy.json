@@ -13,7 +13,7 @@
         "refactoring",
         "verification-before-completion",
         "context-management",
-        "session-handoff"
+        "checkpoint"
       ]
     },
     {

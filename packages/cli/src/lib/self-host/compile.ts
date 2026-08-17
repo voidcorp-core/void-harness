@@ -12,7 +12,7 @@ import {
 } from 'node:fs/promises';
 import { createRequire as createSourceRequire } from 'node:module';
 import { dirname, join, relative, resolve } from 'node:path';
-import { voidLocalPath } from '@voidcorp/hook-runner';
+import { voidMachinePath } from '@voidcorp/hook-runner';
 import { pathToFileURL } from 'node:url';
 import { isHarnessSourceRepo } from '../self-repo.js';
 import {
@@ -356,7 +356,7 @@ export async function syncSelfHost(
     throw new Error('self-host sync is only valid in the void-harness source repository');
   }
   const generatedRoot = resolve(
-    options.generatedRoot ?? voidLocalPath(canonicalRoot, 'generated'),
+    options.generatedRoot ?? voidMachinePath(canonicalRoot, 'generated'),
   );
   await assertSafeGeneratedRoot(
     generatedRoot,

@@ -1,4 +1,7 @@
-# Skill audit — `session-handoff`
+# Skill audit — `checkpoint`
+
+> Renamed from `session-handoff` on 2026-08-18: the skill and the file it writes
+> now carry the same word, so the link needs no documentation.
 
 Original to void-harness. Written from a failure observed repeatedly in this repository, not
 adapted from an upstream skill. The nearest external relative is gstack's `/context-save`, from
@@ -72,7 +75,7 @@ ticket". The skill applies the same discipline to everything a session is tempte
 ## Boundary with `learning-capture`
 
 `learning-capture` extracts what outlives the unit of work: a rule, a preference, a harness gap.
-`session-handoff` handles what does not outlive it but is still needed tomorrow morning. They
+`checkpoint` handles what does not outlive it but is still needed tomorrow morning. They
 compose in one direction: capture the durable lesson first, then hand off the residue. A lesson
 left in a handoff is a lesson the next session must re-read forever.
 

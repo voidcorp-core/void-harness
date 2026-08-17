@@ -37,7 +37,12 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const VOID_DIR = '.void';
-export const VOID_LOCAL_DIR = 'local';
+/** The observed half. Named for WHOSE it is, because that decides deletability. */
+export const VOID_MACHINE_DIR = 'machine';
+/** The restorable half. `void-harness install` rebuilds every byte of it. */
+export const VOID_INSTALLED_DIR = 'installed';
+/** The name the observed half carried before, still read as a fallback. */
+export const VOID_PREVIOUS_MACHINE_DIR = 'local';
 
 /** What a materialized path is, which is what decides whether git keeps it. */
 export type Ownership = 'project' | 'derived' | 'observed';
@@ -49,26 +54,27 @@ export type Ownership = 'project' | 'derived' | 'observed';
  * next commit would ship telemetry.
  */
 export const VOID_OWNERSHIP: Readonly<Record<string, Ownership>> = Object.freeze({
-  // Declared: authored or hand-edited, never regenerable from a pin.
+  // Declared: authored or hand-edited, never regenerable from a pin. These are
+  // the ONLY things at the top of `.void/`, which is what makes "everything at
+  // the top is committed" a rule you can see rather than one you must look up.
   'config.json': 'project',
   'PROJECT-DOCTRINE.md': 'project',
-  'pricing.json': 'project',
-  policies: 'project',
-  profiles: 'project',
-  organization: 'project',
+  'active.md': 'project',
+  knowledge: 'project',
 
-  // Derived: `void-harness init` re-materializes these from the harness assets.
-  // NOT an exact restore — see the reproducibility limit in the ADR.
+  // Derived: `void-harness install` re-materializes these, byte for byte from a
+  // pin. Not committed — 1.2 MB of vendored prose rewritten on every bump — but
+  // their absence degrades the agent rather than breaking the project.
   'PHILOSOPHY.md': 'derived',
+  // Derived AND committed, which is why it stays at the top rather than moving
+  // into `installed/`. `.claude/settings.json` names this path and is itself
+  // committed, so ignoring the runner would give a fresh clone a settings file
+  // pointing at a missing file and every tool call would fail on it. See
+  // `DERIVED_LOAD_BEARING`: its absence is an error, not a degradation.
   hooks: 'derived',
 
-  // Declared, and therefore TRACKED. The checkpoint is what a fresh clone or
-  // another machine needs to know where the work stood; ignoring it would leave
-  // `void-harness resume` with nothing to read anywhere but the machine that
-  // wrote it, which is the situation it exists to fix.
-  session: 'project',
-
-  // Observed: this machine's history. Never meaningful in another checkout.
+  // Observed: this machine's history. Never meaningful in another checkout, and
+  // losing it costs nothing.
   runs: 'observed',
   cache: 'observed',
   outputs: 'observed',
@@ -79,22 +85,45 @@ export const VOID_OWNERSHIP: Readonly<Record<string, Ownership>> = Object.freeze
   history: 'observed',
   worktrees: 'observed',
   'autonomous-runs': 'observed',
-  'state.json': 'observed',
+  // Renamed from `state.json`, which named two different things: this snapshot
+  // and an autopilot run's cursor. The cursor keeps its name inside its own run
+  // directory, where nothing else competes for it.
+  'status.json': 'observed',
+  // The session checkpoint. Observed on purpose: it is what THIS machine was
+  // doing, so committing it would guarantee a conflict on a file rewritten every
+  // evening while serving nobody else.
+  'checkpoint.md': 'observed',
+
+  // Nothing WRITES these any more — the current telemetry is `runs/*/events.jsonl`
+  // — but they still exist on disk in the park (424 KB in one project), and
+  // "no longer read" is not "no longer there". Dropping them from this table
+  // would let them fall through to the `project` default, and doctor would start
+  // telling those projects to commit their own telemetry.
   'activations.jsonl': 'observed',
   'outcomes.jsonl': 'observed',
   'usage.log': 'observed',
-  '.registered': 'observed',
+  // The pre-rename name of `status.json`. Classified for the same reason: it is
+  // on disk in the park, and forgetting it here would make doctor ask projects
+  // to commit it. `LEGACY_RENAMES` sends it to its new name on migration.
+  'state.json': 'observed',
 });
 
 /**
- * The paths the harness materializes OUTSIDE `.void/`, with their class. Same
- * axis, wider scope: `.claude/`, `.agents/` and `.codex/` hold the same mix of
- * project state and regenerated content, and left unclassified they were tracked
- * by default — 126 files and ~1.2 MB of vendored prose per consumer repository,
- * rewritten in full on every version bump, in every review diff.
+ * Observed entries whose NAME changes on migration, not just their directory.
  *
- * A trailing slash marks a directory prefix.
+ * `state.json` named two different things — the snapshot `status` writes and an
+ * autopilot run's cursor — and one name for two things is one name too few. The
+ * cursor keeps its name inside its own run directory, where nothing competes.
  */
+export const LEGACY_RENAMES: Readonly<Record<string, string>> = Object.freeze({
+  'state.json': 'status.json',
+});
+
+/** Where an entry belongs after migration, name included. */
+export function migratedName(entry: string): string {
+  return LEGACY_RENAMES[entry] ?? entry;
+}
+
 export const MATERIALIZED_OWNERSHIP: Readonly<Record<string, Ownership>> = Object.freeze({
   // The project's own wiring: hand-editable, merged rather than regenerated.
   '.claude/settings.json': 'project',
@@ -106,7 +135,7 @@ export const MATERIALIZED_OWNERSHIP: Readonly<Record<string, Ownership>> = Objec
   '.agents/skills/': 'derived',
   '.codex/agents/': 'derived',
   '.void/hooks/': 'derived',
-  '.void/PHILOSOPHY.md': 'derived',
+  '.void/installed/PHILOSOPHY.md': 'derived',
   '.codex/hooks.json': 'derived',
 });
 
@@ -203,9 +232,23 @@ export function derivedIgnoreEntries(ownedPaths: readonly string[]): string[] {
 }
 
 /** The observed entries, sorted — what moves under `local/` and what git ignores. */
-export const LOCAL_ENTRIES: readonly string[] = Object.freeze(
+export const MACHINE_ENTRIES: readonly string[] = Object.freeze(
   Object.keys(VOID_OWNERSHIP)
     .filter((entry) => VOID_OWNERSHIP[entry] === 'observed')
+    .sort(),
+);
+
+/**
+ * What `installed/` holds: derived entries MINUS the load-bearing ones.
+ *
+ * A derived path that must survive a fresh clone stays at the top of `.void/`,
+ * because the top is what git keeps. Moving it under an ignored directory would
+ * un-track the very file `.claude/settings.json` resolves by name.
+ */
+export const INSTALLED_ENTRIES: readonly string[] = Object.freeze(
+  Object.keys(VOID_OWNERSHIP)
+    .filter((entry) => VOID_OWNERSHIP[entry] === 'derived')
+    .filter((entry) => !DERIVED_LOAD_BEARING.includes(`${VOID_DIR}/${entry}/`))
     .sort(),
 );
 
@@ -228,7 +271,7 @@ export function ownershipOf(entry: string): Ownership {
 }
 
 /** True when this direct child of `.void/` is observed state rather than declared. */
-export function isLocalEntry(entry: string): boolean {
+export function isMachineEntry(entry: string): boolean {
   return ownershipOf(entry) === 'observed';
 }
 
@@ -237,14 +280,29 @@ export function voidDir(root: string): string {
   return join(root, VOID_DIR);
 }
 
-/** `<root>/.void/local` — the observed half, covered by one ignore rule. */
-export function voidLocalDir(root: string): string {
-  return join(root, VOID_DIR, VOID_LOCAL_DIR);
+/** `<root>/.void/machine` — the observed half, covered by one ignore rule. */
+export function voidMachineDir(root: string): string {
+  return join(root, VOID_DIR, VOID_MACHINE_DIR);
+}
+
+/** `<root>/.void/installed` — what `install` restores, covered by one ignore rule. */
+export function voidInstalledDir(root: string): string {
+  return join(root, VOID_DIR, VOID_INSTALLED_DIR);
+}
+
+/** Path to a restorable artifact. Writers of derived content use this. */
+export function voidInstalledPath(root: string, ...segments: readonly string[]): string {
+  return join(voidInstalledDir(root), ...segments);
+}
+
+/** `<root>/.void/local` — where the observed half lived before. Readers only. */
+export function previousMachinePath(root: string, ...segments: readonly string[]): string {
+  return join(root, VOID_DIR, VOID_PREVIOUS_MACHINE_DIR, ...segments);
 }
 
 /** Path to an observed artifact at its post-split location. Writers use this. */
-export function voidLocalPath(root: string, ...segments: readonly string[]): string {
-  return join(voidLocalDir(root), ...segments);
+export function voidMachinePath(root: string, ...segments: readonly string[]): string {
+  return join(voidMachineDir(root), ...segments);
 }
 
 /** Path to an artifact at its pre-split location. Readers use this only as a fallback. */
@@ -260,11 +318,17 @@ export function legacyVoidPath(root: string, ...segments: readonly string[]): st
  * Touches the filesystem. The fallback is what stops a project that has not run
  * `update` yet from reporting months of telemetry as none.
  */
-export function voidLocalReadPath(root: string, ...segments: readonly string[]): string {
-  const migrated = voidLocalPath(root, ...segments);
-  if (existsSync(migrated)) return migrated;
-  const legacy = legacyVoidPath(root, ...segments);
-  return existsSync(legacy) ? legacy : migrated;
+export function voidReadPath(root: string, ...segments: readonly string[]): string {
+  // Newest layout first, then each older one in turn. A project migrates on
+  // `update`, so until it does a reader that only knew the current path would
+  // report months of telemetry as none — which is how a dashboard ends up
+  // confidently describing an empty project.
+  const candidates = [
+    voidMachinePath(root, ...segments),
+    previousMachinePath(root, ...segments),
+    legacyVoidPath(root, ...segments),
+  ];
+  return candidates.find((candidate) => existsSync(candidate)) ?? (candidates[0] as string);
 }
 
 /**
@@ -274,7 +338,17 @@ export function voidLocalReadPath(root: string, ...segments: readonly string[]):
  * Touches the filesystem.
  */
 export function pendingMigrations(root: string): string[] {
-  return LOCAL_ENTRIES.filter((entry) => existsSync(legacyVoidPath(root, entry))).sort();
+  // Both older layouts, because a project can sit on either: never migrated at
+  // all (flat), or migrated once to `local/` and not since.
+  const found = new Set<string>();
+  for (const entry of MACHINE_ENTRIES) {
+    if (existsSync(legacyVoidPath(root, entry))) found.add(entry);
+    if (existsSync(previousMachinePath(root, entry))) found.add(entry);
+  }
+  for (const entry of INSTALLED_ENTRIES) {
+    if (existsSync(legacyVoidPath(root, entry))) found.add(entry);
+  }
+  return [...found].sort();
 }
 
 /**
@@ -286,14 +360,17 @@ export function gitignoreBlock(derivedEntries: readonly string[] = []): string {
   if (derivedEntries.length === 0) {
     return [
       BEGIN_MARKER,
-      '# Everything the harness OBSERVES (telemetry, run journals, caches, install',
-      '# receipts) lives under .void/local/ and is machine-local. Everything the',
-      '# project DECLARES (config.json, PROJECT-DOCTRINE.md, policies/) stays tracked',
-      '# at the top of .void/ — config.json in particular carries the pack pins and',
-      '# paths.business, which the enforcement runner needs on a fresh clone.',
-      '# No exception rule: a new runtime artifact is born inside local/ and this',
-      '# file never has to learn about it.',
-      `${VOID_DIR}/${VOID_LOCAL_DIR}/`,
+      '# Everything at the TOP of .void/ is committed; the two subdirectories are',
+      '# not. machine/ holds what this machine observed (telemetry, run journals,',
+      '# caches, receipts) — losing it costs nothing. installed/ holds what',
+      '# `void-harness install` restores byte for byte from a pin.',
+      '# local/ is the previous name of machine/ and stays covered: a migration',
+      '# that could not finish must not be able to un-ignore what it left behind.',
+      '# No exception rule: a new runtime artifact is born inside one of them and',
+      '# this file never has to learn about it.',
+      `${VOID_DIR}/${VOID_MACHINE_DIR}/`,
+      `${VOID_DIR}/${VOID_INSTALLED_DIR}/`,
+      `${VOID_DIR}/${VOID_PREVIOUS_MACHINE_DIR}/`,
       END_MARKER,
     ].join('\n');
   }
@@ -306,7 +383,13 @@ export function gitignoreBlock(derivedEntries: readonly string[] = []): string {
     '# paths.business, which the enforcement runner needs on a fresh clone.',
     '# No exception rule: a new runtime artifact is born inside local/ and this',
     '# file never has to learn about it.',
-    `${VOID_DIR}/${VOID_LOCAL_DIR}/`,
+    `${VOID_DIR}/${VOID_MACHINE_DIR}/`,
+    `${VOID_DIR}/${VOID_INSTALLED_DIR}/`,
+    // The previous name stays covered on purpose. A migration that cannot finish
+    // — a locked file, a permission — leaves `local/` on disk, and an ignore
+    // block that had already forgotten it would make the next `git add .` commit
+    // the telemetry it was written to keep out.
+    `${VOID_DIR}/${VOID_PREVIOUS_MACHINE_DIR}/`,
     '',
     '# Regenerated by `void-harness init` from the harness assets. Listed one by',
     '# one from the install receipt — NEVER a whole runtime directory, because',

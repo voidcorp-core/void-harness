@@ -199,7 +199,7 @@ The single canonical definition of "execute one ticket well" — one ticket take
 - **Cannot decide**: whether a triggered pass may be skipped (never — the predicate decides, not a vibe); whether to merge (human).
 - **Composes with**: every code-discipline and process skill (it is the conductor that invokes them per predicate); `ticket-writer` upstream, `autopilot` as caller.
 
-### `session-handoff`
+### `checkpoint`
 
 - **Wins**: closing a session with work still open. Routes each piece of state to whatever already owns it (tracker, PR, branch, plan), writes down only the residue nothing else holds — chiefly what was *ruled out* and why — and ends on one exact next action.
 - **Loses to**: `learning-capture` on a lesson that outlives this session (that is a doctrine or harness question, not a handoff note); `ticket-writer` on work that deserves its own ticket rather than a paragraph.
@@ -323,6 +323,6 @@ When two skills both claim "I win":
 
 ## Status
 
-Populated for the **37** core skills as of **2026-08-03** — code-discipline (9), process (17, including the canonical `ticket-runner` cycle, `ticket-writer`, `autopilot`, `session-handoff` and the fused `learning-capture`), and hedge (11) groups above. The count is a claim this file must keep honest: it is `ls packages/core/skills | wc -l`, and a matrix that lags the catalogue routes work to skills that no longer exist.
+Populated for the **37** core skills as of **2026-08-03** — code-discipline (9), process (17, including the canonical `ticket-runner` cycle, `ticket-writer`, `autopilot`, `checkpoint` and the fused `learning-capture`), and hedge (11) groups above. The count is a claim this file must keep honest: it is `ls packages/core/skills | wc -l`, and a matrix that lags the catalogue routes work to skills that no longer exist.
 
 Lineage worth remembering: `autopilot` replaced `backlog-autopilot` at the 2026-07-30 cutover (which itself had replaced the deleted `autonomous-backlog-loop`); `learning-capture` fused `compounding` + `capture-rule` + `harness-evolution` (issue #75). Refined as each skill's content evolves; any cell that becomes ambiguous in practice triggers a decision record via `void-harness decisions new`.
