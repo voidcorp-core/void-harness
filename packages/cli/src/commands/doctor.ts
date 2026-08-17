@@ -27,6 +27,7 @@ import { type CheckResult, checkEnforceWorkflow, checkGh } from '../lib/prerequi
 import { readInstallReceipt } from '../lib/receipts.js';
 import { publishedVersionCheck } from '../lib/freshness-check.js';
 import { checkGlyph, checkShowsFix } from '../lib/doctor-render.js';
+import { applyRepair, conformanceRules, inspectConformance } from '../lib/conformance/run.js';
 import { resolveFreshness } from '@voidcorp/hook-runner';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
@@ -54,6 +55,8 @@ function enabledPackNames(plugins: Record<string, unknown>): string[] {
 
 export async function doctor(args: readonly string[]): Promise<void> {
   const skipRemote = args.includes('--no-remote');
+  const wantsFix = args.includes('--fix');
+  const dryRun = args.includes('--dry-run');
   const checks: CheckResult[] = [];
   const root = process.cwd();
 
@@ -249,6 +252,26 @@ export async function doctor(args: readonly string[]): Promise<void> {
     checks.push(...autopilotPreflight(observeAutopilot(root)));
   }
 
+  // Structural conformance: conventions the harness DECLARES and can repair
+  // without arbitrating. Reported like any other check; repaired only when
+  // asked, and only on a clean tree.
+  const conformance = inspectConformance(root);
+  for (const finding of conformance.findings) {
+    checks.push({
+      name: finding.ruleId,
+      // Advisory, not a blocker: `ok: false` renders as a hard failure and would
+      // make `doctor` exit 1 for every consumer still on a legacy monolith. The
+      // drift is real and costs nothing today; it is reported to be acted on,
+      // not to fail a build.
+      ok: true,
+      status: 'advisory',
+      message: finding.detail,
+      ...(finding.hasRepair
+        ? { fix: conformance.blocked ?? 'void-harness doctor --fix' }
+        : {}),
+    });
+  }
+
   banner('doctor');
   blank();
   for (const check of checks) {
@@ -284,6 +307,33 @@ export async function doctor(args: readonly string[]): Promise<void> {
     unprobed > 0 ? `${unprobed} not probed (proven by autopilot at preflight)` : undefined,
     advisory > 0 ? `${advisory} advisory` : undefined,
   ].filter((note): note is string => note !== undefined);
+  if (wantsFix) {
+    blank();
+    if (conformance.repairable.length === 0) {
+      line(
+        conformance.blocked === undefined
+          ? c.dim('nothing to repair')
+          : c.yellow(`${glyph.to} ${conformance.blocked}`),
+      );
+    } else {
+      for (const ruleId of conformance.repairable) {
+        const rule = conformanceRules().find((candidate) => candidate.id === ruleId);
+        if (rule === undefined) continue;
+        const applied = applyRepair(rule, root, { dryRun });
+        line(
+          `${dryRun ? c.dim('would write') : c.green('wrote')}  ${c.dim(rule.id.padEnd(18))} ${String(applied.written.length)} file(s)`,
+        );
+        for (const path of applied.written.slice(0, 5)) line(c.dim(`     ${path}`));
+        if (applied.written.length > 5) {
+          line(c.dim(`     ... ${String(applied.written.length - 5)} more`));
+        }
+      }
+      // Deliberately not committed: the diff is the review, and committing it
+      // would take that away from the person who has to trust it.
+      if (!dryRun) line(c.dim('nothing was committed — read the diff, then commit it yourself'));
+    }
+  }
+
   if (blockers === 0) {
     // Never "all checks passed" while a line above says otherwise: a summary
     // that contradicts its own body teaches people to skip the summary.
