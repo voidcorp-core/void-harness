@@ -1,10 +1,14 @@
 name: ci
 
 on:
+  # `develop` is where autonomous merging happens, so it needs the checks at
+  # least as much as `main` does: a "all checks green" predicate is satisfied
+  # by an ABSENCE of checks just as happily as by passing ones. Identical job
+  # set on both branches — no reduced coverage on the autonomous side.
   pull_request:
-    branches: [main]
+    branches: [main, develop]
   push:
-    branches: [main]
+    branches: [main, develop]
   # Release Please uses GITHUB_TOKEN, so its PR events do not run unattended.
   # release.yml dispatches this workflow explicitly on the release PR branch.
   workflow_dispatch: {}

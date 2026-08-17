@@ -8,8 +8,11 @@
 name: void-enforce
 
 on:
+  # Both bases, for the same reason ci.yml runs on both: `enforce` is a required
+  # check on `develop` too, and a required check whose workflow never fires is a
+  # gate that blocks forever instead of a gate that judges.
   pull_request:
-    branches: [main]
+    branches: [main, develop]
   # release.yml dispatches this workflow on Release Please PRs so the same
   # doctrine floor required by branch protection runs before their merge.
   workflow_dispatch:
