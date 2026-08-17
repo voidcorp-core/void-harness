@@ -883,6 +883,11 @@ var VOID_OWNERSHIP = Object.freeze({
   // NOT an exact restore — see the reproducibility limit in the ADR.
   "PHILOSOPHY.md": "derived",
   hooks: "derived",
+  // Declared, and therefore TRACKED. The checkpoint is what a fresh clone or
+  // another machine needs to know where the work stood; ignoring it would leave
+  // `void-harness resume` with nothing to read anywhere but the machine that
+  // wrote it, which is the situation it exists to fix.
+  session: "project",
   // Observed: this machine's history. Never meaningful in another checkout.
   runs: "observed",
   cache: "observed",

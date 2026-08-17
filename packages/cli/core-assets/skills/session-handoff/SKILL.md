@@ -137,10 +137,47 @@ Follow the project's own convention if it has one. Absent that:
 - **Memory** carries what outlives this unit: a resume point, a standing constraint, a fact
   about the project. Replace the previous resume note rather than stacking a new one — two
   resume points is the same failure as two copies of state.
-- **A file in the repo** only when the project asks for one, and then it is a pointer, not a
-  journal.
+- **`.void/session/current.md`** — the checkpoint, when the project has no convention of its
+  own. It answers one question, *what was happening just before the stop*, and it is REPLACED
+  each time rather than appended to: history belongs to git and the tracker, and a second
+  timeline is a second thing to keep true.
+
+  It exists because the two destinations above are invisible where it matters. Memory is
+  machine-local, the tracker needs the network, and neither can be read by `void-harness resume`
+  or by the projects view — which is exactly what someone returning to one of several projects
+  is looking at. It is a pointer, never a journal.
+
+- **A different file in the repo** when the project asks for one.
 
 One destination per fact. If you cannot decide, the fact probably failed Step 0.
+
+### The checkpoint's shape
+
+`##` sections, any subset, read leniently. Frontmatter carries `date` and `branch`; the branch
+matters because a checkpoint written on another one describes work that is not in front of the
+reader, and `resume` says so.
+
+```markdown
+---
+date: 2026-08-17
+branch: folpe/dev-621-resume
+---
+
+## Objective        What this session was for. One line.
+## Position         Where that sits in the arc - what is done, what remains.
+## State            What is proven, and against which commit.
+## Next action      Exactly one, exact enough to execute.
+## Open loops       - one per line
+## Dead ends        - what was tried, what happened, why you stopped
+## Assumptions      - each labelled unverified
+## Working set      - the paths that were in hand
+```
+
+Position is the section people skip and then miss: returning after days, *how far along is this*
+is a different question from *what was I doing*, and nothing else in the repo answers it.
+
+Write it with `void-harness resume` in mind — that command reads this file, and reading your own
+checkpoint back is the cheapest test of whether it was worth writing.
 
 ---
 

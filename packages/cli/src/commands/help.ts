@@ -71,6 +71,7 @@ export function printHelp(): void {
   cmd('autopilot [sub]', 'Drain a bounded cluster of ready tickets into one integration PR you merge. plan · start · status · resume · abort; --json for the skill. Resumes from plans/ACTIVE.md, so no ticket or run id is passed.');
   cmd('audit', 'Self-evolution audit: surface stale / never-fired skills as deprecation candidates. HITL.');
   cmd('projects', 'Every Void project on this machine and where attention is owed. Offline projection, never writes; --json for a served view.');
+  cmd('resume', 'Pick this project back up: the session checkpoint, recent decisions, and what is NOT answered. Reads, never guesses.');
   cmd('ui', 'Serve the projects view on localhost, read per request. Loopback only, one-shot token, stops with the command.');
   cmd('adoption', 'Maintainer: pull public npm + GitHub stats (tier-1 telemetry, zero phone-home).');
   cmd('decisions <sub>', 'Create, validate, or render one-file ADRs without a shared counter or index.');
