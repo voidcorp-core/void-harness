@@ -62,7 +62,7 @@ export function printHelp(): void {
   cmd('remove <pack>', 'Deactivate a pack (core cannot be removed).');
   cmd('list', 'Show active and available packs.');
   cmd('status', 'Project health: the five-state capability lifecycle + a score. Deterministic, offline, no LLM.');
-  cmd('doctor [--no-remote]', 'Health-check the install (config, doctrine, per-runtime wiring). --no-remote runs fully offline.');
+  cmd('doctor [--no-remote] [--fix]', 'Health-check the install (config, doctrine, per-runtime wiring), and report structural drift from the conventions the harness declares. --fix repairs the mechanical ones, refused on a dirty tree, never committed. --dry-run shows the mutations.');
   cmd('update [--dry-run] [--untrack-derived]', 'Recompile local receipt-owned assets from this CLI; migrate the .void layout. --untrack-derived drops regenerated files from the git index, keeping them on disk.');
   cmd('hydrate', 'Restore this project\'s harness assets from .void/install-manifest.json and prove every file against its hash. Refuses to run on a different version.');
   cmd('check [--doctrine]', 'Report local vs remote version drift. --doctrine also diffs PHILOSOPHY.md.');
@@ -70,6 +70,9 @@ export function printHelp(): void {
   cmd('graph <query> <file>', 'Ask this project\'s graph: explain · path · impact · subgraph · owners · tests-for · staleness. Bounded (--max-nodes/--max-depth), read-only, and explicit when the answer may be incomplete.');
   cmd('autopilot [sub]', 'Drain a bounded cluster of ready tickets into one integration PR you merge. plan · start · status · resume · abort; --json for the skill. Resumes from plans/ACTIVE.md, so no ticket or run id is passed.');
   cmd('audit', 'Self-evolution audit: surface stale / never-fired skills as deprecation candidates. HITL.');
+  cmd('projects', 'Every Void project on this machine and where attention is owed. Offline projection, never writes; --json for a served view.');
+  cmd('resume', 'Pick this project back up: the session checkpoint, recent decisions, and what is NOT answered. Reads, never guesses.');
+  cmd('ui', 'Serve the projects view on localhost, read per request. Loopback only, one-shot token, stops with the command.');
   cmd('adoption', 'Maintainer: pull public npm + GitHub stats (tier-1 telemetry, zero phone-home).');
   cmd('decisions <sub>', 'Create, validate, or render one-file ADRs without a shared counter or index.');
   cmd('mission <sub>', 'Plan a deterministic DAG, then start, resume, verify, inspect, archive, or explicitly prune an auditable local mission run.');

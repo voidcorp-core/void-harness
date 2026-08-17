@@ -1,0 +1,36 @@
+{
+  "packs": {},
+  "stack": {
+    "packageManager": "pnpm",
+    "testRunner": "vitest",
+    "e2eRunner": "none",
+    "mutationRunner": "none"
+  },
+  "paths": {
+    "business": "apps/*/src/**",
+    "tests": "apps/*/src/**/*.test.{ts,tsx}",
+    "spikes": "apps/*/scripts/spike-*",
+    "serverActions": "apps/*/src/app/(api|actions)/**",
+    "contracts": "apps/*/src/lib/contracts/**",
+    "e2e": "apps/*/tests/e2e/**"
+  },
+  "commands": {
+    "typecheck": [
+      "pnpm",
+      "exec",
+      "tsc",
+      "--noEmit"
+    ],
+    "testUnit": [
+      "pnpm",
+      "exec",
+      "vitest",
+      "run"
+    ]
+  },
+  "modes": {
+    "tdd": "auto",
+    "codeReview": "auto"
+  },
+  "core": "^2.5.1"
+}

@@ -1,5 +1,30 @@
 # AGENTS.md — void-harness
 
+<!-- void-harness:begin -->
+
+## void-harness (managed by `void-harness init`)
+
+Marketplace: `voidcorp` (https://github.com/voidcorp-core/void-harness). Codex doctrine active in this project:
+
+- `void` — universal craftsman skills (TDD, TypeScript strict, hexagonal, DDD, ...)
+
+### Doctrine — read at the start of every session
+
+- `.void/PHILOSOPHY.md`
+- `.void/PROJECT-DOCTRINE.md`
+
+`PHILOSOPHY.md` is the universal void-harness doctrine (managed — overwritten on init). `PROJECT-DOCTRINE.md` holds project-specific rules: context, ADRs, in-flight decisions (created once, never overwritten by init).
+
+To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The capture-rule workflow classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.
+
+### Active program — when present
+
+If `plans/ACTIVE.md` exists with `status: executing`, read it and its linked plan/spec before choosing implementation work. On a continue/start/resume request without a named ticket, recover the scoped ticket if exactly one is started; if several are started, stop and surface the competing claims; otherwise select the first ready ticket from the declared order and native blocker relations. Fetch the complete ticket before running `ticket-runner`. The tracker owns mutable execution state: keep status, assignee, blockers, resume comments, and evidence/PR links current; ACTIVE never stores a current or next ticket. If the tracker cannot be read or updated, stop rather than infer progress locally. A specific user request overrides selection; human gates and merges remain human. The file's `autopilot` block carries consent to autonomous execution and is never inferred: `enabled: false`, an absent block, or an unreadable one forbids autonomous selection entirely.
+
+Run `void-harness doctor` to verify the install.
+
+<!-- void-harness:end -->
+
 > **Sister doc**: `CLAUDE.md` is the Claude Code-flavored mirror of this file. The two are maintained in sync — any change to one MUST be reflected in the other in the same commit. A pre-commit hook (see `scripts/sync-agent-docs.sh`, Phase A) enforces this. Adapted terminology only (Codex/tools ↔ Claude/Skill tool); the doctrine is identical.
 
 You are working inside the **void-harness** repo itself — the meta-repo that produces the harness (Codex + Claude Code) for every VoidCorp project. This file governs work **on the harness**, not work on projects that consume it.
@@ -70,6 +95,16 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 - No em dashes or emojis as AI-slop filler. Both are allowed where they carry meaning (typographic separators in prose, glyphs in code such as the render layer); just do not sprinkle them decoratively. Not a hard CI gate.
 - Read the official documentation of any third-party tool **before** writing its config
 - Conventional commits, every message ends with **why**, not just **what**
+
+## This repo consumes its own output
+
+void-harness is installed **in void-harness**, through the same `npx voidharness init` a consumer runs. The enforcement floor that guards a customer project guards this one: write a secret, a `console.log`, an `any` or a `null` here and the write is refused, exactly as it would be in their repo.
+
+What is active here is the **published** harness, not the working tree. That distinction is the whole safety of the arrangement: a rule broken while being developed cannot lock the repo it is being developed in. `.void/hooks/` therefore carries a released bundle, deliberately different from `packages/core/hooks/`, and is committed so a fresh clone — or an autopilot worktree — inherits the floor rather than silently losing it. `.codex/hooks.json` is committed for the same reason.
+
+This is separate from `void-harness self-host sync`, which compiles the **current sources** into an isolated artifact under `.void/local/generated/` and never wires the repo root (see `docs/ARCHITECTURE.md`, "Source self-host boundary"). Two different questions: self-host asks *do the sources still compile into a working harness*, the install asks *does the shipped harness hold while we work*.
+
+Before this, the floor ran in every consumer project and in none of ours — which is why two NUL bytes reached committed source on 2026-08-06 through a mechanism that was working the whole time, just not connected here.
 
 ## Meta-rules
 

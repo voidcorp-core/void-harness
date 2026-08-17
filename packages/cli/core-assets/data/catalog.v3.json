@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:bdeb73a304af87d43c8ba5acc2c601ec87f1869cabfbab647c74d3f583d94c79"
+    "rootHash": "sha256:b3fa741576b936e45dc63a013114b85654579667f376ed80f8cb461219727a91"
   },
   "nodes": [
     {
@@ -4719,7 +4719,7 @@
             }
           ],
           "id": "skill:session-handoff",
-          "lines": 181,
+          "lines": 218,
           "name": "session-handoff",
           "owner": "folpe",
           "pack": null,
@@ -4728,7 +4728,7 @@
             "codex"
           ],
           "source": "packages/core/skills/session-handoff/SKILL.md",
-          "staticTokens": 2153,
+          "staticTokens": 2590,
           "type": "skill"
         }
       },

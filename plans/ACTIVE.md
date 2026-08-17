@@ -1,31 +1,28 @@
 ---
 status: executing
-program: void-harness-v3-top-tier-engineering-team
-plan: plans/2026-07-24-void-harness-v3-top-tier-engineering-team-plan.md
-spec: docs/specs/2026-07-24-void-harness-v3-top-tier-engineering-team.md
+program: knowledge-and-resume
+plan: plans/2026-08-17-knowledge-and-resume-plan.md
+spec: docs/specs/2026-08-17-project-knowledge-system.md
 tracker:
   provider: linear
   scope: voidcorp/DEV/void harness
   issues:
     [
-      DEV-433, DEV-435, DEV-438, DEV-441, DEV-442, DEV-444, DEV-437, DEV-440,
-      DEV-445, DEV-447, DEV-434, DEV-436, DEV-439, DEV-443, DEV-448, DEV-446,
-      DEV-449, DEV-450, DEV-451, DEV-452, DEV-453, DEV-454, DEV-455, DEV-456,
-      DEV-457, DEV-459, DEV-460, DEV-458, DEV-461, DEV-462, DEV-463, DEV-464,
-      DEV-465,
+      DEV-614, DEV-616, DEV-620, DEV-615, DEV-609, DEV-611, DEV-610, DEV-443,
+      DEV-621, DEV-622, DEV-623,
     ]
   readyStates: [Backlog, Todo]
   startedState: In Progress
   reviewState: In Review
   doneStates: [Done, Canceled]
 humanGates:
-  - DEV-433
-  - DEV-457
+  - DEV-620
+  - DEV-623
 autopilot:
   schemaVersion: 1
   enabled: false
   clusterSize: 4
-  base: auto
+  base: develop
   mergeGate: human
   verifyCommands:
     - [pnpm, build]
@@ -39,11 +36,16 @@ autopilot:
     reconcileOnly: []
 ---
 
-# Active program: void-harness v3
+# Active program: knowledge and resume
 
-This file is the stable cross-session pointer for the executing v3 program. It deliberately does
+This file is the stable cross-session pointer for the executing program. It deliberately does
 not name a current or next ticket. Linear owns progress, claims, dependencies, review state, and
 the resume trail.
+
+The v3 program is not closed and none of its tickets were deleted: the pointer moved because
+none of them had been started, its remaining work is end-of-cycle (certification, consumer
+dogfood), and two of its tickets answer the same question as a more recent decision. See the
+plan's "Pourquoi ce programme remplace le pointeur v3". Moving back is one frontmatter line.
 
 ## Sources of truth
 
@@ -99,10 +101,14 @@ Never place secrets, full prompts, full model responses, or private consumer sou
 
 ## Human gates and autonomy boundary
 
-`DEV-433` and `DEV-457` are human gates. The agent may collect evidence and move a gate to
+`DEV-620` and `DEV-623` are human gates. The agent may collect evidence and move a gate to
 `In Review`, but only Folpe's explicit approval can move it to `Done`.
 
-PR merge remains human. `backlog-autopilot` may select independent ready tickets only through its
+They are gates for different reasons. `DEV-620` changes what every consumer receives and implies
+a publication. `DEV-623` may not open at all: the spec conditions the whole interface on `resume`
+having proved, in a terminal, that it saves time.
+
+PR merge remains human. `autopilot` may select independent ready tickets only through its
 documented attended confirmation flow. The active handoff does not create a headless backend and
 does not weaken single-writer rules for lockfiles, migrations, generated assets, or shared
 contracts.

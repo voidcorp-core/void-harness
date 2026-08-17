@@ -53,6 +53,27 @@ PR from `develop`; a hotfix applied directly to `main` must be merged back down,
 `develop` silently diverges and starts testing a tree that no longer matches what
 ships.
 
+### Promotion cadence: `develop` to `main`
+
+**Promoting publishes nothing.** The `publish` job is gated on `release_created`, which is
+only true when the release PR itself is merged. A promotion merely recomputes that PR. So a
+promotion costs almost nothing, while a late one costs a diff nobody reads — and the whole
+value of the `main` gate is that someone still reads.
+
+That asymmetry sets the rule:
+
+- **Promote when a coherent set of work is green on `develop`.** Coherence is the trigger,
+  not the clock. "End of day" can cut a feature in half or bundle three unrelated subjects.
+- **Never let a working day pass without promoting.** The clock is the safety net, not the
+  trigger. Roughly ten commits is the point where the promotion PR stops being readable.
+- **The gate is not "the diff was reviewed".** It is **"the behaviour was validated on
+  `develop`"**. Writing down the gate that is actually performed is what keeps it real; a
+  gate everyone claims and nobody performs protects nothing.
+
+A `develop` far ahead of `main` is the failure mode this flow is most exposed to. It
+reintroduces exactly the unreviewable batch that the sequential autopilot was designed to
+eliminate.
+
 ## Files that carry a version
 
 The bump script touches **all of these**. Don't edit them by hand.
