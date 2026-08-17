@@ -126,9 +126,27 @@ export const LEGACY_RENAMES: Readonly<Record<string, string>> = Object.freeze({
   'state.json': 'status.json',
 });
 
-/** Where an entry belongs after migration, name included. */
+/**
+ * Observed entries nothing reads or writes any more.
+ *
+ * They still migrate — deleting someone's data is not a migration's job — but
+ * into a subdirectory of their own, so `machine/` holds only live state and
+ * removing them is one obvious command rather than a judgement call about eight
+ * similar-looking files. Measured across the park: 3.2 MB of unreadable history.
+ */
+export const RETIRED_ENTRIES: readonly string[] = Object.freeze([
+  'activations.jsonl',
+  'outcomes.jsonl',
+  'usage.log',
+]);
+
+/** The subdirectory of `machine/` that holds what nothing reads any more. */
+export const RETIRED_DIR = 'retired';
+
+/** Where an entry belongs after migration, name and subdirectory included. */
 export function migratedName(entry: string): string {
-  return LEGACY_RENAMES[entry] ?? entry;
+  const renamed = LEGACY_RENAMES[entry] ?? entry;
+  return RETIRED_ENTRIES.includes(entry) ? `${RETIRED_DIR}/${renamed}` : renamed;
 }
 
 export const MATERIALIZED_OWNERSHIP: Readonly<Record<string, Ownership>> = Object.freeze({

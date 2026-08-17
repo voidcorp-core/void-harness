@@ -278,6 +278,23 @@ export async function migrateVoidLayout(root: string, dryRun = false): Promise<V
       failed.push(entry);
     }
   }
+  // Whatever is LEFT in the previous machine directory moves too, by name or
+  // not. `local/` was a closed set on purpose — "a new runtime artifact is born
+  // inside local/ and this file never has to learn about it" — so everything in
+  // it is machine state regardless of what the table knows. Migrating only known
+  // entries stranded the rest: found on this repo, where `.registered` stayed
+  // behind and kept the directory alive.
+  try {
+    const previous = join(root, '.void', 'local');
+    if (existsSync(previous)) {
+      for (const entry of await readdir(previous)) {
+        await mergeInto(join(previous, entry), voidMachinePath(root, entry));
+      }
+    }
+  } catch {
+    // Reported by the emptiness check below rather than failing the update.
+  }
+
   // The emptied legacy directory goes too. Leaving it is not merely untidy: a
   // `local/` still on disk reads as "not migrated" to anyone looking, and the
   // whole point of this pass is that the old shape stops existing.

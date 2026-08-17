@@ -933,6 +933,11 @@ var VOID_OWNERSHIP = Object.freeze({
 var LEGACY_RENAMES = Object.freeze({
   "state.json": "status.json"
 });
+var RETIRED_ENTRIES = Object.freeze([
+  "activations.jsonl",
+  "outcomes.jsonl",
+  "usage.log"
+]);
 var MATERIALIZED_OWNERSHIP = Object.freeze({
   // The project's own wiring: hand-editable, merged rather than regenerated.
   ".claude/settings.json": "project",
