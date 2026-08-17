@@ -25,15 +25,25 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Which areas the diff touches
+        id: areas
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: bash .github/scripts/changed-areas.sh
       - name: Offline tarball install and hook execution for Claude, Codex and both
         run: |
           pnpm conformance:install
           pnpm conformance:hooks
       - name: ProjectGraph tests and typecheck
+        # The kernel's own suite. Nothing it asserts can change while
+        # packages/harness-graph and packages/mission-engine are untouched.
+        if: steps.areas.outputs.graph == 'true'
         run: |
           pnpm --filter @voidcorp/harness-graph test
           pnpm --filter @voidcorp/harness-graph typecheck
       - name: Deterministic packed ProjectGraph subpath conformance
+        if: steps.areas.outputs.graph == 'true'
         run: pnpm conformance:project-graph
 
   validate:
@@ -58,6 +68,13 @@ jobs:
 
       - name: Install
         run: pnpm install --frozen-lockfile
+
+      - name: Which areas the diff touches
+        id: areas
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: bash .github/scripts/changed-areas.sh
 
       - name: Sister-doc parity (CLAUDE.md <-> AGENTS.md)
         # Section-heading parity after terminology normalization. Catches a
@@ -137,12 +154,14 @@ jobs:
         # Must run AFTER the build: it bundles harness-graph, whose sources import
         # @voidcorp/mission-engine through that package's dist exports. Placed
         # earlier it fails to resolve them, exactly as the comment above warns.
+        if: steps.areas.outputs.graph == 'true'
         run: pnpm benchmark:project
 
       - name: ProjectGraph query performance report
         # Separate from the extraction benchmark above: these gates cover the
         # seven queries over a seeded corpus, where extraction cost is excluded
         # by construction so a query regression cannot hide behind it.
+        if: steps.areas.outputs.graph == 'true'
         run: pnpm benchmark:query
 
       - name: Self-host release gate
