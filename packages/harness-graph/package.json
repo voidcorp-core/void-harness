@@ -1,6 +1,6 @@
 {
   "name": "@voidcorp/harness-graph",
-  "version": "2.5.1",
+  "version": "2.6.0",
   "description": "void-harness graph kernel — derive the skill/agent/hook/pack/workflow graph, declared relations, and static analyses (the source of truth the studio renders).",
   "license": "MIT",
   "type": "module",
