@@ -106,16 +106,15 @@ describe('loadSkillUsage', () => {
     }
   });
 
-  it('reads skill firings from activations.jsonl', () => {
+  it('no longer reads skill firings from the retired activations stream', () => {
     const root = voidProject({
       'activations.jsonl':
         '{"ts":"2026-07-05T00:00:00Z","kind":"skill","name":"harness:brainstorming"}\n',
     });
     try {
-      expect(loadSkillUsage(root)).toContainEqual({
-        timestamp: '2026-07-05T00:00:00Z',
-        skill: 'harness:brainstorming',
-      });
+      // The file is left alone — it stays classified, ignored, and migrated —
+      // but it stops answering. New firings come from the canonical journal.
+      expect(loadSkillUsage(root)).toEqual([]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -138,39 +137,27 @@ describe('loadSkillUsage', () => {
     }
   });
 
-  it('combines canonical events with the requested legacy transition stream', () => {
+  /**
+   * The legacy streams stopped being read on 2026-08-18. Nothing has written
+   * them for versions — the canonical journal records a skill firing as
+   * `runtime.tool.started` with `subject: skill:<name>` — so what remained was a
+   * code path keeping OLD history alive. That history is what made a skill last
+   * used months ago still look active, which is the opposite of what `audit`
+   * exists to tell you.
+   */
+  it('ignores the retired activations stream and answers from the canonical journal', () => {
     const root = voidProject({
       'activations.jsonl':
         '{"ts":"2026-07-04T00:00:00Z","kind":"skill","name":"harness:legacy","trigger":{}}\n',
     });
-    mkdirSync(join(root, '.void', 'runs', 'mis_0123456789abcdef'), { recursive: true });
-    writeFileSync(
-      join(root, '.void', 'runs', 'mis_0123456789abcdef', 'events.jsonl'),
-      `${canonicalSkill(1, 'harness:canonical')}\n`,
-    );
-    try {
-      expect(loadCanonicalEventBody(root)).toContain('harness:canonical');
-      const combined = loadTelemetryStream(root, 'activations.jsonl');
-      expect(combined).toContain('harness:canonical');
-      expect(combined).toContain('harness:legacy');
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+
+    expect(loadTelemetryStream(root, 'activations.jsonl')).not.toContain('harness:legacy');
   });
 
-  it('merges the legacy usage.log so existing history is preserved', () => {
-    const root = voidProject({
-      'activations.jsonl': '{"ts":"2026-07-05T00:00:00Z","kind":"skill","name":"harness:tdd"}\n',
-      'usage.log': '2026-06-01T00:00:00Z\tharness:writing-plans\n',
-    });
-    try {
-      const usage = loadSkillUsage(root);
-      const skills = usage.map((u) => u.skill);
-      expect(skills).toContain('harness:tdd');
-      expect(skills).toContain('harness:writing-plans');
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
+  it('ignores the retired usage log', () => {
+    const root = voidProject({ 'usage.log': '2026-07-04T00:00:00Z harness:legacy\n' });
+
+    expect(loadSkillUsage(root).map((entry) => entry.skill)).not.toContain('harness:legacy');
   });
 
   it('returns an empty list on a project with no .void data', () => {

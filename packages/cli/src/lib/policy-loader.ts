@@ -125,6 +125,11 @@ export async function loadProjectPolicies(
   if (core.length === 0) {
     throw new Error(`POLICY_CORE_MISSING: ${canonicalCore} has no YAML policy`);
   }
+  // Per-project overrides. The core layer above always loads; these three are
+  // optional and, as of 2026-08-18, present in none of the park's projects —
+  // which is why they are no longer listed in `VOID_OWNERSHIP`: an entry nobody
+  // has does not need a classification, and an unknown entry already answers
+  // `project`, so a directory someone does create is tracked either way.
   const locations: ReadonlyArray<readonly [PolicyLayer, string]> = [
     ['profile', join(canonicalRoot, '.void', 'profiles')],
     ['organization', join(canonicalRoot, '.void', 'organization')],

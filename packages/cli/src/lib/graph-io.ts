@@ -77,15 +77,26 @@ function readRunDirectory(runs: string): string {
 }
 
 /** Canonical stream plus one legacy transition stream during the v2 -> v3 migration. */
-export function loadTelemetryStream(root: string, legacyFile: string): string {
-  const canonical = loadCanonicalEventBody(root);
-  // Same reason as the run journals: a legacy stream may sit at either path.
-  const legacyBody = [voidMachinePath(root, legacyFile), legacyVoidPath(root, legacyFile)]
-    .filter((path, index, all) => all.indexOf(path) === index)
-    .filter((path) => safeRegularFile(path))
-    .map((path) => readFileSync(path, 'utf8'))
-    .join('\n');
-  return [canonical, legacyBody].filter((body) => body !== '').join('\n');
+/**
+ * The canonical mission journal, and only that.
+ *
+ * The pre-journal streams (`activations.jsonl`, `outcomes.jsonl`, `usage.log`)
+ * stopped being read on 2026-08-18. Nothing had written them for versions — a
+ * skill firing is recorded canonically as `runtime.tool.started` with
+ * `subject: skill:<name>` — so what remained was a code path whose only effect
+ * was to keep OLD history alive. That is precisely what made a skill last used
+ * months ago still count as active, which is the opposite of what `audit` is
+ * for.
+ *
+ * The files themselves stay classified as observed, so they are still ignored
+ * and still swept into `machine/` by the migration. Retiring a reader is not
+ * the same as deleting someone's data.
+ *
+ * `legacyFile` is kept in the signature: callers name the stream they mean, and
+ * the parameter documents which one no longer answers.
+ */
+export function loadTelemetryStream(root: string, _legacyFile: string): string {
+  return loadCanonicalEventBody(root);
 }
 
 /** Bare skill names that have fired (drop the `<plugin>:` prefix, dedupe). */
@@ -113,18 +124,7 @@ export function skillActivationsToUsage(text: string): UsageEntry[] {
   return out;
 }
 
-/**
- * Canonical mission events are authoritative. Legacy activation/usage streams
- * are merged as transition history so existing "stale" stats are not reset.
- * Consumers reduce by max timestamp, so overlap is harmless.
- */
+/** Skill usage, from the canonical journal. See `loadTelemetryStream`. */
 export function loadSkillUsage(root: string): UsageEntry[] {
-  const fromActivations = skillActivationsToUsage(
-    loadTelemetryStream(root, 'activations.jsonl'),
-  );
-  const fromLegacy = [voidMachinePath(root, 'usage.log'), legacyVoidPath(root, 'usage.log')]
-    .filter((path, index, all) => all.indexOf(path) === index)
-    .filter((path) => existsSync(path))
-    .flatMap((path) => parseUsageLog(readFileSync(path, 'utf8')));
-  return [...fromActivations, ...fromLegacy];
+  return skillActivationsToUsage(loadTelemetryStream(root, 'activations.jsonl'));
 }
