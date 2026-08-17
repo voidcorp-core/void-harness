@@ -192,7 +192,14 @@ export function readActiveProgram(root: string): ActiveProgramSignal | undefined
  * whole view is designed to be useful without it.
  */
 function readCheckpoint(root: string): CheckpointSignal | undefined {
-  const path = join(root, '.void', 'session', 'current.md');
+  // Newest location first, then each older one: a project migrates on `update`.
+  const candidates = [
+    join(root, '.void', 'machine', 'checkpoint.md'),
+    join(root, '.void', 'local', 'checkpoint.md'),
+    join(root, '.void', 'session', 'current.md'),
+  ];
+  const path = candidates.find((candidate) => readText(candidate) !== undefined);
+  if (path === undefined) return undefined;
   const raw = readText(path);
   if (raw === undefined) return undefined;
   // Strip the frontmatter BLOCK, not lines that merely look like it: filtering

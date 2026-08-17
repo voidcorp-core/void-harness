@@ -42,7 +42,10 @@ describe('composeResume', () => {
     const report = composeResume(input());
 
     const gap = report.gaps.find((item) => item.reason === 'no-checkpoint');
-    expect(gap?.detail).toContain('session-handoff');
+    // Names the skill AND the moments it fires, because "run the skill" without
+    // "when" is the instruction people never get round to following.
+    expect(gap?.detail).toContain('checkpoint');
+    expect(gap?.detail).toContain('clear');
   });
 
   it('reports an empty checkpoint separately from a missing one', () => {

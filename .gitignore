@@ -41,13 +41,19 @@ Thumbs.db
 # (keep the .changeset/ dir tracked, only ignore status)
 
 # void-harness:begin
-# Everything the harness OBSERVES (telemetry, run journals, caches, install
-# receipts) lives under .void/local/ and is machine-local. Everything the
-# project DECLARES (config.json, PROJECT-DOCTRINE.md, policies/) stays tracked
-# at the top of .void/ — config.json in particular carries the pack pins and
-# paths.business, which the enforcement runner needs on a fresh clone.
-# No exception rule: a new runtime artifact is born inside local/ and this
+# Everything at the TOP of .void/ is committed; the two subdirectories are not.
+# machine/ holds what this machine observed (telemetry, run journals, caches,
+# receipts) — losing it costs nothing. installed/ holds what
+# `void-harness install` restores byte for byte from a pin.
+# local/ is the previous name of machine/ and stays covered: a migration that
+# could not finish must not be able to un-ignore what it left behind.
+# No exception rule: a new runtime artifact is born inside one of them and this
 # file never has to learn about it.
+#
+# Hand-edited here rather than regenerated: this repo runs the PUBLISHED harness,
+# which does not know the three-level layout until the next release.
+.void/machine/
+.void/installed/
 .void/local/
 
 # Materialized by `void-harness install` from the version pinned in

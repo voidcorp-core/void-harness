@@ -129,7 +129,7 @@ Before this, the floor ran in every consumer project and in none of ours — whi
 | Auditing a live dev surface (API/CLI/SDK/docs) | `harness:devex-audit` (measured TTHW, error-path tracing, evidence-backed DX scorecard) |
 | Live browser QA of a running web app     | `harness:qa` (claude-in-chrome MCP: explore, states, atomic fix loop, report; `--report-only` for no-fix) |
 | Periodic engineering retrospective       | `harness:retrospective` (window signals → improvement decisions → learning-capture)  |
-| Closing a session with work still open   | `harness:session-handoff` (route state to its owner, record the residue, one exact next action) |
+| Closing a session gracefully — before a clear, an interruption, or the end of a day | `harness:checkpoint` (route state to its owner, keep the residue, one exact next action) |
 | Ship a PR                                | `harness:ticket-runner` pass 11 + `harness:commit-discipline` + `gh` (release-please owns versions/changelog) |
 
 ## On gstack and superpowers

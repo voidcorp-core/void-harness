@@ -1,6 +1,6 @@
 ---
-name: session-handoff
-description: Close a work session so the next one starts without re-deriving anything. Routes state to where state lives, writes only what nothing else holds, ends on one exact next action.
+name: checkpoint
+description: Write .void/machine/checkpoint.md before a clear, an interruption, or the end of a day, so the next session resumes without re-deriving anything. Keeps only what no other artefact holds.
 owner: folpe
 runtimes: [claude, codex]
 enforcement:
@@ -12,7 +12,7 @@ enforcement:
 eval_targets: [claude/anthropic/opus]
 ---
 
-# session-handoff
+# checkpoint
 
 A session ends. The next one starts with an empty context and your name on the branch.
 
@@ -29,25 +29,33 @@ This skill spends five minutes to buy that hour back.
 
 ## When it fires
 
-- The user says they are stopping, closing, pausing, or coming back later.
-- The context window is close to its limit and work will continue afterwards.
-- A unit of work reaches a natural boundary with something still open.
-- You are about to hand work to another agent, another machine, or another person.
+This is a **graceful shutdown**: the moment you deliberately stop, chosen by a human, not
+guessed by a runtime. Three of them, and they are the ones that actually lose work:
 
-Do NOT fire when the work is genuinely finished and nothing is open: there is nothing to hand
-off, and a handoff written for a closed unit becomes a stale note nobody deletes.
+- **Before a `clear`.** The context is about to be discarded on purpose. Whatever was only in
+  it dies here unless it is written down first.
+- **Before an interruption.** You are stopping mid-unit, and the reason you stopped is itself
+  part of what the next session needs.
+- **At the end of a day.** The gap is long enough that you will return as a stranger to your
+  own work.
+
+Two more, less common and just as valid: the context window is close to its limit and the work
+continues afterwards, or the work is about to pass to another agent, machine, or person.
+
+Do NOT fire when the work is genuinely finished and nothing is open: there is nothing to
+resume, and a checkpoint written for a closed unit becomes a stale note nobody deletes.
 
 ---
 
 ## Step 0 — Route, before you write a word
 
-The failure mode of every handoff is that it becomes a second copy of state that already lives
+The failure mode of every checkpoint is that it becomes a second copy of state that already lives
 somewhere authoritative. Two copies of a fact means one of them is wrong within a day, and the
 reader cannot tell which.
 
 So the first move is triage. For every fact you are tempted to write down:
 
-| The fact is… | It belongs in | Never in the handoff |
+| The fact is… | It belongs in | Never in the checkpoint |
 |---|---|---|
 | Execution state — status, assignee, blockers, links | the **tracker** | a hand-maintained "next ticket" |
 | What the code now does | the **diff and its commit messages** | a prose summary of the change |
@@ -55,12 +63,12 @@ So the first move is triage. For every fact you are tempted to write down:
 | A cross-session fact about the user or the project | **memory** | a fact re-stated every session |
 | A design decision with a credible alternative | an **ADR** | a bullet that loses its reasoning |
 
-What survives that filter is the handoff's actual subject: **the things no artefact holds** —
+What survives that filter is the checkpoint's actual subject: **the things no artefact holds** —
 the dead ends, the unproven assumptions, the freshness of your evidence, and the exact next
-move. That list is short. A handoff that is long has failed the triage.
+move. That list is short. A checkpoint that is long has failed the triage.
 
 If the routing sends something to the tracker or to doctrine, write it there **first**, then
-reference it. A handoff that promises "I'll file this later" is where facts go to die.
+reference it. A checkpoint that promises "I'll file this later" is where facts go to die.
 
 ---
 
@@ -84,7 +92,7 @@ the section to write even when it is unflattering.
 
 **4. What you assumed.** Label every unverified belief as unverified. "The adapter probably
 caches" and "the adapter caches, confirmed in `cache.ts:88`" are different claims, and a
-handoff that flattens them costs half a day. If an assumption is load-bearing, say what would
+checkpoint that flattens them costs half a day. If an assumption is load-bearing, say what would
 falsify it.
 
 **5. What is open.** Blockers, decisions waiting on a human, questions with no answer yet. Each
@@ -123,7 +131,7 @@ Read what you wrote as if you had never seen this work. Then:
 5. **Does it contain a secret, a token, a full prompt, or private source?** Then it does not
    get written anywhere shared. Redact and reference.
 
-A handoff that fails any of these is not shorter than one that passes — it is longer, and wrong.
+A checkpoint that fails any of these is not shorter than one that passes — it is longer, and wrong.
 
 ---
 
@@ -137,15 +145,19 @@ Follow the project's own convention if it has one. Absent that:
 - **Memory** carries what outlives this unit: a resume point, a standing constraint, a fact
   about the project. Replace the previous resume note rather than stacking a new one — two
   resume points is the same failure as two copies of state.
-- **`.void/session/current.md`** — the checkpoint, when the project has no convention of its
-  own. It answers one question, *what was happening just before the stop*, and it is REPLACED
-  each time rather than appended to: history belongs to git and the tracker, and a second
-  timeline is a second thing to keep true.
+- **`.void/machine/checkpoint.md`** — this skill's own file, when the project has no convention
+  of its own. It answers one question, *what was happening just before the stop*, and it is
+  REPLACED each time rather than appended to: history belongs to git and the tracker, and a
+  second timeline is a second thing to keep true.
 
   It exists because the two destinations above are invisible where it matters. Memory is
   machine-local, the tracker needs the network, and neither can be read by `void-harness resume`
   or by the projects view — which is exactly what someone returning to one of several projects
   is looking at. It is a pointer, never a journal.
+
+  It lives under `machine/` and is NOT committed: it records what one machine was doing, so
+  committing it would guarantee a conflict on a file rewritten every evening while helping
+  nobody else.
 
 - **A different file in the repo** when the project asks for one.
 
@@ -183,13 +195,13 @@ checkpoint back is the cheapest test of whether it was worth writing.
 
 ## HITL
 
-This skill proposes; the human decides. Show the handoff before writing it anywhere shared, and
+This skill proposes; the human decides. Show the checkpoint before writing it anywhere shared, and
 do not move tracker state as a side effect of closing a session — a session ending is not a unit
-completing. Never write a handoff that claims work is done when it is merely stopped.
+completing. Never write a checkpoint that claims work is done when it is merely stopped.
 
 **Why there is no automatic hook.** Closing is a judgement about a unit of work, and no runtime
 signal reliably means "session over" — a stop event fires on interruptions, on context limits,
-and on completed turns alike. A handoff written on a false positive is worse than none: it looks
+and on completed turns alike. A checkpoint written on a false positive is worse than none: it looks
 authoritative and describes a moment nobody chose. The trigger is the human, or your own reading
 of the conversation.
 
@@ -201,7 +213,7 @@ of the conversation.
 |---|---|
 | "I'll remember this tomorrow" | You will remember what you did. You will not remember what you ruled out, which is the expensive half. |
 | "The diff explains it" | The diff explains the change. It never explains the three approaches that came first. |
-| "I'll write the handoff when I actually need it" | You need it precisely when you can no longer write it. |
+| "I'll write the checkpoint when I actually need it" | You need it precisely when you can no longer write it. |
 | "Let me summarize the whole session" | A narrative of what happened is not a plan for what is next. Route, then write the residue. |
 | "Everything is green" | Green against which commit, from which command? A stale proof is worse than no proof, because it is trusted. |
 | "The ticket says it all" | Then say so in one line and stop — but check that the ticket really carries the blocker and the next action, rather than assuming it does. |
@@ -212,6 +224,6 @@ of the conversation.
 ## Composition
 
 Upstream: whatever produced the work. Adjacent: `learning-capture` takes the durable rules out
-of the session before the handoff is written — a lesson belongs in doctrine, not in a note the
+of the session before the checkpoint is written — a lesson belongs in doctrine, not in a note the
 next session has to re-read. Downstream: the next session reads the tracker and the memory, not
 this skill.

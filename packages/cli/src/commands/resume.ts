@@ -16,7 +16,12 @@ import { composeResume, type ResumeReport } from '../lib/session/resume.js';
 import { readDecisions, readGitSignals, readActiveProgram } from '../lib/projects/read.js';
 import { banner, blank, c, footer, glyph, heading, line, meta } from '../lib/render.js';
 
-const CHECKPOINT = join('.void', 'session', 'current.md');
+/** Newest location first; the previous one is read until a project migrates. */
+const CHECKPOINT_PATHS = [
+  join('.void', 'machine', 'checkpoint.md'),
+  join('.void', 'local', 'checkpoint.md'),
+  join('.void', 'session', 'current.md'),
+];
 
 /** The nearest ancestor carrying the project marker, so it works from anywhere. */
 function enclosingProject(from: string): string | undefined {
@@ -32,16 +37,19 @@ function enclosingProject(from: string): string | undefined {
 function readCheckpointFile(
   root: string,
 ): { checkpoint: Checkpoint; writtenAt: number } | undefined {
-  const path = join(root, CHECKPOINT);
-  try {
-    if (!existsSync(path)) return undefined;
-    return {
-      checkpoint: parseCheckpoint(readFileSync(path, 'utf8')),
-      writtenAt: statSync(path).mtimeMs,
-    };
-  } catch {
-    return undefined;
+  for (const relative of CHECKPOINT_PATHS) {
+    const path = join(root, relative);
+    try {
+      if (!existsSync(path)) continue;
+      return {
+        checkpoint: parseCheckpoint(readFileSync(path, 'utf8')),
+        writtenAt: statSync(path).mtimeMs,
+      };
+    } catch {
+      return undefined;
+    }
   }
+  return undefined;
 }
 
 function renderReport(report: ResumeReport): void {
