@@ -166,8 +166,15 @@ async function reportVoidMigration(projectRoot: string, dryRun: boolean): Promis
   if (result.gitignoreTouched) {
     line(`${c.green(glyph.check)}  ${c.dim('gitignore'.padEnd(12))}${dryRun ? 'would write' : 'wrote'} the managed block (.void/local/ ignored, the rest of .void/ tracked)`);
   }
+  // A parked copy is reported, not asked about: the merge already happened and
+  // nothing was lost. Telling the operator where the old bytes went is enough.
+  for (const entry of result.parked) {
+    line(`${c.dim(glyph.dot)}  ${c.dim('layout'.padEnd(12))}${c.dim(`.void/${entry} merged; the previous copy is kept beside it as *.legacy`)}`);
+  }
+  // What is left here could not be moved at all — a permission, a lock, a
+  // cross-device .void. The old path still works because readers fall back.
   for (const entry of result.conflicts) {
-    line(`${c.yellow(glyph.up)}  ${c.dim('layout'.padEnd(12))}${c.yellow('left in place')}: .void/${entry} — .void/local/${entry} already exists; merge or delete one, readers still fall back`);
+    line(`${c.yellow(glyph.up)}  ${c.dim('layout'.padEnd(12))}${c.yellow('could not move')}: .void/${entry} — check permissions and re-run; readers still fall back`);
   }
 }
 
