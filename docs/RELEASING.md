@@ -26,6 +26,33 @@ A skill change, a CLI bugfix, and a runtime helper addition all ship under the s
 
 If runtime npm packages and Claude Code plugins develop genuinely independent cadences (multiple pack runtime patches between marketplace releases), we revisit. Until that's a real observed problem, single number stays.
 
+## Branches: what each one guarantees
+
+Two long-lived branches, with different gates and different levels of autonomy.
+
+| | `develop` | `main` |
+|---|---|---|
+| Merged by | autopilot, once every required check is green | a human, after reading the change as a whole |
+| Guarantees | the suite passed and the doctrine floor held | the above, plus a human said yes |
+| CI (`ci.yml`, `void-enforce.yml`) | identical job set to `main` | identical job set to `develop` |
+| `release.yml` | never fires | fires on every push — release-please, then publish |
+| Server-side protection | same required checks as `main`, no force-push, no deletion | unchanged |
+
+**`develop` is the autonomous branch, so it carries the *same* checks as `main`, not
+fewer.** The predicate autopilot merges on is "every required check is green", and
+that predicate is satisfied by an *absence* of checks exactly as happily as by
+passing ones. A `develop` without CI would not make autopilot cautious; it would
+make it blind and confident. This is why `develop` may not exist unprotected, and
+why `branch-protection.ts` treats "protection could not be determined" as
+"unprotected" (see `packages/cli/src/lib/autopilot/branch-protection.ts`).
+
+Releasing is unchanged and still happens **only from `main`**: `release.yml` is
+triggered by `push: branches: [main]` and nothing about the two-branch flow touches
+it. `develop` never publishes anything. Work reaches `main` through a human-merged
+PR from `develop`; a hotfix applied directly to `main` must be merged back down, or
+`develop` silently diverges and starts testing a tree that no longer matches what
+ships.
+
 ## Files that carry a version
 
 The bump script touches **all of these**. Don't edit them by hand.
@@ -45,7 +72,8 @@ The bump script touches **all of these**. Don't edit them by hand.
 Releasing is driven by **release-please** off the Conventional Commits this repo
 already enforces. No one runs the bump script by hand in the normal path.
 
-1. **Merge feature/fix PRs to `main` as usual.** `feat:` → minor, `fix:` → patch,
+1. **Merge feature/fix PRs to `main`** (directly, or promoted from `develop` — see
+   Branches above). `feat:` → minor, `fix:` → patch,
    a breaking change → minor (pre-1.0; `bump-minor-pre-major`). `docs:`/`chore:`/
    `ci:`/`test:` alone do not trigger a release.
 2. **release-please maintains a single "release PR"** (`.github/workflows/release.yml`).
