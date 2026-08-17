@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { lstat, readFile, rmdir, unlink } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
-import { voidLocalReadPath } from '@voidcorp/hook-runner';
+import { voidReadPath } from '@voidcorp/hook-runner';
 import type { Runtime } from './runtime.js';
 import { isSafeRelativePath } from './transaction.js';
 
@@ -109,7 +109,7 @@ export function parseReceipt(body: string): InstallReceipt | undefined {
 
 export async function readInstallReceipt(projectRoot: string): Promise<InstallReceipt | undefined> {
   try {
-    return parseReceipt(await readFile(voidLocalReadPath(projectRoot, 'receipts', 'install-v1.json'), 'utf8'));
+    return parseReceipt(await readFile(voidReadPath(projectRoot, 'receipts', 'install-v1.json'), 'utf8'));
   } catch {
     return undefined;
   }

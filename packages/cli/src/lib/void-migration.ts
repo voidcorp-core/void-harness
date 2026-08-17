@@ -25,8 +25,8 @@ import {
   legacyVoidPath,
   patchGitignore,
   pendingMigrations,
-  voidLocalDir,
-  voidLocalPath,
+  voidMachineDir,
+  voidMachinePath,
 } from '@voidcorp/hook-runner';
 
 export interface VoidMigrationResult {
@@ -107,7 +107,7 @@ export function planVoidMigration(root: string): { readonly movable: string[]; r
   const movable: string[] = [];
   const conflicts: string[] = [];
   for (const entry of pendingMigrations(root)) {
-    if (existsSync(voidLocalPath(root, entry))) conflicts.push(entry);
+    if (existsSync(voidMachinePath(root, entry))) conflicts.push(entry);
     else movable.push(entry);
   }
   return { movable, conflicts };
@@ -231,12 +231,12 @@ export async function migrateVoidLayout(root: string, dryRun = false): Promise<V
 
   if (dryRun) return { moved: pending, conflicts: [], parked: [], gitignoreTouched };
 
-  if (pending.length > 0) await mkdir(voidLocalDir(root), { recursive: true });
+  if (pending.length > 0) await mkdir(voidMachineDir(root), { recursive: true });
   const moved: string[] = [];
   const parked: string[] = [];
   for (const entry of pending) {
     try {
-      if (await mergeInto(legacyVoidPath(root, entry), voidLocalPath(root, entry))) {
+      if (await mergeInto(legacyVoidPath(root, entry), voidMachinePath(root, entry))) {
         parked.push(entry);
       }
       moved.push(entry);

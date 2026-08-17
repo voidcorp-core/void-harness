@@ -4,7 +4,7 @@ import { constants } from 'node:fs';
 import { access, lstat, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { voidLocalReadPath } from '@voidcorp/hook-runner';
+import { voidReadPath } from '@voidcorp/hook-runner';
 import { parseEventLine } from '@voidcorp/mission-engine/events';
 import type { Runtime } from './runtime.js';
 
@@ -125,7 +125,7 @@ export async function smokeInstalledHook(
         detail: `hook smoke exited ${result.code === null ? 'without a status' : result.code}`,
       };
     }
-    const logPath = join(voidLocalReadPath(root, 'runs'), missionId, 'events.jsonl');
+    const logPath = join(voidReadPath(root, 'runs'), missionId, 'events.jsonl');
     let body: string;
     try {
       const info = await lstat(logPath);

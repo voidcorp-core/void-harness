@@ -7,7 +7,7 @@ import {
   statSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { legacyVoidPath, voidLocalPath } from '@voidcorp/hook-runner';
+import { legacyVoidPath, voidMachinePath } from '@voidcorp/hook-runner';
 import { parseActivations } from '@voidcorp/harness-graph';
 import { type UsageEntry, parseUsageLog } from './audit.js';
 
@@ -33,7 +33,7 @@ export function loadCanonicalEventBody(root: string): string {
   // path and newer ones under `local/`. Reading whichever exists first would
   // report a project's older history as absent for as long as it takes to run
   // `update` — and silently drop it for a project that never does.
-  const bodies = [voidLocalPath(root, 'runs'), legacyVoidPath(root, 'runs')]
+  const bodies = [voidMachinePath(root, 'runs'), legacyVoidPath(root, 'runs')]
     .filter((directory, index, all) => all.indexOf(directory) === index)
     .map((directory) => readRunDirectory(directory));
   return bodies.filter((body) => body !== '').join('\n');
@@ -80,7 +80,7 @@ function readRunDirectory(runs: string): string {
 export function loadTelemetryStream(root: string, legacyFile: string): string {
   const canonical = loadCanonicalEventBody(root);
   // Same reason as the run journals: a legacy stream may sit at either path.
-  const legacyBody = [voidLocalPath(root, legacyFile), legacyVoidPath(root, legacyFile)]
+  const legacyBody = [voidMachinePath(root, legacyFile), legacyVoidPath(root, legacyFile)]
     .filter((path, index, all) => all.indexOf(path) === index)
     .filter((path) => safeRegularFile(path))
     .map((path) => readFileSync(path, 'utf8'))
@@ -122,7 +122,7 @@ export function loadSkillUsage(root: string): UsageEntry[] {
   const fromActivations = skillActivationsToUsage(
     loadTelemetryStream(root, 'activations.jsonl'),
   );
-  const fromLegacy = [voidLocalPath(root, 'usage.log'), legacyVoidPath(root, 'usage.log')]
+  const fromLegacy = [voidMachinePath(root, 'usage.log'), legacyVoidPath(root, 'usage.log')]
     .filter((path, index, all) => all.indexOf(path) === index)
     .filter((path) => existsSync(path))
     .flatMap((path) => parseUsageLog(readFileSync(path, 'utf8')));

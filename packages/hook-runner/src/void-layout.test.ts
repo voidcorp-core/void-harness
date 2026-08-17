@@ -6,17 +6,17 @@ import {
   classifyMaterialized,
   derivedIgnoreEntries,
   isOwnedDerived,
-  LOCAL_ENTRIES,
+  MACHINE_ENTRIES,
   VOID_DIR,
-  VOID_LOCAL_DIR,
+  VOID_MACHINE_DIR,
   gitignoreBlock,
-  isLocalEntry,
+  isMachineEntry,
   legacyVoidPath,
   ownershipOf,
   patchGitignore,
   pendingMigrations,
-  voidLocalPath,
-  voidLocalReadPath,
+  voidMachinePath,
+  voidReadPath,
 } from './void-layout.js';
 
 const temporary: string[] = [];
@@ -48,7 +48,7 @@ describe('ownership decides what git keeps', () => {
     // here would have doctor tell a project to untrack its own data — which is
     // exactly what it did for this repo's own `.void/harness-feedback/`.
     expect(ownershipOf('harness-feedback')).toBe('project');
-    expect(isLocalEntry('harness-feedback')).toBe(false);
+    expect(isMachineEntry('harness-feedback')).toBe(false);
   });
 
   it('still recognises the pre-split names as observed', () => {
@@ -61,25 +61,25 @@ describe('ownership decides what git keeps', () => {
     // Derived state is regenerated in place by `install`; only its git treatment
     // is in question, never its location. Moving it would break the paths
     // `.claude/settings.json` and the runtimes resolve by name.
-    expect(isLocalEntry('hooks')).toBe(false);
+    expect(isMachineEntry('hooks')).toBe(false);
     expect(pendingMigrations('/nonexistent')).not.toContain('hooks');
   });
 });
 
 describe('the two natures of .void', () => {
   it('writes observed state under .void/local, never beside what the project declares', () => {
-    expect(voidLocalPath('/p', 'runs', 'mis_1')).toBe(join('/p', '.void', 'local', 'runs', 'mis_1'));
+    expect(voidMachinePath('/p', 'runs', 'mis_1')).toBe(join('/p', '.void', 'local', 'runs', 'mis_1'));
   });
 
   it('keeps declared state at the top of .void, where git can see it', () => {
     // config.json and PROJECT-DOCTRINE.md are the two the project owns and ships.
-    expect(isLocalEntry('config.json')).toBe(false);
-    expect(isLocalEntry('PROJECT-DOCTRINE.md')).toBe(false);
+    expect(isMachineEntry('config.json')).toBe(false);
+    expect(isMachineEntry('PROJECT-DOCTRINE.md')).toBe(false);
   });
 
   it('classifies every observed artifact as local', () => {
     for (const entry of ['runs', 'cache', 'outputs', 'generated', 'archives', 'autopilot', 'receipts', 'history', 'state.json', 'activations.jsonl', 'outcomes.jsonl']) {
-      expect(isLocalEntry(entry), entry).toBe(true);
+      expect(isMachineEntry(entry), entry).toBe(true);
     }
   });
 });
@@ -87,10 +87,10 @@ describe('the two natures of .void', () => {
 describe('reading across the split', () => {
   it('prefers the migrated path', () => {
     const root = scratch();
-    mkdirSync(join(root, VOID_DIR, VOID_LOCAL_DIR), { recursive: true });
-    writeFileSync(join(root, VOID_DIR, VOID_LOCAL_DIR, 'activations.jsonl'), '');
+    mkdirSync(join(root, VOID_DIR, VOID_MACHINE_DIR), { recursive: true });
+    writeFileSync(join(root, VOID_DIR, VOID_MACHINE_DIR, 'activations.jsonl'), '');
 
-    expect(voidLocalReadPath(root, 'activations.jsonl')).toBe(voidLocalPath(root, 'activations.jsonl'));
+    expect(voidReadPath(root, 'activations.jsonl')).toBe(voidMachinePath(root, 'activations.jsonl'));
   });
 
   it('falls back to the pre-split path so an unmigrated project keeps its history', () => {
@@ -100,20 +100,20 @@ describe('reading across the split', () => {
     mkdirSync(join(root, VOID_DIR), { recursive: true });
     writeFileSync(join(root, VOID_DIR, 'activations.jsonl'), '');
 
-    expect(voidLocalReadPath(root, 'activations.jsonl')).toBe(legacyVoidPath(root, 'activations.jsonl'));
+    expect(voidReadPath(root, 'activations.jsonl')).toBe(legacyVoidPath(root, 'activations.jsonl'));
   });
 
   it('returns the migrated path when neither exists, so writers create the right one', () => {
     const root = scratch();
 
-    expect(voidLocalReadPath(root, 'activations.jsonl')).toBe(voidLocalPath(root, 'activations.jsonl'));
+    expect(voidReadPath(root, 'activations.jsonl')).toBe(voidMachinePath(root, 'activations.jsonl'));
   });
 });
 
 describe('what update has to move', () => {
   it('reports nothing for a project already on the new layout', () => {
     const root = scratch();
-    mkdirSync(join(root, VOID_DIR, VOID_LOCAL_DIR, 'runs'), { recursive: true });
+    mkdirSync(join(root, VOID_DIR, VOID_MACHINE_DIR, 'runs'), { recursive: true });
 
     expect(pendingMigrations(root)).toEqual([]);
   });
@@ -265,10 +265,10 @@ describe('the ignore rule', () => {
   });
 });
 
-describe('LOCAL_ENTRIES', () => {
+describe('MACHINE_ENTRIES', () => {
   it('is the single list both the ignore rule and the migration read', () => {
     // If these ever diverge, `update` moves a file the ignore rule does not
     // cover, and the next commit ships telemetry.
-    for (const entry of LOCAL_ENTRIES) expect(isLocalEntry(entry)).toBe(true);
+    for (const entry of MACHINE_ENTRIES) expect(isMachineEntry(entry)).toBe(true);
   });
 });

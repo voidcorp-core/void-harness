@@ -4,7 +4,7 @@
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { voidLocalDir } from '@voidcorp/hook-runner';
+import { voidMachineDir } from '@voidcorp/hook-runner';
 import { fileURLToPath } from 'node:url';
 import {
   adaptCatalogV1,
@@ -228,7 +228,7 @@ export async function status(_args: readonly string[]): Promise<void> {
     const generatedAt = new Date().toISOString();
     const body = `${JSON.stringify({ ...state, generatedAt, score }, null, 2)}\n`;
     // Observed state: a snapshot of what this machine measured, plus its history.
-    const localDir = voidLocalDir(cwd);
+    const localDir = voidMachineDir(cwd);
     const historyDir = join(localDir, 'history');
     mkdirSync(historyDir, { recursive: true });
     writeFileSync(join(localDir, 'state.json'), body);

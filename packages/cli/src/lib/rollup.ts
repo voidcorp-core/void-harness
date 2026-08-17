@@ -15,7 +15,7 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
-import { legacyVoidPath, voidLocalPath } from '@voidcorp/hook-runner';
+import { legacyVoidPath, voidMachinePath } from '@voidcorp/hook-runner';
 import { loadCanonicalEventBody } from './graph-io.js';
 
 /** The global rollup index dir. `VOID_GLOBAL_DIR` overrides the base (test seam). */
@@ -78,7 +78,7 @@ export function discoverProjects(indexDir: string = globalIndexDir()): string[] 
 export function mergeTelemetry(roots: readonly string[], file: string): string {
   const parts: string[] = [];
   for (const root of roots) {
-    const candidates = [voidLocalPath(root, file), legacyVoidPath(root, file)]
+    const candidates = [voidMachinePath(root, file), legacyVoidPath(root, file)]
       .filter((path, index, all) => all.indexOf(path) === index);
     for (const p of candidates) {
       if (!existsSync(p)) continue;

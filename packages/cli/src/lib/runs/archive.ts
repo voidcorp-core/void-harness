@@ -11,7 +11,7 @@ import {
   unlink,
 } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
-import { voidLocalReadPath } from '@voidcorp/hook-runner';
+import { voidReadPath } from '@voidcorp/hook-runner';
 import { gzip } from 'node:zlib';
 import { promisify } from 'node:util';
 import type {
@@ -171,7 +171,7 @@ export async function pruneMissions(
       continue;
     }
     if (createdAt >= cutoff) continue;
-    const run = voidLocalReadPath(resolve(root), 'runs', missionId);
+    const run = voidReadPath(resolve(root), 'runs', missionId);
     const info = await lstat(run);
     const canonicalRoot = await realpath(resolve(root));
     const canonicalRun = await realpath(run);
