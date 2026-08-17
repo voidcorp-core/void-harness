@@ -43,6 +43,12 @@ interface UpdateOptions {
   readonly skipCache: boolean;
   /** Explicit opt-in: rewrite the index to drop regenerated content. Never implied. */
   readonly untrackDerived: boolean;
+  /**
+   * Overwrite a managed file the receipt cannot prove this install wrote. It is
+   * what `init` tells the operator to do when it refuses one, so `update` has to
+   * accept it — otherwise the printed remedy has no way of being applied.
+   */
+  readonly force: boolean;
 }
 
 function parseArgs(args: readonly string[]): UpdateOptions {
@@ -51,6 +57,7 @@ function parseArgs(args: readonly string[]): UpdateOptions {
     skipPins: args.includes('--cache-only'),
     skipCache: args.includes('--pins-only'),
     untrackDerived: args.includes('--untrack-derived'),
+    force: args.includes('--force'),
   };
 }
 
@@ -64,7 +71,7 @@ export async function update(args: readonly string[]): Promise<void> {
   if (opts.untrackDerived) await reportUntrackDerived(projectRoot, opts.dryRun);
   const receipt = await readInstallReceipt(projectRoot);
   if (updateModeFor(receipt) === 'local' && receipt !== undefined) {
-    await updateLocal(projectRoot, receipt, opts.dryRun);
+    await updateLocal(projectRoot, receipt, opts.dryRun, opts.force);
     return;
   }
 
@@ -186,10 +193,38 @@ async function reportUntrackDerived(projectRoot: string, dryRun: boolean): Promi
   }
 }
 
+/**
+ * The argv `update` hands to `init`.
+ *
+ * `--force` is forwarded rather than dropped. Reported from a real consumer
+ * project: `init` refuses to overwrite a managed file it cannot prove it wrote
+ * and prints "preserve it or re-run with --force", but `update` never parsed
+ * the flag nor passed it on — so the remedy the tool printed could not be
+ * applied through the command that printed it, and the operator was left with
+ * an instruction that does nothing. An impossible instruction is worse than
+ * none, because it costs the reader their trust in every other message.
+ */
+export function localInitArgs(
+  receipt: InstallReceipt,
+  packs: readonly string[],
+  options: { readonly force: boolean },
+): string[] {
+  const args = [
+    '--no-interactive',
+    '--replace-packs',
+    '--runtime',
+    receipt.runtimes.join(','),
+  ];
+  for (const pack of packs) args.push('--pack', pack);
+  if (options.force) args.push('--force');
+  return args;
+}
+
 async function updateLocal(
   projectRoot: string,
   receipt: InstallReceipt,
   dryRun: boolean,
+  force: boolean,
 ): Promise<void> {
   let packs: string[] = [];
   try {
@@ -209,14 +244,7 @@ async function updateLocal(
     footer(c.dim('dry-run — local assets would be recompiled, smoked and reconciled transactionally'));
     return;
   }
-  const initArgs = [
-    '--no-interactive',
-    '--replace-packs',
-    '--runtime',
-    receipt.runtimes.join(','),
-  ];
-  for (const pack of packs) initArgs.push('--pack', pack);
-  await init(initArgs);
+  await init(localInitArgs(receipt, packs, { force }));
 }
 
 /**
