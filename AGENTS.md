@@ -10,7 +10,7 @@ Marketplace: `voidcorp` (https://github.com/voidcorp-core/void-harness). Codex d
 
 ### Doctrine — read at the start of every session
 
-- `.void/PHILOSOPHY.md`
+- `.void/installed/PHILOSOPHY.md`
 - `.void/PROJECT-DOCTRINE.md`
 
 `PHILOSOPHY.md` is the universal void-harness doctrine (managed — overwritten on init). `PROJECT-DOCTRINE.md` holds project-specific rules: context, ADRs, in-flight decisions (created once, never overwritten by init).

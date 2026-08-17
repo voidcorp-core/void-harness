@@ -24,6 +24,9 @@ import {
   isOwnedDerived,
   legacyVoidPath,
   migratedName,
+  VOID_DIR,
+  VOID_INSTALLED_DIR,
+  VOID_MACHINE_DIR,
   ownershipOf,
   patchGitignore,
   pendingMigrations,
@@ -244,19 +247,27 @@ export async function migrateVoidLayout(root: string, dryRun = false): Promise<V
   const parked: string[] = [];
   for (const entry of pending) {
     try {
-      // Derived and observed answer different questions, so they land in
-      // different halves. And a legacy entry may change NAME on the way, not
-      // only directory.
-      const target =
-        ownershipOf(entry) === 'derived'
-          ? voidInstalledPath(root, migratedName(entry))
-          : voidMachinePath(root, migratedName(entry));
       // Both older layouts are sources: never migrated at all, or migrated once
       // to `local/` and not since.
+      const sources = [legacyVoidPath(root, entry), previousMachinePath(root, entry)]
+        .filter((source) => existsSync(source));
+
+      if (ownershipOf(entry) === 'derived') {
+        // Restorable content is DROPPED, not moved. `installed/` is filled by
+        // the install that runs immediately after, and only by it — moving a
+        // file there by hand hands the install a managed path it cannot prove
+        // it wrote, which it then refuses to overwrite. Measured on a real
+        // project: the layout pass succeeded, the install rolled the whole
+        // update back, and the receipt turned out never to have owned the file
+        // at its old path in the first place.
+        for (const source of sources) await rm(source, { recursive: true, force: true });
+        if (sources.length > 0) moved.push(entry);
+        continue;
+      }
+
       let touched = false;
-      for (const source of [legacyVoidPath(root, entry), previousMachinePath(root, entry)]) {
-        if (!existsSync(source)) continue;
-        if (await mergeInto(source, target)) touched = true;
+      for (const source of sources) {
+        if (await mergeInto(source, voidMachinePath(root, migratedName(entry)))) touched = true;
       }
       if (touched) parked.push(entry);
       moved.push(entry);
@@ -267,6 +278,23 @@ export async function migrateVoidLayout(root: string, dryRun = false): Promise<V
       failed.push(entry);
     }
   }
+  // Whatever is LEFT in the previous machine directory moves too, by name or
+  // not. `local/` was a closed set on purpose — "a new runtime artifact is born
+  // inside local/ and this file never has to learn about it" — so everything in
+  // it is machine state regardless of what the table knows. Migrating only known
+  // entries stranded the rest: found on this repo, where `.registered` stayed
+  // behind and kept the directory alive.
+  try {
+    const previous = join(root, '.void', 'local');
+    if (existsSync(previous)) {
+      for (const entry of await readdir(previous)) {
+        await mergeInto(join(previous, entry), voidMachinePath(root, entry));
+      }
+    }
+  } catch {
+    // Reported by the emptiness check below rather than failing the update.
+  }
+
   // The emptied legacy directory goes too. Leaving it is not merely untidy: a
   // `local/` still on disk reads as "not migrated" to anyone looking, and the
   // whole point of this pass is that the old shape stops existing.

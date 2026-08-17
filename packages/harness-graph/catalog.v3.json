@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:13b620b695b1bfacb9b1dfc5f8bbc7eefedf75b400d0ad32d93671c02c0c8e33"
+    "rootHash": "sha256:d9748d546a7c4d5581a722361dc51c3ad5f89cd78ac2c3da28b43973939549e7"
   },
   "nodes": [
     {
@@ -630,13 +630,13 @@
       "label": "checkpoint",
       "data": {
         "legacy": {
-          "description": "Close the current work session — route each fact to where state lives, then write the residue the next session cannot re-derive, ending on one exact next action.",
+          "description": "Close the current work session gracefully — before a clear, an interruption, or the end of a day. Route each fact to where state lives, then write the residue the next session cannot re-derive.",
           "id": "command:checkpoint",
-          "lines": 24,
+          "lines": 25,
           "name": "checkpoint",
           "pack": null,
           "source": "packages/core/commands/checkpoint.md",
-          "staticTokens": 342,
+          "staticTokens": 370,
           "type": "command"
         }
       },

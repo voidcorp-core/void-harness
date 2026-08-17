@@ -26,7 +26,7 @@ afterEach(() => {
 describe('migrateVoidLayout', () => {
   it('moves observed state and leaves declared state exactly where it was', async () => {
     const root = project({
-      '.void/activations.jsonl': 'a\n',
+      '.void/cache/x.json': 'a\n',
       '.void/runs/mis_1/events.jsonl': 'e\n',
       '.void/config.json': '{"packs":{}}',
       '.void/PROJECT-DOCTRINE.md': '# rules',
@@ -34,8 +34,8 @@ describe('migrateVoidLayout', () => {
 
     const result = await migrateVoidLayout(root);
 
-    expect([...result.moved].sort()).toEqual(['activations.jsonl', 'runs']);
-    expect(readFileSync(join(root, '.void/machine/activations.jsonl'), 'utf8')).toBe('a\n');
+    expect([...result.moved].sort()).toEqual(['cache', 'runs']);
+    expect(readFileSync(join(root, '.void/machine/cache/x.json'), 'utf8')).toBe('a\n');
     expect(readFileSync(join(root, '.void/machine/runs/mis_1/events.jsonl'), 'utf8')).toBe('e\n');
     // The whole point: these two must still be where git and the hooks expect.
     expect(readFileSync(join(root, '.void/config.json'), 'utf8')).toBe('{"packs":{}}');
@@ -43,7 +43,7 @@ describe('migrateVoidLayout', () => {
   });
 
   it('is idempotent — a second run has nothing left to do', async () => {
-    const root = project({ '.void/activations.jsonl': 'a\n' });
+    const root = project({ '.void/cache/x.json': 'a\n' });
     await migrateVoidLayout(root);
 
     const second = await migrateVoidLayout(root);
@@ -68,21 +68,21 @@ describe('migrateVoidLayout', () => {
    */
   it('moves the legacy half in, keeping the destination and parking the old copy', async () => {
     const root = project({
-      '.void/activations.jsonl': 'old\n',
-      '.void/machine/activations.jsonl': 'new\n',
+      '.void/cache/x.json': 'old\n',
+      '.void/machine/cache/x.json': 'new\n',
     });
 
     const result = await migrateVoidLayout(root);
 
-    expect(result.moved).toEqual(['activations.jsonl']);
+    expect(result.moved).toEqual(['cache']);
     expect(result.conflicts).toEqual([]);
-    expect(result.parked).toEqual(['activations.jsonl']);
+    expect(result.parked).toEqual(['cache']);
     // The destination is untouched, and the old bytes are still readable.
-    expect(readFileSync(join(root, '.void/machine/activations.jsonl'), 'utf8')).toBe('new\n');
-    expect(readFileSync(join(root, '.void/machine/activations.jsonl.legacy'), 'utf8')).toBe('old\n');
+    expect(readFileSync(join(root, '.void/machine/cache/x.json'), 'utf8')).toBe('new\n');
+    expect(readFileSync(join(root, '.void/machine/cache/x.json.legacy'), 'utf8')).toBe('old\n');
     // The legacy path is gone, so the fallback stops firing and the drift stops
     // coming back.
-    expect(existsSync(join(root, '.void/activations.jsonl'))).toBe(false);
+    expect(existsSync(join(root, '.void/cache/x.json'))).toBe(false);
   });
 
   it('merges a directory, moving what does not collide and parking what does', async () => {
@@ -116,9 +116,14 @@ describe('migrateVoidLayout', () => {
 
     await migrateVoidLayout(root);
 
-    expect(readFileSync(join(root, '.void/installed/PHILOSOPHY.md'), 'utf8')).toBe('doctrine\n');
     expect(readFileSync(join(root, '.void/machine/runs/a/events.jsonl'), 'utf8')).toBe('e\n');
+
+    // Restorable content is DROPPED from the old location, not moved: the
+    // install that runs immediately after fills `installed/`, and it is the only
+    // thing that may write there. Moving a file in by hand hands the install a
+    // managed path it cannot prove it wrote, which it then refuses to overwrite.
     expect(existsSync(join(root, '.void/PHILOSOPHY.md'))).toBe(false);
+    expect(existsSync(join(root, '.void/installed/PHILOSOPHY.md'))).toBe(false);
 
     // `hooks/` is derived AND committed, so it stays at the top: the top is what
     // git keeps, and `.claude/settings.json` — itself committed — resolves this
@@ -151,10 +156,73 @@ describe('migrateVoidLayout', () => {
     expect(existsSync(join(root, '.void/local'))).toBe(false);
   });
 
+  /**
+   * Measured on a clone of a real project: the receipt held 168 owned files and
+   * NONE of them was `PHILOSOPHY.md`. The install never owned it at the old
+   * path, so relocating it created a managed file nobody could claim — and the
+   * install refused it, rolling back an update whose layout pass had succeeded.
+   *
+   * Hence the rule above: restorable content is dropped, never relocated. The
+   * receipt therefore never needs rewriting, which is why no code does it.
+   */
+  it('never leaves restorable content where the install cannot claim it', async () => {
+    const root = project({ '.void/PHILOSOPHY.md': 'doctrine\n' });
+
+    await migrateVoidLayout(root);
+
+    expect(existsSync(join(root, '.void/PHILOSOPHY.md'))).toBe(false);
+    expect(existsSync(join(root, '.void/installed/PHILOSOPHY.md'))).toBe(false);
+  });
+
+  /**
+   * The three pre-journal streams are dead: nothing writes them, and since
+   * 2026-08-18 nothing reads them either. They still migrate — deleting someone's
+   * data is not a migration's job — but they are filed apart, so `machine/` holds
+   * only live state and removing 3.2 MB of unreadable history is one obvious
+   * command instead of a judgement call about eight similar-looking files.
+   */
+  it('files the retired streams apart from live machine state', async () => {
+    const root = project({
+      '.void/activations.jsonl': 'a\n',
+      '.void/usage.log': 'u\n',
+      '.void/runs/a/events.jsonl': 'e\n',
+    });
+
+    await migrateVoidLayout(root);
+
+    expect(readFileSync(join(root, '.void/machine/retired/activations.jsonl'), 'utf8')).toBe('a\n');
+    expect(readFileSync(join(root, '.void/machine/retired/usage.log'), 'utf8')).toBe('u\n');
+    // Live state stays where readers look for it.
+    expect(readFileSync(join(root, '.void/machine/runs/a/events.jsonl'), 'utf8')).toBe('e\n');
+    expect(existsSync(join(root, '.void/machine/activations.jsonl'))).toBe(false);
+  });
+
+  /**
+   * `local/` was a CLOSED set by design — "a new runtime artifact is born inside
+   * local/ and this file never has to learn about it" — so everything in it is
+   * machine state whatever its name. Migrating only the entries the table knows
+   * stranded the rest: found on this very repo, where `.registered` stayed
+   * behind and kept the directory alive.
+   */
+  it('empties the previous machine directory whole, including names it never knew', async () => {
+    const root = project({
+      '.void/local/runs/a/events.jsonl': 'e\n',
+      '.void/local/.registered': 'marker\n',
+      '.void/local/some-future-artifact.json': '{}\n',
+    });
+
+    await migrateVoidLayout(root);
+
+    expect(readFileSync(join(root, '.void/machine/runs/a/events.jsonl'), 'utf8')).toBe('e\n');
+    expect(readFileSync(join(root, '.void/machine/.registered'), 'utf8')).toBe('marker\n');
+    expect(readFileSync(join(root, '.void/machine/some-future-artifact.json'), 'utf8')).toBe('{}\n');
+    expect(existsSync(join(root, '.void/local'))).toBe(false);
+  });
+
   it('leaves nothing to do on a second run after a merge', async () => {
     const root = project({
-      '.void/activations.jsonl': 'old\n',
-      '.void/machine/activations.jsonl': 'new\n',
+      '.void/cache/x.json': 'old\n',
+      '.void/machine/cache/x.json': 'new\n',
     });
     await migrateVoidLayout(root);
 
@@ -166,21 +234,21 @@ describe('migrateVoidLayout', () => {
 
   it('never parks a copy over an existing parked one', async () => {
     const root = project({
-      '.void/activations.jsonl': 'older\n',
-      '.void/machine/activations.jsonl': 'new\n',
-      '.void/machine/activations.jsonl.legacy': 'already-parked\n',
+      '.void/cache/x.json': 'older\n',
+      '.void/machine/cache/x.json': 'new\n',
+      '.void/machine/cache/x.json.legacy': 'already-parked\n',
     });
 
     await migrateVoidLayout(root);
 
-    expect(readFileSync(join(root, '.void/machine/activations.jsonl.legacy'), 'utf8')).toBe(
+    expect(readFileSync(join(root, '.void/machine/cache/x.json.legacy'), 'utf8')).toBe(
       'already-parked\n',
     );
-    expect(existsSync(join(root, '.void/machine/activations.jsonl.legacy.2'))).toBe(true);
+    expect(existsSync(join(root, '.void/machine/cache/x.json.legacy.2'))).toBe(true);
   });
 
   it('writes the ignore block, preserving the rules the project already had', async () => {
-    const root = project({ '.void/activations.jsonl': 'a\n' });
+    const root = project({ '.void/cache/x.json': 'a\n' });
     writeFileSync(join(root, '.gitignore'), 'node_modules\ndist/\n');
 
     const result = await migrateVoidLayout(root);
@@ -196,7 +264,7 @@ describe('migrateVoidLayout', () => {
     // The block is marked, so a later run refreshes it in place. The hand-written
     // `.void/*` + `!` pair above it is the project's own text and is preserved —
     // reported, not silently rewritten.
-    const root = project({ '.void/activations.jsonl': 'a\n' });
+    const root = project({ '.void/cache/x.json': 'a\n' });
     writeFileSync(join(root, '.gitignore'), '.void/*\n!.void/PROJECT-DOCTRINE.md\n');
 
     await migrateVoidLayout(root);
@@ -207,11 +275,11 @@ describe('migrateVoidLayout', () => {
   });
 
   it('writes nothing in dry-run, while answering exactly what it would do', async () => {
-    const root = project({ '.void/activations.jsonl': 'a\n' });
+    const root = project({ '.void/cache/x.json': 'a\n' });
 
     const result = await migrateVoidLayout(root, true);
 
-    expect(result.moved).toEqual(['activations.jsonl']);
+    expect(result.moved).toEqual(['cache']);
     expect(result.gitignoreTouched).toBe(true);
     expect(existsSync(join(root, '.void/machine/activations.jsonl'))).toBe(false);
     expect(existsSync(join(root, '.gitignore'))).toBe(false);
@@ -397,10 +465,10 @@ describe('planVoidMigration', () => {
   it('separates what can move from what would collide', () => {
     const root = project({
       '.void/runs/mis_1/events.jsonl': 'e\n',
-      '.void/activations.jsonl': 'old\n',
-      '.void/machine/activations.jsonl': 'new\n',
+      '.void/cache/x.json': 'old\n',
+      '.void/machine/cache/x.json': 'new\n',
     });
 
-    expect(planVoidMigration(root)).toEqual({ movable: ['runs'], conflicts: ['activations.jsonl'] });
+    expect(planVoidMigration(root)).toEqual({ movable: ['runs'], conflicts: ['cache'] });
   });
 });
