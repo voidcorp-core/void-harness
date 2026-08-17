@@ -201,7 +201,7 @@ describe('ownership comes from the receipt, never from the directory', () => {
     '.claude/skills/tdd/references/cycle.md',
     '.agents/skills/tdd/SKILL.md',
     '.claude/agents/doctrine-critic.md',
-    '.void/PHILOSOPHY.md',
+    '.void/installed/PHILOSOPHY.md',
     '.void/hooks/_void-hook.mjs',
     '.codex/hooks.json',
     '.claude/settings.json',
@@ -228,7 +228,7 @@ describe('ownership comes from the receipt, never from the directory', () => {
   });
 
   it('lists a standalone owned file exactly', () => {
-    expect(derivedIgnoreEntries(RECEIPT)).toContain('.void/PHILOSOPHY.md');
+    expect(derivedIgnoreEntries(RECEIPT)).toContain('.void/installed/PHILOSOPHY.md');
   });
 
   it('does not collapse a flat unit root, where the unit IS the file', () => {

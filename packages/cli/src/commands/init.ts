@@ -3,7 +3,7 @@
 //
 // What this command does (idempotent):
 //   1. Create .void/config.json (paths, commands, modes)
-//   2. Copy PHILOSOPHY.md into .void/ (managed)
+//   2. Copy PHILOSOPHY.md into .void/installed/ (managed, restorable)
 //   3. Create .void/PROJECT-DOCTRINE.md from template if it does not exist
 //   4. Merge `.claude/settings.json` with `extraKnownMarketplaces.void-harness`
 //      pointing to the GitHub repo, and `enabledPlugins` for the chosen packs
@@ -482,7 +482,12 @@ async function installDoctrineFiles(projectRoot: string, sourceRoot: string): Pr
   const voidDir = join(projectRoot, '.void');
   await mkdir(voidDir, { recursive: true });
   const philosophySrc = join(sourceRoot, 'PHILOSOPHY.md');
-  const philosophyDst = join(voidDir, 'PHILOSOPHY.md');
+  // Under `installed/`: it is regenerated from a pin and not committed, and the
+  // top of `.void/` is what git keeps. A file that is ignored has no business
+  // sitting where "everything here is committed" is supposed to be readable at
+  // a glance.
+  const philosophyDst = join(voidDir, 'installed', 'PHILOSOPHY.md');
+  await mkdir(join(voidDir, 'installed'), { recursive: true });
   if (existsSync(philosophySrc)) {
     await cp(philosophySrc, philosophyDst);
     line(`${c.green(glyph.check)}  ${c.dim('PHILOSOPHY.md'.padEnd(18))}written (managed)`);

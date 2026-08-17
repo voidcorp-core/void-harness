@@ -10,14 +10,14 @@ const input = { enabledPlugins: ['harness'], enabledPacks: [] as never[] };
 describe('harnessBlock', () => {
   it('uses @imports for the Claude runtime', () => {
     const block = harnessBlock(input, 'claude');
-    expect(block).toContain('@.void/PHILOSOPHY.md');
+    expect(block).toContain('@.void/installed/PHILOSOPHY.md');
     expect(block).toContain('Claude Code doctrine active');
   });
 
   it('uses read-at-start file pointers (no @import) for the Codex runtime', () => {
     const block = harnessBlock(input, 'codex');
-    expect(block).not.toContain('@.void/PHILOSOPHY.md');
-    expect(block).toContain('`.void/PHILOSOPHY.md`');
+    expect(block).not.toContain('@.void/installed/PHILOSOPHY.md');
+    expect(block).toContain('`.void/installed/PHILOSOPHY.md`');
     expect(block).toContain('Codex doctrine active');
     expect(block).toContain('read at the start');
   });

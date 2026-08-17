@@ -1,5 +1,5 @@
 // Idempotent patch of the project's agent-doc(s) with a delimited harness block.
-// The block points the agent at .void/PHILOSOPHY.md and .void/PROJECT-DOCTRINE.md
+// The block points the agent at .void/installed/PHILOSOPHY.md and .void/PROJECT-DOCTRINE.md
 // plus a short reminder of how rules are captured.
 //
 // Two runtimes share one doctrine:
@@ -40,8 +40,8 @@ export function harnessBlock(input: ClaudeMdBlockInputs, runtime: Runtime = 'cla
     ? `### Doctrine — loaded into every session`
     : `### Doctrine — read at the start of every session`;
   const imports = isClaude
-    ? [`@.void/PHILOSOPHY.md`, `@.void/PROJECT-DOCTRINE.md`]
-    : [`- \`.void/PHILOSOPHY.md\``, `- \`.void/PROJECT-DOCTRINE.md\``];
+    ? [`@.void/installed/PHILOSOPHY.md`, `@.void/PROJECT-DOCTRINE.md`]
+    : [`- \`.void/installed/PHILOSOPHY.md\``, `- \`.void/PROJECT-DOCTRINE.md\``];
   const captureLine = isClaude
     ? `To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The \`capture-rule\` skill auto-invokes, classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.`
     : `To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The capture-rule workflow classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.`;

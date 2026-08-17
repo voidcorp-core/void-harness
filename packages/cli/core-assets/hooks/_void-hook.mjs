@@ -884,6 +884,11 @@ var VOID_OWNERSHIP = Object.freeze({
   // pin. Not committed — 1.2 MB of vendored prose rewritten on every bump — but
   // their absence degrades the agent rather than breaking the project.
   "PHILOSOPHY.md": "derived",
+  // Derived AND committed, which is why it stays at the top rather than moving
+  // into `installed/`. `.claude/settings.json` names this path and is itself
+  // committed, so ignoring the runner would give a fresh clone a settings file
+  // pointing at a missing file and every tool call would fail on it. See
+  // `DERIVED_LOAD_BEARING`: its absence is an error, not a degradation.
   hooks: "derived",
   // Observed: this machine's history. Never meaningful in another checkout, and
   // losing it costs nothing.
@@ -931,7 +936,7 @@ var MATERIALIZED_OWNERSHIP = Object.freeze({
   ".agents/skills/": "derived",
   ".codex/agents/": "derived",
   ".void/hooks/": "derived",
-  ".void/PHILOSOPHY.md": "derived",
+  ".void/installed/PHILOSOPHY.md": "derived",
   ".codex/hooks.json": "derived"
 });
 var DERIVED_LOAD_BEARING = Object.freeze([
@@ -949,7 +954,7 @@ var MACHINE_ENTRIES = Object.freeze(
   Object.keys(VOID_OWNERSHIP).filter((entry) => VOID_OWNERSHIP[entry] === "observed").sort()
 );
 var INSTALLED_ENTRIES = Object.freeze(
-  Object.keys(VOID_OWNERSHIP).filter((entry) => VOID_OWNERSHIP[entry] === "derived").sort()
+  Object.keys(VOID_OWNERSHIP).filter((entry) => VOID_OWNERSHIP[entry] === "derived").filter((entry) => !DERIVED_LOAD_BEARING.includes(`${VOID_DIR}/${entry}/`)).sort()
 );
 function voidDir(root) {
   return join5(root, VOID_DIR);

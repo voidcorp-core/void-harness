@@ -66,6 +66,11 @@ export const VOID_OWNERSHIP: Readonly<Record<string, Ownership>> = Object.freeze
   // pin. Not committed — 1.2 MB of vendored prose rewritten on every bump — but
   // their absence degrades the agent rather than breaking the project.
   'PHILOSOPHY.md': 'derived',
+  // Derived AND committed, which is why it stays at the top rather than moving
+  // into `installed/`. `.claude/settings.json` names this path and is itself
+  // committed, so ignoring the runner would give a fresh clone a settings file
+  // pointing at a missing file and every tool call would fail on it. See
+  // `DERIVED_LOAD_BEARING`: its absence is an error, not a degradation.
   hooks: 'derived',
 
   // Observed: this machine's history. Never meaningful in another checkout, and
@@ -130,7 +135,7 @@ export const MATERIALIZED_OWNERSHIP: Readonly<Record<string, Ownership>> = Objec
   '.agents/skills/': 'derived',
   '.codex/agents/': 'derived',
   '.void/hooks/': 'derived',
-  '.void/PHILOSOPHY.md': 'derived',
+  '.void/installed/PHILOSOPHY.md': 'derived',
   '.codex/hooks.json': 'derived',
 });
 
@@ -233,10 +238,17 @@ export const MACHINE_ENTRIES: readonly string[] = Object.freeze(
     .sort(),
 );
 
-/** The derived entries — what `installed/` holds and what git ignores. */
+/**
+ * What `installed/` holds: derived entries MINUS the load-bearing ones.
+ *
+ * A derived path that must survive a fresh clone stays at the top of `.void/`,
+ * because the top is what git keeps. Moving it under an ignored directory would
+ * un-track the very file `.claude/settings.json` resolves by name.
+ */
 export const INSTALLED_ENTRIES: readonly string[] = Object.freeze(
   Object.keys(VOID_OWNERSHIP)
     .filter((entry) => VOID_OWNERSHIP[entry] === 'derived')
+    .filter((entry) => !DERIVED_LOAD_BEARING.includes(`${VOID_DIR}/${entry}/`))
     .sort(),
 );
 

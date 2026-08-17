@@ -103,9 +103,13 @@ export async function doctor(args: readonly string[]): Promise<void> {
     }
   }
 
-  const philosophyPath = join(root, '.void', 'PHILOSOPHY.md');
+  // New home first, previous one until the project runs `update`: a doctrine
+  // reported missing while it sits one directory away is a false alarm that
+  // sends someone reinstalling for nothing.
+  const havePhilo =
+    existsSync(join(root, '.void', 'installed', 'PHILOSOPHY.md'))
+    || existsSync(join(root, '.void', 'PHILOSOPHY.md'));
   const doctrinePath = join(root, '.void', 'PROJECT-DOCTRINE.md');
-  const havePhilo = existsSync(philosophyPath);
   const haveDoctrine = existsSync(doctrinePath);
   if (havePhilo && haveDoctrine) {
     checks.push({ name: 'doctrine files', ok: true, message: 'PHILOSOPHY.md + PROJECT-DOCTRINE.md present' });

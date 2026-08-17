@@ -117,9 +117,15 @@ describe('migrateVoidLayout', () => {
     await migrateVoidLayout(root);
 
     expect(readFileSync(join(root, '.void/installed/PHILOSOPHY.md'), 'utf8')).toBe('doctrine\n');
-    expect(readFileSync(join(root, '.void/installed/hooks/_void-hook.mjs'), 'utf8')).toBe('runner\n');
     expect(readFileSync(join(root, '.void/machine/runs/a/events.jsonl'), 'utf8')).toBe('e\n');
     expect(existsSync(join(root, '.void/PHILOSOPHY.md'))).toBe(false);
+
+    // `hooks/` is derived AND committed, so it stays at the top: the top is what
+    // git keeps, and `.claude/settings.json` — itself committed — resolves this
+    // path by name. Under an ignored directory, a fresh clone would carry a
+    // settings file pointing at a missing runner and fail on every tool call.
+    expect(readFileSync(join(root, '.void/hooks/_void-hook.mjs'), 'utf8')).toBe('runner\n');
+    expect(existsSync(join(root, '.void/installed/hooks'))).toBe(false);
   });
 
   /**
