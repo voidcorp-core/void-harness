@@ -21,6 +21,12 @@ import { corsFor, securityHeaders } from '../graph-live-server.js';
 
 const LOOPBACK = '127.0.0.1';
 const PORT_RETRIES = 20;
+/**
+ * Its own cookie name: cookies ignore the port, so sharing the live graph
+ * server's name would mean opening one surface silently logs you out of the
+ * other.
+ */
+const COOKIE = 'void_projects_session';
 
 export interface CommandCenterOptions {
   readonly port: number;
@@ -78,7 +84,7 @@ function handle(
     res.writeHead(302, {
       ...cors,
       ...securityHeaders(),
-      'Set-Cookie': sessionCookie(session),
+      'Set-Cookie': sessionCookie(session, COOKIE),
       Location: '/',
     });
     res.end();
@@ -114,7 +120,9 @@ function handle(
 
 /** Start the loopback-only command centre. Returns the live server. */
 export function startCommandCenter(opts: CommandCenterOptions): Server {
-  const auth = createLiveAuth(opts.launchToken);
+  // Not one-shot: a dashboard is opened again and again, and a spent link would
+  // mean restarting the command for a second browser or after clearing cookies.
+  const auth = createLiveAuth(opts.launchToken, { oneShot: false, cookieName: COOKIE });
   const server = createServer((req, res) => handle(req, res, opts, auth));
   let port = opts.port;
 

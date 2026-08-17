@@ -115,12 +115,29 @@ describe('command centre server', () => {
     expect((await fetch(`${base}/auth?token=wrong`, { redirect: 'manual' })).status).toBe(403);
   });
 
-  // One-shot: a link pasted into a log cannot be replayed into a session.
-  it('spends the launch token on first use', async () => {
+  // The token stays valid for the life of the process, unlike the live graph
+  // server's one-shot exchange. A dashboard is opened again and again — second
+  // browser, second screen, after clearing cookies — and a one-shot link turns
+  // each of those into "restart the command". The secret is printed on the
+  // owner's own terminal and dies with the process; anyone who can read that
+  // scrollback can already read the files being summarised.
+  it('accepts the launch token more than once, for the life of the process', async () => {
     await start();
+    const first = await authorize();
+    const second = await authorize();
+
+    expect(first).not.toBe('');
+    expect(second).not.toBe('');
+    const response = await fetch(`${base}/api/projects`, { headers: { cookie: second } });
+    expect(response.status).toBe(200);
+  });
+
+  it('keeps an earlier session valid after a second exchange', async () => {
+    await start();
+    const first = await authorize();
     await authorize();
 
-    expect((await fetch(`${base}/auth?token=${TOKEN}`, { redirect: 'manual' })).status).toBe(403);
+    expect((await fetch(`${base}/api/projects`, { headers: { cookie: first } })).status).toBe(200);
   });
 
   it('offers no way to mutate anything', async () => {
