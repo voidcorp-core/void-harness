@@ -1,12 +1,15 @@
-import { lstat, mkdir, mkdtemp, rename, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { lstat, mkdir, rename, writeFile } from 'node:fs/promises';
+
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { createNodeProjectRootPort, detectProjectVolumeCaseSensitivity } from './root.js';
+import { cleanupProjectTempDirs, projectTempDir } from './test-support.js';
+
+afterAll(cleanupProjectTempDirs);
 
 describe('project root identity', () => {
 	it('binds canonical identity and case behavior to the actual project volume', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-root-identity-'));
+		const root = await projectTempDir('void-project-root-identity-');
 		await writeFile(join(root, 'CaseProbe.ts'), 'export {};\n');
 		const port = createNodeProjectRootPort();
 
@@ -17,7 +20,7 @@ describe('project root identity', () => {
 	});
 
 	it('leaves restored-inode ABA detection to the root journal', async () => {
-		const parent = await mkdtemp(join(tmpdir(), 'void-project-root-aba-'));
+		const parent = await projectTempDir('void-project-root-aba-');
 		const root = join(parent, 'root');
 		const saved = join(parent, 'saved');
 		const replacement = join(parent, 'replacement');
@@ -88,7 +91,7 @@ describe('project root case sensitivity', () => {
 
 describe('project root case sensitivity cache', () => {
 	it('does not retain an inconclusive volume probe', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-root-case-retry-'));
+		const root = await projectTempDir('void-project-root-case-retry-');
 		const device = (await lstat(root)).dev;
 		let attempts = 0;
 		const port = createNodeProjectRootPort({
@@ -111,7 +114,7 @@ describe('project root case sensitivity cache', () => {
 	});
 
 	it('memoizes definitive case behavior by device within a bounded root port', async () => {
-		const root = await mkdtemp(join(tmpdir(), 'void-project-root-case-cache-'));
+		const root = await projectTempDir('void-project-root-case-cache-');
 		await writeFile(join(root, 'CaseProbe.ts'), 'export {};\n');
 		const device = (await lstat(root)).dev;
 		let scans = 0;

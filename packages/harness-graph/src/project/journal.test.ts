@@ -1,8 +1,8 @@
-import { mkdir, mkdtemp, rename, stat, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, rename, stat, writeFile } from 'node:fs/promises';
+
 import { join } from 'node:path';
-import { fixtureCompilerLookup } from './test-support.js';
-import { describe, expect, it } from 'vitest';
+import { cleanupProjectTempDirs, fixtureCompilerLookup, projectTempDir } from './test-support.js';
+import { afterAll, describe, expect, it } from 'vitest';
 import { buildProjectGraph } from './build.js';
 import { createMemoryProjectCachePort } from './cache.js';
 import type { ProjectRootIdentity } from './extractors/types.js';
@@ -15,6 +15,8 @@ import {
 	type ProjectWatchPort,
 } from './journal.js';
 import { createNodeProjectRootPort } from './root.js';
+
+afterAll(cleanupProjectTempDirs);
 
 /**
  * Wait for an observation to satisfy `accept`, rather than for a fixed delay.
@@ -281,7 +283,7 @@ describe('ProjectChangeJournal saturation', () => {
 
 describe('ProjectChangeJournal native capability', () => {
 	it('proves native root ABA events or degrades when watching is unavailable', async () => {
-		const parent = await mkdtemp(join(tmpdir(), 'void-project-journal-native-'));
+		const parent = await projectTempDir('void-project-journal-native-');
 		const root = join(parent, 'root');
 		const saved = join(parent, 'saved');
 		const replacement = join(parent, 'replacement');
@@ -363,7 +365,7 @@ describe('ProjectChangeJournal root identity', () => {
 		// reports nothing when the watched directory is replaced. With an injected
 		// port that fires no event, the only thing that can catch the swap is
 		// checking the identity rather than watching for it.
-		const parent = await mkdtemp(join(tmpdir(), 'void-journal-identity-'));
+		const parent = await projectTempDir('void-journal-identity-');
 		const root = join(parent, 'root');
 		const saved = join(parent, 'saved');
 		const replacement = join(parent, 'replacement');
@@ -393,7 +395,7 @@ describe('ProjectChangeJournal root identity', () => {
 	it('does not cry wolf on a root that never moved', async () => {
 		// The check runs on every observation, so a false positive here would make
 		// every project permanently uncertain and every cache useless.
-		const parent = await mkdtemp(join(tmpdir(), 'void-journal-stable-'));
+		const parent = await projectTempDir('void-journal-stable-');
 		const root = join(parent, 'root');
 		await mkdir(root);
 		await writeFile(join(root, 'package.json'), JSON.stringify({ name: 'stable' }));

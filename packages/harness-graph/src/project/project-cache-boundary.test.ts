@@ -1,13 +1,15 @@
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile } from 'node:fs/promises';
+
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { buildProjectGraph } from './build.js';
 import { createMemoryProjectCachePort, type ProjectCachePort } from './cache.js';
 import { projectFileId, type ProjectGitSnapshot } from './extractors/types.js';
 import type { ProjectChangeJournal } from './journal.js';
 import { createNodeProjectRootPort } from './root.js';
-import { createExactProjectChangeJournal, fixtureCompilerLookup } from './test-support.js';
+import { cleanupProjectTempDirs, createExactProjectChangeJournal, fixtureCompilerLookup, projectTempDir } from './test-support.js';
+
+afterAll(cleanupProjectTempDirs);
 
 function availableGit(): ProjectGitSnapshot {
 	return Object.freeze({
@@ -26,7 +28,7 @@ function availableGit(): ProjectGitSnapshot {
 }
 
 async function projectRoot(prefix: string, symbol: string): Promise<string> {
-	const parent = await mkdtemp(join(tmpdir(), prefix));
+	const parent = await projectTempDir(prefix);
 	const root = join(parent, 'root');
 	await mkdir(root);
 	await writeFile(join(root, 'package.json'), JSON.stringify({ name: symbol }));

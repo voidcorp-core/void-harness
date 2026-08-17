@@ -14,23 +14,25 @@
 // These tests fix the meanings apart from each other.
 
 import { execFile } from 'node:child_process';
-import { cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
+
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { expect, it } from 'vitest';
+import { afterAll, expect, it } from 'vitest';
 import { buildProjectGraph } from './build.js';
 import { createMemoryProjectCachePort } from './cache.js';
 import type { ProjectBuildIssue, ProjectGitSnapshot } from './extractors/types.js';
 import { createNodeProjectChangeJournal } from './journal.js';
-import { createExactProjectChangeJournal, fixtureCompilerLookup } from './test-support.js';
+import { cleanupProjectTempDirs, createExactProjectChangeJournal, fixtureCompilerLookup, projectTempDir } from './test-support.js';
+
+afterAll(cleanupProjectTempDirs);
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'test-fixtures', 'monorepo');
 const run = promisify(execFile);
 
 async function fixtureRoot(): Promise<string> {
-	const parent = await mkdtemp(join(tmpdir(), 'void-partiality-'));
+	const parent = await projectTempDir('void-partiality-');
 	const root = join(parent, 'root');
 	await cp(FIXTURE, root, { recursive: true });
 	await mkdir(join(root, '.void', 'local', 'cache'), { recursive: true });

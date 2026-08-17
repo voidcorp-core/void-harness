@@ -10,14 +10,17 @@
  * other assertion still passed.
  */
 
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { tmpdir } from 'node:os';
+
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { buildProjectGraph } from './build.js';
 import { createMemoryProjectCachePort } from './cache.js';
 import type { ProjectGitSnapshot } from './extractors/types.js';
+import { cleanupProjectTempDirs, projectTempDir } from './test-support.js';
+
+afterAll(cleanupProjectTempDirs);
 
 const FIXTURE_VERSION = '5.4.99-fixture';
 const roots: string[] = [];
@@ -55,7 +58,7 @@ const journal = Object.freeze({
 });
 
 async function project(files: Record<string, string>): Promise<string> {
-	const root = await mkdtemp(join(tmpdir(), 'void-compiler-provenance-'));
+	const root = await projectTempDir('void-compiler-provenance-');
 	roots.push(root);
 	for (const [path, content] of Object.entries(files)) {
 		await mkdir(join(root, path, '..'), { recursive: true });

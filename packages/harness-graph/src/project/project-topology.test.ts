@@ -1,11 +1,14 @@
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { existsSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
+
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { buildProjectGraph } from './build.js';
 import { createMemoryProjectCachePort } from './cache.js';
 import { projectFileId, type ProjectGitSnapshot } from './extractors/types.js';
-import { createExactProjectChangeJournal, fixtureCompilerLookup } from './test-support.js';
+import { cleanupProjectTempDirs, createExactProjectChangeJournal, fixtureCompilerLookup, projectTempDir } from './test-support.js';
+
+afterAll(cleanupProjectTempDirs);
 
 function availableGit(): ProjectGitSnapshot {
 	return Object.freeze({
@@ -24,7 +27,7 @@ function availableGit(): ProjectGitSnapshot {
 }
 
 async function projectRoot(prefix: string): Promise<string> {
-	const parent = await mkdtemp(join(tmpdir(), prefix));
+	const parent = await projectTempDir(prefix);
 	const root = join(parent, 'root');
 	await mkdir(root);
 	return root;
@@ -169,4 +172,25 @@ it('applies the implicit scope of a referenced config without include or files',
 			to: projectFileId('src/value.ts'),
 		}),
 	);
+});
+
+it('hands out a temporary directory and takes it back', async () => {
+	const created = await projectTempDir('void-cleanup-proof-');
+	await writeFile(join(created, 'fixture.txt'), 'content');
+	expect(existsSync(created)).toBe(true);
+
+	await cleanupProjectTempDirs();
+
+	// Twelve test files called mkdtemp directly and three cleaned up, so every run
+	// left a few hundred trees behind. The system temp directory had reached
+	// 119,489 entries and 4.7 GB, which is what makes `mkdtemp` and every file
+	// operation under it slow enough to trip timing-sensitive tests.
+	expect(existsSync(created)).toBe(false);
+});
+
+it('is safe to clean up twice', async () => {
+	await projectTempDir('void-cleanup-idempotent-');
+	await cleanupProjectTempDirs();
+
+	await expect(cleanupProjectTempDirs()).resolves.toBeUndefined();
 });
