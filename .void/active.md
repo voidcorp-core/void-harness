@@ -1,7 +1,7 @@
 ---
 status: executing
 program: knowledge-and-resume
-plan: plans/2026-08-17-knowledge-and-resume-plan.md
+plan: docs/plans/2026-08-17-knowledge-and-resume-plan.md
 spec: docs/specs/2026-08-17-project-knowledge-system.md
 tracker:
   provider: linear

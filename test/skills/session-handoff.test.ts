@@ -130,7 +130,7 @@ describe('provenance', () => {
 
   it('records the boundary with the skills it sits next to', () => {
     const audit = readFileSync(
-      new URL('../../plans/skill-audits/session-handoff.md', import.meta.url),
+      new URL('../../docs/plans/skill-audits/session-handoff.md', import.meta.url),
       'utf8',
     );
     expect(audit).toMatch(/Boundary with `learning-capture`/);

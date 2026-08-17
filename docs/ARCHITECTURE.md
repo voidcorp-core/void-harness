@@ -101,7 +101,7 @@ Rules:
 ### Consumer active-program handoff
 
 Every generated `CLAUDE.md` or `AGENTS.md` carries the same conditional bootstrap: if
-`plans/ACTIVE.md` exists with `status: executing`, the runtime reads its plan and spec before
+`.void/active.md` exists with `status: executing`, the runtime reads its plan and spec before
 choosing implementation work. A plain continue/start/resume request recovers exactly one started
 scoped ticket, or selects the first ready ticket from the pointer's stable issue order and the
 tracker’s native blocker relations. The complete ticket is then executed through `ticket-runner`.

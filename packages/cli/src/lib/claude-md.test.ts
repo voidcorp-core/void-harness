@@ -27,7 +27,7 @@ describe('harnessBlock', () => {
     ['codex', '`ticket-runner`'],
   ] as const)('installs the active-program bootstrap for %s', (runtime, runner) => {
     const block = harnessBlock(input, runtime);
-    expect(block).toContain('`plans/ACTIVE.md`');
+    expect(block).toContain('`.void/active.md`');
     expect(block).toContain('`status: executing`');
     expect(block).toContain('The tracker owns mutable execution state');
     expect(block).toContain(runner);
