@@ -222,13 +222,13 @@
       "type": "command"
     },
     {
-      "description": "Close the current work session — route each fact to where state lives, then write the residue the next session cannot re-derive, ending on one exact next action.",
+      "description": "Close the current work session gracefully — before a clear, an interruption, or the end of a day. Route each fact to where state lives, then write the residue the next session cannot re-derive.",
       "id": "command:checkpoint",
-      "lines": 24,
+      "lines": 25,
       "name": "checkpoint",
       "pack": null,
       "source": "packages/core/commands/checkpoint.md",
-      "staticTokens": 342,
+      "staticTokens": 370,
       "type": "command"
     },
     {

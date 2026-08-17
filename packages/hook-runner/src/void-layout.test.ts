@@ -113,6 +113,23 @@ describe('the three natures of .void', () => {
     expect(isMachineEntry('PROJECT-DOCTRINE.md')).toBe(false);
   });
 
+  /**
+   * `autonomous-runs` holds PLANS, not run journals — measured on sesame, eight
+   * committed `.plan.md` files carrying frozen model decisions that still govern
+   * its schema. Classified as observed, doctor told the project to untrack its
+   * own architecture decisions.
+   *
+   * Nothing writes it: it is a leftover of the `backlog-autopilot` engine deleted
+   * at the 2026-07-30 cutover, and the current autopilot writes to
+   * `machine/autopilot/`. So there is no writer to redirect — only a
+   * classification to correct, and the fix is to leave those files where their
+   * project committed them.
+   */
+  it('treats autonomous-runs as the project\'s own, not as machine state', () => {
+    expect(ownershipOf('autonomous-runs')).toBe('project');
+    expect(isMachineEntry('autonomous-runs')).toBe(false);
+  });
+
   it('classifies every observed artifact as machine-owned', () => {
     for (const entry of ['runs', 'cache', 'outputs', 'generated', 'archives', 'autopilot', 'receipts', 'history', 'status.json', 'checkpoint.md']) {
       expect(isMachineEntry(entry), entry).toBe(true);

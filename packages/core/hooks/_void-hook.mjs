@@ -880,6 +880,14 @@ var VOID_OWNERSHIP = Object.freeze({
   "PROJECT-DOCTRINE.md": "project",
   "active.md": "project",
   knowledge: "project",
+  // Plans, despite the name. Measured on sesame: eight committed `.plan.md`
+  // files carrying frozen model decisions that still govern its schema. Read as
+  // `observed`, doctor told the project to untrack its own architecture
+  // decisions — and nothing writes this directory anyway. It is a leftover of
+  // the `backlog-autopilot` engine deleted at the 2026-07-30 cutover; the
+  // current autopilot writes to `machine/autopilot/`. So there is no writer to
+  // redirect, only a classification that was wrong.
+  "autonomous-runs": "project",
   // Derived: `void-harness install` re-materializes these, byte for byte from a
   // pin. Not committed — 1.2 MB of vendored prose rewritten on every bump — but
   // their absence degrades the agent rather than breaking the project.
@@ -901,7 +909,6 @@ var VOID_OWNERSHIP = Object.freeze({
   receipts: "observed",
   history: "observed",
   worktrees: "observed",
-  "autonomous-runs": "observed",
   // Renamed from `state.json`, which named two different things: this snapshot
   // and an autopilot run's cursor. The cursor keeps its name inside its own run
   // directory, where nothing else competes for it.

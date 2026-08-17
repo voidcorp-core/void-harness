@@ -289,7 +289,7 @@ The surface no sentence can trigger, because it reports or changes state.
 | | |
 |---|---|
 | `autopilot` | Drain a bounded cluster of independent ready tickets — each worked end-to-end by ticket-runner in its own worktree — into one integration PR the human merges. |
-| `checkpoint` | Close the current work session — route each fact to where state lives, then write the residue the next session cannot re-derive, ending on one exact next action. |
+| `checkpoint` | Close the current work session gracefully — before a clear, an interruption, or the end of a day. |
 | `void-audit` | Run the outbound audit from local mission events and surface stale skills, upstream deprecations, conflicts, and HITL proposals. |
 | `void-doctor` | Run harness health checks for config, doctrine, runtime wiring, lifecycle proof, optional marketplace access, and version drift. |
 | `void-feedback` | File a void-harness feedback issue (a gap or friction in the harness) directly on voidcorp-core/void-harness. |
