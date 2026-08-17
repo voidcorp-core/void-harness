@@ -47,17 +47,23 @@ function readCheckpointFile(
 function renderReport(report: ResumeReport): void {
   const checkpoint = report.checkpoint;
 
+  // Every line of a prose section, not just the first: `line` indents what it is
+  // given, so a paragraph handed over whole loses its shape from the second row.
+  const paragraph = (text: string): void => {
+    for (const row of text.split('\n')) line(row.trim());
+  };
+
   if (checkpoint?.objective !== undefined) {
     heading('Objective');
-    line(checkpoint.objective);
+    paragraph(checkpoint.objective);
   }
   if (checkpoint?.position !== undefined) {
     heading('Position');
-    line(checkpoint.position);
+    paragraph(checkpoint.position);
   }
   if (checkpoint?.state !== undefined) {
     heading('State');
-    for (const text of checkpoint.state.split('\n')) line(text);
+    paragraph(checkpoint.state);
   }
   if (checkpoint?.nextAction !== undefined) {
     heading('Next action');

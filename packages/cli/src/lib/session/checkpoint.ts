@@ -113,10 +113,33 @@ function prose(lines: readonly string[]): string | undefined {
   return text === '' ? undefined : text;
 }
 
+/**
+ * Bullets, including the ones that wrap.
+ *
+ * A continuation line is joined into the item above it. Found by reading a real
+ * checkpoint back: an item wrapped onto a second line silently lost its tail,
+ * which is data loss dressed up as a formatting detail. A blank line ends the
+ * item, so two bullets separated by one do not merge.
+ */
 function bullets(lines: readonly string[]): readonly string[] {
-  return lines
-    .map((line) => /^\s*[-*]\s+(.*)$/.exec(line)?.[1])
-    .filter((item): item is string => item !== undefined)
+  const items: string[] = [];
+  let open = false;
+  for (const line of lines) {
+    const bullet = /^\s*[-*]\s+(.*)$/.exec(line)?.[1];
+    if (bullet !== undefined) {
+      items.push(bullet);
+      open = true;
+      continue;
+    }
+    if (line.trim() === '') {
+      open = false;
+      continue;
+    }
+    if (open && items.length > 0) {
+      items[items.length - 1] = `${items[items.length - 1] ?? ''} ${line.trim()}`;
+    }
+  }
+  return items
     .map((item) => clamp(item))
     .filter((item) => item !== '')
     .slice(0, MAX_ITEMS);

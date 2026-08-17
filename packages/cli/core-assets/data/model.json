@@ -2421,7 +2421,7 @@
         }
       ],
       "id": "skill:session-handoff",
-      "lines": 181,
+      "lines": 218,
       "name": "session-handoff",
       "owner": "folpe",
       "pack": null,
@@ -2430,7 +2430,7 @@
         "codex"
       ],
       "source": "packages/core/skills/session-handoff/SKILL.md",
-      "staticTokens": 2153,
+      "staticTokens": 2590,
       "type": "skill"
     },
     {

@@ -141,4 +141,23 @@ describe('parseCheckpoint', () => {
 
     expect(checkpoint.openLoops).toEqual(['one', 'two']);
   });
+
+  // Found by reading a real checkpoint back: an item wrapped onto a second line
+  // lost its tail silently, which is data loss dressed as formatting.
+  it('keeps a bullet that wraps onto the next line whole', () => {
+    const checkpoint = parseCheckpoint(
+      '## Open loops\n\n- the fate of DEV-459 is undecided: they contradict\n  the command center spec\n- second item\n',
+    );
+
+    expect(checkpoint.openLoops).toEqual([
+      'the fate of DEV-459 is undecided: they contradict the command center spec',
+      'second item',
+    ]);
+  });
+
+  it('does not let a blank line glue two bullets together', () => {
+    const checkpoint = parseCheckpoint('## Open loops\n\n- one\n\n- two\n');
+
+    expect(checkpoint.openLoops).toEqual(['one', 'two']);
+  });
 });
