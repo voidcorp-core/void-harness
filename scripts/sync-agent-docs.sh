@@ -49,10 +49,18 @@ for f in "$CLAUDE" "$AGENTS"; do
   [[ -f "$f" ]] || { echo "sync-agent-docs: missing $f" >&2; exit 1; }
 done
 
+# Everything `void-harness init` writes lives between these markers, worded per
+# runtime by the installer itself. This gate holds AUTHORS to parity; judging
+# generated headings makes it fire on a correct install instead.
+strip_managed_block() {
+  awk '/<!-- void-harness:begin -->/{skip=1} !skip; /<!-- void-harness:end -->/{skip=0}' "$1"
+}
+
 # Drop the known terminology-variant tokens word-by-word (awk, not sed \b, which
 # is unsupported on BSD/macOS). What remains is the runtime-agnostic heading.
 normalize_headings() {
-  grep -E '^#{1,6} ' "$1" \
+  strip_managed_block "$1" \
+    | grep -E '^#{1,6} ' \
     | sed -E 's/^#+ //' \
     | tr '[:upper:]' '[:lower:]' \
     | sed -E 's/[^a-z0-9 ]//g; s/  +/ /g; s/^ +//; s/ +$//' \
