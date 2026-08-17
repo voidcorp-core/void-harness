@@ -9,6 +9,8 @@ import {
   MACHINE_ENTRIES,
   VOID_DIR,
   VOID_MACHINE_DIR,
+  VOID_OWNERSHIP,
+  voidInstalledPath,
   gitignoreBlock,
   isMachineEntry,
   legacyVoidPath,
@@ -66,10 +68,38 @@ describe('ownership decides what git keeps', () => {
   });
 });
 
-describe('the two natures of .void', () => {
-  it('writes observed state under .void/local, never beside what the project declares', () => {
-    expect(voidMachinePath('/p', 'runs', 'mis_1')).toBe(join('/p', '.void', 'local', 'runs', 'mis_1'));
+describe('the three natures of .void', () => {
+  it('writes observed state under .void/machine, never beside what the project declares', () => {
+    expect(voidMachinePath('/p', 'runs', 'mis_1')).toBe(join('/p', '.void', 'machine', 'runs', 'mis_1'));
   });
+
+  /**
+   * The rule the whole layout exists to make true: everything at the top of
+   * `.void/` is committed, and the two subdirectories are not. It was false
+   * before — PHILOSOPHY.md and hooks/ sat at the top while being ignored, so
+   * "is this committed" had no answer you could see.
+   */
+  it('files what install restores under .void/installed', () => {
+    expect(voidInstalledPath('/p', 'hooks')).toBe(join('/p', '.void', 'installed', 'hooks'));
+    expect(ownershipOf('PHILOSOPHY.md')).toBe('derived');
+    expect(ownershipOf('hooks')).toBe('derived');
+  });
+
+  it('leaves nothing derived at the top of .void', () => {
+    const atTop = Object.keys(VOID_OWNERSHIP).filter((entry) => ownershipOf(entry) === 'project');
+    for (const entry of atTop) expect(isMachineEntry(entry), entry).toBe(false);
+    expect(atTop).toContain('config.json');
+    expect(atTop).toContain('active.md');
+  });
+
+  // Dropped: three telemetry streams nothing writes any more, and three policy
+  // layers referenced by code but present in none of the park's projects.
+  it.each(['activations.jsonl', 'outcomes.jsonl', 'usage.log', 'policies', 'profiles', 'organization'])(
+    'no longer knows %s',
+    (entry) => {
+      expect(Object.keys(VOID_OWNERSHIP)).not.toContain(entry);
+    },
+  );
 
   it('keeps declared state at the top of .void, where git can see it', () => {
     // config.json and PROJECT-DOCTRINE.md are the two the project owns and ships.
@@ -77,10 +107,20 @@ describe('the two natures of .void', () => {
     expect(isMachineEntry('PROJECT-DOCTRINE.md')).toBe(false);
   });
 
-  it('classifies every observed artifact as local', () => {
-    for (const entry of ['runs', 'cache', 'outputs', 'generated', 'archives', 'autopilot', 'receipts', 'history', 'state.json', 'activations.jsonl', 'outcomes.jsonl']) {
+  it('classifies every observed artifact as machine-owned', () => {
+    for (const entry of ['runs', 'cache', 'outputs', 'generated', 'archives', 'autopilot', 'receipts', 'history', 'status.json', 'checkpoint.md']) {
       expect(isMachineEntry(entry), entry).toBe(true);
     }
+  });
+
+  /**
+   * `state.json` named two different things: the snapshot `status` writes, and
+   * an autopilot run's cursor. Only the first is renamed; the cursor keeps its
+   * name inside its own run directory, where it is unambiguous.
+   */
+  it('renames only the status snapshot, never the autopilot cursor', () => {
+    expect(isMachineEntry('status.json')).toBe(true);
+    expect(Object.keys(VOID_OWNERSHIP)).not.toContain('state.json');
   });
 });
 
@@ -88,9 +128,18 @@ describe('reading across the split', () => {
   it('prefers the migrated path', () => {
     const root = scratch();
     mkdirSync(join(root, VOID_DIR, VOID_MACHINE_DIR), { recursive: true });
-    writeFileSync(join(root, VOID_DIR, VOID_MACHINE_DIR, 'activations.jsonl'), '');
+    writeFileSync(join(root, VOID_DIR, VOID_MACHINE_DIR, 'runs'), '');
 
-    expect(voidReadPath(root, 'activations.jsonl')).toBe(voidMachinePath(root, 'activations.jsonl'));
+    expect(voidReadPath(root, 'runs')).toBe(voidMachinePath(root, 'runs'));
+  });
+
+  it('falls back through the previous machine directory before the flat root', () => {
+    // A project migrated once already (local/) but not yet to machine/.
+    const root = scratch();
+    mkdirSync(join(root, VOID_DIR, 'local'), { recursive: true });
+    writeFileSync(join(root, VOID_DIR, 'local', 'runs'), '');
+
+    expect(voidReadPath(root, 'runs')).toBe(join(root, VOID_DIR, 'local', 'runs'));
   });
 
   it('falls back to the pre-split path so an unmigrated project keeps its history', () => {
@@ -98,15 +147,15 @@ describe('reading across the split', () => {
     // new path would report a project with months of telemetry as having none.
     const root = scratch();
     mkdirSync(join(root, VOID_DIR), { recursive: true });
-    writeFileSync(join(root, VOID_DIR, 'activations.jsonl'), '');
+    writeFileSync(join(root, VOID_DIR, 'runs'), '');
 
-    expect(voidReadPath(root, 'activations.jsonl')).toBe(legacyVoidPath(root, 'activations.jsonl'));
+    expect(voidReadPath(root, 'runs')).toBe(legacyVoidPath(root, 'runs'));
   });
 
   it('returns the migrated path when neither exists, so writers create the right one', () => {
     const root = scratch();
 
-    expect(voidReadPath(root, 'activations.jsonl')).toBe(voidMachinePath(root, 'activations.jsonl'));
+    expect(voidReadPath(root, 'runs')).toBe(voidMachinePath(root, 'runs'));
   });
 });
 
