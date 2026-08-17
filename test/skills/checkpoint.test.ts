@@ -1,5 +1,5 @@
 /**
- * The session-handoff skill is a contract, and two clauses carry its whole value.
+ * The checkpoint skill is a contract, and two clauses carry its whole value.
  *
  * The first is that it routes before it writes: a handoff that duplicates the
  * tracker, the diff or the doctrine creates a second copy of a fact, and within a
@@ -14,11 +14,11 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const SKILL = readFileSync(
-  new URL('../../packages/core/skills/session-handoff/SKILL.md', import.meta.url),
+  new URL('../../packages/core/skills/checkpoint/SKILL.md', import.meta.url),
   'utf8',
 );
 const COMMAND = readFileSync(
-  new URL('../../packages/core/commands/session-handoff.md', import.meta.url),
+  new URL('../../packages/core/commands/checkpoint.md', import.meta.url),
   'utf8',
 );
 
@@ -35,7 +35,7 @@ function flat(source: string): string {
   return source.replace(/\s+/g, ' ');
 }
 
-describe('session-handoff frontmatter', () => {
+describe('checkpoint frontmatter', () => {
   it('declares both runtimes, because a handoff is not a Claude-only artefact', () => {
     expect(frontmatter(SKILL)).toContain('runtimes: [claude, codex]');
   });
@@ -121,7 +121,7 @@ describe('the exit test can actually fail', () => {
 describe('provenance', () => {
   it('ships a .source recording what it took and what it refused', () => {
     const source = readFileSync(
-      new URL('../../packages/core/skills/session-handoff/.source', import.meta.url),
+      new URL('../../packages/core/skills/checkpoint/.source', import.meta.url),
       'utf8',
     );
     expect(source).toMatch(/context-save/i);
@@ -130,7 +130,7 @@ describe('provenance', () => {
 
   it('records the boundary with the skills it sits next to', () => {
     const audit = readFileSync(
-      new URL('../../docs/plans/skill-audits/session-handoff.md', import.meta.url),
+      new URL('../../docs/plans/skill-audits/checkpoint.md', import.meta.url),
       'utf8',
     );
     expect(audit).toMatch(/Boundary with `learning-capture`/);
