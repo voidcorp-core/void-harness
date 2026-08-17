@@ -1,0 +1,2598 @@
+// src/enforcement/runner.ts
+import {
+  closeSync,
+  existsSync as existsSync3,
+  openSync,
+  readFileSync as readFileSync3,
+  readSync,
+  realpathSync
+} from "node:fs";
+import {
+  basename as basename2,
+  dirname as dirname2,
+  isAbsolute,
+  join as join3,
+  relative,
+  resolve as resolve2
+} from "node:path";
+
+// src/rules/boundary-direction.ts
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+
+// src/rules/verdict.ts
+function allow(code3 = "ALLOW", message = "allowed") {
+  return { allow: true, code: code3, message, evidence: [] };
+}
+function block(code3, message, evidence) {
+  return { allow: false, code: code3, message, evidence };
+}
+
+// src/rules/source-helpers.ts
+function normalizedPath(path) {
+  return path.replaceAll("\\", "/");
+}
+function isTestPath(path) {
+  return /\.(?:test|spec)\.(?:ts|tsx|js|jsx)$/.test(path);
+}
+function isGeneratedPath(path) {
+  return /\/__(?:generated|fixtures)__\//.test(path);
+}
+function lineEvidence(edits, applies, violates, allowTag) {
+  const evidence = [];
+  for (const edit of edits) {
+    const path = normalizedPath(edit.path);
+    if (!applies(path)) continue;
+    edit.addedContent.split(/\r?\n/).forEach((line, index) => {
+      if (allowTag !== void 0 && line.includes(allowTag)) return;
+      if (violates(line)) evidence.push(`${path}:${index + 1}`);
+    });
+  }
+  return evidence;
+}
+function evidenceVerdict(code3, message, evidence) {
+  return evidence.length === 0 ? allow() : block(code3, message, evidence);
+}
+
+// src/rules/boundary-direction.ts
+var IMPORT = /\bfrom\s+['"](@[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+)/;
+function nearestManifest(projectRoot2, filePath) {
+  const root = resolve(projectRoot2);
+  let directory = dirname(resolve(projectRoot2, filePath));
+  while (directory.startsWith(root)) {
+    const candidate = join(directory, "package.json");
+    if (existsSync(candidate)) {
+      try {
+        const parsed = JSON.parse(readFileSync(candidate, "utf8"));
+        return {
+          ...parsed.name === void 0 ? {} : { name: parsed.name },
+          declared: /* @__PURE__ */ new Set([
+            ...Object.keys(parsed.dependencies ?? {}),
+            ...Object.keys(parsed.devDependencies ?? {}),
+            ...Object.keys(parsed.peerDependencies ?? {}),
+            ...Object.keys(parsed.optionalDependencies ?? {})
+          ])
+        };
+      } catch {
+        return void 0;
+      }
+    }
+    const parent = dirname(directory);
+    if (parent === directory) break;
+    directory = parent;
+  }
+  return void 0;
+}
+function boundaryDirection(edits, projectRoot2) {
+  const evidence = [];
+  if (projectRoot2 !== void 0) {
+    const manifests = /* @__PURE__ */ new Map();
+    for (const edit of edits) {
+      const path = normalizedPath(edit.path);
+      if (!/\.(?:ts|tsx|js|jsx)$/.test(path) || isTestPath(path) || isGeneratedPath(path)) continue;
+      if (!manifests.has(path)) manifests.set(path, nearestManifest(projectRoot2, path));
+      const manifest = manifests.get(path);
+      if (manifest === void 0) continue;
+      edit.addedContent.split(/\r?\n/).forEach((line, index) => {
+        if (line.includes("allow-boundary:")) return;
+        const target = line.match(IMPORT)?.[1];
+        if (target === void 0 || target === manifest.name) return;
+        if (manifest.declared.has(target)) return;
+        evidence.push(`${path}:${index + 1} -> ${target}`);
+      });
+    }
+  }
+  return evidenceVerdict(
+    "MONOREPO_UNDECLARED_DEPENDENCY",
+    "imports a workspace package this one does not declare; add it to package.json dependencies",
+    evidence
+  );
+}
+
+// src/rules/dangerous-command.ts
+var BRACED_HOME = `$${"{"}HOME}`;
+var ROOT_TARGETS = /* @__PURE__ */ new Set([
+  "/",
+  "/*",
+  "~",
+  "~/",
+  "~/*",
+  "$HOME",
+  "$HOME/",
+  "$HOME/*",
+  BRACED_HOME,
+  `${BRACED_HOME}/`,
+  `${BRACED_HOME}/*`,
+  ".",
+  "./",
+  "./*",
+  "*"
+]);
+function unquote(command) {
+  return command.replaceAll('"', "").replaceAll("'", "");
+}
+function shellSegments(command) {
+  return command.split(/&&|\|\||[;\n]/).map((segment) => segment.trim()).filter(Boolean);
+}
+function recursiveRootOperation(segment, operation) {
+  const tokens = unquote(segment).split(/\s+/);
+  const index = tokens.indexOf(operation);
+  if (index < 0) return false;
+  const args = tokens.slice(index + 1);
+  const recursive = args.some(
+    (token) => token === "--recursive" || /^-[A-Za-z]*R[A-Za-z]*$/.test(token) || /^-[A-Za-z]*r[A-Za-z]*$/.test(token)
+  );
+  if (!recursive) return false;
+  return args.some((target) => ROOT_TARGETS.has(target));
+}
+function violation(command) {
+  if (/:\(\)\s*\{\s*:\s*\|\s*:/.test(command)) return "fork bomb";
+  if (/(^|\s)mkfs(?:\.[a-z0-9]+)?(?:\s|$)/i.test(command)) return "filesystem / raw-device write";
+  if (/(^|\s)dd\b[^|]*\bof=\/dev\//i.test(command) || />\s*\/dev\/(?:sd|nvme|hd|disk)/i.test(command)) {
+    return "raw-device write";
+  }
+  if (/\b(?:drop\s+(?:database|table|schema)|truncate\s+table)\b/i.test(command)) {
+    return "destructive SQL (DROP / TRUNCATE)";
+  }
+  for (const segment of shellSegments(command)) {
+    if (recursiveRootOperation(segment, "rm")) return "recursive delete of a root path";
+    if (recursiveRootOperation(segment, "chmod") || recursiveRootOperation(segment, "chown")) {
+      return "recursive permission/ownership change on a root path";
+    }
+    if (/\bgit\s+push\b/.test(segment) && /(?:^|\s)(?:--force(?:\s|$)|-f(?:\s|$))/.test(segment) && !/--force-with-lease/.test(segment)) {
+      return "git push --force (use --force-with-lease)";
+    }
+    if (/\bgit(?:\s+-\S+)*\s+(?:rebase|am|apply|cherry-pick)\b/.test(segment) && /(?:--exec(?:\s|=|$)|--rebase-merges|--strategy-option|--unsafe-paths)/.test(segment)) {
+      return "git command-execution / unsafe-path flag";
+    }
+  }
+  return void 0;
+}
+function dangerousCommand(command) {
+  const evidence = violation(command);
+  return evidence === void 0 ? allow() : block(
+    "DANGEROUS_COMMAND",
+    "refusing a destructive command; use the reviewed one-shot override only when deliberate",
+    [evidence]
+  );
+}
+
+// src/rules/design-slop.ts
+var INTER = /font-family[^;]*\bInter\b|font-\[.?Inter|fontFamily[^,]*\bInter\b/i;
+var GRADIENT = /(?:from|to)-(?:purple|indigo|violet|fuchsia)-\d+[^"' ]*[^"']*(?:from|to)-(?:blue|cyan|teal|sky|indigo)-\d+|linear-gradient\([^)]*(?:purple|indigo|violet)[^)]*(?:blue|cyan|teal)/i;
+var GREY_ON_COLOR = /\btext-(?:gray|grey|slate|zinc|neutral)-\d+\b[^"']*\bbg-(?:indigo|purple|blue|violet|fuchsia|emerald|rose|pink)-\d+\b/i;
+var NESTED_CARD = /class(?:Name)?="[^"]*\bcard\b[^"]*"[^>]*>[^<]*<[^>]*class(?:Name)?="[^"]*\bcard\b/i;
+function designSlop(edits) {
+  const evidence = [];
+  for (const edit of edits) {
+    const path = normalizedPath(edit.path);
+    if (!/\.(?:tsx|jsx|css|scss)$/.test(path) || isTestPath(path) || isGeneratedPath(path)) {
+      continue;
+    }
+    edit.addedContent.split(/\r?\n/).forEach((line, index) => {
+      if (/allow-design-slop:/.test(line)) return;
+      const code3 = line.replace(/`[^`]*`|\/\*.*?\*\/|\/\/.*$/g, "");
+      if (INTER.test(code3)) evidence.push(`${path}:${index + 1}: default Inter font`);
+      if (GRADIENT.test(code3)) evidence.push(`${path}:${index + 1}: clich\xE9 gradient`);
+      if (GREY_ON_COLOR.test(code3)) evidence.push(`${path}:${index + 1}: grey text on color`);
+    });
+    if (NESTED_CARD.test(edit.addedContent) && !edit.addedContent.includes("allow-design-slop:")) {
+      evidence.push(`${path}: card nested directly inside card`);
+    }
+  }
+  return evidenceVerdict(
+    "GENERIC_AI_DESIGN_TELL",
+    "conservative generic-design tell detected; apply the project visual language",
+    evidence
+  );
+}
+
+// src/rules/no-any.ts
+var ANY = /:\s*any\b|<any>|\bas\s+any\b/;
+function noAny(edits) {
+  const evidence = lineEvidence(
+    edits,
+    (path) => /\.(?:ts|tsx)$/.test(path) && !isTestPath(path) && !path.endsWith(".d.ts") && !isGeneratedPath(path),
+    (line) => ANY.test(line),
+    "allow-any:"
+  );
+  return evidenceVerdict(
+    "TYPESCRIPT_ANY",
+    "any weakens the type boundary; use a precise type or unknown plus narrowing",
+    evidence
+  );
+}
+
+// src/rules/no-as-cast.ts
+var ASSERTION_CAST = /\bas\s+[A-Z][A-Za-z0-9_]*/;
+function noAsCast(edits) {
+  const evidence = lineEvidence(
+    edits,
+    (path) => /\.(?:ts|tsx)$/.test(path) && !isTestPath(path) && !path.endsWith(".d.ts") && !isGeneratedPath(path),
+    (line) => ASSERTION_CAST.test(line),
+    "allow-as-cast:"
+  );
+  return evidenceVerdict(
+    "TYPESCRIPT_ASSERTION_CAST",
+    "assertion cast detected; prefer narrowing, a type guard, a generic or boundary parsing",
+    evidence
+  );
+}
+
+// src/rules/project-config.ts
+import { existsSync as existsSync2, readFileSync as readFileSync2 } from "node:fs";
+import { join as join2 } from "node:path";
+var CONFIGS = ["biome.json", "biome.jsonc"];
+function normalize(path) {
+  return path.replaceAll("\\", "/").replace(/^\.\//, "");
+}
+function globMatches(pattern, path) {
+  const source = normalize(pattern);
+  const target = normalize(path);
+  let regex = "";
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    if (character === "*") {
+      const doubled = source[index + 1] === "*";
+      if (doubled && source[index + 2] === "/") {
+        regex += "(?:[^/]*/)*";
+        index += 2;
+        continue;
+      }
+      if (doubled) {
+        regex += ".*";
+        index += 1;
+        continue;
+      }
+      regex += "[^/]*";
+      continue;
+    }
+    if (character === "?") {
+      regex += "[^/]";
+      continue;
+    }
+    regex += character.replace(/[.*+?^${}()|[\]\\]/, (match) => `\\${match}`);
+  }
+  try {
+    return new RegExp(`^${regex}$`).test(target);
+  } catch {
+    return false;
+  }
+}
+function stripJsonc(text2) {
+  let out = "";
+  let inString = false;
+  let inLine = false;
+  let inBlock = false;
+  for (let index = 0; index < text2.length; index += 1) {
+    const character = text2[index];
+    const next = text2[index + 1];
+    if (inLine) {
+      if (character === "\n") {
+        inLine = false;
+        out += character;
+      }
+      continue;
+    }
+    if (inBlock) {
+      if (character === "*" && next === "/") {
+        inBlock = false;
+        index += 1;
+      }
+      continue;
+    }
+    if (inString) {
+      out += character;
+      if (character === "\\") {
+        out += next ?? "";
+        index += 1;
+      } else if (character === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (character === '"') {
+      inString = true;
+      out += character;
+      continue;
+    }
+    if (character === "/" && next === "/") {
+      inLine = true;
+      index += 1;
+      continue;
+    }
+    if (character === "/" && next === "*") {
+      inBlock = true;
+      index += 1;
+      continue;
+    }
+    out += character;
+  }
+  return out.replace(/,(\s*[}\]])/g, "$1");
+}
+function readConfig(root) {
+  for (const name of CONFIGS) {
+    const path = join2(root, name);
+    if (!existsSync2(path)) continue;
+    try {
+      return JSON.parse(stripJsonc(readFileSync2(path, "utf8")));
+    } catch {
+      return void 0;
+    }
+  }
+  return void 0;
+}
+function severityOf(rules, rule) {
+  if (rules === void 0) return void 0;
+  for (const group of Object.values(rules)) {
+    const severity = group?.[rule];
+    if (severity === void 0) continue;
+    if (typeof severity === "string") return severity === "off" ? "off" : "on";
+    if (typeof severity === "object" && severity !== null) return severity.level === "off" ? "off" : "on";
+  }
+  return void 0;
+}
+function pathList(override) {
+  const raw = override.includes ?? override.include;
+  return Array.isArray(raw) ? raw.filter((entry) => typeof entry === "string") : [];
+}
+function isRuleSuppressed(projectRoot2, rule, path) {
+  const config = readConfig(projectRoot2);
+  if (config === void 0) return false;
+  const target = normalize(path);
+  for (const override of [...config.overrides ?? []].reverse()) {
+    if (!pathList(override).some((pattern) => globMatches(pattern, target))) continue;
+    const severity = severityOf(override.linter?.rules, rule);
+    if (severity !== void 0) return severity === "off";
+  }
+  return severityOf(config.linter?.rules, rule) === "off";
+}
+
+// src/rules/no-console.ts
+var CONSOLE = /\bconsole\.(?:log|error|warn|info|debug)\b/;
+function noConsole(edits, projectRoot2) {
+  const evidence = lineEvidence(
+    edits,
+    (path) => /\.(?:ts|tsx|js|jsx)$/.test(path) && !/(^|\/)scripts\//.test(path) && !isTestPath(path) && !isGeneratedPath(path) && !(projectRoot2 !== void 0 && isRuleSuppressed(projectRoot2, "noConsole", path)),
+    (line) => CONSOLE.test(line),
+    "allow-console:"
+  );
+  return evidenceVerdict(
+    "CONSOLE_IN_SOURCE",
+    "console call detected in source; use the project logger",
+    evidence.map((item) => `console.* in ${item}`)
+  );
+}
+
+// src/rules/no-focused-test.ts
+var FOCUSED = /\b(?:it|test|describe)\.only\b|\b(?:it|test)\.skip\b|\b(?:xit|xdescribe)\b/;
+function noFocusedTest(edits) {
+  return evidenceVerdict(
+    "FOCUSED_OR_SKIPPED_TEST",
+    "focused or skipped test detected; use todo only for explicitly pending coverage",
+    lineEvidence(edits, isTestPath, (line) => FOCUSED.test(line))
+  );
+}
+
+// src/rules/no-null.ts
+function codeOnly(line) {
+  return line.replace(/"(?:[^"\\]|\\.)*"/g, "").replace(/'(?:[^'\\]|\\.)*'/g, "").replace(/`[^`]*`/g, "").replace(/\/\*.*?\*\//g, "").replace(/\/\/.*$/, "");
+}
+function noNull(edits) {
+  const evidence = lineEvidence(
+    edits,
+    (path) => /\.(?:ts|tsx)$/.test(path) && !isTestPath(path) && !path.endsWith(".d.ts") && !isGeneratedPath(path),
+    (line) => {
+      if (/from\s+['"]drizzle-orm|JSON\.(?:stringify|parse)|typeof.*===\s*['"]null/.test(line)) {
+        return false;
+      }
+      return /\bnull\b/.test(codeOnly(line));
+    },
+    "allow-null:"
+  );
+  return evidenceVerdict(
+    "NULL_IN_TYPESCRIPT",
+    "null literal detected; prefer undefined or an explicit Option type",
+    evidence
+  );
+}
+
+// src/rules/protected-file.ts
+import { basename } from "node:path";
+function protectedReason(path) {
+  const normalized = path.replaceAll("\\", "/").toLowerCase();
+  const base = basename(normalized);
+  if (/^\.env(?:\..+)?$/.test(base) && !/\.(?:example|sample|template|dist)$/.test(base)) {
+    return "environment file with secrets";
+  }
+  if (/\.(?:pem|key|p12|pfx|keystore|jks|asc)$/.test(base) || /^id_(?:rsa|ed25519|ecdsa|dsa)$/.test(base)) {
+    return "private key / certificate";
+  }
+  if (/(?:\.npmrc|\.netrc|\.pgpass)$/.test(base)) return "credential file";
+  if (!base.endsWith(".md") && /(?:secret|credential)/.test(base)) return "credential file";
+  if ((/* @__PURE__ */ new Set([
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "bun.lockb",
+    "cargo.lock",
+    "poetry.lock",
+    "composer.lock"
+  ])).has(base)) {
+    return "lockfile (regenerate via the package manager, do not hand-edit)";
+  }
+  if (/(^|\/)\.git\//.test(normalized)) return "internal git metadata";
+  return void 0;
+}
+function protectedFile(paths) {
+  for (const path of paths) {
+    const reason = protectedReason(path);
+    if (reason !== void 0) {
+      return block("PROTECTED_FILE", `refusing to edit ${path}`, [`${path}: ${reason}`]);
+    }
+  }
+  return allow();
+}
+
+// src/rules/secret-content.ts
+var HIGH_CONFIDENCE = [
+  /\b(?:AKIA|ASIA)[0-9A-Z]{16}/,
+  /\bgh[posru]_[A-Za-z0-9]{36}/,
+  /\bgithub_pat_[A-Za-z0-9_]{40,}\b/,
+  /\b(?:sk|rk)_live_[A-Za-z0-9]{20,}\b/,
+  /\bsk-(?:ant|proj)-[A-Za-z0-9_-]{40,}\b/,
+  /\bsk-[A-Za-z0-9]{40,}\b/,
+  /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/,
+  /\bAIza[0-9A-Za-z_-]{35}\b/,
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----/
+];
+var GENERIC_ASSIGNMENT = /(?:_KEY|_SECRET|_TOKEN|_PASSWORD|_PASSWD|_APIKEY)["' ]*[:=]\s*["']([A-Za-z0-9+/=_-]{24,})["']/i;
+var PLACEHOLDER = /process\.env|import\.meta\.env|xxx|changeme|example|redacted|your[-_]|<[a-z]|placeholder|todo/i;
+var EXEMPT_PATH = /\.(?:test|spec)\.|\/__tests__\/|\/__fixtures__\/|\/fixtures\/|\/__generated__\//;
+function lineHasSecret(line) {
+  if (line.includes("allow-secret-pattern:")) return false;
+  if (HIGH_CONFIDENCE.some((pattern) => pattern.test(line))) return true;
+  const assignment = line.match(GENERIC_ASSIGNMENT);
+  if (assignment === null || PLACEHOLDER.test(line)) return false;
+  const value = assignment[1] ?? "";
+  if (/^[0-9a-f]+$/i.test(value) || /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value)) {
+    return false;
+  }
+  return /[A-Za-z]/.test(value) && /[0-9]/.test(value);
+}
+function secretContent(edits) {
+  const evidence = [];
+  for (const edit of edits) {
+    if (EXEMPT_PATH.test(edit.path.replaceAll("\\", "/"))) continue;
+    edit.addedContent.split(/\r?\n/).forEach((line, index) => {
+      if (lineHasSecret(line)) evidence.push(`${edit.path}:${index + 1}`);
+    });
+  }
+  return evidence.length === 0 ? allow() : block("SECRET_IN_CONTENT", "secret-in-content: likely secret detected in edited content", evidence);
+}
+
+// src/rules/tdd-order.ts
+function globRegExp(glob) {
+  let pattern = "^";
+  for (let index = 0; index < glob.length; index += 1) {
+    const char = glob[index] ?? "";
+    if (char === "*" && glob[index + 1] === "*") {
+      pattern += ".*";
+      index += 1;
+    } else if (char === "*") {
+      pattern += "[^/]*";
+    } else {
+      pattern += char.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+    }
+  }
+  return new RegExp(`${pattern}$`);
+}
+function matches(path, globs) {
+  return globs.some((glob) => globRegExp(glob).test(path));
+}
+function bypass(path, spikeGlobs) {
+  return !/\.(?:ts|tsx|js|jsx)$/.test(path) || /(^|\/)docs\//.test(path) || /\.(?:test|spec)\.(?:ts|tsx|js|jsx)$/.test(path) || /\.d\.ts$/.test(path) || /\/(?:tests?|__tests__)\/fixtures\/|\/seed\/|\/migrations\/|\/drizzle\/meta\/|\/codemods?\//.test(path) || /\/__generated__\//.test(path) || matches(path, spikeGlobs);
+}
+function fileMode(path, input) {
+  const header = (input.existingHeaders[path] ?? "").split(/\r?\n/).slice(0, 5).join("\n");
+  const marker = header.match(/\/\/\s*tdd-mode:\s*(strict|souple|exploratory)/)?.[1];
+  return marker === "strict" || marker === "souple" || marker === "exploratory" ? marker : input.mode;
+}
+function siblingFor(path) {
+  if (path.endsWith(".tsx")) return `${path.slice(0, -4)}.test.tsx`;
+  if (path.endsWith(".ts")) return `${path.slice(0, -3)}.test.ts`;
+  if (path.endsWith(".jsx")) return `${path.slice(0, -4)}.test.jsx`;
+  if (path.endsWith(".js")) return `${path.slice(0, -3)}.test.js`;
+  return `${path}.test`;
+}
+function tddOrder(input) {
+  const warnings = [];
+  for (const edit of input.edits) {
+    const path = edit.path.replaceAll("\\", "/");
+    if (bypass(path, input.spikeGlobs) || !matches(path, input.businessGlobs)) continue;
+    const mode = fileMode(path, input);
+    if (mode === "exploratory") continue;
+    const sibling = siblingFor(path);
+    if (input.siblingTests.has(sibling)) continue;
+    const evidence = `${path} -> ${sibling}`;
+    if (mode === "souple") {
+      warnings.push(evidence);
+      continue;
+    }
+    return block(
+      "TDD_SIBLING_TEST_MISSING",
+      "missing sibling test: production edit requires one in strict/auto mode",
+      [evidence]
+    );
+  }
+  return warnings.length === 0 ? allow() : {
+    allow: true,
+    code: "TDD_SIBLING_TEST_WARNING",
+    message: "warning: souple mode, sibling test missing",
+    evidence: warnings
+  };
+}
+
+// src/rules/test-name.ts
+var GENERIC_NAME = /\b(?:it|test)\(\s*['"]should\s|\b(?:it|test)\(\s*['"]works?\b|\b(?:it|test)\(\s*['"]test['"]/;
+function testName(edits) {
+  return evidenceVerdict(
+    "GENERIC_TEST_NAME",
+    "generic test name must describe observable behavior",
+    lineEvidence(edits, isTestPath, (line) => GENERIC_NAME.test(line))
+  );
+}
+
+// src/enforcement/normalize.ts
+var MAX_FIELD_BYTES = 1024 * 1024;
+function record(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
+}
+function safeString(value, label) {
+  if (typeof value !== "string") return "";
+  if (value.includes("\0") || Buffer.byteLength(value) > MAX_FIELD_BYTES) {
+    throw new Error(`unsafe hook input: ${label}`);
+  }
+  return value;
+}
+function commandText(value) {
+  if (Array.isArray(value)) return value.map((part) => safeString(part, "command")).join(" ");
+  return safeString(value, "command");
+}
+function patchText(input) {
+  const candidates = [
+    input["patch"],
+    input["input"],
+    input["content"],
+    input["command"]
+  ];
+  return candidates.map((value) => commandText(value)).filter((value) => value.includes("*** Begin Patch")).join("\n");
+}
+function parsePatchEdits(patch) {
+  const edits = [];
+  let path = "";
+  let added = "";
+  const emit = () => {
+    if (path !== "") edits.push({ path, addedContent: added });
+  };
+  for (const line of patch.split(/\r?\n/)) {
+    const section = line.match(/^\*\*\* (Add|Update|Delete) File: (.+)$/);
+    if (section !== null) {
+      emit();
+      path = safeString(section[2] ?? "", "patch path");
+      added = "";
+      continue;
+    }
+    if (path !== "" && line.startsWith("+") && !line.startsWith("+++")) {
+      added += `${line.slice(1)}
+`;
+    }
+  }
+  emit();
+  return edits;
+}
+function normalizeToolCall(value) {
+  const raw = record(value);
+  if (raw === void 0) throw new Error("invalid hook input: expected object");
+  const input = record(raw["tool_input"]) ?? {};
+  const tool = safeString(raw["tool_name"], "tool_name");
+  const command = commandText(input["command"]);
+  const file = safeString(input["file_path"], "file_path");
+  let edits;
+  if (file !== "") {
+    edits = [{
+      path: file,
+      addedContent: safeString(input["content"] ?? input["new_string"], "edit content")
+    }];
+  } else {
+    edits = parsePatchEdits(patchText(input));
+  }
+  return { tool, command, edits };
+}
+
+// src/enforcement/runner.ts
+var MAX_HOOK_INPUT_BYTES = 1024 * 1024;
+function containsNul(value) {
+  if (typeof value === "string") return value.includes("\0");
+  if (Array.isArray(value)) return value.some((item) => containsNul(item));
+  if (typeof value !== "object" || value === null) return false;
+  return Object.values(value).some((item) => containsNul(item));
+}
+function parseHookText(input) {
+  if (input.byteLength > MAX_HOOK_INPUT_BYTES) {
+    throw new Error("HOOK_INPUT_TOO_LARGE");
+  }
+  const text2 = new TextDecoder("utf-8", { fatal: true }).decode(input);
+  if (text2.includes("\0")) throw new Error("HOOK_INPUT_BINARY");
+  return text2;
+}
+function parseHookPayload(input) {
+  const text2 = parseHookText(input);
+  const parsed = JSON.parse(text2);
+  if (containsNul(parsed)) throw new Error("HOOK_INPUT_BINARY");
+  return parsed;
+}
+function physicalPath(path) {
+  const absolute = resolve2(path);
+  let existing = absolute;
+  const suffix = [];
+  while (true) {
+    try {
+      return join3(realpathSync(existing), ...suffix);
+    } catch {
+      const parent = dirname2(existing);
+      if (parent === existing) return absolute;
+      suffix.unshift(basename2(existing));
+      existing = parent;
+    }
+  }
+}
+function discoverProjectRoot(start) {
+  let current = physicalPath(start);
+  while (true) {
+    if (existsSync3(join3(current, ".void", "config.json")) || existsSync3(join3(current, ".git"))) {
+      return current;
+    }
+    const parent = dirname2(current);
+    if (parent === current) return physicalPath(start);
+    current = parent;
+  }
+}
+function projectRelativePath(root, path) {
+  const physicalRoot = physicalPath(root);
+  const absolute = physicalPath(isAbsolute(path) ? path : resolve2(physicalRoot, path));
+  const projectPath = relative(physicalRoot, absolute).replaceAll("\\", "/");
+  return projectPath === ".." || projectPath.startsWith("../") || isAbsolute(projectPath) ? void 0 : projectPath;
+}
+function projectEdits(root, edits) {
+  return edits.flatMap((edit) => {
+    const path = projectRelativePath(root, edit.path);
+    return path === void 0 ? [] : [{ ...edit, path }];
+  });
+}
+function record2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
+}
+function configuredString(parent, key, fallback) {
+  const value = parent?.[key];
+  return typeof value === "string" ? value : fallback;
+}
+function readTddConfig(root) {
+  let config = {};
+  try {
+    config = record2(JSON.parse(readFileSync3(join3(root, ".void/config.json"), "utf8"))) ?? {};
+  } catch {
+  }
+  const modes = record2(config["modes"]);
+  const paths = record2(config["paths"]);
+  const configuredMode = configuredString(modes, "tdd", "auto");
+  const mode = configuredMode === "strict" || configuredMode === "souple" || configuredMode === "exploratory" ? configuredMode : "auto";
+  return {
+    mode,
+    businessGlob: configuredString(paths, "business", "apps/*/src/**"),
+    spikesGlob: configuredString(paths, "spikes", "apps/*/scripts/spike-*")
+  };
+}
+function readHeader(path) {
+  let descriptor;
+  try {
+    descriptor = openSync(path, "r");
+    const buffer = Buffer.alloc(8192);
+    const bytes = readSync(descriptor, buffer, 0, buffer.byteLength, 0);
+    return buffer.subarray(0, bytes).toString("utf8");
+  } catch {
+    return "";
+  } finally {
+    if (descriptor !== void 0) closeSync(descriptor);
+  }
+}
+function tddVerdict(root, edits) {
+  const physicalRoot = physicalPath(root);
+  const projectChanges = projectEdits(physicalRoot, edits);
+  const config = readTddConfig(physicalRoot);
+  const existingHeaders = {};
+  const siblingTests = /* @__PURE__ */ new Set();
+  for (const edit of projectChanges) {
+    existingHeaders[edit.path] = readHeader(join3(physicalRoot, edit.path));
+    for (const sibling of [
+      edit.path.replace(/\.tsx$/, ".test.tsx"),
+      edit.path.replace(/\.ts$/, ".test.ts"),
+      edit.path.replace(/\.jsx$/, ".test.jsx"),
+      edit.path.replace(/\.js$/, ".test.js")
+    ]) {
+      if (sibling !== edit.path && existsSync3(join3(physicalRoot, sibling))) {
+        siblingTests.add(sibling);
+      }
+    }
+  }
+  return tddOrder({
+    edits: projectChanges,
+    mode: config.mode,
+    businessGlobs: [config.businessGlob],
+    spikeGlobs: [config.spikesGlob],
+    existingHeaders,
+    siblingTests
+  });
+}
+function evaluateRule(rule, rawInput, options) {
+  const call = normalizeToolCall(rawInput);
+  const env = options.env ?? process.env;
+  if (rule === "dangerous-command") {
+    if (call.tool !== "Bash" && call.tool !== "shell") return allow();
+    if (env["VOID_HARNESS_ALLOW_DANGEROUS"] === "1") return allow("OVERRIDE", "one-shot override");
+    return dangerousCommand(call.command);
+  }
+  if (call.tool !== "Edit" && call.tool !== "Write" && call.tool !== "apply_patch" && call.tool !== "Bash" && call.tool !== "shell") {
+    return allow();
+  }
+  if (rule === "protected-file") {
+    if (env["VOID_HARNESS_ALLOW_SECRET_EDIT"] === "1") return allow("OVERRIDE", "one-shot override");
+    return protectedFile(call.edits.map((edit) => edit.path));
+  }
+  if (rule === "secret-content") return secretContent(call.edits);
+  if (rule === "tdd-order") return tddVerdict(options.root, call.edits);
+  const edits = projectEdits(options.root, call.edits);
+  if (rule === "no-any") return noAny(edits);
+  if (rule === "no-as-cast") return noAsCast(edits);
+  if (rule === "no-console") return noConsole(edits, options.root);
+  if (rule === "no-null") return noNull(edits);
+  if (rule === "no-focused-test") return noFocusedTest(edits);
+  if (rule === "boundary-direction") return boundaryDirection(edits, options.root);
+  if (rule === "test-name") return testName(edits);
+  if (rule === "design-slop") return designSlop(edits);
+  rule;
+  throw new Error("UNKNOWN_ENFORCEMENT_RULE");
+}
+
+// src/lifecycle/context.ts
+function sessionStartOutput(version, notice) {
+  const installed = version.trim() === "" ? "unknown" : version.trim();
+  const base = `void-harness ${installed} is active. Non-negotiable floor: never edit secrets, keys or lockfiles; never run destructive shell commands; tests and fresh evidence gate "done". Capture durable project rules explicitly. Run \`void-harness doctor\` if runtime health is uncertain.`;
+  const suffix = notice === void 0 || notice.trim() === "" ? "" : ` ${notice.trim()}`;
+  return {
+    hookSpecificOutput: {
+      hookEventName: "SessionStart",
+      additionalContext: `${base}${suffix}`
+    }
+  };
+}
+
+// src/lifecycle/context-executor.ts
+import { join as join5 } from "node:path";
+
+// src/lifecycle/executor-shared.ts
+import {
+  accessSync,
+  constants,
+  lstatSync,
+  readFileSync as readFileSync4,
+  realpathSync as realpathSync2
+} from "node:fs";
+import { delimiter, isAbsolute as isAbsolute2, join as join4, relative as relative2 } from "node:path";
+function record3(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
+}
+function boundedInteger(value, fallback, min, max) {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= min && parsed <= max ? parsed : fallback;
+}
+function within(root, target) {
+  const rel = relative2(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute2(rel);
+}
+function executable(path) {
+  try {
+    accessSync(path, process.platform === "win32" ? constants.F_OK : constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function findExecutable(name, root, env) {
+  if ((isAbsolute2(name) || name.includes("/") || name.includes("\\")) && executable(name)) {
+    return name;
+  }
+  const suffixes = process.platform === "win32" ? ["", ".cmd", ".exe", ".bat"] : [""];
+  const local = join4(root, "node_modules", ".bin", name);
+  for (const suffix of suffixes) {
+    if (executable(`${local}${suffix}`)) return `${local}${suffix}`;
+  }
+  for (const directory of (env["PATH"] ?? "").split(delimiter)) {
+    if (directory === "") continue;
+    for (const suffix of suffixes) {
+      const candidate = join4(directory, `${name}${suffix}`);
+      if (executable(candidate)) return candidate;
+    }
+  }
+  return void 0;
+}
+function safeExistingFiles(paths, root) {
+  const canonicalRoot = realpathSync2(root);
+  return paths.filter((path) => {
+    try {
+      const info = lstatSync(path);
+      if (!info.isFile() || info.isSymbolicLink()) return false;
+      return within(canonicalRoot, realpathSync2(path));
+    } catch {
+      return false;
+    }
+  });
+}
+function readJson(path) {
+  try {
+    return JSON.parse(readFileSync4(path, "utf8"));
+  } catch {
+    return void 0;
+  }
+}
+
+// src/lifecycle/context-executor.ts
+var VERSION_SHAPE = /^[0-9A-Za-z.+-]{1,64}$/;
+function readVersion(path) {
+  const version = record3(readJson(path))?.["version"];
+  return typeof version === "string" && VERSION_SHAPE.test(version) ? version : void 0;
+}
+function resolveInstall(root, env) {
+  const explicit = env["VOID_HARNESS_VERSION"];
+  if (explicit !== void 0 && VERSION_SHAPE.test(explicit)) {
+    return { version: explicit, source: void 0 };
+  }
+  const pluginRoot = env["CLAUDE_PLUGIN_ROOT"];
+  if (pluginRoot !== void 0) {
+    const version2 = readVersion(join5(pluginRoot, ".claude-plugin", "plugin.json"));
+    if (version2 !== void 0) return { version: version2, source: "marketplace" };
+  }
+  const receipt = record3(readJson(join5(root, ".void", "receipts", "install-v1.json")));
+  const version = receipt?.["version"];
+  if (typeof version === "string" && VERSION_SHAPE.test(version)) {
+    const declared = receipt?.["source"];
+    const source = declared === "local" || declared === "marketplace" ? declared : void 0;
+    return { version, source };
+  }
+  return { version: "unknown", source: void 0 };
+}
+
+// src/freshness/cache.ts
+import { mkdirSync, readFileSync as readFileSync5, renameSync, writeFileSync } from "node:fs";
+import { dirname as dirname3, join as join6 } from "node:path";
+var CACHE_TTL_MS = 24 * 60 * 60 * 1e3;
+var isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
+function cacheFilePath(env) {
+  const xdg = env["XDG_CACHE_HOME"]?.trim();
+  const home = env["HOME"]?.trim();
+  const base = xdg !== void 0 && xdg !== "" ? xdg : home !== void 0 && home !== "" ? join6(home, ".cache") : void 0;
+  return base === void 0 ? void 0 : join6(base, "void-harness", "freshness.json");
+}
+function parseEntry(raw) {
+  let json;
+  try {
+    json = JSON.parse(raw);
+  } catch {
+    return void 0;
+  }
+  if (!isRecord(json)) return void 0;
+  const { latest, checkedAt } = json;
+  if (typeof latest !== "string" || latest.trim() === "") return void 0;
+  if (typeof checkedAt !== "number" || !Number.isFinite(checkedAt)) return void 0;
+  return { latest, checkedAt };
+}
+function readFreshnessCache(env, now) {
+  const path = cacheFilePath(env);
+  if (path === void 0) return void 0;
+  let raw;
+  try {
+    raw = readFileSync5(path, "utf8");
+  } catch {
+    return void 0;
+  }
+  const entry = parseEntry(raw);
+  if (entry === void 0) return void 0;
+  const age = now - entry.checkedAt;
+  return age >= 0 && age <= CACHE_TTL_MS ? entry : void 0;
+}
+async function writeFreshnessCache(env, entry) {
+  const path = cacheFilePath(env);
+  if (path === void 0) return void 0;
+  const tmp = `${path}.${process.pid}.tmp`;
+  try {
+    mkdirSync(dirname3(path), { recursive: true });
+    writeFileSync(tmp, JSON.stringify({ latest: entry.latest, checkedAt: entry.checkedAt }), "utf8");
+    renameSync(tmp, path);
+  } catch {
+  }
+  return void 0;
+}
+
+// src/freshness/compare.ts
+var SEMVER_TRIPLE = /^(\d{1,10})\.(\d{1,10})\.(\d{1,10})$/;
+function clean(raw) {
+  return raw.trim().replace(/^v/, "");
+}
+function triple(raw) {
+  const match = SEMVER_TRIPLE.exec(clean(raw)) ?? void 0;
+  if (match === void 0) return void 0;
+  const parts = [Number(match[1]), Number(match[2]), Number(match[3])];
+  return parts.every(Number.isSafeInteger) ? parts : void 0;
+}
+function unusable(raw) {
+  const value = clean(raw);
+  if (value === "") return "is empty";
+  if (value === "unknown") return "is unknown";
+  if (value.includes("-") || value.includes("+")) {
+    return "is a prerelease or carries build metadata, which is not comparable";
+  }
+  return "is not a M.m.p version";
+}
+function compareFreshness(installed, latest) {
+  const local = triple(installed);
+  if (local === void 0) {
+    return {
+      verdict: "unknown",
+      installed,
+      latest,
+      reason: `installed version ${unusable(installed)}`
+    };
+  }
+  const remote = triple(latest);
+  if (remote === void 0) {
+    return {
+      verdict: "unknown",
+      installed,
+      latest,
+      reason: `published version ${unusable(latest)}`
+    };
+  }
+  for (let i = 0; i < 3; i += 1) {
+    const mine = local[i] ?? 0;
+    const theirs = remote[i] ?? 0;
+    if (mine !== theirs) {
+      return { verdict: mine < theirs ? "behind" : "ahead", installed, latest };
+    }
+  }
+  return { verdict: "up-to-date", installed, latest };
+}
+
+// src/freshness/registry.ts
+var DEFAULT_REGISTRY = "https://registry.npmjs.org";
+var NPM_PACKAGE = "voidharness";
+var DEFAULT_TIMEOUT_MS = 1500;
+var isRecord2 = (v) => typeof v === "object" && v !== void 0 && v !== null && !Array.isArray(v);
+function safeRegistry(candidate) {
+  if (candidate === void 0 || candidate.trim() === "") return void 0;
+  let url;
+  try {
+    url = new URL(candidate.trim());
+  } catch {
+    return void 0;
+  }
+  if (url.protocol !== "https:") return void 0;
+  return `${url.origin}${url.pathname.replace(/\/+$/, "")}`;
+}
+function registryFromNpmrc(npmrc) {
+  if (npmrc === void 0) return void 0;
+  for (const rawLine of npmrc.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (line === "" || line.startsWith("#") || line.startsWith(";") || line.startsWith("//")) continue;
+    const match = /^registry\s*=\s*(.+)$/i.exec(line) ?? void 0;
+    if (match !== void 0) return match[1]?.trim();
+  }
+  return void 0;
+}
+function resolveRegistry(env, npmrc) {
+  const fromEnv = safeRegistry(env["npm_config_registry"] ?? env["NPM_CONFIG_REGISTRY"]);
+  if (fromEnv !== void 0) return fromEnv;
+  return safeRegistry(registryFromNpmrc(npmrc)) ?? DEFAULT_REGISTRY;
+}
+function distTagsUrl(registry, pkg) {
+  const name = pkg.trim();
+  if (name === "" || name.includes("..") || name.startsWith("/")) {
+    throw new Error(`unsafe package name: ${JSON.stringify(pkg)}`);
+  }
+  return `${registry}/-/package/${encodeURIComponent(name)}/dist-tags`;
+}
+function parseLatestTag(json) {
+  if (!isRecord2(json)) return void 0;
+  const latest = json["latest"];
+  return typeof latest === "string" && latest.trim() !== "" ? latest.trim() : void 0;
+}
+async function fetchLatestVersion(options = {}) {
+  const {
+    fetchImpl = fetch,
+    registry = DEFAULT_REGISTRY,
+    pkg = NPM_PACKAGE,
+    timeoutMs = DEFAULT_TIMEOUT_MS
+  } = options;
+  let url;
+  try {
+    url = distTagsUrl(registry, pkg);
+  } catch {
+    return { reason: "unsafe package name" };
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetchImpl(url, {
+      headers: { "user-agent": "void-harness" },
+      signal: controller.signal
+    });
+    if (!res.ok) {
+      if (res.status === 403 || res.status === 429) return { reason: `HTTP ${res.status} (rate-limited)` };
+      return { reason: `HTTP ${res.status}` };
+    }
+    let json;
+    try {
+      json = await res.json();
+    } catch {
+      return { reason: "malformed response" };
+    }
+    const latest = parseLatestTag(json);
+    return latest === void 0 ? { reason: "no usable latest tag in response" } : { latest };
+  } catch (error) {
+    const name = error instanceof Error ? error.name : "";
+    return { reason: name === "AbortError" ? "timed out" : "network error" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// src/freshness/npmrc.ts
+import { readFileSync as readFileSync6, statSync } from "node:fs";
+import { join as join7 } from "node:path";
+var MAX_NPMRC_BYTES = 64 * 1024;
+function readIfSmall(path) {
+  try {
+    if (statSync(path).size > MAX_NPMRC_BYTES) return void 0;
+    return readFileSync6(path, "utf8");
+  } catch {
+    return void 0;
+  }
+}
+function readNpmrc(cwd, env) {
+  const project = readIfSmall(join7(cwd, ".npmrc"));
+  if (project !== void 0) return project;
+  const home = env["HOME"]?.trim();
+  return home === void 0 || home === "" ? void 0 : readIfSmall(join7(home, ".npmrc"));
+}
+
+// src/freshness/notice.ts
+async function resolveFreshness(options) {
+  const { installed, env, now, fetchImpl, npmrc, cwd, allowNetwork = true, timeoutMs } = options;
+  const cached = readFreshnessCache(env, now);
+  if (cached !== void 0) return compareFreshness(installed, cached.latest);
+  if (!allowNetwork) {
+    return { verdict: "unknown", installed, reason: "no fresh cached version and network lookups are disabled" };
+  }
+  const resolvedNpmrc = npmrc ?? readNpmrc(cwd ?? process.cwd(), env);
+  const { latest, reason } = await fetchLatestVersion({
+    registry: resolveRegistry(env, resolvedNpmrc),
+    ...fetchImpl === void 0 ? {} : { fetchImpl },
+    ...timeoutMs === void 0 ? {} : { timeoutMs }
+  });
+  if (latest === void 0) {
+    return { verdict: "unknown", installed, reason: reason ?? "could not read the published version" };
+  }
+  await writeFreshnessCache(env, { latest, checkedAt: now });
+  return compareFreshness(installed, latest);
+}
+function freshnessNotice(freshness, source) {
+  if (freshness.verdict !== "behind" || source !== "local") return void 0;
+  const { installed, latest } = freshness;
+  return `void-harness ${installed} is installed; ${latest ?? "a newer version"} is published. Run \`void-harness update\` to upgrade.`;
+}
+
+// src/lifecycle/format-executor.ts
+import { spawnSync } from "node:child_process";
+
+// src/lifecycle/format.ts
+import {
+  isAbsolute as isAbsolute3,
+  relative as relative3,
+  resolve as resolve3
+} from "node:path";
+var FORMATTABLE = /\.(?:ts|tsx|js|jsx|mjs|cjs|json|jsonc|css)$/;
+function within2(root, target) {
+  const rel = relative3(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute3(rel);
+}
+function formatCandidates(touchedPaths, projectRoot2) {
+  const root = resolve3(projectRoot2);
+  const found = /* @__PURE__ */ new Set();
+  for (const touchedPath of touchedPaths) {
+    const target = resolve3(root, touchedPath);
+    if (touchedPath.trim() !== "" && FORMATTABLE.test(touchedPath.replaceAll("\\", "/")) && within2(root, target)) {
+      found.add(target);
+    }
+  }
+  return [...found];
+}
+
+// src/lifecycle/format-executor.ts
+function executeFormat(rawInput, root, env) {
+  const call = normalizeToolCall(rawInput);
+  if (call.tool !== "Edit" && call.tool !== "Write" && call.tool !== "apply_patch") {
+    return { status: "skipped", details: { reason: "tool-not-applicable" } };
+  }
+  const files = safeExistingFiles(
+    formatCandidates(call.edits.map((edit) => edit.path), root),
+    root
+  );
+  if (files.length === 0) {
+    return { status: "skipped", details: { reason: "no-formattable-touched-file" } };
+  }
+  const biome = findExecutable("biome", root, env);
+  if (biome === void 0) {
+    return { status: "skipped", details: { reason: "formatter-unavailable" } };
+  }
+  const timeout = boundedInteger(
+    env["VOID_HARNESS_FORMAT_TIMEOUT_MS"],
+    1e4,
+    100,
+    3e4
+  );
+  let formatted = 0;
+  for (const file of files) {
+    const result = spawnSync(biome, ["format", "--write", file], {
+      cwd: root,
+      env: { ...process.env, ...env },
+      shell: false,
+      stdio: "ignore",
+      timeout
+    });
+    if (result.error !== void 0 || result.status !== 0) {
+      const timedOut = result.error?.message.includes("ETIMEDOUT") ?? false;
+      return {
+        status: "degraded",
+        details: {
+          reason: timedOut ? "timeout" : "formatter-error",
+          formatted,
+          timeoutMs: timeout
+        }
+      };
+    }
+    formatted += 1;
+  }
+  return { status: "ok", details: { formatted } };
+}
+
+// src/lifecycle/large-change-executor.ts
+import { spawnSync as spawnSync2 } from "node:child_process";
+
+// src/lifecycle/large-change.ts
+function parseAddedLines(numstat) {
+  return numstat.split(/\r?\n/).reduce((total, line) => {
+    const [added] = line.split("	", 1);
+    const count = Number(added);
+    if (!Number.isSafeInteger(count) || count < 0) return total;
+    return Math.min(Number.MAX_SAFE_INTEGER, total + count);
+  }, 0);
+}
+function hasLargeChangeJustification(text2) {
+  return /^\s*large-cl-justification\s*:\s*\S.*$/imu.test(text2);
+}
+function assessLargeChange(assessment) {
+  if (assessment.addedLines <= assessment.threshold || assessment.justified) {
+    return allow();
+  }
+  return {
+    allow: true,
+    code: "LARGE_CHANGE_WARNING",
+    message: `change adds ${assessment.addedLines} lines (threshold ${assessment.threshold}); split it or justify why it is atomic`,
+    evidence: ["large-cl-justification: <reason>"]
+  };
+}
+
+// src/lifecycle/large-change-executor.ts
+function runGit(git, root, args, env) {
+  const result = spawnSync2(git, args, {
+    cwd: root,
+    env: { ...process.env, ...env },
+    encoding: "utf8",
+    shell: false,
+    timeout: 5e3,
+    maxBuffer: 2 * 1024 * 1024
+  });
+  return {
+    ok: result.status === 0,
+    output: result.status === 0 ? result.stdout.trim() : ""
+  };
+}
+function verifiedRef(git, root, ref, env) {
+  if (ref === "" || ref.includes("\r") || ref.includes("\n") || ref.includes("\0")) return false;
+  return runGit(
+    git,
+    root,
+    ["rev-parse", "--verify", "--quiet", "--end-of-options", `${ref}^{commit}`],
+    env
+  ).ok;
+}
+function baseRef(git, root, env) {
+  const configured = env["VOID_HARNESS_BASE_REF"]?.trim();
+  if (configured !== void 0 && configured !== "") {
+    return verifiedRef(git, root, configured, env) ? configured : void 0;
+  }
+  const upstream = runGit(
+    git,
+    root,
+    ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
+    env
+  );
+  const candidates = [
+    upstream.ok ? upstream.output : "",
+    "origin/main",
+    "origin/master",
+    "main",
+    "master"
+  ];
+  return candidates.find((candidate) => verifiedRef(git, root, candidate, env));
+}
+function executeLargeChange(root, env) {
+  const git = findExecutable("git", root, env);
+  if (git === void 0) {
+    return { status: "skipped", details: { reason: "git-unavailable" } };
+  }
+  const base = baseRef(git, root, env);
+  if (base === void 0) {
+    const configuredBase = env["VOID_HARNESS_BASE_REF"]?.trim();
+    return {
+      status: "skipped",
+      details: {
+        reason: configuredBase === void 0 || configuredBase === "" ? "base-ref-unavailable" : "configured-base-ref-invalid"
+      }
+    };
+  }
+  const mergeBase = runGit(git, root, ["merge-base", "HEAD", base], env);
+  if (!mergeBase.ok) {
+    return { status: "degraded", details: { reason: "merge-base-failed" } };
+  }
+  const range = `${mergeBase.output}..HEAD`;
+  const diff = runGit(
+    git,
+    root,
+    ["diff", "--numstat", "--no-renames", range, "--"],
+    env
+  );
+  const messages = runGit(git, root, ["log", "--format=%B", range, "--"], env);
+  if (!diff.ok || !messages.ok) {
+    return { status: "degraded", details: { reason: "change-query-failed" } };
+  }
+  const threshold = boundedInteger(
+    env["VOID_HARNESS_LARGE_CHANGE_THRESHOLD"] ?? env["VOIDCORP_LARGE_CL_THRESHOLD"],
+    400,
+    1,
+    1e6
+  );
+  const addedLines = parseAddedLines(diff.output);
+  const justified = hasLargeChangeJustification(messages.output);
+  const verdict = assessLargeChange({ addedLines, threshold, justified });
+  const details = {
+    baseRef: base,
+    addedLines,
+    threshold,
+    justified,
+    code: verdict.code
+  };
+  if (verdict.code === "ALLOW") return { status: "ok", details };
+  return {
+    status: "degraded",
+    details,
+    diagnostic: `${verdict.code}: ${verdict.message}
+- ${verdict.evidence.join("\n- ")}
+`
+  };
+}
+
+// src/lifecycle/trim-executor.ts
+import { createHash } from "node:crypto";
+import {
+  lstatSync as lstatSync2,
+  mkdirSync as mkdirSync2,
+  realpathSync as realpathSync3,
+  writeFileSync as writeFileSync2
+} from "node:fs";
+import { join as join8, relative as relative4 } from "node:path";
+
+// src/lifecycle/trim.ts
+function record4(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
+}
+function contentText(value) {
+  if (typeof value === "string") return value;
+  if (!Array.isArray(value)) return "";
+  return value.map((item) => {
+    if (typeof item === "string") return item;
+    const block2 = record4(item);
+    return typeof block2?.["text"] === "string" ? block2["text"] : "";
+  }).filter((item) => item !== "").join("\n");
+}
+function responseText(value) {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return contentText(value);
+  const response = record4(value);
+  if (response === void 0) return "";
+  return [
+    response["stdout"],
+    response["stderr"],
+    response["output"],
+    response["result"],
+    contentText(response["content"])
+  ].filter((item) => typeof item === "string" && item !== "").join("\n");
+}
+function extractToolOutput(value) {
+  const raw = record4(value);
+  if (raw === void 0) return void 0;
+  const tool = raw["tool_name"];
+  if (typeof tool !== "string" || tool !== "Bash" && tool !== "shell" && !tool.startsWith("mcp__")) {
+    return void 0;
+  }
+  const text2 = responseText(raw["tool_response"]);
+  return text2 === "" ? void 0 : { tool, text: text2 };
+}
+function errorEvidence(text2) {
+  return text2.split(/\r?\n/).filter(
+    (line) => /error|fail|exception|traceback|fatal|panic|not ok|assert/i.test(line)
+  ).join("\n").slice(0, 1500);
+}
+function planOutputTrim(text2, options) {
+  const originalBytes = Buffer.byteLength(text2, "utf8");
+  if (originalBytes <= options.thresholdBytes) return void 0;
+  const head = text2.slice(0, 3e3);
+  const tail = text2.slice(-3e3);
+  const errors = errorEvidence(text2);
+  const updatedToolOutput = `${head}
+
+[trimmed ${originalBytes} bytes. Full output: ${options.spillPath}]
+
+${tail}
+
+[error-like lines]
+${errors}
+`;
+  return {
+    fullOutput: text2,
+    originalBytes,
+    updatedToolOutput,
+    note: `trim-large-output: ${options.tool} result ${originalBytes}B trimmed; full output at ${options.spillPath}`
+  };
+}
+
+// src/lifecycle/trim-executor.ts
+function safeOutputDirectory(root) {
+  try {
+    const canonicalRoot = realpathSync3(root);
+    const directory = join8(root, ".void", "outputs");
+    mkdirSync2(directory, { recursive: true, mode: 448 });
+    const info = lstatSync2(directory);
+    const canonicalDirectory = realpathSync3(directory);
+    if (!info.isDirectory() || info.isSymbolicLink() || !within(canonicalRoot, canonicalDirectory)) {
+      return void 0;
+    }
+    return canonicalDirectory;
+  } catch {
+    return void 0;
+  }
+}
+function executeTrim(rawInput, root, env) {
+  if (env["VOID_HARNESS_NO_TRIM"] === "1") {
+    return { status: "skipped", details: { reason: "disabled" } };
+  }
+  const extracted = extractToolOutput(rawInput);
+  if (extracted === void 0) {
+    return { status: "skipped", details: { reason: "output-not-applicable" } };
+  }
+  const thresholdBytes = boundedInteger(
+    env["VOID_HARNESS_TRIM_BYTES"],
+    12e3,
+    1,
+    10 * 1024 * 1024
+  );
+  if (Buffer.byteLength(extracted.text, "utf8") <= thresholdBytes) {
+    return { status: "skipped", details: { reason: "below-threshold" } };
+  }
+  const directory = safeOutputDirectory(root);
+  if (directory === void 0) {
+    return {
+      status: "degraded",
+      details: { reason: "unsafe-output-directory" }
+    };
+  }
+  const hash = createHash("sha256").update(extracted.text).digest("hex").slice(0, 12);
+  const tool = extracted.tool.replaceAll(/[^A-Za-z0-9_]/g, "_").slice(0, 80);
+  const file = join8(directory, `${tool}-${process.pid}-${Date.now()}-${hash}.log`);
+  const spillPath = relative4(realpathSync3(root), file).replaceAll("\\", "/");
+  const plan = planOutputTrim(extracted.text, {
+    tool: extracted.tool,
+    thresholdBytes,
+    spillPath
+  });
+  if (plan === void 0) {
+    return { status: "skipped", details: { reason: "below-threshold" } };
+  }
+  try {
+    writeFileSync2(file, plan.fullOutput, {
+      encoding: "utf8",
+      flag: "wx",
+      mode: 384
+    });
+  } catch {
+    return { status: "degraded", details: { reason: "spill-write-failed" } };
+  }
+  return {
+    status: "ok",
+    details: {
+      originalBytes: plan.originalBytes,
+      spillPath
+    },
+    output: {
+      hookSpecificOutput: {
+        hookEventName: "PostToolUse",
+        updatedToolOutput: plan.updatedToolOutput,
+        additionalContext: plan.note
+      }
+    }
+  };
+}
+
+// src/lifecycle/typecheck-executor.ts
+import { existsSync as existsSync4 } from "node:fs";
+import { join as join10 } from "node:path";
+import { spawnSync as spawnSync3 } from "node:child_process";
+
+// src/lifecycle/typecheck.ts
+import {
+  dirname as dirname4,
+  isAbsolute as isAbsolute4,
+  join as join9,
+  relative as relative5,
+  resolve as resolve4
+} from "node:path";
+function record5(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
+}
+function configuredTypecheck(value) {
+  const root = record5(value);
+  const commands = record5(root?.["commands"]);
+  const configured = commands?.["typecheck"];
+  if (Array.isArray(configured) && configured.length > 0 && configured.every((argument) => typeof argument === "string")) {
+    return { argv: configured };
+  }
+  if (typeof configured === "string") {
+    return {
+      warning: "legacy commands.typecheck string ignored; migrate it to argv"
+    };
+  }
+  return {};
+}
+function within3(root, target) {
+  const rel = relative5(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute4(rel);
+}
+function nearestTsconfigs(changedPaths, projectRoot2, hasFile) {
+  const root = resolve4(projectRoot2);
+  const found = /* @__PURE__ */ new Set();
+  for (const changedPath of changedPaths) {
+    if (!/\.(?:ts|tsx)$/.test(changedPath) || changedPath.endsWith(".d.ts")) continue;
+    const target = resolve4(root, changedPath);
+    if (!within3(root, target)) continue;
+    let current = dirname4(target);
+    while (within3(root, current)) {
+      const config = join9(current, "tsconfig.json");
+      if (hasFile(config)) {
+        found.add(config);
+        break;
+      }
+      if (current === root) break;
+      current = dirname4(current);
+    }
+  }
+  return [...found];
+}
+
+// src/lifecycle/typecheck-executor.ts
+function runGit2(root, args, env) {
+  const git = findExecutable("git", root, env);
+  if (git === void 0) return { ok: false, output: "" };
+  const result = spawnSync3(git, args, {
+    cwd: root,
+    env: { ...process.env, ...env },
+    encoding: "utf8",
+    shell: false,
+    timeout: 5e3,
+    maxBuffer: 1024 * 1024
+  });
+  return {
+    ok: result.status === 0,
+    output: result.status === 0 ? result.stdout : ""
+  };
+}
+function changedTypeScript(root, env) {
+  const head = runGit2(root, ["rev-parse", "--verify", "HEAD"], env);
+  const tracked = head.ok ? runGit2(
+    root,
+    ["diff", "--name-only", "--diff-filter=ACM", "HEAD"],
+    env
+  ) : { ok: true, output: "" };
+  const untracked = runGit2(
+    root,
+    ["ls-files", "--others", "--exclude-standard"],
+    env
+  );
+  if (!tracked.ok || !untracked.ok) return void 0;
+  return [...new Set(`${tracked.output}
+${untracked.output}`.split(/\r?\n/))].filter((path) => /\.(?:ts|tsx)$/.test(path) && !path.endsWith(".d.ts"));
+}
+function typeErrors(output) {
+  return output.split(/\r?\n/).filter((line) => /error TS\d+|error:/i.test(line)).slice(0, 20).join("\n").slice(0, 12e3);
+}
+function executeTypecheck(root, env) {
+  const changed = changedTypeScript(root, env);
+  if (changed === void 0) {
+    return { status: "skipped", details: { reason: "non-git-or-git-unavailable" } };
+  }
+  if (changed.length === 0) {
+    return { status: "skipped", details: { reason: "no-touched-typescript" } };
+  }
+  const configs = nearestTsconfigs(changed, root, existsSync4);
+  const configured = configuredTypecheck(readJson(join10(root, ".void", "config.json")));
+  const configuredArgv = "argv" in configured ? configured.argv : void 0;
+  const warning = "warning" in configured ? configured.warning : void 0;
+  const fallback = findExecutable("tsc", root, env);
+  const argv = configuredArgv ?? (fallback === void 0 ? void 0 : [fallback, "--noEmit"]);
+  if (argv === void 0) {
+    return {
+      status: "skipped",
+      details: {
+        reason: "typechecker-unavailable",
+        ...warning === void 0 ? {} : { warning }
+      },
+      ...warning === void 0 ? {} : { diagnostic: `stop-typecheck: ${warning}
+` }
+    };
+  }
+  const executablePath = findExecutable(argv[0] ?? "", root, env);
+  if (executablePath === void 0) {
+    return {
+      status: "degraded",
+      details: { reason: "configured-executable-unavailable" }
+    };
+  }
+  const timeout = boundedInteger(
+    env["VOID_HARNESS_TYPECHECK_TIMEOUT_MS"],
+    45e3,
+    100,
+    12e4
+  );
+  const args = argv.slice(1);
+  const isTsc = argv.some(
+    (argument) => /(?:^|[\\/])tsc(?:\.cmd|\.exe)?$/.test(argument)
+  );
+  const invocations = isTsc && configs.length > 0 ? configs.map((config) => [...args, "-p", config]) : [args];
+  let errors = "";
+  for (const invocation of invocations) {
+    const result = spawnSync3(executablePath, invocation, {
+      cwd: root,
+      env: { ...process.env, ...env },
+      encoding: "utf8",
+      shell: false,
+      timeout,
+      maxBuffer: 1024 * 1024
+    });
+    if (result.error !== void 0) {
+      const timedOut = result.error.message.includes("ETIMEDOUT");
+      return {
+        status: "degraded",
+        details: {
+          reason: timedOut ? "timeout" : "execution-error",
+          timeoutMs: timeout
+        },
+        diagnostic: timedOut ? `stop-typecheck: typecheck exceeded ${timeout}ms; advisory result degraded.
+` : "stop-typecheck: typecheck could not execute; advisory result degraded.\n"
+      };
+    }
+    if (result.status !== 0) {
+      errors += `${typeErrors(`${result.stdout}
+${result.stderr}`)}
+`;
+    }
+  }
+  const bounded = errors.trim().slice(0, 12e3);
+  if (bounded !== "") {
+    return {
+      status: "degraded",
+      details: { reason: "type-errors", configs: invocations.length },
+      diagnostic: `stop-typecheck (advisory): type errors in the touched TypeScript surface:
+${bounded}
+Resolve before claiming done. This never blocks.
+`
+    };
+  }
+  return {
+    status: "ok",
+    details: {
+      checkedConfigs: invocations.length,
+      ...warning === void 0 ? {} : { warning }
+    },
+    ...warning === void 0 ? {} : { diagnostic: `stop-typecheck: ${warning}
+` }
+  };
+}
+
+// src/record.ts
+import { homedir } from "node:os";
+import { resolve as resolve8 } from "node:path";
+
+// src/project-registry.ts
+import { createHash as createHash2 } from "node:crypto";
+import { lstat, mkdir, open, readFile, realpath } from "node:fs/promises";
+import { isAbsolute as isAbsolute5, join as join11, relative as relative6, resolve as resolve5 } from "node:path";
+function code(error) {
+  return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
+}
+function within4(root, target) {
+  const rel = relative6(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute5(rel);
+}
+async function registerProjectRoot(root, globalDir) {
+  const canonicalRoot = await realpath(resolve5(root));
+  const base = resolve5(globalDir);
+  await mkdir(base, { recursive: true, mode: 448 });
+  const canonicalBase = await realpath(base);
+  const projects = join11(base, "projects");
+  await mkdir(projects, { recursive: true, mode: 448 });
+  const info = await lstat(projects);
+  if (!info.isDirectory() || info.isSymbolicLink()) {
+    throw new Error("HOOK_UNSAFE_REGISTRY: projects must be a real directory");
+  }
+  const canonicalProjects = await realpath(projects);
+  if (!within4(canonicalBase, canonicalProjects)) {
+    throw new Error("HOOK_REGISTRY_ESCAPE: projects resolves outside global dir");
+  }
+  const slug = createHash2("sha256").update(canonicalRoot).digest("hex").slice(0, 32);
+  const pointer = join11(projects, `${slug}.path`);
+  try {
+    const handle = await open(pointer, "wx", 384);
+    try {
+      await handle.writeFile(`${canonicalRoot}
+`, "utf8");
+    } finally {
+      await handle.close();
+    }
+  } catch (error) {
+    if (code(error) !== "EEXIST") throw error;
+    const pointerInfo = await lstat(pointer);
+    if (!pointerInfo.isFile() || pointerInfo.isSymbolicLink()) {
+      throw new Error("HOOK_UNSAFE_REGISTRY: pointer must be a regular file");
+    }
+    if ((await readFile(pointer, "utf8")).trim() !== canonicalRoot) {
+      throw new Error("HOOK_REGISTRY_COLLISION: pointer owns another root");
+    }
+  }
+}
+
+// src/runtime-input.ts
+import { createHash as createHash3 } from "node:crypto";
+import {
+  basename as basename3,
+  extname,
+  isAbsolute as isAbsolute6,
+  relative as relative7,
+  resolve as resolve6
+} from "node:path";
+var MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
+function record6(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
+}
+function text(value, fallback = "") {
+  if (typeof value !== "string") return fallback;
+  let clean2 = "";
+  for (const char of value) {
+    const point = char.codePointAt(0) ?? 0;
+    if (point >= 32 && point !== 127) clean2 += char;
+    if (clean2.length >= 256) break;
+  }
+  return clean2.slice(0, 256);
+}
+function runtimeSession(raw) {
+  return text(
+    raw["session_id"] ?? raw["sessionId"] ?? raw["thread_id"] ?? raw["threadId"]
+  );
+}
+function categoryFor(tool) {
+  if (tool === "Skill") return "skill";
+  if (tool === "Task" || tool === "Agent") return "agent";
+  if (tool === "Workflow") return "workflow";
+  return "tool";
+}
+function nameFor(tool, category, input) {
+  if (category === "skill") {
+    return text(input["skill"] ?? input["name"], "unknown");
+  }
+  if (category === "agent") {
+    return text(
+      input["subagent_type"] ?? input["agent"],
+      tool === "Agent" ? "claude" : "unknown"
+    );
+  }
+  if (category === "workflow") {
+    const explicit = text(input["name"]);
+    if (explicit !== "") return explicit;
+    const script = text(input["scriptPath"]);
+    return script === "" || script.endsWith("/") ? "inline" : basename3(script).replace(/(?:\.workflow)?\.js$/, "") || "inline";
+  }
+  return tool || "unknown";
+}
+function safePaths(input, root) {
+  const absoluteRoot = resolve6(root);
+  const candidates = [
+    input["file_path"],
+    input["path"],
+    input["pattern"]
+  ];
+  const paths = [];
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string" || candidate.length > 2e3) continue;
+    if (!isAbsolute6(candidate)) {
+      if (!candidate.startsWith("..")) paths.push(candidate.slice(0, 500));
+      continue;
+    }
+    const rel = relative7(absoluteRoot, resolve6(candidate));
+    if (rel !== "" && !rel.startsWith("..") && !isAbsolute6(rel)) {
+      paths.push(rel.slice(0, 500));
+    }
+  }
+  return paths;
+}
+function outcomeStatus(raw) {
+  const response = record6(raw["tool_response"]);
+  if (response === void 0) return "unknown";
+  if (response["success"] === false || response["is_error"] === true || response["error"] !== void 0) {
+    return "error";
+  }
+  return "ok";
+}
+function adaptRuntimeInput(value, options) {
+  const raw = record6(value);
+  if (raw === void 0) return void 0;
+  const runtimeSessionId = runtimeSession(raw);
+  if (options.phase === "stop" || text(raw["hook_event_name"]) === "Stop") {
+    return {
+      runtimeSessionId,
+      source: `runtime:${options.runtime}`,
+      kind: "runtime.session.stopped",
+      subject: `runtime:${options.runtime}`,
+      payload: {}
+    };
+  }
+  const tool = text(raw["tool_name"], "unknown");
+  const input = record6(raw["tool_input"]) ?? {};
+  const category = categoryFor(tool);
+  const name = nameFor(tool, category, input);
+  const fileGlobs = safePaths(input, options.root);
+  const extensions = fileGlobs.map((path) => extname(path).slice(1)).filter((extension) => extension !== "");
+  return {
+    runtimeSessionId,
+    source: `runtime:${options.runtime}`,
+    kind: options.phase === "outcome" ? "runtime.tool.completed" : "runtime.tool.started",
+    subject: `${category}:${name}`,
+    payload: {
+      category,
+      tool,
+      fileGlobs,
+      extensions,
+      ...options.phase === "outcome" ? { status: outcomeStatus(raw) } : {}
+    }
+  };
+}
+function deriveMissionId(explicit, runtime3, runtimeSessionId, root) {
+  if (explicit !== void 0 && explicit !== "") {
+    if (!MISSION_ID.test(explicit)) {
+      throw new Error("HOOK_INVALID_MISSION_ID: expected mis_<opaque-id>");
+    }
+    return explicit;
+  }
+  const opaque = createHash3("sha256").update(`${runtime3}\0${runtimeSessionId || "unknown"}\0${resolve6(root)}`).digest("hex").slice(0, 32);
+  return `mis_${opaque}`;
+}
+
+// src/sequenced-writer.ts
+import { randomUUID as nodeRandomUUID } from "node:crypto";
+import {
+  constants as constants2
+} from "node:fs";
+import {
+  lstat as lstat2,
+  mkdir as mkdir2,
+  open as open2,
+  readFile as readFile2,
+  realpath as realpath2,
+  rename,
+  stat,
+  unlink
+} from "node:fs/promises";
+import {
+  dirname as dirname5,
+  isAbsolute as isAbsolute7,
+  join as join12,
+  relative as relative8,
+  resolve as resolve7
+} from "node:path";
+
+// ../mission-engine/dist/events/schema.js
+var MAX_EVENT_PAYLOAD_BYTES = 16 * 1024;
+var MAX_EVENT_LINE_BYTES = 32 * 1024;
+var MAX_EVENT_PAYLOAD_DEPTH = 8;
+var MAX_EVENT_PAYLOAD_NODES = 512;
+var EVENT_ID = /^evt_[A-Za-z0-9_-]{8,100}$/;
+var MISSION_ID2 = /^mis_[A-Za-z0-9_-]{8,100}$/;
+var DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
+var EVENT_KIND = /^[a-z][a-z0-9-]*(?:\.[a-z0-9-]+)+$/;
+var EVENT_KEYS = /* @__PURE__ */ new Set([
+  "schemaVersion",
+  "seq",
+  "eventId",
+  "missionId",
+  "ts",
+  "source",
+  "kind",
+  "subject",
+  "causationId",
+  "correlationId",
+  "payload"
+]);
+function utf8Bytes(value) {
+  let bytes = 0;
+  for (const char of value) {
+    const code3 = char.codePointAt(0) ?? 0;
+    bytes += code3 <= 127 ? 1 : code3 <= 2047 ? 2 : code3 <= 65535 ? 3 : 4;
+  }
+  return bytes;
+}
+function isPrintable(value) {
+  for (const char of value) {
+    const point = char.codePointAt(0) ?? 0;
+    if (point < 32 || point === 127)
+      return false;
+  }
+  return true;
+}
+function record7(value) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return void 0;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null ? value : void 0;
+}
+function isJsonValue(value, depth, budget) {
+  budget.nodes += 1;
+  if (depth > MAX_EVENT_PAYLOAD_DEPTH || budget.nodes > MAX_EVENT_PAYLOAD_NODES) {
+    return false;
+  }
+  if (value === null || typeof value === "string" || typeof value === "boolean") {
+    return true;
+  }
+  if (typeof value === "number")
+    return Number.isFinite(value);
+  if (Array.isArray(value)) {
+    return value.every((entry) => isJsonValue(entry, depth + 1, budget));
+  }
+  const object = record7(value);
+  if (object === void 0)
+    return false;
+  return Object.entries(object).every(([key, entry]) => key.length <= 100 && isPrintable(key) && isJsonValue(entry, depth + 1, budget));
+}
+function boundedLabel(value, min, max, pattern) {
+  return typeof value === "string" && value.length >= min && value.length <= max && isPrintable(value) && (pattern === void 0 || pattern.test(value));
+}
+function contractError(message) {
+  return {
+    ok: false,
+    issue: { code: "invalid-event-contract", message }
+  };
+}
+function parseEvent(value) {
+  const raw = record7(value);
+  if (raw === void 0)
+    return contractError("event must be a plain object");
+  const unknownKeys = Object.keys(raw).filter((key) => !EVENT_KEYS.has(key));
+  if (unknownKeys.length > 0) {
+    return contractError(`unknown field(s): ${unknownKeys.join(", ")}`);
+  }
+  if (raw["schemaVersion"] !== 1)
+    return contractError("schemaVersion must be 1");
+  if (typeof raw["seq"] !== "number" || !Number.isSafeInteger(raw["seq"]) || raw["seq"] <= 0) {
+    return contractError("seq must be a positive safe integer");
+  }
+  if (!boundedLabel(raw["eventId"], 12, 104, EVENT_ID)) {
+    return contractError("eventId must be evt_<opaque-id>");
+  }
+  if (!boundedLabel(raw["missionId"], 12, 104, MISSION_ID2)) {
+    return contractError("missionId must be mis_<opaque-id>");
+  }
+  if (!boundedLabel(raw["ts"], 20, 24, DATE_TIME)) {
+    return contractError("ts must be an ISO UTC timestamp");
+  }
+  if (!boundedLabel(raw["source"], 1, 128)) {
+    return contractError("source must be a bounded label");
+  }
+  if (!boundedLabel(raw["kind"], 3, 128, EVENT_KIND)) {
+    return contractError("kind must be a dotted event name");
+  }
+  if (!boundedLabel(raw["subject"], 1, 256)) {
+    return contractError("subject must be a bounded label");
+  }
+  if (raw["causationId"] !== void 0 && !boundedLabel(raw["causationId"], 12, 104, EVENT_ID)) {
+    return contractError("causationId must be evt_<opaque-id>");
+  }
+  if (!boundedLabel(raw["correlationId"], 12, 104, MISSION_ID2)) {
+    return contractError("correlationId must be mis_<opaque-id>");
+  }
+  if (!isJsonValue(raw["payload"], 0, { nodes: 0 })) {
+    return contractError("payload must be bounded JSON data");
+  }
+  if (utf8Bytes(JSON.stringify(raw["payload"])) > MAX_EVENT_PAYLOAD_BYTES) {
+    return contractError(`payload exceeds ${MAX_EVENT_PAYLOAD_BYTES} bytes`);
+  }
+  const required = {
+    schemaVersion: 1,
+    seq: raw["seq"],
+    eventId: raw["eventId"],
+    missionId: raw["missionId"],
+    ts: raw["ts"],
+    source: raw["source"],
+    kind: raw["kind"],
+    subject: raw["subject"],
+    correlationId: raw["correlationId"],
+    payload: raw["payload"]
+  };
+  return {
+    ok: true,
+    value: {
+      ...required,
+      ...raw["causationId"] === void 0 ? {} : { causationId: raw["causationId"] }
+    }
+  };
+}
+function parseEventLine(line) {
+  if (utf8Bytes(line) > MAX_EVENT_LINE_BYTES) {
+    return {
+      ok: false,
+      issue: {
+        code: "event-line-too-large",
+        message: `event line exceeds ${MAX_EVENT_LINE_BYTES} bytes`
+      }
+    };
+  }
+  let raw;
+  try {
+    raw = JSON.parse(line);
+  } catch (error) {
+    return {
+      ok: false,
+      issue: {
+        code: "invalid-event-json",
+        message: error instanceof Error ? error.message : String(error)
+      }
+    };
+  }
+  return parseEvent(raw);
+}
+function serializeEvent(event) {
+  const parsed = parseEvent(event);
+  if (!parsed.ok)
+    throw new Error(`EVENT_INVALID: ${parsed.issue.message}`);
+  const line = JSON.stringify(parsed.value);
+  if (utf8Bytes(line) > MAX_EVENT_LINE_BYTES) {
+    throw new Error(`EVENT_LINE_TOO_LARGE: exceeds ${MAX_EVENT_LINE_BYTES} bytes`);
+  }
+  return line;
+}
+
+// ../mission-engine/dist/events/reducer.js
+function replayEventLog(text2) {
+  const events = [];
+  const eventIds = /* @__PURE__ */ new Set();
+  const sequences = /* @__PURE__ */ new Set();
+  const issues = [];
+  let lastSeq = 0;
+  let continuity = "empty";
+  let duplicateEventIds = 0;
+  let invalidLines = 0;
+  const lines = text2.split("\n");
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    if (line.trim() === "")
+      continue;
+    const parsed = parseEventLine(line);
+    if (parsed.ok) {
+      const event = parsed.value;
+      if (eventIds.has(event.eventId)) {
+        duplicateEventIds += 1;
+        continue;
+      }
+      eventIds.add(event.eventId);
+      events.push(event);
+      continuity = continuity === "empty" ? "complete" : continuity;
+      if (sequences.has(event.seq)) {
+        issues.push({ code: "duplicate-sequence", seq: event.seq });
+        continuity = "partial";
+      } else {
+        const expectedSeq = lastSeq + 1;
+        if (event.seq > expectedSeq) {
+          issues.push({
+            code: "sequence-gap",
+            expectedSeq,
+            actualSeq: event.seq
+          });
+          continuity = "partial";
+        } else if (event.seq < expectedSeq) {
+          issues.push({
+            code: "out-of-order-sequence",
+            previousSeq: lastSeq,
+            actualSeq: event.seq
+          });
+          continuity = "partial";
+        }
+        sequences.add(event.seq);
+      }
+      lastSeq = Math.max(lastSeq, event.seq);
+    } else {
+      continuity = "partial";
+      invalidLines += 1;
+      issues.push({
+        code: "invalid-event-line",
+        line: index + 1,
+        detail: `${parsed.issue.code}: ${parsed.issue.message}`
+      });
+    }
+  }
+  return {
+    events,
+    eventIds,
+    sequences,
+    lastSeq,
+    continuity,
+    duplicateEventIds,
+    invalidLines,
+    issues
+  };
+}
+
+// src/sequenced-writer.ts
+var MAX_EVENT_LOG_BYTES = 8 * 1024 * 1024;
+var MISSION_ID3 = /^mis_[A-Za-z0-9_-]{8,100}$/;
+var EVENT_ID2 = /^evt_[A-Za-z0-9_-]{8,100}$/;
+var DEFAULT_LOCK_STALE_MS = 3e4;
+var DEFAULT_LOCK_ATTEMPTS = 2e3;
+var LOCK_RETRY_MS = 2;
+function code2(error) {
+  return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
+}
+function within5(root, target) {
+  const rel = relative8(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute7(rel);
+}
+async function exists(path) {
+  try {
+    await lstat2(path);
+    return true;
+  } catch (error) {
+    if (code2(error) === "ENOENT") return false;
+    throw error;
+  }
+}
+async function safeRunDirectory(root, missionId) {
+  if (!MISSION_ID3.test(missionId)) {
+    throw new Error("HOOK_INVALID_MISSION_ID: expected mis_<opaque-id>");
+  }
+  const absoluteRoot = resolve7(root);
+  const canonicalRoot = await realpath2(absoluteRoot);
+  const run = join12(absoluteRoot, ".void", "runs", missionId);
+  let ancestor = run;
+  while (!await exists(ancestor)) {
+    const parent = dirname5(ancestor);
+    if (parent === ancestor) break;
+    ancestor = parent;
+  }
+  const canonicalAncestor = await realpath2(ancestor);
+  if (!within5(canonicalRoot, canonicalAncestor)) {
+    throw new Error("HOOK_PATH_ESCAPE: run directory resolves outside project");
+  }
+  await mkdir2(run, { recursive: true, mode: 448 });
+  const canonicalRun = await realpath2(run);
+  if (!within5(canonicalRoot, canonicalRun)) {
+    throw new Error("HOOK_PATH_ESCAPE: run directory resolves outside project");
+  }
+  return run;
+}
+async function rejectSymlink(path) {
+  try {
+    const info = await lstat2(path);
+    if (info.isSymbolicLink() || !info.isFile()) {
+      throw new Error(`HOOK_UNSAFE_FILE: ${path} must be a regular file`);
+    }
+  } catch (error) {
+    if (code2(error) !== "ENOENT") throw error;
+  }
+}
+async function wait(ms) {
+  await new Promise((resolveWait) => {
+    setTimeout(resolveWait, ms);
+  });
+}
+async function acquireLock(path, staleMs, attempts) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const token = nodeRandomUUID();
+    try {
+      const handle = await open2(path, "wx", 384);
+      try {
+        await handle.writeFile(
+          JSON.stringify({ token, pid: process.pid, acquiredAt: Date.now() }),
+          "utf8"
+        );
+      } finally {
+        await handle.close();
+      }
+      return { path, token };
+    } catch (error) {
+      if (code2(error) !== "EEXIST") throw error;
+      const info = await lstat2(path).catch((statError) => {
+        if (code2(statError) === "ENOENT") return void 0;
+        throw statError;
+      });
+      if (info === void 0) continue;
+      if (info.isSymbolicLink() || !info.isFile()) {
+        throw new Error("HOOK_UNSAFE_LOCK: lock must be a regular file");
+      }
+      if (Date.now() - info.mtimeMs > staleMs) {
+        await unlink(path).catch((unlinkError) => {
+          if (code2(unlinkError) !== "ENOENT") throw unlinkError;
+        });
+        continue;
+      }
+      await wait(LOCK_RETRY_MS);
+    }
+  }
+  throw new Error("HOOK_LOCK_TIMEOUT: event sequencer remained busy");
+}
+async function releaseLock(lock) {
+  try {
+    const raw = await readFile2(lock.path, "utf8");
+    const parsed = JSON.parse(raw);
+    if (parsed.token === lock.token) await unlink(lock.path);
+  } catch (error) {
+    if (code2(error) !== "ENOENT") throw error;
+  }
+}
+async function readSequenceState(statePath, logPath, logBytes) {
+  try {
+    const raw = JSON.parse(await readFile2(statePath, "utf8"));
+    if (Number.isSafeInteger(raw.seq) && (raw.seq ?? -1) >= 0 && raw.logBytes === logBytes) {
+      return raw.seq ?? 0;
+    }
+  } catch {
+  }
+  if (logBytes === 0) return 0;
+  return replayEventLog(await readFile2(logPath, "utf8")).lastSeq;
+}
+async function ensureLineBoundary(logPath, logBytes) {
+  if (logBytes === 0) return 0;
+  const handle = await open2(logPath, "r");
+  try {
+    const finalByte = Buffer.alloc(1);
+    await handle.read(finalByte, 0, 1, logBytes - 1);
+    if (finalByte[0] === 10) return logBytes;
+  } finally {
+    await handle.close();
+  }
+  const append = await open2(
+    logPath,
+    constants2.O_APPEND | constants2.O_WRONLY | (constants2.O_NOFOLLOW ?? 0)
+  );
+  try {
+    await append.writeFile("\n", "utf8");
+  } finally {
+    await append.close();
+  }
+  return logBytes + 1;
+}
+async function appendLine(logPath, line) {
+  const flags = constants2.O_APPEND | constants2.O_CREAT | constants2.O_WRONLY | (constants2.O_NOFOLLOW ?? 0);
+  const handle = await open2(logPath, flags, 384);
+  try {
+    await handle.writeFile(`${line}
+`, "utf8");
+    return (await handle.stat()).size;
+  } finally {
+    await handle.close();
+  }
+}
+async function writeSequenceState(statePath, state, randomUUID) {
+  const temporary = `${statePath}.${randomUUID()}.tmp`;
+  const handle = await open2(temporary, "wx", 384);
+  try {
+    await handle.writeFile(JSON.stringify(state), "utf8");
+  } finally {
+    await handle.close();
+  }
+  await rename(temporary, statePath);
+}
+function sameDraft(event, options) {
+  return event.missionId === options.missionId && event.source === options.draft.source && event.kind === options.draft.kind && event.subject === options.draft.subject && event.correlationId === options.draft.correlationId && event.causationId === options.draft.causationId && JSON.stringify(event.payload) === JSON.stringify(options.draft.payload);
+}
+async function existingIdempotentEvent(logPath, options, currentBytes) {
+  if (options.eventId === void 0 || currentBytes === 0) return void 0;
+  const stream = replayEventLog(await readFile2(logPath, "utf8"));
+  if (stream.continuity === "partial" || stream.duplicateEventIds > 0) {
+    throw new Error("HOOK_EVENT_LOG_INTEGRITY: continuity cannot be proved");
+  }
+  const existing = stream.events.find((event) => event.eventId === options.eventId);
+  if (existing !== void 0 && !sameDraft(existing, options)) {
+    throw new Error("HOOK_EVENT_ID_CONFLICT: event ID belongs to another draft");
+  }
+  return existing;
+}
+async function writeSequencedEventInternal(options) {
+  if (options.eventId !== void 0 && !EVENT_ID2.test(options.eventId)) {
+    throw new Error("HOOK_INVALID_EVENT_ID: expected evt_<opaque-id>");
+  }
+  const run = await safeRunDirectory(options.root, options.missionId);
+  const logPath = join12(run, "events.jsonl");
+  const statePath = join12(run, ".seq.state");
+  const lockPath = join12(run, ".seq.lock");
+  await Promise.all([
+    rejectSymlink(logPath),
+    rejectSymlink(statePath),
+    rejectSymlink(lockPath)
+  ]);
+  const lock = await acquireLock(
+    lockPath,
+    options.lockStaleMs ?? DEFAULT_LOCK_STALE_MS,
+    options.lockAttempts ?? DEFAULT_LOCK_ATTEMPTS
+  );
+  const randomUUID = options.randomUUID ?? nodeRandomUUID;
+  try {
+    await rejectSymlink(logPath);
+    const currentBytes = await stat(logPath).then((value) => value.size).catch((error) => {
+      if (code2(error) === "ENOENT") return 0;
+      throw error;
+    });
+    if (currentBytes > MAX_EVENT_LOG_BYTES) {
+      throw new Error("HOOK_EVENT_LOG_FULL: rotate or archive the run");
+    }
+    const existing = await existingIdempotentEvent(
+      logPath,
+      options,
+      currentBytes
+    );
+    if (existing !== void 0) {
+      return Object.freeze({ event: existing, appended: false });
+    }
+    if (currentBytes >= MAX_EVENT_LOG_BYTES) {
+      throw new Error("HOOK_EVENT_LOG_FULL: rotate or archive the run");
+    }
+    const boundedBytes = await ensureLineBoundary(logPath, currentBytes);
+    const previousSeq = await readSequenceState(
+      statePath,
+      logPath,
+      boundedBytes
+    );
+    const event = {
+      schemaVersion: 1,
+      seq: previousSeq + 1,
+      eventId: options.eventId ?? `evt_${randomUUID()}`,
+      missionId: options.missionId,
+      ts: (options.now ?? /* @__PURE__ */ new Date()).toISOString(),
+      ...options.draft
+    };
+    const line = serializeEvent(event);
+    if (boundedBytes + Buffer.byteLength(line) + 1 > MAX_EVENT_LOG_BYTES) {
+      throw new Error("HOOK_EVENT_LOG_FULL: rotate or archive the run");
+    }
+    const logBytes = await appendLine(logPath, line);
+    await writeSequenceState(
+      statePath,
+      { seq: event.seq, logBytes },
+      randomUUID
+    );
+    return Object.freeze({ event, appended: true });
+  } finally {
+    await releaseLock(lock);
+  }
+}
+async function writeSequencedEvent(options) {
+  return (await writeSequencedEventInternal(options)).event;
+}
+
+// src/record.ts
+async function recordRuntimeEvent(options) {
+  const adapted = adaptRuntimeInput(options.rawInput, options);
+  if (adapted === void 0) return void 0;
+  const missionId = deriveMissionId(
+    options.missionId,
+    options.runtime,
+    adapted.runtimeSessionId,
+    options.root
+  );
+  const draft = {
+    source: adapted.source,
+    kind: adapted.kind,
+    subject: adapted.subject,
+    correlationId: missionId,
+    payload: adapted.payload
+  };
+  const event = await writeSequencedEvent({
+    root: options.root,
+    missionId,
+    draft
+  });
+  await registerProjectRoot(
+    options.root,
+    options.globalDir ?? resolve8(homedir(), ".void")
+  ).catch(() => {
+  });
+  return event;
+}
+async function recordHookEvent(options) {
+  if (!/^[a-z0-9][a-z0-9-]{0,99}$/.test(options.hook)) {
+    throw new Error("HOOK_INVALID_NAME: expected a bounded kebab-case name");
+  }
+  const adapted = adaptRuntimeInput(options.rawInput ?? {}, {
+    root: options.root,
+    runtime: options.runtime,
+    phase: "outcome"
+  });
+  const missionId = deriveMissionId(
+    options.missionId,
+    options.runtime,
+    adapted?.runtimeSessionId ?? "",
+    options.root
+  );
+  const event = await writeSequencedEvent({
+    root: options.root,
+    missionId,
+    draft: {
+      source: `runtime:${options.runtime}`,
+      kind: "hook.completed",
+      subject: `hook:${options.hook}`,
+      correlationId: missionId,
+      payload: {
+        status: options.status,
+        ...options.details ?? {}
+      }
+    }
+  });
+  await registerProjectRoot(
+    options.root,
+    options.globalDir ?? resolve8(homedir(), ".void")
+  ).catch(() => {
+  });
+  return event;
+}
+function runtime(value) {
+  return value === "claude" || value === "codex" ? value : "unknown";
+}
+function phase(value) {
+  if (value === "outcome" || value === "stop") return value;
+  return "activation";
+}
+async function recordRuntimeEventFromCli(raw, argv, env) {
+  await recordRuntimeEvent({
+    root: env["VOID_PROJECT_ROOT"] ?? env["CLAUDE_PROJECT_DIR"] ?? process.cwd(),
+    runtime: runtime(argv[3] ?? env["VOID_AGENT_RUNTIME"]),
+    phase: phase(argv[2]),
+    rawInput: raw,
+    globalDir: env["VOID_GLOBAL_DIR"] ?? resolve8(homedir(), ".void"),
+    ...env["VOID_MISSION_ID"] === void 0 ? {} : { missionId: env["VOID_MISSION_ID"] }
+  });
+}
+
+// src/cli.ts
+var RULES = /* @__PURE__ */ new Set([
+  "dangerous-command",
+  "boundary-direction",
+  "design-slop",
+  "no-any",
+  "no-as-cast",
+  "no-console",
+  "no-focused-test",
+  "no-null",
+  "protected-file",
+  "secret-content",
+  "tdd-order",
+  "test-name"
+]);
+async function readStdin() {
+  const chunks = [];
+  let bytes = 0;
+  for await (const raw of process.stdin) {
+    const chunk = Buffer.isBuffer(raw) ? raw : Buffer.from(String(raw));
+    bytes += chunk.byteLength;
+    if (bytes > MAX_HOOK_INPUT_BYTES) throw new Error("HOOK_INPUT_TOO_LARGE");
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+function writeVerdict(verdict, write) {
+  if (verdict.code === "ALLOW" || verdict.code === "OVERRIDE") return;
+  const evidence = verdict.evidence.length === 0 ? "" : `
+${verdict.evidence.map((item) => `- ${item}`).join("\n")}`;
+  write(`${verdict.code}: ${verdict.message}${evidence}
+`);
+}
+function runtime2(value) {
+  return value === "claude" || value === "codex" ? value : "unknown";
+}
+function projectRoot() {
+  return process.env["VOID_PROJECT_ROOT"] ?? process.env["CLAUDE_PROJECT_DIR"] ?? discoverProjectRoot(process.cwd());
+}
+function optionalPayload(input) {
+  if (input.byteLength === 0) return {};
+  try {
+    return parseHookPayload(input);
+  } catch {
+    return void 0;
+  }
+}
+async function refreshFreshnessInBackground(installed) {
+  try {
+    await resolveFreshness({
+      installed,
+      env: process.env,
+      now: Date.now(),
+      timeoutMs: 1e3
+    });
+  } catch {
+  }
+}
+async function observeHook(hook, execution, rawInput, agentRuntime, root) {
+  await recordHookEvent({
+    root,
+    runtime: agentRuntime,
+    hook,
+    status: execution.status,
+    rawInput,
+    details: execution.details,
+    ...process.env["VOID_GLOBAL_DIR"] === void 0 ? {} : { globalDir: process.env["VOID_GLOBAL_DIR"] },
+    ...process.env["VOID_MISSION_ID"] === void 0 ? {} : { missionId: process.env["VOID_MISSION_ID"] }
+  }).catch(() => {
+  });
+}
+async function runLifecycle(input) {
+  const hook = process.argv[3] ?? "";
+  const agentRuntime = runtime2(process.argv[4] ?? process.env["VOID_AGENT_RUNTIME"]);
+  const root = projectRoot();
+  const rawInput = optionalPayload(input);
+  if (hook === "context") {
+    const execution2 = { status: "ok", details: {} };
+    const install = resolveInstall(root, process.env);
+    const cached = readFreshnessCache(process.env, Date.now());
+    const notice = cached === void 0 ? void 0 : freshnessNotice(compareFreshness(install.version, cached.latest), install.source);
+    process.stdout.write(`${JSON.stringify(sessionStartOutput(install.version, notice))}
+`);
+    await refreshFreshnessInBackground(install.version);
+    await observeHook(hook, execution2, rawInput ?? {}, agentRuntime, root);
+    return;
+  }
+  if (rawInput === void 0) {
+    await observeHook(
+      hook || "unknown",
+      { status: "degraded", details: { reason: "invalid-hook-input" } },
+      {},
+      agentRuntime,
+      root
+    );
+    return;
+  }
+  const execution = hook === "format" ? executeFormat(rawInput, root, process.env) : hook === "trim" ? executeTrim(rawInput, root, process.env) : hook === "typecheck" ? executeTypecheck(root, process.env) : hook === "large-change" ? executeLargeChange(root, process.env) : void 0;
+  if (execution === void 0) return;
+  if (execution.diagnostic !== void 0) process.stderr.write(execution.diagnostic);
+  if ("output" in execution && execution.output !== void 0) {
+    process.stdout.write(`${JSON.stringify(execution.output)}
+`);
+  }
+  await observeHook(hook, execution, rawInput, agentRuntime, root);
+}
+async function main() {
+  const input = await readStdin();
+  if (process.argv[2] === "lifecycle") {
+    await runLifecycle(input);
+    return;
+  }
+  if (process.argv[2] !== "enforce" && process.argv[2] !== "enforce-ci") {
+    try {
+      await recordRuntimeEventFromCli(
+        parseHookPayload(input),
+        process.argv,
+        process.env
+      );
+    } catch {
+    }
+    return;
+  }
+  try {
+    const rule = process.argv[3];
+    if (!RULES.has(rule)) throw new Error("UNKNOWN_ENFORCEMENT_RULE");
+    const rawInput = process.argv[2] === "enforce-ci" ? {
+      tool_name: "Write",
+      tool_input: {
+        file_path: process.argv[4] ?? "",
+        content: parseHookText(input)
+      }
+    } : parseHookPayload(input);
+    const verdict = evaluateRule(
+      rule,
+      rawInput,
+      {
+        root: projectRoot(),
+        env: process.env
+      }
+    );
+    if (process.argv[2] === "enforce") {
+      await observeHook(
+        rule,
+        {
+          status: verdict.allow ? "ok" : "blocked",
+          details: {
+            code: verdict.code,
+            evidenceCount: verdict.evidence.length
+          }
+        },
+        rawInput,
+        runtime2(process.argv[4] ?? process.env["VOID_AGENT_RUNTIME"]),
+        projectRoot()
+      );
+    }
+    writeVerdict(verdict, (message) => process.stderr.write(message));
+    if (!verdict.allow) process.exitCode = 2;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "UNKNOWN_ENFORCEMENT_ERROR";
+    process.stderr.write(`HOOK_INPUT_REJECTED: ${message}
+`);
+    process.exitCode = 2;
+  }
+}
+main().catch((error) => {
+  const message = error instanceof Error ? error.message : "UNKNOWN_ENFORCEMENT_ERROR";
+  process.stderr.write(`HOOK_RUNNER_FAILED: ${message}
+`);
+  process.exitCode = process.argv[2] === "enforce" ? 2 : 0;
+});
