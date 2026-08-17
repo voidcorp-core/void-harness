@@ -92,7 +92,7 @@ export const COMMAND_CENTER_HTML = `<!doctype html>
 <main>
   <header>
     <h1>Void projects</h1>
-    <span class="sub" id="meta"></span>
+    <span class="sub" id="meta"></span><span class="sub" id="stale"></span>
   </header>
   <div id="out"><p class="sub" style="margin-top:2rem">reading…</p></div>
 </main>
@@ -159,13 +159,23 @@ function card(project) {
   return bits.join('');
 }
 
+function readClock(iso) {
+  // LOCAL time, not the ISO slice: the payload is UTC, and a header that showed
+  // 16:42 while the wall clock said 18:42 is a timestamp nobody can use.
+  if (iso === undefined) return 'unknown';
+  const at = new Date(iso);
+  return Number.isNaN(at.getTime()) ? 'unknown' : at.toLocaleTimeString();
+}
+
 function render(data) {
   const projects = data.projects === undefined ? [] : data.projects;
   // The read time is shown because a tab left open is showing an old answer.
   meta.innerHTML = 'roots <code>'
     + esc((data.roots === undefined ? [] : data.roots).join(', ')) + '</code> &middot; '
-    + esc(data.rootsSource) + ' &middot; read at '
-    + esc((data.readAt === undefined ? '' : data.readAt).slice(11, 19));
+    + esc(data.rootsSource) + ' &middot; read at ' + esc(readClock(data.readAt));
+  // Clear any previous failure note: this answer is fresh.
+  const note = document.getElementById('stale');
+  if (note !== null) note.textContent = '';
 
   if (projects.length === 0) {
     out.innerHTML = '<p class="empty">No project found. A project is any directory carrying '
@@ -194,12 +204,58 @@ function render(data) {
   out.innerHTML = html.join('');
 }
 
-fetch('/api/projects')
-  .then((response) => response.ok ? response.json() : Promise.reject(new Error(response.status)))
-  .then(render)
-  .catch((error) => {
-    out.innerHTML = '<p class="err">Could not read the projects: ' + esc(error.message) + '</p>';
-  });
+// Refreshing is the point of the page, not a nicety: the whole use case is
+// coming back to the tab after working in several projects and seeing where
+// things stand NOW, not at launch. The server already reads per request, so
+// staleness lived entirely in this fetch happening once.
+//
+// Two triggers, and one deliberate silence. Coming back to the tab refreshes
+// immediately, because that is the exact moment the answer is consulted. A
+// steady interval keeps a tab on a second screen honest. A HIDDEN tab polls
+// nothing: reading eight projects spawns git processes in each, and doing that
+// for a tab nobody is looking at is pure waste.
+const REFRESH_MS = 10000;
+let inFlight = false;
+let timer = undefined;
+let loaded = false;
+
+function refresh() {
+  // Guard against stacking: a slow read must not queue more reads behind it.
+  if (inFlight || document.hidden) return;
+  inFlight = true;
+  fetch('/api/projects')
+    .then((response) => response.ok ? response.json() : Promise.reject(new Error(response.status)))
+    .then((data) => {
+      loaded = true;
+      render(data);
+    })
+    .catch((error) => {
+      // A failed refresh keeps the last good answer on screen. Blanking a view
+      // that was correct a moment ago is worse than showing it slightly old,
+      // as long as the page says so.
+      if (loaded) {
+        const note = document.getElementById('stale');
+        if (note !== null) note.textContent = ' · refresh failed, showing last read';
+      } else {
+        out.innerHTML = '<p class="err">Could not read the projects: ' + esc(error.message) + '</p>';
+      }
+    })
+    .then(() => { inFlight = false; });
+}
+
+function schedule() {
+  if (timer !== undefined) clearInterval(timer);
+  timer = document.hidden ? undefined : setInterval(refresh, REFRESH_MS);
+}
+
+document.addEventListener('visibilitychange', () => {
+  schedule();
+  refresh();
+});
+window.addEventListener('focus', refresh);
+
+schedule();
+refresh();
 </script>
 </body>
 </html>
