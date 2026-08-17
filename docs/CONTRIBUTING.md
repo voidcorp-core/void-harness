@@ -9,6 +9,18 @@ The working rules for this repo live in `CLAUDE.md` (mirrored as `AGENTS.md` for
 3. Read `docs/ARCHITECTURE.md` — package boundaries and dependency direction.
 4. Skim `docs/DECISIONS.md`, then use `void-harness decisions render` for the current decision projection. Do not re-litigate a settled call without superseding it.
 
+## Running the CLI you just changed
+
+```
+pnpm cli <command>          # e.g. pnpm cli projects, pnpm cli ui
+```
+
+Use this, not the `void-harness` on your PATH. That one is the **published**
+package, so a command added in your working tree answers `unknown command` and
+sends you reading the help of an older version — which is exactly what happened
+the first time `ui` was tried. `pnpm cli` rebuilds first, so it always runs the
+tree rather than the last build.
+
 ## The gates (run before you push)
 
 **`pnpm verify` runs all of them**, in CI's own order. It is the one command to
