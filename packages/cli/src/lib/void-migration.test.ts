@@ -52,10 +52,21 @@ describe('migrateVoidLayout', () => {
     expect(second.gitignoreTouched).toBe(false);
   });
 
-  it('never overwrites a destination that already holds data', async () => {
-    // Both halves populated means a half-finished migration or a concurrent
-    // session. Losing the run journal a reconciliation is reading is worse than
-    // leaving the old path in place, which every reader still falls back to.
+  /**
+   * Supersedes the earlier "leave the old path in place" rule.
+   *
+   * Leaving it meant the drift never resolved: every reader falls back, so
+   * nothing ever pushed anyone to decide, and `update` reprinted "merge or
+   * delete one" forever — asking for an arbitration while supplying none of the
+   * facts needed to make it. Reported from a real consumer project.
+   *
+   * The target layout now wins and the legacy path goes away. Nothing is lost:
+   * the destination file is kept and the legacy one is parked beside it. A
+   * heuristic would be worse than parking — measured on the real park, the
+   * legacy copy held MORE data in one journal (31 events against 1) and far
+   * less in another (1190 against 17054), so neither side wins by rule.
+   */
+  it('moves the legacy half in, keeping the destination and parking the old copy', async () => {
     const root = project({
       '.void/activations.jsonl': 'old\n',
       '.void/local/activations.jsonl': 'new\n',
@@ -63,10 +74,59 @@ describe('migrateVoidLayout', () => {
 
     const result = await migrateVoidLayout(root);
 
-    expect(result.conflicts).toEqual(['activations.jsonl']);
-    expect(result.moved).toEqual([]);
+    expect(result.moved).toEqual(['activations.jsonl']);
+    expect(result.conflicts).toEqual([]);
+    expect(result.parked).toEqual(['activations.jsonl']);
+    // The destination is untouched, and the old bytes are still readable.
     expect(readFileSync(join(root, '.void/local/activations.jsonl'), 'utf8')).toBe('new\n');
-    expect(readFileSync(join(root, '.void/activations.jsonl'), 'utf8')).toBe('old\n');
+    expect(readFileSync(join(root, '.void/local/activations.jsonl.legacy'), 'utf8')).toBe('old\n');
+    // The legacy path is gone, so the fallback stops firing and the drift stops
+    // coming back.
+    expect(existsSync(join(root, '.void/activations.jsonl'))).toBe(false);
+  });
+
+  it('merges a directory, moving what does not collide and parking what does', async () => {
+    const root = project({
+      '.void/runs/a/events.jsonl': 'legacy-a\n',
+      '.void/runs/b/events.jsonl': 'legacy-b\n',
+      '.void/local/runs/b/events.jsonl': 'current-b\n',
+    });
+
+    const result = await migrateVoidLayout(root);
+
+    expect(result.moved).toEqual(['runs']);
+    expect(readFileSync(join(root, '.void/local/runs/a/events.jsonl'), 'utf8')).toBe('legacy-a\n');
+    expect(readFileSync(join(root, '.void/local/runs/b/events.jsonl'), 'utf8')).toBe('current-b\n');
+    expect(readFileSync(join(root, '.void/local/runs/b/events.jsonl.legacy'), 'utf8')).toBe('legacy-b\n');
+    expect(existsSync(join(root, '.void/runs'))).toBe(false);
+  });
+
+  it('leaves nothing to do on a second run after a merge', async () => {
+    const root = project({
+      '.void/activations.jsonl': 'old\n',
+      '.void/local/activations.jsonl': 'new\n',
+    });
+    await migrateVoidLayout(root);
+
+    const second = await migrateVoidLayout(root);
+
+    expect(second.moved).toEqual([]);
+    expect(second.parked).toEqual([]);
+  });
+
+  it('never parks a copy over an existing parked one', async () => {
+    const root = project({
+      '.void/activations.jsonl': 'older\n',
+      '.void/local/activations.jsonl': 'new\n',
+      '.void/local/activations.jsonl.legacy': 'already-parked\n',
+    });
+
+    await migrateVoidLayout(root);
+
+    expect(readFileSync(join(root, '.void/local/activations.jsonl.legacy'), 'utf8')).toBe(
+      'already-parked\n',
+    );
+    expect(existsSync(join(root, '.void/local/activations.jsonl.legacy.2'))).toBe(true);
   });
 
   it('writes the ignore block, preserving the rules the project already had', async () => {
@@ -113,7 +173,7 @@ describe('migrateVoidLayout', () => {
 
     const result = await migrateVoidLayout(root);
 
-    expect(result).toEqual({ moved: [], conflicts: [], gitignoreTouched: false });
+    expect(result).toEqual({ moved: [], conflicts: [], parked: [], gitignoreTouched: false });
     expect(existsSync(join(root, '.gitignore'))).toBe(false);
   });
 });

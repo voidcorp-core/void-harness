@@ -15,7 +15,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { INSTALL_MANIFEST_PATH, parseInstallManifest } from './install-manifest.js';
 import { readInstallReceipt } from './receipts.js';
@@ -32,13 +32,72 @@ import {
 export interface VoidMigrationResult {
   /** Entries moved under `.void/local/`. */
   readonly moved: readonly string[];
-  /** Entries left alone because the destination already held something. */
+  /** Entries the move could not finish — a permission, a lock, a cross-device link. */
   readonly conflicts: readonly string[];
+  /** Entries where a legacy copy was preserved beside the destination. */
+  readonly parked: readonly string[];
   /** True when the managed `.gitignore` block was added or refreshed. */
   readonly gitignoreTouched: boolean;
 }
 
-const EMPTY: VoidMigrationResult = Object.freeze({ moved: [], conflicts: [], gitignoreTouched: false });
+const EMPTY: VoidMigrationResult = Object.freeze({
+  moved: [],
+  conflicts: [],
+  parked: [],
+  gitignoreTouched: false,
+});
+
+/**
+ * A free name to park a legacy file under, beside the destination that won.
+ *
+ * Never overwrites an earlier parked copy: a second migration would otherwise
+ * destroy what the first one saved, which is the failure this whole path exists
+ * to avoid.
+ */
+async function freeParkedName(target: string): Promise<string> {
+  if (!existsSync(`${target}.legacy`)) return `${target}.legacy`;
+  for (let attempt = 2; attempt < 100; attempt += 1) {
+    const candidate = `${target}.legacy.${String(attempt)}`;
+    if (!existsSync(candidate)) return candidate;
+  }
+  return `${target}.legacy.overflow`;
+}
+
+/**
+ * Merge one legacy path into the target layout.
+ *
+ * The TARGET WINS on a per-file collision and the legacy copy is parked beside
+ * it. Choosing a winner by size or date was rejected: measured on the real
+ * park, the legacy copy held more data in one journal (31 events against 1) and
+ * far less in another (1190 against 17054), so no rule picks correctly. Parking
+ * loses nothing, and these are gitignored machine-local artefacts, so the extra
+ * file costs nothing either.
+ *
+ * Returns true when at least one file was parked.
+ */
+async function mergeInto(source: string, destination: string): Promise<boolean> {
+  const info = await stat(source);
+
+  if (!info.isDirectory()) {
+    if (!existsSync(destination)) {
+      await mkdir(join(destination, '..'), { recursive: true });
+      await rename(source, destination);
+      return false;
+    }
+    await rename(source, await freeParkedName(destination));
+    return true;
+  }
+
+  await mkdir(destination, { recursive: true });
+  let parked = false;
+  for (const entry of await readdir(source)) {
+    if (await mergeInto(join(source, entry), join(destination, entry))) parked = true;
+  }
+  // The legacy directory must disappear, or every reader keeps falling back to
+  // it and the drift is reported again on the next run.
+  await rm(source, { recursive: true, force: true });
+  return parked;
+}
 
 /**
  * What a migration would do, without doing it. Pure apart from the existence
@@ -162,22 +221,33 @@ export async function migrateVoidLayout(root: string, dryRun = false): Promise<V
   const patched = patchGitignore(original, await projectDerivedIgnoreEntries(root));
   const gitignoreTouched = patched !== original;
 
-  if (dryRun) return { moved: movable, conflicts, gitignoreTouched };
+  // Everything pending moves, including what the destination already holds.
+  // Leaving a half-migrated entry in place meant the drift never resolved:
+  // readers fall back, so nothing pushed anyone to decide, and `update`
+  // reprinted "merge or delete one" forever while supplying none of the facts
+  // needed to decide. The target layout is the answer; the legacy path goes.
+  const pending = [...movable, ...conflicts].sort();
+  const failed: string[] = [];
 
-  if (movable.length > 0) await mkdir(voidLocalDir(root), { recursive: true });
+  if (dryRun) return { moved: pending, conflicts: [], parked: [], gitignoreTouched };
+
+  if (pending.length > 0) await mkdir(voidLocalDir(root), { recursive: true });
   const moved: string[] = [];
-  for (const entry of movable) {
+  const parked: string[] = [];
+  for (const entry of pending) {
     try {
-      await rename(legacyVoidPath(root, entry), voidLocalPath(root, entry));
+      if (await mergeInto(legacyVoidPath(root, entry), voidLocalPath(root, entry))) {
+        parked.push(entry);
+      }
       moved.push(entry);
     } catch {
-      // A rename that fails (permissions, a cross-device .void, a file held open
-      // by a running session) is reported as a conflict rather than aborting the
+      // A move that cannot finish (permissions, a cross-device `.void`, a file
+      // held open by a running session) is reported rather than aborting the
       // whole update: the old path still works, because every reader falls back.
-      conflicts.push(entry);
+      failed.push(entry);
     }
   }
   if (gitignoreTouched) await writeFile(gitignorePath, patched);
 
-  return { moved, conflicts: conflicts.sort(), gitignoreTouched };
+  return { moved, conflicts: failed.sort(), parked: parked.sort(), gitignoreTouched };
 }
