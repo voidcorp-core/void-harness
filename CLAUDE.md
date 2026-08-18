@@ -125,7 +125,7 @@ Before this, the floor ran in every consumer project and in none of ours — whi
 | Implementing a ticket / feature          | `harness:implement` (one unit, ready→shipped: TDD, UX, security, review, verify) |
 | Decomposing work into tickets            | `harness:ticket`                                                              |
 | Draining independent tickets in parallel | `harness:autopilot` (cluster → worktree workers → one integration PR you merge)      |
-| Adding a skill                           | `superpowers:writing-skills` (until vendored)                                        |
+| Adding a skill                           | `superpowers:writing-skills` (until vendored) + the naming rule: `kind: action` takes the bare verb, `kind: standard` the subject it governs |
 | Building or auditing a UI                | `harness:frontend-design` (build) + `harness:ui-review` (audit/critique/polish)      |
 | Auditing a live dev surface (API/CLI/SDK/docs) | `harness:devex-audit` (measured TTHW, error-path tracing, evidence-backed DX scorecard) |
 | Live browser QA of a running web app     | `harness:qa` (claude-in-chrome MCP: explore, states, atomic fix loop, report; `--report-only` for no-fix) |

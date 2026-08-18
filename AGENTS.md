@@ -125,7 +125,7 @@ Before this, the floor ran in every consumer project and in none of ours — whi
 | Implementing a ticket / feature | `implement` skill (one unit, ready→shipped: TDD, UX, security, review, verify) |
 | Decomposing work into tickets | `ticket` skill |
 | Draining independent tickets in parallel | `autopilot` skill (cluster → worktree workers → one integration PR you merge) |
-| Adding a skill | Author the SKILL.md by hand, run skill-test suite in `test/` |
+| Adding a skill | Author the SKILL.md by hand, run skill-test suite in `test/`; the naming rule applies: `kind: action` takes the bare verb, `kind: standard` the subject it governs |
 | Building or auditing a UI | `frontend-design` (build) + `ui-review` (audit/critique/polish) skills |
 | Auditing a live dev surface (API/CLI/SDK/docs) | `devex-audit` skill (measured TTHW, error-path tracing, evidence-backed DX scorecard) |
 | Live browser QA of a running web app | `qa` skill (claude-in-chrome MCP: explore, states, atomic fix loop, report; `--report-only` for no-fix) |

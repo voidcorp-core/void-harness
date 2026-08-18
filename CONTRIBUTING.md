@@ -44,6 +44,16 @@ and commit the result. Editing a hook also changes its line count, which the gra
 
 Read `CLAUDE.md` ("Anti-bloat discipline" and "Sourcing discipline") before writing one. In short: one skill, one subject; no more than 30% responsibility overlap with an existing skill; distilled and adapted from its sources, never vendored verbatim; a `.source` sidecar next to it and an audit note in `docs/plans/skill-audits/`.
 
+Name it by what someone would type looking for it without knowing it exists, and
+declare which grammar applies in the frontmatter. `kind: action` is a thing you
+run and takes the bare verb (`plan`, `verify`, `implement`); `kind: standard`
+governs how code is written and takes the subject it governs (`tdd`,
+`observability`). No gerund on an action, no agent-noun for a mechanism, no
+filler suffix. `pnpm anti-bloat:check` refuses all four, and
+`pnpm skills:check-references` proves that nothing points at a name that stopped
+existing. The reasoning, and the alternatives that were rejected, are in
+`docs/decisions-log/2026-08-18-skill-naming-rule-three-families--c109429b-480e-48a9-baba-93f644f9e9e1.md`.
+
 ## Multi-runtime
 
 The harness targets Claude Code **and** Codex through a runtime-adapter seam (`packages/cli/src/lib/runtime-adapters.ts`). Author doctrine once and compile it per runtime; do not add a Claude-only path with a Codex apology. What genuinely cannot cross over is tabled in `docs/CODEX.md` — add to that table rather than letting a capability silently degrade.
