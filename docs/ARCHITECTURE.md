@@ -823,6 +823,20 @@ the marked block; `update` migrates a project off the previous layout, renaming
 trusting that the block is present — an ignore rule has no effect on a path that
 was already tracked.
 
+Proving the *declared* path is not enough, which the `void observed` check exists
+to close. A project can ignore `.void/machine/` and still leak, because the hook
+bundle it actually runs may be an older one: the published bundle writes to
+`.void/outputs/` on every session, and that path was covered by no rule at all
+until 2026-08-17, when an untracked session log came one `git add .` away from
+being committed in this very repository. So the check walks every path observed
+state can land in — the current directories plus each observed entry of the
+ownership table at its pre-split location — and asks git about each one that
+exists on disk. A path absent from the project is never reported, or the check
+would fire everywhere at once and teach its reader to skip it; a path the project
+is supposed to commit (`.void/` itself, `.void/hooks/`, `.codex/hooks.json`) can
+never be reported, because ignoring those breaks every fresh clone. What git
+could not be asked about reports `unknown`, never `fail`.
+
 An entry at the top of `.void/` that the map does not know answers `project`.
 `machine/` is a **closed set** — every observed writer in the harness writes
 inside it — so a stranger at the top cannot be harness telemetry, and the failure

@@ -8,6 +8,10 @@
 //
 // Pure. The caller observes with git; this judges.
 
+import {
+  judgeObservedIgnore,
+  type ObservedPathObservation,
+} from './observed-write-paths.js';
 import type { CheckResult } from './prerequisites.js';
 
 export interface ManifestObservation {
@@ -23,6 +27,14 @@ export interface LayoutObservation {
   readonly pending: readonly string[];
   /** Whether git ignores `.void/machine/`; null when it could not be asked. */
   readonly localIgnored: boolean | null;
+  /**
+   * Every path observed state can land in, present or not, ignored or not.
+   *
+   * `localIgnored` answers for the declared location only, and a project can be
+   * clean there while a legacy bundle writes elsewhere. This carries the whole
+   * surface so the verdict is about where state actually lands.
+   */
+  readonly observedPaths: readonly ObservedPathObservation[];
   /** Observed paths git currently tracks, which the ignore rule cannot undo. */
   readonly trackedObserved: readonly string[];
   /** What `.void/install-manifest.json` says about this project, if anything. */
@@ -126,6 +138,9 @@ export function judgeLayout(observation: LayoutObservation): readonly CheckResul
   return Object.freeze([
     layoutCheck(observation),
     ignoreCheck(observation),
+    // Generalizes the check above from the one declared path to every path the
+    // harness can write observed state to, legacy locations included.
+    judgeObservedIgnore(observation.observedPaths),
     trackedCheck(observation),
     manifestCheck(observation),
     derivedCheck(observation),
