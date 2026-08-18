@@ -1,5 +1,40 @@
 # Changelog
 
+## [3.0.0](https://github.com/voidcorp-core/void-harness/compare/v2.7.0...v3.0.0) (2026-08-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* thirteen skills were renamed and resolve to nothing under their previous names, with no alias: brainstorming, writing-plans, ticket-writer, ticket-runner, verification-before-completion, systematic-debugging, learning-capture, adr-workflow, refactoring, accessibility-first, context-management, claude-md-authoring and migrations-safety became brainstorm, plan, ticket, implement, verify, debug, learn, decide, refactor, accessibility, context, claude-md and migrations. The layout under .void/ also moved into three named levels, which `update` migrates. See docs/MIGRATING-3.0.md.
+
+### Features
+
+* **chain:** notice the design, write it down, and link it to its ticket ([cbe8497](https://github.com/voidcorp-core/void-harness/commit/cbe8497595ac12a91646004f5f0816f8a5578108))
+* **ci:** refuse a reference that points at a skill which does not exist ([b430412](https://github.com/voidcorp-core/void-harness/commit/b43041244453f03b1e550ecd997b928827e4c718))
+* **doctor:** ask git what it ignores, not the .gitignore what it says ([dc70d6f](https://github.com/voidcorp-core/void-harness/commit/dc70d6fb9278d41484a5e8b8ae6a0537d3c9503d))
+* **doctor:** find the harness assets the manifest lost track of, by provenance ([81a976f](https://github.com/voidcorp-core/void-harness/commit/81a976fe53e972defe51ee4e1bf4603c53bad8ed))
+* **skills:** declare each skill's kind, so the naming rule can be checked ([e4b1b43](https://github.com/voidcorp-core/void-harness/commit/e4b1b4369a4dd7ce648313ce27592acbda2cf069))
+
+
+### Bug Fixes
+
+* **ci:** answer .void paths from the layout table, not from the disk ([32a3811](https://github.com/voidcorp-core/void-harness/commit/32a3811d857948c5eb84f0b04f02c3131ee08eda))
+* **ci:** decide the back-merge on content, not on a commit count ([abd1031](https://github.com/voidcorp-core/void-harness/commit/abd1031b8d13069bffcc0c673e919332c82ddeb0))
+* **doctor:** accept an explicit undefined under exactOptionalPropertyTypes ([82435ca](https://github.com/voidcorp-core/void-harness/commit/82435ca3f7519de4badd16fdac454db34577b7f2))
+* **doctor:** report the version gap instead of blaming the layout ([1bdf557](https://github.com/voidcorp-core/void-harness/commit/1bdf557751f05f64b4facc191ec598847030421b))
+* **doctor:** signaler l'écart de version au lieu d'accuser le layout ([038cee0](https://github.com/voidcorp-core/void-harness/commit/038cee08fa41e9df649e1b5ce021d2d64a260447))
+* **enforcement:** see the writes the floor was never shown ([3a3abcf](https://github.com/voidcorp-core/void-harness/commit/3a3abcff27b6af930b3c3d3de3545f1296d21399))
+* **hooks:** regenerate the catalogue instead of remembering to ([9866432](https://github.com/voidcorp-core/void-harness/commit/986643222fe1020d7edbe0edca748c3a0019f329))
+* **hooks:** regenerate the certification manifest too ([0bb1101](https://github.com/voidcorp-core/void-harness/commit/0bb11010a08060727c0e8928cd0f1383946918dc))
+* **layout:** route the last observed writers to machine/, and cover the flat paths ([1a2d743](https://github.com/voidcorp-core/void-harness/commit/1a2d74390fba6991669febd43573512f2c1d8c18))
+* **repo:** close the four residues the layout audit left standing ([eda8f6b](https://github.com/voidcorp-core/void-harness/commit/eda8f6bc86a175891e6ee7a7ef1bfbf1f1ac91e4))
+* **update:** stop guessing on a clone, and say what was kept behind ([aff01c2](https://github.com/voidcorp-core/void-harness/commit/aff01c271d665ea17e05bf0782a5aed4fcd933c4))
+
+
+### Documentation
+
+* write the 3.0 migration, and say the rename is breaking ([898c34d](https://github.com/voidcorp-core/void-harness/commit/898c34d75634dc8a2cd2874d5f4c05fd494b2e33))
+
 ## [2.7.0](https://github.com/voidcorp-core/void-harness/compare/v2.6.0...v2.7.0) (2026-08-18)
 
 
