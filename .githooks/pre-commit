@@ -43,13 +43,14 @@ if git diff --cached --name-only | grep -qE '^packages/(core|packs)/'; then
         && node packages/cli/bin/void-harness.mjs graph >/dev/null 2>&1 \
         && pnpm -F voidharness build:void-graph >/dev/null 2>&1 \
         && pnpm cheatsheet:build >/dev/null 2>&1 \
+        && pnpm -F voidharness build:certification >/dev/null 2>&1 \
         && pnpm --filter voidharness build:assets >/dev/null 2>&1
     ) || {
       echo "pre-commit: could not regenerate the catalogue." >&2
       echo "  Run 'pnpm graph:check' to see why; CI refuses a stale catalogue." >&2
       exit 1
     }
-    DERIVED="packages/core/data/catalog.v3.json packages/core/data/model.json packages/core/graph/void-graph.mjs docs/CHEATSHEET.md packages/cli/core-assets/data/catalog.v3.json packages/cli/core-assets/data/model.json"
+    DERIVED="packages/core/data/catalog.v3.json packages/core/data/model.json packages/core/data/certification.json packages/core/graph/void-graph.mjs docs/CHEATSHEET.md packages/cli/core-assets/data/catalog.v3.json packages/cli/core-assets/data/model.json packages/cli/core-assets/data/certification.json"
     # shellcheck disable=SC2086 # the list is ours and deliberately word-split
     if [ -n "$(cd "$ROOT" && git status --porcelain -- $DERIVED)" ]; then
       # shellcheck disable=SC2086

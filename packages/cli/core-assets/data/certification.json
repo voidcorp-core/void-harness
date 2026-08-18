@@ -3,7 +3,7 @@
   "harnessVersion": "2.6.0",
   "capabilities": [
     {
-      "id": "skill:accessibility-first",
+      "id": "skill:accessibility",
       "owner": "folpe",
       "runtimes": [
         "claude",
@@ -14,32 +14,6 @@
         "inline": {
           "claude": "pretooluse",
           "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "proof": {
-        "verified": true
-      }
-    },
-    {
-      "id": "skill:adr-workflow",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
           "hermes": "ci-only"
         }
       },
@@ -133,7 +107,7 @@
       }
     },
     {
-      "id": "skill:brainstorming",
+      "id": "skill:brainstorm",
       "owner": "folpe",
       "runtimes": [
         "claude",
@@ -185,7 +159,7 @@
       }
     },
     {
-      "id": "skill:claude-md-authoring",
+      "id": "skill:claude-md",
       "owner": "folpe",
       "runtimes": [
         "claude",
@@ -263,7 +237,59 @@
       }
     },
     {
-      "id": "skill:context-management",
+      "id": "skill:context",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:debug",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:decide",
       "owner": "folpe",
       "runtimes": [
         "claude",
@@ -419,7 +445,33 @@
       }
     },
     {
-      "id": "skill:learning-capture",
+      "id": "skill:implement",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
+      "id": "skill:learn",
       "owner": "folpe",
       "runtimes": [
         "claude",
@@ -497,7 +549,7 @@
       }
     },
     {
-      "id": "skill:migrations-safety",
+      "id": "skill:migrations",
       "owner": "folpe",
       "runtimes": [
         "claude",
@@ -1277,6 +1329,32 @@
       }
     },
     {
+      "id": "skill:plan",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
       "id": "skill:plan-review",
       "owner": "folpe",
       "runtimes": [
@@ -1329,7 +1407,7 @@
       }
     },
     {
-      "id": "skill:refactoring",
+      "id": "skill:refactor",
       "owner": "folpe",
       "runtimes": [
         "claude",
@@ -1459,32 +1537,6 @@
       }
     },
     {
-      "id": "skill:systematic-debugging",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "proof": {
-        "verified": true
-      }
-    },
-    {
       "id": "skill:tdd",
       "owner": "folpe",
       "runtimes": [
@@ -1537,33 +1589,7 @@
       }
     },
     {
-      "id": "skill:ticket-runner",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "proof": {
-        "verified": true
-      }
-    },
-    {
-      "id": "skill:ticket-writer",
+      "id": "skill:ticket",
       "owner": "folpe",
       "runtimes": [
         "claude",
@@ -1641,33 +1667,7 @@
       }
     },
     {
-      "id": "skill:verification-before-completion",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "proof": {
-        "verified": true
-      }
-    },
-    {
-      "id": "skill:writing-plans",
+      "id": "skill:verify",
       "owner": "folpe",
       "runtimes": [
         "claude",
