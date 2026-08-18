@@ -22,10 +22,16 @@ import { autopilotPreflight } from '../lib/autopilot/preflight.js';
 import { packsCoherenceIssues, validateConfig } from '../lib/config-schema.js';
 import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../lib/packs.js';
 import { inspectHarnessLintExclusion } from '../lib/lint-exclusion.js';
-import { findCoreSource } from '../lib/paths.js';
+import { cliVersion, findCoreSource } from '../lib/paths.js';
 import { type CheckResult, checkEnforceWorkflow, checkGh } from '../lib/prerequisites.js';
 import { readInstallReceipt } from '../lib/receipts.js';
 import { publishedVersionCheck } from '../lib/freshness-check.js';
+import {
+  judgeRunnerStaleness,
+  runnerStalenessCheck,
+  suspendedStructureNote,
+  suspendsStructureChecks,
+} from '../lib/runner-staleness.js';
 import { checkGlyph, checkShowsFix } from '../lib/doctor-render.js';
 import { applyRepair, conformanceRules, inspectConformance } from '../lib/conformance/run.js';
 import { resolveFreshness } from '@voidcorp/hook-runner';
@@ -53,6 +59,22 @@ function enabledPackNames(plugins: Record<string, unknown>): string[] {
     .filter((name) => name.length > 0 && name !== CORE_PLUGIN_NAME);
 }
 
+/**
+ * The version the project records for its installed harness. Anchored on
+ * `.void/install-manifest.json` because that path is committed and has survived
+ * every layout change: reading it from a directory a stale CLI does not know
+ * about would reproduce the very blindness this guards against.
+ */
+function readManifestVersion(root: string): string | undefined {
+  const path = join(root, INSTALL_MANIFEST_PATH);
+  if (!existsSync(path)) return undefined;
+  try {
+    return parseInstallManifest(readFileSync(path, 'utf8'))?.version;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function doctor(args: readonly string[]): Promise<void> {
   const skipRemote = args.includes('--no-remote');
   const wantsFix = args.includes('--fix');
@@ -64,6 +86,30 @@ export async function doctor(args: readonly string[]): Promise<void> {
   if (target.kind === 'self-host') {
     await runSelfHostDoctor(root, args);
     return;
+  }
+
+  // Before judging any structure, judge the judge. A CLI older than the layout
+  // it inspects looks up the previous paths, so it reports correct files as
+  // missing and offers remedies that would damage a healthy install. Reporting
+  // the version gap and stopping is the only honest output.
+  //
+  // This sits ahead of `--fix` on purpose, and that is the load-bearing half: a
+  // stale CLI must never repair a layout it is misreading. Blocking the report
+  // saves a confusing hour, blocking the repair saves the install.
+  const staleness = judgeRunnerStaleness({
+    running: cliVersion(),
+    recorded: readManifestVersion(root),
+  });
+  const stale = runnerStalenessCheck(staleness);
+  if (stale !== undefined && suspendsStructureChecks(staleness)) {
+    const suspended = suspendedStructureNote(staleness);
+    banner('doctor');
+    blank();
+    line(`${c.red('x')}  ${c.dim(stale.name.padEnd(18))} ${stale.message}`);
+    if (stale.fix !== undefined) line(c.dim(`     ${glyph.to} ${stale.fix}`));
+    line(`${c.dim('-')}  ${c.dim(suspended.name.padEnd(18))} ${suspended.message}`);
+    footer(c.red('1 check failed, this project\'s structure was not judged'));
+    process.exit(1);
   }
 
   // Parsed config is reused by the schema check AND the settings<->config
