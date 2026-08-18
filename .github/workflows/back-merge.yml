@@ -42,7 +42,7 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
 
-      - name: Open the back-merge when main is ahead
+      - name: Open the back-merge when main holds something develop does not
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
@@ -50,9 +50,12 @@ jobs:
           git config user.name 'voidcorp-release[bot]'
           git config user.email 'voidcorp-release[bot]@users.noreply.github.com'
 
-          ahead=$(git rev-list --count origin/develop..origin/main)
-          if [ "$ahead" -eq 0 ]; then
-            echo "develop already carries main; nothing to back-merge."
+          # Compare content, not commit counts. A promotion leaves a merge
+          # commit on main that develop does not have, so counting commits would
+          # open an empty pull request after every promotion, and a robot that
+          # cries wolf gets merged without being read.
+          if git diff --quiet origin/develop origin/main; then
+            echo "develop and main hold the same tree; nothing to back-merge."
             exit 0
           fi
 
