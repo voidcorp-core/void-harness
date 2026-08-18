@@ -53,6 +53,22 @@ PR from `develop`; a hotfix applied directly to `main` must be merged back down,
 `develop` silently diverges and starts testing a tree that no longer matches what
 ships.
 
+### The promotion pull request opens itself, and stops there
+
+`promotion.yml` runs on every push to `develop` and keeps a `develop` to `main`
+pull request standing whenever `develop` holds something `main` does not. It
+opens one and never merges it, which is the whole point: merging it is the gate,
+and it is the only decision in the cycle that is about content rather than
+mechanics. What is automated is the typing, not the judgement.
+
+It opens with the log of what it carries, because this is the one pull request
+whose diff is meant to be read as a whole.
+
+So a release costs exactly two human actions: merge the promotion, then merge
+the release pull request that release-please proposes on `main`. The first says
+what ships, the second sends it to npm. The back-merge below closes the loop
+without asking.
+
 ### The back-merge is automatic, because the divergence is structural
 
 Merging the release PR writes the version bumps and the changelog to `main`, so
