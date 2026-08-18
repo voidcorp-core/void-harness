@@ -87,6 +87,15 @@ jobs:
         # locally; CI enforces structural parity statelessly.
         run: pnpm sync:docs
 
+      - name: Doctrine parity (docs/ <-> packages/core/ PHILOSOPHY.md)
+        # The doctrine exists three times: docs/ (what we read), packages/core/
+        # (what install writes into a consumer), and the core-assets npm mirror.
+        # The mirror is generated and already gated by the core-assets step
+        # below, so this one covers the leg nothing else did: docs <-> core.
+        # They drifted on six sentences for two months, every heading intact,
+        # which shipped consumers a doctrine older than the one we were reading.
+        run: pnpm sync:philosophy
+
       - name: Version lockstep
         # Every version-carrying manifest (marketplace, 7 plugin.json, the
         # core-assets mirror, the 3 npm package.json) must equal the canonical

@@ -14,6 +14,7 @@
     "url": "https://github.com/voidcorp-core/void-harness/issues"
   },
   "scripts": {
+    "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || exit 0",
     "build": "pnpm -r --filter '!void-harness' build",
     "build:cli": "pnpm --filter @voidcorp/mission-engine build && pnpm --filter @voidcorp/harness-graph build && pnpm --filter @voidcorp/hook-runner build && pnpm --filter voidharness build",
     "cli": "pnpm build:cli >/dev/null && node packages/cli/bin/void-harness.mjs",
@@ -28,6 +29,7 @@
     "decisions:build": "pnpm decisions:render",
     "decisions:check": "pnpm build:cli && node scripts/build-decisions-index.mjs --check",
     "sync:docs": "bash scripts/sync-agent-docs.sh",
+    "sync:philosophy": "bash scripts/sync-philosophy.sh",
     "version:check": "node scripts/check-version-lockstep.mjs",
     "check:publish": "node scripts/check-publish-safety.mjs",
     "check:size": "node scripts/check-package-size.mjs",

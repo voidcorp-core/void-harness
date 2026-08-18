@@ -1,25 +1,51 @@
 #!/usr/bin/env bash
-# void-harness pre-commit hook. Enable once per clone:
+# void-harness pre-commit hook.
+#
+# Wired automatically by the root `prepare` script, which runs on every
+# `pnpm install` and points core.hooksPath here. To wire it by hand, or to check
+# a clone that was installed before `prepare` existed:
 #   git config core.hooksPath .githooks
 #
 # Enforces the repo-local invariants before a commit lands:
 #   1. CLAUDE.md <-> AGENTS.md sister-doc parity (both-or-neither staged).
-#   2. The seven anti-bloat rules (size caps, frontmatter, skill name==folder).
-#   3. core-assets mirror in sync when a packages/core/ file is staged (#66).
+#   2. docs/ <-> packages/core/ PHILOSOPHY.md parity (the read and the shipped
+#      doctrine are the same document).
+#   3. The seven anti-bloat rules (size caps, frontmatter, skill name==folder).
+#   4. core-assets mirror in sync when a packages/core/ file is staged (#66).
+#
+# Budget: the first three cost about a second combined; the fourth adds half a
+# second and only when core/ is staged. Cheap enough to run unconditionally,
+# which is the point of enabling it by default rather than per clone.
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
 bash "$ROOT/scripts/sync-agent-docs.sh" --staged
+bash "$ROOT/scripts/sync-philosophy.sh" >/dev/null
 bash "$ROOT/scripts/anti-bloat-check.sh"
 
 # Only when core/ is staged: regenerate the CLI mirror and refuse the commit if
 # it drifted (same rule as CI, caught locally before the push). Porcelain also
 # catches a newly added core file whose mirror is untracked.
 if git diff --cached --name-only | grep -q '^packages/core/'; then
-  ( cd "$ROOT" && pnpm --filter @voidcorp/harness build:assets >/dev/null 2>&1 )
-  if [ -n "$(cd "$ROOT" && git status --porcelain -- packages/cli/core-assets)" ]; then
-    echo "pre-commit: core-assets drifted from packages/core." >&2
-    echo "Regenerated it; stage packages/cli/core-assets and recommit." >&2
-    exit 1
+  # The filter must name the CLI package as package.json declares it
+  # ("voidharness"). It previously read "@voidcorp/harness", which pnpm resolves
+  # to nothing and reports as "No projects matched the filters" while still
+  # exiting 0 -- so build:assets never ran, the mirror was never regenerated,
+  # and the porcelain check below passed on a clean tree no matter how far
+  # core-assets had drifted. The guard existed and enforced nothing.
+  if command -v pnpm >/dev/null 2>&1; then
+    ( cd "$ROOT" && pnpm --filter voidharness build:assets >/dev/null 2>&1 )
+    if [ -n "$(cd "$ROOT" && git status --porcelain -- packages/cli/core-assets)" ]; then
+      echo "pre-commit: core-assets drifted from packages/core." >&2
+      echo "Regenerated it; stage packages/cli/core-assets and recommit." >&2
+      exit 1
+    fi
+  else
+    # Do not fail the commit over a missing toolchain (a GUI git client often
+    # runs hooks without the shell PATH that has pnpm). Say so out loud rather
+    # than skipping silently, since a silent skip is the exact failure this
+    # hook was just fixed for. CI re-runs the same check unconditionally.
+    echo "pre-commit: pnpm not on PATH; skipped the core-assets mirror check." >&2
+    echo "  CI still enforces it. Run 'pnpm --filter voidharness build:assets' before pushing." >&2
   fi
 fi

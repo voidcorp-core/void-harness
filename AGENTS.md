@@ -25,7 +25,7 @@ Run `void-harness doctor` to verify the install.
 
 <!-- void-harness:end -->
 
-> **Sister doc**: `CLAUDE.md` is the Claude Code-flavored mirror of this file. The two are maintained in sync — any change to one MUST be reflected in the other in the same commit. A pre-commit hook (see `scripts/sync-agent-docs.sh`, Phase A) enforces this. Adapted terminology only (Codex/tools ↔ Claude/Skill tool); the doctrine is identical.
+> **Sister doc**: `CLAUDE.md` is the Claude Code-flavored mirror of this file. The two are maintained in sync — any change to one MUST be reflected in the other in the same commit. CI enforces this on every push (`pnpm sync:docs`, which compares section headings after terminology normalization); the pre-commit hook in `.githooks/` refuses a commit that stages one sister doc without the other, and `pnpm install` wires it through the root `prepare` script so a fresh clone inherits the check instead of having to opt in. Adapted terminology only (Codex/tools ↔ Claude/Skill tool); the doctrine is identical.
 
 You are working inside the **void-harness** repo itself — the meta-repo that produces the harness (Codex + Claude Code) for every VoidCorp project. This file governs work **on the harness**, not work on projects that consume it.
 

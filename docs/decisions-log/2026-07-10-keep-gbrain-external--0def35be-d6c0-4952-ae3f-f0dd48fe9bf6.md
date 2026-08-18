@@ -1,8 +1,20 @@
-# ADR-0002: Keep gbrain external, with a defined exit criterion
+---
+schemaVersion: 1
+id: "adr:0def35be-d6c0-4952-ae3f-f0dd48fe9bf6"
+createdAt: "2026-07-10"
+title: "Keep gbrain external, with a defined exit criterion"
+status: accepted
+deciders: ["@folpe"]
+supersedes: []
+---
 
-- **Status**: accepted
-- **Date**: 2026-07-10
-- **Deciders**: @folpe
+# Keep gbrain external, with a defined exit criterion
+
+> Filed on 2026-07-10 as `ADR-0002` at `decisions/0002-keep-gbrain-external.md`,
+> before decision records moved to `docs/decisions-log/` with collision-free
+> identities. Converted here unchanged so the record lives under the same
+> rendering and immutability control as every other decision; the historical
+> "ADR-0002" reference in `docs/DECISIONS.md` points at this file.
 
 ## Context
 
