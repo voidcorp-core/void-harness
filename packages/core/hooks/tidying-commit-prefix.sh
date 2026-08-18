@@ -5,7 +5,7 @@
 # behavior-change keywords in the body (feat, fix, implement, add). The
 # Two-Hat principle says: Tidyings and Behavior Changes never share a commit.
 #
-# Composed with the `refactoring` skill.
+# Composed with the `refactor` skill.
 #
 # Inputs: $1 = path to the commit message file.
 # Exit codes: 0 allow, 2 warn.

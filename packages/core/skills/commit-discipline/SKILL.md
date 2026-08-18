@@ -1,5 +1,6 @@
 ---
 name: commit-discipline
+kind: standard
 activation: always
 description: Conventional Commits + mandatory "why" in body + scope + breaking-change marking. ASCII-only (no em dash, no emoji). Co-author trailer for AI pair. The git log is documentation. Use at every commit.
 owner: folpe
@@ -36,9 +37,9 @@ The git log is the project's living narrative. "fix stuff" / "wip" / "asdf" dest
 | Type | When |
 |---|---|
 | `feat` | New observable behavior (new feature, new endpoint, new component visible to users / consumers) |
-| `fix` | Bug fix. Composes with `systematic-debugging` (the why = the root cause) |
-| `refactor` | Structural change without behavior change. Composes with `refactoring` (named Fowler move) |
-| `test` | Add / modify tests without changing production code. Includes `test: reproduce <bug>` from `systematic-debugging` |
+| `fix` | Bug fix. Composes with `debug` (the why = the root cause) |
+| `refactor` | Structural change without behavior change. Composes with `refactor` (named Fowler move) |
+| `test` | Add / modify tests without changing production code. Includes `test: reproduce <bug>` from `debug` |
 | `docs` | Documentation only |
 | `chore` | Repo maintenance (config, scripts, tooling) without user-visible effect |
 | `build` | Build system / dependencies |
@@ -150,7 +151,7 @@ The author cannot tell, the reviewer cannot tell, future maintainers cannot tell
 ### Mixed-intent commits
 
 - `feat: add discount + fix unrelated bug` — split.
-- `refactor: extract helper and add validation` — split (composes with `refactoring` Two-Hat).
+- `refactor: extract helper and add validation` — split (composes with `refactor` Two-Hat).
 - `fix: bug A and bug B` — split.
 
 The companion hook `tidying-commit-prefix` (already shipped) flags `refactor:` with behavior-change keywords in body.
@@ -169,7 +170,7 @@ Commits produced in pair with an AI agent include `Co-Authored-By`. Authorship t
 
 ---
 
-## Bug fix commit pairs (composes with systematic-debugging)
+## Bug fix commit pairs (composes with debug)
 
 A bug fix is TWO commits:
 
@@ -191,10 +192,10 @@ Combined into one commit = rejected. The pair makes the regression-prevention ex
 
 ## Composition with other skills
 
-- **Runs AFTER `verification-before-completion`** — the completion handoff produces the "what done"; this skill frames it for git.
-- **With `systematic-debugging`** — bug fix commit pairs (`test:` then `fix:`).
-- **With `refactoring`** — Two-Hat principle, named Fowler refactors in subjects.
-- **With `brainstorming` + `writing-plans`** — substantive commits link to their spec / plan in the body.
+- **Runs AFTER `verify`** — the completion handoff produces the "what done"; this skill frames it for git.
+- **With `debug`** — bug fix commit pairs (`test:` then `fix:`).
+- **With `refactor`** — Two-Hat principle, named Fowler refactors in subjects.
+- **With `brainstorm` + `plan`** — substantive commits link to their spec / plan in the body.
 - **With `code-review`** — review comments respect the commit boundaries (do not request mixing intent).
 
 ---

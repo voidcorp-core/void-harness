@@ -42,7 +42,7 @@ This skill is **native** — no external source. It distills the existing `01-mo
 ## Rejected ideas
 
 - **Auto-generation via CLI** (`void-harness scaffold service <name>`): tempting but premature. The skill walks the human (or Claude) through the decisions — which we want, because most premature package extractions should be rejected at step 1 ("can you write the boundary in one line?"). Automation would skip that gate.
-- **Bundling `migrations-safety` references**: scoped out — this skill is about creating a package, not about DB schema evolution.
+- **Bundling `migrations` references**: scoped out — this skill is about creating a package, not about DB schema evolution.
 
 ## Open questions
 

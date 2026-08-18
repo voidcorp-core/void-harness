@@ -17,6 +17,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { CODEX_HOOKS_DIR, refreshCodexFloor } from '../lib/codex-floor.js';
 import { CODEX_SKILLS_DIR, wireCodexSkills } from '../lib/codex-skills.js';
+import { INSTALL_MANIFEST_PATH } from '../lib/install-manifest.js';
 import { computePinBumps } from '../lib/pack-config.js';
 import { configPackDirs, CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO } from '../lib/packs.js';
 import { cliVersion, findCoreSource } from '../lib/paths.js';
@@ -70,7 +71,21 @@ export async function update(args: readonly string[]): Promise<void> {
   await reportVoidMigration(projectRoot, opts.dryRun);
   if (opts.untrackDerived) await reportUntrackDerived(projectRoot, opts.dryRun);
   const receipt = await readInstallReceipt(projectRoot);
-  if (updateModeFor(receipt) === 'local' && receipt !== undefined) {
+  const route = updateRouteFor(receipt, existsSync(join(projectRoot, INSTALL_MANIFEST_PATH)));
+  if (route === 'local-receipt-missing') {
+    banner('update');
+    blank();
+    line(c.red('this project has a local install, and no receipt to update it from.'));
+    line(c.dim('The receipt is machine-local, so a clone never carries one, and without'));
+    line(c.dim('it nothing knows which files the harness owns. Restoring it first:'));
+    blank();
+    line(`  ${c.bold('npx voidharness@<the version in .void/install-manifest.json> hydrate')}`);
+    line(`  ${c.bold('npx voidharness@latest update --force')}`);
+    blank();
+    footer(c.red('nothing was changed'));
+    process.exit(1);
+  }
+  if (route === 'local' && receipt !== undefined) {
     await updateLocal(projectRoot, receipt, opts.dryRun, opts.force);
     return;
   }
@@ -143,6 +158,29 @@ export async function update(args: readonly string[]): Promise<void> {
 
 export function updateModeFor(receipt: InstallReceipt | undefined): InstallReceipt['source'] {
   return receipt?.source ?? 'marketplace';
+}
+
+/** Where an update should go, and the one case where it must not go anywhere. */
+export type UpdateRoute = InstallReceipt['source'] | 'local-receipt-missing';
+
+/**
+ * The receipt says what the harness owns, and it is observed state: gitignored,
+ * and therefore absent from every clone. Routing on it alone sent a colleague's
+ * fresh checkout down the marketplace branch, where `update` pulled a plugin
+ * cache, bumped the pins, materialised nothing, and reported success.
+ *
+ * The install manifest is the committed half of the same fact. When it is there
+ * and the receipt is not, the project is a local install that cannot be updated
+ * yet: the ownership diff that removes a renamed skill has no input, so guessing
+ * would either duplicate the doctrine or delete a file we do not own. Saying so
+ * is the whole fix.
+ */
+export function updateRouteFor(
+  receipt: InstallReceipt | undefined,
+  hasInstallManifest: boolean,
+): UpdateRoute {
+  if (receipt !== undefined) return receipt.source;
+  return hasInstallManifest ? 'local-receipt-missing' : 'marketplace';
 }
 
 /**

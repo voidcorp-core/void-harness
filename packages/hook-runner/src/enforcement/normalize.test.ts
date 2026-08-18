@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeToolCall } from './normalize.js';
+import { protectedFile } from '../rules/protected-file.js';
 
 describe('normalizeToolCall', () => {
   it('normalizes Claude Edit and Write content', () => {
@@ -57,3 +58,23 @@ describe('normalizeToolCall', () => {
     })).toThrow(/unsafe hook input/i);
   });
 });
+
+// The wiring, not the extraction: proving that a redirected write reaches the
+// rule that refuses it. Both halves passed their own tests before this existed,
+// while the path between them carried nothing.
+describe('shell redirections reach the path rules', () => {
+  const pathsOf = (command: string): string[] =>
+    normalizeToolCall({ tool_name: 'Bash', tool_input: { command } }).edits.map((edit) => edit.path);
+
+  it('hands a redirected secret to the protected-file rule', () => {
+    expect(protectedFile(pathsOf('echo KEY=1 > .env')).allow).toBe(false);
+  });
+
+  it('hands a teed lockfile to it as well', () => {
+    expect(protectedFile(pathsOf('echo x | tee pnpm-lock.yaml')).allow).toBe(false);
+  });
+
+  it('leaves an ordinary redirected command alone', () => {
+    expect(protectedFile(pathsOf('pnpm test > out.log 2>&1')).allow).toBe(true);
+  });
+})

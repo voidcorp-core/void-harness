@@ -7,7 +7,7 @@
     "mutationRunner": "none"
   },
   "paths": {
-    "business": "apps/*/src/**",
+    "business": ["apps/*/src/**", "packages/*/src/**"],
     "tests": "apps/*/src/**/*.test.{ts,tsx}",
     "spikes": "apps/*/scripts/spike-*",
     "serverActions": "apps/*/src/app/(api|actions)/**",

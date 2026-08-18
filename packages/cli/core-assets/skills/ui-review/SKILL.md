@@ -1,5 +1,6 @@
 ---
 name: ui-review
+kind: action
 activation: on-demand
 description: "Audit and polish an EXISTING UI: the AI-slop test, heuristic critique, technical audit (contrast/a11y/responsive/perf), refine modes. The audit ceiling to frontend-design's build floor."
 owner: folpe
@@ -52,7 +53,7 @@ Cross-register slop (the absolute bans — side-stripe, gradient text, glassmorp
 ## Technical audit pass
 
 - **Contrast** — body ≥ 4.5:1, large text ≥ 3:1, placeholders held to 4.5:1 (not the muted-gray default). The commonest failure: muted gray on tinted near-white.
-- **Accessibility** — keyboard path, focus order, ARIA, 44px targets (composes with `accessibility-first`).
+- **Accessibility** — keyboard path, focus order, ARIA, 44px targets (composes with `accessibility`).
 - **Responsive** — per-viewport intent; test heading copy at every breakpoint for overflow; mobile-first dual-quality (composes with `frontend-design`).
 - **Performance** — LCP budget, no layout-thrash animation, image sizing (composes with the perf tooling).
 
@@ -83,7 +84,7 @@ The live layer — screenshotting the running UI, driving interactions, checking
 
 - **With `frontend-design`** — the build-time floor to this audit ceiling; the bans and build specifics live there, this skill checks against them and does not restate them (no > 30% overlap).
 - **With `core:visual-craft-director`** — this skill supplies the rubric; the specialist supplies the independent post-build verdict over evidence captured by `qa`.
-- **With `accessibility-first`** — the a11y audit dimension composes with it.
+- **With `accessibility`** — the a11y audit dimension composes with it.
 - **Not `plan-review`'s Design lens** — that judges a *written plan* before any code exists (does the plan name the states, the responsive intent?); this judges the *shipped UI*. Different artifact, different lifecycle stage.
 - **Not `devex-audit`** — that audits a shipped dev-facing surface (the API/CLI/SDK/docs journey: naming, errors, TTHW); this audits the visual/interaction UI. Sibling audit skills, different subject.
 - **With `forge`** (voidcorp plugin) — market recon, the 12-dimension scored critique, multi-variant design prompts, and the slop-registry live there; bridged by the `docs/specs/` `source: forge` artifact contract.

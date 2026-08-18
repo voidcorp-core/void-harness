@@ -1,5 +1,6 @@
 ---
 name: security-guidance
+kind: standard
 activation: always
 description: Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. Escalate to security-audit for deep audits. Use on trust-boundary code.
 owner: folpe
@@ -120,7 +121,7 @@ const user = await db.select().from(users).where(eq(users.id, userId)).get();
 const user = await db.execute(sql.raw(`SELECT * FROM users WHERE id = '${userId}'`));
 ```
 
-Composes with `migrations-safety` for schema changes.
+Composes with `migrations` for schema changes.
 
 ### Raw queries
 
@@ -149,7 +150,7 @@ Better-Auth is the default in `void-starter`. Clerk is the alternative (opt-in).
 - Custom CSRF handling
 - "I just need a quick login for the demo" — use the real auth even for demos
 
-If a feature requires auth-related behavior that Better-Auth does not provide, that is a `brainstorming` discussion + an ADR — not a workaround.
+If a feature requires auth-related behavior that Better-Auth does not provide, that is a `brainstorm` discussion + an ADR — not a workaround.
 
 ---
 

@@ -8,6 +8,7 @@ function observation(over: Partial<LayoutObservation> = {}): LayoutObservation {
     localIgnored: true,
     trackedObserved: [],
     trackedDerivedCount: 0,
+    observedPaths: [],
     manifest: { kind: 'present', version: '2.5.1', drifted: 0 },
     ...over,
   };
@@ -91,6 +92,24 @@ describe('judgeLayout', () => {
 
   it('stays silent when no regenerated content is tracked', () => {
     expect(named(judgeLayout(observation()), 'void derived')?.status).toBe('pass');
+  });
+
+  it('judges every observed write path, not only the one the block declares', () => {
+    // `.void/machine/` being ignored says nothing about `.void/outputs/`, which
+    // the published hook bundle writes to on every session. That gap is how an
+    // untracked session log came within one `git add .` of being committed.
+    const check = named(
+      judgeLayout(
+        observation({
+          localIgnored: true,
+          observedPaths: [{ path: '.void/outputs', present: true, ignored: false }],
+        }),
+      ),
+      'void observed',
+    );
+
+    expect(check?.status).toBe('fail');
+    expect(check?.message).toContain('.void/outputs');
   });
 
   it('says the consequence, not just the state', () => {

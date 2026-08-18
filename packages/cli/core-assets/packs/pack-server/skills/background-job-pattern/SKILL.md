@@ -1,5 +1,6 @@
 ---
 name: background-job-pattern
+kind: standard
 description: Run async work outside the request lifecycle: when to use a queue (Inngest, Trigger, Cloudflare Queues) vs a cron route. Idempotency, retry, dead-letter. Self-contained, no harness wrappers.
 owner: folpe
 runtimes: [claude, codex]
@@ -178,7 +179,7 @@ Pick the one that matches your storage layer:
 - **Service-level idempotence**: design the work so re-running is safe (`UPDATE WHERE status = 'pending'`).
 - **Cron with concurrency lock**: not strictly idempotent but prevents pile-up; combine with service-level idempotence for true safety.
 
-If none of these fit, you have a job that's unsafe to retry — flag it, write an ADR (`adr-workflow`).
+If none of these fit, you have a job that's unsafe to retry — flag it, write an ADR (`decide`).
 
 ## Retry classification
 

@@ -10,7 +10,7 @@ While coding in a consumer project, when you perceive "the harness should have X
 
 Going direct-to-issue moves the pre-filter from "before the note exists" to "triage by close on the tracker". For a single-maintainer repo that is cheap, but it makes the filing bar load-bearing. Open an issue ONLY when the gap clears BOTH tests:
 
-- **Agnostic** — it helps any consumer of the harness, not just this project. A project-specific rule belongs in that project's `.void/PROJECT-DOCTRINE.md` (via `harness:learning-capture`), not on this tracker.
+- **Agnostic** — it helps any consumer of the harness, not just this project. A project-specific rule belongs in that project's `.void/PROJECT-DOCTRINE.md` (via `harness:learn`), not on this tracker.
 - **Harness-worthy** — it would change a skill, hook, pack, CLI, or doctrine line; not a one-off preference, not already covered by an existing skill.
 
 Calibrate against the ADR sweep behind issue #34: a full audit that rejected everything except one narrow rule correction. When in doubt, do not file.
@@ -34,7 +34,7 @@ Periodically the harness should audit itself:
 
 - Skills not invoked recently in any tracked session → candidate for deprecation
 - Upstream tooling deprecations (e.g., a library a skill references getting deprecated)
-- Repeated matrix conflicts in `plans/skill-decision-matrix.md` → boundaries need reshaping
+- Repeated matrix conflicts in `docs/plans/skill-decision-matrix.md` → boundaries need reshaping
 
 `void-harness audit` reports this from canonical `.void/runs/*/events.jsonl` journals; legacy activation and usage logs are merged as read-only history. It classifies harness skills as active, stale (`--stale-days <n>`, default 30), or never fired - the latter two are deprecation candidates. It reports only; deprecation PRs stay hand-authored (HITL). Upstream-tooling deprecation and matrix-conflict detection are planned extensions.
 
@@ -49,9 +49,9 @@ A single repo's telemetry is too thin to trust a "never fired" verdict (a skill 
 
 - No automatic write into doctrine, ever.
 - Every harness change is a deliberate commit with a "why" line.
-- `harness:learning-capture` handles the human ↔ AI conversation when a new rule is captured (project-rule branch) and when a harness gap is filed (harness-gap branch).
+- `harness:learn` handles the human ↔ AI conversation when a new rule is captured (project-rule branch) and when a harness gap is filed (harness-gap branch).
 
 ## See also
 
-- `harness:learning-capture` skill — the in-Claude workflow for filing a friction as a void-harness issue during a coding session (and for capturing project rules).
-- `plans/frictions/` — historical frictions before the consumer-side convention shipped.
+- `harness:learn` skill — the in-Claude workflow for filing a friction as a void-harness issue during a coding session (and for capturing project rules).
+- `docs/plans/frictions/` — historical frictions before the consumer-side convention shipped.

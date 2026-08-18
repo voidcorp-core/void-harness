@@ -1,5 +1,6 @@
 ---
 name: turbo-pipeline-tuning
+kind: standard
 description: Configure turbo.json tasks correctly — dependsOn, outputs, cache keys, persistent tasks, remote cache. Get build speed right without over-engineering.
 owner: folpe
 runtimes: [claude, codex]

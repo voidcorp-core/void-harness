@@ -37,7 +37,7 @@ export interface OrchestrationPlan {
   readonly concurrency: number;
   readonly assignments: readonly WorkerAssignment[];
   /** The one skill a worker runs. Autopilot owns no ticket cycle of its own. */
-  readonly ticketRunnerSkill: 'ticket-runner';
+  readonly ticketRunnerSkill: 'implement';
   readonly planPath: string;
   readonly specPath: string;
   readonly workerMayPush: false;
@@ -166,7 +166,7 @@ export function buildOrchestrationPlan(input: OrchestrationInput): Orchestration
     // would mean nothing runs.
     concurrency: Math.max(1, parallel.length),
     assignments,
-    ticketRunnerSkill: 'ticket-runner',
+    ticketRunnerSkill: 'implement',
     planPath: confinedPath(input.planPath, 'planPath'),
     specPath: confinedPath(input.specPath, 'specPath'),
     workerMayPush: false,

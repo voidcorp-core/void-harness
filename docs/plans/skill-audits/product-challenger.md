@@ -18,7 +18,7 @@ does not invent strategy or own design, architecture, implementation, or priorit
 
 ## Sources and adaptation
 
-YC user-research guidance and the harness brainstorming product pressure-test were distilled into a
+YC user-research guidance and the harness brainstorm product pressure-test were distilled into a
 bounded evidence check. Conversational coaching, generic ideation, roadmap ownership, and solution
 generation were rejected. Routing is limited to the `product` predicate.
 

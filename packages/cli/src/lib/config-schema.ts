@@ -56,7 +56,9 @@ export const configSchema = z.object({
       mutationRunner: z.string().optional(),
     })
     .optional(),
-  paths: z.record(z.string(), z.string()).optional(),
+  // A glob, or several: business logic legitimately lives in more than one root
+  // (apps/ and packages/ both), and one string could only ever name one of them.
+  paths: z.record(z.string(), z.union([z.string(), z.array(z.string())])).optional(),
   commands: z.record(z.string(), command).optional(),
   modes: z.record(z.string(), z.string()).optional(),
 });

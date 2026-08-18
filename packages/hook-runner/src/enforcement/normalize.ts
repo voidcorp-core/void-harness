@@ -2,6 +2,7 @@ import type {
   NormalizedEdit,
   NormalizedToolCall,
 } from './types.js';
+import { shellWriteTargets } from './shell-writes.js';
 
 const MAX_FIELD_BYTES = 1024 * 1024;
 
@@ -80,5 +81,12 @@ export function normalizeToolCall(value: unknown): NormalizedToolCall {
   } else {
     edits = parsePatchEdits(patchText(input));
   }
-  return { tool, command, edits };
+  // A shell redirection carries its target inside the command, so without this
+  // the rules received an empty edit list and `cat > .env` was never examined.
+  // The content is empty because a redirection says where it writes, not what:
+  // the path rules apply, the content rules have nothing to read.
+  const shellTargets = shellWriteTargets(command)
+    .filter((path) => !edits.some((edit) => edit.path === path))
+    .map((path) => ({ path, addedContent: '' }));
+  return { tool, command, edits: [...edits, ...shellTargets] };
 }

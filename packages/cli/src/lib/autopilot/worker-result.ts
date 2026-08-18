@@ -1,4 +1,4 @@
-// What a worker hands back after running `ticket-runner` on one ticket.
+// What a worker hands back after running `implement` on one ticket.
 //
 // A worker is an LLM in a worktree, and its natural output is prose. This
 // schema is the boundary where prose stops: anything that does not parse never

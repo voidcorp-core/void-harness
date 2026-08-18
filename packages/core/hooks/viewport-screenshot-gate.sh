@@ -2,7 +2,7 @@
 # viewport-screenshot-gate — pre-push hook
 #
 # Warns if a PR touching UI code lacks both mobile and desktop screenshots
-# in the PR body. Composed with the `accessibility-first` and
+# in the PR body. Composed with the `accessibility` and
 # `frontend-design` skills (mobile-first dual-quality invariant).
 #
 # UI paths: read from .void/config.json .paths.ui, default to

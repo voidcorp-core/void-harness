@@ -1,7 +1,7 @@
 Sources:
 - WCAG 2.2: https://www.w3.org/TR/WCAG22/
 - WAI-ARIA Authoring Practices Guide: https://www.w3.org/WAI/ARIA/apg/
-- void-harness accessibility-first doctrine: packages/core/skills/accessibility-first/SKILL.md
+- void-harness accessibility doctrine: packages/core/skills/accessibility/SKILL.md
 
 Adapted:
 - Kept WCAG 2.2 AA as the floor plus semantic, keyboard, focus, name, contrast, target, error, motion, and assistive evidence.

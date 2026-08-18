@@ -401,13 +401,15 @@ export function gitignoreBlock(derivedEntries: readonly string[] = []): string {
   }
   return [
     BEGIN_MARKER,
-    '# Everything the harness OBSERVES (telemetry, run journals, caches, install',
-    '# receipts) lives under .void/local/ and is machine-local. Everything the',
-    '# project DECLARES (config.json, PROJECT-DOCTRINE.md, policies/) stays tracked',
-    '# at the top of .void/ — config.json in particular carries the pack pins and',
-    '# paths.business, which the enforcement runner needs on a fresh clone.',
-    '# No exception rule: a new runtime artifact is born inside local/ and this',
-    '# file never has to learn about it.',
+    '# .void/ has three levels, named by what deleting them costs. Everything the',
+    '# harness OBSERVES (telemetry, run journals, caches, install receipts) lives',
+    '# under machine/ and is disposable. Everything it DERIVES (the doctrine) lives',
+    '# under installed/ and is restored byte-for-byte by install. Everything the',
+    '# project DECLARES stays tracked at the top of .void/: config.json in',
+    '# particular carries the pack pins and paths.business, which the enforcement',
+    '# runner needs on a fresh clone.',
+    '# No exception rule: a new runtime artifact is born inside one of the two',
+    '# ignored directories, and this file never has to learn about it.',
     `${VOID_DIR}/${VOID_MACHINE_DIR}/`,
     `${VOID_DIR}/${VOID_INSTALLED_DIR}/`,
     // The previous name stays covered on purpose. A migration that cannot finish

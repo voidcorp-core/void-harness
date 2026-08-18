@@ -4,7 +4,7 @@ status: draft
 strategy: original
 target_loc: 200
 phase: D
-depends_on: [verification-before-completion]
+depends_on: [verify]
 composes_with: []
 matrix_row: plans/skill-decision-matrix.md#commit-discipline
 audit_date: 2026-05-29
@@ -22,7 +22,7 @@ Without `commit-discipline`, commit messages drift to "fix stuff" / "wip". Git l
 - **Wins**: every commit. Conventional commit format, "why" in the body, scope, breaking-change marking
 - **Loses to**: nothing — final gate before commit
 - **Cannot decide**: whether the change itself is correct
-- **Composes with**: `verification-before-completion`
+- **Composes with**: `verify`
 
 ## Sources audited
 
@@ -55,7 +55,7 @@ Without `commit-discipline`, commit messages drift to "fix stuff" / "wip". Git l
 
 ## Composition
 
-- Runs AFTER `verification-before-completion`. The completion handoff produces the "what done"; commit-discipline frames it for git
+- Runs AFTER `verify`. The completion handoff produces the "what done"; commit-discipline frames it for git
 
 ## Anti-rules — see matrix
 ## Verification checklist — TBD

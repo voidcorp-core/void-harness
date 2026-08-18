@@ -5,7 +5,7 @@
 # recognized Fowler refactor from the allowlist (../fowler-refactors.txt).
 # Encourages clear vocabulary in git log.
 #
-# Composed with the `refactoring` skill.
+# Composed with the `refactor` skill.
 #
 # Inputs: $1 = path to the commit message file.
 # Exit codes: 0 allow, 2 warn.

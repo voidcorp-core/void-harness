@@ -12,6 +12,7 @@
 import { execFileSync } from 'node:child_process';
 import { isMachineEntry, pendingMigrations, VOID_MACHINE_DIR } from '@voidcorp/hook-runner';
 import { judgeLayout, type LayoutObservation, type ManifestObservation } from '../lib/void-hygiene.js';
+import { observedWriteCandidates, type ObservedPathObservation } from '../lib/observed-write-paths.js';
 import { INSTALL_MANIFEST_PATH, parseInstallManifest, verifyInstallManifest } from '../lib/install-manifest.js';
 import { ownedDerivedPaths } from '../lib/void-migration.js';
 import { existsSync, readFileSync } from 'node:fs';
@@ -503,10 +504,12 @@ async function observeLayout(root: string): Promise<LayoutObservation> {
   };
 
   const insideRepo = git(['rev-parse', '--is-inside-work-tree'])?.trim() === 'true';
+  const observedPaths = observeObservedPaths(root, insideRepo);
   if (!insideRepo) {
     return {
       pending: pendingMigrations(root),
       localIgnored: null,
+      observedPaths,
       trackedObserved: [],
       trackedDerivedCount: 0,
       manifest: observeManifest(root),
@@ -540,10 +543,47 @@ async function observeLayout(root: string): Promise<LayoutObservation> {
   return {
     pending: pendingMigrations(root),
     localIgnored,
+    observedPaths,
     trackedObserved,
     trackedDerivedCount,
     manifest: observeManifest(root),
   };
+}
+
+/**
+ * Ask git whether it ignores one path.
+ *
+ * `undefined` is reserved for "the question went unanswered". git exits 1 for a
+ * path it does not ignore, and that is a measured fact, not a failure to
+ * measure: collapsing the two would let a missing git report every project as
+ * leaking.
+ */
+function gitIgnores(root: string, probe: string): boolean | undefined {
+  try {
+    execFileSync('git', ['check-ignore', '-q', probe], { cwd: root, stdio: 'ignore' });
+    return true;
+  } catch (error) {
+    const status = (error as { status?: unknown }).status;
+    return status === 1 ? false : undefined;
+  }
+}
+
+/**
+ * Where observed state can land in THIS project, proven path by path.
+ *
+ * Only what exists on disk is probed. An absent path is never reported, so
+ * spending a process to ask about it would buy an answer nobody reads, and the
+ * candidate list is a frozen constant, so the loop is bounded by construction.
+ */
+function observeObservedPaths(root: string, insideRepo: boolean): readonly ObservedPathObservation[] {
+  return observedWriteCandidates().map((candidate) => {
+    const present = existsSync(join(root, ...candidate.path.split('/')));
+    return {
+      path: candidate.path,
+      present,
+      ignored: present && insideRepo ? gitIgnores(root, candidate.probe) : undefined,
+    };
+  });
 }
 
 /**

@@ -31,7 +31,7 @@ No wrapper required — the pattern is short enough to inline. If your project r
 - Migrations live at `apps/<app>/db/migrations/` (Drizzle default).
 - New columns: NULL or DEFAULT first, then backfill, then NOT NULL (no exclusive locks on prod tables).
 - Index creation: `CREATE INDEX CONCURRENTLY` on Postgres.
-- Composes with `harness:migrations-safety` (generic) + `harness-server:drizzle-migration-safe` (Drizzle-specific).
+- Composes with `harness:migrations` (generic) + `harness-server:drizzle-migration-safe` (Drizzle-specific).
 
 ## Server Actions vs route handlers
 

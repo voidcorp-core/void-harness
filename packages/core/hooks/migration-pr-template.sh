@@ -2,7 +2,7 @@
 # migration-pr-template — pre-push hook
 #
 # Warns if a PR touching migrations lacks the required body sections.
-# Composed with the `migrations-safety` skill.
+# Composed with the `migrations` skill.
 #
 # Required sections (case-insensitive substring match):
 #   - Table affected
@@ -50,6 +50,6 @@ done
 if [[ ${#MISSING[@]} -gt 0 ]]; then
   printf "migration-pr-template (warn): PR touches migrations but lacks required sections:\n" >&2
   for s in "${MISSING[@]}"; do printf "  - %s\n" "$s" >&2; done
-  printf "\nSee migrations-safety skill for the template.\n" >&2
+  printf "\nSee migrations skill for the template.\n" >&2
   exit 2
 fi

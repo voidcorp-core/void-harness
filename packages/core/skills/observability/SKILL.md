@@ -1,5 +1,6 @@
 ---
 name: observability
+kind: standard
 activation: always
 description: Structured logs (no string interp), trace IDs end-to-end, error boundaries at async boundaries, anonymized user scope, no PII/secrets ever. Use @repo/core/logger not console.log. Use for prod code.
 owner: folpe
@@ -205,7 +206,7 @@ Defense in depth. The discipline says "don't log it." The config says "even if y
 ## Composition with other skills
 
 - **With `security-guidance`**: PII / secret redaction at log time. Logger config layer is defense in depth.
-- **With `systematic-debugging`**: if visibility is the gap, FIX IT FIRST — add the missing logs / traces — then debug with real signal.
+- **With `debug`**: if visibility is the gap, FIX IT FIRST — add the missing logs / traces — then debug with real signal.
 - **With `async-safety`**: trace propagation across job / webhook / queue boundaries.
 - **With `hexagonal-architecture`**: error boundaries live at adapter boundaries; structured logging at use-case entry/exit.
 - **With `llm-cost-discipline`**: token counts logged at every LLM call site. Cache hit rate logged.

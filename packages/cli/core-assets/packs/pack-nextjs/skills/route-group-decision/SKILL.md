@@ -1,5 +1,6 @@
 ---
 name: route-group-decision
+kind: standard
 description: Decide when to use a (route-group), what to name it, and how to share layouts. The void-harness convention groups by trust boundary, not by visual section.
 owner: folpe
 runtimes: [claude, codex]
@@ -14,7 +15,7 @@ eval_targets: [claude/anthropic/opus]
 
 # route-group-decision
 
-Use when adding any new route in `app/`, or when refactoring an existing flat `app/` into groups. Route groups (folders named `(name)`) don't affect URL but DO affect layout and convention scope.
+Use when adding any new route in `app/`, or when refactor an existing flat `app/` into groups. Route groups (folders named `(name)`) don't affect URL but DO affect layout and convention scope.
 
 ## The void-harness convention
 
@@ -106,11 +107,11 @@ A route group is `(name)` (parentheses around a folder). Don't confuse them.
 2. **Identify the trust posture.** Public? Authed? Trust boundary? That picks the group.
 3. **Check existing groups.** Does one fit? If yes, use it. Don't create new groups for routes that fit.
 4. **Layout content:** what's truly shared between these routes? That's the layout. Everything else is page-specific.
-5. **If creating a new group**, write an ADR (`harness-monorepo:adr-workflow`). Group convention drift is annoying to undo.
+5. **If creating a new group**, write an ADR (`harness-monorepo:decide`). Group convention drift is annoying to undo.
 
 ## Composition
 
 - `harness-nextjs:cache-component-pattern` — `(marketing)` is cache-by-default; `(app)` mostly `'use no cache'`.
 - `harness-server:server-action` — `(actions)/` is where Server Actions live.
-- `harness-monorepo:adr-workflow` — adding/renaming groups is ADR-worthy.
+- `harness-monorepo:decide` — adding/renaming groups is ADR-worthy.
 - `harness:security-guidance` — `(app)/layout.tsx` is the auth boundary; redirects centralized here.

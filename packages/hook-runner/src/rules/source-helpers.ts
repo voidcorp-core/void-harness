@@ -19,7 +19,9 @@ export function isGeneratedPath(path: string): boolean {
 export function lineEvidence(
   edits: readonly NormalizedEdit[],
   applies: (path: string) => boolean,
-  violates: (line: string) => boolean,
+  // The path travels with the line because some exemptions are per file type:
+  // what a .tsx requires of a framework is not what a .ts may help itself to.
+  violates: (line: string, path: string) => boolean,
   allowTag?: string,
 ): string[] {
   const evidence: string[] = [];
@@ -28,7 +30,7 @@ export function lineEvidence(
     if (!applies(path)) continue;
     edit.addedContent.split(/\r?\n/).forEach((line, index) => {
       if (allowTag !== undefined && line.includes(allowTag)) return;
-      if (violates(line)) evidence.push(`${path}:${index + 1}`);
+      if (violates(line, path)) evidence.push(`${path}:${index + 1}`);
     });
   }
   return evidence;

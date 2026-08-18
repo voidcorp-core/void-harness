@@ -1108,10 +1108,10 @@ rather than a default port. Both are formal ADRs (the first in this repo's new `
 were authored **proposed** — HITL absolute, NOT auto-accepted — and are now **accepted** by Folpe's explicit
 go-ahead to merge (in the ADR lifecycle, merging = accepting; status flipped to `accepted` in the same act):
 
-- **[ADR-0001](../decisions/0001-defer-ios-cluster-port.md) — Defer porting the iOS cluster.** No current iOS
+- **[ADR-0001](decisions-log/2026-07-10-defer-ios-cluster-port--4541614e-26fd-454a-8f73-33990aa1d945.md) — Defer porting the iOS cluster.** No current iOS
   consumer; deferral is the reversible default. Wake trigger: the first signed iOS project. Teardown coupling:
   Vague 6 must snapshot the iOS source before removing gstack, not delete it.
-- **[ADR-0002](../decisions/0002-keep-gbrain-external.md) — Keep gbrain external, with an exit criterion.** Its
+- **[ADR-0002](decisions-log/2026-07-10-keep-gbrain-external--0def35be-d6c0-4952-ae3f-f0dd48fe9bf6.md) — Keep gbrain external, with an exit criterion.** Its
   cross-session context handoff is a real recurring need (served today by Claude file-memory + Linear +
   DECISIONS + ADRs); dropping it before a proven replacement would strand that need. Exit criterion: both the
   handoff AND code-search are demonstrably covered by harness primitives. Out of scope for the Vague 6 teardown.

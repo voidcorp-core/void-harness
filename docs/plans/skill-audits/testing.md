@@ -5,7 +5,7 @@ strategy: distill
 target_loc: 400
 phase: B
 depends_on: [tdd]
-composes_with: [mutation-testing, typescript-strict, hexagonal-architecture, migrations-safety]
+composes_with: [mutation-testing, typescript-strict, hexagonal-architecture, migrations]
 matrix_row: plans/skill-decision-matrix.md#testing
 audit_date: 2026-05-29
 auditor: Folpe + Claude Opus 4.7
@@ -20,7 +20,7 @@ Without `testing`, TDD's RED step lacks technique. An LLM agent writes tests tha
 ## Decision matrix anchor
 
 - **Wins**: how to express a test once you know what to test. Mocking strategy, fixture design, test pyramid placement, integration vs unit choice, naming conventions, assertion style
-- **Loses to**: `tdd` on **when** to write the test (always: before, in strict mode). `migrations-safety` on testing DB migrations specifically
+- **Loses to**: `tdd` on **when** to write the test (always: before, in strict mode). `migrations` on testing DB migrations specifically
 - **Cannot decide**: whether a feature deserves a test (TDD's call: yes, always, in strict mode). Production architecture. Whether a test suite is "complete enough" (coverage rule lives in `tdd`)
 - **Composes with**: `tdd` (provides the cycle), `mutation-testing` (validates the test quality)
 
@@ -94,7 +94,7 @@ Within a TDD mode (`strict` / `souple` / `exploratory`), the `testing` disciplin
 - **With `mutation-testing`**: a high-mutation-survivor rate is a `testing` signal — the tests are not asserting on the right things. The MUTATE step delegates to the mutation-testing skill; the KILL step iterates back here.
 - **With `typescript-strict`**: tests use the same branded types as production. A test that needs `as any` to construct a fixture is signaling either a missing factory or a brittle type.
 - **With `hexagonal-architecture`**: ports are tested with nullable infrastructure (Shore pattern). Unit tests against ports use in-memory adapters owned by the domain.
-- **With `migrations-safety`**: DB migrations are tested via Neon dev branch + integration tests, not via `testing`'s default unit/integration patterns (different concern, dedicated skill).
+- **With `migrations`**: DB migrations are tested via Neon dev branch + integration tests, not via `testing`'s default unit/integration patterns (different concern, dedicated skill).
 
 ## Anti-rules (what this skill MUST NOT do)
 

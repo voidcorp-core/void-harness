@@ -7,7 +7,7 @@ actual_loc: 128
 activation: on-demand
 phase: D
 depends_on: []
-composes_with: [security-guidance, code-review, ticket-runner, verification-before-completion]
+composes_with: [security-guidance, code-review, implement, verify]
 source_ticket: DEV-387
 epic: DEV-383
 audit_date: 2026-07-09
@@ -57,7 +57,7 @@ Live-surface DAST — nuclei, live TLS/header probing, authenticated crawls. The
 
 Every live routing reference to `gstack:/cso` now points to `harness:security-audit`:
 
-- **4 skills**: `security-guidance` (frontmatter + body + escalation section + composition + anti-rules), `code-review` (dimension + delegation table + anti-rule), `ticket-runner` (security pass), `verification-before-completion` (security-review row).
+- **4 skills**: `security-guidance` (frontmatter + body + escalation section + composition + anti-rules), `code-review` (dimension + delegation table + anti-rule), `implement` (security pass), `verify` (security-review row).
 - **5 agents** (added after the doctrine-critic pass flagged that `security-audit`'s "doctrine-critic routes here" claim was false while the agent still said `/cso`): `doctrine-critic`, `silent-failure-hunter`, `type-design-analyzer`, `code-explorer`, `migration-planner` — each routes a security handoff, now to `security-audit`.
 
 Grep for `/cso` as a live routing target across `packages/core` is green. The only remaining `/cso` strings are `.source` provenance and the skill's own attribution line ("distilled from gstack /cso"), which the sourcing discipline mandates. The generated `packages/core/graph/void-graph.mjs` + `model.json` are rebuilt from these repointed descriptions in the same commit.

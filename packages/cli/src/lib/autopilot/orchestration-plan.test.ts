@@ -42,7 +42,7 @@ describe('buildOrchestrationPlan', () => {
   it('names the canonical skill so no runtime invents its own ticket cycle', () => {
     const plan = buildOrchestrationPlan(input());
 
-    expect(plan.ticketRunnerSkill).toBe('ticket-runner');
+    expect(plan.ticketRunnerSkill).toBe('implement');
     expect(plan.planPath).toBe('plans/2026-07-25-autopilot-plan.md');
     expect(plan.specPath).toBe('docs/specs/2026-07-25-autopilot.md');
   });

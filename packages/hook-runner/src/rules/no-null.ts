@@ -26,11 +26,23 @@ export function noNull(edits: readonly NormalizedEdit[]): RuleVerdict {
       && !isTestPath(path)
       && !path.endsWith('.d.ts')
       && !isGeneratedPath(path),
-    (line) => {
-      if (/from\s+['"]drizzle-orm|JSON\.(?:stringify|parse)|typeof.*===\s*['"]null/.test(line)) {
+    (line, path) => {
+      if (/from\s+['"]drizzle-orm|JSON\.(?:stringify|parse)|typeof.*===\s*['"]null/.test(line)) { // allow-null: this rule is about the literal
         return false;
       }
-      return /\bnull\b/.test(codeOnly(line));
+      // A React component renders nothing by returning the literal, and there is
+      // no other spelling of it. Asking for one made every guard clause in a
+      // .tsx carry an `allow-null:` comment, which teaches people the marker is
+      // noise. The exemption covers that single form in a file holding JSX, not
+      // the use of it as a value there.
+      // Subtract the exempted form, then judge whatever is left: the guard
+      // clause `if (!user) return null;` is the shape components actually take,
+      // and a line that both renders nothing and uses the literal as a value is
+      // still refused.
+      const code = path.endsWith('.tsx')
+        ? codeOnly(line).replace(/\breturn\s+null\b/g, '') // allow-null: the exempted form
+        : codeOnly(line);
+      return /\bnull\b/.test(code); // allow-null: this rule is about the literal
     },
     'allow-null:',
   );

@@ -142,9 +142,31 @@ function configuredString(
   return typeof value === 'string' ? value : fallback;
 }
 
+/**
+ * One glob or several, for a key that may legitimately name more than one source
+ * root. A project with business logic in both `apps/` and `packages/` could not
+ * declare it while this read a single string, and the rule below already took a
+ * list: the limit was here, not in the matcher. An empty or malformed list falls
+ * back rather than gating nothing, because gating nothing looks exactly like
+ * having the guard switched off.
+ */
+export function configuredStrings(
+  parent: Record<string, unknown> | undefined,
+  key: string,
+  fallback: string,
+): string[] {
+  const value = parent?.[key];
+  if (typeof value === 'string') return [value];
+  if (Array.isArray(value)) {
+    const kept = value.filter((entry): entry is string => typeof entry === 'string');
+    if (kept.length > 0) return kept;
+  }
+  return [fallback];
+}
+
 interface TddConfig {
   readonly mode: TddMode;
-  readonly businessGlob: string;
+  readonly businessGlobs: readonly string[];
   readonly spikesGlob: string;
 }
 
@@ -165,7 +187,7 @@ function readTddConfig(root: string): TddConfig {
     : 'auto';
   return {
     mode,
-    businessGlob: configuredString(paths, 'business', 'apps/*/src/**'),
+    businessGlobs: configuredStrings(paths, 'business', 'apps/*/src/**'),
     spikesGlob: configuredString(paths, 'spikes', 'apps/*/scripts/spike-*'),
   };
 }
@@ -206,7 +228,7 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[]): RuleVerdict
   return tddOrder({
     edits: projectChanges,
     mode: config.mode,
-    businessGlobs: [config.businessGlob],
+    businessGlobs: config.businessGlobs,
     spikeGlobs: [config.spikesGlob],
     existingHeaders,
     siblingTests,

@@ -87,6 +87,15 @@ jobs:
         # locally; CI enforces structural parity statelessly.
         run: pnpm sync:docs
 
+      - name: Doctrine parity (docs/ <-> packages/core/ PHILOSOPHY.md)
+        # The doctrine exists three times: docs/ (what we read), packages/core/
+        # (what install writes into a consumer), and the core-assets npm mirror.
+        # The mirror is generated and already gated by the core-assets step
+        # below, so this one covers the leg nothing else did: docs <-> core.
+        # They drifted on six sentences for two months, every heading intact,
+        # which shipped consumers a doctrine older than the one we were reading.
+        run: pnpm sync:philosophy
+
       - name: Version lockstep
         # Every version-carrying manifest (marketplace, 7 plugin.json, the
         # core-assets mirror, the 3 npm package.json) must equal the canonical
@@ -179,23 +188,29 @@ jobs:
       - name: Graph integrity (model drift + broken routes)
         run: pnpm graph:check
 
-      - name: Certification freshness (certification.json matches model + eval reports)
-        # The frozen packages/harness-graph/certification.json is the input ProjectState reads.
-        # If a capability contract field or an eval report changed, rebuild: pnpm certification:build
-        run: pnpm certification:check
+      - name: Generated artefacts are current (one gate for all of them)
+        # Seven artefacts derive from the skills, agents, hooks, commands and
+        # packs. Each used to have its own build command and its own freshness
+        # gate, and nothing declared the set: renaming thirteen skills found them
+        # one at a time, in series, a push apart, and the seventh was found here
+        # rather than by the commit that caused it. This derives and asserts the
+        # tree is unchanged, so an eighth artefact is covered the day it is added
+        # without anyone remembering to add a step. Stale? `pnpm derive`.
+        run: pnpm derive:check
 
       - name: Consumer bundle freshness (void-graph.mjs embeds the current model)
-        # The shipped packages/core/graph/void-graph.mjs bakes model.json. This gates the
-        # embedded model against the committed model.json (not the whole vite/esbuild output —
-        # its byte-determinism across environments is not guaranteed). If a skill/hook/command
-        # change regenerated model.json, rebuild: pnpm -F voidharness build:void-graph
+        # The one artefact `derive:check` does not byte-compare, because the vite
+        # and esbuild output is not guaranteed byte-identical across environments.
+        # This gates the model it bakes against the committed one, which is the
+        # fact that matters and does not depend on the bundler.
         run: pnpm graph:check-bundle
 
-      - name: Cheat sheet freshness (docs/CHEATSHEET.md matches the catalogue)
-        # The cheat sheet is rendered from model.json. A skill added without
-        # regenerating it turns the one page that claims to list everything into
-        # a page that lists almost everything, which is worse than none.
-        run: pnpm cheatsheet:check
+      - name: Skill references resolve (no link into a renamed skill)
+        # A skill's identity is its directory name, copied by hand into routing
+        # tables, commands and sourcing notes. Renaming session-handoff to
+        # checkpoint left four references pointing at nothing, and an audit found
+        # them weeks later rather than the build. This makes a rename mechanical.
+        run: pnpm skills:check-references
 
       - name: Skill tests
         run: pnpm vitest run

@@ -1,7 +1,7 @@
 Sources:
 - PostgreSQL ALTER TABLE documentation: https://www.postgresql.org/docs/current/sql-altertable.html
 - GoCardless zero-downtime migration guidance: https://gocardless.com/blog/zero-downtime-postgres-migrations-the-hard-parts/
-- void-harness migrations-safety doctrine: packages/core/skills/migrations-safety/SKILL.md
+- void-harness migrations doctrine: packages/core/skills/migrations/SKILL.md
 
 Adapted:
 - Kept compatibility sequencing, lock analysis, bounded backfills, rollback, integrity, and production observability.

@@ -1,5 +1,6 @@
 ---
 name: frontend-design
+kind: action
 activation: always
 triggers:
   extensions: ["tsx"]
@@ -31,7 +32,7 @@ Every UI is designed mobile-first AND must reach first-class quality on both vie
 
 - **Layout starts at 360–390px** (iPhone 12 mini → 15 Pro range), progressively enhanced wider.
 - **Never the reverse.** No "desktop-first then squeeze for mobile."
-- **Both viewports screenshot-reviewed before merge** — `viewport-screenshot-gate` hook (shared with `accessibility-first`).
+- **Both viewports screenshot-reviewed before merge** — `viewport-screenshot-gate` hook (shared with `accessibility`).
 - **No mobile-only / desktop-only features** without an explicit decision logged in `docs/DECISIONS.md`.
 - **Performance budget enforced for both**: LCP < 2.5s on slow 4G mobile AND on desktop fiber (measure with the project's perf tooling — Lighthouse CI, WebPageTest, bundlesize).
 
@@ -170,7 +171,7 @@ The primary action is the most saturated, most contrasted, most singular color o
 - Tertiary: ghost / link style.
 - Destructive: red — but reserve for actually destructive (delete, unsubscribe). Not for "Cancel."
 
-WCAG AA contrast minimum (composes with `accessibility-first` — 4.5:1 normal text, 3:1 large / UI components).
+WCAG AA contrast minimum (composes with `accessibility` — 4.5:1 normal text, 3:1 large / UI components).
 
 ---
 
@@ -192,7 +193,7 @@ Motion communicates state change. Not entertainment. Reserve for:
 
 Duration: < 250ms. Easing: `ease-out` for entry, `ease-in` for exit. The design system (`pack-nextjs`) provides default tokens.
 
-`prefers-reduced-motion` respected — composes with `accessibility-first`. The design system handles by default.
+`prefers-reduced-motion` respected — composes with `accessibility`. The design system handles by default.
 
 ### Banned
 
@@ -216,7 +217,7 @@ Duration: < 250ms. Easing: `ease-out` for entry, `ease-in` for exit. The design 
 
 ## Components from `@repo/ui`
 
-Composed with `accessibility-first`. No hand-rolled UI primitives:
+Composed with `accessibility`. No hand-rolled UI primitives:
 
 ```tsx
 // banned
@@ -233,7 +234,7 @@ import { Button } from '@repo/ui';
 
 ## Composition with other skills
 
-- **With `accessibility-first`**: a11y is a precondition. Shared mobile-first dual-quality invariant. Shared `viewport-screenshot-gate` hook.
+- **With `accessibility`**: a11y is a precondition. Shared mobile-first dual-quality invariant. Shared `viewport-screenshot-gate` hook.
 - **With `typescript-strict`**: component props strongly typed; discriminated unions for variants; no `any` in UI.
 - **With `code-review`**: dimensions `readability` and `correctness` include UI quality flags.
 - **With `pack-nextjs`**: provides `@repo/ui` + design system tokens + Tailwind config + shadcn preset matching this discipline.
@@ -246,8 +247,8 @@ import { Button } from '@repo/ui';
 
 ## Companion hooks
 
-- `viewport-screenshot-gate` (pre-PR on UI changes, shared with `accessibility-first`) — fails PRs lacking both mobile and desktop screenshots.
-- `anti-ai-slop-grep` (pre-commit) — warns on banned copy patterns. Initial list of ~10; grows from `learning-capture` harness-gap feedback.
+- `viewport-screenshot-gate` (pre-PR on UI changes, shared with `accessibility`) — fails PRs lacking both mobile and desktop screenshots.
+- `anti-ai-slop-grep` (pre-commit) — warns on banned copy patterns. Initial list of ~10; grows from `learn` harness-gap feedback.
 
 See `../../hooks/`.
 

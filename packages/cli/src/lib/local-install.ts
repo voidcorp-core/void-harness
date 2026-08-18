@@ -124,6 +124,14 @@ export interface PrepareInstallInput {
 export interface PreparedInstall {
   readonly mutations: readonly FileMutation[];
   readonly receipt: InstallReceipt;
+  /**
+   * Assets the previous receipt owned that this install refuses to remove,
+   * because their bytes no longer match what we wrote. Kept on purpose, and
+   * surfaced so the caller can say so: a renamed skill preserved this way goes
+   * on loading beside its replacement, and a silent success reads as a project
+   * with one doctrine when it has two.
+   */
+  readonly preserved: readonly string[];
 }
 
 /**
@@ -194,13 +202,21 @@ export async function prepareInstallCommit(input: PrepareInstallInput): Promise<
     if (current === undefined || stillOwned) owned.push(file);
   }
 
+  const preserved: string[] = [];
   for (const prior of previous?.files ?? []) {
     if (stagedPaths.has(prior.path)) continue;
     const target = join(input.projectRoot, ...prior.path.split('/'));
     const info = await infoOrUndefined(target);
     if (info?.isFile() && !info.isSymbolicLink()) {
       const content = await readFile(target);
-      if (!sameOwnedFile(content, info.mode, prior)) continue;
+      // Edited by hand since we wrote it, so it is not ours to delete. Reported
+      // rather than skipped in silence: a renamed skill kept this way stays on
+      // disk and keeps loading, and `update` used to print a clean success over
+      // a project running two versions of its own doctrine.
+      if (!sameOwnedFile(content, info.mode, prior)) {
+        preserved.push(prior.path);
+        continue;
+      }
       if (input.retainPreviousOwned) {
         owned.push({ path: prior.path, content, mode: prior.mode });
       } else {
@@ -220,5 +236,5 @@ export async function prepareInstallCommit(input: PrepareInstallInput): Promise<
     content: Buffer.from(encodeReceipt(receipt)),
     mode: 0o644,
   });
-  return { mutations, receipt };
+  return { mutations, receipt, preserved };
 }

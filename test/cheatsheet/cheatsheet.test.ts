@@ -30,7 +30,7 @@ interface ModelNode {
   readonly description?: string;
 }
 
-const model = JSON.parse(read('packages/harness-graph/model.json')) as { nodes?: readonly ModelNode[] };
+const model = JSON.parse(read('packages/core/data/model.json')) as { nodes?: readonly ModelNode[] };
 const taxonomy = JSON.parse(read('docs/cheatsheet-taxonomy.json')) as {
   skillGroups: readonly { title: string; blurb: string; skills: readonly string[] }[];
   hookGroups: readonly { title: string; blurb: string; hooks: Record<string, string> }[];

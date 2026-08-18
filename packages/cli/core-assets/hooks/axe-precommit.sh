@@ -2,7 +2,7 @@
 # axe-precommit — pre-commit hook
 #
 # Runs axe-core static analysis on staged UI changes. Blocks on WCAG AA
-# violations. Composed with the `accessibility-first` skill.
+# violations. Composed with the `accessibility` skill.
 #
 # Requires axe-core CLI installed via pack-nextjs devDependencies.
 # Reads the command from .void/config.json .commands.axeStatic
@@ -30,6 +30,6 @@ STAGED=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(tsx|jsx)
 
 if ! eval "$CMD" 2>&1; then
   printf "\naxe-precommit: WCAG AA violations detected. Commit blocked.\n" >&2
-  printf "Fix the accessibility issues above. See accessibility-first skill.\n" >&2
+  printf "Fix the accessibility issues above. See accessibility skill.\n" >&2
   exit 1
 fi

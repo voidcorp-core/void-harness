@@ -5,7 +5,7 @@ strategy: distill
 target_loc: 200
 phase: B
 depends_on: []
-composes_with: [writing-plans, commit-discipline, adr-workflow]
+composes_with: [plan, commit-discipline, decide]
 matrix_row: plans/skill-decision-matrix.md#source-driven-development
 audit_date: 2026-06-04
 auditor: Folpe + Claude Opus 4.8
@@ -23,8 +23,8 @@ Quote the relevant cells from `plans/skill-decision-matrix.md#source-driven-deve
 
 - **Wins**: any config or usage of a third-party tool (framework, lib, CLI, API, build/test tool). Version-matched grounding, source citation.
 - **Loses to**: `typescript-strict` on type-expression mechanics; the relevant `pack-*` skill when a stack pack already encodes the framework's documented config (compose, do not duplicate).
-- **Cannot decide**: whether to adopt a tool at all (that is `brainstorming` / `adr-workflow`); first-party code design (own the source, not "docs").
-- **Composes with**: `writing-plans` (grounds stack decisions), `commit-discipline` (the "why" carries the source), `adr-workflow` (alternatives cite official docs).
+- **Cannot decide**: whether to adopt a tool at all (that is `brainstorm` / `decide`); first-party code design (own the source, not "docs").
+- **Composes with**: `plan` (grounds stack decisions), `commit-discipline` (the "why" carries the source), `decide` (alternatives cite official docs).
 
 If the per-skill content drifts from the matrix, fix one or the other — never let them diverge silently.
 
@@ -75,10 +75,10 @@ None in v1. Citation is prose-level discipline carried by `commit-discipline`. A
 
 ## Composition with other skills
 
-- **With `writing-plans`**: runs upstream. A plan step that pins a library/tool cites the official doc justifying the choice; the plan's stack decisions are grounded, not remembered.
+- **With `plan`**: runs upstream. A plan step that pins a library/tool cites the official doc justifying the choice; the plan's stack decisions are grounded, not remembered.
 - **With `commit-discipline`**: the mandatory "why" in the commit body is the carrier for the source citation (URL + section + version). Shared state: the git log as audit trail.
-- **With `adr-workflow`** (pack-monorepo): a structural tool choice becomes an ADR whose "Alternatives considered" cites each option's official docs rather than folklore.
-- **Sequencing**: ground (this skill) → decide / plan (`writing-plans`, `adr-workflow`) → record the "why" (`commit-discipline`).
+- **With `decide`** (pack-monorepo): a structural tool choice becomes an ADR whose "Alternatives considered" cites each option's official docs rather than folklore.
+- **Sequencing**: ground (this skill) → decide / plan (`plan`, `decide`) → record the "why" (`commit-discipline`).
 
 ## Anti-rules (what this skill MUST NOT do)
 
@@ -87,7 +87,7 @@ None in v1. Citation is prose-level discipline carried by `commit-discipline`. A
 - MUST NOT cite a third-party tutorial as authoritative.
 - MUST NOT land non-obvious config without a traceable source citation.
 - MUST NOT silently arbitrate when sources genuinely conflict — surface the divergence.
-- MUST NOT decide whether to adopt a tool at all (defers to `brainstorming` / `adr-workflow`).
+- MUST NOT decide whether to adopt a tool at all (defers to `brainstorm` / `decide`).
 
 ## Verification checklist for shipping this skill
 
@@ -98,7 +98,7 @@ None in v1. Citation is prose-level discipline carried by `commit-discipline`. A
 - [ ] `Verification` gate present (work not done until source check done)
 - [ ] Matrix row added at `plans/skill-decision-matrix.md#source-driven-development` matching this audit
 - [ ] Skill test in `test/source-driven-development/` exercises at least 2 fixtures (e.g. version-mismatch config, unsourced config diff)
-- [ ] No overlap > 30% with `commit-discipline` (this skill grounds the choice; commit-discipline records the why) or `writing-plans` (plans the work)
+- [ ] No overlap > 30% with `commit-discipline` (this skill grounds the choice; commit-discipline records the why) or `plan` (plans the work)
 - [ ] Sister-doc parity: AGENTS.md flavor matches CLAUDE.md flavor (Codex uses WebFetch / its own fetch tool; `/defuddle` terminology adjusted)
 - [ ] Audit status moved from `draft` → `reviewed` after user review
 
@@ -118,6 +118,6 @@ Added an **Offline / no-network** section, NOT an egress widening (decision A3 k
 - **`source-debt`** — a deliberate, tracked IOU when no version-matched doc is reachable: a `source-debt` label, a mandatory PR-body checkbox a reviewer clears by doing the read, and a commit-body note of what is unverified. The honest alternative to a silent guess.
 - **Auto-merge is refused while a `source-debt` checkbox is open.** Enforced mechanically in the loop (`integrate.ts: hasUnresolvedSourceDebt` → withhold `gh pr merge --auto`). The offline bypass is for *authoring*, never for *shipping* unverified config.
 
-**Rejected**: requiring an ADR for each source-debt (fails `adr-workflow`'s own rejected-alternative test — a deferred verification is not an architecture decision). The label + PR checkbox + commit note is the right-weight artifact.
+**Rejected**: requiring an ADR for each source-debt (fails `decide`'s own rejected-alternative test — a deferred verification is not an architecture decision). The label + PR checkbox + commit note is the right-weight artifact.
 
 SKILL.md grew from 145 → ~163 LOC (still well under the 400 cap; description unchanged, ≤ 200 chars).

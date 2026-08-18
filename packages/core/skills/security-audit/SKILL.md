@@ -1,5 +1,6 @@
 ---
 name: security-audit
+kind: action
 activation: on-demand
 description: Periodic deep security audit — OWASP Top 10, STRIDE, secrets, supply chain, CI/CD, infra, LLM. Phase-driven, read-only, zero-noise. The ceiling above security-guidance's daily floor.
 owner: folpe
@@ -131,7 +132,7 @@ The posture a finding is judged against has two axes: the mission mode (`fast`, 
 
 - **With `security-guidance`** — the daily floor to this periodic ceiling. Everyday boundary defaults live there; the phase-driven audit lives here.
 - **With `code-review`** — its `security` dimension is a per-diff quick scan that routes a deep pass here; `doctrine-critic` flags the boundaries.
-- **With `ticket-runner` / `verification-before-completion`** — a trust-boundary change triggers the security pass, which escalates to this skill for high-stakes surfaces.
+- **With `implement` / `verify`** — a trust-boundary change triggers the security pass, which escalates to this skill for high-stakes surfaces.
 - **With `void-harness security`** — the command runs the tools and owns the authorization gate; this skill reads what came back and judges whether a finding is actually reachable. Neither replaces the other: a scanner cannot tell you a vulnerability is unexploitable in context, and a model should not be the thing that decides a target may be probed.
 
 ## Anti-rules

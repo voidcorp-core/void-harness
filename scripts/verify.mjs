@@ -70,22 +70,23 @@ export const STEPS = [
     fix: ['node', 'packages/cli/bin/void-harness.mjs', 'graph', 'build'],
   },
   {
-    name: 'certification freshness',
-    run: ['pnpm', 'certification:check'],
+    // One gate for every generated artefact. They used to have one each, and
+    // nothing declared the set, so a seventh and then an eighth kept falling off
+    // whichever list was updated last. This derives and asserts the tree did not
+    // move, which covers what gets added later without naming anything.
+    name: 'generated artefacts current',
+    run: ['pnpm', 'derive:check'],
     artifact: true,
-    fix: ['pnpm', 'certification:build'],
+    fix: ['pnpm', 'derive'],
   },
   {
+    // The one artefact `derive:check` does not byte-compare, because the bundler
+    // output is not guaranteed identical across environments. Gated on the model
+    // it bakes instead, which does not depend on the bundler.
     name: 'consumer bundle freshness',
     run: ['pnpm', 'graph:check-bundle'],
     artifact: true,
     fix: ['pnpm', '--filter', 'voidharness', 'build:void-graph'],
-  },
-  {
-    name: 'cheat sheet freshness',
-    run: ['pnpm', 'cheatsheet:check'],
-    artifact: true,
-    fix: ['pnpm', 'cheatsheet:build'],
   },
   { name: 'tests', run: ['pnpm', 'vitest', 'run'], slow: true },
   { name: 'typecheck', run: ['pnpm', '-r', 'typecheck'], slow: true },

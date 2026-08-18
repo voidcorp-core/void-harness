@@ -12,7 +12,7 @@ import { buildVoidGraphBundle } from '../src/lib/build-bundle.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkgs = resolve(here, '..', '..'); // packages/
-const modelPath = resolve(pkgs, 'harness-graph', 'model.json');
+const modelPath = resolve(pkgs, 'core', 'data', 'model.json');
 const studioHtmlPath = resolve(pkgs, '..', 'apps', 'graph-studio', 'dist-singlefile', 'index.html');
 const outFile = resolve(pkgs, 'core', 'graph', 'void-graph.mjs');
 

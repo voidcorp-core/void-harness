@@ -5,7 +5,7 @@ strategy: distill
 target_loc: 350
 phase: C
 depends_on: [domain-driven-design, functional]
-composes_with: [tdd, testing, security-guidance, typescript-strict, refactoring]
+composes_with: [tdd, testing, security-guidance, typescript-strict, refactor]
 matrix_row: plans/skill-decision-matrix.md#hexagonal-architecture
 audit_date: 2026-05-29
 auditor: Folpe + Claude Opus 4.7
@@ -90,12 +90,12 @@ The discipline applies uniformly. Within a TDD mode (`strict` / `souple` / `expl
 - **With `testing`**: nullable infrastructure pattern (Shore) IS the in-memory-adapter pattern at the port level. Co-evolved.
 - **With `security-guidance`**: trust boundaries match adapter boundaries. Zod validation happens at the adapter ingress (translating external untrusted data to typed domain types).
 - **With `typescript-strict`**: port interfaces are typed precisely; types travel across boundaries via Zod schemas at adapters.
-- **With `refactoring`**: cross-boundary refactors (Move Class from `services/` to `infrastructure/`, or vice versa) — this skill decides the target placement; `refactoring` executes the mechanical move.
+- **With `refactor`**: cross-boundary refactors (Move Class from `services/` to `infrastructure/`, or vice versa) — this skill decides the target placement; `refactor` executes the mechanical move.
 
 ## Anti-rules (what this skill MUST NOT do)
 
 - MUST NOT decide which framework. That is a pack concern.
-- MUST NOT decide DB schema. `domain-driven-design` picks aggregates; `migrations-safety` handles migration mechanics.
+- MUST NOT decide DB schema. `domain-driven-design` picks aggregates; `migrations` handles migration mechanics.
 - MUST NOT impose DI containers, CQRS, mediator, event sourcing. All rejected at the architecture level. Re-introducing any of them is an ADR in `docs/DECISIONS.md`.
 - MUST NOT silently allow a domain → infrastructure import. The hook blocks; the SKILL.md explains why.
 - MUST NOT decide queue technology, cache technology, observability backend — those are pack / hedge skills.

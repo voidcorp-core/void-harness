@@ -67,7 +67,7 @@ export const PACKS: readonly PackDescriptor[] = [
   {
     name: 'harness-react',
     label: 'harness-react',
-    description: 'React 19 + shadcn/Radix + accessibility-first',
+    description: 'React 19 + shadcn/Radix + accessibility',
     detect: (root) => workspaceHasDependency(root, /^(react|react-dom)$/),
   },
   {

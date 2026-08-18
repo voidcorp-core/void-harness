@@ -133,7 +133,7 @@ describe('provenance', () => {
       new URL('../../docs/plans/skill-audits/checkpoint.md', import.meta.url),
       'utf8',
     );
-    expect(audit).toMatch(/Boundary with `learning-capture`/);
+    expect(audit).toMatch(/Boundary with `learn`/);
     expect(audit).toMatch(/Boundary with `retrospective`/);
     expect(audit).toMatch(/What was rejected/i);
   });

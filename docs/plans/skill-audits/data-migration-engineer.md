@@ -18,7 +18,7 @@ not redesign the domain, API, application, or generic runtime.
 
 ## Sources and adaptation
 
-PostgreSQL locking semantics, GoCardless zero-downtime practice, and `migrations-safety` were
+PostgreSQL locking semantics, GoCardless zero-downtime practice, and `migrations` were
 distilled into an ORM-neutral review. Database implementation and schema redesign were rejected.
 
 ## Routing and overlap audit

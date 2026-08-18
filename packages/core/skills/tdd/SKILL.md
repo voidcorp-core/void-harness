@@ -1,7 +1,8 @@
 ---
 name: tdd
+kind: standard
 activation: always
-description: TDD with three modes (strict/souple/exploratory) auto-selected by path. Iron Law in strict (no prod code without a failing test), mutation gate, anti-rustine. Use for any feature, bugfix, refactor.
+description: TDD in three modes (strict/souple/exploratory) chosen by path. Iron Law in strict (no prod code without a failing test), mutation gate if tooled, anti-rustine. Use for any feature, bugfix, refactor.
 owner: folpe
 runtimes: [claude, codex]
 enforcement:
@@ -29,7 +30,7 @@ Three postures, chosen by context. If unsure of the mode, ask explicitly before 
 
 | Mode | When | Posture |
 |---|---|---|
-| **strict** | New behavior on production code, hotfix on paying surface, refactor that changes observable behavior, DB integration that affects business invariants | Iron Law (zero line of production code without a failing test that requested it) + mutation testing + 100% coverage + commit/PR evidence trail |
+| **strict** | New behavior on production code, hotfix on paying surface, refactor that changes observable behavior, DB integration that affects business invariants | Iron Law (zero line of production code without a failing test that requested it) + mutation testing when the project has a mutation runner + 100% coverage + commit/PR evidence trail |
 | **souple** | Integration glue tested at a higher level (E2E + handler covers the chain), framework wiring, config | RED-GREEN-REFACTOR without mutation gate, ≥ 80% coverage on business code, no commit-by-phase ritual |
 | **exploratory** | Documented spike, throwaway POC, scripts marked as such, draft work | No TDD obligation. The file MUST declare throwaway status + deletion date in a header comment. If the code survives the spike, it transitions to strict before merging to prod. |
 
@@ -79,8 +80,10 @@ Sunk-cost fallacy: the time is already lost. Keeping unverified code is technica
 ### Strict mode
 
 ```
-RED → Verify RED → GREEN → Verify GREEN → MUTATE → KILL MUTANTS → REFACTOR
+RED → Verify RED → GREEN → Verify GREEN → [MUTATE → KILL MUTANTS] → REFACTOR
 ```
+
+The bracketed steps run only when the project has a mutation runner (see MUTATE below).
 
 ### Souple mode
 
@@ -101,7 +104,7 @@ outcome, never on a mock's call count (that tests the mock, not the behavior). M
 only at infrastructure boundaries. The full technique (how to express the test, factories,
 mocking policy) is the `testing` skill's job; TDD owns only *when* and *that* it fails first.
 
-Before finalizing the test, scan the mutator rules (boundaries, boolean combinations, equality, arithmetic identities, array/string ops, optional chaining, side effects). See `mutation-testing` skill if available.
+Before finalizing the test, scan the mutator rules (boundaries, boolean combinations, equality, arithmetic identities, array/string ops, optional chaining, side effects). This scan needs no tooling and no runner: it is how you write a test that a mutant could not survive, whether or not the project can actually run one.
 
 ### Verify RED — watch it fail
 
@@ -143,11 +146,19 @@ Confirm:
 - Other tests still pass
 - Pristine output (no warnings, no errors)
 
-### MUTATE (strict only)
+### MUTATE (strict, only when a mutation runner is present)
 
-Run `<config.commands.mutation> --mutate <path>` or via the `mutation-testing` skill. Produce a killed/survived/score report.
+The harness ships no mutation runner and installs none. `init` detects Stryker in the project's
+dependencies and writes `commands.mutation` into `.void/config.json` only on that signal, so the
+presence of that key *is* the capability check.
 
-### KILL MUTANTS (strict only)
+- Key present → run `<config.commands.mutation> --mutate <path>`, produce a killed/survived/score
+  report, and treat the gate as mandatory in strict.
+- Key absent → the gate does not apply. Never invent a `stryker` command and never block the cycle
+  on it; the mutator scan at RED carries the intent instead. Adopting a runner is a project
+  decision, not something this skill performs.
+
+### KILL MUTANTS (strict, when MUTATE ran)
 
 For each survivor:
 
@@ -169,7 +180,7 @@ After GREEN (and after MUTATE/KILL in strict), assess the improvements.
 
 Tests must stay green at every step.
 
-Load the `refactoring` skill for the detailed methodology (RED-GREEN-REFACTOR strict commit boundaries).
+Load the `refactor` skill for the detailed methodology (RED-GREEN-REFACTOR strict commit boundaries).
 
 ---
 
@@ -179,7 +190,7 @@ Load the `refactoring` skill for the detailed methodology (RED-GREEN-REFACTOR st
 
 - Unit: `<config.commands.testUnit>` (e.g. `bunx vitest run`, `pnpm vitest`, `npm test`)
 - E2E: `<config.commands.testE2e>` (e.g. `bunx playwright test`)
-- Mutation: `<config.commands.mutation>` (e.g. `bunx stryker run`)
+- Mutation: `<config.commands.mutation>` (e.g. `bunx stryker run`) — absent when no mutation runner is detected
 - Watch: `<config.commands.testWatch>` (e.g. `bunx vitest --watch`)
 
 ### Conventions
@@ -344,7 +355,7 @@ Before marking the work complete:
 - [ ] Pristine output (no warnings, no errors)
 - [ ] Tests use real code (mocks only where unavoidable)
 - [ ] Edge cases and errors covered
-- [ ] Mutation testing run + survivors handled (strict)
+- [ ] Mutation testing run + survivors handled (strict, when `commands.mutation` exists)
 - [ ] Coverage verified 100% or exception documented (strict)
 - [ ] Commit history shows TDD evidence or documented exception (strict)
 - [ ] Refactor evaluated and applied where it has value (all Critical/High priorities addressed)
@@ -371,7 +382,7 @@ Bug found? **Write a failing test that reproduces it before any fix.** Follow th
 
 Never fix a bug without a reproducing test.
 
-See the `systematic-debugging` skill for the upstream root-cause discipline.
+See the `debug` skill for the upstream root-cause discipline.
 
 ---
 
