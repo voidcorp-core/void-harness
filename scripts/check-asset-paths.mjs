@@ -57,14 +57,51 @@ export function harnessPaths(text) {
 }
 
 /**
+ * Entries the layout table knows, read from the single source of truth rather
+ * than copied here. Paths under `.void/` are checked against it instead of
+ * against the disk, because the two ignored levels are written at runtime: a
+ * clone has no `.void/machine/checkpoint.md` and never should, so its absence
+ * proves nothing about the sentence naming it.
+ */
+export function layoutEntries(source) {
+  const start = source.indexOf('VOID_OWNERSHIP');
+  if (start === -1) return new Set();
+  // To the closing brace at column zero: the object holds comments containing
+  // braces, so a non-greedy match to the first `})` stops a third of the way in
+  // and silently reports the rest of the layout as unknown.
+  const end = source.indexOf('\n});', start);
+  const body = source.slice(start, end === -1 ? source.length : end);
+  // Both spellings: a key needing a dot or a dash is quoted, a bare identifier
+  // is not, and reading only the quoted half silently loses `hooks`, `runs` and
+  // `cache` -- exactly the entries a path is most likely to name.
+  const pairs = body.matchAll(/^\s*'?([A-Za-z0-9_.-]+)'?:\s*'(?:project|derived|observed)'/gm);
+  return new Set([...pairs].map((match) => match[1]));
+}
+
+/** The level directories, which hold the classified entries rather than being them. */
+const VOID_LEVELS = new Set(['machine', 'installed']);
+
+/** Is this `.void/` path a location the layout table declares? */
+export function knownVoidPath(path, entries) {
+  const segments = path.replace(/^\.void\//, '').split('/').filter((part) => part !== '');
+  const head = segments[0];
+  if (head === undefined) return true;
+  const named = VOID_LEVELS.has(head) ? segments[1] : head;
+  if (named === undefined) return true;
+  return entries.has(named) || entries.has(named.replace(/\.[^.]+$/, ''));
+}
+
+/**
  * The ones that resolve to nothing. A trailing slash or a placeholder segment
  * (`<topic>`, `YYYY-MM-DD`) names a location rather than a file, so it is checked
  * as a directory: a skill saying specs live in `docs/specs/` is right whether or
  * not one has been written yet.
  */
-export function deadPaths(paths, exists) {
+export function deadPaths(paths, exists, entries = new Set()) {
   return paths
     .filter((path) => {
+      // `.void/` is answered by the layout table, not by the filesystem.
+      if (path.startsWith('.void/')) return !knownVoidPath(path, entries);
       const placeholder = /[<>]|YYYY|\*/.test(path);
       const location = path.endsWith('/') || placeholder;
       const probe = location ? path.replace(/[^/]*[<>*][^/]*\/?$/, '').replace(/\/$/, '') : path;
@@ -90,10 +127,13 @@ function walk(path, seen = []) {
 
 function main() {
   const exists = (path) => existsSync(join(ROOT, path));
+  const entries = layoutEntries(
+    readFileSync(join(ROOT, 'packages/hook-runner/src/void-layout.ts'), 'utf8'),
+  );
   const offenders = [];
   for (const surface of SURFACES) {
     for (const file of walk(resolve(ROOT, surface))) {
-      const dead = deadPaths(harnessPaths(readFileSync(file, 'utf8')), exists);
+      const dead = deadPaths(harnessPaths(readFileSync(file, 'utf8')), exists, entries);
       if (dead.length > 0) offenders.push({ file: file.slice(ROOT.length + 1), dead });
     }
   }

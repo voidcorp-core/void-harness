@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deadPaths, harnessPaths } from '../../scripts/check-asset-paths.mjs';
+import { deadPaths, harnessPaths, knownVoidPath, layoutEntries } from '../../scripts/check-asset-paths.mjs';
 
 // Skills are prose an agent reads, and they name paths in that prose. When the
 // layout moves, every one of those sentences is wrong and nothing says so:
@@ -28,10 +28,12 @@ describe('harnessPaths', () => {
 });
 
 describe('deadPaths', () => {
-  const exists = (path: string): boolean => ['.void/active.md', 'docs/specs'].includes(path);
+  const exists = (path: string): boolean => ['docs/specs'].includes(path);
+  // `.void/` is answered by the table, so the fixture declares what it classifies.
+  const entries = new Set(['active.md']);
 
   it('reports a path that resolves to nothing', () => {
-    expect(deadPaths(['.void/active.md', 'plans/ACTIVE.md'], exists)).toEqual(['plans/ACTIVE.md']);
+    expect(deadPaths(['.void/active.md', 'plans/ACTIVE.md'], exists, entries)).toEqual(['plans/ACTIVE.md']);
   });
 
   // A skill saying specs live in `docs/specs/` is right whether or not one has
@@ -50,6 +52,39 @@ describe('deadPaths', () => {
   });
 
   it('says nothing when every path resolves', () => {
-    expect(deadPaths(['.void/active.md'], exists)).toEqual([]);
+    expect(deadPaths(['.void/active.md'], exists, entries)).toEqual([]);
   });
 });
+
+// `.void/` is answered by the layout table, never by the filesystem. The two
+// ignored levels are written at runtime, so a clone has no
+// `.void/machine/checkpoint.md` and never should: CI proved that by failing on a
+// sentence that was correct.
+describe('layoutEntries and knownVoidPath', () => {
+  const source = [
+    "export const VOID_OWNERSHIP: Readonly<Record<string, Ownership>> = Object.freeze({",
+    "  'active.md': 'project',",
+    "  // a comment holding a brace } to trip a lazy match",
+    "  hooks: 'derived',",
+    "  runs: 'observed',",
+    "});",
+  ].join('\n');
+
+  it('reads a quoted key and a bare one alike', () => {
+    expect(layoutEntries(source)).toEqual(new Set(['active.md', 'hooks', 'runs']));
+  });
+
+  it('reads past a comment that contains a closing brace', () => {
+    expect(layoutEntries(source).has('runs')).toBe(true);
+  });
+
+  it('accepts a path under a level directory by the entry it names', () => {
+    const entries = layoutEntries(source);
+    expect(knownVoidPath('.void/machine/runs/mis_x/events.jsonl', entries)).toBe(true);
+    expect(knownVoidPath('.void/active.md', entries)).toBe(true);
+  });
+
+  it('refuses a path the table does not classify', () => {
+    expect(knownVoidPath('.void/invented.md', layoutEntries(source))).toBe(false);
+  });
+})
