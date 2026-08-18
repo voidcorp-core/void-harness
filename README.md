@@ -30,7 +30,7 @@ runtime's native files:
 | Claude Code | `CLAUDE.md` | `.claude/skills` | `.claude/agents` | `.claude/settings.json` |
 | Codex | `AGENTS.md` | `.agents/skills` | `.codex/agents` | portable Node runner |
 
-Alongside them, a receipt at `.void/local/receipts/install-v1.json` records exactly
+Alongside them, a receipt at `.void/machine/receipts/install-v1.json` records exactly
 which files the harness owns. `update` and `remove` only ever touch those; a
 file you edited is preserved, and a rollback restores the previous bytes.
 

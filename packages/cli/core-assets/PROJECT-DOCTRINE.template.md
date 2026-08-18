@@ -5,12 +5,12 @@
 > Edit freely. The `harness:learning-capture` skill appends to it (HITL strict).
 
 This file holds **project-specific** rules and context only. **Universal**
-rules (your global coding philosophy) live in `.void/PHILOSOPHY.md`
+rules (your global coding philosophy) live in `.void/installed/PHILOSOPHY.md`
 (managed by void-harness — to change them, propose a PR on the void-harness
 repo via the `harness:learning-capture` skill's harness-gap branch).
 
 The two files are imported into every Claude Code session via the
-`@.void/PHILOSOPHY.md` and `@.void/PROJECT-DOCTRINE.md` references
+`@.void/installed/PHILOSOPHY.md` and `@.void/PROJECT-DOCTRINE.md` references
 in `CLAUDE.md`.
 
 ---
@@ -61,7 +61,7 @@ the choice without paging the original team.
 
 Rules that apply HERE only — usually because of a specific dependency,
 incident, regulation, or domain constraint. If a rule is universal,
-it belongs in `.void/PHILOSOPHY.md`, not here.
+it belongs in `.void/installed/PHILOSOPHY.md`, not here.
 
 Format per rule:
 
@@ -115,7 +115,7 @@ is required.)
 
 Things THIS project has paid for and will never reintroduce. Universal
 anti-patterns (DI containers, CQRS default, raw `process.env`, etc.) are
-already in `.void/PHILOSOPHY.md` — list here only what is project-local.
+already in `.void/installed/PHILOSOPHY.md` — list here only what is project-local.
 
 - **<pattern>** : do not <action> in `<path>`.
   - **Why** : <incident / ADR>.

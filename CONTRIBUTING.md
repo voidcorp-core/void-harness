@@ -42,7 +42,7 @@ and commit the result. Editing a hook also changes its line count, which the gra
 
 ## Adding a skill
 
-Read `CLAUDE.md` ("Anti-bloat discipline" and "Sourcing discipline") before writing one. In short: one skill, one subject; no more than 30% responsibility overlap with an existing skill; distilled and adapted from its sources, never vendored verbatim; a `.source` sidecar next to it and an audit note in `plans/skill-audits/`.
+Read `CLAUDE.md` ("Anti-bloat discipline" and "Sourcing discipline") before writing one. In short: one skill, one subject; no more than 30% responsibility overlap with an existing skill; distilled and adapted from its sources, never vendored verbatim; a `.source` sidecar next to it and an audit note in `docs/plans/skill-audits/`.
 
 ## Multi-runtime
 

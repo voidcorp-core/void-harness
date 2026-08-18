@@ -34,7 +34,7 @@ Periodically the harness should audit itself:
 
 - Skills not invoked recently in any tracked session → candidate for deprecation
 - Upstream tooling deprecations (e.g., a library a skill references getting deprecated)
-- Repeated matrix conflicts in `plans/skill-decision-matrix.md` → boundaries need reshaping
+- Repeated matrix conflicts in `docs/plans/skill-decision-matrix.md` → boundaries need reshaping
 
 `void-harness audit` reports this from canonical `.void/runs/*/events.jsonl` journals; legacy activation and usage logs are merged as read-only history. It classifies harness skills as active, stale (`--stale-days <n>`, default 30), or never fired - the latter two are deprecation candidates. It reports only; deprecation PRs stay hand-authored (HITL). Upstream-tooling deprecation and matrix-conflict detection are planned extensions.
 
@@ -54,4 +54,4 @@ A single repo's telemetry is too thin to trust a "never fired" verdict (a skill 
 ## See also
 
 - `harness:learning-capture` skill — the in-Claude workflow for filing a friction as a void-harness issue during a coding session (and for capturing project rules).
-- `plans/frictions/` — historical frictions before the consumer-side convention shipped.
+- `docs/plans/frictions/` — historical frictions before the consumer-side convention shipped.

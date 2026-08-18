@@ -1,4 +1,4 @@
-Sources for `session-handoff` (see plans/skill-audits/session-handoff.md for the full audit).
+Sources for `checkpoint` (see docs/plans/skill-audits/checkpoint.md for the full audit).
 
 Original to void-harness. Written from the failure it is meant to prevent, observed repeatedly
 in this repository: a session ends, the next one re-derives the state from the diff and the

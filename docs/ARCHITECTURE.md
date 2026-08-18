@@ -29,10 +29,11 @@ void-harness/
 ├── apps/                          # private, unpublished tooling
 │   ├── graph-studio/              # the graph visualiser (Vite)
 │   └── eval-harness/              # @voidcorp/eval-harness — behavioral skill evals
-├── plans/                         # specs and implementation plans
-│   └── skill-audits/              # one audit note per vendored skill
 ├── test/                          # automated skill tests (citypaul-style)
 └── docs/                          # doctrine, architecture, release and decisions
+    ├── specs/                     # approved designs
+    ├── plans/                     # implementation plans
+    │   └── skill-audits/          # one audit note per vendored skill
     └── decisions-log/             # one immutable, collision-free file per ADR
 ```
 
@@ -132,7 +133,7 @@ Rules:
 - No file is auto-generated from the other. Auto-generation risks losing intentional adaptations. Manual authoring + mechanical gate is the safer trade-off.
 - **Doc ownership is per-runtime.** Each adapter's `wire` writes only its own doctrine doc — a Claude-only project has just `CLAUDE.md`, a Codex-only project just `AGENTS.md`. `doctor` checks only the docs of *detected* runtimes, so a Codex-only project is never dinged for a missing `CLAUDE.md`. (`add` / `remove` still patch whichever docs exist, keeping active docs current.)
 - **`init` wires each selected runtime's layer via its adapter**, gated by `--runtime <claude|codex|both>` (default: auto-detected footprint, else both). Claude receives native project-local skills, agents, commands and hooks; Codex receives `.agents/skills`, native `.codex/agents` and `.codex/hooks.json`. The package is bundled with all CLI runtime dependencies, so a tarball installs offline. `--source marketplace` is opt-in and is the only path that checks `gh`/marketplace access.
-- **Publication is transactional.** `init` seeds only shared merge targets into an isolated stage, compiles and executes each selected adapter's doctor smoke there, then atomically publishes a finite mutation set. Every target is snapshotted before the first write; a failure restores bytes and modes and removes only transaction-created paths. `.void/local/receipts/install-v1.json` hashes files the install created or already owned. Unowned native conflicts fail unless `--force`, and even force never grants deletion ownership over a pre-existing file.
+- **Publication is transactional.** `init` seeds only shared merge targets into an isolated stage, compiles and executes each selected adapter's doctor smoke there, then atomically publishes a finite mutation set. Every target is snapshotted before the first write; a failure restores bytes and modes and removes only transaction-created paths. `.void/machine/receipts/install-v1.json` hashes files the install created or already owned. Unowned native conflicts fail unless `--force`, and even force never grants deletion ownership over a pre-existing file.
 - **Runtimes are added a posteriori without friction**: `void-harness runtime add <runtime>` wires exactly that runtime's layer on an already-`init`-ed project, touching nothing the other runtime owns (verified byte-for-byte in tests). `runtime list` shows which are wired. This is the `void runtime add` command from the multi-runtime spec.
 - **Pack and update lifecycle uses the same transaction.** Local `add`/`remove` compile the exact
   config pack set and prune only unchanged receipt-owned stale assets. Local `update` recompiles
@@ -173,9 +174,9 @@ ticket or resume-point flow and does not need an active pointer.
 `void-harness self-host sync` is the only supported dogfood compiler for this
 meta-repository. It hashes bounded, symlink-free current inputs, builds the hook
 runner and a disposable runtime-adapter worker directly from TypeScript, then
-wires `.void/generated/.staging-*` through that current-source worker. The
+wires `.void/machine/generated/.staging-*` through that current-source worker. The
 source set is hashed again before publication; concurrent drift aborts.
-Publication swaps the complete directory to `.void/generated/current`; a
+Publication swaps the complete directory to `.void/machine/generated/current`; a
 failed swap restores the last green artifact.
 
 The deterministic receipt records the source hash, rollout mode and every owned
@@ -481,7 +482,7 @@ is gated by `graph check-bundle` (the artifact's embedded compatibility model mu
 `model.json`); see
 DECISIONS.md (2026-07-01). The artifact is excluded from the `core-assets` mirror.
 
-## Mission event journal (`.void/local/runs/<mission-id>/events.jsonl`)
+## Mission event journal (`.void/machine/runs/<mission-id>/events.jsonl`)
 
 ### Deterministic mission planning
 
@@ -682,7 +683,7 @@ A skill's SKILL.md frontmatter may declare `activation: always` or `activation: 
 (absent = `on-demand`, the default). It tells the graph cost/behavior kernels how the node
 earns its place:
 
-- `always` — doctrine followed **passively**: its rule applies via `@.void/PHILOSOPHY.md`
+- `always` — doctrine followed **passively**: its rule applies via `@.void/installed/PHILOSOPHY.md`
   and enforcing hooks, never invoked through the Skill tool, so `invocations: 0` is expected,
   not a death signal. Exempt from `dead` / `underused` / `low-yield`, marked with the positive
   `always` flag (still eligible for `expensive`). Granted only on **auditable backing**: the
@@ -777,7 +778,7 @@ actions — see DECISIONS.md 2026-07-21). Both are pure: no I/O, no clock, no mo
 `void-harness status` (`packages/cli/src/commands/status.ts`) is the imperative shell: it reads the
 certification + model + telemetry, executes each detected adapter's bounded local postconditions,
 calls the pure core, renders the terminal surface, and persists
-`.void/local/state.json` plus a `.void/local/history/<ts>.json` snapshot (both git-ignored, per-project runtime
+`.void/machine/status.json` plus a `.void/machine/history/<ts>.json` snapshot (both git-ignored, per-project runtime
 state). `generatedAt` is stamped by the shell so the core stays deterministic. Missing runtime,
 cost, smoke or observation data stays `unknown`/pending and is excluded from scores instead of being
 invented. Consumer-side bundled-certificate resolution and pack-aware filtering remain local and
@@ -785,42 +786,47 @@ offline.
 
 ## `.void/` ownership: declared, derived, observed
 
-Every path the harness materializes carries exactly one ownership class, and that
-class decides what git does with it. The map is code, not prose:
-`VOID_OWNERSHIP` in `packages/hook-runner/src/void-layout.ts` is the single source
-the ignore rule, the migration and `doctor` all read.
+The three levels above answer what deleting a path costs. Ownership answers the
+adjacent question, who wrote it and therefore what git does with it, and it
+covers all four materialized directories rather than `.void/` alone.
+`VOID_OWNERSHIP` stays the single source, as above.
 
 Three decisions built this, in order, and the log is append-only so each records
 what was true when it was taken: `void-layout-ownership-split` (observed state
-moves under `.void/local/`; it classified `derived` and deliberately left it
-tracked), `exact-rehydration-manifest` (the manifest and `hydrate`, which supplied
-the guarantee the next one needed), then `derived-content-is-not-committed` (which
-took the alternative the first had deferred). **This page carries the current
-state; the records carry the reasoning at each step.**
+moves off the top of `.void/` into a subdirectory of its own; it classified
+`derived` and deliberately left it tracked), `exact-rehydration-manifest` (the
+manifest and `hydrate`, which supplied the guarantee the next one needed), then
+`derived-content-is-not-committed` (which took the alternative the first had
+deferred). That subdirectory was later renamed `machine/`, and the derived half
+was given its own `installed/`, so each level is named for whose the content is
+instead of for where it happens to sit. **This page carries the current state;
+the records carry the reasoning at each step.**
 
 | class | what it means | examples | git |
 | --- | --- | --- | --- |
-| `project` | the project authors it; the harness never overwrites it | `.void/config.json`, `PROJECT-DOCTRINE.md`, `policies/`, `.claude/settings.json` | tracked |
-| `derived` | `void-harness init` re-materializes it from the harness assets | `.claude/skills/`, `.claude/agents/`, `.agents/skills/`, `.codex/agents/`, `PHILOSOPHY.md` | ignored, per receipt |
-| `observed` | this machine's history; meaningless in another checkout | `runs/`, `cache/`, `receipts/`, `state.json`, `*.jsonl` | never |
+| `project` | the project authors it; the harness never overwrites it | `.void/config.json`, `.void/PROJECT-DOCTRINE.md`, `.void/active.md`, `.claude/settings.json` | tracked |
+| `derived` | `void-harness init` re-materializes it from the harness assets | `.claude/skills/`, `.claude/agents/`, `.agents/skills/`, `.codex/agents/`, `.void/installed/PHILOSOPHY.md` | ignored, per receipt |
+| `observed` | this machine's history; meaningless in another checkout | `machine/runs/`, `machine/cache/`, `machine/receipts/`, `machine/status.json`, `machine/retired/*.jsonl` | never |
 
 The map covers all four materialized directories (`.void/`, `.claude/`,
 `.agents/`, `.codex/`), not just `.void/`: left unclassified they were tracked by
 default, which is 126 files and roughly 1.2 MB of vendored prose per consumer
 repository, rewritten whole on every version bump and in every review diff.
 
-**Observed state lives under `.void/local/`**, so the ignore rule is a single line
-with no `!` exception and stops needing maintenance: a new runtime artifact is
-born inside `local/` and no ignore file has to learn about it. `init` writes the
-marked block; `update` migrates a pre-split project and never overwrites a
-destination that already holds data; `doctor` proves the result with git
-(`check-ignore` + `ls-files`) rather than trusting that the block is present —
-an ignore rule has no effect on a path that was already tracked.
+**Observed state lives under `.void/machine/`**, so the ignore rule is a single
+line with no `!` exception and stops needing maintenance: a new runtime artifact
+is born inside `machine/` and no ignore file has to learn about it. `init` writes
+the marked block; `update` migrates a project off the previous layout, renaming
+`state.json` to `status.json` and filing the streams nothing reads any more under
+`machine/retired/`, and never overwrites a destination that already holds data;
+`doctor` proves the result with git (`check-ignore` + `ls-files`) rather than
+trusting that the block is present — an ignore rule has no effect on a path that
+was already tracked.
 
 An entry at the top of `.void/` that the map does not know answers `project`.
-`local/` is a **closed set** — every observed writer in the harness writes inside
-it — so a stranger at the top cannot be harness telemetry, and the failure of
-guessing wrong would be `doctor` telling a project to untrack its own data.
+`machine/` is a **closed set** — every observed writer in the harness writes
+inside it — so a stranger at the top cannot be harness telemetry, and the failure
+of guessing wrong would be `doctor` telling a project to untrack its own data.
 
 **Two derived paths stay tracked**, and the line between them is *what happens
 when the file is absent from a fresh clone*:
@@ -828,6 +834,8 @@ when the file is absent from a fresh clone*:
 - `.void/hooks/` is named from `.claude/settings.json`, which is `project` and
   therefore committed. Ignoring the runner while keeping the reference gives a
   clone a settings file pointing at a missing file, and every tool call fails.
+  That is also why it stays at the top of `.void/` rather than moving into
+  `installed/` with the rest of the derived half.
 - `.codex/hooks.json` **is** the Codex safety floor. Absent, the floor is simply
   not there — a silently weaker clone, the worst of the three states.
 
@@ -835,7 +843,7 @@ Everything else in the class degrades gracefully: fewer capabilities until the
 next `hydrate`, nothing broken. So: **what breaks stays, what degrades goes**
 (`DERIVED_LOAD_BEARING`). What makes this safe rather than merely tidy is that
 `hydrate` restores the ignored content from the manifest and **proves** it —
-see "Exact rehydration" above.
+see "Exact rehydration" below.
 
 An ignore rule has no effect on a path already in the index, so an existing
 project needs an explicit untrack. `void-harness update --untrack-derived` does
@@ -853,7 +861,7 @@ it. `.void/install-manifest.json` closes that gap.
 
 | artifact | class | says |
 | --- | --- | --- |
-| `.void/local/receipts/install-v1.json` | `observed` | what THIS MACHINE installed |
+| `.void/machine/receipts/install-v1.json` | `observed` | what THIS MACHINE installed |
 | `.void/install-manifest.json` | `project` | what THIS PROJECT expects |
 
 Same shape, opposite lifecycles — the ownership axis applied one level up. The
