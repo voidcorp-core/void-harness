@@ -1,5 +1,6 @@
 ---
 name: testing
+kind: standard
 activation: always
 triggers:
   globs: ["**/*.test.ts", "**/*.spec.ts"]

@@ -1,5 +1,6 @@
 ---
 name: plan
+kind: action
 description: Turn an approved spec into vertical slices with dependencies, TDD mode, verification gates, checkpoints, and a tracker handoff. Use after brainstorm approves a spec.
 owner: folpe
 runtimes: [claude, codex]

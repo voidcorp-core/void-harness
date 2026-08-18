@@ -1,5 +1,6 @@
 ---
 name: webhook-handler-pattern
+kind: standard
 description: Build a webhook handler with signature verification, idempotency, and dead-letter routing. Per-source patterns (Stripe, Resend, GitHub). Self-contained — no harness wrappers required.
 owner: folpe
 runtimes: [claude, codex]

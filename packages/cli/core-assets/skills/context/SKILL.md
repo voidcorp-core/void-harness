@@ -1,5 +1,6 @@
 ---
 name: context
+kind: standard
 description: Context is the agent's core constraint. Use when a task spans many files, a session mixes subjects, corrections loop, or replies forget earlier constraints. Clear, compact, delegate to subagents.
 owner: folpe
 runtimes: [claude, codex]

@@ -1,5 +1,6 @@
 ---
 name: package-extraction
+kind: standard
 description: Decide whether code in apps/<app>/ should be extracted into a new packages/<name>/ workspace. Most extractions are premature; this skill is the decision gate.
 owner: folpe
 runtimes: [claude, codex]

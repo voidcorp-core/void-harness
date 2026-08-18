@@ -1,5 +1,6 @@
 ---
 name: form-pattern
+kind: standard
 description: Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with harness-server:server-action.
 owner: folpe
 runtimes: [claude, codex]

@@ -1,5 +1,6 @@
 ---
 name: drizzle-migration-safe
+kind: standard
 description: Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. Composes with harness:migrations for the generic discipline.
 owner: folpe
 runtimes: [claude, codex]

@@ -1,5 +1,6 @@
 ---
 name: background-job-pattern
+kind: standard
 description: Run async work outside the request lifecycle: when to use a queue (Inngest, Trigger, Cloudflare Queues) vs a cron route. Idempotency, retry, dead-letter. Self-contained, no harness wrappers.
 owner: folpe
 runtimes: [claude, codex]

@@ -114,6 +114,36 @@ for f in packages/core/skills/*/SKILL.md packages/packs/*/skills/*/SKILL.md; do
     echo "    FAIL: $f name '$NAME' violates ^[a-z0-9]+(-[a-z0-9]+)*\$" >&2
     FAILED=1
   fi
+  # A skill is named by what someone would type looking for it without knowing
+  # it exists. `kind` says which grammar applies, so the rule is checkable
+  # instead of being an intention: an action takes its bare verb, a standard
+  # takes the subject it governs.
+  KIND=$(awk '/^kind:/{ sub(/^kind: */,""); print; exit }' "$f" 2>/dev/null || true)
+  case "$KIND" in
+    action|standard) ;;
+    "") echo "    FAIL: $f has no frontmatter 'kind:' (action or standard)" >&2; FAILED=1 ;;
+    *)  echo "    FAIL: $f kind '$KIND' is not action or standard" >&2; FAILED=1 ;;
+  esac
+  # A gerund names an activity, not a thing to run, so it is refused for an
+  # action. It stays legal for a standard, where `testing` is the subject a
+  # standard governs rather than a verb dressed as a noun.
+  if [[ "$KIND" == "action" && "$NAME" == *ing ]]; then
+    echo "    FAIL: $f action '$NAME' is a gerund; name it by its bare verb" >&2
+    FAILED=1
+  fi
+  # Agent-nouns name a person, and a skill is not one. `ticket-runner` announced
+  # someone while being a mechanism, which is the confusion this refuses.
+  case "$NAME" in
+    *-writer|*-runner|*-manager|*-handler|*-helper)
+      echo "    FAIL: $f name '$NAME' is an agent-noun; a skill is not a person" >&2
+      FAILED=1 ;;
+  esac
+  # Suffixes that carry no meaning: they lengthen the name without narrowing it.
+  case "$NAME" in
+    *-workflow|*-management|*-authoring|*-first)
+      echo "    FAIL: $f name '$NAME' ends in a filler suffix; the subject alone is the name" >&2
+      FAILED=1 ;;
+  esac
 done
 
 # Sourcing discipline: every skill (core + packs) ships a co-located `.source`

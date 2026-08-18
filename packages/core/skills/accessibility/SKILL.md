@@ -1,5 +1,6 @@
 ---
 name: accessibility
+kind: standard
 activation: always
 triggers:
   extensions: ["tsx"]

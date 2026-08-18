@@ -1,5 +1,6 @@
 ---
 name: async-safety
+kind: standard
 triggers:
   globs: ["**/webhooks/**", "**/jobs/**", "**/queues/**", "**/workers/**", "**/cron/**", "**/*.worker.ts"]
 description: Idempotency by design. At-least-once with consumer dedup. Signature verify, replay window, idempotency keys, outbox, bounded retries, DLQ. Use for async/webhook/job/cron code.

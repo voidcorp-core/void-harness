@@ -1,5 +1,6 @@
 ---
 name: migrations
+kind: standard
 activation: always
 triggers:
   globs: ["**/migrations/**", "**/*.sql"]

@@ -1,5 +1,6 @@
 ---
 name: security-guidance
+kind: standard
 activation: always
 description: Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. Escalate to security-audit for deep audits. Use on trust-boundary code.
 owner: folpe

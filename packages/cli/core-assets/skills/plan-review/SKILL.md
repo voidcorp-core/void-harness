@@ -1,5 +1,6 @@
 ---
 name: plan-review
+kind: action
 activation: on-demand
 description: "Critique a written plan (not a diff) via four lenses: CEO premise/ambition, Eng test-coverage, Design states/slop, DevEx time-to-first-value. Proposes findings; the author disposes."
 owner: folpe

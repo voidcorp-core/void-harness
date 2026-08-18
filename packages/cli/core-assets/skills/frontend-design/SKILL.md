@@ -1,5 +1,6 @@
 ---
 name: frontend-design
+kind: action
 activation: always
 triggers:
   extensions: ["tsx"]

@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:115f19b2019773907292a736c360b9daa8d5a9512a102b257bb16c25f18a6ee3"
+    "rootHash": "sha256:525e5561dc95cbd0452a5f4c9a9b2ea9f07b7dd12935c3d4936c9fcba96317c1"
   },
   "nodes": [
     {
@@ -2076,7 +2076,7 @@
             }
           ],
           "id": "skill:accessibility",
-          "lines": 288,
+          "lines": 289,
           "name": "accessibility",
           "owner": "folpe",
           "pack": null,
@@ -2085,7 +2085,7 @@
             "codex"
           ],
           "source": "packages/core/skills/accessibility/SKILL.md",
-          "staticTokens": 2251,
+          "staticTokens": 2255,
           "triggers": {
             "extensions": [
               "tsx"
@@ -2129,7 +2129,7 @@
             }
           ],
           "id": "skill:api-and-interface-design",
-          "lines": 243,
+          "lines": 244,
           "name": "api-and-interface-design",
           "owner": "folpe",
           "pack": null,
@@ -2138,7 +2138,7 @@
             "codex"
           ],
           "source": "packages/core/skills/api-and-interface-design/SKILL.md",
-          "staticTokens": 3421,
+          "staticTokens": 3424,
           "triggers": {
             "globs": [
               "**/src/index.ts",
@@ -2185,7 +2185,7 @@
             }
           ],
           "id": "skill:async-safety",
-          "lines": 299,
+          "lines": 300,
           "name": "async-safety",
           "owner": "folpe",
           "pack": null,
@@ -2194,7 +2194,7 @@
             "codex"
           ],
           "source": "packages/core/skills/async-safety/SKILL.md",
-          "staticTokens": 3097,
+          "staticTokens": 3100,
           "triggers": {
             "globs": [
               "**/webhooks/**",
@@ -2243,7 +2243,7 @@
             }
           ],
           "id": "skill:autopilot",
-          "lines": 161,
+          "lines": 162,
           "name": "autopilot",
           "owner": "folpe",
           "pack": null,
@@ -2252,7 +2252,7 @@
             "codex"
           ],
           "source": "packages/core/skills/autopilot/SKILL.md",
-          "staticTokens": 2305,
+          "staticTokens": 2308,
           "type": "skill"
         }
       },
@@ -2291,7 +2291,7 @@
             }
           ],
           "id": "skill:brainstorm",
-          "lines": 234,
+          "lines": 235,
           "name": "brainstorm",
           "owner": "folpe",
           "pack": null,
@@ -2300,7 +2300,7 @@
             "codex"
           ],
           "source": "packages/core/skills/brainstorm/SKILL.md",
-          "staticTokens": 3505,
+          "staticTokens": 3509,
           "type": "skill"
         }
       },
@@ -2339,7 +2339,7 @@
             }
           ],
           "id": "skill:checkpoint",
-          "lines": 230,
+          "lines": 231,
           "name": "checkpoint",
           "owner": "folpe",
           "pack": null,
@@ -2348,7 +2348,7 @@
             "codex"
           ],
           "source": "packages/core/skills/checkpoint/SKILL.md",
-          "staticTokens": 2755,
+          "staticTokens": 2758,
           "type": "skill"
         }
       },
@@ -2387,7 +2387,7 @@
             }
           ],
           "id": "skill:claude-md",
-          "lines": 190,
+          "lines": 191,
           "name": "claude-md",
           "owner": "folpe",
           "pack": null,
@@ -2396,7 +2396,7 @@
             "codex"
           ],
           "source": "packages/core/skills/claude-md/SKILL.md",
-          "staticTokens": 2682,
+          "staticTokens": 2686,
           "type": "skill"
         }
       },
@@ -2436,7 +2436,7 @@
             }
           ],
           "id": "skill:code-review",
-          "lines": 229,
+          "lines": 230,
           "name": "code-review",
           "owner": "folpe",
           "pack": null,
@@ -2445,7 +2445,7 @@
             "codex"
           ],
           "source": "packages/core/skills/code-review/SKILL.md",
-          "staticTokens": 2755,
+          "staticTokens": 2758,
           "type": "skill"
         }
       },
@@ -2485,7 +2485,7 @@
             }
           ],
           "id": "skill:commit-discipline",
-          "lines": 222,
+          "lines": 223,
           "name": "commit-discipline",
           "owner": "folpe",
           "pack": null,
@@ -2494,7 +2494,7 @@
             "codex"
           ],
           "source": "packages/core/skills/commit-discipline/SKILL.md",
-          "staticTokens": 1899,
+          "staticTokens": 1903,
           "type": "skill"
         }
       },
@@ -2533,7 +2533,7 @@
             }
           ],
           "id": "skill:context",
-          "lines": 171,
+          "lines": 172,
           "name": "context",
           "owner": "folpe",
           "pack": null,
@@ -2542,7 +2542,7 @@
             "codex"
           ],
           "source": "packages/core/skills/context/SKILL.md",
-          "staticTokens": 2618,
+          "staticTokens": 2622,
           "type": "skill"
         }
       },
@@ -2581,7 +2581,7 @@
             }
           ],
           "id": "skill:debug",
-          "lines": 221,
+          "lines": 222,
           "name": "debug",
           "owner": "folpe",
           "pack": null,
@@ -2590,7 +2590,7 @@
             "codex"
           ],
           "source": "packages/core/skills/debug/SKILL.md",
-          "staticTokens": 2342,
+          "staticTokens": 2345,
           "type": "skill"
         }
       },
@@ -2629,7 +2629,7 @@
             }
           ],
           "id": "skill:decide",
-          "lines": 148,
+          "lines": 149,
           "name": "decide",
           "owner": "folpe",
           "pack": null,
@@ -2638,7 +2638,7 @@
             "codex"
           ],
           "source": "packages/core/skills/decide/SKILL.md",
-          "staticTokens": 1062,
+          "staticTokens": 1065,
           "type": "skill"
         }
       },
@@ -2678,7 +2678,7 @@
             }
           ],
           "id": "skill:devex-audit",
-          "lines": 124,
+          "lines": 125,
           "name": "devex-audit",
           "owner": "folpe",
           "pack": null,
@@ -2687,7 +2687,7 @@
             "codex"
           ],
           "source": "packages/core/skills/devex-audit/SKILL.md",
-          "staticTokens": 2145,
+          "staticTokens": 2148,
           "type": "skill"
         }
       },
@@ -2727,7 +2727,7 @@
             }
           ],
           "id": "skill:domain-driven-design",
-          "lines": 303,
+          "lines": 304,
           "name": "domain-driven-design",
           "owner": "folpe",
           "pack": null,
@@ -2736,7 +2736,7 @@
             "codex"
           ],
           "source": "packages/core/skills/domain-driven-design/SKILL.md",
-          "staticTokens": 3179,
+          "staticTokens": 3183,
           "type": "skill"
         }
       },
@@ -2776,7 +2776,7 @@
             }
           ],
           "id": "skill:frontend-design",
-          "lines": 287,
+          "lines": 288,
           "name": "frontend-design",
           "owner": "folpe",
           "pack": null,
@@ -2785,7 +2785,7 @@
             "codex"
           ],
           "source": "packages/core/skills/frontend-design/SKILL.md",
-          "staticTokens": 3629,
+          "staticTokens": 3632,
           "triggers": {
             "extensions": [
               "tsx"
@@ -2830,7 +2830,7 @@
             }
           ],
           "id": "skill:functional",
-          "lines": 323,
+          "lines": 324,
           "name": "functional",
           "owner": "folpe",
           "pack": null,
@@ -2839,7 +2839,7 @@
             "codex"
           ],
           "source": "packages/core/skills/functional/SKILL.md",
-          "staticTokens": 2839,
+          "staticTokens": 2843,
           "type": "skill"
         }
       },
@@ -2879,7 +2879,7 @@
             }
           ],
           "id": "skill:hexagonal-architecture",
-          "lines": 287,
+          "lines": 288,
           "name": "hexagonal-architecture",
           "owner": "folpe",
           "pack": null,
@@ -2888,7 +2888,7 @@
             "codex"
           ],
           "source": "packages/core/skills/hexagonal-architecture/SKILL.md",
-          "staticTokens": 2755,
+          "staticTokens": 2758,
           "type": "skill"
         }
       },
@@ -2927,7 +2927,7 @@
             }
           ],
           "id": "skill:implement",
-          "lines": 145,
+          "lines": 146,
           "name": "implement",
           "owner": "folpe",
           "pack": null,
@@ -2936,7 +2936,7 @@
             "codex"
           ],
           "source": "packages/core/skills/implement/SKILL.md",
-          "staticTokens": 3334,
+          "staticTokens": 3337,
           "type": "skill"
         }
       },
@@ -2975,7 +2975,7 @@
             }
           ],
           "id": "skill:learn",
-          "lines": 219,
+          "lines": 220,
           "name": "learn",
           "owner": "folpe",
           "pack": null,
@@ -2984,7 +2984,7 @@
             "codex"
           ],
           "source": "packages/core/skills/learn/SKILL.md",
-          "staticTokens": 2852,
+          "staticTokens": 2855,
           "type": "skill"
         }
       },
@@ -3024,7 +3024,7 @@
             }
           ],
           "id": "skill:llm-cost-discipline",
-          "lines": 310,
+          "lines": 311,
           "name": "llm-cost-discipline",
           "owner": "folpe",
           "pack": null,
@@ -3033,7 +3033,7 @@
             "codex"
           ],
           "source": "packages/core/skills/llm-cost-discipline/SKILL.md",
-          "staticTokens": 2553,
+          "staticTokens": 2557,
           "type": "skill"
         }
       },
@@ -3073,7 +3073,7 @@
             }
           ],
           "id": "skill:make-pdf",
-          "lines": 56,
+          "lines": 57,
           "name": "make-pdf",
           "owner": "folpe",
           "pack": null,
@@ -3082,7 +3082,7 @@
             "codex"
           ],
           "source": "packages/core/skills/make-pdf/SKILL.md",
-          "staticTokens": 835,
+          "staticTokens": 838,
           "type": "skill"
         }
       },
@@ -3122,7 +3122,7 @@
             }
           ],
           "id": "skill:migrations",
-          "lines": 277,
+          "lines": 278,
           "name": "migrations",
           "owner": "folpe",
           "pack": null,
@@ -3131,7 +3131,7 @@
             "codex"
           ],
           "source": "packages/core/skills/migrations/SKILL.md",
-          "staticTokens": 2242,
+          "staticTokens": 2246,
           "triggers": {
             "globs": [
               "**/migrations/**",
@@ -3177,7 +3177,7 @@
             }
           ],
           "id": "skill:observability",
-          "lines": 256,
+          "lines": 257,
           "name": "observability",
           "owner": "folpe",
           "pack": null,
@@ -3186,7 +3186,7 @@
             "codex"
           ],
           "source": "packages/core/skills/observability/SKILL.md",
-          "staticTokens": 2241,
+          "staticTokens": 2245,
           "type": "skill"
         }
       },
@@ -3225,7 +3225,7 @@
             }
           ],
           "id": "skill:pack-mobile/eas-build-profile",
-          "lines": 174,
+          "lines": 175,
           "name": "eas-build-profile",
           "owner": "folpe",
           "pack": "pack-mobile",
@@ -3234,7 +3234,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-mobile/skills/eas-build-profile/SKILL.md",
-          "staticTokens": 1519,
+          "staticTokens": 1522,
           "type": "skill"
         }
       },
@@ -3273,7 +3273,7 @@
             }
           ],
           "id": "skill:pack-mobile/expo-config-plugins",
-          "lines": 188,
+          "lines": 189,
           "name": "expo-config-plugins",
           "owner": "folpe",
           "pack": "pack-mobile",
@@ -3282,7 +3282,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-mobile/skills/expo-config-plugins/SKILL.md",
-          "staticTokens": 1612,
+          "staticTokens": 1615,
           "type": "skill"
         }
       },
@@ -3321,7 +3321,7 @@
             }
           ],
           "id": "skill:pack-mobile/expo-router-pattern",
-          "lines": 219,
+          "lines": 220,
           "name": "expo-router-pattern",
           "owner": "folpe",
           "pack": "pack-mobile",
@@ -3330,7 +3330,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-mobile/skills/expo-router-pattern/SKILL.md",
-          "staticTokens": 1661,
+          "staticTokens": 1665,
           "type": "skill"
         }
       },
@@ -3369,7 +3369,7 @@
             }
           ],
           "id": "skill:pack-mobile/ota-update-strategy",
-          "lines": 204,
+          "lines": 205,
           "name": "ota-update-strategy",
           "owner": "folpe",
           "pack": "pack-mobile",
@@ -3378,7 +3378,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-mobile/skills/ota-update-strategy/SKILL.md",
-          "staticTokens": 1796,
+          "staticTokens": 1800,
           "type": "skill"
         }
       },
@@ -3417,7 +3417,7 @@
             }
           ],
           "id": "skill:pack-monorepo/dependency-direction",
-          "lines": 170,
+          "lines": 171,
           "name": "dependency-direction",
           "owner": "folpe",
           "pack": "pack-monorepo",
@@ -3426,7 +3426,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-monorepo/skills/dependency-direction/SKILL.md",
-          "staticTokens": 1466,
+          "staticTokens": 1470,
           "type": "skill"
         }
       },
@@ -3465,7 +3465,7 @@
             }
           ],
           "id": "skill:pack-monorepo/package-extraction",
-          "lines": 80,
+          "lines": 81,
           "name": "package-extraction",
           "owner": "folpe",
           "pack": "pack-monorepo",
@@ -3474,7 +3474,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-monorepo/skills/package-extraction/SKILL.md",
-          "staticTokens": 1116,
+          "staticTokens": 1120,
           "type": "skill"
         }
       },
@@ -3513,7 +3513,7 @@
             }
           ],
           "id": "skill:pack-monorepo/service-package",
-          "lines": 132,
+          "lines": 133,
           "name": "service-package",
           "owner": "folpe",
           "pack": "pack-monorepo",
@@ -3522,7 +3522,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-monorepo/skills/service-package/SKILL.md",
-          "staticTokens": 1517,
+          "staticTokens": 1521,
           "type": "skill"
         }
       },
@@ -3561,7 +3561,7 @@
             }
           ],
           "id": "skill:pack-monorepo/turbo-pipeline-tuning",
-          "lines": 126,
+          "lines": 127,
           "name": "turbo-pipeline-tuning",
           "owner": "folpe",
           "pack": "pack-monorepo",
@@ -3570,7 +3570,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-monorepo/skills/turbo-pipeline-tuning/SKILL.md",
-          "staticTokens": 1338,
+          "staticTokens": 1341,
           "type": "skill"
         }
       },
@@ -3609,7 +3609,7 @@
             }
           ],
           "id": "skill:pack-nextjs/cache-component-pattern",
-          "lines": 172,
+          "lines": 173,
           "name": "cache-component-pattern",
           "owner": "folpe",
           "pack": "pack-nextjs",
@@ -3618,7 +3618,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-nextjs/skills/cache-component-pattern/SKILL.md",
-          "staticTokens": 1767,
+          "staticTokens": 1771,
           "type": "skill"
         }
       },
@@ -3657,7 +3657,7 @@
             }
           ],
           "id": "skill:pack-nextjs/instrumentation-setup",
-          "lines": 171,
+          "lines": 172,
           "name": "instrumentation-setup",
           "owner": "folpe",
           "pack": "pack-nextjs",
@@ -3666,7 +3666,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-nextjs/skills/instrumentation-setup/SKILL.md",
-          "staticTokens": 1445,
+          "staticTokens": 1449,
           "type": "skill"
         }
       },
@@ -3705,7 +3705,7 @@
             }
           ],
           "id": "skill:pack-nextjs/loading-error-boundaries",
-          "lines": 186,
+          "lines": 187,
           "name": "loading-error-boundaries",
           "owner": "folpe",
           "pack": "pack-nextjs",
@@ -3714,7 +3714,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-nextjs/skills/loading-error-boundaries/SKILL.md",
-          "staticTokens": 1713,
+          "staticTokens": 1716,
           "type": "skill"
         }
       },
@@ -3753,7 +3753,7 @@
             }
           ],
           "id": "skill:pack-nextjs/parallel-routes-slots",
-          "lines": 139,
+          "lines": 140,
           "name": "parallel-routes-slots",
           "owner": "folpe",
           "pack": "pack-nextjs",
@@ -3762,7 +3762,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-nextjs/skills/parallel-routes-slots/SKILL.md",
-          "staticTokens": 1365,
+          "staticTokens": 1369,
           "type": "skill"
         }
       },
@@ -3801,7 +3801,7 @@
             }
           ],
           "id": "skill:pack-nextjs/route-group-decision",
-          "lines": 117,
+          "lines": 118,
           "name": "route-group-decision",
           "owner": "folpe",
           "pack": "pack-nextjs",
@@ -3810,7 +3810,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-nextjs/skills/route-group-decision/SKILL.md",
-          "staticTokens": 1337,
+          "staticTokens": 1341,
           "type": "skill"
         }
       },
@@ -3849,7 +3849,7 @@
             }
           ],
           "id": "skill:pack-pwa/install-prompt-ux",
-          "lines": 163,
+          "lines": 164,
           "name": "install-prompt-ux",
           "owner": "folpe",
           "pack": "pack-pwa",
@@ -3858,7 +3858,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-pwa/skills/install-prompt-ux/SKILL.md",
-          "staticTokens": 1706,
+          "staticTokens": 1709,
           "type": "skill"
         }
       },
@@ -3897,7 +3897,7 @@
             }
           ],
           "id": "skill:pack-pwa/manifest-checklist",
-          "lines": 214,
+          "lines": 215,
           "name": "manifest-checklist",
           "owner": "folpe",
           "pack": "pack-pwa",
@@ -3906,7 +3906,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-pwa/skills/manifest-checklist/SKILL.md",
-          "staticTokens": 1614,
+          "staticTokens": 1618,
           "type": "skill"
         }
       },
@@ -3945,7 +3945,7 @@
             }
           ],
           "id": "skill:pack-pwa/offline-first-mutation",
-          "lines": 276,
+          "lines": 277,
           "name": "offline-first-mutation",
           "owner": "folpe",
           "pack": "pack-pwa",
@@ -3954,7 +3954,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-pwa/skills/offline-first-mutation/SKILL.md",
-          "staticTokens": 2544,
+          "staticTokens": 2547,
           "type": "skill"
         }
       },
@@ -3993,7 +3993,7 @@
             }
           ],
           "id": "skill:pack-pwa/service-worker-strategy",
-          "lines": 188,
+          "lines": 189,
           "name": "service-worker-strategy",
           "owner": "folpe",
           "pack": "pack-pwa",
@@ -4002,7 +4002,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-pwa/skills/service-worker-strategy/SKILL.md",
-          "staticTokens": 1869,
+          "staticTokens": 1873,
           "type": "skill"
         }
       },
@@ -4041,7 +4041,7 @@
             }
           ],
           "id": "skill:pack-react/accessibility-check",
-          "lines": 146,
+          "lines": 147,
           "name": "accessibility-check",
           "owner": "folpe",
           "pack": "pack-react",
@@ -4050,7 +4050,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-react/skills/accessibility-check/SKILL.md",
-          "staticTokens": 1579,
+          "staticTokens": 1583,
           "type": "skill"
         }
       },
@@ -4089,7 +4089,7 @@
             }
           ],
           "id": "skill:pack-react/client-vs-server-component",
-          "lines": 126,
+          "lines": 127,
           "name": "client-vs-server-component",
           "owner": "folpe",
           "pack": "pack-react",
@@ -4098,7 +4098,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-react/skills/client-vs-server-component/SKILL.md",
-          "staticTokens": 1362,
+          "staticTokens": 1366,
           "type": "skill"
         }
       },
@@ -4137,7 +4137,7 @@
             }
           ],
           "id": "skill:pack-react/form-pattern",
-          "lines": 167,
+          "lines": 168,
           "name": "form-pattern",
           "owner": "folpe",
           "pack": "pack-react",
@@ -4146,7 +4146,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-react/skills/form-pattern/SKILL.md",
-          "staticTokens": 1746,
+          "staticTokens": 1749,
           "type": "skill"
         }
       },
@@ -4185,7 +4185,7 @@
             }
           ],
           "id": "skill:pack-react/state-architecture",
-          "lines": 170,
+          "lines": 171,
           "name": "state-architecture",
           "owner": "folpe",
           "pack": "pack-react",
@@ -4194,7 +4194,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-react/skills/state-architecture/SKILL.md",
-          "staticTokens": 1726,
+          "staticTokens": 1730,
           "type": "skill"
         }
       },
@@ -4233,7 +4233,7 @@
             }
           ],
           "id": "skill:pack-server/background-job-pattern",
-          "lines": 224,
+          "lines": 225,
           "name": "background-job-pattern",
           "owner": "folpe",
           "pack": "pack-server",
@@ -4242,7 +4242,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-server/skills/background-job-pattern/SKILL.md",
-          "staticTokens": 2283,
+          "staticTokens": 2287,
           "type": "skill"
         }
       },
@@ -4281,7 +4281,7 @@
             }
           ],
           "id": "skill:pack-server/drizzle-migration-safe",
-          "lines": 178,
+          "lines": 179,
           "name": "drizzle-migration-safe",
           "owner": "folpe",
           "pack": "pack-server",
@@ -4290,7 +4290,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-server/skills/drizzle-migration-safe/SKILL.md",
-          "staticTokens": 2150,
+          "staticTokens": 2154,
           "type": "skill"
         }
       },
@@ -4329,7 +4329,7 @@
             }
           ],
           "id": "skill:pack-server/env-validation",
-          "lines": 141,
+          "lines": 142,
           "name": "env-validation",
           "owner": "folpe",
           "pack": "pack-server",
@@ -4338,7 +4338,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-server/skills/env-validation/SKILL.md",
-          "staticTokens": 1457,
+          "staticTokens": 1460,
           "type": "skill"
         }
       },
@@ -4377,7 +4377,7 @@
             }
           ],
           "id": "skill:pack-server/rate-limit-strategy",
-          "lines": 159,
+          "lines": 160,
           "name": "rate-limit-strategy",
           "owner": "folpe",
           "pack": "pack-server",
@@ -4386,7 +4386,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-server/skills/rate-limit-strategy/SKILL.md",
-          "staticTokens": 1770,
+          "staticTokens": 1774,
           "type": "skill"
         }
       },
@@ -4425,7 +4425,7 @@
             }
           ],
           "id": "skill:pack-server/server-action",
-          "lines": 191,
+          "lines": 192,
           "name": "server-action",
           "owner": "folpe",
           "pack": "pack-server",
@@ -4434,7 +4434,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-server/skills/server-action/SKILL.md",
-          "staticTokens": 2174,
+          "staticTokens": 2178,
           "type": "skill"
         }
       },
@@ -4473,7 +4473,7 @@
             }
           ],
           "id": "skill:pack-server/testing-server-modules",
-          "lines": 83,
+          "lines": 84,
           "name": "testing-server-modules",
           "owner": "folpe",
           "pack": "pack-server",
@@ -4482,7 +4482,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-server/skills/testing-server-modules/SKILL.md",
-          "staticTokens": 969,
+          "staticTokens": 973,
           "type": "skill"
         }
       },
@@ -4521,7 +4521,7 @@
             }
           ],
           "id": "skill:pack-server/webhook-handler-pattern",
-          "lines": 215,
+          "lines": 216,
           "name": "webhook-handler-pattern",
           "owner": "folpe",
           "pack": "pack-server",
@@ -4530,7 +4530,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-server/skills/webhook-handler-pattern/SKILL.md",
-          "staticTokens": 2171,
+          "staticTokens": 2175,
           "type": "skill"
         }
       },
@@ -4569,7 +4569,7 @@
             }
           ],
           "id": "skill:plan",
-          "lines": 243,
+          "lines": 244,
           "name": "plan",
           "owner": "folpe",
           "pack": null,
@@ -4578,7 +4578,7 @@
             "codex"
           ],
           "source": "packages/core/skills/plan/SKILL.md",
-          "staticTokens": 2633,
+          "staticTokens": 2637,
           "type": "skill"
         }
       },
@@ -4618,7 +4618,7 @@
             }
           ],
           "id": "skill:plan-review",
-          "lines": 139,
+          "lines": 140,
           "name": "plan-review",
           "owner": "folpe",
           "pack": null,
@@ -4627,7 +4627,7 @@
             "codex"
           ],
           "source": "packages/core/skills/plan-review/SKILL.md",
-          "staticTokens": 2716,
+          "staticTokens": 2719,
           "type": "skill"
         }
       },
@@ -4667,7 +4667,7 @@
             }
           ],
           "id": "skill:qa",
-          "lines": 114,
+          "lines": 115,
           "name": "qa",
           "owner": "folpe",
           "pack": null,
@@ -4676,7 +4676,7 @@
             "codex"
           ],
           "source": "packages/core/skills/qa/SKILL.md",
-          "staticTokens": 2667,
+          "staticTokens": 2671,
           "type": "skill"
         }
       },
@@ -4716,7 +4716,7 @@
             }
           ],
           "id": "skill:refactor",
-          "lines": 231,
+          "lines": 232,
           "name": "refactor",
           "owner": "folpe",
           "pack": null,
@@ -4725,7 +4725,7 @@
             "codex"
           ],
           "source": "packages/core/skills/refactor/SKILL.md",
-          "staticTokens": 2463,
+          "staticTokens": 2466,
           "type": "skill"
         }
       },
@@ -4765,7 +4765,7 @@
             }
           ],
           "id": "skill:retrospective",
-          "lines": 82,
+          "lines": 83,
           "name": "retrospective",
           "owner": "folpe",
           "pack": null,
@@ -4774,7 +4774,7 @@
             "codex"
           ],
           "source": "packages/core/skills/retrospective/SKILL.md",
-          "staticTokens": 1387,
+          "staticTokens": 1390,
           "type": "skill"
         }
       },
@@ -4814,7 +4814,7 @@
             }
           ],
           "id": "skill:security-audit",
-          "lines": 149,
+          "lines": 150,
           "name": "security-audit",
           "owner": "folpe",
           "pack": null,
@@ -4823,7 +4823,7 @@
             "codex"
           ],
           "source": "packages/core/skills/security-audit/SKILL.md",
-          "staticTokens": 4217,
+          "staticTokens": 4220,
           "type": "skill"
         }
       },
@@ -4863,7 +4863,7 @@
             }
           ],
           "id": "skill:security-guidance",
-          "lines": 266,
+          "lines": 267,
           "name": "security-guidance",
           "owner": "folpe",
           "pack": null,
@@ -4872,7 +4872,7 @@
             "codex"
           ],
           "source": "packages/core/skills/security-guidance/SKILL.md",
-          "staticTokens": 2509,
+          "staticTokens": 2513,
           "type": "skill"
         }
       },
@@ -4912,7 +4912,7 @@
             }
           ],
           "id": "skill:source-driven-development",
-          "lines": 173,
+          "lines": 174,
           "name": "source-driven-development",
           "owner": "folpe",
           "pack": null,
@@ -4921,7 +4921,7 @@
             "codex"
           ],
           "source": "packages/core/skills/source-driven-development/SKILL.md",
-          "staticTokens": 2423,
+          "staticTokens": 2426,
           "type": "skill"
         }
       },
@@ -4961,7 +4961,7 @@
             }
           ],
           "id": "skill:tdd",
-          "lines": 398,
+          "lines": 399,
           "name": "tdd",
           "owner": "folpe",
           "pack": null,
@@ -4970,7 +4970,7 @@
             "codex"
           ],
           "source": "packages/core/skills/tdd/SKILL.md",
-          "staticTokens": 3693,
+          "staticTokens": 3697,
           "type": "skill"
         }
       },
@@ -5010,7 +5010,7 @@
             }
           ],
           "id": "skill:testing",
-          "lines": 296,
+          "lines": 297,
           "name": "testing",
           "owner": "folpe",
           "pack": null,
@@ -5019,7 +5019,7 @@
             "codex"
           ],
           "source": "packages/core/skills/testing/SKILL.md",
-          "staticTokens": 2842,
+          "staticTokens": 2846,
           "triggers": {
             "globs": [
               "**/*.test.ts",
@@ -5064,7 +5064,7 @@
             }
           ],
           "id": "skill:ticket",
-          "lines": 142,
+          "lines": 143,
           "name": "ticket",
           "owner": "folpe",
           "pack": null,
@@ -5073,7 +5073,7 @@
             "codex"
           ],
           "source": "packages/core/skills/ticket/SKILL.md",
-          "staticTokens": 2091,
+          "staticTokens": 2094,
           "type": "skill"
         }
       },
@@ -5113,7 +5113,7 @@
             }
           ],
           "id": "skill:typescript-strict",
-          "lines": 307,
+          "lines": 308,
           "name": "typescript-strict",
           "owner": "folpe",
           "pack": null,
@@ -5122,7 +5122,7 @@
             "codex"
           ],
           "source": "packages/core/skills/typescript-strict/SKILL.md",
-          "staticTokens": 2720,
+          "staticTokens": 2724,
           "triggers": {
             "extensions": [
               "ts",
@@ -5168,7 +5168,7 @@
             }
           ],
           "id": "skill:ui-review",
-          "lines": 108,
+          "lines": 109,
           "name": "ui-review",
           "owner": "folpe",
           "pack": null,
@@ -5177,7 +5177,7 @@
             "codex"
           ],
           "source": "packages/core/skills/ui-review/SKILL.md",
-          "staticTokens": 2001,
+          "staticTokens": 2004,
           "type": "skill"
         }
       },
@@ -5217,7 +5217,7 @@
             }
           ],
           "id": "skill:verify",
-          "lines": 186,
+          "lines": 187,
           "name": "verify",
           "owner": "folpe",
           "pack": null,
@@ -5226,7 +5226,7 @@
             "codex"
           ],
           "source": "packages/core/skills/verify/SKILL.md",
-          "staticTokens": 1977,
+          "staticTokens": 1980,
           "type": "skill"
         }
       },

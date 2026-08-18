@@ -1,5 +1,6 @@
 ---
 name: service-worker-strategy
+kind: standard
 description: Pick caching strategy per route class (NetworkFirst, CacheFirst, StaleWhileRevalidate, NetworkOnly), version your caches, handle update activation. Use Serwist (Next) or vite-plugin-pwa.
 owner: folpe
 runtimes: [claude, codex]

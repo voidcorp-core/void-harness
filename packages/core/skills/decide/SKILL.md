@@ -1,5 +1,6 @@
 ---
 name: decide
+kind: action
 description: Capture structural choices as one immutable ADR file with collision-free identity, explicit alternatives, reversal cost, and supersession. Use when future code depends on why.
 owner: folpe
 runtimes: [claude, codex]

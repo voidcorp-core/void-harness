@@ -1,5 +1,6 @@
 ---
 name: brainstorm
+kind: action
 description: "Explore intent before code: pressure-test a raw idea, one question at a time, 2-3 approaches, design in sections, spec written and approved. HARD GATE — no code until the spec is approved."
 owner: folpe
 runtimes: [claude, codex]

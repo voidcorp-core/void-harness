@@ -1,5 +1,6 @@
 ---
 name: autopilot
+kind: action
 description: Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR a human merges.
 owner: folpe
 runtimes: [claude, codex]

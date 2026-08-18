@@ -1,5 +1,6 @@
 ---
 name: accessibility-check
+kind: standard
 description: Per-component accessibility checklist: semantic HTML, ARIA, keyboard, focus, contrast, touch targets. Auto-applies on any React component edit. Composes with harness:accessibility.
 owner: folpe
 runtimes: [claude, codex]
