@@ -98,10 +98,9 @@ function trackedCheck(observation: LayoutObservation): CheckResult {
 }
 
 /**
- * Advisory, not a failure: nothing is broken, the agent simply has two versions
- * of a doctrine and answers from whichever it loads first. It is also not ours
- * to delete, since the bytes were changed by hand, so the remedy belongs to the
- * person who changed them.
+ * Advisory, not a failure: nothing is broken, but the agent has two versions of
+ * a doctrine and answers from whichever it loads first. Update can reconcile
+ * exact historical ownership; anything else needs human review.
  */
 function orphanCheck(observation: LayoutObservation): CheckResult {
   const name = 'void orphans';
@@ -116,7 +115,7 @@ function orphanCheck(observation: LayoutObservation): CheckResult {
     message:
       `${String(orphans.length)} harness asset(s) the manifest no longer owns still load: `
       + `${orphans.slice(0, 3).join(', ')}${orphans.length > 3 ? ', ...' : ''}`,
-    fix: 'they were edited locally, so update kept them; delete them to stop loading two versions',
+    fix: 'void-harness update removes exact files proven by an install receipt; review and delete any edited remainder',
   };
 }
 

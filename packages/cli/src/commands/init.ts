@@ -18,9 +18,9 @@ import { existsSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { derivedIgnoreEntries, patchGitignore } from '@voidcorp/hook-runner';
 import * as p from '@clack/prompts';
-import { prepareInstallCommit, seedInstallStage, stageInstallManifest, stagedRelativePaths } from '../lib/local-install.js';
+import { derivedIgnoreEntries, patchGitignore } from '@voidcorp/hook-runner';
+import { prepareInstallCommit, seedInstallStage, stagedRelativePaths, stageInstallManifest } from '../lib/local-install.js';
 import { type PackConfig, resolveEffectivePin } from '../lib/pack-config.js';
 import {
   CORE_PLUGIN_NAME,
@@ -50,6 +50,8 @@ interface InitOptions {
   readonly allPacks: boolean;
   readonly interactive: boolean;
   readonly force: boolean;
+  /** Internal update mode: resolve managed conflicts without replacing project-owned config. */
+  readonly forceManagedAssets: boolean;
   /** Internal pack lifecycle mode: config.packs becomes exactly explicitPacks. */
   readonly replacePacks: boolean;
   readonly marketplaceRepo: string;
@@ -66,6 +68,7 @@ function parseArgs(args: readonly string[]): InitOptions {
   let allPacks = false;
   let interactive = true;
   let force = false;
+  let forceManagedAssets = false;
   let replacePacks = false;
   let marketplaceRepo = MARKETPLACE_REPO;
   const source = resolveInstallSource(args);
@@ -82,6 +85,8 @@ function parseArgs(args: readonly string[]): InitOptions {
       interactive = false;
     } else if (a === '--force') {
       force = true;
+    } else if (a === '--force-managed-assets') {
+      forceManagedAssets = true;
     } else if (a === '--replace-packs') {
       replacePacks = true;
     } else if (a === '--marketplace-repo' && i + 1 < args.length) {
@@ -104,7 +109,18 @@ function parseArgs(args: readonly string[]): InitOptions {
   // If --pack flags are present, default to non-interactive (script-friendly).
   if (explicitPacks.length > 0 || allPacks) interactive = false;
 
-  return { explicitPacks, allPacks, interactive, force, replacePacks, marketplaceRepo, source, explicitRuntimes, invalidRuntimeArgs };
+  return {
+    explicitPacks,
+    allPacks,
+    interactive,
+    force,
+    forceManagedAssets,
+    replacePacks,
+    marketplaceRepo,
+    source,
+    explicitRuntimes,
+    invalidRuntimeArgs,
+  };
 }
 
 export function resolveInstallSource(args: readonly string[]): InstallSource {
@@ -176,7 +192,7 @@ export async function init(args: readonly string[]): Promise<void> {
   if (isHarnessSourceRepo(projectRoot) && !opts.force) {
     blank();
     p.log.error('This is the void-harness source repo — init would overwrite the canonical CLAUDE.md and doctrine files.');
-    p.log.message('To install/test the harness, run init in a consumer project. To do it here anyway, pass --force.');
+    p.log.message('Run init in a consumer project. Only direct init --force bypasses this guard; update --force never does.');
     process.exit(2);
   }
 
@@ -308,7 +324,7 @@ export async function init(args: readonly string[]): Promise<void> {
       version: cliVersion(),
       source: opts.source,
       runtimes,
-      force: opts.force,
+      force: opts.force || opts.forceManagedAssets,
     });
     await commitFileTransaction(projectRoot, prepared.mutations);
     line(`${c.green(glyph.check)}  ${c.dim('transaction'.padEnd(18))}${prepared.receipt.files.length} owned files committed + receipt written`);

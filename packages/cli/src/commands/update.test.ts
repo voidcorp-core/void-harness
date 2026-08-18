@@ -40,8 +40,11 @@ describe('localInitArgs', () => {
    * remedy the tool printed could not be applied through the command that
    * printed it. An instruction that cannot be followed is worse than none.
    */
-  it('forwards --force so the remedy it prints can actually be applied', () => {
-    expect(localInitArgs(receipt('local'), [], { force: true })).toContain('--force');
+  it('scopes --force to managed asset conflicts without replacing project config', () => {
+    const args = localInitArgs(receipt('local'), [], { force: true });
+
+    expect(args).toContain('--force-managed-assets');
+    expect(args).not.toContain('--force');
   });
 });
 

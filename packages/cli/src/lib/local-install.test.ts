@@ -8,16 +8,21 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { commitFileTransaction } from './transaction.js';
+import {
+  buildInstallManifest,
+  INSTALL_MANIFEST_PATH,
+  sha256Of,
+} from './install-manifest.js';
+import {
+  prepareInstallCommit,
+  seedInstallStage,
+} from './local-install.js';
 import {
   buildInstallReceipt,
   encodeReceipt,
   INSTALL_RECEIPT_PATH,
 } from './receipts.js';
-import {
-  prepareInstallCommit,
-  seedInstallStage,
-} from './local-install.js';
+import { commitFileTransaction } from './transaction.js';
 
 function scratch(prefix: string): string {
   return mkdtempSync(join(tmpdir(), prefix));
@@ -81,6 +86,113 @@ describe('local install staging', () => {
     })).rejects.toThrow(/unowned asset conflict/);
   });
 
+  it('does not trust a manifest the active receipt does not own', async () => {
+    const root = scratch('void-project-');
+    const stage = scratch('void-stage-');
+    const skillPath = '.claude/skills/tdd/SKILL.md';
+    mkdirSync(join(root, '.claude', 'skills', 'tdd'), { recursive: true });
+    mkdirSync(join(root, '.void', 'machine', 'receipts'), { recursive: true });
+    mkdirSync(join(stage, '.claude', 'skills', 'tdd'), { recursive: true });
+    writeFileSync(join(root, ...skillPath.split('/')), '# user version\n');
+    writeFileSync(join(stage, ...skillPath.split('/')), '# harness version\n');
+    const manifest = buildInstallManifest('3.0.0', [{
+      path: skillPath,
+      sha256: sha256Of('# user version\n'),
+    }]);
+    writeFileSync(join(root, ...INSTALL_MANIFEST_PATH.split('/')), `${JSON.stringify(manifest)}\n`);
+    const receipt = buildInstallReceipt({
+      version: '3.0.0',
+      source: 'local',
+      runtimes: ['claude'],
+      files: [],
+    });
+    writeFileSync(join(root, ...INSTALL_RECEIPT_PATH.split('/')), encodeReceipt(receipt));
+
+    await expect(prepareInstallCommit({
+      projectRoot: root,
+      stageRoot: stage,
+      version: '3.0.1',
+      source: 'local',
+      runtimes: ['claude'],
+      force: false,
+    })).rejects.toThrow(/unowned asset conflict/);
+  });
+
+  it('does not let a historical proof override an active receipt entry', async () => {
+    const root = scratch('void-project-');
+    const stage = scratch('void-stage-');
+    const agentPath = '.claude/agents/example.md';
+    mkdirSync(join(root, '.claude', 'agents'), { recursive: true });
+    mkdirSync(join(root, '.void', 'machine', 'receipts'), { recursive: true });
+    mkdirSync(join(stage, '.claude', 'agents'), { recursive: true });
+    writeFileSync(join(root, ...agentPath.split('/')), '# restored v2 locally\n');
+    writeFileSync(join(stage, ...agentPath.split('/')), '# harness v4\n');
+    const active = buildInstallReceipt({
+      version: '3.0.0',
+      source: 'local',
+      runtimes: ['claude'],
+      files: [{ path: agentPath, content: Buffer.from('# harness v3\n'), mode: 0o644 }],
+    });
+    const historical = buildInstallReceipt({
+      version: '2.7.0',
+      source: 'local',
+      runtimes: ['claude'],
+      files: [{ path: agentPath, content: Buffer.from('# restored v2 locally\n'), mode: 0o644 }],
+    });
+    writeFileSync(join(root, ...INSTALL_RECEIPT_PATH.split('/')), encodeReceipt(active));
+    writeFileSync(
+      join(root, ...`${INSTALL_RECEIPT_PATH}.legacy`.split('/')),
+      encodeReceipt(historical),
+    );
+
+    await expect(prepareInstallCommit({
+      projectRoot: root,
+      stageRoot: stage,
+      version: '3.0.1',
+      source: 'local',
+      runtimes: ['claude'],
+      force: false,
+    })).rejects.toThrow(/unowned asset conflict/);
+  });
+
+  it('preserves a stale local file that only matches a superseded receipt', async () => {
+    const root = scratch('void-project-');
+    const stage = scratch('void-stage-');
+    const retiredPath = '.claude/skills/retired/SKILL.md';
+    mkdirSync(join(root, '.claude', 'skills', 'retired'), { recursive: true });
+    mkdirSync(join(root, '.void', 'machine', 'receipts'), { recursive: true });
+    writeFileSync(join(root, ...retiredPath.split('/')), '# restored v2 locally\n');
+    const active = buildInstallReceipt({
+      version: '3.0.0',
+      source: 'local',
+      runtimes: ['claude'],
+      files: [{ path: retiredPath, content: Buffer.from('# harness v3\n'), mode: 0o644 }],
+    });
+    const historical = buildInstallReceipt({
+      version: '2.7.0',
+      source: 'local',
+      runtimes: ['claude'],
+      files: [{ path: retiredPath, content: Buffer.from('# restored v2 locally\n'), mode: 0o644 }],
+    });
+    writeFileSync(join(root, ...INSTALL_RECEIPT_PATH.split('/')), encodeReceipt(active));
+    writeFileSync(
+      join(root, ...`${INSTALL_RECEIPT_PATH}.legacy`.split('/')),
+      encodeReceipt(historical),
+    );
+
+    const prepared = await prepareInstallCommit({
+      projectRoot: root,
+      stageRoot: stage,
+      version: '3.0.1',
+      source: 'local',
+      runtimes: ['claude'],
+      force: false,
+    });
+
+    expect(prepared.preserved).toContain(retiredPath);
+    expect(prepared.mutations).not.toContainEqual({ path: retiredPath, remove: true });
+  });
+
   it('can add one runtime while retaining unchanged ownership from the other', async () => {
     const root = scratch('void-project-');
     const stage = scratch('void-stage-');
@@ -113,5 +225,83 @@ describe('local install staging', () => {
       '.codex/hooks.json',
     ]);
     expect(prepared.mutations).not.toContainEqual({ path: claudePath, remove: true });
+  });
+
+  it('recovers exact managed ownership from a parked receipt during update', async () => {
+    const root = scratch('void-project-');
+    const stage = scratch('void-stage-');
+    const changedPath = '.claude/agents/migration-planner.md';
+    const manifestRecoveredPath = '.claude/agents/solution-architect.md';
+    const retiredPath = '.claude/skills/ticket-runner/SKILL.md';
+    const editedPath = '.claude/skills/writing-plans/SKILL.md';
+    const sharedPath = '.void/config.json';
+    mkdirSync(join(root, '.void', 'machine', 'receipts'), { recursive: true });
+    mkdirSync(join(root, '.claude', 'agents'), { recursive: true });
+    mkdirSync(join(root, '.claude', 'skills', 'ticket-runner'), { recursive: true });
+    mkdirSync(join(root, '.claude', 'skills', 'writing-plans'), { recursive: true });
+    mkdirSync(join(stage, '.claude', 'agents'), { recursive: true });
+    mkdirSync(join(stage, '.void'), { recursive: true });
+    writeFileSync(join(root, ...changedPath.split('/')), '# migration planner v2\n');
+    writeFileSync(join(root, ...manifestRecoveredPath.split('/')), '# solution architect v3\n');
+    writeFileSync(join(root, ...retiredPath.split('/')), '# ticket runner v2\n');
+    writeFileSync(join(root, ...editedPath.split('/')), '# locally edited plan\n');
+    writeFileSync(join(root, ...sharedPath.split('/')), '{"project":true}\n');
+    writeFileSync(join(stage, ...changedPath.split('/')), '# migration planner v3\n');
+    writeFileSync(join(stage, ...manifestRecoveredPath.split('/')), '# solution architect v3.0.1\n');
+    writeFileSync(join(stage, ...INSTALL_MANIFEST_PATH.split('/')), '{"version":"3.0.1"}\n');
+
+    const manifest = buildInstallManifest('3.0.0', [{
+      path: manifestRecoveredPath,
+      sha256: sha256Of('# solution architect v3\n'),
+    }]);
+    const manifestBody = `${JSON.stringify(manifest)}\n`;
+    const active = buildInstallReceipt({
+      version: '3.0.0',
+      source: 'local',
+      runtimes: ['claude'],
+      files: [{ path: INSTALL_MANIFEST_PATH, content: Buffer.from(manifestBody), mode: 0o644 }],
+    });
+    const parked = buildInstallReceipt({
+      version: '2.5.1',
+      source: 'local',
+      runtimes: ['claude'],
+      files: [
+        { path: changedPath, content: Buffer.from('# migration planner v2\n'), mode: 0o644 },
+        { path: retiredPath, content: Buffer.from('# ticket runner v2\n'), mode: 0o644 },
+        { path: editedPath, content: Buffer.from('# writing plans v2\n'), mode: 0o644 },
+        { path: sharedPath, content: Buffer.from('{"project":true}\n'), mode: 0o644 },
+      ],
+    });
+    writeFileSync(join(root, ...INSTALL_RECEIPT_PATH.split('/')), encodeReceipt(active));
+    writeFileSync(join(root, ...`${INSTALL_RECEIPT_PATH}.legacy`.split('/')), encodeReceipt(parked));
+    writeFileSync(join(root, ...INSTALL_MANIFEST_PATH.split('/')), manifestBody);
+
+    const prepared = await prepareInstallCommit({
+      projectRoot: root,
+      stageRoot: stage,
+      version: '3.0.1',
+      source: 'local',
+      runtimes: ['claude'],
+      force: false,
+    });
+
+    expect(prepared.mutations).toContainEqual({
+      path: changedPath,
+      content: expect.any(Uint8Array),
+      mode: 0o644,
+    });
+    expect(prepared.mutations).toContainEqual({ path: retiredPath, remove: true });
+    expect(prepared.mutations).toContainEqual({
+      path: manifestRecoveredPath,
+      content: expect.any(Uint8Array),
+      mode: 0o644,
+    });
+    expect(prepared.mutations).not.toContainEqual({ path: sharedPath, remove: true });
+    expect(prepared.preserved).toContain(editedPath);
+    expect(prepared.receipt.files.map((file) => file.path)).toEqual([
+      changedPath,
+      manifestRecoveredPath,
+      INSTALL_MANIFEST_PATH,
+    ]);
   });
 });

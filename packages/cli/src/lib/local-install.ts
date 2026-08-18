@@ -12,6 +12,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import {
   buildInstallManifest,
   INSTALL_MANIFEST_PATH,
+  parseInstallManifest,
   sha256Of,
 } from './install-manifest.js';
 import {
@@ -19,7 +20,9 @@ import {
   encodeReceipt,
   INSTALL_RECEIPT_PATH,
   type InstallReceipt,
+  type OwnedFile,
   type ReceiptFileInput,
+  readHistoricalInstallReceipts,
   readInstallReceipt,
 } from './receipts.js';
 import type { Runtime } from './runtime.js';
@@ -110,6 +113,29 @@ function sameOwnedFile(
   return digest(content) === owned.sha256 && (mode & 0o777) === owned.mode;
 }
 
+/**
+ * A current manifest can repair missing per-file receipt entries only when the
+ * active receipt itself still owns that manifest byte-for-byte. The caller then
+ * combines its content hash with the staged file's mode; the manifest is never
+ * used to authorize deletion of a path the new install does not stage.
+ */
+async function receiptOwnedManifestHashes(
+  projectRoot: string,
+  receipt: InstallReceipt | undefined,
+): Promise<ReadonlyMap<string, string>> {
+  if (receipt === undefined) return new Map();
+  const ownership = receipt.files.find((file) => file.path === INSTALL_MANIFEST_PATH);
+  if (ownership === undefined) return new Map();
+  const path = join(projectRoot, ...INSTALL_MANIFEST_PATH.split('/'));
+  const info = await infoOrUndefined(path);
+  if (info === undefined || !info.isFile() || info.isSymbolicLink()) return new Map();
+  const content = await readFile(path);
+  if (!sameOwnedFile(content, info.mode, ownership)) return new Map();
+  const manifest = parseInstallManifest(content.toString('utf8'));
+  if (manifest === undefined || manifest.version !== receipt.version) return new Map();
+  return new Map(manifest.files.map((file) => [file.path, file.sha256]));
+}
+
 export interface PrepareInstallInput {
   readonly projectRoot: string;
   readonly stageRoot: string;
@@ -169,7 +195,27 @@ export async function stagedRelativePaths(stageRoot: string): Promise<string[]> 
 export async function prepareInstallCommit(input: PrepareInstallInput): Promise<PreparedInstall> {
   const staged = await collectStageFiles(input.stageRoot);
   const previous = await readInstallReceipt(input.projectRoot);
-  const previousFiles = new Map((previous?.files ?? []).map((file) => [file.path, file]));
+  const manifestHashes = await receiptOwnedManifestHashes(input.projectRoot, previous);
+  const historical = await readHistoricalInstallReceipts(input.projectRoot);
+  const previousFiles = new Map<string, OwnedFile[]>();
+  const activePaths = new Set<string>();
+  for (const file of previous?.files ?? []) {
+    if (!isManaged(file.path)) continue;
+    previousFiles.set(file.path, [file]);
+    activePaths.add(file.path);
+  }
+  for (const receipt of historical) {
+    for (const file of receipt.files) {
+      // Older receipt schemas claimed shared project files. Historical recovery
+      // may prove ownership only inside the current managed boundary, and only
+      // when the active receipt omitted the path. An active entry is the latest
+      // ownership fact and must not gain older hashes as alternate proofs.
+      if (!isManaged(file.path) || activePaths.has(file.path)) continue;
+      const proofs = previousFiles.get(file.path) ?? [];
+      proofs.push(file);
+      previousFiles.set(file.path, proofs);
+    }
+  }
   const stagedPaths = new Set(staged.map((file) => file.path));
   const owned: ReceiptFileInput[] = [];
   const mutations: FileMutation[] = [];
@@ -181,10 +227,16 @@ export async function prepareInstallCommit(input: PrepareInstallInput): Promise<
     if (info !== undefined && !info.isFile()) throw new Error(`unowned asset conflict at ${file.path}`);
     const current = info === undefined ? undefined : await readFile(target);
     const currentMode = info?.mode ?? 0;
-    const priorOwnership = previousFiles.get(file.path);
+    const priorOwnership = previousFiles.get(file.path) ?? [];
+    const matchesOwnedManifest = current !== undefined
+      && isManaged(file.path)
+      && manifestHashes.get(file.path) === digest(current)
+      && (currentMode & 0o777) === file.mode;
     const stillOwned = current !== undefined
-      && priorOwnership !== undefined
-      && sameOwnedFile(current, currentMode, priorOwnership);
+      && (
+        priorOwnership.some((proof) => sameOwnedFile(current, currentMode, proof))
+        || matchesOwnedManifest
+      );
     const changed = current === undefined
       || !current.equals(Buffer.from(file.content))
       || (currentMode & 0o777) !== file.mode;
@@ -203,9 +255,9 @@ export async function prepareInstallCommit(input: PrepareInstallInput): Promise<
   }
 
   const preserved: string[] = [];
-  for (const prior of previous?.files ?? []) {
-    if (stagedPaths.has(prior.path)) continue;
-    const target = join(input.projectRoot, ...prior.path.split('/'));
+  for (const [path, proofs] of previousFiles) {
+    if (stagedPaths.has(path)) continue;
+    const target = join(input.projectRoot, ...path.split('/'));
     const info = await infoOrUndefined(target);
     if (info?.isFile() && !info.isSymbolicLink()) {
       const content = await readFile(target);
@@ -213,14 +265,15 @@ export async function prepareInstallCommit(input: PrepareInstallInput): Promise<
       // rather than skipped in silence: a renamed skill kept this way stays on
       // disk and keeps loading, and `update` used to print a clean success over
       // a project running two versions of its own doctrine.
-      if (!sameOwnedFile(content, info.mode, prior)) {
-        preserved.push(prior.path);
+      const matchingProof = proofs.find((proof) => sameOwnedFile(content, info.mode, proof));
+      if (matchingProof === undefined) {
+        preserved.push(path);
         continue;
       }
       if (input.retainPreviousOwned) {
-        owned.push({ path: prior.path, content, mode: prior.mode });
+        owned.push({ path, content, mode: matchingProof.mode });
       } else {
-        mutations.push({ path: prior.path, remove: true });
+        mutations.push({ path, remove: true });
       }
     }
   }

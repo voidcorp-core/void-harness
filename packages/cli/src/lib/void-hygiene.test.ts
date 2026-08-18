@@ -120,10 +120,9 @@ describe('judgeLayout', () => {
   });
 });
 
-// A renamed skill kept because it was edited by hand goes on loading beside its
-// replacement, and after the first update nothing mentions it again. Advisory
-// rather than a failure: nothing is broken, the agent simply answers from
-// whichever of the two doctrines it loads first.
+// A renamed skill can go on loading beside its replacement after ownership
+// evidence is lost. Advisory rather than a failure: detection alone cannot
+// prove whether its current bytes are safe to delete.
 describe('void orphans', () => {
   const orphans = (over: Partial<LayoutObservation> = {}): CheckResult =>
     judgeLayout(observation(over)).find((check) => check.name === 'void orphans') as CheckResult;
@@ -133,14 +132,15 @@ describe('void orphans', () => {
     expect(orphans().status).toBeUndefined();
   });
 
-  it('names what still loads, and whose call it is to delete', () => {
+  it('names what still loads without claiming every orphan was edited', () => {
     const check = orphans({ orphanedAssets: ['.claude/skills/ticket-runner/SKILL.md'] });
     expect(check.status).toBe('advisory');
     expect(check.message).toContain('ticket-runner');
-    expect(check.fix).toContain('delete');
+    expect(check.fix).toContain('update');
+    expect(check.fix).not.toContain('they were edited locally');
   });
 
-  it('does not block, because the bytes were changed by hand and are not ours', () => {
+  it('does not block when deletion ownership cannot be proven', () => {
     expect(orphans({ orphanedAssets: ['a', 'b'] }).ok).toBe(true);
   });
 })

@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
+import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawn } from 'node:child_process';
 import { packageManagerCommand } from './conformance-process.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -30,6 +31,17 @@ async function run(command, args, cwd, env = {}) {
       else rejectRun(new Error(`${command} ${args.join(' ')} exited ${code}\n${stdout}\n${stderr}`));
     });
   });
+}
+
+async function requireFailure(command, args, cwd, expected) {
+  try {
+    await run(command, args, cwd);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!expected.test(message)) throw error;
+    return;
+  }
+  throw new Error(`${command} ${args.join(' ')} unexpectedly succeeded`);
 }
 
 function requirePath(path, label) {
@@ -89,6 +101,83 @@ for (const runtime of ['claude', 'codex', 'both']) {
   if (runtime !== 'claude') {
     requirePath(join(fixture, '.agents', 'skills', 'tdd', 'SKILL.md'), `${runtime} Codex skill`);
     requirePath(join(fixture, '.codex', 'hooks.json'), `${runtime} Codex hooks`);
+  }
+
+  // Regression: 3.0.0 forwarded update's public --force to generic init,
+  // replacing project path scopes, while a parked receipt with exact hashes was
+  // ignored and left retired skills loading beside their replacements.
+  const configPath = join(fixture, '.void', 'config.json');
+  const config = JSON.parse(await readFile(configPath, 'utf8'));
+  const customBusiness = ['apps/*/src/**', 'packages/*/src/**'];
+  config.paths.business = customBusiness;
+  await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`);
+
+  const activeReceipt = JSON.parse(
+    await readFile(join(fixture, '.void', 'machine', 'receipts', 'install-v1.json'), 'utf8'),
+  );
+  const manifestRecoveredPath = runtime === 'codex'
+    ? '.codex/agents/solution-architect.toml'
+    : '.claude/agents/solution-architect.md';
+  activeReceipt.files = activeReceipt.files.filter((file) => file.path !== manifestRecoveredPath);
+  await writeFile(
+    join(fixture, '.void', 'machine', 'receipts', 'install-v1.json'),
+    `${JSON.stringify(activeReceipt, null, 2)}\n`,
+  );
+  const retiredPath = runtime === 'codex'
+    ? '.agents/skills/retired-v2/SKILL.md'
+    : '.claude/skills/retired-v2/SKILL.md';
+  const retiredAbsolute = join(fixture, ...retiredPath.split('/'));
+  const retiredContent = Buffer.from('# retired v2 skill\n');
+  await mkdir(dirname(retiredAbsolute), { recursive: true });
+  await writeFile(retiredAbsolute, retiredContent);
+  const retiredMode = (await stat(retiredAbsolute)).mode & 0o777;
+  await writeFile(
+    join(fixture, '.void', 'machine', 'receipts', 'install-v1.json.legacy'),
+    `${JSON.stringify({
+      schemaVersion: 1,
+      version: '2.5.1',
+      source: 'local',
+      runtimes: activeReceipt.runtimes,
+      files: [{
+        path: retiredPath,
+        sha256: createHash('sha256').update(retiredContent).digest('hex'),
+        mode: retiredMode,
+      }],
+    }, null, 2)}\n`,
+  );
+
+  const forceConflictPath = runtime === 'codex'
+    ? '.codex/agents/migration-planner.toml'
+    : '.claude/agents/migration-planner.md';
+  const forceConflictAbsolute = join(fixture, ...forceConflictPath.split('/'));
+  const localConflict = '# project-owned collision\n';
+  await writeFile(forceConflictAbsolute, localConflict);
+
+  await requireFailure(process.execPath, [bin, 'update'], fixture, /unowned asset conflict/);
+  if ((await readFile(forceConflictAbsolute, 'utf8')) !== localConflict) {
+    throw new Error(`${runtime} update without force changed an unowned managed asset`);
+  }
+  const configAfterRefusal = JSON.parse(await readFile(configPath, 'utf8'));
+  if (JSON.stringify(configAfterRefusal.paths.business) !== JSON.stringify(customBusiness)) {
+    throw new Error(`${runtime} refused update replaced project business paths`);
+  }
+
+  await run(process.execPath, [bin, 'update', '--force'], fixture);
+  const updatedConfig = JSON.parse(await readFile(configPath, 'utf8'));
+  if (JSON.stringify(updatedConfig.paths.business) !== JSON.stringify(customBusiness)) {
+    throw new Error(`${runtime} forced update replaced project business paths`);
+  }
+  if (existsSync(retiredAbsolute)) {
+    throw new Error(`${runtime} forced update kept an exact receipt-owned retired asset`);
+  }
+  if ((await readFile(forceConflictAbsolute, 'utf8')) === localConflict) {
+    throw new Error(`${runtime} forced update kept an unowned managed asset conflict`);
+  }
+  const recoveredReceipt = JSON.parse(
+    await readFile(join(fixture, '.void', 'machine', 'receipts', 'install-v1.json'), 'utf8'),
+  );
+  if (!recoveredReceipt.files.some((file) => file.path === manifestRecoveredPath)) {
+    throw new Error(`${runtime} update did not recover ownership from its exact manifest`);
   }
 
   const adjacent = join(fixture, runtime === 'codex' ? '.agents' : '.claude', 'skills', 'private', 'SKILL.md');

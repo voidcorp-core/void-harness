@@ -133,12 +133,16 @@ Rules:
 - No file is auto-generated from the other. Auto-generation risks losing intentional adaptations. Manual authoring + mechanical gate is the safer trade-off.
 - **Doc ownership is per-runtime.** Each adapter's `wire` writes only its own doctrine doc — a Claude-only project has just `CLAUDE.md`, a Codex-only project just `AGENTS.md`. `doctor` checks only the docs of *detected* runtimes, so a Codex-only project is never dinged for a missing `CLAUDE.md`. (`add` / `remove` still patch whichever docs exist, keeping active docs current.)
 - **`init` wires each selected runtime's layer via its adapter**, gated by `--runtime <claude|codex|both>` (default: auto-detected footprint, else both). Claude receives native project-local skills, agents, commands and hooks; Codex receives `.agents/skills`, native `.codex/agents` and `.codex/hooks.json`. The package is bundled with all CLI runtime dependencies, so a tarball installs offline. `--source marketplace` is opt-in and is the only path that checks `gh`/marketplace access.
-- **Publication is transactional.** `init` seeds only shared merge targets into an isolated stage, compiles and executes each selected adapter's doctor smoke there, then atomically publishes a finite mutation set. Every target is snapshotted before the first write; a failure restores bytes and modes and removes only transaction-created paths. `.void/machine/receipts/install-v1.json` hashes files the install created or already owned. Unowned native conflicts fail unless `--force`, and even force never grants deletion ownership over a pre-existing file.
+- **Publication is transactional.** `init` seeds only shared merge targets into an isolated stage, compiles and executes each selected adapter's doctor smoke there, then atomically publishes a finite mutation set. Every target is snapshotted before the first write; a failure restores bytes and modes and removes only transaction-created paths. `.void/machine/receipts/install-v1.json` hashes files the install created or already owned. Parked `install-v1.json.legacy*` receipts recover missing ownership only inside the current managed boundary and only when both hash and mode still match; shared project files are excluded. An active receipt entry is authoritative, so historical proofs are considered only when that active receipt omitted the path. A manifest that the active receipt itself still owns can recover a missing entry only for a path the new install stages, when the current content hash matches that same-version manifest and the current mode matches the stage. It never authorizes stale-file deletion. Unowned native conflicts fail unless `--force`, and even force never grants deletion ownership over a pre-existing file.
 - **Runtimes are added a posteriori without friction**: `void-harness runtime add <runtime>` wires exactly that runtime's layer on an already-`init`-ed project, touching nothing the other runtime owns (verified byte-for-byte in tests). `runtime list` shows which are wired. This is the `void runtime add` command from the multi-runtime spec.
 - **Pack and update lifecycle uses the same transaction.** Local `add`/`remove` compile the exact
   config pack set and prune only unchanged receipt-owned stale assets. Local `update` recompiles
   from the running CLI without a remote fetch. Legacy/explicit marketplace receipts retain their
   cache and remote-pin adapter.
+- **Update force is narrower than init force.** Public `update --force` becomes an
+  internal managed-asset override when it delegates to `init`; it does not replace
+  `.void/config.json` or bypass the source-repository guard. Direct `init --force`
+  keeps those explicit bootstrap semantics.
 - `doctor` iterates the *detected* adapters for each runtime's wiring + doc health; Claude marketplace checks (`gh`, plugin cache, remote versions) apply only to an explicit marketplace install. Adapter inspection distinguishes `installed`, `wired`, `fired`, and `observed`. The `fired` postcondition executes the installed Node runner against an isolated fixture and reads back its canonical event; a zero exit without that event stays red. In the source repository, `doctor` delegates to the self-host receipt and current-source checks instead of applying consumer assumptions. See `docs/CODEX.md`.
 
 ### Consumer active-program handoff
@@ -221,11 +225,16 @@ generated artifacts, not a second doctrine source: tests compare them byte-for-b
 compiler. Runtime health derives the expected identities from that same catalog rather than a
 parallel role list. Installed files are receipt-owned and updated transactionally.
 
-Both adapters report specialist team mode as degraded today. Claude can remove mutating built-ins
-but agent frontmatter cannot deny unknown inherited MCP tools; Codex declares `sandbox_mode =
-"read-only"`, disables web search and MCP servers, but the parent turn can override its sandbox and
-Codex has no per-agent process allowlist. Discovery remains useful; orchestration may not claim
-enforced isolation until a runtime probe proves it.
+Claude project agents installed by the primary local npm channel add an agent-scoped `PreToolUse`
+hook matching every `mcp__.*` tool and returning a deny decision. The local doctor requires that
+hook on every canonical specialist before it reports MCP isolation for ordinary subagent calls.
+Claude agent-team teammates apply only `tools` and `model` from an agent definition, so they do not
+receive that scoped hook. That experimental Anthropic primitive is outside the harness adapter and
+remains unsupported; the harness mission `team` mode uses ordinary native subagents. Claude plugin
+agents also ignore frontmatter hooks, so the optional marketplace channel remains degraded. Codex
+declares `sandbox_mode = "read-only"`, disables web search and MCP servers, but the parent turn can
+override its sandbox and Codex has no per-agent process allowlist. Discovery remains useful;
+orchestration may not claim a runtime guarantee that its active channel cannot enforce.
 
 ## Boundary principles
 
@@ -603,11 +612,14 @@ interpreters, and VCS mutations remain prohibited.
 
 The controller also requires the adapter's effective specialist-runtime capability, independently
 of the declared runtime name. Each CLI `RuntimeInspection` produces that capability from native
-asset health plus the runtime's enforceable isolation limits. Both current adapters honestly report
-`degraded` until parent overrides, inherited MCP tools, and conditional PDF/browser capabilities can
-be probed; `degraded`, `unavailable`, or missing effective isolation stops the mission. A runtime can
-therefore reach `verified` only after its actual adapter or probe reports the required fresh-context
-specialist capability as available.
+asset health plus the runtime's enforceable isolation limits. The ordinary local Claude subagent
+path enforces inherited MCP denial when its agent-scoped hook is present; the unsupported
+experimental Claude agent-team primitive is not used. Marketplace Claude agents and Codex remain
+degraded for the runtime limits above. Conditional PDF/browser capabilities still require their own
+probe and keep the effective local mission capability degraded until proven. A `degraded`,
+`unavailable`, or missing effective capability stops the mission, so a runtime reaches `verified`
+only after its actual adapter or probe reports the required fresh-context specialist capability as
+available.
 
 Direct and orchestrated invocation share the mission engine's one strict completion parser; unknown
 fields or malformed nested evidence are rejected identically. The review reducer accepts each

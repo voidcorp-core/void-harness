@@ -19,16 +19,16 @@ import { CODEX_HOOKS_DIR, refreshCodexFloor } from '../lib/codex-floor.js';
 import { CODEX_SKILLS_DIR, wireCodexSkills } from '../lib/codex-skills.js';
 import { INSTALL_MANIFEST_PATH } from '../lib/install-manifest.js';
 import { computePinBumps } from '../lib/pack-config.js';
-import { configPackDirs, CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO } from '../lib/packs.js';
+import { CORE_PLUGIN_NAME, configPackDirs, MARKETPLACE_NAME, MARKETPLACE_REPO } from '../lib/packs.js';
 import { cliVersion, findCoreSource } from '../lib/paths.js';
+import {
+  type InstallReceipt,
+  readInstallReceipt,
+} from '../lib/receipts.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { banner, blank, c, footer, glyph, line, meta, row, status } from '../lib/render.js';
 import { readSettings, settingsPathFor } from '../lib/settings.js';
 import { migrateVoidLayout, untrackDerived } from '../lib/void-migration.js';
-import {
-  readInstallReceipt,
-  type InstallReceipt,
-} from '../lib/receipts.js';
 import { init } from './init.js';
 
 
@@ -254,13 +254,10 @@ async function reportUntrackDerived(projectRoot: string, dryRun: boolean): Promi
 /**
  * The argv `update` hands to `init`.
  *
- * `--force` is forwarded rather than dropped. Reported from a real consumer
- * project: `init` refuses to overwrite a managed file it cannot prove it wrote
- * and prints "preserve it or re-run with --force", but `update` never parsed
- * the flag nor passed it on — so the remedy the tool printed could not be
- * applied through the command that printed it, and the operator was left with
- * an instruction that does nothing. An impossible instruction is worse than
- * none, because it costs the reader their trust in every other message.
+ * Public `update --force` maps to an internal, asset-only init capability. The
+ * generic init flag also replaces `.void/config.json` and bypasses the source
+ * repository guard; forwarding it made an asset-conflict remedy erase custom
+ * package-source path scopes.
  */
 export function localInitArgs(
   receipt: InstallReceipt,
@@ -274,7 +271,7 @@ export function localInitArgs(
     receipt.runtimes.join(','),
   ];
   for (const pack of packs) args.push('--pack', pack);
-  if (options.force) args.push('--force');
+  if (options.force) args.push('--force-managed-assets');
   return args;
 }
 

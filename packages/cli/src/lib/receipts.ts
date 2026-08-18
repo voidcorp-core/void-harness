@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { lstat, readFile, rmdir, unlink } from 'node:fs/promises';
+import { lstat, readdir, readFile, rmdir, unlink } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
 import { voidReadPath } from '@voidcorp/hook-runner';
 import type { Runtime } from './runtime.js';
@@ -113,6 +113,35 @@ export async function readInstallReceipt(projectRoot: string): Promise<InstallRe
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Receipts parked by the observed-state migration. They remain valid ownership
+ * evidence for exact bytes even when a later, partial receipt omitted those
+ * paths. Invalid or unrelated files are ignored rather than weakening the
+ * active receipt reader.
+ */
+export async function readHistoricalInstallReceipts(projectRoot: string): Promise<readonly InstallReceipt[]> {
+  const receiptPath = voidReadPath(projectRoot, 'receipts', 'install-v1.json');
+  const directory = dirname(receiptPath);
+  let names: readonly string[];
+  try {
+    names = await readdir(directory);
+  } catch {
+    return [];
+  }
+
+  const receipts: InstallReceipt[] = [];
+  for (const name of [...names].sort()) {
+    if (!/^install-v1\.json\.legacy(?:\.\d+|\.overflow)?$/.test(name)) continue;
+    try {
+      const receipt = parseReceipt(await readFile(join(directory, name), 'utf8'));
+      if (receipt !== undefined) receipts.push(receipt);
+    } catch {
+      // One unreadable historical proof must not hide the other valid ones.
+    }
+  }
+  return receipts;
 }
 
 /**
