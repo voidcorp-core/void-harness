@@ -68,7 +68,18 @@ gate exists to make. The divergence is therefore a consequence of `main` being
 the gate, not a wiring mistake, and automating the repair is the honest trade.
 
 `back-merge.yml` runs on every push to `main` and opens a `main` to `develop`
-pull request when `main` is ahead. It opens rather than pushes: `develop` is
+pull request when the two trees differ. It decides on content rather than on a
+commit count: a promotion leaves a merge commit on `main` that `develop` does not
+carry, so counting would open an empty pull request every time, and a robot that
+opens pull requests nobody needs gets merged without being read.
+
+That pull request merges itself once the required checks pass. It is the one
+place auto-merge is allowed, and the reason is a property of its content rather
+than a relaxation: it carries the release output a human approved minutes
+earlier, so a second reading is ceremony. Anything carrying an unread diff still
+stops at a human, which is why `autopilot` refuses `--auto-merge` and this does
+not. Native auto-merge is used, so protection and the required checks stand; a
+failing check simply leaves it open. It opens rather than pushes: `develop` is
 protected with `enforce_admins`, and a branch only a robot may bypass is not
 protected. A conflict fails the job instead of being resolved unattended, since
 it means `develop` and `main` both touched a file release-please owns.
