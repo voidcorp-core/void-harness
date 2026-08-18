@@ -41,6 +41,12 @@ export interface LayoutObservation {
   readonly manifest: ManifestObservation;
   /** How many ignorable derived files git still tracks (regenerated content). */
   readonly trackedDerivedCount: number;
+  /**
+   * Assets that carry the harness's own frontmatter and that the manifest does
+   * not own. A renamed skill preserved because it was edited by hand goes on
+   * loading beside its replacement, and after the first update nothing says so.
+   */
+  readonly orphanedAssets: readonly string[];
 }
 
 function pass(name: string, message: string): CheckResult {
@@ -89,6 +95,29 @@ function trackedCheck(observation: LayoutObservation): CheckResult {
     `git tracks ${observation.trackedObserved.length} observed path(s): ${observation.trackedObserved.join(', ')}`,
     `git rm --cached -r ${observation.trackedObserved.join(' ')} — the ignore rule cannot untrack what is already in the index`,
   );
+}
+
+/**
+ * Advisory, not a failure: nothing is broken, the agent simply has two versions
+ * of a doctrine and answers from whichever it loads first. It is also not ours
+ * to delete, since the bytes were changed by hand, so the remedy belongs to the
+ * person who changed them.
+ */
+function orphanCheck(observation: LayoutObservation): CheckResult {
+  const name = 'void orphans';
+  const orphans = observation.orphanedAssets;
+  if (orphans.length === 0) {
+    return { name, ok: true, message: 'no harness asset on disk that the manifest lost track of' };
+  }
+  return {
+    name,
+    ok: true,
+    status: 'advisory',
+    message:
+      `${String(orphans.length)} harness asset(s) the manifest no longer owns still load: `
+      + `${orphans.slice(0, 3).join(', ')}${orphans.length > 3 ? ', ...' : ''}`,
+    fix: 'they were edited locally, so update kept them; delete them to stop loading two versions',
+  };
 }
 
 function manifestCheck(observation: LayoutObservation): CheckResult {
@@ -141,6 +170,7 @@ export function judgeLayout(observation: LayoutObservation): readonly CheckResul
     // Generalizes the check above from the one declared path to every path the
     // harness can write observed state to, legacy locations included.
     judgeObservedIgnore(observation.observedPaths),
+    orphanCheck(observation),
     trackedCheck(observation),
     manifestCheck(observation),
     derivedCheck(observation),

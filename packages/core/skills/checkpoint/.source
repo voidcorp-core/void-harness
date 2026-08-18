@@ -12,7 +12,7 @@ Inspirations, none vendored:
   the next session reads the tracker and the memory, which are authoritative and would be
   duplicated by a restore file. Only the closing half survives.
 
-- The `plans/ACTIVE.md` contract already in this repository — "the tracker owns mutable
+- The active-program contract, then at plans/ACTIVE.md and since moved to `.void/active.md`, — "the tracker owns mutable
   execution state; ACTIVE.md never stores a hand-maintained next ticket". That rule generalises
   into Step 0's routing table, which is the load-bearing part of the skill.
 

@@ -18,7 +18,7 @@ eval_targets: [claude/anthropic/opus]
 
 `brainstorm` pressure-tests the idea and `plan` authors the plan. This skill sits between the written plan and implementation: it **critiques an already-written plan** from up to four expert lenses, surfaces findings one decision at a time, and appends an Implementation Tasks list to the plan. It is read-mostly — it **proposes**; the plan's author (you, via `plan`) **disposes**. It never writes code and never restructures the plan itself.
 
-Invoke it on a plan in `docs/specs/` or `plans/` before the plan becomes tickets. Pick one lens, several, or `all` (the orchestrated pass, below).
+Invoke it on a plan in `docs/specs/` or `docs/plans/` before the plan becomes tickets. Pick one lens, several, or `all` (the orchestrated pass, below).
 
 **Attribution**: see `.source`. Distilled from gstack `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/plan-devex-review`, `/autoplan` (methodology only; the runtime and the named-founder rosters are rejected).
 

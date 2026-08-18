@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:4e0c08c66ef49bf48be76ecb07bd1f88a389c8dc94b945ef0ebb24451e3e1231"
+    "rootHash": "sha256:6909c4e770fb69dd6bfc43718768edba93806c85c3f2abf28a73ea7fa4039338"
   },
   "nodes": [
     {
@@ -4627,7 +4627,7 @@
             "codex"
           ],
           "source": "packages/core/skills/plan-review/SKILL.md",
-          "staticTokens": 2719,
+          "staticTokens": 2720,
           "type": "skill"
         }
       },
