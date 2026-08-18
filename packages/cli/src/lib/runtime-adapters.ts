@@ -227,11 +227,14 @@ async function claudeSpecialistsCheck(agentsRoot: string | undefined): Promise<C
       fix: 'void-harness runtime add claude',
     };
   }
+  // Plain pass, no advisory. This reported a degradation that does not exist:
+  // the compiled specialists carry an explicit `tools` allowlist, and the
+  // official documentation says that shape reaches no MCP tool at all. An
+  // advisory nobody can act on is printed until it stops being read.
   return {
     name: 'claude agents',
     ok: true,
-    status: 'advisory',
-    message: `${contracts.length} version-matched native specialists discovered; team degraded because unknown inherited MCP tools cannot be denied in agent frontmatter`,
+    message: `${contracts.length} version-matched native specialists discovered, isolated by their tools allowlist`,
   };
 }
 
