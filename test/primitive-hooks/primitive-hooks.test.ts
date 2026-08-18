@@ -30,7 +30,7 @@ function run(hook: string, json: string, env?: Record<string, string>) {
 }
 
 function runEvents(root: string): Record<string, unknown>[] {
-  const runs = join(root, '.void', 'local', 'runs');
+  const runs = join(root, '.void', 'machine', 'runs');
   const mission = readdirSync(runs)[0];
   if (mission === undefined) return [];
   const raw = readFileSync(join(runs, mission, 'events.jsonl'), 'utf8').trim();
@@ -67,8 +67,8 @@ describe('activation-meter.sh', () => {
       kind: 'runtime.tool.started',
       subject: 'skill:tdd',
     });
-    expect(existsSync(join(dir, '.void', 'local', 'activations.jsonl'))).toBe(false);
-    expect(existsSync(join(dir, '.void', 'local', 'usage.log'))).toBe(false);
+    expect(existsSync(join(dir, '.void', 'machine', 'activations.jsonl'))).toBe(false);
+    expect(existsSync(join(dir, '.void', 'machine', 'usage.log'))).toBe(false);
   });
 
   it('records a non-Skill tool without persisting its command', () => {

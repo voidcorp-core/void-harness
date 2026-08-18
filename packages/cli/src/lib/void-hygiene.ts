@@ -21,7 +21,7 @@ export interface ManifestObservation {
 export interface LayoutObservation {
   /** Observed artifacts still sitting at the pre-split location. */
   readonly pending: readonly string[];
-  /** Whether git ignores `.void/local/`; null when it could not be asked. */
+  /** Whether git ignores `.void/machine/`; null when it could not be asked. */
   readonly localIgnored: boolean | null;
   /** Observed paths git currently tracks, which the ignore rule cannot undo. */
   readonly trackedObserved: readonly string[];
@@ -45,11 +45,11 @@ function unknown(name: string, message: string, fix: string): CheckResult {
 
 function layoutCheck(observation: LayoutObservation): CheckResult {
   const name = 'void layout';
-  if (observation.pending.length === 0) return pass(name, 'observed state is under .void/local/');
+  if (observation.pending.length === 0) return pass(name, 'observed state is under .void/machine/');
   return fail(
     name,
     `${observation.pending.length} observed path(s) still at the old location: ${observation.pending.join(', ')}`,
-    'void-harness update — it moves them under .void/local/ and never overwrites',
+    'void-harness update — it moves them under .void/machine/ and never overwrites',
   );
 }
 
@@ -59,10 +59,10 @@ function ignoreCheck(observation: LayoutObservation): CheckResult {
     return unknown(name, 'not a git repository, so nothing ignores anything here', 'run this inside the repository the project ships from');
   }
   return observation.localIgnored
-    ? pass(name, '.void/local/ is ignored')
+    ? pass(name, '.void/machine/ is ignored')
     : fail(
         name,
-        '.void/local/ is NOT ignored, so telemetry and run journals would be committed',
+        '.void/machine/ is NOT ignored, so telemetry and run journals would be committed',
         'void-harness update — it writes the managed block; check no later rule re-includes .void/',
       );
 }

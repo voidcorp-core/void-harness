@@ -11,7 +11,7 @@ import {
   recordHookEvent,
   recordRuntimeEvent,
 } from './record.js';
-import { voidLocalPath } from './void-layout.js';
+import { voidMachinePath } from './void-layout.js';
 
 describe('recordRuntimeEvent', () => {
   it('writes one canonical event and never persists raw session or tool content', async () => {
@@ -38,7 +38,7 @@ describe('recordRuntimeEvent', () => {
     });
     if (recorded === undefined) return;
     const body = await readFile(
-      join(voidLocalPath(root, 'runs'), recorded.missionId, 'events.jsonl'),
+      join(voidMachinePath(root, 'runs'), recorded.missionId, 'events.jsonl'),
       'utf8',
     );
     expect(body).not.toContain('private-runtime-session');
@@ -76,7 +76,7 @@ describe('recordHookEvent', () => {
     });
     if (recorded === undefined) return;
     const body = await readFile(
-      join(voidLocalPath(root, 'runs'), recorded.missionId, 'events.jsonl'),
+      join(voidMachinePath(root, 'runs'), recorded.missionId, 'events.jsonl'),
       'utf8',
     );
     expect(body).not.toContain('private-session');

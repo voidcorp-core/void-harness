@@ -45,7 +45,7 @@ describe('discoverProjects', () => {
     expect(found.projects[0]?.path).toBe(join(root, 'alpha'));
   });
 
-  // Already hit in this very repo: `.void/local/` existed for months while
+  // Already hit in this very repo: `.void/machine/` existed for months while
   // `config.json` did not. A partial .void is not an installed project.
   it('ignores a .void directory without config.json', () => {
     project('partial', { config: false });

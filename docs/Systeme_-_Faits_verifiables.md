@@ -23,7 +23,7 @@ Chaque ligne renvoie au fichier qui la prouve. Relevé sur `main` au commit `15d
 
 ## Commandes
 
-`autopilot`, `session-handoff`, `void-audit`, `void-doctor`, `void-feedback`, `void-graph`. Preuve : `packages/core/commands/`.
+`autopilot`, `checkpoint`, `void-audit`, `void-doctor`, `void-feedback`, `void-graph`. Preuve : `packages/core/commands/`.
 
 ## Hooks câblés
 

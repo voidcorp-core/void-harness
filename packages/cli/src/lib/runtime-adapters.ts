@@ -26,7 +26,7 @@ import { existsSync } from 'node:fs';
 import { lstat, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { voidLocalReadPath } from '@voidcorp/hook-runner';
+import { voidReadPath } from '@voidcorp/hook-runner';
 import type { SpecialistRuntimeCapability } from '@voidcorp/mission-engine';
 import { parseEventLine } from '@voidcorp/mission-engine/events';
 import { docFileFor, HARNESS_BLOCK_MARKER, patchRuntimeDoc } from './claude-md.js';
@@ -151,7 +151,7 @@ function effectiveSpecialistCapability(
 
 function observedRuntime(projectRoot: string, runtime: Runtime): boolean | null {
   const body = loadCanonicalEventBody(projectRoot);
-  if (body === '') return existsSync(voidLocalReadPath(projectRoot, 'runs')) ? null : false;
+  if (body === '') return existsSync(voidReadPath(projectRoot, 'runs')) ? null : false;
   let malformed = false;
   for (const line of body.split(/\r?\n/)) {
     if (line === '') continue;

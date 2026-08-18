@@ -36,6 +36,48 @@ void-harness/
     └── decisions-log/             # one immutable, collision-free file per ADR
 ```
 
+## The `.void/` layout — three levels, named for what deletion costs
+
+Everything the harness owns or produces lives in `.void/`, so uninstalling or
+migrating it is one directory. What the PROJECT owns and what outlives the
+harness — decisions, specs, plans — stays in `docs/`.
+
+Inside `.void/`, the question anyone actually asks is *can I delete this*, and it
+has three answers:
+
+| level | delete it and | committed |
+|---|---|---|
+| the top of `.void/` | the project loses a decision | yes |
+| `installed/` | `void-harness install` restores it byte for byte | no |
+| `machine/` | nothing is lost | no |
+
+**Everything at the top of `.void/` is committed; the two subdirectories are
+not.** That sentence is the whole rule, and it is checkable at a glance rather
+than by looking anything up. It was false before: `PHILOSOPHY.md` and `hooks/`
+sat at the top while being ignored.
+
+`VOID_OWNERSHIP` in `packages/hook-runner/src/void-layout.ts` is the single
+source of truth the ignore block, the migration and `doctor` all read. A second
+copy would let `update` move a path the ignore rule does not cover, and the next
+commit would ship telemetry.
+
+Two properties are load-bearing and easy to break:
+
+- **A retired entry stays classified.** Removing it from the table does not
+  remove the file from anyone's disk; it makes it fall through to the `project`
+  default, at which point `doctor` starts telling projects to commit their own
+  telemetry. Retiring a READER is not retiring the data.
+- **Readers fall back through every previous layout.** A project migrates on
+  `update`, and until it does, a reader that only knew the current path would
+  report months of history as none.
+
+The migration merges rather than refuses: on a per-file collision the destination
+wins and the legacy copy is parked beside it as `*.legacy`. Choosing a winner by
+size or date was rejected on evidence — measured across the park, the legacy copy
+held more data in one journal and far less in another, so no rule picks
+correctly. It runs only inside `update`: writing to a project nobody asked to
+have written to is the line this repo does not cross.
+
 ## Decision records
 
 ADRs are an append-only data model, not a generated document:
@@ -101,7 +143,7 @@ Rules:
 ### Consumer active-program handoff
 
 Every generated `CLAUDE.md` or `AGENTS.md` carries the same conditional bootstrap: if
-`plans/ACTIVE.md` exists with `status: executing`, the runtime reads its plan and spec before
+`.void/active.md` exists with `status: executing`, the runtime reads its plan and spec before
 choosing implementation work. A plain continue/start/resume request recovers exactly one started
 scoped ticket, or selects the first ready ticket from the pointer's stable issue order and the
 tracker’s native blocker relations. The complete ticket is then executed through `ticket-runner`.

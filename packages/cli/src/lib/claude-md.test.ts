@@ -10,14 +10,14 @@ const input = { enabledPlugins: ['harness'], enabledPacks: [] as never[] };
 describe('harnessBlock', () => {
   it('uses @imports for the Claude runtime', () => {
     const block = harnessBlock(input, 'claude');
-    expect(block).toContain('@.void/PHILOSOPHY.md');
+    expect(block).toContain('@.void/installed/PHILOSOPHY.md');
     expect(block).toContain('Claude Code doctrine active');
   });
 
   it('uses read-at-start file pointers (no @import) for the Codex runtime', () => {
     const block = harnessBlock(input, 'codex');
-    expect(block).not.toContain('@.void/PHILOSOPHY.md');
-    expect(block).toContain('`.void/PHILOSOPHY.md`');
+    expect(block).not.toContain('@.void/installed/PHILOSOPHY.md');
+    expect(block).toContain('`.void/installed/PHILOSOPHY.md`');
     expect(block).toContain('Codex doctrine active');
     expect(block).toContain('read at the start');
   });
@@ -27,7 +27,7 @@ describe('harnessBlock', () => {
     ['codex', '`ticket-runner`'],
   ] as const)('installs the active-program bootstrap for %s', (runtime, runner) => {
     const block = harnessBlock(input, runtime);
-    expect(block).toContain('`plans/ACTIVE.md`');
+    expect(block).toContain('`.void/active.md`');
     expect(block).toContain('`status: executing`');
     expect(block).toContain('The tracker owns mutable execution state');
     expect(block).toContain(runner);

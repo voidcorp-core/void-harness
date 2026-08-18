@@ -80,7 +80,7 @@ for (const runtime of ['claude', 'codex', 'both']) {
   await run(process.execPath, [bin, 'init', '--runtime', runtime, '--no-interactive'], fixture);
   durations.push(performance.now() - started);
 
-  requirePath(join(fixture, '.void', 'local', 'receipts', 'install-v1.json'), `${runtime} receipt`);
+  requirePath(join(fixture, '.void', 'machine', 'receipts', 'install-v1.json'), `${runtime} receipt`);
   requirePath(join(fixture, '.void', 'hooks', '_void-hook.mjs'), `${runtime} hook runner`);
   if (runtime !== 'codex') {
     requirePath(join(fixture, '.claude', 'skills', 'tdd', 'SKILL.md'), `${runtime} Claude skill`);

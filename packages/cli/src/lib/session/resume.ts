@@ -69,8 +69,8 @@ function gapsOf(input: ResumeInput, age: number | undefined): readonly ResumeGap
     gaps.push({
       reason: 'no-checkpoint',
       detail:
-        'no .void/session/current.md — run the session-handoff skill at the end of a session '
-        + 'so the next one starts from a record rather than from memory',
+        'no .void/machine/checkpoint.md — run the checkpoint skill before a clear, an '
+        + 'interruption, or the end of a day, so the next session starts from a record',
     });
   } else if (input.checkpoint.isEmpty) {
     gaps.push({

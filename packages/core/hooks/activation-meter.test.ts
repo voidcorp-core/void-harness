@@ -29,12 +29,12 @@ function runHook(payload: Record<string, unknown>, env: Record<string, string> =
     // Isolate the global rollup index so self-registration (#72) never touches ~/.void.
     env: { ...process.env, CLAUDE_PROJECT_DIR: dir, VOID_GLOBAL_DIR: join(dir, '_global'), ...env },
   });
-  const runs = join(dir, '.void', 'local', 'runs');
+  const runs = join(dir, '.void', 'machine', 'runs');
   const mission = existsSync(runs) ? readdirSync(runs)[0] : undefined;
   const actPath = mission === undefined
     ? ''
     : join(runs, mission, 'events.jsonl');
-  const usagePath = join(dir, '.void', 'local', 'usage.log');
+  const usagePath = join(dir, '.void', 'machine', 'usage.log');
   const raw = actPath !== '' && existsSync(actPath)
     ? readFileSync(actPath, 'utf8').trim()
     : '';
@@ -129,7 +129,7 @@ describe('activation-meter — file trigger context', () => {
       input: JSON.stringify(pre('Edit', { file_path: join(dir, 'src/render/live.ts'), new_string: 'SECRET CONTENT' })),
       env: { ...process.env, CLAUDE_PROJECT_DIR: dir },
     });
-    const runs = join(dir, '.void', 'local', 'runs');
+    const runs = join(dir, '.void', 'machine', 'runs');
     const mission = readdirSync(runs)[0] ?? '';
     const ev = JSON.parse(
       readFileSync(join(runs, mission, 'events.jsonl'), 'utf8').trim(),
@@ -160,7 +160,7 @@ describe('activation-meter — robustness', () => {
       input: JSON.stringify(pre('Skill', { skill: 'tdd' })),
       env: { CLAUDE_PROJECT_DIR: dir, PATH: binDir },
     });
-    const runs = join(dir, '.void', 'local', 'runs');
+    const runs = join(dir, '.void', 'machine', 'runs');
     const mission = readdirSync(runs)[0] ?? '';
     const ev = JSON.parse(
       readFileSync(join(runs, mission, 'events.jsonl'), 'utf8').trim(),

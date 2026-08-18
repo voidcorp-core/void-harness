@@ -1,4 +1,4 @@
-// `.void/session/current.md` — what was happening just before the stop.
+// `.void/machine/checkpoint.md` — what was happening just before the stop.
 //
 // Pure. Callers read the file; this interprets it.
 //
@@ -10,7 +10,7 @@
 //
 // It holds only what NO other artefact holds. Execution state belongs to the
 // tracker, what the code does belongs to the diff, durable rules belong to
-// doctrine — see the `session-handoff` skill, which owns that routing. A
+// doctrine — see the `checkpoint` skill, which owns that routing. A
 // checkpoint that grew long has failed its triage, not its format.
 
 export interface Checkpoint {

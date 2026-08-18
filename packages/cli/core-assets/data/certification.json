@@ -159,6 +159,32 @@
       }
     },
     {
+      "id": "skill:checkpoint",
+      "owner": "folpe",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "proof": {
+        "verified": true
+      }
+    },
+    {
       "id": "skill:claude-md-authoring",
       "owner": "folpe",
       "runtimes": [
@@ -1392,32 +1418,6 @@
         "inline": {
           "claude": "pretooluse",
           "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "proof": {
-        "verified": true
-      }
-    },
-    {
-      "id": "skill:session-handoff",
-      "owner": "folpe",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
           "hermes": "ci-only"
         }
       },

@@ -26,7 +26,7 @@ How work is framed before and after the code is written.
 | `refactoring` | Tidy-First. Tidyings commit separately from behavior changes (Two-Hat). |
 | `verification-before-completion` | Final pre-flight checklist. Twelve items observed (not assumed) — typecheck, tests, hooks, mobile+desktop, commit why, review evidence. |
 | `context-management` | Context is the agent's core constraint. Use when a task spans many files, a session mixes subjects, corrections loop, or replies forget earlier constraints. |
-| `session-handoff` | Close a work session so the next one starts without re-deriving anything. |
+| `checkpoint` | Write .void/machine/checkpoint.md before a clear, an interruption, or the end of a day, so the next session resumes without re-deriving anything. |
 
 ### Code architecture
 
@@ -289,7 +289,7 @@ The surface no sentence can trigger, because it reports or changes state.
 | | |
 |---|---|
 | `autopilot` | Drain a bounded cluster of independent ready tickets — each worked end-to-end by ticket-runner in its own worktree — into one integration PR the human merges. |
-| `session-handoff` | Close the current work session — route each fact to where state lives, then write the residue the next session cannot re-derive, ending on one exact next action. |
+| `checkpoint` | Close the current work session gracefully — before a clear, an interruption, or the end of a day. |
 | `void-audit` | Run the outbound audit from local mission events and surface stale skills, upstream deprecations, conflicts, and HITL proposals. |
 | `void-doctor` | Run harness health checks for config, doctrine, runtime wiring, lifecycle proof, optional marketplace access, and version drift. |
 | `void-feedback` | File a void-harness feedback issue (a gap or friction in the harness) directly on voidcorp-core/void-harness. |

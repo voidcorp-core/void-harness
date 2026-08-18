@@ -49,7 +49,7 @@ const MANAGED_PREFIXES = [
 
 const MANAGED_FILES = new Set([
   INSTALL_MANIFEST_PATH,
-  '.void/PHILOSOPHY.md',
+  '.void/installed/PHILOSOPHY.md',
   '.codex/hooks.json',
 ]);
 

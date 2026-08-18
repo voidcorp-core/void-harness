@@ -17,7 +17,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { voidLocalReadPath } from '@voidcorp/hook-runner';
+import { voidReadPath } from '@voidcorp/hook-runner';
 import { fileURLToPath } from 'node:url';
 import {
   analyze,
@@ -453,7 +453,7 @@ export async function graph(
 
   if (sub === 'behavior') {
     const model = await resolveModel(coreSource, bundled);
-    const logPath = strFlag(args, '--log', voidLocalReadPath(process.cwd(), 'activations.jsonl'));
+    const logPath = strFlag(args, '--log', voidReadPath(process.cwd(), 'activations.jsonl'));
     const sinceDays = numFlag(args, '--since', 0);
     const events = parseActivations(loadTelemetryBody(args, 'activations.jsonl', logPath));
     const report = analyzeBehavior(
@@ -487,7 +487,7 @@ export async function graph(
 
   if (sub === 'cost') {
     const model = await resolveModel(coreSource, bundled);
-    const logPath = strFlag(args, '--log', voidLocalReadPath(process.cwd(), 'activations.jsonl'));
+    const logPath = strFlag(args, '--log', voidReadPath(process.cwd(), 'activations.jsonl'));
     const sinceDays = numFlag(args, '--since', 0);
     const events = parseActivations(loadTelemetryBody(args, 'activations.jsonl', logPath));
     const outcomes = parseOutcomes(loadTelemetryBody(args, 'outcomes.jsonl'));
@@ -537,7 +537,7 @@ export async function graph(
 
   if (sub === 'live') {
     const port = numFlag(args, '--port', 4317);
-    const logPath = strFlag(args, '--log', voidLocalReadPath(process.cwd(), 'activations.jsonl'));
+    const logPath = strFlag(args, '--log', voidReadPath(process.cwd(), 'activations.jsonl'));
     const historyMax = numFlag(args, '--history-max', 5000);
     const model = await resolveModel(coreSource, bundled);
     const modelJson = serializeModel(model);

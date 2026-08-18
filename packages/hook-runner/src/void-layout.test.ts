@@ -6,17 +6,20 @@ import {
   classifyMaterialized,
   derivedIgnoreEntries,
   isOwnedDerived,
-  LOCAL_ENTRIES,
+  MACHINE_ENTRIES,
   VOID_DIR,
-  VOID_LOCAL_DIR,
+  VOID_MACHINE_DIR,
+  VOID_OWNERSHIP,
+  migratedName,
+  voidInstalledPath,
   gitignoreBlock,
-  isLocalEntry,
+  isMachineEntry,
   legacyVoidPath,
   ownershipOf,
   patchGitignore,
   pendingMigrations,
-  voidLocalPath,
-  voidLocalReadPath,
+  voidMachinePath,
+  voidReadPath,
 } from './void-layout.js';
 
 const temporary: string[] = [];
@@ -48,49 +51,124 @@ describe('ownership decides what git keeps', () => {
     // here would have doctor tell a project to untrack its own data — which is
     // exactly what it did for this repo's own `.void/harness-feedback/`.
     expect(ownershipOf('harness-feedback')).toBe('project');
-    expect(isLocalEntry('harness-feedback')).toBe(false);
-  });
-
-  it('still recognises the pre-split names as observed', () => {
-    // They predate `local/`, so they cannot rely on the closed-set argument.
-    expect(ownershipOf('usage.log')).toBe('observed');
-    expect(ownershipOf('activations.jsonl')).toBe('observed');
+    expect(isMachineEntry('harness-feedback')).toBe(false);
   });
 
   it('never moves derived state under local/, whatever git does with it', () => {
     // Derived state is regenerated in place by `install`; only its git treatment
     // is in question, never its location. Moving it would break the paths
     // `.claude/settings.json` and the runtimes resolve by name.
-    expect(isLocalEntry('hooks')).toBe(false);
+    expect(isMachineEntry('hooks')).toBe(false);
     expect(pendingMigrations('/nonexistent')).not.toContain('hooks');
   });
 });
 
-describe('the two natures of .void', () => {
-  it('writes observed state under .void/local, never beside what the project declares', () => {
-    expect(voidLocalPath('/p', 'runs', 'mis_1')).toBe(join('/p', '.void', 'local', 'runs', 'mis_1'));
+describe('the three natures of .void', () => {
+  it('writes observed state under .void/machine, never beside what the project declares', () => {
+    expect(voidMachinePath('/p', 'runs', 'mis_1')).toBe(join('/p', '.void', 'machine', 'runs', 'mis_1'));
   });
+
+  /**
+   * The rule the whole layout exists to make true: everything at the top of
+   * `.void/` is committed, and the two subdirectories are not. It was false
+   * before — PHILOSOPHY.md and hooks/ sat at the top while being ignored, so
+   * "is this committed" had no answer you could see.
+   */
+  it('files what install restores under .void/installed', () => {
+    expect(voidInstalledPath('/p', 'hooks')).toBe(join('/p', '.void', 'installed', 'hooks'));
+    expect(ownershipOf('PHILOSOPHY.md')).toBe('derived');
+    expect(ownershipOf('hooks')).toBe('derived');
+  });
+
+  it('leaves nothing derived at the top of .void', () => {
+    const atTop = Object.keys(VOID_OWNERSHIP).filter((entry) => ownershipOf(entry) === 'project');
+    for (const entry of atTop) expect(isMachineEntry(entry), entry).toBe(false);
+    expect(atTop).toContain('config.json');
+    expect(atTop).toContain('active.md');
+  });
+
+  // Dropped: three policy layers referenced by code but present in none of the
+  // park's projects. Removing them is safe precisely because they do not exist.
+  it.each(['policies', 'profiles', 'organization'])('no longer knows %s', (entry) => {
+    expect(Object.keys(VOID_OWNERSHIP)).not.toContain(entry);
+  });
+
+  /**
+   * The three legacy telemetry streams stay CLASSIFIED even though nothing reads
+   * or writes them any more. They still exist on disk across the park — 424 KB in
+   * one project — and dropping them here would let them fall through to the
+   * `project` default, at which point doctor tells those projects to commit their
+   * own telemetry. "No longer read" is not "no longer there".
+   */
+  it.each(['activations.jsonl', 'outcomes.jsonl', 'usage.log'])(
+    'still classifies the retired stream %s as observed',
+    (entry) => {
+      expect(ownershipOf(entry)).toBe('observed');
+    },
+  );
 
   it('keeps declared state at the top of .void, where git can see it', () => {
     // config.json and PROJECT-DOCTRINE.md are the two the project owns and ships.
-    expect(isLocalEntry('config.json')).toBe(false);
-    expect(isLocalEntry('PROJECT-DOCTRINE.md')).toBe(false);
+    expect(isMachineEntry('config.json')).toBe(false);
+    expect(isMachineEntry('PROJECT-DOCTRINE.md')).toBe(false);
   });
 
-  it('classifies every observed artifact as local', () => {
-    for (const entry of ['runs', 'cache', 'outputs', 'generated', 'archives', 'autopilot', 'receipts', 'history', 'state.json', 'activations.jsonl', 'outcomes.jsonl']) {
-      expect(isLocalEntry(entry), entry).toBe(true);
+  /**
+   * `autonomous-runs` holds PLANS, not run journals — measured on sesame, eight
+   * committed `.plan.md` files carrying frozen model decisions that still govern
+   * its schema. Classified as observed, doctor told the project to untrack its
+   * own architecture decisions.
+   *
+   * Nothing writes it: it is a leftover of the `backlog-autopilot` engine deleted
+   * at the 2026-07-30 cutover, and the current autopilot writes to
+   * `machine/autopilot/`. So there is no writer to redirect — only a
+   * classification to correct, and the fix is to leave those files where their
+   * project committed them.
+   */
+  it('treats autonomous-runs as the project\'s own, not as machine state', () => {
+    expect(ownershipOf('autonomous-runs')).toBe('project');
+    expect(isMachineEntry('autonomous-runs')).toBe(false);
+  });
+
+  it('classifies every observed artifact as machine-owned', () => {
+    for (const entry of ['runs', 'cache', 'outputs', 'generated', 'archives', 'autopilot', 'receipts', 'history', 'status.json', 'checkpoint.md']) {
+      expect(isMachineEntry(entry), entry).toBe(true);
     }
+  });
+
+  /**
+   * `state.json` named two different things: the snapshot `status` writes, and
+   * an autopilot run's cursor. Only the first is renamed; the cursor keeps its
+   * name inside its own run directory, where it is unambiguous.
+   */
+  it('renames only the status snapshot, never the autopilot cursor', () => {
+    expect(isMachineEntry('status.json')).toBe(true);
+    // The old name stays CLASSIFIED — it is still on disk in the park, and
+    // forgetting it would have doctor ask those projects to commit it — while
+    // the rename map sends it to its new name on migration.
+    expect(ownershipOf('state.json')).toBe('observed');
+    expect(migratedName('state.json')).toBe('status.json');
+    // The autopilot cursor lives inside its own run directory and keeps its name.
+    expect(migratedName('autopilot')).toBe('autopilot');
   });
 });
 
 describe('reading across the split', () => {
   it('prefers the migrated path', () => {
     const root = scratch();
-    mkdirSync(join(root, VOID_DIR, VOID_LOCAL_DIR), { recursive: true });
-    writeFileSync(join(root, VOID_DIR, VOID_LOCAL_DIR, 'activations.jsonl'), '');
+    mkdirSync(join(root, VOID_DIR, VOID_MACHINE_DIR), { recursive: true });
+    writeFileSync(join(root, VOID_DIR, VOID_MACHINE_DIR, 'runs'), '');
 
-    expect(voidLocalReadPath(root, 'activations.jsonl')).toBe(voidLocalPath(root, 'activations.jsonl'));
+    expect(voidReadPath(root, 'runs')).toBe(voidMachinePath(root, 'runs'));
+  });
+
+  it('falls back through the previous machine directory before the flat root', () => {
+    // A project migrated once already (local/) but not yet to machine/.
+    const root = scratch();
+    mkdirSync(join(root, VOID_DIR, 'local'), { recursive: true });
+    writeFileSync(join(root, VOID_DIR, 'local', 'runs'), '');
+
+    expect(voidReadPath(root, 'runs')).toBe(join(root, VOID_DIR, 'local', 'runs'));
   });
 
   it('falls back to the pre-split path so an unmigrated project keeps its history', () => {
@@ -98,22 +176,22 @@ describe('reading across the split', () => {
     // new path would report a project with months of telemetry as having none.
     const root = scratch();
     mkdirSync(join(root, VOID_DIR), { recursive: true });
-    writeFileSync(join(root, VOID_DIR, 'activations.jsonl'), '');
+    writeFileSync(join(root, VOID_DIR, 'runs'), '');
 
-    expect(voidLocalReadPath(root, 'activations.jsonl')).toBe(legacyVoidPath(root, 'activations.jsonl'));
+    expect(voidReadPath(root, 'runs')).toBe(legacyVoidPath(root, 'runs'));
   });
 
   it('returns the migrated path when neither exists, so writers create the right one', () => {
     const root = scratch();
 
-    expect(voidLocalReadPath(root, 'activations.jsonl')).toBe(voidLocalPath(root, 'activations.jsonl'));
+    expect(voidReadPath(root, 'runs')).toBe(voidMachinePath(root, 'runs'));
   });
 });
 
 describe('what update has to move', () => {
   it('reports nothing for a project already on the new layout', () => {
     const root = scratch();
-    mkdirSync(join(root, VOID_DIR, VOID_LOCAL_DIR, 'runs'), { recursive: true });
+    mkdirSync(join(root, VOID_DIR, VOID_MACHINE_DIR, 'runs'), { recursive: true });
 
     expect(pendingMigrations(root)).toEqual([]);
   });
@@ -140,7 +218,7 @@ describe('ownership comes from the receipt, never from the directory', () => {
     '.claude/skills/tdd/references/cycle.md',
     '.agents/skills/tdd/SKILL.md',
     '.claude/agents/doctrine-critic.md',
-    '.void/PHILOSOPHY.md',
+    '.void/installed/PHILOSOPHY.md',
     '.void/hooks/_void-hook.mjs',
     '.codex/hooks.json',
     '.claude/settings.json',
@@ -167,7 +245,7 @@ describe('ownership comes from the receipt, never from the directory', () => {
   });
 
   it('lists a standalone owned file exactly', () => {
-    expect(derivedIgnoreEntries(RECEIPT)).toContain('.void/PHILOSOPHY.md');
+    expect(derivedIgnoreEntries(RECEIPT)).toContain('.void/installed/PHILOSOPHY.md');
   });
 
   it('does not collapse a flat unit root, where the unit IS the file', () => {
@@ -210,7 +288,7 @@ describe('ownership comes from the receipt, never from the directory', () => {
     // content nobody proved the harness owns.
     const rules = gitignoreBlock().split('\n').filter((l) => l !== '' && !l.startsWith('#'));
 
-    expect(rules).toEqual(['.void/local/']);
+    expect(rules).toEqual(['.void/machine/', '.void/installed/', '.void/local/']);
   });
 });
 
@@ -220,6 +298,9 @@ describe('the ignore rule', () => {
     // what silently left config.json ignored in the project that prompted this.
     const rules = gitignoreBlock().split('\n').filter((l) => l !== '' && !l.startsWith('#'));
 
+    expect(rules).toContain('.void/machine/');
+    expect(rules).toContain('.void/installed/');
+    // Kept so a half-finished migration cannot un-ignore what it left behind.
     expect(rules).toContain('.void/local/');
     expect(rules.some((rule) => rule.startsWith('!'))).toBe(false);
   });
@@ -265,10 +346,10 @@ describe('the ignore rule', () => {
   });
 });
 
-describe('LOCAL_ENTRIES', () => {
+describe('MACHINE_ENTRIES', () => {
   it('is the single list both the ignore rule and the migration read', () => {
     // If these ever diverge, `update` moves a file the ignore rule does not
     // cover, and the next commit ships telemetry.
-    for (const entry of LOCAL_ENTRIES) expect(isLocalEntry(entry)).toBe(true);
+    for (const entry of MACHINE_ENTRIES) expect(isMachineEntry(entry)).toBe(true);
   });
 });

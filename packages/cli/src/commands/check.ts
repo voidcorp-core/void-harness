@@ -126,7 +126,11 @@ function reportVersionDrift(local: LocalConfig, remote: RemoteMarketplace, marke
 }
 
 async function reportDoctrineDrift(projectRoot: string, market: RemoteMarketplace, marketplaceRepo: string): Promise<void> {
-  const localPath = join(projectRoot, '.void', 'PHILOSOPHY.md');
+  // New home first, previous one until the project runs `update`.
+  const migrated = join(projectRoot, '.void', 'installed', 'PHILOSOPHY.md');
+  const localPath = existsSync(migrated)
+    ? migrated
+    : join(projectRoot, '.void', 'PHILOSOPHY.md');
   if (!existsSync(localPath)) {
     status('PHILOSOPHY.md missing locally — run `void-harness init` to install.', 'warn');
     return;

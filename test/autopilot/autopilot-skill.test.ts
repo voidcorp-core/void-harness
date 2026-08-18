@@ -118,7 +118,7 @@ describe('provenance', () => {
   });
 
   it('records what was dropped from its predecessor, not only what was kept', () => {
-    const audit = readFileSync(new URL('../../plans/skill-audits/autopilot.md', import.meta.url), 'utf8');
+    const audit = readFileSync(new URL('../../docs/plans/skill-audits/autopilot.md', import.meta.url), 'utf8');
     expect(audit).toMatch(/What was dropped/i);
     expect(audit).toMatch(/auto-merge/i);
   });

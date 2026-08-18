@@ -43,6 +43,12 @@ interface UpdateOptions {
   readonly skipCache: boolean;
   /** Explicit opt-in: rewrite the index to drop regenerated content. Never implied. */
   readonly untrackDerived: boolean;
+  /**
+   * Overwrite a managed file the receipt cannot prove this install wrote. It is
+   * what `init` tells the operator to do when it refuses one, so `update` has to
+   * accept it — otherwise the printed remedy has no way of being applied.
+   */
+  readonly force: boolean;
 }
 
 function parseArgs(args: readonly string[]): UpdateOptions {
@@ -51,6 +57,7 @@ function parseArgs(args: readonly string[]): UpdateOptions {
     skipPins: args.includes('--cache-only'),
     skipCache: args.includes('--pins-only'),
     untrackDerived: args.includes('--untrack-derived'),
+    force: args.includes('--force'),
   };
 }
 
@@ -64,7 +71,7 @@ export async function update(args: readonly string[]): Promise<void> {
   if (opts.untrackDerived) await reportUntrackDerived(projectRoot, opts.dryRun);
   const receipt = await readInstallReceipt(projectRoot);
   if (updateModeFor(receipt) === 'local' && receipt !== undefined) {
-    await updateLocal(projectRoot, receipt, opts.dryRun);
+    await updateLocal(projectRoot, receipt, opts.dryRun, opts.force);
     return;
   }
 
@@ -139,7 +146,7 @@ export function updateModeFor(receipt: InstallReceipt | undefined): InstallRecei
 }
 
 /**
- * Move observed state under `.void/local/` and install the managed ignore block,
+ * Move observed state under `.void/machine/` and install the managed ignore block,
  * reporting what moved. Silent on a project that is already migrated, so a
  * routine update does not grow a paragraph about a one-time change.
  */
@@ -149,7 +156,7 @@ async function reportVoidMigration(projectRoot: string, dryRun: boolean): Promis
 
   const verb = dryRun ? 'would move' : 'moved';
   if (result.moved.length > 0) {
-    line(`${c.green(glyph.check)}  ${c.dim('layout'.padEnd(12))}${verb} ${result.moved.length} observed path(s) ${c.dim(glyph.to)} .void/local/ (${result.moved.join(', ')})`);
+    line(`${c.green(glyph.check)}  ${c.dim('layout'.padEnd(12))}${verb} ${result.moved.length} path(s) ${c.dim(glyph.to)} .void/installed/ and .void/machine/ (${result.moved.join(', ')})`);
     if (!dryRun) {
       // Anything that was committed now shows as a deletion. Saying so is the
       // difference between a clean commit and a confusing `git status`.
@@ -157,10 +164,30 @@ async function reportVoidMigration(projectRoot: string, dryRun: boolean): Promis
     }
   }
   if (result.gitignoreTouched) {
-    line(`${c.green(glyph.check)}  ${c.dim('gitignore'.padEnd(12))}${dryRun ? 'would write' : 'wrote'} the managed block (.void/local/ ignored, the rest of .void/ tracked)`);
+    line(`${c.green(glyph.check)}  ${c.dim('gitignore'.padEnd(12))}${dryRun ? 'would write' : 'wrote'} the managed block (.void/machine/ and .void/installed/ ignored, the rest of .void/ tracked)`);
   }
+  // Say it when git will notice. Moving a TRACKED file shows up as a deletion
+  // plus an untracked one, and finding nine staged deletions you did not ask for
+  // is alarming even when every one of them is correct. Announced at the moment
+  // it happens, it reads as the migration it is.
+  if (!dryRun && result.moved.length > 0) {
+    const trackedMoved = countTrackedUnder(projectRoot, result.moved);
+    if (trackedMoved > 0) {
+      line(
+        `${c.dim(glyph.dot)}  ${c.dim('layout'.padEnd(12))}${c.dim(`${String(trackedMoved)} of them were tracked, so git now shows deletions at the old paths — review and commit`)}`,
+      );
+    }
+  }
+
+  // A parked copy is reported, not asked about: the merge already happened and
+  // nothing was lost. Telling the operator where the old bytes went is enough.
+  for (const entry of result.parked) {
+    line(`${c.dim(glyph.dot)}  ${c.dim('layout'.padEnd(12))}${c.dim(`.void/${entry} merged; the previous copy is kept beside it as *.legacy`)}`);
+  }
+  // What is left here could not be moved at all — a permission, a lock, a
+  // cross-device .void. The old path still works because readers fall back.
   for (const entry of result.conflicts) {
-    line(`${c.yellow(glyph.up)}  ${c.dim('layout'.padEnd(12))}${c.yellow('left in place')}: .void/${entry} — .void/local/${entry} already exists; merge or delete one, readers still fall back`);
+    line(`${c.yellow(glyph.up)}  ${c.dim('layout'.padEnd(12))}${c.yellow('could not move')}: .void/${entry} — check permissions and re-run; readers still fall back`);
   }
 }
 
@@ -186,10 +213,59 @@ async function reportUntrackDerived(projectRoot: string, dryRun: boolean): Promi
   }
 }
 
+/**
+ * The argv `update` hands to `init`.
+ *
+ * `--force` is forwarded rather than dropped. Reported from a real consumer
+ * project: `init` refuses to overwrite a managed file it cannot prove it wrote
+ * and prints "preserve it or re-run with --force", but `update` never parsed
+ * the flag nor passed it on — so the remedy the tool printed could not be
+ * applied through the command that printed it, and the operator was left with
+ * an instruction that does nothing. An impossible instruction is worse than
+ * none, because it costs the reader their trust in every other message.
+ */
+export function localInitArgs(
+  receipt: InstallReceipt,
+  packs: readonly string[],
+  options: { readonly force: boolean },
+): string[] {
+  const args = [
+    '--no-interactive',
+    '--replace-packs',
+    '--runtime',
+    receipt.runtimes.join(','),
+  ];
+  for (const pack of packs) args.push('--pack', pack);
+  if (options.force) args.push('--force');
+  return args;
+}
+
+/**
+ * How many of the moved entries git was tracking at their old location. Best
+ * effort: not a repository, or git unusable, simply answers zero.
+ */
+function countTrackedUnder(projectRoot: string, moved: readonly string[]): number {
+  try {
+    const listed = execFileSync('git', ['ls-files', '--', '.void'], {
+      cwd: projectRoot,
+      encoding: 'utf8',
+      timeout: 10_000,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    const tracked = listed.split(/\r?\n/).filter((path) => path.trim() !== '');
+    return tracked.filter((path) =>
+      moved.some((entry) => path === `.void/${entry}` || path.startsWith(`.void/${entry}/`)),
+    ).length;
+  } catch {
+    return 0;
+  }
+}
+
 async function updateLocal(
   projectRoot: string,
   receipt: InstallReceipt,
   dryRun: boolean,
+  force: boolean,
 ): Promise<void> {
   let packs: string[] = [];
   try {
@@ -209,14 +285,7 @@ async function updateLocal(
     footer(c.dim('dry-run — local assets would be recompiled, smoked and reconciled transactionally'));
     return;
   }
-  const initArgs = [
-    '--no-interactive',
-    '--replace-packs',
-    '--runtime',
-    receipt.runtimes.join(','),
-  ];
-  for (const pack of packs) initArgs.push('--pack', pack);
-  await init(initArgs);
+  await init(localInitArgs(receipt, packs, { force }));
 }
 
 /**
