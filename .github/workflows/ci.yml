@@ -206,6 +206,13 @@ jobs:
         # a page that lists almost everything, which is worse than none.
         run: pnpm cheatsheet:check
 
+      - name: Skill references resolve (no link into a renamed skill)
+        # A skill's identity is its directory name, copied by hand into routing
+        # tables, commands and sourcing notes. Renaming session-handoff to
+        # checkpoint left four references pointing at nothing, and an audit found
+        # them weeks later rather than the build. This makes a rename mechanical.
+        run: pnpm skills:check-references
+
       - name: Skill tests
         run: pnpm vitest run
 

@@ -2,10 +2,12 @@ Sources for `ticket-runner` skill (see plans/skill-audits/ticket-runner.md for f
 
 - Original void-harness composition skill. No single external source: it is the
   canonical "execute one ticket end-to-end" conductor that the harness lacked.
-- harness:backlog-autopilot — had an INLINE per-ticket cycle (plan -> TDD ->
-  static UX/UI pass -> ...). That cycle is extracted here so there is one
-  definition; backlog-autopilot now delegates per ticket. Removes responsibility
-  overlap.
+- The former backlog-autopilot skill, retired at the 2026-07-30 cutover, carried
+  an INLINE per-ticket cycle (plan -> TDD -> static UX/UI pass -> ...). That
+  cycle was extracted here so there is one definition, and its successor
+  harness:autopilot delegates per ticket. Removes responsibility overlap. Named
+  in prose rather than with the routing prefix, which means "go here" and must
+  never point at a skill that no longer exists.
 - Composes (does not reimplement): harness:tdd, harness:testing,
   harness:hexagonal-architecture, harness:domain-driven-design,
   harness:frontend-design, harness:accessibility-first, harness:security-guidance,
