@@ -6,7 +6,7 @@ describe('selectCorePlugin', () => {
     // Regression: the first catalog entry is an unrelated, version-less product.
     const plugins = [
       { name: 'forge', source: 'github' as const },
-      { name: 'harness', source: { source: 'github', repo: 'voidcorp-core/void-plugins', sha: 'a'.repeat(40) } },
+      { name: 'harness', source: { source: 'github', repo: 'voidcorp-core/void-harness', sha: 'a'.repeat(40) } },
     ];
     expect(selectCorePlugin(plugins)?.name).toBe('harness');
   });
