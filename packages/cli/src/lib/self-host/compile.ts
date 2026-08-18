@@ -259,6 +259,9 @@ async function compileArtifact(input: {
     outfile: join(input.overlayRoot, 'hooks', '_void-hook.mjs'),
   });
   await mkdir(join(input.artifactRoot, '.void'), { recursive: true });
+  // The doctrine is derived content, so the artifact must reproduce the level it
+  // lives at; copying into a directory that does not exist yet fails outright.
+  await mkdir(join(input.artifactRoot, '.void', 'installed'), { recursive: true });
   await writeFile(
     join(input.artifactRoot, '.void', 'config.json'),
     `${JSON.stringify({
@@ -274,7 +277,7 @@ async function compileArtifact(input: {
   await Promise.all([
     cp(
       join(input.overlayRoot, 'PHILOSOPHY.md'),
-      join(input.artifactRoot, '.void', 'PHILOSOPHY.md'),
+      join(input.artifactRoot, '.void', 'installed', 'PHILOSOPHY.md'),
     ),
     cp(
       join(input.overlayRoot, 'PROJECT-DOCTRINE.template.md'),

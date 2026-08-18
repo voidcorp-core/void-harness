@@ -1,5 +1,6 @@
 ---
 name: expo-config-plugins
+kind: standard
 description: Add native functionality to an Expo app via config plugins, never by ejecting. Pick existing Expo modules first, write a custom plugin only when none fits. Document everything in app.config.ts.
 owner: folpe
 runtimes: [claude, codex]

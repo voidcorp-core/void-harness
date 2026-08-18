@@ -29,10 +29,11 @@ void-harness/
 ├── apps/                          # private, unpublished tooling
 │   ├── graph-studio/              # the graph visualiser (Vite)
 │   └── eval-harness/              # @voidcorp/eval-harness — behavioral skill evals
-├── plans/                         # specs and implementation plans
-│   └── skill-audits/              # one audit note per vendored skill
 ├── test/                          # automated skill tests (citypaul-style)
 └── docs/                          # doctrine, architecture, release and decisions
+    ├── specs/                     # approved designs
+    ├── plans/                     # implementation plans
+    │   └── skill-audits/          # one audit note per vendored skill
     └── decisions-log/             # one immutable, collision-free file per ADR
 ```
 
@@ -132,7 +133,7 @@ Rules:
 - No file is auto-generated from the other. Auto-generation risks losing intentional adaptations. Manual authoring + mechanical gate is the safer trade-off.
 - **Doc ownership is per-runtime.** Each adapter's `wire` writes only its own doctrine doc — a Claude-only project has just `CLAUDE.md`, a Codex-only project just `AGENTS.md`. `doctor` checks only the docs of *detected* runtimes, so a Codex-only project is never dinged for a missing `CLAUDE.md`. (`add` / `remove` still patch whichever docs exist, keeping active docs current.)
 - **`init` wires each selected runtime's layer via its adapter**, gated by `--runtime <claude|codex|both>` (default: auto-detected footprint, else both). Claude receives native project-local skills, agents, commands and hooks; Codex receives `.agents/skills`, native `.codex/agents` and `.codex/hooks.json`. The package is bundled with all CLI runtime dependencies, so a tarball installs offline. `--source marketplace` is opt-in and is the only path that checks `gh`/marketplace access.
-- **Publication is transactional.** `init` seeds only shared merge targets into an isolated stage, compiles and executes each selected adapter's doctor smoke there, then atomically publishes a finite mutation set. Every target is snapshotted before the first write; a failure restores bytes and modes and removes only transaction-created paths. `.void/local/receipts/install-v1.json` hashes files the install created or already owned. Unowned native conflicts fail unless `--force`, and even force never grants deletion ownership over a pre-existing file.
+- **Publication is transactional.** `init` seeds only shared merge targets into an isolated stage, compiles and executes each selected adapter's doctor smoke there, then atomically publishes a finite mutation set. Every target is snapshotted before the first write; a failure restores bytes and modes and removes only transaction-created paths. `.void/machine/receipts/install-v1.json` hashes files the install created or already owned. Unowned native conflicts fail unless `--force`, and even force never grants deletion ownership over a pre-existing file.
 - **Runtimes are added a posteriori without friction**: `void-harness runtime add <runtime>` wires exactly that runtime's layer on an already-`init`-ed project, touching nothing the other runtime owns (verified byte-for-byte in tests). `runtime list` shows which are wired. This is the `void runtime add` command from the multi-runtime spec.
 - **Pack and update lifecycle uses the same transaction.** Local `add`/`remove` compile the exact
   config pack set and prune only unchanged receipt-owned stale assets. Local `update` recompiles
@@ -146,11 +147,11 @@ Every generated `CLAUDE.md` or `AGENTS.md` carries the same conditional bootstra
 `.void/active.md` exists with `status: executing`, the runtime reads its plan and spec before
 choosing implementation work. A plain continue/start/resume request recovers exactly one started
 scoped ticket, or selects the first ready ticket from the pointer's stable issue order and the
-tracker’s native blocker relations. The complete ticket is then executed through `ticket-runner`.
+tracker’s native blocker relations. The complete ticket is then executed through `implement`.
 More than one started scoped ticket is a competing-claim error, never an implicit selection.
 
 The pointer is opt-in and project-owned. `init`, `update`, and runtime adapters never create or
-mutate it. `ticket-writer` creates it only after a human-approved multi-ticket plan has been fully
+mutate it. `ticket` creates it only after a human-approved multi-ticket plan has been fully
 materialized in a capable tracker. It stores immutable routing only: program, plan/spec links,
 provider scope, ordered ticket identifiers, lifecycle-state names, human gates, and the required
 `autopilot` consent block. Mutable status, assignee, blockers, resume comments, and PR/evidence
@@ -173,9 +174,9 @@ ticket or resume-point flow and does not need an active pointer.
 `void-harness self-host sync` is the only supported dogfood compiler for this
 meta-repository. It hashes bounded, symlink-free current inputs, builds the hook
 runner and a disposable runtime-adapter worker directly from TypeScript, then
-wires `.void/generated/.staging-*` through that current-source worker. The
+wires `.void/machine/generated/.staging-*` through that current-source worker. The
 source set is hashed again before publication; concurrent drift aborts.
-Publication swaps the complete directory to `.void/generated/current`; a
+Publication swaps the complete directory to `.void/machine/generated/current`; a
 failed swap restores the last green artifact.
 
 The deterministic receipt records the source hash, rollout mode and every owned
@@ -233,7 +234,7 @@ enforced isolation until a runtime probe proves it.
 | Concern | Where |
 |---|---|
 | TypeScript + web craftsman discipline (universal within that stack) | `core/` |
-| Process skills (brainstorming, planning, debugging) | `core/` |
+| Process skills (brainstorm, planning, debugging) | `core/` |
 | Hooks that enforce universals | `core/hooks/` |
 | Framework-specific patterns (Next.js, React Native, etc.) | `packs/<pack>/` |
 | Framework-specific extensions of core skills | `packs/<pack>/` (can extend, not override blindly) |
@@ -276,7 +277,7 @@ Two content-aware hooks sit beside the filename/path guards:
 - **`stop-typecheck.sh`** (Stop, **advisory**) — when a TS project has uncommitted
   `.ts` changes at end of turn, it runs a timeout-bounded `tsc --noEmit` scoped to
   the nearest tsconfig of the touched files and surfaces type errors on stderr, so
-  the "typecheck clean" item of `verification-before-completion` is answered from
+  the "typecheck clean" item of `verify` is answered from
   observation. It **never blocks** (a blocking Stop would trap the session) and
   no-ops with no TS project, no TS edit, or no `tsc`.
 
@@ -300,7 +301,7 @@ The CLI does **not** edit the consumer's source code. The consumer's CLAUDE.md i
 
 ## Inter-plugin contracts (the core-hub model)
 
-The core plugin is **always installed** and acts as the hub between plugins. A sibling plugin (today: `forge`, the ideation pipeline) routes into the core's execution capabilities (`brainstorming`, `writing-plans`, `ticket-writer`, `tdd`, ...) rather than reimplementing them or dangling a pointer at a gstack skill. The nominal routing assumes the core is present; the coupling is nonetheless a **versioned artifact contract**, not a hard plugin dependency, so each plugin still makes sense alone — forge degrades to producing a standalone spec, core works with a hand-written spec.
+The core plugin is **always installed** and acts as the hub between plugins. A sibling plugin (today: `forge`, the ideation pipeline) routes into the core's execution capabilities (`brainstorm`, `plan`, `ticket`, `tdd`, ...) rather than reimplementing them or dangling a pointer at a gstack skill. The nominal routing assumes the core is present; the coupling is nonetheless a **versioned artifact contract**, not a hard plugin dependency, so each plugin still makes sense alone — forge degrades to producing a standalone spec, core works with a hand-written spec.
 
 Re-splitting core into `core` + `dev` (execution) sub-plugins is explicitly **deferred (YAGNI)**: one core-hub is enough until a second consumer of the "execution" half exists.
 
@@ -326,7 +327,7 @@ The body carries the **18 load-bearing recon variables** (the interface's payloa
 
 **Ingestion rule** (core skills): when a `source: forge` spec exists, **verify and fill the gaps — never re-ask what it already answers**. A partial spec (recon without critique, or a missing field from an older `forge_version`) is ingested for what it has, with the missing pieces listed as the only open questions. Two specs in one repo are disambiguated by `slug` / date.
 
-`brainstorming`, `writing-plans`, and `ticket-writer` each honor this rule (see their SKILL.md "Ingesting a forge spec" note). The forge side of the contract lives in `voidcorp-core/forge` (forge#4).
+`brainstorm`, `plan`, and `ticket` each honor this rule (see their SKILL.md "Ingesting a forge spec" note). The forge side of the contract lives in `voidcorp-core/forge` (forge#4).
 
 ## Dependency direction
 
@@ -481,7 +482,7 @@ is gated by `graph check-bundle` (the artifact's embedded compatibility model mu
 `model.json`); see
 DECISIONS.md (2026-07-01). The artifact is excluded from the `core-assets` mirror.
 
-## Mission event journal (`.void/local/runs/<mission-id>/events.jsonl`)
+## Mission event journal (`.void/machine/runs/<mission-id>/events.jsonl`)
 
 ### Deterministic mission planning
 
@@ -622,7 +623,7 @@ only a missing or failed specialist; it cannot replace a completed review or era
 loop is capped at two rounds. Missing input
 hashes, missing or mismatched contract versions, malformed, wrong-role, duplicate, timed-out, stale,
 or degraded specialist evidence cannot produce `verified`; persistent blockers end `blocked`.
-`packages/core/workflows/ticket-runner.workflow.yaml` is the human-authored conductor contract shared
+`packages/core/workflows/implement.workflow.yaml` is the human-authored conductor contract shared
 by the skill and runtime adapters.
 
 `void-harness mission` exposes the operator lifecycle:
@@ -682,13 +683,13 @@ A skill's SKILL.md frontmatter may declare `activation: always` or `activation: 
 (absent = `on-demand`, the default). It tells the graph cost/behavior kernels how the node
 earns its place:
 
-- `always` — doctrine followed **passively**: its rule applies via `@.void/PHILOSOPHY.md`
+- `always` — doctrine followed **passively**: its rule applies via `@.void/installed/PHILOSOPHY.md`
   and enforcing hooks, never invoked through the Skill tool, so `invocations: 0` is expected,
   not a death signal. Exempt from `dead` / `underused` / `low-yield`, marked with the positive
   `always` flag (still eligible for `expensive`). Granted only on **auditable backing**: the
   skill is the target of an `enforces` edge, or its principle is stated in `PHILOSOPHY.md`.
   16 skills qualify.
-- `on-demand` — a workflow triggered **actively** (brainstorming, writing-plans, ticket-*,
+- `on-demand` — a workflow triggered **actively** (brainstorm, plan, ticket-*,
   autopilot, ...), or a conditional skill with no structural backing (async-safety,
   api-and-interface-design, ...). If never invoked, a low count is a real signal — historical
   behavior.
@@ -739,7 +740,7 @@ and `parseList(block, key)` (flow or block YAML list — used by `runtimes` and 
 
 ### The certification manifest (`certification.json`)
 
-The capability contract is frozen, per release, into `packages/harness-graph/certification.json` (A4).
+The capability contract is frozen, per release, into `packages/core/data/certification.json` (A4).
 It is the input `ProjectState` (Phase B) reads for the repo-authored half of the five-state model —
 never recomputed on a consumer machine. `buildCertification(model, reports, harnessVersion)`
 (`src/certification/build.ts`, pure) joins the graph model's capability fields with the eval-harness
@@ -777,7 +778,7 @@ actions — see DECISIONS.md 2026-07-21). Both are pure: no I/O, no clock, no mo
 `void-harness status` (`packages/cli/src/commands/status.ts`) is the imperative shell: it reads the
 certification + model + telemetry, executes each detected adapter's bounded local postconditions,
 calls the pure core, renders the terminal surface, and persists
-`.void/local/state.json` plus a `.void/local/history/<ts>.json` snapshot (both git-ignored, per-project runtime
+`.void/machine/status.json` plus a `.void/machine/history/<ts>.json` snapshot (both git-ignored, per-project runtime
 state). `generatedAt` is stamped by the shell so the core stays deterministic. Missing runtime,
 cost, smoke or observation data stays `unknown`/pending and is excluded from scores instead of being
 invented. Consumer-side bundled-certificate resolution and pack-aware filtering remain local and
@@ -785,42 +786,61 @@ offline.
 
 ## `.void/` ownership: declared, derived, observed
 
-Every path the harness materializes carries exactly one ownership class, and that
-class decides what git does with it. The map is code, not prose:
-`VOID_OWNERSHIP` in `packages/hook-runner/src/void-layout.ts` is the single source
-the ignore rule, the migration and `doctor` all read.
+The three levels above answer what deleting a path costs. Ownership answers the
+adjacent question, who wrote it and therefore what git does with it, and it
+covers all four materialized directories rather than `.void/` alone.
+`VOID_OWNERSHIP` stays the single source, as above.
 
 Three decisions built this, in order, and the log is append-only so each records
 what was true when it was taken: `void-layout-ownership-split` (observed state
-moves under `.void/local/`; it classified `derived` and deliberately left it
-tracked), `exact-rehydration-manifest` (the manifest and `hydrate`, which supplied
-the guarantee the next one needed), then `derived-content-is-not-committed` (which
-took the alternative the first had deferred). **This page carries the current
-state; the records carry the reasoning at each step.**
+moves off the top of `.void/` into a subdirectory of its own; it classified
+`derived` and deliberately left it tracked), `exact-rehydration-manifest` (the
+manifest and `hydrate`, which supplied the guarantee the next one needed), then
+`derived-content-is-not-committed` (which took the alternative the first had
+deferred). That subdirectory was later renamed `machine/`, and the derived half
+was given its own `installed/`, so each level is named for whose the content is
+instead of for where it happens to sit. **This page carries the current state;
+the records carry the reasoning at each step.**
 
 | class | what it means | examples | git |
 | --- | --- | --- | --- |
-| `project` | the project authors it; the harness never overwrites it | `.void/config.json`, `PROJECT-DOCTRINE.md`, `policies/`, `.claude/settings.json` | tracked |
-| `derived` | `void-harness init` re-materializes it from the harness assets | `.claude/skills/`, `.claude/agents/`, `.agents/skills/`, `.codex/agents/`, `PHILOSOPHY.md` | ignored, per receipt |
-| `observed` | this machine's history; meaningless in another checkout | `runs/`, `cache/`, `receipts/`, `state.json`, `*.jsonl` | never |
+| `project` | the project authors it; the harness never overwrites it | `.void/config.json`, `.void/PROJECT-DOCTRINE.md`, `.void/active.md`, `.claude/settings.json` | tracked |
+| `derived` | `void-harness init` re-materializes it from the harness assets | `.claude/skills/`, `.claude/agents/`, `.agents/skills/`, `.codex/agents/`, `.void/installed/PHILOSOPHY.md` | ignored, per receipt |
+| `observed` | this machine's history; meaningless in another checkout | `machine/runs/`, `machine/cache/`, `machine/receipts/`, `machine/status.json`, `machine/retired/*.jsonl` | never |
 
 The map covers all four materialized directories (`.void/`, `.claude/`,
 `.agents/`, `.codex/`), not just `.void/`: left unclassified they were tracked by
 default, which is 126 files and roughly 1.2 MB of vendored prose per consumer
 repository, rewritten whole on every version bump and in every review diff.
 
-**Observed state lives under `.void/local/`**, so the ignore rule is a single line
-with no `!` exception and stops needing maintenance: a new runtime artifact is
-born inside `local/` and no ignore file has to learn about it. `init` writes the
-marked block; `update` migrates a pre-split project and never overwrites a
-destination that already holds data; `doctor` proves the result with git
-(`check-ignore` + `ls-files`) rather than trusting that the block is present —
-an ignore rule has no effect on a path that was already tracked.
+**Observed state lives under `.void/machine/`**, so the ignore rule is a single
+line with no `!` exception and stops needing maintenance: a new runtime artifact
+is born inside `machine/` and no ignore file has to learn about it. `init` writes
+the marked block; `update` migrates a project off the previous layout, renaming
+`state.json` to `status.json` and filing the streams nothing reads any more under
+`machine/retired/`, and never overwrites a destination that already holds data;
+`doctor` proves the result with git (`check-ignore` + `ls-files`) rather than
+trusting that the block is present — an ignore rule has no effect on a path that
+was already tracked.
+
+Proving the *declared* path is not enough, which the `void observed` check exists
+to close. A project can ignore `.void/machine/` and still leak, because the hook
+bundle it actually runs may be an older one: the published bundle writes to
+`.void/outputs/` on every session, and that path was covered by no rule at all
+until 2026-08-17, when an untracked session log came one `git add .` away from
+being committed in this very repository. So the check walks every path observed
+state can land in — the current directories plus each observed entry of the
+ownership table at its pre-split location — and asks git about each one that
+exists on disk. A path absent from the project is never reported, or the check
+would fire everywhere at once and teach its reader to skip it; a path the project
+is supposed to commit (`.void/` itself, `.void/hooks/`, `.codex/hooks.json`) can
+never be reported, because ignoring those breaks every fresh clone. What git
+could not be asked about reports `unknown`, never `fail`.
 
 An entry at the top of `.void/` that the map does not know answers `project`.
-`local/` is a **closed set** — every observed writer in the harness writes inside
-it — so a stranger at the top cannot be harness telemetry, and the failure of
-guessing wrong would be `doctor` telling a project to untrack its own data.
+`machine/` is a **closed set** — every observed writer in the harness writes
+inside it — so a stranger at the top cannot be harness telemetry, and the failure
+of guessing wrong would be `doctor` telling a project to untrack its own data.
 
 **Two derived paths stay tracked**, and the line between them is *what happens
 when the file is absent from a fresh clone*:
@@ -828,6 +848,8 @@ when the file is absent from a fresh clone*:
 - `.void/hooks/` is named from `.claude/settings.json`, which is `project` and
   therefore committed. Ignoring the runner while keeping the reference gives a
   clone a settings file pointing at a missing file, and every tool call fails.
+  That is also why it stays at the top of `.void/` rather than moving into
+  `installed/` with the rest of the derived half.
 - `.codex/hooks.json` **is** the Codex safety floor. Absent, the floor is simply
   not there — a silently weaker clone, the worst of the three states.
 
@@ -835,7 +857,7 @@ Everything else in the class degrades gracefully: fewer capabilities until the
 next `hydrate`, nothing broken. So: **what breaks stays, what degrades goes**
 (`DERIVED_LOAD_BEARING`). What makes this safe rather than merely tidy is that
 `hydrate` restores the ignored content from the manifest and **proves** it —
-see "Exact rehydration" above.
+see "Exact rehydration" below.
 
 An ignore rule has no effect on a path already in the index, so an existing
 project needs an explicit untrack. `void-harness update --untrack-derived` does
@@ -853,7 +875,7 @@ it. `.void/install-manifest.json` closes that gap.
 
 | artifact | class | says |
 | --- | --- | --- |
-| `.void/local/receipts/install-v1.json` | `observed` | what THIS MACHINE installed |
+| `.void/machine/receipts/install-v1.json` | `observed` | what THIS MACHINE installed |
 | `.void/install-manifest.json` | `project` | what THIS PROJECT expects |
 
 Same shape, opposite lifecycles — the ownership axis applied one level up. The

@@ -332,7 +332,10 @@ it('ignores a forged and correctly resealed repository cache', async () => {
 		),
 		tombstones: captured.tombstones,
 	});
-	await writeFile(join(root, '.void/local/cache/project-graph-v1.json'), JSON.stringify(forged));
+	// The capture port above kept the cache in memory, so nothing has created the
+	// on-disk directory the next build reads from.
+	await mkdir(join(root, '.void/machine/cache'), { recursive: true });
+	await writeFile(join(root, '.void/machine/cache/project-graph-v1.json'), JSON.stringify(forged));
 
 	const result = await buildProjectGraphNative({
 		root,
@@ -856,7 +859,7 @@ it('recomputes snapshot identity instead of trusting the token loaded from cache
 	const seeded = await buildProjectGraphNative({ root, cache: memory });
 	const loaded = await memory.load(
 		await createNodeProjectRootPort().open(root),
-		'.void/local/cache/project-graph-v1.json',
+		'.void/machine/cache/project-graph-v1.json',
 	);
 	if (loaded.status !== 'ready') throw new Error('fixture cache must be ready');
 	const forged = sealProjectGraphCache({

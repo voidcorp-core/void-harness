@@ -52,7 +52,7 @@ const NPM_PACKAGES = [
 // source and the shipped core-assets mirror carry it. release-please bumps these
 // via extra-files ($.harnessVersion); this manual fallback mirrors that.
 const CERTIFICATION_FILES = [
-  resolve(ROOT, 'packages/harness-graph/certification.json'),
+  resolve(ROOT, 'packages/core/data/certification.json'),
   resolve(ROOT, 'packages/cli/core-assets/data/certification.json'),
 ];
 

@@ -312,6 +312,18 @@ export async function init(args: readonly string[]): Promise<void> {
     });
     await commitFileTransaction(projectRoot, prepared.mutations);
     line(`${c.green(glyph.check)}  ${c.dim('transaction'.padEnd(18))}${prepared.receipt.files.length} owned files committed + receipt written`);
+    // A preserved asset is one the previous install owned and this one refuses
+    // to delete, because it was edited by hand. Saying nothing here is how a
+    // renamed skill keeps loading beside its replacement under a clean success.
+    // `--force` does not cover this case: it governs an unowned conflict on a
+    // file we are writing, not our refusal to delete someone's edit. Offering it
+    // as the remedy would send people to run the same command twice.
+    if (prepared.preserved.length > 0) {
+      line(`${c.yellow('!')}  ${c.dim('preserved'.padEnd(18))}${prepared.preserved.length} stale asset(s) kept because they were edited locally`);
+      for (const path of prepared.preserved.slice(0, 5)) line(c.dim(`     ${path}`));
+      if (prepared.preserved.length > 5) line(c.dim(`     ... ${String(prepared.preserved.length - 5)} more`));
+      line(c.dim('     They still load, beside their replacements. Delete them to finish the update.'));
+    }
   } catch (err) {
     blank();
     p.log.error(`init failed before publication or rolled back byte-for-byte. ${errorMessage(err)}`);

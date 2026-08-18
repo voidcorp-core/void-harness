@@ -13,6 +13,7 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { basename, dirname, join, resolve, sep } from 'node:path';
+import { pruneEmptyParents } from './receipts.js';
 
 export interface FileWriteMutation {
   readonly path: string;
@@ -153,6 +154,9 @@ export async function commitFileTransaction(
       await rejectSymlinkPath(root, current.mutation.path);
       if ('remove' in current.mutation) {
         await rm(current.target, { force: true });
+        // A renamed skill otherwise leaves its directory standing, empty, and
+        // `ls .claude/skills` goes on listing skills that no longer exist.
+        await pruneEmptyParents(root, current.target);
       } else {
         await atomicWrite(
           current.target,

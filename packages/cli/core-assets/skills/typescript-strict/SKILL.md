@@ -1,5 +1,6 @@
 ---
 name: typescript-strict
+kind: standard
 activation: always
 triggers:
   extensions: ["ts", "tsx"]

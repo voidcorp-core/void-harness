@@ -9,7 +9,7 @@ describe('EvidenceGraph v3 builder', () => {
       evidenceId: 'evd_0123456789abcdef',
       missionId: 'mis_0123456789abcdef',
       type: 'command',
-      producer: 'ticket-runner',
+      producer: 'implement',
       source: 'pnpm test',
       environment: { runtime: 'node', platform: 'darwin', arch: 'arm64' },
       confidence: 'high',

@@ -1,5 +1,6 @@
 ---
 name: checkpoint
+kind: action
 description: Write .void/machine/checkpoint.md before a clear, an interruption, or the end of a day, so the next session resumes without re-deriving anything. Keeps only what no other artefact holds.
 owner: folpe
 runtimes: [claude, codex]
@@ -59,7 +60,7 @@ So the first move is triage. For every fact you are tempted to write down:
 |---|---|---|
 | Execution state — status, assignee, blockers, links | the **tracker** | a hand-maintained "next ticket" |
 | What the code now does | the **diff and its commit messages** | a prose summary of the change |
-| A durable rule, preference, or convention | **doctrine** (via `learning-capture`) | a paragraph the next session must re-read forever |
+| A durable rule, preference, or convention | **doctrine** (via `learn`) | a paragraph the next session must re-read forever |
 | A cross-session fact about the user or the project | **memory** | a fact re-stated every session |
 | A design decision with a credible alternative | an **ADR** | a bullet that loses its reasoning |
 
@@ -223,7 +224,7 @@ of the conversation.
 
 ## Composition
 
-Upstream: whatever produced the work. Adjacent: `learning-capture` takes the durable rules out
+Upstream: whatever produced the work. Adjacent: `learn` takes the durable rules out
 of the session before the checkpoint is written — a lesson belongs in doctrine, not in a note the
 next session has to re-read. Downstream: the next session reads the tracker and the memory, not
 this skill.

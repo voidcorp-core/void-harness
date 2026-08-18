@@ -8,6 +8,8 @@ function observation(over: Partial<LayoutObservation> = {}): LayoutObservation {
     localIgnored: true,
     trackedObserved: [],
     trackedDerivedCount: 0,
+    observedPaths: [],
+    orphanedAssets: [],
     manifest: { kind: 'present', version: '2.5.1', drifted: 0 },
     ...over,
   };
@@ -93,9 +95,52 @@ describe('judgeLayout', () => {
     expect(named(judgeLayout(observation()), 'void derived')?.status).toBe('pass');
   });
 
+  it('judges every observed write path, not only the one the block declares', () => {
+    // `.void/machine/` being ignored says nothing about `.void/outputs/`, which
+    // the published hook bundle writes to on every session. That gap is how an
+    // untracked session log came within one `git add .` of being committed.
+    const check = named(
+      judgeLayout(
+        observation({
+          localIgnored: true,
+          observedPaths: [{ path: '.void/outputs', present: true, ignored: false }],
+        }),
+      ),
+      'void observed',
+    );
+
+    expect(check?.status).toBe('fail');
+    expect(check?.message).toContain('.void/outputs');
+  });
+
   it('says the consequence, not just the state', () => {
     const check = named(judgeLayout(observation({ localIgnored: false })), 'void ignore');
 
     expect(check?.message).toMatch(/would be committed/);
   });
 });
+
+// A renamed skill kept because it was edited by hand goes on loading beside its
+// replacement, and after the first update nothing mentions it again. Advisory
+// rather than a failure: nothing is broken, the agent simply answers from
+// whichever of the two doctrines it loads first.
+describe('void orphans', () => {
+  const orphans = (over: Partial<LayoutObservation> = {}): CheckResult =>
+    judgeLayout(observation(over)).find((check) => check.name === 'void orphans') as CheckResult;
+
+  it('passes quietly when the manifest still owns everything on disk', () => {
+    expect(orphans().ok).toBe(true);
+    expect(orphans().status).toBeUndefined();
+  });
+
+  it('names what still loads, and whose call it is to delete', () => {
+    const check = orphans({ orphanedAssets: ['.claude/skills/ticket-runner/SKILL.md'] });
+    expect(check.status).toBe('advisory');
+    expect(check.message).toContain('ticket-runner');
+    expect(check.fix).toContain('delete');
+  });
+
+  it('does not block, because the bytes were changed by hand and are not ours', () => {
+    expect(orphans({ orphanedAssets: ['a', 'b'] }).ok).toBe(true);
+  });
+})

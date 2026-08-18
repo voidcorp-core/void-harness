@@ -101,7 +101,7 @@ describe('ProjectGraph injected cache trust boundary', () => {
 		const sourceOptions = buildOptions(source, sourceCache);
 		await buildProjectGraph(sourceOptions);
 		const identity = await createNodeProjectRootPort().open(source);
-		const loaded = await sourceCache.load(identity, '.void/local/cache/project-graph-v1.json');
+		const loaded = await sourceCache.load(identity, '.void/machine/cache/project-graph-v1.json');
 		if (loaded.status !== 'ready') throw new Error('source cache was not published');
 		const targetCache = createMemoryProjectCachePort();
 		const hostile: ProjectCachePort = {
@@ -131,7 +131,7 @@ it(
 		const journal = createExactProjectChangeJournal();
 		await buildProjectGraph({ ...buildOptions(root, memory), journal });
 		const identity = await createNodeProjectRootPort().open(root);
-		const loaded = await memory.load(identity, '.void/local/cache/project-graph-v1.json');
+		const loaded = await memory.load(identity, '.void/machine/cache/project-graph-v1.json');
 		if (loaded.status !== 'ready') throw new Error('cache fixture was not published');
 		const mutable = structuredClone(loaded.cache);
 		const hostile: ProjectCachePort = {

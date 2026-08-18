@@ -16,6 +16,6 @@ audit_date: 2026-06-01
 
 **Loses to.** `<img>` outside component paths (e.g., emails, MDX content) — intentionally not checked. Dynamic `<img>` constructed via spread props — grep can't catch; relies on accessibility-check skill review.
 
-**Composes with.** `harness-react:accessibility-check` (point 2: labels and names — same rule, manual gate). `harness:accessibility-first` (parent doctrine).
+**Composes with.** `harness-react:accessibility-check` (point 2: labels and names — same rule, manual gate). `harness:accessibility` (parent doctrine).
 
 **Why not in core.** `<img>` is a React/JSX construct. Vanilla HTML, mobile native, etc., have different patterns.

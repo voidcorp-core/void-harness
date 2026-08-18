@@ -1,5 +1,6 @@
 ---
 name: rate-limit-strategy
+kind: standard
 description: Choose rate limit window, max, and key strategy per action class. Per-user for authed, per-IP for public, escalation for auth-adjacent. Default values + when to deviate.
 owner: folpe
 runtimes: [claude, codex]

@@ -1,5 +1,6 @@
 ---
 name: make-pdf
+kind: action
 activation: on-demand
 description: Turn a markdown file into a publication-quality PDF — marked + puppeteer-core on the system Chrome, with page-number footers. No gstack daemon. For signed deliverables (DECLIK audits).
 owner: folpe

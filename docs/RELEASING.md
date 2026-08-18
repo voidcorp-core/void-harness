@@ -53,6 +53,53 @@ PR from `develop`; a hotfix applied directly to `main` must be merged back down,
 `develop` silently diverges and starts testing a tree that no longer matches what
 ships.
 
+### The promotion pull request opens itself, and stops there
+
+`promotion.yml` runs on every push to `develop` and keeps a `develop` to `main`
+pull request standing whenever `develop` holds something `main` does not. It
+opens one and never merges it, which is the whole point: merging it is the gate,
+and it is the only decision in the cycle that is about content rather than
+mechanics. What is automated is the typing, not the judgement.
+
+It opens with the log of what it carries, because this is the one pull request
+whose diff is meant to be read as a whole.
+
+So a release costs exactly two human actions: merge the promotion, then merge
+the release pull request that release-please proposes on `main`. The first says
+what ships, the second sends it to npm. The back-merge below closes the loop
+without asking.
+
+### The back-merge is automatic, because the divergence is structural
+
+Merging the release PR writes the version bumps and the changelog to `main`, so
+`main` gains commits `develop` does not have on **every** release, and protection
+being `strict` refuses the next promotion until they meet. That happened three
+times in one day before it was automated.
+
+It is worth being precise about why this is repaired rather than designed away.
+Pointing release-please at `develop` would remove the divergence at its source,
+and it was the first thing considered. It also proposes a release the moment a
+commit lands on `develop`, which is before the human decision that the `main`
+gate exists to make. The divergence is therefore a consequence of `main` being
+the gate, not a wiring mistake, and automating the repair is the honest trade.
+
+`back-merge.yml` runs on every push to `main` and opens a `main` to `develop`
+pull request when the two trees differ. It decides on content rather than on a
+commit count: a promotion leaves a merge commit on `main` that `develop` does not
+carry, so counting would open an empty pull request every time, and a robot that
+opens pull requests nobody needs gets merged without being read.
+
+That pull request merges itself once the required checks pass. It is the one
+place auto-merge is allowed, and the reason is a property of its content rather
+than a relaxation: it carries the release output a human approved minutes
+earlier, so a second reading is ceremony. Anything carrying an unread diff still
+stops at a human, which is why `autopilot` refuses `--auto-merge` and this does
+not. Native auto-merge is used, so protection and the required checks stand; a
+failing check simply leaves it open. It opens rather than pushes: `develop` is
+protected with `enforce_admins`, and a branch only a robot may bypass is not
+protected. A conflict fails the job instead of being resolved unattended, since
+it means `develop` and `main` both touched a file release-please owns.
+
 ### Promotion cadence: `develop` to `main`
 
 **Promoting publishes nothing.** The `publish` job is gated on `release_created`, which is

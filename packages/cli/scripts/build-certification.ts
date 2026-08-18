@@ -1,4 +1,4 @@
-// Build the frozen certification manifest `packages/harness-graph/certification.json` by joining the
+// Build the frozen certification manifest `packages/core/data/certification.json` by joining the
 // committed graph model (capability contract) with the eval-harness JSON reports (proof). Monorepo-
 // only, mirrors build-decisions-index: default writes the artifact, `--check` fails on drift (CI gate).
 // Today there are no eval JSON reports, so every capability ships `verified` with zero `effective` —
@@ -18,8 +18,8 @@ import type { Certification, EvalReportLite, GraphModel } from '@voidcorp/harnes
 const here = dirname(fileURLToPath(import.meta.url));
 const pkgs = resolve(here, '..', '..'); // packages/
 const repoRoot = resolve(pkgs, '..');
-const modelPath = resolve(pkgs, 'harness-graph', 'model.json');
-const certPath = resolve(pkgs, 'harness-graph', 'certification.json');
+const modelPath = resolve(pkgs, 'core', 'data', 'model.json');
+const certPath = resolve(pkgs, 'core', 'data', 'certification.json');
 const reportsDir = resolve(repoRoot, 'apps', 'eval-harness', 'reports');
 const cliPkgPath = resolve(pkgs, 'cli', 'package.json');
 

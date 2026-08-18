@@ -26,7 +26,7 @@ interface ModelNode {
   readonly pack?: string | null;
 }
 
-const model = JSON.parse(readFileSync(resolve(ROOT, 'packages/harness-graph/model.json'), 'utf8')) as {
+const model = JSON.parse(readFileSync(resolve(ROOT, 'packages/core/data/model.json'), 'utf8')) as {
   nodes?: readonly ModelNode[];
 };
 const nodes: readonly ModelNode[] = model.nodes ?? [];

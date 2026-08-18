@@ -20,6 +20,10 @@ npx voidharness init
 
 Free, no account, no API key, no network fetch on the default path.
 
+Already on 2.x? Thirteen skills changed name in 3.0 and the layout under `.void/`
+moved. `update` does the layout; the names are yours to search for. See
+[docs/MIGRATING-3.0.md](docs/MIGRATING-3.0.md).
+
 ## What lands in your project
 
 `init` detects the project and the agent runtimes you have, then writes each
@@ -30,7 +34,7 @@ runtime's native files:
 | Claude Code | `CLAUDE.md` | `.claude/skills` | `.claude/agents` | `.claude/settings.json` |
 | Codex | `AGENTS.md` | `.agents/skills` | `.codex/agents` | portable Node runner |
 
-Alongside them, a receipt at `.void/local/receipts/install-v1.json` records exactly
+Alongside them, a receipt at `.void/machine/receipts/install-v1.json` records exactly
 which files the harness owns. `update` and `remove` only ever touch those; a
 file you edited is preserved, and a rollback restores the previous bytes.
 

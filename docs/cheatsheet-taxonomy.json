@@ -5,14 +5,14 @@
       "title": "Method and flow",
       "blurb": "How work is framed before and after the code is written.",
       "skills": [
-        "brainstorming",
-        "writing-plans",
+        "brainstorm",
+        "plan",
         "plan-review",
         "tdd",
-        "systematic-debugging",
-        "refactoring",
-        "verification-before-completion",
-        "context-management",
+        "debug",
+        "refactor",
+        "verify",
+        "context",
         "checkpoint"
       ]
     },
@@ -25,7 +25,7 @@
         "functional",
         "api-and-interface-design",
         "typescript-strict",
-        "adr-workflow"
+        "decide"
       ]
     },
     {
@@ -35,7 +35,7 @@
         "security-guidance",
         "security-audit",
         "async-safety",
-        "migrations-safety",
+        "migrations",
         "observability",
         "llm-cost-discipline"
       ]
@@ -47,7 +47,7 @@
         "testing",
         "code-review",
         "qa",
-        "accessibility-first",
+        "accessibility",
         "frontend-design",
         "ui-review",
         "devex-audit"
@@ -58,8 +58,8 @@
       "blurb": "From a validated plan to a merged pull request.",
       "skills": [
         "commit-discipline",
-        "ticket-writer",
-        "ticket-runner",
+        "ticket",
+        "implement",
         "autopilot",
         "retrospective",
         "make-pdf"
@@ -68,7 +68,7 @@
     {
       "title": "The harness on itself",
       "blurb": "How the doctrine stays true as the project moves.",
-      "skills": ["claude-md-authoring", "source-driven-development", "learning-capture"]
+      "skills": ["claude-md", "source-driven-development", "learn"]
     }
   ],
   "hookGroups": [
@@ -104,7 +104,7 @@
       }
     },
     {
-      "title": "Cleanliness and refactoring",
+      "title": "Cleanliness and refactor",
       "blurb": "Keeping the diff readable and the vocabulary stable.",
       "hooks": {
         "no-console-log-grep": "Refuses a `console.log` in committed code; the project logger exists for this.",

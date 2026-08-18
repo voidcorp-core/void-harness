@@ -45,7 +45,7 @@ function plan(over: Record<string, unknown> = {}) {
     base: { branch: 'main', sha: SHA },
     concurrency: 2,
     assignments: [assignment('DEV-1', 'parallel', 0), assignment('DEV-2', 'parallel', 1)],
-    ticketRunnerSkill: 'ticket-runner',
+    ticketRunnerSkill: 'implement',
     planPath: 'plans/p.md',
     specPath: 'docs/specs/s.md',
     workerMayPush: false,
@@ -171,10 +171,10 @@ describe('autopilot workflow', () => {
     expect(prompt).toMatch(/In Review or Done/);
   });
 
-  it('delegates to ticket-runner rather than describing a cycle of its own', async () => {
+  it('delegates to implement rather than describing a cycle of its own', async () => {
     const { calls } = await runWorkflow(plan());
 
-    expect(calls[0]?.prompt).toContain('ticket-runner');
+    expect(calls[0]?.prompt).toContain('implement');
     expect(calls[0]?.prompt).toMatch(/whole and once/);
   });
 

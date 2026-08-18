@@ -184,15 +184,17 @@ Thumbs.db
 .codex/agents/visual-craft-director.toml
 # void-harness:end
 
-# Mission run journals, written by the runtime on every session. They belong
-# with the rest of what the harness OBSERVES, under .void/local/ — but the
-# runtime writes them here, and the managed block above does not cover them, so
-# a plain `git add .` would commit session telemetry. Kept OUTSIDE the markers
-# because `void-harness init` rewrites everything between them. Fixing this at
-# the source (either the runtime writes under local/, or the shipped block
-# ignores this path) is filed separately; every consumer project has the same
-# uncovered path today.
+# Session telemetry written by the SHIPPED hook bundle, which predates the
+# three-level layout and still writes to the flat paths. What it observes now
+# belongs under .void/machine/, and the sources already write there; until a
+# published bundle carries that change, these two paths stay uncovered by the
+# managed block and a plain `git add .` would commit session telemetry.
+#
+# Kept OUTSIDE the markers because `void-harness init` rewrites everything
+# between them. Every consumer project has the same uncovered paths today.
+# Removing these lines is safe only once the shipped bundle writes to machine/.
 .void/runs/
+.void/outputs/
 
 .gstack/
 dist-singlefile/

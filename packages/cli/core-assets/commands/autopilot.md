@@ -1,9 +1,9 @@
 ---
-description: Drain a bounded cluster of independent ready tickets — each worked end-to-end by ticket-runner in its own worktree — into one integration PR the human merges.
+description: Drain a bounded cluster of independent ready tickets — each worked end-to-end by implement in its own worktree — into one integration PR the human merges.
 argument-hint: "[--run <id>] [status|abort]"
 ---
 
-Drive the `autopilot` skill for the program declared in `plans/ACTIVE.md`.
+Drive the `autopilot` skill for the program declared in `.void/active.md`.
 
 Take no argument as the normal case: the active program names the tracker, the scope and the
 base, so there is nothing to repoint. Do not ask which ticket, which cluster, which run id or

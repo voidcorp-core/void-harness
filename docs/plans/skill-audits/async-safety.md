@@ -22,7 +22,7 @@ Without `async-safety`, webhooks get processed twice, retries duplicate state, j
 - **Wins**: concurrent code, retries, webhooks, jobs, distributed coordination. Idempotency design
 - **Loses to**: `hexagonal-architecture` on where the async boundary sits (which port is at the edge)
 - **Cannot decide**: queue technology (pack concern — BullMQ vs Inngest vs Trigger.dev vs Vercel Cron)
-- **Composes with**: `observability` (trace propagation across job boundaries), `security-guidance` (replay attack protection at webhook signature verification), `migrations-safety` (outbox table schema), `tdd` (test the idempotency)
+- **Composes with**: `observability` (trace propagation across job boundaries), `security-guidance` (replay attack protection at webhook signature verification), `migrations` (outbox table schema), `tdd` (test the idempotency)
 
 ## Sources audited
 
@@ -92,7 +92,7 @@ None directly. The discipline is encoded in `pack-monorepo` / `pack-nextjs-pwa` 
 
 - **With `observability`**: trace propagates across job / webhook / queue boundaries via the message envelope. Job start / end / retry are structured events.
 - **With `security-guidance`**: signature verification + replay window. Composes directly.
-- **With `migrations-safety`**: outbox table schema goes through the migrations discipline.
+- **With `migrations`**: outbox table schema goes through the migrations discipline.
 - **With `tdd`**: idempotency is testable. Test: same event delivered twice → same final state. Test: signature missing → reject. Test: replay window expired → reject.
 - **With `hexagonal-architecture`**: webhook handler at the adapter boundary, business logic in use-case. IdempotencyStore as port.
 - **With `functional`**: job state as discriminated union. `Result<JobOutcome, JobError>`.

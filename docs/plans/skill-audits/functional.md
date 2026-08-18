@@ -5,7 +5,7 @@ strategy: distill
 target_loc: 350
 phase: C
 depends_on: [typescript-strict]
-composes_with: [hexagonal-architecture, domain-driven-design, refactoring, tdd, testing]
+composes_with: [hexagonal-architecture, domain-driven-design, refactor, tdd, testing]
 matrix_row: plans/skill-decision-matrix.md#functional
 audit_date: 2026-05-29
 auditor: Folpe + Claude Opus 4.7
@@ -22,7 +22,7 @@ Without a functional discipline, an LLM agent writes imperative code by default:
 - **Wins**: data flow design, error modeling (`Result<T, E>` over throwing), pure-by-default decisions, ADT design (sum types), immutability defaults, functional-core / imperative-shell split
 - **Loses to**: `hexagonal-architecture` on where to put the functional core (inside the hexagon) vs side effects (at adapters). `typescript-strict` on type expression details (the type system mechanics)
 - **Cannot decide**: I/O strategy (defers to hexagonal). Persistence shape (defers to DDD). Test discipline (defers to `tdd` / `testing`). Whether to adopt Effect-TS / fp-ts as runtime (consumer pack choice)
-- **Composes with**: `typescript-strict` (provides ADT machinery + Result type shape), `domain-driven-design` (Wlaschin makes them friends — value objects, always-valid aggregates), `hexagonal-architecture` (functional core = inside; effects = adapters), `refactoring` (Replace Loop with Pipeline, Replace Throw with Result)
+- **Composes with**: `typescript-strict` (provides ADT machinery + Result type shape), `domain-driven-design` (Wlaschin makes them friends — value objects, always-valid aggregates), `hexagonal-architecture` (functional core = inside; effects = adapters), `refactor` (Replace Loop with Pipeline, Replace Throw with Result)
 
 ## Sources audited
 
@@ -111,7 +111,7 @@ Functional discipline applies uniformly within the TS/web baseline. Within a `td
 - **With `hexagonal-architecture`**: functional core = pure domain inside the hexagon. Imperative shell = adapters at the boundary. The boundary is the same; the lens differs.
 - **With `tdd`**: pure functions are trivially testable (no setup, no teardown). The RED step writes a property-style or example-based test; GREEN implements the pure function.
 - **With `testing`**: pure functions need no mocks. Tests against pure code are sociable by default.
-- **With `refactoring`**: "Replace Loop with Pipeline", "Replace Conditional with Polymorphism" (via discriminated union dispatch), "Replace Throw with Result", "Extract Pure Function" are common moves.
+- **With `refactor`**: "Replace Loop with Pipeline", "Replace Conditional with Polymorphism" (via discriminated union dispatch), "Replace Throw with Result", "Extract Pure Function" are common moves.
 - **With `security-guidance`**: pure validation functions at trust boundaries returning `Result<Validated, ValidationError>` compose naturally.
 
 ## Anti-rules (what this skill MUST NOT do)

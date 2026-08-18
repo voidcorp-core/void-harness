@@ -1,5 +1,6 @@
 ---
 name: functional
+kind: standard
 activation: always
 description: Pure-by-default, errors as values (Result<T, E>), discriminated unions for state, immutability defaults, functional core / imperative shell. Side effects at adapters. Use for data flow or state.
 owner: folpe
@@ -284,7 +285,7 @@ Inject ports.
 - **`domain-driven-design`**: value objects as branded types + smart constructors returning `Result`. Aggregates as discriminated unions for stateful workflows. Always-valid domain.
 - **`tdd`**: pure functions are trivially testable. RED writes a property-style or example-based test; GREEN implements pure.
 - **`testing`**: pure functions need no mocks. Sociable tests by default.
-- **`refactoring`**: common moves — Replace Loop with Pipeline, Replace Conditional with Polymorphism (via discriminated-union dispatch), Replace Throw with Result, Extract Pure Function.
+- **`refactor`**: common moves — Replace Loop with Pipeline, Replace Conditional with Polymorphism (via discriminated-union dispatch), Replace Throw with Result, Extract Pure Function.
 - **`security-guidance`**: pure validation at trust boundaries returning `Result<Validated, ValidationError>`.
 
 ---

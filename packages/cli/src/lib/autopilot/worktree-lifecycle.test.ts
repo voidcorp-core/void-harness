@@ -27,7 +27,7 @@ function plan(over: Partial<OrchestrationPlan> = {}): OrchestrationPlan {
         order: 1,
       },
     ],
-    ticketRunnerSkill: 'ticket-runner',
+    ticketRunnerSkill: 'implement',
     planPath: 'plans/p.md',
     specPath: 'docs/specs/s.md',
     workerMayPush: false,

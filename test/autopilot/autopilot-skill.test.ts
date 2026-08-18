@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 
 const SKILL = readFileSync(new URL('../../packages/core/skills/autopilot/SKILL.md', import.meta.url), 'utf8');
 const TICKET_RUNNER = readFileSync(
-  new URL('../../packages/core/skills/ticket-runner/SKILL.md', import.meta.url),
+  new URL('../../packages/core/skills/implement/SKILL.md', import.meta.url),
   'utf8',
 );
 
@@ -45,13 +45,13 @@ describe('autopilot skill frontmatter', () => {
   });
 });
 
-describe('delegation to ticket-runner', () => {
-  it('names ticket-runner as the one owner of the per-ticket cycle', () => {
-    expect(body(SKILL)).toMatch(/ticket-runner/);
+describe('delegation to implement', () => {
+  it('names implement as the one owner of the per-ticket cycle', () => {
+    expect(body(SKILL)).toMatch(/implement/);
     expect(body(SKILL)).toMatch(/owns no ticket cycle/i);
   });
 
-  it('does not restate the quality passes ticket-runner owns', () => {
+  it('does not restate the quality passes implement owns', () => {
     // Autopilot may NAME the skill; it may not re-specify its passes. Two copies
     // of the cycle drift, and a ticket then gets a different standard depending
     // on how it was started.
@@ -68,7 +68,7 @@ describe('delegation to ticket-runner', () => {
     const restated = passes.filter((pass) => body(SKILL).includes(pass));
     expect(restated).toEqual([]);
 
-    // Sanity: those headings really are ticket-runner's, so the check above is
+    // Sanity: those headings really are implement's, so the check above is
     // testing something real rather than passing on a typo.
     expect(passes.every((pass) => TICKET_RUNNER.includes(pass))).toBe(true);
   });

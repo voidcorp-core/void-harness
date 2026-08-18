@@ -99,10 +99,10 @@ function packsDirFor(_coreSource: string): string {
   return join(PKGS_ROOT, 'packs');
 }
 function modelPath(_coreSource: string): string {
-  return join(PKGS_ROOT, 'harness-graph', 'model.json');
+  return join(PKGS_ROOT, 'core', 'data', 'model.json');
 }
 function catalogPath(_coreSource: string): string {
-  return join(PKGS_ROOT, 'harness-graph', 'catalog.v3.json');
+  return join(PKGS_ROOT, 'core', 'data', 'catalog.v3.json');
 }
 function relationsPath(_coreSource: string): string {
   return join(PKGS_ROOT, 'harness-graph', 'relations.graph.yaml');
@@ -389,7 +389,7 @@ export async function graph(
     writeFileSync(modelPath(coreSource), serializeModel(model));
     banner('graph build');
     blank();
-    line(`  ${c.green(`${model.nodes.length} nodes`)} ${c.dim(glyph.dot)} ${c.green(`${model.edges.length} edges`)} -> ${c.dim('harness-graph/catalog.v3.json')}`);
+    line(`  ${c.green(`${model.nodes.length} nodes`)} ${c.dim(glyph.dot)} ${c.green(`${model.edges.length} edges`)} -> ${c.dim('core/data/catalog.v3.json')}`);
     footer(c.dim('CatalogGraph v3 and its read-only model.json compatibility projection regenerated.'));
     return;
   }

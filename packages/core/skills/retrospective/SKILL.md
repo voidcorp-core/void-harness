@@ -1,7 +1,8 @@
 ---
 name: retrospective
+kind: action
 activation: on-demand
-description: "Periodic engineering retro over a window: read git log / PRs / .void, surface signals (hotspots, test ratio, commit types, regressions), turn them into improvement decisions feeding learning-capture."
+description: "Periodic engineering retro over a window: read git log / PRs / .void, surface signals (hotspots, test ratio, commit types, regressions), turn them into improvement decisions feeding learn."
 owner: folpe
 runtimes: [claude, codex]
 enforcement:
@@ -15,7 +16,7 @@ eval_targets: [claude/anthropic/opus]
 
 # retrospective — voidcorp craftsman edition
 
-`learning-capture` catches ONE lesson the moment it appears. This skill is the opposite cadence: a deliberate look back over a **window** (a week, a cycle, a sprint) to find the patterns no single moment surfaces — what the codebase's own history is telling you. It reads signals, turns them into concrete improvement decisions, and routes each durable pattern into `learning-capture`.
+`learn` catches ONE lesson the moment it appears. This skill is the opposite cadence: a deliberate look back over a **window** (a week, a cycle, a sprint) to find the patterns no single moment surfaces — what the codebase's own history is telling you. It reads signals, turns them into concrete improvement decisions, and routes each durable pattern into `learn`.
 
 Invoke it on a cadence ("weekly retro", "retro since the last release"). It reads and reports; it does not change code.
 
@@ -41,16 +42,16 @@ Report each as an observation with the evidence, not a leaderboard number:
 
 - **Commit-type mix** — the `feat`/`fix`/`refactor`/`test` ratio. A fix-heavy window points at a quality or root-cause gap; a zero-refactor window at accreting debt; a zero-test window at a discipline slip.
 - **Hotspots** — the files changed most often. A file touched in many commits/PRs is either the active surface or a design pressure point.
-- **Recurring-fix files** — files that received multiple `fix:` commits. Composes with `systematic-debugging`: a file fixed three times is an architectural smell, not three coincidences.
+- **Recurring-fix files** — files that received multiple `fix:` commits. Composes with `debug`: a file fixed three times is an architectural smell, not three coincidences.
 - **Test-to-prod ratio** — production LOC changed vs test LOC changed. A ratio trending toward zero is the signal that matters most.
-- **PR size distribution** — small vs large PRs. A window of large PRs points at insufficient vertical slicing (composes with `writing-plans`).
+- **PR size distribution** — small vs large PRs. A window of large PRs points at insufficient vertical slicing (composes with `plan`).
 - **Regressions** — `fix:` commits that reference a prior feature, or reverts. Each is a candidate for a "prevention" decision.
 
 ## Output — a report that ends in decisions
 
 1. **Window summary** — dates, commit count, PR count, the signals above with their evidence (file:count, ratio, examples). Plain observations, no gamified ranking.
 2. **Improvement decisions** — the point of the retro. For each signal that warrants action, state a concrete change: a test to add, a file to refactor, a hook to propose, a convention to adopt. Not a vague "do better."
-3. **Route each durable pattern to `learning-capture`** — a decision that generalizes ("this class of bug keeps recurring in the adapter layer") is captured as a lesson, HITL. The retro surfaces the pattern; `learning-capture` decides where it belongs and writes it (with confirmation). The retro itself writes nothing into doctrine.
+3. **Route each durable pattern to `learn`** — a decision that generalizes ("this class of bug keeps recurring in the adapter layer") is captured as a lesson, HITL. The retro surfaces the pattern; `learn` decides where it belongs and writes it (with confirmation). The retro itself writes nothing into doctrine.
 
 ## Rejected — gstack gamification (documented)
 
@@ -58,23 +59,23 @@ Deliberately NOT vendored: the **focus score**, **ship-of-the-week**, **personal
 
 ## Composition & boundaries
 
-- **Feeds `learning-capture`** — the retro is a *discovery* pass over a window; `learning-capture` is the *capture* of one lesson. Different subject, different cadence (window vs point). The retro routes patterns to it, never duplicates its HITL write.
-- **With `systematic-debugging`** — the recurring-fix-file signal is that skill's "recurring bug = architectural smell" seen at the window scale.
-- **With `writing-plans`** — a large-PR window is a slicing signal; the fix is smaller vertical slices.
+- **Feeds `learn`** — the retro is a *discovery* pass over a window; `learn` is the *capture* of one lesson. Different subject, different cadence (window vs point). The retro routes patterns to it, never duplicates its HITL write.
+- **With `debug`** — the recurring-fix-file signal is that skill's "recurring bug = architectural smell" seen at the window scale.
+- **With `plan`** — a large-PR window is a slicing signal; the fix is smaller vertical slices.
 - **Live/visual dashboards** — deferred; this skill produces a text report. Any richer visualization is out of scope.
 
 ## Anti-rules
 
 - MUST NOT depend on `~/.gstack/` or any gstack telemetry (it disappears at teardown).
 - MUST NOT reintroduce the gamification (focus score, ship-of-the-week, streaks).
-- MUST NOT write into doctrine — it proposes decisions and routes durable patterns to `learning-capture` (HITL).
+- MUST NOT write into doctrine — it proposes decisions and routes durable patterns to `learn` (HITL).
 - MUST NOT change code — it reads history and reports.
-- MUST NOT duplicate `learning-capture`'s point-capture — this is the window-review cadence.
+- MUST NOT duplicate `learn`'s point-capture — this is the window-review cadence.
 
 ## Final rule
 
 ```
-Window → git log / PRs / .void → signals (types, hotspots, test ratio, regressions) → improvement decisions → route durable patterns to learning-capture.
+Window → git log / PRs / .void → signals (types, hotspots, test ratio, regressions) → improvement decisions → route durable patterns to learn.
 Otherwise → it is not voidcorp retrospective.
 ```
 

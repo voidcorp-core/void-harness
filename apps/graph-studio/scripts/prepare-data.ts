@@ -60,7 +60,7 @@ function readMissionEvents(root: string): string {
 
 mkdirSync(outDir, { recursive: true });
 
-const modelText = readFileSync(resolve(repoRoot, 'packages/harness-graph/model.json'), 'utf8');
+const modelText = readFileSync(resolve(repoRoot, 'packages/core/data/model.json'), 'utf8');
 const model = projectCatalogV3ToV1(
   adaptCatalogV1(JSON.parse(modelText) as GraphModel),
 );

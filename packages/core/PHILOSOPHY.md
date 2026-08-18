@@ -55,7 +55,7 @@ Naming, file layout, and feedback loops are not cosmetics — they are how a sys
 - "Always say why." Commit messages, comments, ADRs — explain the rationale, not the change.
 - Comments are sentences, with punctuation. Not scribblings.
 - Order matters for readability: important things at the top of a file. Main first. Fields, then types, then methods.
-- No em dashes, no emojis in code, docs, or commits.
+- No em dashes or emojis as AI-slop filler; both are allowed where they carry meaning (typographic separators in prose, glyphs in code). Not a hard CI gate.
 
 Sources: TigerStyle naming, citypaul CLAUDE.md, Folpe quality bar.
 
@@ -90,7 +90,7 @@ A throwaway implementation is not an acceptable initial state. It is debt that h
 These rules apply to ALL my projects regardless of stack. Project-specific exceptions go in `.void/PROJECT-DOCTRINE.md` with an ADR.
 
 - **No `console.log` in committed business code.** Use the project logger (`@repo/core/logger` via `pack-monorepo`). Enforced by `no-console-log-grep` hook + `observability` skill.
-- **No em dashes, no emojis in code, docs, or commits.** ASCII-only keeps grep / git log queryable across editors. Enforced by `no-emdash-no-emoji-in-commit-msg` hook + `commit-discipline` skill.
+- **No em dashes or emojis as AI-slop filler.** Both are allowed where they carry meaning (typographic separators in prose, glyphs in code such as the render layer); just do not sprinkle them decoratively. A taste rule carried by the `commit-discipline` skill, deliberately **not** a hard CI gate (DECISIONS.md, 2026-06-01).
 - **No `process.env.*` directly in business code.** Use Zod-validated `@repo/core/env` (`security-guidance` skill). This governs the app's OWN secrets; a customer-provided credential (BYO key) is application data — store it encrypted at rest per tenant (master key in env), not in env itself.
 - **Read the official documentation of any third-party tool BEFORE writing its config or wrapping its SDK.** Shortcuts based on assumed semantics produce subtle bugs that take hours to find. (Anti-rustine, formalized.)
 - **Match file naming exactly** per the convention of the active pack (e.g. `Name.tsx`, `Name.helper.ts`, `Name.test.ts`).
@@ -105,7 +105,7 @@ Each rule has its enforcement mechanism listed. Rules without enforcement should
 
 Every UI — including web apps that are not primarily mobile — is designed **mobile-first** AND must reach **first-class quality on both mobile and desktop simultaneously**. Not "mobile-first then responsive afterthought." Not "desktop-first then squeeze for mobile." Both experiences are deliverables.
 
-Concrete invariants enforced by `frontend-design` + `accessibility-first` skills:
+Concrete invariants enforced by `frontend-design` + `accessibility` skills:
 
 - Layout designed at 360–390px first, then progressively enhanced to wider viewports — never the reverse
 - Touch targets ≥ 44×44px (Apple HIG) on every interactive element, regardless of viewport
@@ -114,26 +114,26 @@ Concrete invariants enforced by `frontend-design` + `accessibility-first` skills
 - No mobile-only nor desktop-only feature without an equivalent on the other surface (or an explicit, documented decision)
 - Both viewports are screenshotted in design review (mobile portrait + desktop) before any UI ships
 
-Source: Folpe operating principle. Translated into mechanical checks via `accessibility-first`, `frontend-design`, and `pack-nextjs` design-review hooks.
+Source: Folpe operating principle. Translated into mechanical checks via `accessibility`, `frontend-design`, and the `pack-react` / `pack-pwa` design-review hooks.
 
 ## Harness self-evolution — feedback loop and obsolescence audit (HITL strict)
 
 The harness must evolve from real usage in real projects, like citypaul's dotfiles evolves from his daily work. Two complementary mechanisms, both **strict Human-In-The-Loop** (no automatic write into doctrine, ever):
 
-### Inbound — `learning-capture` skill, harness-gap branch
+### Inbound — `learn` skill, harness-gap branch
 
 While coding in any project consuming the harness, when the model (or the user) perceives that something is missing, wrong, or worth a rule:
 
 1. The perception is filed **directly as a GitHub issue** on `voidcorp-core/void-harness` (not captured to a per-project queue). The body carries source-project context: repo, commit SHA, file path, and the motivation. The agent drafts it and confirms with the user before opening it.
-2. The filing bar is load-bearing: open an issue only when the gap is both *agnostic* (helps any consumer, not just this project) and *harness-worthy* (changes a skill, hook, pack, CLI, or doctrine line). A project-specific rule goes to `.void/PROJECT-DOCTRINE.md` via `learning-capture`'s project-rule branch instead. When in doubt, do not file.
+2. The filing bar is load-bearing: open an issue only when the gap is both *agnostic* (helps any consumer, not just this project) and *harness-worthy* (changes a skill, hook, pack, CLI, or doctrine line). A project-specific rule goes to `.void/PROJECT-DOCTRINE.md` via `learn`'s project-rule branch instead. When in doubt, do not file.
 3. The issue tracker is the triage zone: taking the issue promotes it, closing it declines it — no `proposed/` queue, no `feedback push` step. A promoted issue becomes a void-harness PR carrying the source-project context as motivation. Nothing is merged without human review.
 
-### Outbound — `learning-capture` skill, audit branch
+### Outbound — `learn` skill, audit branch
 
 A recurring auto-evaluation that questions the harness's current surface:
 
-1. Each invocation logs a redacted canonical event to `.void/local/runs/<mission-id>/events.jsonl` (local, never shipped); legacy logs remain read-only history.
-2. `void-harness audit` produces a report: skills that are active, stale, or never invoked (per the local telemetry). Upstream-source deprecation and decision-matrix-conflict detection are a planned extension of the same command.
+1. Each invocation writes a redacted canonical event to `.void/machine/runs/<mission-id>/events.jsonl` (local, never shipped); legacy usage logs remain read-only history.
+2. `void-harness audit` produces a report: skills that are active, stale, or never invoked from those local events. Upstream-source deprecation and decision-matrix-conflict detection are planned extensions.
 3. The report **proposes** deprecations, fusions, or rewrites. Nothing is auto-applied. Each proposal becomes a PR after human review.
 
 ### Why HITL is absolute here
@@ -144,7 +144,9 @@ Source: citypaul's manual curation discipline; Boris Cherny's "compounding engin
 
 ## Compound engineering — deliberate capture, NOT auto-write
 
-Each session can produce 0–N learnings, **never written automatically to CLAUDE.md or any load-bearing doctrine file**. The per-repo `learnings/proposed/` queue and a `learnings-promote` skill were designed but never built: a markdown queue is a strictly worse reimplementation of the tools that already exist. What actually routes a learning is the single **`harness:learning-capture`** skill — it names the reusable pattern, decides scope, and runs the matching HITL capture: a project rule into `.void/PROJECT-DOCTRINE.md`, or a universal gap **directly as a GitHub issue** on `voidcorp-core/void-harness`.
+Each session can produce 0–N learnings, **never written automatically to CLAUDE.md or any load-bearing doctrine file**. The per-repo `learnings/proposed/` queue and a `learnings-promote` skill were designed but never built: a markdown queue is a strictly worse reimplementation of the tools that already exist. What actually routes a learning:
+
+- **`harness:learn`** — the single skill that names the reusable pattern, decides its scope, and runs the matching HITL capture: an end-of-cycle pattern or a stated project rule into `.void/PROJECT-DOCTRINE.md`, or a universal gap **directly as a GitHub issue** on `voidcorp-core/void-harness`.
 
 Auto-append into CLAUDE.md was rejected: it creates drift, contradictions, prompt bloat. Doctrine evolves deliberately, not by accretion.
 
@@ -154,7 +156,7 @@ Source: Kieran Klaassen (EveryInc/compound-engineering-plugin), Boris Cherny ("h
 
 The harness does **not** govern:
 
-- Product strategy or roadmap decisions (a written plan's premise/ambition is reviewed by `plan-review`'s CEO lens; a raw idea's demand pressure-test lives in `brainstorming`)
+- Product strategy or roadmap decisions (a written plan's premise/ambition is reviewed by `plan-review`'s CEO lens; a raw idea's demand pressure-test lives in `brainstorm`)
 - Visual design system choices (the `DESIGN.md` contract; build via `frontend-design`, audit via `ui-review`)
 - Live QA of running apps (use `gstack:/qa`)
 - Ship/deploy mechanics (use `gstack:/ship`, `/land-and-deploy`)

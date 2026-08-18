@@ -12,9 +12,11 @@
 import { execFileSync } from 'node:child_process';
 import { isMachineEntry, pendingMigrations, VOID_MACHINE_DIR } from '@voidcorp/hook-runner';
 import { judgeLayout, type LayoutObservation, type ManifestObservation } from '../lib/void-hygiene.js';
+import { observedWriteCandidates, type ObservedPathObservation } from '../lib/observed-write-paths.js';
 import { INSTALL_MANIFEST_PATH, parseInstallManifest, verifyInstallManifest } from '../lib/install-manifest.js';
+import { type DiscoveredAsset, looksHarnessAuthored, orphanedAssets } from '../lib/orphaned-assets.js';
 import { ownedDerivedPaths } from '../lib/void-migration.js';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { readActiveProgram } from '../lib/autopilot/active-program.js';
@@ -22,10 +24,16 @@ import { autopilotPreflight } from '../lib/autopilot/preflight.js';
 import { packsCoherenceIssues, validateConfig } from '../lib/config-schema.js';
 import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../lib/packs.js';
 import { inspectHarnessLintExclusion } from '../lib/lint-exclusion.js';
-import { findCoreSource } from '../lib/paths.js';
+import { cliVersion, findCoreSource } from '../lib/paths.js';
 import { type CheckResult, checkEnforceWorkflow, checkGh } from '../lib/prerequisites.js';
 import { readInstallReceipt } from '../lib/receipts.js';
 import { publishedVersionCheck } from '../lib/freshness-check.js';
+import {
+  judgeRunnerStaleness,
+  runnerStalenessCheck,
+  suspendedStructureNote,
+  suspendsStructureChecks,
+} from '../lib/runner-staleness.js';
 import { checkGlyph, checkShowsFix } from '../lib/doctor-render.js';
 import { applyRepair, conformanceRules, inspectConformance } from '../lib/conformance/run.js';
 import { resolveFreshness } from '@voidcorp/hook-runner';
@@ -53,6 +61,22 @@ function enabledPackNames(plugins: Record<string, unknown>): string[] {
     .filter((name) => name.length > 0 && name !== CORE_PLUGIN_NAME);
 }
 
+/**
+ * The version the project records for its installed harness. Anchored on
+ * `.void/install-manifest.json` because that path is committed and has survived
+ * every layout change: reading it from a directory a stale CLI does not know
+ * about would reproduce the very blindness this guards against.
+ */
+function readManifestVersion(root: string): string | undefined {
+  const path = join(root, INSTALL_MANIFEST_PATH);
+  if (!existsSync(path)) return undefined;
+  try {
+    return parseInstallManifest(readFileSync(path, 'utf8'))?.version;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function doctor(args: readonly string[]): Promise<void> {
   const skipRemote = args.includes('--no-remote');
   const wantsFix = args.includes('--fix');
@@ -64,6 +88,30 @@ export async function doctor(args: readonly string[]): Promise<void> {
   if (target.kind === 'self-host') {
     await runSelfHostDoctor(root, args);
     return;
+  }
+
+  // Before judging any structure, judge the judge. A CLI older than the layout
+  // it inspects looks up the previous paths, so it reports correct files as
+  // missing and offers remedies that would damage a healthy install. Reporting
+  // the version gap and stopping is the only honest output.
+  //
+  // This sits ahead of `--fix` on purpose, and that is the load-bearing half: a
+  // stale CLI must never repair a layout it is misreading. Blocking the report
+  // saves a confusing hour, blocking the repair saves the install.
+  const staleness = judgeRunnerStaleness({
+    running: cliVersion(),
+    recorded: readManifestVersion(root),
+  });
+  const stale = runnerStalenessCheck(staleness);
+  if (stale !== undefined && suspendsStructureChecks(staleness)) {
+    const suspended = suspendedStructureNote(staleness);
+    banner('doctor');
+    blank();
+    line(`${c.red('x')}  ${c.dim(stale.name.padEnd(18))} ${stale.message}`);
+    if (stale.fix !== undefined) line(c.dim(`     ${glyph.to} ${stale.fix}`));
+    line(`${c.dim('-')}  ${c.dim(suspended.name.padEnd(18))} ${suspended.message}`);
+    footer(c.red('1 check failed, this project\'s structure was not judged'));
+    process.exit(1);
   }
 
   // Parsed config is reused by the schema check AND the settings<->config
@@ -457,12 +505,15 @@ async function observeLayout(root: string): Promise<LayoutObservation> {
   };
 
   const insideRepo = git(['rev-parse', '--is-inside-work-tree'])?.trim() === 'true';
+  const observedPaths = observeObservedPaths(root, insideRepo);
   if (!insideRepo) {
     return {
       pending: pendingMigrations(root),
       localIgnored: null,
+      observedPaths,
       trackedObserved: [],
       trackedDerivedCount: 0,
+      orphanedAssets: observeOrphanedAssets(root),
       manifest: observeManifest(root),
     };
   }
@@ -494,10 +545,105 @@ async function observeLayout(root: string): Promise<LayoutObservation> {
   return {
     pending: pendingMigrations(root),
     localIgnored,
+    observedPaths,
     trackedObserved,
     trackedDerivedCount,
+    orphanedAssets: observeOrphanedAssets(root),
     manifest: observeManifest(root),
   };
+}
+
+/**
+ * Ask git whether it ignores one path.
+ *
+ * `undefined` is reserved for "the question went unanswered". git exits 1 for a
+ * path it does not ignore, and that is a measured fact, not a failure to
+ * measure: collapsing the two would let a missing git report every project as
+ * leaking.
+ */
+function gitIgnores(root: string, probe: string): boolean | undefined {
+  try {
+    execFileSync('git', ['check-ignore', '-q', probe], { cwd: root, stdio: 'ignore' });
+    return true;
+  } catch (error) {
+    const status = (error as { status?: unknown }).status;
+    return status === 1 ? false : undefined;
+  }
+}
+
+/**
+ * Where observed state can land in THIS project, proven path by path.
+ *
+ * Only what exists on disk is probed. An absent path is never reported, so
+ * spending a process to ask about it would buy an answer nobody reads, and the
+ * candidate list is a frozen constant, so the loop is bounded by construction.
+ */
+/**
+ * Assets on disk that carry the harness's own frontmatter and that the manifest
+ * does not own. Only the runtime asset directories are walked: those are the
+ * only places the harness has ever written a SKILL.md, and walking a whole
+ * project to answer a question about our own output would cost far more than the
+ * answer is worth.
+ */
+function observeOrphanedAssets(root: string): readonly string[] {
+  const manifestPath = join(root, INSTALL_MANIFEST_PATH);
+  if (!existsSync(manifestPath)) return [];
+  let owned: ReadonlySet<string>;
+  try {
+    const manifest = parseInstallManifest(readFileSync(manifestPath, 'utf8'));
+    if (manifest === undefined) return [];
+    owned = new Set(manifest.files.map((file) => file.path));
+  } catch {
+    return [];
+  }
+
+  const discovered: DiscoveredAsset[] = [];
+  const walk = (relative: string): void => {
+    let entries: readonly string[];
+    try {
+      entries = readdirSync(join(root, relative));
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const child = `${relative}/${entry}`;
+      const absolute = join(root, child);
+      let isDirectory = false;
+      try {
+        isDirectory = statSync(absolute).isDirectory();
+      } catch {
+        continue;
+      }
+      if (isDirectory) {
+        walk(child);
+        continue;
+      }
+      if (!entry.endsWith('.md')) continue;
+      try {
+        discovered.push({
+          path: child,
+          harnessAuthored: looksHarnessAuthored(readFileSync(absolute, 'utf8')),
+        });
+      } catch {
+        // Unreadable is not evidence of anything; say nothing about it.
+      }
+    }
+  };
+  for (const dir of ['.claude/skills', '.claude/agents', '.claude/commands', '.agents/skills']) {
+    walk(dir);
+  }
+  return orphanedAssets(discovered, owned);
+}
+
+function observeObservedPaths(root: string, insideRepo: boolean): readonly ObservedPathObservation[] {
+  return observedWriteCandidates().map((candidate) => {
+    const present = existsSync(join(root, ...candidate.path.split('/')));
+    return {
+      path: candidate.path,
+      present,
+      ignored: present && insideRepo ? gitIgnores(root, candidate.probe) : undefined,
+    };
+  });
 }
 
 /**
