@@ -1,7 +1,7 @@
 ---
 name: brainstorm
 kind: action
-description: "Explore intent before code: pressure-test a raw idea, one question at a time, 2-3 approaches, design in sections, spec written and approved. HARD GATE — no code until the spec is approved."
+description: "Engage on a raw idea, or the moment an exchange settles a behaviour, boundary or trade-off: pressure-test, one question at a time, 2-3 approaches, spec written and approved before any code."
 owner: folpe
 runtimes: [claude, codex]
 enforcement:
@@ -18,6 +18,41 @@ eval_targets: [claude/anthropic/opus]
 Start by understanding the project context. Then ask questions one at a time to refine the idea. Once you understand what is being built, present the design in sections, get approval, write the spec to `docs/specs/`, and transition to `harness:plan`. **No implementation skill, no code, no scaffolding until the spec is written and approved.**
 
 **Attribution**: see `.source`. Primary source: superpowers/brainstorm; the upstream idea-pressure-test mode is the distilled `gstack:/office-hours` diagnostic, vendored for void-harness.
+
+---
+
+## Step 0 — Notice that the exchange has become design
+
+This skill was only ever reached when someone asked for it, which is the half of
+the problem nobody was solving. Design does not usually announce itself: it
+arrives in the middle of a conversation about something else, and by the time
+anyone would think to invoke a skill the decisions have already been made and
+lost. Three of the structural decisions in this repository on 2026-08-17 were
+taken that way, written up afterwards from memory rather than from the exchange.
+
+Engage the moment the conversation starts fixing any of these, without being
+asked:
+
+- **A behaviour is being settled.** What the system does in a case nobody had
+  described yet, and the answer will outlive the conversation.
+- **A boundary is being drawn.** What owns what, what may depend on what, where
+  a responsibility stops.
+- **A trade-off is being taken.** Two credible options are compared and one is
+  chosen, especially when the losing one has real merit.
+- **A name is being fixed** for a concept the codebase will carry, or a
+  convention is being set that future work must follow.
+- **The same design question comes back a third time** in one session. Returning
+  to it means it was never actually settled.
+
+Say what you noticed, in one sentence, and start the process at Step 1. Do not
+ask for permission to think, and do not stop the work in flight: an exchange can
+carry on while its design is being written down.
+
+**Do NOT engage for**: a bug with one correct answer, a mechanical refactor, a
+naming choice local to one function, or a preference with no consequence beyond
+the file being edited. The bar is whether someone six months out would need to
+know *why*. If they would not, this is not design, and invoking here would teach
+everyone to skip Step 0 when it matters.
 
 ---
 
@@ -129,9 +164,17 @@ title: <topic>
 date: YYYY-MM-DD
 status: in-design  # → approved
 author: <user> + Claude/Codex
+ticket: <tracker id, once `harness:ticket` has created it; leave empty until then>
 related: [...]
 ---
 ```
+
+`ticket` is half of a link that must exist in both directions. The spec is where
+the reasoning lives and it belongs to the project, so it survives the tracker;
+the ticket is execution state and is mutable by nature. Someone reading the
+ticket has to be able to reach the reasoning, and someone reading the spec has
+to be able to see whether it was ever executed. `harness:ticket` fills this
+field when it creates the ticket and puts the reverse link in the ticket body.
 
 ### Step 8 — Spec self-review pass
 

@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:525e5561dc95cbd0452a5f4c9a9b2ea9f07b7dd12935c3d4936c9fcba96317c1"
+    "rootHash": "sha256:4e0c08c66ef49bf48be76ecb07bd1f88a389c8dc94b945ef0ebb24451e3e1231"
   },
   "nodes": [
     {
@@ -2274,7 +2274,7 @@
       "label": "brainstorm",
       "data": {
         "legacy": {
-          "description": "Explore intent before code: pressure-test a raw idea, one question at a time, 2-3 approaches, design in sections, spec written and approved. HARD GATE — no code until the spec is approved.",
+          "description": "Engage on a raw idea, or the moment an exchange settles a behaviour, boundary or trade-off: pressure-test, one question at a time, 2-3 approaches, spec written and approved before any code.",
           "enforcement": {
             "floor": "ci",
             "inline": {
@@ -2291,7 +2291,7 @@
             }
           ],
           "id": "skill:brainstorm",
-          "lines": 235,
+          "lines": 278,
           "name": "brainstorm",
           "owner": "folpe",
           "pack": null,
@@ -2300,7 +2300,7 @@
             "codex"
           ],
           "source": "packages/core/skills/brainstorm/SKILL.md",
-          "staticTokens": 3509,
+          "staticTokens": 4104,
           "type": "skill"
         }
       },
@@ -4569,7 +4569,7 @@
             }
           ],
           "id": "skill:plan",
-          "lines": 244,
+          "lines": 245,
           "name": "plan",
           "owner": "folpe",
           "pack": null,
@@ -4578,7 +4578,7 @@
             "codex"
           ],
           "source": "packages/core/skills/plan/SKILL.md",
-          "staticTokens": 2637,
+          "staticTokens": 2660,
           "type": "skill"
         }
       },
@@ -5064,7 +5064,7 @@
             }
           ],
           "id": "skill:ticket",
-          "lines": 143,
+          "lines": 167,
           "name": "ticket",
           "owner": "folpe",
           "pack": null,
@@ -5073,7 +5073,7 @@
             "codex"
           ],
           "source": "packages/core/skills/ticket/SKILL.md",
-          "staticTokens": 2094,
+          "staticTokens": 2390,
           "type": "skill"
         }
       },

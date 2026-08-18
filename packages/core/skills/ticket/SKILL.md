@@ -55,6 +55,30 @@ Render into the tracker description. Every slot is REQUIRED unless marked option
 - **TDD mode**: defer to `harness:tdd`'s path-based auto-selection; note an explicit override to strict only for a business-critical surface (auth, payments, security, money).
 - **Runner passes that apply**: which `harness:implement` conditional passes you expect to fire (architecture? migration safety? async/idempotency? E2E? UX/UI? deep security?). This is an accelerator HINT, not authoritative: the runner still evaluates every predicate itself and may add passes you did not list.
 
+### Close the link, both ways
+
+A ticket that cites its spec is half a link. Do both, in the same change:
+
+1. The ticket body opens with the paths of the spec and the plan it comes from.
+2. The `ticket:` field in each of those two files' frontmatter is filled with the
+   tracker id just created.
+
+Neither direction is optional, because each answers a question the other cannot.
+From the ticket, the reasoning: why this shape, what was rejected, which
+trade-off was taken. From the spec, whether the thinking was ever executed and
+where it landed. A spec with no ticket is a decision nobody carried out, and
+nothing says so today.
+
+The asymmetry is deliberate and worth keeping in mind: the spec and the plan
+live in the repository because they belong to the project and must survive the
+tracker, while the ticket is execution state and is mutable by nature. Copying
+the reasoning into the tracker would put it where a workspace change can lose
+it; copying the status into the repository would give it two owners. Only the
+link crosses.
+
+If the project has no tracker, say so and stop: there is no ticket to write, and
+the spec plus the plan already hold what would have gone in it.
+
 Native tracker fields (REQUIRED, set the real field, not prose):
 
 - **Estimate** (points / size). Never leave empty.
@@ -67,7 +91,7 @@ Native tracker fields (REQUIRED, set the real field, not prose):
 
 ## Multi-ticket active-program handoff
 
-After creating a complete pool of two or more tracker tickets intended to run across sessions, create `plans/ACTIVE.md` in the same change. Do this only after the plan and ticket pool are human-approved and every native dependency is saved. A single standalone ticket does not need an active pointer.
+After creating a complete pool of two or more tracker tickets intended to run across sessions, create `.void/active.md` in the same change. Do this only after the plan and ticket pool are human-approved and every native dependency is saved. A single standalone ticket does not need an active pointer.
 
 Use tracker-agnostic routing frontmatter:
 

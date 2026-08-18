@@ -33,7 +33,7 @@ Do NOT invoke without an approved spec. If you find yourself wanting to plan wit
 
 ## Plan structure
 
-A plan is a markdown file at `plans/YYYY-MM-DD-<topic>-plan.md`. Frontmatter:
+A plan is a markdown file at `docs/plans/YYYY-MM-DD-<topic>-plan.md`. Frontmatter:
 
 ```yaml
 ---
@@ -41,6 +41,7 @@ title: <topic>
 date: YYYY-MM-DD
 status: in-progress  # in-progress → executing → done
 spec: docs/specs/YYYY-MM-DD-<topic>.md
+ticket: <tracker id, once `harness:ticket` has created it; leave empty until then>
 author: <user> + Claude/Codex
 high_risk: false  # set true if the plan touches payment, auth, prod data migration, security-sensitive code → triggers plan-review recommendation
 ---
@@ -150,7 +151,7 @@ Use this only for a standalone sequential plan that is not decomposed into track
 
 The next session reads the resume point and continues.
 
-For a tracker-backed multi-ticket program, do not maintain a second mutable next-step pointer in the plan. Instead, add a final `Execution handoff` table that gives each plan unit a stable order key, title, dependency keys, estimate, and human-gate flag. After `harness:ticket` creates the native tickets and dependency relations, it installs `plans/ACTIVE.md`; the tracker then owns current state and the next ready ticket.
+For a tracker-backed multi-ticket program, do not maintain a second mutable next-step pointer in the plan. Instead, add a final `Execution handoff` table that gives each plan unit a stable order key, title, dependency keys, estimate, and human-gate flag. After `harness:ticket` creates the native tickets and dependency relations, it installs `.void/active.md`; the tracker then owns current state and the next ready ticket.
 
 ---
 
@@ -174,7 +175,7 @@ Fix inline. Then user-review gate.
 
 Ask the user to review the plan before execution begins:
 
-> "Plan written and committed to `plans/<file>.md`. Please review and let me know if you want changes before we start executing."
+> "Plan written and committed to `docs/plans/<file>.md`. Please review and let me know if you want changes before we start executing."
 
 Wait for response. If changes requested, make them and re-run self-review.
 
@@ -188,7 +189,7 @@ After plan approval, transition to:
 - **`harness:implement`** for a named single ticket or standalone implementation unit.
 - **`harness:autopilot`** only when the user requests its attended independent-ticket flow.
 
-For a tracker-backed program, later sessions recover work from the tracker through `plans/ACTIVE.md`; they do not mutate the plan to repoint the next ticket.
+For a tracker-backed program, later sessions recover work from the tracker through `.void/active.md`; they do not mutate the plan to repoint the next ticket.
 
 ---
 

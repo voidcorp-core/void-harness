@@ -18,7 +18,7 @@ How work is framed before and after the code is written.
 
 | | |
 |---|---|
-| `brainstorm` | Explore intent before code: pressure-test a raw idea, one question at a time, 2-3 approaches, design in sections, spec written and approved. |
+| `brainstorm` | Engage on a raw idea, or the moment an exchange settles a behaviour, boundary or trade-off: pressure-test, one question at a time, 2-3 approaches, spec written and approved before… |
 | `plan` | Turn an approved spec into vertical slices with dependencies, TDD mode, verification gates, checkpoints, and a tracker handoff. |
 | `plan-review` | Critique a written plan (not a diff) via four lenses: CEO premise/ambition, Eng test-coverage, Design states/slop, DevEx time-to-first-value. |
 | `tdd` | TDD in three modes (strict/souple/exploratory) chosen by path. |

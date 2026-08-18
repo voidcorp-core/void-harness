@@ -876,7 +876,7 @@
       "type": "skill"
     },
     {
-      "description": "Explore intent before code: pressure-test a raw idea, one question at a time, 2-3 approaches, design in sections, spec written and approved. HARD GATE — no code until the spec is approved.",
+      "description": "Engage on a raw idea, or the moment an exchange settles a behaviour, boundary or trade-off: pressure-test, one question at a time, 2-3 approaches, spec written and approved before any code.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -893,7 +893,7 @@
         }
       ],
       "id": "skill:brainstorm",
-      "lines": 235,
+      "lines": 278,
       "name": "brainstorm",
       "owner": "folpe",
       "pack": null,
@@ -902,7 +902,7 @@
         "codex"
       ],
       "source": "packages/core/skills/brainstorm/SKILL.md",
-      "staticTokens": 3509,
+      "staticTokens": 4104,
       "type": "skill"
     },
     {
@@ -2325,7 +2325,7 @@
         }
       ],
       "id": "skill:plan",
-      "lines": 244,
+      "lines": 245,
       "name": "plan",
       "owner": "folpe",
       "pack": null,
@@ -2334,7 +2334,7 @@
         "codex"
       ],
       "source": "packages/core/skills/plan/SKILL.md",
-      "staticTokens": 2637,
+      "staticTokens": 2660,
       "type": "skill"
     },
     {
@@ -2640,7 +2640,7 @@
         }
       ],
       "id": "skill:ticket",
-      "lines": 143,
+      "lines": 167,
       "name": "ticket",
       "owner": "folpe",
       "pack": null,
@@ -2649,7 +2649,7 @@
         "codex"
       ],
       "source": "packages/core/skills/ticket/SKILL.md",
-      "staticTokens": 2094,
+      "staticTokens": 2390,
       "type": "skill"
     },
     {
