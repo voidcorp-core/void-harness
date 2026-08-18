@@ -25,7 +25,11 @@ function ctxFor(projectRoot: string, pinVersion: string | undefined = '0.17.0'):
     enabledPlugins: ['harness'],
     enabledPacks: [],
     source: 'local',
-    marketplaceRepo: 'voidcorp-core/void-plugins',
+    // A fork, deliberately: what this field still exists for is that add,
+    // remove, check and update never silently re-pin someone's fork or private
+    // mirror onto the default repo. Naming the retired catalog here described a
+    // repository that no longer exists.
+    marketplaceRepo: 'acme/void-harness-fork',
     pinVersion,
   };
 }

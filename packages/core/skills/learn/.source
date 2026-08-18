@@ -4,7 +4,7 @@ This skill is the 2026-07-09 fusion of three former skills (issue #75) — it in
 
 - compounding — EveryInc/compound-engineering-plugin (https://github.com/EveryInc/compound-engineering-plugin): "each unit of work should make the next easier". Contributed the end-of-cycle extraction ritual (Branch C).
 - capture-rule — original to void-harness; inspiration Boris Cherny "how Boris uses Claude Code" + Kieran Klaassen (EveryInc). Contributed the HITL project-rule capture into .void/PROJECT-DOCTRINE.md (Branch A). Design constraint: NO auto-write into doctrine, ever.
-- harness-evolution — citypaul/.dotfiles self-evolution discipline + the compound-engineering loop, adapted with an HITL gate. Contributed the inbound-feedback-as-GitHub-issue flow and the obsolescence audit (Branch B). See issue #35 / DECISIONS.md (2026-06-26) for why the `.void/harness-feedback/proposed/` queue + `feedback push` were dropped.
+- harness-evolution — citypaul/.dotfiles self-evolution discipline + the compound-engineering loop, adapted with an HITL gate. Contributed the inbound-feedback-as-GitHub-issue flow and the obsolescence audit (Branch B). See issue #35 / DECISIONS.md (2026-06-26) for why the .void/harness-feedback/proposed/ queue + `feedback push` were dropped.
 
 Strategy: fuse + distill. Three doors to one action ("capture a lesson") separated by ~200 lines of mutual boundary-policing collapsed into one skill whose first step is the routing decision. All three behaviors preserved verbatim in intent, each keeping its own HITL gate; the inter-skill delimitation prose was removed (no boundary to police once they are one skill).
 

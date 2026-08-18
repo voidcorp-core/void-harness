@@ -14,8 +14,9 @@ import { isMachineEntry, pendingMigrations, VOID_MACHINE_DIR } from '@voidcorp/h
 import { judgeLayout, type LayoutObservation, type ManifestObservation } from '../lib/void-hygiene.js';
 import { observedWriteCandidates, type ObservedPathObservation } from '../lib/observed-write-paths.js';
 import { INSTALL_MANIFEST_PATH, parseInstallManifest, verifyInstallManifest } from '../lib/install-manifest.js';
+import { type DiscoveredAsset, looksHarnessAuthored, orphanedAssets } from '../lib/orphaned-assets.js';
 import { ownedDerivedPaths } from '../lib/void-migration.js';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { readActiveProgram } from '../lib/autopilot/active-program.js';
@@ -512,6 +513,7 @@ async function observeLayout(root: string): Promise<LayoutObservation> {
       observedPaths,
       trackedObserved: [],
       trackedDerivedCount: 0,
+      orphanedAssets: observeOrphanedAssets(root),
       manifest: observeManifest(root),
     };
   }
@@ -546,6 +548,7 @@ async function observeLayout(root: string): Promise<LayoutObservation> {
     observedPaths,
     trackedObserved,
     trackedDerivedCount,
+    orphanedAssets: observeOrphanedAssets(root),
     manifest: observeManifest(root),
   };
 }
@@ -575,6 +578,63 @@ function gitIgnores(root: string, probe: string): boolean | undefined {
  * spending a process to ask about it would buy an answer nobody reads, and the
  * candidate list is a frozen constant, so the loop is bounded by construction.
  */
+/**
+ * Assets on disk that carry the harness's own frontmatter and that the manifest
+ * does not own. Only the runtime asset directories are walked: those are the
+ * only places the harness has ever written a SKILL.md, and walking a whole
+ * project to answer a question about our own output would cost far more than the
+ * answer is worth.
+ */
+function observeOrphanedAssets(root: string): readonly string[] {
+  const manifestPath = join(root, INSTALL_MANIFEST_PATH);
+  if (!existsSync(manifestPath)) return [];
+  let owned: ReadonlySet<string>;
+  try {
+    const manifest = parseInstallManifest(readFileSync(manifestPath, 'utf8'));
+    if (manifest === undefined) return [];
+    owned = new Set(manifest.files.map((file) => file.path));
+  } catch {
+    return [];
+  }
+
+  const discovered: DiscoveredAsset[] = [];
+  const walk = (relative: string): void => {
+    let entries: readonly string[];
+    try {
+      entries = readdirSync(join(root, relative));
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const child = `${relative}/${entry}`;
+      const absolute = join(root, child);
+      let isDirectory = false;
+      try {
+        isDirectory = statSync(absolute).isDirectory();
+      } catch {
+        continue;
+      }
+      if (isDirectory) {
+        walk(child);
+        continue;
+      }
+      if (!entry.endsWith('.md')) continue;
+      try {
+        discovered.push({
+          path: child,
+          harnessAuthored: looksHarnessAuthored(readFileSync(absolute, 'utf8')),
+        });
+      } catch {
+        // Unreadable is not evidence of anything; say nothing about it.
+      }
+    }
+  };
+  for (const dir of ['.claude/skills', '.claude/agents', '.claude/commands', '.agents/skills']) {
+    walk(dir);
+  }
+  return orphanedAssets(discovered, owned);
+}
+
 function observeObservedPaths(root: string, insideRepo: boolean): readonly ObservedPathObservation[] {
   return observedWriteCandidates().map((candidate) => {
     const present = existsSync(join(root, ...candidate.path.split('/')));

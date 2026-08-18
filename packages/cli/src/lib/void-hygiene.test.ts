@@ -9,6 +9,7 @@ function observation(over: Partial<LayoutObservation> = {}): LayoutObservation {
     trackedObserved: [],
     trackedDerivedCount: 0,
     observedPaths: [],
+    orphanedAssets: [],
     manifest: { kind: 'present', version: '2.5.1', drifted: 0 },
     ...over,
   };
@@ -118,3 +119,28 @@ describe('judgeLayout', () => {
     expect(check?.message).toMatch(/would be committed/);
   });
 });
+
+// A renamed skill kept because it was edited by hand goes on loading beside its
+// replacement, and after the first update nothing mentions it again. Advisory
+// rather than a failure: nothing is broken, the agent simply answers from
+// whichever of the two doctrines it loads first.
+describe('void orphans', () => {
+  const orphans = (over: Partial<LayoutObservation> = {}): CheckResult =>
+    judgeLayout(observation(over)).find((check) => check.name === 'void orphans') as CheckResult;
+
+  it('passes quietly when the manifest still owns everything on disk', () => {
+    expect(orphans().ok).toBe(true);
+    expect(orphans().status).toBeUndefined();
+  });
+
+  it('names what still loads, and whose call it is to delete', () => {
+    const check = orphans({ orphanedAssets: ['.claude/skills/ticket-runner/SKILL.md'] });
+    expect(check.status).toBe('advisory');
+    expect(check.message).toContain('ticket-runner');
+    expect(check.fix).toContain('delete');
+  });
+
+  it('does not block, because the bytes were changed by hand and are not ours', () => {
+    expect(orphans({ orphanedAssets: ['a', 'b'] }).ok).toBe(true);
+  });
+})
