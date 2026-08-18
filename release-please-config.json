@@ -68,7 +68,7 @@
         },
         {
           "type": "json",
-          "path": "packages/harness-graph/certification.json",
+          "path": "packages/core/data/certification.json",
           "jsonpath": "$.harnessVersion"
         },
         {

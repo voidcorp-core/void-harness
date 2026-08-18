@@ -31,11 +31,11 @@ import { readInstallReceipt } from '../lib/receipts.js';
 const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** Candidate paths for a shipped data artifact, in priority order: the monorepo source
- * (`packages/harness-graph/<name>`) first for dev, then the package-local copy
+ * (`packages/core/data/<name>`) first for dev, then the package-local copy
  * (`core-assets/data/<name>`) that ships in the published tarball. Pure — the caller picks the first
  * that exists, so a published CLI runs `status` with no monorepo. */
 export function dataCandidates(pkgRoot: string, name: string): string[] {
-  return [resolve(pkgRoot, '..', 'harness-graph', name), join(pkgRoot, 'core-assets', 'data', name)];
+  return [resolve(pkgRoot, '..', 'core', 'data', name), join(pkgRoot, 'core-assets', 'data', name)];
 }
 const findData = (name: string): string | undefined => dataCandidates(PKG_ROOT, name).find((p) => existsSync(p));
 

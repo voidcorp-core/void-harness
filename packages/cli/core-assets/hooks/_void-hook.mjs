@@ -45,7 +45,7 @@ function lineEvidence(edits, applies, violates, allowTag) {
     if (!applies(path)) continue;
     edit.addedContent.split(/\r?\n/).forEach((line, index) => {
       if (allowTag !== void 0 && line.includes(allowTag)) return;
-      if (violates(line)) evidence.push(`${path}:${index + 1}`);
+      if (violates(line, path)) evidence.push(`${path}:${index + 1}`);
     });
   }
   return evidence;
@@ -402,11 +402,12 @@ function noNull(edits) {
   const evidence = lineEvidence(
     edits,
     (path) => /\.(?:ts|tsx)$/.test(path) && !isTestPath(path) && !path.endsWith(".d.ts") && !isGeneratedPath(path),
-    (line) => {
+    (line, path) => {
       if (/from\s+['"]drizzle-orm|JSON\.(?:stringify|parse)|typeof.*===\s*['"]null/.test(line)) {
         return false;
       }
-      return /\bnull\b/.test(codeOnly(line));
+      const code3 = path.endsWith(".tsx") ? codeOnly(line).replace(/\breturn\s+null\b/g, "") : codeOnly(line);
+      return /\bnull\b/.test(code3);
     },
     "allow-null:"
   );

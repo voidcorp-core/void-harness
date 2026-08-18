@@ -21,7 +21,7 @@ describe('activatedPackDirs', () => {
 
   it('drift guard: every PACKS entry maps to a pack dir present in the real certification', () => {
     const here = dirname(fileURLToPath(import.meta.url));
-    const certPath = resolve(here, '..', '..', '..', 'harness-graph', 'certification.json');
+    const certPath = resolve(here, '..', '..', '..', 'core', 'data', 'certification.json');
     const cert = JSON.parse(readFileSync(certPath, 'utf8')) as Certification;
     const certDirs = new Set(cert.capabilities.map((c) => capabilityPackDir(c.id)).filter(Boolean));
     for (const pack of PACKS) {
@@ -34,7 +34,7 @@ describe('activatedPackDirs', () => {
 describe('dataCandidates', () => {
   it('prefers the monorepo source, then falls back to the package-local shipped copy', () => {
     expect(dataCandidates('/x/packages/cli', 'certification.json')).toEqual([
-      '/x/packages/harness-graph/certification.json',
+      '/x/packages/core/data/certification.json',
       '/x/packages/cli/core-assets/data/certification.json',
     ]);
   });

@@ -19,7 +19,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const MODEL = resolve(ROOT, 'packages/harness-graph/model.json');
+const MODEL = resolve(ROOT, 'packages/core/data/model.json');
 const TAXONOMY = resolve(ROOT, 'docs/cheatsheet-taxonomy.json');
 const OUTPUT = resolve(ROOT, 'docs/CHEATSHEET.md');
 

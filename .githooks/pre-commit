@@ -49,7 +49,7 @@ if git diff --cached --name-only | grep -qE '^packages/(core|packs)/'; then
       echo "  Run 'pnpm graph:check' to see why; CI refuses a stale catalogue." >&2
       exit 1
     }
-    DERIVED="packages/harness-graph/catalog.v3.json packages/harness-graph/model.json packages/core/graph/void-graph.mjs docs/CHEATSHEET.md packages/cli/core-assets/data/catalog.v3.json packages/cli/core-assets/data/model.json"
+    DERIVED="packages/core/data/catalog.v3.json packages/core/data/model.json packages/core/graph/void-graph.mjs docs/CHEATSHEET.md packages/cli/core-assets/data/catalog.v3.json packages/cli/core-assets/data/model.json"
     # shellcheck disable=SC2086 # the list is ours and deliberately word-split
     if [ -n "$(cd "$ROOT" && git status --porcelain -- $DERIVED)" ]; then
       # shellcheck disable=SC2086

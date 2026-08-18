@@ -36,15 +36,11 @@ await cp(SOURCE, TARGET, {
 });
 console.log(`copy-core-assets: copied ${SOURCE} -> ${TARGET}`);
 
-// Ship the frozen state inputs the `status` command reads plus the canonical CatalogGraph v3, so a
-// published npm tarball can render project health with no monorepo and expose the versioned graph.
-const HG = resolve(HERE, '..', '..', 'harness-graph');
-const DATA = join(TARGET, 'data');
-await mkdir(DATA, { recursive: true });
-for (const f of ['catalog.v3.json', 'certification.json', 'model.json']) {
-  await cp(join(HG, f), join(DATA, f));
-}
-console.log(`copy-core-assets: copied data (catalog.v3.json, certification.json, model.json) -> ${DATA}`);
+// The catalogue used to live in packages/harness-graph/ and had to be fetched
+// from there by name, which is how a script that assembles core's assets ended
+// up reading another package. It now lives in packages/core/data/ and rides the
+// recursive copy above like every other core directory, so this special case is
+// gone rather than rewritten.
 
 // Bundle each pack's skills so a --pack install can materialize them for Codex
 // (packs are not a separate npm package; without this a pack install on Codex

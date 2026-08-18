@@ -189,7 +189,7 @@ jobs:
         run: pnpm graph:check
 
       - name: Certification freshness (certification.json matches model + eval reports)
-        # The frozen packages/harness-graph/certification.json is the input ProjectState reads.
+        # The frozen packages/core/data/certification.json is the input ProjectState reads.
         # If a capability contract field or an eval report changed, rebuild: pnpm certification:build
         run: pnpm certification:check
 

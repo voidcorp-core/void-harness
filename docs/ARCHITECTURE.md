@@ -740,7 +740,7 @@ and `parseList(block, key)` (flow or block YAML list — used by `runtimes` and 
 
 ### The certification manifest (`certification.json`)
 
-The capability contract is frozen, per release, into `packages/harness-graph/certification.json` (A4).
+The capability contract is frozen, per release, into `packages/core/data/certification.json` (A4).
 It is the input `ProjectState` (Phase B) reads for the repo-authored half of the five-state model —
 never recomputed on a consumer machine. `buildCertification(model, reports, harnessVersion)`
 (`src/certification/build.ts`, pure) joins the graph model's capability fields with the eval-harness
