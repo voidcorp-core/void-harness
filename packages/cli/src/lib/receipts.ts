@@ -115,7 +115,14 @@ export async function readInstallReceipt(projectRoot: string): Promise<InstallRe
   }
 }
 
-async function pruneEmptyParents(projectRoot: string, filePath: string): Promise<void> {
+/**
+ * Remove the directories a deleted file leaves behind, up to the project root.
+ * Exported because the install transaction needs it too: a renamed skill leaves
+ * its old directory standing, so `ls .claude/skills` keeps listing skills that
+ * no longer have a SKILL.md. Harmless to the runtime, and misleading to everyone
+ * reading the directory.
+ */
+export async function pruneEmptyParents(projectRoot: string, filePath: string): Promise<void> {
   const root = resolve(projectRoot);
   let cursor = dirname(filePath);
   while (cursor !== root && cursor.startsWith(`${root}${sep}`)) {

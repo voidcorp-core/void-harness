@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { InstallReceipt } from '../lib/receipts.js';
-import { localInitArgs, updateModeFor } from './update.js';
+import { localInitArgs, updateModeFor, updateRouteFor } from './update.js';
 
 const receipt = (source: InstallReceipt['source']): InstallReceipt => ({
   schemaVersion: 1,
@@ -44,3 +44,26 @@ describe('localInitArgs', () => {
     expect(localInitArgs(receipt('local'), [], { force: true })).toContain('--force');
   });
 });
+
+// The receipt is observed state, so it is gitignored and absent from every
+// clone. Reading the route from it alone made `update` fall through to the
+// marketplace branch on a colleague's fresh checkout: it pulled a plugin cache,
+// bumped the pins, materialised nothing, and reported success. The install
+// manifest is the committed half of the same fact and is always there.
+describe('updateRouteFor', () => {
+  it('follows the receipt when there is one', () => {
+    expect(updateRouteFor(receipt('local'), true)).toBe('local');
+    expect(updateRouteFor(receipt('marketplace'), true)).toBe('marketplace');
+  });
+
+  // A local install whose receipt is gone cannot be updated: nothing says which
+  // files the harness owns, so the ownership diff that removes renamed skills
+  // has no input. Saying so is the fix; guessing would delete or duplicate.
+  it('reports a local install that lost its receipt, rather than guessing', () => {
+    expect(updateRouteFor(undefined, true)).toBe('local-receipt-missing');
+  });
+
+  it('is a marketplace install when neither is there', () => {
+    expect(updateRouteFor(undefined, false)).toBe('marketplace');
+  });
+})
