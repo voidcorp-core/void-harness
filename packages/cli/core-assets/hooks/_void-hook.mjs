@@ -563,6 +563,26 @@ function testName(edits) {
   );
 }
 
+// src/enforcement/shell-writes.ts
+var REDIRECTION = /(?:^|\s)(?:\d*|&)>{1,2}\s*("[^"]*"|'[^']*'|[^\s;|&<>]+)/g;
+var TEE = /(?:^|[\s|])tee\s+(?:-a\s+)?("[^"]*"|'[^']*'|[^\s;|&<>-][^\s;|&<>]*)/g;
+function unquote2(target) {
+  const quoted = /^(["'])(.*)\1$/.exec(target);
+  return quoted?.[2] ?? target;
+}
+function shellWriteTargets(command) {
+  const targets = /* @__PURE__ */ new Set();
+  for (const pattern of [REDIRECTION, TEE]) {
+    for (const match of command.matchAll(pattern)) {
+      const target = match[1];
+      if (target === void 0) continue;
+      const path = unquote2(target);
+      if (path !== "") targets.add(path);
+    }
+  }
+  return [...targets].sort();
+}
+
 // src/enforcement/normalize.ts
 var MAX_FIELD_BYTES = 1024 * 1024;
 function record(value) {
@@ -627,7 +647,8 @@ function normalizeToolCall(value) {
   } else {
     edits = parsePatchEdits(patchText(input));
   }
-  return { tool, command, edits };
+  const shellTargets = shellWriteTargets(command).filter((path) => !edits.some((edit) => edit.path === path)).map((path) => ({ path, addedContent: "" }));
+  return { tool, command, edits: [...edits, ...shellTargets] };
 }
 
 // src/enforcement/runner.ts
@@ -697,6 +718,15 @@ function configuredString(parent, key, fallback) {
   const value = parent?.[key];
   return typeof value === "string" ? value : fallback;
 }
+function configuredStrings(parent, key, fallback) {
+  const value = parent?.[key];
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) {
+    const kept = value.filter((entry) => typeof entry === "string");
+    if (kept.length > 0) return kept;
+  }
+  return [fallback];
+}
 function readTddConfig(root) {
   let config = {};
   try {
@@ -709,7 +739,7 @@ function readTddConfig(root) {
   const mode = configuredMode === "strict" || configuredMode === "souple" || configuredMode === "exploratory" ? configuredMode : "auto";
   return {
     mode,
-    businessGlob: configuredString(paths, "business", "apps/*/src/**"),
+    businessGlobs: configuredStrings(paths, "business", "apps/*/src/**"),
     spikesGlob: configuredString(paths, "spikes", "apps/*/scripts/spike-*")
   };
 }
@@ -748,7 +778,7 @@ function tddVerdict(root, edits) {
   return tddOrder({
     edits: projectChanges,
     mode: config.mode,
-    businessGlobs: [config.businessGlob],
+    businessGlobs: config.businessGlobs,
     spikeGlobs: [config.spikesGlob],
     existingHeaders,
     siblingTests

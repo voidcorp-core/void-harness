@@ -109,3 +109,22 @@ describe('packsCoherenceIssues', () => {
     expect(packsCoherenceIssues([], [])).toEqual([]);
   });
 });
+
+// A project whose business logic lives in two roots could not declare both while
+// this accepted a single string. void-harness is the case in point: its own
+// densest logic sits in packages/, which no single glob reached alongside apps/.
+describe('paths accepts a list of globs', () => {
+  it('accepts a list', () => {
+    expect(validateConfig({ paths: { business: ['apps/*/src/**', 'packages/*/src/**'] } }).ok).toBe(true);
+  });
+
+  it('still accepts the single string every project declares today', () => {
+    expect(validateConfig({ paths: { business: 'apps/*/src/**' } }).ok).toBe(true);
+  });
+
+  it('still refuses a non-string member, with its JSON path', () => {
+    const result = validateConfig({ ...VALID, paths: { business: ['ok', 42] } });
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.issues.join(' ')).toContain('paths.business');
+  });
+})

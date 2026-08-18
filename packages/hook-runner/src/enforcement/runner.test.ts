@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  configuredStrings,
   evaluateRule,
   MAX_HOOK_INPUT_BYTES,
   parseHookText,
@@ -166,3 +167,33 @@ describe('evaluateRule', () => {
     }).allow).toBe(true);
   });
 });
+
+// `paths.business` was read as a single string while the rule below it already
+// took a list, so a project could never gate two source roots at once. This
+// repository is the case in point: its own densest logic lives in packages/,
+// which the one available glob could not reach while apps/ was declared.
+describe('paths.business accepts more than one root', () => {
+  it('reads a list', () => {
+    expect(configuredStrings({ business: ['apps/*/src/**', 'packages/*/src/**'] }, 'business', 'x'))
+      .toEqual(['apps/*/src/**', 'packages/*/src/**']);
+  });
+
+  it('still reads a single string, which is what every project declares today', () => {
+    expect(configuredStrings({ business: 'apps/*/src/**' }, 'business', 'x')).toEqual(['apps/*/src/**']);
+  });
+
+  it('falls back when the key is absent or malformed', () => {
+    expect(configuredStrings({}, 'business', 'x')).toEqual(['x']);
+    expect(configuredStrings({ business: 7 }, 'business', 'x')).toEqual(['x']);
+  });
+
+  // An empty list would silently gate nothing, which reads as "TDD is off" with
+  // no line anywhere saying so.
+  it('falls back on an empty list rather than gating nothing', () => {
+    expect(configuredStrings({ business: [] }, 'business', 'x')).toEqual(['x']);
+  });
+
+  it('drops non-string members instead of matching on them', () => {
+    expect(configuredStrings({ business: ['a', 3, 'b'] }, 'business', 'x')).toEqual(['a', 'b']);
+  });
+})
