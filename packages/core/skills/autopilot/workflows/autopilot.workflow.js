@@ -14,7 +14,7 @@
 
 export const meta = {
   name: 'autopilot',
-  description: 'Run one bounded ticket cluster, each ticket through ticket-runner in its own worktree',
+  description: 'Run one bounded ticket cluster, each ticket through implement in its own worktree',
   phases: [
     { title: 'Parallel', detail: 'disjoint tickets, one worktree subagent each' },
     { title: 'Sequential', detail: 'overlapping, risky or migration tickets, one at a time' },
@@ -93,7 +93,7 @@ function workerPrompt(assignment) {
     `Approved spec: ${plan.specPath}`,
     '',
     'Re-fetch the complete ticket from the tracker before starting. Never work from a summary.',
-    'Run every ticket-runner pass whose predicate fires. Run your own targeted gates, not the',
+    'Run every implement pass whose predicate fires. Run your own targeted gates, not the',
     'whole cluster suite. Apply a migration only against the dev/local database.',
     '',
     'You must NOT: push, open or update a pull request, merge anything, or move the ticket to',

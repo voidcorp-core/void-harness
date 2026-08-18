@@ -15,7 +15,7 @@ eval_targets: [claude/anthropic/opus]
 
 # plan-review — voidcorp craftsman edition
 
-`brainstorming` pressure-tests the idea and `writing-plans` authors the plan. This skill sits between the written plan and implementation: it **critiques an already-written plan** from up to four expert lenses, surfaces findings one decision at a time, and appends an Implementation Tasks list to the plan. It is read-mostly — it **proposes**; the plan's author (you, via `writing-plans`) **disposes**. It never writes code and never restructures the plan itself.
+`brainstorm` pressure-tests the idea and `plan` authors the plan. This skill sits between the written plan and implementation: it **critiques an already-written plan** from up to four expert lenses, surfaces findings one decision at a time, and appends an Implementation Tasks list to the plan. It is read-mostly — it **proposes**; the plan's author (you, via `plan`) **disposes**. It never writes code and never restructures the plan itself.
 
 Invoke it on a plan in `docs/specs/` or `plans/` before the plan becomes tickets. Pick one lens, several, or `all` (the orchestrated pass, below).
 
@@ -28,7 +28,7 @@ Invoke it on a plan in `docs/specs/` or `plans/` before the plan becomes tickets
 - **Scope gate first.** Before reviewing, state what the plan touches and what is explicitly NOT in scope. A plan touching > 8 files or > 2 new services is a size smell — flag it before anything else.
 - **One finding = one decision.** Surface findings interactively, one at a time, each as a concrete decision with 2-3 options (always including "do nothing / defer") and a recommendation mapped to a stated preference. Never dump a wall of findings.
 - **Severity**: `P1` blocks ship · `P2` same-branch follow-up · `P3` later. Effort is dual-scaled (human hours vs AI-agent minutes — completeness is cheap when an agent implements).
-- **Findings become tasks, not edits.** The lens appends an Implementation Tasks list (P1/P2/P3) to the plan. It does not silently rewrite the plan; the author folds the fixes in. Registries the plan should already contain (Not-in-scope, What-already-exists, diagrams) are `writing-plans`' job — the lens flags their absence, it does not own them.
+- **Findings become tasks, not edits.** The lens appends an Implementation Tasks list (P1/P2/P3) to the plan. It does not silently rewrite the plan; the author folds the fixes in. Registries the plan should already contain (Not-in-scope, What-already-exists, diagrams) are `plan`' job — the lens flags their absence, it does not own them.
 - **Verdict**: `CLEARED` (no P1 unresolved) or `NOT CLEARED` with the blocking findings named.
 - **Optional second opinion.** For a high-stakes plan, run one independent pass (a fresh subagent, or a second model) and surface only where it disagrees — cross-model tension is signal.
 
@@ -40,7 +40,7 @@ The only lens that may challenge the **premise** and say "scrap it, do this inst
 
 - **Premise & leverage**: right problem? a cheaper reframing? real outcome vs a proxy metric? cost of doing nothing? what existing code already solves each sub-problem?
 - **Trajectory**: current → delta → 12-month ideal. Reversibility 1-5 (one-way vs two-way door); path dependency; debt introduced; "obvious to a new engineer in 12 months?"
-- **Alternatives are mandatory**: 2-3 approaches, weighting *minimal-viable* and *ideal-architecture* equally, each with effort/risk/reuse; recommend one; do not proceed without approval. (Authoring the chosen approach is `writing-plans`' job — the lens forces the comparison, not the write-up.)
+- **Alternatives are mandatory**: 2-3 approaches, weighting *minimal-viable* and *ideal-architecture* equally, each with effort/risk/reuse; recommend one; do not proceed without approval. (Authoring the chosen approach is `plan`' job — the lens forces the comparison, not the write-up.)
 
 **Scope mode** (pick once, up front — this is the plan-level 10x move):
 - `EXPANSION` — cathedral: run the 10x check, sketch the Platonic-ideal version, name ≥ 5 delight opportunities. Default for greenfield.
@@ -108,8 +108,8 @@ Between phases, auto-decide only the safe class; escalate the rest:
 
 ## Composition & boundaries
 
-- **Downstream of `writing-plans`** (which authors the plan) and **upstream of implementation** (`ticket-runner`). It reviews the artifact `writing-plans` produced.
-- **Not `brainstorming`**: brainstorming pressure-tests the *idea* (is there demand?); plan-review critiques the *written plan* (is it the right shape, buildable, complete?). Different artifact, different question.
+- **Downstream of `plan`** (which authors the plan) and **upstream of implementation** (`implement`). It reviews the artifact `plan` produced.
+- **Not `brainstorm`**: brainstorm pressure-tests the *idea* (is there demand?); plan-review critiques the *written plan* (is it the right shape, buildable, complete?). Different artifact, different question.
 - **Not `code-review`**: that reviews a *diff*; this reviews a *plan* before any code exists.
 - **Not `doctrine-critic`**: that judges a diff against VoidCorp doctrine; this critiques a plan across product/eng/design/DX lenses.
 - **Composes with `frontend-design` / `harness:ui-review`** (the Design lens defers UI build-craft and audit to them), `harness:devex-audit` (the DevEx lens's shipped-surface counterpart — this judges the plan, that measures the deployed reality), and `security-guidance` / `harness:security-audit` (the Eng lens routes a deep security concern there).
@@ -119,8 +119,8 @@ Between phases, auto-decide only the safe class; escalate the rest:
 ## Anti-rules
 
 - MUST NOT rewrite the plan — it appends a findings/task list; the author folds fixes in.
-- MUST NOT own plan structure or registries (Not-in-scope, diagrams) — that is `writing-plans`.
-- MUST NOT re-litigate the idea's demand — that is `brainstorming`.
+- MUST NOT own plan structure or registries (Not-in-scope, diagrams) — that is `plan`.
+- MUST NOT re-litigate the idea's demand — that is `brainstorm`.
 - MUST NOT review code or a diff — that is `code-review`.
 - MUST NOT auto-decide a Taste or User-challenge call — those go to the human.
 - MUST NOT dump findings in bulk — one finding, one decision.

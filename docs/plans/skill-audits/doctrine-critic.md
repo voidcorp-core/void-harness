@@ -78,8 +78,8 @@ It carries no security engine (→ `/cso`) and no bug-finder (→ `/code-review`
 - [x] Manifests + README + ARCHITECTURE drop the "roadmap"/"planned" three-agent
   wording and name `doctrine-critic`
 - [x] All shipped skills that referenced the dropped agents updated
-  (`code-review`, `security-guidance`, `systematic-debugging`,
-  `verification-before-completion`) + the matrix and audit notes
+  (`code-review`, `security-guidance`, `debug`,
+  `verify`) + the matrix and audit notes
 - [x] Tests cover frontmatter validity, read-only tools, mirror parity, and that
   the manifests/docs no longer advertise the dropped agents
 - [ ] Installed into a fixture project; confirmed `doctrine-critic` appears as a

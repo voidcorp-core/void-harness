@@ -45,7 +45,7 @@ export function harnessBlock(input: ClaudeMdBlockInputs, runtime: Runtime = 'cla
   const captureLine = isClaude
     ? `To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The \`capture-rule\` skill auto-invokes, classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.`
     : `To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The capture-rule workflow classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.`;
-  const ticketRunner = isClaude ? '`harness:ticket-runner`' : '`ticket-runner`';
+  const ticketRunner = isClaude ? '`harness:implement`' : '`implement`';
   return [
     BEGIN_MARKER,
     '',

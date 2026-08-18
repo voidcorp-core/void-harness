@@ -8,10 +8,10 @@ import { type UsageEntry, auditFindings, auditSkills, parseUsageLog } from './au
 
 describe('parseUsageLog', () => {
   it('parses tab-separated timestamp + skill lines', () => {
-    const log = '2026-06-12T14:57:45Z\tharness:void-doctor\n2026-06-18T12:31:23Z\tharness:brainstorming\n';
+    const log = '2026-06-12T14:57:45Z\tharness:void-doctor\n2026-06-18T12:31:23Z\tharness:brainstorm\n';
     expect(parseUsageLog(log)).toEqual([
       { timestamp: '2026-06-12T14:57:45Z', skill: 'harness:void-doctor' },
-      { timestamp: '2026-06-18T12:31:23Z', skill: 'harness:brainstorming' },
+      { timestamp: '2026-06-18T12:31:23Z', skill: 'harness:brainstorm' },
     ]);
   });
 
@@ -27,7 +27,7 @@ describe('auditSkills', () => {
   const usage: UsageEntry[] = [
     { timestamp: '2026-06-19T10:00:00Z', skill: 'harness:tdd' }, // 1 day ago
     { timestamp: '2026-06-01T10:00:00Z', skill: 'harness:tdd' }, // older dup
-    { timestamp: '2026-05-01T00:00:00Z', skill: 'harness:refactoring' }, // exactly 50 days ago
+    { timestamp: '2026-05-01T00:00:00Z', skill: 'harness:refactor' }, // exactly 50 days ago
   ];
 
   it('classifies a recently-used skill as active with its last use', () => {
@@ -40,8 +40,8 @@ describe('auditSkills', () => {
   });
 
   it('classifies a skill last used beyond the window as stale', () => {
-    const report = auditSkills({ allSkills: ['harness:refactoring'], usage, nowMs: now, staleDays: 30 });
-    expect(report.stale.map((s) => s.skill)).toEqual(['harness:refactoring']);
+    const report = auditSkills({ allSkills: ['harness:refactor'], usage, nowMs: now, staleDays: 30 });
+    expect(report.stale.map((s) => s.skill)).toEqual(['harness:refactor']);
     expect(report.stale[0]?.daysSince).toBe(50);
   });
 
@@ -61,7 +61,7 @@ describe('auditSkills', () => {
 describe('auditFindings', () => {
   const report = {
     active: [],
-    stale: [{ skill: 'harness:refactoring', lastUsed: '2026-05-01T00:00:00Z', daysSince: 50, status: 'stale' as const }],
+    stale: [{ skill: 'harness:refactor', lastUsed: '2026-05-01T00:00:00Z', daysSince: 50, status: 'stale' as const }],
     never: [{ skill: 'harness:observability', lastUsed: undefined, daysSince: undefined, status: 'never' as const }],
     staleDays: 30,
   };
@@ -69,7 +69,7 @@ describe('auditFindings', () => {
   it('maps never + stale skills to deprecation-candidate findings on the bare skill id', () => {
     const findings = auditFindings(report);
     expect(findings).toContainEqual({ type: 'never', component: 'skill:observability', detail: 'never fired' });
-    expect(findings.find((f) => f.type === 'stale')?.component).toBe('skill:refactoring');
+    expect(findings.find((f) => f.type === 'stale')?.component).toBe('skill:refactor');
   });
 
   it('folds the project count into the detail for an aggregated push (no paths)', () => {

@@ -15,6 +15,6 @@ audit_date: 2026-06-01
 
 **Loses to.** Single-route apps. Apps not on App Router (Pages router has no concept of groups).
 
-**Composes with.** `harness-nextjs:cache-component-pattern` (`(marketing)` cached, `(app)` mostly dynamic). `harness-server:server-action` (`(actions)/` location). `harness-monorepo:adr-workflow` (group additions are ADR-worthy). `harness:security-guidance` (auth in `(app)/layout.tsx`).
+**Composes with.** `harness-nextjs:cache-component-pattern` (`(marketing)` cached, `(app)` mostly dynamic). `harness-server:server-action` (`(actions)/` location). `harness-monorepo:decide` (group additions are ADR-worthy). `harness:security-guidance` (auth in `(app)/layout.tsx`).
 
 **Why not in core.** App Router routing is Next-specific.

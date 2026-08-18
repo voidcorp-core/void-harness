@@ -107,9 +107,9 @@ This widens egress by **zero** (decision A3): offline work defers the verificati
 
 ## Composition
 
-- **Upstream of `writing-plans`** — stack decisions in a plan must be grounded in current official docs, not remembered defaults. A plan step that pins a library cites the doc that justifies the choice.
+- **Upstream of `plan`** — stack decisions in a plan must be grounded in current official docs, not remembered defaults. A plan step that pins a library cites the doc that justifies the choice.
 - **With `commit-discipline`** — the mandatory "why" in the commit body is where the source citation lives. The git log becomes the audit trail of *why this config*, traceable to a versioned doc.
-- **With `adr-workflow`** (pack-monorepo) — a structural tool choice becomes an ADR whose "Alternatives considered" cites the official docs of each option, not folklore.
+- **With `decide`** (pack-monorepo) — a structural tool choice becomes an ADR whose "Alternatives considered" cites the official docs of each option, not folklore.
 - **Contrast with memory-driven work** — the failure mode this skill replaces is writing config from training recall and only checking docs when it breaks. Invert that order.
 
 ---

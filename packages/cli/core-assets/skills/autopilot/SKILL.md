@@ -1,6 +1,6 @@
 ---
 name: autopilot
-description: Use to drain a bounded cluster of independent ready tickets, each run end-to-end by ticket-runner in its own worktree, reconciled into one integration PR a human merges.
+description: Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR a human merges.
 owner: folpe
 runtimes: [claude, codex]
 enforcement:
@@ -23,7 +23,7 @@ integration PR. You stay the merge gate.
 
 ## What this skill does NOT do
 
-It owns no ticket cycle. Every worker runs the canonical `ticket-runner` skill, whole, once
+It owns no ticket cycle. Every worker runs the canonical `implement` skill, whole, once
 per ticket. If you find yourself writing "then the worker runs the tests, then reviews…"
 inside autopilot, stop: that behaviour has one owner, and duplicating it means the two copies
 drift and tickets get a different standard depending on how they were started.
@@ -48,7 +48,7 @@ with native subagents. Both read the *same* `OrchestrationPlan` and return the *
 `WorkerResult`. An adapter that is missing, or a permission that cannot be proven, returns
 `unsupported-runtime` before any tracker mutation.
 
-**The workers.** One ticket, one worktree, one branch, one full `ticket-runner` run.
+**The workers.** One ticket, one worktree, one branch, one full `implement` run.
 
 ---
 
@@ -128,7 +128,7 @@ stay exactly where they are, and no ticket moves forward.
 Given: exactly one ticket id, one worktree path, one branch, and the paths of the global plan
 and spec. It re-fetches the complete ticket itself — never work from a summary.
 
-May: run every `ticket-runner` pass whose predicate fires, run its own targeted gates, apply a
+May: run every `implement` pass whose predicate fires, run its own targeted gates, apply a
 migration **in dev/local only**, and commit a bisectable range.
 
 May not: push, open or update a pull request, merge anything, move the ticket to In Review or
@@ -146,7 +146,7 @@ plan itself, not only in the prompt, so an adapter that honours the plan cannot 
 | "The tracker write probably worked, carry on" | A write with an unknown result is unknown. Re-observe; never conclude from a request that timed out. |
 | "Only one ticket failed, ship the other three" | That is exactly right — and it is what partial success does. But the failed one keeps its branch and its blocker. |
 | "The cluster is only three tickets, skip the review budget" | The budget is what shrank it to three. |
-| "Autopilot should run the tests too" | `ticket-runner` runs them. Autopilot runs the full suite once, at reconciliation, on the integrated branch. |
+| "Autopilot should run the tests too" | `implement` runs them. Autopilot runs the full suite once, at reconciliation, on the integrated branch. |
 | "The suite was green before the rebase, publish" | The proof was about a tree that no longer exists. Re-run it. |
 | "That check is flaky, turn it off and the PR goes green" | The check is the gate. A failure it does not own is escalated, not silenced. |
 | "The PR is gone from the list, it must have been merged" | An absent pull request proves nothing. Done comes from an observed merge SHA. |
@@ -155,6 +155,6 @@ plan itself, not only in the prompt, so an adapter that honours the plan cannot 
 
 ## Composition
 
-Upstream: `harness:ticket-writer` authors the tickets and the active program pointer.
-Per ticket: `harness:ticket-runner`, entire, once. Downstream: the reconciler owns the
+Upstream: `harness:ticket` authors the tickets and the active program pointer.
+Per ticket: `harness:implement`, entire, once. Downstream: the reconciler owns the
 integration branch, the suite and the PR. The human owns the merge.

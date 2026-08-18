@@ -23,8 +23,8 @@ describe('harnessBlock', () => {
   });
 
   it.each([
-    ['claude', '`harness:ticket-runner`'],
-    ['codex', '`ticket-runner`'],
+    ['claude', '`harness:implement`'],
+    ['codex', '`implement`'],
   ] as const)('installs the active-program bootstrap for %s', (runtime, runner) => {
     const block = harnessBlock(input, runtime);
     expect(block).toContain('`.void/active.md`');

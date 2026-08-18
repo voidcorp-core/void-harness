@@ -6,8 +6,8 @@ strategy: original
 target_loc: n/a (agent, not a skill; kept lean)
 phase: D
 depends_on: []
-composes_with: [migrations-safety, tdd, writing-plans, doctrine-critic]
-matrix_row: plans/skill-decision-matrix.md#migrations-safety
+composes_with: [migrations, tdd, plan, doctrine-critic]
+matrix_row: plans/skill-decision-matrix.md#migrations
 audit_date: 2026-06-04
 auditor: Folpe + Claude Opus 4.8
 ---
@@ -16,7 +16,7 @@ auditor: Folpe + Claude Opus 4.8
 
 ## Need
 
-Without this agent, the `migrations-safety` skill states the discipline
+Without this agent, the `migrations` skill states the discipline
 (expand-contract, two-phase deploy, backward-compatible steps) but the concrete,
 ordered plan for a *specific* change is improvised inline by the implementing thread
 — exactly where pressure to "just ALTER the table" wins. `migration-planner` is a
@@ -29,20 +29,20 @@ the reading code, a blocking backfill on a hot table, a step nobody can roll bac
 
 - **Wins**: producing an ordered, reversible migration plan for a schema/contract/data
   change (expand-contract, two-phase, batched backfill, per-step rollback + gate).
-- **Loses to**: the implementing thread under `tdd` + `writing-plans` for *executing*
+- **Loses to**: the implementing thread under `tdd` + `plan` for *executing*
   the plan; `/code-review` for bugs in existing code; `/cso` for data-exposure/PII
   review during migration; `doctrine-critic` for doctrine taste.
 - **Cannot decide**: queue/DB technology (pack concern). It does not write or run a
   migration — it plans.
-- **Composes with**: `migrations-safety` (the principles it instantiates), `tdd` and
-  `writing-plans` (the handoff for execution), `doctrine-critic` (sibling read-only
+- **Composes with**: `migrations` (the principles it instantiates), `tdd` and
+  `plan` (the handoff for execution), `doctrine-critic` (sibling read-only
   agent, disjoint scope).
 
 ## Sources audited
 
 | Source | URL | Status | Verdict |
 |---|---|---|---|
-| void-harness `migrations-safety` skill | plans/skill-audits/migrations-safety.md | read | kept: expand-contract, two-phase deploy ordering, batched/idempotent backfill, lock/blast-radius awareness — the principles this agent sequences |
+| void-harness `migrations` skill | plans/skill-audits/migrations.md | read | kept: expand-contract, two-phase deploy ordering, batched/idempotent backfill, lock/blast-radius awareness — the principles this agent sequences |
 | void-harness `doctrine-critic` agent | packages/core/agents/doctrine-critic.md | read | kept: frontmatter shape, read-only allowlist, isolated-context, route-don't-perform |
 | Martin Fowler / Sadalage "Refactoring Databases" — parallel change | https://martinfowler.com/bliki/ParallelChange.html | read | kept: expand / migrate / contract as three deployable phases |
 | Stripe / GitHub online-migration practice (zero-downtime ALTER) | https://stripe.com/blog/online-migrations | read | kept: dual-write/dual-read, backfill, cutover, drop-after-bake ordering |
@@ -51,14 +51,14 @@ the reading code, a blocking backfill on a hot table, a step nobody can roll bac
 ## Adaptation strategy
 
 **original (compose-not-duplicate).** Authored for void-harness as a planning-only,
-read-only agent. It does not duplicate `migrations-safety` (which is doctrine, not a
+read-only agent. It does not duplicate `migrations` (which is doctrine, not a
 per-change plan) and does not execute (that is the implementing thread). It fills the
 gap between the principle and the running migration.
 
 ## Adaptations and rejections
 
 - **Rejected any execution capability.** The agent never writes or runs a migration,
-  code, or test — those route to `tdd` + `writing-plans`. Planning-only keeps it
+  code, or test — those route to `tdd` + `plan`. Planning-only keeps it
   strictly complementary to the execution skills (anti-bloat rule 6).
 - **Every step deployable + reversible is a contract, not a suggestion.** A step that
   cannot ship alone or roll back is treated as a defect in the plan.
@@ -71,7 +71,7 @@ gap between the principle and the running migration.
 
 ## Anti-rules (what this agent MUST NOT do)
 
-- MUST NOT write or run a migration, code, or test → `tdd` + `writing-plans`.
+- MUST NOT write or run a migration, code, or test → `tdd` + `plan`.
 - MUST NOT review existing-code bugs/perf → `/code-review`; security → `/cso`.
 - MUST NOT judge doctrine → `doctrine-critic`.
 - MUST NOT inflate a genuinely one-step change into manufactured phases.

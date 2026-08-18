@@ -147,11 +147,11 @@ Every generated `CLAUDE.md` or `AGENTS.md` carries the same conditional bootstra
 `.void/active.md` exists with `status: executing`, the runtime reads its plan and spec before
 choosing implementation work. A plain continue/start/resume request recovers exactly one started
 scoped ticket, or selects the first ready ticket from the pointer's stable issue order and the
-tracker’s native blocker relations. The complete ticket is then executed through `ticket-runner`.
+tracker’s native blocker relations. The complete ticket is then executed through `implement`.
 More than one started scoped ticket is a competing-claim error, never an implicit selection.
 
 The pointer is opt-in and project-owned. `init`, `update`, and runtime adapters never create or
-mutate it. `ticket-writer` creates it only after a human-approved multi-ticket plan has been fully
+mutate it. `ticket` creates it only after a human-approved multi-ticket plan has been fully
 materialized in a capable tracker. It stores immutable routing only: program, plan/spec links,
 provider scope, ordered ticket identifiers, lifecycle-state names, human gates, and the required
 `autopilot` consent block. Mutable status, assignee, blockers, resume comments, and PR/evidence
@@ -234,7 +234,7 @@ enforced isolation until a runtime probe proves it.
 | Concern | Where |
 |---|---|
 | TypeScript + web craftsman discipline (universal within that stack) | `core/` |
-| Process skills (brainstorming, planning, debugging) | `core/` |
+| Process skills (brainstorm, planning, debugging) | `core/` |
 | Hooks that enforce universals | `core/hooks/` |
 | Framework-specific patterns (Next.js, React Native, etc.) | `packs/<pack>/` |
 | Framework-specific extensions of core skills | `packs/<pack>/` (can extend, not override blindly) |
@@ -277,7 +277,7 @@ Two content-aware hooks sit beside the filename/path guards:
 - **`stop-typecheck.sh`** (Stop, **advisory**) — when a TS project has uncommitted
   `.ts` changes at end of turn, it runs a timeout-bounded `tsc --noEmit` scoped to
   the nearest tsconfig of the touched files and surfaces type errors on stderr, so
-  the "typecheck clean" item of `verification-before-completion` is answered from
+  the "typecheck clean" item of `verify` is answered from
   observation. It **never blocks** (a blocking Stop would trap the session) and
   no-ops with no TS project, no TS edit, or no `tsc`.
 
@@ -301,7 +301,7 @@ The CLI does **not** edit the consumer's source code. The consumer's CLAUDE.md i
 
 ## Inter-plugin contracts (the core-hub model)
 
-The core plugin is **always installed** and acts as the hub between plugins. A sibling plugin (today: `forge`, the ideation pipeline) routes into the core's execution capabilities (`brainstorming`, `writing-plans`, `ticket-writer`, `tdd`, ...) rather than reimplementing them or dangling a pointer at a gstack skill. The nominal routing assumes the core is present; the coupling is nonetheless a **versioned artifact contract**, not a hard plugin dependency, so each plugin still makes sense alone — forge degrades to producing a standalone spec, core works with a hand-written spec.
+The core plugin is **always installed** and acts as the hub between plugins. A sibling plugin (today: `forge`, the ideation pipeline) routes into the core's execution capabilities (`brainstorm`, `plan`, `ticket`, `tdd`, ...) rather than reimplementing them or dangling a pointer at a gstack skill. The nominal routing assumes the core is present; the coupling is nonetheless a **versioned artifact contract**, not a hard plugin dependency, so each plugin still makes sense alone — forge degrades to producing a standalone spec, core works with a hand-written spec.
 
 Re-splitting core into `core` + `dev` (execution) sub-plugins is explicitly **deferred (YAGNI)**: one core-hub is enough until a second consumer of the "execution" half exists.
 
@@ -327,7 +327,7 @@ The body carries the **18 load-bearing recon variables** (the interface's payloa
 
 **Ingestion rule** (core skills): when a `source: forge` spec exists, **verify and fill the gaps — never re-ask what it already answers**. A partial spec (recon without critique, or a missing field from an older `forge_version`) is ingested for what it has, with the missing pieces listed as the only open questions. Two specs in one repo are disambiguated by `slug` / date.
 
-`brainstorming`, `writing-plans`, and `ticket-writer` each honor this rule (see their SKILL.md "Ingesting a forge spec" note). The forge side of the contract lives in `voidcorp-core/forge` (forge#4).
+`brainstorm`, `plan`, and `ticket` each honor this rule (see their SKILL.md "Ingesting a forge spec" note). The forge side of the contract lives in `voidcorp-core/forge` (forge#4).
 
 ## Dependency direction
 
@@ -623,7 +623,7 @@ only a missing or failed specialist; it cannot replace a completed review or era
 loop is capped at two rounds. Missing input
 hashes, missing or mismatched contract versions, malformed, wrong-role, duplicate, timed-out, stale,
 or degraded specialist evidence cannot produce `verified`; persistent blockers end `blocked`.
-`packages/core/workflows/ticket-runner.workflow.yaml` is the human-authored conductor contract shared
+`packages/core/workflows/implement.workflow.yaml` is the human-authored conductor contract shared
 by the skill and runtime adapters.
 
 `void-harness mission` exposes the operator lifecycle:
@@ -689,7 +689,7 @@ earns its place:
   `always` flag (still eligible for `expensive`). Granted only on **auditable backing**: the
   skill is the target of an `enforces` edge, or its principle is stated in `PHILOSOPHY.md`.
   16 skills qualify.
-- `on-demand` — a workflow triggered **actively** (brainstorming, writing-plans, ticket-*,
+- `on-demand` — a workflow triggered **actively** (brainstorm, plan, ticket-*,
   autopilot, ...), or a conditional skill with no structural backing (async-safety,
   api-and-interface-design, ...). If never invoked, a low count is a real signal — historical
   behavior.

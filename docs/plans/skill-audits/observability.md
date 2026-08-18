@@ -5,7 +5,7 @@ strategy: distill
 target_loc: 350
 phase: D
 depends_on: []
-composes_with: [security-guidance, async-safety, systematic-debugging, code-review]
+composes_with: [security-guidance, async-safety, debug, code-review]
 matrix_row: plans/skill-decision-matrix.md#observability
 audit_date: 2026-05-29
 auditor: Folpe + Claude Opus 4.7
@@ -22,7 +22,7 @@ Without `observability`, production debugging = guessing. A user reports a vague
 - **Wins**: any code that runs in production. Logging structure, trace IDs, error boundaries, metrics emission
 - **Loses to**: `security-guidance` on what NOT to log (PII, secrets)
 - **Cannot decide**: alerting policy (ops concern), retention windows (compliance concern)
-- **Composes with**: every code-discipline skill, `systematic-debugging` (visibility before debugging), `async-safety` (trace propagation across job boundaries)
+- **Composes with**: every code-discipline skill, `debug` (visibility before debugging), `async-safety` (trace propagation across job boundaries)
 
 ## Sources audited
 
@@ -87,7 +87,7 @@ The discipline is uniform. Intensity scales with criticality (a side-project may
 ## Composition with other skills
 
 - **With `security-guidance`**: PII / secrets MUST NOT appear in logs. Logger config redacts at serialization.
-- **With `systematic-debugging`**: if visibility is the gap, fix it FIRST (add the missing logs / breadcrumbs / traces) — then debug with real signal.
+- **With `debug`**: if visibility is the gap, fix it FIRST (add the missing logs / breadcrumbs / traces) — then debug with real signal.
 - **With `async-safety`**: trace ID propagation across job / webhook / queue boundaries. The trace follows the work.
 - **With `hexagonal-architecture`**: error boundaries live at adapter boundaries; logging at use-case entry/exit.
 - **With `code-review`**: flags missing observability (no log at use-case entry, no breadcrumb at business event, error swallowing).
@@ -112,7 +112,7 @@ The discipline is uniform. Intensity scales with criticality (a side-project may
 - [ ] Matrix row in `plans/skill-decision-matrix.md` matches this audit note
 - [ ] Skill tests in `test/observability/` cover: console.log detection, string-interpolation log detection, error-swallowing detection, missing trace context detection
 - [ ] No overlap > 30% with `security-guidance` (this skill = visibility; security = what to not show)
-- [ ] No overlap > 30% with `systematic-debugging` (this skill = visibility infra; debugging = root cause discipline)
+- [ ] No overlap > 30% with `debug` (this skill = visibility infra; debugging = root cause discipline)
 - [ ] Sister-doc parity: AGENTS.md flavor matches CLAUDE.md flavor
 - [ ] Audit status moved from `reviewed` → `shipped` after first project consumes the skill
 

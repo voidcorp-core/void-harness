@@ -12,7 +12,7 @@ Components MUST:
 - Receive data via props (never query DB)
 - Defer side effects to event handlers or actions
 - Use design tokens from `@repo/ui`, never inline hex/px
-- Honor accessibility from the first render (composes with `harness:accessibility-first`)
+- Honor accessibility from the first render (composes with `harness:accessibility`)
 
 Components MUST NOT:
 - `import { db } from '@/...'` — enforced by `no-db-in-components` hook
@@ -22,7 +22,7 @@ Components MUST NOT:
 
 ## Touch targets
 
-Minimum 44×44 px (iOS HIG) / 48×48 dp (Material). Use `<Tappable>` from `@repo/ui` which enforces this automatically. Composes with `harness:accessibility-first`.
+Minimum 44×44 px (iOS HIG) / 48×48 dp (Material). Use `<Tappable>` from `@repo/ui` which enforces this automatically. Composes with `harness:accessibility`.
 
 ## Dual-quality mobile-first
 
@@ -47,4 +47,4 @@ Components default to baseline; opt into the enhancement via media query.
 - `harness-nextjs` — App Router puts components in `apps/<app>/src/components/`.
 - `harness-mobile` — React Native shares the same primitive contract (Tappable, tokens).
 - `harness:frontend-design` — anti AI-slop, sober palette, real density.
-- `harness:accessibility-first` — keyboard, screen reader, color contrast, touch targets.
+- `harness:accessibility` — keyboard, screen reader, color contrast, touch targets.

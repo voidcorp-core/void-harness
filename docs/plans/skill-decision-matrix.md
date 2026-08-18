@@ -8,7 +8,7 @@ purpose: For every skill in core, specify when it wins, when it loses, and what 
 
 # Skill Decision Matrix
 
-This matrix is the precondition to writing per-skill content (Section 11 of the master design spec). Without it, skills like `functional`, `hexagonal-architecture`, `domain-driven-design`, `testing`, `refactoring`, and `code-review` will overlap, contradict each other, or silently fight for the same decisions.
+This matrix is the precondition to writing per-skill content (Section 11 of the master design spec). Without it, skills like `functional`, `hexagonal-architecture`, `domain-driven-design`, `testing`, `refactor`, and `code-review` will overlap, contradict each other, or silently fight for the same decisions.
 
 **How to read each row**
 
@@ -24,9 +24,9 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 ### `tdd`
 
 - **Wins**: any implementation of new behavior, bugfix, refactor that changes observable behavior
-- **Loses to**: `refactoring` for pure refactor mode (no behavior change). `migrations-safety` for DB migration mechanics.
+- **Loses to**: `refactor` for pure refactor mode (no behavior change). `migrations` for DB migration mechanics.
 - **Cannot decide**: what the production code architecture should be (defers to `hexagonal-architecture`, `domain-driven-design`); naming (defers to `typescript-strict`); test ergonomics within a framework (defers to `testing`).
-- **Composes with**: `testing` (TDD provides the cycle, testing provides the technique), `refactoring` (R of RED-GREEN-REFACTOR delegates here).
+- **Composes with**: `testing` (TDD provides the cycle, testing provides the technique), `refactor` (R of RED-GREEN-REFACTOR delegates here).
 
 ### `typescript-strict`
 
@@ -42,7 +42,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 - **Cannot decide**: I/O strategy (defers to hexagonal), persistence shape (defers to DDD), test discipline.
 - **Composes with**: `typescript-strict` (provides ADT machinery), `domain-driven-design` (Wlaschin makes them friends).
 
-### `refactoring`
+### `refactor`
 
 - **Wins**: any change that improves structure without changing observable behavior. Tidy-First moves.
 - **Loses to**: `tdd` if any behavior changes. Refactoring stops at the boundary of behavior change.
@@ -52,7 +52,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 ### `testing`
 
 - **Wins**: how to express a test once you know what to test. Mocking strategy, fixture design, test pyramid placement, integration vs unit choice.
-- **Loses to**: `tdd` on **when** to write the test (always: before). `migrations-safety` on testing DB changes.
+- **Loses to**: `tdd` on **when** to write the test (always: before). `migrations` on testing DB changes.
 - **Cannot decide**: whether a feature deserves a test (TDD's call: yes, always, in strict mode). Production architecture.
 - **Composes with**: `tdd` (provides the cycle); mutation testing validates the suite's quality, and is not a core skill.
 
@@ -67,7 +67,7 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 
 - **Wins**: identifying bounded contexts, aggregates, ubiquitous language. Anti-corruption layers between domains.
 - **Loses to**: `hexagonal-architecture` on the technical boundary mechanism. `functional` on data shapes within an aggregate.
-- **Cannot decide**: tactical patterns (delegated to `functional` + `hexagonal-architecture`). Sub-domain analysis: deferred to `brainstorming` / `plan-review` (CEO lens) upstream.
+- **Cannot decide**: tactical patterns (delegated to `functional` + `hexagonal-architecture`). Sub-domain analysis: deferred to `brainstorm` / `plan-review` (CEO lens) upstream.
 - **Composes with**: `hexagonal-architecture`, `functional`.
 
 ### `code-review`
@@ -88,35 +88,35 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 
 ## Process skills (17)
 
-### `brainstorming`
+### `brainstorm`
 
 - **Wins**: any creative task before code. Feature scoping, design discussion, "should we build X this way?" — and, via the vendored upstream mode (DEV-386), "should we build X at all?" (demand pressure-test + 10x ambition).
 - **Loses to**: `plan-review` (CEO lens) for reviewing a written plan's premise / ambition / trajectory.
-- **Cannot decide**: implementation specifics (defers to `writing-plans`).
-- **Composes with**: `writing-plans` (downstream).
+- **Cannot decide**: implementation specifics (defers to `plan`).
+- **Composes with**: `plan` (downstream).
 
-### `writing-plans`
+### `plan`
 
 - **Wins**: turning an approved design into an executable plan. Sequencing, dependencies, verification gates.
-- **Loses to**: `brainstorming` on intent and design choices.
+- **Loses to**: `brainstorm` on intent and design choices.
 - **Cannot decide**: feature scope (it's a planning skill, not a scoping skill). Architecture (defers to architecture skills).
-- **Composes with**: `brainstorming` (upstream), `ticket-runner` (downstream — one unit taken from ready to shipped).
+- **Composes with**: `brainstorm` (upstream), `implement` (downstream — one unit taken from ready to shipped).
 
 ### `plan-review`
 
 - **Wins**: critiquing a written plan before execution through four lenses (CEO premise/ambition, Eng test-coverage/failure-modes, Design states/slop, DevEx TTHW); the `all` mode orchestrates them with auto-decisions.
-- **Loses to**: `writing-plans` on authoring/structuring the plan (plan-review proposes findings, the author disposes); `code-review` once code exists.
-- **Cannot decide**: the idea's demand (that is `brainstorming`); it never rewrites the plan or auto-decides taste/user-challenge calls.
-- **Composes with**: `writing-plans` (upstream, produces the artifact), `ticket-runner` (downstream), `frontend-design`/`impeccable` (Design lens), `security-audit` (Eng lens routes deep security). Vendored from gstack plan-reviews + autoplan (DEV-385).
+- **Loses to**: `plan` on authoring/structuring the plan (plan-review proposes findings, the author disposes); `code-review` once code exists.
+- **Cannot decide**: the idea's demand (that is `brainstorm`); it never rewrites the plan or auto-decides taste/user-challenge calls.
+- **Composes with**: `plan` (upstream, produces the artifact), `implement` (downstream), `frontend-design`/`impeccable` (Design lens), `security-audit` (Eng lens routes deep security). Vendored from gstack plan-reviews + autoplan (DEV-385).
 
-### `systematic-debugging`
+### `debug`
 
 - **Wins**: any bug, test failure, unexpected behavior. Root-cause investigation before fix.
-- **Loses to**: `migrations-safety` on migration-specific failures. `observability` on missing-logs cases (fix the visibility first).
+- **Loses to**: `migrations` on migration-specific failures. `observability` on missing-logs cases (fix the visibility first).
 - **Cannot decide**: whether to ship a fix without root cause (Iron Law: no). The fix itself (delegates to `tdd`).
 - **Composes with**: `tdd` (write the failing test that reproduces, then fix).
 
-### `verification-before-completion`
+### `verify`
 
 - **Wins**: every "task complete" claim. Pre-flight checklist before reporting done.
 - **Loses to**: nothing — it's the final gate.
@@ -135,85 +135,85 @@ This matrix is the precondition to writing per-skill content (Section 11 of the 
 - **Wins**: every commit. Conventional commit format, "why" in the body, scope, breaking-change marking.
 - **Loses to**: nothing — it's a final gate before the commit.
 - **Cannot decide**: whether the change itself is correct.
-- **Composes with**: `verification-before-completion`.
+- **Composes with**: `verify`.
 
-### `learning-capture`
+### `learn`
 
 The 2026-07-09 fusion of `compounding` + `capture-rule` + `harness-evolution` (issue #75) — one skill, three routed destinations, HITL on every write.
 
 - **Wins**: any moment a lesson appears — a stated durable project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a perceived harness gap. Names the lesson, decides scope, and runs the matching capture: a project rule into `.void/PROJECT-DOCTRINE.md`, a harness gap as a direct `voidcorp-core/void-harness` issue, or drop. Also interprets the `void-harness audit` obsolescence report.
-- **Loses to**: nothing on capture routing — it is the single owner. Defers *which tool to use* to the code skills; a structural decision with a rejected alternative is `adr-workflow`, not a doctrine line.
+- **Loses to**: nothing on capture routing — it is the single owner. Defers *which tool to use* to the code skills; a structural decision with a rejected alternative is `decide`, not a doctrine line.
 - **Cannot decide**: whether a capture is adopted (HITL only, never auto-writes doctrine); whether a rule is correct (the user owns it); the scope when genuinely ambiguous (it asks, never guesses).
-- **Composes with**: `verification-before-completion` (a cycle is not "closed" until verified), `commit-discipline` (a project rule commits as `docs(doctrine):`), `code-review` (a recurring finding is a deja-vu signal), `claude-md-authoring` (governs the doc a rule lands in), `adr-workflow`, `retrospective` (feeds it window-scale patterns).
+- **Composes with**: `verify` (a cycle is not "closed" until verified), `commit-discipline` (a project rule commits as `docs(doctrine):`), `code-review` (a recurring finding is a deja-vu signal), `claude-md` (governs the doc a rule lands in), `decide`, `retrospective` (feeds it window-scale patterns).
 
 ### `retrospective`
 
 - **Wins**: a periodic engineering retro over a window (a week, a cycle) — reads git log / PRs / `.void/`, surfaces signals (commit-type mix, hotspots, recurring-fix files, test-to-prod ratio, PR size, regressions), and turns them into concrete improvement decisions.
-- **Loses to**: `learning-capture` on writing a lesson into doctrine (the retro routes patterns to it, never writes doctrine itself); `systematic-debugging` on fixing one bug (the retro only flags the recurring-file smell at window scale).
-- **Cannot decide**: whether a capture is adopted (HITL via learning-capture); it never changes code or writes doctrine.
-- **Composes with**: `learning-capture` (durable patterns routed there), `systematic-debugging` (recurring-fix smell), `writing-plans` (large-PR window = slicing signal). Vendored from gstack `/retro` (DEV-396) with the gamification dropped.
+- **Loses to**: `learn` on writing a lesson into doctrine (the retro routes patterns to it, never writes doctrine itself); `debug` on fixing one bug (the retro only flags the recurring-file smell at window scale).
+- **Cannot decide**: whether a capture is adopted (HITL via learn); it never changes code or writes doctrine.
+- **Composes with**: `learn` (durable patterns routed there), `debug` (recurring-fix smell), `plan` (large-PR window = slicing signal). Vendored from gstack `/retro` (DEV-396) with the gamification dropped.
 
 ### `source-driven-development`
 
 - **Wins**: before writing any config or usage of a third-party tool, framework, library, or API. Grounds the decision in the official docs for the *installed* version, not training memory; cites the reference.
-- **Loses to**: `brainstorming` / `adr-workflow` on *which* tool to choose (this skill grounds *how to use* the chosen one).
-- **Cannot decide**: tool selection; the design (defers to `writing-plans`); business logic.
-- **Composes with**: `writing-plans` (grounds stack decisions), `commit-discipline` (the "why" carries the source citation), `adr-workflow` (rejected alternatives cite official docs), `context-management` (delegate heavy doc-reading to a fresh-context subagent).
+- **Loses to**: `brainstorm` / `decide` on *which* tool to choose (this skill grounds *how to use* the chosen one).
+- **Cannot decide**: tool selection; the design (defers to `plan`); business logic.
+- **Composes with**: `plan` (grounds stack decisions), `commit-discipline` (the "why" carries the source citation), `decide` (rejected alternatives cite official docs), `context` (delegate heavy doc-reading to a fresh-context subagent).
 
-### `context-management`
+### `context`
 
 - **Wins**: managing the context window — `/clear` between unrelated tasks, `/compact <focus>` on long sessions, the two-correction reset, delegating heavy investigation to fresh-context subagents, keeping task state on disk.
-- **Loses to**: `systematic-debugging` on the investigation *method* (this skill owns *where* the investigation runs, not how).
+- **Loses to**: `debug` on the investigation *method* (this skill owns *where* the investigation runs, not how).
 - **Cannot decide**: the task content; the investigation's conclusions.
-- **Composes with**: `systematic-debugging`, `writing-plans` (plan state persisted on disk), `dispatching-parallel-agents` / `subagent-driven-development` (vendored targets).
+- **Composes with**: `debug`, `plan` (plan state persisted on disk), `dispatching-parallel-agents` / `subagent-driven-development` (vendored targets).
 
-### `adr-workflow`
+### `decide`
 
 - **Wins**: documenting a structural decision that changes how future code is written, with a credible rejected alternative. ADR format, numbering, and lifecycle (proposed → accepted → superseded). Promoted from pack-monorepo to core on 2026-06-04.
-- **Loses to**: `writing-plans` on the *work* plan (an ADR records the *decision*, not the steps).
-- **Cannot decide**: product / org strategy (Notion, Linear); the work sequencing (`writing-plans`).
-- **Composes with**: `writing-plans`, `commit-discipline` (a one-paragraph "why" should become an ADR), `source-driven-development` (alternatives cite docs), `learning-capture` (a harness gap becomes an issue on this repo, not a doctrine line).
+- **Loses to**: `plan` on the *work* plan (an ADR records the *decision*, not the steps).
+- **Cannot decide**: product / org strategy (Notion, Linear); the work sequencing (`plan`).
+- **Composes with**: `plan`, `commit-discipline` (a one-paragraph "why" should become an ADR), `source-driven-development` (alternatives cite docs), `learn` (a harness gap becomes an issue on this repo, not a doctrine line).
 
-### `claude-md-authoring`
+### `claude-md`
 
 - **Wins**: writing or auditing a project CLAUDE.md / AGENTS.md. Length budget, what belongs vs what goes to hooks/linters, `file:line` over snippets, progressive disclosure, runnable-first-try.
-- **Loses to**: `learning-capture` on capturing an individual project rule or a harness gap (this skill governs the *document*, not the single rule).
+- **Loses to**: `learn` on capturing an individual project rule or a harness gap (this skill governs the *document*, not the single rule).
 - **Cannot decide**: the project's actual rules (the user owns content); deterministic enforcement (that belongs in hooks/settings, which is precisely the point).
-- **Composes with**: `context-management` (the doc is part of the context budget), `source-driven-development`, `learning-capture` (where a rule lands, and how a harness gap becomes an issue).
+- **Composes with**: `context` (the doc is part of the context budget), `source-driven-development`, `learn` (where a rule lands, and how a harness gap becomes an issue).
 
 ### `autopilot`
 
 The single in-session backlog drainer. Replaced `backlog-autopilot` at the 2026-07-30 cutover, which **deleted** the superseded engine rather than deprecating it: two engines in one release means two answers to "how does a cluster get drained".
 
-- **Wins**: an explicitly launched, attended run draining a pool of **independent** ready tickets — each executed end-to-end by `ticket-runner` in its own worktree worker, reconciled into one integration PR. Routing is parallel where footprints are disjoint, sequential where they collide (lockfiles and migrations always sequential); a **review budget** shrinks the cluster from structural doubt, not from ticket estimates. Opt-in, and the fan-out needs human confirmation.
-- **Loses to**: any single-ticket interactive session; `ticket-runner` on the per-ticket quality cycle (it delegates, it does not redefine); human judgment on the plan and on merge.
+- **Wins**: an explicitly launched, attended run draining a pool of **independent** ready tickets — each executed end-to-end by `implement` in its own worktree worker, reconciled into one integration PR. Routing is parallel where footprints are disjoint, sequential where they collide (lockfiles and migrations always sequential); a **review budget** shrinks the cluster from structural doubt, not from ticket estimates. Opt-in, and the fan-out needs human confirmation.
+- **Loses to**: any single-ticket interactive session; `implement` on the per-ticket quality cycle (it delegates, it does not redefine); human judgment on the plan and on merge.
 - **Cannot decide**: whether two tickets truly overlap (the footprint is *estimated*; the reconciler plus the full suite sealed against the integration SHA are the backstop); whether to merge — **never**, on any path. There is no `--auto-merge`: the CLI refuses it and a source gate enforces the refusal, because merging is where a human reads the diff as a whole.
-- **Composes with**: the deterministic CLI `void-harness autopilot` (selection, review budget, lease, reconciliation, publication, recovery, tracker lifecycle — it contacts nothing and spawns no agent), the runtime adapter that fans out workers (Workflow on Claude, native subagents on Codex, same `OrchestrationPlan` and same `WorkerResult`), `ticket-runner` inside every worker, `ticket-writer` upstream (which may ingest a `source: forge` spec). Durable boundaries: HITL at backlog curation and PR merge, commit-only workers, server-side branch protection required on the base.
+- **Composes with**: the deterministic CLI `void-harness autopilot` (selection, review budget, lease, reconciliation, publication, recovery, tracker lifecycle — it contacts nothing and spawns no agent), the runtime adapter that fans out workers (Workflow on Claude, native subagents on Codex, same `OrchestrationPlan` and same `WorkerResult`), `implement` inside every worker, `ticket` upstream (which may ingest a `source: forge` spec). Durable boundaries: HITL at backlog curation and PR merge, commit-only workers, server-side branch protection required on the base.
 
-### `ticket-runner`
+### `implement`
 
 The single canonical definition of "execute one ticket well" — one ticket taken from ready to shipped with a senior team's coverage (architecture, TDD, e2e, UX, security, review, verification), each pass keyed to an observable predicate.
 
 - **Wins**: taking a single ready ticket through to a shipped/green branch. Both interactive single-ticket work and each `autopilot` worker delegate here, so the cycle is defined once.
-- **Loses to**: `writing-plans` on sequencing *several* tickets; `ticket-writer` on authoring the ticket; human judgment on merge.
+- **Loses to**: `plan` on sequencing *several* tickets; `ticket` on authoring the ticket; human judgment on merge.
 - **Cannot decide**: whether a triggered pass may be skipped (never — the predicate decides, not a vibe); whether to merge (human).
-- **Composes with**: every code-discipline and process skill (it is the conductor that invokes them per predicate); `ticket-writer` upstream, `autopilot` as caller.
+- **Composes with**: every code-discipline and process skill (it is the conductor that invokes them per predicate); `ticket` upstream, `autopilot` as caller.
 
 ### `checkpoint`
 
 - **Wins**: closing a session with work still open. Routes each piece of state to whatever already owns it (tracker, PR, branch, plan), writes down only the residue nothing else holds — chiefly what was *ruled out* and why — and ends on one exact next action.
-- **Loses to**: `learning-capture` on a lesson that outlives this session (that is a doctrine or harness question, not a handoff note); `ticket-writer` on work that deserves its own ticket rather than a paragraph.
-- **Cannot decide**: whether the work itself is done (`verification-before-completion` owns that); what the next priority is (the tracker and the human own it).
-- **Composes with**: `context-management` (the handoff is what survives a context reset), `verification-before-completion` (runs first — a handoff states what is proven, not what is hoped), `learning-capture` (durable lessons routed out of the note).
+- **Loses to**: `learn` on a lesson that outlives this session (that is a doctrine or harness question, not a handoff note); `ticket` on work that deserves its own ticket rather than a paragraph.
+- **Cannot decide**: whether the work itself is done (`verify` owns that); what the next priority is (the tracker and the human own it).
+- **Composes with**: `context` (the handoff is what survives a context reset), `verify` (runs first — a handoff states what is proven, not what is hoped), `learn` (durable lessons routed out of the note).
 
-### `ticket-writer`
+### `ticket`
 
 Turns a finished brainstorm, plan, or design decision into a tracker ticket an implementation agent can execute with zero follow-up — every required slot filled, estimated, labelled.
 
-- **Wins**: capturing an already-made decision as a trackable, self-contained work item; declaring which `ticket-runner` passes to expect.
-- **Loses to**: `brainstorming` / `writing-plans` on producing the thinking (it records, never invents scope); `ticket-runner` on execution.
+- **Wins**: capturing an already-made decision as a trackable, self-contained work item; declaring which `implement` passes to expect.
+- **Loses to**: `brainstorm` / `plan` on producing the thinking (it records, never invents scope); `implement` on execution.
 - **Cannot decide**: the scope itself (ingests it from upstream); the estimate's business priority (user).
-- **Composes with**: `brainstorming` + `writing-plans` upstream, `ticket-runner` downstream (consumes the ticket and its declared passes).
+- **Composes with**: `brainstorm` + `plan` upstream, `implement` downstream (consumes the ticket and its declared passes).
 
 ---
 
@@ -226,7 +226,7 @@ Turns a finished brainstorm, plan, or design decision into a tracker ticket an i
 - **Cannot decide**: alerting policy (ops concern).
 - **Composes with**: every code-discipline skill.
 
-### `migrations-safety`
+### `migrations`
 
 - **Wins**: any DB schema change. Backfill strategy, locking analysis, rollback plan, two-phase changes.
 - **Loses to**: nothing on its own domain. Stand-alone discipline.
@@ -240,7 +240,7 @@ Turns a finished brainstorm, plan, or design decision into a tracker ticket an i
 - **Cannot decide**: queue technology (pack concern).
 - **Composes with**: `observability` (traces), `security-guidance` (replay attacks).
 
-### `accessibility-first`
+### `accessibility`
 
 - **Wins**: any interactive UI. Keyboard nav, ARIA via Radix, contrast, semantic HTML, touch targets ≥ 44×44px, focus management.
 - **Loses to**: nothing on accessibility. It's the floor, not the ceiling.
@@ -260,7 +260,7 @@ Turns a finished brainstorm, plan, or design decision into a tracker ticket an i
 - **Wins**: any new UI component or layout. Anti-AI-slop rules, density, hierarchy, motion discipline, mobile-first layout design.
 - **Loses to**: the `DESIGN.md` contract for system creation; `ui-review` for the audit/critique pass (this skill is build-time, ui-review is audit-time).
 - **Cannot decide**: brand identity (DESIGN.md owns it).
-- **Composes with**: `accessibility-first`, `typescript-strict`.
+- **Composes with**: `accessibility`, `typescript-strict`.
 - **Mobile-first dual-quality invariant**: layout starts at 360–390px and is progressively enhanced. No desktop-only layout shipped without an equivalent mobile experience (or an explicit documented decision). Both viewports screenshot-reviewed before merge.
 
 ### `ui-review`
@@ -268,7 +268,7 @@ Turns a finished brainstorm, plan, or design decision into a tracker ticket an i
 - **Wins**: auditing/critiquing/polishing an EXISTING UI. The AI-slop two-altitude test, squint test, interaction-state coverage, technical audit (contrast/a11y/responsive/perf), refine modes (polish/bolder/quieter/distill/harden).
 - **Loses to**: `frontend-design` on the build-time rules (this skill assumes and checks against them, does not restate them); `forge` on market recon + scored 12-dim critique + design prompts.
 - **Cannot decide**: brand identity (DESIGN.md); it does not rewrite a UI wholesale (findings + scoped refine only).
-- **Composes with**: `frontend-design` (build floor to this audit ceiling), `accessibility-first` (a11y dimension), `forge` (recon/critique/prompt via the `source: forge` artifact contract). Vendored from impeccable + gstack design-review (DEV-389); live-browser audit deferred to Vague 4.
+- **Composes with**: `frontend-design` (build floor to this audit ceiling), `accessibility` (a11y dimension), `forge` (recon/critique/prompt via the `source: forge` artifact contract). Vendored from impeccable + gstack design-review (DEV-389); live-browser audit deferred to Vague 4.
 
 ### `devex-audit`
 
@@ -289,7 +289,7 @@ Turns a finished brainstorm, plan, or design decision into a tracker ticket an i
 - **Wins**: the periodic deep pass — OWASP Top 10, STRIDE, secrets, supply chain, CI/CD, infrastructure, LLM trust boundaries. Phase-driven and **read-only**: it reports, it does not patch.
 - **Loses to**: `security-guidance` on the daily floor (this is the ceiling above it, not a replacement); `code-review` on a single diff; `tdd` on writing the regression test that locks a finding.
 - **Cannot decide**: whether a finding is worth fixing now (the human owns the risk call); it never edits code, and it never becomes the gate that ships a fix.
-- **Composes with**: `security-guidance` (floor to this ceiling), `plan-review` (its Eng lens routes deep security here), `ticket-writer` (a finding worth fixing becomes a ticket).
+- **Composes with**: `security-guidance` (floor to this ceiling), `plan-review` (its Eng lens routes deep security here), `ticket` (a finding worth fixing becomes a ticket).
 
 ### `make-pdf`
 
@@ -305,9 +305,9 @@ Turns a finished brainstorm, plan, or design decision into a tracker ticket an i
 These are global rules that apply across all skills:
 
 1. **No skill modifies architectural decisions logged in DECISIONS.md without escalating.** The architecture skills `propose`; the user `decides` and records.
-2. **No skill writes to project CLAUDE.md.** `learning-capture` routes a lesson to `.void/PROJECT-DOCTRINE.md`, to a `voidcorp-core/void-harness` issue, or drops it, and every write is HITL. The `learnings/proposed/` queue and a `learnings-promote` skill were designed and never built (issue #74).
+2. **No skill writes to project CLAUDE.md.** `learn` routes a lesson to `.void/PROJECT-DOCTRINE.md`, to a `voidcorp-core/void-harness` issue, or drops it, and every write is HITL. The `learnings/proposed/` queue and a `learnings-promote` skill were designed and never built (issue #74).
 3. **No skill silently overrides another.** If a skill detects it should defer, it announces "deferring to `X` because Y" and invokes X.
-4. **No skill claims completion of work owned by a dedicated skill/workflow.** QA (`harness:qa`), design (`frontend-design`/`ui-review`), ship (`ticket-runner` pass 11 + gh), and browser interactions (claude-in-chrome) each have an explicit home; a general skill or agent does not silently do their job.
+4. **No skill claims completion of work owned by a dedicated skill/workflow.** QA (`harness:qa`), design (`frontend-design`/`ui-review`), ship (`implement` pass 11 + gh), and browser interactions (claude-in-chrome) each have an explicit home; a general skill or agent does not silently do their job.
 
 ---
 
@@ -315,7 +315,7 @@ These are global rules that apply across all skills:
 
 When two skills both claim "I win":
 
-1. **Tactical conflict** (e.g., `tdd` vs `refactoring` on a mixed diff): the user is asked which intent applies, and the diff is split if necessary.
+1. **Tactical conflict** (e.g., `tdd` vs `refactor` on a mixed diff): the user is asked which intent applies, and the diff is split if necessary.
 2. **Strategic conflict** (e.g., `functional` says "pure" but `hexagonal-architecture` says "side-effecting adapter here"): the architecture skill wins on boundary placement, the implementation skill wins inside the boundary.
 3. **Unresolvable**: stop, escalate to user with both positions stated explicitly.
 
@@ -323,6 +323,6 @@ When two skills both claim "I win":
 
 ## Status
 
-Populated for the **37** core skills as of **2026-08-03** — code-discipline (9), process (17, including the canonical `ticket-runner` cycle, `ticket-writer`, `autopilot`, `checkpoint` and the fused `learning-capture`), and hedge (11) groups above. The count is a claim this file must keep honest: it is `ls packages/core/skills | wc -l`, and a matrix that lags the catalogue routes work to skills that no longer exist.
+Populated for the **37** core skills as of **2026-08-03** — code-discipline (9), process (17, including the canonical `implement` cycle, `ticket`, `autopilot`, `checkpoint` and the fused `learn`), and hedge (11) groups above. The count is a claim this file must keep honest: it is `ls packages/core/skills | wc -l`, and a matrix that lags the catalogue routes work to skills that no longer exist.
 
-Lineage worth remembering: `autopilot` replaced `backlog-autopilot` at the 2026-07-30 cutover (which itself had replaced the deleted `autonomous-backlog-loop`); `learning-capture` fused `compounding` + `capture-rule` + `harness-evolution` (issue #75). Refined as each skill's content evolves; any cell that becomes ambiguous in practice triggers a decision record via `void-harness decisions new`.
+Lineage worth remembering: `autopilot` replaced `backlog-autopilot` at the 2026-07-30 cutover (which itself had replaced the deleted `autonomous-backlog-loop`); `learn` fused `compounding` + `capture-rule` + `harness-evolution` (issue #75). Refined as each skill's content evolves; any cell that becomes ambiguous in practice triggers a decision record via `void-harness decisions new`.

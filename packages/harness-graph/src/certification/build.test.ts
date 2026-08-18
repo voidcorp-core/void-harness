@@ -93,8 +93,8 @@ describe('buildCertification', () => {
       pack: null, // allow-null: hook has no pack
       source: 's',
     };
-    const cert = buildCertification(model([skill('testing'), hook, skill('accessibility-first')]), [], '0.16.0');
-    expect(cert.capabilities.map((c) => c.id)).toEqual(['skill:accessibility-first', 'skill:testing']);
+    const cert = buildCertification(model([skill('testing'), hook, skill('accessibility')]), [], '0.16.0');
+    expect(cert.capabilities.map((c) => c.id)).toEqual(['skill:accessibility', 'skill:testing']);
     expect(cert.capabilities[0]?.runtimes).toEqual(['claude', 'codex']);
   });
 

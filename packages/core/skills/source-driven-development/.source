@@ -7,6 +7,6 @@ Sources for `source-driven-development` skill (see plans/skill-audits/source-dri
 
 Strategy: distill. The repo already states the rule in one line; this skill distills the load-bearing principles (version-match the docs, docs beat memory, official beats third party, cite the reference) and adds the harness-standard Rationalizations + Verification gate. No verbatim vendoring.
 
-Composition: upstream of writing-plans (stack decisions grounded in current docs); with commit-discipline (the "why" carries the source citation); with adr-workflow (alternatives cite official docs). Contrast with memory-driven config.
+Composition: upstream of plan (stack decisions grounded in current docs); with commit-discipline (the "why" carries the source citation); with decide (alternatives cite official docs). Contrast with memory-driven config.
 
 Companion hooks: none in v1 (citation is prose-level discipline; a future post-commit grep for an unsourced config diff is an open question in the audit note).

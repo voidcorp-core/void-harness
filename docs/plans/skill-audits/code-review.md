@@ -5,7 +5,7 @@ strategy: distill + compose-gstack
 target_loc: 350
 phase: B
 depends_on: []
-composes_with: [tdd, typescript-strict, testing, refactoring, security-guidance, observability, every other skill]
+composes_with: [tdd, typescript-strict, testing, refactor, security-guidance, observability, every other skill]
 matrix_row: plans/skill-decision-matrix.md#code-review
 audit_date: 2026-05-29
 auditor: Folpe + Claude Opus 4.7

@@ -178,7 +178,7 @@ Pick the one that matches your storage layer:
 - **Service-level idempotence**: design the work so re-running is safe (`UPDATE WHERE status = 'pending'`).
 - **Cron with concurrency lock**: not strictly idempotent but prevents pile-up; combine with service-level idempotence for true safety.
 
-If none of these fit, you have a job that's unsafe to retry — flag it, write an ADR (`adr-workflow`).
+If none of these fit, you have a job that's unsafe to retry — flag it, write an ADR (`decide`).
 
 ## Retry classification
 

@@ -4,8 +4,8 @@ status: draft
 strategy: port-DECLIK
 target_loc: 400
 phase: B
-depends_on: [testing, refactoring, mutation-testing]
-composes_with: [typescript-strict, code-review, verification-before-completion]
+depends_on: [testing, refactor, mutation-testing]
+composes_with: [typescript-strict, code-review, verify]
 matrix_row: plans/skill-decision-matrix.md#tdd
 audit_date: 2026-05-29
 auditor: Folpe + Claude Opus 4.7
@@ -24,9 +24,9 @@ Without an enforced TDD discipline, an LLM-driven agent will write production co
 From `plans/skill-decision-matrix.md`:
 
 - **Wins**: any implementation of new behavior, bugfix, refactor that changes observable behavior
-- **Loses to**: `refactoring` for pure refactor mode (no behavior change). `migrations-safety` for DB migration mechanics.
+- **Loses to**: `refactor` for pure refactor mode (no behavior change). `migrations` for DB migration mechanics.
 - **Cannot decide**: what the production code architecture should be (defers to `hexagonal-architecture`, `domain-driven-design`); naming (defers to `typescript-strict`); test ergonomics within a framework (defers to `testing`).
-- **Composes with**: `testing` (TDD provides the cycle, testing provides the technique), `refactoring` (R of RED-GREEN-REFACTOR delegates here).
+- **Composes with**: `testing` (TDD provides the cycle, testing provides the technique), `refactor` (R of RED-GREEN-REFACTOR delegates here).
 
 ## Sources audited
 
@@ -71,7 +71,7 @@ Total adapted lines: estimated ≤ 30. Functional equivalence preserved.
 
 - **Path / command parameterization**: see strategy section above. Why: the skill must work for any consumer in the TypeScript/web stack, not just DECLIK's specific layout.
 - **Companion hook reference**: DECLIK SKILL doesn't yet mention `tdd-guard` as the mechanical enforcer. We add a short "Companion hook" section pointing to `packages/core/claude/hooks/tdd-guard.sh` and listing the legitimate bypasses (Section 0bis.3 of the design spec).
-- **Cross-skill references**: DECLIK refers to `mutation-testing`, `refactoring`, `hexagonal-architecture` skills. Keep the references but adjust paths to `voidcorp:mutation-testing` etc. and ensure those skills exist in our core.
+- **Cross-skill references**: DECLIK refers to `mutation-testing`, `refactor`, `hexagonal-architecture` skills. Keep the references but adjust paths to `voidcorp:mutation-testing` etc. and ensure those skills exist in our core.
 - **Language**: translate the French phrasings (Iron Law motto, mode names, etc.) to English while preserving the doctrine. Mode names: keep `strict` / `souple` / `exploratory` — `souple` is more precise than its English equivalent ("flexible" loses the implication of "less rigorous but still disciplined"). Flag `souple` as a borrowed French technical term in the prologue.
 
 ## What we reject
@@ -105,7 +105,7 @@ Total adapted lines: estimated ≤ 30. Functional equivalence preserved.
 ## Composition with other skills
 
 - **With `testing`**: `tdd` provides the cycle (when to write), `testing` provides the technique (how to write a good test, fixture strategy, mocking decisions, test pyramid). The cycle's RED step delegates the *how* to `testing`.
-- **With `refactoring`**: the R step of the cycle is delegated. `refactoring` decides when and how; `tdd` ensures the R step doesn't change behavior (tests must stay green).
+- **With `refactor`**: the R step of the cycle is delegated. `refactor` decides when and how; `tdd` ensures the R step doesn't change behavior (tests must stay green).
 - **With `mutation-testing`**: the MUTATE step is delegated. `tdd` triggers, `mutation-testing` runs Stryker and produces the report.
 - **With `hexagonal-architecture` / `domain-driven-design`**: `tdd` covers the cycle, the architecture skills cover what the cycle is producing. If a test is hard to write, that's a `tdd` signal — but the redesign defers to the architecture skills.
 - **With `code-review`**: `code-review` verifies the cycle was respected (evidence in commit history, or documented exception). It does not re-litigate the test choices.
@@ -116,7 +116,7 @@ Total adapted lines: estimated ≤ 30. Functional equivalence preserved.
 - MUST NOT decide naming. Variable / function / type naming is `typescript-strict`'s call.
 - MUST NOT decide test ergonomics inside a framework (which `describe` style, fixture format). That's `testing`.
 - MUST NOT silently allow skipped TDD without an explicit mode change and a recorded reason. "Just this once" is a Red Flag → delete and restart.
-- MUST NOT pretend to know whether a refactor is worth doing. That's the user's taste call; `refactoring` surfaces options.
+- MUST NOT pretend to know whether a refactor is worth doing. That's the user's taste call; `refactor` surfaces options.
 
 ## Verification checklist for shipping this skill
 
@@ -126,7 +126,7 @@ Total adapted lines: estimated ≤ 30. Functional equivalence preserved.
 - [ ] `tdd-guard` hook drafted at ≤ 100 LOC with the 10 bypass cases tested
 - [ ] Matrix row in `plans/skill-decision-matrix.md` matches this audit note
 - [ ] Skill tests in `test/tdd/` cover at least: strict mode auto-detect, souple mode auto-detect, exploratory header marker, override via `.claude/mode.json`, bypass for config file edit, bypass for pure deletion
-- [ ] No overlap > 30% with `testing`, `refactoring`, `mutation-testing` (each owns a distinct part of the cycle)
+- [ ] No overlap > 30% with `testing`, `refactor`, `mutation-testing` (each owns a distinct part of the cycle)
 - [ ] Sister-doc parity: AGENTS.md flavor of `tdd` matches CLAUDE.md flavor (terminology adjusted, doctrine identical)
 - [ ] Audit note status moved from `draft` → `reviewed` after user review
 

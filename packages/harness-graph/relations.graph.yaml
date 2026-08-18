@@ -6,38 +6,38 @@
 # (enforces = a hook enforcing a skill's doctrine, e.g. no-any-grep enforces typescript-strict).
 edges:
   # --- Routing (sequential handoff required by the skill prose) ---
-  - from: skill:brainstorming
-    to: skill:writing-plans
+  - from: skill:brainstorm
+    to: skill:plan
     kind: routes-to
-    evidence: "brainstorming SKILL.md: MUST NOT transition to any skill other than harness:writing-plans post-approval"
+    evidence: "brainstorm SKILL.md: MUST NOT transition to any skill other than harness:plan post-approval"
 
-  # --- brainstorming compositions ---
-  - from: skill:brainstorming
+  # --- brainstorm compositions ---
+  - from: skill:brainstorm
     to: skill:tdd
     kind: composes
-    evidence: "brainstorming SKILL.md: TDD mode per implementation phase (strict / souple / exploratory — composes with tdd skill)"
+    evidence: "brainstorm SKILL.md: TDD mode per implementation phase (strict / souple / exploratory — composes with tdd skill)"
 
-  # --- writing-plans compositions ---
-  - from: skill:writing-plans
+  # --- plan compositions ---
+  - from: skill:plan
     to: skill:tdd
     kind: composes
-    evidence: "writing-plans SKILL.md: With tdd: per-step mode selection lives in the plan."
+    evidence: "plan SKILL.md: With tdd: per-step mode selection lives in the plan."
 
-  - from: skill:writing-plans
-    to: skill:migrations-safety
+  - from: skill:plan
+    to: skill:migrations
     kind: composes
-    evidence: "writing-plans SKILL.md: Production data migration (composes with migrations-safety)"
+    evidence: "plan SKILL.md: Production data migration (composes with migrations)"
 
-  - from: skill:writing-plans
+  - from: skill:plan
     to: skill:security-guidance
     kind: composes
-    evidence: "writing-plans SKILL.md: LLM call sites with user-controlled input (composes with security-guidance LLM section)"
+    evidence: "plan SKILL.md: LLM call sites with user-controlled input (composes with security-guidance LLM section)"
 
-  # --- adr-workflow ---
-  - from: skill:adr-workflow
-    to: skill:writing-plans
+  # --- decide ---
+  - from: skill:decide
+    to: skill:plan
     kind: composes
-    evidence: "adr-workflow SKILL.md: Composes with harness:writing-plans (which is plan-the-work-before-coding)"
+    evidence: "decide SKILL.md: Composes with harness:plan (which is plan-the-work-before-coding)"
 
   # --- api-and-interface-design ---
   - from: skill:api-and-interface-design
@@ -104,9 +104,9 @@ edges:
     evidence: "async-safety SKILL.md: IdempotencyStore is a port (composes with hexagonal-architecture)"
 
   - from: skill:async-safety
-    to: skill:migrations-safety
+    to: skill:migrations
     kind: composes
-    evidence: "async-safety SKILL.md: The domain_events table schema... (composes with migrations-safety)."
+    evidence: "async-safety SKILL.md: The domain_events table schema... (composes with migrations)."
 
   - from: skill:async-safety
     to: skill:observability
@@ -122,7 +122,7 @@ edges:
   - from: skill:code-review
     to: skill:tdd
     kind: composes
-    evidence: "code-review SKILL.md: Correctness — composes with tdd (cycle evidence) and systematic-debugging"
+    evidence: "code-review SKILL.md: Correctness — composes with tdd (cycle evidence) and debug"
 
   - from: skill:code-review
     to: skill:testing
@@ -137,7 +137,7 @@ edges:
   - from: skill:code-review
     to: skill:hexagonal-architecture
     kind: composes
-    evidence: "code-review SKILL.md: Structure — boundaries respected? composes with hexagonal-architecture, domain-driven-design, refactoring"
+    evidence: "code-review SKILL.md: Structure — boundaries respected? composes with hexagonal-architecture, domain-driven-design, refactor"
 
   - from: skill:code-review
     to: skill:typescript-strict
@@ -146,20 +146,20 @@ edges:
 
   # --- commit-discipline ---
   - from: skill:commit-discipline
-    to: skill:systematic-debugging
+    to: skill:debug
     kind: composes
-    evidence: "commit-discipline SKILL.md: fix: Bug fix. Composes with systematic-debugging (the why = the root cause)"
+    evidence: "commit-discipline SKILL.md: fix: Bug fix. Composes with debug (the why = the root cause)"
 
   - from: skill:commit-discipline
-    to: skill:refactoring
+    to: skill:refactor
     kind: composes
-    evidence: "commit-discipline SKILL.md: refactor: Structural change without behavior change. Composes with refactoring (named Fowler move)"
+    evidence: "commit-discipline SKILL.md: refactor: Structural change without behavior change. Composes with refactor (named Fowler move)"
 
-  # --- context-management ---
-  - from: skill:context-management
-    to: skill:writing-plans
+  # --- context ---
+  - from: skill:context
+    to: skill:plan
     kind: composes
-    evidence: "context-management SKILL.md: composes with writing-plans — the plan file is the source of truth, not the chat log."
+    evidence: "context SKILL.md: composes with plan — the plan file is the source of truth, not the chat log."
 
   # --- domain-driven-design ---
   - from: skill:domain-driven-design
@@ -215,16 +215,16 @@ edges:
     kind: composes
     evidence: "llm-cost-discipline SKILL.md: // composes with observability (cost tracking at LLM call sites)"
 
-  # --- migrations-safety ---
-  - from: skill:migrations-safety
+  # --- migrations ---
+  - from: skill:migrations
     to: skill:observability
     kind: composes
-    evidence: "migrations-safety SKILL.md: Progress logged via structured logger (composes with observability)."
+    evidence: "migrations SKILL.md: Progress logged via structured logger (composes with observability)."
 
-  - from: skill:migrations-safety
+  - from: skill:migrations
     to: skill:tdd
     kind: composes
-    evidence: "migrations-safety SKILL.md: integration test the migration (composes with tdd)"
+    evidence: "migrations SKILL.md: integration test the migration (composes with tdd)"
 
   # --- observability ---
   - from: skill:observability
@@ -242,11 +242,11 @@ edges:
     kind: composes
     evidence: "observability SKILL.md: No PII, no secrets, ever (composes with security-guidance)"
 
-  # --- refactoring ---
-  - from: skill:refactoring
+  # --- refactor ---
+  - from: skill:refactor
     to: skill:typescript-strict
     kind: composes
-    evidence: "refactoring SKILL.md: Replace Primitive with Branded Type | Composes with typescript-strict."
+    evidence: "refactor SKILL.md: Replace Primitive with Branded Type | Composes with typescript-strict."
 
   # --- security-guidance ---
   - from: skill:security-guidance
@@ -255,9 +255,9 @@ edges:
     evidence: "security-guidance SKILL.md: secrets MUST NOT appear in logs. Composes with observability — secrets MUST NOT appear in logs."
 
   - from: skill:security-guidance
-    to: skill:migrations-safety
+    to: skill:migrations
     kind: composes
-    evidence: "security-guidance SKILL.md: Composes with migrations-safety for schema changes."
+    evidence: "security-guidance SKILL.md: Composes with migrations for schema changes."
 
   - from: skill:security-guidance
     to: skill:llm-cost-discipline
@@ -275,27 +275,27 @@ edges:
     kind: composes
     evidence: "source-driven-development SKILL.md: pass the doc text as a parameter — a port. Composes with hexagonal-architecture and security-guidance."
 
-  # --- systematic-debugging ---
-  - from: skill:systematic-debugging
+  # --- debug ---
+  - from: skill:debug
     to: skill:commit-discipline
     kind: composes
-    evidence: "systematic-debugging SKILL.md: Commit: fix: <root cause description>. Composes with commit-discipline (the 'why' is the root cause)."
+    evidence: "debug SKILL.md: Commit: fix: <root cause description>. Composes with commit-discipline (the 'why' is the root cause)."
 
-  - from: skill:systematic-debugging
-    to: skill:refactoring
+  - from: skill:debug
+    to: skill:refactor
     kind: composes
-    evidence: "systematic-debugging SKILL.md: The fix is a refactor (composes with refactoring and hexagonal-architecture / domain-driven-design)."
+    evidence: "debug SKILL.md: The fix is a refactor (composes with refactor and hexagonal-architecture / domain-driven-design)."
 
-  # --- verification-before-completion ---
-  - from: skill:verification-before-completion
-    to: skill:writing-plans
+  # --- verify ---
+  - from: skill:verify
+    to: skill:plan
     kind: composes
-    evidence: "verification-before-completion SKILL.md: For multi-step plans (composes with writing-plans): update the plan's Resume point section"
+    evidence: "verify SKILL.md: For multi-step plans (composes with plan): update the plan's Resume point section"
 
-  - from: skill:verification-before-completion
+  - from: skill:verify
     to: skill:code-review
     kind: composes
-    evidence: "verification-before-completion SKILL.md: For PRs (composes with code-review): the checklist feeds the Review Evidence block"
+    evidence: "verify SKILL.md: For PRs (composes with code-review): the checklist feeds the Review Evidence block"
 
   # --- pack-monorepo ---
   - from: skill:pack-monorepo/dependency-direction
@@ -331,9 +331,9 @@ edges:
 
   # --- pack-react ---
   - from: skill:pack-react/accessibility-check
-    to: skill:accessibility-first
+    to: skill:accessibility
     kind: composes
-    evidence: "pack-react/accessibility-check SKILL.md: Composes with harness:accessibility-first (the generic doctrine and Radix-as-primitive philosophy)."
+    evidence: "pack-react/accessibility-check SKILL.md: Composes with harness:accessibility (the generic doctrine and Radix-as-primitive philosophy)."
 
   - from: skill:pack-react/form-pattern
     to: skill:pack-server/server-action
@@ -362,20 +362,20 @@ edges:
     evidence: "pack-server/env-validation SKILL.md: Composes with harness:security-guidance (env doctrine)"
 
   - from: skill:pack-server/drizzle-migration-safe
-    to: skill:migrations-safety
+    to: skill:migrations
     kind: composes
-    evidence: "pack-server/drizzle-migration-safe SKILL.md: Composes with harness:migrations-safety (the generic doctrine); this skill ships the concrete Drizzle patterns."
+    evidence: "pack-server/drizzle-migration-safe SKILL.md: Composes with harness:migrations (the generic doctrine); this skill ships the concrete Drizzle patterns."
 
   # --- Agent compositions (skills that invoke read-only agents) ---
   - { from: skill:code-review, to: agent:doctrine-critic, kind: composes, evidence: "code-review SKILL.md: composes agent doctrine-critic for doctrine conformance" }
-  - { from: skill:systematic-debugging, to: agent:doctrine-critic, kind: composes, evidence: "systematic-debugging SKILL.md: routes doctrine judgment to the doctrine-critic agent" }
+  - { from: skill:debug, to: agent:doctrine-critic, kind: composes, evidence: "debug SKILL.md: routes doctrine judgment to the doctrine-critic agent" }
   - { from: skill:security-guidance, to: agent:doctrine-critic, kind: composes, evidence: "security-guidance SKILL.md: composes doctrine-critic for boundary/doctrine review" }
-  - { from: skill:ticket-runner, to: agent:doctrine-critic, kind: composes, evidence: "ticket-runner SKILL.md: Review pass composes agents doctrine-critic + silent-failure-hunter" }
-  - { from: skill:ticket-runner, to: agent:silent-failure-hunter, kind: composes, evidence: "ticket-runner SKILL.md: Review pass composes agent silent-failure-hunter" }
-  - { from: skill:ticket-runner, to: agent:type-design-analyzer, kind: composes, evidence: "ticket-runner SKILL.md: Architecture pass composes agents type-design-analyzer + doctrine-critic" }
-  - { from: skill:context-management, to: agent:code-explorer, kind: composes, evidence: "context-management SKILL.md: Delegate heavy investigation to fresh-context subagents — code-explorer is that read-only mapper" }
-  - { from: agent:migration-planner, to: skill:migrations-safety, kind: companion-of, evidence: "migration-planner: Read-only planner ... Complements migrations-safety" }
-  - { from: agent:migration-planner, to: skill:writing-plans, kind: routes-to, evidence: "migration-planner: Planning only ... routes execution to tdd/writing-plans" }
+  - { from: skill:implement, to: agent:doctrine-critic, kind: composes, evidence: "implement SKILL.md: Review pass composes agents doctrine-critic + silent-failure-hunter" }
+  - { from: skill:implement, to: agent:silent-failure-hunter, kind: composes, evidence: "implement SKILL.md: Review pass composes agent silent-failure-hunter" }
+  - { from: skill:implement, to: agent:type-design-analyzer, kind: composes, evidence: "implement SKILL.md: Architecture pass composes agents type-design-analyzer + doctrine-critic" }
+  - { from: skill:context, to: agent:code-explorer, kind: composes, evidence: "context SKILL.md: Delegate heavy investigation to fresh-context subagents — code-explorer is that read-only mapper" }
+  - { from: agent:migration-planner, to: skill:migrations, kind: companion-of, evidence: "migration-planner: Read-only planner ... Complements migrations" }
+  - { from: agent:migration-planner, to: skill:plan, kind: routes-to, evidence: "migration-planner: Planning only ... routes execution to tdd/plan" }
 
   # --- Hooks enforcing skill doctrine (enforces: mechanical guard for a skill's rule) ---
   - { from: hook:tdd-guard, to: skill:tdd, kind: enforces, evidence: "tdd-guard requires a test to drive every production change — enforces tdd (Iron Law)" }
@@ -386,18 +386,18 @@ edges:
   - { from: hook:no-console-log-grep, to: skill:observability, kind: enforces, evidence: "no-console-log-grep bans console.log — enforces observability (use the logger)" }
   - { from: hook:no-only-no-skip, to: skill:testing, kind: enforces, evidence: "no-only-no-skip bans .only/.skip — enforces testing (no silently disabled tests)" }
   - { from: hook:test-name-lint, to: skill:testing, kind: enforces, evidence: "test-name-lint checks behavior-named tests — enforces testing" }
-  - { from: hook:migration-lint, to: skill:migrations-safety, kind: enforces, evidence: "migration-lint flags banned DDL patterns — enforces migrations-safety" }
-  - { from: hook:migration-pr-template, to: skill:migrations-safety, kind: enforces, evidence: "migration-pr-template requires the migration checklist — enforces migrations-safety" }
+  - { from: hook:migration-lint, to: skill:migrations, kind: enforces, evidence: "migration-lint flags banned DDL patterns — enforces migrations" }
+  - { from: hook:migration-pr-template, to: skill:migrations, kind: enforces, evidence: "migration-pr-template requires the migration checklist — enforces migrations" }
   - { from: hook:llm-cost-precommit, to: skill:llm-cost-discipline, kind: enforces, evidence: "llm-cost-precommit checks LLM call-site discipline — enforces llm-cost-discipline" }
   - { from: hook:ubiquitous-language-lint, to: skill:domain-driven-design, kind: enforces, evidence: "ubiquitous-language-lint checks domain vocabulary — enforces domain-driven-design" }
   - { from: hook:no-ai-design-slop, to: skill:frontend-design, kind: enforces, evidence: "no-ai-design-slop blocks AI-slop UI patterns — enforces frontend-design" }
   - { from: hook:anti-ai-slop-grep, to: skill:frontend-design, kind: enforces, evidence: "anti-ai-slop-grep flags generic AI aesthetics — enforces frontend-design" }
-  - { from: hook:axe-precommit, to: skill:accessibility-first, kind: enforces, evidence: "axe-precommit runs axe a11y checks — enforces accessibility-first" }
-  - { from: hook:viewport-screenshot-gate, to: skill:accessibility-first, kind: enforces, evidence: "viewport-screenshot-gate gates mobile+desktop viewports — enforces accessibility-first" }
+  - { from: hook:axe-precommit, to: skill:accessibility, kind: enforces, evidence: "axe-precommit runs axe a11y checks — enforces accessibility" }
+  - { from: hook:viewport-screenshot-gate, to: skill:accessibility, kind: enforces, evidence: "viewport-screenshot-gate gates mobile+desktop viewports — enforces accessibility" }
   - { from: hook:protect-sensitive-files, to: skill:security-guidance, kind: enforces, evidence: "protect-sensitive-files blocks secrets/keys edits — enforces security-guidance" }
   - { from: hook:block-dangerous-bash, to: skill:security-guidance, kind: enforces, evidence: "block-dangerous-bash blocks destructive shell — enforces security-guidance" }
-  - { from: hook:refactor-named-grep, to: skill:refactoring, kind: enforces, evidence: "refactor-named-grep requires named Fowler refactors — enforces refactoring" }
-  - { from: hook:tidying-commit-prefix, to: skill:refactoring, kind: enforces, evidence: "tidying-commit-prefix separates tidyings from behavior — enforces refactoring (Tidy-First)" }
+  - { from: hook:refactor-named-grep, to: skill:refactor, kind: enforces, evidence: "refactor-named-grep requires named Fowler refactors — enforces refactor" }
+  - { from: hook:tidying-commit-prefix, to: skill:refactor, kind: enforces, evidence: "tidying-commit-prefix separates tidyings from behavior — enforces refactor (Tidy-First)" }
   - { from: hook:pre-PR-review-evidence, to: skill:code-review, kind: enforces, evidence: "pre-PR-review-evidence requires review evidence before a PR — enforces code-review" }
   - { from: hook:large-cl-grep, to: skill:commit-discipline, kind: enforces, evidence: "large-cl-grep warns on oversized changelists — enforces commit-discipline (small commits)" }
   - { from: hook:boundary-direction-check, to: skill:hexagonal-architecture, kind: enforces, evidence: "boundary-direction-check enforces the import direction — enforces hexagonal-architecture" }

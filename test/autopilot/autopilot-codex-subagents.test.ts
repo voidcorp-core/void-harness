@@ -109,7 +109,7 @@ describe('the Codex adapter executes rather than plans', () => {
 
 describe('both adapters carry the same worker contract', () => {
   const clauses: readonly [string, RegExp][] = [
-    ['runs ticket-runner whole and once', /whole and once/i],
+    ['runs implement whole and once', /whole and once/i],
     ['re-fetches the complete ticket', /never work from a summary|Never work from a summary/i],
     ['keeps migrations to dev/local', /dev\/local/i],
     ['forbids pushing', /push/i],

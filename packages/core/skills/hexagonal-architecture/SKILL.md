@@ -213,7 +213,7 @@ No mocking framework. The shape of in-memory matches the shape of production. Co
 - **`testing`**: nullable infrastructure pattern (Shore) IS the in-memory-adapter pattern at the port level. Co-evolved.
 - **`security-guidance`**: trust boundary = adapter ingress. Zod validation of external input happens at the adapter.
 - **`typescript-strict`**: port interfaces use branded types for domain primitives. Types travel across boundaries via Zod schemas.
-- **`refactoring`**: cross-boundary moves (Move from `services/` to `adapters/`, or vice versa) — this skill decides target placement; refactoring executes the move.
+- **`refactor`**: cross-boundary moves (Move from `services/` to `adapters/`, or vice versa) — this skill decides target placement; refactor executes the move.
 
 ---
 
@@ -254,7 +254,7 @@ The companion hook blocks. There is no legitimate exception.
 ## Anti-rules
 
 - MUST NOT decide which framework, queue technology, cache technology — those are pack concerns.
-- MUST NOT decide DB schema — `domain-driven-design` picks aggregates; `migrations-safety` handles mechanics.
+- MUST NOT decide DB schema — `domain-driven-design` picks aggregates; `migrations` handles mechanics.
 - MUST NOT impose DI containers, CQRS, mediator, event sourcing — all rejected at the architecture level.
 - MUST NOT silently allow domain → infrastructure imports.
 

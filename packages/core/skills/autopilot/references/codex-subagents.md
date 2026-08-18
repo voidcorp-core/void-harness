@@ -34,7 +34,7 @@ the explicit working directory you pass, never an assumed sandbox.
 
 Every subagent receives the same instruction as its Claude counterpart:
 
-- run the `ticket-runner` skill, whole and once, on this one ticket;
+- run the `implement` skill, whole and once, on this one ticket;
 - re-fetch the complete ticket from the tracker first — never work from a
   summary;
 - run every pass whose predicate fires, and only this ticket's gates;

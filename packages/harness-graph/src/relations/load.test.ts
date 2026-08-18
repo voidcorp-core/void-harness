@@ -5,13 +5,13 @@ describe('loadDeclaredEdges', () => {
   it('parses declared edges with evidence', () => {
     const yaml = [
       'edges:',
-      '  - from: skill:brainstorming',
-      '    to: skill:writing-plans',
+      '  - from: skill:brainstorm',
+      '    to: skill:plan',
       '    kind: routes-to',
-      '    evidence: "transition to writing-plans"',
+      '    evidence: "transition to plan"',
     ].join('\n');
     expect(loadDeclaredEdges(yaml)).toEqual([
-      { from: 'skill:brainstorming', to: 'skill:writing-plans', kind: 'routes-to', origin: 'declared', evidence: 'transition to writing-plans' },
+      { from: 'skill:brainstorm', to: 'skill:plan', kind: 'routes-to', origin: 'declared', evidence: 'transition to plan' },
     ]);
   });
 

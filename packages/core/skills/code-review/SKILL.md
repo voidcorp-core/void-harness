@@ -25,10 +25,10 @@ A review without a framework is "the first ten things I noticed." This skill pro
 
 The order matters. A correctness issue blocks regardless of beautiful structure. A perf issue does not block if the first four dimensions are clean.
 
-1. **Correctness** — does it do what it claims? edge cases? error paths? composes with `tdd` (cycle evidence) and `systematic-debugging` (root cause for fixes).
+1. **Correctness** — does it do what it claims? edge cases? error paths? composes with `tdd` (cycle evidence) and `debug` (root cause for fixes).
 2. **Tests** — failing test before the code? real code over mocks? names describe behavior? composes with `testing`.
 3. **Security** — input validated at trust boundaries? secrets handled? SQL safe? LLM input untrusted? composes with `security-guidance` (which routes deep audits to `harness:security-audit`).
-4. **Structure** — boundaries respected (no domain importing infrastructure)? service/repository split? function lengths? composes with `hexagonal-architecture`, `domain-driven-design`, `refactoring`, and the `doctrine-critic` agent.
+4. **Structure** — boundaries respected (no domain importing infrastructure)? service/repository split? function lengths? composes with `hexagonal-architecture`, `domain-driven-design`, `refactor`, and the `doctrine-critic` agent.
 5. **Readability** — names? exhaustive switches? `any` slips? `as` casts? composes with `typescript-strict`.
 6. **Performance** — obvious O(n²) inside loops? leaky reactive subscriptions? unbounded queries? measured claims come from the project's perf tooling (Lighthouse CI, bundlesize), not guesses.
 
@@ -177,8 +177,8 @@ Disagreements are surfaced. Not averaged. The user decides.
 
 ## Composition summary
 
-- **Upstream**: `verification-before-completion` (the author claims the code is ready before review starts).
-- **Downstream**: `commit-discipline` (the merge commit follows conventional commit + always-say-why), then the ship step (`ticket-runner` pass 11 + `gh` lands the PR; release-please owns versions).
+- **Upstream**: `verify` (the author claims the code is ready before review starts).
+- **Downstream**: `commit-discipline` (the merge commit follows conventional commit + always-say-why), then the ship step (`implement` pass 11 + `gh` lands the PR; release-please owns versions).
 - **Side-by-side**: the `doctrine-critic` agent (doctrine conformance, read-only).
 
 ---

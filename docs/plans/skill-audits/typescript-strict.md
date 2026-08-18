@@ -5,7 +5,7 @@ strategy: distill
 target_loc: 300
 phase: B
 depends_on: []
-composes_with: [tdd, testing, refactoring, hexagonal-architecture, domain-driven-design, code-review, frontend-design, functional]
+composes_with: [tdd, testing, refactor, hexagonal-architecture, domain-driven-design, code-review, frontend-design, functional]
 matrix_row: plans/skill-decision-matrix.md#typescript-strict
 audit_date: 2026-05-29
 auditor: Folpe + Claude Opus 4.7

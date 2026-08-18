@@ -5,8 +5,8 @@ status: shipped
 strategy: distill
 target_loc: 250
 phase: G
-depends_on: [accessibility-first]
-composes_with: [accessibility-first, frontend-design, tdd]
+depends_on: [accessibility]
+composes_with: [accessibility, frontend-design, tdd]
 audit_date: 2026-06-01
 auditor: Folpe + Claude Opus 4.7
 ---
@@ -15,14 +15,14 @@ auditor: Folpe + Claude Opus 4.7
 
 ## Need
 
-`harness:accessibility-first` is the doctrine — principles, mobile-first dual-quality, Radix as primitive of choice. It does NOT walk a developer through "I'm writing a button right now, what's my gate". This skill does that — a 7-point checklist applied per component, with the lazy mistake to avoid for each.
+`harness:accessibility` is the doctrine — principles, mobile-first dual-quality, Radix as primitive of choice. It does NOT walk a developer through "I'm writing a button right now, what's my gate". This skill does that — a 7-point checklist applied per component, with the lazy mistake to avoid for each.
 
 A11y skills fail when they're too abstract ("WCAG AA"). They succeed when they're concrete enough that a tired dev at 5pm can run them mentally without opening docs.
 
 ## Wins
 
 - 7 points are memorable, each with a concrete "lazy mistake" callout — the form a checklist works best in.
-- Composes with Radix philosophy (which the parent `harness:accessibility-first` already establishes).
+- Composes with Radix philosophy (which the parent `harness:accessibility` already establishes).
 - Explicit "if you have to use the mouse, it's broken" keyboard test — the fastest signal in practice.
 - Final note on AA vs AAA: clarifies AA is the floor, not the ceiling. Avoids the trap of treating it as the goal.
 
@@ -34,7 +34,7 @@ A11y skills fail when they're too abstract ("WCAG AA"). They succeed when they'r
 
 ## Composes with
 
-- `harness:accessibility-first` — doctrine; this skill is the operational gate.
+- `harness:accessibility` — doctrine; this skill is the operational gate.
 - `harness:frontend-design` — anti AI-slop and density discipline.
 - `harness-react:01-react.md` — purity rules of components (which themselves reduce a11y surface).
 - `harness:tdd` — interactive components get jsdom tests asserting roles and keyboard behavior via `@testing-library/user-event`.
@@ -46,7 +46,7 @@ A11y skills fail when they're too abstract ("WCAG AA"). They succeed when they'r
 | WCAG 2.2 quick reference | Authoritative for contrast, touch target sizes. |
 | WebAIM "Designing for Screen Reader Compatibility" | Source of the "name accessible to AT" framing. |
 | Apple HIG / Material Design (touch targets) | 44×44 / 48×48 numbers. |
-| `harness:accessibility-first` (parent skill) | Doctrine source — this skill is its execution arm. |
+| `harness:accessibility` (parent skill) | Doctrine source — this skill is its execution arm. |
 
 ## Rejected ideas
 

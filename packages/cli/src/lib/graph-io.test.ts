@@ -30,10 +30,10 @@ describe('usedSkillNames', () => {
     const set = usedSkillNames([
       { timestamp: '2026-06-01T00:00:00Z', skill: 'harness:tdd' },
       { timestamp: '2026-06-02T00:00:00Z', skill: 'tdd' },
-      { timestamp: '2026-06-03T00:00:00Z', skill: 'superpowers:brainstorming' },
+      { timestamp: '2026-06-03T00:00:00Z', skill: 'superpowers:brainstorm' },
     ]);
     expect(set.has('tdd')).toBe(true);
-    expect(set.has('brainstorming')).toBe(true);
+    expect(set.has('brainstorm')).toBe(true);
     expect(set.size).toBe(2);
   });
 });
@@ -109,7 +109,7 @@ describe('loadSkillUsage', () => {
   it('no longer reads skill firings from the retired activations stream', () => {
     const root = voidProject({
       'activations.jsonl':
-        '{"ts":"2026-07-05T00:00:00Z","kind":"skill","name":"harness:brainstorming"}\n',
+        '{"ts":"2026-07-05T00:00:00Z","kind":"skill","name":"harness:brainstorm"}\n',
     });
     try {
       // The file is left alone — it stays classified, ignored, and migrated —

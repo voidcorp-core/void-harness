@@ -65,7 +65,7 @@ The cheap fix is to NOT extract until forced.
 2. **Observe drift.** Are the two copies diverging? If yes, they were never the same concept — keep them separate. If they stay identical, you have a real case for extraction.
 3. **Name the boundary in one sentence.** "This package owns <X>, exposes <Y>, is consumed by <Z>." If you can't, you're not ready.
 4. **Run `harness-monorepo:service-package`** to create it properly (5+5 layout, port direction).
-5. **Open a PR with ADR.** Extraction is structural; document via `harness-monorepo:adr-workflow`.
+5. **Open a PR with ADR.** Extraction is structural; document via `harness-monorepo:decide`.
 
 ## Reverse: when to UN-extract
 
@@ -74,6 +74,6 @@ A package with one consumer for 6+ months should be inlined back. The boundary w
 ## Composition
 
 - `harness-monorepo:service-package` — the creation workflow (use this skill to decide, that one to create).
-- `harness-monorepo:adr-workflow` — extractions are ADR-worthy.
+- `harness-monorepo:decide` — extractions are ADR-worthy.
 - `harness-monorepo:dependency-direction` — extracted packages must respect `@repo/*` import direction.
 - `harness:hexagonal-architecture` — extracted packages own ports; adapters live in consumer apps.

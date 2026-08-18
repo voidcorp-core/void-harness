@@ -16,7 +16,7 @@ Inspirations, none vendored:
   execution state; ACTIVE.md never stores a hand-maintained next ticket". That rule generalises
   into Step 0's routing table, which is the load-bearing part of the skill.
 
-- `learning-capture`'s routing-first structure — the first step is deciding *where a fact
+- `learn`'s routing-first structure — the first step is deciding *where a fact
   belongs*, not writing it. Same shape, different destinations. Also inherits its rejection of a
   Stop-event hook: a stop payload cannot distinguish an interruption from a closed unit of work,
   and a handoff written on a false positive is authoritative and wrong.

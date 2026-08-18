@@ -63,6 +63,6 @@ Composes with `hexagonal-architecture` (ports + adapters), `domain-driven-design
 
 - **`hexagonal-architecture`** — port direction + adapter thinness enforced via the layout.
 - **`tdd`** — paths default to `apps/*/src/**` business code; spikes in `apps/*/scripts/spike-*`.
-- **`migrations-safety`** — migration files at `apps/*/db/migrations/` (Drizzle convention).
+- **`migrations`** — migration files at `apps/*/db/migrations/` (Drizzle convention).
 - **`observability`** — `@repo/core/logger` is the only logger; structured logs by default.
 - **`async-safety`** — retry / idempotency / dead-letter discipline applied to webhooks, jobs, crons. Concrete patterns in `harness-server:webhook-handler-pattern` and `harness-server:background-job-pattern`.

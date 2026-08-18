@@ -127,7 +127,7 @@ await db.transaction(async (tx) => {
 
 If the transaction commits, the event is durable. If it fails, neither happened. The dispatcher retries the publish until success.
 
-The `domain_events` table schema lives in `pack-monorepo` (composes with `migrations-safety`).
+The `domain_events` table schema lives in `pack-monorepo` (composes with `migrations`).
 
 ---
 
@@ -246,7 +246,7 @@ The wrapper acquires a Postgres advisory lock keyed by cron name. If the previou
 
 - **With `observability`**: trace propagates across job / webhook / queue boundaries via the message envelope. Job lifecycle events (queued / in-flight / completed / failed / dead-lettered) are structured logs.
 - **With `security-guidance`**: signature verification + replay window + signed message envelopes.
-- **With `migrations-safety`**: `domain_events` outbox table schema goes through the migrations discipline.
+- **With `migrations`**: `domain_events` outbox table schema goes through the migrations discipline.
 - **With `tdd`**: idempotency is testable. Test: same event delivered twice → same final state. Test: signature missing → reject.
 - **With `hexagonal-architecture`**: webhook handler at adapter boundary, business logic in use-case. `IdempotencyStore` as port.
 - **With `functional`**: job state as discriminated union. `Result<JobOutcome, JobError>` everywhere.

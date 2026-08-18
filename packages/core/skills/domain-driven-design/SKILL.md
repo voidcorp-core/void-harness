@@ -262,7 +262,7 @@ The anti-corruption layer (adapter) is mandatory. No direct import.
 - **`typescript-strict`**: value objects ARE branded types. State machines ARE discriminated unions.
 - **`tdd`**: aggregate invariants are test-driven — each invariant is a test.
 - **`code-review`**: structure dimension flags anemic models, generic repositories, raw primitives, public setters.
-- **`refactoring`**: refactors that touch aggregate boundaries (Extract Aggregate, Move Field across contexts) compose for the boundary decision.
+- **`refactor`**: refactors that touch aggregate boundaries (Extract Aggregate, Move Field across contexts) compose for the boundary decision.
 - **`security-guidance`**: anti-corruption layer at the context boundary is also a trust boundary.
 
 ---

@@ -179,7 +179,7 @@ After GREEN (and after MUTATE/KILL in strict), assess the improvements.
 
 Tests must stay green at every step.
 
-Load the `refactoring` skill for the detailed methodology (RED-GREEN-REFACTOR strict commit boundaries).
+Load the `refactor` skill for the detailed methodology (RED-GREEN-REFACTOR strict commit boundaries).
 
 ---
 
@@ -381,7 +381,7 @@ Bug found? **Write a failing test that reproduces it before any fix.** Follow th
 
 Never fix a bug without a reproducing test.
 
-See the `systematic-debugging` skill for the upstream root-cause discipline.
+See the `debug` skill for the upstream root-cause discipline.
 
 ---
 

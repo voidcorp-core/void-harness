@@ -7,7 +7,7 @@ actual_loc: 86
 activation: on-demand
 phase: D
 depends_on: []
-composes_with: [frontend-design, accessibility-first, forge]
+composes_with: [frontend-design, accessibility, forge]
 source_ticket: DEV-389
 epic: DEV-383
 audit_date: 2026-07-10
@@ -22,7 +22,7 @@ The gstack teardown removes the three design skills (`/design-review`, `/design-
 
 ## Decision: frontend-design (build) + ui-review (audit), forge for recon, qa for browser evidence
 
-- **Split by lifecycle**, not one mega-skill: `frontend-design` is the build-time floor (how to write UI right); `ui-review` (new, `on-demand`) is the audit-time ceiling (how to critique/polish an existing UI). Same shape as `security-guidance`/`security-audit` and `writing-plans`/`plan-review`. Each stays ≤ 400 and one-subject; the < 30% overlap is structural — build rules live only in frontend-design, this skill assumes and checks against them.
+- **Split by lifecycle**, not one mega-skill: `frontend-design` is the build-time floor (how to write UI right); `ui-review` (new, `on-demand`) is the audit-time ceiling (how to critique/polish an existing UI). Same shape as `security-guidance`/`security-audit` and `plan`/`plan-review`. Each stays ≤ 400 and one-subject; the < 30% overlap is structural — build rules live only in frontend-design, this skill assumes and checks against them.
 - **impeccable internalised, not depended on.** Its prose methodology is vendored (audit/critique/refine); its browser runtime is rejected. Harness-native `qa` owns browser evidence; the comparison board remains deferred.
 - **forge owns recon/critique-scoring/design-prompt** (voidcorp plugin, bridged by the `docs/specs/` `source: forge` artifact contract — no code dependency). **PENDING**: the four forge issues (below) are drafted but NOT yet filed — issue creation on the external `voidcorp-core/forge` repo was blocked by the permission classifier in this session. Tracked follow-up: Folpe files them (specs in §"Distribution matrix" + below) or grants the permission. Not shipped.
 

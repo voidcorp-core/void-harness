@@ -148,7 +148,7 @@ If two apps need the same code, that code goes in a `@repo/*` package. There is 
 
 ## When you genuinely need cross-package access
 
-You don't. Re-read the section on ports. If after that you still think you do, write an ADR (`harness-monorepo:adr-workflow`) documenting the exception with the reversal cost. 90% of "I need this" turns out to be "I forgot to define the port".
+You don't. Re-read the section on ports. If after that you still think you do, write an ADR (`harness-monorepo:decide`) documenting the exception with the reversal cost. 90% of "I need this" turns out to be "I forgot to define the port".
 
 ## Mechanical enforcement
 

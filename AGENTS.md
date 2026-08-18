@@ -19,7 +19,7 @@ To capture a new rule, just say it ("ajoute la règle…", "always X here", "nev
 
 ### Active program — when present
 
-If `.void/active.md` exists with `status: executing`, read it and its linked plan/spec before choosing implementation work. On a continue/start/resume request without a named ticket, recover the scoped ticket if exactly one is started; if several are started, stop and surface the competing claims; otherwise select the first ready ticket from the declared order and native blocker relations. Fetch the complete ticket before running `ticket-runner`. The tracker owns mutable execution state: keep status, assignee, blockers, resume comments, and evidence/PR links current; ACTIVE never stores a current or next ticket. If the tracker cannot be read or updated, stop rather than infer progress locally. A specific user request overrides selection; human gates and merges remain human. The file's `autopilot` block carries consent to autonomous execution and is never inferred: `enabled: false`, an absent block, or an unreadable one forbids autonomous selection entirely.
+If `.void/active.md` exists with `status: executing`, read it and its linked plan/spec before choosing implementation work. On a continue/start/resume request without a named ticket, recover the scoped ticket if exactly one is started; if several are started, stop and surface the competing claims; otherwise select the first ready ticket from the declared order and native blocker relations. Fetch the complete ticket before running `implement`. The tracker owns mutable execution state: keep status, assignee, blockers, resume comments, and evidence/PR links current; ACTIVE never stores a current or next ticket. If the tracker cannot be read or updated, stop rather than infer progress locally. A specific user request overrides selection; human gates and merges remain human. The file's `autopilot` block carries consent to autonomous execution and is never inferred: `enabled: false`, an absent block, or an unreadable one forbids autonomous selection entirely.
 
 Run `void-harness doctor` to verify the install.
 
@@ -54,7 +54,7 @@ ask them to repoint the session:
 1. query the configured tracker scope and recover any already-started ticket;
 2. otherwise select the next ready ticket from native tracker state and `blockedBy` relations;
 3. fetch the complete ticket and relations before acting;
-4. execute that unit with `ticket-runner`;
+4. execute that unit with `implement`;
 5. keep the tracker state, assignee, evidence/PR links, blockers, and resume comment current.
 
 The tracker owns mutable execution state; `.void/active.md` never stores a hand-maintained “next
@@ -118,24 +118,24 @@ Before this, the floor ran in every consumer project and in none of ours — whi
 
 | Task | Tool / Pattern |
 |---|---|
-| Brainstorming the next feature | `brainstorming` skill (loads natively in Codex) |
-| Writing a plan | `writing-plans` skill |
+| Brainstorming the next feature | `brainstorm` skill (loads natively in Codex) |
+| Writing a plan | `plan` skill |
 | Reviewing a written plan (pre-execution) | `plan-review` skill (lenses CEO/Eng/Design/DevEx, or `all`) |
-| Implementing a ticket / feature | `ticket-runner` skill (one unit, ready→shipped: TDD, UX, security, review, verify) |
-| Decomposing work into tickets | `ticket-writer` skill |
+| Implementing a ticket / feature | `implement` skill (one unit, ready→shipped: TDD, UX, security, review, verify) |
+| Decomposing work into tickets | `ticket` skill |
 | Draining independent tickets in parallel | `autopilot` skill (cluster → worktree workers → one integration PR you merge) |
 | Adding a skill | Author the SKILL.md by hand, run skill-test suite in `test/` |
 | Building or auditing a UI | `frontend-design` (build) + `ui-review` (audit/critique/polish) skills |
 | Auditing a live dev surface (API/CLI/SDK/docs) | `devex-audit` skill (measured TTHW, error-path tracing, evidence-backed DX scorecard) |
 | Live browser QA of a running web app | `qa` skill (claude-in-chrome MCP: explore, states, atomic fix loop, report; `--report-only` for no-fix) |
-| Periodic engineering retrospective | `retrospective` skill (window signals → improvement decisions → learning-capture) |
+| Periodic engineering retrospective | `retrospective` skill (window signals → improvement decisions → learn) |
 | Closing a session gracefully — before a clear, an interruption, or the end of a day | `checkpoint` skill (route state to its owner, keep the residue, one exact next action) |
-| Ship a PR | `ticket-runner` pass 11 + `commit-discipline` + `gh` (release-please owns versions/changelog) |
+| Ship a PR | `implement` pass 11 + `commit-discipline` + `gh` (release-please owns versions/changelog) |
 
 ## On gstack and superpowers (Codex perspective)
 
-- **gstack** stays installed globally pending the Vague 6 teardown (DEV-395). QA, design, browser, and ship are now harness-native (`qa`, `ui-review`/`frontend-design`, claude-in-chrome, `ticket-runner`+gh); what remains gstack-provided until teardown is tracked in the gstack-coverage-matrix.
-- **superpowers** is a Claude Code-specific skill bundle. Codex consumers don't interact with it directly; the harness's adapted equivalents (`brainstorming`, `writing-plans`, `tdd`, `systematic-debugging`, `verification-before-completion`, plus `ticket-runner`/`ticket-writer`) target both runtimes and are preferred over the superpowers originals (see the routing table). Document the adaptation in `docs/plans/skill-audits/`.
+- **gstack** stays installed globally pending the Vague 6 teardown (DEV-395). QA, design, browser, and ship are now harness-native (`qa`, `ui-review`/`frontend-design`, claude-in-chrome, `implement`+gh); what remains gstack-provided until teardown is tracked in the gstack-coverage-matrix.
+- **superpowers** is a Claude Code-specific skill bundle. Codex consumers don't interact with it directly; the harness's adapted equivalents (`brainstorm`, `plan`, `tdd`, `debug`, `verify`, plus `implement`/`ticket`) target both runtimes and are preferred over the superpowers originals (see the routing table). Document the adaptation in `docs/plans/skill-audits/`.
 
 ## Self-evolution principle
 
@@ -147,4 +147,4 @@ The harness improves from real project usage, never auto-applied.
 
 ## Autonomous mode (opt-in)
 
-`autopilot` (core skill) is the single, **in-session** backlog drainer. It replaced `backlog-autopilot` at the 2026-07-30 cutover, which deleted the superseded engine rather than deprecating it — two engines in one release means two answers to "how does a cluster get drained". A human launches `autopilot`; it drains a tracker pool into one integration PR. The flow: an in-session launcher selects independent ready tickets, a **review budget** shrinks the cluster from structural doubt (unknown footprint, low confidence, collision zone) rather than from ticket estimates, routing is **parallel where footprints are disjoint, sequential where they collide** (lockfiles and migrations always sequential), and — after **human confirmation** — the runtime adapter fans out one **worktree subagent** per ticket. Claude executes the `OrchestrationPlan` through the **Workflow** tool, Codex through **native subagents**; both consume the same plan and return the same `WorkerResult`. The reconciler then integrates the verified commit ranges, seals the full suite against the integration SHA, publishes one branch through one explicit non-forced refspec, drives the checks, and holds the tracker until a human merges. The deterministic core (selection, review budget, lease, reconciliation, publication, recovery, tracker lifecycle) is the CLI `void-harness autopilot`; it contacts nothing and spawns no agent. The per-ticket quality cycle is the dedicated `harness:ticket-runner` skill (single source of truth) that each worker runs; tickets are authored by `harness:ticket-writer`. Durable boundaries: HITL at backlog curation and PR merge, **commit-only** workers, server-side branch protection required on the base, security hooks live, skip-permissions full-auto sandbox-gated. **There is no `--auto-merge`, on any path** — it is refused by the CLI and by a source gate, because merging is where a human reads the diff as a whole. Multi-cluster autonomy and a **headless backend** (walk-away/cron) are reserved and deferred. See `docs/specs/2026-07-25-autopilot.md`, `docs/plans/2026-07-25-autopilot-plan.md`, and the Autopilot ADR.
+`autopilot` (core skill) is the single, **in-session** backlog drainer. It replaced `backlog-autopilot` at the 2026-07-30 cutover, which deleted the superseded engine rather than deprecating it — two engines in one release means two answers to "how does a cluster get drained". A human launches `autopilot`; it drains a tracker pool into one integration PR. The flow: an in-session launcher selects independent ready tickets, a **review budget** shrinks the cluster from structural doubt (unknown footprint, low confidence, collision zone) rather than from ticket estimates, routing is **parallel where footprints are disjoint, sequential where they collide** (lockfiles and migrations always sequential), and — after **human confirmation** — the runtime adapter fans out one **worktree subagent** per ticket. Claude executes the `OrchestrationPlan` through the **Workflow** tool, Codex through **native subagents**; both consume the same plan and return the same `WorkerResult`. The reconciler then integrates the verified commit ranges, seals the full suite against the integration SHA, publishes one branch through one explicit non-forced refspec, drives the checks, and holds the tracker until a human merges. The deterministic core (selection, review budget, lease, reconciliation, publication, recovery, tracker lifecycle) is the CLI `void-harness autopilot`; it contacts nothing and spawns no agent. The per-ticket quality cycle is the dedicated `harness:implement` skill (single source of truth) that each worker runs; tickets are authored by `harness:ticket`. Durable boundaries: HITL at backlog curation and PR merge, **commit-only** workers, server-side branch protection required on the base, security hooks live, skip-permissions full-auto sandbox-gated. **There is no `--auto-merge`, on any path** — it is refused by the CLI and by a source gate, because merging is where a human reads the diff as a whole. Multi-cluster autonomy and a **headless backend** (walk-away/cron) are reserved and deferred. See `docs/specs/2026-07-25-autopilot.md`, `docs/plans/2026-07-25-autopilot-plan.md`, and the Autopilot ADR.

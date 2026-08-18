@@ -18,7 +18,7 @@ frontend architecture, product flow, functional QA, or implementation.
 
 ## Sources and adaptation
 
-WCAG 2.2, ARIA APG, and `accessibility-first` were distilled into outcome-based review. Static-only
+WCAG 2.2, ARIA APG, and `accessibility` were distilled into outcome-based review. Static-only
 certification and checklist claims without interaction evidence were rejected.
 
 ## Overlap audit

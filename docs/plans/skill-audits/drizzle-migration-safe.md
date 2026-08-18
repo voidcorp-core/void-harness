@@ -5,8 +5,8 @@ status: shipped
 strategy: native
 target_loc: 300
 phase: G
-depends_on: [migrations-safety]
-composes_with: [migrations-safety, server-action, observability, async-safety]
+depends_on: [migrations]
+composes_with: [migrations, server-action, observability, async-safety]
 audit_date: 2026-06-01
 auditor: Folpe + Claude Opus 4.7
 ---
@@ -15,7 +15,7 @@ auditor: Folpe + Claude Opus 4.7
 
 ## Need
 
-`harness:migrations-safety` (generic doctrine) covers principles: small steps, nullable-then-not-null, online index creation. It does NOT cover Drizzle Kit's specific gotchas: `drizzle-kit generate` not emitting `CONCURRENTLY`, schema declarations that must reflect end state, the `pgEnum` regeneration trap. Solaar uses Drizzle and would hit each of these on the first production migration.
+`harness:migrations` (generic doctrine) covers principles: small steps, nullable-then-not-null, online index creation. It does NOT cover Drizzle Kit's specific gotchas: `drizzle-kit generate` not emitting `CONCURRENTLY`, schema declarations that must reflect end state, the `pgEnum` regeneration trap. Solaar uses Drizzle and would hit each of these on the first production migration.
 
 This skill is the Drizzle concretization — same principles, concrete SQL and code samples a consumer can copy.
 
@@ -32,7 +32,7 @@ This skill is the Drizzle concretization — same principles, concrete SQL and c
 
 ## Composes with
 
-- `harness:migrations-safety` — the doctrine; this skill is the operational form for Drizzle.
+- `harness:migrations` — the doctrine; this skill is the operational form for Drizzle.
 - `harness-server:server-action` — services must handle intermediate states (nullable column during step 1 → step 3).
 - `harness:observability` — log migration timing + row counts; backfills appear as instrumentation events.
 - `harness:async-safety` — large backfills MUST batch (LIMIT + LOOP), not single statements.
@@ -52,10 +52,10 @@ passes, because Drizzle infers types from the schema and the suite queries real
 tables — a stale DB fails spuriously or passes against the wrong shape; **production
 CI applies** via a human-gated GitHub Actions step on merge, never a local command.
 This is the concrete Drizzle/Neon counterpart to the generic ordering principle now
-in `ticket-runner` step 3, and it operationalizes the `migrations-safety` anti-rule
+in `implement` step 3, and it operationalizes the `migrations` anti-rule
 "MUST NOT auto-apply migrations on push to main". Kept concrete (real `neonctl` +
 `pnpm db:migrate` + a GH Actions excerpt); the generic doctrine stays in
-`migrations-safety`. See `docs/DECISIONS.md` 2026-07-10.
+`migrations`. See `docs/DECISIONS.md` 2026-07-10.
 
 ## Open questions
 

@@ -37,8 +37,8 @@ Not a rename: the boundaries changed, and several capabilities were deliberately
   prompt. A prompt can be dropped, summarised or ignored; the artefact the adapter reads
   cannot.
 
-## Boundary with `ticket-runner`
+## Boundary with `implement`
 
-Autopilot owns selection, isolation, ordering and reconciliation. `ticket-runner` owns
+Autopilot owns selection, isolation, ordering and reconciliation. `implement` owns
 everything that happens to one ticket. The overlap is deliberately zero: no pass of the
 quality cycle is restated here, so the two cannot drift into two standards.

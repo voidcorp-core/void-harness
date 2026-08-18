@@ -25,7 +25,7 @@ Composes with the `async-safety` skill — the canonical verify, dedup, handle, 
 
 ### UI primitives (`@voidcorp/pack-nextjs/ui`) — npm
 
-_(Phase E follow-up)_ — shadcn/Radix-based `@repo/ui` components composing with the `accessibility-first` and `frontend-design` skills (mobile-first dual-quality tokens, Tappable helper, Sentry breadcrumbs, axe-core integration, palette tokens with documented WCAG AA contrast).
+_(Phase E follow-up)_ — shadcn/Radix-based `@repo/ui` components composing with the `accessibility` and `frontend-design` skills (mobile-first dual-quality tokens, Tappable helper, Sentry breadcrumbs, axe-core integration, palette tokens with documented WCAG AA contrast).
 
 ### CLAUDE.md / Codex modules (`@voidcorp/pack-nextjs/claude/modules`) — npm
 

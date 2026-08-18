@@ -247,7 +247,7 @@ Use pglite or dev branch. Mocking Drizzle breaks at every schema change while pr
 - **With the mutation gate** (strict TDD, when the project declares a mutation runner): a high survivor rate is a `testing` signal — the tests are not asserting on the right things. KILL step iterates back here.
 - **With `typescript-strict`**: tests use branded types from production. A test needing `as any` is signaling a missing factory or brittle type.
 - **With `hexagonal-architecture`**: ports tested with nullable infrastructure. In-memory adapters owned by the domain.
-- **With `migrations-safety`**: DB migrations have their own discipline; this skill's pyramid does not apply to migration tests.
+- **With `migrations`**: DB migrations have their own discipline; this skill's pyramid does not apply to migration tests.
 
 ---
 

@@ -2,12 +2,12 @@
 
 > **This file is YOURS.** `void-harness init` creates it once with the
 > template below. Subsequent runs of `init` will NEVER overwrite it.
-> Edit freely. The `harness:learning-capture` skill appends to it (HITL strict).
+> Edit freely. The `harness:learn` skill appends to it (HITL strict).
 
 This file holds **project-specific** rules and context only. **Universal**
 rules (your global coding philosophy) live in `.void/installed/PHILOSOPHY.md`
 (managed by void-harness — to change them, propose a PR on the void-harness
-repo via the `harness:learning-capture` skill's harness-gap branch).
+repo via the `harness:learn` skill's harness-gap branch).
 
 The two files are imported into every Claude Code session via the
 `@.void/installed/PHILOSOPHY.md` and `@.void/PROJECT-DOCTRINE.md` references

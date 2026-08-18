@@ -15,6 +15,6 @@ audit_date: 2026-06-01
 
 **Loses to.** Already-extracted code (use `harness-monorepo:service-package` to create properly; this skill is the decision gate, not the implementation).
 
-**Composes with.** `harness-monorepo:service-package` (the implementation once decision is YES). `harness-monorepo:adr-workflow` (extractions are ADR-worthy). `harness-monorepo:dependency-direction` (extracted packages must respect direction).
+**Composes with.** `harness-monorepo:service-package` (the implementation once decision is YES). `harness-monorepo:decide` (extractions are ADR-worthy). `harness-monorepo:dependency-direction` (extracted packages must respect direction).
 
 **Why not in core.** The 3-question gate is monorepo-specific. Single-app code reorganization doesn't have the same trade-off.

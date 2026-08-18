@@ -2,7 +2,7 @@
 # migration-lint — pre-commit hook
 #
 # Greps staged migration SQL files for banned patterns and warns the
-# author. Composed with the `migrations-safety` skill.
+# author. Composed with the `migrations` skill.
 #
 # Banned patterns:
 #   - NOT NULL direct add: ALTER TABLE ... ADD COLUMN ... NOT NULL
@@ -52,7 +52,7 @@ done
 if [[ -n "$WARNINGS" ]]; then
   printf "migration-lint (warn): risky DDL patterns detected:" >&2
   printf "%b\n" "$WARNINGS" >&2
-  printf "\nApply two-phase change pattern. See migrations-safety skill.\n" >&2
+  printf "\nApply two-phase change pattern. See migrations skill.\n" >&2
   printf "Tag '-- migration-allow: <reason>' for surgical exceptions (small tables, etc.).\n" >&2
   exit 2
 fi

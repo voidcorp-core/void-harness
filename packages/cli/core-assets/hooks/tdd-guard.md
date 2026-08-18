@@ -30,7 +30,7 @@ If `.void/config.json` is absent, sensible defaults are used (see hook source).
 1. Doc-only changes (`.md`, `.mdx`, `.txt`, files under `docs/`)
 2. Config and build files (`package.json`, `tsconfig.json`, `vitest.config.*`, `next.config.*`, `tailwind.config.*`, `drizzle.config.*`, `biome.json`, `eslint.config.*`)
 3. Test fixtures and seed data (`tests/fixtures/**`, `**/__tests__/fixtures/**`, `**/seed/**`)
-4. DB migrations (`**/migrations/**`, `drizzle/meta/**`) — covered by `migrations-safety` skill
+4. DB migrations (`**/migrations/**`, `drizzle/meta/**`) — covered by `migrations` skill
 5. Spike paths (consumer-defined; default `apps/*/scripts/spike-*`)
 6. Codemods (`**/codemods/**`)
 7. Type-only changes (`*.d.ts`)

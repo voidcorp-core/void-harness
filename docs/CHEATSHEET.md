@@ -18,14 +18,14 @@ How work is framed before and after the code is written.
 
 | | |
 |---|---|
-| `brainstorming` | Explore intent before code: pressure-test a raw idea, one question at a time, 2-3 approaches, design in sections, spec written and approved. |
-| `writing-plans` | Turn an approved spec into vertical slices with dependencies, TDD mode, verification gates, checkpoints, and a tracker handoff. |
+| `brainstorm` | Explore intent before code: pressure-test a raw idea, one question at a time, 2-3 approaches, design in sections, spec written and approved. |
+| `plan` | Turn an approved spec into vertical slices with dependencies, TDD mode, verification gates, checkpoints, and a tracker handoff. |
 | `plan-review` | Critique a written plan (not a diff) via four lenses: CEO premise/ambition, Eng test-coverage, Design states/slop, DevEx time-to-first-value. |
 | `tdd` | TDD in three modes (strict/souple/exploratory) chosen by path. |
-| `systematic-debugging` | Four phases (investigate, analyze, hypothesize, implement). Iron Law: no fix without a failing test reproducing the bug AND a root cause. |
-| `refactoring` | Tidy-First. Tidyings commit separately from behavior changes (Two-Hat). |
-| `verification-before-completion` | Final pre-flight checklist. Twelve items observed (not assumed) — typecheck, tests, hooks, mobile+desktop, commit why, review evidence. |
-| `context-management` | Context is the agent's core constraint. Use when a task spans many files, a session mixes subjects, corrections loop, or replies forget earlier constraints. |
+| `debug` | Four phases (investigate, analyze, hypothesize, implement). Iron Law: no fix without a failing test reproducing the bug AND a root cause. |
+| `refactor` | Tidy-First. Tidyings commit separately from behavior changes (Two-Hat). |
+| `verify` | Final pre-flight checklist. Twelve items observed (not assumed) — typecheck, tests, hooks, mobile+desktop, commit why, review evidence. |
+| `context` | Context is the agent's core constraint. Use when a task spans many files, a session mixes subjects, corrections loop, or replies forget earlier constraints. |
 | `checkpoint` | Write .void/machine/checkpoint.md before a clear, an interruption, or the end of a day, so the next session resumes without re-deriving anything. |
 
 ### Code architecture
@@ -39,7 +39,7 @@ Where the boundaries are, and who owns which type.
 | `functional` | Pure-by-default, errors as values (Result<T, E>), discriminated unions for state, immutability defaults, functional core / imperative shell. |
 | `api-and-interface-design` | Contract-first design of any public interface — package exports, HTTP/REST, RPC/tRPC, SDK, module boundary. |
 | `typescript-strict` | TS strict baseline. Zero any budget, branded types for domain primitives, discriminated unions over enums, exhaustive switches via never, satisfies over as. |
-| `adr-workflow` | Capture structural choices as one immutable ADR file with collision-free identity, explicit alternatives, reversal cost, and supersession. |
+| `decide` | Capture structural choices as one immutable ADR file with collision-free identity, explicit alternatives, reversal cost, and supersession. |
 
 ### Boundaries and production
 
@@ -50,7 +50,7 @@ What happens where the system meets something it does not control.
 | `security-guidance` | Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. |
 | `security-audit` | Periodic deep security audit — OWASP Top 10, STRIDE, secrets, supply chain, CI/CD, infra, LLM. |
 | `async-safety` | Idempotency by design. At-least-once with consumer dedup. Signature verify, replay window, idempotency keys, outbox, bounded retries, DLQ. |
-| `migrations-safety` | Zero-downtime Postgres migrations. Two-phase changes, batched backfills, locking analysis, banned DDL patterns, CONCURRENTLY indexes, dev branch test, immutable after merge. |
+| `migrations` | Zero-downtime Postgres migrations. Two-phase changes, batched backfills, locking analysis, banned DDL patterns, CONCURRENTLY indexes, dev branch test, immutable after merge. |
 | `observability` | Structured logs (no string interp), trace IDs end-to-end, error boundaries at async boundaries, anonymized user scope, no PII/secrets ever. |
 | `llm-cost-discipline` | Sonnet default (Opus needs comment), prompt caching for >1024-token prompts, batch API for non-interactive, max_tokens declared, bounded retries, no full prompts in logs. |
 
@@ -63,7 +63,7 @@ Proving the thing works, and that it is worth looking at.
 | `testing` | How to write a good test. Behavior over implementation, real code over mocks, factories over beforeEach, pyramid respected, pristine output, no snapshot creep. |
 | `code-review` | Pre-PR critical pass. Six dimensions (correctness, tests, security, structure, readability, perf). |
 | `qa` | Live browser QA of a running web app via the claude-in-chrome MCP: systematic exploration, edge/error/empty states, atomic fix loop, evidence-backed report. |
-| `accessibility-first` | WCAG 2.2 AA floor. Radix primitives only, touch >=44x44, keyboard parity, semantic HTML, form labels, aria-live errors, mobile-first dual-quality. |
+| `accessibility` | WCAG 2.2 AA floor. Radix primitives only, touch >=44x44, keyboard parity, semantic HTML, form labels, aria-live errors, mobile-first dual-quality. |
 | `frontend-design` | Anti-AI-slop UI. Density first, 3-size hierarchy, motion <250ms, components via @repo/ui (Radix/shadcn), mobile-first dual-quality. |
 | `ui-review` | Audit and polish an EXISTING UI: the AI-slop test, heuristic critique, technical audit (contrast/a11y/responsive/perf), refine modes. |
 | `devex-audit` | Audit an EXISTING dev-facing surface (API/CLI/SDK/docs): measured TTHW, real error-path tracing, evidence-backed DX scorecard, scoped refine. |
@@ -75,9 +75,9 @@ From a validated plan to a merged pull request.
 | | |
 |---|---|
 | `commit-discipline` | Conventional Commits + mandatory "why" in body + scope + breaking-change marking. |
-| `ticket-writer` | Use when turning a finished brainstorm, plan, or design decision into a tracker ticket. |
-| `ticket-runner` | Use when taking a single ticket from ready through shipped at expert-team quality. |
-| `autopilot` | Use to drain a bounded cluster of independent ready tickets, each run end-to-end by ticket-runner in its own worktree, reconciled into one integration PR a human merges. |
+| `ticket` | Use when turning a finished brainstorm, plan, or design decision into a tracker ticket. |
+| `implement` | Use when taking a single ticket from ready through shipped at expert-team quality. |
+| `autopilot` | Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR a human merges. |
 | `retrospective` | Periodic engineering retro over a window: read git log / PRs / . |
 | `make-pdf` | Turn a markdown file into a publication-quality PDF — marked + puppeteer-core on the system Chrome, with page-number footers. |
 
@@ -87,9 +87,9 @@ How the doctrine stays true as the project moves.
 
 | | |
 |---|---|
-| `claude-md-authoring` | Author a lean, runnable CLAUDE.md (or AGENTS.md). Only universal instructions; defer detail to docs; push style to linters and certainties to hooks. |
+| `claude-md` | Author a lean, runnable CLAUDE.md (or AGENTS.md). Only universal instructions; defer detail to docs; push style to linters and certainties to hooks. |
 | `source-driven-development` | Ground every third-party config or API usage in the official docs for the installed version, not training memory. |
-| `learning-capture` | Capture a lesson when it appears — a stated project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a harness gap. |
+| `learn` | Capture a lesson when it appears — a stated project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a harness gap. |
 
 ### Stack packs
 
@@ -234,7 +234,7 @@ The escape hatches that quietly undo a strict configuration.
 | `no-null-grep` | Refuses a bare `null` where the project models absence explicitly. |
 | `tsc-noemit-precommit` | Runs the typechecker before the commit lands, not after CI says so. |
 
-### Cleanliness and refactoring
+### Cleanliness and refactor
 
 Keeping the diff readable and the vocabulary stable.
 
@@ -288,7 +288,7 @@ The surface no sentence can trigger, because it reports or changes state.
 
 | | |
 |---|---|
-| `autopilot` | Drain a bounded cluster of independent ready tickets — each worked end-to-end by ticket-runner in its own worktree — into one integration PR the human merges. |
+| `autopilot` | Drain a bounded cluster of independent ready tickets — each worked end-to-end by implement in its own worktree — into one integration PR the human merges. |
 | `checkpoint` | Close the current work session gracefully — before a clear, an interruption, or the end of a day. |
 | `void-audit` | Run the outbound audit from local mission events and surface stale skills, upstream deprecations, conflicts, and HITL proposals. |
 | `void-doctor` | Run harness health checks for config, doctrine, runtime wiring, lifecycle proof, optional marketplace access, and version drift. |

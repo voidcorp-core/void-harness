@@ -7,7 +7,7 @@ actual_loc: 72
 activation: on-demand
 phase: D
 depends_on: []
-composes_with: [learning-capture, systematic-debugging, writing-plans]
+composes_with: [learn, debug, plan]
 source_ticket: DEV-396
 epic: DEV-383
 audit_date: 2026-07-10
@@ -22,11 +22,11 @@ The gstack teardown removes `/retro` (weekly engineering retrospective). Its dur
 
 ## Decision: light dedicated skill, not a fold (spun out of DEV-386)
 
-DEV-386 originally mapped retro → `compounding`. On execution two facts killed that: (1) `compounding` no longer exists (fused into `learning-capture`, issue #75); (2) a periodic *window* review is a distinct subject from `learning-capture`'s *point* capture of one lesson — folding would violate one-skill-one-subject and overflow the 400-line cap. Decision (Folpe, logged in the DEV-386 DECISIONS entry): a **light dedicated `harness:retrospective`** that FEEDS `learning-capture`. `activation: on-demand` (invoked on a cadence, not passive doctrine).
+DEV-386 originally mapped retro → `compounding`. On execution two facts killed that: (1) `compounding` no longer exists (fused into `learn`, issue #75); (2) a periodic *window* review is a distinct subject from `learn`'s *point* capture of one lesson — folding would violate one-skill-one-subject and overflow the 400-line cap. Decision (Folpe, logged in the DEV-386 DECISIONS entry): a **light dedicated `harness:retrospective`** that FEEDS `learn`. `activation: on-demand` (invoked on a cadence, not passive doctrine).
 
 ## Kept (the signal methodology)
 
-Window gathering from git log (commits, authors, files, conventional-commit types, insertions/deletions), PRs (via `gh`), and `.void/usage.log`/`activations.jsonl`. Signals: commit-type mix, hotspots, recurring-fix files, test-to-prod ratio, PR-size distribution, regressions. Output ends in concrete improvement decisions, with durable patterns routed to `learning-capture` (HITL).
+Window gathering from git log (commits, authors, files, conventional-commit types, insertions/deletions), PRs (via `gh`), and `.void/usage.log`/`activations.jsonl`. Signals: commit-type mix, hotspots, recurring-fix files, test-to-prod ratio, PR-size distribution, regressions. Output ends in concrete improvement decisions, with durable patterns routed to `learn` (HITL).
 
 ## Rejected (documented)
 
@@ -36,7 +36,7 @@ Window gathering from git log (commits, authors, files, conventional-commit type
 
 ## Overlap management
 
-< 30% with `learning-capture`: the retro is a discovery pass over a window that produces decisions and routes patterns; learning-capture is the point-capture that writes one lesson to doctrine (HITL). The retro writes nothing into doctrine itself. Composes with `systematic-debugging` (recurring-fix file = architectural smell at window scale) and `writing-plans` (large-PR window = slicing signal) as pointers, not restated content.
+< 30% with `learn`: the retro is a discovery pass over a window that produces decisions and routes patterns; learn is the point-capture that writes one lesson to doctrine (HITL). The retro writes nothing into doctrine itself. Composes with `debug` (recurring-fix file = architectural smell at window scale) and `plan` (large-PR window = slicing signal) as pointers, not restated content.
 
 ## Verification
 

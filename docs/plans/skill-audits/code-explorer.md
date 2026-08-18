@@ -6,8 +6,8 @@ strategy: original
 target_loc: n/a (agent, not a skill; kept lean)
 phase: D
 depends_on: []
-composes_with: [context-management, doctrine-critic]
-matrix_row: plans/skill-decision-matrix.md#context-management
+composes_with: [context, doctrine-critic]
+matrix_row: plans/skill-decision-matrix.md#context
 audit_date: 2026-06-04
 auditor: Folpe + Claude Opus 4.8
 ---
@@ -34,7 +34,7 @@ entire value is the *compression* — explore widely, report tightly.
   perform any of them.
 - **Cannot decide**: anything evaluative. It is descriptive only — no verdict, no
   grade, no fix.
-- **Composes with**: `context-management` (it *is* the context-isolation tool in
+- **Composes with**: `context` (it *is* the context-isolation tool in
   practice — a sub-agent that protects the main window), `doctrine-critic` and the
   other read-only critics (it hands them a map to act on).
 
@@ -43,7 +43,7 @@ entire value is the *compression* — explore widely, report tightly.
 | Source | URL | Status | Verdict |
 |---|---|---|---|
 | void-harness `doctrine-critic` agent | packages/core/agents/doctrine-critic.md | read | kept: frontmatter shape, read-only allowlist, isolated-context, output-as-final-message |
-| void-harness `context-management` skill | plans/skill-audits/context-management.md | read | kept: sub-agent isolation protects the main window; compress, don't dump |
+| void-harness `context` skill | plans/skill-audits/context.md | read | kept: sub-agent isolation protects the main window; compress, don't dump |
 | Anthropic subagents guidance | https://code.claude.com/docs/en/sub-agents.md | read | kept: a focused sub-agent returns a summary, not its full transcript, to the parent |
 
 ## Adaptation strategy
