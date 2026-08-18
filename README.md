@@ -20,6 +20,10 @@ npx voidharness init
 
 Free, no account, no API key, no network fetch on the default path.
 
+Already on 2.x? Thirteen skills changed name in 3.0 and the layout under `.void/`
+moved. `update` does the layout; the names are yours to search for. See
+[docs/MIGRATING-3.0.md](docs/MIGRATING-3.0.md).
+
 ## What lands in your project
 
 `init` detects the project and the agent runtimes you have, then writes each
