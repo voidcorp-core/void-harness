@@ -27,9 +27,9 @@ export type StalenessUnknownReason =
 
 export interface RunnerStalenessInput {
   /** Version of the CLI executing this check. */
-  readonly running?: string;
+  readonly running?: string | undefined;
   /** Version the project's install manifest records for its installed harness. */
-  readonly recorded?: string;
+  readonly recorded?: string | undefined;
 }
 
 /** `2.7.0` and `v2.7.0` are the same version; `nightly` is not a version at all. */
