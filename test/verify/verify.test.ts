@@ -41,7 +41,7 @@ describe('parity with the CI validate job', () => {
     ['pnpm lint'],
     ['pnpm check:publish'],
     ['pnpm graph:check'],
-    ['pnpm certification:check'],
+    ['pnpm derive:check'],
     ['pnpm graph:check-bundle'],
   ])('runs %s, like CI does', (command) => {
     expect(job).toContain(command);
@@ -50,7 +50,9 @@ describe('parity with the CI validate job', () => {
 
   it('covers every generated artefact CI gates', () => {
     // These are the ones that bit us: each is a committed file derived from
-    // something else, and each has cost a CI round trip.
+    // something else, and each has cost a CI round trip. The freshness of the
+    // generated set is now one gate rather than one per artefact, because the
+    // list is what an eighth artefact would fall off.
     const artefactGates = steps.filter((step) => step.artifact === true).map((step) => step.name);
 
     expect(artefactGates).toEqual(
@@ -58,7 +60,7 @@ describe('parity with the CI validate job', () => {
         'hook runner current',
         'core-assets in sync',
         'graph integrity',
-        'certification freshness',
+        'generated artefacts current',
         'consumer bundle freshness',
       ]),
     );

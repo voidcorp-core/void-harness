@@ -12,10 +12,10 @@
 #      doctrine are the same document).
 #   3. The seven anti-bloat rules (size caps, frontmatter, skill name==folder).
 #   4. core-assets mirror in sync when a packages/core/ file is staged (#66).
-#   5. The catalogue regenerated when anything it is built from is staged.
+#   5. Every generated artefact derived when anything it is built from is staged.
 #
 # Rule 5 stages what it regenerates instead of refusing the commit, which is a
-# deliberate difference from rule 4. The catalogue is derived and deterministic:
+# deliberate difference from rule 4. Generated output is derived and deterministic:
 # there is no judgement to pass on its diff, only work to remember, and CI
 # already refuses a stale one. Rule 4 refuses because a mirror drift can mean a
 # hand edit in the wrong copy, which is a question for a human.
@@ -30,37 +30,29 @@ bash "$ROOT/scripts/sync-agent-docs.sh" --staged
 bash "$ROOT/scripts/sync-philosophy.sh" >/dev/null
 bash "$ROOT/scripts/anti-bloat-check.sh"
 
-# The catalogue (skills, agents, hooks, commands, packs, profiles) is generated
-# from the assets themselves, and three CI gates refuse a stale one. Regenerating
-# it here is what keeps "the catalogue is generated" from meaning "remember to
-# regenerate the catalogue": the person who adds a skill should not also have to
-# know which four artefacts derive from it.
+# Everything this repository derives from its own assets, regenerated and staged
+# in one step. `pnpm derive` owns the pipeline and its order; nothing here names
+# an artefact, because the list is exactly what a seventh and then an eighth
+# generated file kept falling off. What gets staged is what derivation changed
+# and nothing else: work already in flight before it ran is left alone.
 if git diff --cached --name-only | grep -qE '^packages/(core|packs)/'; then
   if command -v pnpm >/dev/null 2>&1; then
-    (
-      cd "$ROOT" \
-        && pnpm --filter @voidcorp/harness-graph build >/dev/null 2>&1 \
-        && node packages/cli/bin/void-harness.mjs graph >/dev/null 2>&1 \
-        && pnpm -F voidharness build:void-graph >/dev/null 2>&1 \
-        && pnpm cheatsheet:build >/dev/null 2>&1 \
-        && pnpm -F voidharness build:certification >/dev/null 2>&1 \
-        && pnpm --filter voidharness build:assets >/dev/null 2>&1
-    ) || {
-      echo "pre-commit: could not regenerate the catalogue." >&2
-      echo "  Run 'pnpm graph:check' to see why; CI refuses a stale catalogue." >&2
+    BEFORE=$(cd "$ROOT" && git status --porcelain | cut -c4- | sort)
+    ( cd "$ROOT" && pnpm derive >/dev/null 2>&1 ) || {
+      echo "pre-commit: could not derive the generated artefacts." >&2
+      echo "  Run 'pnpm derive' to see why; CI refuses stale ones." >&2
       exit 1
     }
-    DERIVED="packages/core/data/catalog.v3.json packages/core/data/model.json packages/core/data/certification.json packages/core/graph/void-graph.mjs docs/CHEATSHEET.md packages/cli/core-assets/data/catalog.v3.json packages/cli/core-assets/data/model.json packages/cli/core-assets/data/certification.json"
-    # shellcheck disable=SC2086 # the list is ours and deliberately word-split
-    if [ -n "$(cd "$ROOT" && git status --porcelain -- $DERIVED)" ]; then
-      # shellcheck disable=SC2086
-      ( cd "$ROOT" && git add $DERIVED )
-      echo "pre-commit: the catalogue changed; regenerated and staged it." >&2
-      ( cd "$ROOT" && git diff --cached --stat -- $DERIVED ) >&2
+    AFTER=$(cd "$ROOT" && git status --porcelain | cut -c4- | sort)
+    PRODUCED=$(comm -13 <(echo "$BEFORE") <(echo "$AFTER"))
+    if [ -n "$PRODUCED" ]; then
+      ( cd "$ROOT" && echo "$PRODUCED" | tr '\n' '\0' | xargs -0 git add -- )
+      echo "pre-commit: generated artefacts changed; derived and staged them." >&2
+      echo "$PRODUCED" | sed 's/^/  /' >&2
     fi
   else
-    echo "pre-commit: pnpm not on PATH; the catalogue was not regenerated." >&2
-    echo "  CI refuses a stale one. Run 'pnpm graph:check' before pushing." >&2
+    echo "pre-commit: pnpm not on PATH; the generated artefacts were not derived." >&2
+    echo "  CI refuses stale ones. Run 'pnpm derive' before pushing." >&2
   fi
 fi
 
