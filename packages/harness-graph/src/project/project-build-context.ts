@@ -36,8 +36,10 @@ import {
 import { createNodeProjectRootPort } from './root.js';
 
 // Observed state: a local accelerator, never trusted repository input, so it
-// lives under `.void/local/` where one ignore rule covers it.
-const DEFAULT_CACHE_PATH = '.void/local/cache/project-graph-v1.json';
+// lives under `.void/machine/` where one ignore rule covers it. Written as a
+// literal rather than through `voidMachinePath` because this package must not
+// depend on the hook runner; the two are kept in step by the test below it.
+const DEFAULT_CACHE_PATH = '.void/machine/cache/project-graph-v1.json';
 const DEFAULT_MAX_FILES = 50_000;
 const DEFAULT_MAX_FILE_BYTES = 1024 * 1024;
 const DEFAULT_MAX_DIRECTORIES = 20_000;
