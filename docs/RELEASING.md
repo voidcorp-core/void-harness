@@ -53,6 +53,26 @@ PR from `develop`; a hotfix applied directly to `main` must be merged back down,
 `develop` silently diverges and starts testing a tree that no longer matches what
 ships.
 
+### The back-merge is automatic, because the divergence is structural
+
+Merging the release PR writes the version bumps and the changelog to `main`, so
+`main` gains commits `develop` does not have on **every** release, and protection
+being `strict` refuses the next promotion until they meet. That happened three
+times in one day before it was automated.
+
+It is worth being precise about why this is repaired rather than designed away.
+Pointing release-please at `develop` would remove the divergence at its source,
+and it was the first thing considered. It also proposes a release the moment a
+commit lands on `develop`, which is before the human decision that the `main`
+gate exists to make. The divergence is therefore a consequence of `main` being
+the gate, not a wiring mistake, and automating the repair is the honest trade.
+
+`back-merge.yml` runs on every push to `main` and opens a `main` to `develop`
+pull request when `main` is ahead. It opens rather than pushes: `develop` is
+protected with `enforce_admins`, and a branch only a robot may bypass is not
+protected. A conflict fails the job instead of being resolved unattended, since
+it means `develop` and `main` both touched a file release-please owns.
+
 ### Promotion cadence: `develop` to `main`
 
 **Promoting publishes nothing.** The `publish` job is gated on `release_created`, which is

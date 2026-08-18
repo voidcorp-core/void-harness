@@ -1,0 +1,78 @@
+name: back-merge
+
+# Carry what lands on main back down to develop.
+#
+# `main` is the release gate: a human promotes develop to main, and only then
+# does release-please propose a release. Merging that release PR writes the
+# version bumps and the changelog to main, so main gains commits develop does
+# not have. Branch protection is `strict`, so the next promotion is refused
+# until develop catches up.
+#
+# That divergence is not a wiring mistake to design away. It follows from main
+# being the gate: pointing release-please at develop instead would propose a
+# release the moment a commit lands there, which is before the human decision
+# the gate exists to make. So the repair is automated rather than the cause
+# removed, and this file is the honest version of that trade.
+#
+# It opens a pull request rather than pushing: develop is protected with
+# enforce_admins, and a branch that only a robot may bypass is not protected.
+# One click, and the checks run because the App token is not GITHUB_TOKEN.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  back-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Open the back-merge when main is ahead
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          git config user.name 'voidcorp-release[bot]'
+          git config user.email 'voidcorp-release[bot]@users.noreply.github.com'
+
+          ahead=$(git rev-list --count origin/develop..origin/main)
+          if [ "$ahead" -eq 0 ]; then
+            echo "develop already carries main; nothing to back-merge."
+            exit 0
+          fi
+
+          branch="chore/back-merge-main"
+          git checkout -B "$branch" origin/develop
+          # A conflict here is a real event, not a hiccup: it means develop and
+          # main both changed a file release-please owns. Fail loudly rather than
+          # resolve it unattended.
+          if ! git merge --no-edit origin/main; then
+            echo "back-merge conflicts; resolve it by hand." >&2
+            exit 1
+          fi
+          git push --force-with-lease origin "$branch"
+
+          if gh pr list --head "$branch" --base develop --state open --json number --jq 'length' | grep -qv '^0$'; then
+            echo "back-merge pull request already open; it now carries the newer main."
+            exit 0
+          fi
+          gh pr create --base develop --head "$branch" \
+            --title 'chore: back-merge main into develop' \
+            --body 'Release-please writes the version bumps and the changelog to `main`, so `main` gains commits `develop` does not have and branch protection refuses the next promotion until they meet.
+
+This carries them back down. Opened automatically; merged by a human, like everything else that lands on `develop`.'
