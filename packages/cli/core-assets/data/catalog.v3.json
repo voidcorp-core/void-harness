@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:d9748d546a7c4d5581a722361dc51c3ad5f89cd78ac2c3da28b43973939549e7"
+    "rootHash": "sha256:2c75bc63eedc76d58879b3f019a33c870adae1b2176e2670fa2784058ce4efcd"
   },
   "nodes": [
     {
@@ -4848,7 +4848,7 @@
       "data": {
         "legacy": {
           "activation": "always",
-          "description": "TDD with three modes (strict/souple/exploratory) auto-selected by path. Iron Law in strict (no prod code without a failing test), mutation gate, anti-rustine. Use for any feature, bugfix, refactor.",
+          "description": "TDD in three modes (strict/souple/exploratory) chosen by path. Iron Law in strict (no prod code without a failing test), mutation gate if tooled, anti-rustine. Use for any feature, bugfix, refactor.",
           "enforcement": {
             "floor": "ci",
             "inline": {
@@ -4865,7 +4865,7 @@
             }
           ],
           "id": "skill:tdd",
-          "lines": 388,
+          "lines": 398,
           "name": "tdd",
           "owner": "folpe",
           "pack": null,
@@ -4874,7 +4874,7 @@
             "codex"
           ],
           "source": "packages/core/skills/tdd/SKILL.md",
-          "staticTokens": 3480,
+          "staticTokens": 3697,
           "type": "skill"
         }
       },
@@ -4923,7 +4923,7 @@
             "codex"
           ],
           "source": "packages/core/skills/testing/SKILL.md",
-          "staticTokens": 2829,
+          "staticTokens": 2844,
           "triggers": {
             "globs": [
               "**/*.test.ts",

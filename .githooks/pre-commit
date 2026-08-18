@@ -12,16 +12,56 @@
 #      doctrine are the same document).
 #   3. The seven anti-bloat rules (size caps, frontmatter, skill name==folder).
 #   4. core-assets mirror in sync when a packages/core/ file is staged (#66).
+#   5. The catalogue regenerated when anything it is built from is staged.
+#
+# Rule 5 stages what it regenerates instead of refusing the commit, which is a
+# deliberate difference from rule 4. The catalogue is derived and deterministic:
+# there is no judgement to pass on its diff, only work to remember, and CI
+# already refuses a stale one. Rule 4 refuses because a mirror drift can mean a
+# hand edit in the wrong copy, which is a question for a human.
 #
 # Budget: the first three cost about a second combined; the fourth adds half a
-# second and only when core/ is staged. Cheap enough to run unconditionally,
-# which is the point of enabling it by default rather than per clone.
+# second and only when core/ is staged. The fifth adds about four seconds, and
+# only when the catalogue's own inputs are staged.
 set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
 bash "$ROOT/scripts/sync-agent-docs.sh" --staged
 bash "$ROOT/scripts/sync-philosophy.sh" >/dev/null
 bash "$ROOT/scripts/anti-bloat-check.sh"
+
+# The catalogue (skills, agents, hooks, commands, packs, profiles) is generated
+# from the assets themselves, and three CI gates refuse a stale one. Regenerating
+# it here is what keeps "the catalogue is generated" from meaning "remember to
+# regenerate the catalogue": the person who adds a skill should not also have to
+# know which four artefacts derive from it.
+if git diff --cached --name-only | grep -qE '^packages/(core|packs)/'; then
+  if command -v pnpm >/dev/null 2>&1; then
+    (
+      cd "$ROOT" \
+        && pnpm --filter @voidcorp/harness-graph build >/dev/null 2>&1 \
+        && node packages/cli/bin/void-harness.mjs graph >/dev/null 2>&1 \
+        && pnpm -F voidharness build:void-graph >/dev/null 2>&1 \
+        && pnpm cheatsheet:build >/dev/null 2>&1 \
+        && pnpm --filter voidharness build:assets >/dev/null 2>&1
+    ) || {
+      echo "pre-commit: could not regenerate the catalogue." >&2
+      echo "  Run 'pnpm graph:check' to see why; CI refuses a stale catalogue." >&2
+      exit 1
+    }
+    DERIVED="packages/harness-graph/catalog.v3.json packages/harness-graph/model.json packages/core/graph/void-graph.mjs docs/CHEATSHEET.md packages/cli/core-assets/data/catalog.v3.json packages/cli/core-assets/data/model.json"
+    # shellcheck disable=SC2086 # the list is ours and deliberately word-split
+    if [ -n "$(cd "$ROOT" && git status --porcelain -- $DERIVED)" ]; then
+      # shellcheck disable=SC2086
+      ( cd "$ROOT" && git add $DERIVED )
+      echo "pre-commit: the catalogue changed; regenerated and staged it." >&2
+      ( cd "$ROOT" && git diff --cached --stat -- $DERIVED ) >&2
+    fi
+  else
+    echo "pre-commit: pnpm not on PATH; the catalogue was not regenerated." >&2
+    echo "  CI refuses a stale one. Run 'pnpm graph:check' before pushing." >&2
+  fi
+fi
 
 # Only when core/ is staged: regenerate the CLI mirror and refuse the commit if
 # it drifted (same rule as CI, caught locally before the push). Porcelain also
@@ -35,7 +75,13 @@ if git diff --cached --name-only | grep -q '^packages/core/'; then
   # core-assets had drifted. The guard existed and enforced nothing.
   if command -v pnpm >/dev/null 2>&1; then
     ( cd "$ROOT" && pnpm --filter voidharness build:assets >/dev/null 2>&1 )
-    if [ -n "$(cd "$ROOT" && git status --porcelain -- packages/cli/core-assets)" ]; then
+    # Unstaged changes only. `git status --porcelain` also reports what is
+    # already staged, so this refused the very commit that carried a correctly
+    # regenerated mirror. The check could not be seen doing that while its pnpm
+    # filter matched nothing and it never ran at all; fixing the filter is what
+    # exposed it. What we want to catch is a mirror the author did not stage,
+    # which is exactly an unstaged difference after regeneration.
+    if [ -n "$(cd "$ROOT" && git diff --name-only -- packages/cli/core-assets)" ]; then
       echo "pre-commit: core-assets drifted from packages/core." >&2
       echo "Regenerated it; stage packages/cli/core-assets and recommit." >&2
       exit 1
@@ -49,3 +95,4 @@ if git diff --cached --name-only | grep -q '^packages/core/'; then
     echo "  CI still enforces it. Run 'pnpm --filter voidharness build:assets' before pushing." >&2
   fi
 fi
+

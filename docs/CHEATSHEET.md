@@ -21,7 +21,7 @@ How work is framed before and after the code is written.
 | `brainstorming` | Explore intent before code: pressure-test a raw idea, one question at a time, 2-3 approaches, design in sections, spec written and approved. |
 | `writing-plans` | Turn an approved spec into vertical slices with dependencies, TDD mode, verification gates, checkpoints, and a tracker handoff. |
 | `plan-review` | Critique a written plan (not a diff) via four lenses: CEO premise/ambition, Eng test-coverage, Design states/slop, DevEx time-to-first-value. |
-| `tdd` | TDD with three modes (strict/souple/exploratory) auto-selected by path. |
+| `tdd` | TDD in three modes (strict/souple/exploratory) chosen by path. |
 | `systematic-debugging` | Four phases (investigate, analyze, hypothesize, implement). Iron Law: no fix without a failing test reproducing the bug AND a root cause. |
 | `refactoring` | Tidy-First. Tidyings commit separately from behavior changes (Two-Hat). |
 | `verification-before-completion` | Final pre-flight checklist. Twelve items observed (not assumed) — typecheck, tests, hooks, mobile+desktop, commit why, review evidence. |
