@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.7.0](https://github.com/voidcorp-core/void-harness/compare/v2.6.0...v2.7.0) (2026-08-18)
+
+
+### Features
+
+* **doctor:** retire the pre-journal streams, and write down the layout rule ([0808cff](https://github.com/voidcorp-core/void-harness/commit/0808cffb59353ba347194371075691bf94ba58b2))
+* **layout:** ranger .void en trois niveaux nommés, avec migration (DEV-631) ([af58008](https://github.com/voidcorp-core/void-harness/commit/af580087fe73fe28227709276411880c08163e1c))
+* **layout:** three named levels in .void, and a migration that renames ([3abf42f](https://github.com/voidcorp-core/void-harness/commit/3abf42f0be2bc4f796d7f4b23001e39265fb2651))
+
+
+### Bug Fixes
+
+* **cli:** make update honour --force, so its own remedy can be applied ([0c26b29](https://github.com/voidcorp-core/void-harness/commit/0c26b29ab1baa6f36de3baefe30cdeb7b0432427))
+* **cli:** update honore --force, pour que son propre remède soit applicable ([fb976cb](https://github.com/voidcorp-core/void-harness/commit/fb976cb98a6119b1aed1e63bdef6b60cc4843692))
+* **layout:** autonomous-runs holds plans, not machine state ([ccc8b4b](https://github.com/voidcorp-core/void-harness/commit/ccc8b4b6af763688001e8fa791af2b9927ad75b4))
+* **layout:** keep the runner committed, and file the doctrine under installed/ ([a76a6e8](https://github.com/voidcorp-core/void-harness/commit/a76a6e827adefa42ea8f1f046496f988d383f6d2))
+* **test:** point the checkpoint skill test at the renamed skill ([359a615](https://github.com/voidcorp-core/void-harness/commit/359a615a8fb3d788513eda9e860aa82d5d35ba1c))
+* **update:** drop restorable content instead of relocating it ([612fbb4](https://github.com/voidcorp-core/void-harness/commit/612fbb4e057611473902502eacd66b99a7ca28f1))
+* **update:** empty the previous machine directory whole, and file dead streams apart ([45d9bbf](https://github.com/voidcorp-core/void-harness/commit/45d9bbf96df665baf0294eb3575e0a0e21e328e1))
+* **update:** migrate the legacy .void layout instead of reporting it forever ([41a3546](https://github.com/voidcorp-core/void-harness/commit/41a354607426b1dd9ad5f753c478905e582e5384))
+* **update:** supprimer le restaurable au lieu de le déplacer (DEV-631) ([a80537b](https://github.com/voidcorp-core/void-harness/commit/a80537b5c264d84d5d989229270fd736319928d8))
+
 ## [2.6.0](https://github.com/voidcorp-core/void-harness/compare/v2.5.1...v2.6.0) (2026-08-17)
 
 
