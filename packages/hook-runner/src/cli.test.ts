@@ -112,9 +112,13 @@ describe('lifecycle context', () => {
     return root;
   }
 
-  it('names a skill the project recorded but can no longer resolve', () => {
+  it('names a skill the project recorded but can no longer resolve, from the session after', () => {
     const root = projectWith('ticket', 'ticket-writer');
     try {
+      // The first opening computes the verdict after its own stdout, so it is
+      // the next one that carries it. One session of delay costs nothing here,
+      // and it is what keeps the start instant.
+      expect(banner(root)).not.toContain('ticket-writer');
       expect(banner(root)).toContain('ticket-writer');
     } finally {
       rmSync(root, { recursive: true, force: true });
@@ -124,6 +128,7 @@ describe('lifecycle context', () => {
   it('says nothing extra when every recorded name still resolves', () => {
     const root = projectWith('ticket', 'ticket');
     try {
+      banner(root);
       expect(banner(root)).not.toContain('cannot resolve');
     } finally {
       rmSync(root, { recursive: true, force: true });

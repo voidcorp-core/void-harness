@@ -2,7 +2,14 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { installedSkillNames, invocationAlert, livenessVerdict, resolutionVerdict } from './invocation.js';
+import {
+  cachedInvocationAlert,
+  installedSkillNames,
+  invocationAlert,
+  livenessVerdict,
+  refreshInvocationVerdict,
+  resolutionVerdict,
+} from './invocation.js';
 
 // A harness cannot see its own refused invocations: a Skill call under an
 // unknown name is rejected before the first hook and writes no event at all
@@ -225,5 +232,51 @@ describe('livenessVerdict', () => {
   it('reports the activations it did count, which doctor shows as context and never judges on', () => {
     const body = [mission('mis_1', 30, 2, '01'), mission('mis_2', 30, 0, '02'), mission('mis_3', 30, 0, '03')].join('\n');
     expect(livenessVerdict(body).skillCalls).toBe(2);
+  });
+});
+
+// The banner reads a cached verdict and recomputes after stdout, exactly like
+// the version freshness check: a session start must never wait on work whose
+// answer can be one session old without anyone being worse off.
+describe('the cached verdict', () => {
+  function recorded(root: string, name: string): void {
+    const dir = join(root, '.void', 'machine', 'runs', 'mis_aaaaaaaaaaaaaaaa');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'events.jsonl'), `${activation(name)}\n`);
+  }
+
+  it('says nothing at all before anything has been computed', () => {
+    expect(cachedInvocationAlert(project())).toBeUndefined();
+  });
+
+  it('returns what the last refresh found, without reading the journals again', () => {
+    const root = project(['ticket']);
+    recorded(root, 'ticket-writer');
+    refreshInvocationVerdict(root);
+    expect(cachedInvocationAlert(root)).toContain('ticket-writer');
+  });
+
+  it('caches the silence too, so a healthy project keeps recomputing nothing', () => {
+    const root = project(['ticket']);
+    recorded(root, 'ticket');
+    refreshInvocationVerdict(root);
+    expect(cachedInvocationAlert(root)).toBeUndefined();
+  });
+
+  it('clears a stale alert once the project is fixed', () => {
+    const root = project(['ticket']);
+    recorded(root, 'ticket-writer');
+    refreshInvocationVerdict(root);
+    expect(cachedInvocationAlert(root)).toBeDefined();
+    recorded(root, 'ticket');
+    refreshInvocationVerdict(root);
+    expect(cachedInvocationAlert(root)).toBeUndefined();
+  });
+
+  it('survives a corrupted cache rather than failing the session that reads it', () => {
+    const root = project();
+    mkdirSync(join(root, '.void', 'machine'), { recursive: true });
+    writeFileSync(join(root, '.void', 'machine', 'invocation.json'), 'not json');
+    expect(cachedInvocationAlert(root)).toBeUndefined();
   });
 });

@@ -1,5 +1,7 @@
-import { existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { journalFingerprint, readMissionJournals } from './journal.js';
+import { voidMachinePath } from './void-layout.js';
 
 /**
  * Whether the invocation surface is still reachable, judged from what the
@@ -197,4 +199,77 @@ export function livenessVerdict(body: string): LivenessVerdict {
   // quiet week, and crying on them is how a guardrail gets turned off.
   const ok = judged.length < LIVENESS_WINDOW || judged.some((tally) => tally.skillCalls > 0);
   return { ok, missions: judged.length, toolCalls, skillCalls };
+}
+
+/**
+ * The verdict, computed once and read at every session opening.
+ *
+ * Reading the journals costs 49 ms on this repository -- 11 MB for the twelve
+ * lines that matter -- and a session start must never wait on work whose answer
+ * can be one session old without anyone being worse off. So the banner reads
+ * this file, and the refresh happens after stdout, exactly as the version
+ * freshness check already does.
+ *
+ * It is a cache, not a second source of truth: it holds nothing the journals do
+ * not, and deleting it costs one stale session.
+ */
+interface CachedVerdict {
+  readonly fingerprint: string;
+  readonly alert?: string;
+}
+
+/** How far back the refresh looks. Bounded: the whole corpus is 11 MB. */
+const REFRESH_MISSIONS = 20;
+
+function cachePath(root: string): string {
+  return voidMachinePath(root, 'invocation.json');
+}
+
+/** The last computed alert, or nothing. Never throws: a session must start. */
+export function cachedInvocationAlert(root: string): string | undefined {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(cachePath(root), 'utf8'));
+    if (typeof parsed !== 'object' || parsed === null) return undefined;
+    const alert = (parsed as Record<string, unknown>)['alert'];
+    return typeof alert === 'string' && alert !== '' ? alert : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Recompute the verdict when the journals moved, and store it.
+ *
+ * Called after stdout, so its cost is paid by a session that has already
+ * started. Every failure is swallowed: an advisory verdict must never be able
+ * to break a session.
+ */
+export function refreshInvocationVerdict(root: string): void {
+  try {
+    const fingerprint = journalFingerprint(root);
+    const path = cachePath(root);
+    try {
+      const previous: unknown = JSON.parse(readFileSync(path, 'utf8'));
+      if (
+        typeof previous === 'object'
+        && previous !== null
+        && (previous as Record<string, unknown>)['fingerprint'] === fingerprint
+      ) return;
+    } catch {
+      // No usable cache: compute one.
+    }
+    const journals = readMissionJournals(root, { recentMissions: REFRESH_MISSIONS });
+    const alert = invocationAlert(
+      resolutionVerdict(journals, installedSkillNames(root)),
+      livenessVerdict(journals),
+    );
+    const entry: CachedVerdict = alert === undefined ? { fingerprint } : { fingerprint, alert };
+    mkdirSync(dirname(path), { recursive: true });
+    // Temporary sibling then rename, so a session never reads half a verdict.
+    const temporary = `${path}.${process.pid}.tmp`;
+    writeFileSync(temporary, `${JSON.stringify(entry)}\n`);
+    renameSync(temporary, path);
+  } catch {
+    // Advisory: never alter a session because a verdict could not be written.
+  }
 }
