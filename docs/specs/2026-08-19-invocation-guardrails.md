@@ -60,6 +60,11 @@ calcul n'a pas manqué ; son lecteur a manqué. Deux défauts précis :
 Le garde-fou n'est donc pas un calcul de plus. C'est un destinataire, plus la réconciliation
 inverse qui manque vraiment.
 
+Le calcul ne peut pas pour autant vivre dans `harness-graph` : le bandeau est produit par
+`hook-runner`, livré en bundle dans chaque projet et dépendant du seul `mission-engine`. Il vit
+donc dans `hook-runner`, en fonctions pures, et `doctor` l'importe. Le référentiel du verdict de
+résolution est alors les skills réellement installées sur disque, ce qui est la question posée.
+
 ## Ce qui est structurellement impossible
 
 Mesuré en direct le 2026-08-19 : une invocation de skill au nom inconnu est refusée par le
@@ -135,7 +140,7 @@ harnais.
 | Le démarrage de session ralentit | Verdict lu depuis un cache, jamais recalculé à l'ouverture |
 | Le bandeau devient du bruit ignoré | Silence total en régime normal, une ligne seulement si rouge |
 | Un lecteur voit la moitié des journaux | Un seul emplacement, migration en attente signalée |
-| Deux définitions de « skill morte » | Le verdict lit `analyzeBehavior`, il ne le réimplémente pas |
+| Deux définitions de « skill morte » | Le calcul vit en un seul endroit, `hook-runner` ; `doctor` l'importe |
 
 ## Tests
 
