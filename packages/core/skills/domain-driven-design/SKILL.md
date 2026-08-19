@@ -1,17 +1,6 @@
 ---
 name: domain-driven-design
-kind: standard
-activation: always
 description: Bounded contexts, aggregates as consistency boundaries, value objects as branded types, always-valid domain, ubiquitous language. No CQRS, event sourcing, or generic Repository<T>. Use on the domain.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: pretooluse
-    codex: pretooluse
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # domain-driven-design — voidcorp craftsman edition

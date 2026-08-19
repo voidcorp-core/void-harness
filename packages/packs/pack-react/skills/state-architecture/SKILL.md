@@ -1,16 +1,6 @@
 ---
 name: state-architecture
-kind: standard
 description: Decide where state lives — local, lifted, URL, server, client global. The decision tree to avoid useState-in-the-wrong-place sprawl. Default to URL or server before reaching for global stores.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # state-architecture
@@ -164,7 +154,7 @@ For each state you're about to add:
 
 ## Composition
 
-- `harness-react:client-vs-server-component` — server state lives in Server Components, client state lives in Client Components.
-- `harness-react:form-pattern` — react-hook-form handles form state; this skill says it's local.
-- `harness-pwa:offline-first-mutation` — capture-queue uses IndexedDB for offline writes (a 7th tier above Zustand, scoped to writes-pending-sync).
-- `harness-nextjs:cache-component-pattern` — server data caching strategy.
+- `client-vs-server-component` — server state lives in Server Components, client state lives in Client Components.
+- `form-pattern` — react-hook-form handles form state; this skill says it's local.
+- `offline-first-mutation` — capture-queue uses IndexedDB for offline writes (a 7th tier above Zustand, scoped to writes-pending-sync).
+- `cache-component-pattern` — server data caching strategy.

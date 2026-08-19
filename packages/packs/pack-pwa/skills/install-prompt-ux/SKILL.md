@@ -1,16 +1,6 @@
 ---
 name: install-prompt-ux
-kind: standard
 description: Surface the PWA install prompt at the right moment (engagement signal) with the right UI (custom button, not auto-prompt). Capture beforeinstallprompt, defer, recover declined.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # install-prompt-ux
@@ -156,8 +146,8 @@ Lighthouse → PWA category → "Installable" should be green; otherwise read th
 
 ## Composition
 
-- `harness-pwa:manifest-checklist` — installability requires a valid manifest first
-- `harness-pwa:service-worker-strategy` — installability requires SW registered
-- `harness-react:accessibility-check` — install button is interactive; needs label, focus ring
-- `harness:observability` — track install events (`window.addEventListener('appinstalled', ...)`) for conversion measurement
-- `harness:frontend-design` — when to show, where to place — UX trade-offs covered here
+- `manifest-checklist` — installability requires a valid manifest first
+- `service-worker-strategy` — installability requires SW registered
+- `accessibility-check` — install button is interactive; needs label, focus ring
+- `observability` — track install events (`window.addEventListener('appinstalled', ...)`) for conversion measurement
+- `frontend-design` — when to show, where to place — UX trade-offs covered here

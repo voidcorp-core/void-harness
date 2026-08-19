@@ -1,19 +1,6 @@
 ---
 name: accessibility
-kind: standard
-activation: always
-triggers:
-  extensions: ["tsx"]
 description: WCAG 2.2 AA floor. Radix primitives only, touch >=44x44, keyboard parity, semantic HTML, form labels, aria-live errors, mobile-first dual-quality. Use when building or modifying UI.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: pretooluse
-    codex: pretooluse
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # accessibility — voidcorp craftsman edition
@@ -251,7 +238,7 @@ The design system handles this by default in `pack-nextjs`. Specific animations 
 - **With `frontend-design`**: shared mobile-first dual-quality invariant. `frontend-design` decides density / hierarchy / motion; this skill enforces a11y across them.
 - **With `code-review`**: dimension `correctness` includes a11y at the UI surface.
 - **With `pack-nextjs`**: provides `@repo/ui` (Radix-wrapped) + `Tappable` + axe-core integration + design system palette tokens.
-- **With `harness:ui-review`**: its technical-audit pass includes the a11y dimension (contrast, keyboard, focus, 44px) — composes with this skill. Live-URL visual a11y audit is deferred to Vague 4.
+- **With `ui-review`**: its technical-audit pass includes the a11y dimension (contrast, keyboard, focus, 44px) — composes with this skill. Live-URL visual a11y audit is deferred to Vague 4.
 - **With `DESIGN.md`**: the design-system contract incorporates a11y constraints (produced by `impeccable document`/`init` or by hand).
 
 ---

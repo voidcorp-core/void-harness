@@ -1,16 +1,6 @@
 ---
 name: learn
-kind: action
-description: Capture a lesson when it appears — a stated project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a harness gap. Routes to PROJECT-DOCTRINE, a GitHub issue, or nothing. HITL strict.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
+description: Capture a lesson when it appears — a stated project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a harness gap. Routes to PROJECT-DOCTRINE, a GitHub issue, or nothing. HITL strict. Also the single door for harness feedback. Fires on "the harness should have X", "this hook is a false positive", "that skill is missing", a DX papercut worth filing, or any explicit request to send feedback about the harness itself.
 ---
 
 # learn — voidcorp craftsman edition
@@ -118,6 +108,12 @@ Before writing, scan for a duplicate or contradiction. On a **duplicate**, offer
 ---
 
 ## Branch B — Harness gap → a GitHub issue (HITL strict)
+
+This branch is also where harness **feedback** lands, whatever words it arrives in: a skill that
+is missing, a hook that fired on something legitimate, a rule nobody wrote down, a papercut in
+the CLI or the docs. Infer the gap from the recent conversation, and ask one short clarifying
+question only when it is genuinely unclear — the friction is fresh, and re-interviewing the user
+about something they just lived is how a capture becomes more expensive than the gap.
 
 The gap goes **straight to a `voidcorp-core/void-harness` issue** — there is no per-project `proposed/` queue; the pre-filter is your judgment before you open it. File ONLY when it clears BOTH tests:
 

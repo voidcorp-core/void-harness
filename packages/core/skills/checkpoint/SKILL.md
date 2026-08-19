@@ -1,16 +1,6 @@
 ---
 name: checkpoint
-kind: action
 description: Write .void/machine/checkpoint.md before a clear, an interruption, or the end of a day, so the next session resumes without re-deriving anything. Keeps only what no other artefact holds.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # checkpoint
@@ -74,6 +64,10 @@ reference it. A checkpoint that promises "I'll file this later" is where facts g
 ---
 
 ## Step 1 — Write what nothing else holds
+
+An argument passed with the invocation is what the human specifically wants carried
+over. Cover it, but never let it stand in for the routing above: what they name is one
+item of the residue, not the whole of it.
 
 In this order, because it is the order the next session needs it.
 

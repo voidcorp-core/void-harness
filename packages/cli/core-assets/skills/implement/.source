@@ -5,17 +5,17 @@ Sources for `implement` skill (see plans/skill-audits/implement.md for full audi
 - The former backlog-autopilot skill, retired at the 2026-07-30 cutover, carried
   an INLINE per-ticket cycle (plan -> TDD -> static UX/UI pass -> ...). That
   cycle was extracted here so there is one definition, and its successor
-  harness:autopilot delegates per ticket. Removes responsibility overlap. Named
+  autopilot delegates per ticket. Removes responsibility overlap. Named
   in prose rather than with the routing prefix, which means "go here" and must
   never point at a skill that no longer exists.
-- Composes (does not reimplement): harness:tdd, harness:testing,
-  harness:hexagonal-architecture, harness:domain-driven-design,
-  harness:frontend-design, harness:accessibility, harness:security-guidance,
-  harness:code-review, harness:verify,
-  harness:commit-discipline, harness:security-audit, harness:ui-review; agents
+- Composes (does not reimplement): tdd, testing,
+  hexagonal-architecture, domain-driven-design,
+  frontend-design, accessibility, security-guidance,
+  code-review, verify,
+  commit-discipline, security-audit, ui-review; agents
   type-design-analyzer, doctrine-critic, silent-failure-hunter; gstack /qa
   (browser QA until Vague 4). The impeccable audit methodology is now vendored as
-  harness:ui-review (DEV-389), not an external dependency.
+  ui-review (DEV-389), not an external dependency.
 
 - gstack /ship — VENDORED (DEV-388, cycle-level disciplines only): Test-Failure-Ownership triage (in-branch vs pre-existing), the independent fresh-context adversarial review pass (FIXABLE/INVESTIGATE + name-the-most-exploitable-finding), and bisectable commit ordering. Rejected: the Review-Army roster/gating machinery (release-gate apparatus, over-engineered for one ticket) and the VERSION/CHANGELOG/release-please steps (deployment runtime). The plan-completion-audit half of /ship went to verify.
 

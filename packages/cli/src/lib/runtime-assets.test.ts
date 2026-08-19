@@ -62,11 +62,19 @@ describe('wireClaudeLocalAssets', () => {
     expect(existsSync(join(root, '.claude/agents/solution-architect.md'))).toBe(true);
     expect(existsSync(join(root, '.claude/agents/experience-designer.md'))).toBe(true);
     expect(existsSync(join(root, '.claude/agents/visual-craft-director.md'))).toBe(true);
-    expect(existsSync(join(root, '.claude/commands/void-doctor.md'))).toBe(true);
+    // void-doctor is a skill now, and no `.claude/commands/` is written at all:
+    // the command format is Claude-only, and this harness targets three runtimes.
+    expect(existsSync(join(root, '.claude/skills/void-doctor/SKILL.md'))).toBe(true);
+    expect(existsSync(join(root, '.claude/commands'))).toBe(false);
     expect(existsSync(join(root, '.void/hooks/_void-hook.mjs'))).toBe(true);
     expect(existsSync(join(root, '.void/hooks/_hooklib.sh'))).toBe(false);
     expect(result.hooks).toBe(1);
-    expect(readFileSync(join(root, '.claude/skills/tdd/SKILL.md'), 'utf8')).toContain('runtimes: [claude, codex]');
+    // The installed skill carries only the spec's fields; `runtimes` is harness
+    // metadata and stays in the source tree with `.source`.
+    const installed = readFileSync(join(root, '.claude/skills/tdd/SKILL.md'), 'utf8');
+    expect(installed).toContain('name: tdd');
+    expect(installed).not.toContain('runtimes:');
+    expect(existsSync(join(root, '.claude/skills/tdd/harness.yaml'))).toBe(false);
   });
 
   it('treats Windows CRLF in a generated agent as the same canonical doctrine', async () => {

@@ -68,4 +68,19 @@ describe('add / remove refresh existing docs per-runtime', () => {
     expect(existsSync(packSkill)).toBe(false);
     expect(readFileSync(adjacent, 'utf8')).toBe('# private\n');
   });
+
+  /**
+   * End-to-end guard for the channel wiring. `harnessBlock` takes the channel,
+   * but a doc rendered without it silently falls back to the bare name and would
+   * look correct here for the wrong reason. What this asserts is the opposite
+   * direction: a local install must never write a namespaced skill name, because
+   * a local install resolves none of them.
+   */
+  it('writes no namespaced skill name into a locally installed doctrine doc', async () => {
+    await init(['--runtime', 'claude', '--no-interactive']);
+    const doc = readFileSync(join(dir, 'CLAUDE.md'), 'utf8');
+    expect(doc).toMatch(/void-harness:begin/);
+    expect(doc).not.toMatch(/(?<!void-)\bharness:[a-z]/);
+    expect(doc).toContain('invoked by its name');
+  });
 });

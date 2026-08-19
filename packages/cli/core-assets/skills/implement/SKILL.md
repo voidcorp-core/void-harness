@@ -1,21 +1,11 @@
 ---
 name: implement
-kind: action
 description: Use when taking a single ticket from ready through shipped at expert-team quality. Triggers on starting a ticket, taking an issue, or picking up a backlog item to execute.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # implement
 
-One ticket, taken from ready to shipped, with the coverage a senior expert team would give it: architecture, tests, end-to-end, UX, security, review. This is the single canonical definition of "execute one ticket well." Both interactive work and `harness:autopilot` delegate here, so the cycle is defined once and improving it improves both.
+One ticket, taken from ready to shipped, with the coverage a senior expert team would give it: architecture, tests, end-to-end, UX, security, review. This is the single canonical definition of "execute one ticket well." Both interactive work and `autopilot` delegate here, so the cycle is defined once and improving it improves both.
 
 **Core principle:** Speed comes from skipping ceremony on trivial work, never from skipping a pass whose trigger fired. The triage is keyed to observable predicates (does it touch a boundary, a UI, a trust edge), not to a feeling that the change "looks simple."
 
@@ -53,10 +43,10 @@ fresh context or the declared read-only boundary, report the limitation and refu
 ## When to invoke
 
 - Starting any single ticket or issue you intend to implement and ship.
-- Once per ticket by `harness:autopilot` (the per-ticket cycle IS this skill, run inside a worktree subagent).
-- After `harness:ticket` produced the ticket: its declared passes are an accelerator HINT. You ALWAYS evaluate the predicates yourself; a declaration may only ADD a pass, never cancel one whose predicate fired.
+- Once per ticket by `autopilot` (the per-ticket cycle IS this skill, run inside a worktree subagent).
+- After `ticket` produced the ticket: its declared passes are an accelerator HINT. You ALWAYS evaluate the predicates yourself; a declaration may only ADD a pass, never cancel one whose predicate fired.
 
-Do NOT use this to plan several tickets (that is `harness:plan`) or to author the ticket itself (`harness:ticket`).
+Do NOT use this to plan several tickets (that is `plan`) or to author the ticket itself (`ticket`).
 
 ---
 
@@ -64,17 +54,17 @@ Do NOT use this to plan several tickets (that is `harness:plan`) or to author th
 
 Run in order. Each pass names the skill it composes and the predicate that fires it. `ALWAYS` passes never skip; conditional passes skip only when their predicate is false. You ALWAYS evaluate every predicate yourself against the actual change: a ticket declaration may ADD a pass, never cancel one whose predicate fired.
 
-1. **Ingest + completeness gate** (ALWAYS). Fetch the complete ticket, including native relations: scope, AC, DoD, edge cases, declared passes, blockers. If `.void/active.md` scopes the ticket, also read its global plan and spec. Confirm the ticket is ready and nothing is missing or ambiguous. If a gap or uncovered angle exists, loop back to `harness:ticket` to complete it before coding, do not paper over it. For a tracker-backed ticket, move it to **In Progress** and assign it to the current maintainer before the first implementation edit. Load or compile the canonical mission plan and verify its hash before any specialist invocation; missing or conflicting plan data is degraded, not guessed.
-2. **Architecture pass** (IF it touches structure, a module boundary, the data model, or public types). Compose `harness:hexagonal-architecture`, `harness:domain-driven-design`, agents `type-design-analyzer` + `doctrine-critic`. Confirm the applicable ADR is honored.
-3. **Migration safety** (IF it changes a DB schema or ships a migration). Compose `harness:migrations` (and `harness-server:drizzle-migration-safe` on a Drizzle/Postgres stack): zero-downtime, two-phase, batched backfill, locking analysis. **Once the migration is generated and safety-reviewed, apply it to the dev/local database before the TDD and E2E passes run** — otherwise those tests execute against a stale schema and prove nothing about the new shape. **This cycle only ever applies to dev/local; production migrations run through CI / GitHub Actions on merge, never from a worker or this session** (see the `harness:migrations` anti-rule). A schema change must never reach the rest of the cycle without this pass.
-4. **TDD implementation** (ALWAYS). The single lead writer composes `harness:tdd` + `harness:testing`. Red, green, refactor. Unit tests for the behavior, green before moving on. Review specialists remain read-only.
-5. **Async + idempotency** (IF it sends email, calls an external side-effecting API, enqueues a job, or mints a single-use token). Compose `harness:async-safety`: idempotency keys, replay/dedup window, bounded retries, single-use enforcement.
+1. **Ingest + completeness gate** (ALWAYS). Fetch the complete ticket, including native relations: scope, AC, DoD, edge cases, declared passes, blockers. If `.void/active.md` scopes the ticket, also read its global plan and spec. Confirm the ticket is ready and nothing is missing or ambiguous. If a gap or uncovered angle exists, loop back to `ticket` to complete it before coding, do not paper over it. For a tracker-backed ticket, move it to **In Progress** and assign it to the current maintainer before the first implementation edit. Load or compile the canonical mission plan and verify its hash before any specialist invocation; missing or conflicting plan data is degraded, not guessed.
+2. **Architecture pass** (IF it touches structure, a module boundary, the data model, or public types). Compose `hexagonal-architecture`, `domain-driven-design`, agents `type-design-analyzer` + `doctrine-critic`. Confirm the applicable ADR is honored.
+3. **Migration safety** (IF it changes a DB schema or ships a migration). Compose `migrations` (and `drizzle-migration-safe` on a Drizzle/Postgres stack): zero-downtime, two-phase, batched backfill, locking analysis. **Once the migration is generated and safety-reviewed, apply it to the dev/local database before the TDD and E2E passes run** — otherwise those tests execute against a stale schema and prove nothing about the new shape. **This cycle only ever applies to dev/local; production migrations run through CI / GitHub Actions on merge, never from a worker or this session** (see the `migrations` anti-rule). A schema change must never reach the rest of the cycle without this pass.
+4. **TDD implementation** (ALWAYS). The single lead writer composes `tdd` + `testing`. Red, green, refactor. Unit tests for the behavior, green before moving on. Review specialists remain read-only.
+5. **Async + idempotency** (IF it sends email, calls an external side-effecting API, enqueues a job, or mints a single-use token). Compose `async-safety`: idempotency keys, replay/dedup window, bounded retries, single-use enforcement.
 6. **End-to-end tests** (IF it touches a user-facing flow). Write/extend the E2E suite (Playwright). The path a user actually walks, not just the unit.
-7. **UX/UI pass** (IF it touches a UI surface). The interface is held to production craft, not just "it renders". Compose `harness:frontend-design` (build-time craft) + `harness:ui-review` (the audit/critique ceiling: AI-slop test, squint test, interaction-state coverage, technical audit) + `harness:accessibility`, across the baseline (BACK+FRONT parity, mobile and desktop, and the states a user actually hits — loading / error / empty). Browser-verified QA (live screenshots) runs via `harness:qa` (the claude-in-chrome MCP). A UI ticket is not shippable until this pass is **verified, not assumed**.
-8. **Security pass** (ALWAYS a quick scan; DEEP if it touches a trust boundary: external input, auth, RLS/tenancy, untrusted content, secrets, or a side-effecting action). Compose `harness:security-guidance` + `harness:security-audit`.
-9. **Review** (ALWAYS). Run the canonical team orchestration above. Compose `harness:code-review` for the integration lens; `doctrine-critic`, `silent-failure-hunter`, and project reviewers may add scoped findings but never replace the required Architecture, Security, and QA completion events. Findings are deduplicated by concrete evidence, not reviewer majority. On a high-stakes diff, add one independent fresh-context adversarial pass; classify each finding FIXABLE vs INVESTIGATE and name the single most exploitable finding. *Vendored from gstack `/ship`.*
-10. **Verification before completion** (ALWAYS). Compose `harness:verify`: typecheck, tests, hooks, both viewports, all observed not assumed. **A red suite is adjudicated before proceeding** (from gstack `/ship`): each failure is *in-branch* (you touched the test/code, or it traces to the diff → it is yours, fix it) or *pre-existing* (neither touched → offer fix / TODO / skip); ambiguous defaults to in-branch. Test on the **merged base**, not the stale branch. The controller may return `verified` only when every applicable specialist completion and required proof is fresh.
-11. **Ship** (ALWAYS). Compose `harness:commit-discipline`, open the PR, attach the PR and verification evidence, then move a tracker-backed ticket to **In Review**. Move it to **Done** only after merge and final verification of the merged state. Commits are **bisectable** — one logical change each, dependency-ordered (infra → domain + tests → edge/UI + tests), each independently valid. Under autopilot the worker never opens the PR or changes review state (the reconciler does); it stops at a green committed branch.
+7. **UX/UI pass** (IF it touches a UI surface). The interface is held to production craft, not just "it renders". Compose `frontend-design` (build-time craft) + `ui-review` (the audit/critique ceiling: AI-slop test, squint test, interaction-state coverage, technical audit) + `accessibility`, across the baseline (BACK+FRONT parity, mobile and desktop, and the states a user actually hits — loading / error / empty). Browser-verified QA (live screenshots) runs via `qa` (the claude-in-chrome MCP). A UI ticket is not shippable until this pass is **verified, not assumed**.
+8. **Security pass** (ALWAYS a quick scan; DEEP if it touches a trust boundary: external input, auth, RLS/tenancy, untrusted content, secrets, or a side-effecting action). Compose `security-guidance` + `security-audit`.
+9. **Review** (ALWAYS). Run the canonical team orchestration above. Compose `code-review` for the integration lens; `doctrine-critic`, `silent-failure-hunter`, and project reviewers may add scoped findings but never replace the required Architecture, Security, and QA completion events. Findings are deduplicated by concrete evidence, not reviewer majority. On a high-stakes diff, add one independent fresh-context adversarial pass; classify each finding FIXABLE vs INVESTIGATE and name the single most exploitable finding. *Vendored from gstack `/ship`.*
+10. **Verification before completion** (ALWAYS). Compose `verify`: typecheck, tests, hooks, both viewports, all observed not assumed. **A red suite is adjudicated before proceeding** (from gstack `/ship`): each failure is *in-branch* (you touched the test/code, or it traces to the diff → it is yours, fix it) or *pre-existing* (neither touched → offer fix / TODO / skip); ambiguous defaults to in-branch. Test on the **merged base**, not the stale branch. The controller may return `verified` only when every applicable specialist completion and required proof is fresh.
+11. **Ship** (ALWAYS). Compose `commit-discipline`, open the PR, attach the PR and verification evidence, then move a tracker-backed ticket to **In Review**. Move it to **Done** only after merge and final verification of the merged state. Commits are **bisectable** — one logical change each, dependency-ordered (infra → domain + tests → edge/UI + tests), each independently valid. Under autopilot the worker never opens the PR or changes review state (the reconciler does); it stops at a green committed branch.
 
 ---
 
@@ -138,8 +128,8 @@ Tokens follow stakes: mechanical work runs cheap, judgment runs at full strength
 - **Mechanical (may run a cheaper model)**: the ingest read, artifact/mirror regeneration, a trivial edit whose predicate fired nothing else.
 - **Judgment (stay top-tier)**: architecture, DEEP security, the review adversarial pass, verification adjudication of a red suite, and any brainstorm/design step.
 - **Subagents carry their own tier**: `doctrine-critic` / `silent-failure-hunter` / `code-explorer` run sonnet; `type-design-analyzer` runs sonnet, `migration-planner` opus (see the agent frontmatter). This skill composes them; it does not override their tier.
-- **Interactive vs worker**: run interactively, the cycle uses the session model (the human's choice); the tiering above is realized when the cycle runs as a `harness:autopilot` **worker**, where the worker's model is set from the ticket's stakes (`workerTier`, top-tier by default). A light ticket's whole cycle runs cheaper; a high-stakes one stays full-strength.
+- **Interactive vs worker**: run interactively, the cycle uses the session model (the human's choice); the tiering above is realized when the cycle runs as a `autopilot` **worker**, where the worker's model is set from the ticket's stakes (`workerTier`, top-tier by default). A light ticket's whole cycle runs cheaper; a high-stakes one stays full-strength.
 
 ## Composition
 
-Upstream: `harness:ticket` produces the ticket and declares its conditional passes. Caller: `harness:autopilot` runs this once per ticket in parallel worktrees, whole and once. Neither restates a pass of this cycle: it has one owner so a ticket gets the same standard however it was started. The skill conducts; the Mission Engine controller decides state, invalidation, and verdict; native specialists own their bounded reviews.
+Upstream: `ticket` produces the ticket and declares its conditional passes. Caller: `autopilot` runs this once per ticket in parallel worktrees, whole and once. Neither restates a pass of this cycle: it has one owner so a ticket gets the same standard however it was started. The skill conducts; the Mission Engine controller decides state, invalidation, and verdict; native specialists own their bounded reviews.

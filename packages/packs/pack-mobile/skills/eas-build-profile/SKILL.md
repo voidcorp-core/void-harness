@@ -1,16 +1,6 @@
 ---
 name: eas-build-profile
-kind: standard
 description: Configure eas.json profiles (development, preview, production) with the right env, bundle ID, signing, distribution. The 3-profile structure that fits 95% of Expo apps.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # eas-build-profile
@@ -148,7 +138,7 @@ EAS Build embeds an `updates.channel` per build profile:
 }
 ```
 
-`expo-updates` then fetches OTA updates from the matching channel. See `harness-mobile:ota-update-strategy` for the full pattern.
+`expo-updates` then fetches OTA updates from the matching channel. See `ota-update-strategy` for the full pattern.
 
 ## Anti-patterns
 
@@ -168,7 +158,7 @@ If local build succeeds, EAS will too. If it fails, the error is identical — d
 
 ## Composition
 
-- `harness-mobile:expo-config-plugins` — plugins define what's IN the binary; profiles define HOW it's built
-- `harness-mobile:ota-update-strategy` — channel-based OTA aligns with profile names
-- `harness-mobile:expo-router-pattern` — expo-router needs `developmentClient: true` in dev profile
-- `harness-server:env-validation` — runtime env via `extra` validated with same Zod discipline
+- `expo-config-plugins` — plugins define what's IN the binary; profiles define HOW it's built
+- `ota-update-strategy` — channel-based OTA aligns with profile names
+- `expo-router-pattern` — expo-router needs `developmentClient: true` in dev profile
+- `env-validation` — runtime env via `extra` validated with same Zod discipline

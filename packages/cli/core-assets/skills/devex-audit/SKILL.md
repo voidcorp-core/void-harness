@@ -1,24 +1,13 @@
 ---
 name: devex-audit
-kind: action
-activation: on-demand
 description: "Audit an EXISTING dev-facing surface (API/CLI/SDK/docs): measured TTHW, real error-path tracing, evidence-backed DX scorecard, scoped refine. The audit ceiling to plan-review's DevEx-lens."
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # devex-audit — voidcorp craftsman edition
 
 `plan-review`'s DevEx lens judges a *written plan*'s promises before code exists. This skill dogfoods the *shipped* developer-facing surface and measures what a developer actually hits. It is the audit-time ceiling: a deliberate pass over an existing API / CLI / SDK / docs product to measure its real time-to-value, trace its real error paths, score each dimension against evidence, and drive fixes.
 
-Invoke it to critique, score, or improve a deployed dev surface. It proposes findings and scoped edits; it does not design the contract (`harness:api-and-interface-design` owns that) and it does not re-teach the plan-time DevEx checklist (`plan-review` owns that — this skill assumes it and checks the shipped reality against it).
+Invoke it to critique, score, or improve a deployed dev surface. It proposes findings and scoped edits; it does not design the contract (`api-and-interface-design` owns that) and it does not re-teach the plan-time DevEx checklist (`plan-review` owns that — this skill assumes it and checks the shipped reality against it).
 
 **Attribution**: see `.source`. Vendored from gstack `/devex-review` (the live DX audit methodology). The gstack runtime (review-log/dashboard, boomerang bin, hall-of-fame file, telemetry, plan-mode plumbing) is rejected. The live browser driver is deferred to Vague 4 (claude-in-chrome MCP).
 

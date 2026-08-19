@@ -9,7 +9,7 @@ edges:
   - from: skill:brainstorm
     to: skill:plan
     kind: routes-to
-    evidence: "brainstorm SKILL.md: MUST NOT transition to any skill other than harness:plan post-approval"
+    evidence: "brainstorm SKILL.md: MUST NOT transition to any skill other than plan post-approval"
 
   # --- brainstorm compositions ---
   - from: skill:brainstorm
@@ -37,7 +37,7 @@ edges:
   - from: skill:decide
     to: skill:plan
     kind: composes
-    evidence: "decide SKILL.md: Composes with harness:plan (which is plan-the-work-before-coding)"
+    evidence: "decide SKILL.md: Composes with plan (which is plan-the-work-before-coding)"
 
   # --- api-and-interface-design ---
   - from: skill:api-and-interface-design
@@ -78,11 +78,11 @@ edges:
   - from: skill:qa
     to: skill:ui-review
     kind: composes
-    evidence: "qa SKILL.md: for visual/interaction judgment on the live screenshots, compose harness:ui-review. This skill drives the browser; ui-review supplies the craft bar."
+    evidence: "qa SKILL.md: for visual/interaction judgment on the live screenshots, compose ui-review. This skill drives the browser; ui-review supplies the craft bar."
   - from: skill:qa
     to: skill:testing
     kind: composes
-    evidence: "qa SKILL.md: a regression test that reproduces the bug (compose harness:tdd/harness:testing — assert behavior, not it renders)."
+    evidence: "qa SKILL.md: a regression test that reproduces the bug (compose tdd/testing — assert behavior, not it renders)."
   - from: skill:qa
     to: skill:tdd
     kind: composes
@@ -90,7 +90,7 @@ edges:
   - from: skill:ui-review
     to: skill:qa
     kind: composes
-    evidence: "ui-review SKILL.md: the browser home for the live layer is harness:qa; compose harness:qa rather than reviewing from code alone."
+    evidence: "ui-review SKILL.md: the browser home for the live layer is qa; compose qa rather than reviewing from code alone."
 
   # --- async-safety ---
   - from: skill:async-safety
@@ -322,18 +322,18 @@ edges:
   - from: skill:pack-nextjs/instrumentation-setup
     to: skill:observability
     kind: composes
-    evidence: "pack-nextjs/instrumentation-setup SKILL.md: Composes with harness:observability (the doctrine: pino, structured logs, Sentry user scope)."
+    evidence: "pack-nextjs/instrumentation-setup SKILL.md: Composes with observability (the doctrine: pino, structured logs, Sentry user scope)."
 
   - from: skill:pack-nextjs/loading-error-boundaries
     to: skill:observability
     kind: composes
-    evidence: "pack-nextjs/loading-error-boundaries SKILL.md: Log to Sentry (composes with harness:observability)"
+    evidence: "pack-nextjs/loading-error-boundaries SKILL.md: Log to Sentry (composes with observability)"
 
   # --- pack-react ---
   - from: skill:pack-react/accessibility-check
     to: skill:accessibility
     kind: composes
-    evidence: "pack-react/accessibility-check SKILL.md: Composes with harness:accessibility (the generic doctrine and Radix-as-primitive philosophy)."
+    evidence: "pack-react/accessibility-check SKILL.md: Composes with accessibility (the generic doctrine and Radix-as-primitive philosophy)."
 
   - from: skill:pack-react/form-pattern
     to: skill:pack-server/server-action
@@ -359,12 +359,12 @@ edges:
   - from: skill:pack-server/env-validation
     to: skill:security-guidance
     kind: composes
-    evidence: "pack-server/env-validation SKILL.md: Composes with harness:security-guidance (env doctrine)"
+    evidence: "pack-server/env-validation SKILL.md: Composes with security-guidance (env doctrine)"
 
   - from: skill:pack-server/drizzle-migration-safe
     to: skill:migrations
     kind: composes
-    evidence: "pack-server/drizzle-migration-safe SKILL.md: Composes with harness:migrations (the generic doctrine); this skill ships the concrete Drizzle patterns."
+    evidence: "pack-server/drizzle-migration-safe SKILL.md: Composes with migrations (the generic doctrine); this skill ships the concrete Drizzle patterns."
 
   # --- Agent compositions (skills that invoke read-only agents) ---
   - { from: skill:code-review, to: agent:doctrine-critic, kind: composes, evidence: "code-review SKILL.md: composes agent doctrine-critic for doctrine conformance" }
@@ -373,6 +373,24 @@ edges:
   - { from: skill:implement, to: agent:doctrine-critic, kind: composes, evidence: "implement SKILL.md: Review pass composes agents doctrine-critic + silent-failure-hunter" }
   - { from: skill:implement, to: agent:silent-failure-hunter, kind: composes, evidence: "implement SKILL.md: Review pass composes agent silent-failure-hunter" }
   - { from: skill:implement, to: agent:type-design-analyzer, kind: composes, evidence: "implement SKILL.md: Architecture pass composes agents type-design-analyzer + doctrine-critic" }
+  # --- implement compositions: the eleven-pass cycle every ticket runs through ---
+  - { from: skill:implement, to: skill:hexagonal-architecture, kind: composes, evidence: "implement SKILL.md: Architecture pass: Compose hexagonal-architecture, domain-driven-design" }
+  - { from: skill:implement, to: skill:domain-driven-design, kind: composes, evidence: "implement SKILL.md: Architecture pass: Compose hexagonal-architecture, domain-driven-design" }
+  - { from: skill:implement, to: skill:migrations, kind: composes, evidence: "implement SKILL.md: Migration safety pass: Compose migrations, zero-downtime, two-phase, batched backfill" }
+  - { from: skill:implement, to: skill:tdd, kind: composes, evidence: "implement SKILL.md: TDD implementation pass: The single lead writer composes tdd + testing" }
+  - { from: skill:implement, to: skill:testing, kind: composes, evidence: "implement SKILL.md: TDD implementation pass: The single lead writer composes tdd + testing" }
+  - { from: skill:implement, to: skill:async-safety, kind: composes, evidence: "implement SKILL.md: Async + idempotency pass: Compose async-safety, idempotency keys, replay/dedup window" }
+  - { from: skill:implement, to: skill:frontend-design, kind: composes, evidence: "implement SKILL.md: UX/UI pass: Compose frontend-design (build-time craft)" }
+  - { from: skill:implement, to: skill:ui-review, kind: composes, evidence: "implement SKILL.md: UX/UI pass: Compose ui-review, the audit/critique ceiling" }
+  - { from: skill:implement, to: skill:accessibility, kind: composes, evidence: "implement SKILL.md: UX/UI pass: Compose frontend-design + ui-review + accessibility" }
+  - { from: skill:implement, to: skill:qa, kind: composes, evidence: "implement SKILL.md: UX/UI pass: Browser-verified QA (live screenshots) runs via qa" }
+  - { from: skill:implement, to: skill:security-guidance, kind: composes, evidence: "implement SKILL.md: Security pass: Compose security-guidance + security-audit" }
+  - { from: skill:implement, to: skill:security-audit, kind: composes, evidence: "implement SKILL.md: Security pass: Compose security-guidance + security-audit" }
+  - { from: skill:implement, to: skill:code-review, kind: composes, evidence: "implement SKILL.md: Review pass: Compose code-review for the integration lens" }
+  - { from: skill:implement, to: skill:verify, kind: composes, evidence: "implement SKILL.md: Verification before completion pass: Compose verify, typecheck, tests, hooks, both viewports" }
+  - { from: skill:implement, to: skill:commit-discipline, kind: composes, evidence: "implement SKILL.md: Ship pass: Compose commit-discipline, open the PR, attach the evidence" }
+  - { from: skill:ticket, to: skill:implement, kind: routes-to, evidence: "implement SKILL.md: Upstream: ticket produces the ticket and declares its conditional passes" }
+  - { from: skill:autopilot, to: skill:implement, kind: invokes, evidence: "implement SKILL.md: Caller: autopilot runs this once per ticket in parallel worktrees, whole and once" }
   - { from: skill:context, to: agent:code-explorer, kind: composes, evidence: "context SKILL.md: Delegate heavy investigation to fresh-context subagents — code-explorer is that read-only mapper" }
   - { from: agent:migration-planner, to: skill:migrations, kind: companion-of, evidence: "migration-planner: Read-only planner ... Complements migrations" }
   - { from: agent:migration-planner, to: skill:plan, kind: routes-to, evidence: "migration-planner: Planning only ... routes execution to tdd/plan" }

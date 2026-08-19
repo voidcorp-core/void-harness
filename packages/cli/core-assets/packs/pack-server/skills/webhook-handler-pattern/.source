@@ -2,6 +2,6 @@ Sources for `webhook-handler-pattern` skill (see plans/skill-audits/webhook-hand
 
 - No external source audited — native distillation of canonical per-source webhook patterns.
 - Per-source patterns referenced (not vendored): Stripe, Resend, GitHub signature/idempotency/retry semantics.
-- Doctrine referenced: `harness:async-safety` (stack-agnostic retry/idempotency/dead-letter).
+- Doctrine referenced: `async-safety` (stack-agnostic retry/idempotency/dead-letter).
 
 Strategy: distill. Per-source handler patterns distilled into the 5 non-negotiable layers; no upstream skill was copied.

@@ -1,23 +1,13 @@
 ---
 name: package-extraction
-kind: standard
 description: Decide whether code in apps/<app>/ should be extracted into a new packages/<name>/ workspace. Most extractions are premature; this skill is the decision gate.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # package-extraction
 
 Use when you are tempted to move code out of `apps/<app>/src/` into a new `packages/<name>/`. The instinct is good — sharing is virtuous — but **80% of extractions are premature** and end up creating coupling without the reuse benefit.
 
-This skill is the gate. Composes with `harness-monorepo:service-package` (which is the creation workflow once you've decided yes).
+This skill is the gate. Composes with `service-package` (which is the creation workflow once you've decided yes).
 
 ## When this skill triggers
 
@@ -65,8 +55,8 @@ The cheap fix is to NOT extract until forced.
 1. **Inline the duplication first.** Write the code in both apps. Live with it for one full feature cycle.
 2. **Observe drift.** Are the two copies diverging? If yes, they were never the same concept — keep them separate. If they stay identical, you have a real case for extraction.
 3. **Name the boundary in one sentence.** "This package owns <X>, exposes <Y>, is consumed by <Z>." If you can't, you're not ready.
-4. **Run `harness-monorepo:service-package`** to create it properly (5+5 layout, port direction).
-5. **Open a PR with ADR.** Extraction is structural; document via `harness-monorepo:decide`.
+4. **Run `service-package`** to create it properly (5+5 layout, port direction).
+5. **Open a PR with ADR.** Extraction is structural; document via `decide`.
 
 ## Reverse: when to UN-extract
 
@@ -74,7 +64,7 @@ A package with one consumer for 6+ months should be inlined back. The boundary w
 
 ## Composition
 
-- `harness-monorepo:service-package` — the creation workflow (use this skill to decide, that one to create).
-- `harness-monorepo:decide` — extractions are ADR-worthy.
-- `harness-monorepo:dependency-direction` — extracted packages must respect `@repo/*` import direction.
-- `harness:hexagonal-architecture` — extracted packages own ports; adapters live in consumer apps.
+- `service-package` — the creation workflow (use this skill to decide, that one to create).
+- `decide` — extractions are ADR-worthy.
+- `dependency-direction` — extracted packages must respect `@repo/*` import direction.
+- `hexagonal-architecture` — extracted packages own ports; adapters live in consumer apps.

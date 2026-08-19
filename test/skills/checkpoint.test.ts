@@ -17,10 +17,6 @@ const SKILL = readFileSync(
   new URL('../../packages/core/skills/checkpoint/SKILL.md', import.meta.url),
   'utf8',
 );
-const COMMAND = readFileSync(
-  new URL('../../packages/core/commands/checkpoint.md', import.meta.url),
-  'utf8',
-);
 
 function frontmatter(source: string): string {
   return /^---\r?\n([\s\S]*?)\r?\n---/.exec(source)?.[1] ?? '';
@@ -37,7 +33,10 @@ function flat(source: string): string {
 
 describe('checkpoint frontmatter', () => {
   it('declares both runtimes, because a handoff is not a Claude-only artefact', () => {
-    expect(frontmatter(SKILL)).toContain('runtimes: [claude, codex]');
+    // The runtimes declaration is harness metadata, so it lives in the sidecar:
+    // a SKILL.md carries only the six fields the Agent Skills spec defines.
+    expect(readFileSync(new URL('../../packages/core/skills/checkpoint/harness.yaml', import.meta.url), 'utf8'))
+      .toContain('runtimes: [claude, codex]');
   });
 
   it('keeps its description within the discovery budget', () => {
@@ -100,7 +99,6 @@ describe('what it refuses to become', () => {
 
   it('keeps closing a session apart from completing a unit of work', () => {
     expect(flat(body(SKILL))).toMatch(/a session ending is not a unit completing/i);
-    expect(flat(COMMAND)).toMatch(/a session ending is not a unit completing/i);
   });
 
   it('refuses to carry a secret into a shared destination', () => {
