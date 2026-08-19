@@ -53,6 +53,19 @@ with native subagents. Both read the *same* `OrchestrationPlan` and return the *
 
 ---
 
+## Where the target comes from
+
+The run takes no argument in the normal case. `.void/active.md` names the tracker, the scope and
+the base, so there is nothing to repoint and nothing to ask: not which ticket, not which cluster,
+not which run id, not which tracker.
+
+That file is also the consent, and consent is never inferred. An absent `.void/active.md`, a
+`status` other than `executing`, an `autopilot` block that is missing or unreadable, or
+`autopilot.enabled: false` all mean the same thing — say so and stop. Inventing a target here
+claims tickets nobody agreed to hand over.
+
+---
+
 ## The cycle
 
 1. **Preflight.** Prove the runtime adapter, the connectors, git permissions, the base branch

@@ -17,10 +17,6 @@ const SKILL = readFileSync(
   new URL('../../packages/core/skills/checkpoint/SKILL.md', import.meta.url),
   'utf8',
 );
-const COMMAND = readFileSync(
-  new URL('../../packages/core/commands/checkpoint.md', import.meta.url),
-  'utf8',
-);
 
 function frontmatter(source: string): string {
   return /^---\r?\n([\s\S]*?)\r?\n---/.exec(source)?.[1] ?? '';
@@ -100,7 +96,6 @@ describe('what it refuses to become', () => {
 
   it('keeps closing a session apart from completing a unit of work', () => {
     expect(flat(body(SKILL))).toMatch(/a session ending is not a unit completing/i);
-    expect(flat(COMMAND)).toMatch(/a session ending is not a unit completing/i);
   });
 
   it('refuses to carry a secret into a shared destination', () => {

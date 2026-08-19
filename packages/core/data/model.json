@@ -212,26 +212,6 @@
       "type": "agent"
     },
     {
-      "description": "Drain a bounded cluster of independent ready tickets — each worked end-to-end by implement in its own worktree — into one integration PR the human merges.",
-      "id": "command:autopilot",
-      "lines": 38,
-      "name": "autopilot",
-      "pack": null,
-      "source": "packages/core/commands/autopilot.md",
-      "staticTokens": 574,
-      "type": "command"
-    },
-    {
-      "description": "Close the current work session gracefully — before a clear, an interruption, or the end of a day. Route each fact to where state lives, then write the residue the next session cannot re-derive.",
-      "id": "command:checkpoint",
-      "lines": 25,
-      "name": "checkpoint",
-      "pack": null,
-      "source": "packages/core/commands/checkpoint.md",
-      "staticTokens": 370,
-      "type": "command"
-    },
-    {
       "description": "Run the outbound audit from local mission events and surface stale skills, upstream deprecations, conflicts, and HITL proposals.",
       "id": "command:void-audit",
       "lines": 13,
@@ -863,7 +843,7 @@
         }
       ],
       "id": "skill:autopilot",
-      "lines": 162,
+      "lines": 175,
       "name": "autopilot",
       "owner": "folpe",
       "pack": null,
@@ -872,7 +852,7 @@
         "codex"
       ],
       "source": "packages/core/skills/autopilot/SKILL.md",
-      "staticTokens": 2308,
+      "staticTokens": 2455,
       "type": "skill"
     },
     {
@@ -923,7 +903,7 @@
         }
       ],
       "id": "skill:checkpoint",
-      "lines": 231,
+      "lines": 235,
       "name": "checkpoint",
       "owner": "folpe",
       "pack": null,
@@ -932,7 +912,7 @@
         "codex"
       ],
       "source": "packages/core/skills/checkpoint/SKILL.md",
-      "staticTokens": 2758,
+      "staticTokens": 2811,
       "type": "skill"
     },
     {

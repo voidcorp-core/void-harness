@@ -165,6 +165,25 @@ while IFS= read -r f; do
   fi
 done <<<"$SKILL_FILES"
 
+# One slash command, one owner. Claude Code answers `/<name>` from a skill at
+# skills/<name>/SKILL.md and from a command at commands/<name>.md alike, so a name
+# living in both is listed twice in the palette, each entry carrying its own
+# description. The two descriptions drift the moment one side is edited, and the
+# person typing the name is asked to pick between them. `/checkpoint` shipped that
+# way, advertising two different jobs for one skill.
+echo "  slash command name has a single owner"
+for root in packages/core packages/packs/*; do
+  [[ -d "$root/commands" ]] || continue
+  for f in "$root"/commands/*.md; do
+    [[ -e "$f" ]] || continue
+    NAME=$(basename "$f" .md)
+    if [[ -f "$root/skills/$NAME/SKILL.md" ]]; then
+      echo "    FAIL: '$NAME' is both $root/commands/$NAME.md and $root/skills/$NAME/SKILL.md" >&2
+      FAILED=1
+    fi
+  done
+done
+
 if [[ "$FAILED" -eq 0 ]]; then
   echo "anti-bloat-check: all checks passed."
 else

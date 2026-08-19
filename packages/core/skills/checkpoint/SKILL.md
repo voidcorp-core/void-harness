@@ -75,6 +75,10 @@ reference it. A checkpoint that promises "I'll file this later" is where facts g
 
 ## Step 1 — Write what nothing else holds
 
+An argument passed with the invocation is what the human specifically wants carried
+over. Cover it, but never let it stand in for the routing above: what they name is one
+item of the residue, not the whole of it.
+
 In this order, because it is the order the next session needs it.
 
 **1. Where you are.** Branch, worktree, the ticket or unit, and whether anything is uncommitted.

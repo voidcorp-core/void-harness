@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:6909c4e770fb69dd6bfc43718768edba93806c85c3f2abf28a73ea7fa4039338"
+    "rootHash": "sha256:ac4d530a758ac2d53ce04b1f3be645efde85a19bca9eff910c3be8a16bb8c6e5"
   },
   "nodes": [
     {
@@ -591,62 +591,6 @@
           {
             "kind": "path",
             "ref": "packages/core/agents/visual-craft-director.md",
-            "hashOrVersion": "catalog-v1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:command:command:autopilot",
-      "kind": "command",
-      "label": "autopilot",
-      "data": {
-        "legacy": {
-          "description": "Drain a bounded cluster of independent ready tickets — each worked end-to-end by implement in its own worktree — into one integration PR the human merges.",
-          "id": "command:autopilot",
-          "lines": 38,
-          "name": "autopilot",
-          "pack": null,
-          "source": "packages/core/commands/autopilot.md",
-          "staticTokens": 574,
-          "type": "command"
-        }
-      },
-      "provenance": {
-        "origin": "extracted",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "path",
-            "ref": "packages/core/commands/autopilot.md",
-            "hashOrVersion": "catalog-v1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:command:command:checkpoint",
-      "kind": "command",
-      "label": "checkpoint",
-      "data": {
-        "legacy": {
-          "description": "Close the current work session gracefully — before a clear, an interruption, or the end of a day. Route each fact to where state lives, then write the residue the next session cannot re-derive.",
-          "id": "command:checkpoint",
-          "lines": 25,
-          "name": "checkpoint",
-          "pack": null,
-          "source": "packages/core/commands/checkpoint.md",
-          "staticTokens": 370,
-          "type": "command"
-        }
-      },
-      "provenance": {
-        "origin": "extracted",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "path",
-            "ref": "packages/core/commands/checkpoint.md",
             "hashOrVersion": "catalog-v1"
           }
         ]
@@ -2243,7 +2187,7 @@
             }
           ],
           "id": "skill:autopilot",
-          "lines": 162,
+          "lines": 175,
           "name": "autopilot",
           "owner": "folpe",
           "pack": null,
@@ -2252,7 +2196,7 @@
             "codex"
           ],
           "source": "packages/core/skills/autopilot/SKILL.md",
-          "staticTokens": 2308,
+          "staticTokens": 2455,
           "type": "skill"
         }
       },
@@ -2339,7 +2283,7 @@
             }
           ],
           "id": "skill:checkpoint",
-          "lines": 231,
+          "lines": 235,
           "name": "checkpoint",
           "owner": "folpe",
           "pack": null,
@@ -2348,7 +2292,7 @@
             "codex"
           ],
           "source": "packages/core/skills/checkpoint/SKILL.md",
-          "staticTokens": 2758,
+          "staticTokens": 2811,
           "type": "skill"
         }
       },
