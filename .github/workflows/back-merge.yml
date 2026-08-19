@@ -72,11 +72,15 @@ jobs:
 
           existing=$(gh pr list --head "$branch" --base develop --state open --json number --jq '.[0].number // empty')
           if [ -z "$existing" ]; then
+            # printf rather than a literal multi-line string: a body line at
+            # column zero ends the YAML block scalar, which is what made this
+            # workflow unparseable on its first real run. The sibling workflow
+            # survived only because it already used this form.
             (gh pr create --base develop --head "$branch" \
               --title 'chore: back-merge main into develop' \
-              --body 'Release-please writes the version bumps and the changelog to `main`, so `main` gains commits `develop` does not have and branch protection refuses the next promotion until they meet. This carries them back down.
-
-Merged automatically once the required checks pass, and only then. Its whole content is the release output a human already approved by merging the release pull request; asking for it to be read a second time is ceremony, not review. Anything carrying a diff nobody has read still stops at a human, which is why `autopilot` refuses `--auto-merge` and this does not.' \
+              --body "$(printf '%s\n\n%s\n' \
+                'Release-please writes the version bumps and the changelog to `main`, so `main` gains commits `develop` does not have and branch protection refuses the next promotion until they meet. This carries them back down.' \
+                'Merged automatically once the required checks pass, and only then. Its whole content is the release output a human already approved by merging the release pull request; asking for it to be read a second time is ceremony, not review. Anything carrying a diff nobody has read still stops at a human, which is why autopilot refuses --auto-merge and this does not.')" \
               >/dev/null)
             # `gh pr create` prints a URL, not JSON, so the number is read back
             # from the branch rather than parsed out of its output.
