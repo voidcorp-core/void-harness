@@ -7,6 +7,8 @@ import {
   type RuleName,
 } from './enforcement/runner.js';
 import { governingSkill, RULE_NAMES, withGoverningSkill } from './enforcement/governing-skill.js';
+import { installedSkillNames, invocationAlert, resolutionVerdict } from './invocation.js';
+import { readMissionJournals } from './journal.js';
 import { sessionStartOutput } from './lifecycle/context.js';
 import { resolveInstall } from './lifecycle/context-executor.js';
 import { readFreshnessCache } from './freshness/cache.js';
@@ -22,6 +24,12 @@ import {
   recordRuntimeEventFromCli,
 } from './record.js';
 import type { AgentRuntime } from './runtime-input.js';
+
+// How far back the session banner looks. Bounded on purpose: the whole journal of
+// this repository is 11 MB, and a banner that reads it all trades a slow launch
+// every session for evidence nobody asked for. Twenty missions covers weeks of
+// work at the observed rate.
+const BANNER_MISSIONS = 20;
 
 // One inventory of the rules, shared with the table that names each rule's
 // doctrine. A second list here would drift from that one, silently, and a rule
@@ -142,7 +150,15 @@ async function runLifecycle(input: Uint8Array): Promise<void> {
       cached === undefined
         ? undefined
         : freshnessNotice(compareFreshness(install.version, cached.latest), install.source);
-    process.stdout.write(`${JSON.stringify(sessionStartOutput(install.version, notice))}\n`);
+    // The harness cannot see an invocation the runtime refused, so what it reads
+    // here is the trace one leaves: a name it recorded that no longer resolves.
+    const alert = invocationAlert(
+      resolutionVerdict(
+        readMissionJournals(root, { recentMissions: BANNER_MISSIONS }),
+        installedSkillNames(root),
+      ),
+    );
+    process.stdout.write(`${JSON.stringify(sessionStartOutput(install.version, notice, alert))}\n`);
     await refreshFreshnessInBackground(install.version);
     await observeHook(hook, execution, rawInput ?? {}, agentRuntime, root);
     return;
