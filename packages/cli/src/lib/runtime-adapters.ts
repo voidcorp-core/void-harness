@@ -275,6 +275,7 @@ const claudeAdapter: RuntimeAdapter = {
     const docResult = await patchRuntimeDoc(ctx.projectRoot, 'claude', {
       enabledPlugins: ctx.enabledPlugins,
       enabledPacks: ctx.enabledPacks,
+      channel: ctx.source,
     });
     // `.claude/` holds engine-format files this repo wrote. Left inside the
     // project's lint glob they fail on code the project does not own.
@@ -449,6 +450,7 @@ const codexAdapter: RuntimeAdapter = {
     const docResult = await patchRuntimeDoc(ctx.projectRoot, 'codex', {
       enabledPlugins: ctx.enabledPlugins,
       enabledPacks: ctx.enabledPacks,
+      channel: ctx.source,
     });
     return {
       statusLines: [
