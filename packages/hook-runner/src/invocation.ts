@@ -160,6 +160,8 @@ export interface LivenessVerdict {
   readonly missions: number;
   /** Tool calls across those missions, the evidence that they worked. */
   readonly toolCalls: number;
+  /** Skill activations across those missions. Context for `doctor`, never a threshold. */
+  readonly skillCalls: number;
 }
 
 /** Tool calls below which a mission proves nothing and is not judged. */
@@ -190,8 +192,9 @@ export function livenessVerdict(body: string): LivenessVerdict {
     .slice(0, LIVENESS_WINDOW);
 
   const toolCalls = judged.reduce((total, tally) => total + tally.toolCalls, 0);
+  const skillCalls = judged.reduce((total, tally) => total + tally.skillCalls, 0);
   // Under a full window there is no verdict to give: two silent missions are a
   // quiet week, and crying on them is how a guardrail gets turned off.
   const ok = judged.length < LIVENESS_WINDOW || judged.some((tally) => tally.skillCalls > 0);
-  return { ok, missions: judged.length, toolCalls };
+  return { ok, missions: judged.length, toolCalls, skillCalls };
 }

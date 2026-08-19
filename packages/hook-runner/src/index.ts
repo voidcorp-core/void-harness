@@ -1,5 +1,13 @@
 export { readMissionJournals, type JournalReadOptions } from './journal.js';
 export {
+  installedSkillNames,
+  invocationAlert,
+  type LivenessVerdict,
+  livenessVerdict,
+  type ResolutionVerdict,
+  resolutionVerdict,
+} from './invocation.js';
+export {
   classifyMaterialized,
   DERIVED_LOAD_BEARING,
   derivedIgnoreEntries,

@@ -96,7 +96,7 @@ describe('resolutionVerdict', () => {
   });
 });
 
-const ALIVE = { ok: true, missions: 3, toolCalls: 300 } as const;
+const ALIVE = { ok: true, missions: 3, toolCalls: 300, skillCalls: 6 } as const;
 const RESOLVES = { ok: true, unresolved: [] } as const;
 
 describe('invocationAlert', () => {
@@ -111,13 +111,13 @@ describe('invocationAlert', () => {
   });
 
   it('reports the silence with the evidence that the missions actually worked', () => {
-    const alert = invocationAlert(RESOLVES, { ok: false, missions: 3, toolCalls: 1464 }) ?? '';
+    const alert = invocationAlert(RESOLVES, { ok: false, missions: 3, toolCalls: 1464, skillCalls: 0 }) ?? '';
     expect(alert).toContain('3');
     expect(alert).toContain('1464');
   });
 
   it('carries both findings in one block rather than two banners', () => {
-    const alert = invocationAlert({ ok: false, unresolved: ['ticket-writer'] }, { ok: false, missions: 3, toolCalls: 900 }) ?? '';
+    const alert = invocationAlert({ ok: false, unresolved: ['ticket-writer'] }, { ok: false, missions: 3, toolCalls: 900, skillCalls: 0 }) ?? '';
     expect(alert.split('\n')).toHaveLength(4);
     expect(alert).toContain('ticket-writer');
     expect(alert).toContain('900');
@@ -220,5 +220,10 @@ describe('livenessVerdict', () => {
 
   it('passes on an empty journal rather than calling a fresh project dead', () => {
     expect(livenessVerdict('').ok).toBe(true);
+  });
+
+  it('reports the activations it did count, which doctor shows as context and never judges on', () => {
+    const body = [mission('mis_1', 30, 2, '01'), mission('mis_2', 30, 0, '02'), mission('mis_3', 30, 0, '03')].join('\n');
+    expect(livenessVerdict(body).skillCalls).toBe(2);
   });
 });
