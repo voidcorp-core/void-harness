@@ -12,12 +12,12 @@
 import { execFileSync } from 'node:child_process';
 import { isMachineEntry, pendingMigrations, VOID_MACHINE_DIR } from '@voidcorp/hook-runner';
 import { judgeInvocation, observeInvocation } from '../lib/invocation-health.js';
-import { judgeLayout, type LayoutObservation, type ManifestObservation } from '../lib/void-hygiene.js';
+import { judgeLayout, judgeProjectSkills, type LayoutObservation, type ManifestObservation } from '../lib/void-hygiene.js';
 import { observedWriteCandidates, type ObservedPathObservation } from '../lib/observed-write-paths.js';
 import { INSTALL_MANIFEST_PATH, parseInstallManifest, verifyInstallManifest } from '../lib/install-manifest.js';
 import { type DiscoveredAsset, looksHarnessAuthored, orphanedAssets } from '../lib/orphaned-assets.js';
 import { ownedDerivedPaths } from '../lib/void-migration.js';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { type Dirent, existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { readActiveProgram } from '../lib/autopilot/active-program.js';
@@ -300,6 +300,10 @@ export async function doctor(args: readonly string[]): Promise<void> {
   // refused calls, so this reads the traces one leaves: a recorded name that no
   // longer resolves, and a silence across missions that demonstrably worked.
   checks.push(judgeInvocation(observeInvocation(root)));
+
+  // The one thing the collapsed ignore block can swallow: a skill this project
+  // wrote by hand, beside the ones the harness generates.
+  checks.push(judgeProjectSkills(observeIgnoredProjectSkills(root)));
 
   // Autopilot's preconditions, but only for a project that declares a program:
   // adding seven checks to every other project would be noise about a feature
@@ -706,4 +710,53 @@ function observeAutopilot(root: string): Parameters<typeof autopilotPreflight>[0
     worktreesUsable: existsSync(join(root, '.git')) ? true : null,
     baseProtected: 'unprobed',
   };
+}
+
+/**
+ * Hand-written skills that git no longer sees.
+ *
+ * A skill is the project's when the install manifest does not claim it. Asked of
+ * git rather than inferred, because whether a path is ignored depends on every
+ * rule in every `.gitignore` above it, and only git knows the answer.
+ *
+ * Returns nothing when there is no manifest to compare against: without it every
+ * skill would look hand-written, and a check that cries on all 41 is a check that
+ * gets ignored.
+ */
+function observeIgnoredProjectSkills(root: string): string[] {
+  let owned: ReadonlySet<string>;
+  try {
+    const manifest = parseInstallManifest(readFileSync(join(root, INSTALL_MANIFEST_PATH), 'utf8'));
+    if (manifest === undefined) return [];
+    owned = new Set(manifest.files.map((file) => file.path));
+  } catch {
+    return [];
+  }
+  const ignored: string[] = [];
+  for (const home of ['.claude/skills', '.agents/skills']) {
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(join(root, ...home.split('/')), { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const relative = `${home}/${entry.name}`;
+      if ([...owned].some((path) => path.startsWith(`${relative}/`))) continue;
+      // `check-ignore` exits 0 when the path IS ignored and non-zero when it is
+      // not, which the sync helper turns into a throw. The throw is the answer
+      // "git can see it", not a failure.
+      try {
+        execFileSync('git', ['check-ignore', '-q', `${relative}/`], {
+          cwd: root,
+          stdio: ['ignore', 'ignore', 'ignore'],
+        });
+        ignored.push(relative);
+      } catch {
+        // Visible to git: nothing to report.
+      }
+    }
+  }
+  return ignored;
 }

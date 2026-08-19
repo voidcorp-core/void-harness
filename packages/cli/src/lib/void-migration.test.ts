@@ -377,11 +377,19 @@ describe('untrackDerived', () => {
         version: '2.5.1',
         files: [{ path: '.claude/skills/tdd/SKILL.md', sha256: 'a'.repeat(64) }],
       }),
+      '.claude/skills/tdd/SKILL.md': '# generated',
     });
+    execFileSync('git', ['init', '-q'], { cwd: root, stdio: 'ignore' });
 
     await migrateVoidLayout(root);
 
-    expect(readFileSync(join(root, '.gitignore'), 'utf8')).toContain('.claude/skills/tdd/');
+    // Asserted by effect, not by the presence of a literal line: the block names
+    // the directory now, and only git can say whether the path is covered.
+    const status = execFileSync('git', ['check-ignore', '.claude/skills/tdd/SKILL.md'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    expect(status.trim()).toBe('.claude/skills/tdd/SKILL.md');
   });
 
   it('refuses to claim anything when neither manifest nor receipt is readable', async () => {

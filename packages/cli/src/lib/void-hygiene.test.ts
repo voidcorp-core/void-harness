@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CheckResult } from './prerequisites.js';
-import { judgeLayout, type LayoutObservation } from './void-hygiene.js';
+import { judgeLayout, judgeProjectSkills, type LayoutObservation } from './void-hygiene.js';
 
 function observation(over: Partial<LayoutObservation> = {}): LayoutObservation {
   return {
@@ -144,3 +144,25 @@ describe('void orphans', () => {
     expect(orphans({ orphanedAssets: ['a', 'b'] }).ok).toBe(true);
   });
 })
+
+// Collapsing the ignore block to whole directories is only safe if the one thing
+// it can silently swallow gets reported: a skill the project wrote by hand, in
+// the same directory as the 41 the harness generates. It is ignored by default
+// now, and losing it is losing work rather than a regenerable file.
+describe('judgeProjectSkills', () => {
+  it('passes when the project wrote none of its own', () => {
+    expect(judgeProjectSkills([]).ok).toBe(true);
+  });
+
+  it('names each ignored skill and the exact line that rescues it', () => {
+    const check = judgeProjectSkills(['.claude/skills/ma-skill', '.agents/skills/autre']);
+    expect(check.ok).toBe(false);
+    expect(check.message).toContain('ma-skill');
+    expect(check.message).toContain('autre');
+    expect(check.fix).toContain('!.claude/skills/ma-skill/');
+  });
+
+  it('is advisory, never a blocker: an ignored skill still loads at runtime', () => {
+    expect(judgeProjectSkills(['.claude/skills/ma-skill']).status).toBe('advisory');
+  });
+});
