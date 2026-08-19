@@ -63,10 +63,10 @@ For each finding, say what error is lost and what the caller can no longer obser
 - **General correctness, logic bugs, performance** → recommend `/code-review` (or its
   `ultra` mode). You only hunt *silenced* failures, not wrong-but-loud ones.
 - **Security** (auth, secrets, SQL, LLM I/O, trust boundaries) → only *flag* the
-  location and recommend `harness:security-audit`. Do not audit it.
+  location and recommend `security-audit`. Do not audit it.
 - **Doctrine taste** (test meaning, over-abstraction, anti-bloat) → that is
   `doctrine-critic`. Do not spill into it (anti-bloat rule 6).
-- **Design audit** → `harness:ui-review`. **QA / shipping** → gstack (`/qa`, `/ship`).
+- **Design audit** → `ui-review`. **QA / shipping** → gstack (`/qa`, `/ship`).
 
 ## Output format
 
@@ -85,7 +85,7 @@ finding so the verdict is auditable, not vibes.
 
 ### Handoffs (owned by another tool)
 - Bugs/perf: → run /code-review
-- Security at <file:line>: → run harness:security-audit
+- Security at <file:line>: → run security-audit
 - Doctrine/test-meaning: → dispatch doctrine-critic
 ```
 

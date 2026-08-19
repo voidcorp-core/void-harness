@@ -1,16 +1,6 @@
 ---
 name: plan
-kind: action
 description: Turn an approved spec into vertical slices with dependencies, TDD mode, verification gates, checkpoints, and a tracker handoff. Use after brainstorm approves a spec.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # plan — voidcorp craftsman edition
@@ -23,9 +13,9 @@ The spec answers "what should we build." This skill answers "in what order, with
 
 ## When to invoke
 
-Invoke immediately after `harness:brainstorm` approves a spec. The plan is the next deliverable before any code.
+Invoke immediately after `brainstorm` approves a spec. The plan is the next deliverable before any code.
 
-**A `source: forge` spec is a ready spec.** When `docs/specs/YYYY-MM-DD-<slug>.md` carries `source: forge` in its frontmatter (the forge→harness artifact contract; see `docs/ARCHITECTURE.md` "Inter-plugin contracts"), consume it **directly** — it already holds the 18 recon variables, the winning design, and the critique verdict, so `brainstorm` need not have run. Plan from it as-is; if it is partial (missing critique, or a field absent in an older `forge_version`), plan around the holes and flag them as the first open decisions rather than re-deriving the whole thing.
+**A `source: forge` spec is a ready spec.** When `docs/specs/YYYY-MM-DD-<slug>.md` carries `source: forge` in its frontmatter (the forge→harness artifact contract), consume it **directly** — it already holds the 18 recon variables, the winning design, and the critique verdict, so `brainstorm` need not have run. Plan from it as-is; if it is partial (missing critique, or a field absent in an older `forge_version`), plan around the holes and flag them as the first open decisions rather than re-deriving the whole thing.
 
 Do NOT invoke without an approved spec. If you find yourself wanting to plan without a spec, that means brainstorm was skipped — go back.
 
@@ -41,7 +31,7 @@ title: <topic>
 date: YYYY-MM-DD
 status: in-progress  # in-progress → executing → done
 spec: docs/specs/YYYY-MM-DD-<topic>.md
-ticket: <tracker id, once `harness:ticket` has created it; leave empty until then>
+ticket: <tracker id, once `ticket` has created it; leave empty until then>
 author: <user> + Claude/Codex
 high_risk: false  # set true if the plan touches payment, auth, prod data migration, security-sensitive code → triggers plan-review recommendation
 ---
@@ -120,7 +110,7 @@ For non-trivial plans (≥ 5 steps), declare 1–2 explicit checkpoints where th
 
 User reviews the domain layer (Steps 1–4) before proceeding to the adapters layer.
 
-Stop here. Run `harness:verify`. Wait for user signal to proceed.
+Stop here. Run `verify`. Wait for user signal to proceed.
 ```
 
 Checkpoints prevent "I shipped 10 steps before you noticed step 3 was wrong."
@@ -151,7 +141,7 @@ Use this only for a standalone sequential plan that is not decomposed into track
 
 The next session reads the resume point and continues.
 
-For a tracker-backed multi-ticket program, do not maintain a second mutable next-step pointer in the plan. Instead, add a final `Execution handoff` table that gives each plan unit a stable order key, title, dependency keys, estimate, and human-gate flag. After `harness:ticket` creates the native tickets and dependency relations, it installs `.void/active.md`; the tracker then owns current state and the next ready ticket.
+For a tracker-backed multi-ticket program, do not maintain a second mutable next-step pointer in the plan. Instead, add a final `Execution handoff` table that gives each plan unit a stable order key, title, dependency keys, estimate, and human-gate flag. After `ticket` creates the native tickets and dependency relations, it installs `.void/active.md`; the tracker then owns current state and the next ready ticket.
 
 ---
 
@@ -185,9 +175,9 @@ Wait for response. If changes requested, make them and re-run self-review.
 
 After plan approval, transition to:
 
-- **`harness:ticket`** when the plan becomes multiple tracker tickets. It writes native dependencies and the active-program pointer after the pool is approved.
-- **`harness:implement`** for a named single ticket or standalone implementation unit.
-- **`harness:autopilot`** only when the user requests its attended independent-ticket flow.
+- **`ticket`** when the plan becomes multiple tracker tickets. It writes native dependencies and the active-program pointer after the pool is approved.
+- **`implement`** for a named single ticket or standalone implementation unit.
+- **`autopilot`** only when the user requests its attended independent-ticket flow.
 
 For a tracker-backed program, later sessions recover work from the tracker through `.void/active.md`; they do not mutate the plan to repoint the next ticket.
 
@@ -195,7 +185,7 @@ For a tracker-backed program, later sessions recover work from the tracker throu
 
 ## High-risk plans — plan-review recommendation
 
-If `high_risk: true` in the frontmatter, recommend running `harness:plan-review` (the `all` mode) after the plan is written but before execution begins.
+If `high_risk: true` in the frontmatter, recommend running `plan-review` (the `all` mode) after the plan is written but before execution begins.
 
 `plan-review` critiques the plan through CEO / Eng / Design / DevEx lenses, auto-decides the mechanical calls and surfaces the taste calls for the user. It catches issues brainstorm may have missed. It proposes findings; this skill's author folds them in.
 
@@ -218,7 +208,7 @@ Set `high_risk: true` when the plan touches:
 - **With `tdd`**: per-step mode selection lives in the plan.
 - **With `code-review`**: review checkpoints declared in the plan are honored.
 - **With `verify`**: the plan's "Done" criteria feed the completion checklist.
-- **With `harness:plan-review`**: optional multi-lens review for high-risk plans (downstream of this skill, upstream of implementation).
+- **With `plan-review`**: optional multi-lens review for high-risk plans (downstream of this skill, upstream of implementation).
 - **With `commit-discipline`**: each step states the expected conventional-commit message.
 
 ---

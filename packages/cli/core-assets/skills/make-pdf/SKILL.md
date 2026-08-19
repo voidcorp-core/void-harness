@@ -1,17 +1,6 @@
 ---
 name: make-pdf
-kind: action
-activation: on-demand
 description: Turn a markdown file into a publication-quality PDF — marked + puppeteer-core on the system Chrome, with page-number footers. No gstack daemon. For signed deliverables (DECLIK audits).
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # make-pdf — voidcorp craftsman edition

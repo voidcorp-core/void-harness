@@ -1,16 +1,6 @@
 ---
 name: manifest-checklist
-kind: standard
 description: Get manifest.webmanifest right the first time — required fields, icon sizes (192, 512, maskable), display modes, scope, start_url. Single artifact: every field motivated, no dead options.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # manifest-checklist
@@ -208,7 +198,7 @@ Browser DevTools → Application → Manifest:
 
 ## Composition
 
-- `harness-pwa:install-prompt-ux` — installability depends on manifest being valid
-- `harness-pwa:service-worker-strategy` — SW + manifest are the two PWA artifacts; both required for install prompt
-- `harness-react:accessibility-check` — `lang` + `dir` are a11y signals
-- `harness:frontend-design` — theme_color and icon design should match the brand
+- `install-prompt-ux` — installability depends on manifest being valid
+- `service-worker-strategy` — SW + manifest are the two PWA artifacts; both required for install prompt
+- `accessibility-check` — `lang` + `dir` are a11y signals
+- `frontend-design` — theme_color and icon design should match the brand

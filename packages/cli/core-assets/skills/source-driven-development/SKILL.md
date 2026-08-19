@@ -1,17 +1,6 @@
 ---
 name: source-driven-development
-kind: standard
-activation: always
 description: Ground every third-party config or API usage in the official docs for the installed version, not training memory. Verify the version, cite the reference. Use before writing any tool config.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # source-driven-development

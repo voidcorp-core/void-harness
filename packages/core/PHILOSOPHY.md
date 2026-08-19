@@ -146,7 +146,7 @@ Source: citypaul's manual curation discipline; Boris Cherny's "compounding engin
 
 Each session can produce 0–N learnings, **never written automatically to CLAUDE.md or any load-bearing doctrine file**. The per-repo `learnings/proposed/` queue and a `learnings-promote` skill were designed but never built: a markdown queue is a strictly worse reimplementation of the tools that already exist. What actually routes a learning:
 
-- **`harness:learn`** — the single skill that names the reusable pattern, decides its scope, and runs the matching HITL capture: an end-of-cycle pattern or a stated project rule into `.void/PROJECT-DOCTRINE.md`, or a universal gap **directly as a GitHub issue** on `voidcorp-core/void-harness`.
+- **`learn`** — the single skill that names the reusable pattern, decides its scope, and runs the matching HITL capture: an end-of-cycle pattern or a stated project rule into `.void/PROJECT-DOCTRINE.md`, or a universal gap **directly as a GitHub issue** on `voidcorp-core/void-harness`.
 
 Auto-append into CLAUDE.md was rejected: it creates drift, contradictions, prompt bloat. Doctrine evolves deliberately, not by accretion.
 

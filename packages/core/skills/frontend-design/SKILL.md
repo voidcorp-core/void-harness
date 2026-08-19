@@ -1,19 +1,6 @@
 ---
 name: frontend-design
-kind: action
-activation: always
-triggers:
-  extensions: ["tsx"]
 description: Anti-AI-slop UI. Density first, 3-size hierarchy, motion <250ms, components via @repo/ui (Radix/shadcn), mobile-first dual-quality. Brand from DESIGN.md. Use when building or modifying UI.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: pretooluse
-    codex: pretooluse
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # frontend-design — voidcorp craftsman edition
@@ -28,7 +15,7 @@ Brand identity (palette, typography stack, motion language) lives in the consume
 
 ## Mobile-first dual-quality
 
-Every UI is designed mobile-first AND must reach first-class quality on both viewports simultaneously. (Folpe rule, `docs/PHILOSOPHY.md`.)
+Every UI is designed mobile-first AND must reach first-class quality on both viewports simultaneously. (Folpe rule, `.void/installed/PHILOSOPHY.md`.)
 
 - **Layout starts at 360–390px** (iPhone 12 mini → 15 Pro range), progressively enhanced wider.
 - **Never the reverse.** No "desktop-first then squeeze for mobile."
@@ -238,7 +225,7 @@ import { Button } from '@repo/ui';
 - **With `typescript-strict`**: component props strongly typed; discriminated unions for variants; no `any` in UI.
 - **With `code-review`**: dimensions `readability` and `correctness` include UI quality flags.
 - **With `pack-nextjs`**: provides `@repo/ui` + design system tokens + Tailwind config + shadcn preset matching this discipline.
-- **With `harness:ui-review`**: the audit/critique ceiling to this build-time floor — it catches on an existing UI what this skill prevents while building. Downstream.
+- **With `ui-review`**: the audit/critique ceiling to this build-time floor — it catches on an existing UI what this skill prevents while building. Downstream.
 - **With `core:experience-designer`**: the read-only pre-build brief upstream; this skill implements it without absorbing product or audit ownership.
 - **With `DESIGN.md`**: the brand contract (palette, type, motion, decisions) is UPSTREAM; this skill consumes it. The file is produced by `impeccable document`/`init` or authored by hand — the schema is the interface, not a gstack workflow.
 - **With `forge`** (voidcorp plugin): market recon, 12-dimension critique, and multi-variant design prompts live there (the design-shotgun/consultation exploration), bridged by the `docs/specs/` `source: forge` artifact contract, not a code dependency.
@@ -257,7 +244,7 @@ See `../../hooks/`.
 ## Anti-rules
 
 - MUST NOT decide brand identity (colors / typography / motion language) — `DESIGN.md` per project owns.
-- MUST NOT do the audit/critique pass — that is `harness:ui-review` (this skill is build-time; ui-review is audit-time).
+- MUST NOT do the audit/critique pass — that is `ui-review` (this skill is build-time; ui-review is audit-time).
 - MUST NOT permit hand-rolled UI primitives.
 - MUST NOT skip dual-viewport verification.
 - MUST NOT silently allow banned copy / banned visual patterns.

@@ -7,7 +7,7 @@ Sources for `code-review` skill (see plans/skill-audits/code-review.md for full 
 - gstack /codex review — composed for independent second opinion (different model family)
 - gstack /review (PR review) — composed at PR level for SQL safety + LLM trust boundary
 
-Strategy: distill + compose. Skill orchestrates dimensions + composition; a diff-analysis tool does the enumeration; the `doctrine-critic` agent handles the doctrine-conformance deep pass (security routes to harness:security-audit).
+Strategy: distill + compose. Skill orchestrates dimensions + composition; a diff-analysis tool does the enumeration; the `doctrine-critic` agent handles the doctrine-conformance deep pass (security routes to security-audit).
 
 Tool repoint (DEV-399, 2026-07-10): the enumeration engine was gstack `/code-review` and the second opinion was gstack `/codex review`. Both were repointed off gstack — the enumeration now runs Claude Code's **native `/code-review`** (low→ultra, `--comment`/`--fix`), the second opinion runs the standalone **`codex` CLI** (`~/.local/bin/codex`, cross-model, survives the gstack teardown). This unblocks DEV-395 (gstack teardown); the gstack lines above are historical attribution, not live dependencies. `/benchmark` (perf) and `/ship` remain gstack-composed pending DEV-401 / DEV-400.
 

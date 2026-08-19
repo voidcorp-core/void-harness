@@ -15,6 +15,8 @@ export interface SourceEntry {
   readonly pack?: string | null; // allow-null: library boundary (pack absent for core nodes)
   readonly source: string;
   readonly text: string;
+  /** The co-located `harness.yaml`, when the entry is a skill. Absent for everything else. */
+  readonly meta?: string;
   /** Pre-derived triggers (hooks get theirs from the plugin manifest, not frontmatter). */
   readonly triggers?: NodeTriggers;
 }
@@ -74,7 +76,7 @@ function sourceText(boundary: string, path: string): string | undefined {
 function toNode(type: NodeType, e: SourceEntry): GraphNode {
   const pack = e.pack ?? null; // allow-null: GraphNode.pack is string | null per model contract
   const { description, triggers: fmTriggers, activation, owner, runtimes, enforcement, evalTargets, successSignal } =
-    readFrontmatter(e.text);
+    readFrontmatter(e.text, e.meta ?? '');
   // Pre-derived triggers (hooks, from the plugin manifest) win over frontmatter.
   const triggers = e.triggers ?? fmTriggers;
   const base: GraphNode = {
@@ -134,7 +136,8 @@ export function scanSourceTree(coreDir: string, packsDir: string): SourceTree {
     for (const name of sourceNames(coreDir, skillsDir)) {
       const f = join(skillsDir, name, 'SKILL.md');
       const text = sourceText(coreDir, f);
-      if (text !== undefined) skills.push({ name, pack: null, source: rel(f), text }); // allow-null: core skills have no pack
+      const meta = sourceText(coreDir, join(skillsDir, name, 'harness.yaml')) ?? '';
+      if (text !== undefined) skills.push({ name, pack: null, source: rel(f), text, meta }); // allow-null: core skills have no pack
     }
   }
   const agents = readMdDir(coreDir, join(coreDir, 'agents'), rel);
@@ -159,7 +162,8 @@ export function scanSourceTree(coreDir: string, packsDir: string): SourceTree {
         for (const name of sourceNames(packsDir, packSkillsDir)) {
           const f = join(packSkillsDir, name, 'SKILL.md');
           const text = sourceText(packsDir, f);
-          if (text !== undefined) skills.push({ name, pack, source: rel(f), text });
+          const meta = sourceText(packsDir, join(packSkillsDir, name, 'harness.yaml')) ?? '';
+          if (text !== undefined) skills.push({ name, pack, source: rel(f), text, meta });
         }
       }
     }

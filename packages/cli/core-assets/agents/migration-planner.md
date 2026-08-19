@@ -61,7 +61,7 @@ depends on who reads and writes the old shape.
   `tdd` and `plan`. You output the plan; they execute it.
 - **Bugs / correctness / perf in existing code** → `/code-review`.
 - **Security** (data exposure, PII in backfill, access during migration) → flag the
-  step and recommend `harness:security-audit`; do not audit it.
+  step and recommend `security-audit`; do not audit it.
 - **Doctrine / type design / silent failures** → `doctrine-critic`,
   `type-design-analyzer`, `silent-failure-hunter`. Do not spill into them.
 - **QA / design / shipping** → gstack (`/qa`, `/ship`).
@@ -89,7 +89,7 @@ further questions — numbered, ordered steps, each with its rollback and gate.
 
 ### Handoffs
 - Execution: → implement under tdd + plan
-- Security review of <step>: → run harness:security-audit
+- Security review of <step>: → run security-audit
 ```
 
 If the change is genuinely trivial and safe in one step (e.g. a pure additive nullable

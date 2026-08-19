@@ -1,17 +1,6 @@
 ---
 name: verify
-kind: action
-activation: always
 description: Final pre-flight checklist. Twelve items observed (not assumed) — typecheck, tests, hooks, mobile+desktop, commit why, review evidence. Skipping requires reason. Use at end of every task.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # verify — voidcorp craftsman edition
@@ -43,7 +32,7 @@ Read item by item. Do not run from memory. Each item is OBSERVED, not assumed.
 | 5 | Hooks pass (pre-commit dry-run on staged set) | All hooks (`tdd-guard`, `tigerstyle-check`, `no-any-grep`, ...) |
 | 6 | UI changes verified in BOTH mobile and desktop viewports | `frontend-design` + `accessibility` (mobile-first dual-quality) |
 | 7 | Observability hooks present for new business logic | `observability` |
-| 8 | Security review check for any boundary / auth / secret change | `security-guidance` + `harness:security-audit` |
+| 8 | Security review check for any boundary / auth / secret change | `security-guidance` + `security-audit` |
 | 9 | Documentation updated if any convention changed | `commit-discipline` "always say why" |
 | 10 | Commit message includes the why (not just what) | `commit-discipline` |
 | 11 | Review evidence block present in PR body (strict mode) | `code-review` |
@@ -59,7 +48,7 @@ Items 6, 7, 8 only fire when the change touches their domain.
 |---|---|
 | "Tests should pass" | NOT observed. Run them again, then check. |
 | "Linting was fine earlier" | Not observed since last change. Re-run. |
-| "Mobile is probably the same" | NOT observed. Screenshot via `harness:qa` (claude-in-chrome) on a phone viewport. |
+| "Mobile is probably the same" | NOT observed. Screenshot via `qa` (claude-in-chrome) on a phone viewport. |
 | "Sentry is set up, so observability is handled" | NOT for this code path. Did you add the breadcrumb? The log? |
 | "The hook ran before, why check" | Did you edit since? If yes, run again. |
 
@@ -146,7 +135,7 @@ Step 4 of plan `2026-06-01-checkout-flow-plan.md` complete. Verification:
 11. ✅ Review evidence block prepared (waiting for code-review run)
 12. ✅ Plan resume point updated to Step 5
 
-Next: invoke `harness:code-review` for the Step 4 commits.
+Next: invoke `code-review` for the Step 4 commits.
 ```
 
 ---

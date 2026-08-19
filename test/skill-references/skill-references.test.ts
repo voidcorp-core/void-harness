@@ -7,16 +7,23 @@ import { danglingReferences, extractReferences } from '../../scripts/check-skill
 // existed, and an audit found them weeks later rather than the build. On its
 // first run this check found two more, in files shipped to every consumer.
 describe('extractReferences', () => {
-  it('reads the canonical harness:<name> form', () => {
+  it('reports the namespaced spelling, which no local install resolves', () => {
     expect(extractReferences('route it to `harness:tdd` first')).toEqual(['tdd']);
   });
 
-  it('reads several references from one line, without duplicates', () => {
+  it('reads several on one line, without duplicates', () => {
     expect(extractReferences('harness:tdd then harness:qa then harness:tdd')).toEqual(['qa', 'tdd']);
   });
 
-  it('accepts the slash-command spelling', () => {
+  it('reports the slash-command spelling too', () => {
     expect(extractReferences('run /harness:autopilot now')).toEqual(['autopilot']);
+  });
+
+  // A pack namespace fails exactly the same way: `stageSkills` lands every pack
+  // skill flat in `.claude/skills/`, so `harness-server:server-action` resolves
+  // to nothing while `server-action` does.
+  it('reports a pack namespace, which lands flat like every other skill', () => {
+    expect(extractReferences('see `harness-server:server-action`')).toEqual(['server-action']);
   });
 
   // `void-harness:begin` and `void-harness:end` delimit the managed block in
@@ -31,11 +38,10 @@ describe('extractReferences', () => {
     expect(extractReferences('harness:')).toEqual([]);
   });
 
-  // The prefix is the routing spelling: it means "go here". A sourcing note that
-  // records a retired predecessor names it in prose, which is what lets history
-  // stay written without pointing anywhere.
-  it('reads only the routing spelling, so prose about a retired skill is free', () => {
-    expect(extractReferences('the former backlog-autopilot skill, retired in July')).toEqual([]);
+  // The bare name is the written form now, and it is not a routing spelling: a
+  // sourcing note naming a retired predecessor stays prose and points nowhere.
+  it('says nothing about a bare name, which is the correct written form', () => {
+    expect(extractReferences('compose `tdd` and `testing`, never the former backlog-autopilot')).toEqual([]);
   });
 });
 

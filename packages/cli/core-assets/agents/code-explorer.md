@@ -55,7 +55,7 @@ A scannable map covering, in this order, only the parts that exist:
 
 - **Quality / doctrine judgement** → that is `doctrine-critic`; do not grade the code.
 - **Bugs / correctness / perf** → `/code-review`. You report structure, not defects.
-- **Security audit** → `harness:security-audit`. You may note "auth lives in X"; you do not assess it.
+- **Security audit** → `security-audit`. You may note "auth lives in X"; you do not assess it.
 - **Type design** → `type-design-analyzer`. **Silent failures** →
   `silent-failure-hunter`. Name where they live; do not analyse them.
 

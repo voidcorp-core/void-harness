@@ -1,16 +1,6 @@
 ---
 name: expo-config-plugins
-kind: standard
 description: Add native functionality to an Expo app via config plugins, never by ejecting. Pick existing Expo modules first, write a custom plugin only when none fits. Document everything in app.config.ts.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # expo-config-plugins
@@ -182,7 +172,7 @@ Dev + staging + prod variants installed side-by-side on a single device thanks t
 
 ## Composition
 
-- `harness-mobile:eas-build-profile` — config plugins + build profiles together define what binary ships
-- `harness-mobile:ota-update-strategy` — JS-only changes don't need a rebuild; native config changes do
-- `harness-react:state-architecture` — share state architecture with web siblings; only native deps differ
-- `harness-server:env-validation` — env reaches the app via `extra` or EAS Build env; validate with same schema discipline
+- `eas-build-profile` — config plugins + build profiles together define what binary ships
+- `ota-update-strategy` — JS-only changes don't need a rebuild; native config changes do
+- `state-architecture` — share state architecture with web siblings; only native deps differ
+- `env-validation` — env reaches the app via `extra` or EAS Build env; validate with same schema discipline

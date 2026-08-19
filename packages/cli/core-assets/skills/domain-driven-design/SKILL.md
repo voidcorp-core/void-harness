@@ -1,17 +1,6 @@
 ---
 name: domain-driven-design
-kind: standard
-activation: always
 description: Bounded contexts, aggregates as consistency boundaries, value objects as branded types, always-valid domain, ubiquitous language. No CQRS, event sourcing, or generic Repository<T>. Use on the domain.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: pretooluse
-    codex: pretooluse
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # domain-driven-design — voidcorp craftsman edition
@@ -232,7 +221,7 @@ Aggregates collect events; use-cases dispatch them via an injected `EventBusPort
 
 ### CQRS, event sourcing, mediator, generic `Repository<T>`
 
-All rejected per `docs/PHILOSOPHY.md` Wing Chun. Re-introducing any of them is an ADR in `docs/DECISIONS.md`.
+All rejected per `.void/installed/PHILOSOPHY.md` Wing Chun. Re-introducing any of them is an ADR in `docs/DECISIONS.md`.
 
 ### Anemic models (data + setters, logic elsewhere)
 
