@@ -212,8 +212,8 @@ export default function RootLayout() {
 
 ## Composition
 
-- `harness-mobile:expo-config-plugins` — `expo-router` is itself a config plugin (`plugins: ['expo-router']`)
-- `harness-mobile:eas-build-profile` — dev profile must have `developmentClient: true` for expo-router to work in dev
-- `harness-nextjs:route-group-decision` — same `(group)/` convention; same WHY (group by trust posture)
-- `harness-react:state-architecture` — modal-as-route vs modal-as-state decision
-- `harness-react:accessibility-check` — touch targets, focus management apply identically
+- `expo-config-plugins` — `expo-router` is itself a config plugin (`plugins: ['expo-router']`)
+- `eas-build-profile` — dev profile must have `developmentClient: true` for expo-router to work in dev
+- `route-group-decision` — same `(group)/` convention; same WHY (group by trust posture)
+- `state-architecture` — modal-as-route vs modal-as-state decision
+- `accessibility-check` — touch targets, focus management apply identically

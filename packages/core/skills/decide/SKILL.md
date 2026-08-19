@@ -19,7 +19,7 @@ Use when a structural choice changes how future code is written and a future
 contributor would otherwise ask "why?". ADRs are codebase-scoped. Product or
 cross-organization strategy belongs in the product's decision system.
 
-This composes with `harness:plan`: plans describe work; ADRs preserve
+This composes with `plan`: plans describe work; ADRs preserve
 the decisions behind it.
 
 ## Write an ADR when
@@ -141,8 +141,8 @@ Do not commit a rendered Markdown or JSON projection. Generate it on demand with
 
 ## Composition
 
-- `harness:plan`: plans cover work; ADRs cover durable decisions.
-- `harness:source-driven-development`: alternatives cite primary documentation.
-- `harness:commit-discipline`: a long commit rationale can expose ADR-worthy work.
-- `harness:learn`: recurring lessons become doctrine; structural
+- `plan`: plans cover work; ADRs cover durable decisions.
+- `source-driven-development`: alternatives cite primary documentation.
+- `commit-discipline`: a long commit rationale can expose ADR-worthy work.
+- `learn`: recurring lessons become doctrine; structural
   choices become ADRs.

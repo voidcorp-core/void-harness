@@ -1,7 +1,7 @@
 ---
 name: accessibility-check
 kind: standard
-description: Per-component accessibility checklist: semantic HTML, ARIA, keyboard, focus, contrast, touch targets. Auto-applies on any React component edit. Composes with harness:accessibility.
+description: Per-component accessibility checklist: semantic HTML, ARIA, keyboard, focus, contrast, touch targets. Auto-applies on any React component edit. Composes with accessibility.
 owner: folpe
 runtimes: [claude, codex]
 enforcement:
@@ -17,7 +17,7 @@ eval_targets: [claude/anthropic/opus]
 
 Use when creating or editing **any React component** in a `components/` directory. The 7-point checklist below is the gate — if a component ships violating any of these, it ships broken for somebody.
 
-Composes with `harness:accessibility` (the generic doctrine and Radix-as-primitive philosophy). This skill is the **execution checklist** for one component.
+Composes with `accessibility` (the generic doctrine and Radix-as-primitive philosophy). This skill is the **execution checklist** for one component.
 
 If the file is in `services/`, `adapters/`, or `domain/`, this skill does not apply (those are not UI).
 
@@ -136,11 +136,11 @@ For each new or edited component:
 
 ## When AA is not enough
 
-`harness:accessibility` floor is AA. AAA is sometimes the goal for **specific surfaces** (form errors, primary CTAs). It's not the project-wide default — declare it explicitly in `PROJECT-DOCTRINE.md` if so.
+`accessibility` floor is AA. AAA is sometimes the goal for **specific surfaces** (form errors, primary CTAs). It's not the project-wide default — declare it explicitly in `PROJECT-DOCTRINE.md` if so.
 
 ## Composition
 
-- `harness:accessibility` — the doctrine; this skill is the gate.
-- `harness:frontend-design` — anti AI-slop, sober density, real visual hierarchy.
-- `harness-react:01-react.md` — components are pure UI (no DB, no fetch) which is itself an a11y win (less surface to break).
-- `harness:tdd` — interactive components get jsdom tests asserting roles and keyboard behavior (`@testing-library/user-event`).
+- `accessibility` — the doctrine; this skill is the gate.
+- `frontend-design` — anti AI-slop, sober density, real visual hierarchy.
+- the `pack-react` doctrine module on components — components are pure UI (no DB, no fetch) which is itself an a11y win (less surface to break).
+- `tdd` — interactive components get jsdom tests asserting roles and keyboard behavior (`@testing-library/user-event`).

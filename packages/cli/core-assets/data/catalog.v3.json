@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:737bafb98f49a65257721beea6285e9719a6a8bdd18850674cf18cfa85032801"
+    "rootHash": "sha256:180caaba4dd06fe14e48826fc5bda4e875122190996bf20511a70da50403e28b"
   },
   "nodes": [
     {
@@ -76,7 +76,7 @@
           "name": "code-explorer",
           "pack": null,
           "source": "packages/core/agents/code-explorer.md",
-          "staticTokens": 1019,
+          "staticTokens": 1017,
           "type": "agent"
         }
       },
@@ -160,7 +160,7 @@
           "name": "doctrine-critic",
           "pack": null,
           "source": "packages/core/agents/doctrine-critic.md",
-          "staticTokens": 1090,
+          "staticTokens": 1082,
           "type": "agent"
         }
       },
@@ -300,7 +300,7 @@
           "name": "migration-planner",
           "pack": null,
           "source": "packages/core/agents/migration-planner.md",
-          "staticTokens": 1144,
+          "staticTokens": 1140,
           "type": "agent"
         }
       },
@@ -468,7 +468,7 @@
           "name": "silent-failure-hunter",
           "pack": null,
           "source": "packages/core/agents/silent-failure-hunter.md",
-          "staticTokens": 1167,
+          "staticTokens": 1161,
           "type": "agent"
         }
       },
@@ -552,7 +552,7 @@
           "name": "type-design-analyzer",
           "pack": null,
           "source": "packages/core/agents/type-design-analyzer.md",
-          "staticTokens": 1180,
+          "staticTokens": 1174,
           "type": "agent"
         }
       },
@@ -664,7 +664,7 @@
           "name": "void-feedback",
           "pack": null,
           "source": "packages/core/commands/void-feedback.md",
-          "staticTokens": 398,
+          "staticTokens": 396,
           "type": "command"
         }
       },
@@ -2029,7 +2029,7 @@
             "codex"
           ],
           "source": "packages/core/skills/accessibility/SKILL.md",
-          "staticTokens": 2255,
+          "staticTokens": 2253,
           "triggers": {
             "extensions": [
               "tsx"
@@ -2196,7 +2196,7 @@
             "codex"
           ],
           "source": "packages/core/skills/autopilot/SKILL.md",
-          "staticTokens": 2455,
+          "staticTokens": 2451,
           "type": "skill"
         }
       },
@@ -2244,7 +2244,7 @@
             "codex"
           ],
           "source": "packages/core/skills/brainstorm/SKILL.md",
-          "staticTokens": 4104,
+          "staticTokens": 4088,
           "type": "skill"
         }
       },
@@ -2389,7 +2389,7 @@
             "codex"
           ],
           "source": "packages/core/skills/code-review/SKILL.md",
-          "staticTokens": 2758,
+          "staticTokens": 2754,
           "type": "skill"
         }
       },
@@ -2582,7 +2582,7 @@
             "codex"
           ],
           "source": "packages/core/skills/decide/SKILL.md",
-          "staticTokens": 1065,
+          "staticTokens": 1055,
           "type": "skill"
         }
       },
@@ -2631,7 +2631,7 @@
             "codex"
           ],
           "source": "packages/core/skills/devex-audit/SKILL.md",
-          "staticTokens": 2148,
+          "staticTokens": 2146,
           "type": "skill"
         }
       },
@@ -2729,7 +2729,7 @@
             "codex"
           ],
           "source": "packages/core/skills/frontend-design/SKILL.md",
-          "staticTokens": 3632,
+          "staticTokens": 3628,
           "triggers": {
             "extensions": [
               "tsx"
@@ -3178,7 +3178,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-mobile/skills/eas-build-profile/SKILL.md",
-          "staticTokens": 1522,
+          "staticTokens": 1504,
           "type": "skill"
         }
       },
@@ -3226,7 +3226,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-mobile/skills/expo-config-plugins/SKILL.md",
-          "staticTokens": 1615,
+          "staticTokens": 1601,
           "type": "skill"
         }
       },
@@ -3274,7 +3274,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-mobile/skills/expo-router-pattern/SKILL.md",
-          "staticTokens": 1665,
+          "staticTokens": 1646,
           "type": "skill"
         }
       },
@@ -3322,7 +3322,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-mobile/skills/ota-update-strategy/SKILL.md",
-          "staticTokens": 1800,
+          "staticTokens": 1788,
           "type": "skill"
         }
       },
@@ -3370,7 +3370,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-monorepo/skills/dependency-direction/SKILL.md",
-          "staticTokens": 1470,
+          "staticTokens": 1455,
           "type": "skill"
         }
       },
@@ -3418,7 +3418,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-monorepo/skills/package-extraction/SKILL.md",
-          "staticTokens": 1120,
+          "staticTokens": 1093,
           "type": "skill"
         }
       },
@@ -3466,7 +3466,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-monorepo/skills/service-package/SKILL.md",
-          "staticTokens": 1521,
+          "staticTokens": 1509,
           "type": "skill"
         }
       },
@@ -3514,7 +3514,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-monorepo/skills/turbo-pipeline-tuning/SKILL.md",
-          "staticTokens": 1341,
+          "staticTokens": 1331,
           "type": "skill"
         }
       },
@@ -3562,7 +3562,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-nextjs/skills/cache-component-pattern/SKILL.md",
-          "staticTokens": 1771,
+          "staticTokens": 1760,
           "type": "skill"
         }
       },
@@ -3610,7 +3610,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-nextjs/skills/instrumentation-setup/SKILL.md",
-          "staticTokens": 1449,
+          "staticTokens": 1436,
           "type": "skill"
         }
       },
@@ -3658,7 +3658,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-nextjs/skills/loading-error-boundaries/SKILL.md",
-          "staticTokens": 1716,
+          "staticTokens": 1701,
           "type": "skill"
         }
       },
@@ -3706,7 +3706,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-nextjs/skills/parallel-routes-slots/SKILL.md",
-          "staticTokens": 1369,
+          "staticTokens": 1354,
           "type": "skill"
         }
       },
@@ -3754,7 +3754,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-nextjs/skills/route-group-decision/SKILL.md",
-          "staticTokens": 1341,
+          "staticTokens": 1316,
           "type": "skill"
         }
       },
@@ -3802,7 +3802,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-pwa/skills/install-prompt-ux/SKILL.md",
-          "staticTokens": 1709,
+          "staticTokens": 1696,
           "type": "skill"
         }
       },
@@ -3850,7 +3850,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-pwa/skills/manifest-checklist/SKILL.md",
-          "staticTokens": 1618,
+          "staticTokens": 1606,
           "type": "skill"
         }
       },
@@ -3898,7 +3898,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-pwa/skills/offline-first-mutation/SKILL.md",
-          "staticTokens": 2547,
+          "staticTokens": 2536,
           "type": "skill"
         }
       },
@@ -3946,7 +3946,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-pwa/skills/service-worker-strategy/SKILL.md",
-          "staticTokens": 1873,
+          "staticTokens": 1858,
           "type": "skill"
         }
       },
@@ -3968,7 +3968,7 @@
       "label": "accessibility-check",
       "data": {
         "legacy": {
-          "description": "Per-component accessibility checklist: semantic HTML, ARIA, keyboard, focus, contrast, touch targets. Auto-applies on any React component edit. Composes with harness:accessibility.",
+          "description": "Per-component accessibility checklist: semantic HTML, ARIA, keyboard, focus, contrast, touch targets. Auto-applies on any React component edit. Composes with accessibility.",
           "enforcement": {
             "floor": "ci",
             "inline": {
@@ -3994,7 +3994,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-react/skills/accessibility-check/SKILL.md",
-          "staticTokens": 1583,
+          "staticTokens": 1576,
           "type": "skill"
         }
       },
@@ -4042,7 +4042,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-react/skills/client-vs-server-component/SKILL.md",
-          "staticTokens": 1366,
+          "staticTokens": 1358,
           "type": "skill"
         }
       },
@@ -4064,7 +4064,7 @@
       "label": "form-pattern",
       "data": {
         "legacy": {
-          "description": "Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with harness-server:server-action.",
+          "description": "Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with server-action.",
           "enforcement": {
             "floor": "ci",
             "inline": {
@@ -4090,7 +4090,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-react/skills/form-pattern/SKILL.md",
-          "staticTokens": 1749,
+          "staticTokens": 1720,
           "type": "skill"
         }
       },
@@ -4138,7 +4138,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-react/skills/state-architecture/SKILL.md",
-          "staticTokens": 1730,
+          "staticTokens": 1716,
           "type": "skill"
         }
       },
@@ -4186,7 +4186,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-server/skills/background-job-pattern/SKILL.md",
-          "staticTokens": 2287,
+          "staticTokens": 2272,
           "type": "skill"
         }
       },
@@ -4208,7 +4208,7 @@
       "label": "drizzle-migration-safe",
       "data": {
         "legacy": {
-          "description": "Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. Composes with harness:migrations for the generic discipline.",
+          "description": "Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. Composes with migrations for the generic discipline.",
           "enforcement": {
             "floor": "ci",
             "inline": {
@@ -4234,7 +4234,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-server/skills/drizzle-migration-safe/SKILL.md",
-          "staticTokens": 2154,
+          "staticTokens": 2136,
           "type": "skill"
         }
       },
@@ -4282,7 +4282,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-server/skills/env-validation/SKILL.md",
-          "staticTokens": 1460,
+          "staticTokens": 1445,
           "type": "skill"
         }
       },
@@ -4330,7 +4330,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-server/skills/rate-limit-strategy/SKILL.md",
-          "staticTokens": 1774,
+          "staticTokens": 1758,
           "type": "skill"
         }
       },
@@ -4378,7 +4378,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-server/skills/server-action/SKILL.md",
-          "staticTokens": 2178,
+          "staticTokens": 2158,
           "type": "skill"
         }
       },
@@ -4426,7 +4426,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-server/skills/testing-server-modules/SKILL.md",
-          "staticTokens": 973,
+          "staticTokens": 965,
           "type": "skill"
         }
       },
@@ -4474,7 +4474,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-server/skills/webhook-handler-pattern/SKILL.md",
-          "staticTokens": 2175,
+          "staticTokens": 2158,
           "type": "skill"
         }
       },
@@ -4522,7 +4522,7 @@
             "codex"
           ],
           "source": "packages/core/skills/plan/SKILL.md",
-          "staticTokens": 2660,
+          "staticTokens": 2642,
           "type": "skill"
         }
       },
@@ -4571,7 +4571,7 @@
             "codex"
           ],
           "source": "packages/core/skills/plan-review/SKILL.md",
-          "staticTokens": 2720,
+          "staticTokens": 2708,
           "type": "skill"
         }
       },
@@ -4620,7 +4620,7 @@
             "codex"
           ],
           "source": "packages/core/skills/qa/SKILL.md",
-          "staticTokens": 2671,
+          "staticTokens": 2637,
           "type": "skill"
         }
       },
@@ -4816,7 +4816,7 @@
             "codex"
           ],
           "source": "packages/core/skills/security-guidance/SKILL.md",
-          "staticTokens": 2513,
+          "staticTokens": 2501,
           "type": "skill"
         }
       },
@@ -5017,7 +5017,7 @@
             "codex"
           ],
           "source": "packages/core/skills/ticket/SKILL.md",
-          "staticTokens": 2390,
+          "staticTokens": 2368,
           "type": "skill"
         }
       },
@@ -5121,7 +5121,7 @@
             "codex"
           ],
           "source": "packages/core/skills/ui-review/SKILL.md",
-          "staticTokens": 2004,
+          "staticTokens": 1992,
           "type": "skill"
         }
       },
@@ -5170,7 +5170,7 @@
             "codex"
           ],
           "source": "packages/core/skills/verify/SKILL.md",
-          "staticTokens": 1980,
+          "staticTokens": 1974,
           "type": "skill"
         }
       },
@@ -5451,32 +5451,6 @@
       }
     },
     {
-      "id": "catalog:edge:composes:0d6fdc3888f83b6b0d67a063722f475a",
-      "from": "catalog:skill:skill:pack-nextjs/instrumentation-setup",
-      "to": "catalog:skill:skill:observability",
-      "kind": "composes",
-      "data": {
-        "legacy": {
-          "evidence": "pack-nextjs/instrumentation-setup SKILL.md: Composes with harness:observability (the doctrine: pino, structured logs, Sentry user scope).",
-          "from": "skill:pack-nextjs/instrumentation-setup",
-          "kind": "composes",
-          "origin": "declared",
-          "to": "skill:observability"
-        }
-      },
-      "provenance": {
-        "origin": "declared",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "contract",
-            "ref": "relations:v1",
-            "hashOrVersion": "1"
-          }
-        ]
-      }
-    },
-    {
       "id": "catalog:edge:composes:11ddcaa26722500dba9ef38795f6bdce",
       "from": "catalog:skill:skill:functional",
       "to": "catalog:skill:skill:typescript-strict",
@@ -5514,32 +5488,6 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:migrations"
-        }
-      },
-      "provenance": {
-        "origin": "declared",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "contract",
-            "ref": "relations:v1",
-            "hashOrVersion": "1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:edge:composes:1faddd77d0040f59138df4f5918fd562",
-      "from": "catalog:skill:skill:ui-review",
-      "to": "catalog:skill:skill:qa",
-      "kind": "composes",
-      "data": {
-        "legacy": {
-          "evidence": "ui-review SKILL.md: the browser home for the live layer is harness:qa; compose harness:qa rather than reviewing from code alone.",
-          "from": "skill:ui-review",
-          "kind": "composes",
-          "origin": "declared",
-          "to": "skill:qa"
         }
       },
       "provenance": {
@@ -5722,6 +5670,32 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:functional"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:2696d065a8976099276d8409838ae031",
+      "from": "catalog:skill:skill:decide",
+      "to": "catalog:skill:skill:plan",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "decide SKILL.md: Composes with plan (which is plan-the-work-before-coding)",
+          "from": "skill:decide",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:plan"
         }
       },
       "provenance": {
@@ -5971,32 +5945,6 @@
       }
     },
     {
-      "id": "catalog:edge:composes:48247042f72fa670eecefdbebdd18e19",
-      "from": "catalog:skill:skill:qa",
-      "to": "catalog:skill:skill:ui-review",
-      "kind": "composes",
-      "data": {
-        "legacy": {
-          "evidence": "qa SKILL.md: for visual/interaction judgment on the live screenshots, compose harness:ui-review. This skill drives the browser; ui-review supplies the craft bar.",
-          "from": "skill:qa",
-          "kind": "composes",
-          "origin": "declared",
-          "to": "skill:ui-review"
-        }
-      },
-      "provenance": {
-        "origin": "declared",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "contract",
-            "ref": "relations:v1",
-            "hashOrVersion": "1"
-          }
-        ]
-      }
-    },
-    {
       "id": "catalog:edge:composes:4f13ad0d8092aff49f1e829903d23cd2",
       "from": "catalog:skill:skill:code-review",
       "to": "catalog:skill:skill:testing",
@@ -6179,6 +6127,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:586abbc1723a0b9d77e11a40d2065a23",
+      "from": "catalog:skill:skill:pack-server/env-validation",
+      "to": "catalog:skill:skill:security-guidance",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack-server/env-validation SKILL.md: Composes with security-guidance (env doctrine)",
+          "from": "skill:pack-server/env-validation",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:security-guidance"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:599fe6b5f9b5533402cfa62b3c826b0e",
       "from": "catalog:skill:skill:implement",
       "to": "catalog:agent:agent:type-design-analyzer",
@@ -6309,32 +6283,6 @@
       }
     },
     {
-      "id": "catalog:edge:composes:634363f730397b943d8f2aa15d792e98",
-      "from": "catalog:skill:skill:qa",
-      "to": "catalog:skill:skill:testing",
-      "kind": "composes",
-      "data": {
-        "legacy": {
-          "evidence": "qa SKILL.md: a regression test that reproduces the bug (compose harness:tdd/harness:testing — assert behavior, not it renders).",
-          "from": "skill:qa",
-          "kind": "composes",
-          "origin": "declared",
-          "to": "skill:testing"
-        }
-      },
-      "provenance": {
-        "origin": "declared",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "contract",
-            "ref": "relations:v1",
-            "hashOrVersion": "1"
-          }
-        ]
-      }
-    },
-    {
       "id": "catalog:edge:composes:676857abf8919478470e0b762f7f5a56",
       "from": "catalog:skill:skill:async-safety",
       "to": "catalog:skill:skill:hexagonal-architecture",
@@ -6346,32 +6294,6 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:hexagonal-architecture"
-        }
-      },
-      "provenance": {
-        "origin": "declared",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "contract",
-            "ref": "relations:v1",
-            "hashOrVersion": "1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:edge:composes:6b2b9dcfec9b3a55aced144fa7d5b258",
-      "from": "catalog:skill:skill:decide",
-      "to": "catalog:skill:skill:plan",
-      "kind": "composes",
-      "data": {
-        "legacy": {
-          "evidence": "decide SKILL.md: Composes with harness:plan (which is plan-the-work-before-coding)",
-          "from": "skill:decide",
-          "kind": "composes",
-          "origin": "declared",
-          "to": "skill:plan"
         }
       },
       "provenance": {
@@ -6569,17 +6491,17 @@
       }
     },
     {
-      "id": "catalog:edge:composes:89a23a2146a1b5552247a4f733fd5cf0",
-      "from": "catalog:skill:skill:pack-nextjs/loading-error-boundaries",
-      "to": "catalog:skill:skill:observability",
+      "id": "catalog:edge:composes:8f655d6c56d4d68311567cd14431c857",
+      "from": "catalog:skill:skill:implement",
+      "to": "catalog:skill:skill:security-guidance",
       "kind": "composes",
       "data": {
         "legacy": {
-          "evidence": "pack-nextjs/loading-error-boundaries SKILL.md: Log to Sentry (composes with harness:observability)",
-          "from": "skill:pack-nextjs/loading-error-boundaries",
+          "evidence": "implement SKILL.md: Security pass: Compose security-guidance + security-audit",
+          "from": "skill:implement",
           "kind": "composes",
           "origin": "declared",
-          "to": "skill:observability"
+          "to": "skill:security-guidance"
         }
       },
       "provenance": {
@@ -6595,17 +6517,17 @@
       }
     },
     {
-      "id": "catalog:edge:composes:8f655d6c56d4d68311567cd14431c857",
-      "from": "catalog:skill:skill:implement",
-      "to": "catalog:skill:skill:security-guidance",
+      "id": "catalog:edge:composes:8fb4208562af9cd1979b8d8cb89c456d",
+      "from": "catalog:skill:skill:pack-react/accessibility-check",
+      "to": "catalog:skill:skill:accessibility",
       "kind": "composes",
       "data": {
         "legacy": {
-          "evidence": "implement SKILL.md: Security pass: Compose security-guidance + security-audit",
-          "from": "skill:implement",
+          "evidence": "pack-react/accessibility-check SKILL.md: Composes with accessibility (the generic doctrine and Radix-as-primitive philosophy).",
+          "from": "skill:pack-react/accessibility-check",
           "kind": "composes",
           "origin": "declared",
-          "to": "skill:security-guidance"
+          "to": "skill:accessibility"
         }
       },
       "provenance": {
@@ -6673,6 +6595,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:940932f946732c20376c5534b614b8b1",
+      "from": "catalog:skill:skill:qa",
+      "to": "catalog:skill:skill:testing",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "qa SKILL.md: a regression test that reproduces the bug (compose tdd/testing — assert behavior, not it renders).",
+          "from": "skill:qa",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:testing"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:95f59e6b5693747309798ad1a5f7b722",
       "from": "catalog:skill:skill:async-safety",
       "to": "catalog:skill:skill:functional",
@@ -6710,32 +6658,6 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:qa"
-        }
-      },
-      "provenance": {
-        "origin": "declared",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "contract",
-            "ref": "relations:v1",
-            "hashOrVersion": "1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:edge:composes:970c748b00c489f6611cca884a531216",
-      "from": "catalog:skill:skill:pack-react/accessibility-check",
-      "to": "catalog:skill:skill:accessibility",
-      "kind": "composes",
-      "data": {
-        "legacy": {
-          "evidence": "pack-react/accessibility-check SKILL.md: Composes with harness:accessibility (the generic doctrine and Radix-as-primitive philosophy).",
-          "from": "skill:pack-react/accessibility-check",
-          "kind": "composes",
-          "origin": "declared",
-          "to": "skill:accessibility"
         }
       },
       "provenance": {
@@ -6814,6 +6736,32 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:security-guidance"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:a79479042391bec962ae6289cded58be",
+      "from": "catalog:skill:skill:qa",
+      "to": "catalog:skill:skill:ui-review",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "qa SKILL.md: for visual/interaction judgment on the live screenshots, compose ui-review. This skill drives the browser; ui-review supplies the craft bar.",
+          "from": "skill:qa",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:ui-review"
         }
       },
       "provenance": {
@@ -6985,32 +6933,6 @@
       }
     },
     {
-      "id": "catalog:edge:composes:acab3be99ee55c9cb43c84ad75790adf",
-      "from": "catalog:skill:skill:pack-server/drizzle-migration-safe",
-      "to": "catalog:skill:skill:migrations",
-      "kind": "composes",
-      "data": {
-        "legacy": {
-          "evidence": "pack-server/drizzle-migration-safe SKILL.md: Composes with harness:migrations (the generic doctrine); this skill ships the concrete Drizzle patterns.",
-          "from": "skill:pack-server/drizzle-migration-safe",
-          "kind": "composes",
-          "origin": "declared",
-          "to": "skill:migrations"
-        }
-      },
-      "provenance": {
-        "origin": "declared",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "contract",
-            "ref": "relations:v1",
-            "hashOrVersion": "1"
-          }
-        ]
-      }
-    },
-    {
       "id": "catalog:edge:composes:b2aa407307907e2e6502849ed6c0c5cc",
       "from": "catalog:skill:skill:debug",
       "to": "catalog:skill:skill:refactor",
@@ -7141,6 +7063,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:baf859989e3cb04ad1b7cf511fff2f88",
+      "from": "catalog:skill:skill:pack-server/drizzle-migration-safe",
+      "to": "catalog:skill:skill:migrations",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack-server/drizzle-migration-safe SKILL.md: Composes with migrations (the generic doctrine); this skill ships the concrete Drizzle patterns.",
+          "from": "skill:pack-server/drizzle-migration-safe",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:migrations"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:bfb62e21a12ce5d0c8f89be52d713ce3",
       "from": "catalog:skill:skill:api-and-interface-design",
       "to": "catalog:skill:skill:security-guidance",
@@ -7152,6 +7100,32 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:security-guidance"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:c466e557b6fd0d2bfcd866a18c09d1b6",
+      "from": "catalog:skill:skill:ui-review",
+      "to": "catalog:skill:skill:qa",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "ui-review SKILL.md: the browser home for the live layer is qa; compose qa rather than reviewing from code alone.",
+          "from": "skill:ui-review",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:qa"
         }
       },
       "provenance": {
@@ -7479,17 +7453,17 @@
       }
     },
     {
-      "id": "catalog:edge:composes:f20b5691db962a353a8fa24e7a30380b",
-      "from": "catalog:skill:skill:pack-server/env-validation",
-      "to": "catalog:skill:skill:security-guidance",
+      "id": "catalog:edge:composes:ecd82306c8076d1623bb2b4afd08e3ac",
+      "from": "catalog:skill:skill:pack-nextjs/loading-error-boundaries",
+      "to": "catalog:skill:skill:observability",
       "kind": "composes",
       "data": {
         "legacy": {
-          "evidence": "pack-server/env-validation SKILL.md: Composes with harness:security-guidance (env doctrine)",
-          "from": "skill:pack-server/env-validation",
+          "evidence": "pack-nextjs/loading-error-boundaries SKILL.md: Log to Sentry (composes with observability)",
+          "from": "skill:pack-nextjs/loading-error-boundaries",
           "kind": "composes",
           "origin": "declared",
-          "to": "skill:security-guidance"
+          "to": "skill:observability"
         }
       },
       "provenance": {
@@ -7542,6 +7516,32 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:plan"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:fc5376d0cd208a9c7ff52739905a20f6",
+      "from": "catalog:skill:skill:pack-nextjs/instrumentation-setup",
+      "to": "catalog:skill:skill:observability",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack-nextjs/instrumentation-setup SKILL.md: Composes with observability (the doctrine: pino, structured logs, Sentry user scope).",
+          "from": "skill:pack-nextjs/instrumentation-setup",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:observability"
         }
       },
       "provenance": {
@@ -8259,14 +8259,14 @@
       }
     },
     {
-      "id": "catalog:edge:routes-to:8a214be29e6f9d1437d605c90cb5362f",
-      "from": "catalog:agent:agent:migration-planner",
+      "id": "catalog:edge:routes-to:70b344ebb96cea373d440c82eb9dda74",
+      "from": "catalog:skill:skill:brainstorm",
       "to": "catalog:skill:skill:plan",
       "kind": "routes-to",
       "data": {
         "legacy": {
-          "evidence": "migration-planner: Planning only ... routes execution to tdd/plan",
-          "from": "agent:migration-planner",
+          "evidence": "brainstorm SKILL.md: MUST NOT transition to any skill other than plan post-approval",
+          "from": "skill:brainstorm",
           "kind": "routes-to",
           "origin": "declared",
           "to": "skill:plan"
@@ -8285,14 +8285,14 @@
       }
     },
     {
-      "id": "catalog:edge:routes-to:a916b474931ff2d9bf4a0ae46f97397e",
-      "from": "catalog:skill:skill:brainstorm",
+      "id": "catalog:edge:routes-to:8a214be29e6f9d1437d605c90cb5362f",
+      "from": "catalog:agent:agent:migration-planner",
       "to": "catalog:skill:skill:plan",
       "kind": "routes-to",
       "data": {
         "legacy": {
-          "evidence": "brainstorm SKILL.md: MUST NOT transition to any skill other than harness:plan post-approval",
-          "from": "skill:brainstorm",
+          "evidence": "migration-planner: Planning only ... routes execution to tdd/plan",
+          "from": "agent:migration-planner",
           "kind": "routes-to",
           "origin": "declared",
           "to": "skill:plan"

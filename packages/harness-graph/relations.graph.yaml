@@ -9,7 +9,7 @@ edges:
   - from: skill:brainstorm
     to: skill:plan
     kind: routes-to
-    evidence: "brainstorm SKILL.md: MUST NOT transition to any skill other than harness:plan post-approval"
+    evidence: "brainstorm SKILL.md: MUST NOT transition to any skill other than plan post-approval"
 
   # --- brainstorm compositions ---
   - from: skill:brainstorm
@@ -37,7 +37,7 @@ edges:
   - from: skill:decide
     to: skill:plan
     kind: composes
-    evidence: "decide SKILL.md: Composes with harness:plan (which is plan-the-work-before-coding)"
+    evidence: "decide SKILL.md: Composes with plan (which is plan-the-work-before-coding)"
 
   # --- api-and-interface-design ---
   - from: skill:api-and-interface-design
@@ -78,11 +78,11 @@ edges:
   - from: skill:qa
     to: skill:ui-review
     kind: composes
-    evidence: "qa SKILL.md: for visual/interaction judgment on the live screenshots, compose harness:ui-review. This skill drives the browser; ui-review supplies the craft bar."
+    evidence: "qa SKILL.md: for visual/interaction judgment on the live screenshots, compose ui-review. This skill drives the browser; ui-review supplies the craft bar."
   - from: skill:qa
     to: skill:testing
     kind: composes
-    evidence: "qa SKILL.md: a regression test that reproduces the bug (compose harness:tdd/harness:testing — assert behavior, not it renders)."
+    evidence: "qa SKILL.md: a regression test that reproduces the bug (compose tdd/testing — assert behavior, not it renders)."
   - from: skill:qa
     to: skill:tdd
     kind: composes
@@ -90,7 +90,7 @@ edges:
   - from: skill:ui-review
     to: skill:qa
     kind: composes
-    evidence: "ui-review SKILL.md: the browser home for the live layer is harness:qa; compose harness:qa rather than reviewing from code alone."
+    evidence: "ui-review SKILL.md: the browser home for the live layer is qa; compose qa rather than reviewing from code alone."
 
   # --- async-safety ---
   - from: skill:async-safety
@@ -322,18 +322,18 @@ edges:
   - from: skill:pack-nextjs/instrumentation-setup
     to: skill:observability
     kind: composes
-    evidence: "pack-nextjs/instrumentation-setup SKILL.md: Composes with harness:observability (the doctrine: pino, structured logs, Sentry user scope)."
+    evidence: "pack-nextjs/instrumentation-setup SKILL.md: Composes with observability (the doctrine: pino, structured logs, Sentry user scope)."
 
   - from: skill:pack-nextjs/loading-error-boundaries
     to: skill:observability
     kind: composes
-    evidence: "pack-nextjs/loading-error-boundaries SKILL.md: Log to Sentry (composes with harness:observability)"
+    evidence: "pack-nextjs/loading-error-boundaries SKILL.md: Log to Sentry (composes with observability)"
 
   # --- pack-react ---
   - from: skill:pack-react/accessibility-check
     to: skill:accessibility
     kind: composes
-    evidence: "pack-react/accessibility-check SKILL.md: Composes with harness:accessibility (the generic doctrine and Radix-as-primitive philosophy)."
+    evidence: "pack-react/accessibility-check SKILL.md: Composes with accessibility (the generic doctrine and Radix-as-primitive philosophy)."
 
   - from: skill:pack-react/form-pattern
     to: skill:pack-server/server-action
@@ -359,12 +359,12 @@ edges:
   - from: skill:pack-server/env-validation
     to: skill:security-guidance
     kind: composes
-    evidence: "pack-server/env-validation SKILL.md: Composes with harness:security-guidance (env doctrine)"
+    evidence: "pack-server/env-validation SKILL.md: Composes with security-guidance (env doctrine)"
 
   - from: skill:pack-server/drizzle-migration-safe
     to: skill:migrations
     kind: composes
-    evidence: "pack-server/drizzle-migration-safe SKILL.md: Composes with harness:migrations (the generic doctrine); this skill ships the concrete Drizzle patterns."
+    evidence: "pack-server/drizzle-migration-safe SKILL.md: Composes with migrations (the generic doctrine); this skill ships the concrete Drizzle patterns."
 
   # --- Agent compositions (skills that invoke read-only agents) ---
   - { from: skill:code-review, to: agent:doctrine-critic, kind: composes, evidence: "code-review SKILL.md: composes agent doctrine-critic for doctrine conformance" }

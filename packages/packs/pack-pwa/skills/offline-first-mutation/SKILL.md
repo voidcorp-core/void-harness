@@ -270,7 +270,7 @@ Never silently drop a failed intent — the user wrote it, it's their data.
 
 ## Composition (informational)
 
-- `harness-server:server-action` — sync target; idempotency-key handling lives there.
-- `harness:async-safety` — backoff schedule, dead-letter, bounded retry semantics.
-- `harness-server:drizzle-migration-safe` — adding the `idempotencyKey` unique index.
-- `harness:observability` — log sync attempts with `idempotencyKey` so a failed intent can be traced end-to-end.
+- `server-action` — sync target; idempotency-key handling lives there.
+- `async-safety` — backoff schedule, dead-letter, bounded retry semantics.
+- `drizzle-migration-safe` — adding the `idempotencyKey` unique index.
+- `observability` — log sync attempts with `idempotencyKey` so a failed intent can be traced end-to-end.

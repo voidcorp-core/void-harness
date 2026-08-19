@@ -84,7 +84,7 @@ For text content: 3-5 lines of skeleton bars at varying widths look more realist
 Error boundary should:
 
 - Hide the technical detail from end users
-- Log to Sentry (composes with `harness:observability`)
+- Log to Sentry (composes with `observability`)
 - Offer a recovery path (reset button, link back)
 
 ```tsx
@@ -180,7 +180,7 @@ Must render its own `<html>` and `<body>` because it replaces the root layout en
 
 ## Composition
 
-- `harness-nextjs:cache-component-pattern` — cached pages have predictable load times; loading.tsx is mostly for the cold cache case.
-- `harness-nextjs:parallel-routes-slots` — each `@slot` can have its own `loading.tsx` / `error.tsx`.
-- `harness:observability` — `error.tsx` is the Sentry capture point for server errors.
-- `harness-react:accessibility-check` — skeletons should have `aria-busy` or `aria-live="polite"` regions.
+- `cache-component-pattern` — cached pages have predictable load times; loading.tsx is mostly for the cold cache case.
+- `parallel-routes-slots` — each `@slot` can have its own `loading.tsx` / `error.tsx`.
+- `observability` — `error.tsx` is the Sentry capture point for server errors.
+- `accessibility-check` — skeletons should have `aria-busy` or `aria-live="polite"` regions.

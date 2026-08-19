@@ -11,7 +11,7 @@ self-evolution issue on the harness tracker; do not fix the harness from here.
 2. Apply the filing bar. Open an issue ONLY if the gap is BOTH **agnostic** (it
    would help any consumer, not just this project) AND **harness-worthy** (it
    would change a skill, hook, pack, CLI, or doctrine line). A project-specific
-   rule goes to `.void/PROJECT-DOCTRINE.md` via `/harness:learn` (Branch A) instead.
+   rule goes to `.void/PROJECT-DOCTRINE.md` via `/learn` (Branch A) instead.
    When in doubt, do not file.
 3. Draft the issue: a concise `<area>: <gap>` title and a 5-15 line body with
    what happened, the evidence, the source-project context (repo, commit SHA,

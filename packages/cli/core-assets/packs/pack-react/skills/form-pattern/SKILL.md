@@ -1,7 +1,7 @@
 ---
 name: form-pattern
 kind: standard
-description: Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with harness-server:server-action.
+description: Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with server-action.
 owner: folpe
 runtimes: [claude, codex]
 enforcement:
@@ -24,7 +24,7 @@ For a single-field action (search input, toggle, "delete" button), use a Server 
 - `react-hook-form` — form state, registration, validation orchestration
 - `@hookform/resolvers/zod` — bridge to Zod
 - `zod` — schema (single source of truth: same schema validates client AND server)
-- Server Action (`harness-server:server-action`) — the submit target
+- Server Action (`server-action`) — the submit target
 
 ## Canonical skeleton
 
@@ -139,7 +139,7 @@ Never duplicate the schema in the client and server. Always import from one loca
 
 - **File upload only** — use `<input type="file">` + Server Action; the form library adds no value.
 
-> **Repeatable fields in a native form**: when the Server Action reads `FormData` directly (the paths above — multi-select, a checkbox group, `<input multiple>`), do **not** `Object.fromEntries(formData)`: it keeps only the last value and silently drops the rest. Read repeatable fields with `formData.getAll(name)` and validate them with `z.array(...)` in the shared schema. See `harness-server:server-action`.
+> **Repeatable fields in a native form**: when the Server Action reads `FormData` directly (the paths above — multi-select, a checkbox group, `<input multiple>`), do **not** `Object.fromEntries(formData)`: it keeps only the last value and silently drops the rest. Read repeatable fields with `formData.getAll(name)` and validate them with `z.array(...)` in the shared schema. See `server-action`.
 
 - **Wizard / multi-step** — react-hook-form's `Controller` works but consider XState or a similar state machine for complex flows.
 
@@ -156,12 +156,12 @@ Never duplicate the schema in the client and server. Always import from one loca
 
 - Use `inputMode="email"` / `inputMode="numeric"` / `inputMode="decimal"` to surface the right mobile keyboard.
 - `autoComplete="email"` / `"current-password"` / `"one-time-code"` for the right autofill behavior. Skip = bad UX.
-- Touch targets ≥ 44×44 (composes with `harness-react:accessibility-check`).
+- Touch targets ≥ 44×44 (composes with `accessibility-check`).
 
 ## Composition
 
-- `harness-server:server-action` — the submit target; shares the Zod schema.
-- `harness:security-guidance` — Zod schema is the trust boundary; server-side re-validates identically.
-- `harness-react:state-architecture` — form state IS local state; lives in the form component, never lifted.
-- `harness-react:accessibility-check` — labels, role="alert", focus management on error.
-- `harness:tdd` — form components get `@testing-library/user-event` tests asserting validation + submit + error display.
+- `server-action` — the submit target; shares the Zod schema.
+- `security-guidance` — Zod schema is the trust boundary; server-side re-validates identically.
+- `state-architecture` — form state IS local state; lives in the form component, never lifted.
+- `accessibility-check` — labels, role="alert", focus management on error.
+- `tdd` — form components get `@testing-library/user-event` tests asserting validation + submit + error display.

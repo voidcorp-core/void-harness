@@ -28,7 +28,7 @@
       "name": "code-explorer",
       "pack": null,
       "source": "packages/core/agents/code-explorer.md",
-      "staticTokens": 1019,
+      "staticTokens": 1017,
       "type": "agent"
     },
     {
@@ -58,7 +58,7 @@
       "name": "doctrine-critic",
       "pack": null,
       "source": "packages/core/agents/doctrine-critic.md",
-      "staticTokens": 1090,
+      "staticTokens": 1082,
       "type": "agent"
     },
     {
@@ -108,7 +108,7 @@
       "name": "migration-planner",
       "pack": null,
       "source": "packages/core/agents/migration-planner.md",
-      "staticTokens": 1144,
+      "staticTokens": 1140,
       "type": "agent"
     },
     {
@@ -168,7 +168,7 @@
       "name": "silent-failure-hunter",
       "pack": null,
       "source": "packages/core/agents/silent-failure-hunter.md",
-      "staticTokens": 1167,
+      "staticTokens": 1161,
       "type": "agent"
     },
     {
@@ -198,7 +198,7 @@
       "name": "type-design-analyzer",
       "pack": null,
       "source": "packages/core/agents/type-design-analyzer.md",
-      "staticTokens": 1180,
+      "staticTokens": 1174,
       "type": "agent"
     },
     {
@@ -238,7 +238,7 @@
       "name": "void-feedback",
       "pack": null,
       "source": "packages/core/commands/void-feedback.md",
-      "staticTokens": 398,
+      "staticTokens": 396,
       "type": "command"
     },
     {
@@ -739,7 +739,7 @@
         "codex"
       ],
       "source": "packages/core/skills/accessibility/SKILL.md",
-      "staticTokens": 2255,
+      "staticTokens": 2253,
       "triggers": {
         "extensions": [
           "tsx"
@@ -852,7 +852,7 @@
         "codex"
       ],
       "source": "packages/core/skills/autopilot/SKILL.md",
-      "staticTokens": 2455,
+      "staticTokens": 2451,
       "type": "skill"
     },
     {
@@ -882,7 +882,7 @@
         "codex"
       ],
       "source": "packages/core/skills/brainstorm/SKILL.md",
-      "staticTokens": 4104,
+      "staticTokens": 4088,
       "type": "skill"
     },
     {
@@ -973,7 +973,7 @@
         "codex"
       ],
       "source": "packages/core/skills/code-review/SKILL.md",
-      "staticTokens": 2758,
+      "staticTokens": 2754,
       "type": "skill"
     },
     {
@@ -1094,7 +1094,7 @@
         "codex"
       ],
       "source": "packages/core/skills/decide/SKILL.md",
-      "staticTokens": 1065,
+      "staticTokens": 1055,
       "type": "skill"
     },
     {
@@ -1125,7 +1125,7 @@
         "codex"
       ],
       "source": "packages/core/skills/devex-audit/SKILL.md",
-      "staticTokens": 2148,
+      "staticTokens": 2146,
       "type": "skill"
     },
     {
@@ -1187,7 +1187,7 @@
         "codex"
       ],
       "source": "packages/core/skills/frontend-design/SKILL.md",
-      "staticTokens": 3632,
+      "staticTokens": 3628,
       "triggers": {
         "extensions": [
           "tsx"
@@ -1474,7 +1474,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-mobile/skills/eas-build-profile/SKILL.md",
-      "staticTokens": 1522,
+      "staticTokens": 1504,
       "type": "skill"
     },
     {
@@ -1504,7 +1504,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-mobile/skills/expo-config-plugins/SKILL.md",
-      "staticTokens": 1615,
+      "staticTokens": 1601,
       "type": "skill"
     },
     {
@@ -1534,7 +1534,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-mobile/skills/expo-router-pattern/SKILL.md",
-      "staticTokens": 1665,
+      "staticTokens": 1646,
       "type": "skill"
     },
     {
@@ -1564,7 +1564,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-mobile/skills/ota-update-strategy/SKILL.md",
-      "staticTokens": 1800,
+      "staticTokens": 1788,
       "type": "skill"
     },
     {
@@ -1594,7 +1594,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-monorepo/skills/dependency-direction/SKILL.md",
-      "staticTokens": 1470,
+      "staticTokens": 1455,
       "type": "skill"
     },
     {
@@ -1624,7 +1624,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-monorepo/skills/package-extraction/SKILL.md",
-      "staticTokens": 1120,
+      "staticTokens": 1093,
       "type": "skill"
     },
     {
@@ -1654,7 +1654,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-monorepo/skills/service-package/SKILL.md",
-      "staticTokens": 1521,
+      "staticTokens": 1509,
       "type": "skill"
     },
     {
@@ -1684,7 +1684,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-monorepo/skills/turbo-pipeline-tuning/SKILL.md",
-      "staticTokens": 1341,
+      "staticTokens": 1331,
       "type": "skill"
     },
     {
@@ -1714,7 +1714,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-nextjs/skills/cache-component-pattern/SKILL.md",
-      "staticTokens": 1771,
+      "staticTokens": 1760,
       "type": "skill"
     },
     {
@@ -1744,7 +1744,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-nextjs/skills/instrumentation-setup/SKILL.md",
-      "staticTokens": 1449,
+      "staticTokens": 1436,
       "type": "skill"
     },
     {
@@ -1774,7 +1774,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-nextjs/skills/loading-error-boundaries/SKILL.md",
-      "staticTokens": 1716,
+      "staticTokens": 1701,
       "type": "skill"
     },
     {
@@ -1804,7 +1804,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-nextjs/skills/parallel-routes-slots/SKILL.md",
-      "staticTokens": 1369,
+      "staticTokens": 1354,
       "type": "skill"
     },
     {
@@ -1834,7 +1834,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-nextjs/skills/route-group-decision/SKILL.md",
-      "staticTokens": 1341,
+      "staticTokens": 1316,
       "type": "skill"
     },
     {
@@ -1864,7 +1864,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-pwa/skills/install-prompt-ux/SKILL.md",
-      "staticTokens": 1709,
+      "staticTokens": 1696,
       "type": "skill"
     },
     {
@@ -1894,7 +1894,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-pwa/skills/manifest-checklist/SKILL.md",
-      "staticTokens": 1618,
+      "staticTokens": 1606,
       "type": "skill"
     },
     {
@@ -1924,7 +1924,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-pwa/skills/offline-first-mutation/SKILL.md",
-      "staticTokens": 2547,
+      "staticTokens": 2536,
       "type": "skill"
     },
     {
@@ -1954,11 +1954,11 @@
         "codex"
       ],
       "source": "packages/packs/pack-pwa/skills/service-worker-strategy/SKILL.md",
-      "staticTokens": 1873,
+      "staticTokens": 1858,
       "type": "skill"
     },
     {
-      "description": "Per-component accessibility checklist: semantic HTML, ARIA, keyboard, focus, contrast, touch targets. Auto-applies on any React component edit. Composes with harness:accessibility.",
+      "description": "Per-component accessibility checklist: semantic HTML, ARIA, keyboard, focus, contrast, touch targets. Auto-applies on any React component edit. Composes with accessibility.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -1984,7 +1984,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-react/skills/accessibility-check/SKILL.md",
-      "staticTokens": 1583,
+      "staticTokens": 1576,
       "type": "skill"
     },
     {
@@ -2014,11 +2014,11 @@
         "codex"
       ],
       "source": "packages/packs/pack-react/skills/client-vs-server-component/SKILL.md",
-      "staticTokens": 1366,
+      "staticTokens": 1358,
       "type": "skill"
     },
     {
-      "description": "Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with harness-server:server-action.",
+      "description": "Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with server-action.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -2044,7 +2044,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-react/skills/form-pattern/SKILL.md",
-      "staticTokens": 1749,
+      "staticTokens": 1720,
       "type": "skill"
     },
     {
@@ -2074,7 +2074,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-react/skills/state-architecture/SKILL.md",
-      "staticTokens": 1730,
+      "staticTokens": 1716,
       "type": "skill"
     },
     {
@@ -2104,11 +2104,11 @@
         "codex"
       ],
       "source": "packages/packs/pack-server/skills/background-job-pattern/SKILL.md",
-      "staticTokens": 2287,
+      "staticTokens": 2272,
       "type": "skill"
     },
     {
-      "description": "Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. Composes with harness:migrations for the generic discipline.",
+      "description": "Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. Composes with migrations for the generic discipline.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -2134,7 +2134,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-server/skills/drizzle-migration-safe/SKILL.md",
-      "staticTokens": 2154,
+      "staticTokens": 2136,
       "type": "skill"
     },
     {
@@ -2164,7 +2164,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-server/skills/env-validation/SKILL.md",
-      "staticTokens": 1460,
+      "staticTokens": 1445,
       "type": "skill"
     },
     {
@@ -2194,7 +2194,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-server/skills/rate-limit-strategy/SKILL.md",
-      "staticTokens": 1774,
+      "staticTokens": 1758,
       "type": "skill"
     },
     {
@@ -2224,7 +2224,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-server/skills/server-action/SKILL.md",
-      "staticTokens": 2178,
+      "staticTokens": 2158,
       "type": "skill"
     },
     {
@@ -2254,7 +2254,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-server/skills/testing-server-modules/SKILL.md",
-      "staticTokens": 973,
+      "staticTokens": 965,
       "type": "skill"
     },
     {
@@ -2284,7 +2284,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-server/skills/webhook-handler-pattern/SKILL.md",
-      "staticTokens": 2175,
+      "staticTokens": 2158,
       "type": "skill"
     },
     {
@@ -2314,7 +2314,7 @@
         "codex"
       ],
       "source": "packages/core/skills/plan/SKILL.md",
-      "staticTokens": 2660,
+      "staticTokens": 2642,
       "type": "skill"
     },
     {
@@ -2345,7 +2345,7 @@
         "codex"
       ],
       "source": "packages/core/skills/plan-review/SKILL.md",
-      "staticTokens": 2720,
+      "staticTokens": 2708,
       "type": "skill"
     },
     {
@@ -2376,7 +2376,7 @@
         "codex"
       ],
       "source": "packages/core/skills/qa/SKILL.md",
-      "staticTokens": 2671,
+      "staticTokens": 2637,
       "type": "skill"
     },
     {
@@ -2500,7 +2500,7 @@
         "codex"
       ],
       "source": "packages/core/skills/security-guidance/SKILL.md",
-      "staticTokens": 2513,
+      "staticTokens": 2501,
       "type": "skill"
     },
     {
@@ -2629,7 +2629,7 @@
         "codex"
       ],
       "source": "packages/core/skills/ticket/SKILL.md",
-      "staticTokens": 2390,
+      "staticTokens": 2368,
       "type": "skill"
     },
     {
@@ -2697,7 +2697,7 @@
         "codex"
       ],
       "source": "packages/core/skills/ui-review/SKILL.md",
-      "staticTokens": 2004,
+      "staticTokens": 1992,
       "type": "skill"
     },
     {
@@ -2728,7 +2728,7 @@
         "codex"
       ],
       "source": "packages/core/skills/verify/SKILL.md",
-      "staticTokens": 1980,
+      "staticTokens": 1974,
       "type": "skill"
     },
     {
@@ -3014,7 +3014,7 @@
       "to": "skill:plan",
       "kind": "routes-to",
       "origin": "declared",
-      "evidence": "brainstorm SKILL.md: MUST NOT transition to any skill other than harness:plan post-approval"
+      "evidence": "brainstorm SKILL.md: MUST NOT transition to any skill other than plan post-approval"
     },
     {
       "from": "skill:brainstorm",
@@ -3119,7 +3119,7 @@
       "to": "skill:plan",
       "kind": "composes",
       "origin": "declared",
-      "evidence": "decide SKILL.md: Composes with harness:plan (which is plan-the-work-before-coding)"
+      "evidence": "decide SKILL.md: Composes with plan (which is plan-the-work-before-coding)"
     },
     {
       "from": "skill:devex-audit",
@@ -3406,21 +3406,21 @@
       "to": "skill:observability",
       "kind": "composes",
       "origin": "declared",
-      "evidence": "pack-nextjs/instrumentation-setup SKILL.md: Composes with harness:observability (the doctrine: pino, structured logs, Sentry user scope)."
+      "evidence": "pack-nextjs/instrumentation-setup SKILL.md: Composes with observability (the doctrine: pino, structured logs, Sentry user scope)."
     },
     {
       "from": "skill:pack-nextjs/loading-error-boundaries",
       "to": "skill:observability",
       "kind": "composes",
       "origin": "declared",
-      "evidence": "pack-nextjs/loading-error-boundaries SKILL.md: Log to Sentry (composes with harness:observability)"
+      "evidence": "pack-nextjs/loading-error-boundaries SKILL.md: Log to Sentry (composes with observability)"
     },
     {
       "from": "skill:pack-react/accessibility-check",
       "to": "skill:accessibility",
       "kind": "composes",
       "origin": "declared",
-      "evidence": "pack-react/accessibility-check SKILL.md: Composes with harness:accessibility (the generic doctrine and Radix-as-primitive philosophy)."
+      "evidence": "pack-react/accessibility-check SKILL.md: Composes with accessibility (the generic doctrine and Radix-as-primitive philosophy)."
     },
     {
       "from": "skill:pack-react/form-pattern",
@@ -3441,14 +3441,14 @@
       "to": "skill:migrations",
       "kind": "composes",
       "origin": "declared",
-      "evidence": "pack-server/drizzle-migration-safe SKILL.md: Composes with harness:migrations (the generic doctrine); this skill ships the concrete Drizzle patterns."
+      "evidence": "pack-server/drizzle-migration-safe SKILL.md: Composes with migrations (the generic doctrine); this skill ships the concrete Drizzle patterns."
     },
     {
       "from": "skill:pack-server/env-validation",
       "to": "skill:security-guidance",
       "kind": "composes",
       "origin": "declared",
-      "evidence": "pack-server/env-validation SKILL.md: Composes with harness:security-guidance (env doctrine)"
+      "evidence": "pack-server/env-validation SKILL.md: Composes with security-guidance (env doctrine)"
     },
     {
       "from": "skill:pack-server/server-action",
@@ -3497,14 +3497,14 @@
       "to": "skill:testing",
       "kind": "composes",
       "origin": "declared",
-      "evidence": "qa SKILL.md: a regression test that reproduces the bug (compose harness:tdd/harness:testing — assert behavior, not it renders)."
+      "evidence": "qa SKILL.md: a regression test that reproduces the bug (compose tdd/testing — assert behavior, not it renders)."
     },
     {
       "from": "skill:qa",
       "to": "skill:ui-review",
       "kind": "composes",
       "origin": "declared",
-      "evidence": "qa SKILL.md: for visual/interaction judgment on the live screenshots, compose harness:ui-review. This skill drives the browser; ui-review supplies the craft bar."
+      "evidence": "qa SKILL.md: for visual/interaction judgment on the live screenshots, compose ui-review. This skill drives the browser; ui-review supplies the craft bar."
     },
     {
       "from": "skill:refactor",
@@ -3567,7 +3567,7 @@
       "to": "skill:qa",
       "kind": "composes",
       "origin": "declared",
-      "evidence": "ui-review SKILL.md: the browser home for the live layer is harness:qa; compose harness:qa rather than reviewing from code alone."
+      "evidence": "ui-review SKILL.md: the browser home for the live layer is qa; compose qa rather than reviewing from code alone."
     },
     {
       "from": "skill:verify",

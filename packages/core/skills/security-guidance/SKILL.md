@@ -16,9 +16,9 @@ eval_targets: [claude/anthropic/opus]
 
 # security-guidance — voidcorp craftsman edition
 
-Security is not "I will think about it later." It is the defaults applied at every trust boundary. This skill codifies the everyday discipline: validate at the boundary, never log secrets, never hand-roll auth, treat LLM I/O as untrusted. Full audit work is delegated to `harness:security-audit`. This skill is the daily floor; `security-audit` is the periodic ceiling.
+Security is not "I will think about it later." It is the defaults applied at every trust boundary. This skill codifies the everyday discipline: validate at the boundary, never log secrets, never hand-roll auth, treat LLM I/O as untrusted. Full audit work is delegated to `security-audit`. This skill is the daily floor; `security-audit` is the periodic ceiling.
 
-**Attribution**: see `.source`. Distilled from citypaul + OWASP cheat sheets; the deep-audit ceiling lives in `harness:security-audit`.
+**Attribution**: see `.source`. Distilled from citypaul + OWASP cheat sheets; the deep-audit ceiling lives in `security-audit`.
 
 ---
 
@@ -209,9 +209,9 @@ Logger config (in `pack-monorepo`) redacts known-secret keys (`password`, `apiKe
 
 ---
 
-## When to escalate to `harness:security-audit`
+## When to escalate to `security-audit`
 
-This skill is the daily floor. Escalate to `harness:security-audit` for:
+This skill is the daily floor. Escalate to `security-audit` for:
 
 - Periodic deep audit (monthly): OWASP Top 10 walkthrough, dependency supply chain scan, threat model review, CI/CD pipeline security
 - High-stakes feature: payment surface, auth changes, PII handling
@@ -230,7 +230,7 @@ The `doctrine-critic` agent (in void-harness) flags trust-boundary code in a dif
 - **With `async-safety`**: webhook signature verification, replay protection.
 - **With `llm-cost-discipline`**: cost rules and security rules co-evolve at LLM call sites.
 - **With `code-review`**: dimension `security` is delegated. `doctrine-critic` flags boundaries and `security-audit` does the deep pass.
-- **With `harness:security-audit`**: full audit on demand. This skill is the daily floor; `security-audit` is the periodic ceiling.
+- **With `security-audit`**: full audit on demand. This skill is the daily floor; `security-audit` is the periodic ceiling.
 
 ---
 
@@ -246,7 +246,7 @@ The `doctrine-critic` agent (in void-harness) flags trust-boundary code in a dif
 
 ## Anti-rules
 
-- MUST NOT replace `harness:security-audit` full-audit mode (different scope).
+- MUST NOT replace `security-audit` full-audit mode (different scope).
 - MUST NOT decide threat model boundaries (escalates to `security-audit`).
 - MUST NOT pretend LLM input/output is trusted.
 - MUST NOT hand-roll auth, sessions, password hashing.

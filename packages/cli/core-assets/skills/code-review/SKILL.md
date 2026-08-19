@@ -28,7 +28,7 @@ The order matters. A correctness issue blocks regardless of beautiful structure.
 
 1. **Correctness** — does it do what it claims? edge cases? error paths? composes with `tdd` (cycle evidence) and `debug` (root cause for fixes).
 2. **Tests** — failing test before the code? real code over mocks? names describe behavior? composes with `testing`.
-3. **Security** — input validated at trust boundaries? secrets handled? SQL safe? LLM input untrusted? composes with `security-guidance` (which routes deep audits to `harness:security-audit`).
+3. **Security** — input validated at trust boundaries? secrets handled? SQL safe? LLM input untrusted? composes with `security-guidance` (which routes deep audits to `security-audit`).
 4. **Structure** — boundaries respected (no domain importing infrastructure)? service/repository split? function lengths? composes with `hexagonal-architecture`, `domain-driven-design`, `refactor`, and the `doctrine-critic` agent.
 5. **Readability** — names? exhaustive switches? `any` slips? `as` casts? composes with `typescript-strict`.
 6. **Performance** — obvious O(n²) inside loops? leaky reactive subscriptions? unbounded queries? measured claims come from the project's perf tooling (Lighthouse CI, bundlesize), not guesses.
@@ -199,7 +199,7 @@ See `../../hooks/`.
 - MUST NOT decide whether to ship — user owns the merge decision.
 - MUST NOT block on style / naming (Biome + `typescript-strict` jobs).
 - MUST NOT suggest scope expansion inside the PR — escalate to follow-up.
-- MUST NOT duplicate `doctrine-critic` or `harness:security-audit` work — delegate.
+- MUST NOT duplicate `doctrine-critic` or `security-audit` work — delegate.
 - MUST NOT silently arbitrate Claude-vs-Codex disagreements — surface them.
 - MUST NOT mark style nit as BLOCKER.
 - MUST NOT pass a review when the test suite has not been observed passing on the PR's HEAD.

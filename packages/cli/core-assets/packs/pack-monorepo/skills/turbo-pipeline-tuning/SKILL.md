@@ -121,6 +121,6 @@ Turbo tasks are for things the team runs in CI or routinely locally. Keep the su
 
 ## Composition
 
-- `harness-monorepo:service-package` — new packages need their tasks declared in turbo.json (build, typecheck, test).
-- `harness-monorepo:dependency-direction` — Turbo's `^build` only works correctly if package dependencies are well-declared in package.json.
-- `harness:tdd` — `test` task must have `"outputs": []`; otherwise vitest's cache directory pollutes Turbo's cache.
+- `service-package` — new packages need their tasks declared in turbo.json (build, typecheck, test).
+- `dependency-direction` — Turbo's `^build` only works correctly if package dependencies are well-declared in package.json.
+- `tdd` — `test` task must have `"outputs": []`; otherwise vitest's cache directory pollutes Turbo's cache.

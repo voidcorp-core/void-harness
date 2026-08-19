@@ -207,9 +207,9 @@ NEVER return 200 to a malformed event (you'd accept invalid data). 4xx with a lo
 
 ## Composition (informational)
 
-- `harness:async-safety` — generic retry, idempotency, dead-letter doctrine.
-- `harness-server:server-action` — both cross trust boundaries; same Zod discipline.
-- `harness-server:drizzle-migration-safe` — inbox table migration follows the safe pattern.
-- `harness-server:env-validation` — webhook secrets validated in `@repo/core/env`.
-- `harness:observability` — trace context per receive; Sentry breadcrumb.
-- `harness:security-guidance` — Zod re-validation IS the trust boundary; HMAC compare with constant-time.
+- `async-safety` — generic retry, idempotency, dead-letter doctrine.
+- `server-action` — both cross trust boundaries; same Zod discipline.
+- `drizzle-migration-safe` — inbox table migration follows the safe pattern.
+- `env-validation` — webhook secrets validated in `@repo/core/env`.
+- `observability` — trace context per receive; Sentry breadcrumb.
+- `security-guidance` — Zod re-validation IS the trust boundary; HMAC compare with constant-time.

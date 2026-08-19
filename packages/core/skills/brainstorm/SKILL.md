@@ -15,7 +15,7 @@ eval_targets: [claude/anthropic/opus]
 
 # brainstorm — voidcorp craftsman edition
 
-Start by understanding the project context. Then ask questions one at a time to refine the idea. Once you understand what is being built, present the design in sections, get approval, write the spec to `docs/specs/`, and transition to `harness:plan`. **No implementation skill, no code, no scaffolding until the spec is written and approved.**
+Start by understanding the project context. Then ask questions one at a time to refine the idea. Once you understand what is being built, present the design in sections, get approval, write the spec to `docs/specs/`, and transition to `plan`. **No implementation skill, no code, no scaffolding until the spec is written and approved.**
 
 **Attribution**: see `.source`. Primary source: superpowers/brainstorm; the upstream idea-pressure-test mode is the distilled `gstack:/office-hours` diagnostic, vendored for void-harness.
 
@@ -164,7 +164,7 @@ title: <topic>
 date: YYYY-MM-DD
 status: in-design  # → approved
 author: <user> + Claude/Codex
-ticket: <tracker id, once `harness:ticket` has created it; leave empty until then>
+ticket: <tracker id, once `ticket` has created it; leave empty until then>
 related: [...]
 ---
 ```
@@ -173,7 +173,7 @@ related: [...]
 the reasoning lives and it belongs to the project, so it survives the tracker;
 the ticket is execution state and is mutable by nature. Someone reading the
 ticket has to be able to reach the reasoning, and someone reading the spec has
-to be able to see whether it was ever executed. `harness:ticket` fills this
+to be able to see whether it was ever executed. `ticket` fills this
 field when it creates the ticket and puts the reverse link in the ticket body.
 
 ### Step 8 — Spec self-review pass
@@ -195,7 +195,7 @@ Ask the user to review the spec file before proceeding:
 
 Wait for the user's response. If they request changes, make them and re-run self-review. Only proceed once the user approves.
 
-### Step 10 — Transition to `harness:plan`
+### Step 10 — Transition to `plan`
 
 The ONLY post-brainstorming transition. Invoke plan. Do not invoke any other skill (frontend-design, mcp-builder, etc.).
 
@@ -248,8 +248,8 @@ Smaller, well-bounded units are easier to work with — easier for the agent to 
 
 ## Composition with other skills
 
-- **Raw product idea** ("I have an idea..."): pressure-test it first via the upstream mode above (the vendored `/office-hours` diagnostic), then design. Broader product *roadmap / strategy* routes to `harness:plan-review` (CEO lens — challenges a written plan's premise and ambition).
-- **Downstream — `harness:plan`**: the ONLY post-brainstorming transition.
+- **Raw product idea** ("I have an idea..."): pressure-test it first via the upstream mode above (the vendored `/office-hours` diagnostic), then design. Broader product *roadmap / strategy* routes to `plan-review` (CEO lens — challenges a written plan's premise and ambition).
+- **Downstream — `plan`**: the ONLY post-brainstorming transition.
 - **With `tdd`**: the spec declares the TDD mode for each major implementation step. Plans then uses this.
 - **With `hexagonal-architecture` + `domain-driven-design`**: these skills inform the design's structure (bounded contexts, ports, aggregates). Brainstorming consumes their vocabulary; does not duplicate their decisions.
 - **With `code-review`**: a PR that introduces features without a linked spec gets flagged.
@@ -261,9 +261,9 @@ Smaller, well-bounded units are easier to work with — easier for the agent to 
 - MUST NOT skip the hard gate.
 - MUST NOT batch multiple questions in one message.
 - MUST NOT decide implementation details (those go to plans).
-- MUST NOT decide product roadmap / strategy (routes to `harness:plan-review` CEO lens). It DOES pressure-test a raw idea's demand and push its ambition (the upstream mode) — that is now in scope, not delegated.
+- MUST NOT decide product roadmap / strategy (routes to `plan-review` CEO lens). It DOES pressure-test a raw idea's demand and push its ambition (the upstream mode) — that is now in scope, not delegated.
 - MUST NOT skip the spec-write step "because the conversation is clear."
-- MUST NOT transition to any skill other than `harness:plan` post-approval.
+- MUST NOT transition to any skill other than `plan` post-approval.
 
 ---
 

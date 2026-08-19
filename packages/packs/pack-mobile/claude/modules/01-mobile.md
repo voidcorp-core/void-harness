@@ -46,5 +46,5 @@ apps/<app>/
 ## Composition
 
 - `harness-react` — same component purity, same primitives (Tappable, tokens).
-- `harness:accessibility` — VoiceOver/TalkBack labels, focus order, dynamic type.
+- `accessibility` — VoiceOver/TalkBack labels, focus order, dynamic type.
 - `harness-server` — mobile app talks to the same Server Actions as the web app; share the action schemas via `@repo/api-types`.

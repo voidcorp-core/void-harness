@@ -169,6 +169,6 @@ plan itself, not only in the prompt, so an adapter that honours the plan cannot 
 
 ## Composition
 
-Upstream: `harness:ticket` authors the tickets and the active program pointer.
-Per ticket: `harness:implement`, entire, once. Downstream: the reconciler owns the
+Upstream: `ticket` authors the tickets and the active program pointer.
+Per ticket: `implement`, entire, once. Downstream: the reconciler owns the
 integration branch, the suite and the PR. The human owns the merge.

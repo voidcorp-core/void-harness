@@ -18,7 +18,7 @@ eval_targets: [claude/anthropic/opus]
 
 You are a QA engineer AND a bug-fix engineer. Test a running web app like a real user — click everything, fill every form, check every state — using the **claude-in-chrome MCP** to drive the browser. When you find a bug, fix it in source with an atomic commit, then re-verify. Produce a structured report with before/after evidence.
 
-This tests the *shipped, running app* through a real browser. It is not unit/E2E authoring (`harness:tdd` + `harness:testing` own that), and it does not judge visual craft from code (`harness:ui-review` owns that — this skill composes it for the live visual pass).
+This tests the *shipped, running app* through a real browser. It is not unit/E2E authoring (`tdd` + `testing` own that), and it does not judge visual craft from code (`ui-review` owns that — this skill composes it for the live visual pass).
 
 **Attribution**: see `.source`. Vendored from gstack `/qa` + `/qa-only` + the live half of `/design-review`, repointed off the gstack browse daemon onto the claude-in-chrome MCP already present in Claude Code. The gstack runtime (browse binary, gbrain/learnings, telemetry, `~/.gstack` artifacts, test-framework bootstrap) is rejected.
 
@@ -30,7 +30,7 @@ This tests the *shipped, running app* through a real browser. It is not unit/E2E
 - Auditing a deployed site for bugs and broken flows.
 - A report-only pass (no fixes) before a review or handoff.
 
-Do NOT use this to author a unit/E2E suite (`harness:tdd`/`harness:testing`), to audit UI craft from code (`harness:ui-review`), or to audit a dev-facing API/CLI/SDK surface (`harness:devex-audit`).
+Do NOT use this to author a unit/E2E suite (`tdd`/`testing`), to audit UI craft from code (`ui-review`), or to audit a dev-facing API/CLI/SDK surface (`devex-audit`).
 
 ## Browser tooling: claude-in-chrome (load first)
 
@@ -79,18 +79,18 @@ Each fix must be its own atomic commit, so before fixing, `git status --porcelai
 2. **Explore** — visit pages systematically. Per page: visual scan of the screenshot; click interactive elements; fill + submit forms (empty, invalid, edge, overflow); walk navigation in and out; exercise **the states a user actually hits — empty, loading, error, overflow**; check console after every interaction; for responsive, `resize_window` then **verify the screenshot dimensions actually changed** — on some setups it resizes the window without re-rendering to a true mobile viewport, so confirm before trusting a "mobile" shot (else note responsive as unverified). Depth over breadth: more time on core flows (auth, checkout, search), less on static pages.
 3. **Document** — write each issue the moment you find it, never batch. Two evidence tiers: an **interactive** bug gets a before-screenshot, the action, an after-screenshot (a `gif_creator` repro for a flow); a **static** bug gets one annotated screenshot. Verify a bug reproduces once before writing it. For a UI quality pass, capture mobile and desktop for every applicable state and bind each capture to the current diff hash; a later CSS/UI diff makes it stale. Redact credentials (`[REDACTED]`). Surface every screenshot to the user (Read the file) — otherwise it is invisible.
 4. **Health score** — per-category 0-100 (Console, Links, Visual, Functional, UX, Performance, Content, Accessibility) minus severity deductions (critical -25 / high -15 / medium -8 / low -3), weighted average. Record it as the baseline.
-5. **Visual pass** — for visual/interaction judgment on the live screenshots, compose `harness:ui-review`, then hand the current-diff evidence to `core:visual-craft-director` in fresh context. This skill drives the browser; `ui-review` supplies the craft bar; the specialist owns the independent verdict. If the browser or required captures are unavailable, report the UI pass blocked rather than certifying from prose.
+5. **Visual pass** — for visual/interaction judgment on the live screenshots, compose `ui-review`, then hand the current-diff evidence to `core:visual-craft-director` in fresh context. This skill drives the browser; `ui-review` supplies the craft bar; the specialist owns the independent verdict. If the browser or required captures are unavailable, report the UI pass blocked rather than certifying from prose.
 6. **Triage** — sort by severity; fix per tier: `--quick` critical+high · standard (default) +medium · `--exhaustive` +low. Mark unfixable-from-source (third-party, infra) as deferred.
-7. **Fix loop** (skipped in report-only) — per issue in severity order: locate source (grep/glob — only now do you read code); make the **minimal** fix (no refactor, no scope creep); commit one fix `fix(qa): <issue> — <desc>`; re-test the page with a before/after pair + console + a regression test that reproduces the bug (compose `harness:tdd`/`harness:testing` — assert behavior, not "it renders"); classify **verified / best-effort / reverted** (`git revert` on a regression → defer).
+7. **Fix loop** (skipped in report-only) — per issue in severity order: locate source (grep/glob — only now do you read code); make the **minimal** fix (no refactor, no scope creep); commit one fix `fix(qa): <issue> — <desc>`; re-test the page with a before/after pair + console + a regression test that reproduces the bug (compose `tdd`/`testing` — assert behavior, not "it renders"); classify **verified / best-effort / reverted** (`git revert` on a regression → defer).
 8. **Self-regulation** — every 5 fixes or after any revert, stop and evaluate: reverts, fixes touching many files, all-low-severity remaining, and unrelated-file edits all raise the "this is going wrong" signal. Above the threshold, or past a hard cap of ~50 fixes, STOP and show the user before continuing.
 9. **Report** — issues with severity + evidence + fix status (verified/best-effort/reverted/deferred) + commit SHA; health-score delta baseline → final; a one-line PR summary ("QA found N, fixed M, health X → Y"). If the final score is worse than baseline, warn prominently. Write it under the project's report location, not `~/.gstack`.
 
 ## Composition & boundaries
 
-- **With `harness:ui-review`** — this skill owns driving the browser and the functional/fix loop; `ui-review` owns the visual-craft judgment applied to the live screenshots (step 5). No restated design rules here.
-- **With `harness:tdd` / `harness:testing`** — the regression test in the fix loop is authored per their discipline. This skill finds bugs in a running app; they own how the test that locks the fix is written.
-- **Not `harness:devex-audit`** — that audits a developer-facing surface (API/CLI/SDK/docs journey, TTHW); this QAs an end-user web app in a browser. Different surface.
-- **Not E2E authoring** — Playwright suites are `harness:testing`'s output; this is exploratory human-style QA of the deployed thing.
+- **With `ui-review`** — this skill owns driving the browser and the functional/fix loop; `ui-review` owns the visual-craft judgment applied to the live screenshots (step 5). No restated design rules here.
+- **With `tdd` / `testing`** — the regression test in the fix loop is authored per their discipline. This skill finds bugs in a running app; they own how the test that locks the fix is written.
+- **Not `devex-audit`** — that audits a developer-facing surface (API/CLI/SDK/docs journey, TTHW); this QAs an end-user web app in a browser. Different surface.
+- **Not E2E authoring** — Playwright suites are `testing`'s output; this is exploratory human-style QA of the deployed thing.
 - **Supersedes** gstack `/qa`, `/qa-only`, and the live-screenshot half of `/design-review`.
 
 ## Anti-rules
@@ -100,7 +100,7 @@ Each fix must be its own atomic commit, so before fixing, `git status --porcelai
 - MUST NOT reuse a cross-session tab id, or assume a headless/CI browser — mark non-interactive sessions out of scope.
 - MUST NOT bundle fixes — one atomic `fix(qa):` commit each; revert on regression.
 - MUST NOT include credentials in the report — `[REDACTED]`.
-- MUST NOT bootstrap a test framework or edit CI/CLAUDE.md — that is `harness:tdd`/`harness:testing`, not QA.
+- MUST NOT bootstrap a test framework or edit CI/CLAUDE.md — that is `tdd`/`testing`, not QA.
 - MUST NOT vendor the gstack runtime (browse binary, gbrain/learnings, telemetry, `~/.gstack` artifacts, cookie-profile import).
 
 ## Final rule

@@ -1,7 +1,7 @@
 ---
 name: drizzle-migration-safe
 kind: standard
-description: Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. Composes with harness:migrations for the generic discipline.
+description: Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. Composes with migrations for the generic discipline.
 owner: folpe
 runtimes: [claude, codex]
 enforcement:
@@ -15,7 +15,7 @@ eval_targets: [claude/anthropic/opus]
 
 # drizzle-migration-safe
 
-Use when adding, modifying, or removing anything in a Drizzle schema that will be deployed to a production database with concurrent traffic. Composes with `harness:migrations` (the generic doctrine); this skill ships the concrete Drizzle patterns.
+Use when adding, modifying, or removing anything in a Drizzle schema that will be deployed to a production database with concurrent traffic. Composes with `migrations` (the generic doctrine); this skill ships the concrete Drizzle patterns.
 
 If you are working on a fresh schema before any prod deployment, this skill does not apply — use raw `drizzle-kit generate` and `drizzle-kit push`. The discipline starts at the first paid user.
 
@@ -156,7 +156,7 @@ DATABASE_URL="$(neonctl connection-string dev/$TICKET)" pnpm db:migrate
 # then run the suite against that same DATABASE_URL
 ```
 
-A Neon dev branch is the right target when the migration is lock-sensitive or needs realistic row counts (see `harness:migrations` lock-impact dry run); pglite/local is enough for small tables. Delete the branch when the ticket lands.
+A Neon dev branch is the right target when the migration is lock-sensitive or needs realistic row counts (see `migrations` lock-impact dry run); pglite/local is enough for small tables. Delete the branch when the ticket lands.
 
 **Production (CI applies, never the agent).** The worker/session stops at a green branch. `drizzle-kit migrate` against prod runs in a gated CI job on merge — a human-approved GitHub Actions step, never a local command and never on push to a feature branch:
 
@@ -168,11 +168,11 @@ A Neon dev branch is the right target when the migration is lock-sensitive or ne
     DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
 ```
 
-This mirrors the `harness:migrations` anti-rule "MUST NOT auto-apply migrations on push to main": prod DDL is a deploy decision, not a coding-cycle side effect.
+This mirrors the `migrations` anti-rule "MUST NOT auto-apply migrations on push to main": prod DDL is a deploy decision, not a coding-cycle side effect.
 
 ## Composition
 
-- `harness:migrations` — generic doctrine (this skill is the Drizzle concretization).
-- `harness-server:server-action` — service code calling the schema must handle nullable-then-not-null gracefully during the intermediate deploy.
-- `harness:observability` — log migration start/end with row counts; surface long-running ones in Sentry.
-- `harness:async-safety` — backfills that touch >100k rows should batch (LIMIT + LOOP), not one statement.
+- `migrations` — generic doctrine (this skill is the Drizzle concretization).
+- `server-action` — service code calling the schema must handle nullable-then-not-null gracefully during the intermediate deploy.
+- `observability` — log migration start/end with row counts; surface long-running ones in Sentry.
+- `async-safety` — backfills that touch >100k rows should batch (LIMIT + LOOP), not one statement.

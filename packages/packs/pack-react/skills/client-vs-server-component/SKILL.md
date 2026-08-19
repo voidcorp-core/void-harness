@@ -119,8 +119,8 @@ Open DevTools → Network tab → filter by JS. If your `app/dashboard` route sh
 
 ## Composition
 
-- `harness-nextjs:cache-component-pattern` — Server Components ARE the cache substrate; mark `'use cache'` for caching.
-- `harness-react:state-architecture` — guides client-state placement once you've decided to use Client Components.
-- `harness-react:form-pattern` — react-hook-form + Zod for client-controlled forms (Server Actions otherwise).
-- `harness-react:01-react.md` — components are pure UI either way (no DB, no fetch via service).
-- `harness:hexagonal-architecture` — Server Components can call services directly (they're the boundary); Client Components call Server Actions.
+- `cache-component-pattern` — Server Components ARE the cache substrate; mark `'use cache'` for caching.
+- `state-architecture` — guides client-state placement once you've decided to use Client Components.
+- `form-pattern` — react-hook-form + Zod for client-controlled forms (Server Actions otherwise).
+- the `pack-react` doctrine module on components — components are pure UI either way (no DB, no fetch via service).
+- `hexagonal-architecture` — Server Components can call services directly (they're the boundary); Client Components call Server Actions.

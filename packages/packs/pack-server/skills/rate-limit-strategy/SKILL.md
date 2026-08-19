@@ -15,7 +15,7 @@ eval_targets: [claude/anthropic/opus]
 
 # rate-limit-strategy
 
-Use when applying a rate limit to a Server Action, route handler, or webhook. Rate limits are mandatory at every trust boundary (per `harness:security-guidance`); this skill says HOW to choose the right window/max/key per use case.
+Use when applying a rate limit to a Server Action, route handler, or webhook. Rate limits are mandatory at every trust boundary (per `security-guidance`); this skill says HOW to choose the right window/max/key per use case.
 
 If you're tempted to skip rate limit "because it's internal" — wrong. The trust boundary is the URL. Anything reachable from a browser is rate-limited.
 
@@ -152,8 +152,8 @@ Surface 429 responses in your dashboard. Sudden spikes = either an attack OR a U
 
 ## Composition (informational)
 
-- `harness:security-guidance` — rate limit is a security control; Zod is the schema control; both at every boundary.
-- `harness:async-safety` — webhook + background-job retry semantics interact with rate limits.
-- `harness-server:server-action` — actions apply rate limit before service call (layer 3 of 5).
-- `harness-server:webhook-handler-pattern` — webhook rate limits use a per-source key.
-- `harness:llm-cost-discipline` — LLM call rate limits are cost-control, more conservative than CPU-control limits.
+- `security-guidance` — rate limit is a security control; Zod is the schema control; both at every boundary.
+- `async-safety` — webhook + background-job retry semantics interact with rate limits.
+- `server-action` — actions apply rate limit before service call (layer 3 of 5).
+- `webhook-handler-pattern` — webhook rate limits use a per-source key.
+- `llm-cost-discipline` — LLM call rate limits are cost-control, more conservative than CPU-control limits.

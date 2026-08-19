@@ -251,7 +251,7 @@ The design system handles this by default in `pack-nextjs`. Specific animations 
 - **With `frontend-design`**: shared mobile-first dual-quality invariant. `frontend-design` decides density / hierarchy / motion; this skill enforces a11y across them.
 - **With `code-review`**: dimension `correctness` includes a11y at the UI surface.
 - **With `pack-nextjs`**: provides `@repo/ui` (Radix-wrapped) + `Tappable` + axe-core integration + design system palette tokens.
-- **With `harness:ui-review`**: its technical-audit pass includes the a11y dimension (contrast, keyboard, focus, 44px) — composes with this skill. Live-URL visual a11y audit is deferred to Vague 4.
+- **With `ui-review`**: its technical-audit pass includes the a11y dimension (contrast, keyboard, focus, 44px) — composes with this skill. Live-URL visual a11y audit is deferred to Vague 4.
 - **With `DESIGN.md`**: the design-system contract incorporates a11y constraints (produced by `impeccable document`/`init` or by hand).
 
 ---

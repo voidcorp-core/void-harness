@@ -44,14 +44,14 @@ export default defineConfig({
 export {}; // server-only / client-only export nothing; their side effect is the throw.
 ```
 
-A single shared stub serves both. In a monorepo, put the alias in the `vitest.base` config every package extends, so no package re-discovers the gotcha (composes with `harness-monorepo:turbo-pipeline-tuning` and the shared `@repo/config`).
+A single shared stub serves both. In a monorepo, put the alias in the `vitest.base` config every package extends, so no package re-discovers the gotcha (composes with `turbo-pipeline-tuning` and the shared `@repo/config`).
 
 ---
 
 ## What the alias does and does NOT buy you
 
 - **Does**: lets you unit-test the *pure logic* inside a server module (the service, the mapper, the validation) without standing up an RSC runtime.
-- **Does NOT**: make the module safe to import from a Client Component. The real server/client boundary still holds at build time — the alias is **test-only**. If a client component genuinely imports a server module, that is a real boundary violation the build will (correctly) reject; do not "fix" it by widening the alias. Keep the pure, testable logic in a runtime-agnostic `services/` module and let the thin server wrapper carry the `server-only` import (composes with `harness-server:env-validation`, which keeps server-only env access out of the edge/client chain).
+- **Does NOT**: make the module safe to import from a Client Component. The real server/client boundary still holds at build time — the alias is **test-only**. If a client component genuinely imports a server module, that is a real boundary violation the build will (correctly) reject; do not "fix" it by widening the alias. Keep the pure, testable logic in a runtime-agnostic `services/` module and let the thin server wrapper carry the `server-only` import (composes with `env-validation`, which keeps server-only env access out of the edge/client chain).
 
 ---
 

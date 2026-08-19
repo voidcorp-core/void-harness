@@ -217,8 +217,8 @@ After retry budget exhausted:
 
 ## Composition (informational — each skill stands alone)
 
-- `harness:async-safety` — generic retry/idempotency/dead-letter doctrine.
-- `harness-server:webhook-handler-pattern` — webhooks often emit events that trigger jobs.
-- `harness-server:server-action` — actions emit events for async follow-up.
-- `harness-server:env-validation` — `CRON_SECRET`, queue API keys validated.
-- `harness:observability` — trace context links action → event → job.
+- `async-safety` — generic retry/idempotency/dead-letter doctrine.
+- `webhook-handler-pattern` — webhooks often emit events that trigger jobs.
+- `server-action` — actions emit events for async follow-up.
+- `env-validation` — `CRON_SECRET`, queue API keys validated.
+- `observability` — trace context links action → event → job.
