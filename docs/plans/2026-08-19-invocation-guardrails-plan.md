@@ -123,7 +123,7 @@ peuvent être jugés. Lancer `verify`, attendre son signal avant le Step 3.
 
 Plan autonome et séquentiel : aucun ticket tracker pour l'instant, ce pointeur fait foi.
 
-**Next step**: Step 3
+**Next step**: aucun. Les cinq unités sont livrées ; reste la relecture humaine et le merge.
 
 **Fait**:
 
@@ -142,12 +142,22 @@ Plan autonome et séquentiel : aucun ticket tracker pour l'instant, ce pointeur 
   corpus réels : le corpus complet est rouge et nomme `brainstorming` et `ticket-writer`, les
   trois missions d'après réparation sont vertes. Le bandeau produit sur ce dépôt nomme les deux.
 
-**Mesure du Step 2, qui arme le Step 5** : 18 ms sur 5 missions, **49,4 ms sur 20**. La fenêtre de
+- **Step 3** (`4c6976a`). Verdict de vie. Mesure faite après coup, et la spec corrigée en
+  conséquence : sur l'historique d'avant réparation ce verdict reste **vert**, faute de trois
+  missions actives et parce que quatre activations y figurent sous des noms morts. Il n'attrape
+  donc pas la panne vécue, que le verdict de résolution attrape ; il couvre le cas voisin où plus
+  rien ne s'enregistre du tout.
+- **Step 4** (`73291ec`). Check `invocation surface` dans `doctor`, les deux défauts rapportés
+  ensemble, le ratio affiché et jamais jugé. Le glyphe et la couleur viennent du renderer
+  existant, sans une ligne de rendu à écrire.
+- **Step 5** (`3725428`). Armé par la mesure, donc exécuté. Le bandeau lit un verdict caché en
+  **0,20 ms** au lieu de juger les journaux en 49 ms ; le recalcul suit stdout, gardé par une
+  empreinte faite de stat seuls (7 ms). Conséquence assumée et testée : une alerte paraît à la
+  session suivante.
+
+**Mesure du Step 2, qui a armé le Step 5** : 18 ms sur 5 missions, **49,4 ms sur 20**. La fenêtre de
 5 ne détecte rien ici (les 5 dernières missions sont saines), donc la fenêtre large est
 nécessaire et le budget de 50 ms est atteint. Cause : 11 Mo lus pour trouver douze lignes
 d'activation. Le Step 5 s'exécute.
 
-**Pending**:
-- Step 3 - verdict de vie
-- Step 4 - rapport `doctor`
-- Step 5 - cache, désormais armé par la mesure
+**Pending**: rien. Voir la PR pour la relecture.
