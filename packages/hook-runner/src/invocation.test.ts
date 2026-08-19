@@ -30,11 +30,11 @@ function project(skills: readonly string[] = [], agentSkills: readonly string[] 
   return root;
 }
 
-function activation(name: string): string {
+function activation(name: string, ts = '2026-08-19T10:00:00.000Z'): string {
   return JSON.stringify({
     kind: 'runtime.tool.started',
     subject: `skill:${name}`,
-    ts: '2026-08-19T10:00:00.000Z',
+    ts,
     payload: { category: 'skill', tool: 'Skill' },
   });
 }
@@ -96,6 +96,39 @@ describe('resolutionVerdict', () => {
 
   it('passes on an empty journal: nothing recorded proves nothing broken', () => {
     expect(resolutionVerdict('', new Set()).ok).toBe(true);
+  });
+
+  // A rename is legitimate, and the journal keeps the old name forever: it
+  // records what happened. Judging the whole history would make the alert
+  // permanent for a defect already fixed, and an alert nobody can extinguish is
+  // an alert they disable. Only recent activations are judged, so the alert goes
+  // out by itself once nothing invokes the retired name any more.
+  it('ignores an activation older than the window, so a fixed rename stops shouting', () => {
+    const old = activation('ticket-writer', '2026-06-01T10:00:00.000Z');
+    const verdict = resolutionVerdict(old, new Set(['ticket']), { nowMs: Date.parse('2026-08-19T10:00:00.000Z') });
+    expect(verdict.ok).toBe(true);
+  });
+
+  it('still fails on a recent activation of the retired name, which is the live defect', () => {
+    const recent = activation('ticket-writer', '2026-08-18T10:00:00.000Z');
+    const verdict = resolutionVerdict(recent, new Set(['ticket']), { nowMs: Date.parse('2026-08-19T10:00:00.000Z') });
+    expect(verdict.unresolved).toEqual(['ticket-writer']);
+  });
+
+  it('judges the whole journal when no window is given, which is what doctor wants', () => {
+    const old = activation('ticket-writer', '2026-01-01T10:00:00.000Z');
+    expect(resolutionVerdict(old, new Set(['ticket'])).unresolved).toEqual(['ticket-writer']);
+  });
+
+  it('keeps an activation whose timestamp is unreadable rather than silently dropping it', () => {
+    const broken = JSON.stringify({
+      kind: 'runtime.tool.started',
+      subject: 'skill:ticket-writer',
+      ts: 'pas une date',
+      payload: { category: 'skill', tool: 'Skill' },
+    });
+    const verdict = resolutionVerdict(broken, new Set(['ticket']), { nowMs: Date.parse('2026-08-19T10:00:00.000Z') });
+    expect(verdict.unresolved).toEqual(['ticket-writer']);
   });
 
   it('reads through a namespaced subject, which is how the defect was recorded', () => {

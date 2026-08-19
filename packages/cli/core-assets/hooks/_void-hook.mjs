@@ -1095,17 +1095,24 @@ function eachEvent(body, visit) {
     });
   }
 }
-function recordedSkillNames(body) {
+var LIVE_WINDOW_MS = 30 * 24 * 60 * 60 * 1e3;
+function recordedSkillNames(body, nowMs) {
   const names = [];
+  const floor = nowMs === void 0 ? void 0 : nowMs - LIVE_WINDOW_MS;
   eachEvent(body, (event) => {
     if (event.kind !== "runtime.tool.started" || event.category !== "skill") return;
     if (!event.subject.startsWith("skill:")) return;
+    if (floor !== void 0) {
+      const at = Date.parse(event.ts);
+      if (!Number.isNaN(at) && at < floor) return;
+    }
     names.push(bareName(event.subject.slice("skill:".length)));
   });
   return names;
 }
-function resolutionVerdict(body, installed) {
-  const unresolved = [...new Set(recordedSkillNames(body).filter((name) => !installed.has(name)))].sort();
+function resolutionVerdict(body, installed, options = {}) {
+  const recorded = recordedSkillNames(body, options.nowMs);
+  const unresolved = [...new Set(recorded.filter((name) => !installed.has(name)))].sort();
   return { ok: unresolved.length === 0, unresolved };
 }
 var MAX_NAMED = 5;
@@ -1171,7 +1178,7 @@ function refreshInvocationVerdict(root) {
     }
     const journals = readMissionJournals(root, { recentMissions: REFRESH_MISSIONS });
     const alert = invocationAlert(
-      resolutionVerdict(journals, installedSkillNames(root)),
+      resolutionVerdict(journals, installedSkillNames(root), { nowMs: Date.now() }),
       livenessVerdict(journals)
     );
     const entry = alert === void 0 ? { fingerprint } : { fingerprint, alert };

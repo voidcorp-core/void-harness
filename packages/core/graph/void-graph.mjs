@@ -9323,6 +9323,9 @@ function readMissionJournals(root, options = {}) {
   return parts.join("\n");
 }
 
+// ../hook-runner/src/invocation.ts
+var LIVE_WINDOW_MS = 30 * 24 * 60 * 60 * 1e3;
+
 // ../mission-engine/dist/events/schema.js
 var MAX_EVENT_PAYLOAD_BYTES = 16 * 1024;
 var MAX_EVENT_LINE_BYTES = 32 * 1024;

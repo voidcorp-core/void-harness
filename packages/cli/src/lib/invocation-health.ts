@@ -30,7 +30,9 @@ export function observeInvocation(root: string): InvocationObservation {
   const journals = readMissionJournals(root);
   const installed = installedSkillNames(root);
   return {
-    resolution: resolutionVerdict(journals, installed),
+    // Same window as the banner: a rename repaired last month must not keep this
+    // check red for ever, or nobody reads doctor's output either.
+    resolution: resolutionVerdict(journals, installed, { nowMs: Date.now() }),
     liveness: livenessVerdict(journals),
     installedSkills: installed.size,
   };
