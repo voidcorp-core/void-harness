@@ -63,14 +63,14 @@ What is installed, in numbers:
 
 | | Count | How it fires |
 |---|---|---|
-| Core skills | 37 | Automatically, when what you are doing matches |
+| Core skills | 41 | Automatically, when what you are doing matches |
 | Stack pack skills | 28 | Same, for the packs you activated |
 | Hooks | 31 | On the tool call, before the write lands |
 | Agents | 21 | Delegated by a skill, or invoked by name |
 | Specialists | 16 | Invoked in their own fresh context during review |
 
 You can still call a skill explicitly when you want that one and not the one
-that would have matched: `/harness:tdd` on Claude Code, or by name on Codex.
+that would have matched: `/tdd` on Claude Code, or by name on Codex.
 Agents work the same way: `doctrine-critic` judges a diff against the doctrine,
 while `solution-architect`, `security-engineer` and `test-qa-engineer` each
 review in their own fresh context.

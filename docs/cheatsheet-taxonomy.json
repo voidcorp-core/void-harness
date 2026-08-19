@@ -60,6 +60,7 @@
         "commit-discipline",
         "ticket",
         "implement",
+        "merge",
         "autopilot",
         "retrospective",
         "make-pdf"
@@ -68,7 +69,14 @@
     {
       "title": "The harness on itself",
       "blurb": "How the doctrine stays true as the project moves.",
-      "skills": ["claude-md", "source-driven-development", "learn"]
+      "skills": [
+        "claude-md",
+        "source-driven-development",
+        "learn",
+        "void-doctor",
+        "void-audit",
+        "void-graph"
+      ]
     }
   ],
   "hookGroups": [

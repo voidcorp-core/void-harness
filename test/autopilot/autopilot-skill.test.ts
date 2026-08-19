@@ -31,7 +31,10 @@ function flat(source: string): string {
 
 describe('autopilot skill frontmatter', () => {
   it('declares both runtimes, because the plan is runtime-neutral by design', () => {
-    expect(frontmatter(SKILL)).toContain('runtimes: [claude, codex]');
+    // The runtimes declaration is harness metadata, so it lives in the sidecar:
+    // a SKILL.md carries only the six fields the Agent Skills spec defines.
+    expect(readFileSync(new URL('../../packages/core/skills/autopilot/harness.yaml', import.meta.url), 'utf8'))
+      .toContain('runtimes: [claude, codex]');
   });
 
   it('keeps its description within the discovery budget', () => {

@@ -1,21 +1,11 @@
 ---
 name: ticket
-kind: action
 description: Use when turning a finished brainstorm, plan, or design decision into a tracker ticket. Triggers on creating a ticket or issue, logging work, or breaking an approved spec into tickets.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # ticket
 
-A ticket an implementation agent can execute with zero follow-up questions. It does NOT invent scope: it ingests what was already decided (the brainstorm, the plan, this conversation, the relevant ADR) and renders it as a complete, estimated, labeled work item in the tracker. Downstream, `harness:implement` executes it.
+A ticket an implementation agent can execute with zero follow-up questions. It does NOT invent scope: it ingests what was already decided (the brainstorm, the plan, this conversation, the relevant ADR) and renders it as a complete, estimated, labeled work item in the tracker. Downstream, `implement` executes it.
 
 **Core principle:** the ticket is the contract between the thinking and the building. Every required slot is filled or the ticket is not ready. Estimate and labels are not optional metadata, they are how the backlog stays pilotable.
 
@@ -25,11 +15,11 @@ A ticket an implementation agent can execute with zero follow-up questions. It d
 
 ## When to invoke
 
-- After `harness:brainstorm` or `harness:plan` produced a decision or spec, to capture it as trackable work.
+- After `brainstorm` or `plan` produced a decision or spec, to capture it as trackable work.
 - When the user says create a ticket, log this, or break this into tickets.
 - Always writes to the project's tracker (Linear / Jira / GitHub / ...). On a project with a fixed tracker, team, and label conventions, use them and do not re-ask.
 
-Do NOT use this to execute a ticket (`harness:implement`) or to sequence many steps (`harness:plan`).
+Do NOT use this to execute a ticket (`implement`) or to sequence many steps (`plan`).
 
 ---
 
@@ -37,7 +27,7 @@ Do NOT use this to execute a ticket (`harness:implement`) or to sequence many st
 
 Pull from what already exists, in order: the approved spec/plan, the brainstorm decisions, this conversation's decisions, the applicable ADR(s), the code conventions. The ticket RECORDS decisions already made. If a load-bearing decision is missing, go get it or flag it. Do not guess scope into existence.
 
-A `docs/specs/*.md` spec with `source: forge` in its frontmatter (the forge→harness artifact contract; see `docs/ARCHITECTURE.md` "Inter-plugin contracts") is a first-class source: its 18 recon variables, winning design, and critique verdict already answer scope, persona, and constraints — ingest them, do not re-ask. A partial forge spec (missing critique, or an older `forge_version` field) is ingested for what it has, with the gaps listed as the ticket's open questions.
+A `docs/specs/*.md` spec with `source: forge` in its frontmatter (the forge→harness artifact contract) is a first-class source: its 18 recon variables, winning design, and critique verdict already answer scope, persona, and constraints — ingest them, do not re-ask. A partial forge spec (missing critique, or an older `forge_version` field) is ingested for what it has, with the gaps listed as the ticket's open questions.
 
 ---
 
@@ -52,8 +42,8 @@ Render into the tracker description. Every slot is REQUIRED unless marked option
 - **Acceptance criteria**: objectively verifiable checkboxes.
 - **Definition of Done**: tests written and green, 0 lint / type errors, 0 regressions, plus ticket-specific items.
 - **Edge cases and gotchas**: boundary behaviors, error / empty / loading states, failure modes. This is the all-angles slot; an empty one means angles were missed.
-- **TDD mode**: defer to `harness:tdd`'s path-based auto-selection; note an explicit override to strict only for a business-critical surface (auth, payments, security, money).
-- **Runner passes that apply**: which `harness:implement` conditional passes you expect to fire (architecture? migration safety? async/idempotency? E2E? UX/UI? deep security?). This is an accelerator HINT, not authoritative: the runner still evaluates every predicate itself and may add passes you did not list.
+- **TDD mode**: defer to `tdd`'s path-based auto-selection; note an explicit override to strict only for a business-critical surface (auth, payments, security, money).
+- **Runner passes that apply**: which `implement` conditional passes you expect to fire (architecture? migration safety? async/idempotency? E2E? UX/UI? deep security?). This is an accelerator HINT, not authoritative: the runner still evaluates every predicate itself and may add passes you did not list.
 
 ### Close the link, both ways
 
@@ -117,7 +107,7 @@ autopilot:
 ---
 ```
 
-The body states that the plan supplies global intent, the complete tracker ticket is the executable unit, native blocker relations decide readiness, and `harness:implement` owns the per-ticket lifecycle. `tracker.issues` is the deterministic tie-break order among simultaneously ready tickets; it is scope, not mutable progress. Never store a current/next ticket, copied status, assignee, or completion checklist in ACTIVE.
+The body states that the plan supplies global intent, the complete tracker ticket is the executable unit, native blocker relations decide readiness, and `implement` owns the per-ticket lifecycle. `tracker.issues` is the deterministic tie-break order among simultaneously ready tickets; it is scope, not mutable progress. Never store a current/next ticket, copied status, assignee, or completion checklist in ACTIVE.
 
 The `autopilot` block is required, because consent to autonomous execution is never inferred from silence: a program that does not want it declares `enabled: false`. `mergeGate: human` is the only accepted value. Add `clusterSize` (1..4), `base`, `verifyCommands` (argv arrays, run with `shell:false`) and `ownership.sequential` / `ownership.reconcileOnly` only when the program enables autopilot.
 
@@ -163,4 +153,4 @@ A ticket missing a required slot or field is not done, however clear it feels.
 
 ## Composition
 
-Upstream: `harness:brainstorm` and `harness:plan` produced the thinking (or a `source: forge` spec did — see "Ingest first"); this skill captures it. Downstream: `harness:implement` consumes the ticket and the passes it declares. On a project, follow that project's tracker doctrine (team, project, label and estimate conventions) rather than re-deciding them here; this skill stays the harness-doctrine layer (ingest, required slots, runner handoff).
+Upstream: `brainstorm` and `plan` produced the thinking (or a `source: forge` spec did — see "Ingest first"); this skill captures it. Downstream: `implement` consumes the ticket and the passes it declares. On a project, follow that project's tracker doctrine (team, project, label and estimate conventions) rather than re-deciding them here; this skill stays the harness-doctrine layer (ingest, required slots, runner handoff).

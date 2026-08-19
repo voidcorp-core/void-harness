@@ -20,15 +20,15 @@ apps/<app>/src/
 
 ## Route groups
 
-- `(api|actions)`: every file is a trust boundary — composes with `harness-server:server-action`.
+- `(api|actions)`: every file is a trust boundary — composes with `server-action`.
 - `(marketing)`: public, statically rendered by default, no auth.
 - `(app)`: authenticated, requires middleware gate.
-- `api/webhooks/<source>`: webhook handlers — see `harness-server:webhook-handler-pattern` for the 5-layer pattern (signature, idempotency, Zod, service, ack).
+- `api/webhooks/<source>`: webhook handlers — see `webhook-handler-pattern` for the 5-layer pattern (signature, idempotency, Zod, service, ack).
 
 ## Cache Components (Next 16)
 
 - Cache by default; opt out with `'use no cache'` per fetch / per component for dynamic data.
-- Cache keys include user / org scope where appropriate. Never cache user-specific content under a shared key (composes with `harness:security-guidance` PII).
+- Cache keys include user / org scope where appropriate. Never cache user-specific content under a shared key (composes with `security-guidance` PII).
 - Use `revalidatePath('/specific-path')` after mutations — never broad `revalidatePath('/')` which kills cache hit rate.
 
 ## instrumentation.ts
@@ -41,5 +41,5 @@ apps/<app>/src/
 - `harness-react` — `components/` is pure UI, no DB.
 - `harness-server` — `(actions)/` and `api/webhooks/` are trust boundaries.
 - `harness-pwa` — manifest, service worker, offline patterns.
-- `harness:hexagonal-architecture` — `components → services → adapters → infrastructure` direction.
-- `harness:observability` — Sentry + pino wired in instrumentation.ts.
+- `hexagonal-architecture` — `components → services → adapters → infrastructure` direction.
+- `observability` — Sentry + pino wired in instrumentation.ts.

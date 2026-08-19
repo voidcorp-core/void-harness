@@ -42,7 +42,12 @@ describe('compileClaudeSpecialist', () => {
     expect(compileClaudeSpecialist(ARCHITECT_CONTRACT).content).toBe(readFileSync(FIXTURE, 'utf8'));
   });
 
-  it('blocks mutating built-ins and declares the remaining inherited-MCP limitation', () => {
+  // The allowlist is the isolation, and it already covers MCP. The official
+  // subagent documentation says so of this exact shape: "This example uses
+  // `tools` to allow only Read, Grep, Glob, and Bash. The subagent can't edit
+  // files, write files, or use any MCP tools." A specialist listing three read
+  // tools therefore reaches no server, including servers nobody enumerated.
+  it('isolates by allowlist, and claims no limitation it does not have', () => {
     const compiled = compileClaudeSpecialist(ARCHITECT_CONTRACT);
     expect(compiled.content).toMatch(/^tools: Read, Grep, Glob$/m);
     expect(compiled.content).toMatch(/^disallowedTools: Write, Edit, NotebookEdit, Bash, Agent, WebFetch, WebSearch$/m);
@@ -50,10 +55,8 @@ describe('compileClaudeSpecialist', () => {
     expect(compiled.safety).toEqual({
       readOnly: 'declared',
       isolation: 'fresh-context',
-      teamMode: 'degraded',
-      limitations: [
-        'Claude agent frontmatter blocks mutating built-ins but cannot deny unknown inherited MCP tools.',
-      ],
+      teamMode: 'available',
+      limitations: [],
     });
   });
 

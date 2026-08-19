@@ -1,19 +1,6 @@
 ---
 name: typescript-strict
-kind: standard
-activation: always
-triggers:
-  extensions: ["ts", "tsx"]
 description: TS strict baseline. Zero any budget, branded types for domain primitives, discriminated unions over enums, exhaustive switches via never, satisfies over as. Use when editing TypeScript code.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: pretooluse
-    codex: pretooluse
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # typescript-strict — voidcorp craftsman edition
@@ -42,7 +29,7 @@ Every consumer's `tsconfig.json` extends the void-harness strict baseline, shipp
 }
 ```
 
-If a consumer disables any flag, they document the reason in `docs/DECISIONS.md` — that is a deliberate ADR, not a casual config tweak.
+If a consumer disables any flag, they record the reason through the `decide` skill - that is a deliberate ADR, not a casual config tweak.
 
 ---
 

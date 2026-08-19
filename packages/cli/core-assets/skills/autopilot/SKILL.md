@@ -1,16 +1,6 @@
 ---
 name: autopilot
-kind: action
 description: Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR a human merges.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: pretooluse
-    codex: pretooluse
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # autopilot
@@ -50,6 +40,19 @@ with native subagents. Both read the *same* `OrchestrationPlan` and return the *
 `unsupported-runtime` before any tracker mutation.
 
 **The workers.** One ticket, one worktree, one branch, one full `implement` run.
+
+---
+
+## Where the target comes from
+
+The run takes no argument in the normal case. `.void/active.md` names the tracker, the scope and
+the base, so there is nothing to repoint and nothing to ask: not which ticket, not which cluster,
+not which run id, not which tracker.
+
+That file is also the consent, and consent is never inferred. An absent `.void/active.md`, a
+`status` other than `executing`, an `autopilot` block that is missing or unreadable, or
+`autopilot.enabled: false` all mean the same thing — say so and stop. Inventing a target here
+claims tickets nobody agreed to hand over.
 
 ---
 
@@ -156,6 +159,6 @@ plan itself, not only in the prompt, so an adapter that honours the plan cannot 
 
 ## Composition
 
-Upstream: `harness:ticket` authors the tickets and the active program pointer.
-Per ticket: `harness:implement`, entire, once. Downstream: the reconciler owns the
+Upstream: `ticket` authors the tickets and the active program pointer.
+Per ticket: `implement`, entire, once. Downstream: the reconciler owns the
 integration branch, the suite and the PR. The human owns the merge.

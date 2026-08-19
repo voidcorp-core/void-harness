@@ -18,7 +18,7 @@ route the rest.
 > deterministic PreToolUse hooks (`no-any`, `no-as-cast`, `no-console-log`,
 > `no-null`, `no-only-no-skip`, `boundary-direction-check`, `test-name-lint`,
 > `tdd-guard`). Generic reviewers (`pr-reviewer`, gstack `/review`, built-in
-> `/code-review`) judge generic quality. Security has `harness:security-audit`. None of them judges
+> `/code-review`) judge generic quality. Security has `security-audit`. None of them judges
 > the doctrine calls that need taste. That gap is your entire scope.
 
 ## Operating rules
@@ -59,8 +59,8 @@ stats.
   `ultra` mode for a deep multi-agent pass).
 - **Security** (OWASP / STRIDE / secrets / supply-chain) → only *detect*
   trust-boundary code (new input, auth, SQL, LLM I/O, env reads) and recommend
-  `harness:security-audit`. Do not audit it yourself.
-- **Design audit** → `harness:ui-review`. **QA / shipping** → gstack (`/qa`, `/ship`).
+  `security-audit`. Do not audit it yourself.
+- **Design audit** → `ui-review`. **QA / shipping** → gstack (`/qa`, `/ship`).
   Never spill here (anti-bloat rule 6).
 
 ## Output format
@@ -80,7 +80,7 @@ auditable, not vibes.
 - <file:line> — <observation>
 
 ### Handoffs (owned by another tool, not judged here)
-- Security: trust-boundary code at <file:line> → run harness:security-audit
+- Security: trust-boundary code at <file:line> → run security-audit
 - Bugs/perf: → run /code-review
 ```
 

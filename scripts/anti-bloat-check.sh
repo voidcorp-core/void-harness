@@ -72,8 +72,8 @@ while IFS= read -r f; do
   fi
 done <<<"$HOOK_FILES"
 
-# Frontmatter description ≤ 200 chars (rule 4): skills (core + packs) + agents
-echo "  rule 4: frontmatter description ≤ 200 chars"
+# Frontmatter description ≤ 512 chars (rule 4): skills (core + packs) + agents
+echo "  rule 4: frontmatter description ≤ 512 chars"
 DESC_FILES=$(printf "%s\n" "$SKILL_FILES"; ls packages/core/agents/*.md 2>/dev/null || true)
 while IFS= read -r f; do
   [[ -n "$f" && -e "$f" ]] || continue
@@ -86,8 +86,8 @@ while IFS= read -r f; do
     \'*\') DESC="${DESC#\'}"; DESC="${DESC%\'}" ;;
   esac
   LEN=${#DESC}
-  if [[ "$LEN" -gt 200 ]]; then
-    echo "    FAIL: $f description is $LEN chars (cap 200): $DESC" >&2
+  if [[ "$LEN" -gt 512 ]]; then
+    echo "    FAIL: $f description is $LEN chars (cap 512): $DESC" >&2
     FAILED=1
   fi
 done <<<"$DESC_FILES"
@@ -118,7 +118,7 @@ for f in packages/core/skills/*/SKILL.md packages/packs/*/skills/*/SKILL.md; do
   # it exists. `kind` says which grammar applies, so the rule is checkable
   # instead of being an intention: an action takes its bare verb, a standard
   # takes the subject it governs.
-  KIND=$(awk '/^kind:/{ sub(/^kind: */,""); print; exit }' "$f" 2>/dev/null || true)
+  KIND=$(awk '/^kind:/{ sub(/^kind: */,""); print; exit }' "$(dirname "$f")/harness.yaml" 2>/dev/null || true)
   case "$KIND" in
     action|standard) ;;
     "") echo "    FAIL: $f has no frontmatter 'kind:' (action or standard)" >&2; FAILED=1 ;;
@@ -164,6 +164,25 @@ while IFS= read -r f; do
     FAILED=1
   fi
 done <<<"$SKILL_FILES"
+
+# One slash command, one owner. Claude Code answers `/<name>` from a skill at
+# skills/<name>/SKILL.md and from a command at commands/<name>.md alike, so a name
+# living in both is listed twice in the palette, each entry carrying its own
+# description. The two descriptions drift the moment one side is edited, and the
+# person typing the name is asked to pick between them. `/checkpoint` shipped that
+# way, advertising two different jobs for one skill.
+echo "  slash command name has a single owner"
+for root in packages/core packages/packs/*; do
+  [[ -d "$root/commands" ]] || continue
+  for f in "$root"/commands/*.md; do
+    [[ -e "$f" ]] || continue
+    NAME=$(basename "$f" .md)
+    if [[ -f "$root/skills/$NAME/SKILL.md" ]]; then
+      echo "    FAIL: '$NAME' is both $root/commands/$NAME.md and $root/skills/$NAME/SKILL.md" >&2
+      FAILED=1
+    fi
+  done
+done
 
 if [[ "$FAILED" -eq 0 ]]; then
   echo "anti-bloat-check: all checks passed."

@@ -1,23 +1,13 @@
 ---
 name: instrumentation-setup
-kind: standard
 description: Wire instrumentation.ts in Next.js 16 — Sentry, pino logger, OpenTelemetry traces. Edge vs Node runtime split. The single place observability is bootstrapped.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # instrumentation-setup
 
 Use when setting up observability in a fresh Next.js app, OR when adding a new instrumentation tool (Sentry → +OTel, +Datadog, etc.). The pattern: ONE `instrumentation.ts` at the project root, conditionally initializes per runtime.
 
-Composes with `harness:observability` (the doctrine: pino, structured logs, Sentry user scope). This skill is the Next-specific wiring.
+Composes with `observability` (the doctrine: pino, structured logs, Sentry user scope). This skill is the Next-specific wiring.
 
 ## File location
 
@@ -165,7 +155,7 @@ After setup, in dev:
 
 ## Composition
 
-- `harness:observability` — pino + Sentry doctrine (this skill is the Next wiring).
-- `harness:security-guidance` — Sentry user scope MUST be hashed; no PII in event payloads.
-- `harness-server:env-validation` — `SENTRY_DSN`, `OTEL_EXPORTER_OTLP_ENDPOINT` validated via Zod in `@repo/core/env`.
-- `harness-nextjs:loading-error-boundaries` — `error.tsx` uses Sentry.captureException; this skill ensures Sentry is initialized when that fires.
+- `observability` — pino + Sentry doctrine (this skill is the Next wiring).
+- `security-guidance` — Sentry user scope MUST be hashed; no PII in event payloads.
+- `env-validation` — `SENTRY_DSN`, `OTEL_EXPORTER_OTLP_ENDPOINT` validated via Zod in `@repo/core/env`.
+- `loading-error-boundaries` — `error.tsx` uses Sentry.captureException; this skill ensures Sentry is initialized when that fires.

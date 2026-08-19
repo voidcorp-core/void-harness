@@ -1,17 +1,6 @@
 ---
 name: plan-review
-kind: action
-activation: on-demand
 description: "Critique a written plan (not a diff) via four lenses: CEO premise/ambition, Eng test-coverage, Design states/slop, DevEx time-to-first-value. Proposes findings; the author disposes."
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # plan-review — voidcorp craftsman edition
@@ -73,7 +62,7 @@ Scope-gated: no UI in the plan → skip. Judges what reaches the user's eyes.
 - **Information architecture**: explicit primary / secondary / tertiary emphasis per screen.
 - **Interaction-state coverage**: every state the user actually hits — loading, empty, error, success, partial — described as what the user *sees*. A missing state is a first-class plan gap, not a detail.
 - **Journey & emotional arc**: the 5-second / 5-minute / 5-year read of the feature.
-- **AI-slop risk**: classify the surface (marketing vs app-UI vs hybrid) and hold it to the matching bar; reject generic-AI-generated patterns. (Bar and blacklist re-derived from OpenAI's "designing delightful frontends" + Krug — cited in `.source`, composes with `harness:frontend-design` / `harness:ui-review`.)
+- **AI-slop risk**: classify the surface (marketing vs app-UI vs hybrid) and hold it to the matching bar; reject generic-AI-generated patterns. (Bar and blacklist re-derived from OpenAI's "designing delightful frontends" + Krug — cited in `.source`, composes with `frontend-design` / `ui-review`.)
 - **Responsive & a11y**: per-viewport intent, keyboard path, ARIA, 44px targets, 4.5:1 contrast — as plan requirements, not afterthoughts.
 
 **Output**: rate each dimension `N/10 → M/10` with the fix written into the plan; "design-complete" when every dimension ≥ 8.
@@ -91,7 +80,7 @@ Scope-gated: no API / CLI / SDK / library / docs surface → skip. Audits the de
 - **Upgrade path**: blast radius, deprecation warnings, codemods, semver honored.
 - **Dev environment**: LSP autocomplete, non-interactive CI, types, hot reload, cross-platform.
 
-**Output**: a DX scorecard (each dimension Score/Prior/Trend + TTHW tier + competitive rank); TTHW > 10 min is blocking; any dimension < 6 is critical DX debt. This lens judges the *plan's promises*; once the surface ships, `harness:devex-audit` measures the reality against them.
+**Output**: a DX scorecard (each dimension Score/Prior/Trend + TTHW tier + competitive rank); TTHW > 10 min is blocking; any dimension < 6 is critical DX debt. This lens judges the *plan's promises*; once the surface ships, `devex-audit` measures the reality against them.
 
 ---
 
@@ -113,7 +102,7 @@ Between phases, auto-decide only the safe class; escalate the rest:
 - **Not `brainstorm`**: brainstorm pressure-tests the *idea* (is there demand?); plan-review critiques the *written plan* (is it the right shape, buildable, complete?). Different artifact, different question.
 - **Not `code-review`**: that reviews a *diff*; this reviews a *plan* before any code exists.
 - **Not `doctrine-critic`**: that judges a diff against VoidCorp doctrine; this critiques a plan across product/eng/design/DX lenses.
-- **Composes with `frontend-design` / `harness:ui-review`** (the Design lens defers UI build-craft and audit to them), `harness:devex-audit` (the DevEx lens's shipped-surface counterpart — this judges the plan, that measures the deployed reality), and `security-guidance` / `harness:security-audit` (the Eng lens routes a deep security concern there).
+- **Composes with `frontend-design` / `ui-review`** (the Design lens defers UI build-craft and audit to them), `devex-audit` (the DevEx lens's shipped-surface counterpart — this judges the plan, that measures the deployed reality), and `security-guidance` / `security-audit` (the Eng lens routes a deep security concern there).
 
 ---
 

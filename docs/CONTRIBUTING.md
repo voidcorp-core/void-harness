@@ -86,7 +86,7 @@ and native dependencies exist.
 
 ## Commits
 
-Conventional Commits, and every message ends with **why**, not just what (see `harness:commit-discipline`). Any new convention added in a commit must be reflected in `docs/*.md` in the same commit. Create each non-obvious decision with `void-harness decisions new`; never edit an accepted decision or a shared index. `pnpm decisions:check` validates the records and their immutability.
+Conventional Commits, and every message ends with **why**, not just what (see `commit-discipline`). Any new convention added in a commit must be reflected in `docs/*.md` in the same commit. Create each non-obvious decision with `void-harness decisions new`; never edit an accepted decision or a shared index. `pnpm decisions:check` validates the records and their immutability.
 
 ## Filing a gap
 

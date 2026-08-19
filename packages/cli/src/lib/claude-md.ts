@@ -13,6 +13,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { MARKETPLACE_NAME, MARKETPLACE_REPO, type PackDescriptor } from './packs.js';
 import type { Runtime } from './runtime.js';
+import type { InstallSource } from './runtime-assets.js';
 
 const BEGIN_MARKER = '<!-- void-harness:begin -->';
 const END_MARKER = '<!-- void-harness:end -->';
@@ -30,6 +31,15 @@ export function docFileFor(runtime: Runtime): string {
 export interface ClaudeMdBlockInputs {
   readonly enabledPlugins: readonly string[];
   readonly enabledPacks: readonly PackDescriptor[];
+  /**
+   * How the harness was installed, which is what decides whether a skill name
+   * carries a namespace. Only a Claude Code marketplace plugin prefixes one; a
+   * local install lands every skill flat in `.claude/skills/` and answers to the
+   * bare name, and Codex has no marketplace at all. Reading this off the runtime
+   * instead is what shipped `harness:tdd` into locally installed skills, where
+   * the call returns Unknown skill. Defaults to the primary channel.
+   */
+  readonly channel?: InstallSource;
 }
 
 export function harnessBlock(input: ClaudeMdBlockInputs, runtime: Runtime = 'claude'): string {
@@ -45,13 +55,24 @@ export function harnessBlock(input: ClaudeMdBlockInputs, runtime: Runtime = 'cla
   const captureLine = isClaude
     ? `To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The \`capture-rule\` skill auto-invokes, classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.`
     : `To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The capture-rule workflow classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.`;
-  const ticketRunner = isClaude ? '`harness:implement`' : '`implement`';
+  // The namespace belongs to the channel, never to the runtime.
+  const prefixed = isClaude && input.channel === 'marketplace';
+  const ticketRunner = prefixed ? '`harness:implement`' : '`implement`';
+  const invocationLine = isClaude
+    ? `Every skill is invoked by its name: \`${prefixed ? '/harness:implement' : '/implement'}\`, \`${prefixed ? '/harness:tdd' : '/tdd'}\`. A skill that composes another names it the same way; the syntax is the runtime's, the name is the skill's.`
+    : `Every skill is invoked by its name: \`$implement\`, \`$tdd\`. A skill that composes another names it the same way; the syntax is the runtime's, the name is the skill's.`;
   return [
     BEGIN_MARKER,
     '',
     `## void-harness (managed by \`void-harness init\`)`,
     '',
-    `Marketplace: \`${MARKETPLACE_NAME}\` (https://github.com/${MARKETPLACE_REPO}). ${runtimeName} doctrine active in this project:`,
+    // Provenance, and only when it is true. The default path copies bundled
+    // assets and never contacts a marketplace, so naming one there teaches the
+    // model a channel that does not exist in this project -- the same class of
+    // untruth that had skills invoked under a namespace nothing could resolve.
+    input.channel === 'marketplace'
+      ? `Marketplace: \`${MARKETPLACE_NAME}\` (https://github.com/${MARKETPLACE_REPO}). ${runtimeName} doctrine active in this project:`
+      : `${runtimeName} doctrine active in this project:`,
     '',
     `- \`void\` — universal craftsman skills (TDD, TypeScript strict, hexagonal, DDD, ...)`,
     ...packLines,
@@ -63,6 +84,8 @@ export function harnessBlock(input: ClaudeMdBlockInputs, runtime: Runtime = 'cla
     `\`PHILOSOPHY.md\` is the universal void-harness doctrine (managed — overwritten on init). \`PROJECT-DOCTRINE.md\` holds project-specific rules: context, ADRs, in-flight decisions (created once, never overwritten by init).`,
     '',
     captureLine,
+    '',
+    invocationLine,
     '',
     `### Active program — when present`,
     '',

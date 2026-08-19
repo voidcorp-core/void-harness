@@ -50,6 +50,12 @@ interface InitOptions {
   readonly allPacks: boolean;
   readonly interactive: boolean;
   readonly force: boolean;
+  /**
+   * Internal: keep the doctrine this installation already carries instead of
+   * writing the packaged copy over it. `update` sets it on the source repo,
+   * where the doctrine is the original rather than a copy of it.
+   */
+  readonly preserveDoctrine: boolean;
   /** Internal pack lifecycle mode: config.packs becomes exactly explicitPacks. */
   readonly replacePacks: boolean;
   readonly marketplaceRepo: string;
@@ -66,6 +72,7 @@ function parseArgs(args: readonly string[]): InitOptions {
   let allPacks = false;
   let interactive = true;
   let force = false;
+  let preserveDoctrine = false;
   let replacePacks = false;
   let marketplaceRepo = MARKETPLACE_REPO;
   const source = resolveInstallSource(args);
@@ -82,6 +89,8 @@ function parseArgs(args: readonly string[]): InitOptions {
       interactive = false;
     } else if (a === '--force') {
       force = true;
+    } else if (a === '--preserve-doctrine') {
+      preserveDoctrine = true;
     } else if (a === '--replace-packs') {
       replacePacks = true;
     } else if (a === '--marketplace-repo' && i + 1 < args.length) {
@@ -104,7 +113,7 @@ function parseArgs(args: readonly string[]): InitOptions {
   // If --pack flags are present, default to non-interactive (script-friendly).
   if (explicitPacks.length > 0 || allPacks) interactive = false;
 
-  return { explicitPacks, allPacks, interactive, force, replacePacks, marketplaceRepo, source, explicitRuntimes, invalidRuntimeArgs };
+  return { explicitPacks, allPacks, interactive, force, preserveDoctrine, replacePacks, marketplaceRepo, source, explicitRuntimes, invalidRuntimeArgs };
 }
 
 export function resolveInstallSource(args: readonly string[]): InstallSource {
@@ -162,6 +171,27 @@ export function buildFinalChecklist(
 /** Message of an unknown thrown value without an `as` cast. */
 const errorMessage = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
+/**
+ * What running `init` against this root should do.
+ *
+ * The source repo is the only place where the doctrine docs are the source
+ * rather than a copy of it, so a bare `init` there would replace a canonical
+ * file with the packaged one. That is worth refusing. What is not worth refusing
+ * is the rest of the work: `update` asks to preserve the doctrine and recompile
+ * everything else, because a command that dies after half a job teaches its user
+ * that updating is dangerous, and they stop updating.
+ */
+export type SourceRepoVerdict = 'proceed' | 'refuse' | 'preserve-doctrine';
+
+export function sourceRepoVerdict(input: {
+  readonly isSourceRepo: boolean;
+  readonly force: boolean;
+  readonly preserveDoctrine: boolean;
+}): SourceRepoVerdict {
+  if (!input.isSourceRepo || input.force) return 'proceed';
+  return input.preserveDoctrine ? 'preserve-doctrine' : 'refuse';
+}
+
 export async function init(args: readonly string[]): Promise<void> {
   const opts = parseArgs(args);
   const projectRoot = process.cwd();
@@ -173,12 +203,18 @@ export async function init(args: readonly string[]): Promise<void> {
   // init overwrites the canonical CLAUDE.md / AGENTS.md and drops doctrine files
   // at the repo root — corrupting the source of truth. Refuse by default; --force
   // is the deliberate "I know, I'm dogfooding the installer here" escape hatch.
-  if (isHarnessSourceRepo(projectRoot) && !opts.force) {
+  const verdict = sourceRepoVerdict({
+    isSourceRepo: isHarnessSourceRepo(projectRoot),
+    force: opts.force,
+    preserveDoctrine: opts.preserveDoctrine,
+  });
+  if (verdict === 'refuse') {
     blank();
     p.log.error('This is the void-harness source repo — init would overwrite the canonical CLAUDE.md and doctrine files.');
     p.log.message('To install/test the harness, run init in a consumer project. To do it here anyway, pass --force.');
     process.exit(2);
   }
+  const preserveDoctrine = verdict === 'preserve-doctrine';
 
   // A --runtime typo must fail loudly, never silently fall back to "both".
   if (opts.invalidRuntimeArgs.length > 0) {
@@ -260,7 +296,7 @@ export async function init(args: readonly string[]): Promise<void> {
     // 1. Write .void/config.json (runtime-agnostic)
     await writeConfig(stageRoot, packs, opts, { pinVersion, stack });
     // 2. Copy PHILOSOPHY.md + create PROJECT-DOCTRINE.md from template
-    await installDoctrineFiles(stageRoot, sourceRoot);
+    await installDoctrineFiles(stageRoot, sourceRoot, preserveDoctrine ? projectRoot : undefined);
     // 3. Wire each selected runtime through its adapter.
     const wireCtx = {
       projectRoot: stageRoot,
@@ -271,6 +307,7 @@ export async function init(args: readonly string[]): Promise<void> {
       source: opts.source,
       marketplaceRepo: opts.marketplaceRepo,
       pinVersion,
+      preserveDoctrineDoc: preserveDoctrine,
     };
     for (const adapter of adapters) {
       const outcome = await adapter.wire(wireCtx);
@@ -333,7 +370,10 @@ export async function init(args: readonly string[]): Promise<void> {
   }
 
   blank();
-  meta('plugins', enabledPlugins.join(', '));
+  // "plugins" is what the marketplace channel calls them. On the default path
+  // nothing is installed as a plugin, and reporting one invites the reader to
+  // go looking for something this project does not have.
+  meta(opts.source === 'marketplace' ? 'plugins' : 'doctrine', enabledPlugins.join(', '));
 
   // Numbered "what's left" checklist: each adapter's start-steps, then every
   // unmet prerequisite as an unmissable FAILED line.
@@ -490,7 +530,20 @@ async function ensureGitignoreBlock(projectRoot: string, derivedEntries: readonl
   );
 }
 
-async function installDoctrineFiles(projectRoot: string, sourceRoot: string): Promise<void> {
+/**
+ * Write the managed doctrine into the staged install.
+ *
+ * `preserveFrom` names an installation whose philosophy is canonical rather than
+ * derived — the source repo, where `docs/PHILOSOPHY.md` is the original and the
+ * packaged copy is necessarily behind it. Its own file is staged instead, so the
+ * transaction rewrites it byte-for-byte rather than replacing it with an older
+ * copy of itself.
+ */
+export async function installDoctrineFiles(
+  projectRoot: string,
+  sourceRoot: string,
+  preserveFrom?: string,
+): Promise<void> {
   const voidDir = join(projectRoot, '.void');
   await mkdir(voidDir, { recursive: true });
   const philosophySrc = join(sourceRoot, 'PHILOSOPHY.md');
@@ -500,7 +553,13 @@ async function installDoctrineFiles(projectRoot: string, sourceRoot: string): Pr
   // a glance.
   const philosophyDst = join(voidDir, 'installed', 'PHILOSOPHY.md');
   await mkdir(join(voidDir, 'installed'), { recursive: true });
-  if (existsSync(philosophySrc)) {
+  const canonical = preserveFrom === undefined
+    ? undefined
+    : join(preserveFrom, '.void', 'installed', 'PHILOSOPHY.md');
+  if (canonical !== undefined && existsSync(canonical)) {
+    await cp(canonical, philosophyDst);
+    line(`${c.dim(glyph.dot)}  ${c.dim('PHILOSOPHY.md'.padEnd(18))}${c.dim('preserved (canonical here)')}`);
+  } else if (existsSync(philosophySrc)) {
     await cp(philosophySrc, philosophyDst);
     line(`${c.green(glyph.check)}  ${c.dim('PHILOSOPHY.md'.padEnd(18))}written (managed)`);
   }

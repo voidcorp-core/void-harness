@@ -1,16 +1,6 @@
 ---
 name: cache-component-pattern
-kind: standard
 description: Use Next.js 16 Cache Components correctly — when to opt in ('use cache'), when to opt out ('use no cache'), cache key strategy, scoping by user/org. Default is cached; uncache deliberately.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # cache-component-pattern
@@ -166,7 +156,7 @@ Or use Next's built-in `?_cache-debug=1` (if available in your version) to inspe
 
 ## Composition
 
-- `harness-react:client-vs-server-component` — only Server Components participate in Cache Components.
-- `harness-server:server-action` — actions call `revalidateTag` / `revalidatePath` after mutations.
-- `harness:security-guidance` — explicit `'use no cache'` on user-scoped content is a security control, not just a perf one.
-- `harness:observability` — log cache misses on routes you expect cached; surface as a perf signal.
+- `client-vs-server-component` — only Server Components participate in Cache Components.
+- `server-action` — actions call `revalidateTag` / `revalidatePath` after mutations.
+- `security-guidance` — explicit `'use no cache'` on user-scoped content is a security control, not just a perf one.
+- `observability` — log cache misses on routes you expect cached; surface as a perf signal.

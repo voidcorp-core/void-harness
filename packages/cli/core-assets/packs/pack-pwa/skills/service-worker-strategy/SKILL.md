@@ -1,16 +1,6 @@
 ---
 name: service-worker-strategy
-kind: standard
 description: Pick caching strategy per route class (NetworkFirst, CacheFirst, StaleWhileRevalidate, NetworkOnly), version your caches, handle update activation. Use Serwist (Next) or vite-plugin-pwa.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # service-worker-strategy
@@ -181,8 +171,8 @@ DevTools → Application → Cache Storage:
 
 ## Composition
 
-- `harness-pwa:manifest-checklist` — manifest declares the SW scope; service worker honors it.
-- `harness-pwa:install-prompt-ux` — SW must be registered before install prompt fires.
-- `harness-pwa:offline-first-mutation` — capture-queue lives alongside SW; SW handles GET caching, capture-queue handles mutations.
-- `harness-nextjs:cache-component-pattern` — Next's server-side cache is independent of SW; both layers compose.
-- `harness:async-safety` — SW activation race conditions are timing bugs; bounded retries on update apply.
+- `manifest-checklist` — manifest declares the SW scope; service worker honors it.
+- `install-prompt-ux` — SW must be registered before install prompt fires.
+- `offline-first-mutation` — capture-queue lives alongside SW; SW handles GET caching, capture-queue handles mutations.
+- `cache-component-pattern` — Next's server-side cache is independent of SW; both layers compose.
+- `async-safety` — SW activation race conditions are timing bugs; bounded retries on update apply.
