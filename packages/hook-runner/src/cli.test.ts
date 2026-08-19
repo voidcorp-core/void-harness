@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -81,5 +81,57 @@ describe('enforce', () => {
     });
     expect(result.status).toBe(2);
     expect(result.stderr).toContain('HOOK_INPUT_REJECTED:');
+  });
+});
+
+describe('lifecycle context', () => {
+  function banner(root: string): string {
+    const result = spawnSync(process.execPath, [hook, 'lifecycle', 'context', 'claude'], {
+      input: '{}',
+      encoding: 'utf8',
+      env: { ...process.env, VOID_PROJECT_ROOT: root },
+    });
+    return result.stdout ?? '';
+  }
+
+  function projectWith(skill: string, recorded: string): string {
+    const root = mkdtempSync(join(tmpdir(), 'void-banner-'));
+    mkdirSync(join(root, '.claude', 'skills', skill), { recursive: true });
+    writeFileSync(join(root, '.claude', 'skills', skill, 'SKILL.md'), '---\n---\n');
+    const mission = join(root, '.void', 'machine', 'runs', 'mis_aaaaaaaaaaaaaaaa');
+    mkdirSync(mission, { recursive: true });
+    writeFileSync(
+      join(mission, 'events.jsonl'),
+      `${JSON.stringify({
+        kind: 'runtime.tool.started',
+        subject: `skill:${recorded}`,
+        ts: '2026-08-19T10:00:00.000Z',
+        payload: { category: 'skill', tool: 'Skill' },
+      })}\n`,
+    );
+    return root;
+  }
+
+  it('names a skill the project recorded but can no longer resolve, from the session after', () => {
+    const root = projectWith('ticket', 'ticket-writer');
+    try {
+      // The first opening computes the verdict after its own stdout, so it is
+      // the next one that carries it. One session of delay costs nothing here,
+      // and it is what keeps the start instant.
+      expect(banner(root)).not.toContain('ticket-writer');
+      expect(banner(root)).toContain('ticket-writer');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('says nothing extra when every recorded name still resolves', () => {
+    const root = projectWith('ticket', 'ticket');
+    try {
+      banner(root);
+      expect(banner(root)).not.toContain('cannot resolve');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
