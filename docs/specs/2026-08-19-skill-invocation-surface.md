@@ -66,10 +66,11 @@ Le déclenchement repose donc entièrement sur la `description` que le modèle l
 Les treize hooks `PreToolUse` câblés refusent des écritures ; aucun ne rappelle la skill qui
 s'applique.
 
-Pendant ce temps, Claude Code expose `paths` : des globs qui chargent la skill automatiquement
-quand on travaille sur les fichiers correspondants. Zéro skill du harnais l'utilise. C'est
-exactement le mécanisme qui manque pour que `tdd` et `typescript-strict` s'arment sur le fichier
-plutôt que sur l'intention.
+Il n'existe d'ailleurs aucun mécanisme, dans aucun des trois runtimes, qui charge une skill de
+force sur un fichier. `paths`, souvent pris pour cela, fait l'inverse : la documentation le donne
+comme « glob patterns that *limit* when this skill is activated ». Le déclenchement automatique
+est donc, partout, une affaire de description lue par un modèle, plus ce qu'un hook dit au moment
+où il agit.
 
 ### 3. Les commands sont un format legacy, et Claude-only par construction
 
@@ -158,13 +159,21 @@ Du plus universel au plus contraignant. Ils se composent, ils ne se remplacent p
 l'essentiel. `description` dit ce que la skill fait et quand ; `when_to_use` porte les phrases
 déclencheuses. Une skill qui ne se déclenche pas est d'abord une skill mal décrite.
 
-**2. `paths`.** Claude Code uniquement, déclaratif, sans code : `tdd` et `typescript-strict`
-s'arment sur `**/*.ts`, `accessibility` et `frontend-design` sur les surfaces UI. C'est le
-mécanisme natif pour « au moment de l'implémentation, ça se lance vraiment ».
+**2. `paths`.** Claude Code uniquement, et **restrictif** : la documentation dit « glob patterns
+that *limit* when this skill is activated ». Il ne provoque aucune activation, il empêche celles
+qui sortent du périmètre. C'est donc un outil de précision et de frugalité, pas le mécanisme de
+déclenchement qu'il semblait être. Mesure qui tranche : les huit standards à périmètre de fichier
+pèsent 13 534 mots ensemble, soit environ vingt mille tokens s'ils se chargeaient tous sur chaque
+édition TypeScript. Le chargement automatique de masse n'est pas souhaitable, et `paths` ne le
+produirait de toute façon pas.
 
-**3. Les hooks.** Le filet dur, et le seul niveau qui traverse Claude et Codex de la même façon
-(`.claude/settings.json` et `.codex/hooks.json` portent déjà le même runner). Un hook qui refuse
-une écriture peut aussi nommer la skill qui s'applique.
+**3. Les hooks.** Le filet dur, le seul niveau qui traverse Claude et Codex de la même façon
+(`.claude/settings.json` et `.codex/hooks.json` portent déjà le même runner), et, la mesure faite,
+**le levier principal** plutôt que le dernier recours. Un refus qui nomme la skill gouvernante
+coûte une clause et ne charge rien ; le modèle va chercher la doctrine seulement si la phrase ne
+suffit pas. C'est ce que les 26 440 exécutions de hooks contre 4 activations de skill désignent :
+la couche qui s'exécute vraiment est celle des hooks, et c'est par elle que la doctrine se fait
+connaître.
 
 C'est à ce moment que `enforcement.inline` cesse d'être décoratif : il devient la source depuis
 laquelle ces trois niveaux sont câblés, et le graphe le lit comme une observation, plus comme une

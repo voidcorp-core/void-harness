@@ -151,39 +151,26 @@ C'est le seul moment du plan où la valeur est vérifiable par l'usage plutôt q
 
 ### Step 5 — Rendre le déclenchement réel
 
-- **Goal** : les standards s'arment sur le fichier, et un refus de hook nomme la skill qui
-  s'applique.
+- **Goal** : un refus nomme la doctrine dont il vient, pour que la couche qui s'exécute
+  vraiment fasse connaître celle qui ne s'exécute pas.
 - **Depends on** : step-4
 - **TDD mode** : strict
-- **Verification gate** : un test vérifie que chaque `paths` déclaré matche au moins un fichier
-  réel du dépôt (un glob qui ne matche rien est un déclenchement mort, indétectable à l'usage) ;
-  un test vérifie qu'un refus de hook nomme une skill qui existe au catalogue.
+- **Verification gate** : un test unitaire tient la table règle vers skill contre les arêtes
+  `enforces` du graphe ; un test de bout en bout lance le bundle réel et vérifie que le refus
+  nomme la skill.
 - **Expected commits** :
-  - `test(skills): a declared path glob must match a real file`
-  - `feat(skills): arm the file-scoped standards with paths`
-  - `test(hooks): a refusal names the skill that governs the rule`
-  - `feat(hooks): name the governing skill in the refusal message`
-- **Notes** : `paths` ne concerne que les `kind: standard` dont le périmètre est réellement un
-  chemin. Une action ne prend jamais `paths` : elle se déclenche sur une intention, pas sur un
-  fichier. La liste exacte se décide à l'exécution et se prouve par le test de matching ; le
-  risque nommé dans la spec est le bruit, donc en cas de doute une skill n'en prend pas.
-  `paths` est un accélérateur Claude Code ; sur Codex et Kimi le niveau équivalent est le hook,
-  déjà câblé des deux côtés par `_void-hook.mjs`. C'est aussi le step où
-  `enforcement.inline` devient la source du câblage au lieu d'une déclaration lue par le seul
-  graphe.
+  - `feat(hooks): name the doctrine a refusal comes from`
+- **Notes** : **`paths` est écarté, et la spec est corrigée en conséquence.** La documentation dit
+  « glob patterns that *limit* when this skill is activated » : le champ restreint l'activation
+  automatique, il n'en provoque aucune. L'utiliser ici aurait au mieux réduit le déclenchement,
+  qui est l'inverse de la demande. La mesure va dans le même sens : les huit standards à périmètre
+  de fichier pèsent 13 534 mots, soit une vingtaine de milliers de tokens s'ils se chargeaient
+  ensemble sur chaque édition.
 
-  **Le critère d'admission à `paths`, pour qu'il ne se décide pas au jugé.** Une skill en prend
-  un si et seulement si les trois conditions tiennent : son `kind` est `standard` ; la règle
-  qu'elle porte s'applique à **tout** fichier du glob, sans exception qu'il faudrait juger ; et
-  elle est déjà tenue par un hook `PreToolUse` sur le même périmètre, ce qui prouve que le
-  périmètre est mécaniquement décidable. Les treize hooks câblés donnent donc la liste de
-  départ : `tdd` (`tdd-order`), `typescript-strict` (`no-any`, `no-as-cast`), `observability`
-  (`no-console`), `functional` (`no-null`), `testing` (`no-focused-test`, `test-name`),
-  `hexagonal-architecture` (`boundary-direction`), `frontend-design` (`design-slop`),
-  `security-guidance` (`secret-content`). Une skill hors de cette liste n'en prend pas dans ce
-  step.
-
----
+  Ce qui reste, et qui est le bon levier : le hook. Il s'exécute au bon moment, il traverse Claude
+  et Codex par le même runner, il coûte une clause et ne charge rien. Les paires règle vers skill
+  ne sont pas inventées : `relations.graph.yaml` déclare déjà 24 arêtes `enforces` avec leur
+  évidence, et un test tient la table compilée contre cette déclaration.
 
 ### Step 6 — Passer aux conventions Agent Skills
 
