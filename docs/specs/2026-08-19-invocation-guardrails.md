@@ -92,6 +92,14 @@ au-delà de vingt appels d'outils, seuil déjà utilisé par l'analyse comportem
 elle ne prouve rien et n'est pas comptée. Les 146 missions à événement unique disparaissent
 d'elles-mêmes.
 
+**Ce que ce verdict couvre, mesuré après coup.** Sur l'historique d'avant réparation il reste
+**vert** : deux missions actives seulement, sous la fenêtre, et surtout quatre activations bien
+présentes, sous des noms morts. Il n'aurait donc pas attrapé la panne vécue - c'est le verdict de
+résolution qui l'attrape. Il couvre le cas voisin et bien réel : celui où plus **aucune**
+activation ne s'enregistre, parce que toutes les invocations sont refusées ou que le compteur
+lui-même a cassé. Les quatre vestiges de notre corpus datent d'avant le renommage ; sans eux, ce
+verdict aurait crié.
+
 **L'activité se mesure en appels d'outils, jamais en hooks.** Une activation de skill *est* un
 appel d'outil : on compare un sous-ensemble à son ensemble, dans le même registre. Compter les
 hooks reviendrait à emprunter un signal d'enforcement pour parler d'invocation, et le jour où

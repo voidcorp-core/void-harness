@@ -7,7 +7,7 @@ import {
   type RuleName,
 } from './enforcement/runner.js';
 import { governingSkill, RULE_NAMES, withGoverningSkill } from './enforcement/governing-skill.js';
-import { installedSkillNames, invocationAlert, resolutionVerdict } from './invocation.js';
+import { installedSkillNames, invocationAlert, livenessVerdict, resolutionVerdict } from './invocation.js';
 import { readMissionJournals } from './journal.js';
 import { sessionStartOutput } from './lifecycle/context.js';
 import { resolveInstall } from './lifecycle/context-executor.js';
@@ -152,11 +152,10 @@ async function runLifecycle(input: Uint8Array): Promise<void> {
         : freshnessNotice(compareFreshness(install.version, cached.latest), install.source);
     // The harness cannot see an invocation the runtime refused, so what it reads
     // here is the trace one leaves: a name it recorded that no longer resolves.
+    const journals = readMissionJournals(root, { recentMissions: BANNER_MISSIONS });
     const alert = invocationAlert(
-      resolutionVerdict(
-        readMissionJournals(root, { recentMissions: BANNER_MISSIONS }),
-        installedSkillNames(root),
-      ),
+      resolutionVerdict(journals, installedSkillNames(root)),
+      livenessVerdict(journals),
     );
     process.stdout.write(`${JSON.stringify(sessionStartOutput(install.version, notice, alert))}\n`);
     await refreshFreshnessInBackground(install.version);
