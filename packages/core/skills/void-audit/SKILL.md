@@ -1,18 +1,7 @@
 ---
 name: void-audit
-kind: action
 description: Run the outbound audit over local mission events and surface skills that never fire, upstream deprecations and matrix conflicts, as proposals a human disposes of.
-owner: folpe
-runtimes: [claude, codex]
-disable-model-invocation: true
 allowed-tools: Bash(void-harness:*) Bash(npx:*)
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # void-audit

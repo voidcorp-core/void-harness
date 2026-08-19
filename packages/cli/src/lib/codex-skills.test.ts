@@ -27,13 +27,19 @@ afterEach(() => {
   for (const d of tmps.splice(0)) rmSync(d, { recursive: true, force: true });
 });
 
-/** Build a fake source tree with the given skills, each SKILL.md carrying `runtimes`. */
+/**
+ * Build a fake source tree. `runtimes` goes in the co-located `harness.yaml`,
+ * not in the SKILL.md: a skill file carries only what the Agent Skills spec
+ * defines, so it stays portable and passes the official validator.
+ */
 function fakeSource(skills: Record<string, string[] | undefined>): string {
   const root = tmp('void-codex-skillsrc-');
   for (const [name, runtimes] of Object.entries(skills)) {
     mkdirSync(join(root, 'skills', name), { recursive: true });
-    const rt = runtimes === undefined ? '' : `\nruntimes: [${runtimes.join(', ')}]`;
-    writeFileSync(join(root, 'skills', name, 'SKILL.md'), `---\nname: ${name}\ndescription: x${rt}\n---\nbody\n`);
+    writeFileSync(join(root, 'skills', name, 'SKILL.md'), `---\nname: ${name}\ndescription: x\n---\nbody\n`);
+    if (runtimes !== undefined) {
+      writeFileSync(join(root, 'skills', name, 'harness.yaml'), `runtimes: [${runtimes.join(', ')}]\n`);
+    }
   }
   return root;
 }
@@ -115,7 +121,8 @@ describe('wireCodexSkills + codexSkillsHealth', () => {
     // a pack with one codex skill carrying an extra script + a .source sidecar
     const skillDir = join(src, 'packs', 'pack-nextjs', 'skills', 'route-group');
     mkdirSync(join(skillDir, 'scripts'), { recursive: true });
-    writeFileSync(join(skillDir, 'SKILL.md'), '---\nname: route-group\ndescription: x\nruntimes: [codex]\n---\nbody\n');
+    writeFileSync(join(skillDir, 'SKILL.md'), '---\nname: route-group\ndescription: x\n---\nbody\n');
+    writeFileSync(join(skillDir, 'harness.yaml'), 'runtimes: [codex]\n');
     writeFileSync(join(skillDir, 'scripts', 'gen.sh'), '# helper\n');
     writeFileSync(join(skillDir, '.source'), 'internal metadata\n');
     return (async () => {

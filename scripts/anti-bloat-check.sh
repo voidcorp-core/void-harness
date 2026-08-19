@@ -72,8 +72,8 @@ while IFS= read -r f; do
   fi
 done <<<"$HOOK_FILES"
 
-# Frontmatter description ≤ 200 chars (rule 4): skills (core + packs) + agents
-echo "  rule 4: frontmatter description ≤ 200 chars"
+# Frontmatter description ≤ 512 chars (rule 4): skills (core + packs) + agents
+echo "  rule 4: frontmatter description ≤ 512 chars"
 DESC_FILES=$(printf "%s\n" "$SKILL_FILES"; ls packages/core/agents/*.md 2>/dev/null || true)
 while IFS= read -r f; do
   [[ -n "$f" && -e "$f" ]] || continue
@@ -86,8 +86,8 @@ while IFS= read -r f; do
     \'*\') DESC="${DESC#\'}"; DESC="${DESC%\'}" ;;
   esac
   LEN=${#DESC}
-  if [[ "$LEN" -gt 200 ]]; then
-    echo "    FAIL: $f description is $LEN chars (cap 200): $DESC" >&2
+  if [[ "$LEN" -gt 512 ]]; then
+    echo "    FAIL: $f description is $LEN chars (cap 512): $DESC" >&2
     FAILED=1
   fi
 done <<<"$DESC_FILES"
@@ -118,7 +118,7 @@ for f in packages/core/skills/*/SKILL.md packages/packs/*/skills/*/SKILL.md; do
   # it exists. `kind` says which grammar applies, so the rule is checkable
   # instead of being an intention: an action takes its bare verb, a standard
   # takes the subject it governs.
-  KIND=$(awk '/^kind:/{ sub(/^kind: */,""); print; exit }' "$f" 2>/dev/null || true)
+  KIND=$(awk '/^kind:/{ sub(/^kind: */,""); print; exit }' "$(dirname "$f")/harness.yaml" 2>/dev/null || true)
   case "$KIND" in
     action|standard) ;;
     "") echo "    FAIL: $f has no frontmatter 'kind:' (action or standard)" >&2; FAILED=1 ;;

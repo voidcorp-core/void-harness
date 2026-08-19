@@ -90,8 +90,11 @@ describe('slash command namespace', () => {
     const skill = join(ROOT, 'packages/core/skills', name, 'SKILL.md');
     expect(existsSync(skill)).toBe(true);
     const body = readFileSync(skill, 'utf8');
-    // Typed, not guessed by the model: these run a CLI on request.
-    expect(body).toContain('disable-model-invocation: true');
+    // These run a CLI on request, and the skill says so in its own words rather
+    // than through `disable-model-invocation`. That field is Claude-only, so it
+    // left the gesture auto-invocable on Codex and Kimi while looking like a
+    // guarantee; and loading a skill is not running it.
+    expect(body).toMatch(/only when a human asks/i);
   });
 
   /**
@@ -103,7 +106,9 @@ describe('slash command namespace', () => {
     expect(existsSync(join(ROOT, 'packages/core/skills/void-feedback'))).toBe(false);
     const learn = readFileSync(join(ROOT, 'packages/core/skills/learn/SKILL.md'), 'utf8');
     expect(learn).toContain('gh issue create');
-    expect(learn).toMatch(/when_to_use/);
+    // The trigger phrases folded into `description`, where the spec wants them:
+    // it asks a description to say what a skill does and when to use it, and
+    // `when_to_use` is a Claude Code extension the other runtimes never read.
     expect(learn).toMatch(/feedback/i);
   });
 

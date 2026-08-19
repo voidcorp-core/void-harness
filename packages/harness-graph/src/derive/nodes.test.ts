@@ -55,7 +55,7 @@ describe('deriveNodes', () => {
     const withActivation = {
       ...tree,
       skills: [
-        { name: 'tdd', pack: null, source: 's', text: '---\ndescription: TDD.\nactivation: always\n---\n' },
+        { name: 'tdd', pack: null, source: 's', text: '---\ndescription: TDD.\n---\n', meta: 'activation: always' },
         { name: 'cache', pack: 'pack-nextjs', source: 's', text: '---\ndescription: cache.\n---\n' },
       ],
     };
@@ -68,7 +68,7 @@ describe('deriveNodes', () => {
     const withOwner = {
       ...tree,
       skills: [
-        { name: 'tdd', pack: null, source: 's', text: '---\ndescription: TDD.\nowner: folpe\n---\n' },
+        { name: 'tdd', pack: null, source: 's', text: '---\ndescription: TDD.\n---\n', meta: 'owner: folpe' },
         { name: 'cache', pack: 'pack-nextjs', source: 's', text: '---\ndescription: cache.\n---\n' },
       ],
     };
@@ -85,7 +85,7 @@ describe('deriveNodes', () => {
           name: 'tdd',
           pack: null,
           source: 's',
-          text: '---\ndescription: TDD.\nruntimes: [claude, codex]\nenforcement:\n  floor: ci\n  inline:\n    claude: pretooluse\n    hermes: ci-only\n---\n',
+          text: '---\ndescription: TDD.\n---\n', meta: 'runtimes: [claude, codex]\nenforcement:\n  floor: ci\n  inline:\n    claude: pretooluse\n    hermes: ci-only',
         },
         { name: 'cache', pack: 'pack-nextjs', source: 's', text: '---\ndescription: cache.\n---\n' },
       ],
@@ -107,7 +107,7 @@ describe('deriveNodes', () => {
           name: 'tdd',
           pack: null,
           source: 's',
-          text: '---\ndescription: TDD.\neval_targets: [claude/anthropic/opus]\nsuccess_signal: red-green pair present\n---\n',
+          text: '---\ndescription: TDD.\n---\n', meta: 'eval_targets: [claude/anthropic/opus]\nsuccess_signal: red-green pair present',
         },
       ],
     };
@@ -129,7 +129,7 @@ describe('deriveNodes', () => {
     const withTriggers = {
       ...tree,
       skills: [
-        { name: 'testing', pack: null, source: 's', text: '---\ndescription: t.\ntriggers:\n  globs: ["**/*.test.ts"]\n---\n' },
+        { name: 'testing', pack: null, source: 's', text: '---\ndescription: t.\n---\n', meta: 'triggers:\n  globs: ["**/*.test.ts"]' },
       ],
     };
     const node = deriveNodes(withTriggers).find((n) => n.id === 'skill:testing');

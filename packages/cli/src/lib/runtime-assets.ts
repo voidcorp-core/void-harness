@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { chmod, cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join, sep } from 'node:path';
-import { isCodexEligible, packSkillsDir, parseFrontmatter } from './codex-skills.js';
+import { isCodexEligible, packSkillsDir, readHarnessMeta } from './codex-skills.js';
 import { wiredHooks } from './plugin-cache.js';
 import { compileClaudeSpecialist } from './specialists/compile-claude.js';
 import { loadSpecialists } from './specialists/load.js';
@@ -15,8 +15,8 @@ export interface ClaudeLocalAssets {
   readonly hookConfiguration: Record<string, unknown>;
 }
 
-function isClaudeEligible(frontmatter: Record<string, unknown>): boolean {
-  const runtimes = frontmatter.runtimes;
+function isClaudeEligible(meta: Record<string, unknown>): boolean {
+  const runtimes = meta.runtimes;
   return Array.isArray(runtimes) && runtimes.includes('claude');
 }
 
@@ -45,10 +45,16 @@ async function stageSkills(
     if (!entry.isDirectory()) continue;
     const skillRoot = join(sourceDirectory, entry.name);
     const markdown = await readOrUndefined(join(skillRoot, 'SKILL.md'));
-    if (markdown === undefined || !eligible(parseFrontmatter(markdown))) continue;
+    if (markdown === undefined || !eligible(await readHarnessMeta(skillRoot))) continue;
+    // `harness.yaml` is excluded like `.source`: what a consumer receives is a
+    // SKILL.md carrying only the six fields the Agent Skills spec defines, byte
+    // for byte identical to the source, with nothing of this repository in it.
     await cp(skillRoot, join(destination, entry.name), {
       recursive: true,
-      filter: (path) => !path.endsWith('.test.ts') && !path.endsWith(`${sep}.source`),
+      filter: (path) =>
+        !path.endsWith('.test.ts')
+        && !path.endsWith(`${sep}.source`)
+        && !path.endsWith(`${sep}harness.yaml`),
     });
     count += 1;
   }
@@ -194,7 +200,7 @@ export async function localPackAssetIssues(
       if (!entry.isDirectory()) continue;
       const markdown = await readOrUndefined(join(source, entry.name, 'SKILL.md'));
       if (markdown === undefined) continue;
-      const frontmatter = parseFrontmatter(markdown);
+      const frontmatter = await readHarnessMeta(join(source, entry.name));
       if (
         runtimes.includes('claude')
         && isClaudeEligible(frontmatter)

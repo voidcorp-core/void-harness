@@ -1,19 +1,6 @@
 ---
 name: accessibility
-kind: standard
-activation: always
-triggers:
-  extensions: ["tsx"]
 description: WCAG 2.2 AA floor. Radix primitives only, touch >=44x44, keyboard parity, semantic HTML, form labels, aria-live errors, mobile-first dual-quality. Use when building or modifying UI.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: pretooluse
-    codex: pretooluse
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # accessibility — voidcorp craftsman edition

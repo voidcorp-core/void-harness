@@ -72,18 +72,37 @@ export function parseFrontmatter(md: string): Record<string, unknown> {
 }
 
 /**
+ * The co-located `harness.yaml` for a skill directory, parsed. This is where the
+ * fields this harness invented live: a SKILL.md carries only what the Agent
+ * Skills specification defines, so it stays portable and passes the official
+ * validator, and nothing a consumer receives mentions this repository.
+ */
+export async function readHarnessMeta(skillDir: string): Promise<Record<string, unknown>> {
+  const text = await readOrUndefined(join(skillDir, 'harness.yaml'));
+  if (text === undefined) return {};
+  try {
+    const parsed: unknown = parseYaml(text);
+    if (isRecord(parsed)) return parsed;
+  } catch {
+    // A malformed sidecar means "not eligible" rather than a crashed install:
+    // the skill simply does not opt in, and doctor reports the drift.
+  }
+  return {};
+}
+
+/**
  * True when the skill opts into Codex via its `runtimes` list. Opt-in by design:
  * a skill with no `runtimes` field (or one that omits `codex`) is NOT staged, so
  * a Claude-only skill never leaks into the Codex surface.
  */
-export function isCodexEligible(frontmatter: Record<string, unknown>): boolean {
-  const runtimes = frontmatter.runtimes;
+export function isCodexEligible(meta: Record<string, unknown>): boolean {
+  const runtimes = meta.runtimes;
   return Array.isArray(runtimes) && runtimes.includes('codex');
 }
 
 /**
  * The Codex-eligible core skill names under `<sourceRoot>/skills`, sorted. Reads
- * each SKILL.md's frontmatter; a directory without a readable SKILL.md, or one
+ * each skill's `harness.yaml`; a directory without a readable SKILL.md, or one
  * not opting into `codex`, is skipped. `sourceRoot` is findCoreSource().
  */
 export async function listCodexSkills(sourceRoot: string): Promise<string[]> {
@@ -93,8 +112,9 @@ export async function listCodexSkills(sourceRoot: string): Promise<string[]> {
   const eligible: string[] = [];
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    const md = await readOrUndefined(join(skillsDir, entry.name, 'SKILL.md'));
-    if (md !== undefined && isCodexEligible(parseFrontmatter(md))) eligible.push(entry.name);
+    const skillDir = join(skillsDir, entry.name);
+    const md = await readOrUndefined(join(skillDir, 'SKILL.md'));
+    if (md !== undefined && isCodexEligible(await readHarnessMeta(skillDir))) eligible.push(entry.name);
   }
   return eligible.sort();
 }
@@ -127,10 +147,15 @@ async function stageEligibleSkills(skillsDir: string, dst: string): Promise<numb
     if (!entry.isDirectory()) continue;
     const skillDir = join(skillsDir, entry.name);
     const md = await readOrUndefined(join(skillDir, 'SKILL.md'));
-    if (md === undefined || !isCodexEligible(parseFrontmatter(md))) continue;
+    if (md === undefined || !isCodexEligible(await readHarnessMeta(skillDir))) continue;
+    // `harness.yaml` stays behind with `.source`: Codex receives a SKILL.md that
+    // carries only the six fields the Agent Skills spec defines.
     await cp(skillDir, join(dst, entry.name), {
       recursive: true,
-      filter: (src) => !src.endsWith('.test.ts') && !src.endsWith(`${sep}.source`),
+      filter: (src) =>
+        !src.endsWith('.test.ts')
+        && !src.endsWith(`${sep}.source`)
+        && !src.endsWith(`${sep}harness.yaml`),
     });
     staged += 1;
   }

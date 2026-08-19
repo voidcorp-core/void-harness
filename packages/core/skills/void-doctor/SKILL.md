@@ -1,18 +1,7 @@
 ---
 name: void-doctor
-kind: action
 description: Run the harness health checks and report what is healthy, missing or stale, with the exact command that repairs each finding. Reports; never repairs on its own.
-owner: folpe
-runtimes: [claude, codex]
-disable-model-invocation: true
 allowed-tools: Bash(void-harness:*) Bash(npx:*)
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # void-doctor

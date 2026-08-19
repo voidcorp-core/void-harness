@@ -135,7 +135,7 @@ function parseEnforcement(block: string): NodeEnforcement | undefined {
   return Object.keys(inline).length > 0 ? { floor, inline } : { floor };
 }
 
-export function readFrontmatter(text: string): {
+export function readFrontmatter(text: string, harnessMeta = ''): {
   description: string;
   triggers?: NodeTriggers;
   activation?: NodeActivation;
@@ -145,20 +145,26 @@ export function readFrontmatter(text: string): {
   evalTargets?: EvalTarget[];
   successSignal?: string;
 } {
+  // The two texts are read independently. The harness fields moved out of the
+  // skill file so a skill stays portable and validates against the six the Agent
+  // Skills spec defines; they come from the co-located `harness.yaml`, which no
+  // consumer ever receives. A skill with no frontmatter still has its metadata,
+  // and metadata with no skill file still parses. The shape returned here is
+  // unchanged, so nothing downstream had to move with them.
+  const meta = harnessMeta;
   const match = text.match(/^---\n([\s\S]*?)\n---/);
-  if (!match) return { description: '' };
-  const block = match[1] ?? '';
+  const block = match?.[1] ?? '';
   const line = block.split('\n').find((l) => l.startsWith('description:'));
   // stripQuotes so a valid-YAML quoted description (needed when the text carries a
   // colon) yields the same value as a bare one — never the surrounding quotes.
   const description = line ? stripQuotes(line.slice('description:'.length)) : '';
-  const triggers = parseTriggers(block);
-  const activation = parseActivation(block);
-  const owner = parseScalar(block, 'owner');
-  const runtimes = parseRuntimes(block);
-  const enforcement = parseEnforcement(block);
-  const evalTargets = parseEvalTargets(block);
-  const successSignal = parseScalar(block, 'success_signal');
+  const triggers = parseTriggers(meta);
+  const activation = parseActivation(meta);
+  const owner = parseScalar(meta, 'owner');
+  const runtimes = parseRuntimes(meta);
+  const enforcement = parseEnforcement(meta);
+  const evalTargets = parseEvalTargets(meta);
+  const successSignal = parseScalar(meta, 'success_signal');
   return {
     description,
     ...(triggers ? { triggers } : {}),

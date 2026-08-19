@@ -1,18 +1,7 @@
 ---
 name: void-graph
-kind: action
 description: Read the installed harness as a graph and report what is dead, underused or expensive. No argument opens the local live studio; audit, cost and behavior print a terminal report.
-owner: folpe
-runtimes: [claude, codex]
-disable-model-invocation: true
 allowed-tools: Bash(void-harness:*) Bash(npx:*)
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # void-graph

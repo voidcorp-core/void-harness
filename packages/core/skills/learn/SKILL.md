@@ -1,17 +1,6 @@
 ---
 name: learn
-kind: action
-description: Capture a lesson when it appears — a stated project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a harness gap. Routes to PROJECT-DOCTRINE, a GitHub issue, or nothing. HITL strict.
-when_to_use: Also the single door for harness feedback. Fires on "the harness should have X", "this hook is a false positive", "that skill is missing", a DX papercut worth filing, or any explicit request to send feedback about the harness itself.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
+description: Capture a lesson when it appears — a stated project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a harness gap. Routes to PROJECT-DOCTRINE, a GitHub issue, or nothing. HITL strict. Also the single door for harness feedback. Fires on "the harness should have X", "this hook is a false positive", "that skill is missing", a DX papercut worth filing, or any explicit request to send feedback about the harness itself.
 ---
 
 # learn — voidcorp craftsman edition

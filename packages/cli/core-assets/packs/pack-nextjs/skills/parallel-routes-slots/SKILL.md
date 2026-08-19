@@ -1,16 +1,6 @@
 ---
 name: parallel-routes-slots
-kind: standard
 description: Use Next.js parallel routes (@slot) and intercepting routes ((.)foo) — when they're the right tool, when they're an anti-pattern. The "modal that's also a deep-linkable page" archetype.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # parallel-routes-slots
