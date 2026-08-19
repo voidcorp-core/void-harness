@@ -1,0 +1,554 @@
+{
+  "schemaVersion": 1,
+  "version": "3.1.0",
+  "files": [
+    {
+      "path": ".agents/skills/accessibility/SKILL.md",
+      "sha256": "7ee43c4be04c7f480c6d26d3efda7c21e945c695ebc645dc0ea1c254bcb012d7"
+    },
+    {
+      "path": ".agents/skills/api-and-interface-design/SKILL.md",
+      "sha256": "479cf20a7fdbb62c41a0d0c94d6b78e257ad7103bc3d4bfc1c873d52a1af3b21"
+    },
+    {
+      "path": ".agents/skills/async-safety/SKILL.md",
+      "sha256": "6a76f6fb9cb4ccd327aab45bc44053f451dda7e0c5b6007c6479b091a85c5a70"
+    },
+    {
+      "path": ".agents/skills/autopilot/references/codex-subagents.md",
+      "sha256": "93dd77ce9b2e240e49193fb7c801a5cd1d7f1c8ad444f745052840c54c78d45c"
+    },
+    {
+      "path": ".agents/skills/autopilot/SKILL.md",
+      "sha256": "d2a83d2eefdffcf978ca9a16350b21b07f3d6a1a56c161cf1522c9d3926a5f4f"
+    },
+    {
+      "path": ".agents/skills/autopilot/workflows/autopilot.workflow.js",
+      "sha256": "90dc3ccbda49aa272ae69bc99ba8f9a98b735ed38f9cc433dc641e61089d8ac7"
+    },
+    {
+      "path": ".agents/skills/brainstorm/SKILL.md",
+      "sha256": "4c308cb8737ca41daa01da10429932f23b1b3db476607219cd5c6759dad7bc5c"
+    },
+    {
+      "path": ".agents/skills/checkpoint/SKILL.md",
+      "sha256": "e646bd643223bbba8393952296f6ee5a5debb685bd7548f864efb381c86823f9"
+    },
+    {
+      "path": ".agents/skills/claude-md/SKILL.md",
+      "sha256": "ea81bce0504188323179d0c188570d32a25619a7776555c6157e7299f0671aeb"
+    },
+    {
+      "path": ".agents/skills/code-review/SKILL.md",
+      "sha256": "d6da2a51f50f70faf8cf3d4bdc203ca666c353afece3ad267df46226e7562b7f"
+    },
+    {
+      "path": ".agents/skills/commit-discipline/SKILL.md",
+      "sha256": "1644355e13b1cee476e3afc3aaa1232e5703f60948137bfcacde4ab1c850fe14"
+    },
+    {
+      "path": ".agents/skills/context/SKILL.md",
+      "sha256": "51e3ee917f8a2aea12e40079521bdef2a673b9a2923adf85032d09a1d79570b1"
+    },
+    {
+      "path": ".agents/skills/debug/SKILL.md",
+      "sha256": "88dc8767de96c5a5ed35f87739009aae72f7778bfd4e348b2e29690d4d255ca9"
+    },
+    {
+      "path": ".agents/skills/decide/SKILL.md",
+      "sha256": "483dbe950722835b8b17dd41c0d2a9d3c97c6ec3cae8589c46869d49d56f8fa7"
+    },
+    {
+      "path": ".agents/skills/devex-audit/SKILL.md",
+      "sha256": "1a7974ae7c7b11c1a701eba60e8b65d132d638381daa780111c7875be1763d5e"
+    },
+    {
+      "path": ".agents/skills/domain-driven-design/SKILL.md",
+      "sha256": "d4a709bfa3e59b54d0bd793d45806764aaa0d65a590cac80c66a875e263abba7"
+    },
+    {
+      "path": ".agents/skills/frontend-design/SKILL.md",
+      "sha256": "fdc2c8270dfea7f65c2f71ac8f18698c4515b647804e2505bccb5bb4651c6075"
+    },
+    {
+      "path": ".agents/skills/functional/SKILL.md",
+      "sha256": "8a81de1ceef6f2791d5a337d2318a84ffff53fdb42f7a9de23cda0b7b82b900a"
+    },
+    {
+      "path": ".agents/skills/hexagonal-architecture/SKILL.md",
+      "sha256": "fdca84144c2dced539a70cb78d6ac279d3d11ca3f5cffbd5445ef3d4e8c3ab16"
+    },
+    {
+      "path": ".agents/skills/implement/SKILL.md",
+      "sha256": "859c5f7351423ad032ea0229af81fbe4bc7ce2db7f2c986616885e90a63f79a5"
+    },
+    {
+      "path": ".agents/skills/learn/SKILL.md",
+      "sha256": "39a2868300aef314a3d390f2f002f476b9ec243506f3df10980bbdeb537e13ed"
+    },
+    {
+      "path": ".agents/skills/llm-cost-discipline/SKILL.md",
+      "sha256": "7c5b16437b4823e44ba21c2b283031ed4b8f560af229e0a9a6e2b810daae2460"
+    },
+    {
+      "path": ".agents/skills/make-pdf/SKILL.md",
+      "sha256": "4a4ea6c1988fbbc81803de889f014c92b546193655af2ff61aea7b564ebbaf50"
+    },
+    {
+      "path": ".agents/skills/merge/SKILL.md",
+      "sha256": "e61ad0a4825c3e90d3de7aadcdc9058aa1ad2e67b6cebd7dd97f06b068a2a27a"
+    },
+    {
+      "path": ".agents/skills/migrations/SKILL.md",
+      "sha256": "cbc263dbb50feb24523a848e6c26b9f05bc4f7b1bd0c3cc9a84950c56904094b"
+    },
+    {
+      "path": ".agents/skills/observability/SKILL.md",
+      "sha256": "3f8b2dd3cd098d98e9aff3a4019504eb70bf42586b8bbe86aff8297f04b4ac7b"
+    },
+    {
+      "path": ".agents/skills/plan-review/SKILL.md",
+      "sha256": "28f8ce763ff6fd42420468d978bb664f2299404b0e1198ab11e959ebb647db42"
+    },
+    {
+      "path": ".agents/skills/plan/SKILL.md",
+      "sha256": "6c7dd27b9873dc8939ebc1600c5802c90d29cc26171ab005a1f0402b8ff95463"
+    },
+    {
+      "path": ".agents/skills/qa/SKILL.md",
+      "sha256": "b7f842d3a32e85a2021dd4395efb3a4645a9f55d5244c6049374f6ac21263fcc"
+    },
+    {
+      "path": ".agents/skills/refactor/SKILL.md",
+      "sha256": "76d1694e4366f39c72471b42a3c4c4f8aa5cc55e846ef1fd0104fe3eda7967ac"
+    },
+    {
+      "path": ".agents/skills/retrospective/SKILL.md",
+      "sha256": "8daf945edcc5d49e0d6669344b267399afa7a851a37d479ac2656af7b3dff006"
+    },
+    {
+      "path": ".agents/skills/security-audit/SKILL.md",
+      "sha256": "8152be048837198b10c46f67d44c272e04cdad90759e1f2d17bce6814f1b25fc"
+    },
+    {
+      "path": ".agents/skills/security-guidance/SKILL.md",
+      "sha256": "7d7ba544743f4b1cf4f6f8bd8540f7650eb5fc41c9217e36ce5c4b39f5687b42"
+    },
+    {
+      "path": ".agents/skills/source-driven-development/SKILL.md",
+      "sha256": "8dcb11ad1c922816be58570b9abb27a496008def20a7659c53e1458a8fb03efc"
+    },
+    {
+      "path": ".agents/skills/tdd/SKILL.md",
+      "sha256": "e21dfd202ece37a371ced1f53453e60d59acb0ffa8d740486c4133e296b95817"
+    },
+    {
+      "path": ".agents/skills/testing/SKILL.md",
+      "sha256": "bd79dae2338b55254ee053cb73eb96105a39cdefb6917db87f02a6d5c44d0512"
+    },
+    {
+      "path": ".agents/skills/ticket/SKILL.md",
+      "sha256": "07bfd0cb2c95ffb7494439ac3f3a971ba58435b3b5bafd803e157c93c09a3e4b"
+    },
+    {
+      "path": ".agents/skills/typescript-strict/SKILL.md",
+      "sha256": "3b368defa3841dfd76411976a871ff56b8c3f540defdd3ed8a9ac6524818630a"
+    },
+    {
+      "path": ".agents/skills/ui-review/SKILL.md",
+      "sha256": "5c60b909d36ad57b36f7df366dd46bc5f80010c43e9d947cf588654cd72dc168"
+    },
+    {
+      "path": ".agents/skills/verify/SKILL.md",
+      "sha256": "2724ead85b9951fad07845313089fbeae7a36676bb80aa6d37459cbb75954e96"
+    },
+    {
+      "path": ".agents/skills/void-audit/SKILL.md",
+      "sha256": "03be14660d143e7da20e28c1815f50a2a8a1b85cdec9a1f44a203dd954d1300c"
+    },
+    {
+      "path": ".agents/skills/void-doctor/SKILL.md",
+      "sha256": "a817f02686f59756ebbd6d16dc3aac42bf40bf62e8db1b309777bac3466c61ef"
+    },
+    {
+      "path": ".agents/skills/void-graph/SKILL.md",
+      "sha256": "dd8185792fab874dafc7c82bfc6f9fddbdc65e226c1358d1e055a9cf2454639b"
+    },
+    {
+      "path": ".claude/agents/accessibility-specialist.md",
+      "sha256": "8bccc12dd5bf98a5ed003f4055cefa92604bdcaed4b5980fddf1cd94cbbb235d"
+    },
+    {
+      "path": ".claude/agents/api-integration-engineer.md",
+      "sha256": "88e79da350c9e8939edee9ced022454dc002d8b22017233bd2dfb18870ff04ea"
+    },
+    {
+      "path": ".claude/agents/code-explorer.md",
+      "sha256": "6311ca5353874568b1fb1dbfc841c9527d390dbe7eb1aa1534a3453deb9df6f4"
+    },
+    {
+      "path": ".claude/agents/data-migration-engineer.md",
+      "sha256": "b2be81a1fe000ceb246400d037bab9bf3bbd5fabdc7dfb886462d4eee27c6553"
+    },
+    {
+      "path": ".claude/agents/devex-docs-engineer.md",
+      "sha256": "b36c040d9c7ac88014b291684e84858450566bfefe254fc1193d97f79d3f1a4c"
+    },
+    {
+      "path": ".claude/agents/doctrine-critic.md",
+      "sha256": "312580213638e78677d1cfe038759d843b9d2e0f94387d7f4ed523ccf76696de"
+    },
+    {
+      "path": ".claude/agents/domain-architect.md",
+      "sha256": "4a0bab317a049b453db0152322c86c63c0663a75246a5e6f114c8af652022035"
+    },
+    {
+      "path": ".claude/agents/experience-designer.md",
+      "sha256": "8f268ebe9e3c0ba6f67e7d189cf8f62a2aef6b055b4def30a7eb014978c2b773"
+    },
+    {
+      "path": ".claude/agents/frontend-engineer.md",
+      "sha256": "e95dc2dad2fbe882ce0827058097fae7ce7463f3521dd57682e73df7a6515e97"
+    },
+    {
+      "path": ".claude/agents/independent-code-reviewer.md",
+      "sha256": "650be5409deb81c900c9483022757d1af85b55f307e3a3c97c944949ded215ab"
+    },
+    {
+      "path": ".claude/agents/migration-planner.md",
+      "sha256": "0fa6816972f9536691106b129cbe6f7ffbccd5c42e6d82c0f07a825cbc5e5d6c"
+    },
+    {
+      "path": ".claude/agents/observability-sre-engineer.md",
+      "sha256": "a502f3b5de6b5a915feeb0e5e2b442ff37c89a2f666992bde38542aaab6df052"
+    },
+    {
+      "path": ".claude/agents/pdf-specialist.md",
+      "sha256": "8952546012ccbb6703f2afba96807cc973814e6bd78509bc4dfbf531ad369f1f"
+    },
+    {
+      "path": ".claude/agents/performance-engineer.md",
+      "sha256": "06ebc898bad73720ac3536ff6077382f92bdbb6d7eb0ddf3e011a350d361c2ea"
+    },
+    {
+      "path": ".claude/agents/product-challenger.md",
+      "sha256": "06dbb4188aac637a43bc53620c36a0aec14293e98cbbc2a6c8fd15a4674a92eb"
+    },
+    {
+      "path": ".claude/agents/security-engineer.md",
+      "sha256": "10c5bf29836efd965503c58ab49d59736e8313e2662c19b84fb6a8f565d704de"
+    },
+    {
+      "path": ".claude/agents/silent-failure-hunter.md",
+      "sha256": "e51c2d1bae493e0832160252b3db57a2617a6399fbe0bf75de42ed19cbc3f75e"
+    },
+    {
+      "path": ".claude/agents/solution-architect.md",
+      "sha256": "a8dcff9d9a857889aa74739309c39091557723ed20f2c95cdd45cb80417ae236"
+    },
+    {
+      "path": ".claude/agents/test-qa-engineer.md",
+      "sha256": "58018e2976f9ca52125efc09ba408540c4c9077785743e847885fe89d5d2fca4"
+    },
+    {
+      "path": ".claude/agents/type-design-analyzer.md",
+      "sha256": "0cac321293d665d4440bc4371fc1d4b58092459d8f0eb0b64ee4ff6ce8ac63b3"
+    },
+    {
+      "path": ".claude/agents/visual-craft-director.md",
+      "sha256": "49d1c04552081b53af120db9e31a7259253e2aaabab50331285b73c7831a25ee"
+    },
+    {
+      "path": ".claude/settings.json",
+      "sha256": "7a14914c1e3ab2cce5dd54619997dc98ea8b2cf0ab4d0facb0e290b59b7b6adf"
+    },
+    {
+      "path": ".claude/skills/accessibility/SKILL.md",
+      "sha256": "7ee43c4be04c7f480c6d26d3efda7c21e945c695ebc645dc0ea1c254bcb012d7"
+    },
+    {
+      "path": ".claude/skills/api-and-interface-design/SKILL.md",
+      "sha256": "479cf20a7fdbb62c41a0d0c94d6b78e257ad7103bc3d4bfc1c873d52a1af3b21"
+    },
+    {
+      "path": ".claude/skills/async-safety/SKILL.md",
+      "sha256": "6a76f6fb9cb4ccd327aab45bc44053f451dda7e0c5b6007c6479b091a85c5a70"
+    },
+    {
+      "path": ".claude/skills/autopilot/references/codex-subagents.md",
+      "sha256": "93dd77ce9b2e240e49193fb7c801a5cd1d7f1c8ad444f745052840c54c78d45c"
+    },
+    {
+      "path": ".claude/skills/autopilot/SKILL.md",
+      "sha256": "d2a83d2eefdffcf978ca9a16350b21b07f3d6a1a56c161cf1522c9d3926a5f4f"
+    },
+    {
+      "path": ".claude/skills/autopilot/workflows/autopilot.workflow.js",
+      "sha256": "90dc3ccbda49aa272ae69bc99ba8f9a98b735ed38f9cc433dc641e61089d8ac7"
+    },
+    {
+      "path": ".claude/skills/brainstorm/SKILL.md",
+      "sha256": "4c308cb8737ca41daa01da10429932f23b1b3db476607219cd5c6759dad7bc5c"
+    },
+    {
+      "path": ".claude/skills/checkpoint/SKILL.md",
+      "sha256": "e646bd643223bbba8393952296f6ee5a5debb685bd7548f864efb381c86823f9"
+    },
+    {
+      "path": ".claude/skills/claude-md/SKILL.md",
+      "sha256": "ea81bce0504188323179d0c188570d32a25619a7776555c6157e7299f0671aeb"
+    },
+    {
+      "path": ".claude/skills/code-review/SKILL.md",
+      "sha256": "d6da2a51f50f70faf8cf3d4bdc203ca666c353afece3ad267df46226e7562b7f"
+    },
+    {
+      "path": ".claude/skills/commit-discipline/SKILL.md",
+      "sha256": "1644355e13b1cee476e3afc3aaa1232e5703f60948137bfcacde4ab1c850fe14"
+    },
+    {
+      "path": ".claude/skills/context/SKILL.md",
+      "sha256": "51e3ee917f8a2aea12e40079521bdef2a673b9a2923adf85032d09a1d79570b1"
+    },
+    {
+      "path": ".claude/skills/debug/SKILL.md",
+      "sha256": "88dc8767de96c5a5ed35f87739009aae72f7778bfd4e348b2e29690d4d255ca9"
+    },
+    {
+      "path": ".claude/skills/decide/SKILL.md",
+      "sha256": "483dbe950722835b8b17dd41c0d2a9d3c97c6ec3cae8589c46869d49d56f8fa7"
+    },
+    {
+      "path": ".claude/skills/devex-audit/SKILL.md",
+      "sha256": "1a7974ae7c7b11c1a701eba60e8b65d132d638381daa780111c7875be1763d5e"
+    },
+    {
+      "path": ".claude/skills/domain-driven-design/SKILL.md",
+      "sha256": "d4a709bfa3e59b54d0bd793d45806764aaa0d65a590cac80c66a875e263abba7"
+    },
+    {
+      "path": ".claude/skills/frontend-design/SKILL.md",
+      "sha256": "fdc2c8270dfea7f65c2f71ac8f18698c4515b647804e2505bccb5bb4651c6075"
+    },
+    {
+      "path": ".claude/skills/functional/SKILL.md",
+      "sha256": "8a81de1ceef6f2791d5a337d2318a84ffff53fdb42f7a9de23cda0b7b82b900a"
+    },
+    {
+      "path": ".claude/skills/hexagonal-architecture/SKILL.md",
+      "sha256": "fdca84144c2dced539a70cb78d6ac279d3d11ca3f5cffbd5445ef3d4e8c3ab16"
+    },
+    {
+      "path": ".claude/skills/implement/SKILL.md",
+      "sha256": "859c5f7351423ad032ea0229af81fbe4bc7ce2db7f2c986616885e90a63f79a5"
+    },
+    {
+      "path": ".claude/skills/learn/SKILL.md",
+      "sha256": "39a2868300aef314a3d390f2f002f476b9ec243506f3df10980bbdeb537e13ed"
+    },
+    {
+      "path": ".claude/skills/llm-cost-discipline/SKILL.md",
+      "sha256": "7c5b16437b4823e44ba21c2b283031ed4b8f560af229e0a9a6e2b810daae2460"
+    },
+    {
+      "path": ".claude/skills/make-pdf/SKILL.md",
+      "sha256": "4a4ea6c1988fbbc81803de889f014c92b546193655af2ff61aea7b564ebbaf50"
+    },
+    {
+      "path": ".claude/skills/merge/SKILL.md",
+      "sha256": "e61ad0a4825c3e90d3de7aadcdc9058aa1ad2e67b6cebd7dd97f06b068a2a27a"
+    },
+    {
+      "path": ".claude/skills/migrations/SKILL.md",
+      "sha256": "cbc263dbb50feb24523a848e6c26b9f05bc4f7b1bd0c3cc9a84950c56904094b"
+    },
+    {
+      "path": ".claude/skills/observability/SKILL.md",
+      "sha256": "3f8b2dd3cd098d98e9aff3a4019504eb70bf42586b8bbe86aff8297f04b4ac7b"
+    },
+    {
+      "path": ".claude/skills/plan-review/SKILL.md",
+      "sha256": "28f8ce763ff6fd42420468d978bb664f2299404b0e1198ab11e959ebb647db42"
+    },
+    {
+      "path": ".claude/skills/plan/SKILL.md",
+      "sha256": "6c7dd27b9873dc8939ebc1600c5802c90d29cc26171ab005a1f0402b8ff95463"
+    },
+    {
+      "path": ".claude/skills/qa/SKILL.md",
+      "sha256": "b7f842d3a32e85a2021dd4395efb3a4645a9f55d5244c6049374f6ac21263fcc"
+    },
+    {
+      "path": ".claude/skills/refactor/SKILL.md",
+      "sha256": "76d1694e4366f39c72471b42a3c4c4f8aa5cc55e846ef1fd0104fe3eda7967ac"
+    },
+    {
+      "path": ".claude/skills/retrospective/SKILL.md",
+      "sha256": "8daf945edcc5d49e0d6669344b267399afa7a851a37d479ac2656af7b3dff006"
+    },
+    {
+      "path": ".claude/skills/security-audit/SKILL.md",
+      "sha256": "8152be048837198b10c46f67d44c272e04cdad90759e1f2d17bce6814f1b25fc"
+    },
+    {
+      "path": ".claude/skills/security-guidance/SKILL.md",
+      "sha256": "7d7ba544743f4b1cf4f6f8bd8540f7650eb5fc41c9217e36ce5c4b39f5687b42"
+    },
+    {
+      "path": ".claude/skills/source-driven-development/SKILL.md",
+      "sha256": "8dcb11ad1c922816be58570b9abb27a496008def20a7659c53e1458a8fb03efc"
+    },
+    {
+      "path": ".claude/skills/tdd/SKILL.md",
+      "sha256": "e21dfd202ece37a371ced1f53453e60d59acb0ffa8d740486c4133e296b95817"
+    },
+    {
+      "path": ".claude/skills/testing/SKILL.md",
+      "sha256": "bd79dae2338b55254ee053cb73eb96105a39cdefb6917db87f02a6d5c44d0512"
+    },
+    {
+      "path": ".claude/skills/ticket/SKILL.md",
+      "sha256": "07bfd0cb2c95ffb7494439ac3f3a971ba58435b3b5bafd803e157c93c09a3e4b"
+    },
+    {
+      "path": ".claude/skills/typescript-strict/SKILL.md",
+      "sha256": "3b368defa3841dfd76411976a871ff56b8c3f540defdd3ed8a9ac6524818630a"
+    },
+    {
+      "path": ".claude/skills/ui-review/SKILL.md",
+      "sha256": "5c60b909d36ad57b36f7df366dd46bc5f80010c43e9d947cf588654cd72dc168"
+    },
+    {
+      "path": ".claude/skills/verify/SKILL.md",
+      "sha256": "2724ead85b9951fad07845313089fbeae7a36676bb80aa6d37459cbb75954e96"
+    },
+    {
+      "path": ".claude/skills/void-audit/SKILL.md",
+      "sha256": "03be14660d143e7da20e28c1815f50a2a8a1b85cdec9a1f44a203dd954d1300c"
+    },
+    {
+      "path": ".claude/skills/void-doctor/SKILL.md",
+      "sha256": "a817f02686f59756ebbd6d16dc3aac42bf40bf62e8db1b309777bac3466c61ef"
+    },
+    {
+      "path": ".claude/skills/void-graph/SKILL.md",
+      "sha256": "dd8185792fab874dafc7c82bfc6f9fddbdc65e226c1358d1e055a9cf2454639b"
+    },
+    {
+      "path": ".codex/agents/accessibility-specialist.toml",
+      "sha256": "dc7de66c9238472dfecff9a2113ef5a103786aa247b24ea690f14f65af3eb17b"
+    },
+    {
+      "path": ".codex/agents/api-integration-engineer.toml",
+      "sha256": "9be9b5d75f26a519520d5b7c891138ceb8279e282529858bea01ccba22e418a9"
+    },
+    {
+      "path": ".codex/agents/code-explorer.toml",
+      "sha256": "0dc92eb65b82306887162cde99f22fb8de171e03412c13bbb02aa237c5d7d197"
+    },
+    {
+      "path": ".codex/agents/data-migration-engineer.toml",
+      "sha256": "64a8d31effb0cd389e103ca4c1d54cf0df3168f758b3fe66b0cb43b8258f459d"
+    },
+    {
+      "path": ".codex/agents/devex-docs-engineer.toml",
+      "sha256": "231d2de7cc36590b8165d161a0b58154f3e0a641289987bc7623771210db89dc"
+    },
+    {
+      "path": ".codex/agents/doctrine-critic.toml",
+      "sha256": "a2172bcaec4e6ea7cf95b9d426cebfed55af4c8b0b03802a37466b4175360715"
+    },
+    {
+      "path": ".codex/agents/domain-architect.toml",
+      "sha256": "563b3dfd48b26db75c4d8c43195ebee6bddc8093df5257f7a0347223ebabf4ce"
+    },
+    {
+      "path": ".codex/agents/experience-designer.toml",
+      "sha256": "6dec2fe54aa0b02b3ac0f6be0c3208438348adb16c75ac724ccd8060a6b80c1a"
+    },
+    {
+      "path": ".codex/agents/frontend-engineer.toml",
+      "sha256": "de6ae25a5a0d5d72f9727edd080f34243f71a2b2fc848417426756b421a4a715"
+    },
+    {
+      "path": ".codex/agents/independent-code-reviewer.toml",
+      "sha256": "bdc260a104c92c1e61b00ed1157bd8af536dcc70ae1cdcb741b014677d2951a9"
+    },
+    {
+      "path": ".codex/agents/migration-planner.toml",
+      "sha256": "886894cbde6599cfea79e5588d4d96bcc77b53239157befcd71bab92e3b38796"
+    },
+    {
+      "path": ".codex/agents/observability-sre-engineer.toml",
+      "sha256": "2e33f83039357a5851bd8080b92f82ffc0684294057dc99093da625dd912f8ba"
+    },
+    {
+      "path": ".codex/agents/pdf-specialist.toml",
+      "sha256": "7080dee01fc40b9f9c49885a477c7c78c78461f3c9244d16658e82cfb471bea9"
+    },
+    {
+      "path": ".codex/agents/performance-engineer.toml",
+      "sha256": "7a296ac2519052dd65ac94583073a66f72722cc563e908f16515e5540d939fcd"
+    },
+    {
+      "path": ".codex/agents/product-challenger.toml",
+      "sha256": "5aee455e013a25053d275a50e4a4026026cad6c24d55ae1443286537fb9bbef3"
+    },
+    {
+      "path": ".codex/agents/security-engineer.toml",
+      "sha256": "16e7ca76043825c33969598cb5833104b64f9e3018e13cefae864bd9c7a52866"
+    },
+    {
+      "path": ".codex/agents/silent-failure-hunter.toml",
+      "sha256": "83688aeb379135fe8b1bc82107db5c323e603fbfa3d69e6929d7406a0e4a5fe0"
+    },
+    {
+      "path": ".codex/agents/solution-architect.toml",
+      "sha256": "2e8478f50cfd21bc8427e01a551012194b7390ff2c0132d7c8c6e9de9e1c17c8"
+    },
+    {
+      "path": ".codex/agents/test-qa-engineer.toml",
+      "sha256": "fb1e1e50c3b3a61a4838830b5ec2fb0e2d2736dbc2484c7c6157518e7c1e5b5c"
+    },
+    {
+      "path": ".codex/agents/type-design-analyzer.toml",
+      "sha256": "6f48d550783eebbe17c59c40afb3b18f42c00dbf3d5355a10970f9da628712a9"
+    },
+    {
+      "path": ".codex/agents/visual-craft-director.toml",
+      "sha256": "bebfbaa4c74c80913da498f06c9ab7fe78c1f3f36b76514e9d1fbdb8b359bc16"
+    },
+    {
+      "path": ".codex/hooks.json",
+      "sha256": "749c00964114f49ef85de1b5d13a289f42b977353187e6c15364881afc6d6950"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "6db786d26afca9b3c79ad92165a60643cfa04329be8792f7368b4d81526783c8"
+    },
+    {
+      "path": ".void/config.json",
+      "sha256": "78fc67787e9c248dd8604fe2de0b56a87d695b8acc65a281054b824acf123422"
+    },
+    {
+      "path": ".void/hooks/_void-hook.mjs",
+      "sha256": "117e18ff13a0ccf1cd44d07480862429e69ea315f5a30895ee5054ef2bee8059"
+    },
+    {
+      "path": ".void/installed/PHILOSOPHY.md",
+      "sha256": "d2ea01655049ab479c102bc5fd12ad957169a04231b56cde5619aeed27d3bf9d"
+    },
+    {
+      "path": ".void/PROJECT-DOCTRINE.md",
+      "sha256": "ac82f31c8f05e907b981362a416f1c03458689cd282c1975743d5584b3080108"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "85ae9fb4228288fb4a1c00e2b58bd0848889900c6ce0faddf576887fff673995"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "4edc871f4b13a1774dd46ef05058a91a66ca954998fb3c2fe4c3af172a8a4ae3"
+    }
+  ]
+}
