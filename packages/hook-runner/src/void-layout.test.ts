@@ -1,6 +1,7 @@
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   classifyMaterialized,
@@ -283,34 +284,44 @@ describe('ownership comes from the receipt, never from the directory', () => {
     expect(derivedIgnoreEntries(['.claude\\skills\\tdd\\SKILL.md'])).toEqual(['.claude/skills/tdd/']);
   });
 
-  it('covers observed state only when no receipt is readable', () => {
-    // A project whose receipt is missing must not get a block claiming to cover
-    // content nobody proved the harness owns.
-    const rules = gitignoreBlock().split('\n').filter((l) => l !== '' && !l.startsWith('#'));
-
-    expect(rules).toEqual(['.void/machine/', '.void/installed/', '.void/local/']);
-  });
-});
-
-describe('the ignore rule', () => {
-  it('carries no exception rule to maintain', () => {
-    // The whole point of the split: no `!` rescue rule, because a rescue rule is
-    // what silently left config.json ignored in the project that prompted this.
+  it('covers the observed half of .void/, and never what the project declares', () => {
     const rules = gitignoreBlock().split('\n').filter((l) => l !== '' && !l.startsWith('#'));
 
     expect(rules).toContain('.void/machine/');
     expect(rules).toContain('.void/installed/');
-    // Kept so a half-finished migration cannot un-ignore what it left behind.
     expect(rules).toContain('.void/local/');
-    expect(rules.some((rule) => rule.startsWith('!'))).toBe(false);
+    // config.json, PROJECT-DOCTRINE.md and hooks/ live at the top of .void/ and
+    // are never named: the block ignores two subdirectories, not the directory.
+    expect(rules).not.toContain('.void/');
+    expect(rules.some((rule) => rule.startsWith('.void/hooks'))).toBe(false);
+  });
+});
+
+describe('the ignore rule', () => {
+  it('carries exactly the exceptions whose absence is an error, and no others', () => {
+    // `.void/` needed no exception rule and still has none: a rescue rule there
+    // is what once left config.json ignored. The runtime directories are the
+    // opposite case, since collapsing them is only possible WITH an exception,
+    // so the two are named -- and the git-backed suite above proves they rescue
+    // anything at all, which the text of a block cannot show.
+    const rules = gitignoreBlock().split('\n').filter((l) => l !== '' && !l.startsWith('#'));
+    const rescues = rules.filter((rule) => rule.startsWith('!'));
+
+    expect(rules).toContain('.void/machine/');
+    expect(rules).toContain('.void/installed/');
+    expect(rules).toContain('.void/local/');
+    expect(rescues).toContain('!.claude/settings.json');
+    expect(rescues).toContain('!.codex/hooks.json');
+    expect(rules.filter((rule) => rule.startsWith('!.void'))).toEqual([]);
   });
 
-  it('lists exactly the entries it was given, and no load-bearing path', () => {
-    const entries = derivedIgnoreEntries(['.claude/skills/tdd/SKILL.md', '.void/hooks/_void-hook.mjs']);
-    const rules = gitignoreBlock(entries).split('\n').filter((l) => l !== '' && !l.startsWith('#'));
+  it('never names a load-bearing path, whatever the project holds', () => {
+    const rules = gitignoreBlock().split('\n').filter((l) => l !== '' && !l.startsWith('#'));
 
-    expect(rules).toContain('.claude/skills/tdd/');
-    expect(rules).not.toContain('.void/hooks/_void-hook.mjs');
+    // Named from the tracked .claude/settings.json, so its absence breaks the
+    // install rather than degrading it.
+    expect(rules.some((rule) => rule.includes('.void/hooks'))).toBe(false);
+    expect(rules).not.toContain('.void/config.json');
   });
 
   it('adds the block to a gitignore that has none', () => {
@@ -351,5 +362,69 @@ describe('MACHINE_ENTRIES', () => {
     // If these ever diverge, `update` moves a file the ignore rule does not
     // cover, and the next commit ships telemetry.
     for (const entry of MACHINE_ENTRIES) expect(isMachineEntry(entry)).toBe(true);
+  });
+});
+
+// The managed block used to name every generated file one by one -- 148 lines to
+// keep exactly two files tracked. Collapsing it to the directories is only safe
+// if git actually behaves as intended, and it does not always: `.claude/`
+// excludes the directory itself, and git then refuses to re-include anything
+// under it, so `!.claude/settings.json` is silently dead. `.claude/*` descends
+// into the directory and the exception works. That difference is invisible in
+// the text of the block, so it is asserted against real git.
+describe('the managed ignore block, as git reads it', () => {
+  const roots: string[] = [];
+  afterEach(() => {
+    for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+  });
+
+  function repoWithBlock(): string {
+    const root = mkdtempSync(join(tmpdir(), 'void-ignore-'));
+    roots.push(root);
+    spawnSync('git', ['init', '-q'], { cwd: root });
+    writeFileSync(join(root, '.gitignore'), `${gitignoreBlock()}\n`);
+    return root;
+  }
+
+  const ignored = (root: string, path: string): boolean =>
+    spawnSync('git', ['check-ignore', '-q', path], { cwd: root }).status === 0;
+
+  function touch(root: string, path: string): void {
+    const target = join(root, ...path.split('/'));
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, 'x');
+  }
+
+  it('keeps the two files whose absence is an error, not a degradation', () => {
+    const root = repoWithBlock();
+    touch(root, '.claude/settings.json');
+    touch(root, '.codex/hooks.json');
+    expect(ignored(root, '.claude/settings.json')).toBe(false);
+    expect(ignored(root, '.codex/hooks.json')).toBe(false);
+  });
+
+  it('ignores what the harness regenerates, whatever its name', () => {
+    const root = repoWithBlock();
+    touch(root, '.claude/skills/tdd/SKILL.md');
+    touch(root, '.claude/agents/doctrine-critic.md');
+    touch(root, '.agents/skills/verify/SKILL.md');
+    touch(root, '.codex/agents/solution-architect.md');
+    expect(ignored(root, '.claude/skills/tdd/SKILL.md')).toBe(true);
+    expect(ignored(root, '.claude/agents/doctrine-critic.md')).toBe(true);
+    expect(ignored(root, '.agents/skills/verify/SKILL.md')).toBe(true);
+    expect(ignored(root, '.codex/agents/solution-architect.md')).toBe(true);
+  });
+
+  it('lets a project re-include a skill it wrote itself, which is the whole risk of collapsing', () => {
+    const root = repoWithBlock();
+    touch(root, '.claude/skills/ma-skill/SKILL.md');
+    expect(ignored(root, '.claude/skills/ma-skill/SKILL.md')).toBe(true);
+    const current = readFileSync(join(root, '.gitignore'), 'utf8');
+    writeFileSync(join(root, '.gitignore'), `${current}\n!.claude/skills/ma-skill/\n`);
+    expect(ignored(root, '.claude/skills/ma-skill/SKILL.md')).toBe(false);
+  });
+
+  it('stays short, because 148 lines to protect two files is what this replaces', () => {
+    expect(gitignoreBlock().split('\n').filter((line) => !line.startsWith('#')).length).toBeLessThan(20);
   });
 });

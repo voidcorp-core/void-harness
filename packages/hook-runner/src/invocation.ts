@@ -92,20 +92,49 @@ function eachEvent(body: string, visit: (event: JournalEvent) => void): void {
   }
 }
 
+/**
+ * How far back a live defect is judged from.
+ *
+ * A rename is legitimate, and the journal keeps the old name forever because it
+ * records what happened. Judging the whole history makes the alert permanent for
+ * a defect already fixed, and an alert nobody can extinguish is an alert they
+ * disable -- the same objection this design raised against a threshold on the
+ * activation ratio. Thirty days is long enough to catch a rename made this
+ * month, short enough that a repaired one goes quiet on its own.
+ */
+const LIVE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+export interface ResolutionOptions {
+  /** Judge only activations newer than 30 days before this instant. Absent judges everything. */
+  readonly nowMs?: number;
+}
+
 /** Bare skill names recorded as fired in a journal body. */
-function recordedSkillNames(body: string): string[] {
+function recordedSkillNames(body: string, nowMs?: number): string[] {
   const names: string[] = [];
+  const floor = nowMs === undefined ? undefined : nowMs - LIVE_WINDOW_MS;
   eachEvent(body, (event) => {
     if (event.kind !== 'runtime.tool.started' || event.category !== 'skill') return;
     if (!event.subject.startsWith('skill:')) return;
+    if (floor !== undefined) {
+      const at = Date.parse(event.ts);
+      // An unreadable timestamp is kept: dropping it would let a broken clock
+      // hide a live defect, and a false alert costs less than a missed one here.
+      if (!Number.isNaN(at) && at < floor) return;
+    }
     names.push(bareName(event.subject.slice('skill:'.length)));
   });
   return names;
 }
 
 /** The names this project recorded that it can no longer resolve. */
-export function resolutionVerdict(body: string, installed: ReadonlySet<string>): ResolutionVerdict {
-  const unresolved = [...new Set(recordedSkillNames(body).filter((name) => !installed.has(name)))].sort();
+export function resolutionVerdict(
+  body: string,
+  installed: ReadonlySet<string>,
+  options: ResolutionOptions = {},
+): ResolutionVerdict {
+  const recorded = recordedSkillNames(body, options.nowMs);
+  const unresolved = [...new Set(recorded.filter((name) => !installed.has(name)))].sort();
   return { ok: unresolved.length === 0, unresolved };
 }
 
@@ -260,7 +289,7 @@ export function refreshInvocationVerdict(root: string): void {
     }
     const journals = readMissionJournals(root, { recentMissions: REFRESH_MISSIONS });
     const alert = invocationAlert(
-      resolutionVerdict(journals, installedSkillNames(root)),
+      resolutionVerdict(journals, installedSkillNames(root), { nowMs: Date.now() }),
       livenessVerdict(journals),
     );
     const entry: CachedVerdict = alert === undefined ? { fingerprint } : { fingerprint, alert };

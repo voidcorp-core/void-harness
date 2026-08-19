@@ -226,7 +226,7 @@ export async function migrateVoidLayout(root: string, dryRun = false): Promise<V
   const { movable, conflicts } = planVoidMigration(root);
   const gitignorePath = join(root, '.gitignore');
   const original = existsSync(gitignorePath) ? await readFile(gitignorePath, 'utf8') : '';
-  const patched = patchGitignore(original, await projectDerivedIgnoreEntries(root));
+  const patched = patchGitignore(original);
   const gitignoreTouched = patched !== original;
 
   // Everything pending moves, including what the destination already holds.

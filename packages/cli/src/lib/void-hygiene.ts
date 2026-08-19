@@ -163,6 +163,32 @@ function derivedCheck(observation: LayoutObservation): CheckResult {
 }
 
 /** Every layout-hygiene verdict, in the order a reader should meet them. */
+/**
+ * Skills the project wrote itself that git no longer sees.
+ *
+ * The managed ignore block names whole runtime directories now, instead of the
+ * 148 lines it took to keep two files tracked. That collapse can swallow exactly
+ * one thing: a skill written by hand in `.claude/skills/`, beside the ones the
+ * harness generates. Losing it is losing work, not a regenerable file, and the
+ * loss is silent -- `git status` simply stops mentioning it.
+ *
+ * So it is reported, with the one line that rescues it. Advisory rather than a
+ * failure: an ignored skill still loads at runtime, so nothing is broken today;
+ * what is at risk is the next clone.
+ */
+export function judgeProjectSkills(ignored: readonly string[]): CheckResult {
+  const name = 'project skills';
+  if (ignored.length === 0) return pass(name, 'no hand-written skill hidden by the managed block');
+  const names = ignored.map((path) => path.split('/').pop() ?? path);
+  return {
+    name,
+    ok: false,
+    status: 'advisory',
+    message: `${ignored.length} hand-written skill(s) ignored by the managed block: ${names.join(', ')}`,
+    fix: `add one line per skill below the block, e.g. ${ignored.map((path) => `!${path}/`).join(' ')}`,
+  };
+}
+
 export function judgeLayout(observation: LayoutObservation): readonly CheckResult[] {
   return Object.freeze([
     layoutCheck(observation),

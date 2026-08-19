@@ -518,7 +518,7 @@ async function writeConfig(
 async function ensureGitignoreBlock(projectRoot: string, derivedEntries: readonly string[]): Promise<void> {
   const path = join(projectRoot, '.gitignore');
   const original = existsSync(path) ? await readFile(path, 'utf8') : '';
-  const patched = patchGitignore(original, derivedEntries);
+  const patched = patchGitignore(original);
   if (patched === original) {
     line(`${c.dim(glyph.dot)}  ${c.dim('.gitignore'.padEnd(18))}${c.dim('block already current')}`);
     return;

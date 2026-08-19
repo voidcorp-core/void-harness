@@ -83,6 +83,7 @@ Thumbs.db
 .agents/skills/learn/
 .agents/skills/llm-cost-discipline/
 .agents/skills/make-pdf/
+.agents/skills/merge/
 .agents/skills/migrations/
 .agents/skills/observability/
 .agents/skills/plan-review/
@@ -99,6 +100,9 @@ Thumbs.db
 .agents/skills/typescript-strict/
 .agents/skills/ui-review/
 .agents/skills/verify/
+.agents/skills/void-audit/
+.agents/skills/void-doctor/
+.agents/skills/void-graph/
 .claude/agents/accessibility-specialist.md
 .claude/agents/api-integration-engineer.md
 .claude/agents/code-explorer.md
@@ -120,12 +124,6 @@ Thumbs.db
 .claude/agents/test-qa-engineer.md
 .claude/agents/type-design-analyzer.md
 .claude/agents/visual-craft-director.md
-.claude/commands/autopilot.md
-.claude/commands/checkpoint.md
-.claude/commands/void-audit.md
-.claude/commands/void-doctor.md
-.claude/commands/void-feedback.md
-.claude/commands/void-graph.md
 .claude/skills/accessibility/
 .claude/skills/api-and-interface-design/
 .claude/skills/async-safety/
@@ -147,6 +145,7 @@ Thumbs.db
 .claude/skills/learn/
 .claude/skills/llm-cost-discipline/
 .claude/skills/make-pdf/
+.claude/skills/merge/
 .claude/skills/migrations/
 .claude/skills/observability/
 .claude/skills/plan-review/
@@ -163,6 +162,9 @@ Thumbs.db
 .claude/skills/typescript-strict/
 .claude/skills/ui-review/
 .claude/skills/verify/
+.claude/skills/void-audit/
+.claude/skills/void-doctor/
+.claude/skills/void-graph/
 .codex/agents/accessibility-specialist.toml
 .codex/agents/api-integration-engineer.toml
 .codex/agents/code-explorer.toml
@@ -184,6 +186,7 @@ Thumbs.db
 .codex/agents/test-qa-engineer.toml
 .codex/agents/type-design-analyzer.toml
 .codex/agents/visual-craft-director.toml
+.void/installed/PHILOSOPHY.md
 # void-harness:end
 
 # Session telemetry written by the SHIPPED hook bundle, which predates the
