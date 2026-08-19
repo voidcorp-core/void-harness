@@ -20,7 +20,7 @@ Every UI is designed mobile-first AND must reach first-class quality on both vie
 - **Layout starts at 360–390px** (iPhone 12 mini → 15 Pro range), progressively enhanced wider.
 - **Never the reverse.** No "desktop-first then squeeze for mobile."
 - **Both viewports screenshot-reviewed before merge** — `viewport-screenshot-gate` hook (shared with `accessibility`).
-- **No mobile-only / desktop-only features** without an explicit decision logged in `docs/DECISIONS.md`.
+- **No mobile-only / desktop-only features** without an explicit decision recorded through the `decide` skill.
 - **Performance budget enforced for both**: LCP < 2.5s on slow 4G mobile AND on desktop fiber (measure with the project's perf tooling — Lighthouse CI, WebPageTest, bundlesize).
 
 ---

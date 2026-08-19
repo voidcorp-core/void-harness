@@ -195,7 +195,7 @@ Every UI is designed mobile-first AND must reach first-class quality on both vie
 - Touch targets ≥ 44×44 on every interactive element regardless of viewport.
 - Keyboard navigation parity with touch.
 - Performance budget: LCP < 2.5s on slow 4G mobile AND on desktop fiber (measure with the project's perf tooling — Lighthouse CI, WebPageTest, bundlesize).
-- No mobile-only nor desktop-only features without an explicit decision in `docs/DECISIONS.md`.
+- No mobile-only nor desktop-only features without an explicit decision recorded through the `decide` skill.
 - Both viewports screenshot-reviewed before merge.
 
 The companion `viewport-screenshot-gate` hook (shared with `frontend-design`) fails PRs lacking both screenshots.

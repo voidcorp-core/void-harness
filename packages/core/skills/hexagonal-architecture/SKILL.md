@@ -215,7 +215,7 @@ Per `.void/installed/PHILOSOPHY.md` Wing Chun. Function-parameter injection cove
 
 ### CQRS as default
 
-Split read / write models only when read scale or read shape diverges enough to justify duplication. Most domains do not. Re-introducing CQRS is an ADR in `docs/DECISIONS.md`.
+Split read / write models only when read scale or read shape diverges enough to justify duplication. Most domains do not. Re-introducing CQRS is an ADR, written through the `decide` skill.
 
 ### Mediator pattern (MediatR-style dispatch)
 

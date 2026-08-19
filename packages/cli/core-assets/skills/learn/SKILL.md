@@ -96,7 +96,7 @@ State the file path and section, and note it is active from the next message via
 | **Hard rules** | Concrete, enforceable rules (@repo/core/logger not console.log, Zod at every boundary). |
 | **Forbidden patterns** | What this codebase paid for and will not reintroduce; reference the incident/ADR. |
 | **Project context** | Domain facts (users are TPE/PME French dirigeants; prod on Vercel + Neon). |
-| **Trade-offs already decided** | Pointers to `docs/DECISIONS.md` the agent must not re-litigate. |
+| **Trade-offs already decided** | Pointers to the project's decision records the agent must not re-litigate. |
 | **Project-specific skill routing** | "On THIS project, skill X triggers under Y" (apps/checkout/ → tdd strict). |
 
 If a rule fits several sections, ask rather than guess.
@@ -175,7 +175,7 @@ A clean doctrine is the asset. Every entry earns its place by changing what happ
 ## Anti-rules
 
 - MUST NOT write to `PROJECT-DOCTRINE.md` before confirmation, or capture a one-off instruction as a persistent rule.
-- MUST NOT add a project rule that contradicts `PHILOSOPHY.md` (that is an ADR in `docs/DECISIONS.md`, not a doctrine entry).
+- MUST NOT add a project rule that contradicts `PHILOSOPHY.md` (that is an ADR, written through the `decide` skill, not a doctrine entry).
 - MUST NOT open or promote a harness PR without confirmation, or auto-merge one.
 - MUST NOT capitalize a trivial/one-off instance, or run the ritual on an unfinished cycle.
 - MUST NOT send usage data anywhere outside the machine.
