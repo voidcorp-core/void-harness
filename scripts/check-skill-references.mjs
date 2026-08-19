@@ -29,8 +29,16 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CATALOGUE = resolve(ROOT, 'packages/core/data/model.json');
 
-/** `harness:<name>`, in prose or as a slash command, but never `void-harness:`. */
-const REFERENCE = /(?<!void-)\bharness:([a-z0-9]+(?:-[a-z0-9]+)*)/g;
+/**
+ * A namespaced skill name, core (`harness:tdd`) or pack (`harness-server:x`), in
+ * prose or as a slash command, but never the `void-harness:` marker.
+ *
+ * This used to be how a reference was written. It is now what a reference must
+ * never be: the namespace exists only under a Claude Code marketplace plugin,
+ * and `npx voidharness` — the primary channel — lands every skill flat in
+ * `.claude/skills/`, where the namespaced call returns Unknown skill.
+ */
+const NAMESPACED = /(?<!void-)\bharness(?:-[a-z]+)?:([a-z0-9]+(?:-[a-z0-9]+)*)/g;
 
 /** Files loaded in a session, or shipped to a consumer, where a dead link misroutes. */
 const SURFACES = [
@@ -41,6 +49,8 @@ const SURFACES = [
   '.void/PROJECT-DOCTRINE.md',
   'docs/ARCHITECTURE.md',
   'docs/PHILOSOPHY.md',
+  'packages/core/PHILOSOPHY.md',
+  'packages/core/PROJECT-DOCTRINE.template.md',
   'docs/HARNESS_EVOLUTION.md',
   'docs/CHEATSHEET.md',
   'packages/core/skills',
@@ -50,10 +60,10 @@ const SURFACES = [
   'packages/packs',
 ];
 
-/** Every distinct name referenced in this text, sorted for a stable report. */
+/** Every namespaced name written in this text, sorted for a stable report. */
 export function extractReferences(text) {
   const found = new Set();
-  for (const match of text.matchAll(REFERENCE)) {
+  for (const match of text.matchAll(NAMESPACED)) {
     if (match[1] !== undefined) found.add(match[1]);
   }
   return [...found].sort();
@@ -93,23 +103,35 @@ function knownNames() {
 
 function main() {
   const known = knownNames();
-  const offenders = [];
+  const namespaced = [];
+  const dangling = [];
   for (const surface of SURFACES) {
     for (const file of walk(resolve(ROOT, surface))) {
-      const dangling = danglingReferences(extractReferences(readFileSync(file, 'utf8')), known);
-      if (dangling.length > 0) offenders.push({ file: file.slice(ROOT.length + 1), dangling });
+      const found = extractReferences(readFileSync(file, 'utf8'));
+      if (found.length === 0) continue;
+      const relative = file.slice(ROOT.length + 1);
+      namespaced.push({ file: relative, names: found });
+      // A namespaced name that also names nothing is worth saying separately:
+      // dropping the namespace would not save it.
+      const missing = danglingReferences(found, known);
+      if (missing.length > 0) dangling.push({ file: relative, names: missing });
     }
   }
-  if (offenders.length === 0) {
-    process.stdout.write(`check-skill-references: every reference resolves (${String(known.size)} known names).\n`);
+  if (namespaced.length === 0) {
+    process.stdout.write(
+      `check-skill-references: no namespaced reference in the live surfaces (${String(known.size)} known names).\n`,
+    );
     return;
   }
-  for (const { file, dangling } of offenders) {
-    process.stderr.write(`${file}: ${dangling.join(', ')}\n`);
+  for (const { file, names } of namespaced) {
+    process.stderr.write(`${file}: ${names.map((n) => `harness:${n}`).join(', ')}\n`);
+  }
+  for (const { file, names } of dangling) {
+    process.stderr.write(`${file}: ${names.join(', ')} names nothing in the catalogue either\n`);
   }
   process.stderr.write(
-    '\ncheck-skill-references: the names above resolve to nothing in the catalogue.\n'
-    + 'Rename the reference, or regenerate the catalogue if the skill was just added.\n',
+    '\ncheck-skill-references: the names above carry a namespace no local install resolves.\n'
+    + 'Write the bare name; the invocation syntax belongs to the runtime, not to the doctrine.\n',
   );
   process.exitCode = 1;
 }
