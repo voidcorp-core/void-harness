@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "harnessVersion": "3.1.0",
+  "harnessVersion": "3.1.1",
   "capabilities": [
     {
       "id": "skill:accessibility",

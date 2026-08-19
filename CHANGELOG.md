@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.1.1](https://github.com/voidcorp-core/void-harness/compare/v3.1.0...v3.1.1) (2026-08-19)
+
+
+### Bug Fixes
+
+* **cli:** un update depuis un clone frais ne demande plus deux commandes ([ce5097b](https://github.com/voidcorp-core/void-harness/commit/ce5097bf314f7ebfcd41111cf99fd79d4a05c32f))
+* **cli:** un update sans encombre, et une alerte qui peut s'éteindre ([80ee1eb](https://github.com/voidcorp-core/void-harness/commit/80ee1eb07ed41119b5be04d41cfa5a433dad6788))
+* **hooks:** juger l'état présent, pas l'histoire du journal ([ce8670a](https://github.com/voidcorp-core/void-harness/commit/ce8670aca75006e629c3d9762f7806c21aa4b5a1))
+* **install:** 148 lignes d'ignore pour deux fichiers, c'était la mauvaise forme ([d6a64f7](https://github.com/voidcorp-core/void-harness/commit/d6a64f7f48654b8e04da36e3e51b9a33f92b78a0))
+* **install:** 148 lignes d'ignore pour deux fichiers, c'était la mauvaise forme ([dd1f8dc](https://github.com/voidcorp-core/void-harness/commit/dd1f8dcae2cee685544a1acb1f01085628f12b84))
+
 ## [3.1.0](https://github.com/voidcorp-core/void-harness/compare/v3.0.0...v3.1.0) (2026-08-19)
 
 
