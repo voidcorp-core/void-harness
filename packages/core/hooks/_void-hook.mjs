@@ -815,6 +815,42 @@ function evaluateRule(rule, rawInput, options) {
   throw new Error("UNKNOWN_ENFORCEMENT_RULE");
 }
 
+// src/enforcement/governing-skill.ts
+var GOVERNING_SKILL = {
+  "boundary-direction": "hexagonal-architecture",
+  "dangerous-command": "security-guidance",
+  "design-slop": "frontend-design",
+  "no-any": "typescript-strict",
+  "no-as-cast": "typescript-strict",
+  "no-console": "observability",
+  "no-focused-test": "testing",
+  "no-null": "functional",
+  "protected-file": "security-guidance",
+  "secret-content": "security-guidance",
+  "tdd-order": "tdd",
+  "test-name": "testing"
+};
+var RULE_NAMES = [
+  "boundary-direction",
+  "dangerous-command",
+  "design-slop",
+  "no-any",
+  "no-as-cast",
+  "no-console",
+  "no-focused-test",
+  "no-null",
+  "protected-file",
+  "secret-content",
+  "tdd-order",
+  "test-name"
+];
+function governingSkill(rule) {
+  return GOVERNING_SKILL[rule];
+}
+function withGoverningSkill(rule, message) {
+  return `${message} (doctrine: the ${governingSkill(rule)} skill)`;
+}
+
 // src/lifecycle/context.ts
 function sessionStartOutput(version, notice) {
   const installed = version.trim() === "" ? "unknown" : version.trim();
@@ -2583,20 +2619,10 @@ async function recordRuntimeEventFromCli(raw, argv, env) {
 }
 
 // src/cli.ts
-var RULES = /* @__PURE__ */ new Set([
-  "dangerous-command",
-  "boundary-direction",
-  "design-slop",
-  "no-any",
-  "no-as-cast",
-  "no-console",
-  "no-focused-test",
-  "no-null",
-  "protected-file",
-  "secret-content",
-  "tdd-order",
-  "test-name"
-]);
+var RULES = new Set(RULE_NAMES);
+function isRuleName(value) {
+  return value !== void 0 && RULES.has(value);
+}
 async function readStdin() {
   const chunks = [];
   let bytes = 0;
@@ -2608,11 +2634,11 @@ async function readStdin() {
   }
   return Buffer.concat(chunks);
 }
-function writeVerdict(verdict, write) {
+function writeVerdict(rule, verdict, write) {
   if (verdict.code === "ALLOW" || verdict.code === "OVERRIDE") return;
   const evidence = verdict.evidence.length === 0 ? "" : `
 ${verdict.evidence.map((item) => `- ${item}`).join("\n")}`;
-  write(`${verdict.code}: ${verdict.message}${evidence}
+  write(`${verdict.code}: ${withGoverningSkill(rule, verdict.message)}${evidence}
 `);
 }
 function runtime2(value) {
@@ -2706,8 +2732,9 @@ async function main() {
     return;
   }
   try {
-    const rule = process.argv[3];
-    if (!RULES.has(rule)) throw new Error("UNKNOWN_ENFORCEMENT_RULE");
+    const requested = process.argv[3];
+    if (!isRuleName(requested)) throw new Error("UNKNOWN_ENFORCEMENT_RULE");
+    const rule = requested;
     const rawInput = process.argv[2] === "enforce-ci" ? {
       tool_name: "Write",
       tool_input: {
@@ -2738,7 +2765,7 @@ async function main() {
         projectRoot()
       );
     }
-    writeVerdict(verdict, (message) => process.stderr.write(message));
+    writeVerdict(rule, verdict, (message) => process.stderr.write(message));
     if (!verdict.allow) process.exitCode = 2;
   } catch (error) {
     const message = error instanceof Error ? error.message : "UNKNOWN_ENFORCEMENT_ERROR";

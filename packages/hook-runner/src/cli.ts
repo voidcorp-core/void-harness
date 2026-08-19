@@ -6,6 +6,7 @@ import {
   parseHookText,
   type RuleName,
 } from './enforcement/runner.js';
+import { governingSkill, RULE_NAMES, withGoverningSkill } from './enforcement/governing-skill.js';
 import { sessionStartOutput } from './lifecycle/context.js';
 import { resolveInstall } from './lifecycle/context-executor.js';
 import { readFreshnessCache } from './freshness/cache.js';
@@ -22,20 +23,14 @@ import {
 } from './record.js';
 import type { AgentRuntime } from './runtime-input.js';
 
-const RULES = new Set<RuleName>([
-  'dangerous-command',
-  'boundary-direction',
-  'design-slop',
-  'no-any',
-  'no-as-cast',
-  'no-console',
-  'no-focused-test',
-  'no-null',
-  'protected-file',
-  'secret-content',
-  'tdd-order',
-  'test-name',
-]);
+// One inventory of the rules, shared with the table that names each rule's
+// doctrine. A second list here would drift from that one, silently, and a rule
+// missing from either side fails open.
+const RULES = new Set<string>(RULE_NAMES);
+
+function isRuleName(value: string | undefined): value is RuleName {
+  return value !== undefined && RULES.has(value);
+}
 
 async function readStdin(): Promise<Buffer> {
   const chunks: Buffer[] = [];
@@ -50,6 +45,7 @@ async function readStdin(): Promise<Buffer> {
 }
 
 function writeVerdict(
+  rule: RuleName,
   verdict: ReturnType<typeof evaluateRule>,
   write: (message: string) => void,
 ): void {
@@ -57,7 +53,10 @@ function writeVerdict(
   const evidence = verdict.evidence.length === 0
     ? ''
     : `\n${verdict.evidence.map((item) => `- ${item}`).join('\n')}`;
-  write(`${verdict.code}: ${verdict.message}${evidence}\n`);
+  // Name the doctrine, do not load it. A refusal that only states the rule
+  // leaves the skill that explains it unopened, which is how this harness ran
+  // 26,440 hook executions against 4 skill activations.
+  write(`${verdict.code}: ${withGoverningSkill(rule, verdict.message)}${evidence}\n`);
 }
 
 function runtime(value: string | undefined): AgentRuntime {
@@ -195,8 +194,9 @@ async function main(): Promise<void> {
   }
 
   try {
-    const rule = process.argv[3];
-    if (!RULES.has(rule as RuleName)) throw new Error('UNKNOWN_ENFORCEMENT_RULE');
+    const requested = process.argv[3];
+    if (!isRuleName(requested)) throw new Error('UNKNOWN_ENFORCEMENT_RULE');
+    const rule = requested;
     const rawInput = process.argv[2] === 'enforce-ci'
       ? {
           tool_name: 'Write',
@@ -207,7 +207,7 @@ async function main(): Promise<void> {
         }
       : parseHookPayload(input);
     const verdict = evaluateRule(
-      rule as RuleName,
+      rule,
       rawInput,
       {
         root: projectRoot(),
@@ -229,7 +229,7 @@ async function main(): Promise<void> {
         projectRoot(),
       );
     }
-    writeVerdict(verdict, (message) => process.stderr.write(message));
+    writeVerdict(rule, verdict, (message) => process.stderr.write(message));
     if (!verdict.allow) process.exitCode = 2;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'UNKNOWN_ENFORCEMENT_ERROR';
