@@ -15,7 +15,7 @@ The spec answers "what should we build." This skill answers "in what order, with
 
 Invoke immediately after `brainstorm` approves a spec. The plan is the next deliverable before any code.
 
-**A `source: forge` spec is a ready spec.** When `docs/specs/YYYY-MM-DD-<slug>.md` carries `source: forge` in its frontmatter (the forge→harness artifact contract; see `docs/ARCHITECTURE.md` "Inter-plugin contracts"), consume it **directly** — it already holds the 18 recon variables, the winning design, and the critique verdict, so `brainstorm` need not have run. Plan from it as-is; if it is partial (missing critique, or a field absent in an older `forge_version`), plan around the holes and flag them as the first open decisions rather than re-deriving the whole thing.
+**A `source: forge` spec is a ready spec.** When `docs/specs/YYYY-MM-DD-<slug>.md` carries `source: forge` in its frontmatter (the forge→harness artifact contract), consume it **directly** — it already holds the 18 recon variables, the winning design, and the critique verdict, so `brainstorm` need not have run. Plan from it as-is; if it is partial (missing critique, or a field absent in an older `forge_version`), plan around the holes and flag them as the first open decisions rather than re-deriving the whole thing.
 
 Do NOT invoke without an approved spec. If you find yourself wanting to plan without a spec, that means brainstorm was skipped — go back.
 

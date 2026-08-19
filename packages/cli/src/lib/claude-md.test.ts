@@ -125,3 +125,33 @@ describe('patchExistingRuntimeDocs (per-runtime, add/remove)', () => {
     expect(await patchExistingRuntimeDocs(dir, input)).toEqual([]);
   });
 });
+
+// The block is read by the model at every session, in every consuming project.
+// A line naming a marketplace is a fact about how the harness got there, and on
+// the default path it did not: `npx voidharness init` copies bundled assets and
+// never contacts a marketplace. Stating it anyway teaches the model a channel
+// that does not exist here, which is how a skill ends up invoked under a
+// namespace that cannot resolve.
+describe('the provenance line', () => {
+  const inputs = { enabledPlugins: ['harness'], enabledPacks: [] } as const;
+
+  it('names the marketplace only when the install came from it', () => {
+    const block = harnessBlock({ ...inputs, channel: 'marketplace' }, 'claude');
+    expect(block).toContain('Marketplace:');
+  });
+
+  it('says nothing about a marketplace on the default local install', () => {
+    const block = harnessBlock({ ...inputs, channel: 'local' }, 'claude');
+    expect(block).not.toContain('Marketplace:');
+    expect(block).not.toContain('marketplace');
+  });
+
+  it('still announces the doctrine on the local install, which is the load-bearing half', () => {
+    const block = harnessBlock({ ...inputs, channel: 'local' }, 'claude');
+    expect(block).toContain('doctrine active in this project');
+  });
+
+  it('keeps the codex block free of a marketplace it never used either', () => {
+    expect(harnessBlock({ ...inputs, channel: 'local' }, 'codex')).not.toContain('Marketplace:');
+  });
+});

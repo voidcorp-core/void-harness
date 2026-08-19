@@ -77,7 +77,7 @@ Tests use in-memory adapters with the same shape — see `testing` skill nullabl
 
 ### No DI containers (tsyringe, awilix, inversify)
 
-Rejected per `docs/PHILOSOPHY.md` Wing Chun. Function-parameter injection is the same logical pattern with zero runtime cost, zero magic, zero learning curve.
+Rejected per `.void/installed/PHILOSOPHY.md` Wing Chun. Function-parameter injection is the same logical pattern with zero runtime cost, zero magic, zero learning curve.
 
 ---
 
@@ -211,7 +211,7 @@ No mocking framework. The shape of in-memory matches the shape of production. Co
 
 ### DI containers (tsyringe, awilix, inversify)
 
-Per `docs/PHILOSOPHY.md` Wing Chun. Function-parameter injection covers the same need with zero cost.
+Per `.void/installed/PHILOSOPHY.md` Wing Chun. Function-parameter injection covers the same need with zero cost.
 
 ### CQRS as default
 

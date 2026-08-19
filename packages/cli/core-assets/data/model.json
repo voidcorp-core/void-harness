@@ -699,7 +699,7 @@
         "codex"
       ],
       "source": "packages/core/skills/accessibility/SKILL.md",
-      "staticTokens": 2192,
+      "staticTokens": 2195,
       "triggers": {
         "extensions": [
           "tsx"
@@ -842,7 +842,7 @@
         "codex"
       ],
       "source": "packages/core/skills/brainstorm/SKILL.md",
-      "staticTokens": 4043,
+      "staticTokens": 4030,
       "type": "skill"
     },
     {
@@ -1116,7 +1116,7 @@
         "codex"
       ],
       "source": "packages/core/skills/domain-driven-design/SKILL.md",
-      "staticTokens": 3130,
+      "staticTokens": 3133,
       "type": "skill"
     },
     {
@@ -1147,7 +1147,7 @@
         "codex"
       ],
       "source": "packages/core/skills/frontend-design/SKILL.md",
-      "staticTokens": 3568,
+      "staticTokens": 3571,
       "triggers": {
         "extensions": [
           "tsx"
@@ -1214,7 +1214,7 @@
         "codex"
       ],
       "source": "packages/core/skills/hexagonal-architecture/SKILL.md",
-      "staticTokens": 2706,
+      "staticTokens": 2711,
       "type": "skill"
     },
     {
@@ -2274,7 +2274,7 @@
         "codex"
       ],
       "source": "packages/core/skills/plan/SKILL.md",
-      "staticTokens": 2596,
+      "staticTokens": 2583,
       "type": "skill"
     },
     {
@@ -2589,7 +2589,7 @@
         "codex"
       ],
       "source": "packages/core/skills/ticket/SKILL.md",
-      "staticTokens": 2322,
+      "staticTokens": 2309,
       "type": "skill"
     },
     {

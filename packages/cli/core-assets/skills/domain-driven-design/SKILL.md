@@ -221,7 +221,7 @@ Aggregates collect events; use-cases dispatch them via an injected `EventBusPort
 
 ### CQRS, event sourcing, mediator, generic `Repository<T>`
 
-All rejected per `docs/PHILOSOPHY.md` Wing Chun. Re-introducing any of them is an ADR in `docs/DECISIONS.md`.
+All rejected per `.void/installed/PHILOSOPHY.md` Wing Chun. Re-introducing any of them is an ADR in `docs/DECISIONS.md`.
 
 ### Anemic models (data + setters, logic elsewhere)
 
