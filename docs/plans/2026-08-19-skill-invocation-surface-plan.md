@@ -231,26 +231,27 @@ Valable tant que ce programme est autonome. Dès que `ticket` aura créé les un
 tracker, la table ci-dessus et l'état natif du tracker font autorité, et ce pointeur n'est plus
 maintenu : deux pointeurs de progression donnent deux réponses à « où on en est ».
 
-**Prochaine étape** : arbitrage sur le Step 6, puis la tranche garde-fous.
+**Prochaine étape** : la tranche garde-fous, à spécifier à part.
 
-**Fait** :
+**Fait** : les sept unités, Steps 0 à 6.
+
 - Step 0 : tranche 0 scellée.
-- Step 1 : la composition d'`implement` résout, et les 17 arêtes que le graphe ignorait sont
+- Step 1 : la composition d'`implement` résout ; les 17 arêtes que le graphe ignorait sont
   déclarées.
 - Step 2 : le namespace vient du canal d'installation.
-- Step 3 : 298 références réécrites dans 69 fichiers, `check-skill-references` inversé, décision
-  `adr:8f3cf096`.
-- Step 4 : `commands/` supprimé, trois gestes convertis en skills, `void-feedback` fondu dans
-  `learn`, `${CLAUDE_PLUGIN_ROOT}` remplacé par le CLI, décision `adr:2a52e2f0`.
-- Step 5 : chaque refus de hook nomme la doctrine dont il vient. `paths` écarté sur preuve
-  documentaire : il restreint l'activation au lieu de la provoquer.
+- Step 3 : 298 références réécrites dans 69 fichiers, gate inversé, `adr:8f3cf096`.
+- Step 4 : `commands/` supprimé, trois gestes convertis, `void-feedback` fondu dans `learn`,
+  `adr:2a52e2f0`.
+- Step 5 : chaque refus de hook nomme sa doctrine. `paths` écarté sur preuve documentaire.
+- Step 6 : le frontmatter ne porte plus que les six champs de la spec, les sept champs maison
+  passent dans un `harness.yaml` voisin jamais livré, `adr:31ca9a60`. Le SKILL.md installé est
+  identique à la source à l'octet près, sur les deux runtimes, et `skills-ref validate` le
+  déclare valide. Plafond de description porté à 512.
 
-**Arbitrage en attente sur le Step 6.** La migration du frontmatter sous `metadata` touche 68
-fichiers de frontmatter, 16 fichiers de tests et 13 lecteurs, dont un parseur écrit à la main qui
-alimente le catalogue, le score et la certification. Le défaut qu'elle corrige est formel : il est
-vérifié que Codex charge le frontmatter actuel sans broncher et que Claude ignore les champs
-inconnus. Recommandation : après la tranche garde-fous, qui a un effet observable.
-
-**Tranche garde-fous, décidée le 2026-08-19** (voir la section dédiée ci-dessous).
-
-**En attente** : Step 6, tranche garde-fous.
+**Tranche garde-fous, décidée le 2026-08-19.** Le smoke de comportement en CI est écarté : coût
+récurrent à chaque exécution pour une valeur ponctuelle. Retenus, tous deux à coût unique puis
+passif : le plancher d'activation dans `doctor` (le ratio activations de skills sur appels
+d'outils, dégradé sous un seuil, avec les skills jamais vues nommées) et la réconciliation des
+événements contre le catalogue (tout composant nommé dans un événement et absent du catalogue est
+signalé). Le second aurait attrapé `skill:ticket-writer` observé un jour après son renommage.
+Cette tranche a besoin de sa propre spec.
