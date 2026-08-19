@@ -1340,6 +1340,36 @@
       "type": "skill"
     },
     {
+      "description": "Vider la file des PR ouvertes sans casser le dépôt. Ordre par déblocage plutôt que par date, CI verte ET à jour, artefacts générés régénérés, conflits de contenu rendus à leur auteur. Use when merging pull requests.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:merge",
+      "lines": 112,
+      "name": "merge",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/merge/SKILL.md",
+      "staticTokens": 1238,
+      "type": "skill"
+    },
+    {
       "activation": "always",
       "description": "Zero-downtime Postgres migrations. Two-phase changes, batched backfills, locking analysis, banned DDL patterns, CONCURRENTLY indexes, dev branch test, immutable after merge. Use on DB schema changes.",
       "enforcement": {
