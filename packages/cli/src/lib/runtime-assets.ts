@@ -11,7 +11,6 @@ export type InstallSource = 'local' | 'marketplace';
 export interface ClaudeLocalAssets {
   readonly skills: number;
   readonly agents: number;
-  readonly commands: number;
   readonly hooks: number;
   readonly hookConfiguration: Record<string, unknown>;
 }
@@ -161,15 +160,17 @@ export async function wireClaudeLocalAssets(
   ) as { hooks?: Record<string, Array<{ hooks?: Array<{ command?: string }> }>> };
   if (manifest.hooks === undefined) throw new Error('core Claude manifest has no hooks');
   const hookAssets = wiredHooks({ hooks: manifest.hooks });
-  const [agents, commands, hooks] = await Promise.all([
+  // No `commands` here on purpose. Claude Code merged custom commands into
+  // skills, and `commands/` was staged to `.claude/commands/` and nowhere else,
+  // which made every gesture living there Claude-only while the harness targets
+  // three runtimes. The four it carried are skills now.
+  const [agents, hooks] = await Promise.all([
     stageClaudeAgents(sourceRoot, join(projectRoot, '.claude', 'agents')),
-    stageMarkdownDirectory(join(sourceRoot, 'commands'), join(projectRoot, '.claude', 'commands')),
     stageHooks(projectRoot, sourceRoot, hookAssets),
   ]);
   return {
     skills,
     agents,
-    commands,
     hooks,
     hookConfiguration: compileClaudeHooks(manifest.hooks),
   };

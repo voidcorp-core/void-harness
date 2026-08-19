@@ -196,7 +196,6 @@ async function copyCompilerCore(root: string, destination: string): Promise<void
   const inputs = [
     '.claude-plugin',
     'agents',
-    'commands',
     'skills',
     'specialists',
     'codex',

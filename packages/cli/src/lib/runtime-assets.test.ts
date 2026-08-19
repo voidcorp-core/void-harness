@@ -62,7 +62,10 @@ describe('wireClaudeLocalAssets', () => {
     expect(existsSync(join(root, '.claude/agents/solution-architect.md'))).toBe(true);
     expect(existsSync(join(root, '.claude/agents/experience-designer.md'))).toBe(true);
     expect(existsSync(join(root, '.claude/agents/visual-craft-director.md'))).toBe(true);
-    expect(existsSync(join(root, '.claude/commands/void-doctor.md'))).toBe(true);
+    // void-doctor is a skill now, and no `.claude/commands/` is written at all:
+    // the command format is Claude-only, and this harness targets three runtimes.
+    expect(existsSync(join(root, '.claude/skills/void-doctor/SKILL.md'))).toBe(true);
+    expect(existsSync(join(root, '.claude/commands'))).toBe(false);
     expect(existsSync(join(root, '.void/hooks/_void-hook.mjs'))).toBe(true);
     expect(existsSync(join(root, '.void/hooks/_hooklib.sh'))).toBe(false);
     expect(result.hooks).toBe(1);

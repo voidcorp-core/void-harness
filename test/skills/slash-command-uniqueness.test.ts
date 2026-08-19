@@ -1,19 +1,24 @@
 /**
- * A slash command name has exactly one owner.
+ * A gesture is a skill. There is no second format.
  *
- * Claude Code exposes a skill and a command under the same namespace: a skill at
- * `skills/<name>/SKILL.md` and a command at `commands/<name>.md` both answer to
- * `/<name>`. When both exist the palette lists the name twice, each entry
- * carrying its own `description`, and the two descriptions drift the moment one
- * side is edited — which is how `/checkpoint` came to advertise two different
- * jobs to the person typing it.
+ * Claude Code answers `/<name>` from a skill and from a `commands/<name>.md` file
+ * alike, and its own documentation states the two were merged: "Custom commands
+ * have been merged into skills [...] both create `/deploy` and work the same
+ * way." Skills add what commands never had - a directory for supporting files,
+ * `paths`, `disable-model-invocation` - and, decisively here, they are the only
+ * format Codex and Kimi understand at all. A command is staged to
+ * `.claude/commands/` and nowhere else, so every gesture living there was
+ * Claude-only by construction.
  *
- * The rule is structural, not cosmetic: one name, one authoritative definition.
- * A command that only restates a skill is the skill's second copy, and anti-bloat
- * rule 3 already forbids that overlap between two skills.
+ * Keeping both formats also produced the defect that started this: `/checkpoint`
+ * existed as command and as skill, each with its own description, and the two had
+ * drifted into advertising different jobs for one gesture.
+ *
+ * So the rule is not "one name, one owner" any more. It is stronger and simpler:
+ * no shipped surface has a `commands/` directory.
  */
 
-import { existsSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -48,6 +53,13 @@ function skillNames(root: string): string[] {
 }
 
 describe('slash command namespace', () => {
+  it('ships no commands directory, because a command is a skill Codex cannot read', () => {
+    const withCommands = surfaceRoots()
+      .filter((root) => existsSync(join(root, 'commands')))
+      .map((root) => root.replace(ROOT, ''));
+    expect(withCommands).toEqual([]);
+  });
+
   it('gives every name a single owner across commands and skills', () => {
     const collisions: string[] = [];
     for (const root of surfaceRoots()) {
@@ -71,5 +83,48 @@ describe('slash command namespace', () => {
       .filter(([, roots]) => roots.size > 1)
       .map(([name, roots]) => `${name}: ${[...roots].join(', ')}`);
     expect(shared).toEqual([]);
+  });
+
+  /** The three CLI-facing gestures keep their names, as skills every runtime receives. */
+  it.each(['void-doctor', 'void-audit', 'void-graph'])('keeps %s invocable, as a skill', (name) => {
+    const skill = join(ROOT, 'packages/core/skills', name, 'SKILL.md');
+    expect(existsSync(skill)).toBe(true);
+    const body = readFileSync(skill, 'utf8');
+    // Typed, not guessed by the model: these run a CLI on request.
+    expect(body).toContain('disable-model-invocation: true');
+  });
+
+  /**
+   * `void-feedback` was branch B of `learn` rewritten: same agnostic and
+   * harness-worthy bar, same `gh issue create`, same HITL. Two copies of one
+   * flow, under two names, which the name-collision rule above cannot see.
+   */
+  it('folds void-feedback into learn rather than keeping the second copy', () => {
+    expect(existsSync(join(ROOT, 'packages/core/skills/void-feedback'))).toBe(false);
+    const learn = readFileSync(join(ROOT, 'packages/core/skills/learn/SKILL.md'), 'utf8');
+    expect(learn).toContain('gh issue create');
+    expect(learn).toMatch(/when_to_use/);
+    expect(learn).toMatch(/feedback/i);
+  });
+
+  /**
+   * `${CLAUDE_PLUGIN_ROOT}` is substituted for plugin assets only. It sat
+   * unresolved in the installed `void-graph` command, pointing at nothing on
+   * every local install.
+   */
+  it('leaves no plugin-only substitution in a shipped asset', () => {
+    const offenders: string[] = [];
+    for (const root of surfaceRoots()) {
+      const skills = join(root, 'skills');
+      if (!existsSync(skills)) continue;
+      for (const name of readdirSync(skills)) {
+        const file = join(skills, name, 'SKILL.md');
+        if (!existsSync(file)) continue;
+        if (readFileSync(file, 'utf8').includes('CLAUDE_PLUGIN_ROOT')) {
+          offenders.push(`${root.replace(ROOT, '')}: ${name}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });

@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:180caaba4dd06fe14e48826fc5bda4e875122190996bf20511a70da50403e28b"
+    "rootHash": "sha256:3ed570737cf99eb91429069977aebca3ebe308076aa4a172bc597260a202d066"
   },
   "nodes": [
     {
@@ -591,118 +591,6 @@
           {
             "kind": "path",
             "ref": "packages/core/agents/visual-craft-director.md",
-            "hashOrVersion": "catalog-v1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:command:command:void-audit",
-      "kind": "command",
-      "label": "void-audit",
-      "data": {
-        "legacy": {
-          "description": "Run the outbound audit from local mission events and surface stale skills, upstream deprecations, conflicts, and HITL proposals.",
-          "id": "command:void-audit",
-          "lines": 13,
-          "name": "void-audit",
-          "pack": null,
-          "source": "packages/core/commands/void-audit.md",
-          "staticTokens": 172,
-          "type": "command"
-        }
-      },
-      "provenance": {
-        "origin": "extracted",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "path",
-            "ref": "packages/core/commands/void-audit.md",
-            "hashOrVersion": "catalog-v1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:command:command:void-doctor",
-      "kind": "command",
-      "label": "void-doctor",
-      "data": {
-        "legacy": {
-          "description": "Run harness health checks for config, doctrine, runtime wiring, lifecycle proof, optional marketplace access, and version drift.",
-          "id": "command:void-doctor",
-          "lines": 13,
-          "name": "void-doctor",
-          "pack": null,
-          "source": "packages/core/commands/void-doctor.md",
-          "staticTokens": 143,
-          "type": "command"
-        }
-      },
-      "provenance": {
-        "origin": "extracted",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "path",
-            "ref": "packages/core/commands/void-doctor.md",
-            "hashOrVersion": "catalog-v1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:command:command:void-feedback",
-      "kind": "command",
-      "label": "void-feedback",
-      "data": {
-        "legacy": {
-          "description": "File a void-harness feedback issue (a gap or friction in the harness) directly on voidcorp-core/void-harness. HITL — drafted, confirmed, then opened; never fixes the harness from here.",
-          "id": "command:void-feedback",
-          "lines": 27,
-          "name": "void-feedback",
-          "pack": null,
-          "source": "packages/core/commands/void-feedback.md",
-          "staticTokens": 396,
-          "type": "command"
-        }
-      },
-      "provenance": {
-        "origin": "extracted",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "path",
-            "ref": "packages/core/commands/void-feedback.md",
-            "hashOrVersion": "catalog-v1"
-          }
-        ]
-      }
-    },
-    {
-      "id": "catalog:command:command:void-graph",
-      "kind": "command",
-      "label": "void-graph",
-      "data": {
-        "legacy": {
-          "description": "Run the bundled void-graph on the installed harness — no arg opens the local live studio (localhost, offline); audit/cost/behavior print a terminal report of dead/underused/expensive components.",
-          "id": "command:void-graph",
-          "lines": 34,
-          "name": "void-graph",
-          "pack": null,
-          "source": "packages/core/commands/void-graph.md",
-          "staticTokens": 485,
-          "type": "command"
-        }
-      },
-      "provenance": {
-        "origin": "extracted",
-        "confidence": 1,
-        "sources": [
-          {
-            "kind": "path",
-            "ref": "packages/core/commands/void-graph.md",
             "hashOrVersion": "catalog-v1"
           }
         ]
@@ -2919,7 +2807,7 @@
             }
           ],
           "id": "skill:learn",
-          "lines": 220,
+          "lines": 227,
           "name": "learn",
           "owner": "folpe",
           "pack": null,
@@ -2928,7 +2816,7 @@
             "codex"
           ],
           "source": "packages/core/skills/learn/SKILL.md",
-          "staticTokens": 2855,
+          "staticTokens": 3034,
           "type": "skill"
         }
       },
@@ -5181,6 +5069,150 @@
           {
             "kind": "path",
             "ref": "packages/core/skills/verify/SKILL.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:skill:skill:void-audit",
+      "kind": "skill",
+      "label": "void-audit",
+      "data": {
+        "legacy": {
+          "description": "Run the outbound audit over local mission events and surface skills that never fire, upstream deprecations and matrix conflicts, as proposals a human disposes of.",
+          "enforcement": {
+            "floor": "ci",
+            "inline": {
+              "claude": "active",
+              "codex": "active",
+              "hermes": "ci-only"
+            }
+          },
+          "evalTargets": [
+            {
+              "provider": "anthropic",
+              "runtime": "claude",
+              "tier": "opus"
+            }
+          ],
+          "id": "skill:void-audit",
+          "lines": 92,
+          "name": "void-audit",
+          "owner": "folpe",
+          "pack": null,
+          "runtimes": [
+            "claude",
+            "codex"
+          ],
+          "source": "packages/core/skills/void-audit/SKILL.md",
+          "staticTokens": 774,
+          "type": "skill"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/skills/void-audit/SKILL.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:skill:skill:void-doctor",
+      "kind": "skill",
+      "label": "void-doctor",
+      "data": {
+        "legacy": {
+          "description": "Run the harness health checks and report what is healthy, missing or stale, with the exact command that repairs each finding. Reports; never repairs on its own.",
+          "enforcement": {
+            "floor": "ci",
+            "inline": {
+              "claude": "active",
+              "codex": "active",
+              "hermes": "ci-only"
+            }
+          },
+          "evalTargets": [
+            {
+              "provider": "anthropic",
+              "runtime": "claude",
+              "tier": "opus"
+            }
+          ],
+          "id": "skill:void-doctor",
+          "lines": 94,
+          "name": "void-doctor",
+          "owner": "folpe",
+          "pack": null,
+          "runtimes": [
+            "claude",
+            "codex"
+          ],
+          "source": "packages/core/skills/void-doctor/SKILL.md",
+          "staticTokens": 816,
+          "type": "skill"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/skills/void-doctor/SKILL.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:skill:skill:void-graph",
+      "kind": "skill",
+      "label": "void-graph",
+      "data": {
+        "legacy": {
+          "description": "Read the installed harness as a graph and report what is dead, underused or expensive. No argument opens the local live studio; audit, cost and behavior print a terminal report.",
+          "enforcement": {
+            "floor": "ci",
+            "inline": {
+              "claude": "active",
+              "codex": "active",
+              "hermes": "ci-only"
+            }
+          },
+          "evalTargets": [
+            {
+              "provider": "anthropic",
+              "runtime": "claude",
+              "tier": "opus"
+            }
+          ],
+          "id": "skill:void-graph",
+          "lines": 92,
+          "name": "void-graph",
+          "owner": "folpe",
+          "pack": null,
+          "runtimes": [
+            "claude",
+            "codex"
+          ],
+          "source": "packages/core/skills/void-graph/SKILL.md",
+          "staticTokens": 839,
+          "type": "skill"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/skills/void-graph/SKILL.md",
             "hashOrVersion": "catalog-v1"
           }
         ]
