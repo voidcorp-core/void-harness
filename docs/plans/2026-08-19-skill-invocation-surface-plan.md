@@ -1,7 +1,7 @@
 ---
 title: Surface d'invocation - plan d'exécution
 date: 2026-08-19
-status: in-progress
+status: executing
 spec: docs/specs/2026-08-19-skill-invocation-surface.md
 ticket:
 author: Folpe + Claude
@@ -244,11 +244,23 @@ Valable tant que ce programme est autonome. Dès que `ticket` aura créé les un
 tracker, la table ci-dessus et l'état natif du tracker font autorité, et ce pointeur n'est plus
 maintenu : deux pointeurs de progression donnent deux réponses à « où on en est ».
 
-**Prochaine étape** : Step 0 (sceller la tranche 0).
+**Prochaine étape** : Checkpoint A, puis Step 4 (supprimer `commands/`).
 
 **Fait** :
-- Tranche 0 écrite, non committée : collision command/skill supprimée sur `checkpoint` et
-  `autopilot`, gate et test associés, règle 8 étendue.
-- Spec écrite et approuvée : `docs/specs/2026-08-19-skill-invocation-surface.md`.
+- Step 0 : tranche 0 scellée. Collision command/skill supprimée sur `checkpoint` et `autopilot`,
+  gate et test associés, règle 8 étendue dans les deux docs soeurs.
+- Step 1 : la composition d'`implement` résout. 18 références réécrites, et les 17 arêtes que le
+  graphe ignorait déclarées dans `relations.graph.yaml` avec leur évidence, dont les 15
+  compositions des onze passes. Le graphe ne voyait aucune arête skill vers skill sortant
+  d'`implement`.
+- Step 2 : le namespace vient du canal d'installation, plus du runtime. Le bloc géré énonce la
+  règle d'invocation. Garde de bout en bout prouvée mordante.
+- Step 3 : 298 références réécrites dans 69 fichiers, `check-skill-references` inversé, décision
+  enregistrée (`adr:8f3cf096`).
 
-**En attente** : Steps 0 à 6.
+**Découvert en route, hors périmètre** :
+- Les modules de pack (`packages/packs/*/claude/modules/`) sont copiés dans une racine de plugin
+  et jamais dans un projet : en installation locale, un consommateur ne les reçoit pas. Deux
+  skills de `pack-react` les citaient comme des références.
+
+**En attente** : Steps 4 à 6.
