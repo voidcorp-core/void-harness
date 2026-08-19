@@ -4,13 +4,26 @@ import {
   type SpecialistContract,
 } from './schema.js';
 
+/**
+ * The allowlist is the isolation, and it already covers MCP.
+ *
+ * This was recorded as a permanent degradation on the belief that agent
+ * frontmatter could not deny unknown inherited MCP tools, and `doctor` printed
+ * that on every run for weeks. The official subagent documentation says the
+ * opposite of this exact shape: "This example uses `tools` to allow only Read,
+ * Grep, Glob, and Bash. The subagent can't edit files, write files, or use any
+ * MCP tools." A specialist listing three read tools reaches no server, including
+ * the ones nobody enumerated, which is the case the belief was worried about.
+ *
+ * An advisory describing a limitation that does not exist is worse than none: it
+ * is printed until it stops being read, and it invites a mechanism built to
+ * silence it.
+ */
 export const CLAUDE_SPECIALIST_SAFETY = Object.freeze({
   readOnly: 'declared' as const,
   isolation: 'fresh-context' as const,
-  teamMode: 'degraded' as const,
-  limitations: Object.freeze([
-    'Claude agent frontmatter blocks mutating built-ins but cannot deny unknown inherited MCP tools.',
-  ]),
+  teamMode: 'available' as const,
+  limitations: Object.freeze([] as readonly string[]),
 });
 
 export function compileClaudeSpecialist(contract: SpecialistContract): CompiledSpecialist {

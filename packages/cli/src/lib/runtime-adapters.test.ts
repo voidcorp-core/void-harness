@@ -163,8 +163,11 @@ describe('claude adapter', () => {
     expect(settings.extraKnownMarketplaces).toBeUndefined();
     expect(outcome.nextSteps.join(' ')).toContain('restart Claude Code');
     const checks = await adapterFor('claude').doctorChecks(dir);
-    expect(checks.find((c) => c.name === 'claude agents')?.status).toBe('advisory');
-    expect(checks.find((c) => c.name === 'claude agents')?.message).toMatch(/team degraded/i);
+    // No advisory: the compiled specialists list an explicit `tools` allowlist,
+    // and the official documentation says that shape reaches no MCP tool. The
+    // degradation this used to report never existed.
+    expect(checks.find((c) => c.name === 'claude agents')?.status).toBeUndefined();
+    expect(checks.find((c) => c.name === 'claude agents')?.message).toMatch(/isolated by their tools allowlist/i);
   });
 
   it('reports a stale Claude specialist contract version as unhealthy', async () => {
@@ -218,10 +221,11 @@ describe('claude adapter', () => {
       fired: true,
       observed: false,
     });
-    expect(inspection.specialistCapability).toMatchObject({
-      status: 'degraded',
-      limitations: expect.arrayContaining([expect.stringContaining('inherited MCP tools')]),
-    });
+    // Available, and the MCP claim is gone. Other limitations are unrelated and
+    // stay: what this pins is that no limitation is declared about inherited MCP
+    // tools, because the allowlist already denies them.
+    expect(inspection.specialistCapability.status).toBe('available');
+    expect(inspection.specialistCapability.limitations.join(' ')).not.toMatch(/MCP/i);
   });
 });
 
