@@ -85,19 +85,25 @@ export function resolutionVerdict(body: string, installed: ReadonlySet<string>):
 const MAX_NAMED = 5;
 
 /**
- * The one line a session opening carries when the surface is broken, or nothing.
+ * The block a session opening carries when the surface is broken, or nothing.
  *
  * Silence in the healthy case is the whole design: a banner that speaks every
  * session is a banner nobody reads, and this alert only has to survive until
- * someone acts on it once.
+ * someone acts on it once. Three lines rather than one sentence, because the
+ * banner already runs long and a run-on clause at its end is what gets skipped.
+ *
+ * Plain text on purpose: this is injected into the model's context, not printed
+ * to a terminal, so ANSI colour would be parasite text rather than colour. The
+ * coloured rendering of the same verdict belongs to `doctor`.
  */
 export function invocationAlert(verdict: ResolutionVerdict): string | undefined {
   if (verdict.ok) return undefined;
   const named = verdict.unresolved.slice(0, MAX_NAMED).join(', ');
   const rest = verdict.unresolved.length - MAX_NAMED;
   const tail = rest > 0 ? `, and ${rest} more` : '';
-  return (
-    `void-harness: ${verdict.unresolved.length} recorded skill invocation(s) name a skill this `
-    + `project cannot resolve (${named}${tail}). Run \`void-harness doctor\` for the detail.`
-  );
+  return [
+    'void-harness, invocation surface:',
+    `  ${verdict.unresolved.length} recorded skill invocation(s) name a skill this project cannot resolve: ${named}${tail}`,
+    '  run `void-harness doctor` for the detail',
+  ].join('\n');
 }

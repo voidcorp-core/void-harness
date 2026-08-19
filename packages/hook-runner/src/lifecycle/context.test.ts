@@ -42,6 +42,11 @@ describe('sessionStartOutput', () => {
     expect(context).toContain('ticket-writer');
   });
 
+  it('starts the alert on its own line, so it does not trail off the end of the floor', () => {
+    const context = sessionStartOutput('3.0.0', undefined, 'ALERT-MARKER').hookSpecificOutput.additionalContext;
+    expect(context).toContain('\nALERT-MARKER');
+  });
+
   it('adds nothing at all when the invocation surface is healthy', () => {
     expect(sessionStartOutput('3.0.0', undefined, undefined).hookSpecificOutput.additionalContext).toBe(
       sessionStartOutput('3.0.0').hookSpecificOutput.additionalContext,

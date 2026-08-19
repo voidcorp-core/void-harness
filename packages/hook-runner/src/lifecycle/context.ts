@@ -25,8 +25,10 @@ export function sessionStartOutput(
     'never run destructive shell commands; tests and fresh evidence gate "done". ' +
     'Capture durable project rules explicitly. Run `void-harness doctor` if runtime health is uncertain.';
   const suffix = notice === undefined || notice.trim() === '' ? '' : ` ${notice.trim()}`;
+  // On its own line: the floor already runs long, and an alert trailing off its
+  // end is read as more of the same sentence rather than as a separate warning.
   const alert =
-    invocationAlert === undefined || invocationAlert.trim() === '' ? '' : ` ${invocationAlert.trim()}`;
+    invocationAlert === undefined || invocationAlert.trim() === '' ? '' : `\n${invocationAlert.trim()}`;
   return {
     hookSpecificOutput: {
       hookEventName: 'SessionStart',

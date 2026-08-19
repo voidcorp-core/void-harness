@@ -107,10 +107,18 @@ describe('invocationAlert', () => {
     expect(alert).toContain('ticket-writer');
   });
 
-  it('stays one sentence however many names there are, since it is read at a session opening', () => {
+  it('breaks into a titled block, so the alert reads as one thing and not as a run-on sentence', () => {
+    const alert = invocationAlert({ ok: false, unresolved: ['brainstorming'] }) ?? '';
+    const lines = alert.split('\n');
+    expect(lines[0]).toContain('invocation surface');
+    expect(lines).toHaveLength(3);
+    expect(lines[2]).toContain('void-harness doctor');
+  });
+
+  it('stays bounded however many names there are, since it is read at a session opening', () => {
     const many = Array.from({ length: 30 }, (_, i) => `skill-${i}`);
     const alert = invocationAlert({ ok: false, unresolved: many }) ?? '';
-    expect(alert.split('\n')).toHaveLength(1);
+    expect(alert.split('\n')).toHaveLength(3);
     expect(alert.length).toBeLessThan(300);
   });
 });
