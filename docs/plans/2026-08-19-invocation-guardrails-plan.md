@@ -42,9 +42,9 @@ maintenant - plutôt que sa version modélisée.
   deviennent un défaut signalé, pas un cas absorbé.
 - **Depends on**: none
 - **TDD mode**: strict
-- **Verification gate**: `pnpm test --filter @voidcorp/cli --filter @voidcorp/hook-runner` vert,
-  et sur ce dépôt `.void/runs` vide après migration, ses 3 missions présentes sous
-  `.void/machine/runs`.
+- **Verification gate**: `pnpm --filter @voidcorp/cli --filter @voidcorp/hook-runner test` vert
+  (la forme `pnpm test --filter` n'existe pas ici : la racine lance un vitest unique), et une
+  lecture qui rend les journaux des deux emplacements sur un projet mi-migré.
 - **Expected commits**:
   - `test(cli): un journal resté à l'ancien emplacement est un défaut, pas un silence`
   - `fix(cli): lire les journaux à un seul endroit, et nommer la migration qui manque`
@@ -123,11 +123,31 @@ peuvent être jugés. Lancer `verify`, attendre son signal avant le Step 3.
 
 Plan autonome et séquentiel : aucun ticket tracker pour l'instant, ce pointeur fait foi.
 
-**Next step**: Step 1
+**Next step**: Step 3
+
+**Fait**:
+
+- **Step 1** (`978b3b6`). Deux découvertes ont réduit et redressé cette unité. Le signalement de
+  la migration en attente **existait déjà** : `packages/cli/src/lib/void-hygiene.ts:66`, check
+  `void layout`, rien à écrire. Et l'alignement prévu était à l'envers : `graph-io` fusionnait les
+  deux emplacements pour une bonne raison, tandis que `voidReadPath` en choisit un, ce qui rate la
+  moitié de l'histoire. Sur ce dépôt les 150 vieilles missions sont sous `machine/` et les trois
+  d'aujourd'hui à l'ancien endroit, parce que le harnais **installé** est antérieur à la migration
+  et ne connaît pas le mot `machine`. Livré : le lecteur descend dans `hook-runner` avec ses
+  bornes, gagne une lecture bornée aux N missions les plus récentes classées par date à travers
+  les deux emplacements, et `graph-io` l'importe. La migration manuelle des trois missions a été
+  écartée : le harnais installé les recréerait à la session suivante, la vraie réparation est une
+  mise à jour de l'install, décision séparée.
+- **Step 2** (`c264de2`). Verdict de résolution, du journal jusqu'au bandeau. Prouvé sur les deux
+  corpus réels : le corpus complet est rouge et nomme `brainstorming` et `ticket-writer`, les
+  trois missions d'après réparation sont vertes. Le bandeau produit sur ce dépôt nomme les deux.
+
+**Mesure du Step 2, qui arme le Step 5** : 18 ms sur 5 missions, **49,4 ms sur 20**. La fenêtre de
+5 ne détecte rien ici (les 5 dernières missions sont saines), donc la fenêtre large est
+nécessaire et le budget de 50 ms est atteint. Cause : 11 Mo lus pour trouver douze lignes
+d'activation. Le Step 5 s'exécute.
 
 **Pending**:
-- Step 1 - un seul emplacement de journaux
-- Step 2 - verdict de résolution jusqu'au bandeau
 - Step 3 - verdict de vie
 - Step 4 - rapport `doctor`
-- Step 5 - cache conditionnel
+- Step 5 - cache, désormais armé par la mesure
