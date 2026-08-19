@@ -66,7 +66,13 @@ export function harnessBlock(input: ClaudeMdBlockInputs, runtime: Runtime = 'cla
     '',
     `## void-harness (managed by \`void-harness init\`)`,
     '',
-    `Marketplace: \`${MARKETPLACE_NAME}\` (https://github.com/${MARKETPLACE_REPO}). ${runtimeName} doctrine active in this project:`,
+    // Provenance, and only when it is true. The default path copies bundled
+    // assets and never contacts a marketplace, so naming one there teaches the
+    // model a channel that does not exist in this project -- the same class of
+    // untruth that had skills invoked under a namespace nothing could resolve.
+    input.channel === 'marketplace'
+      ? `Marketplace: \`${MARKETPLACE_NAME}\` (https://github.com/${MARKETPLACE_REPO}). ${runtimeName} doctrine active in this project:`
+      : `${runtimeName} doctrine active in this project:`,
     '',
     `- \`void\` — universal craftsman skills (TDD, TypeScript strict, hexagonal, DDD, ...)`,
     ...packLines,

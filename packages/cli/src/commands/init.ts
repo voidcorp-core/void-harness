@@ -370,7 +370,10 @@ export async function init(args: readonly string[]): Promise<void> {
   }
 
   blank();
-  meta('plugins', enabledPlugins.join(', '));
+  // "plugins" is what the marketplace channel calls them. On the default path
+  // nothing is installed as a plugin, and reporting one invites the reader to
+  // go looking for something this project does not have.
+  meta(opts.source === 'marketplace' ? 'plugins' : 'doctrine', enabledPlugins.join(', '));
 
   // Numbered "what's left" checklist: each adapter's start-steps, then every
   // unmet prerequisite as an unmissable FAILED line.

@@ -27,7 +27,7 @@ Do NOT use this to execute a ticket (`implement`) or to sequence many steps (`pl
 
 Pull from what already exists, in order: the approved spec/plan, the brainstorm decisions, this conversation's decisions, the applicable ADR(s), the code conventions. The ticket RECORDS decisions already made. If a load-bearing decision is missing, go get it or flag it. Do not guess scope into existence.
 
-A `docs/specs/*.md` spec with `source: forge` in its frontmatter (the forge→harness artifact contract; see `docs/ARCHITECTURE.md` "Inter-plugin contracts") is a first-class source: its 18 recon variables, winning design, and critique verdict already answer scope, persona, and constraints — ingest them, do not re-ask. A partial forge spec (missing critique, or an older `forge_version` field) is ingested for what it has, with the gaps listed as the ticket's open questions.
+A `docs/specs/*.md` spec with `source: forge` in its frontmatter (the forge→harness artifact contract) is a first-class source: its 18 recon variables, winning design, and critique verdict already answer scope, persona, and constraints — ingest them, do not re-ask. A partial forge spec (missing critique, or an older `forge_version` field) is ingested for what it has, with the gaps listed as the ticket's open questions.
 
 ---
 
