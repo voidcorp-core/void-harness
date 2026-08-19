@@ -1,16 +1,6 @@
 ---
 name: ota-update-strategy
-kind: standard
 description: Ship JS-only fixes via EAS Update; full rebuild via EAS Build. Runtime versions, channels, rollback. The "when can I OTA vs when do I rebuild" decision.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # ota-update-strategy
@@ -198,7 +188,7 @@ This logs which update the user is currently on. Useful in a debug screen for QA
 
 ## Composition
 
-- `harness-mobile:eas-build-profile` — channel names map to build profile names
-- `harness-mobile:expo-config-plugins` — plugin changes invalidate runtime versions
-- `harness:observability` — log `Updates.updateId` in every Sentry event so you can correlate "which JS is running"
-- `harness:async-safety` — `Updates.checkForUpdateAsync()` failures should not block app launch; timeout + fallback to cached
+- `eas-build-profile` — channel names map to build profile names
+- `expo-config-plugins` — plugin changes invalidate runtime versions
+- `observability` — log `Updates.updateId` in every Sentry event so you can correlate "which JS is running"
+- `async-safety` — `Updates.checkForUpdateAsync()` failures should not block app launch; timeout + fallback to cached

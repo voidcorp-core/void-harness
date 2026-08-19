@@ -1,16 +1,6 @@
 ---
 name: expo-router-pattern
-kind: standard
 description: File-based routing in Expo via expo-router — layouts, tabs, modals, deep links. Mirrors Next.js App Router so monorepos can share mental model. Stack-aware navigation patterns.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # expo-router-pattern
@@ -212,8 +202,8 @@ export default function RootLayout() {
 
 ## Composition
 
-- `harness-mobile:expo-config-plugins` — `expo-router` is itself a config plugin (`plugins: ['expo-router']`)
-- `harness-mobile:eas-build-profile` — dev profile must have `developmentClient: true` for expo-router to work in dev
-- `harness-nextjs:route-group-decision` — same `(group)/` convention; same WHY (group by trust posture)
-- `harness-react:state-architecture` — modal-as-route vs modal-as-state decision
-- `harness-react:accessibility-check` — touch targets, focus management apply identically
+- `expo-config-plugins` — `expo-router` is itself a config plugin (`plugins: ['expo-router']`)
+- `eas-build-profile` — dev profile must have `developmentClient: true` for expo-router to work in dev
+- `route-group-decision` — same `(group)/` convention; same WHY (group by trust posture)
+- `state-architecture` — modal-as-route vs modal-as-state decision
+- `accessibility-check` — touch targets, focus management apply identically

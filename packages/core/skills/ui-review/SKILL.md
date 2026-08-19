@@ -1,17 +1,6 @@
 ---
 name: ui-review
-kind: action
-activation: on-demand
 description: "Audit and polish an EXISTING UI: the AI-slop test, heuristic critique, technical audit (contrast/a11y/responsive/perf), refine modes. The audit ceiling to frontend-design's build floor."
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # ui-review — voidcorp craftsman edition
@@ -20,7 +9,7 @@ eval_targets: [claude/anthropic/opus]
 
 It proposes findings and edits at the component level; it does not rewrite the brand (`DESIGN.md` owns that) and it does not re-teach the build rules (`frontend-design` owns those — this skill assumes them and checks against them).
 
-**Attribution**: see `.source`. Vendored from `impeccable` (the audit/critique/refine methodology) + gstack `/design-review` (designer's-eye QA) + gstack `/design-consultation`/`/design-shotgun` (the pieces that stayed here; recon/design-prompt went to `forge`). Live browser operation is delegated to `harness:qa`.
+**Attribution**: see `.source`. Vendored from `impeccable` (the audit/critique/refine methodology) + gstack `/design-review` (designer's-eye QA) + gstack `/design-consultation`/`/design-shotgun` (the pieces that stayed here; recon/design-prompt went to `forge`). Live browser operation is delegated to `qa`.
 
 ---
 
@@ -59,7 +48,7 @@ Cross-register slop (the absolute bans — side-stripe, gradient text, glassmorp
 
 ## Independent post-build verdict
 
-For a changed UI, `harness:qa` supplies current-diff screenshots and behavioral proof, then
+For a changed UI, `qa` supplies current-diff screenshots and behavioral proof, then
 `core:visual-craft-director` reviews them in a fresh context distinct from the builder and pre-build
 designer. It scores hierarchy, information architecture, interaction states, responsive intent,
 distinctiveness, and accessibility; every dimension must reach 8/10. Missing browser access,
@@ -76,9 +65,9 @@ Once findings exist, drive a focused refine rather than a vague "make it better"
 
 Each is a scoped edit driven by the critique/audit findings, not a rewrite.
 
-## Live browser audit — via `harness:qa`
+## Live browser audit — via `qa`
 
-The live layer — screenshotting the running UI, driving interactions, checking states in a real browser — is not in this prose skill; the browser home for it is `harness:qa` (the claude-in-chrome MCP re-point, DEV-390). When a check needs a running browser, compose `harness:qa` (its visual pass invokes this skill's methodology against the live screenshots) rather than reviewing from code alone. The multi-variant comparison board remains out of scope (forge).
+The live layer — screenshotting the running UI, driving interactions, checking states in a real browser — is not in this prose skill; the browser home for it is `qa` (the claude-in-chrome MCP re-point, DEV-390). When a check needs a running browser, compose `qa` (its visual pass invokes this skill's methodology against the live screenshots) rather than reviewing from code alone. The multi-variant comparison board remains out of scope (forge).
 
 ## Composition & boundaries
 
@@ -94,7 +83,7 @@ The live layer — screenshotting the running UI, driving interactions, checking
 
 - MUST NOT decide brand identity — `DESIGN.md` owns palette/type/motion.
 - MUST NOT restate `frontend-design`'s build rules — assume and check against them.
-- MUST NOT drive a browser or make live requests — compose `harness:qa` and review its current-diff evidence.
+- MUST NOT drive a browser or make live requests — compose `qa` and review its current-diff evidence.
 - MUST NOT rewrite a UI wholesale under a refine mode — a refine is a scoped, finding-driven edit.
 - MUST NOT vendor the gstack/impeccable runtime (scripts, reference command files, comparison board).
 

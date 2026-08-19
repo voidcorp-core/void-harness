@@ -1,16 +1,6 @@
 ---
 name: offline-first-mutation
-kind: standard
 description: Implement a UI mutation that works offline via the capture-queue + sync pattern: IndexedDB, optimistic UI, idempotency keys, retry, conflict resolution. Self-contained, no harness wrappers.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # offline-first-mutation
@@ -270,7 +260,7 @@ Never silently drop a failed intent — the user wrote it, it's their data.
 
 ## Composition (informational)
 
-- `harness-server:server-action` — sync target; idempotency-key handling lives there.
-- `harness:async-safety` — backoff schedule, dead-letter, bounded retry semantics.
-- `harness-server:drizzle-migration-safe` — adding the `idempotencyKey` unique index.
-- `harness:observability` — log sync attempts with `idempotencyKey` so a failed intent can be traced end-to-end.
+- `server-action` — sync target; idempotency-key handling lives there.
+- `async-safety` — backoff schedule, dead-letter, bounded retry semantics.
+- `drizzle-migration-safe` — adding the `idempotencyKey` unique index.
+- `observability` — log sync attempts with `idempotencyKey` so a failed intent can be traced end-to-end.

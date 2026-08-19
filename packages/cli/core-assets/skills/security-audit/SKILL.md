@@ -1,17 +1,6 @@
 ---
 name: security-audit
-kind: action
-activation: on-demand
 description: Periodic deep security audit — OWASP Top 10, STRIDE, secrets, supply chain, CI/CD, infra, LLM. Phase-driven, read-only, zero-noise. The ceiling above security-guidance's daily floor.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # security-audit — voidcorp craftsman edition

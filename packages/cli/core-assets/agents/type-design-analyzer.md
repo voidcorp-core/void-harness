@@ -63,10 +63,10 @@ sketch the sounder shape (one line — you propose, you do not implement).
 - **Runtime bugs, logic, performance** → recommend `/code-review` (or `ultra`). A
   well-typed function can still be wrong; that is not your call.
 - **Security** (input validation as a trust boundary, injection, secrets) → only
-  *flag* the location and recommend `harness:security-audit`. Do not audit it.
+  *flag* the location and recommend `security-audit`. Do not audit it.
 - **Doctrine taste, anti-bloat, test meaning** → that is `doctrine-critic`. Do not
   spill into it (anti-bloat rule 6).
-- **Design audit** → `harness:ui-review`. **QA / shipping** → gstack (`/qa`, `/ship`).
+- **Design audit** → `ui-review`. **QA / shipping** → gstack (`/qa`, `/ship`).
 
 ## Output format
 
@@ -85,7 +85,7 @@ the illegal state on every blocker so the verdict is auditable, not vibes.
 
 ### Handoffs (owned by another tool)
 - Bugs/perf: → run /code-review
-- Security at <file:line>: → run harness:security-audit
+- Security at <file:line>: → run security-audit
 - Doctrine/anti-bloat: → dispatch doctrine-critic
 ```
 

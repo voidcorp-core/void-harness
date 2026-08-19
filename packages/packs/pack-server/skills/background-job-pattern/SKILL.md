@@ -1,16 +1,6 @@
 ---
 name: background-job-pattern
-kind: standard
 description: Run async work outside the request lifecycle: when to use a queue (Inngest, Trigger, Cloudflare Queues) vs a cron route. Idempotency, retry, dead-letter. Self-contained, no harness wrappers.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # background-job-pattern
@@ -217,8 +207,8 @@ After retry budget exhausted:
 
 ## Composition (informational — each skill stands alone)
 
-- `harness:async-safety` — generic retry/idempotency/dead-letter doctrine.
-- `harness-server:webhook-handler-pattern` — webhooks often emit events that trigger jobs.
-- `harness-server:server-action` — actions emit events for async follow-up.
-- `harness-server:env-validation` — `CRON_SECRET`, queue API keys validated.
-- `harness:observability` — trace context links action → event → job.
+- `async-safety` — generic retry/idempotency/dead-letter doctrine.
+- `webhook-handler-pattern` — webhooks often emit events that trigger jobs.
+- `server-action` — actions emit events for async follow-up.
+- `env-validation` — `CRON_SECRET`, queue API keys validated.
+- `observability` — trace context links action → event → job.

@@ -11,6 +11,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { isMachineEntry, pendingMigrations, VOID_MACHINE_DIR } from '@voidcorp/hook-runner';
+import { judgeInvocation, observeInvocation } from '../lib/invocation-health.js';
 import { judgeLayout, type LayoutObservation, type ManifestObservation } from '../lib/void-hygiene.js';
 import { observedWriteCandidates, type ObservedPathObservation } from '../lib/observed-write-paths.js';
 import { INSTALL_MANIFEST_PATH, parseInstallManifest, verifyInstallManifest } from '../lib/install-manifest.js';
@@ -294,6 +295,11 @@ export async function doctor(args: readonly string[]): Promise<void> {
   // Layout hygiene: does this project actually keep observed state out of its
   // history? Proven with git, not inferred from the ignore file being present.
   checks.push(...judgeLayout(await observeLayout(root)));
+
+  // Is the invocation surface still reachable? A harness cannot observe its own
+  // refused calls, so this reads the traces one leaves: a recorded name that no
+  // longer resolves, and a silence across missions that demonstrably worked.
+  checks.push(judgeInvocation(observeInvocation(root)));
 
   // Autopilot's preconditions, but only for a project that declares a program:
   // adding seven checks to every other project would be noise about a feature

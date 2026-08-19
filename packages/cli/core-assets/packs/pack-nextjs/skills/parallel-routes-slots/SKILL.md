@@ -1,16 +1,6 @@
 ---
 name: parallel-routes-slots
-kind: standard
 description: Use Next.js parallel routes (@slot) and intercepting routes ((.)foo) — when they're the right tool, when they're an anti-pattern. The "modal that's also a deep-linkable page" archetype.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # parallel-routes-slots
@@ -133,7 +123,7 @@ The dots count is **route-segment** counts, not file-path. Easy to miscount.
 
 ## Composition
 
-- `harness-nextjs:route-group-decision` — slots and intercepting routes live within route groups.
-- `harness-nextjs:cache-component-pattern` — each slot has its own cache scope.
-- `harness-nextjs:loading-error-boundaries` — slots can have their own `loading.tsx`, `error.tsx`.
-- `harness-react:state-architecture` — transient modals use `useState`, not routes.
+- `route-group-decision` — slots and intercepting routes live within route groups.
+- `cache-component-pattern` — each slot has its own cache scope.
+- `loading-error-boundaries` — slots can have their own `loading.tsx`, `error.tsx`.
+- `state-architecture` — transient modals use `useState`, not routes.

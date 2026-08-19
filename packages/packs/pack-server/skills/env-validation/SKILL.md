@@ -1,23 +1,13 @@
 ---
 name: env-validation
-kind: standard
 description: Validate environment variables at boot via Zod in @repo/core/env. Separate PUBLIC (NEXT_PUBLIC_*) from server-only. Fail fast at startup; never raw process.env in business code.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
 ---
 
 # env-validation
 
 Use when adding any new environment variable, or when working in a project that doesn't yet have `@repo/core/env`. Env vars are an invisible trust boundary — they're inputs from outside the process, and "the database URL is undefined" should explode at boot, not at the first query.
 
-This skill is the void-harness operational form. Composes with `harness:security-guidance` (env doctrine) and enforced by the `no-process-env-in-app` hook.
+This skill is the void-harness operational form. Composes with `security-guidance` (env doctrine) and enforced by the `no-process-env-in-app` hook.
 
 ## The principle
 
@@ -134,8 +124,8 @@ If app starts and crashes later, your schema isn't comprehensive — find the mi
 
 ## Composition
 
-- `harness:security-guidance` — env-as-trust-boundary doctrine.
-- `harness-server:server-action` — actions import `env`, never `process.env`.
-- `harness-server:webhook-handler-pattern` — webhook secrets pulled from `env`.
-- `harness-nextjs:instrumentation-setup` — Sentry/OTel DSN from `env`.
+- `security-guidance` — env-as-trust-boundary doctrine.
+- `server-action` — actions import `env`, never `process.env`.
+- `webhook-handler-pattern` — webhook secrets pulled from `env`.
+- `instrumentation-setup` — Sentry/OTel DSN from `env`.
 - `no-process-env-in-app` hook (harness-server) — blocks `process.env.X` in `apps/*/src/` files outside the env module itself.

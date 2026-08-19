@@ -1,16 +1,6 @@
 ---
 name: learn
-kind: action
-description: Capture a lesson when it appears — a stated project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a harness gap. Routes to PROJECT-DOCTRINE, a GitHub issue, or nothing. HITL strict.
-owner: folpe
-runtimes: [claude, codex]
-enforcement:
-  floor: ci
-  inline:
-    claude: active
-    codex: active
-    hermes: ci-only
-eval_targets: [claude/anthropic/opus]
+description: Capture a lesson when it appears — a stated project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a harness gap. Routes to PROJECT-DOCTRINE, a GitHub issue, or nothing. HITL strict. Also the single door for harness feedback. Fires on "the harness should have X", "this hook is a false positive", "that skill is missing", a DX papercut worth filing, or any explicit request to send feedback about the harness itself.
 ---
 
 # learn — voidcorp craftsman edition
@@ -106,7 +96,7 @@ State the file path and section, and note it is active from the next message via
 | **Hard rules** | Concrete, enforceable rules (@repo/core/logger not console.log, Zod at every boundary). |
 | **Forbidden patterns** | What this codebase paid for and will not reintroduce; reference the incident/ADR. |
 | **Project context** | Domain facts (users are TPE/PME French dirigeants; prod on Vercel + Neon). |
-| **Trade-offs already decided** | Pointers to `docs/DECISIONS.md` the agent must not re-litigate. |
+| **Trade-offs already decided** | Pointers to the project's decision records the agent must not re-litigate. |
 | **Project-specific skill routing** | "On THIS project, skill X triggers under Y" (apps/checkout/ → tdd strict). |
 
 If a rule fits several sections, ask rather than guess.
@@ -118,6 +108,12 @@ Before writing, scan for a duplicate or contradiction. On a **duplicate**, offer
 ---
 
 ## Branch B — Harness gap → a GitHub issue (HITL strict)
+
+This branch is also where harness **feedback** lands, whatever words it arrives in: a skill that
+is missing, a hook that fired on something legitimate, a rule nobody wrote down, a papercut in
+the CLI or the docs. Infer the gap from the recent conversation, and ask one short clarifying
+question only when it is genuinely unclear — the friction is fresh, and re-interviewing the user
+about something they just lived is how a capture becomes more expensive than the gap.
 
 The gap goes **straight to a `voidcorp-core/void-harness` issue** — there is no per-project `proposed/` queue; the pre-filter is your judgment before you open it. File ONLY when it clears BOTH tests:
 
@@ -179,7 +175,7 @@ A clean doctrine is the asset. Every entry earns its place by changing what happ
 ## Anti-rules
 
 - MUST NOT write to `PROJECT-DOCTRINE.md` before confirmation, or capture a one-off instruction as a persistent rule.
-- MUST NOT add a project rule that contradicts `PHILOSOPHY.md` (that is an ADR in `docs/DECISIONS.md`, not a doctrine entry).
+- MUST NOT add a project rule that contradicts `PHILOSOPHY.md` (that is an ADR, written through the `decide` skill, not a doctrine entry).
 - MUST NOT open or promote a harness PR without confirmation, or auto-merge one.
 - MUST NOT capitalize a trivial/one-off instance, or run the ritual on an unfinished cycle.
 - MUST NOT send usage data anywhere outside the machine.

@@ -83,6 +83,12 @@ export interface RuntimeWireContext {
   readonly marketplaceRepo: string;
   /** undefined when the Claude marketplace pin could not be resolved (offline). */
   readonly pinVersion: string | undefined;
+  /**
+   * Leave the doctrine doc exactly as the project has it. Set on the source
+   * repo, where CLAUDE.md and AGENTS.md are the canonical originals and the
+   * packaged block is necessarily behind them.
+   */
+  readonly preserveDoctrineDoc?: boolean;
 }
 
 export interface RuntimeWireOutcome {
@@ -227,11 +233,14 @@ async function claudeSpecialistsCheck(agentsRoot: string | undefined): Promise<C
       fix: 'void-harness runtime add claude',
     };
   }
+  // Plain pass, no advisory. This reported a degradation that does not exist:
+  // the compiled specialists carry an explicit `tools` allowlist, and the
+  // official documentation says that shape reaches no MCP tool at all. An
+  // advisory nobody can act on is printed until it stops being read.
   return {
     name: 'claude agents',
     ok: true,
-    status: 'advisory',
-    message: `${contracts.length} version-matched native specialists discovered; team degraded because unknown inherited MCP tools cannot be denied in agent frontmatter`,
+    message: `${contracts.length} version-matched native specialists discovered, isolated by their tools allowlist`,
   };
 }
 
@@ -272,10 +281,13 @@ const claudeAdapter: RuntimeAdapter = {
       }
     }
     await writeSettings(settingsPath, merged);
-    const docResult = await patchRuntimeDoc(ctx.projectRoot, 'claude', {
-      enabledPlugins: ctx.enabledPlugins,
-      enabledPacks: ctx.enabledPacks,
-    });
+    const docResult = ctx.preserveDoctrineDoc === true
+      ? 'preserved' as const
+      : await patchRuntimeDoc(ctx.projectRoot, 'claude', {
+          enabledPlugins: ctx.enabledPlugins,
+          enabledPacks: ctx.enabledPacks,
+          channel: ctx.source,
+        });
     // `.claude/` holds engine-format files this repo wrote. Left inside the
     // project's lint glob they fail on code the project does not own.
     //
@@ -446,10 +458,13 @@ const codexAdapter: RuntimeAdapter = {
     // into native project-agent TOML. Skills remain a separate inline teaching
     // surface and never impersonate fresh-context agents.
     const agents = await wireCodexAgents(ctx.projectRoot, ctx.sourceRoot);
-    const docResult = await patchRuntimeDoc(ctx.projectRoot, 'codex', {
-      enabledPlugins: ctx.enabledPlugins,
-      enabledPacks: ctx.enabledPacks,
-    });
+    const docResult = ctx.preserveDoctrineDoc === true
+      ? 'preserved' as const
+      : await patchRuntimeDoc(ctx.projectRoot, 'codex', {
+          enabledPlugins: ctx.enabledPlugins,
+          enabledPacks: ctx.enabledPacks,
+          channel: ctx.source,
+        });
     return {
       statusLines: [
         `.codex/hooks.json: ${staged} hook scripts wired → ${CODEX_HOOKS_DIR}/`,
