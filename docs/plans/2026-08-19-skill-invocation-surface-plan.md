@@ -231,23 +231,26 @@ Valable tant que ce programme est autonome. Dès que `ticket` aura créé les un
 tracker, la table ci-dessus et l'état natif du tracker font autorité, et ce pointeur n'est plus
 maintenu : deux pointeurs de progression donnent deux réponses à « où on en est ».
 
-**Prochaine étape** : Checkpoint A, puis Step 4 (supprimer `commands/`).
+**Prochaine étape** : arbitrage sur le Step 6, puis la tranche garde-fous.
 
 **Fait** :
-- Step 0 : tranche 0 scellée. Collision command/skill supprimée sur `checkpoint` et `autopilot`,
-  gate et test associés, règle 8 étendue dans les deux docs soeurs.
-- Step 1 : la composition d'`implement` résout. 18 références réécrites, et les 17 arêtes que le
-  graphe ignorait déclarées dans `relations.graph.yaml` avec leur évidence, dont les 15
-  compositions des onze passes. Le graphe ne voyait aucune arête skill vers skill sortant
-  d'`implement`.
-- Step 2 : le namespace vient du canal d'installation, plus du runtime. Le bloc géré énonce la
-  règle d'invocation. Garde de bout en bout prouvée mordante.
+- Step 0 : tranche 0 scellée.
+- Step 1 : la composition d'`implement` résout, et les 17 arêtes que le graphe ignorait sont
+  déclarées.
+- Step 2 : le namespace vient du canal d'installation.
 - Step 3 : 298 références réécrites dans 69 fichiers, `check-skill-references` inversé, décision
-  enregistrée (`adr:8f3cf096`).
+  `adr:8f3cf096`.
+- Step 4 : `commands/` supprimé, trois gestes convertis en skills, `void-feedback` fondu dans
+  `learn`, `${CLAUDE_PLUGIN_ROOT}` remplacé par le CLI, décision `adr:2a52e2f0`.
+- Step 5 : chaque refus de hook nomme la doctrine dont il vient. `paths` écarté sur preuve
+  documentaire : il restreint l'activation au lieu de la provoquer.
 
-**Découvert en route, hors périmètre** :
-- Les modules de pack (`packages/packs/*/claude/modules/`) sont copiés dans une racine de plugin
-  et jamais dans un projet : en installation locale, un consommateur ne les reçoit pas. Deux
-  skills de `pack-react` les citaient comme des références.
+**Arbitrage en attente sur le Step 6.** La migration du frontmatter sous `metadata` touche 68
+fichiers de frontmatter, 16 fichiers de tests et 13 lecteurs, dont un parseur écrit à la main qui
+alimente le catalogue, le score et la certification. Le défaut qu'elle corrige est formel : il est
+vérifié que Codex charge le frontmatter actuel sans broncher et que Claude ignore les champs
+inconnus. Recommandation : après la tranche garde-fous, qui a un effet observable.
 
-**En attente** : Steps 4 à 6.
+**Tranche garde-fous, décidée le 2026-08-19** (voir la section dédiée ci-dessous).
+
+**En attente** : Step 6, tranche garde-fous.
