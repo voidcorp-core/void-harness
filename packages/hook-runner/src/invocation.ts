@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
+import { type Dirent, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { journalFingerprint, readMissionJournals } from './journal.js';
 import { voidMachinePath } from './void-layout.js';
@@ -36,7 +36,7 @@ export function installedSkillNames(root: string): ReadonlySet<string> {
   const names = new Set<string>();
   for (const runtime of SKILL_RUNTIME_DIRS) {
     const skills = join(root, runtime, 'skills');
-    let entries;
+    let entries: Dirent[];
     try {
       entries = readdirSync(skills, { withFileTypes: true });
     } catch {

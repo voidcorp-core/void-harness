@@ -1,9 +1,11 @@
-export { readMissionJournals, type JournalReadOptions } from './journal.js';
+export { journalFingerprint, readMissionJournals, type JournalReadOptions } from './journal.js';
 export {
+  cachedInvocationAlert,
   installedSkillNames,
   invocationAlert,
   type LivenessVerdict,
   livenessVerdict,
+  refreshInvocationVerdict,
   type ResolutionVerdict,
   resolutionVerdict,
 } from './invocation.js';
