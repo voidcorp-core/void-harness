@@ -29,7 +29,7 @@ Every consumer's `tsconfig.json` extends the void-harness strict baseline, shipp
 }
 ```
 
-If a consumer disables any flag, they document the reason in `docs/DECISIONS.md` — that is a deliberate ADR, not a casual config tweak.
+If a consumer disables any flag, they record the reason through the `decide` skill - that is a deliberate ADR, not a casual config tweak.
 
 ---
 
