@@ -15,6 +15,7 @@ import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { isHarnessSourceRepo } from '../lib/self-repo.js';
 import { CODEX_HOOKS_DIR, refreshCodexFloor } from '../lib/codex-floor.js';
 import { CODEX_SKILLS_DIR, wireCodexSkills } from '../lib/codex-skills.js';
 import { INSTALL_MANIFEST_PATH } from '../lib/install-manifest.js';
@@ -265,7 +266,7 @@ async function reportUntrackDerived(projectRoot: string, dryRun: boolean): Promi
 export function localInitArgs(
   receipt: InstallReceipt,
   packs: readonly string[],
-  options: { readonly force: boolean },
+  options: { readonly force: boolean; readonly preserveDoctrine?: boolean },
 ): string[] {
   const args = [
     '--no-interactive',
@@ -275,6 +276,11 @@ export function localInitArgs(
   ];
   for (const pack of packs) args.push('--pack', pack);
   if (options.force) args.push('--force');
+  // The source repo owns its doctrine rather than deriving it, so recompiling
+  // everything else and leaving those files alone is the whole update there.
+  // Refusing outright would end a routine command on an error after it had
+  // already done half its work.
+  if (options.preserveDoctrine === true) args.push('--preserve-doctrine');
   return args;
 }
 
@@ -323,7 +329,7 @@ async function updateLocal(
     footer(c.dim('dry-run — local assets would be recompiled, smoked and reconciled transactionally'));
     return;
   }
-  await init(localInitArgs(receipt, packs, { force }));
+  await init(localInitArgs(receipt, packs, { force, preserveDoctrine: isHarnessSourceRepo(projectRoot) }));
 }
 
 /**

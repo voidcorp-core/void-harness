@@ -5,9 +5,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { buildDefaultConfig, buildFinalChecklist, resolveInstallSource } from './init.js';
+import { buildDefaultConfig, buildFinalChecklist, installDoctrineFiles, resolveInstallSource, sourceRepoVerdict } from './init.js';
 import type { CheckResult } from '../lib/prerequisites.js';
 import type { Stack } from '../lib/stack.js';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach } from 'vitest';
 
 const STACK: Stack = { packageManager: 'pnpm', testRunner: 'vitest', e2eRunner: 'none', mutationRunner: 'none' };
 
@@ -65,5 +69,67 @@ describe('install source', () => {
     expect(resolveInstallSource(['--marketplace'])).toBe('marketplace');
     expect(resolveInstallSource(['--source', 'marketplace'])).toBe('marketplace');
     expect(resolveInstallSource(['--source', 'local'])).toBe('local');
+  });
+});
+
+// An update that refuses everything because one file is protected teaches the
+// user that updating is dangerous, and they stop. The source repo is the only
+// place the guard fires, and even there the right answer is to do the rest of
+// the work and say what was preserved -- not to die after half a job.
+describe('sourceRepoVerdict', () => {
+  it('lets any consumer project through, which is every project but one', () => {
+    expect(sourceRepoVerdict({ isSourceRepo: false, force: false, preserveDoctrine: false })).toBe('proceed');
+  });
+
+  it('refuses a bare init on the source repo, where the doctrine is the source and not a copy', () => {
+    expect(sourceRepoVerdict({ isSourceRepo: true, force: false, preserveDoctrine: false })).toBe('refuse');
+  });
+
+  it('proceeds while preserving the doctrine, which is what update asks for', () => {
+    expect(sourceRepoVerdict({ isSourceRepo: true, force: false, preserveDoctrine: true })).toBe('preserve-doctrine');
+  });
+
+  it('keeps --force meaning what it always meant: install anyway, doctrine included', () => {
+    expect(sourceRepoVerdict({ isSourceRepo: true, force: true, preserveDoctrine: false })).toBe('proceed');
+  });
+});
+
+describe('installDoctrineFiles', () => {
+  const roots: string[] = [];
+  const project = (): string => {
+    const root = mkdtempSync(join(tmpdir(), 'void-init-doctrine-'));
+    roots.push(root);
+    return root;
+  };
+  afterEach(() => {
+    for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+  });
+
+  const source = (): string => {
+    const root = project();
+    writeFileSync(join(root, 'PHILOSOPHY.md'), 'PACKAGED PHILOSOPHY\n');
+    writeFileSync(join(root, 'PROJECT-DOCTRINE.template.md'), 'TEMPLATE\n');
+    return root;
+  };
+
+  it('writes the packaged philosophy into a project that has none', async () => {
+    const stage = project();
+    await installDoctrineFiles(stage, source());
+    expect(readFileSync(join(stage, '.void/installed/PHILOSOPHY.md'), 'utf8')).toContain('PACKAGED');
+  });
+
+  it('keeps the project philosophy when asked to preserve it', async () => {
+    const stage = project();
+    const installed = project();
+    mkdirSync(join(installed, '.void/installed'), { recursive: true });
+    writeFileSync(join(installed, '.void/installed/PHILOSOPHY.md'), 'CANONICAL PHILOSOPHY\n');
+    await installDoctrineFiles(stage, source(), installed);
+    expect(readFileSync(join(stage, '.void/installed/PHILOSOPHY.md'), 'utf8')).toContain('CANONICAL');
+  });
+
+  it('still writes the packaged one when preserving a project that has none, rather than leaving a hole', async () => {
+    const stage = project();
+    await installDoctrineFiles(stage, source(), project());
+    expect(readFileSync(join(stage, '.void/installed/PHILOSOPHY.md'), 'utf8')).toContain('PACKAGED');
   });
 });
