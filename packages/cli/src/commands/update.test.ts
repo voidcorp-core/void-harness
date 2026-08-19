@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { InstallReceipt } from '../lib/receipts.js';
-import { localInitArgs, updateModeFor, updateRouteFor } from './update.js';
+import { localInitArgs, ownedFromManifestPaths, updateModeFor, updateRouteFor } from './update.js';
 
 const receipt = (source: InstallReceipt['source']): InstallReceipt => ({
   schemaVersion: 1,
@@ -56,14 +56,47 @@ describe('updateRouteFor', () => {
     expect(updateRouteFor(receipt('marketplace'), true)).toBe('marketplace');
   });
 
-  // A local install whose receipt is gone cannot be updated: nothing says which
-  // files the harness owns, so the ownership diff that removes renamed skills
-  // has no input. Saying so is the fix; guessing would delete or duplicate.
-  it('reports a local install that lost its receipt, rather than guessing', () => {
-    expect(updateRouteFor(undefined, true)).toBe('local-receipt-missing');
+  // A missing receipt used to end the command with two commands to type, one of
+  // them `--force`. It is the common case, not an edge: the receipt is
+  // machine-local, so EVERY fresh clone arrives without one. The committed
+  // manifest names the paths the harness owns, which is the only thing the
+  // update needs from it -- the contents come from the version being installed.
+  // Reading it is not guessing.
+  it('rehydrates ownership from the committed manifest instead of stopping', () => {
+    expect(updateRouteFor(undefined, true)).toBe('local-rehydrate');
   });
 
   it('is a marketplace install when neither is there', () => {
     expect(updateRouteFor(undefined, false)).toBe('marketplace');
   });
 })
+
+// Rehydration takes the paths from the committed manifest and the CONTENT from
+// disk, never the manifest's hashes: those describe the version that wrote it,
+// and the point is to reclaim ownership of what is there now so the new version
+// can overwrite it. Hashing the manifest's own values would fail every comparison
+// and reproduce the conflict this removes.
+describe('ownedFromManifestPaths', () => {
+  it('claims the paths the manifest names, with the content found on disk', () => {
+    const owned = ownedFromManifestPaths(
+      ['.void/hooks/_void-hook.mjs', '.claude/skills/tdd/SKILL.md'],
+      (path) => ({ sha256: `sha-of-${path}`, mode: 0o644 }),
+    );
+    expect(owned).toEqual([
+      { path: '.void/hooks/_void-hook.mjs', sha256: 'sha-of-.void/hooks/_void-hook.mjs', mode: 0o644 },
+      { path: '.claude/skills/tdd/SKILL.md', sha256: 'sha-of-.claude/skills/tdd/SKILL.md', mode: 0o644 },
+    ]);
+  });
+
+  it('drops a path the manifest names and the disk no longer has', () => {
+    const owned = ownedFromManifestPaths(
+      ['.void/hooks/_void-hook.mjs', '.claude/skills/retired/SKILL.md'],
+      (path) => (path.includes('retired') ? undefined : { sha256: 'x', mode: 0o644 }),
+    );
+    expect(owned.map((file) => file.path)).toEqual(['.void/hooks/_void-hook.mjs']);
+  });
+
+  it('claims nothing from an empty manifest rather than inventing ownership', () => {
+    expect(ownedFromManifestPaths([], () => ({ sha256: 'x', mode: 0o644 }))).toEqual([]);
+  });
+});

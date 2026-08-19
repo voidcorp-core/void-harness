@@ -11,14 +11,14 @@
 // command reconciles both in one shot.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { readFile, writeFile } from 'node:fs/promises';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { isHarnessSourceRepo } from '../lib/self-repo.js';
 import { CODEX_HOOKS_DIR, refreshCodexFloor } from '../lib/codex-floor.js';
 import { CODEX_SKILLS_DIR, wireCodexSkills } from '../lib/codex-skills.js';
-import { INSTALL_MANIFEST_PATH } from '../lib/install-manifest.js';
+import { parseInstallManifest, sha256Of, INSTALL_MANIFEST_PATH } from '../lib/install-manifest.js';
 import { computePinBumps } from '../lib/pack-config.js';
 import { configPackDirs, CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO } from '../lib/packs.js';
 import { cliVersion, findCoreSource } from '../lib/paths.js';
@@ -26,10 +26,15 @@ import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.
 import { banner, blank, c, footer, glyph, line, meta, row, status } from '../lib/render.js';
 import { readSettings, settingsPathFor } from '../lib/settings.js';
 import { migrateVoidLayout, untrackDerived } from '../lib/void-migration.js';
+import type { InstallManifest } from '../lib/install-manifest.js';
 import {
-  readInstallReceipt,
+  encodeReceipt,
+  INSTALL_RECEIPT_PATH,
   type InstallReceipt,
+  type OwnedFile,
+  readInstallReceipt,
 } from '../lib/receipts.js';
+import type { Runtime } from '../lib/runtime.js';
 import { init } from './init.js';
 
 
@@ -73,18 +78,33 @@ export async function update(args: readonly string[]): Promise<void> {
   if (opts.untrackDerived) await reportUntrackDerived(projectRoot, opts.dryRun);
   const receipt = await readInstallReceipt(projectRoot);
   const route = updateRouteFor(receipt, existsSync(join(projectRoot, INSTALL_MANIFEST_PATH)));
-  if (route === 'local-receipt-missing') {
+  if (route === 'local-rehydrate') {
+    const rehydrated = rehydrateFromManifest(projectRoot);
+    if (rehydrated === undefined) {
+      banner('update');
+      blank();
+      line(c.red(`${INSTALL_MANIFEST_PATH} is not a readable manifest, so ownership cannot be reclaimed.`));
+      line(c.dim('Restore it from git, or re-run void-harness init to rewrite it.'));
+      blank();
+      footer(c.red('nothing was changed'));
+      process.exit(1);
+    }
+    // Said once, quietly: it is a repair, not a decision the operator has to make.
+    // Stopping here to ask for `hydrate` then `update --force` turned the common
+    // case -- a fresh clone, which never carries a machine-local receipt -- into
+    // two commands and a scary flag.
     banner('update');
-    blank();
-    line(c.red('this project has a local install, and no receipt to update it from.'));
-    line(c.dim('The receipt is machine-local, so a clone never carries one, and without'));
-    line(c.dim('it nothing knows which files the harness owns. Restoring it first:'));
-    blank();
-    line(`  ${c.bold('npx voidharness@<the version in .void/install-manifest.json> hydrate')}`);
-    line(`  ${c.bold('npx voidharness@latest update --force')}`);
-    blank();
-    footer(c.red('nothing was changed'));
-    process.exit(1);
+    line(`${c.dim(glyph.dot)}  ${c.dim('receipt'.padEnd(12))}absent; ownership reclaimed from ${INSTALL_MANIFEST_PATH} (${rehydrated.files.length} files)`);
+    // Written to disk, because the install transaction reads the receipt from
+    // there rather than taking one in hand. It is machine-local and disposable,
+    // exactly what `hydrate` restores.
+    if (!opts.dryRun) {
+      const receiptPath = join(projectRoot, ...INSTALL_RECEIPT_PATH.split('/'));
+      await mkdir(dirname(receiptPath), { recursive: true });
+      await writeFile(receiptPath, encodeReceipt(rehydrated));
+    }
+    await updateLocal(projectRoot, rehydrated, opts.dryRun, opts.force);
+    return;
   }
   if (route === 'local' && receipt !== undefined) {
     await updateLocal(projectRoot, receipt, opts.dryRun, opts.force);
@@ -162,7 +182,7 @@ export function updateModeFor(receipt: InstallReceipt | undefined): InstallRecei
 }
 
 /** Where an update should go, and the one case where it must not go anywhere. */
-export type UpdateRoute = InstallReceipt['source'] | 'local-receipt-missing';
+export type UpdateRoute = InstallReceipt['source'] | 'local-rehydrate';
 
 /**
  * The receipt says what the harness owns, and it is observed state: gitignored,
@@ -181,7 +201,77 @@ export function updateRouteFor(
   hasInstallManifest: boolean,
 ): UpdateRoute {
   if (receipt !== undefined) return receipt.source;
-  return hasInstallManifest ? 'local-receipt-missing' : 'marketplace';
+  return hasInstallManifest ? 'local-rehydrate' : 'marketplace';
+}
+
+/**
+ * Reclaim ownership of the paths the committed manifest names.
+ *
+ * The receipt is machine-local, so EVERY fresh clone arrives without one, and
+ * the command used to stop there with two commands to type, one of them
+ * `--force`. The manifest is the committed half of the same fact: it names the
+ * paths the harness owns, which is the only thing an update needs from it.
+ *
+ * The content comes from disk, never from the manifest's hashes -- those
+ * describe the version that wrote them, and comparing against them would fail
+ * on every file the new version changes, which is the conflict this removes. A
+ * path the manifest names and the disk no longer has is simply dropped: it was
+ * ours, it is gone, and the install about to run decides whether it comes back.
+ */
+/**
+ * The receipt this project would have had, rebuilt from its committed manifest.
+ *
+ * `undefined` when the manifest cannot be read: that is a real dead end, and
+ * inventing ownership from a directory listing is exactly the guess this whole
+ * mechanism exists to avoid.
+ */
+function rehydrateFromManifest(projectRoot: string): InstallReceipt | undefined {
+  let manifest: InstallManifest | undefined;
+  try {
+    manifest = parseInstallManifest(readFileSync(join(projectRoot, INSTALL_MANIFEST_PATH), 'utf8'));
+  } catch {
+    return undefined;
+  }
+  if (manifest === undefined) return undefined;
+  const files = ownedFromManifestPaths(
+    // The manifest itself is never listed inside itself -- a file cannot carry
+    // its own hash -- yet it is the harness's by construction. Left out, it
+    // conflicts on every update, since a new version always rewrites it.
+    [INSTALL_MANIFEST_PATH, ...manifest.files.map((file) => file.path)],
+    (path) => {
+      try {
+        const target = join(projectRoot, ...path.split('/'));
+        return { sha256: sha256Of(readFileSync(target)), mode: statSync(target).mode & 0o777 };
+      } catch {
+        return undefined;
+      }
+    },
+  );
+  // Runtimes are read from what is actually wired, not from the manifest, which
+  // does not record them.
+  const runtimes: Runtime[] = [];
+  if (existsSync(join(projectRoot, '.claude', 'settings.json'))) runtimes.push('claude');
+  if (existsSync(join(projectRoot, '.codex', 'hooks.json'))) runtimes.push('codex');
+  return {
+    schemaVersion: 1,
+    version: manifest.version,
+    source: 'local',
+    runtimes: runtimes.length > 0 ? runtimes : ['claude'],
+    files,
+  };
+}
+
+export function ownedFromManifestPaths(
+  paths: readonly string[],
+  onDisk: (path: string) => { readonly sha256: string; readonly mode: number } | undefined,
+): OwnedFile[] {
+  const owned: OwnedFile[] = [];
+  for (const path of paths) {
+    const found = onDisk(path);
+    if (found === undefined) continue;
+    owned.push({ path, sha256: found.sha256, mode: found.mode });
+  }
+  return owned;
 }
 
 /**
