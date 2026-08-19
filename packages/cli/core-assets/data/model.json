@@ -1284,7 +1284,7 @@
         "codex"
       ],
       "source": "packages/core/skills/implement/SKILL.md",
-      "staticTokens": 3337,
+      "staticTokens": 3284,
       "type": "skill"
     },
     {
@@ -3003,6 +3003,13 @@
       "evidence": "async-safety SKILL.md: Reject events older than the configured window... Composes with security-guidance (replay attack protection)."
     },
     {
+      "from": "skill:autopilot",
+      "to": "skill:implement",
+      "kind": "invokes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: Caller: autopilot runs this once per ticket in parallel worktrees, whole and once"
+    },
+    {
       "from": "skill:brainstorm",
       "to": "skill:plan",
       "kind": "routes-to",
@@ -3211,6 +3218,111 @@
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Architecture pass composes agents type-design-analyzer + doctrine-critic"
+    },
+    {
+      "from": "skill:implement",
+      "to": "skill:accessibility",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: UX/UI pass: Compose frontend-design + ui-review + accessibility"
+    },
+    {
+      "from": "skill:implement",
+      "to": "skill:async-safety",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: Async + idempotency pass: Compose async-safety, idempotency keys, replay/dedup window"
+    },
+    {
+      "from": "skill:implement",
+      "to": "skill:code-review",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: Review pass: Compose code-review for the integration lens"
+    },
+    {
+      "from": "skill:implement",
+      "to": "skill:commit-discipline",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: Ship pass: Compose commit-discipline, open the PR, attach the evidence"
+    },
+    {
+      "from": "skill:implement",
+      "to": "skill:domain-driven-design",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: Architecture pass: Compose hexagonal-architecture, domain-driven-design"
+    },
+    {
+      "from": "skill:implement",
+      "to": "skill:frontend-design",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: UX/UI pass: Compose frontend-design (build-time craft)"
+    },
+    {
+      "from": "skill:implement",
+      "to": "skill:hexagonal-architecture",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: Architecture pass: Compose hexagonal-architecture, domain-driven-design"
+    },
+    {
+      "from": "skill:implement",
+      "to": "skill:migrations",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: Migration safety pass: Compose migrations, zero-downtime, two-phase, batched backfill"
+    },
+    {
+      "from": "skill:implement",
+      "to": "skill:qa",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: UX/UI pass: Browser-verified QA (live screenshots) runs via qa"
+    },
+    {
+      "from": "skill:implement",
+      "to": "skill:security-audit",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: Security pass: Compose security-guidance + security-audit"
+    },
+    {
+      "from": "skill:implement",
+      "to": "skill:security-guidance",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: Security pass: Compose security-guidance + security-audit"
+    },
+    {
+      "from": "skill:implement",
+      "to": "skill:tdd",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: TDD implementation pass: The single lead writer composes tdd + testing"
+    },
+    {
+      "from": "skill:implement",
+      "to": "skill:testing",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: TDD implementation pass: The single lead writer composes tdd + testing"
+    },
+    {
+      "from": "skill:implement",
+      "to": "skill:ui-review",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: UX/UI pass: Compose ui-review, the audit/critique ceiling"
+    },
+    {
+      "from": "skill:implement",
+      "to": "skill:verify",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: Verification before completion pass: Compose verify, typecheck, tests, hooks, both viewports"
     },
     {
       "from": "skill:llm-cost-discipline",
@@ -3442,6 +3554,13 @@
       "kind": "composes",
       "origin": "declared",
       "evidence": "source-driven-development SKILL.md: pass the doc text as a parameter — a port. Composes with hexagonal-architecture and security-guidance."
+    },
+    {
+      "from": "skill:ticket",
+      "to": "skill:implement",
+      "kind": "routes-to",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: Upstream: ticket produces the ticket and declares its conditional passes"
     },
     {
       "from": "skill:ui-review",

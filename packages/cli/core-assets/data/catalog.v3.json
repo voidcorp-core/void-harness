@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:ac4d530a758ac2d53ce04b1f3be645efde85a19bca9eff910c3be8a16bb8c6e5"
+    "rootHash": "sha256:737bafb98f49a65257721beea6285e9719a6a8bdd18850674cf18cfa85032801"
   },
   "nodes": [
     {
@@ -2880,7 +2880,7 @@
             "codex"
           ],
           "source": "packages/core/skills/implement/SKILL.md",
-          "staticTokens": 3337,
+          "staticTokens": 3284,
           "type": "skill"
         }
       },
@@ -5399,6 +5399,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:0abbeb6b617db370346eef2a12b902f9",
+      "from": "catalog:skill:skill:implement",
+      "to": "catalog:skill:skill:commit-discipline",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: Ship pass: Compose commit-discipline, open the PR, attach the evidence",
+          "from": "skill:implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:commit-discipline"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:0bed4deb4e435622acf1cac90b2d63f6",
       "from": "catalog:skill:skill:migrations",
       "to": "catalog:skill:skill:tdd",
@@ -5540,6 +5566,32 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:observability"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:20bbfc8e99f0e2172c30c62629603925",
+      "from": "catalog:skill:skill:implement",
+      "to": "catalog:skill:skill:code-review",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: Review pass: Compose code-review for the integration lens",
+          "from": "skill:implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:code-review"
         }
       },
       "provenance": {
@@ -5789,6 +5841,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:2efaf5c99fbd25c44f2d2c0e1e3acb49",
+      "from": "catalog:skill:skill:implement",
+      "to": "catalog:skill:skill:testing",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: TDD implementation pass: The single lead writer composes tdd + testing",
+          "from": "skill:implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:testing"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:34d227c21862518a0bdca829c067074b",
       "from": "catalog:skill:skill:security-guidance",
       "to": "catalog:agent:agent:doctrine-critic",
@@ -6008,6 +6086,32 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:typescript-strict"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:54f85fafe2fe35ac01b5094f8ad385e2",
+      "from": "catalog:skill:skill:implement",
+      "to": "catalog:skill:skill:ui-review",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: UX/UI pass: Compose ui-review, the audit/critique ceiling",
+          "from": "skill:implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:ui-review"
         }
       },
       "provenance": {
@@ -6283,6 +6387,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:7100970e5e7db230f2055be5fca76590",
+      "from": "catalog:skill:skill:implement",
+      "to": "catalog:skill:skill:domain-driven-design",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: Architecture pass: Compose hexagonal-architecture, domain-driven-design",
+          "from": "skill:implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:domain-driven-design"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:72b2896ffb43594985406bf7afb98494",
       "from": "catalog:skill:skill:pack-monorepo/service-package",
       "to": "catalog:skill:skill:domain-driven-design",
@@ -6320,6 +6450,32 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:debug"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:7f96dc21f99fed0db70a32d0cf26ce8a",
+      "from": "catalog:skill:skill:implement",
+      "to": "catalog:skill:skill:frontend-design",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: UX/UI pass: Compose frontend-design (build-time craft)",
+          "from": "skill:implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:frontend-design"
         }
       },
       "provenance": {
@@ -6439,6 +6595,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:8f655d6c56d4d68311567cd14431c857",
+      "from": "catalog:skill:skill:implement",
+      "to": "catalog:skill:skill:security-guidance",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: Security pass: Compose security-guidance + security-audit",
+          "from": "skill:implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:security-guidance"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:926d8fd144e46ed0e0db6479905351fb",
       "from": "catalog:skill:skill:security-guidance",
       "to": "catalog:skill:skill:llm-cost-discipline",
@@ -6502,6 +6684,32 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:functional"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:96959a56507eadd33593d2591664182d",
+      "from": "catalog:skill:skill:implement",
+      "to": "catalog:skill:skill:qa",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: UX/UI pass: Browser-verified QA (live screenshots) runs via qa",
+          "from": "skill:implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:qa"
         }
       },
       "provenance": {
@@ -6829,6 +7037,84 @@
       }
     },
     {
+      "id": "catalog:edge:composes:b40ac737205dd5e4e5715e1a4f0516f6",
+      "from": "catalog:skill:skill:implement",
+      "to": "catalog:skill:skill:async-safety",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: Async + idempotency pass: Compose async-safety, idempotency keys, replay/dedup window",
+          "from": "skill:implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:async-safety"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:b55e14a4d683ec0861df380a70a633aa",
+      "from": "catalog:skill:skill:implement",
+      "to": "catalog:skill:skill:tdd",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: TDD implementation pass: The single lead writer composes tdd + testing",
+          "from": "skill:implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:tdd"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:b5acde8b4e35c6ce486ac19900ea7281",
+      "from": "catalog:skill:skill:implement",
+      "to": "catalog:skill:skill:hexagonal-architecture",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: Architecture pass: Compose hexagonal-architecture, domain-driven-design",
+          "from": "skill:implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:hexagonal-architecture"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:b9ee7618de33cfd311e91c812d61d8c3",
       "from": "catalog:skill:skill:async-safety",
       "to": "catalog:skill:skill:migrations",
@@ -6944,6 +7230,32 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:refactor"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:d2d7cf018c6c43ba3be38e4714a78ec7",
+      "from": "catalog:skill:skill:implement",
+      "to": "catalog:skill:skill:accessibility",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: UX/UI pass: Compose frontend-design + ui-review + accessibility",
+          "from": "skill:implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:accessibility"
         }
       },
       "provenance": {
@@ -7089,6 +7401,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:e1b07647f9abae2f5a8d30d879fac28a",
+      "from": "catalog:skill:skill:implement",
+      "to": "catalog:skill:skill:migrations",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: Migration safety pass: Compose migrations, zero-downtime, two-phase, batched backfill",
+          "from": "skill:implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:migrations"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:e4b51f6bd413ebcc1608903020879c2c",
       "from": "catalog:skill:skill:code-review",
       "to": "catalog:skill:skill:hexagonal-architecture",
@@ -7167,6 +7505,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:f7c1c23cd38e6de409fd5fdf5b96d559",
+      "from": "catalog:skill:skill:implement",
+      "to": "catalog:skill:skill:verify",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: Verification before completion pass: Compose verify, typecheck, tests, hooks, both viewports",
+          "from": "skill:implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:verify"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:fa58f40ac13637d1d0f424b5d4cebbe7",
       "from": "catalog:skill:skill:context",
       "to": "catalog:skill:skill:plan",
@@ -7178,6 +7542,32 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:plan"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:fde28577b80e80a47258402a472b3006",
+      "from": "catalog:skill:skill:implement",
+      "to": "catalog:skill:skill:security-audit",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: Security pass: Compose security-guidance + security-audit",
+          "from": "skill:implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:security-audit"
         }
       },
       "provenance": {
@@ -7817,6 +8207,32 @@
       }
     },
     {
+      "id": "catalog:edge:invokes:ff991f27fae504244fe5c672afdf50bc",
+      "from": "catalog:skill:skill:autopilot",
+      "to": "catalog:skill:skill:implement",
+      "kind": "invokes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: Caller: autopilot runs this once per ticket in parallel worktrees, whole and once",
+          "from": "skill:autopilot",
+          "kind": "invokes",
+          "origin": "declared",
+          "to": "skill:implement"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:overlaps:573b80cd58441760d3bd4a6a8f344f9f",
       "from": "catalog:skill:skill:devex-audit",
       "to": "catalog:skill:skill:plan-review",
@@ -7880,6 +8296,32 @@
           "kind": "routes-to",
           "origin": "declared",
           "to": "skill:plan"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:routes-to:fd3bda81dd378c0a7efe9a6f3f8f9df1",
+      "from": "catalog:skill:skill:ticket",
+      "to": "catalog:skill:skill:implement",
+      "kind": "routes-to",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: Upstream: ticket produces the ticket and declares its conditional passes",
+          "from": "skill:ticket",
+          "kind": "routes-to",
+          "origin": "declared",
+          "to": "skill:implement"
         }
       },
       "provenance": {
