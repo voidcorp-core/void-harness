@@ -41,13 +41,15 @@ Thumbs.db
 # (keep the .changeset/ dir tracked, only ignore status)
 
 # void-harness:begin
-# Everything the harness OBSERVES (telemetry, run journals, caches, install
-# receipts) lives under .void/local/ and is machine-local. Everything the
-# project DECLARES (config.json, PROJECT-DOCTRINE.md, policies/) stays tracked
-# at the top of .void/ — config.json in particular carries the pack pins and
-# paths.business, which the enforcement runner needs on a fresh clone.
-# No exception rule: a new runtime artifact is born inside local/ and this
-# file never has to learn about it.
+# .void/ has three levels, named by what deleting them costs. Everything the
+# harness OBSERVES (telemetry, run journals, caches, install receipts) lives
+# under machine/ and is disposable. Everything it DERIVES (the doctrine) lives
+# under installed/ and is restored byte-for-byte by install. Everything the
+# project DECLARES stays tracked at the top of .void/: config.json in
+# particular carries the pack pins and paths.business, which the enforcement
+# runner needs on a fresh clone.
+# No exception rule: a new runtime artifact is born inside one of the two
+# ignored directories, and this file never has to learn about it.
 .void/machine/
 .void/installed/
 .void/local/
@@ -60,43 +62,43 @@ Thumbs.db
 # it does not break. Deliberately still tracked: .void/hooks/ (named from the
 # tracked .claude/settings.json) and .codex/hooks.json (the safety floor) —
 # their absence is an error, not a degradation.
-.agents/skills/accessibility-first/
-.agents/skills/adr-workflow/
+.agents/skills/accessibility/
 .agents/skills/api-and-interface-design/
 .agents/skills/async-safety/
 .agents/skills/autopilot/
-.agents/skills/brainstorming/
-.agents/skills/claude-md-authoring/
+.agents/skills/brainstorm/
+.agents/skills/checkpoint/
+.agents/skills/claude-md/
 .agents/skills/code-review/
 .agents/skills/commit-discipline/
-.agents/skills/context-management/
+.agents/skills/context/
+.agents/skills/debug/
+.agents/skills/decide/
 .agents/skills/devex-audit/
 .agents/skills/domain-driven-design/
 .agents/skills/frontend-design/
 .agents/skills/functional/
 .agents/skills/hexagonal-architecture/
-.agents/skills/learning-capture/
+.agents/skills/implement/
+.agents/skills/learn/
 .agents/skills/llm-cost-discipline/
 .agents/skills/make-pdf/
-.agents/skills/migrations-safety/
+.agents/skills/migrations/
 .agents/skills/observability/
 .agents/skills/plan-review/
+.agents/skills/plan/
 .agents/skills/qa/
-.agents/skills/refactoring/
+.agents/skills/refactor/
 .agents/skills/retrospective/
 .agents/skills/security-audit/
 .agents/skills/security-guidance/
-.agents/skills/session-handoff/
 .agents/skills/source-driven-development/
-.agents/skills/systematic-debugging/
 .agents/skills/tdd/
 .agents/skills/testing/
-.agents/skills/ticket-runner/
-.agents/skills/ticket-writer/
+.agents/skills/ticket/
 .agents/skills/typescript-strict/
 .agents/skills/ui-review/
-.agents/skills/verification-before-completion/
-.agents/skills/writing-plans/
+.agents/skills/verify/
 .claude/agents/accessibility-specialist.md
 .claude/agents/api-integration-engineer.md
 .claude/agents/code-explorer.md
@@ -119,48 +121,48 @@ Thumbs.db
 .claude/agents/type-design-analyzer.md
 .claude/agents/visual-craft-director.md
 .claude/commands/autopilot.md
-.claude/commands/session-handoff.md
+.claude/commands/checkpoint.md
 .claude/commands/void-audit.md
 .claude/commands/void-doctor.md
 .claude/commands/void-feedback.md
 .claude/commands/void-graph.md
-.claude/skills/accessibility-first/
-.claude/skills/adr-workflow/
+.claude/skills/accessibility/
 .claude/skills/api-and-interface-design/
 .claude/skills/async-safety/
 .claude/skills/autopilot/
-.claude/skills/brainstorming/
-.claude/skills/claude-md-authoring/
+.claude/skills/brainstorm/
+.claude/skills/checkpoint/
+.claude/skills/claude-md/
 .claude/skills/code-review/
 .claude/skills/commit-discipline/
-.claude/skills/context-management/
+.claude/skills/context/
+.claude/skills/debug/
+.claude/skills/decide/
 .claude/skills/devex-audit/
 .claude/skills/domain-driven-design/
 .claude/skills/frontend-design/
 .claude/skills/functional/
 .claude/skills/hexagonal-architecture/
-.claude/skills/learning-capture/
+.claude/skills/implement/
+.claude/skills/learn/
 .claude/skills/llm-cost-discipline/
 .claude/skills/make-pdf/
-.claude/skills/migrations-safety/
+.claude/skills/migrations/
 .claude/skills/observability/
 .claude/skills/plan-review/
+.claude/skills/plan/
 .claude/skills/qa/
-.claude/skills/refactoring/
+.claude/skills/refactor/
 .claude/skills/retrospective/
 .claude/skills/security-audit/
 .claude/skills/security-guidance/
-.claude/skills/session-handoff/
 .claude/skills/source-driven-development/
-.claude/skills/systematic-debugging/
 .claude/skills/tdd/
 .claude/skills/testing/
-.claude/skills/ticket-runner/
-.claude/skills/ticket-writer/
+.claude/skills/ticket/
 .claude/skills/typescript-strict/
 .claude/skills/ui-review/
-.claude/skills/verification-before-completion/
-.claude/skills/writing-plans/
+.claude/skills/verify/
 .codex/agents/accessibility-specialist.toml
 .codex/agents/api-integration-engineer.toml
 .codex/agents/code-explorer.toml

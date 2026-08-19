@@ -45,7 +45,7 @@ function lineEvidence(edits, applies, violates, allowTag) {
     if (!applies(path)) continue;
     edit.addedContent.split(/\r?\n/).forEach((line, index) => {
       if (allowTag !== void 0 && line.includes(allowTag)) return;
-      if (violates(line)) evidence.push(`${path}:${index + 1}`);
+      if (violates(line, path)) evidence.push(`${path}:${index + 1}`);
     });
   }
   return evidence;
@@ -402,11 +402,12 @@ function noNull(edits) {
   const evidence = lineEvidence(
     edits,
     (path) => /\.(?:ts|tsx)$/.test(path) && !isTestPath(path) && !path.endsWith(".d.ts") && !isGeneratedPath(path),
-    (line) => {
+    (line, path) => {
       if (/from\s+['"]drizzle-orm|JSON\.(?:stringify|parse)|typeof.*===\s*['"]null/.test(line)) {
         return false;
       }
-      return /\bnull\b/.test(codeOnly(line));
+      const code3 = path.endsWith(".tsx") ? codeOnly(line).replace(/\breturn\s+null\b/g, "") : codeOnly(line);
+      return /\bnull\b/.test(code3);
     },
     "allow-null:"
   );
@@ -563,6 +564,26 @@ function testName(edits) {
   );
 }
 
+// src/enforcement/shell-writes.ts
+var REDIRECTION = /(?:^|\s)(?:\d*|&)>{1,2}\s*("[^"]*"|'[^']*'|[^\s;|&<>]+)/g;
+var TEE = /(?:^|[\s|])tee\s+(?:-a\s+)?("[^"]*"|'[^']*'|[^\s;|&<>-][^\s;|&<>]*)/g;
+function unquote2(target) {
+  const quoted = /^(["'])(.*)\1$/.exec(target);
+  return quoted?.[2] ?? target;
+}
+function shellWriteTargets(command) {
+  const targets = /* @__PURE__ */ new Set();
+  for (const pattern of [REDIRECTION, TEE]) {
+    for (const match of command.matchAll(pattern)) {
+      const target = match[1];
+      if (target === void 0) continue;
+      const path = unquote2(target);
+      if (path !== "") targets.add(path);
+    }
+  }
+  return [...targets].sort();
+}
+
 // src/enforcement/normalize.ts
 var MAX_FIELD_BYTES = 1024 * 1024;
 function record(value) {
@@ -627,7 +648,8 @@ function normalizeToolCall(value) {
   } else {
     edits = parsePatchEdits(patchText(input));
   }
-  return { tool, command, edits };
+  const shellTargets = shellWriteTargets(command).filter((path) => !edits.some((edit) => edit.path === path)).map((path) => ({ path, addedContent: "" }));
+  return { tool, command, edits: [...edits, ...shellTargets] };
 }
 
 // src/enforcement/runner.ts
@@ -697,6 +719,15 @@ function configuredString(parent, key, fallback) {
   const value = parent?.[key];
   return typeof value === "string" ? value : fallback;
 }
+function configuredStrings(parent, key, fallback) {
+  const value = parent?.[key];
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) {
+    const kept = value.filter((entry) => typeof entry === "string");
+    if (kept.length > 0) return kept;
+  }
+  return [fallback];
+}
 function readTddConfig(root) {
   let config = {};
   try {
@@ -709,7 +740,7 @@ function readTddConfig(root) {
   const mode = configuredMode === "strict" || configuredMode === "souple" || configuredMode === "exploratory" ? configuredMode : "auto";
   return {
     mode,
-    businessGlob: configuredString(paths, "business", "apps/*/src/**"),
+    businessGlobs: configuredStrings(paths, "business", "apps/*/src/**"),
     spikesGlob: configuredString(paths, "spikes", "apps/*/scripts/spike-*")
   };
 }
@@ -748,7 +779,7 @@ function tddVerdict(root, edits) {
   return tddOrder({
     edits: projectChanges,
     mode: config.mode,
-    businessGlobs: [config.businessGlob],
+    businessGlobs: config.businessGlobs,
     spikeGlobs: [config.spikesGlob],
     existingHeaders,
     siblingTests
@@ -798,7 +829,7 @@ function sessionStartOutput(version, notice) {
 }
 
 // src/lifecycle/context-executor.ts
-import { join as join5 } from "node:path";
+import { join as join6 } from "node:path";
 
 // src/lifecycle/executor-shared.ts
 import {
@@ -866,6 +897,132 @@ function readJson(path) {
   }
 }
 
+// src/void-layout.ts
+import { existsSync as existsSync4 } from "node:fs";
+import { join as join5 } from "node:path";
+var VOID_DIR = ".void";
+var VOID_MACHINE_DIR = "machine";
+var VOID_PREVIOUS_MACHINE_DIR = "local";
+var VOID_OWNERSHIP = Object.freeze({
+  // Declared: authored or hand-edited, never regenerable from a pin. These are
+  // the ONLY things at the top of `.void/`, which is what makes "everything at
+  // the top is committed" a rule you can see rather than one you must look up.
+  "config.json": "project",
+  "PROJECT-DOCTRINE.md": "project",
+  "active.md": "project",
+  knowledge: "project",
+  // Plans, despite the name. Measured on sesame: eight committed `.plan.md`
+  // files carrying frozen model decisions that still govern its schema. Read as
+  // `observed`, doctor told the project to untrack its own architecture
+  // decisions — and nothing writes this directory anyway. It is a leftover of
+  // the `backlog-autopilot` engine deleted at the 2026-07-30 cutover; the
+  // current autopilot writes to `machine/autopilot/`. So there is no writer to
+  // redirect, only a classification that was wrong.
+  "autonomous-runs": "project",
+  // Derived: `void-harness install` re-materializes these, byte for byte from a
+  // pin. Not committed — 1.2 MB of vendored prose rewritten on every bump — but
+  // their absence degrades the agent rather than breaking the project.
+  "PHILOSOPHY.md": "derived",
+  // Derived AND committed, which is why it stays at the top rather than moving
+  // into `installed/`. `.claude/settings.json` names this path and is itself
+  // committed, so ignoring the runner would give a fresh clone a settings file
+  // pointing at a missing file and every tool call would fail on it. See
+  // `DERIVED_LOAD_BEARING`: its absence is an error, not a degradation.
+  hooks: "derived",
+  // Observed: this machine's history. Never meaningful in another checkout, and
+  // losing it costs nothing.
+  runs: "observed",
+  cache: "observed",
+  outputs: "observed",
+  generated: "observed",
+  archives: "observed",
+  autopilot: "observed",
+  receipts: "observed",
+  history: "observed",
+  worktrees: "observed",
+  // Renamed from `state.json`, which named two different things: this snapshot
+  // and an autopilot run's cursor. The cursor keeps its name inside its own run
+  // directory, where nothing else competes for it.
+  "status.json": "observed",
+  // The session checkpoint. Observed on purpose: it is what THIS machine was
+  // doing, so committing it would guarantee a conflict on a file rewritten every
+  // evening while serving nobody else.
+  "checkpoint.md": "observed",
+  // Nothing WRITES these any more — the current telemetry is `runs/*/events.jsonl`
+  // — but they still exist on disk in the park (424 KB in one project), and
+  // "no longer read" is not "no longer there". Dropping them from this table
+  // would let them fall through to the `project` default, and doctor would start
+  // telling those projects to commit their own telemetry.
+  "activations.jsonl": "observed",
+  "outcomes.jsonl": "observed",
+  "usage.log": "observed",
+  // The pre-rename name of `status.json`. Classified for the same reason: it is
+  // on disk in the park, and forgetting it here would make doctor ask projects
+  // to commit it. `LEGACY_RENAMES` sends it to its new name on migration.
+  "state.json": "observed"
+});
+var LEGACY_RENAMES = Object.freeze({
+  "state.json": "status.json"
+});
+var RETIRED_ENTRIES = Object.freeze([
+  "activations.jsonl",
+  "outcomes.jsonl",
+  "usage.log"
+]);
+var MATERIALIZED_OWNERSHIP = Object.freeze({
+  // The project's own wiring: hand-editable, merged rather than regenerated.
+  ".claude/settings.json": "project",
+  // Regenerated by `init` from the harness assets.
+  ".claude/skills/": "derived",
+  ".claude/agents/": "derived",
+  ".claude/commands/": "derived",
+  ".agents/skills/": "derived",
+  ".codex/agents/": "derived",
+  ".void/hooks/": "derived",
+  ".void/installed/PHILOSOPHY.md": "derived",
+  ".codex/hooks.json": "derived"
+});
+var DERIVED_LOAD_BEARING = Object.freeze([
+  ".void/hooks/",
+  ".codex/hooks.json"
+]);
+var UNIT_ROOTS = Object.freeze([
+  ".claude/skills",
+  ".claude/agents",
+  ".claude/commands",
+  ".agents/skills",
+  ".codex/agents"
+]);
+var MACHINE_ENTRIES = Object.freeze(
+  Object.keys(VOID_OWNERSHIP).filter((entry) => VOID_OWNERSHIP[entry] === "observed").sort()
+);
+var INSTALLED_ENTRIES = Object.freeze(
+  Object.keys(VOID_OWNERSHIP).filter((entry) => VOID_OWNERSHIP[entry] === "derived").filter((entry) => !DERIVED_LOAD_BEARING.includes(`${VOID_DIR}/${entry}/`)).sort()
+);
+function voidDir(root) {
+  return join5(root, VOID_DIR);
+}
+function voidMachineDir(root) {
+  return join5(root, VOID_DIR, VOID_MACHINE_DIR);
+}
+function previousMachinePath(root, ...segments) {
+  return join5(root, VOID_DIR, VOID_PREVIOUS_MACHINE_DIR, ...segments);
+}
+function voidMachinePath(root, ...segments) {
+  return join5(voidMachineDir(root), ...segments);
+}
+function legacyVoidPath(root, ...segments) {
+  return join5(voidDir(root), ...segments);
+}
+function voidReadPath(root, ...segments) {
+  const candidates = [
+    voidMachinePath(root, ...segments),
+    previousMachinePath(root, ...segments),
+    legacyVoidPath(root, ...segments)
+  ];
+  return candidates.find((candidate) => existsSync4(candidate)) ?? candidates[0];
+}
+
 // src/lifecycle/context-executor.ts
 var VERSION_SHAPE = /^[0-9A-Za-z.+-]{1,64}$/;
 function readVersion(path) {
@@ -879,10 +1036,10 @@ function resolveInstall(root, env) {
   }
   const pluginRoot = env["CLAUDE_PLUGIN_ROOT"];
   if (pluginRoot !== void 0) {
-    const version2 = readVersion(join5(pluginRoot, ".claude-plugin", "plugin.json"));
+    const version2 = readVersion(join6(pluginRoot, ".claude-plugin", "plugin.json"));
     if (version2 !== void 0) return { version: version2, source: "marketplace" };
   }
-  const receipt = record3(readJson(join5(root, ".void", "receipts", "install-v1.json")));
+  const receipt = record3(readJson(voidReadPath(root, "receipts", "install-v1.json")));
   const version = receipt?.["version"];
   if (typeof version === "string" && VERSION_SHAPE.test(version)) {
     const declared = receipt?.["source"];
@@ -894,14 +1051,14 @@ function resolveInstall(root, env) {
 
 // src/freshness/cache.ts
 import { mkdirSync, readFileSync as readFileSync5, renameSync, writeFileSync } from "node:fs";
-import { dirname as dirname3, join as join6 } from "node:path";
+import { dirname as dirname3, join as join7 } from "node:path";
 var CACHE_TTL_MS = 24 * 60 * 60 * 1e3;
 var isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 function cacheFilePath(env) {
   const xdg = env["XDG_CACHE_HOME"]?.trim();
   const home = env["HOME"]?.trim();
-  const base = xdg !== void 0 && xdg !== "" ? xdg : home !== void 0 && home !== "" ? join6(home, ".cache") : void 0;
-  return base === void 0 ? void 0 : join6(base, "void-harness", "freshness.json");
+  const base = xdg !== void 0 && xdg !== "" ? xdg : home !== void 0 && home !== "" ? join7(home, ".cache") : void 0;
+  return base === void 0 ? void 0 : join7(base, "void-harness", "freshness.json");
 }
 function parseEntry(raw) {
   let json;
@@ -1077,7 +1234,7 @@ async function fetchLatestVersion(options = {}) {
 
 // src/freshness/npmrc.ts
 import { readFileSync as readFileSync6, statSync } from "node:fs";
-import { join as join7 } from "node:path";
+import { join as join8 } from "node:path";
 var MAX_NPMRC_BYTES = 64 * 1024;
 function readIfSmall(path) {
   try {
@@ -1088,10 +1245,10 @@ function readIfSmall(path) {
   }
 }
 function readNpmrc(cwd, env) {
-  const project = readIfSmall(join7(cwd, ".npmrc"));
+  const project = readIfSmall(join8(cwd, ".npmrc"));
   if (project !== void 0) return project;
   const home = env["HOME"]?.trim();
-  return home === void 0 || home === "" ? void 0 : readIfSmall(join7(home, ".npmrc"));
+  return home === void 0 || home === "" ? void 0 : readIfSmall(join8(home, ".npmrc"));
 }
 
 // src/freshness/notice.ts
@@ -1329,7 +1486,7 @@ import {
   realpathSync as realpathSync3,
   writeFileSync as writeFileSync2
 } from "node:fs";
-import { join as join8, relative as relative4 } from "node:path";
+import { join as join9, relative as relative4 } from "node:path";
 
 // src/lifecycle/trim.ts
 function record4(value) {
@@ -1399,7 +1556,7 @@ ${errors}
 function safeOutputDirectory(root) {
   try {
     const canonicalRoot = realpathSync3(root);
-    const directory = join8(root, ".void", "outputs");
+    const directory = voidMachinePath(root, "outputs");
     mkdirSync2(directory, { recursive: true, mode: 448 });
     const info = lstatSync2(directory);
     const canonicalDirectory = realpathSync3(directory);
@@ -1437,7 +1594,7 @@ function executeTrim(rawInput, root, env) {
   }
   const hash = createHash("sha256").update(extracted.text).digest("hex").slice(0, 12);
   const tool = extracted.tool.replaceAll(/[^A-Za-z0-9_]/g, "_").slice(0, 80);
-  const file = join8(directory, `${tool}-${process.pid}-${Date.now()}-${hash}.log`);
+  const file = join9(directory, `${tool}-${process.pid}-${Date.now()}-${hash}.log`);
   const spillPath = relative4(realpathSync3(root), file).replaceAll("\\", "/");
   const plan = planOutputTrim(extracted.text, {
     tool: extracted.tool,
@@ -1473,15 +1630,15 @@ function executeTrim(rawInput, root, env) {
 }
 
 // src/lifecycle/typecheck-executor.ts
-import { existsSync as existsSync4 } from "node:fs";
-import { join as join10 } from "node:path";
+import { existsSync as existsSync5 } from "node:fs";
+import { join as join11 } from "node:path";
 import { spawnSync as spawnSync3 } from "node:child_process";
 
 // src/lifecycle/typecheck.ts
 import {
   dirname as dirname4,
   isAbsolute as isAbsolute4,
-  join as join9,
+  join as join10,
   relative as relative5,
   resolve as resolve4
 } from "node:path";
@@ -1515,7 +1672,7 @@ function nearestTsconfigs(changedPaths, projectRoot2, hasFile) {
     if (!within3(root, target)) continue;
     let current = dirname4(target);
     while (within3(root, current)) {
-      const config = join9(current, "tsconfig.json");
+      const config = join10(current, "tsconfig.json");
       if (hasFile(config)) {
         found.add(config);
         break;
@@ -1571,8 +1728,8 @@ function executeTypecheck(root, env) {
   if (changed.length === 0) {
     return { status: "skipped", details: { reason: "no-touched-typescript" } };
   }
-  const configs = nearestTsconfigs(changed, root, existsSync4);
-  const configured = configuredTypecheck(readJson(join10(root, ".void", "config.json")));
+  const configs = nearestTsconfigs(changed, root, existsSync5);
+  const configured = configuredTypecheck(readJson(join11(root, ".void", "config.json")));
   const configuredArgv = "argv" in configured ? configured.argv : void 0;
   const warning = "warning" in configured ? configured.warning : void 0;
   const fallback = findExecutable("tsc", root, env);
@@ -1663,7 +1820,7 @@ import { resolve as resolve8 } from "node:path";
 // src/project-registry.ts
 import { createHash as createHash2 } from "node:crypto";
 import { lstat, mkdir, open, readFile, realpath } from "node:fs/promises";
-import { isAbsolute as isAbsolute5, join as join11, relative as relative6, resolve as resolve5 } from "node:path";
+import { isAbsolute as isAbsolute5, join as join12, relative as relative6, resolve as resolve5 } from "node:path";
 function code(error) {
   return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
 }
@@ -1676,7 +1833,7 @@ async function registerProjectRoot(root, globalDir) {
   const base = resolve5(globalDir);
   await mkdir(base, { recursive: true, mode: 448 });
   const canonicalBase = await realpath(base);
-  const projects = join11(base, "projects");
+  const projects = join12(base, "projects");
   await mkdir(projects, { recursive: true, mode: 448 });
   const info = await lstat(projects);
   if (!info.isDirectory() || info.isSymbolicLink()) {
@@ -1687,7 +1844,7 @@ async function registerProjectRoot(root, globalDir) {
     throw new Error("HOOK_REGISTRY_ESCAPE: projects resolves outside global dir");
   }
   const slug = createHash2("sha256").update(canonicalRoot).digest("hex").slice(0, 32);
-  const pointer = join11(projects, `${slug}.path`);
+  const pointer = join12(projects, `${slug}.path`);
   try {
     const handle = await open(pointer, "wx", 384);
     try {
@@ -1851,7 +2008,7 @@ import {
 import {
   dirname as dirname5,
   isAbsolute as isAbsolute7,
-  join as join12,
+  join as join13,
   relative as relative8,
   resolve as resolve7
 } from "node:path";
@@ -2125,7 +2282,7 @@ async function safeRunDirectory(root, missionId) {
   }
   const absoluteRoot = resolve7(root);
   const canonicalRoot = await realpath2(absoluteRoot);
-  const run = join12(absoluteRoot, ".void", "runs", missionId);
+  const run = voidReadPath(absoluteRoot, "runs", missionId);
   let ancestor = run;
   while (!await exists(ancestor)) {
     const parent = dirname5(ancestor);
@@ -2275,9 +2432,9 @@ async function writeSequencedEventInternal(options) {
     throw new Error("HOOK_INVALID_EVENT_ID: expected evt_<opaque-id>");
   }
   const run = await safeRunDirectory(options.root, options.missionId);
-  const logPath = join12(run, "events.jsonl");
-  const statePath = join12(run, ".seq.state");
-  const lockPath = join12(run, ".seq.lock");
+  const logPath = join13(run, "events.jsonl");
+  const statePath = join13(run, ".seq.state");
+  const lockPath = join13(run, ".seq.lock");
   await Promise.all([
     rejectSymlink(logPath),
     rejectSymlink(statePath),
