@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:2a147868c4b52620fb385b55852f3caabbe69510506ec64e018f8e1d2e68a170"
+    "rootHash": "sha256:aac5a87e03b122a8adf5781a4d2cad8da6ed2d9736ffccff33ba21494439ead9"
   },
   "nodes": [
     {
@@ -2925,6 +2925,54 @@
           {
             "kind": "path",
             "ref": "packages/core/skills/make-pdf/SKILL.md",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:skill:skill:merge",
+      "kind": "skill",
+      "label": "merge",
+      "data": {
+        "legacy": {
+          "description": "Vider la file des PR ouvertes sans casser le dépôt. Ordre par déblocage plutôt que par date, CI verte ET à jour, artefacts générés régénérés, conflits de contenu rendus à leur auteur. Use when merging pull requests.",
+          "enforcement": {
+            "floor": "ci",
+            "inline": {
+              "claude": "active",
+              "codex": "active",
+              "hermes": "ci-only"
+            }
+          },
+          "evalTargets": [
+            {
+              "provider": "anthropic",
+              "runtime": "claude",
+              "tier": "opus"
+            }
+          ],
+          "id": "skill:merge",
+          "lines": 112,
+          "name": "merge",
+          "owner": "folpe",
+          "pack": null,
+          "runtimes": [
+            "claude",
+            "codex"
+          ],
+          "source": "packages/core/skills/merge/SKILL.md",
+          "staticTokens": 1238,
+          "type": "skill"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/skills/merge/SKILL.md",
             "hashOrVersion": "catalog-v1"
           }
         ]
