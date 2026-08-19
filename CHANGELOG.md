@@ -1,5 +1,45 @@
 # Changelog
 
+## [3.1.0](https://github.com/voidcorp-core/void-harness/compare/v3.0.0...v3.1.0) (2026-08-19)
+
+
+### Features
+
+* **cli:** render the skill namespace from the install channel, not the runtime ([a396f51](https://github.com/voidcorp-core/void-harness/commit/a396f51fb1dacc40dd75cc2156c211e19e2e4c0c))
+* **doctor:** rendre le détail des deux verdicts d'invocation ([73291ec](https://github.com/voidcorp-core/void-harness/commit/73291ec12f5d21a9afbdf6218ed2b75e40cfd521))
+* **hooks:** détacher l'alerte du plancher et la rendre en bloc ([11cd48a](https://github.com/voidcorp-core/void-harness/commit/11cd48a7984880ec979705d729f3080491f13bff))
+* **hooks:** dire à l'ouverture d'une session qu'un nom ne résout plus ([c264de2](https://github.com/voidcorp-core/void-harness/commit/c264de2a65bda8f1def64f8f1d2f57d6948746de))
+* **hooks:** être prévenu quand la surface d'invocation redevient morte ([32b4441](https://github.com/voidcorp-core/void-harness/commit/32b4441c93a3c963a6ec6fb7d2d9a2ae4e4780b7))
+* **hooks:** name the doctrine a refusal comes from ([5a3aead](https://github.com/voidcorp-core/void-harness/commit/5a3aead78b5eb70e9229d4f10b448fd5348fa8ed))
+* **hooks:** signaler un silence, et dire ce qu'il couvre vraiment ([4c6976a](https://github.com/voidcorp-core/void-harness/commit/4c6976aa6e658f58777d06394503306597ee1a3a))
+* **scripts:** refuse a namespaced skill reference in a live surface ([7922549](https://github.com/voidcorp-core/void-harness/commit/792254981fe048afe3849c96f02618bf65a620ef))
+* **skills:** every gesture is a skill, so Codex and Kimi receive them too ([2fafc1a](https://github.com/voidcorp-core/void-harness/commit/2fafc1aa5f9f3926821330f7a154bc3f8f08a12c))
+* **skills:** merge, pour vider une file de PR sans casser le dépôt ([b3365ed](https://github.com/voidcorp-core/void-harness/commit/b3365ed01f30ee1d3ce0a924592da88a73bac4a2))
+* **skills:** merge, pour vider une file de PR sans casser le dépôt ([0fc1c40](https://github.com/voidcorp-core/void-harness/commit/0fc1c4084107c9c4ce00a956f29382c226fcd00b))
+
+
+### Bug Fixes
+
+* **ci:** make back-merge.yml parseable, and check that workflows parse ([ec57488](https://github.com/voidcorp-core/void-harness/commit/ec574885fba628a41174481cb6fa623ccd75f6a6))
+* **ci:** rendre back-merge.yml analysable, et vérifier que les workflows le sont ([153c4fd](https://github.com/voidcorp-core/void-harness/commit/153c4fd14f5652e92859fc1bb65ad5fdd8623983))
+* **cli:** un update finit ce qu'il peut, et le dit ([bda4265](https://github.com/voidcorp-core/void-harness/commit/bda426506da5f0cdabd3ea83924caebabb9e77f8))
+* **graph:** livrer un journal de démonstration, pas celui de la machine qui build ([b7d5109](https://github.com/voidcorp-core/void-harness/commit/b7d51096f9f02e24e8427ffbfa10240c8ad91b81))
+* **graph:** un artefact livré ne doit rien devoir à la machine qui l'a compilé ([cdba44e](https://github.com/voidcorp-core/void-harness/commit/cdba44e03916ed9ce21b6ecd735b87cfcbb8b0bb))
+* **hooks:** typer l'énumération des skills et tenir la surface du paquet ([e454097](https://github.com/voidcorp-core/void-harness/commit/e4540973ae996f4df5cdf50c9a07efed06299f43))
+* **skills:** cesser de prescrire le format de décision que le harnais a retiré ([d64114b](https://github.com/voidcorp-core/void-harness/commit/d64114bd3209fd359f732c2900125ab81e5652ea))
+* **skills:** cesser de prescrire le format de décision que le harnais a retiré ([6590090](https://github.com/voidcorp-core/void-harness/commit/6590090b705109ed6f50edc2209ddea513aee139))
+* **skills:** name the neighbouring skill, not its plugin invocation syntax ([e40d199](https://github.com/voidcorp-core/void-harness/commit/e40d199f7dffc7f47070219d0cff9cc4a9661ffb))
+* **skills:** ne parler d'un marketplace que si l'install en vient ([8d12dba](https://github.com/voidcorp-core/void-harness/commit/8d12dbae84cac17f23da144ffd3aa679eacfa68c))
+* **skills:** one slash command name, one owner ([829e0f5](https://github.com/voidcorp-core/void-harness/commit/829e0f5aae9336b295897d6ef3d2a4365093f32f))
+* **skills:** un nom de slash command, un seul propriétaire ([4421d00](https://github.com/voidcorp-core/void-harness/commit/4421d00d4386db48c4cc875e7bf83594bf6c77ac))
+* **specialists:** drop the MCP degradation, which the runtime never had ([cbeff28](https://github.com/voidcorp-core/void-harness/commit/cbeff28cb8da0e8bc97bcb60bec9de1b927949d4))
+* **specialists:** retirer la dégradation MCP, que le runtime n'a jamais eue ([49d378f](https://github.com/voidcorp-core/void-harness/commit/49d378f064743a5e8e77d5dd22791d8f8d637751))
+
+
+### Performance Improvements
+
+* **hooks:** lire le verdict au lieu de le calculer à chaque ouverture ([3725428](https://github.com/voidcorp-core/void-harness/commit/3725428e9457a3b31157e691d887aeee87905c76))
+
 ## [3.0.0](https://github.com/voidcorp-core/void-harness/compare/v2.7.0...v3.0.0) (2026-08-18)
 
 
