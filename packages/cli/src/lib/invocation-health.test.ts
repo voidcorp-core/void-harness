@@ -9,7 +9,7 @@ import { judgeInvocation, observeInvocation } from './invocation-health.js';
 // to tool calls is shown here and judged nowhere -- four observed values across
 // the whole corpus define no normal.
 const ALIVE = { ok: true, missions: 3, toolCalls: 1312, skillCalls: 8 } as const;
-const RESOLVES = { ok: true, unresolved: [] } as const;
+const RESOLVES = { ok: true, unresolved: [], retired: [] } as const;
 const roots: string[] = [];
 
 afterEach(() => {
@@ -21,7 +21,7 @@ describe('judgeInvocation', () => {
     // The remedy printed here has to be one that works. A renamed skill is not a
     // missing file, and `update` will never bring the old name back.
     const check = judgeInvocation({
-      resolution: { ok: false, unresolved: ['session-handoff', 'ticket-runner'] },
+      resolution: { ok: false, unresolved: ['session-handoff', 'ticket-runner'], retired: ['session-handoff', 'ticket-runner'] },
       liveness: ALIVE,
       installedSkills: 41,
     });
@@ -47,7 +47,7 @@ describe('judgeInvocation', () => {
 
   it('fails naming every skill that no longer resolves, not just the first', () => {
     const check = judgeInvocation({
-      resolution: { ok: false, unresolved: ['brainstorming', 'ticket-writer'] },
+      resolution: { ok: false, unresolved: ['brainstorming', 'ticket-writer'], retired: ['brainstorming', 'ticket-writer'] },
       liveness: ALIVE,
       installedSkills: 37,
     });
@@ -69,7 +69,7 @@ describe('judgeInvocation', () => {
 
   it('reports both failures at once rather than hiding the second behind the first', () => {
     const check = judgeInvocation({
-      resolution: { ok: false, unresolved: ['ticket-writer'] },
+      resolution: { ok: false, unresolved: ['ticket-writer'], retired: ['ticket-writer'] },
       liveness: { ok: false, missions: 3, toolCalls: 900, skillCalls: 0 },
       installedSkills: 37,
     });
@@ -109,5 +109,33 @@ describe('observeInvocation', () => {
     const observation = observeInvocation(root);
     expect(observation.installedSkills).toBe(1);
     expect(observation.resolution.unresolved).toEqual(['ticket-writer']);
+  });
+});
+
+// `doctor` reports the present. A rename that happened weeks ago and that nothing
+// calls any more is history: there is no action that clears it, so a red — or even
+// an advisory — is a verdict nobody can satisfy. It passes, and says so.
+describe('judgeInvocation, on a rename nothing calls any more', () => {
+  it('passes, and still names what was renamed', () => {
+    const check = judgeInvocation({
+      resolution: { ok: true, unresolved: [], retired: ['ticket-writer', 'session-handoff'] },
+      liveness: ALIVE,
+      installedSkills: 65,
+    });
+
+    expect(check.ok).toBe(true);
+    expect(check.status).toBe('pass');
+    expect(check.message).toContain('ticket-writer -> ticket');
+    expect(check.message).toContain('session-handoff -> checkpoint');
+  });
+
+  it('offers no remedy for something already resolved', () => {
+    const check = judgeInvocation({
+      resolution: { ok: true, unresolved: [], retired: ['ticket-writer'] },
+      liveness: ALIVE,
+      installedSkills: 65,
+    });
+
+    expect(check.fix).toBeUndefined();
   });
 });

@@ -1125,6 +1125,22 @@ function eachEvent(body, visit) {
   }
 }
 var LIVE_WINDOW_MS = 30 * 24 * 60 * 60 * 1e3;
+function newestMission(body, nowMs) {
+  let latest = "";
+  let mission = "";
+  eachEvent(body, (event) => {
+    if (event.kind !== "runtime.tool.started") return;
+    if (nowMs !== void 0) {
+      const at = Date.parse(event.ts);
+      if (!Number.isNaN(at) && at < nowMs - LIVE_WINDOW_MS) return;
+    }
+    if (event.ts > latest) {
+      latest = event.ts;
+      mission = event.missionId;
+    }
+  });
+  return mission;
+}
 function recordedSkillNames(body, nowMs) {
   const names = [];
   const floor = nowMs === void 0 ? void 0 : nowMs - LIVE_WINDOW_MS;
@@ -1135,7 +1151,7 @@ function recordedSkillNames(body, nowMs) {
       const at = Date.parse(event.ts);
       if (!Number.isNaN(at) && at < floor) return;
     }
-    names.push(bareName(event.subject.slice("skill:".length)));
+    names.push({ name: bareName(event.subject.slice("skill:".length)), missionId: event.missionId });
   });
   return names;
 }
@@ -1144,10 +1160,13 @@ function replacementFor(name) {
 }
 function resolutionVerdict(body, installed, options = {}) {
   const recorded = recordedSkillNames(body, options.nowMs);
+  const ours = (entry) => !installed.has(entry.name) && wasEverOurs(entry.name);
+  const retired = [...new Set(recorded.filter(ours).map((entry) => entry.name))].sort();
+  const newest = newestMission(body, options.nowMs);
   const unresolved = [
-    ...new Set(recorded.filter((name) => !installed.has(name) && wasEverOurs(name)))
+    ...new Set(recorded.filter((entry) => ours(entry) && entry.missionId === newest).map((entry) => entry.name))
   ].sort();
-  return { ok: unresolved.length === 0, unresolved };
+  return { ok: unresolved.length === 0, unresolved, retired };
 }
 function withSuccessor(name) {
   const replacement = replacementFor(name);
@@ -1162,7 +1181,7 @@ function invocationAlert(resolution, liveness) {
     const rest = resolution.unresolved.length - MAX_NAMED;
     const tail = rest > 0 ? `, and ${rest} more` : "";
     lines.push(
-      `  ${resolution.unresolved.length} recorded skill invocation(s) name a skill this project cannot resolve: ${named}${tail}`
+      `  ${resolution.unresolved.length} skill invocation(s) in this run name a skill that no longer exists: ${named}${tail}`
     );
   }
   if (!liveness.ok) {
