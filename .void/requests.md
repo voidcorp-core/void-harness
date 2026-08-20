@@ -34,6 +34,10 @@ contredit une ancienne — c'est le seul moment où l'arbitrage est possible.
 - [ ] **Budget de contexte au plafond fournisseur** — 41 descriptions core totalisent ~7 894
       caractères, contre une borne annoncée à 8 000 côté Codex. À mesurer contre la source
       officielle avant d'agir.
+- [ ] **Retirer « Wing Chun » du projet** — garder les préceptes, supprimer le nom. Présent dans
+      19 fichiers, dont `PHILOSOPHY.md` (titre de section « Wing Chun / economy of means »), le
+      `README`, les skills `hexagonal-architecture` et `domain-driven-design`, et leurs copies
+      compilées. Un test (`test/sync-philosophy/`) en dépend peut-être.
 - [ ] **Formaliser cette file** pour tous les consommateurs — ce fichier existe ici et à la main.
       → DEV-652
 
