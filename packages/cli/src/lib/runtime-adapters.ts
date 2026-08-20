@@ -22,8 +22,9 @@
 // runtime-agnostic (stack detection, .void/config.json, PHILOSOPHY /
 // PROJECT-DOCTRINE, pack selection) stays in the commands.
 
+import type { Dirent } from 'node:fs';
 import { existsSync } from 'node:fs';
-import { lstat, readFile } from 'node:fs/promises';
+import { lstat, readdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { voidReadPath } from '@voidcorp/hook-runner';
@@ -138,6 +139,30 @@ async function safeRegularFile(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * True when at least one harness skill is materialized under `<root>`, proven by
+ * a readable `SKILL.md` inside a `void-`prefixed directory.
+ *
+ * Deliberately NOT a named sentinel. This probed the `tdd` skill directory by
+ * name until the `void-` prefix landed on every shipped skill, at which point it missed,
+ * the local install read as absent, and `init` failed on a stage that was in fact
+ * complete. The prefix is the durable invariant (CLAUDE.md rule 8, enforced by
+ * `scripts/anti-bloat-check.sh`); a single skill name is not.
+ */
+async function anyStagedSkill(root: string): Promise<boolean> {
+  let entries: Dirent[] = [];
+  try {
+    entries = await readdir(root, { withFileTypes: true });
+  } catch {
+    return false;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !entry.name.startsWith('void-')) continue;
+    if (await safeRegularFile(join(root, entry.name, 'SKILL.md'))) return true;
+  }
+  return false;
 }
 
 function effectiveSpecialistCapability(
@@ -351,12 +376,11 @@ const claudeAdapter: RuntimeAdapter = {
     let activationHook: string | undefined;
     let agentsRoot: string | undefined;
     const localRunner = join(projectRoot, '.void', 'hooks', '_void-hook.mjs');
-    const localSkill = join(projectRoot, '.claude', 'skills', 'tdd', 'SKILL.md');
     const localAgent = join(projectRoot, '.claude', 'agents', 'doctrine-critic.md');
     if (
       localSettings
       && await safeRegularFile(localRunner)
-      && await safeRegularFile(localSkill)
+      && await anyStagedSkill(join(projectRoot, '.claude', 'skills'))
       && await safeRegularFile(localAgent)
     ) {
       installed = true;

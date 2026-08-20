@@ -1,3 +1,4 @@
+import type { Dirent } from 'node:fs';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,7 +21,7 @@ function shippedSkills(): ReadonlySet<string> {
   }
   const names = new Set<string>();
   for (const root of roots) {
-    let entries;
+    let entries: Dirent[] = [];
     try {
       entries = readdirSync(root, { withFileTypes: true });
     } catch {

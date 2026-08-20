@@ -83,11 +83,11 @@ for (const runtime of ['claude', 'codex', 'both']) {
   requirePath(join(fixture, '.void', 'machine', 'receipts', 'install-v1.json'), `${runtime} receipt`);
   requirePath(join(fixture, '.void', 'hooks', '_void-hook.mjs'), `${runtime} hook runner`);
   if (runtime !== 'codex') {
-    requirePath(join(fixture, '.claude', 'skills', 'tdd', 'SKILL.md'), `${runtime} Claude skill`);
+    requirePath(join(fixture, '.claude', 'skills', 'void-tdd', 'SKILL.md'), `${runtime} Claude skill`);
     requirePath(join(fixture, '.claude', 'agents', 'doctrine-critic.md'), `${runtime} Claude agent`);
   }
   if (runtime !== 'claude') {
-    requirePath(join(fixture, '.agents', 'skills', 'tdd', 'SKILL.md'), `${runtime} Codex skill`);
+    requirePath(join(fixture, '.agents', 'skills', 'void-tdd', 'SKILL.md'), `${runtime} Codex skill`);
     requirePath(join(fixture, '.codex', 'hooks.json'), `${runtime} Codex hooks`);
   }
 

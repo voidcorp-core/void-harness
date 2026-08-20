@@ -105,26 +105,27 @@ try {
 
     // The skill and its adapter, in the directory this runtime actually reads.
     const home = runtime === 'codex' ? '.agents' : '.claude';
-    requirePath(join(fixture, home, 'skills', 'autopilot', 'SKILL.md'), `${runtime} autopilot skill`);
+    requirePath(join(fixture, home, 'skills', 'void-autopilot', 'SKILL.md'), `${runtime} autopilot skill`);
     requirePath(
-      join(fixture, home, 'skills', 'autopilot', 'workflows', 'autopilot.workflow.js'),
+      join(fixture, home, 'skills', 'void-autopilot', 'workflows', 'autopilot.workflow.js'),
       `${runtime} autopilot workflow`,
     );
-    if (runtime === 'claude') {
-      requirePath(join(fixture, '.claude', 'commands', 'autopilot.md'), 'Claude autopilot command');
-    }
+    // No `.claude/commands/` assertion. Claude Code merged custom commands into
+    // skills, and the install stopped writing that directory at all — a command
+    // file was Claude-only while the harness targets three runtimes.
 
     // The retired surface must be gone from the shipped assets too, not only
     // from the source tree — a stale bundled asset is the failure mode a green
     // source suite cannot see.
     for (const stale of [
       join(fixture, home, 'skills', 'backlog-autopilot'),
-      join(fixture, '.claude', 'commands', 'backlog-autopilot.md'),
+      join(fixture, home, 'skills', 'autopilot'),
+      join(fixture, '.claude', 'commands'),
     ]) {
       if (existsSync(stale)) fail(`the installed tree still ships the retired surface (${stale})`);
     }
 
-    const skill = await readFile(join(fixture, home, 'skills', 'autopilot', 'SKILL.md'), 'utf8');
+    const skill = await readFile(join(fixture, home, 'skills', 'void-autopilot', 'SKILL.md'), 'utf8');
     if (/packages\/core|packages\/cli/.test(skill)) {
       fail(`${runtime} skill references a monorepo path, so it was not written for a consumer`);
     }

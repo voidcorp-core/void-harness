@@ -72,7 +72,7 @@ describe('wireClaudeLocalAssets', () => {
     // The installed skill carries only the spec's fields; `runtimes` is harness
     // metadata and stays in the source tree with `.source`.
     const installed = readFileSync(join(root, '.claude/skills/void-tdd/SKILL.md'), 'utf8');
-    expect(installed).toContain('name: tdd');
+    expect(installed).toContain('name: void-tdd');
     expect(installed).not.toContain('runtimes:');
     expect(existsSync(join(root, '.claude/skills/void-tdd/harness.yaml'))).toBe(false);
   });

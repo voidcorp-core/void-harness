@@ -1,4 +1,4 @@
-# Skill audit — `checkpoint`
+# Skill audit — `void-checkpoint`
 
 > Renamed from `session-handoff` on 2026-08-18: the skill and the file it writes
 > now carry the same word, so the link needs no documentation.
@@ -26,7 +26,7 @@ lives somewhere authoritative. Two copies of a fact means one is wrong within a 
 reader cannot tell which.
 
 So Step 0 is a routing table, not a template. Execution state goes to the tracker; what the code
-does is in the diff; durable rules go to doctrine through `learn`; cross-session
+does is in the diff; durable rules go to doctrine through `void-learn`; cross-session
 facts go to memory; a decision with a credible alternative becomes an ADR. What survives that
 filter is the handoff's real content — dead ends, labelled assumptions, proof freshness, one
 exact next action — and that residue is short.
@@ -42,7 +42,7 @@ ticket". The skill applies the same discipline to everything a session is tempte
   authoritative; a restore file would duplicate them and would be trusted while stale. Only the
   closing half is kept.
 
-- **An automatic hook on session end.** Tempting, and refused for the reason `learn`
+- **An automatic hook on session end.** Tempting, and refused for the reason `void-learn`
   already documented for its own Stop nudge: a stop event cannot distinguish an interruption
   from a context limit from a completed turn. A handoff written on a false positive is
   authoritative and describes a moment nobody chose, which is worse than no handoff. The trigger
@@ -72,15 +72,15 @@ ticket". The skill applies the same discipline to everything a session is tempte
   "can a stranger take the next action without asking a question?" and "would someone reading
   only this repeat one of your dead ends?". A checklist that cannot fail is decoration.
 
-## Boundary with `learn`
+## Boundary with `void-learn`
 
-`learn` extracts what outlives the unit of work: a rule, a preference, a harness gap.
-`checkpoint` handles what does not outlive it but is still needed tomorrow morning. They
+`void-learn` extracts what outlives the unit of work: a rule, a preference, a harness gap.
+`void-checkpoint` handles what does not outlive it but is still needed tomorrow morning. They
 compose in one direction: capture the durable lesson first, then hand off the residue. A lesson
 left in a handoff is a lesson the next session must re-read forever.
 
-## Boundary with `retrospective`
+## Boundary with `void-retrospective`
 
-`retrospective` looks back across a window of work to change how the team operates.
-`session-handoff` looks forward across a single boundary to let one unit continue. Different
+`void-retrospective` looks back across a window of work to change how the team operates.
+`void-checkpoint` looks forward across a single boundary to let one unit continue. Different
 horizon, different reader, different output — no overlap to police.

@@ -51,13 +51,13 @@ describe('enforce', () => {
     const { code, stderr } = enforce('no-any', write('src/x.ts', 'const a: any = 1;'));
     expect(code).toBe(2);
     expect(stderr).toContain('TYPESCRIPT_ANY:');
-    expect(stderr).toContain('(doctrine: the typescript-strict skill)');
+    expect(stderr).toContain('(doctrine: the void-typescript-strict skill)');
   });
 
   it('keeps the evidence under the named doctrine rather than inside the sentence', () => {
     const { stderr } = enforce('no-console', write('src/x.ts', 'console.log("x");'));
     const [first] = stderr.split('\n');
-    expect(first).toMatch(/\(doctrine: the observability skill\)$/);
+    expect(first).toMatch(/\(doctrine: the void-observability skill\)$/);
     expect(stderr).toContain('\n- console.* in src/x.ts:1');
   });
 
@@ -86,7 +86,7 @@ describe('enforce', () => {
 
 describe('lifecycle context', () => {
   function banner(root: string): string {
-    const result = spawnSync(process.execPath, [hook, 'lifecycle', 'void-context', 'claude'], {
+    const result = spawnSync(process.execPath, [hook, 'lifecycle', 'context', 'claude'], {
       input: '{}',
       encoding: 'utf8',
       env: { ...process.env, VOID_PROJECT_ROOT: root },
