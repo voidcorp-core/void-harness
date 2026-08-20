@@ -17,11 +17,11 @@ import { describe, expect, it } from 'vitest';
 import { buildOrchestrationPlan } from '../../packages/cli/src/lib/autopilot/orchestration-plan.js';
 
 const WORKFLOW = readFileSync(
-  new URL('../../packages/core/skills/autopilot/workflows/autopilot.workflow.js', import.meta.url),
+  new URL('../../packages/core/skills/void-autopilot/workflows/autopilot.workflow.js', import.meta.url),
   'utf8',
 );
 const CODEX = readFileSync(
-  new URL('../../packages/core/skills/autopilot/references/codex-subagents.md', import.meta.url),
+  new URL('../../packages/core/skills/void-autopilot/references/codex-subagents.md', import.meta.url),
   'utf8',
 );
 

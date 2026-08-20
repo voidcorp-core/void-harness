@@ -86,7 +86,7 @@ describe('enforce', () => {
 
 describe('lifecycle context', () => {
   function banner(root: string): string {
-    const result = spawnSync(process.execPath, [hook, 'lifecycle', 'context', 'claude'], {
+    const result = spawnSync(process.execPath, [hook, 'lifecycle', 'void-context', 'claude'], {
       input: '{}',
       encoding: 'utf8',
       env: { ...process.env, VOID_PROJECT_ROOT: root },
@@ -113,7 +113,7 @@ describe('lifecycle context', () => {
   }
 
   it('names a skill the project recorded but can no longer resolve, from the session after', () => {
-    const root = projectWith('ticket', 'ticket-writer');
+    const root = projectWith('void-ticket', 'ticket-writer');
     try {
       // The first opening computes the verdict after its own stdout, so it is
       // the next one that carries it. One session of delay costs nothing here,
@@ -126,7 +126,7 @@ describe('lifecycle context', () => {
   });
 
   it('says nothing extra when every recorded name still resolves', () => {
-    const root = projectWith('ticket', 'ticket');
+    const root = projectWith('void-ticket', 'void-ticket');
     try {
       banner(root);
       expect(banner(root)).not.toContain('cannot resolve');

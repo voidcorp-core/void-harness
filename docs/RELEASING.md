@@ -93,7 +93,7 @@ That pull request merges itself once the required checks pass. It is the one
 place auto-merge is allowed, and the reason is a property of its content rather
 than a relaxation: it carries the release output a human approved minutes
 earlier, so a second reading is ceremony. Anything carrying an unread diff still
-stops at a human, which is why `autopilot` refuses `--auto-merge` and this does
+stops at a human, which is why `void-autopilot` refuses `--auto-merge` and this does
 not. Native auto-merge is used, so protection and the required checks stand; a
 failing check simply leaves it open. It opens rather than pushes: `develop` is
 protected with `enforce_admins`, and a branch only a robot may bypass is not

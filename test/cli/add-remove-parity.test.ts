@@ -57,7 +57,7 @@ describe('add / remove refresh existing docs per-runtime', () => {
   it('materializes and removes only receipt-owned local pack assets', async () => {
     await init(['--runtime', 'claude', '--no-interactive']);
     await add(['harness-nextjs']);
-    const packSkill = join(dir, '.claude', 'skills', 'cache-component-pattern', 'SKILL.md');
+    const packSkill = join(dir, '.claude', 'skills', 'void-cache-component-pattern', 'SKILL.md');
     const adjacent = join(dir, '.claude', 'skills', 'private', 'SKILL.md');
     expect(existsSync(packSkill)).toBe(true);
     mkdirSync(join(dir, '.claude', 'skills', 'private'), { recursive: true });

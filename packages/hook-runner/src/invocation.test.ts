@@ -57,12 +57,12 @@ afterEach(() => {
 
 describe('installedSkillNames', () => {
   it('reads both runtimes, since a project can carry either or both', () => {
-    const names = installedSkillNames(project(['tdd'], ['verify']));
-    expect([...names].sort()).toEqual(['tdd', 'verify']);
+    const names = installedSkillNames(project(['void-tdd'], ['void-verify']));
+    expect([...names].sort()).toEqual(['void-tdd', 'void-verify']);
   });
 
   it('counts a skill directory only when it actually holds a SKILL.md', () => {
-    const root = project(['tdd']);
+    const root = project(['void-tdd']);
     mkdirSync(join(root, '.claude', 'skills', 'empty'), { recursive: true });
     expect(installedSkillNames(root).has('empty')).toBe(false);
   });
@@ -79,24 +79,24 @@ describe('resolutionVerdict judges the present, not the history', () => {
   // red verdict everybody learns to skip past — the same defect DEV-644 closed,
   // wearing a different coat.
   const old = `${activation('ticket-writer', '2026-07-01T10:00:00.000Z', 'mis_old')}`;
-  const recent = `${activation('tdd', '2026-08-19T10:00:00.000Z', 'mis_now')}`;
+  const recent = `${activation('void-tdd', '2026-08-19T10:00:00.000Z', 'mis_now')}`;
 
   it('passes when the newest run calls nothing retired', () => {
-    const verdict = resolutionVerdict(`${old}\n${recent}`, new Set(['tdd', 'ticket']));
+    const verdict = resolutionVerdict(`${old}\n${recent}`, new Set(['void-tdd', 'void-ticket']));
 
     expect(verdict.ok).toBe(true);
     expect(verdict.unresolved).toEqual([]);
   });
 
   it('still remembers the rename, so the message can say so', () => {
-    const verdict = resolutionVerdict(`${old}\n${recent}`, new Set(['tdd', 'ticket']));
+    const verdict = resolutionVerdict(`${old}\n${recent}`, new Set(['void-tdd', 'void-ticket']));
 
     expect(verdict.retired).toEqual(['ticket-writer']);
   });
 
   it('fails when the newest run is the one calling a retired name', () => {
     const calling = activation('ticket-writer', '2026-08-19T11:00:00.000Z', 'mis_now');
-    const verdict = resolutionVerdict(`${old}\n${recent}\n${calling}`, new Set(['tdd', 'ticket']));
+    const verdict = resolutionVerdict(`${old}\n${recent}\n${calling}`, new Set(['void-tdd', 'void-ticket']));
 
     expect(verdict.ok).toBe(false);
     expect(verdict.unresolved).toEqual(['ticket-writer']);
@@ -111,31 +111,31 @@ describe('resolutionVerdict, on names the harness never shipped', () => {
     // verdict everybody learns to skip past.
     const body = `${activation('defuddle')}\n${activation('artifact-capabilities')}`;
 
-    expect(resolutionVerdict(body, new Set(['tdd'])).unresolved).toEqual([]);
+    expect(resolutionVerdict(body, new Set(['void-tdd'])).unresolved).toEqual([]);
   });
 
   it('still names a skill the harness itself retired', () => {
     const body = `${activation('session-handoff')}\n${activation('defuddle')}`;
 
-    expect(resolutionVerdict(body, new Set(['checkpoint'])).unresolved).toEqual(['session-handoff']);
+    expect(resolutionVerdict(body, new Set(['void-checkpoint'])).unresolved).toEqual(['session-handoff']);
   });
 
   it('says what took a retired name over, since that is the actual remedy', () => {
-    expect(replacementFor('session-handoff')).toBe('checkpoint');
-    expect(replacementFor('ticket-runner')).toBe('implement');
-    expect(replacementFor('tdd')).toBeUndefined();
+    expect(replacementFor('session-handoff')).toBe('void-checkpoint');
+    expect(replacementFor('ticket-runner')).toBe('void-implement');
+    expect(replacementFor('void-tdd')).toBeUndefined();
   });
 });
 
 describe('resolutionVerdict', () => {
   it('passes when every recorded activation names an installed skill', () => {
-    const verdict = resolutionVerdict(`${activation('tdd')}\n${activation('verify')}`, new Set(['tdd', 'verify']));
+    const verdict = resolutionVerdict(`${activation('void-tdd')}\n${activation('void-verify')}`, new Set(['void-tdd', 'void-verify']));
     expect(verdict.ok).toBe(true);
     expect(verdict.unresolved).toEqual([]);
   });
 
   it('names the recorded skill that no longer exists', () => {
-    const verdict = resolutionVerdict(activation('ticket-writer'), new Set(['ticket']));
+    const verdict = resolutionVerdict(activation('ticket-writer'), new Set(['void-ticket']));
     expect(verdict.ok).toBe(false);
     expect(verdict.unresolved).toEqual(['ticket-writer']);
   });
@@ -150,8 +150,8 @@ describe('resolutionVerdict', () => {
   });
 
   it('survives a truncated or unreadable line rather than failing the session', () => {
-    const body = `{"kind":"runtime.tool.st\n${activation('tdd')}\nnot json at all`;
-    expect(resolutionVerdict(body, new Set(['tdd'])).ok).toBe(true);
+    const body = `{"kind":"runtime.tool.st\n${activation('void-tdd')}\nnot json at all`;
+    expect(resolutionVerdict(body, new Set(['void-tdd'])).ok).toBe(true);
   });
 
   it('passes on an empty journal: nothing recorded proves nothing broken', () => {
@@ -165,19 +165,19 @@ describe('resolutionVerdict', () => {
   // out by itself once nothing invokes the retired name any more.
   it('ignores an activation older than the window, so a fixed rename stops shouting', () => {
     const old = activation('ticket-writer', '2026-06-01T10:00:00.000Z');
-    const verdict = resolutionVerdict(old, new Set(['ticket']), { nowMs: Date.parse('2026-08-19T10:00:00.000Z') });
+    const verdict = resolutionVerdict(old, new Set(['void-ticket']), { nowMs: Date.parse('2026-08-19T10:00:00.000Z') });
     expect(verdict.ok).toBe(true);
   });
 
   it('still fails on a recent activation of the retired name, which is the live defect', () => {
     const recent = activation('ticket-writer', '2026-08-18T10:00:00.000Z');
-    const verdict = resolutionVerdict(recent, new Set(['ticket']), { nowMs: Date.parse('2026-08-19T10:00:00.000Z') });
+    const verdict = resolutionVerdict(recent, new Set(['void-ticket']), { nowMs: Date.parse('2026-08-19T10:00:00.000Z') });
     expect(verdict.unresolved).toEqual(['ticket-writer']);
   });
 
   it('judges the whole journal when no window is given, which is what doctor wants', () => {
     const old = activation('ticket-writer', '2026-01-01T10:00:00.000Z');
-    expect(resolutionVerdict(old, new Set(['ticket'])).unresolved).toEqual(['ticket-writer']);
+    expect(resolutionVerdict(old, new Set(['void-ticket'])).unresolved).toEqual(['ticket-writer']);
   });
 
   it('keeps an activation whose timestamp is unreadable rather than silently dropping it', () => {
@@ -187,12 +187,12 @@ describe('resolutionVerdict', () => {
       ts: 'pas une date',
       payload: { category: 'skill', tool: 'Skill' },
     });
-    const verdict = resolutionVerdict(broken, new Set(['ticket']), { nowMs: Date.parse('2026-08-19T10:00:00.000Z') });
+    const verdict = resolutionVerdict(broken, new Set(['void-ticket']), { nowMs: Date.parse('2026-08-19T10:00:00.000Z') });
     expect(verdict.unresolved).toEqual(['ticket-writer']);
   });
 
   it('reads through a namespaced subject, which is how the defect was recorded', () => {
-    expect(resolutionVerdict(activation('harness:tdd'), new Set(['tdd'])).ok).toBe(true);
+    expect(resolutionVerdict(activation('harness:void-tdd'), new Set(['void-tdd'])).ok).toBe(true);
   });
 });
 
@@ -237,7 +237,7 @@ describe('invocationAlert', () => {
     const alert = invocationAlert({ ok: false, unresolved: ['session-handoff'], retired: ['session-handoff'] }, ALIVE) ?? '';
 
     expect(alert).toContain('session-handoff');
-    expect(alert).toContain('checkpoint');
+    expect(alert).toContain('void-checkpoint');
   });
 
   it('stays bounded however many names there are, since it is read at a session opening', () => {
@@ -260,7 +260,7 @@ function event(mission: string, kind: string, category: string, ts: string): str
   return JSON.stringify({
     kind,
     missionId: mission,
-    subject: category === 'skill' ? 'skill:tdd' : 'tool:Bash',
+    subject: category === 'skill' ? 'skill:void-tdd' : 'tool:Bash',
     ts,
     payload: { category, tool: category === 'skill' ? 'Skill' : 'Bash' },
   });
@@ -352,25 +352,25 @@ describe('the cached verdict', () => {
   });
 
   it('returns what the last refresh found, without reading the journals again', () => {
-    const root = project(['ticket']);
+    const root = project(['void-ticket']);
     recorded(root, 'ticket-writer');
     refreshInvocationVerdict(root);
     expect(cachedInvocationAlert(root)).toContain('ticket-writer');
   });
 
   it('caches the silence too, so a healthy project keeps recomputing nothing', () => {
-    const root = project(['ticket']);
-    recorded(root, 'ticket');
+    const root = project(['void-ticket']);
+    recorded(root, 'void-ticket');
     refreshInvocationVerdict(root);
     expect(cachedInvocationAlert(root)).toBeUndefined();
   });
 
   it('clears a stale alert once the project is fixed', () => {
-    const root = project(['ticket']);
+    const root = project(['void-ticket']);
     recorded(root, 'ticket-writer');
     refreshInvocationVerdict(root);
     expect(cachedInvocationAlert(root)).toBeDefined();
-    recorded(root, 'ticket');
+    recorded(root, 'void-ticket');
     refreshInvocationVerdict(root);
     expect(cachedInvocationAlert(root)).toBeUndefined();
   });

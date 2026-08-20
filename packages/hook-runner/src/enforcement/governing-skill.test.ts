@@ -40,15 +40,15 @@ describe('governingSkill', () => {
   });
 
   it('sends the two type rules to the same doctrine', () => {
-    expect(governingSkill('no-any')).toBe('typescript-strict');
-    expect(governingSkill('no-as-cast')).toBe('typescript-strict');
+    expect(governingSkill('no-any')).toBe('void-typescript-strict');
+    expect(governingSkill('no-as-cast')).toBe('void-typescript-strict');
   });
 });
 
 describe('withGoverningSkill', () => {
   it('appends the doctrine as one clause, keeping the refusal readable at a blocked keystroke', () => {
     expect(withGoverningSkill('tdd-order', 'production edit requires a test')).toBe(
-      'production edit requires a test (doctrine: the tdd skill)',
+      'production edit requires a test (doctrine: the void-tdd skill)',
     );
   });
 

@@ -20,18 +20,18 @@ import type { RuleName } from './runner.js';
  * the compiled hook, and a test holds the two together so they cannot drift.
  */
 const GOVERNING_SKILL = {
-  'boundary-direction': 'hexagonal-architecture',
-  'dangerous-command': 'security-guidance',
-  'design-slop': 'frontend-design',
-  'no-any': 'typescript-strict',
-  'no-as-cast': 'typescript-strict',
-  'no-console': 'observability',
-  'no-focused-test': 'testing',
-  'no-null': 'functional',
-  'protected-file': 'security-guidance',
-  'secret-content': 'security-guidance',
-  'tdd-order': 'tdd',
-  'test-name': 'testing',
+  'boundary-direction': 'void-hexagonal-architecture',
+  'dangerous-command': 'void-security-guidance',
+  'design-slop': 'void-frontend-design',
+  'no-any': 'void-typescript-strict',
+  'no-as-cast': 'void-typescript-strict',
+  'no-console': 'void-observability',
+  'no-focused-test': 'void-testing',
+  'no-null': 'void-functional',
+  'protected-file': 'void-security-guidance',
+  'secret-content': 'void-security-guidance',
+  'tdd-order': 'void-tdd',
+  'test-name': 'void-testing',
 } satisfies Record<RuleName, string>;
 
 /**

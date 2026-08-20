@@ -13,7 +13,7 @@ import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 
 const SOURCE = readFileSync(
-  new URL('../../packages/core/skills/autopilot/workflows/autopilot.workflow.js', import.meta.url),
+  new URL('../../packages/core/skills/void-autopilot/workflows/autopilot.workflow.js', import.meta.url),
   'utf8',
 );
 
@@ -45,7 +45,7 @@ function plan(over: Record<string, unknown> = {}) {
     base: { branch: 'main', sha: SHA },
     concurrency: 2,
     assignments: [assignment('DEV-1', 'parallel', 0), assignment('DEV-2', 'parallel', 1)],
-    ticketRunnerSkill: 'implement',
+    ticketRunnerSkill: 'void-implement',
     planPath: 'plans/p.md',
     specPath: 'docs/specs/s.md',
     workerMayPush: false,
@@ -174,7 +174,7 @@ describe('autopilot workflow', () => {
   it('delegates to implement rather than describing a cycle of its own', async () => {
     const { calls } = await runWorkflow(plan());
 
-    expect(calls[0]?.prompt).toContain('implement');
+    expect(calls[0]?.prompt).toContain('void-implement');
     expect(calls[0]?.prompt).toMatch(/whole and once/);
   });
 

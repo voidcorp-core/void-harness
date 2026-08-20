@@ -28,7 +28,7 @@
       "name": "code-explorer",
       "pack": null,
       "source": "packages/core/agents/code-explorer.md",
-      "staticTokens": 1017,
+      "staticTokens": 1019,
       "type": "agent"
     },
     {
@@ -52,13 +52,13 @@
       "type": "agent"
     },
     {
-      "description": "Judges a diff against VoidCorp doctrine that hooks/reviewers miss: weak tests, over-abstraction, broken boundaries, anti-bloat. Read-only; routes security to security-audit, bugs to /code-review.",
+      "description": "Judges a diff against VoidCorp doctrine that hooks/reviewers miss: weak tests, over-abstraction, broken boundaries, anti-bloat. Read-only; routes security to security-audit, bugs to /void-code-review.",
       "id": "agent:doctrine-critic",
       "lines": 90,
       "name": "doctrine-critic",
       "pack": null,
       "source": "packages/core/agents/doctrine-critic.md",
-      "staticTokens": 1082,
+      "staticTokens": 1092,
       "type": "agent"
     },
     {
@@ -108,7 +108,7 @@
       "name": "migration-planner",
       "pack": null,
       "source": "packages/core/agents/migration-planner.md",
-      "staticTokens": 1140,
+      "staticTokens": 1151,
       "type": "agent"
     },
     {
@@ -162,13 +162,13 @@
       "type": "agent"
     },
     {
-      "description": "Read-only hunter for silent failures only — empty catches, swallowed errors, un-awaited promises, ignored return codes, .catch(()=>{}). Not a general review. Routes bugs to /code-review.",
+      "description": "Read-only hunter for silent failures only — empty catches, swallowed errors, un-awaited promises, ignored return codes, .catch(()=>{}). Not a general review. Routes bugs to /void-code-review.",
       "id": "agent:silent-failure-hunter",
       "lines": 95,
       "name": "silent-failure-hunter",
       "pack": null,
       "source": "packages/core/agents/silent-failure-hunter.md",
-      "staticTokens": 1161,
+      "staticTokens": 1172,
       "type": "agent"
     },
     {
@@ -192,13 +192,13 @@
       "type": "agent"
     },
     {
-      "description": "Read-only judge of TYPE DESIGN only — illegal states representable, primitive obsession, missing discriminated unions, leaky boundary types. Not a general review. Routes bugs to /code-review.",
+      "description": "Read-only judge of TYPE DESIGN only — illegal states representable, primitive obsession, missing discriminated unions, leaky boundary types. Not a general review. Routes bugs to /void-code-review.",
       "id": "agent:type-design-analyzer",
       "lines": 94,
       "name": "type-design-analyzer",
       "pack": null,
       "source": "packages/core/agents/type-design-analyzer.md",
-      "staticTokens": 1174,
+      "staticTokens": 1186,
       "type": "agent"
     },
     {
@@ -672,6 +672,846 @@
       "type": "profile"
     },
     {
+      "description": "Configure eas.json profiles (development, preview, production) with the right env, bundle ID, signing, distribution. The 3-profile structure that fits 95% of Expo apps.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-mobile/void-eas-build-profile",
+      "lines": 165,
+      "name": "void-eas-build-profile",
+      "owner": "folpe",
+      "pack": "pack-mobile",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-mobile/skills/void-eas-build-profile/SKILL.md",
+      "staticTokens": 1465,
+      "type": "skill"
+    },
+    {
+      "description": "Add native functionality to an Expo app via config plugins, never by ejecting. Pick existing Expo modules first, write a custom plugin only when none fits. Document everything in app.config.ts.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-mobile/void-expo-config-plugins",
+      "lines": 179,
+      "name": "void-expo-config-plugins",
+      "owner": "folpe",
+      "pack": "pack-mobile",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-mobile/skills/void-expo-config-plugins/SKILL.md",
+      "staticTokens": 1561,
+      "type": "skill"
+    },
+    {
+      "description": "File-based routing in Expo via expo-router — layouts, tabs, modals, deep links. Mirrors Next.js App Router so monorepos can share mental model. Stack-aware navigation patterns.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-mobile/void-expo-router-pattern",
+      "lines": 210,
+      "name": "void-expo-router-pattern",
+      "owner": "folpe",
+      "pack": "pack-mobile",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-mobile/skills/void-expo-router-pattern/SKILL.md",
+      "staticTokens": 1608,
+      "type": "skill"
+    },
+    {
+      "description": "Ship JS-only fixes via EAS Update; full rebuild via EAS Build. Runtime versions, channels, rollback. The \"when can I OTA vs when do I rebuild\" decision.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-mobile/void-ota-update-strategy",
+      "lines": 195,
+      "name": "void-ota-update-strategy",
+      "owner": "folpe",
+      "pack": "pack-mobile",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-mobile/skills/void-ota-update-strategy/SKILL.md",
+      "staticTokens": 1748,
+      "type": "skill"
+    },
+    {
+      "description": "Enforce the @repo/* import direction in a Turborepo workspace. Concrete violations + fixes. Composes with core:hexagonal-architecture and the boundary-direction-check hook.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-monorepo/void-dependency-direction",
+      "lines": 161,
+      "name": "void-dependency-direction",
+      "owner": "folpe",
+      "pack": "pack-monorepo",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-monorepo/skills/void-dependency-direction/SKILL.md",
+      "staticTokens": 1417,
+      "type": "skill"
+    },
+    {
+      "description": "Decide whether code in apps/<app>/ should be extracted into a new packages/<name>/ workspace. Most extractions are premature; this skill is the decision gate.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-monorepo/void-package-extraction",
+      "lines": 71,
+      "name": "void-package-extraction",
+      "owner": "folpe",
+      "pack": "pack-monorepo",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-monorepo/skills/void-package-extraction/SKILL.md",
+      "staticTokens": 1057,
+      "type": "skill"
+    },
+    {
+      "description": "Create or extend a packages/<name>/ service in a harness-monorepo workspace: the 5+5 file layout, @repo/* boundaries, ports-and-adapters direction. Composes with hexagonal-architecture, DDD.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-monorepo/void-service-package",
+      "lines": 123,
+      "name": "void-service-package",
+      "owner": "folpe",
+      "pack": "pack-monorepo",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-monorepo/skills/void-service-package/SKILL.md",
+      "staticTokens": 1472,
+      "type": "skill"
+    },
+    {
+      "description": "Configure turbo.json tasks correctly — dependsOn, outputs, cache keys, persistent tasks, remote cache. Get build speed right without over-engineering.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-monorepo/void-turbo-pipeline-tuning",
+      "lines": 117,
+      "name": "void-turbo-pipeline-tuning",
+      "owner": "folpe",
+      "pack": "pack-monorepo",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-monorepo/skills/void-turbo-pipeline-tuning/SKILL.md",
+      "staticTokens": 1290,
+      "type": "skill"
+    },
+    {
+      "description": "Use Next.js 16 Cache Components correctly — when to opt in ('use cache'), when to opt out ('use no cache'), cache key strategy, scoping by user/org. Default is cached; uncache deliberately.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-nextjs/void-cache-component-pattern",
+      "lines": 163,
+      "name": "void-cache-component-pattern",
+      "owner": "folpe",
+      "pack": "pack-nextjs",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-nextjs/skills/void-cache-component-pattern/SKILL.md",
+      "staticTokens": 1720,
+      "type": "skill"
+    },
+    {
+      "description": "Wire instrumentation.ts in Next.js 16 — Sentry, pino logger, OpenTelemetry traces. Edge vs Node runtime split. The single place observability is bootstrapped.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-nextjs/void-instrumentation-setup",
+      "lines": 162,
+      "name": "void-instrumentation-setup",
+      "owner": "folpe",
+      "pack": "pack-nextjs",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-nextjs/skills/void-instrumentation-setup/SKILL.md",
+      "staticTokens": 1397,
+      "type": "skill"
+    },
+    {
+      "description": "Place loading.tsx, error.tsx, not-found.tsx files at the right level — neither too high (poor UX) nor too low (unhandled errors). The skeleton matches the layout it replaces.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-nextjs/void-loading-error-boundaries",
+      "lines": 177,
+      "name": "void-loading-error-boundaries",
+      "owner": "folpe",
+      "pack": "pack-nextjs",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-nextjs/skills/void-loading-error-boundaries/SKILL.md",
+      "staticTokens": 1663,
+      "type": "skill"
+    },
+    {
+      "description": "Use Next.js parallel routes (@slot) and intercepting routes ((.)foo) — when they're the right tool, when they're an anti-pattern. The \"modal that's also a deep-linkable page\" archetype.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-nextjs/void-parallel-routes-slots",
+      "lines": 130,
+      "name": "void-parallel-routes-slots",
+      "owner": "folpe",
+      "pack": "pack-nextjs",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-nextjs/skills/void-parallel-routes-slots/SKILL.md",
+      "staticTokens": 1314,
+      "type": "skill"
+    },
+    {
+      "description": "Decide when to use a (route-group), what to name it, and how to share layouts. The void-harness convention groups by trust boundary, not by visual section.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-nextjs/void-route-group-decision",
+      "lines": 108,
+      "name": "void-route-group-decision",
+      "owner": "folpe",
+      "pack": "pack-nextjs",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-nextjs/skills/void-route-group-decision/SKILL.md",
+      "staticTokens": 1280,
+      "type": "skill"
+    },
+    {
+      "description": "Surface the PWA install prompt at the right moment (engagement signal) with the right UI (custom button, not auto-prompt). Capture beforeinstallprompt, defer, recover declined.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-pwa/void-install-prompt-ux",
+      "lines": 154,
+      "name": "void-install-prompt-ux",
+      "owner": "folpe",
+      "pack": "pack-pwa",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-pwa/skills/void-install-prompt-ux/SKILL.md",
+      "staticTokens": 1657,
+      "type": "skill"
+    },
+    {
+      "description": "Get manifest.webmanifest right the first time — required fields, icon sizes (192, 512, maskable), display modes, scope, start_url. Single artifact: every field motivated, no dead options.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-pwa/void-manifest-checklist",
+      "lines": 205,
+      "name": "void-manifest-checklist",
+      "owner": "folpe",
+      "pack": "pack-pwa",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-pwa/skills/void-manifest-checklist/SKILL.md",
+      "staticTokens": 1566,
+      "type": "skill"
+    },
+    {
+      "description": "Implement a UI mutation that works offline via the capture-queue + sync pattern: IndexedDB, optimistic UI, idempotency keys, retry, conflict resolution. Self-contained, no harness wrappers.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-pwa/void-offline-first-mutation",
+      "lines": 267,
+      "name": "void-offline-first-mutation",
+      "owner": "folpe",
+      "pack": "pack-pwa",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-pwa/skills/void-offline-first-mutation/SKILL.md",
+      "staticTokens": 2497,
+      "type": "skill"
+    },
+    {
+      "description": "Pick caching strategy per route class (NetworkFirst, CacheFirst, StaleWhileRevalidate, NetworkOnly), version your caches, handle update activation. Use Serwist (Next) or vite-plugin-pwa.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-pwa/void-service-worker-strategy",
+      "lines": 179,
+      "name": "void-service-worker-strategy",
+      "owner": "folpe",
+      "pack": "pack-pwa",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-pwa/skills/void-service-worker-strategy/SKILL.md",
+      "staticTokens": 1820,
+      "type": "skill"
+    },
+    {
+      "description": "Per-component accessibility checklist: semantic HTML, ARIA, keyboard, focus, contrast, touch targets. Auto-applies on any React component edit. Composes with accessibility.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-react/void-accessibility-check",
+      "lines": 137,
+      "name": "void-accessibility-check",
+      "owner": "folpe",
+      "pack": "pack-react",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-react/skills/void-accessibility-check/SKILL.md",
+      "staticTokens": 1537,
+      "type": "skill"
+    },
+    {
+      "description": "Decide which components run on server vs client in a React 19 / Next.js app and place the 'use client' boundary correctly. Server Components by default; client is the exception.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-react/void-client-vs-server-component",
+      "lines": 117,
+      "name": "void-client-vs-server-component",
+      "owner": "folpe",
+      "pack": "pack-react",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-react/skills/void-client-vs-server-component/SKILL.md",
+      "staticTokens": 1319,
+      "type": "skill"
+    },
+    {
+      "description": "Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with server-action.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-react/void-form-pattern",
+      "lines": 158,
+      "name": "void-form-pattern",
+      "owner": "folpe",
+      "pack": "pack-react",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-react/skills/void-form-pattern/SKILL.md",
+      "staticTokens": 1685,
+      "type": "skill"
+    },
+    {
+      "description": "Decide where state lives — local, lifted, URL, server, client global. The decision tree to avoid useState-in-the-wrong-place sprawl. Default to URL or server before reaching for global stores.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-react/void-state-architecture",
+      "lines": 161,
+      "name": "void-state-architecture",
+      "owner": "folpe",
+      "pack": "pack-react",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-react/skills/void-state-architecture/SKILL.md",
+      "staticTokens": 1676,
+      "type": "skill"
+    },
+    {
+      "description": "Run async work outside the request lifecycle: when to use a queue (Inngest, Trigger, Cloudflare Queues) vs a cron route. Idempotency, retry, dead-letter. Self-contained, no harness wrappers.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-server/void-background-job-pattern",
+      "lines": 215,
+      "name": "void-background-job-pattern",
+      "owner": "folpe",
+      "pack": "pack-server",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-server/skills/void-background-job-pattern/SKILL.md",
+      "staticTokens": 2235,
+      "type": "skill"
+    },
+    {
+      "description": "Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. Composes with migrations for the generic discipline.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-server/void-drizzle-migration-safe",
+      "lines": 169,
+      "name": "void-drizzle-migration-safe",
+      "owner": "folpe",
+      "pack": "pack-server",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-server/skills/void-drizzle-migration-safe/SKILL.md",
+      "staticTokens": 2100,
+      "type": "skill"
+    },
+    {
+      "description": "Validate environment variables at boot via Zod in @repo/core/env. Separate PUBLIC (NEXT_PUBLIC_*) from server-only. Fail fast at startup; never raw process.env in business code.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-server/void-env-validation",
+      "lines": 132,
+      "name": "void-env-validation",
+      "owner": "folpe",
+      "pack": "pack-server",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-server/skills/void-env-validation/SKILL.md",
+      "staticTokens": 1407,
+      "type": "skill"
+    },
+    {
+      "description": "Choose rate limit window, max, and key strategy per action class. Per-user for authed, per-IP for public, escalation for auth-adjacent. Default values + when to deviate.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-server/void-rate-limit-strategy",
+      "lines": 150,
+      "name": "void-rate-limit-strategy",
+      "owner": "folpe",
+      "pack": "pack-server",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-server/skills/void-rate-limit-strategy/SKILL.md",
+      "staticTokens": 1721,
+      "type": "skill"
+    },
+    {
+      "description": "Create a Next.js 16 Server Action with the void trust-boundary checklist: Zod ingress, auth, rate limit, observability, structured errors. Composes with security-guidance, async-safety.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-server/void-server-action",
+      "lines": 182,
+      "name": "void-server-action",
+      "owner": "folpe",
+      "pack": "pack-server",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-server/skills/void-server-action/SKILL.md",
+      "staticTokens": 2123,
+      "type": "skill"
+    },
+    {
+      "description": "Unit-test modules guarded by server-only / client-only under Vitest by aliasing those packages to an empty stub. Test-time only; never a substitute for the real build-time boundary.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-server/void-testing-server-modules",
+      "lines": 74,
+      "name": "void-testing-server-modules",
+      "owner": "folpe",
+      "pack": "pack-server",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-server/skills/void-testing-server-modules/SKILL.md",
+      "staticTokens": 923,
+      "type": "skill"
+    },
+    {
+      "description": "Build a webhook handler with signature verification, idempotency, and dead-letter routing. Per-source patterns (Stripe, Resend, GitHub). Self-contained — no harness wrappers required.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:pack-server/void-webhook-handler-pattern",
+      "lines": 206,
+      "name": "void-webhook-handler-pattern",
+      "owner": "folpe",
+      "pack": "pack-server",
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/packs/pack-server/skills/void-webhook-handler-pattern/SKILL.md",
+      "staticTokens": 2123,
+      "type": "skill"
+    },
+    {
       "activation": "always",
       "description": "WCAG 2.2 AA floor. Radix primitives only, touch >=44x44, keyboard parity, semantic HTML, form labels, aria-live errors, mobile-first dual-quality. Use when building or modifying UI.",
       "enforcement": {
@@ -689,17 +1529,17 @@
           "tier": "opus"
         }
       ],
-      "id": "skill:accessibility",
+      "id": "skill:void-accessibility",
       "lines": 276,
-      "name": "accessibility",
+      "name": "void-accessibility",
       "owner": "folpe",
       "pack": null,
       "runtimes": [
         "claude",
         "codex"
       ],
-      "source": "packages/core/skills/accessibility/SKILL.md",
-      "staticTokens": 2198,
+      "source": "packages/core/skills/void-accessibility/SKILL.md",
+      "staticTokens": 2209,
       "triggers": {
         "extensions": [
           "tsx"
@@ -724,17 +1564,17 @@
           "tier": "opus"
         }
       ],
-      "id": "skill:api-and-interface-design",
+      "id": "skill:void-api-and-interface-design",
       "lines": 232,
-      "name": "api-and-interface-design",
+      "name": "void-api-and-interface-design",
       "owner": "folpe",
       "pack": null,
       "runtimes": [
         "claude",
         "codex"
       ],
-      "source": "packages/core/skills/api-and-interface-design/SKILL.md",
-      "staticTokens": 3350,
+      "source": "packages/core/skills/void-api-and-interface-design/SKILL.md",
+      "staticTokens": 3375,
       "triggers": {
         "globs": [
           "**/src/index.ts",
@@ -762,17 +1602,17 @@
           "tier": "opus"
         }
       ],
-      "id": "skill:async-safety",
+      "id": "skill:void-async-safety",
       "lines": 288,
-      "name": "async-safety",
+      "name": "void-async-safety",
       "owner": "folpe",
       "pack": null,
       "runtimes": [
         "claude",
         "codex"
       ],
-      "source": "packages/core/skills/async-safety/SKILL.md",
-      "staticTokens": 3025,
+      "source": "packages/core/skills/void-async-safety/SKILL.md",
+      "staticTokens": 3048,
       "triggers": {
         "globs": [
           "**/webhooks/**",
@@ -783,1942 +1623,6 @@
           "**/*.worker.ts"
         ]
       },
-      "type": "skill"
-    },
-    {
-      "description": "Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR a human merges.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:autopilot",
-      "lines": 165,
-      "name": "autopilot",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/autopilot/SKILL.md",
-      "staticTokens": 2404,
-      "type": "skill"
-    },
-    {
-      "description": "Engage on a raw idea, or the moment an exchange settles a behaviour, boundary or trade-off: pressure-test, one question at a time, 2-3 approaches, spec written and approved before any code.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:brainstorm",
-      "lines": 268,
-      "name": "brainstorm",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/brainstorm/SKILL.md",
-      "staticTokens": 4030,
-      "type": "skill"
-    },
-    {
-      "description": "Write .void/machine/checkpoint.md before a clear, an interruption, or the end of a day, so the next session resumes without re-deriving anything. Keeps only what no other artefact holds.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:checkpoint",
-      "lines": 225,
-      "name": "checkpoint",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/checkpoint/SKILL.md",
-      "staticTokens": 2766,
-      "type": "skill"
-    },
-    {
-      "description": "Author a lean, runnable CLAUDE.md (or AGENTS.md). Only universal instructions; defer detail to docs; push style to linters and certainties to hooks. Use when writing or auditing a project CLAUDE.md.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:claude-md",
-      "lines": 181,
-      "name": "claude-md",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/claude-md/SKILL.md",
-      "staticTokens": 2640,
-      "type": "skill"
-    },
-    {
-      "activation": "always",
-      "description": "Pre-PR critical pass. Six dimensions (correctness, tests, security, structure, readability, perf). Two modes (strict/souple). Composes the native /code-review and codex CLI. Use on a diff.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:code-review",
-      "lines": 219,
-      "name": "code-review",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/code-review/SKILL.md",
-      "staticTokens": 2702,
-      "type": "skill"
-    },
-    {
-      "activation": "always",
-      "description": "Conventional Commits + mandatory \"why\" in body + scope + breaking-change marking. ASCII-only (no em dash, no emoji). Co-author trailer for AI pair. The git log is documentation. Use at every commit.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:commit-discipline",
-      "lines": 212,
-      "name": "commit-discipline",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/commit-discipline/SKILL.md",
-      "staticTokens": 1850,
-      "type": "skill"
-    },
-    {
-      "description": "Context is the agent's core constraint. Use when a task spans many files, a session mixes subjects, corrections loop, or replies forget earlier constraints. Clear, compact, delegate to subagents.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:context",
-      "lines": 162,
-      "name": "context",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/context/SKILL.md",
-      "staticTokens": 2576,
-      "type": "skill"
-    },
-    {
-      "description": "Four phases (investigate, analyze, hypothesize, implement). Iron Law: no fix without a failing test reproducing the bug AND a root cause. Bug fix commit pairs. Use on bug or test failure.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:debug",
-      "lines": 212,
-      "name": "debug",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/debug/SKILL.md",
-      "staticTokens": 2300,
-      "type": "skill"
-    },
-    {
-      "description": "Capture structural choices as one immutable ADR file with collision-free identity, explicit alternatives, reversal cost, and supersession. Use when future code depends on why.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:decide",
-      "lines": 139,
-      "name": "decide",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/decide/SKILL.md",
-      "staticTokens": 1009,
-      "type": "skill"
-    },
-    {
-      "activation": "on-demand",
-      "description": "Audit an EXISTING dev-facing surface (API/CLI/SDK/docs): measured TTHW, real error-path tracing, evidence-backed DX scorecard, scoped refine. The audit ceiling to plan-review's DevEx-lens.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:devex-audit",
-      "lines": 114,
-      "name": "devex-audit",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/devex-audit/SKILL.md",
-      "staticTokens": 2095,
-      "type": "skill"
-    },
-    {
-      "activation": "always",
-      "description": "Bounded contexts, aggregates as consistency boundaries, value objects as branded types, always-valid domain, ubiquitous language. No CQRS, event sourcing, or generic Repository<T>. Use on the domain.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:domain-driven-design",
-      "lines": 293,
-      "name": "domain-driven-design",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/domain-driven-design/SKILL.md",
-      "staticTokens": 3136,
-      "type": "skill"
-    },
-    {
-      "activation": "always",
-      "description": "Anti-AI-slop UI. Density first, 3-size hierarchy, motion <250ms, components via @repo/ui (Radix/shadcn), mobile-first dual-quality. Brand from DESIGN.md. Use when building or modifying UI.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:frontend-design",
-      "lines": 275,
-      "name": "frontend-design",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/frontend-design/SKILL.md",
-      "staticTokens": 3572,
-      "triggers": {
-        "extensions": [
-          "tsx"
-        ]
-      },
-      "type": "skill"
-    },
-    {
-      "activation": "always",
-      "description": "Pure-by-default, errors as values (Result<T, E>), discriminated unions for state, immutability defaults, functional core / imperative shell. Side effects at adapters. Use for data flow or state.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:functional",
-      "lines": 313,
-      "name": "functional",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/functional/SKILL.md",
-      "staticTokens": 2790,
-      "type": "skill"
-    },
-    {
-      "activation": "always",
-      "description": "Ports + adapters. Domain owns interfaces, adapters at the edge, function-parameter injection only, no DI / CQRS / mediator. Use when placing code or crossing module boundaries.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:hexagonal-architecture",
-      "lines": 277,
-      "name": "hexagonal-architecture",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/hexagonal-architecture/SKILL.md",
-      "staticTokens": 2714,
-      "type": "skill"
-    },
-    {
-      "description": "Use when taking a single ticket from ready through shipped at expert-team quality. Triggers on starting a ticket, taking an issue, or picking up a backlog item to execute.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:implement",
-      "lines": 141,
-      "name": "implement",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/implement/SKILL.md",
-      "staticTokens": 3690,
-      "type": "skill"
-    },
-    {
-      "description": "Capture a lesson when it appears — a stated project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a harness gap. Routes to PROJECT-DOCTRINE, a GitHub issue, or nothing. HITL strict. Also the single door for harness feedback. Fires on \"the harness should have X\", \"this hook is a false positive\", \"that skill is missing\", a DX papercut worth filing, or any explicit request to send feedback about the harness itself.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:learn",
-      "lines": 216,
-      "name": "learn",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/learn/SKILL.md",
-      "staticTokens": 2992,
-      "type": "skill"
-    },
-    {
-      "activation": "always",
-      "description": "Sonnet default (Opus needs comment), prompt caching for >1024-token prompts, batch API for non-interactive, max_tokens declared, bounded retries, no full prompts in logs. Use on LLM API calls.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:llm-cost-discipline",
-      "lines": 300,
-      "name": "llm-cost-discipline",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/llm-cost-discipline/SKILL.md",
-      "staticTokens": 2504,
-      "type": "skill"
-    },
-    {
-      "activation": "on-demand",
-      "description": "Turn a markdown file into a publication-quality PDF — marked + puppeteer-core on the system Chrome, with page-number footers. No gstack daemon. For signed deliverables (DECLIK audits).",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:make-pdf",
-      "lines": 46,
-      "name": "make-pdf",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/make-pdf/SKILL.md",
-      "staticTokens": 787,
-      "type": "skill"
-    },
-    {
-      "description": "Vider la file des PR ouvertes sans casser le dépôt. Ordre par déblocage plutôt que par date, CI verte ET à jour, artefacts générés régénérés, conflits de contenu rendus à leur auteur. Use when merging pull requests.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:merge",
-      "lines": 112,
-      "name": "merge",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/merge/SKILL.md",
-      "staticTokens": 1238,
-      "type": "skill"
-    },
-    {
-      "activation": "always",
-      "description": "Zero-downtime Postgres migrations. Two-phase changes, batched backfills, locking analysis, banned DDL patterns, CONCURRENTLY indexes, dev branch test, immutable after merge. Use on DB schema changes.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:migrations",
-      "lines": 265,
-      "name": "migrations",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/migrations/SKILL.md",
-      "staticTokens": 2180,
-      "triggers": {
-        "globs": [
-          "**/migrations/**",
-          "**/*.sql"
-        ]
-      },
-      "type": "skill"
-    },
-    {
-      "activation": "always",
-      "description": "Structured logs (no string interp), trace IDs end-to-end, error boundaries at async boundaries, anonymized user scope, no PII/secrets ever. Use @repo/core/logger not console.log. Use for prod code.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:observability",
-      "lines": 246,
-      "name": "observability",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/observability/SKILL.md",
-      "staticTokens": 2192,
-      "type": "skill"
-    },
-    {
-      "description": "Configure eas.json profiles (development, preview, production) with the right env, bundle ID, signing, distribution. The 3-profile structure that fits 95% of Expo apps.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-mobile/eas-build-profile",
-      "lines": 165,
-      "name": "eas-build-profile",
-      "owner": "folpe",
-      "pack": "pack-mobile",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-mobile/skills/eas-build-profile/SKILL.md",
-      "staticTokens": 1458,
-      "type": "skill"
-    },
-    {
-      "description": "Add native functionality to an Expo app via config plugins, never by ejecting. Pick existing Expo modules first, write a custom plugin only when none fits. Document everything in app.config.ts.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-mobile/expo-config-plugins",
-      "lines": 179,
-      "name": "expo-config-plugins",
-      "owner": "folpe",
-      "pack": "pack-mobile",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-mobile/skills/expo-config-plugins/SKILL.md",
-      "staticTokens": 1555,
-      "type": "skill"
-    },
-    {
-      "description": "File-based routing in Expo via expo-router — layouts, tabs, modals, deep links. Mirrors Next.js App Router so monorepos can share mental model. Stack-aware navigation patterns.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-mobile/expo-router-pattern",
-      "lines": 210,
-      "name": "expo-router-pattern",
-      "owner": "folpe",
-      "pack": "pack-mobile",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-mobile/skills/expo-router-pattern/SKILL.md",
-      "staticTokens": 1600,
-      "type": "skill"
-    },
-    {
-      "description": "Ship JS-only fixes via EAS Update; full rebuild via EAS Build. Runtime versions, channels, rollback. The \"when can I OTA vs when do I rebuild\" decision.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-mobile/ota-update-strategy",
-      "lines": 195,
-      "name": "ota-update-strategy",
-      "owner": "folpe",
-      "pack": "pack-mobile",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-mobile/skills/ota-update-strategy/SKILL.md",
-      "staticTokens": 1742,
-      "type": "skill"
-    },
-    {
-      "description": "Enforce the @repo/* import direction in a Turborepo workspace. Concrete violations + fixes. Composes with core:hexagonal-architecture and the boundary-direction-check hook.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-monorepo/dependency-direction",
-      "lines": 161,
-      "name": "dependency-direction",
-      "owner": "folpe",
-      "pack": "pack-monorepo",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-monorepo/skills/dependency-direction/SKILL.md",
-      "staticTokens": 1409,
-      "type": "skill"
-    },
-    {
-      "description": "Decide whether code in apps/<app>/ should be extracted into a new packages/<name>/ workspace. Most extractions are premature; this skill is the decision gate.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-monorepo/package-extraction",
-      "lines": 71,
-      "name": "package-extraction",
-      "owner": "folpe",
-      "pack": "pack-monorepo",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-monorepo/skills/package-extraction/SKILL.md",
-      "staticTokens": 1047,
-      "type": "skill"
-    },
-    {
-      "description": "Create or extend a packages/<name>/ service in a harness-monorepo workspace: the 5+5 file layout, @repo/* boundaries, ports-and-adapters direction. Composes with hexagonal-architecture, DDD.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-monorepo/service-package",
-      "lines": 123,
-      "name": "service-package",
-      "owner": "folpe",
-      "pack": "pack-monorepo",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-monorepo/skills/service-package/SKILL.md",
-      "staticTokens": 1463,
-      "type": "skill"
-    },
-    {
-      "description": "Configure turbo.json tasks correctly — dependsOn, outputs, cache keys, persistent tasks, remote cache. Get build speed right without over-engineering.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-monorepo/turbo-pipeline-tuning",
-      "lines": 117,
-      "name": "turbo-pipeline-tuning",
-      "owner": "folpe",
-      "pack": "pack-monorepo",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-monorepo/skills/turbo-pipeline-tuning/SKILL.md",
-      "staticTokens": 1285,
-      "type": "skill"
-    },
-    {
-      "description": "Use Next.js 16 Cache Components correctly — when to opt in ('use cache'), when to opt out ('use no cache'), cache key strategy, scoping by user/org. Default is cached; uncache deliberately.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-nextjs/cache-component-pattern",
-      "lines": 163,
-      "name": "cache-component-pattern",
-      "owner": "folpe",
-      "pack": "pack-nextjs",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-nextjs/skills/cache-component-pattern/SKILL.md",
-      "staticTokens": 1714,
-      "type": "skill"
-    },
-    {
-      "description": "Wire instrumentation.ts in Next.js 16 — Sentry, pino logger, OpenTelemetry traces. Edge vs Node runtime split. The single place observability is bootstrapped.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-nextjs/instrumentation-setup",
-      "lines": 162,
-      "name": "instrumentation-setup",
-      "owner": "folpe",
-      "pack": "pack-nextjs",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-nextjs/skills/instrumentation-setup/SKILL.md",
-      "staticTokens": 1390,
-      "type": "skill"
-    },
-    {
-      "description": "Place loading.tsx, error.tsx, not-found.tsx files at the right level — neither too high (poor UX) nor too low (unhandled errors). The skeleton matches the layout it replaces.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-nextjs/loading-error-boundaries",
-      "lines": 177,
-      "name": "loading-error-boundaries",
-      "owner": "folpe",
-      "pack": "pack-nextjs",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-nextjs/skills/loading-error-boundaries/SKILL.md",
-      "staticTokens": 1655,
-      "type": "skill"
-    },
-    {
-      "description": "Use Next.js parallel routes (@slot) and intercepting routes ((.)foo) — when they're the right tool, when they're an anti-pattern. The \"modal that's also a deep-linkable page\" archetype.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-nextjs/parallel-routes-slots",
-      "lines": 130,
-      "name": "parallel-routes-slots",
-      "owner": "folpe",
-      "pack": "pack-nextjs",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-nextjs/skills/parallel-routes-slots/SKILL.md",
-      "staticTokens": 1308,
-      "type": "skill"
-    },
-    {
-      "description": "Decide when to use a (route-group), what to name it, and how to share layouts. The void-harness convention groups by trust boundary, not by visual section.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-nextjs/route-group-decision",
-      "lines": 108,
-      "name": "route-group-decision",
-      "owner": "folpe",
-      "pack": "pack-nextjs",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-nextjs/skills/route-group-decision/SKILL.md",
-      "staticTokens": 1270,
-      "type": "skill"
-    },
-    {
-      "description": "Surface the PWA install prompt at the right moment (engagement signal) with the right UI (custom button, not auto-prompt). Capture beforeinstallprompt, defer, recover declined.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-pwa/install-prompt-ux",
-      "lines": 154,
-      "name": "install-prompt-ux",
-      "owner": "folpe",
-      "pack": "pack-pwa",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-pwa/skills/install-prompt-ux/SKILL.md",
-      "staticTokens": 1650,
-      "type": "skill"
-    },
-    {
-      "description": "Get manifest.webmanifest right the first time — required fields, icon sizes (192, 512, maskable), display modes, scope, start_url. Single artifact: every field motivated, no dead options.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-pwa/manifest-checklist",
-      "lines": 205,
-      "name": "manifest-checklist",
-      "owner": "folpe",
-      "pack": "pack-pwa",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-pwa/skills/manifest-checklist/SKILL.md",
-      "staticTokens": 1560,
-      "type": "skill"
-    },
-    {
-      "description": "Implement a UI mutation that works offline via the capture-queue + sync pattern: IndexedDB, optimistic UI, idempotency keys, retry, conflict resolution. Self-contained, no harness wrappers.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-pwa/offline-first-mutation",
-      "lines": 267,
-      "name": "offline-first-mutation",
-      "owner": "folpe",
-      "pack": "pack-pwa",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-pwa/skills/offline-first-mutation/SKILL.md",
-      "staticTokens": 2490,
-      "type": "skill"
-    },
-    {
-      "description": "Pick caching strategy per route class (NetworkFirst, CacheFirst, StaleWhileRevalidate, NetworkOnly), version your caches, handle update activation. Use Serwist (Next) or vite-plugin-pwa.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-pwa/service-worker-strategy",
-      "lines": 179,
-      "name": "service-worker-strategy",
-      "owner": "folpe",
-      "pack": "pack-pwa",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-pwa/skills/service-worker-strategy/SKILL.md",
-      "staticTokens": 1812,
-      "type": "skill"
-    },
-    {
-      "description": "Per-component accessibility checklist: semantic HTML, ARIA, keyboard, focus, contrast, touch targets. Auto-applies on any React component edit. Composes with accessibility.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-react/accessibility-check",
-      "lines": 137,
-      "name": "accessibility-check",
-      "owner": "folpe",
-      "pack": "pack-react",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-react/skills/accessibility-check/SKILL.md",
-      "staticTokens": 1530,
-      "type": "skill"
-    },
-    {
-      "description": "Decide which components run on server vs client in a React 19 / Next.js app and place the 'use client' boundary correctly. Server Components by default; client is the exception.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-react/client-vs-server-component",
-      "lines": 117,
-      "name": "client-vs-server-component",
-      "owner": "folpe",
-      "pack": "pack-react",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-react/skills/client-vs-server-component/SKILL.md",
-      "staticTokens": 1312,
-      "type": "skill"
-    },
-    {
-      "description": "Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. Composes with server-action.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-react/form-pattern",
-      "lines": 158,
-      "name": "form-pattern",
-      "owner": "folpe",
-      "pack": "pack-react",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-react/skills/form-pattern/SKILL.md",
-      "staticTokens": 1674,
-      "type": "skill"
-    },
-    {
-      "description": "Decide where state lives — local, lifted, URL, server, client global. The decision tree to avoid useState-in-the-wrong-place sprawl. Default to URL or server before reaching for global stores.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-react/state-architecture",
-      "lines": 161,
-      "name": "state-architecture",
-      "owner": "folpe",
-      "pack": "pack-react",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-react/skills/state-architecture/SKILL.md",
-      "staticTokens": 1670,
-      "type": "skill"
-    },
-    {
-      "description": "Run async work outside the request lifecycle: when to use a queue (Inngest, Trigger, Cloudflare Queues) vs a cron route. Idempotency, retry, dead-letter. Self-contained, no harness wrappers.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-server/background-job-pattern",
-      "lines": 215,
-      "name": "background-job-pattern",
-      "owner": "folpe",
-      "pack": "pack-server",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-server/skills/background-job-pattern/SKILL.md",
-      "staticTokens": 2226,
-      "type": "skill"
-    },
-    {
-      "description": "Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. Composes with migrations for the generic discipline.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-server/drizzle-migration-safe",
-      "lines": 169,
-      "name": "drizzle-migration-safe",
-      "owner": "folpe",
-      "pack": "pack-server",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-server/skills/drizzle-migration-safe/SKILL.md",
-      "staticTokens": 2090,
-      "type": "skill"
-    },
-    {
-      "description": "Validate environment variables at boot via Zod in @repo/core/env. Separate PUBLIC (NEXT_PUBLIC_*) from server-only. Fail fast at startup; never raw process.env in business code.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-server/env-validation",
-      "lines": 132,
-      "name": "env-validation",
-      "owner": "folpe",
-      "pack": "pack-server",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-server/skills/env-validation/SKILL.md",
-      "staticTokens": 1399,
-      "type": "skill"
-    },
-    {
-      "description": "Choose rate limit window, max, and key strategy per action class. Per-user for authed, per-IP for public, escalation for auth-adjacent. Default values + when to deviate.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-server/rate-limit-strategy",
-      "lines": 150,
-      "name": "rate-limit-strategy",
-      "owner": "folpe",
-      "pack": "pack-server",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-server/skills/rate-limit-strategy/SKILL.md",
-      "staticTokens": 1712,
-      "type": "skill"
-    },
-    {
-      "description": "Create a Next.js 16 Server Action with the void trust-boundary checklist: Zod ingress, auth, rate limit, observability, structured errors. Composes with security-guidance, async-safety.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-server/server-action",
-      "lines": 182,
-      "name": "server-action",
-      "owner": "folpe",
-      "pack": "pack-server",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-server/skills/server-action/SKILL.md",
-      "staticTokens": 2112,
-      "type": "skill"
-    },
-    {
-      "description": "Unit-test modules guarded by server-only / client-only under Vitest by aliasing those packages to an empty stub. Test-time only; never a substitute for the real build-time boundary.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-server/testing-server-modules",
-      "lines": 74,
-      "name": "testing-server-modules",
-      "owner": "folpe",
-      "pack": "pack-server",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-server/skills/testing-server-modules/SKILL.md",
-      "staticTokens": 919,
-      "type": "skill"
-    },
-    {
-      "description": "Build a webhook handler with signature verification, idempotency, and dead-letter routing. Per-source patterns (Stripe, Resend, GitHub). Self-contained — no harness wrappers required.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:pack-server/webhook-handler-pattern",
-      "lines": 206,
-      "name": "webhook-handler-pattern",
-      "owner": "folpe",
-      "pack": "pack-server",
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/packs/pack-server/skills/webhook-handler-pattern/SKILL.md",
-      "staticTokens": 2112,
-      "type": "skill"
-    },
-    {
-      "description": "Turn an approved spec into vertical slices with dependencies, TDD mode, verification gates, checkpoints, and a tracker handoff. Use after brainstorm approves a spec.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:plan",
-      "lines": 235,
-      "name": "plan",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/plan/SKILL.md",
-      "staticTokens": 2583,
-      "type": "skill"
-    },
-    {
-      "activation": "on-demand",
-      "description": "Critique a written plan (not a diff) via four lenses: CEO premise/ambition, Eng test-coverage, Design states/slop, DevEx time-to-first-value. Proposes findings; the author disposes.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:plan-review",
-      "lines": 129,
-      "name": "plan-review",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/plan-review/SKILL.md",
-      "staticTokens": 2657,
-      "type": "skill"
-    },
-    {
-      "activation": "on-demand",
-      "description": "Live browser QA of a running web app via the claude-in-chrome MCP: systematic exploration, edge/error/empty states, atomic fix loop, evidence-backed report. Report-only mode available.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:qa",
-      "lines": 104,
-      "name": "qa",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/qa/SKILL.md",
-      "staticTokens": 2586,
-      "type": "skill"
-    },
-    {
-      "activation": "always",
-      "description": "Tidy-First. Tidyings commit separately from behavior changes (Two-Hat). Named Fowler refactors only. Tests stay green. Two modes (strict/souple). Use when improving structure without behavior change.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:refactor",
-      "lines": 221,
-      "name": "refactor",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/refactor/SKILL.md",
-      "staticTokens": 2414,
-      "type": "skill"
-    },
-    {
-      "activation": "on-demand",
-      "description": "Periodic engineering retro over a window: read git log / PRs / .void, surface signals (hotspots, test ratio, commit types, regressions), turn them into improvement decisions feeding learn.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:retrospective",
-      "lines": 72,
-      "name": "retrospective",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/retrospective/SKILL.md",
-      "staticTokens": 1339,
-      "type": "skill"
-    },
-    {
-      "activation": "on-demand",
-      "description": "Periodic deep security audit — OWASP Top 10, STRIDE, secrets, supply chain, CI/CD, infra, LLM. Phase-driven, read-only, zero-noise. The ceiling above security-guidance's daily floor.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:security-audit",
-      "lines": 139,
-      "name": "security-audit",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/security-audit/SKILL.md",
-      "staticTokens": 4169,
-      "type": "skill"
-    },
-    {
-      "activation": "always",
-      "description": "Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. Escalate to security-audit for deep audits. Use on trust-boundary code.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:security-guidance",
-      "lines": 256,
-      "name": "security-guidance",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/security-guidance/SKILL.md",
-      "staticTokens": 2448,
-      "type": "skill"
-    },
-    {
-      "activation": "always",
-      "description": "Ground every third-party config or API usage in the official docs for the installed version, not training memory. Verify the version, cite the reference. Use before writing any tool config.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:source-driven-development",
-      "lines": 163,
-      "name": "source-driven-development",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/source-driven-development/SKILL.md",
-      "staticTokens": 2376,
-      "type": "skill"
-    },
-    {
-      "activation": "always",
-      "description": "TDD in three modes (strict/souple/exploratory) chosen by path. Iron Law in strict (no prod code without a failing test), mutation gate if tooled, anti-rustine. Use for any feature, bugfix, refactor.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:tdd",
-      "lines": 388,
-      "name": "tdd",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/tdd/SKILL.md",
-      "staticTokens": 3644,
-      "type": "skill"
-    },
-    {
-      "activation": "always",
-      "description": "How to write a good test. Behavior over implementation, real code over mocks, factories over beforeEach, pyramid respected, pristine output, no snapshot creep. Use when writing or modifying tests.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:testing",
-      "lines": 284,
-      "name": "testing",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/testing/SKILL.md",
-      "staticTokens": 2780,
-      "triggers": {
-        "globs": [
-          "**/*.test.ts",
-          "**/*.spec.ts"
-        ]
-      },
-      "type": "skill"
-    },
-    {
-      "description": "Use when turning a finished brainstorm, plan, or design decision into a tracker ticket. Triggers on creating a ticket or issue, logging work, or breaking an approved spec into tickets.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:ticket",
-      "lines": 157,
-      "name": "ticket",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/ticket/SKILL.md",
-      "staticTokens": 2309,
-      "type": "skill"
-    },
-    {
-      "activation": "always",
-      "description": "TS strict baseline. Zero any budget, branded types for domain primitives, discriminated unions over enums, exhaustive switches via never, satisfies over as. Use when editing TypeScript code.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "pretooluse",
-          "codex": "pretooluse",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:typescript-strict",
-      "lines": 295,
-      "name": "typescript-strict",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/typescript-strict/SKILL.md",
-      "staticTokens": 2662,
-      "triggers": {
-        "extensions": [
-          "ts",
-          "tsx"
-        ]
-      },
-      "type": "skill"
-    },
-    {
-      "activation": "on-demand",
-      "description": "Audit and polish an EXISTING UI: the AI-slop test, heuristic critique, technical audit (contrast/a11y/responsive/perf), refine modes. The audit ceiling to frontend-design's build floor.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:ui-review",
-      "lines": 98,
-      "name": "ui-review",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/ui-review/SKILL.md",
-      "staticTokens": 1941,
-      "type": "skill"
-    },
-    {
-      "activation": "always",
-      "description": "Final pre-flight checklist. Twelve items observed (not assumed) — typecheck, tests, hooks, mobile+desktop, commit why, review evidence. Skipping requires reason. Use at end of every task.",
-      "enforcement": {
-        "floor": "ci",
-        "inline": {
-          "claude": "active",
-          "codex": "active",
-          "hermes": "ci-only"
-        }
-      },
-      "evalTargets": [
-        {
-          "provider": "anthropic",
-          "runtime": "claude",
-          "tier": "opus"
-        }
-      ],
-      "id": "skill:verify",
-      "lines": 176,
-      "name": "verify",
-      "owner": "folpe",
-      "pack": null,
-      "runtimes": [
-        "claude",
-        "codex"
-      ],
-      "source": "packages/core/skills/verify/SKILL.md",
-      "staticTokens": 1924,
       "type": "skill"
     },
     {
@@ -2748,7 +1652,310 @@
         "codex"
       ],
       "source": "packages/core/skills/void-audit/SKILL.md",
-      "staticTokens": 720,
+      "staticTokens": 724,
+      "type": "skill"
+    },
+    {
+      "description": "Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR a human merges.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-autopilot",
+      "lines": 165,
+      "name": "void-autopilot",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-autopilot/SKILL.md",
+      "staticTokens": 2414,
+      "type": "skill"
+    },
+    {
+      "description": "Engage on a raw idea, or the moment an exchange settles a behaviour, boundary or trade-off: pressure-test, one question at a time, 2-3 approaches, spec written and approved before any code.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-brainstorm",
+      "lines": 268,
+      "name": "void-brainstorm",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-brainstorm/SKILL.md",
+      "staticTokens": 4048,
+      "type": "skill"
+    },
+    {
+      "description": "Write .void/machine/checkpoint.md before a clear, an interruption, or the end of a day, so the next session resumes without re-deriving anything. Keeps only what no other artefact holds.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-checkpoint",
+      "lines": 225,
+      "name": "void-checkpoint",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-checkpoint/SKILL.md",
+      "staticTokens": 2770,
+      "type": "skill"
+    },
+    {
+      "description": "Author a lean, runnable CLAUDE.md (or AGENTS.md). Only universal instructions; defer detail to docs; push style to linters and certainties to hooks. Use when writing or auditing a project CLAUDE.md.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-claude-md",
+      "lines": 181,
+      "name": "void-claude-md",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-claude-md/SKILL.md",
+      "staticTokens": 2645,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "Pre-PR critical pass. Six dimensions (correctness, tests, security, structure, readability, perf). Two modes (strict/souple). Composes the native /void-code-review and codex CLI. Use on a diff.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-code-review",
+      "lines": 219,
+      "name": "void-code-review",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-code-review/SKILL.md",
+      "staticTokens": 2741,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "Conventional Commits + mandatory \"why\" in body + scope + breaking-change marking. ASCII-only (no em dash, no emoji). Co-author trailer for AI pair. The git log is documentation. Use at every commit.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-commit-discipline",
+      "lines": 212,
+      "name": "void-commit-discipline",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-commit-discipline/SKILL.md",
+      "staticTokens": 1867,
+      "type": "skill"
+    },
+    {
+      "description": "Context is the agent's core constraint. Use when a task spans many files, a session mixes subjects, corrections loop, or replies forget earlier constraints. Clear, compact, delegate to subagents.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-context",
+      "lines": 162,
+      "name": "void-context",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-context/SKILL.md",
+      "staticTokens": 2582,
+      "type": "skill"
+    },
+    {
+      "description": "Four phases (investigate, analyze, hypothesize, implement). Iron Law: no fix without a failing test reproducing the bug AND a root cause. Bug fix commit pairs. Use on bug or test failure.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-debug",
+      "lines": 212,
+      "name": "void-debug",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-debug/SKILL.md",
+      "staticTokens": 2323,
+      "type": "skill"
+    },
+    {
+      "description": "Capture structural choices as one immutable ADR file with collision-free identity, explicit alternatives, reversal cost, and supersession. Use when future code depends on why.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-decide",
+      "lines": 139,
+      "name": "void-decide",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-decide/SKILL.md",
+      "staticTokens": 1017,
+      "type": "skill"
+    },
+    {
+      "activation": "on-demand",
+      "description": "Audit an EXISTING dev-facing surface (API/CLI/SDK/docs): measured TTHW, real error-path tracing, evidence-backed DX scorecard, scoped refine. The audit ceiling to plan-review's DevEx-lens.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-devex-audit",
+      "lines": 114,
+      "name": "void-devex-audit",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-devex-audit/SKILL.md",
+      "staticTokens": 2109,
       "type": "skill"
     },
     {
@@ -2778,7 +1985,105 @@
         "codex"
       ],
       "source": "packages/core/skills/void-doctor/SKILL.md",
-      "staticTokens": 763,
+      "staticTokens": 765,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "Bounded contexts, aggregates as consistency boundaries, value objects as branded types, always-valid domain, ubiquitous language. No CQRS, event sourcing, or generic Repository<T>. Use on the domain.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-domain-driven-design",
+      "lines": 293,
+      "name": "void-domain-driven-design",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-domain-driven-design/SKILL.md",
+      "staticTokens": 3159,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "Anti-AI-slop UI. Density first, 3-size hierarchy, motion <250ms, components via @repo/ui (Radix/shadcn), mobile-first dual-quality. Brand from DESIGN.md. Use when building or modifying UI.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-frontend-design",
+      "lines": 275,
+      "name": "void-frontend-design",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-frontend-design/SKILL.md",
+      "staticTokens": 3590,
+      "triggers": {
+        "extensions": [
+          "tsx"
+        ]
+      },
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "Pure-by-default, errors as values (Result<T, E>), discriminated unions for state, immutability defaults, functional core / imperative shell. Side effects at adapters. Use for data flow or state.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-functional",
+      "lines": 313,
+      "name": "void-functional",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-functional/SKILL.md",
+      "staticTokens": 2813,
       "type": "skill"
     },
     {
@@ -2808,7 +2113,702 @@
         "codex"
       ],
       "source": "packages/core/skills/void-graph/SKILL.md",
-      "staticTokens": 785,
+      "staticTokens": 787,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "Ports + adapters. Domain owns interfaces, adapters at the edge, function-parameter injection only, no DI / CQRS / mediator. Use when placing code or crossing module boundaries.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-hexagonal-architecture",
+      "lines": 277,
+      "name": "void-hexagonal-architecture",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-hexagonal-architecture/SKILL.md",
+      "staticTokens": 2734,
+      "type": "skill"
+    },
+    {
+      "description": "Use when taking a single ticket from ready through shipped at expert-team quality. Triggers on starting a ticket, taking an issue, or picking up a backlog item to execute.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-implement",
+      "lines": 141,
+      "name": "void-implement",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-implement/SKILL.md",
+      "staticTokens": 3728,
+      "type": "skill"
+    },
+    {
+      "description": "Capture a lesson when it appears — a stated project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a harness gap. Routes to PROJECT-DOCTRINE, a GitHub issue, or nothing. HITL strict. Also the single door for harness feedback. Fires on \"the harness should have X\", \"this hook is a false positive\", \"that skill is missing\", a DX papercut worth filing, or any explicit request to send feedback about the harness itself.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-learn",
+      "lines": 216,
+      "name": "void-learn",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-learn/SKILL.md",
+      "staticTokens": 3002,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "Sonnet default (Opus needs comment), prompt caching for >1024-token prompts, batch API for non-interactive, max_tokens declared, bounded retries, no full prompts in logs. Use on LLM API calls.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-llm-cost-discipline",
+      "lines": 300,
+      "name": "void-llm-cost-discipline",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-llm-cost-discipline/SKILL.md",
+      "staticTokens": 2515,
+      "type": "skill"
+    },
+    {
+      "activation": "on-demand",
+      "description": "Turn a markdown file into a publication-quality PDF — marked + puppeteer-core on the system Chrome, with page-number footers. No gstack daemon. For signed deliverables (DECLIK audits).",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-make-pdf",
+      "lines": 46,
+      "name": "void-make-pdf",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-make-pdf/SKILL.md",
+      "staticTokens": 790,
+      "type": "skill"
+    },
+    {
+      "description": "Vider la file des PR ouvertes sans casser le dépôt. Ordre par déblocage plutôt que par date, CI verte ET à jour, artefacts générés régénérés, conflits de contenu rendus à leur auteur. Use when merging pull requests.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-merge",
+      "lines": 112,
+      "name": "void-merge",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-merge/SKILL.md",
+      "staticTokens": 1247,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "Zero-downtime Postgres migrations. Two-phase changes, batched backfills, locking analysis, banned DDL patterns, CONCURRENTLY indexes, dev branch test, immutable after merge. Use on DB schema changes.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-migrations",
+      "lines": 265,
+      "name": "void-migrations",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-migrations/SKILL.md",
+      "staticTokens": 2194,
+      "triggers": {
+        "globs": [
+          "**/migrations/**",
+          "**/*.sql"
+        ]
+      },
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "Structured logs (no string interp), trace IDs end-to-end, error boundaries at async boundaries, anonymized user scope, no PII/secrets ever. Use @repo/core/logger not console.log. Use for prod code.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-observability",
+      "lines": 246,
+      "name": "void-observability",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-observability/SKILL.md",
+      "staticTokens": 2210,
+      "type": "skill"
+    },
+    {
+      "description": "Turn an approved spec into vertical slices with dependencies, TDD mode, verification gates, checkpoints, and a tracker handoff. Use after brainstorm approves a spec.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-plan",
+      "lines": 235,
+      "name": "void-plan",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-plan/SKILL.md",
+      "staticTokens": 2612,
+      "type": "skill"
+    },
+    {
+      "activation": "on-demand",
+      "description": "Critique a written plan (not a diff) via four lenses: CEO premise/ambition, Eng test-coverage, Design states/slop, DevEx time-to-first-value. Proposes findings; the author disposes.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-plan-review",
+      "lines": 129,
+      "name": "void-plan-review",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-plan-review/SKILL.md",
+      "staticTokens": 2685,
+      "type": "skill"
+    },
+    {
+      "activation": "on-demand",
+      "description": "Live browser QA of a running web app via the claude-in-chrome MCP: systematic exploration, edge/error/empty states, atomic fix loop, evidence-backed report. Report-only mode available.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-qa",
+      "lines": 104,
+      "name": "void-qa",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-qa/SKILL.md",
+      "staticTokens": 2613,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "Tidy-First. Tidyings commit separately from behavior changes (Two-Hat). Named Fowler refactors only. Tests stay green. Two modes (strict/souple). Use when improving structure without behavior change.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-refactor",
+      "lines": 221,
+      "name": "void-refactor",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-refactor/SKILL.md",
+      "staticTokens": 2443,
+      "type": "skill"
+    },
+    {
+      "activation": "on-demand",
+      "description": "Periodic engineering retro over a window: read git log / PRs / .void, surface signals (hotspots, test ratio, commit types, regressions), turn them into improvement decisions feeding learn.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-retrospective",
+      "lines": 72,
+      "name": "void-retrospective",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-retrospective/SKILL.md",
+      "staticTokens": 1358,
+      "type": "skill"
+    },
+    {
+      "activation": "on-demand",
+      "description": "Periodic deep security audit — OWASP Top 10, STRIDE, secrets, supply chain, CI/CD, infra, LLM. Phase-driven, read-only, zero-noise. The ceiling above security-guidance's daily floor.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-security-audit",
+      "lines": 139,
+      "name": "void-security-audit",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-security-audit/SKILL.md",
+      "staticTokens": 4179,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. Escalate to security-audit for deep audits. Use on trust-boundary code.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-security-guidance",
+      "lines": 256,
+      "name": "void-security-guidance",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-security-guidance/SKILL.md",
+      "staticTokens": 2479,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "Ground every third-party config or API usage in the official docs for the installed version, not training memory. Verify the version, cite the reference. Use before writing any tool config.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-source-driven-development",
+      "lines": 163,
+      "name": "void-source-driven-development",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-source-driven-development/SKILL.md",
+      "staticTokens": 2384,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "TDD in three modes (strict/souple/exploratory) chosen by path. Iron Law in strict (no prod code without a failing test), mutation gate if tooled, anti-rustine. Use for any feature, bugfix, refactor.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-tdd",
+      "lines": 388,
+      "name": "void-tdd",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-tdd/SKILL.md",
+      "staticTokens": 3655,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "How to write a good test. Behavior over implementation, real code over mocks, factories over beforeEach, pyramid respected, pristine output, no snapshot creep. Use when writing or modifying tests.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-testing",
+      "lines": 284,
+      "name": "void-testing",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-testing/SKILL.md",
+      "staticTokens": 2798,
+      "triggers": {
+        "globs": [
+          "**/*.test.ts",
+          "**/*.spec.ts"
+        ]
+      },
+      "type": "skill"
+    },
+    {
+      "description": "Use when turning a finished brainstorm, plan, or design decision into a tracker ticket. Triggers on creating a ticket or issue, logging work, or breaking an approved spec into tickets.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-ticket",
+      "lines": 157,
+      "name": "void-ticket",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-ticket/SKILL.md",
+      "staticTokens": 2325,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "TS strict baseline. Zero any budget, branded types for domain primitives, discriminated unions over enums, exhaustive switches via never, satisfies over as. Use when editing TypeScript code.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "pretooluse",
+          "codex": "pretooluse",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-typescript-strict",
+      "lines": 295,
+      "name": "void-typescript-strict",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-typescript-strict/SKILL.md",
+      "staticTokens": 2681,
+      "triggers": {
+        "extensions": [
+          "ts",
+          "tsx"
+        ]
+      },
+      "type": "skill"
+    },
+    {
+      "activation": "on-demand",
+      "description": "Audit and polish an EXISTING UI: the AI-slop test, heuristic critique, technical audit (contrast/a11y/responsive/perf), refine modes. The audit ceiling to frontend-design's build floor.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-ui-review",
+      "lines": 98,
+      "name": "void-ui-review",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-ui-review/SKILL.md",
+      "staticTokens": 1964,
+      "type": "skill"
+    },
+    {
+      "activation": "always",
+      "description": "Final pre-flight checklist. Twelve items observed (not assumed) — typecheck, tests, hooks, mobile+desktop, commit why, review evidence. Skipping requires reason. Use at end of every task.",
+      "enforcement": {
+        "floor": "ci",
+        "inline": {
+          "claude": "active",
+          "codex": "active",
+          "hermes": "ci-only"
+        }
+      },
+      "evalTargets": [
+        {
+          "provider": "anthropic",
+          "runtime": "claude",
+          "tier": "opus"
+        }
+      ],
+      "id": "skill:void-verify",
+      "lines": 176,
+      "name": "void-verify",
+      "owner": "folpe",
+      "pack": null,
+      "runtimes": [
+        "claude",
+        "codex"
+      ],
+      "source": "packages/core/skills/void-verify/SKILL.md",
+      "staticTokens": 1961,
       "type": "skill"
     },
     {
@@ -2817,7 +2817,7 @@
       "lines": 0,
       "name": "autopilot",
       "pack": null,
-      "source": "packages/core/skills/autopilot/workflows/autopilot.workflow.js",
+      "source": "packages/core/skills/void-autopilot/workflows/autopilot.workflow.js",
       "staticTokens": 0,
       "type": "workflow-def"
     }
@@ -2825,847 +2825,833 @@
   "edges": [
     {
       "from": "agent:migration-planner",
-      "to": "skill:migrations",
+      "to": "skill:void-migrations",
       "kind": "companion-of",
       "origin": "declared",
       "evidence": "migration-planner: Read-only planner ... Complements migrations"
     },
     {
       "from": "agent:migration-planner",
-      "to": "skill:plan",
+      "to": "skill:void-plan",
       "kind": "routes-to",
       "origin": "declared",
       "evidence": "migration-planner: Planning only ... routes execution to tdd/plan"
     },
     {
       "from": "hook:anti-ai-slop-grep",
-      "to": "skill:frontend-design",
+      "to": "skill:void-frontend-design",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "anti-ai-slop-grep flags generic AI aesthetics — enforces frontend-design"
     },
     {
       "from": "hook:axe-precommit",
-      "to": "skill:accessibility",
+      "to": "skill:void-accessibility",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "axe-precommit runs axe a11y checks — enforces accessibility"
     },
     {
       "from": "hook:block-dangerous-bash",
-      "to": "skill:security-guidance",
+      "to": "skill:void-security-guidance",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "block-dangerous-bash blocks destructive shell — enforces security-guidance"
     },
     {
       "from": "hook:block-protected-push",
-      "to": "skill:autopilot",
+      "to": "skill:void-autopilot",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "block-protected-push guards protected-branch pushes for commit-only autopilot workers — enforces autopilot"
     },
     {
       "from": "hook:boundary-direction-check",
-      "to": "skill:hexagonal-architecture",
+      "to": "skill:void-hexagonal-architecture",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "boundary-direction-check enforces the import direction — enforces hexagonal-architecture"
     },
     {
       "from": "hook:large-cl-grep",
-      "to": "skill:commit-discipline",
+      "to": "skill:void-commit-discipline",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "large-cl-grep warns on oversized changelists — enforces commit-discipline (small commits)"
     },
     {
       "from": "hook:llm-cost-precommit",
-      "to": "skill:llm-cost-discipline",
+      "to": "skill:void-llm-cost-discipline",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "llm-cost-precommit checks LLM call-site discipline — enforces llm-cost-discipline"
     },
     {
       "from": "hook:migration-lint",
-      "to": "skill:migrations",
+      "to": "skill:void-migrations",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "migration-lint flags banned DDL patterns — enforces migrations"
     },
     {
       "from": "hook:migration-pr-template",
-      "to": "skill:migrations",
+      "to": "skill:void-migrations",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "migration-pr-template requires the migration checklist — enforces migrations"
     },
     {
       "from": "hook:no-ai-design-slop",
-      "to": "skill:frontend-design",
+      "to": "skill:void-frontend-design",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "no-ai-design-slop blocks AI-slop UI patterns — enforces frontend-design"
     },
     {
       "from": "hook:no-any-grep",
-      "to": "skill:typescript-strict",
+      "to": "skill:void-typescript-strict",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "no-any-grep blocks the `any` type — enforces typescript-strict's zero-any budget"
     },
     {
       "from": "hook:no-as-cast-grep",
-      "to": "skill:typescript-strict",
+      "to": "skill:void-typescript-strict",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "no-as-cast-grep blocks `as Foo` casts — enforces typescript-strict (satisfies over as)"
     },
     {
       "from": "hook:no-console-log-grep",
-      "to": "skill:observability",
+      "to": "skill:void-observability",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "no-console-log-grep bans console.log — enforces observability (use the logger)"
     },
     {
       "from": "hook:no-null-grep",
-      "to": "skill:functional",
+      "to": "skill:void-functional",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "no-null-grep prefers undefined/Option over null — enforces functional"
     },
     {
       "from": "hook:no-only-no-skip",
-      "to": "skill:testing",
+      "to": "skill:void-testing",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "no-only-no-skip bans .only/.skip — enforces testing (no silently disabled tests)"
     },
     {
       "from": "hook:pre-PR-review-evidence",
-      "to": "skill:code-review",
+      "to": "skill:void-code-review",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "pre-PR-review-evidence requires review evidence before a PR — enforces code-review"
     },
     {
       "from": "hook:protect-sensitive-files",
-      "to": "skill:security-guidance",
+      "to": "skill:void-security-guidance",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "protect-sensitive-files blocks secrets/keys edits — enforces security-guidance"
     },
     {
       "from": "hook:refactor-named-grep",
-      "to": "skill:refactor",
-      "kind": "companion-of",
-      "origin": "derived",
-      "evidence": "naming convention: hook refactor-named-grep guards skill refactor"
-    },
-    {
-      "from": "hook:refactor-named-grep",
-      "to": "skill:refactor",
+      "to": "skill:void-refactor",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "refactor-named-grep requires named Fowler refactors — enforces refactor"
     },
     {
       "from": "hook:tdd-guard",
-      "to": "skill:tdd",
-      "kind": "companion-of",
-      "origin": "derived",
-      "evidence": "naming convention: hook tdd-guard guards skill tdd"
-    },
-    {
-      "from": "hook:tdd-guard",
-      "to": "skill:tdd",
+      "to": "skill:void-tdd",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "tdd-guard requires a test to drive every production change — enforces tdd (Iron Law)"
     },
     {
       "from": "hook:test-name-lint",
-      "to": "skill:testing",
+      "to": "skill:void-testing",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "test-name-lint checks behavior-named tests — enforces testing"
     },
     {
       "from": "hook:tidying-commit-prefix",
-      "to": "skill:refactor",
+      "to": "skill:void-refactor",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "tidying-commit-prefix separates tidyings from behavior — enforces refactor (Tidy-First)"
     },
     {
       "from": "hook:tsc-noemit-precommit",
-      "to": "skill:typescript-strict",
+      "to": "skill:void-typescript-strict",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "tsc-noemit-precommit gates on a clean typecheck — enforces typescript-strict"
     },
     {
       "from": "hook:ubiquitous-language-lint",
-      "to": "skill:domain-driven-design",
+      "to": "skill:void-domain-driven-design",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "ubiquitous-language-lint checks domain vocabulary — enforces domain-driven-design"
     },
     {
       "from": "hook:viewport-screenshot-gate",
-      "to": "skill:accessibility",
+      "to": "skill:void-accessibility",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "viewport-screenshot-gate gates mobile+desktop viewports — enforces accessibility"
     },
     {
-      "from": "skill:api-and-interface-design",
-      "to": "skill:async-safety",
+      "from": "skill:pack-monorepo/void-dependency-direction",
+      "to": "skill:void-hexagonal-architecture",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "pack-monorepo/dependency-direction SKILL.md description: Composes with core:hexagonal-architecture and the boundary-direction-check hook."
+    },
+    {
+      "from": "skill:pack-monorepo/void-package-extraction",
+      "to": "skill:pack-monorepo/void-service-package",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "pack-monorepo/package-extraction SKILL.md: Composes with harness-monorepo:service-package (which is the creation workflow once you've decided yes)."
+    },
+    {
+      "from": "skill:pack-monorepo/void-service-package",
+      "to": "skill:void-domain-driven-design",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "pack-monorepo/service-package SKILL.md description: Composes with hexagonal-architecture, DDD."
+    },
+    {
+      "from": "skill:pack-monorepo/void-service-package",
+      "to": "skill:void-hexagonal-architecture",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "pack-monorepo/service-package SKILL.md description: Composes with hexagonal-architecture, DDD."
+    },
+    {
+      "from": "skill:pack-nextjs/void-instrumentation-setup",
+      "to": "skill:void-observability",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "pack-nextjs/instrumentation-setup SKILL.md: Composes with observability (the doctrine: pino, structured logs, Sentry user scope)."
+    },
+    {
+      "from": "skill:pack-nextjs/void-loading-error-boundaries",
+      "to": "skill:void-observability",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "pack-nextjs/loading-error-boundaries SKILL.md: Log to Sentry (composes with observability)"
+    },
+    {
+      "from": "skill:pack-react/void-accessibility-check",
+      "to": "skill:void-accessibility",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "pack-react/accessibility-check SKILL.md: Composes with accessibility (the generic doctrine and Radix-as-primitive philosophy)."
+    },
+    {
+      "from": "skill:pack-react/void-form-pattern",
+      "to": "skill:pack-react/void-accessibility-check",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "pack-react/form-pattern SKILL.md: Touch targets >= 44x44 (composes with harness-react:accessibility-check)."
+    },
+    {
+      "from": "skill:pack-react/void-form-pattern",
+      "to": "skill:pack-server/void-server-action",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "pack-react/form-pattern SKILL.md description: Build forms with react-hook-form + Zod resolver... Composes with harness-server:server-action."
+    },
+    {
+      "from": "skill:pack-server/void-drizzle-migration-safe",
+      "to": "skill:void-migrations",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "pack-server/drizzle-migration-safe SKILL.md: Composes with migrations (the generic doctrine); this skill ships the concrete Drizzle patterns."
+    },
+    {
+      "from": "skill:pack-server/void-env-validation",
+      "to": "skill:void-security-guidance",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "pack-server/env-validation SKILL.md: Composes with security-guidance (env doctrine)"
+    },
+    {
+      "from": "skill:pack-server/void-server-action",
+      "to": "skill:void-async-safety",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "pack-server/server-action SKILL.md description: Composes with security-guidance, async-safety."
+    },
+    {
+      "from": "skill:pack-server/void-server-action",
+      "to": "skill:void-security-guidance",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "pack-server/server-action SKILL.md description: Composes with security-guidance, async-safety."
+    },
+    {
+      "from": "skill:void-api-and-interface-design",
+      "to": "skill:void-async-safety",
       "kind": "composes",
       "origin": "declared",
       "evidence": "api-and-interface-design SKILL.md: two contract terms earn their place when relevant. Composes with async-safety."
     },
     {
-      "from": "skill:api-and-interface-design",
-      "to": "skill:functional",
+      "from": "skill:void-api-and-interface-design",
+      "to": "skill:void-functional",
       "kind": "composes",
       "origin": "declared",
       "evidence": "api-and-interface-design SKILL.md: return Result<T, E> where E is a closed, named set of failures. Composes with functional."
     },
     {
-      "from": "skill:api-and-interface-design",
-      "to": "skill:security-guidance",
+      "from": "skill:void-api-and-interface-design",
+      "to": "skill:void-security-guidance",
       "kind": "composes",
       "origin": "declared",
       "evidence": "api-and-interface-design SKILL.md: External input is untrusted; parse it into the boundary type... Composes with security-guidance."
     },
     {
-      "from": "skill:api-and-interface-design",
-      "to": "skill:typescript-strict",
+      "from": "skill:void-api-and-interface-design",
+      "to": "skill:void-typescript-strict",
       "kind": "composes",
       "origin": "declared",
       "evidence": "api-and-interface-design SKILL.md: The best contract makes the invalid call fail to compile, not fail at runtime. Composes with typescript-strict."
     },
     {
-      "from": "skill:async-safety",
-      "to": "skill:functional",
+      "from": "skill:void-async-safety",
+      "to": "skill:void-functional",
       "kind": "composes",
       "origin": "declared",
       "evidence": "async-safety SKILL.md: functional (the outcome is a value — Rates or the fallback — not an exception that escapes the boundary)"
     },
     {
-      "from": "skill:async-safety",
-      "to": "skill:hexagonal-architecture",
+      "from": "skill:void-async-safety",
+      "to": "skill:void-hexagonal-architecture",
       "kind": "composes",
       "origin": "declared",
       "evidence": "async-safety SKILL.md: IdempotencyStore is a port (composes with hexagonal-architecture)"
     },
     {
-      "from": "skill:async-safety",
-      "to": "skill:migrations",
+      "from": "skill:void-async-safety",
+      "to": "skill:void-migrations",
       "kind": "composes",
       "origin": "declared",
       "evidence": "async-safety SKILL.md: The domain_events table schema... (composes with migrations)."
     },
     {
-      "from": "skill:async-safety",
-      "to": "skill:observability",
+      "from": "skill:void-async-safety",
+      "to": "skill:void-observability",
       "kind": "composes",
       "origin": "declared",
       "evidence": "async-safety SKILL.md: composes with observability (the degradation is a structured warn, never swallowed)"
     },
     {
-      "from": "skill:async-safety",
-      "to": "skill:security-guidance",
+      "from": "skill:void-async-safety",
+      "to": "skill:void-security-guidance",
       "kind": "composes",
       "origin": "declared",
       "evidence": "async-safety SKILL.md: Reject events older than the configured window... Composes with security-guidance (replay attack protection)."
     },
     {
-      "from": "skill:autopilot",
-      "to": "skill:implement",
+      "from": "skill:void-autopilot",
+      "to": "skill:void-implement",
       "kind": "invokes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Caller: autopilot runs this once per ticket in parallel worktrees, whole and once"
     },
     {
-      "from": "skill:brainstorm",
-      "to": "skill:plan",
+      "from": "skill:void-brainstorm",
+      "to": "skill:void-plan",
       "kind": "routes-to",
       "origin": "declared",
       "evidence": "brainstorm SKILL.md: MUST NOT transition to any skill other than plan post-approval"
     },
     {
-      "from": "skill:brainstorm",
-      "to": "skill:tdd",
+      "from": "skill:void-brainstorm",
+      "to": "skill:void-tdd",
       "kind": "composes",
       "origin": "declared",
       "evidence": "brainstorm SKILL.md: TDD mode per implementation phase (strict / souple / exploratory — composes with tdd skill)"
     },
     {
-      "from": "skill:code-review",
+      "from": "skill:void-code-review",
       "to": "agent:doctrine-critic",
       "kind": "composes",
       "origin": "declared",
       "evidence": "code-review SKILL.md: composes agent doctrine-critic for doctrine conformance"
     },
     {
-      "from": "skill:code-review",
-      "to": "skill:hexagonal-architecture",
+      "from": "skill:void-code-review",
+      "to": "skill:void-hexagonal-architecture",
       "kind": "composes",
       "origin": "declared",
       "evidence": "code-review SKILL.md: Structure — boundaries respected? composes with hexagonal-architecture, domain-driven-design, refactor"
     },
     {
-      "from": "skill:code-review",
-      "to": "skill:security-guidance",
+      "from": "skill:void-code-review",
+      "to": "skill:void-security-guidance",
       "kind": "composes",
       "origin": "declared",
       "evidence": "code-review SKILL.md: Security — input validated at trust boundaries? composes with security-guidance"
     },
     {
-      "from": "skill:code-review",
-      "to": "skill:tdd",
+      "from": "skill:void-code-review",
+      "to": "skill:void-tdd",
       "kind": "composes",
       "origin": "declared",
       "evidence": "code-review SKILL.md: Correctness — composes with tdd (cycle evidence) and debug"
     },
     {
-      "from": "skill:code-review",
-      "to": "skill:testing",
+      "from": "skill:void-code-review",
+      "to": "skill:void-testing",
       "kind": "composes",
       "origin": "declared",
       "evidence": "code-review SKILL.md: Tests — failing test before the code? real code over mocks? names describe behavior? composes with testing."
     },
     {
-      "from": "skill:code-review",
-      "to": "skill:typescript-strict",
+      "from": "skill:void-code-review",
+      "to": "skill:void-typescript-strict",
       "kind": "composes",
       "origin": "declared",
       "evidence": "code-review SKILL.md: Readability — names? exhaustive switches? any slips? composes with typescript-strict."
     },
     {
-      "from": "skill:commit-discipline",
-      "to": "skill:debug",
+      "from": "skill:void-commit-discipline",
+      "to": "skill:void-debug",
       "kind": "composes",
       "origin": "declared",
       "evidence": "commit-discipline SKILL.md: fix: Bug fix. Composes with debug (the why = the root cause)"
     },
     {
-      "from": "skill:commit-discipline",
-      "to": "skill:refactor",
+      "from": "skill:void-commit-discipline",
+      "to": "skill:void-refactor",
       "kind": "composes",
       "origin": "declared",
       "evidence": "commit-discipline SKILL.md: refactor: Structural change without behavior change. Composes with refactor (named Fowler move)"
     },
     {
-      "from": "skill:context",
+      "from": "skill:void-context",
       "to": "agent:code-explorer",
       "kind": "composes",
       "origin": "declared",
       "evidence": "context SKILL.md: Delegate heavy investigation to fresh-context subagents — code-explorer is that read-only mapper"
     },
     {
-      "from": "skill:context",
-      "to": "skill:plan",
+      "from": "skill:void-context",
+      "to": "skill:void-plan",
       "kind": "composes",
       "origin": "declared",
       "evidence": "context SKILL.md: composes with plan — the plan file is the source of truth, not the chat log."
     },
     {
-      "from": "skill:debug",
+      "from": "skill:void-debug",
       "to": "agent:doctrine-critic",
       "kind": "composes",
       "origin": "declared",
       "evidence": "debug SKILL.md: routes doctrine judgment to the doctrine-critic agent"
     },
     {
-      "from": "skill:debug",
-      "to": "skill:commit-discipline",
+      "from": "skill:void-debug",
+      "to": "skill:void-commit-discipline",
       "kind": "composes",
       "origin": "declared",
       "evidence": "debug SKILL.md: Commit: fix: <root cause description>. Composes with commit-discipline (the 'why' is the root cause)."
     },
     {
-      "from": "skill:debug",
-      "to": "skill:refactor",
+      "from": "skill:void-debug",
+      "to": "skill:void-refactor",
       "kind": "composes",
       "origin": "declared",
       "evidence": "debug SKILL.md: The fix is a refactor (composes with refactor and hexagonal-architecture / domain-driven-design)."
     },
     {
-      "from": "skill:decide",
-      "to": "skill:plan",
+      "from": "skill:void-decide",
+      "to": "skill:void-plan",
       "kind": "composes",
       "origin": "declared",
       "evidence": "decide SKILL.md: Composes with plan (which is plan-the-work-before-coding)"
     },
     {
-      "from": "skill:devex-audit",
-      "to": "skill:api-and-interface-design",
+      "from": "skill:void-devex-audit",
+      "to": "skill:void-api-and-interface-design",
       "kind": "composes",
       "origin": "declared",
       "evidence": "devex-audit SKILL.md: With api-and-interface-design — its build-time floor ... is what this skill audits after the fact. Build there, judge here."
     },
     {
-      "from": "skill:devex-audit",
-      "to": "skill:plan-review",
+      "from": "skill:void-devex-audit",
+      "to": "skill:void-plan-review",
       "kind": "overlaps",
       "origin": "declared",
       "evidence": "devex-audit SKILL.md: Not plan-review's DevEx lens — that judges a written plan before code; this audits the shipped surface. The < 30% overlap is structural."
     },
     {
-      "from": "skill:devex-audit",
-      "to": "skill:ui-review",
+      "from": "skill:void-devex-audit",
+      "to": "skill:void-ui-review",
       "kind": "companion-of",
       "origin": "declared",
       "evidence": "devex-audit SKILL.md: Not ui-review — that audits the visual/interaction UI; this audits the developer journey. Different subject (sibling audit skills)."
     },
     {
-      "from": "skill:domain-driven-design",
-      "to": "skill:functional",
+      "from": "skill:void-domain-driven-design",
+      "to": "skill:void-functional",
       "kind": "composes",
       "origin": "declared",
       "evidence": "domain-driven-design SKILL.md: Composes with typescript-strict exhaustive switches and functional ADTs."
     },
     {
-      "from": "skill:domain-driven-design",
-      "to": "skill:hexagonal-architecture",
+      "from": "skill:void-domain-driven-design",
+      "to": "skill:void-hexagonal-architecture",
       "kind": "composes",
       "origin": "declared",
       "evidence": "domain-driven-design SKILL.md: Aggregates collect events; use-cases dispatch via EventBusPort. Composes with hexagonal-architecture (event bus as a port)."
     },
     {
-      "from": "skill:domain-driven-design",
-      "to": "skill:typescript-strict",
+      "from": "skill:void-domain-driven-design",
+      "to": "skill:void-typescript-strict",
       "kind": "composes",
       "origin": "declared",
       "evidence": "domain-driven-design SKILL.md: Composes with typescript-strict exhaustive switches and functional ADTs."
     },
     {
-      "from": "skill:functional",
-      "to": "skill:domain-driven-design",
+      "from": "skill:void-functional",
+      "to": "skill:void-domain-driven-design",
       "kind": "composes",
       "origin": "declared",
       "evidence": "functional SKILL.md: Composes with typescript-strict exhaustive-switch enforcement and domain-driven-design aggregate state machines."
     },
     {
-      "from": "skill:functional",
-      "to": "skill:typescript-strict",
+      "from": "skill:void-functional",
+      "to": "skill:void-typescript-strict",
       "kind": "composes",
       "origin": "declared",
       "evidence": "functional SKILL.md: Composes with typescript-strict exhaustive-switch enforcement and domain-driven-design aggregate state machines."
     },
     {
-      "from": "skill:hexagonal-architecture",
-      "to": "skill:domain-driven-design",
+      "from": "skill:void-hexagonal-architecture",
+      "to": "skill:void-domain-driven-design",
       "kind": "composes",
       "origin": "declared",
       "evidence": "hexagonal-architecture SKILL.md: Split ports align with one bounded-context capability. Composes with domain-driven-design"
     },
     {
-      "from": "skill:hexagonal-architecture",
-      "to": "skill:functional",
+      "from": "skill:void-hexagonal-architecture",
+      "to": "skill:void-functional",
       "kind": "composes",
       "origin": "declared",
       "evidence": "hexagonal-architecture SKILL.md: Returns Result<Output, Error> (composes with functional)"
     },
     {
-      "from": "skill:hexagonal-architecture",
-      "to": "skill:testing",
+      "from": "skill:void-hexagonal-architecture",
+      "to": "skill:void-testing",
       "kind": "composes",
       "origin": "declared",
       "evidence": "hexagonal-architecture SKILL.md: No mocking framework. The shape of in-memory matches the shape of production. Composes with testing skill's nullable infrastructure pattern."
     },
     {
-      "from": "skill:implement",
+      "from": "skill:void-implement",
       "to": "agent:doctrine-critic",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Review pass composes agents doctrine-critic + silent-failure-hunter"
     },
     {
-      "from": "skill:implement",
+      "from": "skill:void-implement",
       "to": "agent:silent-failure-hunter",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Review pass composes agent silent-failure-hunter"
     },
     {
-      "from": "skill:implement",
+      "from": "skill:void-implement",
       "to": "agent:type-design-analyzer",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Architecture pass composes agents type-design-analyzer + doctrine-critic"
     },
     {
-      "from": "skill:implement",
-      "to": "skill:accessibility",
+      "from": "skill:void-implement",
+      "to": "skill:void-accessibility",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: UX/UI pass: Compose frontend-design + ui-review + accessibility"
     },
     {
-      "from": "skill:implement",
-      "to": "skill:async-safety",
+      "from": "skill:void-implement",
+      "to": "skill:void-async-safety",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Async + idempotency pass: Compose async-safety, idempotency keys, replay/dedup window"
     },
     {
-      "from": "skill:implement",
-      "to": "skill:code-review",
+      "from": "skill:void-implement",
+      "to": "skill:void-code-review",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Review pass: Compose code-review for the integration lens"
     },
     {
-      "from": "skill:implement",
-      "to": "skill:commit-discipline",
+      "from": "skill:void-implement",
+      "to": "skill:void-commit-discipline",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Ship pass: Compose commit-discipline, open the PR, attach the evidence"
     },
     {
-      "from": "skill:implement",
-      "to": "skill:domain-driven-design",
+      "from": "skill:void-implement",
+      "to": "skill:void-domain-driven-design",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Architecture pass: Compose hexagonal-architecture, domain-driven-design"
     },
     {
-      "from": "skill:implement",
-      "to": "skill:frontend-design",
+      "from": "skill:void-implement",
+      "to": "skill:void-frontend-design",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: UX/UI pass: Compose frontend-design (build-time craft)"
     },
     {
-      "from": "skill:implement",
-      "to": "skill:hexagonal-architecture",
+      "from": "skill:void-implement",
+      "to": "skill:void-hexagonal-architecture",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Architecture pass: Compose hexagonal-architecture, domain-driven-design"
     },
     {
-      "from": "skill:implement",
-      "to": "skill:migrations",
+      "from": "skill:void-implement",
+      "to": "skill:void-migrations",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Migration safety pass: Compose migrations, zero-downtime, two-phase, batched backfill"
     },
     {
-      "from": "skill:implement",
-      "to": "skill:qa",
+      "from": "skill:void-implement",
+      "to": "skill:void-qa",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: UX/UI pass: Browser-verified QA (live screenshots) runs via qa"
     },
     {
-      "from": "skill:implement",
-      "to": "skill:security-audit",
+      "from": "skill:void-implement",
+      "to": "skill:void-security-audit",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Security pass: Compose security-guidance + security-audit"
     },
     {
-      "from": "skill:implement",
-      "to": "skill:security-guidance",
+      "from": "skill:void-implement",
+      "to": "skill:void-security-guidance",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Security pass: Compose security-guidance + security-audit"
     },
     {
-      "from": "skill:implement",
-      "to": "skill:source-driven-development",
+      "from": "skill:void-implement",
+      "to": "skill:void-source-driven-development",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Source grounding pass: Compose source-driven-development: read the official documentation of the installed version before the first line"
     },
     {
-      "from": "skill:implement",
-      "to": "skill:tdd",
+      "from": "skill:void-implement",
+      "to": "skill:void-tdd",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: TDD implementation pass: The single lead writer composes tdd + testing"
     },
     {
-      "from": "skill:implement",
-      "to": "skill:testing",
+      "from": "skill:void-implement",
+      "to": "skill:void-testing",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: TDD implementation pass: The single lead writer composes tdd + testing"
     },
     {
-      "from": "skill:implement",
-      "to": "skill:ui-review",
+      "from": "skill:void-implement",
+      "to": "skill:void-ui-review",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: UX/UI pass: Compose ui-review, the audit/critique ceiling"
     },
     {
-      "from": "skill:implement",
-      "to": "skill:verify",
+      "from": "skill:void-implement",
+      "to": "skill:void-verify",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Verification before completion pass: Compose verify, typecheck, tests, hooks, both viewports"
     },
     {
-      "from": "skill:llm-cost-discipline",
-      "to": "skill:observability",
+      "from": "skill:void-llm-cost-discipline",
+      "to": "skill:void-observability",
       "kind": "composes",
       "origin": "declared",
       "evidence": "llm-cost-discipline SKILL.md: // composes with observability (cost tracking at LLM call sites)"
     },
     {
-      "from": "skill:llm-cost-discipline",
-      "to": "skill:security-guidance",
+      "from": "skill:void-llm-cost-discipline",
+      "to": "skill:void-security-guidance",
       "kind": "composes",
       "origin": "declared",
       "evidence": "llm-cost-discipline SKILL.md: Content containing user PII without explicit per-user scoping (composes with security-guidance)"
     },
     {
-      "from": "skill:migrations",
-      "to": "skill:observability",
+      "from": "skill:void-migrations",
+      "to": "skill:void-observability",
       "kind": "composes",
       "origin": "declared",
       "evidence": "migrations SKILL.md: Progress logged via structured logger (composes with observability)."
     },
     {
-      "from": "skill:migrations",
-      "to": "skill:tdd",
+      "from": "skill:void-migrations",
+      "to": "skill:void-tdd",
       "kind": "composes",
       "origin": "declared",
       "evidence": "migrations SKILL.md: integration test the migration (composes with tdd)"
     },
     {
-      "from": "skill:observability",
-      "to": "skill:async-safety",
+      "from": "skill:void-observability",
+      "to": "skill:void-async-safety",
       "kind": "composes",
       "origin": "declared",
       "evidence": "observability SKILL.md: Composes with async-safety — the trace propagates across job / webhook / queue boundaries via the message envelope."
     },
     {
-      "from": "skill:observability",
-      "to": "skill:llm-cost-discipline",
+      "from": "skill:void-observability",
+      "to": "skill:void-llm-cost-discipline",
       "kind": "composes",
       "origin": "declared",
       "evidence": "observability SKILL.md: Cost per business event (LLM tokens, third-party calls) | Composes with llm-cost-discipline"
     },
     {
-      "from": "skill:observability",
-      "to": "skill:security-guidance",
+      "from": "skill:void-observability",
+      "to": "skill:void-security-guidance",
       "kind": "composes",
       "origin": "declared",
       "evidence": "observability SKILL.md: No PII, no secrets, ever (composes with security-guidance)"
     },
     {
-      "from": "skill:pack-monorepo/dependency-direction",
-      "to": "skill:hexagonal-architecture",
-      "kind": "composes",
-      "origin": "declared",
-      "evidence": "pack-monorepo/dependency-direction SKILL.md description: Composes with core:hexagonal-architecture and the boundary-direction-check hook."
-    },
-    {
-      "from": "skill:pack-monorepo/package-extraction",
-      "to": "skill:pack-monorepo/service-package",
-      "kind": "composes",
-      "origin": "declared",
-      "evidence": "pack-monorepo/package-extraction SKILL.md: Composes with harness-monorepo:service-package (which is the creation workflow once you've decided yes)."
-    },
-    {
-      "from": "skill:pack-monorepo/service-package",
-      "to": "skill:domain-driven-design",
-      "kind": "composes",
-      "origin": "declared",
-      "evidence": "pack-monorepo/service-package SKILL.md description: Composes with hexagonal-architecture, DDD."
-    },
-    {
-      "from": "skill:pack-monorepo/service-package",
-      "to": "skill:hexagonal-architecture",
-      "kind": "composes",
-      "origin": "declared",
-      "evidence": "pack-monorepo/service-package SKILL.md description: Composes with hexagonal-architecture, DDD."
-    },
-    {
-      "from": "skill:pack-nextjs/instrumentation-setup",
-      "to": "skill:observability",
-      "kind": "composes",
-      "origin": "declared",
-      "evidence": "pack-nextjs/instrumentation-setup SKILL.md: Composes with observability (the doctrine: pino, structured logs, Sentry user scope)."
-    },
-    {
-      "from": "skill:pack-nextjs/loading-error-boundaries",
-      "to": "skill:observability",
-      "kind": "composes",
-      "origin": "declared",
-      "evidence": "pack-nextjs/loading-error-boundaries SKILL.md: Log to Sentry (composes with observability)"
-    },
-    {
-      "from": "skill:pack-react/accessibility-check",
-      "to": "skill:accessibility",
-      "kind": "composes",
-      "origin": "declared",
-      "evidence": "pack-react/accessibility-check SKILL.md: Composes with accessibility (the generic doctrine and Radix-as-primitive philosophy)."
-    },
-    {
-      "from": "skill:pack-react/form-pattern",
-      "to": "skill:pack-react/accessibility-check",
-      "kind": "composes",
-      "origin": "declared",
-      "evidence": "pack-react/form-pattern SKILL.md: Touch targets >= 44x44 (composes with harness-react:accessibility-check)."
-    },
-    {
-      "from": "skill:pack-react/form-pattern",
-      "to": "skill:pack-server/server-action",
-      "kind": "composes",
-      "origin": "declared",
-      "evidence": "pack-react/form-pattern SKILL.md description: Build forms with react-hook-form + Zod resolver... Composes with harness-server:server-action."
-    },
-    {
-      "from": "skill:pack-server/drizzle-migration-safe",
-      "to": "skill:migrations",
-      "kind": "composes",
-      "origin": "declared",
-      "evidence": "pack-server/drizzle-migration-safe SKILL.md: Composes with migrations (the generic doctrine); this skill ships the concrete Drizzle patterns."
-    },
-    {
-      "from": "skill:pack-server/env-validation",
-      "to": "skill:security-guidance",
-      "kind": "composes",
-      "origin": "declared",
-      "evidence": "pack-server/env-validation SKILL.md: Composes with security-guidance (env doctrine)"
-    },
-    {
-      "from": "skill:pack-server/server-action",
-      "to": "skill:async-safety",
-      "kind": "composes",
-      "origin": "declared",
-      "evidence": "pack-server/server-action SKILL.md description: Composes with security-guidance, async-safety."
-    },
-    {
-      "from": "skill:pack-server/server-action",
-      "to": "skill:security-guidance",
-      "kind": "composes",
-      "origin": "declared",
-      "evidence": "pack-server/server-action SKILL.md description: Composes with security-guidance, async-safety."
-    },
-    {
-      "from": "skill:plan",
-      "to": "skill:migrations",
+      "from": "skill:void-plan",
+      "to": "skill:void-migrations",
       "kind": "composes",
       "origin": "declared",
       "evidence": "plan SKILL.md: Production data migration (composes with migrations)"
     },
     {
-      "from": "skill:plan",
-      "to": "skill:security-guidance",
+      "from": "skill:void-plan",
+      "to": "skill:void-security-guidance",
       "kind": "composes",
       "origin": "declared",
       "evidence": "plan SKILL.md: LLM call sites with user-controlled input (composes with security-guidance LLM section)"
     },
     {
-      "from": "skill:plan",
-      "to": "skill:tdd",
+      "from": "skill:void-plan",
+      "to": "skill:void-tdd",
       "kind": "composes",
       "origin": "declared",
       "evidence": "plan SKILL.md: With tdd: per-step mode selection lives in the plan."
     },
     {
-      "from": "skill:qa",
-      "to": "skill:tdd",
+      "from": "skill:void-qa",
+      "to": "skill:void-tdd",
       "kind": "composes",
       "origin": "declared",
       "evidence": "qa SKILL.md: the regression test in the fix loop is authored per tdd/testing discipline."
     },
     {
-      "from": "skill:qa",
-      "to": "skill:testing",
+      "from": "skill:void-qa",
+      "to": "skill:void-testing",
       "kind": "composes",
       "origin": "declared",
       "evidence": "qa SKILL.md: a regression test that reproduces the bug (compose tdd/testing — assert behavior, not it renders)."
     },
     {
-      "from": "skill:qa",
-      "to": "skill:ui-review",
+      "from": "skill:void-qa",
+      "to": "skill:void-ui-review",
       "kind": "composes",
       "origin": "declared",
       "evidence": "qa SKILL.md: for visual/interaction judgment on the live screenshots, compose ui-review. This skill drives the browser; ui-review supplies the craft bar."
     },
     {
-      "from": "skill:refactor",
-      "to": "skill:typescript-strict",
+      "from": "skill:void-refactor",
+      "to": "skill:void-typescript-strict",
       "kind": "composes",
       "origin": "declared",
       "evidence": "refactor SKILL.md: Replace Primitive with Branded Type | Composes with typescript-strict."
     },
     {
-      "from": "skill:security-guidance",
+      "from": "skill:void-security-guidance",
       "to": "agent:doctrine-critic",
       "kind": "composes",
       "origin": "declared",
       "evidence": "security-guidance SKILL.md: composes doctrine-critic for boundary/doctrine review"
     },
     {
-      "from": "skill:security-guidance",
-      "to": "skill:llm-cost-discipline",
+      "from": "skill:void-security-guidance",
+      "to": "skill:void-llm-cost-discipline",
       "kind": "composes",
       "origin": "declared",
       "evidence": "security-guidance SKILL.md: Composes with llm-cost-discipline — cost rules and security rules co-evolve at LLM call sites"
     },
     {
-      "from": "skill:security-guidance",
-      "to": "skill:migrations",
+      "from": "skill:void-security-guidance",
+      "to": "skill:void-migrations",
       "kind": "composes",
       "origin": "declared",
       "evidence": "security-guidance SKILL.md: Composes with migrations for schema changes."
     },
     {
-      "from": "skill:security-guidance",
-      "to": "skill:observability",
+      "from": "skill:void-security-guidance",
+      "to": "skill:void-observability",
       "kind": "composes",
       "origin": "declared",
       "evidence": "security-guidance SKILL.md: secrets MUST NOT appear in logs. Composes with observability — secrets MUST NOT appear in logs."
     },
     {
-      "from": "skill:source-driven-development",
-      "to": "skill:commit-discipline",
+      "from": "skill:void-source-driven-development",
+      "to": "skill:void-commit-discipline",
       "kind": "composes",
       "origin": "declared",
       "evidence": "source-driven-development SKILL.md: composes with commit-discipline — the 'why' carries the source"
     },
     {
-      "from": "skill:source-driven-development",
-      "to": "skill:hexagonal-architecture",
+      "from": "skill:void-source-driven-development",
+      "to": "skill:void-hexagonal-architecture",
       "kind": "composes",
       "origin": "declared",
       "evidence": "source-driven-development SKILL.md: pass the doc text as a parameter — a port. Composes with hexagonal-architecture and security-guidance."
     },
     {
-      "from": "skill:ticket",
-      "to": "skill:implement",
+      "from": "skill:void-ticket",
+      "to": "skill:void-implement",
       "kind": "routes-to",
       "origin": "declared",
       "evidence": "implement SKILL.md: Upstream: ticket produces the ticket and declares its conditional passes"
     },
     {
-      "from": "skill:ui-review",
-      "to": "skill:qa",
+      "from": "skill:void-ui-review",
+      "to": "skill:void-qa",
       "kind": "composes",
       "origin": "declared",
       "evidence": "ui-review SKILL.md: the browser home for the live layer is qa; compose qa rather than reviewing from code alone."
     },
     {
-      "from": "skill:verify",
-      "to": "skill:code-review",
+      "from": "skill:void-verify",
+      "to": "skill:void-code-review",
       "kind": "composes",
       "origin": "declared",
       "evidence": "verify SKILL.md: For PRs (composes with code-review): the checklist feeds the Review Evidence block"
     },
     {
-      "from": "skill:verify",
-      "to": "skill:plan",
+      "from": "skill:void-verify",
+      "to": "skill:void-plan",
       "kind": "composes",
       "origin": "declared",
       "evidence": "verify SKILL.md: For multi-step plans (composes with plan): update the plan's Resume point section"
