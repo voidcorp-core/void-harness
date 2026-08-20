@@ -1,6 +1,7 @@
 import { type Dirent, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { journalFingerprint, readMissionJournals } from './journal.js';
+import { RETIRED_SKILLS, wasEverOurs } from './retired-skills.js';
 import { voidMachinePath } from './void-layout.js';
 
 /**
@@ -127,6 +128,16 @@ function recordedSkillNames(body: string, nowMs?: number): string[] {
   return names;
 }
 
+/**
+ * The skill that carries a retired name's work now, when one does.
+ *
+ * The remedy is the point: "reinstall the harness" is what a renamed skill does
+ * not need, and naming its successor is the one sentence that ends the search.
+ */
+export function replacementFor(name: string): string | undefined {
+  return RETIRED_SKILLS[name];
+}
+
 /** The names this project recorded that it can no longer resolve. */
 export function resolutionVerdict(
   body: string,
@@ -134,8 +145,24 @@ export function resolutionVerdict(
   options: ResolutionOptions = {},
 ): ResolutionVerdict {
   const recorded = recordedSkillNames(body, options.nowMs);
-  const unresolved = [...new Set(recorded.filter((name) => !installed.has(name)))].sort();
+  // Ours to judge only. A runtime resolves skills from several providers, and a
+  // name we never shipped is not a defect of this install: reporting it printed
+  // a remedy that could not work, on a line that also carried the real ones.
+  const unresolved = [
+    ...new Set(recorded.filter((name) => !installed.has(name) && wasEverOurs(name))),
+  ].sort();
   return { ok: unresolved.length === 0, unresolved };
+}
+
+/**
+ * A retired name rendered with what replaced it: `session-handoff -> checkpoint`.
+ *
+ * The successor IS the remedy. Told only that a name no longer resolves, the
+ * reader goes looking for a missing file; told what took it over, they are done.
+ */
+export function withSuccessor(name: string): string {
+  const replacement = replacementFor(name);
+  return replacement === undefined ? name : `${name} -> ${replacement}`;
 }
 
 /** How many names the banner spells out before falling back to a count. */
@@ -160,7 +187,7 @@ export function invocationAlert(
   if (resolution.ok && liveness.ok) return undefined;
   const lines = ['void-harness, invocation surface:'];
   if (!resolution.ok) {
-    const named = resolution.unresolved.slice(0, MAX_NAMED).join(', ');
+    const named = resolution.unresolved.slice(0, MAX_NAMED).map(withSuccessor).join(', ');
     const rest = resolution.unresolved.length - MAX_NAMED;
     const tail = rest > 0 ? `, and ${rest} more` : '';
     lines.push(

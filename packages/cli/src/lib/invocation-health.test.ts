@@ -17,6 +17,20 @@ afterEach(() => {
 });
 
 describe('judgeInvocation', () => {
+  it('names the successor of a retired skill instead of sending the reader to reinstall', () => {
+    // The remedy printed here has to be one that works. A renamed skill is not a
+    // missing file, and `update` will never bring the old name back.
+    const check = judgeInvocation({
+      resolution: { ok: false, unresolved: ['session-handoff', 'ticket-runner'] },
+      liveness: ALIVE,
+      installedSkills: 41,
+    });
+
+    expect(check.message).toContain('session-handoff -> checkpoint');
+    expect(check.message).toContain('ticket-runner -> implement');
+  });
+
+
   it('passes with the evidence, so a green line still says what was measured', () => {
     const check = judgeInvocation({ resolution: RESOLVES, liveness: ALIVE, installedSkills: 37 });
     expect(check.ok).toBe(true);
