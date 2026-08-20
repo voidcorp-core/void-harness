@@ -166,6 +166,24 @@ export async function stagedRelativePaths(stageRoot: string): Promise<string[]> 
   return (await collectStageFiles(stageRoot)).map((file) => file.path);
 }
 
+/** How many conflicting paths are spelled out before the message gives a count. */
+const MAX_NAMED_CONFLICTS = 5;
+
+/**
+ * One message for every asset the install cannot prove it wrote.
+ *
+ * Named rather than counted, because the operator's next move is to look at
+ * those exact files; capped, because a project whose whole receipt was lost
+ * would otherwise print a hundred paths and bury the remedy under them.
+ */
+export function conflictMessage(paths: readonly string[]): string {
+  const named = paths.slice(0, MAX_NAMED_CONFLICTS).join(', ');
+  const rest = paths.length - MAX_NAMED_CONFLICTS;
+  const tail = rest > 0 ? `, and ${String(rest)} more` : '';
+  const remedy = paths.length === 1 ? 'preserve it' : 'preserve them';
+  return `unowned asset conflict at ${named}${tail}; ${remedy} or re-run with --force`;
+}
+
 export async function prepareInstallCommit(input: PrepareInstallInput): Promise<PreparedInstall> {
   const staged = await collectStageFiles(input.stageRoot);
   const previous = await readInstallReceipt(input.projectRoot);
@@ -173,6 +191,7 @@ export async function prepareInstallCommit(input: PrepareInstallInput): Promise<
   const stagedPaths = new Set(staged.map((file) => file.path));
   const owned: ReceiptFileInput[] = [];
   const mutations: FileMutation[] = [];
+  const conflicts: string[] = [];
 
   for (const file of staged) {
     const target = join(input.projectRoot, ...file.path.split('/'));
@@ -196,11 +215,23 @@ export async function prepareInstallCommit(input: PrepareInstallInput): Promise<
       && !stillOwned
       && !input.force
     ) {
-      throw new Error(`unowned asset conflict at ${file.path}; preserve it or re-run with --force`);
+      // Collected rather than thrown on. Rendered one at a time, the operator
+      // fixes a file, re-runs, and meets the next one: a project carrying
+      // dozens of them pays the round trip once per file.
+      conflicts.push(file.path);
+      continue;
     }
     if (changed) mutations.push({ path: file.path, content: file.content, mode: file.mode });
-    if (current === undefined || stillOwned) owned.push(file);
+    // Bytes and mode identical to what we just compiled are proof enough of
+    // ownership for a managed asset: whoever wrote that file wrote ours. Without
+    // this, a file the install had nothing to write left the receipt in silence,
+    // and the first version to change it met an asset it could not recognise.
+    // Managed only -- a shared file is co-owned, and claiming one would licence
+    // deleting it at the next update.
+    if (current === undefined || stillOwned || (!changed && isManaged(file.path))) owned.push(file);
   }
+
+  if (conflicts.length > 0) throw new Error(conflictMessage(conflicts));
 
   const preserved: string[] = [];
   for (const prior of previous?.files ?? []) {

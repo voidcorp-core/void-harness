@@ -34,3 +34,39 @@ describe('workflow files', () => {
     expect(readFileSync(join(WORKFLOWS, name), 'utf8')).not.toContain('\t');
   });
 });
+
+// A job holding `id-token: write` can mint the OIDC token npm accepts as proof
+// of identity. npm cannot help here: its trusted publisher matches organisation,
+// repository, workflow FILENAME and an optional environment -- there is no branch
+// or ref field, so every run of this file looks legitimate to the registry
+// (verified against the npm docs and the package settings, 2026-08-20). The
+// restriction therefore has to exist in the workflow, and these tests are what
+// keeps it there.
+describe('workflows that can publish', () => {
+  const publishing = files.filter((name) => readFileSync(join(WORKFLOWS, name), 'utf8').includes('id-token: write'));
+
+  it('names at least release.yml, or these tests guard nothing', () => {
+    expect(publishing).toContain('release.yml');
+  });
+
+  it.each(publishing)('%s refuses to publish from a ref other than main', (name) => {
+    const body = readFileSync(join(WORKFLOWS, name), 'utf8');
+    // A manual dispatch carries the ref it was fired from. Without this guard the
+    // job checks out that ref and publishes it under the package name, signed.
+    expect(body).toMatch(/github\.ref\s*==\s*'refs\/heads\/main'/);
+  });
+
+  it.each(publishing)('%s gates the publishing job behind a protected environment', (name) => {
+    // The ONLY restriction npm can enforce beyond the workflow filename. Without
+    // it, a modified copy of this file on any branch publishes just as validly.
+    expect(readFileSync(join(WORKFLOWS, name), 'utf8')).toMatch(/^\s+environment:\s*\S+/m);
+  });
+
+  it.each(publishing)('%s pins every action to a full commit SHA', (name) => {
+    const used = [...readFileSync(join(WORKFLOWS, name), 'utf8').matchAll(/uses:\s*(\S+)/g)].map((match) => match[1]);
+    // A major tag is repointable by its owner: it is a second route to the same
+    // token, and it moves without anything in this repository changing.
+    const floating = used.filter((reference) => !/@[0-9a-f]{40}$/.test(reference ?? ''));
+    expect(floating).toEqual([]);
+  });
+});

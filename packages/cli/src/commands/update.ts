@@ -89,25 +89,38 @@ export async function update(args: readonly string[]): Promise<void> {
       footer(c.red('nothing was changed'));
       process.exit(1);
     }
+    // Written to disk, because the install transaction reads the receipt from
+    // there rather than taking one in hand. It is machine-local and disposable,
+    // exactly what `hydrate` restores.
+    if (!opts.dryRun) await writeReceipt(projectRoot, rehydrated);
     // Said once, quietly: it is a repair, not a decision the operator has to make.
     // Stopping here to ask for `hydrate` then `update --force` turned the common
     // case -- a fresh clone, which never carries a machine-local receipt -- into
     // two commands and a scary flag.
-    banner('update');
-    line(`${c.dim(glyph.dot)}  ${c.dim('receipt'.padEnd(12))}absent; ownership reclaimed from ${INSTALL_MANIFEST_PATH} (${rehydrated.files.length} files)`);
-    // Written to disk, because the install transaction reads the receipt from
-    // there rather than taking one in hand. It is machine-local and disposable,
-    // exactly what `hydrate` restores.
-    if (!opts.dryRun) {
-      const receiptPath = join(projectRoot, ...INSTALL_RECEIPT_PATH.split('/'));
-      await mkdir(dirname(receiptPath), { recursive: true });
-      await writeFile(receiptPath, encodeReceipt(rehydrated));
-    }
-    await updateLocal(projectRoot, rehydrated, opts.dryRun, opts.force);
+    await updateLocal(
+      projectRoot,
+      rehydrated,
+      opts.dryRun,
+      opts.force,
+      `absent; ownership reclaimed from ${INSTALL_MANIFEST_PATH} (${String(rehydrated.files.length)} files)`,
+    );
     return;
   }
   if (route === 'local' && receipt !== undefined) {
-    await updateLocal(projectRoot, receipt, opts.dryRun, opts.force);
+    const reclaimed = reclaimMissingPaths(projectRoot, receipt);
+    // A receipt amputated by an earlier install is repaired, not raised: the
+    // operator has no decision to make about it.
+    const regained = reclaimed.files.length - receipt.files.length;
+    if (regained > 0 && !opts.dryRun) await writeReceipt(projectRoot, reclaimed);
+    await updateLocal(
+      projectRoot,
+      reclaimed,
+      opts.dryRun,
+      opts.force,
+      regained > 0
+        ? `incomplete; ${String(regained)} path(s) reclaimed from ${INSTALL_MANIFEST_PATH}`
+        : undefined,
+    );
     return;
   }
 
@@ -204,8 +217,64 @@ export function updateRouteFor(
   return hasInstallManifest ? 'local-rehydrate' : 'marketplace';
 }
 
+/** Persist the machine-local receipt the install transaction reads back. */
+async function writeReceipt(projectRoot: string, receipt: InstallReceipt): Promise<void> {
+  const receiptPath = join(projectRoot, ...INSTALL_RECEIPT_PATH.split('/'));
+  await mkdir(dirname(receiptPath), { recursive: true });
+  await writeFile(receiptPath, encodeReceipt(receipt));
+}
+
+/** The committed manifest, or nothing when it cannot be read or parsed. */
+function readManifest(projectRoot: string): InstallManifest | undefined {
+  try {
+    return parseInstallManifest(readFileSync(join(projectRoot, INSTALL_MANIFEST_PATH), 'utf8'));
+  } catch {
+    return undefined;
+  }
+}
+
+/** What the harness claims, and the bytes the manifest attests for each. */
+export interface ClaimedFile {
+  readonly path: string;
+  /** `undefined` when the manifest cannot attest this path -- see `claimedFiles`. */
+  readonly sha256: string | undefined;
+}
+
+/** Every path the manifest claims, itself included. */
+function claimedFiles(manifest: InstallManifest): readonly ClaimedFile[] {
+  return [
+    // The manifest is never listed inside itself -- a file cannot carry its own
+    // hash -- yet it is the harness's by construction. Left out, it conflicts on
+    // every update, since a new version always rewrites it. Nothing attests it,
+    // and nothing has to.
+    { path: INSTALL_MANIFEST_PATH, sha256: undefined },
+    ...manifest.files,
+  ];
+}
+
+/** What a path holds right now, or nothing when the disk no longer has it. */
+function diskProbe(projectRoot: string) {
+  return (path: string): { readonly sha256: string; readonly mode: number } | undefined => {
+    try {
+      const target = join(projectRoot, ...path.split('/'));
+      return { sha256: sha256Of(readFileSync(target)), mode: statSync(target).mode & 0o777 };
+    } catch {
+      return undefined;
+    }
+  };
+}
+
+function wiredRuntimes(projectRoot: string): Runtime[] {
+  // Read from what is actually wired, not from the manifest, which does not
+  // record them.
+  const runtimes: Runtime[] = [];
+  if (existsSync(join(projectRoot, '.claude', 'settings.json'))) runtimes.push('claude');
+  if (existsSync(join(projectRoot, '.codex', 'hooks.json'))) runtimes.push('codex');
+  return runtimes.length > 0 ? runtimes : ['claude'];
+}
+
 /**
- * Reclaim ownership of the paths the committed manifest names.
+ * The receipt this project would have had, rebuilt from its committed manifest.
  *
  * The receipt is machine-local, so EVERY fresh clone arrives without one, and
  * the command used to stop there with two commands to type, one of them
@@ -217,59 +286,80 @@ export function updateRouteFor(
  * on every file the new version changes, which is the conflict this removes. A
  * path the manifest names and the disk no longer has is simply dropped: it was
  * ours, it is gone, and the install about to run decides whether it comes back.
- */
-/**
- * The receipt this project would have had, rebuilt from its committed manifest.
  *
  * `undefined` when the manifest cannot be read: that is a real dead end, and
  * inventing ownership from a directory listing is exactly the guess this whole
  * mechanism exists to avoid.
  */
 function rehydrateFromManifest(projectRoot: string): InstallReceipt | undefined {
-  let manifest: InstallManifest | undefined;
-  try {
-    manifest = parseInstallManifest(readFileSync(join(projectRoot, INSTALL_MANIFEST_PATH), 'utf8'));
-  } catch {
-    return undefined;
-  }
+  const manifest = readManifest(projectRoot);
   if (manifest === undefined) return undefined;
-  const files = ownedFromManifestPaths(
-    // The manifest itself is never listed inside itself -- a file cannot carry
-    // its own hash -- yet it is the harness's by construction. Left out, it
-    // conflicts on every update, since a new version always rewrites it.
-    [INSTALL_MANIFEST_PATH, ...manifest.files.map((file) => file.path)],
-    (path) => {
-      try {
-        const target = join(projectRoot, ...path.split('/'));
-        return { sha256: sha256Of(readFileSync(target)), mode: statSync(target).mode & 0o777 };
-      } catch {
-        return undefined;
-      }
-    },
-  );
-  // Runtimes are read from what is actually wired, not from the manifest, which
-  // does not record them.
-  const runtimes: Runtime[] = [];
-  if (existsSync(join(projectRoot, '.claude', 'settings.json'))) runtimes.push('claude');
-  if (existsSync(join(projectRoot, '.codex', 'hooks.json'))) runtimes.push('codex');
   return {
     schemaVersion: 1,
     version: manifest.version,
     source: 'local',
-    runtimes: runtimes.length > 0 ? runtimes : ['claude'],
-    files,
+    runtimes: wiredRuntimes(projectRoot),
+    files: ownedFromManifestPaths(claimedFiles(manifest), diskProbe(projectRoot)),
   };
 }
 
+/**
+ * The receipt, extended with any path the committed manifest names and it does
+ * not cover. Returns the receipt unchanged when nothing was missing, so the
+ * caller can stay quiet on the nominal case.
+ */
+function reclaimMissingPaths(projectRoot: string, receipt: InstallReceipt): InstallReceipt {
+  const manifest = readManifest(projectRoot);
+  // An unreadable manifest is not a dead end here: the receipt still proves
+  // everything it covers, and stopping would refuse an update that can proceed.
+  if (manifest === undefined) return receipt;
+  const files = completeOwnership(receipt.files, claimedFiles(manifest), diskProbe(projectRoot));
+  return files.length === receipt.files.length ? receipt : { ...receipt, files };
+}
+
+/**
+ * Ownership as the union of the two proofs the project carries.
+ *
+ * The receipt records what this machine wrote and is machine-local; the
+ * committed manifest names the paths this version owns and travels with the
+ * repository. Treating them as alternatives -- receipt, else manifest -- left
+ * the state a real consumer actually reaches unhandled: a receipt that is
+ * present but covers 17 of 97 paths, every dropped one becoming an asset the
+ * next update refuses to touch.
+ *
+ * The receipt wins on any path both name. Its hashes say what was written here,
+ * which is what tells a hand-edited file from an untouched one; the manifest
+ * only ever proves that a path is the harness's.
+ */
+export function completeOwnership(
+  owned: readonly OwnedFile[],
+  claimed: readonly ClaimedFile[],
+  onDisk: (path: string) => { readonly sha256: string; readonly mode: number } | undefined,
+): OwnedFile[] {
+  const covered = new Set(owned.map((file) => file.path));
+  return [
+    ...owned,
+    ...ownedFromManifestPaths(claimed.filter((file) => !covered.has(file.path)), onDisk),
+  ];
+}
+
 export function ownedFromManifestPaths(
-  paths: readonly string[],
+  claimed: readonly ClaimedFile[],
   onDisk: (path: string) => { readonly sha256: string; readonly mode: number } | undefined,
 ): OwnedFile[] {
   const owned: OwnedFile[] = [];
-  for (const path of paths) {
-    const found = onDisk(path);
+  for (const file of claimed) {
+    const found = onDisk(file.path);
+    // Gone from disk: it was ours, it is gone, and the install about to run
+    // decides whether it comes back.
     if (found === undefined) continue;
-    owned.push({ path, sha256: found.sha256, mode: found.mode });
+    // Present, but holding something the manifest does not attest. The manifest
+    // proves a PATH is ours; it never proves the bytes sitting there today are.
+    // Claiming them anyway turned "content we cannot account for" into "content
+    // we wrote", and the install then overwrote a project's own edit instead of
+    // refusing it -- measured on a real project, 2026-08-20.
+    if (file.sha256 !== undefined && found.sha256 !== file.sha256) continue;
+    owned.push({ path: file.path, sha256: found.sha256, mode: found.mode });
   }
   return owned;
 }
@@ -400,6 +490,8 @@ async function updateLocal(
   receipt: InstallReceipt,
   dryRun: boolean,
   force: boolean,
+  /** Ownership repair to report under the banner, when one happened. */
+  ownershipNotice?: string,
 ): Promise<void> {
   let packs: string[] = [];
   try {
@@ -411,6 +503,11 @@ async function updateLocal(
     // init will surface the invalid/missing config and rebuild only when safe.
   }
   banner('update');
+  // Under the banner rather than before it: printed first, it opened a second
+  // `update` header above the real one.
+  if (ownershipNotice !== undefined) {
+    line(`${c.dim(glyph.dot)}  ${c.dim('receipt'.padEnd(12))}${ownershipNotice}`);
+  }
   meta('source', 'bundled local package');
   meta('installed', receipt.version);
   meta('available', cliVersion());

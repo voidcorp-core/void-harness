@@ -133,12 +133,24 @@ Rules:
 - No file is auto-generated from the other. Auto-generation risks losing intentional adaptations. Manual authoring + mechanical gate is the safer trade-off.
 - **Doc ownership is per-runtime.** Each adapter's `wire` writes only its own doctrine doc — a Claude-only project has just `CLAUDE.md`, a Codex-only project just `AGENTS.md`. `doctor` checks only the docs of *detected* runtimes, so a Codex-only project is never dinged for a missing `CLAUDE.md`. (`add` / `remove` still patch whichever docs exist, keeping active docs current.)
 - **`init` wires each selected runtime's layer via its adapter**, gated by `--runtime <claude|codex|both>` (default: auto-detected footprint, else both). Claude receives native project-local skills, agents, commands and hooks; Codex receives `.agents/skills`, native `.codex/agents` and `.codex/hooks.json`. The package is bundled with all CLI runtime dependencies, so a tarball installs offline. `--source marketplace` is opt-in and is the only path that checks `gh`/marketplace access.
-- **Publication is transactional.** `init` seeds only shared merge targets into an isolated stage, compiles and executes each selected adapter's doctor smoke there, then atomically publishes a finite mutation set. Every target is snapshotted before the first write; a failure restores bytes and modes and removes only transaction-created paths. `.void/machine/receipts/install-v1.json` hashes files the install created or already owned. Unowned native conflicts fail unless `--force`, and even force never grants deletion ownership over a pre-existing file.
+- **Publication is transactional.** `init` seeds only shared merge targets into an isolated stage, compiles and executes each selected adapter's doctor smoke there, then atomically publishes a finite mutation set. Every target is snapshotted before the first write; a failure restores bytes and modes and removes only transaction-created paths. `.void/machine/receipts/install-v1.json` hashes files the install created, already owned, or found already identical byte-for-byte to what it compiled — a managed asset matching our own output is ours, and letting it fall out of the receipt is what made a later version meet an asset it could not recognise. Unowned native conflicts fail unless `--force` (all of them named in one message, not the first alone), and even force never grants deletion ownership over a pre-existing file.
 - **Runtimes are added a posteriori without friction**: `void-harness runtime add <runtime>` wires exactly that runtime's layer on an already-`init`-ed project, touching nothing the other runtime owns (verified byte-for-byte in tests). `runtime list` shows which are wired. This is the `void runtime add` command from the multi-runtime spec.
 - **Pack and update lifecycle uses the same transaction.** Local `add`/`remove` compile the exact
   config pack set and prune only unchanged receipt-owned stale assets. Local `update` recompiles
   from the running CLI without a remote fetch. Legacy/explicit marketplace receipts retain their
   cache and remote-pin adapter.
+- **The harness owns exactly the skills it ships; the project owns every other one.**
+  `.claude/skills/` and its siblings are shared directories, and the manifest — not the path —
+  answers which side a file is on. A skill the harness does not ship is never ignored and never
+  written to; a skill it does ship is its alone to modify, so a locally altered copy is restored
+  rather than defended. See the harness-owns-its-skills-project-keeps-its-own decision.
+- **Ownership is the union of the two proofs, never a choice between them.** The receipt is
+  machine-local and records what *this machine* wrote; the committed `.void/install-manifest.json`
+  names the paths *this version* owns and travels with the repository. `update` completes the
+  receipt with every manifest path it does not cover — the receipt staying authoritative on any
+  path both name, since only its hashes tell a hand-edited file from an untouched one. An absent
+  receipt (every fresh clone) is the degenerate case of the same mechanism, not a separate route.
+  See the ownership-is-union-of-receipt-and-manifest decision.
 - `doctor` iterates the *detected* adapters for each runtime's wiring + doc health; Claude marketplace checks (`gh`, plugin cache, remote versions) apply only to an explicit marketplace install. Adapter inspection distinguishes `installed`, `wired`, `fired`, and `observed`. The `fired` postcondition executes the installed Node runner against an isolated fixture and reads back its canonical event; a zero exit without that event stays red. In the source repository, `doctor` delegates to the self-host receipt and current-source checks instead of applying consumer assumptions. See `docs/CODEX.md`.
 
 ### Consumer active-program handoff
