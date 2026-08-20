@@ -24,6 +24,16 @@ contredit une ancienne — c'est le seul moment où l'arbitrage est possible.
       and reported success ». Folpe a dit vouloir le faire lui-même ; à confirmer.
 - [ ] **Trancher la dépendance DEV-650 → DEV-612** — prérequis de fait écrit en commentaire,
       relation native `blocks` non posée. Question laissée ouverte dans le ticket.
+- [ ] **Audit externe du 2026-08-20** — reçu, calibration vérifiée sur quatre affirmations, quatre
+      exactes. Deux blocants sécurité confirmés ligne à ligne → DEV-653, DEV-654. Le reste est à
+      vérifier item par item avant d'être ouvert : un audit assisté par IA se traite comme une
+      liste de pistes datées, pas comme un constat.
+- [ ] **Divergence règle / enforcement sur les descriptions** — `CLAUDE.md` exige ≤ 200 caractères,
+      `scripts/anti-bloat-check.sh:89` applique 512, et le gate passe au vert. Mesuré : `learn` =
+      428, `merge` = 215. Un gate qui ment est pire qu'un gate absent.
+- [ ] **Budget de contexte au plafond fournisseur** — 41 descriptions core totalisent ~7 894
+      caractères, contre une borne annoncée à 8 000 côté Codex. À mesurer contre la source
+      officielle avant d'agir.
 - [ ] **Formaliser cette file** pour tous les consommateurs — ce fichier existe ici et à la main.
       → DEV-652
 
