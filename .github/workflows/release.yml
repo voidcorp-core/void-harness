@@ -19,6 +19,8 @@ on:
     branches: [main]
   # Manual re-publish of the CURRENT version on main — e.g. to complete a release
   # whose auto-publish failed (a CI misconfig), without cutting a new version.
+  # The `publish` job below refuses any ref other than main: a dispatch carries
+  # the ref it was fired from, and npm cannot tell one from another.
   workflow_dispatch: {}
 
 # `contents` and `pull-requests` are what release-please writes with. `actions:
@@ -30,6 +32,10 @@ permissions:
 
 jobs:
   release-please:
+    # Same ref restriction as `publish` below. This job holds the App token that
+    # opens and pushes the release PR; a dispatch fired from another branch has
+    # no business holding it either.
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
@@ -43,13 +49,13 @@ jobs:
       #
       # A GitHub App token is not GITHUB_TOKEN, so the pull request it opens
       # triggers workflows like any other. The machinery below it is gone.
-      - uses: actions/create-github-app-token@v2
+      - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
         id: app-token
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
 
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         id: release
         with:
           token: ${{ steps.app-token.outputs.token }}
@@ -84,14 +90,34 @@ jobs:
     # Runs when a release was just cut (the normal path) OR on a manual dispatch
     # (re-publish the current version after a failed run). `always()` lets it
     # evaluate on dispatch even though the gating output is empty then.
-    if: ${{ always() && (needs.release-please.outputs.release_created == 'true' || github.event_name == 'workflow_dispatch') }}
+    # `github.ref` is the ONLY branch restriction that exists anywhere in this
+    # chain. npm's trusted publisher matches organisation, repository, workflow
+    # FILENAME and an optional environment — it has no branch or ref field, so
+    # every run of this file is equally legitimate to the registry (verified in
+    # the npm docs and on the package settings page, 2026-08-20). Drop this
+    # condition and a dispatch from any branch publishes that branch's tree under
+    # the package name, provenance-signed.
+    if: ${{ always() && github.ref == 'refs/heads/main' && (needs.release-please.outputs.release_created == 'true' || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-latest
+    # The second half of the same lock, and the half npm can enforce: configure
+    # this exact environment name on the package's trusted publisher, and a
+    # modified copy of this workflow on another branch stops being accepted.
+    # Protect it with required reviewers — the environment is what makes the
+    # publication a deliberate human act rather than a side effect of a push.
+    environment: npm-publish
     permissions:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v6
+      # Pinned by SHA, not by major tag: a tag is repointable by its owner, which
+      # is a second route to the token this job holds, and it moves without
+      # anything in this repository changing.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # Explicit: publish the commit the run was created for, never whatever
+          # the ref points at by the time the job starts.
+          ref: ${{ github.sha }}
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
       # NO `registry-url:` here, deliberately, and it must stay that way.
       # setup-node reacts to it by writing `//registry.npmjs.org/:_authToken=
       # ${NODE_AUTH_TOKEN}` into a temp .npmrc (and pointing NPM_CONFIG_USERCONFIG
@@ -102,7 +128,7 @@ jobs:
       # a permission error wearing a not-found costume. See actions/setup-node#1551.
       # registry.npmjs.org is the default registry anyway, so the input bought
       # nothing and cost the whole trusted-publishing flow.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: pnpm
