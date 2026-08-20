@@ -1935,12 +1935,80 @@ import {
 function record5(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
 }
+var AMBIENT_KEPT = /* @__PURE__ */ new Set([
+  "PATH",
+  "Path",
+  "PATHEXT",
+  "HOME",
+  "USERPROFILE",
+  "SystemRoot",
+  "windir",
+  "COMSPEC",
+  "TMPDIR",
+  "TEMP",
+  "TMP",
+  "LANG",
+  "LC_ALL",
+  "TZ",
+  "SHELL",
+  "USER",
+  "LOGNAME"
+]);
+function minimalEnvironment(ambient, passed) {
+  const kept = {};
+  for (const [name, value] of Object.entries(ambient)) {
+    if (value !== void 0 && AMBIENT_KEPT.has(name)) kept[name] = value;
+  }
+  for (const [name, value] of Object.entries(passed)) {
+    if (value !== void 0) kept[name] = value;
+  }
+  return kept;
+}
+var LAUNCHERS = {
+  pnpm: ["exec", "dlx"],
+  npm: ["exec"],
+  yarn: ["exec", "dlx"],
+  bun: ["x"],
+  // Runners that take the binary directly, with no subcommand.
+  npx: [],
+  bunx: [],
+  pnpx: []
+};
+var CHECKERS = /* @__PURE__ */ new Set(["tsc", "vue-tsc", "svelte-check", "astro", "tsgo"]);
+function argumentIsSafe(argument) {
+  if (argument.startsWith("-")) return /^-{1,2}[A-Za-z][\w-]*$/.test(argument);
+  return /^[\w./-]+$/.test(argument) && !argument.startsWith("/") && !argument.includes("..");
+}
+function acceptableTypecheck(argv) {
+  const [head, ...rest] = argv;
+  if (head === void 0) return "empty command";
+  if (head.includes("/") || head.includes("\\")) return `path-qualified executable ${head}`;
+  let checkerIndex = 0;
+  if (Object.hasOwn(LAUNCHERS, head)) {
+    const subcommands = LAUNCHERS[head] ?? [];
+    if (subcommands.length > 0) {
+      const subcommand = rest[0];
+      if (subcommand === void 0 || !subcommands.includes(subcommand)) {
+        return `${head} must be followed by ${subcommands.join(" or ")}, not ${String(subcommand)}`;
+      }
+      checkerIndex = 1;
+    }
+  } else if (CHECKERS.has(head)) {
+    return rest.every(argumentIsSafe) ? void 0 : "argument that is not a flag or a path";
+  } else {
+    return `unknown executable ${head}`;
+  }
+  const checker = rest[checkerIndex];
+  if (checker === void 0 || !CHECKERS.has(checker)) return `unknown type checker ${String(checker)}`;
+  return rest.slice(checkerIndex + 1).every(argumentIsSafe) ? void 0 : "argument that is not a flag or a path";
+}
 function configuredTypecheck(value) {
   const root = record5(value);
   const commands = record5(root?.["commands"]);
   const configured = commands?.["typecheck"];
   if (Array.isArray(configured) && configured.length > 0 && configured.every((argument) => typeof argument === "string")) {
-    return { argv: configured };
+    const refusal = acceptableTypecheck(configured);
+    return refusal === void 0 ? { argv: configured } : { warning: `commands.typecheck refused (${refusal}); falling back to the resolved type checker` };
   }
   if (typeof configured === "string") {
     return {
@@ -2057,7 +2125,7 @@ function executeTypecheck(root, env) {
   for (const invocation of invocations) {
     const result = spawnSync3(executablePath, invocation, {
       cwd: root,
-      env: { ...process.env, ...env },
+      env: minimalEnvironment(process.env, env),
       encoding: "utf8",
       shell: false,
       timeout,

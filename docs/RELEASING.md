@@ -216,7 +216,15 @@ are outside this repository, so a green CI does not prove they are in place.
    major tag is repointable by its owner and is a second route to the same token.
    `test/workflows/workflows-parse.test.ts` fails if any of this is removed.
 2. **On GitHub** (manual): Settings → Environments → `npm-publish`, with
-   **required reviewers**. Referencing an environment that does not exist creates
+   **required reviewers**, `main` as the only deployment branch, and
+   *Allow administrators to bypass* **off** — a protection its own admin can step
+   around without a trace is a reminder, not a gate.
+
+   **Where the approval actually is**, because it is not obvious and it stops the
+   release until you find it: the run page of the `release` workflow, under the
+   `publish` job, shows a *Review deployments* banner at the top. Not in the pull
+   request, not in Settings. GitHub also emails it. Until you click there, the job
+   sits in `waiting` and npm never sees a request. Referencing an environment that does not exist creates
    it silently and unprotected, so this step is what turns the declaration into a
    gate. Without it the workflow reads as locked and is not.
 3. **On npm** (manual): the trusted publisher must name that same environment.
