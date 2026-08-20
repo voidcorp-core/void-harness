@@ -96,6 +96,7 @@ A skill that ends up 95% the same as its source remains valuable as "voidcorp's 
 - No em dashes or emojis as AI-slop filler. Both are allowed where they carry meaning (typographic separators in prose, glyphs in code such as the render layer); just do not sprinkle them decoratively. Not a hard CI gate.
 - Read the official documentation of any third-party tool **before** writing its config
 - Conventional commits, every message ends with **why**, not just **what**
+- A build reads only versioned files. A script named `build-*` or `prepare-*` must never reach for `.void/`, the home directory, or the clock: a published artefact that differs by who compiled it carries their state to everyone. Enforced by `test/builders/inputs-are-versioned.test.ts`
 
 ## This repo consumes its own output
 
