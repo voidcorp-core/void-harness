@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { InstallReceipt } from '../lib/receipts.js';
-import { localInitArgs, ownedFromManifestPaths, updateModeFor, updateRouteFor } from './update.js';
+import {
+  completeOwnership,
+  localInitArgs,
+  ownedFromManifestPaths,
+  updateModeFor,
+  updateRouteFor,
+} from './update.js';
 
 const receipt = (source: InstallReceipt['source']): InstallReceipt => ({
   schemaVersion: 1,
@@ -98,5 +104,52 @@ describe('ownedFromManifestPaths', () => {
 
   it('claims nothing from an empty manifest rather than inventing ownership', () => {
     expect(ownedFromManifestPaths([], () => ({ sha256: 'x', mode: 0o644 }))).toEqual([]);
+  });
+});
+
+// A receipt that covers only part of what the manifest names is the state a real
+// consumer arrives in: the layout migration parked the previous receipt, the
+// install that followed rewrote a shorter one, and every path it dropped became
+// an asset the next update could not recognise. Ownership is the union of the
+// two proofs, not a choice between them.
+describe('completeOwnership', () => {
+  it('adds the manifest paths a partial receipt no longer covers', () => {
+    const owned = completeOwnership(
+      [{ path: '.claude/skills/tdd/SKILL.md', sha256: 'from-receipt', mode: 0o644 }],
+      ['.claude/skills/tdd/SKILL.md', '.claude/agents/code-explorer.md'],
+      (path) => ({ sha256: `on-disk-${path}`, mode: 0o644 }),
+    );
+
+    expect(owned.map((file) => file.path)).toEqual([
+      '.claude/skills/tdd/SKILL.md',
+      '.claude/agents/code-explorer.md',
+    ]);
+  });
+
+  it('keeps the receipt authoritative for a path both of them name', () => {
+    // The receipt records what THIS machine wrote; the manifest only proves the
+    // path is ours. Letting the disk overwrite that entry would erase the very
+    // evidence that tells a hand-edited file from an untouched one.
+    const owned = completeOwnership(
+      [{ path: '.claude/skills/tdd/SKILL.md', sha256: 'from-receipt', mode: 0o644 }],
+      ['.claude/skills/tdd/SKILL.md'],
+      () => ({ sha256: 'on-disk', mode: 0o600 }),
+    );
+
+    expect(owned).toEqual([
+      { path: '.claude/skills/tdd/SKILL.md', sha256: 'from-receipt', mode: 0o644 },
+    ]);
+  });
+
+  it('leaves a complete receipt untouched', () => {
+    const files = [{ path: '.claude/skills/tdd/SKILL.md', sha256: 'x', mode: 0o644 }];
+
+    expect(completeOwnership(files, ['.claude/skills/tdd/SKILL.md'], () => undefined)).toEqual(files);
+  });
+
+  it('drops a manifest path the disk no longer has', () => {
+    const owned = completeOwnership([], ['.claude/skills/gone/SKILL.md'], () => undefined);
+
+    expect(owned).toEqual([]);
   });
 });
