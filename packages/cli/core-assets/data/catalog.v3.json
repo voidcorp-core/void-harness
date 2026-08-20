@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:aac5a87e03b122a8adf5781a4d2cad8da6ed2d9736ffccff33ba21494439ead9"
+    "rootHash": "sha256:759551da6562218c2eabd97581b27ab670859175615e4cf1b7b3cbf3179f9058"
   },
   "nodes": [
     {
@@ -2759,7 +2759,7 @@
             }
           ],
           "id": "skill:implement",
-          "lines": 136,
+          "lines": 141,
           "name": "implement",
           "owner": "folpe",
           "pack": null,
@@ -2768,7 +2768,7 @@
             "codex"
           ],
           "source": "packages/core/skills/implement/SKILL.md",
-          "staticTokens": 3238,
+          "staticTokens": 3690,
           "type": "skill"
         }
       },
@@ -6530,6 +6530,32 @@
           "kind": "composes",
           "origin": "declared",
           "to": "agent:doctrine-critic"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:809508f0b72deb1a20199f437138a5a6",
+      "from": "catalog:skill:skill:implement",
+      "to": "catalog:skill:skill:source-driven-development",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: Source grounding pass: Compose source-driven-development: read the official documentation of the installed version before the first line",
+          "from": "skill:implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:source-driven-development"
         }
       },
       "provenance": {
