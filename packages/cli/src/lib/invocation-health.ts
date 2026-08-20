@@ -44,6 +44,20 @@ function ratio(liveness: LivenessVerdict): string {
   return `${((liveness.skillCalls / liveness.toolCalls) * 100).toFixed(1)} %`;
 }
 
+/**
+ * Renames the journal remembers and nothing calls any more.
+ *
+ * Said in the message rather than in the status: `doctor` reports the present,
+ * and a rename already dealt with is history. Reporting it as a fault — red, or
+ * even advisory — asks for an action that does not exist, and a verdict nobody
+ * can satisfy is a verdict everybody learns to skip past.
+ */
+function settledRenames(resolution: ResolutionVerdict): string {
+  const settled = resolution.retired.filter((name) => !resolution.unresolved.includes(name));
+  if (settled.length === 0) return '';
+  return `; ${String(settled.length)} settled rename(s): ${settled.map(withSuccessor).join(', ')}`;
+}
+
 function evidence(observation: InvocationObservation): string {
   const { liveness } = observation;
   if (liveness.missions === 0) {
@@ -71,7 +85,12 @@ export function judgeInvocation(observation: InvocationObservation): CheckResult
     );
   }
   if (faults.length === 0) {
-    return { name: NAME, ok: true, status: 'pass', message: evidence(observation) };
+    return {
+      name: NAME,
+      ok: true,
+      status: 'pass',
+      message: `${evidence(observation)}${settledRenames(observation.resolution)}`,
+    };
   }
   return {
     name: NAME,

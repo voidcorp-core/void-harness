@@ -31,11 +31,15 @@ function project(skills: readonly string[] = [], agentSkills: readonly string[] 
   return root;
 }
 
-function activation(name: string, ts = '2026-08-19T10:00:00.000Z'): string {
+// Carries a missionId, like every event the runner actually writes. A fixture that
+// omits it reads as one anonymous run, which is exactly the shape that hid the
+// difference between "called in the current run" and "called weeks ago".
+function activation(name: string, ts = '2026-08-19T10:00:00.000Z', missionId = 'mis_now'): string {
   return JSON.stringify({
     kind: 'runtime.tool.started',
     subject: `skill:${name}`,
     ts,
+    missionId,
     payload: { category: 'skill', tool: 'Skill' },
   });
 }
@@ -65,6 +69,37 @@ describe('installedSkillNames', () => {
 
   it('returns nothing for a project with no skills installed', () => {
     expect(installedSkillNames(project()).size).toBe(0);
+  });
+});
+
+describe('resolutionVerdict judges the present, not the history', () => {
+  // `doctor` reports the state of the project right now. A rename that happened
+  // weeks ago and that nothing calls any more is not a fault: it is history, and
+  // there is no action that would clear it. A red verdict nobody can satisfy is a
+  // red verdict everybody learns to skip past — the same defect DEV-644 closed,
+  // wearing a different coat.
+  const old = `${activation('ticket-writer', '2026-07-01T10:00:00.000Z', 'mis_old')}`;
+  const recent = `${activation('tdd', '2026-08-19T10:00:00.000Z', 'mis_now')}`;
+
+  it('passes when the newest run calls nothing retired', () => {
+    const verdict = resolutionVerdict(`${old}\n${recent}`, new Set(['tdd', 'ticket']));
+
+    expect(verdict.ok).toBe(true);
+    expect(verdict.unresolved).toEqual([]);
+  });
+
+  it('still remembers the rename, so the message can say so', () => {
+    const verdict = resolutionVerdict(`${old}\n${recent}`, new Set(['tdd', 'ticket']));
+
+    expect(verdict.retired).toEqual(['ticket-writer']);
+  });
+
+  it('fails when the newest run is the one calling a retired name', () => {
+    const calling = activation('ticket-writer', '2026-08-19T11:00:00.000Z', 'mis_now');
+    const verdict = resolutionVerdict(`${old}\n${recent}\n${calling}`, new Set(['tdd', 'ticket']));
+
+    expect(verdict.ok).toBe(false);
+    expect(verdict.unresolved).toEqual(['ticket-writer']);
   });
 });
 
@@ -162,7 +197,7 @@ describe('resolutionVerdict', () => {
 });
 
 const ALIVE = { ok: true, missions: 3, toolCalls: 300, skillCalls: 6 } as const;
-const RESOLVES = { ok: true, unresolved: [] } as const;
+const RESOLVES = { ok: true, unresolved: [], retired: [] } as const;
 
 describe('invocationAlert', () => {
   it('says nothing when both verdicts pass, so a healthy session gains no noise', () => {
@@ -170,7 +205,7 @@ describe('invocationAlert', () => {
   });
 
   it('names the unresolved skills, because the name is what someone has to go fix', () => {
-    const alert = invocationAlert({ ok: false, unresolved: ['brainstorming', 'ticket-writer'] }, ALIVE);
+    const alert = invocationAlert({ ok: false, unresolved: ['brainstorming', 'ticket-writer'], retired: ['brainstorming', 'ticket-writer'] }, ALIVE);
     expect(alert).toContain('brainstorming');
     expect(alert).toContain('ticket-writer');
   });
@@ -182,14 +217,14 @@ describe('invocationAlert', () => {
   });
 
   it('carries both findings in one block rather than two banners', () => {
-    const alert = invocationAlert({ ok: false, unresolved: ['ticket-writer'] }, { ok: false, missions: 3, toolCalls: 900, skillCalls: 0 }) ?? '';
+    const alert = invocationAlert({ ok: false, unresolved: ['ticket-writer'], retired: ['ticket-writer'] }, { ok: false, missions: 3, toolCalls: 900, skillCalls: 0 }) ?? '';
     expect(alert.split('\n')).toHaveLength(4);
     expect(alert).toContain('ticket-writer');
     expect(alert).toContain('900');
   });
 
   it('breaks into a titled block, so the alert reads as one thing and not as a run-on sentence', () => {
-    const alert = invocationAlert({ ok: false, unresolved: ['brainstorming'] }, ALIVE) ?? '';
+    const alert = invocationAlert({ ok: false, unresolved: ['brainstorming'], retired: ['brainstorming'] }, ALIVE) ?? '';
     const lines = alert.split('\n');
     expect(lines[0]).toContain('invocation surface');
     expect(lines).toHaveLength(3);
@@ -199,7 +234,7 @@ describe('invocationAlert', () => {
   it('names the successor, because that is what ends the search', () => {
     // "check that the skill exists, then reinstall" is precisely what a renamed
     // skill does not need: the file is not missing, the name moved.
-    const alert = invocationAlert({ ok: false, unresolved: ['session-handoff'] }, ALIVE) ?? '';
+    const alert = invocationAlert({ ok: false, unresolved: ['session-handoff'], retired: ['session-handoff'] }, ALIVE) ?? '';
 
     expect(alert).toContain('session-handoff');
     expect(alert).toContain('checkpoint');
@@ -207,7 +242,7 @@ describe('invocationAlert', () => {
 
   it('stays bounded however many names there are, since it is read at a session opening', () => {
     const many = Array.from({ length: 30 }, (_, i) => `skill-${i}`);
-    const alert = invocationAlert({ ok: false, unresolved: many }, ALIVE) ?? '';
+    const alert = invocationAlert({ ok: false, unresolved: many, retired: many }, ALIVE) ?? '';
     expect(alert.split('\n')).toHaveLength(3);
     expect(alert.length).toBeLessThan(300);
   });

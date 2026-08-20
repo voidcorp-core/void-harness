@@ -10,6 +10,7 @@ import {
 } from './executor-shared.js';
 import {
   configuredTypecheck,
+  minimalEnvironment,
   nearestTsconfigs,
 } from './typecheck.js';
 
@@ -111,9 +112,12 @@ export function executeTypecheck(
     : [args];
   let errors = '';
   for (const invocation of invocations) {
+    // The one execution here whose command the repository chooses, so the one
+    // that runs without the session's credentials. The git call above is resolved
+    // by the harness itself and keeps the inherited environment.
     const result = spawnSync(executablePath, invocation, {
       cwd: root,
-      env: { ...process.env, ...env },
+      env: minimalEnvironment(process.env, env),
       encoding: 'utf8',
       shell: false,
       timeout,
