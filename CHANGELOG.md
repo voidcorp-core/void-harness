@@ -1,5 +1,27 @@
 # Changelog
 
+## [3.2.0](https://github.com/voidcorp-core/void-harness/compare/v3.1.1...v3.2.0) (2026-08-20)
+
+
+### Features
+
+* **implement:** l'anti-rustine devient une passe du cycle ([9b77aca](https://github.com/voidcorp-core/void-harness/commit/9b77aca771533d0af74482f1105adb06f7550b37))
+* **implement:** l'anti-rustine devient une passe, au lieu d'un texte que rien ne rejoue ([f178e3e](https://github.com/voidcorp-core/void-harness/commit/f178e3e83794ccca1a356461f193990b22cf354f))
+
+
+### Bug Fixes
+
+* **install:** un asset identique à notre propre sortie nous appartient ([fd80f35](https://github.com/voidcorp-core/void-harness/commit/fd80f35e1727911813e70f88dc3c116612f8ac43))
+* **invocation:** le verdict ne juge plus les skills qui ne sont pas les nôtres ([c81757a](https://github.com/voidcorp-core/void-harness/commit/c81757a9ab56f767359e51287e0153ac5b663873))
+* **invocation:** ne juger que les noms qui furent les nôtres, et nommer leur successeur ([6c790fd](https://github.com/voidcorp-core/void-harness/commit/6c790fd92fa06de8cca9f6fd3741dacfae2201ed))
+* **release:** ne publier que depuis main, depuis un SHA explicite, sous environnement ([f25183d](https://github.com/voidcorp-core/void-harness/commit/f25183dda161ec8ec332b1e3656f86795c7c11c4))
+* **release:** ne publier que depuis main, sous environnement protégé ([dbe663c](https://github.com/voidcorp-core/void-harness/commit/dbe663cf990e0d01d499ef7663028963efb67830))
+* **test:** ne pas exporter depuis un fichier de test ([31b7398](https://github.com/voidcorp-core/void-harness/commit/31b7398b70681789e79092185f3876a58d3c2c84))
+* **update:** compléter un receipt amputé depuis le manifeste committé ([537a2ff](https://github.com/voidcorp-core/void-harness/commit/537a2ff6b2b140d6710de0a9c59428518aa142c7))
+* **update:** la reprise depuis le manifeste ne revendique que le contenu qu'il atteste ([7e5fd9e](https://github.com/voidcorp-core/void-harness/commit/7e5fd9ec285ab74c6906e4f172e94d5cfeeb1014))
+* **update:** ne revendiquer d'un chemin du manifeste que le contenu qu'il atteste ([d740d1b](https://github.com/voidcorp-core/void-harness/commit/d740d1ba3fcd3c5d4073cfe517647482b6230965))
+* **update:** un receipt amputé ne bloque plus la mise à jour d'un consommateur ([9a0efdb](https://github.com/voidcorp-core/void-harness/commit/9a0efdb6e6e6fb20be2f66f215b982918078d886))
+
 ## [3.1.1](https://github.com/voidcorp-core/void-harness/compare/v3.1.0...v3.1.1) (2026-08-19)
 
 
