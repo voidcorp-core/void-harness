@@ -373,9 +373,10 @@ edges:
   - { from: skill:implement, to: agent:doctrine-critic, kind: composes, evidence: "implement SKILL.md: Review pass composes agents doctrine-critic + silent-failure-hunter" }
   - { from: skill:implement, to: agent:silent-failure-hunter, kind: composes, evidence: "implement SKILL.md: Review pass composes agent silent-failure-hunter" }
   - { from: skill:implement, to: agent:type-design-analyzer, kind: composes, evidence: "implement SKILL.md: Architecture pass composes agents type-design-analyzer + doctrine-critic" }
-  # --- implement compositions: the eleven-pass cycle every ticket runs through ---
+  # --- implement compositions: the twelve-pass cycle every ticket runs through ---
   - { from: skill:implement, to: skill:hexagonal-architecture, kind: composes, evidence: "implement SKILL.md: Architecture pass: Compose hexagonal-architecture, domain-driven-design" }
   - { from: skill:implement, to: skill:domain-driven-design, kind: composes, evidence: "implement SKILL.md: Architecture pass: Compose hexagonal-architecture, domain-driven-design" }
+  - { from: skill:implement, to: skill:source-driven-development, kind: composes, evidence: "implement SKILL.md: Source grounding pass: Compose source-driven-development: read the official documentation of the installed version before the first line" }
   - { from: skill:implement, to: skill:migrations, kind: composes, evidence: "implement SKILL.md: Migration safety pass: Compose migrations, zero-downtime, two-phase, batched backfill" }
   - { from: skill:implement, to: skill:tdd, kind: composes, evidence: "implement SKILL.md: TDD implementation pass: The single lead writer composes tdd + testing" }
   - { from: skill:implement, to: skill:testing, kind: composes, evidence: "implement SKILL.md: TDD implementation pass: The single lead writer composes tdd + testing" }

@@ -1235,7 +1235,7 @@
         }
       ],
       "id": "skill:implement",
-      "lines": 136,
+      "lines": 141,
       "name": "implement",
       "owner": "folpe",
       "pack": null,
@@ -1244,7 +1244,7 @@
         "codex"
       ],
       "source": "packages/core/skills/implement/SKILL.md",
-      "staticTokens": 3238,
+      "staticTokens": 3690,
       "type": "skill"
     },
     {
@@ -3375,6 +3375,13 @@
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Security pass: Compose security-guidance + security-audit"
+    },
+    {
+      "from": "skill:implement",
+      "to": "skill:source-driven-development",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: Source grounding pass: Compose source-driven-development: read the official documentation of the installed version before the first line"
     },
     {
       "from": "skill:implement",
