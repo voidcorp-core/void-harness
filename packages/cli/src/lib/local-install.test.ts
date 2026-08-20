@@ -18,10 +18,25 @@ import {
   conflictMessage,
   prepareInstallCommit,
   seedInstallStage,
+  withholdProjectOwned,
 } from './local-install.js';
 
 function scratch(prefix: string): string {
   return mkdtempSync(join(tmpdir(), prefix));
+}
+
+/** Mark the project as one we have installed into before, i.e. an update. */
+function priorInstall(root: string): void {
+  mkdirSync(join(root, '.void', 'machine', 'receipts'), { recursive: true });
+  writeFileSync(
+    join(root, ...INSTALL_RECEIPT_PATH.split('/')),
+    encodeReceipt(buildInstallReceipt({
+      version: '3.1.1',
+      source: 'local',
+      runtimes: ['claude'],
+      files: [],
+    })),
+  );
 }
 
 describe('conflictMessage', () => {
@@ -82,8 +97,12 @@ describe('local install staging', () => {
   });
 
   it('refuses to overwrite an unowned native asset unless force is explicit', async () => {
+    // On an UPDATE: a receipt proves we installed here, so a managed file that
+    // differs may be our own asset, edited. On a FIRST install the same situation
+    // means the file predates us and belongs to the project — covered below.
     const root = scratch('void-project-');
     const stage = scratch('void-stage-');
+    priorInstall(root);
     mkdirSync(join(root, '.claude', 'skills', 'tdd'), { recursive: true });
     mkdirSync(join(stage, '.claude', 'skills', 'tdd'), { recursive: true });
     writeFileSync(join(root, '.claude', 'skills', 'tdd', 'SKILL.md'), '# user version\n');
@@ -151,6 +170,7 @@ describe('local install staging', () => {
     // next: the cost of the message is paid once per file instead of once.
     const root = scratch('void-project-');
     const stage = scratch('void-stage-');
+    priorInstall(root);
     for (const name of ['tdd', 'verify']) {
       mkdirSync(join(root, '.claude', 'skills', name), { recursive: true });
       mkdirSync(join(stage, '.claude', 'skills', name), { recursive: true });
@@ -203,5 +223,83 @@ describe('local install staging', () => {
       '.codex/hooks.json',
     ]);
     expect(prepared.mutations).not.toContainEqual({ path: claudePath, remove: true });
+  });
+});
+
+// A project that already has skills and no harness could not install at all: init
+// ran to the end, hit a name it shares with one of ours, and rolled everything
+// back. `--force` would have overwritten a file the project owned before us and
+// that we never wrote. Measured on a real first install, 2026-08-20.
+describe('a first install onto a project that already has skills', () => {
+  let withheld: string[] = [];
+  const withExistingSkill = async (root: string, stage: string) => {
+    mkdirSync(join(root, '.claude', 'skills', 'frontend-design'), { recursive: true });
+    mkdirSync(join(stage, '.claude', 'skills', 'frontend-design'), { recursive: true });
+    mkdirSync(join(stage, '.claude', 'skills', 'tdd'), { recursive: true });
+    writeFileSync(join(root, '.claude', 'skills', 'frontend-design', 'SKILL.md'), '# the project own\n');
+    writeFileSync(join(stage, '.claude', 'skills', 'frontend-design', 'SKILL.md'), '# ours\n');
+    writeFileSync(join(stage, '.claude', 'skills', 'tdd', 'SKILL.md'), '# ours\n');
+    // The stage is filtered first, exactly as `init` does it.
+    withheld = await withholdProjectOwned(root, stage);
+    return prepareInstallCommit({
+      projectRoot: root,
+      stageRoot: stage,
+      version: '3.2.0',
+      source: 'local',
+      runtimes: ['claude'],
+      force: false,
+    });
+  };
+
+  it('installs everything else instead of refusing', async () => {
+    const root = scratch('void-project-');
+    const prepared = await withExistingSkill(root, scratch('void-stage-'));
+
+    expect(prepared.mutations.map((m) => m.path)).toContain('.claude/skills/tdd/SKILL.md');
+  });
+
+  it('leaves the project its own file, byte for byte', async () => {
+    const root = scratch('void-project-');
+    const prepared = await withExistingSkill(root, scratch('void-stage-'));
+
+    expect(prepared.mutations.map((m) => m.path)).not.toContain('.claude/skills/frontend-design/SKILL.md');
+    expect(readFileSync(join(root, '.claude', 'skills', 'frontend-design', 'SKILL.md'), 'utf8'))
+      .toBe('# the project own\n');
+  });
+
+  it('never claims it, so no later update may touch it', async () => {
+    const root = scratch('void-project-');
+    const prepared = await withExistingSkill(root, scratch('void-stage-'));
+
+    expect(prepared.receipt.files.map((file) => file.path))
+      .not.toContain('.claude/skills/frontend-design/SKILL.md');
+  });
+
+  it('names what it did not install, so nobody wonders where it went', async () => {
+    const root = scratch('void-project-');
+    const prepared = await withExistingSkill(root, scratch('void-stage-'));
+
+    expect(withheld).toEqual(['.claude/skills/frontend-design/SKILL.md']);
+  });
+
+  it('still refuses when the path IS ours and was edited', async () => {
+    // The distinction is per path, not per install: a receipt that owns this exact
+    // path means the file is our asset, and a difference means someone changed it.
+    // That is DEV-647's question, and its answer must not be pre-empted here.
+    const root = scratch('void-project-');
+    const stage = scratch('void-stage-');
+    const path = '.claude/skills/frontend-design/SKILL.md';
+    mkdirSync(join(root, '.void', 'machine', 'receipts'), { recursive: true });
+    writeFileSync(
+      join(root, ...INSTALL_RECEIPT_PATH.split('/')),
+      encodeReceipt(buildInstallReceipt({
+        version: '3.1.1',
+        source: 'local',
+        runtimes: ['claude'],
+        files: [{ path, content: Buffer.from('# ours, as installed\n'), mode: 0o644 }],
+      })),
+    );
+
+    await expect(withExistingSkill(root, stage)).rejects.toThrow(/unowned asset conflict/);
   });
 });
