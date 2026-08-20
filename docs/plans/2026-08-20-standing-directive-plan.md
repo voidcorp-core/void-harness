@@ -12,8 +12,8 @@ high_risk: false
 
 Faire porter par le harnais les cinq exigences que le mainteneur réinjecte à la main à
 presque chaque demande, en les rejouant à chaque tour par `UserPromptSubmit` — sur les deux
-runtimes, reformulées en gestes exécutables, la seule ligne qui suppose un interlocuteur
-étant conditionnée à sa présence.
+runtimes, reformulées en gestes exécutables, et sans qu'aucune ne suppose un interlocuteur :
+le harnais est autosuffisant par défaut, l'humain est un bonus.
 
 `high_risk: false` : le hook injecte du texte et ne bloque rien. Il ne touche ni paiement, ni
 authentification, ni donnée de production. Son risque réel est d'être inutile, pas dangereux —
@@ -70,17 +70,18 @@ Arrêt. `verify`. Attendre le signal avant Step 2.
 - **Expected commits**: `feat(codex): rejouer la directive par UserPromptSubmit, à parité`
 - **Notes**: contrat vérifié dans la doc officielle le 2026-08-20 — `hookSpecificOutput.additionalContext`, événements sous la clé racine `hooks`. Ne pas re-dériver depuis `docs/CODEX.md`, qui est faux (Step 4).
 
-### Step 3 — Conditionner la cinquième ligne à la présence d'un humain
+### Step 3 — Livrer la cinquième ligne : résoudre, nommer, ne jamais bloquer
 
-- **Goal**: la ligne « pose la question plutôt que deviner » n'apparaît que lorsqu'il y a quelqu'un pour répondre ; sans humain, le worker consigne son hypothèse et poursuit.
+- **Goal**: face à une ambiguïté, le modèle la lève par les moyens du harnais, et si elle subsiste il avance sous hypothèse nommée au lieu de s'arrêter. Vrai en session comme dans un worker.
 - **Depends on**: [step-1]
 - **TDD mode**: **strict**
-- **Décision déjà prise, à ne pas rouvrir**: le marqueur est **posé explicitement par ce qui lance un worker sans interlocuteur**, jamais déduit d'un worktree ou d'un chemin. Aucune variable existante ne couvre le cas (`VOID_MISSION_ID` désigne une mission, pas l'absence d'humain). **Le défaut est « humain présent »** : se tromper dans ce sens fait poser une question de trop, ce qui est bénin ; l'inverse fait taire une question nécessaire, ce qui est le défaut que ce plan corrige.
-- **Fichiers**: `packages/hook-runner/src/lifecycle/directive.ts` ; l'adaptateur runtime d'`autopilot` qui fan-out les workers.
-- **Verification gate**: un test couvre les deux états (marqueur absent → cinq lignes ; marqueur posé → quatre lignes) ; un worker `autopilot` lancé sur un ticket de test ne s'arrête jamais pour interroger.
+- **Cadrage corrigé, à ne pas rouvrir**: une première version conditionnait cette ligne à la présence d'un humain, avec « humain présent » pour défaut. Mauvais sens. **Le harnais est autosuffisant par défaut, l'humain est un bonus.** La ligne ne demande donc aucun marqueur et aucune détection : elle est identique partout. Le seul comportement qu'elle interdit est de **bloquer sur une question**.
+- **Fichiers**: `packages/hook-runner/src/lifecycle/directive.ts`.
+- **Verification gate**: un test couvre la chaîne complète (l'hypothèse est nommée dans la sortie, l'exécution ne s'interrompt pas) ; un worker `autopilot` lancé sur un ticket volontairement sous-spécifié termine en consignant son hypothèse, sans jamais s'arrêter pour interroger.
 - **Expected commits**:
-  - `test(lifecycle): un worker sans interlocuteur ne reçoit pas l'invitation à demander`
-  - `feat(autopilot): déclarer l'absence d'humain plutôt que la déduire`
+  - `test(lifecycle): une ambiguïté résiduelle devient une hypothèse nommée, pas un arrêt`
+  - `feat(lifecycle): résoudre, nommer, ne jamais bloquer`
+- **Notes**: supprime le besoin d'un marqueur « humain dans la boucle », qu'aucune variable existante ne portait. Un mécanisme en moins à construire et à maintenir, obtenu en corrigeant le cadrage plutôt qu'en ajoutant du code.
 
 ### Step 4 — Corriger `docs/CODEX.md`, qui documente quatre des onze événements
 
@@ -126,6 +127,6 @@ Arrêt. `verify`. Attendre le signal avant Step 2.
 - ⏳ Step 1 — les quatre lignes, hook Claude, preuve en session
 - ⏸ Checkpoint A — Folpe relit le texte
 - ⏳ Step 2 — parité Codex
-- ⏳ Step 3 — condition « humain dans la boucle »
+- ⏳ Step 3 — résoudre, nommer, ne jamais bloquer
 - ⏳ Step 4 — `docs/CODEX.md` : onze événements
 - ⏳ Step 5 — preuve sur un projet consommateur

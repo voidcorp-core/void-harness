@@ -98,23 +98,36 @@ communs, sans `additionalContext`. Réinjecter la doctrine au moment précis où
 vient de l'effacer n'est donc pas possible par ce canal ; `UserPromptSubmit` couvre le besoin,
 puisqu'il tire au premier tour qui suit.
 
-### La condition sur les questions
+### La cinquième ligne : autosuffisance d'abord, question ensuite
 
-« Pose des questions » est la seule des cinq qui ne s'applique pas partout. Un worker
-`autopilot` s'exécute dans un worktree sans interlocuteur : lui demander d'interroger le vide
-le bloquerait ou, pire, lui ferait inventer une réponse pour continuer.
+Première rédaction : la ligne était conditionnée à la présence d'un humain, avec « humain
+présent » pour défaut. C'était le mauvais sens. **Le harnais est autosuffisant par défaut ;
+l'humain est un bonus, jamais une dépendance.** Un harnais qui a besoin qu'on lui réponde pour
+avancer n'est pas un harnais, c'est un assistant.
 
-La ligne est donc conditionnée à la présence d'un humain dans la boucle. Le mécanisme de
-détection est un livrable du plan ; le comportement attendu est fixé ici : **sans humain, ne
-pas demander — consigner l'incertitude dans le rapport de sortie et poursuivre sous hypothèse
-explicite.** L'incertitude n'est jamais avalée, elle change seulement de destinataire.
+L'ordre juste, qui vaut partout et ne dépend d'aucun marqueur :
 
-Les quatre autres exigences s'appliquent sans condition, worker compris.
+1. **Résoudre.** L'ambiguïté se lève d'abord par les moyens du harnais — la convention du
+   dépôt, la décision déjà écrite, la doc officielle de la version installée, le code voisin.
+   C'est la même exigence que « lire avant d'affirmer », appliquée à une question au lieu d'une
+   affirmation.
+2. **Nommer.** Si elle subsiste, avancer **sous hypothèse explicite**, consignée dans la sortie.
+   L'incertitude n'est jamais avalée ; elle est rendue lisible par celui qui relira.
+3. **Demander** seulement quand l'ambiguïté est irréductible *et* qu'il y a quelqu'un.
+
+**Ce qui est interdit dans tous les cas : bloquer sur une question.** C'est le seul
+comportement que cette ligne existe pour empêcher.
+
+Ainsi formulée, la ligne n'a plus besoin d'être conditionnée : elle est vraie pour une session
+conversationnelle comme pour un worker `autopilot` sans interlocuteur. Le marqueur « humain
+présent » devient une information de rendu — à qui la question est posée — et non une condition
+d'avancement.
+
+Les cinq exigences s'appliquent donc sans condition, worker compris.
 
 ## Ce que la spec ne décide pas
 
 * La rédaction exacte des cinq lignes (plan).
-* Le mécanisme de détection « humain dans la boucle » (plan).
 * La correction de `docs/CODEX.md`, qui documente quatre des onze événements de Codex (plan).
 * L'emplacement des règles de `PHILOSOPHY.md` en général : c'est DEV-650, dont cette spec est
   un cas particulier, traité en premier parce qu'il est mesuré et qu'il fait mal tous les jours.
