@@ -85,7 +85,10 @@ describe('updateRouteFor', () => {
 describe('ownedFromManifestPaths', () => {
   it('claims the paths the manifest names, with the content found on disk', () => {
     const owned = ownedFromManifestPaths(
-      ['.void/hooks/_void-hook.mjs', '.claude/skills/tdd/SKILL.md'],
+      [
+        { path: '.void/hooks/_void-hook.mjs', sha256: 'sha-of-.void/hooks/_void-hook.mjs' },
+        { path: '.claude/skills/tdd/SKILL.md', sha256: 'sha-of-.claude/skills/tdd/SKILL.md' },
+      ],
       (path) => ({ sha256: `sha-of-${path}`, mode: 0o644 }),
     );
     expect(owned).toEqual([
@@ -96,7 +99,10 @@ describe('ownedFromManifestPaths', () => {
 
   it('drops a path the manifest names and the disk no longer has', () => {
     const owned = ownedFromManifestPaths(
-      ['.void/hooks/_void-hook.mjs', '.claude/skills/retired/SKILL.md'],
+      [
+        { path: '.void/hooks/_void-hook.mjs', sha256: 'x' },
+        { path: '.claude/skills/retired/SKILL.md', sha256: 'x' },
+      ],
       (path) => (path.includes('retired') ? undefined : { sha256: 'x', mode: 0o644 }),
     );
     expect(owned.map((file) => file.path)).toEqual(['.void/hooks/_void-hook.mjs']);
@@ -116,8 +122,11 @@ describe('completeOwnership', () => {
   it('adds the manifest paths a partial receipt no longer covers', () => {
     const owned = completeOwnership(
       [{ path: '.claude/skills/tdd/SKILL.md', sha256: 'from-receipt', mode: 0o644 }],
-      ['.claude/skills/tdd/SKILL.md', '.claude/agents/code-explorer.md'],
-      (path) => ({ sha256: `on-disk-${path}`, mode: 0o644 }),
+      [
+        { path: '.claude/skills/tdd/SKILL.md', sha256: 'attested' },
+        { path: '.claude/agents/code-explorer.md', sha256: 'attested' },
+      ],
+      () => ({ sha256: 'attested', mode: 0o644 }),
     );
 
     expect(owned.map((file) => file.path)).toEqual([
@@ -132,7 +141,7 @@ describe('completeOwnership', () => {
     // evidence that tells a hand-edited file from an untouched one.
     const owned = completeOwnership(
       [{ path: '.claude/skills/tdd/SKILL.md', sha256: 'from-receipt', mode: 0o644 }],
-      ['.claude/skills/tdd/SKILL.md'],
+      [{ path: '.claude/skills/tdd/SKILL.md', sha256: 'attested' }],
       () => ({ sha256: 'on-disk', mode: 0o600 }),
     );
 
@@ -144,12 +153,54 @@ describe('completeOwnership', () => {
   it('leaves a complete receipt untouched', () => {
     const files = [{ path: '.claude/skills/tdd/SKILL.md', sha256: 'x', mode: 0o644 }];
 
-    expect(completeOwnership(files, ['.claude/skills/tdd/SKILL.md'], () => undefined)).toEqual(files);
+    expect(completeOwnership(files, [{ path: '.claude/skills/tdd/SKILL.md', sha256: 'x' }], () => undefined)).toEqual(files);
   });
 
   it('drops a manifest path the disk no longer has', () => {
-    const owned = completeOwnership([], ['.claude/skills/gone/SKILL.md'], () => undefined);
+    const owned = completeOwnership([], [{ path: '.claude/skills/gone/SKILL.md', sha256: 'x' }], () => undefined);
 
     expect(owned).toEqual([]);
+  });
+});
+
+// The manifest proves a PATH is ours. It never proves the bytes sitting at that
+// path today are ours: a project that edited a skill we shipped has a path we
+// own holding content we do not. Reclaiming from disk without checking turned
+// "unknown content" into "proven ours", and the install then overwrote a
+// customisation it would otherwise have refused. Measured on a real project
+// before this guard existed.
+describe('completeOwnership, against content the project changed', () => {
+  it('declines a path whose bytes no longer match what the manifest attests', () => {
+    const owned = completeOwnership(
+      [],
+      [{ path: '.claude/skills/tdd/SKILL.md', sha256: 'as-installed' }],
+      () => ({ sha256: 'edited-by-the-project', mode: 0o644 }),
+    );
+
+    expect(owned).toEqual([]);
+  });
+
+  it('reclaims a path the project left untouched', () => {
+    const owned = completeOwnership(
+      [],
+      [{ path: '.claude/skills/tdd/SKILL.md', sha256: 'as-installed' }],
+      () => ({ sha256: 'as-installed', mode: 0o644 }),
+    );
+
+    expect(owned).toEqual([
+      { path: '.claude/skills/tdd/SKILL.md', sha256: 'as-installed', mode: 0o644 },
+    ]);
+  });
+
+  it('reclaims a path the manifest cannot attest, since it never lists itself', () => {
+    // A file cannot carry the hash of contents that include that hash, so the
+    // manifest is absent from its own file list -- and it is ours by construction.
+    const owned = completeOwnership(
+      [],
+      [{ path: '.void/install-manifest.json', sha256: undefined }],
+      () => ({ sha256: 'whatever-it-is-now', mode: 0o644 }),
+    );
+
+    expect(owned.map((file) => file.path)).toEqual(['.void/install-manifest.json']);
   });
 });

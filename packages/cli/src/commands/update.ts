@@ -233,12 +233,23 @@ function readManifest(projectRoot: string): InstallManifest | undefined {
   }
 }
 
+/** What the harness claims, and the bytes the manifest attests for each. */
+export interface ClaimedFile {
+  readonly path: string;
+  /** `undefined` when the manifest cannot attest this path -- see `claimedFiles`. */
+  readonly sha256: string | undefined;
+}
+
 /** Every path the manifest claims, itself included. */
-function claimedPaths(manifest: InstallManifest): readonly string[] {
-  // The manifest is never listed inside itself -- a file cannot carry its own
-  // hash -- yet it is the harness's by construction. Left out, it conflicts on
-  // every update, since a new version always rewrites it.
-  return [INSTALL_MANIFEST_PATH, ...manifest.files.map((file) => file.path)];
+function claimedFiles(manifest: InstallManifest): readonly ClaimedFile[] {
+  return [
+    // The manifest is never listed inside itself -- a file cannot carry its own
+    // hash -- yet it is the harness's by construction. Left out, it conflicts on
+    // every update, since a new version always rewrites it. Nothing attests it,
+    // and nothing has to.
+    { path: INSTALL_MANIFEST_PATH, sha256: undefined },
+    ...manifest.files,
+  ];
 }
 
 /** What a path holds right now, or nothing when the disk no longer has it. */
@@ -288,7 +299,7 @@ function rehydrateFromManifest(projectRoot: string): InstallReceipt | undefined 
     version: manifest.version,
     source: 'local',
     runtimes: wiredRuntimes(projectRoot),
-    files: ownedFromManifestPaths(claimedPaths(manifest), diskProbe(projectRoot)),
+    files: ownedFromManifestPaths(claimedFiles(manifest), diskProbe(projectRoot)),
   };
 }
 
@@ -302,7 +313,7 @@ function reclaimMissingPaths(projectRoot: string, receipt: InstallReceipt): Inst
   // An unreadable manifest is not a dead end here: the receipt still proves
   // everything it covers, and stopping would refuse an update that can proceed.
   if (manifest === undefined) return receipt;
-  const files = completeOwnership(receipt.files, claimedPaths(manifest), diskProbe(projectRoot));
+  const files = completeOwnership(receipt.files, claimedFiles(manifest), diskProbe(projectRoot));
   return files.length === receipt.files.length ? receipt : { ...receipt, files };
 }
 
@@ -322,25 +333,33 @@ function reclaimMissingPaths(projectRoot: string, receipt: InstallReceipt): Inst
  */
 export function completeOwnership(
   owned: readonly OwnedFile[],
-  manifestPaths: readonly string[],
+  claimed: readonly ClaimedFile[],
   onDisk: (path: string) => { readonly sha256: string; readonly mode: number } | undefined,
 ): OwnedFile[] {
   const covered = new Set(owned.map((file) => file.path));
   return [
     ...owned,
-    ...ownedFromManifestPaths(manifestPaths.filter((path) => !covered.has(path)), onDisk),
+    ...ownedFromManifestPaths(claimed.filter((file) => !covered.has(file.path)), onDisk),
   ];
 }
 
 export function ownedFromManifestPaths(
-  paths: readonly string[],
+  claimed: readonly ClaimedFile[],
   onDisk: (path: string) => { readonly sha256: string; readonly mode: number } | undefined,
 ): OwnedFile[] {
   const owned: OwnedFile[] = [];
-  for (const path of paths) {
-    const found = onDisk(path);
+  for (const file of claimed) {
+    const found = onDisk(file.path);
+    // Gone from disk: it was ours, it is gone, and the install about to run
+    // decides whether it comes back.
     if (found === undefined) continue;
-    owned.push({ path, sha256: found.sha256, mode: found.mode });
+    // Present, but holding something the manifest does not attest. The manifest
+    // proves a PATH is ours; it never proves the bytes sitting there today are.
+    // Claiming them anyway turned "content we cannot account for" into "content
+    // we wrote", and the install then overwrote a project's own edit instead of
+    // refusing it -- measured on a real project, 2026-08-20.
+    if (file.sha256 !== undefined && found.sha256 !== file.sha256) continue;
+    owned.push({ path: file.path, sha256: found.sha256, mode: found.mode });
   }
   return owned;
 }
