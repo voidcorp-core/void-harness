@@ -46,7 +46,7 @@ function builderScripts(): string[] {
 }
 
 /** Forbidden reads in a source, as readable reasons. Pure. */
-export function machineLocalReads(source: string): string[] {
+function machineLocalReads(source: string): string[] {
   const found: string[] = [];
   for (const line of source.split('\n')) {
     // A comment explaining the rule is not a violation of it.
