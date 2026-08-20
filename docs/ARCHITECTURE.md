@@ -139,6 +139,11 @@ Rules:
   config pack set and prune only unchanged receipt-owned stale assets. Local `update` recompiles
   from the running CLI without a remote fetch. Legacy/explicit marketplace receipts retain their
   cache and remote-pin adapter.
+- **The harness owns exactly the skills it ships; the project owns every other one.**
+  `.claude/skills/` and its siblings are shared directories, and the manifest — not the path —
+  answers which side a file is on. A skill the harness does not ship is never ignored and never
+  written to; a skill it does ship is its alone to modify, so a locally altered copy is restored
+  rather than defended. See the harness-owns-its-skills-project-keeps-its-own decision.
 - **Ownership is the union of the two proofs, never a choice between them.** The receipt is
   machine-local and records what *this machine* wrote; the committed `.void/install-manifest.json`
   names the paths *this version* owns and travels with the repository. `update` completes the

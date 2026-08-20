@@ -8,6 +8,7 @@ import {
   invocationAlert,
   livenessVerdict,
   refreshInvocationVerdict,
+  replacementFor,
   resolutionVerdict,
 } from './invocation.js';
 
@@ -64,6 +65,30 @@ describe('installedSkillNames', () => {
 
   it('returns nothing for a project with no skills installed', () => {
     expect(installedSkillNames(project()).size).toBe(0);
+  });
+});
+
+describe('resolutionVerdict, on names the harness never shipped', () => {
+  it('leaves a name from another provider out of the verdict', () => {
+    // `defuddle` and `artifact-capabilities` resolve perfectly -- elsewhere. The
+    // remedy the check prints (reinstall the harness) cannot make them appear
+    // under .claude/skills, and a red verdict nobody can extinguish is a red
+    // verdict everybody learns to skip past.
+    const body = `${activation('defuddle')}\n${activation('artifact-capabilities')}`;
+
+    expect(resolutionVerdict(body, new Set(['tdd'])).unresolved).toEqual([]);
+  });
+
+  it('still names a skill the harness itself retired', () => {
+    const body = `${activation('session-handoff')}\n${activation('defuddle')}`;
+
+    expect(resolutionVerdict(body, new Set(['checkpoint'])).unresolved).toEqual(['session-handoff']);
+  });
+
+  it('says what took a retired name over, since that is the actual remedy', () => {
+    expect(replacementFor('session-handoff')).toBe('checkpoint');
+    expect(replacementFor('ticket-runner')).toBe('implement');
+    expect(replacementFor('tdd')).toBeUndefined();
   });
 });
 
@@ -169,6 +194,15 @@ describe('invocationAlert', () => {
     expect(lines[0]).toContain('invocation surface');
     expect(lines).toHaveLength(3);
     expect(lines[2]).toContain('void-harness doctor');
+  });
+
+  it('names the successor, because that is what ends the search', () => {
+    // "check that the skill exists, then reinstall" is precisely what a renamed
+    // skill does not need: the file is not missing, the name moved.
+    const alert = invocationAlert({ ok: false, unresolved: ['session-handoff'] }, ALIVE) ?? '';
+
+    expect(alert).toContain('session-handoff');
+    expect(alert).toContain('checkpoint');
   });
 
   it('stays bounded however many names there are, since it is read at a session opening', () => {
