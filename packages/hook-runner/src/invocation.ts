@@ -20,8 +20,10 @@ import { voidMachinePath } from './void-layout.js';
  */
 export interface ResolutionVerdict {
   readonly ok: boolean;
-  /** Recorded skill names with no installed skill behind them, sorted, deduped. */
+  /** Retired names the NEWEST run still calls. These, and only these, fail. */
   readonly unresolved: readonly string[];
+  /** Every retired name seen in the window, current or not. Informs, never fails. */
+  readonly retired: readonly string[];
 }
 
 const SKILL_RUNTIME_DIRS = ['.claude', '.agents'] as const;
@@ -110,9 +112,32 @@ export interface ResolutionOptions {
   readonly nowMs?: number;
 }
 
-/** Bare skill names recorded as fired in a journal body. */
-function recordedSkillNames(body: string, nowMs?: number): string[] {
-  const names: string[] = [];
+interface RecordedName {
+  readonly name: string;
+  readonly missionId: string;
+}
+
+/** The mission id of the most recent recorded activation, or `''` when there is none. */
+function newestMission(body: string, nowMs?: number): string {
+  let latest = '';
+  let mission = '';
+  eachEvent(body, (event) => {
+    if (event.kind !== 'runtime.tool.started') return;
+    if (nowMs !== undefined) {
+      const at = Date.parse(event.ts);
+      if (!Number.isNaN(at) && at < nowMs - LIVE_WINDOW_MS) return;
+    }
+    if (event.ts > latest) {
+      latest = event.ts;
+      mission = event.missionId;
+    }
+  });
+  return mission;
+}
+
+/** Bare skill names recorded as fired in a journal body, with the run they belong to. */
+function recordedSkillNames(body: string, nowMs?: number): RecordedName[] {
+  const names: RecordedName[] = [];
   const floor = nowMs === undefined ? undefined : nowMs - LIVE_WINDOW_MS;
   eachEvent(body, (event) => {
     if (event.kind !== 'runtime.tool.started' || event.category !== 'skill') return;
@@ -123,7 +148,7 @@ function recordedSkillNames(body: string, nowMs?: number): string[] {
       // hide a live defect, and a false alert costs less than a missed one here.
       if (!Number.isNaN(at) && at < floor) return;
     }
-    names.push(bareName(event.subject.slice('skill:'.length)));
+    names.push({ name: bareName(event.subject.slice('skill:'.length)), missionId: event.missionId });
   });
   return names;
 }
@@ -148,10 +173,17 @@ export function resolutionVerdict(
   // Ours to judge only. A runtime resolves skills from several providers, and a
   // name we never shipped is not a defect of this install: reporting it printed
   // a remedy that could not work, on a line that also carried the real ones.
+  const ours = (entry: RecordedName): boolean =>
+    !installed.has(entry.name) && wasEverOurs(entry.name);
+  const retired = [...new Set(recorded.filter(ours).map((entry) => entry.name))].sort();
+  // `doctor` reports the present. A rename nothing calls any more is history, and
+  // no action clears it -- the verdict would stay red until a window expired,
+  // which is a verdict nobody can satisfy. Only the newest run decides.
+  const newest = newestMission(body, options.nowMs);
   const unresolved = [
-    ...new Set(recorded.filter((name) => !installed.has(name) && wasEverOurs(name))),
+    ...new Set(recorded.filter((entry) => ours(entry) && entry.missionId === newest).map((entry) => entry.name)),
   ].sort();
-  return { ok: unresolved.length === 0, unresolved };
+  return { ok: unresolved.length === 0, unresolved, retired };
 }
 
 /**
@@ -191,7 +223,7 @@ export function invocationAlert(
     const rest = resolution.unresolved.length - MAX_NAMED;
     const tail = rest > 0 ? `, and ${rest} more` : '';
     lines.push(
-      `  ${resolution.unresolved.length} recorded skill invocation(s) name a skill this project cannot resolve: ${named}${tail}`,
+      `  ${resolution.unresolved.length} skill invocation(s) in this run name a skill that no longer exists: ${named}${tail}`,
     );
   }
   if (!liveness.ok) {
