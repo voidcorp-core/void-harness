@@ -3,6 +3,7 @@ import { existsSync, type Stats } from 'node:fs';
 import {
   cp,
   lstat,
+  rm,
   mkdir,
   readdir,
   readFile,
@@ -12,6 +13,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import {
   buildInstallManifest,
   INSTALL_MANIFEST_PATH,
+  parseInstallManifest,
   sha256Of,
 } from './install-manifest.js';
 import {
@@ -77,6 +79,61 @@ export async function seedInstallStage(projectRoot: string, stageRoot: string): 
     await mkdir(dirname(destination), { recursive: true });
     await cp(source, destination);
   }
+}
+
+/**
+ * Remove from the stage every managed path the project already fills, and name
+ * them — but only on a first install.
+ *
+ * A project that already carried skills could not install at all: `init` ran to
+ * the end, met a name it shares with one of ours, and rolled everything back.
+ * `--force` would have overwritten a file the project owned before us.
+ *
+ * Withheld from the STAGE rather than skipped at commit time, so that one truth
+ * governs everything downstream: the manifest does not claim it, the ignore block
+ * does not list it, the receipt does not own it, and no later update mistakes it
+ * for an asset of ours that someone edited.
+ *
+ * A receipt or a committed manifest means we have installed here before, and the
+ * same situation becomes ambiguous — the file may be ours, edited. That question
+ * belongs to the update path, which keeps refusing.
+ */
+export async function withholdProjectOwned(
+  projectRoot: string,
+  stageRoot: string,
+): Promise<string[]> {
+  // Per PATH, never per install. "Have we been here before?" is too coarse: on the
+  // second update the answer is yes, and a file that was the project's since
+  // before we arrived would become a conflict again. The question that holds is
+  // "has this path ever been ours?", and the committed manifest answers it -- the
+  // same rule the ownership decision already states.
+  const ours = new Set<string>((await readInstallReceipt(projectRoot))?.files.map((file) => file.path) ?? []);
+  try {
+    const manifest = parseInstallManifest(
+      await readFile(join(projectRoot, ...INSTALL_MANIFEST_PATH.split('/')), 'utf8'),
+    );
+    for (const file of manifest?.files ?? []) ours.add(file.path);
+    ours.add(INSTALL_MANIFEST_PATH);
+  } catch {
+    // No manifest: nothing has ever been claimed here, so nothing is ours yet.
+  }
+
+  const withheld: string[] = [];
+  for (const file of await collectStageFiles(stageRoot)) {
+    if (!isManaged(file.path) || ours.has(file.path)) continue;
+    const target = join(projectRoot, ...file.path.split('/'));
+    const info = await infoOrUndefined(target);
+    if (info === undefined) continue;
+    if (info.isFile() && !info.isSymbolicLink()) {
+      const current = await readFile(target);
+      // Identical bytes are not a collision: it is the same content, so installing
+      // it changes nothing and claiming it is correct.
+      if (current.equals(Buffer.from(file.content))) continue;
+    }
+    withheld.push(file.path);
+    await rm(join(stageRoot, ...file.path.split('/')), { force: true });
+  }
+  return withheld.sort();
 }
 
 export async function collectStageFiles(stageRoot: string): Promise<ReceiptFileInput[]> {
