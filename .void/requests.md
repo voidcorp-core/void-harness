@@ -69,5 +69,19 @@ contredit une ancienne — c'est le seul moment où l'arbitrage est possible.
 
 ## Contradictions relevées
 
-Aucune à ce jour. Une demande qui contredit un arbitrage ci-dessus se note ici avec les deux
-formulations, et se tranche avec Folpe — jamais en silence.
+Une demande qui contredit un arbitrage se note ici avec les deux formulations, et se tranche
+avec Folpe — jamais en silence.
+
+- **Télémétrie produit contre « local, never shipped »** — demandé le 2026-08-20 : des métriques
+  au sens d'un PostHog, pour savoir qui utilise le harnais et quelles capacités servent
+  réellement.
+  - *La demande* : « je veux des metrics pour savoir qui utilise void-harness […] quels sont les
+    postes qui sont vraiment actifs, pour avoir vraiment de la donnée, au même titre qu'un
+    PostHog ».
+  - *Ce qui s'y oppose* : `PHILOSOPHY.md:135` — « Each invocation writes a redacted canonical
+    event to `.void/machine/runs/<mission-id>/events.jsonl` (**local, never shipped**) ».
+  - *Pourquoi ça ne se tranche pas seul* : le harnais est public, MIT, installé par `npx` sans
+    compte. Une remontée n'est pas une fonctionnalité de plus, c'est un changement de nature du
+    produit — opt-in ou opt-out, granularité, destination et base légale sont des choix qui
+    engagent la confiance des consommateurs.
+  - *État* : arbitrage en attente. → DEV-655
