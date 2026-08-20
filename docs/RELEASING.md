@@ -192,9 +192,40 @@ with no token and no 2FA-bypass:
    prompted — an interactive publish, no stored credential.
 3. On npmjs.com → the `voidharness` package → **Settings → Trusted Publisher →
    GitHub Actions**: organization `voidcorp-core`, repository `void-harness`,
-   workflow file `release.yml`, environment blank.
+   workflow file `release.yml`, environment **`npm-publish`** (see the next
+   section — leaving it blank is what made any branch publishable).
 4. From the next release on, the CI `publish` job publishes tokenlessly. You never
    run `publish` by hand again.
+
+## What stops a branch from publishing
+
+npm cannot answer this question for us. A trusted publisher matches organisation,
+repository, workflow **filename**, an optional environment, and the allowed
+actions — [there is no branch or ref field](https://docs.npmjs.com/trusted-publishers).
+Every run of `release.yml` therefore looks equally legitimate to the registry,
+whichever branch it was fired from.
+
+The restriction lives in three places, and **all three are required**. Two of them
+are outside this repository, so a green CI does not prove they are in place.
+
+1. **In the workflow** (done, and tested): the `publish` job carries
+   `github.ref == 'refs/heads/main'`, checks out `${{ github.sha }}` explicitly
+   rather than whatever the ref points at, and declares
+   `environment: npm-publish`. `release-please` carries the same ref condition —
+   it holds the App token. Every action is pinned by full commit SHA, because a
+   major tag is repointable by its owner and is a second route to the same token.
+   `test/workflows/workflows-parse.test.ts` fails if any of this is removed.
+2. **On GitHub** (manual): Settings → Environments → `npm-publish`, with
+   **required reviewers**. Referencing an environment that does not exist creates
+   it silently and unprotected, so this step is what turns the declaration into a
+   gate. Without it the workflow reads as locked and is not.
+3. **On npm** (manual): the trusted publisher must name that same environment.
+   Without it, a modified copy of `release.yml` on another branch is still
+   accepted by the registry — the workflow filename is all it checks.
+
+Step 1 alone is worth having: it blocks the accidental dispatch and the wrong
+branch. It does not survive someone editing the workflow, which is what steps 2
+and 3 are for.
 
 Two CI gates fail the build on a drift so a version bump can never ship a stale
 artifact: `pnpm version:check` (every manifest at the canonical version) and
