@@ -5,6 +5,7 @@ import {
   readMissionJournals,
   type ResolutionVerdict,
   resolutionVerdict,
+  withSuccessor,
 } from '@voidcorp/hook-runner';
 import type { CheckResult } from './prerequisites.js';
 
@@ -59,8 +60,8 @@ export function judgeInvocation(observation: InvocationObservation): CheckResult
   const faults: string[] = [];
   if (!observation.resolution.ok) {
     faults.push(
-      `${observation.resolution.unresolved.length} recorded name(s) no longer resolve: `
-      + observation.resolution.unresolved.join(', '),
+      `${observation.resolution.unresolved.length} retired name(s) recorded: `
+      + observation.resolution.unresolved.map(withSuccessor).join(', '),
     );
   }
   if (!observation.liveness.ok) {
@@ -79,6 +80,9 @@ export function judgeInvocation(observation: InvocationObservation): CheckResult
     // Both faults, never the first alone: they have different causes, and fixing
     // one would otherwise reveal the other only on the next run.
     message: `${faults.join('; ')}; ${evidence(observation)}`,
-    fix: 'check that the named skills exist under .claude/skills or .agents/skills, then reinstall with `void-harness update`',
+    // Never "reinstall": the file is not missing, the name moved. What the reader
+    // has to change is whatever still calls the old name -- a saved command, a
+    // habit, another skill's text.
+    fix: 'invoke each successor named above instead, and update whatever still calls the old name',
   };
 }

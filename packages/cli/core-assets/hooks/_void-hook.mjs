@@ -1050,6 +1050,35 @@ function journalFingerprint(root) {
   return `${Math.round(newest)}:${bytes}`;
 }
 
+// src/retired-skills.ts
+var RETIRED_SKILLS = {
+  "accessibility-first": "accessibility",
+  "adr-workflow": "decide",
+  "autonomous-backlog-loop": "autopilot",
+  "backlog-autopilot": "autopilot",
+  "backlog-batch": "autopilot",
+  brainstorming: "brainstorm",
+  "capture-rule": "learn",
+  "claude-md-authoring": "claude-md",
+  compounding: "learn",
+  "context-management": "context",
+  "harness-evolution": "learn",
+  "learning-capture": "learn",
+  "migrations-safety": "migrations",
+  refactoring: "refactor",
+  "session-handoff": "checkpoint",
+  "systematic-debugging": "debug",
+  "ticket-runner": "implement",
+  "ticket-writer": "ticket",
+  "verification-before-completion": "verify",
+  "void-backlog-loop": "autopilot",
+  "void-feedback": "learn",
+  "writing-plans": "plan"
+};
+function wasEverOurs(name) {
+  return Object.hasOwn(RETIRED_SKILLS, name);
+}
+
 // src/invocation.ts
 var SKILL_RUNTIME_DIRS = [".claude", ".agents"];
 function bareName(raw) {
@@ -1110,17 +1139,26 @@ function recordedSkillNames(body, nowMs) {
   });
   return names;
 }
+function replacementFor(name) {
+  return RETIRED_SKILLS[name];
+}
 function resolutionVerdict(body, installed, options = {}) {
   const recorded = recordedSkillNames(body, options.nowMs);
-  const unresolved = [...new Set(recorded.filter((name) => !installed.has(name)))].sort();
+  const unresolved = [
+    ...new Set(recorded.filter((name) => !installed.has(name) && wasEverOurs(name)))
+  ].sort();
   return { ok: unresolved.length === 0, unresolved };
+}
+function withSuccessor(name) {
+  const replacement = replacementFor(name);
+  return replacement === void 0 ? name : `${name} -> ${replacement}`;
 }
 var MAX_NAMED = 5;
 function invocationAlert(resolution, liveness) {
   if (resolution.ok && liveness.ok) return void 0;
   const lines = ["void-harness, invocation surface:"];
   if (!resolution.ok) {
-    const named = resolution.unresolved.slice(0, MAX_NAMED).join(", ");
+    const named = resolution.unresolved.slice(0, MAX_NAMED).map(withSuccessor).join(", ");
     const rest = resolution.unresolved.length - MAX_NAMED;
     const tail = rest > 0 ? `, and ${rest} more` : "";
     lines.push(
