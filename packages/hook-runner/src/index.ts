@@ -6,8 +6,10 @@ export {
   type LivenessVerdict,
   livenessVerdict,
   refreshInvocationVerdict,
+  replacementFor,
   type ResolutionVerdict,
   resolutionVerdict,
+  withSuccessor,
 } from './invocation.js';
 export {
   classifyMaterialized,
