@@ -15,6 +15,7 @@ import {
   INSTALL_RECEIPT_PATH,
 } from './receipts.js';
 import {
+  conflictMessage,
   prepareInstallCommit,
   seedInstallStage,
 } from './local-install.js';
@@ -22,6 +23,23 @@ import {
 function scratch(prefix: string): string {
   return mkdtempSync(join(tmpdir(), prefix));
 }
+
+describe('conflictMessage', () => {
+  it('keeps the remedy singular for one path and plural beyond it', () => {
+    expect(conflictMessage(['a.md'])).toContain('preserve it');
+    expect(conflictMessage(['a.md', 'b.md'])).toContain('preserve them');
+  });
+
+  it('caps the list so the remedy stays visible under it', () => {
+    const many = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((n) => `.claude/skills/${n}/SKILL.md`);
+
+    const message = conflictMessage(many);
+
+    expect(message).toContain('and 2 more');
+    expect(message).not.toContain('/g/');
+    expect(message).toContain('--force');
+  });
+});
 
 describe('local install staging', () => {
   it('seeds only shared files needed for non-destructive merges', async () => {
@@ -79,6 +97,78 @@ describe('local install staging', () => {
       runtimes: ['claude'],
       force: false,
     })).rejects.toThrow(/unowned asset conflict/);
+  });
+
+  it('claims a managed file whose bytes already match what it compiled', async () => {
+    // The install writes nothing here, so the old code claimed nothing either
+    // and the file silently left the receipt. The next version to change those
+    // bytes then met an asset it no longer recognised and refused to update.
+    const root = scratch('void-project-');
+    const stage = scratch('void-stage-');
+    const path = '.claude/agents/code-explorer.md';
+    mkdirSync(join(root, '.claude', 'agents'), { recursive: true });
+    mkdirSync(join(stage, '.claude', 'agents'), { recursive: true });
+    writeFileSync(join(root, ...path.split('/')), '# explorer\n');
+    writeFileSync(join(stage, ...path.split('/')), '# explorer\n');
+
+    const prepared = await prepareInstallCommit({
+      projectRoot: root,
+      stageRoot: stage,
+      version: '3.1.1',
+      source: 'local',
+      runtimes: ['claude'],
+      force: false,
+    });
+
+    expect(prepared.receipt.files.map((file) => file.path)).toEqual([path]);
+    // Identical bytes are no reason to rewrite them.
+    expect(prepared.mutations.filter((m) => m.path === path)).toEqual([]);
+  });
+
+  it('leaves a shared file unclaimed even when its bytes already match', async () => {
+    // Ownership of a shared file is the project's; matching bytes are a
+    // coincidence of the block we patched into it, never a claim. Claiming one
+    // would licence deleting it at the next update.
+    const root = scratch('void-project-');
+    const stage = scratch('void-stage-');
+    writeFileSync(join(root, 'CLAUDE.md'), '# same\n');
+    writeFileSync(join(stage, 'CLAUDE.md'), '# same\n');
+
+    const prepared = await prepareInstallCommit({
+      projectRoot: root,
+      stageRoot: stage,
+      version: '3.1.1',
+      source: 'local',
+      runtimes: ['claude'],
+      force: false,
+    });
+
+    expect(prepared.receipt.files).toEqual([]);
+  });
+
+  it('names every conflicting asset at once, not just the first', async () => {
+    // Rendered one at a time, the operator fixes one, re-runs, and meets the
+    // next: the cost of the message is paid once per file instead of once.
+    const root = scratch('void-project-');
+    const stage = scratch('void-stage-');
+    for (const name of ['tdd', 'verify']) {
+      mkdirSync(join(root, '.claude', 'skills', name), { recursive: true });
+      mkdirSync(join(stage, '.claude', 'skills', name), { recursive: true });
+      writeFileSync(join(root, '.claude', 'skills', name, 'SKILL.md'), '# theirs\n');
+      writeFileSync(join(stage, '.claude', 'skills', name, 'SKILL.md'), '# ours\n');
+    }
+
+    const attempt = prepareInstallCommit({
+      projectRoot: root,
+      stageRoot: stage,
+      version: '3.1.1',
+      source: 'local',
+      runtimes: ['claude'],
+      force: false,
+    });
+
+    await expect(attempt).rejects.toThrow('.claude/skills/tdd/SKILL.md');
+    await expect(attempt).rejects.toThrow('.claude/skills/verify/SKILL.md');
   });
 
   it('can add one runtime while retaining unchanged ownership from the other', async () => {
