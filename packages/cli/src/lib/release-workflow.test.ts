@@ -50,7 +50,11 @@ const effectiveJob = releasePleaseJob
 
 describe('the release pull request is opened by the App', () => {
   it('mints an App token from the repository secrets', () => {
-    expect(releasePleaseJob).toContain('actions/create-github-app-token@v2');
+    // Matched without its version: the action is pinned by commit SHA since the
+    // publication lockdown, and asserting a tag here would fail the day the pin
+    // is refreshed — which is a maintenance step, not a regression. That every
+    // action IS pinned is asserted in test/workflows/, where it belongs.
+    expect(releasePleaseJob).toMatch(/actions\/create-github-app-token@\S+/);
     expect(releasePleaseJob).toContain('app-id: ${{ secrets.RELEASE_APP_ID }}');
     expect(releasePleaseJob).toContain('private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}');
   });
