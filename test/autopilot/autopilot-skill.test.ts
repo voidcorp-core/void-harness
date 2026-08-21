@@ -40,7 +40,7 @@ describe('autopilot skill frontmatter', () => {
   it('keeps its description within the discovery budget', () => {
     const description = /^description:\s*(.*)$/m.exec(frontmatter(SKILL))?.[1] ?? '';
     expect(description.length).toBeGreaterThan(0);
-    expect(description.length).toBeLessThanOrEqual(200);
+    expect(description.length).toBeLessThanOrEqual(250);
   });
 
   it('stays under the skill size cap', () => {

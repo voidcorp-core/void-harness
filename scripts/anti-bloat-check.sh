@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# anti-bloat-check — root-level audit of the seven anti-bloat rules
+# anti-bloat-check — root-level audit of the eight anti-bloat rules
 # documented in CLAUDE.md / AGENTS.md.
 #
 # Run locally: `pnpm anti-bloat:check`
@@ -10,6 +10,8 @@
 set -euo pipefail
 
 FAILED=0
+DESCRIPTION_TARGET=250
+DESCRIPTION_CAP=500
 
 echo "anti-bloat-check"
 
@@ -72,8 +74,10 @@ while IFS= read -r f; do
   fi
 done <<<"$HOOK_FILES"
 
-# Frontmatter description ≤ 512 chars (rule 4): skills (core + packs) + agents
-echo "  rule 4: frontmatter description ≤ 512 chars"
+# Frontmatter discovery budget (rule 4): skills (core + packs) + agents.
+# Above-target descriptions remain valid, but the note keeps their catalogue
+# cost visible. Only the hard cap blocks the change.
+echo "  rule 4: frontmatter description target $DESCRIPTION_TARGET chars, hard cap $DESCRIPTION_CAP chars"
 DESC_FILES=$(printf "%s\n" "$SKILL_FILES"; ls packages/core/agents/*.md 2>/dev/null || true)
 while IFS= read -r f; do
   [[ -n "$f" && -e "$f" ]] || continue
@@ -86,9 +90,11 @@ while IFS= read -r f; do
     \'*\') DESC="${DESC#\'}"; DESC="${DESC%\'}" ;;
   esac
   LEN=${#DESC}
-  if [[ "$LEN" -gt 512 ]]; then
-    echo "    FAIL: $f description is $LEN chars (cap 512): $DESC" >&2
+  if [[ "$LEN" -gt "$DESCRIPTION_CAP" ]]; then
+    echo "    FAIL: $f description is $LEN chars (cap $DESCRIPTION_CAP)" >&2
     FAILED=1
+  elif [[ "$LEN" -gt "$DESCRIPTION_TARGET" ]]; then
+    echo "    NOTE: $f description is $LEN chars (target $DESCRIPTION_TARGET, cap $DESCRIPTION_CAP)"
   fi
 done <<<"$DESC_FILES"
 

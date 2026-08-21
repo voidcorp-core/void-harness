@@ -11,9 +11,9 @@
  * Decision: docs/DECISIONS.md "one doctrine-critic agent, not the three ...".
  */
 
-import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
 
 const ROOT = resolve(__dirname, '..', '..');
 const r = (p: string): string => readFileSync(resolve(ROOT, p), 'utf8');
@@ -42,9 +42,9 @@ describe('doctrine-critic agent', () => {
     expect(fm.name).toBe('doctrine-critic');
   });
 
-  it('has a description within the 200-char anti-bloat cap', () => {
+  it('has a description within the 250-char editorial target', () => {
     expect(fm.description.length).toBeGreaterThan(0);
-    expect(fm.description.length).toBeLessThanOrEqual(200);
+    expect(fm.description.length).toBeLessThanOrEqual(250);
   });
 
   it('is read-only: tools exclude every mutating tool', () => {
