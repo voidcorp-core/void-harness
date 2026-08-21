@@ -78,7 +78,12 @@ describe('the skill file carries only what the specification defines', () => {
 
   it.each(SKILLS)('%s keeps its description within the discovery budget', (_label, path) => {
     const text = readFileSync(join(path, 'SKILL.md'), 'utf8');
-    const description = /^description:\s*(.*)$/m.exec(text)?.[1] ?? '';
+    const rawDescription = /^description:\s*(.*)$/m.exec(text)?.[1] ?? '';
+    const pairedQuotes = rawDescription.length >= 2 && (
+      (rawDescription.startsWith('"') && rawDescription.endsWith('"')) ||
+      (rawDescription.startsWith("'") && rawDescription.endsWith("'"))
+    );
+    const description = pairedQuotes ? rawDescription.slice(1, -1) : rawDescription;
     expect(description.length).toBeGreaterThan(0);
     // 500 stays below half of what the portable spec allows. The 250-character
     // editorial target is reported by anti-bloat-check; this assertion owns the

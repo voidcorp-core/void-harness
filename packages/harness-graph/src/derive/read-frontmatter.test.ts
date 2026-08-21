@@ -19,6 +19,10 @@ describe('readFrontmatter', () => {
     const md = '---\nname: tdd\ndescription: TDD with three modes.\n---\n\n# tdd\n';
     expect(readFrontmatter(md).description).toBe('TDD with three modes.');
   });
+  it('extracts the resolved value of a folded YAML description', () => {
+    const md = '---\nname: tdd\ndescription: >-\n  TDD with three\n  modes.\n---\n\n# tdd\n';
+    expect(readFrontmatter(md).description).toBe('TDD with three modes.');
+  });
   it('returns empty description when absent', () => {
     expect(readFrontmatter('# no frontmatter\n').description).toBe('');
   });
