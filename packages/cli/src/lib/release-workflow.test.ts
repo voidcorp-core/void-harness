@@ -114,3 +114,46 @@ describe('the human gate and the publish path are untouched', () => {
     expect(releaseWorkflow).toContain('pnpm check:publish');
   });
 });
+
+describe('the release tree is validated and packed without OIDC', () => {
+  const validateReleaseJob =
+    releaseWorkflow.split('\n  validate-release:\n')[1]?.split(/\n {2}[\w-]+:\n/)[0] ?? '';
+
+  it('requires an explicit immutable tag for exceptional recovery', () => {
+    expect(releaseWorkflow).toMatch(/workflow_dispatch:\s*\n\s+inputs:\s*\n\s+release_tag:/);
+    expect(releaseWorkflow).toMatch(/release_tag:[\s\S]*required:\s*true/);
+    expect(releasePleaseJob).toContain("github.event_name == 'push'");
+  });
+
+  it('gives validation only contents read and never OIDC', () => {
+    expect(validateReleaseJob).toContain('permissions:');
+    expect(validateReleaseJob).toContain('contents: read');
+    expect(validateReleaseJob).not.toContain('id-token: write');
+  });
+
+  it('resolves and checks out the exact release commit', () => {
+    expect(validateReleaseJob).toContain('RELEASE_TAG:');
+    expect(validateReleaseJob).toContain('release_commit');
+    expect(validateReleaseJob).toContain('ref: ${{ steps.resolve.outputs.release_commit }}');
+    expect(validateReleaseJob).toContain('path: release-tree');
+  });
+
+  it('validates before packing the final tarball exactly once', () => {
+    expect(validateReleaseJob).toContain('pnpm version:check');
+    expect(validateReleaseJob).toContain('pnpm build');
+    expect(validateReleaseJob).toContain('pnpm typecheck');
+    expect(validateReleaseJob).toContain('pnpm test');
+    expect(validateReleaseJob).toContain('pnpm check:publish');
+    expect(validateReleaseJob.match(/pnpm --filter voidharness pack/g)).toHaveLength(1);
+  });
+
+  it('uploads one short-lived integrity-bound artifact and exposes its identity', () => {
+    expect(validateReleaseJob).toContain(
+      'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
+    );
+    expect(validateReleaseJob).toContain('retention-days: 1');
+    expect(validateReleaseJob).toContain('artifact-id');
+    expect(validateReleaseJob).toContain('artifact-digest');
+    expect(validateReleaseJob).toContain('release-artifact.json');
+  });
+});
