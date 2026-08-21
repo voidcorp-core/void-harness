@@ -1,5 +1,29 @@
 # Changelog
 
+## [3.3.0](https://github.com/voidcorp-core/void-harness/compare/v3.2.0...v3.3.0) (2026-08-21)
+
+
+### Features
+
+* **scripts:** consigner et garder toute reference du code a une skill ([c3d5445](https://github.com/voidcorp-core/void-harness/commit/c3d54458665623c5a3e148ae4e18dc7ff722452b))
+
+
+### Bug Fixes
+
+* **cli:** reparer l'install cassee par le prefixe void- sur les skills ([b82349f](https://github.com/voidcorp-core/void-harness/commit/b82349f0fa6465d9f66571f1144e9676ef70e700))
+* **doctor:** un renommage que plus rien n'appelle n'est pas un défaut ([aaac616](https://github.com/voidcorp-core/void-harness/commit/aaac616efa6e1e2855242748d7f23a64e2559999))
+* **doctor:** un renommage que plus rien n'appelle n'est pas un défaut ([326a6d6](https://github.com/voidcorp-core/void-harness/commit/326a6d6ccec3a6225ca36598e7a41e6364519859))
+* **hooks:** le dépôt ne choisit plus librement ce que le hook Stop exécute ([605db3c](https://github.com/voidcorp-core/void-harness/commit/605db3c9aa4136d91b860864695802de39d56381))
+* **hooks:** le dépôt ne choisit plus librement ce que le hook Stop exécute ([878e243](https://github.com/voidcorp-core/void-harness/commit/878e2432ddeca516e4dafd55cb536f85ceaf39aa))
+* **install:** un projet qui a déjà des skills peut installer le harnais ([6e61e6a](https://github.com/voidcorp-core/void-harness/commit/6e61e6a868355179ca623b044e6b05e66b5e9577))
+* **install:** un projet qui a déjà des skills peut installer le harnais ([357493f](https://github.com/voidcorp-core/void-harness/commit/357493fae08a0fa0741f5c3e9a9dacda194f1582))
+* **skills:** finir le balayage des references laissees nues par le prefixe ([e5fcf61](https://github.com/voidcorp-core/void-harness/commit/e5fcf617a74b4062716f6fadf6e45a312d77daa7))
+
+
+### Reverts
+
+* **mission-engine:** rendre la fixture d evenements a son etat d origine ([1a9beb8](https://github.com/voidcorp-core/void-harness/commit/1a9beb82250768eb1713c6148eebf7755e9b599d))
+
 ## [3.2.0](https://github.com/voidcorp-core/void-harness/compare/v3.1.1...v3.2.0) (2026-08-20)
 
 
