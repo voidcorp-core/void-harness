@@ -188,7 +188,7 @@ This job has `contents: read` and no `id-token` permission.
 2. recomputes SHA-256 and SHA-512 and fails on any mismatch;
 3. verifies the tarball name and embedded package name/version;
 4. executes no install, build, lifecycle hook or repository script;
-5. asserts npm 11 or newer, then runs
+5. asserts npm 11.5.1 or newer, then runs
    `npm publish ./voidharness-X.Y.Z.tgz --access public --ignore-scripts`;
 6. polls for the registry integrity and the presence of its attestation endpoint after publication.
 
@@ -200,11 +200,14 @@ npm accepts a local gzipped tarball as the package specification for `npm publis
 
 Before publishing, the job queries `voidharness@X.Y.Z`:
 
-- if absent, it publishes;
+- if a structured npm `E404` is read from the captured error stream, it publishes;
 - if present with the exact expected integrity and an attestation candidate, it skips publication
   and delegates the success decision to the same post-publication verifier;
 - if present with different integrity or missing provenance after bounded registry retries, it stops
   with a critical integrity failure.
+
+Malformed or conflicting stdout/stderr and authorization errors fail immediately; only an explicit
+bounded set of network and registry-server errors is retried.
 
 It never attempts to overwrite a published version, which npm does not permit.
 
@@ -213,18 +216,22 @@ It never attempts to overwrite a published version, which npm does not permit.
 `verify-publication` always runs after a new publish or an existing-version candidate. It has no
 `id-token: write` and no package credential. In an isolated temporary project, with lifecycle
 scripts disabled, it downloads the exact registry tarball and uses an exact, tested npm CLI release
-at version 11 or newer with
+at version 11.12.1 with
 `npm audit signatures --json --include-attestations` to verify registry signatures and Sigstore
 bundles. It then passes the verified provenance bundle and tarball to GitHub CLI's attestation
 verifier with exact repository, signer workflow, source ref and source digest constraints.
 
 A pure contract parser additionally requires the signed statement's subject name and digest, build
 workflow path, `refs/heads/main`, workflow head commit, workflow run ID and attempt to match the
-current execution. The artifact manifest independently requires the tarball's release commit to
-match the immutable tag. Wrong subject, repository, workflow, ref, workflow head, release commit or
-run is blocking. The workflow is successful, including on an existing-version retry, only after
-this job passes. The verifier never claims that provenance proves the package is benign; it proves
-which signed workflow execution produced the observed bytes.
+canonical producer execution. For a new publication that producer must be the current workflow
+head, run and attempt. For an existing-version retry it is derived from the npm-verified statement
+and then independently constrained by GitHub CLI to the same repository, workflow, `main` ref, head
+and GitHub-hosted runner before the final parser accepts it. The artifact manifest independently
+requires the tarball's release commit to match the immutable tag. Wrong subject, repository,
+workflow, ref, workflow head, release commit or run is blocking. The workflow is successful,
+including on an existing-version retry, only after this job passes. The verifier never claims that
+provenance proves the package is benign; it proves which signed workflow execution produced the
+observed bytes.
 
 ## Recovery
 

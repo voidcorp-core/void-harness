@@ -161,15 +161,19 @@ Actions on the routine path.
    recomputes every manifest and tarball check. It performs no checkout, install,
    build, test, pack or package lifecycle step. If the version is absent it runs
    `npm publish "$TARBALL_PATH" --access public --ignore-scripts`; if the exact
-   version already exists it never attempts an overwrite.
+   version already exists it never attempts an overwrite. Its tested classifier
+   distinguishes structured npm errors on stderr, transient failures, missing
+   attestations and conflicting bytes, and it requires npm 11.5.1 or newer.
 6. `verify-publication`, with no OIDC, environment or package credential, installs
    the exact public version with scripts disabled, runs
    `npm audit signatures --json --include-attestations`, and verifies the npm
    bundle with `gh attestation verify --digest-alg sha512`. The signed subject,
    repository, workflow, `main` ref, workflow head commit, run and attempt must
-   all match. The separately verified artifact manifest binds those signed bytes
-   to the release commit selected by the immutable tag. Registry metadata alone
-   is not success.
+   all match. A new publish must name the current execution; an existing-version
+   retry derives and verifies the original canonical producer from the signed
+   bundle instead of pretending the retry signed historical bytes. The separately
+   verified artifact manifest binds those bytes to the release commit selected by
+   the immutable tag. Registry metadata alone is not success.
 7. `back-merge.yml` returns the approved release output to `develop` through the
    sole canonical native auto-merge path after the same five checks pass.
 

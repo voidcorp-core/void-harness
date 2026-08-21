@@ -220,16 +220,19 @@ The binding design is
   4. Recompute SHA-256 and SHA-512, validate the artifact's own manifest, tarball filename and
      embedded `package/package.json`, and stop before npm/OIDC use on any mismatch.
   5. Query `voidharness@X.Y.Z`. If absent after bounded classification retries, run
-     `npm publish ./voidharness-X.Y.Z.tgz --access public --ignore-scripts` with npm 11 or newer. If
-     present, require matching `dist.integrity` and an attestation endpoint, skip publication, and
-     pass the candidate to the verifier below. Do not call the candidate a success yet.
+     `npm publish ./voidharness-X.Y.Z.tgz --access public --ignore-scripts` with npm 11.5.1 or newer.
+     Classify npm's captured stdout, stderr and exit status through executable fixtures: only a
+     structured stderr `E404` means absent, a bounded set of transport/server errors retries, and
+     malformed, authorization, conflicting-output or integrity failures stop. If present, require
+     matching `dist.integrity` and an attestation endpoint, skip publication, and pass the candidate
+     to the verifier below. Do not call the candidate a success yet.
   6. After a new publish, poll the registry for a bounded period and require matching integrity plus
      an attestation endpoint. Different bytes or missing attestations after the bound are critical.
   7. Keep npm authentication tokenless: no `NODE_AUTH_TOKEN`, auth-token npmrc, registry-url input or
      stored package credential.
   8. Add `verify-publication`, which always follows `publish`, has `contents: read` only and no OIDC,
      environment, App token or package credential. In a temporary project, install the exact version
-     with lifecycle scripts disabled and use an exact, tested npm CLI release at version 11 or newer
+     with lifecycle scripts disabled and use the exact tested npm CLI release 11.12.1
      with
      `npm audit signatures --json --include-attestations` to cryptographically verify registry
      signatures, provenance and the package subject/tarball digest.
@@ -237,19 +240,23 @@ The binding design is
      registry tarball plus bundle to `gh attestation verify`. Require exact repository
      `voidcorp-core/void-harness`, signer workflow `.github/workflows/release.yml`, source ref
      `refs/heads/main`, source and signer digest equal to the current workflow head SHA, SLSA v1
-     predicate, and a GitHub-hosted runner. The previously verified artifact manifest separately
-     binds the signed tarball to the immutable release SHA, which may be older during recovery.
+     predicate, and a GitHub-hosted runner for a new publish. For an existing version, derive the
+     original producer head, run and attempt from the npm-verified statement, then pass that exact
+     head to GitHub CLI's independent certificate constraints. The previously verified artifact
+     manifest separately binds the signed tarball to the immutable release SHA, which may be older
+     during recovery.
   10. Parse the verified JSON as untrusted input with a pure contract helper. Require one matching
       subject/digest and require workflow path, ref, workflow head commit, run ID and attempt to
-      equal the current execution evidence. Reject missing, duplicate or conflicting attestations.
-      The whole workflow, including an existing-version retry, succeeds only after this job passes.
+      equal the canonical producer evidence. Require the current execution for a new publish, but
+      the original attested execution for an existing-version retry. Reject missing, duplicate or
+      conflicting attestations. The whole workflow succeeds only after this job passes.
   11. Before locking the verifier contract, run a read-only compatibility probe against the existing
       `voidharness@3.3.0` provenance bundle. Pin the observed npm and GitHub CLI verifier versions in
       workflow assertions; if GitHub CLI rejects an npm-verified Sigstore bundle format, stop and
       revise the design against the official verifier APIs rather than weakening identity checks.
 - **Verification gate**:
   The targeted workflow tests prove that the OIDC job has no checkout/install/build/test/prepack
-  command, npm 11+ and `--ignore-scripts` are mandatory, corruption fails before the publish command,
+  command, npm 11.5.1+ and `--ignore-scripts` are mandatory, corruption fails before the publish command,
   E404 is distinct from transient registry failure, and the post-publication verifier has no OIDC.
   Contract fixtures for wrong subject, repository, workflow, ref, commit, run, attempt and digest all
   fail; a matching existing version becomes idempotent only after cryptographic verification. YAML
@@ -500,7 +507,7 @@ lockfile edits, secret handling and unrelated organization policy remain out of 
   release SHA inside that verified manifest. Folded into Steps 4 and 5.
 - **P1**: Treat tag and GitHub context values as untrusted shell input; pass through environment,
   validate a closed grammar, quote expansions and use option terminators. Folded into Step 4.
-- **P2**: Require npm 11+ and `--ignore-scripts` so publishing a local tarball cannot execute its
+- **P2**: Require npm 11.5.1+ and `--ignore-scripts` so publishing a local tarball cannot execute its
   lifecycle hooks inside the OIDC job. Folded into Step 5.
 - **P2**: Enable GitHub immutable releases and verify the resulting release attestation so release
   assets, not only tags, become immutable. Folded into Steps 8 and 9.
@@ -515,6 +522,24 @@ lockfile edits, secret handling and unrelated organization policy remain out of 
 - **P2, independent security review**: Selected-repository mode did not prove the App installation
   was limited to this repository. Disposition: Step 8 now paginates the installation repository list
   and requires the exact singleton set.
+- **P1, independent architecture/security/QA reviews**: recovery collapsed the immutable release
+  commit, current workflow head and original publishing invocation into one identity, making both
+  old-tag recovery and existing-version retries impossible. Disposition: the artifact manifest owns
+  release-tree identity; new publication provenance must match the current execution; an existing
+  version derives its original canonical producer from npm-verified provenance and then proves that
+  same identity independently with GitHub CLI.
+- **P1, independent QA review**: source-string tests did not execute registry, auto-merge, YAML or
+  shell failure paths and the OIDC uniqueness assertion covered only `release.yml`. Disposition:
+  added executable registry and auto-merge fixtures, strict YAML parsing, Bash syntax checks for
+  every `run` block, and a repository-wide exact-one-OIDC-job assertion.
+- **P2, independent security review**: npm's `E404` classifier read the success stream after a
+  failed command, while the Release App token request inherited its installation ceiling.
+  Disposition: one tested inline classifier now consumes exit status plus both captured streams and
+  fails malformed/conflicting/authorization cases; every Release App token request explicitly names
+  this repository and its required Contents/Pull requests permissions.
+- **P2, local source-driven review**: a major-only npm guard accepted clients older than the 11.5.1
+  Trusted Publishing floor. Disposition: the minimal OIDC job now compares the complete stable
+  semantic version and fails before publication.
 
 **Final verdict**: CLEARED after disposition. No P1 remains unresolved. The residual App authority
 on `develop` is accepted and contained, not described as server-enforced.
