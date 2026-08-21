@@ -344,15 +344,25 @@ jobs:
           if (!Number.isInteger(status) || status < 0) fail('npm exit status is invalid');
 
           if (status !== 0) {
-            if (stdout.trim() !== '') fail('failed npm view wrote conflicting success output');
-            const start = stderr.indexOf('{');
-            const end = stderr.lastIndexOf('}');
-            if (start < 0 || end <= start) fail('npm error is not structured JSON');
             let error;
-            try {
-              error = JSON.parse(stderr.slice(start, end + 1)).error;
-            } catch {
-              fail('npm error is malformed JSON');
+            if (stdout.trim() !== '') {
+              try {
+                error = JSON.parse(stdout).error;
+              } catch {
+                fail('npm JSON error output is malformed');
+              }
+              if (!error || typeof error !== 'object') {
+                fail('failed npm view wrote non-error JSON output');
+              }
+            } else {
+              const start = stderr.indexOf('{');
+              const end = stderr.lastIndexOf('}');
+              if (start < 0 || end <= start) fail('npm error is not structured JSON');
+              try {
+                error = JSON.parse(stderr.slice(start, end + 1)).error;
+              } catch {
+                fail('npm error is malformed JSON');
+              }
             }
             const code = error?.code;
             if (code === 'E404') process.stdout.write('absent\n');
