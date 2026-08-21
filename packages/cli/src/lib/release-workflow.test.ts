@@ -220,7 +220,8 @@ describe('minimal OIDC publication and independent provenance verification', () 
     expect(effectivePublishJob).not.toContain('pnpm');
     expect(effectivePublishJob).not.toMatch(/\bnpm[ \t]+(?:ci|install|run|test|pack)\b/);
     expect(effectivePublishJob).not.toMatch(/\b(?:prepack|prepare|postinstall)\b/);
-    expect(effectivePublishJob).toContain('MINIMUM_NPM_MAJOR: 11');
+    expect(effectivePublishJob).toContain('MINIMUM_NPM_VERSION: 11.5.1');
+    expect(effectivePublishJob).not.toContain('MINIMUM_NPM_MAJOR');
     expect(effectivePublishJob).toContain(
       'npm publish "$TARBALL_PATH" --access public --ignore-scripts',
     );
