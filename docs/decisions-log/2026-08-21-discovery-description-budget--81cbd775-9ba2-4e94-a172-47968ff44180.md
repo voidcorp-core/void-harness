@@ -3,7 +3,7 @@ schemaVersion: 1
 id: "adr:81cbd775-9ba2-4e94-a172-47968ff44180"
 createdAt: "2026-08-21T10:40:59.490Z"
 title: "Adopter un budget à deux niveaux pour les descriptions de découverte"
-status: proposed
+status: accepted
 deciders: ["folpe"]
 supersedes: []
 ---

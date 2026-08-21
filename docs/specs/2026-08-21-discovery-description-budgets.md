@@ -1,7 +1,7 @@
 ---
 title: Budgets de description pour la découverte des skills et agents
 date: 2026-08-21
-status: in-design
+status: approved
 author: Folpe + Codex
 ticket:
 related:
