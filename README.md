@@ -57,7 +57,7 @@ This is the part that surprises people, so it goes first: you do not drive the
 harness. You describe what you want in plain language, and the relevant skill
 loads itself because its description matched. Hooks fire on their own, on the
 tool call, before the damage. Asking "add a test for this" pulls the TDD
-discipline in without anyone typing `tdd`.
+discipline in without anyone typing `void-tdd`.
 
 What is installed, in numbers:
 
@@ -70,7 +70,7 @@ What is installed, in numbers:
 | Specialists | 16 | Invoked in their own fresh context during review |
 
 You can still call a skill explicitly when you want that one and not the one
-that would have matched: `/tdd` on Claude Code, or by name on Codex.
+that would have matched: `/void-tdd` on Claude Code, or by name on Codex.
 Agents work the same way: `doctrine-critic` judges a diff against the doctrine,
 while `solution-architect`, `security-engineer` and `test-qa-engineer` each
 review in their own fresh context.

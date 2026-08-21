@@ -58,7 +58,7 @@ resume from a plain “continue” without being told the plan or ticket again.
 
 The active file records immutable routing only: global plan, approved spec, tracker provider and
 native scope, issue order, ready/started/review/done states, selection policy, lifecycle rules,
-human gates, and the `autopilot` consent block. It does not duplicate a mutable “next ticket”. The
+human gates, and the `void-autopilot` consent block. It does not duplicate a mutable “next ticket”. The
 tracker is the execution ledger:
 
 - recover an existing `In Progress` issue before claiming new work;
@@ -68,7 +68,7 @@ tracker is the execution ledger:
 - move to `Done` only after merge and final verification;
 - never auto-complete a human gate.
 
-The `autopilot` block is required and carries consent to autonomous execution: `schemaVersion: 1`,
+The `void-autopilot` block is required and carries consent to autonomous execution: `schemaVersion: 1`,
 an explicit `enabled`, and `mergeGate: human`. A program that does not want autopilot declares
 `enabled: false` rather than omitting the block, because consent is never inferred from silence.
 `packages/cli/src/lib/autopilot/active-program.ts` is the single parser of this contract, and its
@@ -86,7 +86,7 @@ and native dependencies exist.
 
 ## Commits
 
-Conventional Commits, and every message ends with **why**, not just what (see `commit-discipline`). Any new convention added in a commit must be reflected in `docs/*.md` in the same commit. Create each non-obvious decision with `void-harness decisions new`; never edit an accepted decision or a shared index. `pnpm decisions:check` validates the records and their immutability.
+Conventional Commits, and every message ends with **why**, not just what (see `void-commit-discipline`). Any new convention added in a commit must be reflected in `docs/*.md` in the same commit. Create each non-obvious decision with `void-harness decisions new`; never edit an accepted decision or a shared index. `pnpm decisions:check` validates the records and their immutability.
 
 ## Filing a gap
 

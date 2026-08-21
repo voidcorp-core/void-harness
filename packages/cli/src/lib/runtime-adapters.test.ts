@@ -146,7 +146,7 @@ describe('claude adapter', () => {
     );
     const outcome = await adapterFor('claude').wire(ctxFor(dir));
     expect(existsSync(join(dir, '.claude', 'settings.json'))).toBe(true);
-    expect(existsSync(join(dir, '.claude', 'skills', 'tdd', 'SKILL.md'))).toBe(true);
+    expect(existsSync(join(dir, '.claude', 'skills', 'void-tdd', 'SKILL.md'))).toBe(true);
     expect(existsSync(join(dir, '.claude', 'agents', 'doctrine-critic.md'))).toBe(true);
     expect(existsSync(join(dir, '.claude', 'agents', 'security-engineer.md'))).toBe(true);
     expect(existsSync(join(dir, '.claude', 'agents', 'experience-designer.md'))).toBe(true);
@@ -195,7 +195,7 @@ describe('claude adapter', () => {
     const outcome = await adapterFor('claude').wire(marketplace);
     const settings = readFileSync(join(dir, '.claude', 'settings.json'), 'utf8');
     expect(settings).toContain('extraKnownMarketplaces');
-    expect(existsSync(join(dir, '.claude', 'skills', 'tdd', 'SKILL.md'))).toBe(false);
+    expect(existsSync(join(dir, '.claude', 'skills', 'void-tdd', 'SKILL.md'))).toBe(false);
     expect(outcome.nextSteps.some((s) => s.startsWith('FAILED:') && s.includes('core version could not be resolved'))).toBe(true);
   });
 

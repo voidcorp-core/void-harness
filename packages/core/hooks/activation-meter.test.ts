@@ -51,13 +51,13 @@ const pre = (toolName: string, toolInput: Record<string, unknown>): Record<strin
 
 describe('activation-meter — classification', () => {
   it('records a Skill call as kind=skill and no longer writes the legacy usage.log (#70)', () => {
-    const { activations, usage } = runHook(pre('Skill', { skill: 'tdd' }));
+    const { activations, usage } = runHook(pre('Skill', { skill: 'void-tdd' }));
     expect(activations).toHaveLength(1);
     expect(activations[0]).toMatchObject({
       schemaVersion: 1,
       seq: 1,
       kind: 'runtime.tool.started',
-      subject: 'skill:tdd',
+      subject: 'skill:void-tdd',
     });
     expect(JSON.stringify(activations[0])).not.toContain('sess-1');
     expect(usage).toBe('');
@@ -86,7 +86,7 @@ describe('activation-meter — classification', () => {
 
   it('derives a scriptPath-launched Workflow name from its basename (matches the workflow-def node)', () => {
     const { activations } = runHook(
-      pre('Workflow', { scriptPath: 'packages/core/skills/autopilot/workflows/autopilot.workflow.js' }),
+      pre('Workflow', { scriptPath: 'packages/core/skills/void-autopilot/workflows/autopilot.workflow.js' }),
     );
     expect(activations[0]).toMatchObject({ subject: 'workflow:autopilot' });
   });
@@ -157,7 +157,7 @@ describe('activation-meter — robustness', () => {
     symlinkSync(process.execPath, join(binDir, 'node'));
     const dir = mkdtempSync(join(tmpdir(), 'act-meter-'));
     execFileSync(BASH, [script], {
-      input: JSON.stringify(pre('Skill', { skill: 'tdd' })),
+      input: JSON.stringify(pre('Skill', { skill: 'void-tdd' })),
       env: { CLAUDE_PROJECT_DIR: dir, PATH: binDir },
     });
     const runs = join(dir, '.void', 'machine', 'runs');
@@ -167,7 +167,7 @@ describe('activation-meter — robustness', () => {
     ) as Record<string, unknown>;
     expect(ev).toMatchObject({
       kind: 'runtime.tool.started',
-      subject: 'skill:tdd',
+      subject: 'skill:void-tdd',
     });
   });
 });

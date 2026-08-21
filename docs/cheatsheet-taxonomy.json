@@ -5,74 +5,74 @@
       "title": "Method and flow",
       "blurb": "How work is framed before and after the code is written.",
       "skills": [
-        "brainstorm",
-        "plan",
-        "plan-review",
-        "tdd",
-        "debug",
-        "refactor",
-        "verify",
-        "context",
-        "checkpoint"
+        "void-brainstorm",
+        "void-plan",
+        "void-plan-review",
+        "void-tdd",
+        "void-debug",
+        "void-refactor",
+        "void-verify",
+        "void-context",
+        "void-checkpoint"
       ]
     },
     {
       "title": "Code architecture",
       "blurb": "Where the boundaries are, and who owns which type.",
       "skills": [
-        "hexagonal-architecture",
-        "domain-driven-design",
-        "functional",
-        "api-and-interface-design",
-        "typescript-strict",
-        "decide"
+        "void-hexagonal-architecture",
+        "void-domain-driven-design",
+        "void-functional",
+        "void-api-and-interface-design",
+        "void-typescript-strict",
+        "void-decide"
       ]
     },
     {
       "title": "Boundaries and production",
       "blurb": "What happens where the system meets something it does not control.",
       "skills": [
-        "security-guidance",
-        "security-audit",
-        "async-safety",
-        "migrations",
-        "observability",
-        "llm-cost-discipline"
+        "void-security-guidance",
+        "void-security-audit",
+        "void-async-safety",
+        "void-migrations",
+        "void-observability",
+        "void-llm-cost-discipline"
       ]
     },
     {
       "title": "Quality, tests and interface",
       "blurb": "Proving the thing works, and that it is worth looking at.",
       "skills": [
-        "testing",
-        "code-review",
-        "qa",
-        "accessibility",
-        "frontend-design",
-        "ui-review",
-        "devex-audit"
+        "void-testing",
+        "void-code-review",
+        "void-qa",
+        "void-accessibility",
+        "void-frontend-design",
+        "void-ui-review",
+        "void-devex-audit"
       ]
     },
     {
       "title": "Delivery and tickets",
       "blurb": "From a validated plan to a merged pull request.",
       "skills": [
-        "commit-discipline",
-        "ticket",
-        "implement",
-        "merge",
-        "autopilot",
-        "retrospective",
-        "make-pdf"
+        "void-commit-discipline",
+        "void-ticket",
+        "void-implement",
+        "void-merge",
+        "void-autopilot",
+        "void-retrospective",
+        "void-make-pdf"
       ]
     },
     {
       "title": "The harness on itself",
       "blurb": "How the doctrine stays true as the project moves.",
       "skills": [
-        "claude-md",
-        "source-driven-development",
-        "learn",
+        "void-claude-md",
+        "void-source-driven-development",
+        "void-learn",
         "void-doctor",
         "void-audit",
         "void-graph"

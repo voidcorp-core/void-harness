@@ -60,8 +60,8 @@ describe('doctrine-critic agent', () => {
   it('routes (does not re-implement) security and bug review', () => {
     // Security routes to the vendored harness:security-audit skill (was gstack /cso
     // before the de-gstackification, epic DEV-383 / DEV-387).
-    expect(md).toMatch(/security-audit/);
-    expect(md).toMatch(/\/code-review/);
+    expect(md).toMatch(/void-security-audit/);
+    expect(md).toMatch(/\/void-code-review/);
   });
 
   it('is mirrored byte-identically into core-assets', () => {

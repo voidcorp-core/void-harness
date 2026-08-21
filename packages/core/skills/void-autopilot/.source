@@ -1,0 +1,17 @@
+Sources for `void-autopilot` (see `docs/plans/skill-audits/void-autopilot.md` for the audit):
+
+- void-harness `backlog-autopilot` (this repo, being replaced) — the attended parallel burst,
+  its worktree isolation and its human confirmation flow. Autopilot keeps the shape and drops
+  the parts that never earned their keep: headless mode, auto-merge, the streaming surface.
+- Anthropic, "Claude Code best practices" + the Workflow tool — deterministic multi-agent
+  orchestration with per-agent worktree isolation, the substrate that recovers determinism a
+  long in-session LLM orchestrator loses.
+- git worktrees (native) — per-ticket isolation so parallel edits cannot corrupt one working
+  tree. The isolation is real filesystem isolation, not a runtime promise.
+- Codex subagents (native, enabled by default in local releases) — the second runtime's
+  equivalent primitive. Subagents share filesystem access, so the isolation comes from the
+  pre-created worktrees and explicit workdirs, never from an assumed sandbox.
+- Two-phase commit / lease literature, adapted down — the tracker offers no multi-issue
+  transaction, so the protocol is logically atomic (observe, act idempotently, re-observe,
+  compensate) rather than transactionally atomic. What was rejected: any wording that claims
+  transport-level atomicity.

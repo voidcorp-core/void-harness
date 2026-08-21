@@ -93,7 +93,7 @@ That pull request merges itself once the required checks pass. It is the one
 place auto-merge is allowed, and the reason is a property of its content rather
 than a relaxation: it carries the release output a human approved minutes
 earlier, so a second reading is ceremony. Anything carrying an unread diff still
-stops at a human, which is why `autopilot` refuses `--auto-merge` and this does
+stops at a human, which is why `void-autopilot` refuses `--auto-merge` and this does
 not. Native auto-merge is used, so protection and the required checks stand; a
 failing check simply leaves it open. It opens rather than pushes: `develop` is
 protected with `enforce_admins`, and a branch only a robot may bypass is not
@@ -216,7 +216,15 @@ are outside this repository, so a green CI does not prove they are in place.
    major tag is repointable by its owner and is a second route to the same token.
    `test/workflows/workflows-parse.test.ts` fails if any of this is removed.
 2. **On GitHub** (manual): Settings → Environments → `npm-publish`, with
-   **required reviewers**. Referencing an environment that does not exist creates
+   **required reviewers**, `main` as the only deployment branch, and
+   *Allow administrators to bypass* **off** — a protection its own admin can step
+   around without a trace is a reminder, not a gate.
+
+   **Where the approval actually is**, because it is not obvious and it stops the
+   release until you find it: the run page of the `release` workflow, under the
+   `publish` job, shows a *Review deployments* banner at the top. Not in the pull
+   request, not in Settings. GitHub also emails it. Until you click there, the job
+   sits in `waiting` and npm never sees a request. Referencing an environment that does not exist creates
    it silently and unprotected, so this step is what turns the declaration into a
    gate. Without it the workflow reads as locked and is not.
 3. **On npm** (manual): the trusted publisher must name that same environment.

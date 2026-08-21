@@ -10,7 +10,7 @@
  * runs with cwd = project root (matches the `apps/*​/src/**` business glob
  * and the anchored regexes used by the sibling hooks).
  *
- * Cases (mapping to plans/skill-audits/tdd.md verification checklist):
+ * Cases (mapping to plans/skill-audits/void-tdd.md verification checklist):
  *   1. auto/strict + business edit WITHOUT sibling test  → block (exit 2)
  *   2. auto/strict + business edit WITH sibling test      → allow (exit 0)
  *   3. souple mode (header marker) + no sibling test       → warn  (exit 0)

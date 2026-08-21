@@ -50,6 +50,6 @@ done
 if [[ ${#MISSING[@]} -gt 0 ]]; then
   printf "migration-pr-template (warn): PR touches migrations but lacks required sections:\n" >&2
   for s in "${MISSING[@]}"; do printf "  - %s\n" "$s" >&2; done
-  printf "\nSee migrations skill for the template.\n" >&2
+  printf "\nSee void-migrations skill for the template.\n" >&2
   exit 2
 fi

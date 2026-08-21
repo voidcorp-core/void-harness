@@ -17,7 +17,7 @@ The harness accumulates. This asks which parts of it are still earning their pla
 Only when a human asks. A harness that audits itself unprompted starts proposing deletions in
 the middle of someone's work, which is the surest way to have every proposal ignored.
 
-The moment worth running it is periodic and deliberate: alongside `retrospective`, or before a
+The moment worth running it is periodic and deliberate: alongside `void-retrospective`, or before a
 release, when there is appetite to actually remove something.
 
 ---
@@ -75,6 +75,6 @@ a year and matters both times.
 
 ## Composition
 
-Upstream: the activation meter writes the events this reads. Adjacent: `retrospective` looks at a
+Upstream: the activation meter writes the events this reads. Adjacent: `void-retrospective` looks at a
 window of engineering signals, this looks at the harness itself. Downstream: an accepted proposal
-is filed through `learn`, which owns the HITL capture.
+is filed through `void-learn`, which owns the HITL capture.

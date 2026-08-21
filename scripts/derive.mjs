@@ -39,6 +39,7 @@ const STEPS = [
   { label: 'consumer bundle', argv: ['pnpm', '-F', 'voidharness', 'build:void-graph'] },
   { label: 'cheat sheet', argv: ['node', 'scripts/build-cheatsheet.mjs'] },
   { label: 'npm mirror', argv: ['pnpm', '--filter', 'voidharness', 'build:assets'] },
+  { label: 'skill references', argv: ['node', 'scripts/build-skill-references.mjs'] },
 ];
 
 /**

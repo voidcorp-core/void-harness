@@ -78,5 +78,5 @@ human typed it, never as a follow-up this skill decides on.
 
 ## Composition
 
-Adjacent: `verify` proves one unit of work; this proves the harness that guards every unit.
-Downstream: a finding about a missing doctrine rule is routed to `learn`, never fixed here.
+Adjacent: `void-verify` proves one unit of work; this proves the harness that guards every unit.
+Downstream: a finding about a missing doctrine rule is routed to `void-learn`, never fixed here.

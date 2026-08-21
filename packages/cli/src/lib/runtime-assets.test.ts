@@ -57,7 +57,7 @@ describe('wireClaudeLocalAssets', () => {
 
     expect(result.skills).toBeGreaterThan(20);
     expect(result.agents).toBe(21);
-    expect(existsSync(join(root, '.claude/skills/tdd/SKILL.md'))).toBe(true);
+    expect(existsSync(join(root, '.claude/skills/void-tdd/SKILL.md'))).toBe(true);
     expect(existsSync(join(root, '.claude/agents/doctrine-critic.md'))).toBe(true);
     expect(existsSync(join(root, '.claude/agents/solution-architect.md'))).toBe(true);
     expect(existsSync(join(root, '.claude/agents/experience-designer.md'))).toBe(true);
@@ -71,10 +71,10 @@ describe('wireClaudeLocalAssets', () => {
     expect(result.hooks).toBe(1);
     // The installed skill carries only the spec's fields; `runtimes` is harness
     // metadata and stays in the source tree with `.source`.
-    const installed = readFileSync(join(root, '.claude/skills/tdd/SKILL.md'), 'utf8');
-    expect(installed).toContain('name: tdd');
+    const installed = readFileSync(join(root, '.claude/skills/void-tdd/SKILL.md'), 'utf8');
+    expect(installed).toContain('name: void-tdd');
     expect(installed).not.toContain('runtimes:');
-    expect(existsSync(join(root, '.claude/skills/tdd/harness.yaml'))).toBe(false);
+    expect(existsSync(join(root, '.claude/skills/void-tdd/harness.yaml'))).toBe(false);
   });
 
   it('treats Windows CRLF in a generated agent as the same canonical doctrine', async () => {

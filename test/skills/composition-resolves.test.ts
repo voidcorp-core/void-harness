@@ -4,13 +4,13 @@
  * Every skill in this harness cites its neighbours with the plugin prefix
  * (`harness:tdd`). That prefix only exists when the harness is installed as a
  * marketplace plugin. In a project-local install, which is what `npx voidharness`
- * produces and what this repository runs, the invocable name is `tdd`, and the
+ * produces and what this repository runs, the invocable name is `void-tdd`, and the
  * prefixed call fails outright:
  *
  *     Argument sent: skill='harness:zzprobe'
  *     Result: Unknown skill: harness:zzprobe
  *
- * So the sixteen "compose" lines in `implement` are sixteen calls that fail, and
+ * So the sixteen "compose" lines in `void-implement` are sixteen calls that fail, and
  * sixteen passes the model replays from memory instead of loading. The chain
  * looks like it runs and is never guaranteed.
  *
@@ -19,7 +19,7 @@
  * test holds the prose to that claim: every skill declared composed is named in
  * the body, by a name a runtime can resolve.
  *
- * Scoped to `implement` for now: it is the chain that carries every ticket, and
+ * Scoped to `void-implement` for now: it is the chain that carries every ticket, and
  * proving one pair before rewriting sixty files is what keeps a generalised fix
  * from being a generalised mistake.
  */
@@ -35,10 +35,10 @@ function read(path: string): string {
   return readFileSync(new URL(path, new URL('../../', import.meta.url)), 'utf8');
 }
 
-const IMPLEMENT = read('packages/core/skills/implement/SKILL.md');
+const IMPLEMENT = read('packages/core/skills/void-implement/SKILL.md');
 const RELATIONS = loadDeclaredEdges(read('packages/harness-graph/relations.graph.yaml'));
 
-/** The skills `implement` declares it composes, by bare name. */
+/** The skills `void-implement` declares it composes, by bare name. */
 function declaredComposedSkills(from: string): string[] {
   return RELATIONS.filter(
     (edge) =>
@@ -61,7 +61,7 @@ describe('implement reaches what it composes', () => {
   });
 
   it('names every skill it declares composed, so the pass loads instead of being replayed', () => {
-    const missing = declaredComposedSkills('implement').filter(
+    const missing = declaredComposedSkills('void-implement').filter(
       (name) => !new RegExp(`\`${name}\``).test(IMPLEMENT),
     );
     expect(missing).toEqual([]);
@@ -70,7 +70,7 @@ describe('implement reaches what it composes', () => {
   it('reads its declared compositions from the graph, not from this file', () => {
     // Guards the test itself: an empty declaration would make the assertion above
     // vacuously true, and the regression would pass unnoticed.
-    expect(declaredComposedSkills('implement').length).toBeGreaterThan(0);
+    expect(declaredComposedSkills('void-implement').length).toBeGreaterThan(0);
     expect(ROOT).toContain('void-harness');
   });
 });

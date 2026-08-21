@@ -119,13 +119,13 @@ function commandAvailable(command: Runtime): boolean {
 function discoveryCheck(artifactRoot: string): SelfHostCheck {
   const required = [
     '.claude/settings.json',
-    '.claude/skills/tdd/SKILL.md',
+    '.claude/skills/void-tdd/SKILL.md',
     '.claude/agents/doctrine-critic.md',
     '.claude/agents/solution-architect.md',
     '.claude/agents/experience-designer.md',
     '.claude/agents/visual-craft-director.md',
     '.codex/hooks.json',
-    '.agents/skills/tdd/SKILL.md',
+    '.agents/skills/void-tdd/SKILL.md',
     '.codex/agents/doctrine-critic.toml',
     '.codex/agents/solution-architect.toml',
     '.codex/agents/experience-designer.toml',

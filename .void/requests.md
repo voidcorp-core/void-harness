@@ -34,6 +34,11 @@ contredit une ancienne — c'est le seul moment où l'arbitrage est possible.
 - [ ] **Budget de contexte au plafond fournisseur** — 41 descriptions core totalisent ~7 894
       caractères, contre une borne annoncée à 8 000 côté Codex. À mesurer contre la source
       officielle avant d'agir.
+- [ ] **Préfixer toutes les skills en `void-`** — décidé le 2026-08-20, chantier commité en WIP sur
+      `folpe/prefixe-void-sur-les-skills` (`1d6d21b`), **non mergeable en l'état** : `init` échoue.
+      Voir la décision every-shipped-skill-carries-the-void-prefix. → DEV-658
+- [ ] **`voidharness` comme commande**, alignée sur le paquet npm ; `vh` reste l'alias,
+      `void-harness` est conservé puis retiré à une majeure. → DEV-659
 - [ ] **Formaliser cette file** pour tous les consommateurs — ce fichier existe ici et à la main.
       → DEV-652
 
@@ -64,6 +69,11 @@ contredit une ancienne — c'est le seul moment où l'arbitrage est possible.
 - **Le harnais est destiné au LLM, pas à un lecteur humain.** Pour un artefact chargé en
   contexte, la concision est un coût et non un critère ; l'exactitude et l'actionnabilité
   décident.
+- **Toute skill livrée porte le préfixe `void-`.** Décidé le 2026-08-20 : il fait coexister nos
+  skills avec celles du projet et du runtime, empêche le masquage silencieux, et rend le harnais
+  énumérable en tapant `/void`. Amende la règle 8 de `CLAUDE.md`.
+- **Le canal plugin est écarté** pour distribuer les skills : un plugin par runtime, et une
+  dépendance de distribution contraire à la promesse `npx` libre et sans compte.
 - **Aucune distinction méta / consommateur** dans les mécanismes : ce qui diffère est la taille
   de la part du projet, pas la règle.
 

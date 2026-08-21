@@ -37,7 +37,7 @@ export const FIRING_KIND: Partial<Record<NodeType, ActivationKind>> = {
   'workflow-def': 'workflow',
 };
 
-/** Strip a plugin/namespace prefix (`harness:tdd` -> `tdd`) to match node names. */
+/** Strip a plugin/namespace prefix (`harness:void-tdd` -> `void-tdd`) to match node names. */
 export function bareName(raw: string): string {
   const colon = raw.lastIndexOf(':');
   return colon >= 0 ? raw.slice(colon + 1) : raw;

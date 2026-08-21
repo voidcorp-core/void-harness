@@ -28,7 +28,7 @@ const CORE = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 
  * would break `biome lint` / `eslint` in a consumer project if `.claude/` were
  * not excluded for them at install time.
  */
-const ENGINE_SCRIPTS = ['skills/autopilot/workflows/autopilot.workflow.js'];
+const ENGINE_SCRIPTS = ['skills/void-autopilot/workflows/autopilot.workflow.js'];
 
 function distributedScripts(directory: string, found: string[] = []): string[] {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {

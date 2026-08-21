@@ -1,5 +1,0 @@
-Sources for `install-prompt-ux` skill (see plans/skill-audits/install-prompt-ux.md for the full audit):
-
-- No external source audited — native VoidCorp skill (beforeinstallprompt capture, engagement-signal threshold, dismiss cooldown, iOS fallback).
-
-Strategy: native. Original VoidCorp authoring, not derived from an external source.

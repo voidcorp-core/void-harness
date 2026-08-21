@@ -1,6 +1,0 @@
-Sources for `rate-limit-strategy` skill (see plans/skill-audits/rate-limit-strategy.md for the full audit):
-
-- No external source audited — native distillation of the void-harness rate-limit presets per action class.
-- Doctrine referenced (not vendored): `security-guidance` ("rate limit at every boundary"); this skill supplies the HOW (window / max / key).
-
-Strategy: native. Presets and key strategies authored for void-harness; no upstream skill was copied.

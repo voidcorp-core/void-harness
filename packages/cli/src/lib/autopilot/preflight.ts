@@ -111,7 +111,7 @@ function activeProgramCheck(observation: AutopilotObservation): CheckResult {
     return unknown(
       name,
       'no plans/ACTIVE.md, so there is no program to drain',
-      'author one with harness:ticket, or ignore autopilot in this project',
+      'author one with void-ticket, or ignore autopilot in this project',
     );
   }
   if (program.status !== 'executing') {

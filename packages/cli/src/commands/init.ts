@@ -12,7 +12,7 @@
 //
 // This command does NOT copy skills/agents/hooks — Claude Code fetches the
 // plugin from the marketplace on session start. Skills appear as
-// /harness:tdd, /harness-nextjs:..., etc.
+// /harness:void-tdd, /harness-nextjs:..., etc.
 
 import { existsSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -20,7 +20,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { derivedIgnoreEntries, patchGitignore } from '@voidcorp/hook-runner';
 import * as p from '@clack/prompts';
-import { prepareInstallCommit, seedInstallStage, stageInstallManifest, stagedRelativePaths } from '../lib/local-install.js';
+import {
+  prepareInstallCommit,
+  seedInstallStage,
+  stageInstallManifest,
+  stagedRelativePaths,
+  withholdProjectOwned,
+} from '../lib/local-install.js';
 import { type PackConfig, resolveEffectivePin } from '../lib/pack-config.js';
 import {
   CORE_PLUGIN_NAME,
@@ -332,6 +338,9 @@ export async function init(args: readonly string[]): Promise<void> {
     // Declare which half git keeps, AFTER wiring: the ignore block is scoped to
     // the files this install actually stages, never to a whole runtime directory
     // the project also writes its own skills into.
+    // Before the manifest, the ignore block and the transaction: what the project
+    // already owns leaves the stage, so nothing downstream claims it.
+    const keptByProject = await withholdProjectOwned(projectRoot, stageRoot);
     await ensureGitignoreBlock(stageRoot, derivedIgnoreEntries(await stagedRelativePaths(stageRoot)));
 
     // The committed record of exactly what this install materialized, so any
@@ -355,6 +364,16 @@ export async function init(args: readonly string[]): Promise<void> {
     // `--force` does not cover this case: it governs an unowned conflict on a
     // file we are writing, not our refusal to delete someone's edit. Offering it
     // as the remedy would send people to run the same command twice.
+    if (keptByProject.length > 0) {
+      // Named, never silent: a skill that simply fails to appear leaves the user
+      // hunting for a bug, where a reported one is a decision they can act on.
+      line(`${c.yellow('!')}  ${c.dim('kept'.padEnd(18))}${keptByProject.length} skill(s) the project already had, left untouched`);
+      for (const path of keptByProject.slice(0, 5)) line(c.dim(`     ${path}`));
+      if (keptByProject.length > 5) {
+        line(c.dim(`     ... ${String(keptByProject.length - 5)} more`));
+      }
+      line(c.dim('     ours was not installed there; delete yours and re-run to take it'));
+    }
     if (prepared.preserved.length > 0) {
       line(`${c.yellow('!')}  ${c.dim('preserved'.padEnd(18))}${prepared.preserved.length} stale asset(s) kept because they were edited locally`);
       for (const path of prepared.preserved.slice(0, 5)) line(c.dim(`     ${path}`));

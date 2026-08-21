@@ -1,4 +1,4 @@
-Sources for `void-audit` (see docs/plans/skill-audits/void-audit.md for the full audit).
+Sources for `void-audit` (see `docs/plans/skill-audits/void-audit.md` for the full audit).
 
 Original to void-harness. It wraps this repository's own CLI, so there is no upstream skill to
 distil: the subject did not exist anywhere else.

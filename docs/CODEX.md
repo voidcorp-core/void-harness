@@ -150,9 +150,9 @@ subagent configuration].
 ## The commands
 
 Claude gets `/void-graph`, `/void-doctor`, `/void-audit`, `/void-feedback` and
-`/autopilot` as plugin commands. Nothing is missing on Codex:
+`/void-autopilot` as plugin commands. Nothing is missing on Codex:
 
-- `autopilot` **is already a skill**, so it is staged like any other.
+- `void-autopilot` **is already a skill**, so it is staged like any other.
 - The `void-*` commands are thin wrappers around the CLI, which is
   runtime-agnostic. Under Codex, invoke it directly: `void-harness doctor`,
   `void-harness audit`, `void-graph`. Codex custom prompts are not an option
@@ -179,8 +179,8 @@ plainly is the point — this is the only place where "prerequisite" keeps meani
 
 | Not available on Codex | Why | Affects |
 | --- | --- | --- |
-| claude-in-chrome MCP | a Claude-bound browser extension | `qa`, `ui-review` live browser passes |
-| `@voidcorp/make-pdf` | package not published | the `make-pdf` skill |
+| claude-in-chrome MCP | a Claude-bound browser extension | `void-qa`, `void-ui-review` live browser passes |
+| `@voidcorp/make-pdf` | package not published | the `void-make-pdf` skill |
 | `trim-large-output` hook | its `PostToolUse` output rewriting (`updatedToolOutput`) is unconfirmed on Codex, and a sibling field is documented as failing there | token-frugality trimming only; deliberately not wired rather than shipped dead |
 | enforced specialist read-only isolation | parent sandbox overrides and no per-agent process allowlist | native agents work, but team mode stays degraded |
 
