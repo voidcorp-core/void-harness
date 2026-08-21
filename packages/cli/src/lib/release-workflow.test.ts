@@ -55,15 +55,17 @@ describe('the release pull request is opened by the App', () => {
     // is refreshed — which is a maintenance step, not a regression. That every
     // action IS pinned is asserted in test/workflows/, where it belongs.
     expect(releasePleaseJob).toMatch(/actions\/create-github-app-token@\S+/);
-    expect(releasePleaseJob).toContain('app-id: ${{ secrets.RELEASE_APP_ID }}');
-    expect(releasePleaseJob).toContain('private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}');
+    expect(releasePleaseJob).toMatch(/app-id: \$\{\{ secrets\.RELEASE_APP_ID \}\}/);
+    expect(releasePleaseJob).toMatch(
+      /private-key: \$\{\{ secrets\.RELEASE_APP_PRIVATE_KEY \}\}/,
+    );
   });
 
   it('hands that token to release-please rather than letting it default', () => {
     // Without this line release-please falls back to GITHUB_TOKEN, the pull
     // request opens with no checks, and nothing fails until someone tries to
     // merge a release.
-    expect(releasePleaseJob).toContain('token: ${{ steps.app-token.outputs.token }}');
+    expect(releasePleaseJob).toMatch(/token: \$\{\{ steps\.app-token\.outputs\.token \}\}/);
   });
 
   it('never falls back to GITHUB_TOKEN for the pull request', () => {
@@ -128,17 +130,20 @@ describe('the release tree is validated and packed without OIDC', () => {
   it('gives validation only contents read and never OIDC', () => {
     expect(validateReleaseJob).toContain('permissions:');
     expect(validateReleaseJob).toContain('contents: read');
-    expect(validateReleaseJob).not.toContain('id-token: write');
+    expect(validateReleaseJob).not.toMatch(/^\s+id-token:\s*write/m);
   });
 
   it('resolves and checks out the exact release commit', () => {
     expect(validateReleaseJob).toContain('RELEASE_TAG:');
     expect(validateReleaseJob).toContain('release_commit');
-    expect(validateReleaseJob).toContain('ref: ${{ steps.resolve.outputs.release_commit }}');
+    expect(validateReleaseJob).toMatch(
+      /ref: \$\{\{ steps\.resolve\.outputs\.release_commit \}\}/,
+    );
     expect(validateReleaseJob).toContain('path: release-tree');
   });
 
   it('validates before packing the final tarball exactly once', () => {
+    expect(validateReleaseJob).toContain('package_json_file: release-tree/package.json');
     expect(validateReleaseJob).toContain('pnpm version:check');
     expect(validateReleaseJob).toContain('pnpm build');
     expect(validateReleaseJob).toContain('pnpm typecheck');
@@ -154,6 +159,6 @@ describe('the release tree is validated and packed without OIDC', () => {
     expect(validateReleaseJob).toContain('retention-days: 1');
     expect(validateReleaseJob).toContain('artifact-id');
     expect(validateReleaseJob).toContain('artifact-digest');
-    expect(validateReleaseJob).toContain('release-artifact.json');
+    expect(validateReleaseJob).toContain('steps.prepare.outputs.manifest_path');
   });
 });

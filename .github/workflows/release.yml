@@ -17,11 +17,14 @@ name: release
 on:
   push:
     branches: [main]
-  # Manual re-publish of the CURRENT version on main — e.g. to complete a release
-  # whose auto-publish failed (a CI misconfig), without cutting a new version.
-  # The `publish` job below refuses any ref other than main: a dispatch carries
-  # the ref it was fired from, and npm cannot tell one from another.
-  workflow_dispatch: {}
+  # Exceptional recovery only. The tag must already have a matching GitHub
+  # Release and resolve to a commit reachable from protected main.
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing immutable release tag to retry (vX.Y.Z).
+        required: true
+        type: string
 
 # `contents` and `pull-requests` are what release-please writes with. `actions:
 # write` is deliberately absent: it existed only to dispatch and approve the
@@ -35,7 +38,7 @@ jobs:
     # Same ref restriction as `publish` below. This job holds the App token that
     # opens and pushes the release PR; a dispatch fired from another branch has
     # no business holding it either.
-    if: ${{ github.ref == 'refs/heads/main' }}
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
@@ -66,6 +69,103 @@ jobs:
       # repo (`.claude-plugin/marketplace.json`, local `./packages/...` sources
       # resolved at HEAD), so a release needs no sha re-pinning anywhere.
 
+  validate-release:
+    needs: release-please
+    if: ${{ always() && github.ref == 'refs/heads/main' && ((github.event_name == 'push' && needs.release-please.outputs.release_created == 'true') || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || needs.release-please.outputs.tag_name }}
+      EXPECTED_REPOSITORY: voidcorp-core/void-harness
+      CONTROL_ROOT: ${{ github.workspace }}/release-control
+      RELEASE_TREE: ${{ github.workspace }}/release-tree
+      ARTIFACT_DIR: ${{ runner.temp }}/voidharness-release
+    outputs:
+      release_tag: ${{ steps.resolve.outputs.release_tag }}
+      version: ${{ steps.resolve.outputs.version }}
+      release_commit: ${{ steps.resolve.outputs.release_commit }}
+      tarball_name: ${{ steps.prepare.outputs.tarball_name }}
+      sha256: ${{ steps.prepare.outputs.sha256 }}
+      integrity: ${{ steps.prepare.outputs.integrity }}
+      artifact_name: voidharness-release-${{ steps.resolve.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
+    steps:
+      # Keep the workflow implementation separate from the tree being released.
+      # A recovery may target an older tag that does not contain today's verifier.
+      - name: Check out the release control implementation
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          path: release-control
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+
+      - name: Resolve the immutable tag, release and protected-main ancestry
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node release-control/scripts/prepare-release-artifact.mjs resolve
+
+      - name: Check out the exact release commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.resolve.outputs.release_commit }}
+          fetch-depth: 0
+          path: release-tree
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        with:
+          package_json_file: release-tree/package.json
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: release-tree/pnpm-lock.yaml
+
+      - name: Install the immutable release tree
+        working-directory: release-tree
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate the immutable release tree without OIDC
+        working-directory: release-tree
+        run: |
+          pnpm version:check
+          pnpm build
+          pnpm typecheck
+          pnpm test
+          pnpm check:publish
+
+      - name: Pack the final npm tarball exactly once
+        working-directory: release-tree
+        run: |
+          mkdir -p "$ARTIFACT_DIR"
+          pnpm --filter voidharness pack --pack-destination "$ARTIFACT_DIR"
+
+      - name: Bind package identity and byte integrity
+        id: prepare
+        env:
+          RELEASE_COMMIT: ${{ steps.resolve.outputs.release_commit }}
+        run: node release-control/scripts/prepare-release-artifact.mjs prepare
+
+      - name: Upload the validated tarball and integrity manifest
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: voidharness-release-${{ steps.resolve.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ steps.prepare.outputs.tarball_path }}
+            ${{ steps.prepare.outputs.manifest_path }}
+          if-no-files-found: error
+          retention-days: 1
+
   # Tokenless, provenance-signed publish of voidharness via npm Trusted
   # Publishing (OIDC), gated on a release having been cut (i.e. a human merged the
   # release PR). NO npm token exists anywhere: `id-token: write` lets the runner
@@ -86,7 +186,7 @@ jobs:
   # pnpm/pnpm#11513). action-setup reads the version from packageManager — no
   # `version:` input here (setting both errors: ERR_PNPM_BAD_PM_VERSION).
   publish:
-    needs: release-please
+    needs: [release-please, validate-release]
     # Runs when a release was just cut (the normal path) OR on a manual dispatch
     # (re-publish the current version after a failed run). `always()` lets it
     # evaluate on dispatch even though the gating output is empty then.
@@ -97,7 +197,7 @@ jobs:
     # the npm docs and on the package settings page, 2026-08-20). Drop this
     # condition and a dispatch from any branch publishes that branch's tree under
     # the package name, provenance-signed.
-    if: ${{ always() && github.ref == 'refs/heads/main' && (needs.release-please.outputs.release_created == 'true' || github.event_name == 'workflow_dispatch') }}
+    if: ${{ always() && needs.validate-release.result == 'success' }}
     runs-on: ubuntu-latest
     # The second half of the same lock, and the half npm can enforce: configure
     # this exact environment name on the package's trusted publisher, and a
@@ -120,7 +220,7 @@ jobs:
         with:
           # Explicit: publish the commit the run was created for, never whatever
           # the ref points at by the time the job starts.
-          ref: ${{ github.sha }}
+          ref: ${{ needs.validate-release.outputs.release_commit }}
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
       # NO `registry-url:` here, deliberately, and it must stay that way.
       # setup-node reacts to it by writing `//registry.npmjs.org/:_authToken=
