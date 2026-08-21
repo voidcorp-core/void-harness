@@ -529,9 +529,11 @@ lockfile edits, secret handling and unrelated organization policy remain out of 
   version derives its original canonical producer from npm-verified provenance and then proves that
   same identity independently with GitHub CLI.
 - **P1, independent QA review**: source-string tests did not execute registry, auto-merge, YAML or
-  shell failure paths and the OIDC uniqueness assertion covered only `release.yml`. Disposition:
-  added executable registry and auto-merge fixtures, strict YAML parsing, Bash syntax checks for
-  every `run` block, and a repository-wide exact-one-OIDC-job assertion.
+  artifact failure paths and the OIDC uniqueness assertion covered only `release.yml` job grants.
+  Disposition: added executable registry, auto-merge and exact inline artifact-verifier fixtures;
+  strict YAML parsing; Bash and Node heredoc syntax checks; and a repository-wide effective-
+  permissions assertion that rejects workflow-level OIDC inheritance and names `release.yml/publish`
+  as the sole grant.
 - **P2, independent security review**: npm's `E404` classifier read the success stream after a
   failed command, while the Release App token request inherited its installation ceiling.
   Disposition: one tested inline classifier now consumes exit status plus both captured streams and
