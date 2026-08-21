@@ -70,6 +70,8 @@ describe('verificationLines', () => {
       missingTotal: 0,
       mismatched: [],
       mismatchedTotal: 0,
+      coEdited: [],
+      coEditedTotal: 0,
       ...over,
     });
 
@@ -89,5 +91,21 @@ describe('verificationLines', () => {
     const lines = report({ missing: ['a.md'], missingTotal: 40 });
 
     expect(lines.join('\n')).toContain('… and 39 more');
+  });
+
+  // Silence here would be a small lie: the proof line says every file matched,
+  // and for a co-owned file the manifest was re-stamped over what the project
+  // wrote rather than the bytes being found unchanged.
+  it('says a co-owned file carried project edits, without calling it drift', () => {
+    const lines = report({ ok: true, verified: 126, coEdited: ['.void/PROJECT-DOCTRINE.md'], coEditedTotal: 1 });
+
+    expect(lines[0]).toContain('126 file(s) restored and hash-verified');
+    expect(lines.join('\n')).toContain('.void/PROJECT-DOCTRINE.md');
+    expect(lines.join('\n')).toContain('kept as the project left them');
+    expect(lines.join('\n')).not.toMatch(/differ from the manifest/);
+  });
+
+  it('stays a single line when no co-owned file was touched', () => {
+    expect(report({ ok: true, verified: 126 })).toHaveLength(1);
   });
 });

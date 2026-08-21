@@ -11,16 +11,19 @@ import { voidReadPath } from '@voidcorp/hook-runner';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import {
   deriveMissionVerdict,
+  canonicalJsonHash,
   parseEventLine,
   planMissionRecovery,
   recoveryCheckpoint,
   replayEventLog,
   type Evidence,
+  type CanonicalEvent,
   type EvidenceContext,
   type EventDraft,
   type EventStreamState,
   type JsonValue,
   type MissionVerdict,
+  type MissionSpecialistPlan,
   type RecoveryDecision,
 } from '@voidcorp/mission-engine';
 import {
@@ -29,6 +32,7 @@ import {
   writeSequencedEventOnce,
 } from '@voidcorp/hook-runner';
 import { collectKnownSecrets, redactText } from './redact.js';
+import { readBoundedProjectFile } from '../safe-read.js';
 
 const MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
 
@@ -40,6 +44,13 @@ export interface CreateMissionInput {
   readonly mode: MissionMode;
   readonly requestedMode?: MissionMode;
   readonly promotionReason?: 'high-risk-predicate' | 'risk-not-explicitly-low';
+  readonly teamController?: {
+    readonly planHash: string;
+    readonly routingHash: string;
+    readonly leadWriterId: string;
+    readonly runtime: 'claude' | 'codex';
+    readonly runtimeAttested?: boolean;
+  };
   readonly now?: Date;
 }
 
@@ -52,6 +63,11 @@ export interface MissionInspection {
 export interface MissionResumeResult {
   readonly decision: RecoveryDecision;
   readonly recorded: boolean;
+}
+
+export interface MissionControllerTicketBinding {
+  readonly path: string;
+  readonly contentHash: string;
 }
 
 function errorCode(error: unknown): string | undefined {
@@ -71,6 +87,12 @@ function within(root: string, target: string): boolean {
 function validMissionId(missionId: string): void {
   if (!MISSION_ID.test(missionId)) {
     throw new Error('MISSION_INVALID_ID: expected mis_<opaque-id>');
+  }
+}
+
+function rejectClosedMission(events: readonly CanonicalEvent[]): void {
+  if (events.some((event) => event.kind === 'mission.closed')) {
+    throw new Error('MISSION_CLOSED: transition is no longer accepted');
   }
 }
 
@@ -110,6 +132,9 @@ async function writeMissionMetadata(
         ...(input.promotionReason === undefined
           ? {}
           : { promotionReason: input.promotionReason }),
+        ...(input.teamController === undefined
+          ? {}
+          : { teamController: input.teamController }),
         createdAt,
       })}\n`,
       'utf8',
@@ -125,10 +150,13 @@ export async function appendMissionEvent(
   draft: EventDraft,
   now?: Date,
 ): ReturnType<typeof writeSequencedEvent> {
+  const canFollowClosure = draft.kind === 'mission.closed'
+    || draft.kind === 'mission.archived';
   return writeSequencedEvent({
     root,
     missionId,
     draft,
+    ...(canFollowClosure ? {} : { validate: rejectClosedMission }),
     ...(now === undefined ? {} : { now }),
   });
 }
@@ -163,6 +191,21 @@ export async function createMission(
   ) {
     throw new Error('MISSION_INVALID_MODE: requested mode is invalid');
   }
+  if (
+    input.teamController !== undefined
+    && (
+      (input.mode !== 'team' && input.mode !== 'fortress')
+      || !/^sha256:[a-f0-9]{64}$/.test(input.teamController.planHash)
+      || !/^sha256:[a-f0-9]{64}$/.test(input.teamController.routingHash)
+      || !/^[A-Za-z0-9][A-Za-z0-9:._-]{3,127}$/.test(input.teamController.leadWriterId)
+      || (input.teamController.runtime !== 'claude'
+        && input.teamController.runtime !== 'codex')
+      || (input.teamController.runtimeAttested !== undefined
+        && typeof input.teamController.runtimeAttested !== 'boolean')
+    )
+  ) {
+    throw new Error('MISSION_INVALID_TEAM_CONTROLLER: controller metadata is invalid');
+  }
   const safeInput = {
     ...input,
     title: redactText(input.title, collectKnownSecrets()),
@@ -190,11 +233,202 @@ export async function createMission(
         ...(safeInput.promotionReason === undefined
           ? {}
           : { promotionReason: safeInput.promotionReason }),
+        ...(safeInput.teamController === undefined
+          ? {}
+          : {
+              planHash: safeInput.teamController.planHash,
+              routingHash: safeInput.teamController.routingHash,
+              leadWriterId: safeInput.teamController.leadWriterId,
+              runtime: safeInput.teamController.runtime,
+              runtimeAttested: safeInput.teamController.runtimeAttested === true,
+            }),
       },
     },
     input.now,
   );
   await writeMissionMetadata(run, safeInput, createdAt);
+}
+
+export async function writeMissionControllerPlan(
+  root: string,
+  missionId: string,
+  plan: MissionSpecialistPlan,
+  ticket: MissionControllerTicketBinding,
+): Promise<string> {
+  const run = await existingRunDirectory(root, missionId);
+  const routingHash = missionControllerRoutingHash(plan, ticket);
+  const handle = await open(join(run, 'controller-plan.json'), 'wx', 0o600);
+  try {
+    await handle.writeFile(`${JSON.stringify({
+      schemaVersion: 1,
+      routingHash,
+      plan,
+      ticket,
+    })}\n`, 'utf8');
+  } finally {
+    await handle.close();
+  }
+  return routingHash;
+}
+
+export async function loadMissionControllerPlan(
+  root: string,
+  missionId: string,
+): Promise<{
+  readonly plan: MissionSpecialistPlan;
+  readonly ticket: MissionControllerTicketBinding;
+  readonly routingHash: string;
+}> {
+  const run = await existingRunDirectory(root, missionId);
+  const path = join(run, 'controller-plan.json');
+  const loaded = await readBoundedProjectFile({
+    root,
+    inputPath: path,
+    maxBytes: 256_000,
+    pathEscapeMessage: 'MISSION_CONTROLLER_PLAN_INVALID: plan path escaped the project',
+    invalidMessage: 'MISSION_CONTROLLER_PLAN_INVALID: plan file is unsafe or oversized',
+  });
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(loaded.body);
+  } catch {
+    throw new Error('MISSION_CONTROLLER_PLAN_INVALID: plan file is not valid JSON');
+  }
+  if (!unknownRecord(parsed) || !exactObjectKeys(parsed, [
+    'schemaVersion',
+    'routingHash',
+    'plan',
+    'ticket',
+  ])) {
+    throw new Error('MISSION_CONTROLLER_PLAN_INVALID: plan envelope is malformed');
+  }
+  const plan = parseMissionSpecialistPlan(parsed.plan);
+  const ticket = parseMissionControllerTicket(parsed.ticket);
+  const routingHash = typeof parsed.routingHash === 'string' ? parsed.routingHash : '';
+  if (
+    parsed.schemaVersion !== 1
+    || !/^sha256:[a-f0-9]{64}$/.test(routingHash)
+    || missionControllerRoutingHash(plan, ticket) !== routingHash
+  ) {
+    throw new Error('MISSION_CONTROLLER_PLAN_INVALID: plan integrity check failed');
+  }
+  return Object.freeze({ plan, ticket, routingHash });
+}
+
+export function missionControllerRoutingHash(
+  plan: MissionSpecialistPlan,
+  ticket: MissionControllerTicketBinding,
+): string {
+  return canonicalJsonHash({ plan, ticket });
+}
+
+function unknownRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && Boolean(value) && !Array.isArray(value);
+}
+
+function exactObjectKeys(
+  value: Readonly<Record<string, unknown>>,
+  expected: readonly string[],
+): boolean {
+  const actual = Object.keys(value).sort();
+  const canonical = [...expected].sort();
+  return actual.length === canonical.length
+    && actual.every((key, index) => key === canonical[index]);
+}
+
+function parseMissionSpecialistPlan(value: unknown): MissionSpecialistPlan {
+  if (!unknownRecord(value) || !exactObjectKeys(value, ['planHash', 'context', 'specialists'])) {
+    throw new Error('MISSION_CONTROLLER_PLAN_INVALID: routing plan is malformed');
+  }
+  if (
+    typeof value.planHash !== 'string'
+    || !/^sha256:[a-f0-9]{64}$/.test(value.planHash)
+    || !unknownRecord(value.context)
+    || !exactObjectKeys(value.context, ['status', 'issues'])
+    || (value.context.status !== 'complete' && value.context.status !== 'degraded')
+    || !Array.isArray(value.context.issues)
+    || value.context.issues.some((issue) => typeof issue !== 'string' || issue.length > 256)
+    || !Array.isArray(value.specialists)
+    || value.specialists.length < 1
+    || value.specialists.length > 64
+  ) {
+    throw new Error('MISSION_CONTROLLER_PLAN_INVALID: routing fields are malformed');
+  }
+  const specialists = value.specialists.map((candidate) => {
+    if (!unknownRecord(candidate) || !exactObjectKeys(candidate, [
+      'specialistId',
+      'contractVersion',
+      'inputHash',
+      'state',
+      'stages',
+    ])) {
+      throw new Error('MISSION_CONTROLLER_PLAN_INVALID: specialist entry is malformed');
+    }
+    const specialistId = parseStoredSpecialistId(candidate.specialistId);
+    if (
+      specialistId === undefined
+      || !Number.isSafeInteger(candidate.contractVersion)
+      || Number(candidate.contractVersion) < 1
+      || Number(candidate.contractVersion) > 10_000
+      || typeof candidate.inputHash !== 'string'
+      || !/^sha256:[a-f0-9]{64}$/.test(candidate.inputHash)
+      || (candidate.state !== 'applicable'
+        && candidate.state !== 'not-applicable'
+        && candidate.state !== 'degraded')
+      || !Array.isArray(candidate.stages)
+      || candidate.stages.length < 1
+      || candidate.stages.length > 2
+      || candidate.stages.some((stage) =>
+        stage !== 'pre-implementation' && stage !== 'post-implementation')
+    ) {
+      throw new Error('MISSION_CONTROLLER_PLAN_INVALID: specialist fields are malformed');
+    }
+    const stages = candidate.stages.flatMap((stage) =>
+      stage === 'pre-implementation' || stage === 'post-implementation' ? [stage] : []);
+    return Object.freeze({
+      specialistId,
+      contractVersion: Number(candidate.contractVersion),
+      inputHash: candidate.inputHash,
+      state: candidate.state,
+      stages: Object.freeze(stages),
+    });
+  });
+  if (new Set(specialists.map((specialist) => specialist.specialistId)).size !== specialists.length) {
+    throw new Error('MISSION_CONTROLLER_PLAN_INVALID: specialist IDs are duplicated');
+  }
+  return Object.freeze({
+    planHash: value.planHash,
+    context: Object.freeze({
+      status: value.context.status,
+      issues: Object.freeze(value.context.issues.flatMap((issue) =>
+        typeof issue === 'string' ? [issue] : [])),
+    }),
+    specialists: Object.freeze(specialists),
+  });
+}
+
+function parseMissionControllerTicket(value: unknown): MissionControllerTicketBinding {
+  if (
+    !unknownRecord(value)
+    || !exactObjectKeys(value, ['path', 'contentHash'])
+    || typeof value.path !== 'string'
+    || value.path.length < 1
+    || value.path.length > 512
+    || isAbsolute(value.path)
+    || value.path.includes('\\')
+    || value.path.split('/').includes('..')
+    || typeof value.contentHash !== 'string'
+    || !/^sha256:[a-f0-9]{64}$/.test(value.contentHash)
+  ) {
+    throw new Error('MISSION_CONTROLLER_PLAN_INVALID: ticket binding is malformed');
+  }
+  return Object.freeze({ path: value.path, contentHash: value.contentHash });
+}
+
+function parseStoredSpecialistId(value: unknown): `core:${string}` | undefined {
+  return typeof value === 'string' && /^core:[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)
+    ? `core:${value.slice('core:'.length)}`
+    : undefined;
 }
 
 export async function recordMissionEvidence(
@@ -335,6 +569,7 @@ export async function resumeMission(
         action: decision.action,
       } as unknown as JsonValue,
     },
+    validate: rejectClosedMission,
   });
   return Object.freeze({ decision, recorded: written.appended });
 }

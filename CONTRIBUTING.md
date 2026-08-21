@@ -17,7 +17,7 @@ These are not style preferences. A PR violating them fails `validate`:
 
 | Rule | Gate |
 | --- | --- |
-| Skills ≤ 400 lines, hooks ≤ 100 lines, frontmatter `description` ≤ 200 chars | `pnpm anti-bloat:check` |
+| Skills ≤ 400 lines, hooks ≤ 100 lines, discovery `description` target ≤250 and hard cap 500 across core, packs, agents, and canonical specialists | `pnpm anti-bloat:check` |
 | `CLAUDE.md` and `AGENTS.md` stay in section parity | `pnpm sync:docs` |
 | Every version-carrying manifest at the same version | `pnpm version:check` |
 | Decision schemas, links, cycles and accepted-record immutability | `pnpm decisions:check` |

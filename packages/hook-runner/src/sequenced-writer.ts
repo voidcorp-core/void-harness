@@ -42,6 +42,9 @@ export interface SequencedWriteOptions {
   readonly randomUUID?: () => string;
   readonly lockStaleMs?: number;
   readonly lockAttempts?: number;
+  readonly validate?: (
+    events: readonly CanonicalEvent[],
+  ) => void | Promise<void>;
 }
 
 export interface IdempotentSequencedWriteOptions extends SequencedWriteOptions {
@@ -289,6 +292,18 @@ async function existingIdempotentEvent(
   return existing;
 }
 
+async function currentCanonicalEvents(
+  logPath: string,
+  currentBytes: number,
+): Promise<readonly CanonicalEvent[]> {
+  if (currentBytes === 0) return [];
+  const stream = replayEventLog(await readFile(logPath, 'utf8'));
+  if (stream.continuity === 'partial' || stream.duplicateEventIds > 0) {
+    throw new Error('HOOK_EVENT_LOG_INTEGRITY: continuity cannot be proved');
+  }
+  return stream.events;
+}
+
 async function writeSequencedEventInternal(
   options: InternalWriteOptions,
 ): Promise<SequencedWriteResult> {
@@ -328,6 +343,9 @@ async function writeSequencedEventInternal(
     );
     if (existing !== undefined) {
       return Object.freeze({ event: existing, appended: false });
+    }
+    if (options.validate !== undefined) {
+      await options.validate(await currentCanonicalEvents(logPath, currentBytes));
     }
     if (currentBytes >= MAX_EVENT_LOG_BYTES) {
       throw new Error('HOOK_EVENT_LOG_FULL: rotate or archive the run');

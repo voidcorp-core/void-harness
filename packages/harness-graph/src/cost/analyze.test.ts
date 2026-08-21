@@ -71,6 +71,28 @@ describe('analyzeCost — static mode shape', () => {
 });
 
 describe('analyzeCost — invocations', () => {
+  it('excludes self-host activation and outcome noise from human cost and yield', () => {
+    const model: GraphModel = { version: 1, nodes: [node('agent:reviewer', 'agent')], edges: [] };
+    const activations = [
+      ev({ kind: 'agent', name: 'reviewer', sessionId: 'mis_selfhost_01234567' }),
+      ev({ kind: 'tool', name: 'Edit', sessionId: 'mis_human_01234567' }),
+    ];
+    const outcomes = parseOutcomes(JSON.stringify({
+      event: 'PostToolUse',
+      kind: 'agent',
+      name: 'reviewer',
+      status: 'error',
+      ts: '2026-08-21T00:00:00Z',
+      sessionId: 'mis_selfhost_01234567',
+    }));
+
+    const report = analyzeCost(model, activations, { ...SMALL, outcomes });
+
+    expect(report.stats).toEqual({ events: 1, sessions: 1 });
+    expect(rowFor(report.rows, 'agent:reviewer')).toMatchObject({ invocations: 0 });
+    expect(rowFor(report.rows, 'agent:reviewer')?.outcome).toBeUndefined();
+  });
+
   it('counts firing activations per component by kind + bare name (strips plugin prefix)', () => {
     const model: GraphModel = {
       version: 1,
@@ -86,6 +108,35 @@ describe('analyzeCost — invocations', () => {
     expect(rowFor(r.rows, 'skill:tdd')?.invocations).toBe(2);
     expect(rowFor(r.rows, 'agent:code-explorer')?.invocations).toBe(1);
   });
+
+  it('does not join foreign-provider homonyms to local cost or outcome rows', () => {
+    const model: GraphModel = { version: 1, nodes: [node('skill:void-tdd', 'skill')], edges: [] };
+    const events = [ev({ kind: 'skill', name: 'superpowers:void-tdd', sessionId: 's1' })];
+    const outcomes = parseOutcomes(
+      '{"event":"PostToolUse","kind":"skill","name":"superpowers:void-tdd","status":"ok","ts":"t","sessionId":"s1"}',
+    );
+
+    const report = analyzeCost(model, events, { ...SMALL, outcomes });
+
+    expect(rowFor(report.rows, 'skill:void-tdd')).toMatchObject({ invocations: 0 });
+    expect(rowFor(report.rows, 'skill:void-tdd')?.outcome).toBeUndefined();
+  });
+
+  it.each(['tdd', 'harness:tdd', 'void-tdd', 'harness:void-tdd'])(
+    'joins the local runtime alias %s to the installed void-prefixed cost row',
+    (name) => {
+      const model: GraphModel = {
+        version: 1,
+        nodes: [node('skill:void-tdd', 'skill')],
+        edges: [],
+      };
+      const report = analyzeCost(model, [
+        ev({ kind: 'skill', name, sessionId: 's1' }),
+      ], SMALL);
+
+      expect(rowFor(report.rows, 'skill:void-tdd')).toMatchObject({ invocations: 1 });
+    },
+  );
 
   it('attaches per-component outcome (yield next to cost) when outcomes are supplied (#71)', () => {
     const model: GraphModel = { version: 1, nodes: [node('skill:tdd', 'skill')], edges: [] };

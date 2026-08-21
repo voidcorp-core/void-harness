@@ -16,6 +16,8 @@ export interface BehaviorOptions {
 export interface BehaviorStats {
   readonly events: number;
   readonly sessions: number;
+  readonly excludedEvents: number;
+  readonly excludedSessions: number;
 }
 
 export interface BehaviorReport {
@@ -37,10 +39,30 @@ export const FIRING_KIND: Partial<Record<NodeType, ActivationKind>> = {
   'workflow-def': 'workflow',
 };
 
-/** Strip a plugin/namespace prefix (`harness:void-tdd` -> `void-tdd`) to match node names. */
+/**
+ * Normalize the harness provider prefix while preserving foreign-provider identity.
+ * `superpowers:void-tdd` must never join the local `void-tdd` node merely because
+ * both providers chose the same final segment.
+ */
 export function bareName(raw: string): string {
-  const colon = raw.lastIndexOf(':');
-  return colon >= 0 ? raw.slice(colon + 1) : raw;
+  return raw.startsWith('harness:') ? raw.slice('harness:'.length) : raw;
+}
+
+/** Canonical join key for one activation kind. Legacy local skill names acquire
+ * the collision-safe `void-` prefix; foreign provider names remain qualified. */
+export function activationName(kind: ActivationKind, raw: string): string {
+  const foreignProvider = raw.includes(':') && !raw.startsWith('harness:');
+  if (foreignProvider) return raw;
+  const base = bareName(raw);
+  return kind === 'skill' && !base.startsWith('void-') ? `void-${base}` : base;
+}
+
+/** Candidate installed names for a firing. The legacy bare alias is retained
+ * only so command nodes sharing the skill activation kind still resolve. */
+export function activationNames(kind: ActivationKind, raw: string): readonly string[] {
+  const canonical = activationName(kind, raw);
+  if (kind !== 'skill' || canonical.includes(':')) return [canonical];
+  return Object.freeze([...new Set([canonical, bareName(raw)])]);
 }
 
 /** Whether an activation falls inside the `sinceMs` window. Shared with the cost
@@ -51,12 +73,25 @@ export function within(ev: ActivationEvent, sinceMs: number | undefined): boolea
   return !Number.isNaN(t) && t >= sinceMs;
 }
 
+/** Internal self-host and hook-smoke missions prove the harness can exercise itself,
+ * not that a human workflow selected a component. Keep them out of adoption evidence. */
+export function isSyntheticBehaviorSession(sessionId: string): boolean {
+  return sessionId.startsWith('mis_selfhost_') || sessionId.startsWith('mis_smoke');
+}
+
 export function analyzeBehavior(model: GraphModel, events: readonly ActivationEvent[], opts: BehaviorOptions = {}): BehaviorReport {
   const minSessions = opts.minSessions ?? DEFAULT_MIN_SESSIONS;
   const minEvents = opts.minEvents ?? DEFAULT_MIN_EVENTS;
-  const scoped = events.filter((e) => within(e, opts.sinceMs));
+  const withinWindow = events.filter((e) => within(e, opts.sinceMs));
+  const excluded = withinWindow.filter((event) => isSyntheticBehaviorSession(event.sessionId));
+  const scoped = withinWindow.filter((event) => !isSyntheticBehaviorSession(event.sessionId));
   const sessions = new Set(scoped.map((e) => e.sessionId));
-  const stats: BehaviorStats = { events: scoped.length, sessions: sessions.size };
+  const stats: BehaviorStats = {
+    events: scoped.length,
+    sessions: sessions.size,
+    excludedEvents: excluded.length,
+    excludedSessions: new Set(excluded.map((event) => event.sessionId)).size,
+  };
 
   if (stats.sessions < minSessions || stats.events < minEvents) {
     return { sufficient: false, stats, findings: [] };
@@ -68,20 +103,20 @@ export function analyzeBehavior(model: GraphModel, events: readonly ActivationEv
   const firedSkillsBySession = new Map<string, Set<string>>();
   const situationsBySession = new Map<string, ActivationEvent['trigger'][]>();
   for (const e of scoped) {
-    const name = bareName(e.name);
+    const names = activationNames(e.kind, e.name);
     let set = firedByKind.get(e.kind);
     if (!set) {
       set = new Set();
       firedByKind.set(e.kind, set);
     }
-    set.add(name);
+    for (const name of names) set.add(name);
     if (e.kind === 'skill') {
       let s = firedSkillsBySession.get(e.sessionId);
       if (!s) {
         s = new Set();
         firedSkillsBySession.set(e.sessionId, s);
       }
-      s.add(name);
+      for (const name of names) s.add(name);
     } else if (e.kind === 'tool') {
       const list = situationsBySession.get(e.sessionId) ?? [];
       list.push(e.trigger);
@@ -99,18 +134,20 @@ export function analyzeBehavior(model: GraphModel, events: readonly ActivationEv
   // evidence of a recorder break. A single-node kind stays a dead-node: with one member,
   // "kind unrecorded" is indistinguishable from a genuinely dead component.
   const GAP_MIN_NODES = 2;
-  const firingNodesByKind = new Map<ActivationKind, string[]>();
+  const firingNodesByKind = new Map<ActivationKind, GraphNode[]>();
   for (const n of model.nodes) {
     const kind = FIRING_KIND[n.type];
     if (kind === undefined || n.activation === 'always') continue;
     const list = firingNodesByKind.get(kind) ?? [];
-    list.push(n.id);
+    list.push(n);
     firingNodesByKind.set(kind, list);
   }
   const gappedKinds = new Set<ActivationKind>();
-  for (const [kind, ids] of firingNodesByKind) {
+  for (const [kind, nodes] of firingNodesByKind) {
     const fired = firedByKind.get(kind);
-    if (ids.length >= GAP_MIN_NODES && (fired === undefined || fired.size === 0)) {
+    const matchingActivation = nodes.some((node) => fired?.has(node.name) === true);
+    if (nodes.length >= GAP_MIN_NODES && !matchingActivation) {
+      const ids = nodes.map((node) => node.id);
       gappedKinds.add(kind);
       findings.push({
         kind: 'telemetry-gap',
@@ -143,7 +180,7 @@ export function analyzeBehavior(model: GraphModel, events: readonly ActivationEv
 
   // should-have-fired: a triggered skill whose trigger matched a session situation it did not fire on.
   for (const n of model.nodes) {
-    if (n.type !== 'skill' || n.triggers === undefined) continue;
+    if (n.type !== 'skill' || n.triggers === undefined || n.activation === 'always') continue;
     let count = 0;
     for (const [sessionId, situations] of situationsBySession) {
       const matched = situations.some((s) => triggerMatches(n.triggers ?? {}, s));

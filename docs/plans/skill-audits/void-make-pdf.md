@@ -47,3 +47,9 @@ Adding `marked` + `puppeteer-core` changes `pnpm-lock.yaml`, which the server-si
 ## Follow-ups
 - Cover pages / auto-TOC if a deliverable needs them (puppeteer supports headerTemplate too).
 - Bundling the engine for consumer projects (currently a monorepo app; consumers run it via the workspace).
+
+## 2026-08-21 — PDF production and review are connected
+
+Direct PDF production now routes the generated artifact to the read-only `pdf-specialist`, then to
+`void-verify`. Rendering and judgment stay separate: the specialist checks fidelity, pagination,
+accessibility, and artifact evidence, but never edits the deliverable.

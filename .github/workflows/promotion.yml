@@ -25,21 +25,51 @@ permissions:
   contents: read
   pull-requests: write
 
+concurrency:
+  group: release-promotion-develop-main
+  cancel-in-progress: true
+
+env:
+  EXPECTED_REPOSITORY: voidcorp-core/void-harness
+  EXPECTED_OWNER: voidcorp-core
+  EXPECTED_NAME: void-harness
+  EXPECTED_REF: refs/heads/develop
+  EXPECTED_HEAD: develop
+  EXPECTED_BASE: main
+  EXPECTED_HUMAN: folpe
+  MAX_PROMOTION_COMMITS: 500
+
 jobs:
   promotion:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/create-github-app-token@v2
+      - name: Validate the promotion event identity
+        env:
+          OBSERVED_REPOSITORY: ${{ github.repository }}
+          OBSERVED_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [ "$OBSERVED_REPOSITORY" != "$EXPECTED_REPOSITORY" ] ||
+            [ "$OBSERVED_REF" != "$EXPECTED_REF" ]; then
+            echo "promotion is restricted to $EXPECTED_REPOSITORY at $EXPECTED_REF." >&2
+            exit 1
+          fi
+
+      - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
         id: app-token
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: read
+          permission-pull-requests: write
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - name: Open the promotion when develop holds something main does not
+      - name: Audit and maintain the promotion pull request
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
@@ -53,17 +83,139 @@ jobs:
             exit 0
           fi
 
-          if [ -n "$(gh pr list --head develop --base main --state open --json number --jq '.[0].number // empty')" ]; then
-            echo "promotion pull request already open; it follows develop as it moves."
-            exit 0
+          commit_count=$(git rev-list --count origin/main..origin/develop)
+          if [ "$commit_count" -gt "$MAX_PROMOTION_COMMITS" ]; then
+            printf 'promotion contains %s commits; the audited maximum is %s.\n' \
+              "$commit_count" "$MAX_PROMOTION_COMMITS" >&2
+            exit 1
           fi
 
-          # The log is the point of the body: this is the one pull request whose
-          # diff is meant to be read as a whole, so it opens with what it carries.
-          commits=$(git log --no-merges --format='- %s' origin/main..origin/develop | head -50)
-          gh pr create --base main --head develop \
-            --title 'chore: promote develop to main' \
-            --body "$(printf '%s\n\n%s\n\n%s\n' \
-              'Merging this is the release gate: it says what is on `develop` is ready to ship. Nothing here publishes anything by itself. Release-please proposes the version bump afterwards, and merging that one is what reaches npm.' \
-              'Carried by this promotion:' \
-              "$commits")"
+          audit_file=$(mktemp)
+          mapfile -t commit_oids < <(git rev-list --reverse origin/main..origin/develop)
+          for oid in "${commit_oids[@]}"; do
+            commit_json=$(gh api graphql \
+              -f owner="$EXPECTED_OWNER" \
+              -f repo="$EXPECTED_NAME" \
+              -f oid="$oid" \
+              -f query='query($owner:String!,$repo:String!,$oid:GitObjectID!){
+                repository(owner:$owner,name:$repo){
+                  object(oid:$oid){
+                    ... on Commit{
+                      oid
+                      associatedPullRequests(first:100){
+                        nodes{
+                          number baseRefName headRefName isCrossRepository mergedAt
+                          mergedBy{login}
+                          headRepository{nameWithOwner}
+                          headRepositoryOwner{login}
+                          timelineItems(first:100,itemTypes:[AUTO_MERGE_ENABLED_EVENT]){
+                            nodes{
+                              __typename
+                              ... on AutoMergeEnabledEvent{actor{login} createdAt}
+                            }
+                            pageInfo{hasNextPage}
+                          }
+                        }
+                        pageInfo{hasNextPage}
+                      }
+                    }
+                  }
+                }
+              }')
+
+            jq -e --arg oid "$oid" \
+              '.data.repository.object.oid == $oid' <<<"$commit_json" >/dev/null || {
+              echo "GitHub did not resolve promotion commit $oid." >&2
+              exit 1
+            }
+            if jq -e '.data.repository.object.associatedPullRequests.pageInfo.hasNextPage' \
+              <<<"$commit_json" >/dev/null; then
+              echo "commit $oid has more than 100 associated PRs; refusing an incomplete audit." >&2
+              exit 1
+            fi
+
+            candidates=$(jq -c \
+              '[.data.repository.object.associatedPullRequests.nodes[] |
+                select(.mergedAt != null and .baseRefName == "develop")]' \
+              <<<"$commit_json")
+            if [ "$(jq 'length' <<<"$candidates")" -ne 1 ]; then
+              echo "unexplained commit $oid: expected exactly one merged PR targeting develop." >&2
+              exit 1
+            fi
+            pr=$(jq -c '.[0]' <<<"$candidates")
+            number=$(jq -r '.number' <<<"$pr")
+
+            if jq -e '.timelineItems.pageInfo.hasNextPage' <<<"$pr" >/dev/null; then
+              printf 'PR #%s has more than 100 auto-merge events; timeline audit is incomplete.\n' \
+                "$number" >&2
+              exit 1
+            fi
+
+            canonical=$(jq -r \
+              --arg repository "$EXPECTED_REPOSITORY" \
+              '.baseRefName == "develop" and .headRefName == "chore/back-merge-main" and
+               .headRepository.nameWithOwner == $repository and
+               .headRepositoryOwner.login == "voidcorp-core" and
+               (.isCrossRepository | not)' <<<"$pr")
+            merged_by=$(jq -r '.mergedBy.login // "missing"' <<<"$pr")
+            auto_events=$(jq \
+              '[.timelineItems.nodes[] |
+                select(.__typename == "AutoMergeEnabledEvent")] | length' <<<"$pr")
+
+            if [ "$canonical" != true ]; then
+              if [ "$merged_by" != "$EXPECTED_HUMAN" ]; then
+                printf 'PR #%s for commit %s was merged by %s, not %s.\n' \
+                  "$number" "$oid" "$merged_by" "$EXPECTED_HUMAN" >&2
+                exit 1
+              fi
+              if [ "$auto_events" -ne 0 ]; then
+                echo "PR #$number armed noncanonical auto-merge for commit $oid." >&2
+                exit 1
+              fi
+            fi
+
+            printf -- '- `%s` -> PR #%s (`%s` -> `%s`), merged by `%s`, auto-merge events: %s\n' \
+              "${oid:0:12}" "$number" \
+              "$(jq -r '.headRefName' <<<"$pr")" \
+              "$(jq -r '.baseRefName' <<<"$pr")" \
+              "$merged_by" "$auto_events" | tee -a "$audit_file"
+          done
+
+          body=$(printf '%s %s\n\n%s\n\n%s\n' \
+            'Merging this is release action 1: `develop` is ready to enter `main`.' \
+            'Nothing publishes yet; release-please proposes the version and changelog afterwards.' \
+            'Complete commit and merge-authority audit:' \
+            "$(cat "$audit_file")")
+
+          mapfile -t existing < <(gh pr list --repo "$EXPECTED_REPOSITORY" \
+            --head "$EXPECTED_HEAD" --base "$EXPECTED_BASE" --state open \
+            --limit 2 --json number --jq '.[].number')
+          if [ "${#existing[@]}" -gt 1 ]; then
+            echo "more than one promotion pull request is open." >&2
+            exit 1
+          fi
+
+          if [ "${#existing[@]}" -eq 1 ]; then
+            pr_number=${existing[0]}
+            identity=$(gh pr view "$pr_number" --repo "$EXPECTED_REPOSITORY" \
+              --json baseRefName,headRefName,headRepository,headRepositoryOwner,isCrossRepository)
+            jq -e \
+              --arg repository "$EXPECTED_REPOSITORY" \
+              --arg owner "$EXPECTED_OWNER" \
+              --arg head "$EXPECTED_HEAD" \
+              --arg base "$EXPECTED_BASE" \
+              '.baseRefName == $base and .headRefName == $head and
+               .headRepository.nameWithOwner == $repository and
+               .headRepositoryOwner.login == $owner and
+               (.isCrossRepository | not)' <<<"$identity" >/dev/null || {
+              echo "the existing promotion PR has an invalid repository, head, base or fork." >&2
+              exit 1
+            }
+            gh pr edit "$pr_number" --repo "$EXPECTED_REPOSITORY" --body "$body" >/dev/null
+            echo "promotion PR #$pr_number updated with the current complete audit."
+          else
+            gh pr create --repo "$EXPECTED_REPOSITORY" \
+              --base "$EXPECTED_BASE" --head "$EXPECTED_HEAD" \
+              --title 'chore: promote develop to main' --body "$body" >/dev/null
+            echo "promotion pull request opened with the complete audit."
+          fi

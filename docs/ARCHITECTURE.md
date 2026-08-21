@@ -233,11 +233,12 @@ generated artifacts, not a second doctrine source: tests compare them byte-for-b
 compiler. Runtime health derives the expected identities from that same catalog rather than a
 parallel role list. Installed files are receipt-owned and updated transactionally.
 
-Both adapters report specialist team mode as degraded today. Claude can remove mutating built-ins
-but agent frontmatter cannot deny unknown inherited MCP tools; Codex declares `sandbox_mode =
-"read-only"`, disables web search and MCP servers, but the parent turn can override its sandbox and
-Codex has no per-agent process allowlist. Discovery remains useful; orchestration may not claim
-enforced isolation until a runtime probe proves it.
+The lightweight dispatch health probe checks native specialist assets without rerunning the hook
+smoke on every controller step. Claude specialists are `available`: their explicit `tools`
+allowlist excludes mutating built-ins and reaches no inherited MCP tool. Codex remains `degraded`:
+its TOML declares `sandbox_mode = "read-only"`, disables web search and MCP servers, but the parent
+turn can override the sandbox and Codex has no per-agent process allowlist. Discovery remains
+useful; Codex orchestration may not claim enforced isolation until a runtime probe proves it.
 
 ## Boundary principles
 
@@ -615,9 +616,9 @@ interpreters, and VCS mutations remain prohibited.
 
 The controller also requires the adapter's effective specialist-runtime capability, independently
 of the declared runtime name. Each CLI `RuntimeInspection` produces that capability from native
-asset health plus the runtime's enforceable isolation limits. Both current adapters honestly report
-`degraded` until parent overrides, inherited MCP tools, and conditional PDF/browser capabilities can
-be probed; `degraded`, `unavailable`, or missing effective isolation stops the mission. A runtime can
+asset health plus the runtime's enforceable isolation limits. `unavailable` blocks before dispatch.
+`degraded` may still run the reviews so their evidence and limitations are observable, but can
+never produce `verified`; the controller stops degraded after the bounded cycle. A runtime can
 therefore reach `verified` only after its actual adapter or probe reports the required fresh-context
 specialist capability as available.
 
@@ -635,13 +636,31 @@ only a missing or failed specialist; it cannot replace a completed review or era
 loop is capped at two rounds. Missing input
 hashes, missing or mismatched contract versions, malformed, wrong-role, duplicate, timed-out, stale,
 or degraded specialist evidence cannot produce `verified`; persistent blockers end `blocked`.
-`packages/core/workflows/implement.workflow.yaml` is the human-authored conductor contract shared
-by the skill and runtime adapters.
+`void-implement` is the human-readable conductor. It obtains the applicable IDs from
+`void-harness mission dispatch`; it never owns a local role list. The CLI compiles a fresh canonical
+plan at controller-owned mission start, persists an integrity-bound minimal routing snapshot, and
+materializes only the controller's next action. Pre-implementation hashes stay bound to that
+snapshot; post-implementation hashes follow the current diff. Codex consumes each envelope with
+native `spawn_agent`; Claude Code with native `Agent`.
 
 `void-harness mission` exposes the operator lifecycle:
 
-- `start --title ... [--mode fast|team|fortress]` creates a team-mode run by
-  default;
+- `start --title ... --ticket ... [--mode team|fortress]` creates the
+  controller-owned run and binds its canonical ticket path, ticket-content hash and routing
+  snapshot; it derives runtime identity from the native session environment, with Codex markers
+  taking precedence over Claude's `CLAUDECODE=1`, and degrades an unattested shell. The shorter
+  form remains available for evidence-only missions;
+- `dispatch --id ...` reloads that bound ticket, refuses changed content, and returns the exact
+  next controller action and, only for
+  `invoke-specialists`, every deterministic envelope with its contract version and current input
+  hash; callers cannot inject a stage, round, runtime, or role list;
+- `specialist-event --id ... --status started|completed|failed --input ...` validates one bounded
+  lifecycle transition against the prior request/start, rejects secret-bearing content, and
+  records it idempotently without retaining prompts or raw model output;
+- `writer-event --id ...` consumes the controller's pending writer-action receipt, deriving the
+  single lead writer and round rather than accepting either from the caller;
+- `close --id ... --reason interrupted|abandoned` records an explicit terminal boundary for
+  unfinished work; controller `complete` and `stop` actions close automatically;
 - `resume --id ... [--json]` replays the durable journal, records one resume
   checkpoint, and returns the next safe action without dispatching a proven
   side effect again;
@@ -653,6 +672,19 @@ by the skill and runtime adapters.
   `verified` or `shipped-with-exception`;
 - `prune --older-than ...` is a dry-run unless `--apply` is supplied and removes
   only runs that already have an archive.
+
+### Harness learning loop
+
+Hooks own measurement and certain enforcement, never orchestration. Skills conduct workflows,
+canonical contracts decide applicability, and agents supply bounded independent judgment.
+`void-graph` joins those declared relations to human-session activations, outcomes and cost;
+`void-audit` reduces the joined evidence to one prioritized proposal per component. Telemetry repair
+precedes behavioral conclusions. Failure repair precedes retirement. Retirement is reviewable only
+after twenty human sessions, while self-host and smoke missions are excluded from adoption proof.
+Every proposal flows to `void-learn` as HITL input; no graph or audit command edits, fuses or removes
+a component. Missing `requested -> started` and `started -> completed|failed` transitions become
+repair proposals only after the same mission has a canonical `mission.closed` event, so active work
+is never diagnosed as a dead agent.
 
 ### Modes, budgets, and recovery
 

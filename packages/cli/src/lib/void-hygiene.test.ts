@@ -64,6 +64,32 @@ describe('judgeLayout', () => {
     expect(check?.fix).toBe('npx voidharness@2.5.1 hydrate — it restores and proves every file');
   });
 
+  // `.void/PROJECT-DOCTRINE.md` is created once from a template and the project
+  // is told to edit it freely. Counting that as drift failed `doctor` on the
+  // intended use of the file, and named `hydrate` as the remedy -- which restores
+  // nothing there, it re-stamps the hash over what the project wrote. A red
+  // verdict nobody can extinguish is a red verdict everybody learns to skip past.
+  it('passes when the only difference is a co-owned file the project wrote into', () => {
+    const check = named(
+      judgeLayout(observation({ manifest: { kind: 'present', version: '3.3.0', drifted: 0, coEdited: 2 } })),
+      'void manifest',
+    );
+
+    expect(check?.status).toBe('pass');
+    expect(check?.message).toContain('2 co-owned');
+    expect(check?.fix).toBeUndefined();
+  });
+
+  it('still fails on real drift even when a co-owned file was also edited', () => {
+    const check = named(
+      judgeLayout(observation({ manifest: { kind: 'present', version: '3.3.0', drifted: 1, coEdited: 2 } })),
+      'void manifest',
+    );
+
+    expect(check?.status).toBe('fail');
+    expect(check?.message).toContain('1 file(s)');
+  });
+
   it('treats an absent manifest as advisory, not as a defect', () => {
     // A project runs fine without one; it just cannot prove another checkout got
     // the same bytes.

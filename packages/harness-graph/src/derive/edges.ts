@@ -41,6 +41,17 @@ export function deriveEdges(tree: SourceTree, nodes: readonly GraphNode[]): Grap
   // extends: pack skill overlays a core skill of the same name
   for (const s of tree.skills) {
     if (!s.pack) continue;
+    const pack = nodeId('pack', s.pack, null); // allow-null: pack nodes are core catalog entries
+    const packedSkill = nodeId('skill', s.name, s.pack);
+    if (nodes.some((node) => node.id === pack) && skillIds.has(packedSkill)) {
+      edges.push({
+        from: pack,
+        to: packedSkill,
+        kind: 'composes',
+        origin: 'derived',
+        evidence: `pack ${s.pack} contains skill ${s.name}`,
+      });
+    }
     if (coreSkillNames.has(s.name)) {
       const from = nodeId('skill', s.name, s.pack);
       const to = nodeId('skill', s.name, null); // allow-null: core skills have no pack

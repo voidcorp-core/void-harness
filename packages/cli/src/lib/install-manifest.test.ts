@@ -142,6 +142,47 @@ describe('verifyInstallManifest', () => {
     expect(report.missing).toEqual(['a.md']);
   });
 
+  // The doctrine file is created once from a template and the project is told to
+  // edit it freely, so its bytes stop matching the manifest the first time anyone
+  // writes a rule. Counting that as drift made `doctor` exit non-zero on the
+  // intended use of the file, and pointed at `hydrate` as the remedy -- which
+  // restores nothing there, it re-stamps the hash over what the project wrote.
+  it('separates a co-owned file the project edited from an asset that drifted', () => {
+    const root = project({
+      '.void/PROJECT-DOCTRINE.md': 'the template, plus a rule the team added',
+      '.claude/skills/void-tdd/SKILL.md': 'edited by hand',
+    });
+
+    const report = verifyInstallManifest(root, manifest({
+      '.void/PROJECT-DOCTRINE.md': 'the template',
+      '.claude/skills/void-tdd/SKILL.md': 'tdd',
+    }));
+
+    expect(report.coEdited).toEqual(['.void/PROJECT-DOCTRINE.md']);
+    expect(report.mismatched).toEqual(['.claude/skills/void-tdd/SKILL.md']);
+    expect(report.ok).toBe(false);
+  });
+
+  it('stays green when the only difference is a co-owned file carrying project edits', () => {
+    const root = project({ 'CLAUDE.md': '# project\n\nplus our own sections' });
+
+    const report = verifyInstallManifest(root, manifest({ 'CLAUDE.md': '# project' }));
+
+    expect(report.ok).toBe(true);
+    expect(report.coEditedTotal).toBe(1);
+    expect(report.mismatched).toEqual([]);
+  });
+
+  // Co-ownership licences writing INTO the file, never removing it: the doctrine
+  // is imported by every session, and its absence is a broken install.
+  it('still reports a co-owned file that is gone, which is not an edit', () => {
+    const report = verifyInstallManifest(project({}), manifest({ '.void/PROJECT-DOCTRINE.md': 'x' }));
+
+    expect(report.ok).toBe(false);
+    expect(report.missing).toEqual(['.void/PROJECT-DOCTRINE.md']);
+    expect(report.coEdited).toEqual([]);
+  });
+
   it('bounds what it prints, so a wholesale drift stays readable', () => {
     const files = Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`f${i}.md`, 'x']));
     const report = verifyInstallManifest(project({}), manifest(files));

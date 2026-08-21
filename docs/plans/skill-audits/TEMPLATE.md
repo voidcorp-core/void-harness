@@ -97,7 +97,7 @@ Mirror of "cannot decide" from the matrix, made explicit:
 ## Verification checklist for shipping this skill
 
 - [ ] SKILL.md drafted at target LOC, ≤ 400 hard cap
-- [ ] Frontmatter `description` ≤ 200 chars, precise for auto-discovery
+- [ ] Frontmatter `description` targets ≤ 250 chars and never exceeds 500; any extra budget carries triggers, synonyms, or exclusions rather than procedure
 - [ ] `.source` file lists every audited source with URL
 - [ ] Companion hooks (if any) drafted at ≤ 100 LOC each
 - [ ] Matrix row updated in `plans/skill-decision-matrix.md`

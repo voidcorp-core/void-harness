@@ -1,27 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import type { CanonicalEvent } from '../events/types.js';
 import { event } from '../test/events.js';
-import {
-  MVP_SPECIALIST_IDS,
-  reduceReviewLoop,
-  type MvpSpecialistId,
-} from './review-loop.js';
+import { reduceReviewLoop } from './review-loop.js';
 
 const HASH_A = `sha256:${'a'.repeat(64)}`;
 const HASH_B = `sha256:${'b'.repeat(64)}`;
 const HASH_C = `sha256:${'c'.repeat(64)}`;
+const TEST_SPECIALIST_IDS = Object.freeze([
+  'core:solution-architect',
+  'core:security-engineer',
+  'core:test-qa-engineer',
+] as const);
+type TestSpecialistId = typeof TEST_SPECIALIST_IDS[number];
 
-const INPUTS: Readonly<Record<MvpSpecialistId, string>> = {
+const INPUTS: Readonly<Record<TestSpecialistId, string>> = {
   'core:solution-architect': HASH_A,
   'core:security-engineer': HASH_A,
   'core:test-qa-engineer': HASH_A,
 };
 const CONTRACT_VERSIONS = Object.fromEntries(
-  MVP_SPECIALIST_IDS.map((id) => [id, 1]),
+  TEST_SPECIALIST_IDS.map((id) => [id, 1]),
 );
 
 function completion(
-  specialistId: MvpSpecialistId,
+  specialistId: TestSpecialistId,
   overrides: {
     readonly seq?: number;
     readonly inputHash?: string;
@@ -36,7 +38,7 @@ function completion(
     readonly stage?: 'pre-implementation' | 'post-implementation';
   } = {},
 ): CanonicalEvent {
-  const seq = overrides.seq ?? MVP_SPECIALIST_IDS.indexOf(specialistId) + 1;
+  const seq = overrides.seq ?? TEST_SPECIALIST_IDS.indexOf(specialistId) + 1;
   return event({
     seq,
     eventId: `evt_00000000-0000-4000-8000-${String(seq).padStart(12, '0')}`,
@@ -67,7 +69,7 @@ function review(events: readonly CanonicalEvent[], currentInputHashes = INPUTS) 
     stage: 'post-implementation',
     expectedSource: 'runtime:codex',
     events,
-    requiredSpecialists: MVP_SPECIALIST_IDS,
+    requiredSpecialists: TEST_SPECIALIST_IDS,
     contractVersions: CONTRACT_VERSIONS,
     currentInputHashes,
     maxRounds: 2,
@@ -94,7 +96,7 @@ describe('MVP specialist review loop', () => {
     const state = review([]);
 
     expect(state.status).toBe('awaiting-review');
-    expect(state.specialistsToRun).toEqual(MVP_SPECIALIST_IDS);
+    expect(state.specialistsToRun).toEqual(TEST_SPECIALIST_IDS);
     expect(state.readyForVerdict).toBe(false);
   });
 
@@ -126,7 +128,7 @@ describe('MVP specialist review loop', () => {
 
   it('reruns only specialists whose declared input hash changed', () => {
     const state = review(
-      MVP_SPECIALIST_IDS.map((specialistId) => completion(specialistId)),
+      TEST_SPECIALIST_IDS.map((specialistId) => completion(specialistId)),
       {
         'core:solution-architect': HASH_A,
         'core:security-engineer': HASH_B,
@@ -141,7 +143,7 @@ describe('MVP specialist review loop', () => {
 
   it('becomes ready only after three fresh passing completions', () => {
     const state = review(
-      MVP_SPECIALIST_IDS.map((specialistId) => completion(specialistId)),
+      TEST_SPECIALIST_IDS.map((specialistId) => completion(specialistId)),
     );
 
     expect(state.status).toBe('ready-for-verdict');
@@ -239,8 +241,8 @@ describe('MVP specialist review loop', () => {
     const wrongVersion = reduceReviewLoop({
       stage: 'post-implementation',
       expectedSource: 'runtime:codex',
-      events: MVP_SPECIALIST_IDS.map((specialistId) => completion(specialistId)),
-      requiredSpecialists: MVP_SPECIALIST_IDS,
+      events: TEST_SPECIALIST_IDS.map((specialistId) => completion(specialistId)),
+      requiredSpecialists: TEST_SPECIALIST_IDS,
       contractVersions: { ...CONTRACT_VERSIONS, 'core:security-engineer': 2 },
       currentInputHashes: { ...INPUTS, 'core:test-qa-engineer': '' },
       maxRounds: 2,
@@ -342,12 +344,12 @@ describe('MVP specialist review loop', () => {
   });
 
   it('keeps pre-implementation completions isolated from post-implementation review', () => {
-    const state = review(MVP_SPECIALIST_IDS.map((specialistId) =>
+    const state = review(TEST_SPECIALIST_IDS.map((specialistId) =>
       completion(specialistId, { stage: 'pre-implementation' })));
 
     expect(state.stage).toBe('post-implementation');
     expect(state.status).toBe('awaiting-review');
-    expect(state.missingSpecialists).toEqual(MVP_SPECIALIST_IDS);
+    expect(state.missingSpecialists).toEqual(TEST_SPECIALIST_IDS);
   });
 
   it('rejects reused completion and context identities regardless of stage order', () => {

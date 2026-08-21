@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# anti-bloat-check — root-level audit of the seven anti-bloat rules
+# anti-bloat-check — root-level audit of the eight anti-bloat rules
 # documented in CLAUDE.md / AGENTS.md.
 #
 # Run locally: `pnpm anti-bloat:check`
@@ -10,6 +10,9 @@
 set -euo pipefail
 
 FAILED=0
+DESCRIPTION_TARGET=250
+DESCRIPTION_CAP=500
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 echo "anti-bloat-check"
 
@@ -72,25 +75,16 @@ while IFS= read -r f; do
   fi
 done <<<"$HOOK_FILES"
 
-# Frontmatter description ≤ 512 chars (rule 4): skills (core + packs) + agents
-echo "  rule 4: frontmatter description ≤ 512 chars"
-DESC_FILES=$(printf "%s\n" "$SKILL_FILES"; ls packages/core/agents/*.md 2>/dev/null || true)
-while IFS= read -r f; do
-  [[ -n "$f" && -e "$f" ]] || continue
-  DESC=$(awk '/^description:/{ sub(/^description: */,""); print; exit }' "$f" 2>/dev/null || true)
-  # Strip a single pair of surrounding quotes: a valid-YAML quoted description
-  # (needed when the text carries a colon) must be measured by its value, not its
-  # quoting — mirrors read-frontmatter's stripQuotes.
-  case "$DESC" in
-    \"*\") DESC="${DESC#\"}"; DESC="${DESC%\"}" ;;
-    \'*\') DESC="${DESC#\'}"; DESC="${DESC%\'}" ;;
-  esac
-  LEN=${#DESC}
-  if [[ "$LEN" -gt 512 ]]; then
-    echo "    FAIL: $f description is $LEN chars (cap 512): $DESC" >&2
-    FAILED=1
-  fi
-done <<<"$DESC_FILES"
+# Frontmatter discovery budget (rule 4): skills (core + packs) + agents.
+# Above-target descriptions remain valid, but the note keeps their catalogue
+# cost visible. Only the hard cap blocks the change.
+echo "  rule 4: frontmatter description target $DESCRIPTION_TARGET chars, hard cap $DESCRIPTION_CAP chars"
+SPECIALIST_FILES=$(find packages/core/specialists -maxdepth 1 -type f -name '*.yaml' 2>/dev/null || true)
+DESC_FILES=$(printf "%s\n" "$SKILL_FILES"; ls packages/core/agents/*.md 2>/dev/null || true; printf "%s\n" "$SPECIALIST_FILES")
+if ! printf "%s\n" "$DESC_FILES" \
+  | node "$SCRIPT_DIR/check-description-budgets.mjs" "$DESCRIPTION_TARGET" "$DESCRIPTION_CAP"; then
+  FAILED=1
+fi
 
 # Skill name convention (Anthropic Agent Skills spec): the frontmatter `name`
 # must equal the parent directory name and match ^[a-z0-9]+(-[a-z0-9]+)*$

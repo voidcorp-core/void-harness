@@ -9,21 +9,42 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { sealEvidence } from '@voidcorp/mission-engine';
+import {
+  sealEvidence,
+  type MissionSpecialistPlan,
+} from '@voidcorp/mission-engine';
 import { archiveMission } from './archive.js';
 import { computeProjectState } from './project-state.js';
 import {
   appendMissionEvent,
   createMission,
   inspectMission,
+  loadMissionControllerPlan,
+  missionControllerRoutingHash,
   recordMissionEvidence,
   resumeMission,
+  writeMissionControllerPlan,
 } from './store.js';
 
 const roots: string[] = [];
 const ID = 'mis_0123456789abcdef0123456789abcdef';
 const DIFF = `sha256:${'a'.repeat(64)}`;
 const INPUT = `sha256:${'b'.repeat(64)}`;
+const CONTROLLER_PLAN: MissionSpecialistPlan = {
+  planHash: `sha256:${'c'.repeat(64)}`,
+  context: { status: 'complete', issues: [] },
+  specialists: [{
+    specialistId: 'core:security-engineer',
+    contractVersion: 2,
+    inputHash: INPUT,
+    state: 'applicable',
+    stages: ['pre-implementation', 'post-implementation'],
+  }],
+};
+const CONTROLLER_TICKET = {
+  path: 'tickets/DEV-500.md',
+  contentHash: `sha256:${'d'.repeat(64)}`,
+};
 
 afterEach(async () => {
   delete process.env.MISSION_TEST_TOKEN;
@@ -68,6 +89,72 @@ function proof(stdout = 'ok') {
 }
 
 describe('mission run store', () => {
+  it('rejects ordinary transitions after closure while allowing archival metadata', async () => {
+    const root = await fixture();
+    await createMission(root, { missionId: ID, title: 'Terminal journal', mode: 'team' });
+    await appendMissionEvent(root, ID, {
+      source: 'void-harness:mission.close',
+      kind: 'mission.closed',
+      subject: 'mission',
+      correlationId: ID,
+      payload: { reason: 'interrupted' },
+    });
+
+    await expect(appendMissionEvent(root, ID, {
+      source: 'runtime:codex',
+      kind: 'evidence.recorded',
+      subject: 'late-proof',
+      correlationId: ID,
+      payload: {},
+    })).rejects.toThrow('MISSION_CLOSED');
+    await expect(appendMissionEvent(root, ID, {
+      source: 'void-harness:mission.archive',
+      kind: 'mission.archived',
+      subject: 'mission',
+      correlationId: ID,
+      payload: { archive: 'receipt' },
+    })).resolves.toMatchObject({ kind: 'mission.archived' });
+  });
+
+  it('round-trips an integrity-bound controller plan and rejects tampering', async () => {
+    const root = await fixture();
+    const routingHash = missionControllerRoutingHash(
+      CONTROLLER_PLAN,
+      CONTROLLER_TICKET,
+    );
+    await createMission(root, {
+      missionId: ID,
+      title: 'Persist specialist routing',
+      mode: 'team',
+      teamController: {
+        planHash: CONTROLLER_PLAN.planHash,
+        routingHash,
+        leadWriterId: 'writer:primary',
+        runtime: 'codex',
+      },
+    });
+    await writeMissionControllerPlan(root, ID, CONTROLLER_PLAN, CONTROLLER_TICKET);
+
+    await expect(loadMissionControllerPlan(root, ID)).resolves.toEqual({
+      plan: CONTROLLER_PLAN,
+      ticket: CONTROLLER_TICKET,
+      routingHash,
+    });
+
+    await writeFile(
+      join(root, '.void', 'machine', 'runs', ID, 'controller-plan.json'),
+      `${JSON.stringify({
+        schemaVersion: 1,
+        routingHash,
+        plan: { ...CONTROLLER_PLAN, specialists: [] },
+        ticket: CONTROLLER_TICKET,
+      })}\n`,
+    );
+    await expect(loadMissionControllerPlan(root, ID)).rejects.toThrow(
+      'MISSION_CONTROLLER_PLAN_INVALID',
+    );
+  });
+
   it('refuses to create an evidence-only run for an unknown mission', async () => {
     const root = await fixture();
 

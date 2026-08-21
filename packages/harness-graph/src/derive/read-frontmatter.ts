@@ -1,3 +1,4 @@
+import { parseDocument } from 'yaml';
 import type { EnforcementTier, EvalTarget, NodeActivation, NodeEnforcement, NodeTriggers } from '../model/types.js';
 
 const ENFORCEMENT_TIERS: ReadonlySet<string> = new Set(['pretooluse', 'active', 'ci-only', 'n/a']);
@@ -12,6 +13,29 @@ const stripQuotes = (s: string): string => {
     v.length >= 2 && ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")));
   return paired ? v.slice(1, -1).trim() : v;
 };
+
+function hasDescription(value: unknown): value is { readonly description?: unknown } {
+  if (typeof value !== 'object' || !value || Array.isArray(value)) return false;
+  return 'description' in value;
+}
+
+function parseDescription(block: string): string {
+  if (block === '') return '';
+  try {
+    const document = parseDocument(block, {
+      strict: true,
+      stringKeys: true,
+      uniqueKeys: true,
+      version: '1.2',
+    });
+    if (document.errors.length > 0) return '';
+    const value: unknown = document.toJS({ maxAliasCount: 0 });
+    const description = hasDescription(value) ? value.description : undefined;
+    return typeof description === 'string' ? description.trim() : '';
+  } catch {
+    return '';
+  }
+}
 
 /** Read an optional scalar frontmatter field by key. Strips a single pair of surrounding quotes;
  * a vacuous value — empty, quoted-empty, or a YAML nil token — counts as **absent** (so a governed
@@ -154,10 +178,7 @@ export function readFrontmatter(text: string, harnessMeta = ''): {
   const meta = harnessMeta;
   const match = text.match(/^---\n([\s\S]*?)\n---/);
   const block = match?.[1] ?? '';
-  const line = block.split('\n').find((l) => l.startsWith('description:'));
-  // stripQuotes so a valid-YAML quoted description (needed when the text carries a
-  // colon) yields the same value as a bare one — never the surrounding quotes.
-  const description = line ? stripQuotes(line.slice('description:'.length)) : '';
+  const description = parseDescription(block);
   const triggers = parseTriggers(meta);
   const activation = parseActivation(meta);
   const owner = parseScalar(meta, 'owner');

@@ -54,11 +54,11 @@
     {
       "description": "Judges a diff against VoidCorp doctrine that hooks/reviewers miss: weak tests, over-abstraction, broken boundaries, anti-bloat. Read-only; routes security to security-audit, bugs to /void-code-review.",
       "id": "agent:doctrine-critic",
-      "lines": 90,
+      "lines": 92,
       "name": "doctrine-critic",
       "pack": null,
       "source": "packages/core/agents/doctrine-critic.md",
-      "staticTokens": 1093,
+      "staticTokens": 1128,
       "type": "agent"
     },
     {
@@ -1118,7 +1118,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-pwa/skills/void-manifest-checklist/SKILL.md",
-      "staticTokens": 1566,
+      "staticTokens": 1567,
       "type": "skill"
     },
     {
@@ -1148,7 +1148,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-pwa/skills/void-offline-first-mutation/SKILL.md",
-      "staticTokens": 2497,
+      "staticTokens": 2498,
       "type": "skill"
     },
     {
@@ -1208,7 +1208,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-react/skills/void-accessibility-check/SKILL.md",
-      "staticTokens": 1537,
+      "staticTokens": 1538,
       "type": "skill"
     },
     {
@@ -1268,7 +1268,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-react/skills/void-form-pattern/SKILL.md",
-      "staticTokens": 1685,
+      "staticTokens": 1686,
       "type": "skill"
     },
     {
@@ -1448,7 +1448,7 @@
         "codex"
       ],
       "source": "packages/packs/pack-server/skills/void-server-action/SKILL.md",
-      "staticTokens": 2123,
+      "staticTokens": 2124,
       "type": "skill"
     },
     {
@@ -1643,7 +1643,7 @@
         }
       ],
       "id": "skill:void-audit",
-      "lines": 81,
+      "lines": 84,
       "name": "void-audit",
       "owner": "folpe",
       "pack": null,
@@ -1652,7 +1652,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-audit/SKILL.md",
-      "staticTokens": 724,
+      "staticTokens": 818,
       "type": "skill"
     },
     {
@@ -2165,7 +2165,7 @@
         }
       ],
       "id": "skill:void-implement",
-      "lines": 141,
+      "lines": 160,
       "name": "void-implement",
       "owner": "folpe",
       "pack": null,
@@ -2174,7 +2174,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-implement/SKILL.md",
-      "staticTokens": 3728,
+      "staticTokens": 4151,
       "type": "skill"
     },
     {
@@ -2257,7 +2257,7 @@
         }
       ],
       "id": "skill:void-make-pdf",
-      "lines": 46,
+      "lines": 53,
       "name": "void-make-pdf",
       "owner": "folpe",
       "pack": null,
@@ -2266,7 +2266,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-make-pdf/SKILL.md",
-      "staticTokens": 790,
+      "staticTokens": 871,
       "type": "skill"
     },
     {
@@ -2838,11 +2838,25 @@
       "evidence": "migration-planner: Planning only ... routes execution to tdd/plan"
     },
     {
+      "from": "hook:activation-meter",
+      "to": "skill:void-graph",
+      "kind": "companion-of",
+      "origin": "declared",
+      "evidence": "void-graph SKILL.md: the analyzer correlates the installed model with activation-meter mission events"
+    },
+    {
       "from": "hook:anti-ai-slop-grep",
       "to": "skill:void-frontend-design",
       "kind": "enforces",
       "origin": "declared",
       "evidence": "anti-ai-slop-grep flags generic AI aesthetics — enforces frontend-design"
+    },
+    {
+      "from": "hook:auto-format",
+      "to": "skill:void-commit-discipline",
+      "kind": "companion-of",
+      "origin": "declared",
+      "evidence": "CHEATSHEET: auto-format formats on write, so formatting never appears in a behavioural diff"
     },
     {
       "from": "hook:axe-precommit",
@@ -2943,6 +2957,13 @@
       "evidence": "no-only-no-skip bans .only/.skip — enforces testing (no silently disabled tests)"
     },
     {
+      "from": "hook:outcome-meter",
+      "to": "skill:void-graph",
+      "kind": "companion-of",
+      "origin": "declared",
+      "evidence": "graph cost joins PostToolUse outcomes to component invocations to expose yield"
+    },
+    {
       "from": "hook:pre-PR-review-evidence",
       "to": "skill:void-code-review",
       "kind": "enforces",
@@ -2962,6 +2983,27 @@
       "kind": "enforces",
       "origin": "declared",
       "evidence": "refactor-named-grep requires named Fowler refactors — enforces refactor"
+    },
+    {
+      "from": "hook:secret-in-content",
+      "to": "skill:void-security-guidance",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "secret-in-content refuses writes that carry credentials — enforces security-guidance's no-secret boundary"
+    },
+    {
+      "from": "hook:sessionstart-context",
+      "to": "skill:void-context",
+      "kind": "companion-of",
+      "origin": "declared",
+      "evidence": "CHEATSHEET: sessionstart-context loads the project's standing context once, at the start of a session"
+    },
+    {
+      "from": "hook:stop-typecheck",
+      "to": "skill:void-typescript-strict",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "stop-typecheck typechecks the touched TypeScript surface before session end — enforces typescript-strict"
     },
     {
       "from": "hook:tdd-guard",
@@ -2985,6 +3027,13 @@
       "evidence": "tidying-commit-prefix separates tidyings from behavior — enforces refactor (Tidy-First)"
     },
     {
+      "from": "hook:trim-large-output",
+      "to": "skill:void-context",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "CHEATSHEET: trim-large-output bounds oversized tool output before it consumes the context window"
+    },
+    {
       "from": "hook:tsc-noemit-precommit",
       "to": "skill:void-typescript-strict",
       "kind": "enforces",
@@ -3004,6 +3053,202 @@
       "kind": "enforces",
       "origin": "declared",
       "evidence": "viewport-screenshot-gate gates mobile+desktop viewports — enforces accessibility"
+    },
+    {
+      "from": "pack:pack-mobile",
+      "to": "skill:pack-mobile/void-eas-build-profile",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-mobile contains skill void-eas-build-profile"
+    },
+    {
+      "from": "pack:pack-mobile",
+      "to": "skill:pack-mobile/void-expo-config-plugins",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-mobile contains skill void-expo-config-plugins"
+    },
+    {
+      "from": "pack:pack-mobile",
+      "to": "skill:pack-mobile/void-expo-router-pattern",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-mobile contains skill void-expo-router-pattern"
+    },
+    {
+      "from": "pack:pack-mobile",
+      "to": "skill:pack-mobile/void-ota-update-strategy",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-mobile contains skill void-ota-update-strategy"
+    },
+    {
+      "from": "pack:pack-monorepo",
+      "to": "skill:pack-monorepo/void-dependency-direction",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-monorepo contains skill void-dependency-direction"
+    },
+    {
+      "from": "pack:pack-monorepo",
+      "to": "skill:pack-monorepo/void-package-extraction",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-monorepo contains skill void-package-extraction"
+    },
+    {
+      "from": "pack:pack-monorepo",
+      "to": "skill:pack-monorepo/void-service-package",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-monorepo contains skill void-service-package"
+    },
+    {
+      "from": "pack:pack-monorepo",
+      "to": "skill:pack-monorepo/void-turbo-pipeline-tuning",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-monorepo contains skill void-turbo-pipeline-tuning"
+    },
+    {
+      "from": "pack:pack-nextjs",
+      "to": "skill:pack-nextjs/void-cache-component-pattern",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-nextjs contains skill void-cache-component-pattern"
+    },
+    {
+      "from": "pack:pack-nextjs",
+      "to": "skill:pack-nextjs/void-instrumentation-setup",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-nextjs contains skill void-instrumentation-setup"
+    },
+    {
+      "from": "pack:pack-nextjs",
+      "to": "skill:pack-nextjs/void-loading-error-boundaries",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-nextjs contains skill void-loading-error-boundaries"
+    },
+    {
+      "from": "pack:pack-nextjs",
+      "to": "skill:pack-nextjs/void-parallel-routes-slots",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-nextjs contains skill void-parallel-routes-slots"
+    },
+    {
+      "from": "pack:pack-nextjs",
+      "to": "skill:pack-nextjs/void-route-group-decision",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-nextjs contains skill void-route-group-decision"
+    },
+    {
+      "from": "pack:pack-pwa",
+      "to": "skill:pack-pwa/void-install-prompt-ux",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-pwa contains skill void-install-prompt-ux"
+    },
+    {
+      "from": "pack:pack-pwa",
+      "to": "skill:pack-pwa/void-manifest-checklist",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-pwa contains skill void-manifest-checklist"
+    },
+    {
+      "from": "pack:pack-pwa",
+      "to": "skill:pack-pwa/void-offline-first-mutation",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-pwa contains skill void-offline-first-mutation"
+    },
+    {
+      "from": "pack:pack-pwa",
+      "to": "skill:pack-pwa/void-service-worker-strategy",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-pwa contains skill void-service-worker-strategy"
+    },
+    {
+      "from": "pack:pack-react",
+      "to": "skill:pack-react/void-accessibility-check",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-react contains skill void-accessibility-check"
+    },
+    {
+      "from": "pack:pack-react",
+      "to": "skill:pack-react/void-client-vs-server-component",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-react contains skill void-client-vs-server-component"
+    },
+    {
+      "from": "pack:pack-react",
+      "to": "skill:pack-react/void-form-pattern",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-react contains skill void-form-pattern"
+    },
+    {
+      "from": "pack:pack-react",
+      "to": "skill:pack-react/void-state-architecture",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-react contains skill void-state-architecture"
+    },
+    {
+      "from": "pack:pack-server",
+      "to": "skill:pack-server/void-background-job-pattern",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-server contains skill void-background-job-pattern"
+    },
+    {
+      "from": "pack:pack-server",
+      "to": "skill:pack-server/void-drizzle-migration-safe",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-server contains skill void-drizzle-migration-safe"
+    },
+    {
+      "from": "pack:pack-server",
+      "to": "skill:pack-server/void-env-validation",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-server contains skill void-env-validation"
+    },
+    {
+      "from": "pack:pack-server",
+      "to": "skill:pack-server/void-rate-limit-strategy",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-server contains skill void-rate-limit-strategy"
+    },
+    {
+      "from": "pack:pack-server",
+      "to": "skill:pack-server/void-server-action",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-server contains skill void-server-action"
+    },
+    {
+      "from": "pack:pack-server",
+      "to": "skill:pack-server/void-testing-server-modules",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-server contains skill void-testing-server-modules"
+    },
+    {
+      "from": "pack:pack-server",
+      "to": "skill:pack-server/void-webhook-handler-pattern",
+      "kind": "composes",
+      "origin": "derived",
+      "evidence": "pack pack-server contains skill void-webhook-handler-pattern"
     },
     {
       "from": "skill:pack-monorepo/void-dependency-direction",
@@ -3160,11 +3405,25 @@
       "evidence": "async-safety SKILL.md: Reject events older than the configured window... Composes with security-guidance (replay attack protection)."
     },
     {
+      "from": "skill:void-audit",
+      "to": "skill:void-learn",
+      "kind": "routes-to",
+      "origin": "declared",
+      "evidence": "void-audit SKILL.md: an accepted proposal is filed through void-learn, which owns the HITL capture"
+    },
+    {
       "from": "skill:void-autopilot",
       "to": "skill:void-implement",
-      "kind": "invokes",
+      "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Caller: autopilot runs this once per ticket in parallel worktrees, whole and once"
+    },
+    {
+      "from": "skill:void-autopilot",
+      "to": "workflow-def:autopilot",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "autopilot SKILL.md: Claude executes the orchestration plan with its Workflow primitive"
     },
     {
       "from": "skill:void-brainstorm",
@@ -3179,6 +3438,34 @@
       "kind": "composes",
       "origin": "declared",
       "evidence": "brainstorm SKILL.md: TDD mode per implementation phase (strict / souple / exploratory — composes with tdd skill)"
+    },
+    {
+      "from": "skill:void-checkpoint",
+      "to": "skill:void-learn",
+      "kind": "companion-of",
+      "origin": "declared",
+      "evidence": "checkpoint SKILL.md: Adjacent void-learn takes the durable rules out of the session before the checkpoint is written"
+    },
+    {
+      "from": "skill:void-claude-md",
+      "to": "skill:void-context",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "claude-md SKILL.md: void-context is the foundation; CLAUDE.md spends from the same context budget"
+    },
+    {
+      "from": "skill:void-claude-md",
+      "to": "skill:void-learn",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "claude-md SKILL.md: void-learn routes project-specific rules and harness gaps"
+    },
+    {
+      "from": "skill:void-claude-md",
+      "to": "skill:void-source-driven-development",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "claude-md SKILL.md: deferred tool configuration is grounded in version-matched official sources"
     },
     {
       "from": "skill:void-code-review",
@@ -3300,6 +3587,20 @@
       "evidence": "devex-audit SKILL.md: Not ui-review — that audits the visual/interaction UI; this audits the developer journey. Different subject (sibling audit skills)."
     },
     {
+      "from": "skill:void-doctor",
+      "to": "skill:void-learn",
+      "kind": "routes-to",
+      "origin": "declared",
+      "evidence": "doctor SKILL.md: a missing doctrine rule is routed to void-learn, never fixed here"
+    },
+    {
+      "from": "skill:void-doctor",
+      "to": "skill:void-verify",
+      "kind": "companion-of",
+      "origin": "declared",
+      "evidence": "doctor SKILL.md: void-verify proves one unit of work; doctor proves the harness that guards every unit"
+    },
+    {
       "from": "skill:void-domain-driven-design",
       "to": "skill:void-functional",
       "kind": "composes",
@@ -3335,6 +3636,13 @@
       "evidence": "functional SKILL.md: Composes with typescript-strict exhaustive-switch enforcement and domain-driven-design aggregate state machines."
     },
     {
+      "from": "skill:void-graph",
+      "to": "skill:void-audit",
+      "kind": "companion-of",
+      "origin": "declared",
+      "evidence": "void-graph SKILL.md: adjacent void-audit proposes what to do about staleness"
+    },
+    {
       "from": "skill:void-hexagonal-architecture",
       "to": "skill:void-domain-driven-design",
       "kind": "composes",
@@ -3357,10 +3665,101 @@
     },
     {
       "from": "skill:void-implement",
+      "to": "agent:accessibility-specialist",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: iterate every returned specialist envelope; never substitute a local role list"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "agent:api-integration-engineer",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "agent:data-migration-engineer",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "agent:devex-docs-engineer",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list"
+    },
+    {
+      "from": "skill:void-implement",
       "to": "agent:doctrine-critic",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Review pass composes agents doctrine-critic + silent-failure-hunter"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "agent:domain-architect",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "agent:experience-designer",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "agent:frontend-engineer",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "agent:independent-code-reviewer",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "agent:observability-sre-engineer",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "agent:pdf-specialist",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "agent:performance-engineer",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "agent:product-challenger",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "agent:security-engineer",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list"
     },
     {
       "from": "skill:void-implement",
@@ -3371,10 +3770,94 @@
     },
     {
       "from": "skill:void-implement",
+      "to": "agent:solution-architect",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "agent:test-qa-engineer",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list"
+    },
+    {
+      "from": "skill:void-implement",
       "to": "agent:type-design-analyzer",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: Architecture pass composes agents type-design-analyzer + doctrine-critic"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "agent:visual-craft-director",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "profile:base",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "profile:expo",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "profile:monorepo",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "profile:nextjs",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "profile:node-server",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "profile:pwa",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "profile:react",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "profile:sql",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "profile:typescript",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation"
     },
     {
       "from": "skill:void-implement",
@@ -3503,6 +3986,48 @@
       "evidence": "llm-cost-discipline SKILL.md: Content containing user PII without explicit per-user scoping (composes with security-guidance)"
     },
     {
+      "from": "skill:void-make-pdf",
+      "to": "agent:pdf-specialist",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "make-pdf SKILL.md: a generated deliverable is reviewed by the read-only pdf-specialist agent"
+    },
+    {
+      "from": "skill:void-make-pdf",
+      "to": "skill:void-verify",
+      "kind": "routes-to",
+      "origin": "declared",
+      "evidence": "make-pdf SKILL.md: void-verify carries observed PDF proof into the final gate"
+    },
+    {
+      "from": "skill:void-merge",
+      "to": "skill:void-autopilot",
+      "kind": "companion-of",
+      "origin": "declared",
+      "evidence": "merge SKILL.md: void-autopilot produces an integration PR this skill can drain"
+    },
+    {
+      "from": "skill:void-merge",
+      "to": "skill:void-commit-discipline",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "merge SKILL.md: a merge commit explains why through void-commit-discipline"
+    },
+    {
+      "from": "skill:void-merge",
+      "to": "skill:void-implement",
+      "kind": "companion-of",
+      "origin": "declared",
+      "evidence": "merge SKILL.md: void-implement opens the PRs this skill drains"
+    },
+    {
+      "from": "skill:void-merge",
+      "to": "skill:void-verify",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "merge SKILL.md: after the last merge, the base is proven through void-verify"
+    },
+    {
       "from": "skill:void-migrations",
       "to": "skill:void-observability",
       "kind": "composes",
@@ -3585,6 +4110,13 @@
       "kind": "composes",
       "origin": "declared",
       "evidence": "refactor SKILL.md: Replace Primitive with Branded Type | Composes with typescript-strict."
+    },
+    {
+      "from": "skill:void-retrospective",
+      "to": "skill:void-learn",
+      "kind": "routes-to",
+      "origin": "declared",
+      "evidence": "retrospective SKILL.md: route each durable pattern to learn"
     },
     {
       "from": "skill:void-security-guidance",

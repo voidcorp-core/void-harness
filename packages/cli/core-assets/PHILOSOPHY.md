@@ -132,9 +132,9 @@ While coding in any project consuming the harness, when the model (or the user) 
 
 A recurring auto-evaluation that questions the harness's current surface:
 
-1. Each invocation writes a redacted canonical event to `.void/machine/runs/<mission-id>/events.jsonl` (local, never shipped); legacy usage logs remain read-only history.
-2. `void-harness audit` produces a report: skills that are active, stale, or never invoked from those local events. Upstream-source deprecation and decision-matrix-conflict detection are planned extensions.
-3. The report **proposes** deprecations, fusions, or rewrites. Nothing is auto-applied. Each proposal becomes a PR after human review.
+1. Each invocation and outcome writes a redacted canonical event to `.void/machine/runs/<mission-id>/events.jsonl` (local, never shipped); legacy usage logs remain read-only history.
+2. `void-harness audit` joins declared relations, human activations, outcomes, and cost across hooks, skills, and agents. It repairs telemetry before judging behavior, excludes self-host/smoke missions, and requires twenty human sessions before a retirement review. Upstream-source deprecation and decision-matrix-conflict detection are planned extensions.
+3. The report **proposes** telemetry repair, failure repair, wiring, tuning/fusion, or retirement review. Nothing is auto-applied. `void-learn` owns the human decision and any resulting PR.
 
 ### Why HITL is absolute here
 

@@ -73,4 +73,16 @@ describe('implement reaches what it composes', () => {
     expect(declaredComposedSkills('void-implement').length).toBeGreaterThan(0);
     expect(ROOT).toContain('void-harness');
   });
+
+  it('dispatches the canonical plan instead of naming a fixed specialist trio or missing workflow', () => {
+    const orchestration = IMPLEMENT.slice(
+      IMPLEMENT.indexOf('## Canonical team orchestration'),
+      IMPLEMENT.indexOf('## When to invoke'),
+    );
+
+    expect(orchestration).toContain('mission dispatch');
+    expect(orchestration).toContain('mission specialist-event');
+    expect(orchestration).not.toContain('workflows/implement.workflow.yaml');
+    expect(orchestration).not.toMatch(/solution-architect.*security-engineer.*test-qa-engineer/s);
+  });
 });

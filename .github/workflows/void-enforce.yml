@@ -13,6 +13,7 @@ on:
   # gate that blocks forever instead of a gate that judges.
   pull_request:
     branches: [main, develop]
+    types: [opened, synchronize, reopened, auto_merge_enabled, auto_merge_disabled]
   # release.yml dispatches this workflow on Release Please PRs so the same
   # doctrine floor required by branch protection runs before their merge.
   workflow_dispatch:
@@ -22,13 +23,46 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   enforce:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
+      - name: Reject auto-merge outside the canonical back-merge
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          OBSERVED_REPOSITORY: ${{ github.repository }}
+          EXPECTED_REPOSITORY: voidcorp-core/void-harness
+          EXPECTED_HEAD: chore/back-merge-main
+          EXPECTED_BASE: develop
+        run: |
+          set -euo pipefail
+          if [ "$OBSERVED_REPOSITORY" != "$EXPECTED_REPOSITORY" ]; then
+            echo "auto-merge authority is defined only for $EXPECTED_REPOSITORY." >&2
+            exit 1
+          fi
+
+          fields=autoMergeRequest,baseRefName,headRefName
+          fields+=,headRepository,headRepositoryOwner,isCrossRepository
+          pr=$(gh pr view "$PR_NUMBER" --repo "$EXPECTED_REPOSITORY" --json "$fields")
+          PR_JSON="$pr" node --input-type=module <<'NODE'
+          import { assertCanonicalAutoMerge } from './scripts/auto-merge-contract.mjs';
+
+          const outcome = assertCanonicalAutoMerge(JSON.parse(process.env.PR_JSON), {
+            repository: process.env.EXPECTED_REPOSITORY,
+            head: process.env.EXPECTED_HEAD,
+            base: process.env.EXPECTED_BASE,
+          });
+          process.stdout.write(`${outcome}\n`);
+          NODE
       - uses: ./.github/actions/void-enforce
         with:
           base-ref: ${{ inputs.base-ref }}

@@ -55,7 +55,12 @@ function runtimeSession(raw: Record<string, unknown>): string {
 
 function categoryFor(tool: string): 'skill' | 'agent' | 'workflow' | 'tool' {
   if (tool === 'Skill') return 'skill';
-  if (tool === 'Task' || tool === 'Agent') return 'agent';
+  if (
+    tool === 'Task'
+    || tool === 'Agent'
+    || tool === 'collaborationspawn_agent'
+    || tool === 'collaboration.spawn_agent'
+  ) return 'agent';
   if (tool === 'Workflow') return 'workflow';
   return 'tool';
 }
@@ -70,7 +75,7 @@ function nameFor(
   }
   if (category === 'agent') {
     return text(
-      input['subagent_type'] ?? input['agent'],
+      input['subagent_type'] ?? input['agent_type'] ?? input['agent'],
       tool === 'Agent' ? 'claude' : 'unknown',
     );
   }

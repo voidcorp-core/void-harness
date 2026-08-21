@@ -31,6 +31,31 @@ describe('runtime input adapter', () => {
     expect(JSON.stringify(adapted)).not.toContain('PRIVATE PROMPT');
   });
 
+  it.each([
+    'collaborationspawn_agent',
+    'collaboration.spawn_agent',
+  ])('maps the Codex %s tool and agent_type to an agent activation', (toolName) => {
+    const adapted = adaptRuntimeInput(
+      {
+        thread_id: 'thread-sensitive-id',
+        tool_name: toolName,
+        tool_input: {
+          agent_type: 'security-engineer',
+          message: 'PRIVATE REVIEW PROMPT',
+        },
+      },
+      { runtime: 'codex', phase: 'activation', root: '/project' },
+    );
+
+    expect(adapted).toMatchObject({
+      source: 'runtime:codex',
+      kind: 'runtime.tool.started',
+      subject: 'agent:security-engineer',
+      payload: { category: 'agent', tool: toolName },
+    });
+    expect(JSON.stringify(adapted)).not.toContain('PRIVATE REVIEW PROMPT');
+  });
+
   it('derives a stable opaque mission ID unless an explicit valid one is supplied', () => {
     const first = deriveMissionId(undefined, 'codex', 'thread-raw-id', '/project');
     const second = deriveMissionId(undefined, 'codex', 'thread-raw-id', '/project');

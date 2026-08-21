@@ -18,6 +18,7 @@ export * from './modes/fortress.js';
 export * from './budget/reducer.js';
 export * from './orchestration/review-loop.js';
 export * from './orchestration/controller.js';
+export * from './orchestration/dispatch.js';
 export * from './orchestration/recovery.js';
 export * from './ui/quality-gate.js';
 export * from './profile/schema.js';

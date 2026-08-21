@@ -27,7 +27,7 @@
  * asks to say both what a skill does and when to use it.
  */
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -78,11 +78,17 @@ describe('the skill file carries only what the specification defines', () => {
 
   it.each(SKILLS)('%s keeps its description within the discovery budget', (_label, path) => {
     const text = readFileSync(join(path, 'SKILL.md'), 'utf8');
-    const description = /^description:\s*(.*)$/m.exec(text)?.[1] ?? '';
+    const rawDescription = /^description:\s*(.*)$/m.exec(text)?.[1] ?? '';
+    const pairedQuotes = rawDescription.length >= 2 && (
+      (rawDescription.startsWith('"') && rawDescription.endsWith('"')) ||
+      (rawDescription.startsWith("'") && rawDescription.endsWith("'"))
+    );
+    const description = pairedQuotes ? rawDescription.slice(1, -1) : rawDescription;
     expect(description.length).toBeGreaterThan(0);
-    // 512, half of what the spec allows. The description is the only trigger that
-    // works in all three runtimes, so it is the last place to be stingy.
-    expect(description.length).toBeLessThanOrEqual(512);
+    // 500 stays below half of what the portable spec allows. The 250-character
+    // editorial target is reported by anti-bloat-check; this assertion owns the
+    // hard validity boundary.
+    expect(description.length).toBeLessThanOrEqual(500);
   });
 });
 
