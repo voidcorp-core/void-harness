@@ -236,12 +236,13 @@ The binding design is
   9. Extract only the npm-verified provenance bundle for `pkg:npm/voidharness@X.Y.Z` and pass the
      registry tarball plus bundle to `gh attestation verify`. Require exact repository
      `voidcorp-core/void-harness`, signer workflow `.github/workflows/release.yml`, source ref
-     `refs/heads/main`, source and signer digest equal to the release SHA, SLSA v1 predicate, and a
-     GitHub-hosted runner.
+     `refs/heads/main`, source and signer digest equal to the current workflow head SHA, SLSA v1
+     predicate, and a GitHub-hosted runner. The previously verified artifact manifest separately
+     binds the signed tarball to the immutable release SHA, which may be older during recovery.
   10. Parse the verified JSON as untrusted input with a pure contract helper. Require one matching
-      subject/digest and require workflow path, ref, commit, run ID and attempt to equal current
-      release evidence. Reject missing, duplicate or conflicting attestations. The whole workflow,
-      including an existing-version retry, succeeds only after this job passes.
+      subject/digest and require workflow path, ref, workflow head commit, run ID and attempt to
+      equal the current execution evidence. Reject missing, duplicate or conflicting attestations.
+      The whole workflow, including an existing-version retry, succeeds only after this job passes.
   11. Before locking the verifier contract, run a read-only compatibility probe against the existing
       `voidharness@3.3.0` provenance bundle. Pin the observed npm and GitHub CLI verifier versions in
       workflow assertions; if GitHub CLI rejects an npm-verified Sigstore bundle format, stop and
@@ -398,7 +399,8 @@ authorization.
      checkout, install, build or repository scripts.
   3. Compare the workflow integrity manifest with `npm view voidharness@X.Y.Z dist --json`; require
      exact `dist.integrity`, then retain the successful `verify-publication` evidence binding the
-     signed subject to the expected repository, workflow, ref, release commit, run and attempt.
+     signed subject to the expected repository, workflow, ref, workflow head, run and attempt, while
+     the artifact manifest binds the same bytes to the distinct release commit.
   4. Verify one `main -> develop` back-merge PR used the canonical bot branch, armed native
      auto-merge, received the five current checks and merged automatically only after green.
   5. Compare `main` and `develop` trees for released version/changelog content and confirm no other PR

@@ -166,8 +166,10 @@ Actions on the routine path.
    the exact public version with scripts disabled, runs
    `npm audit signatures --json --include-attestations`, and verifies the npm
    bundle with `gh attestation verify --digest-alg sha512`. The signed subject,
-   repository, workflow, `main` ref, release commit, run and attempt must all
-   match. Registry metadata alone is not success.
+   repository, workflow, `main` ref, workflow head commit, run and attempt must
+   all match. The separately verified artifact manifest binds those signed bytes
+   to the release commit selected by the immutable tag. Registry metadata alone
+   is not success.
 7. `back-merge.yml` returns the approved release output to `develop` through the
    sole canonical native auto-merge path after the same five checks pass.
 
@@ -278,7 +280,7 @@ workflow would create a more powerful release path than the one being audited.
 | `release tag must match vX.Y.Z` or no matching GitHub Release | The recovery input is malformed, missing, or points at something that was never released. | Dispatch from `main` with the existing immutable tag. Do not substitute a SHA or move/create a tag by hand. |
 | `artifact-id`, service digest, workflow run/head, manifest, or tarball digest mismatch | The cross-job artifact is stale, substituted, corrupt, or belongs to another run. | Stop. Preserve the run evidence, discard the artifact, and rerun from the same immutable tag only after identifying the mismatch. |
 | `Published version has different bytes` | npm already owns `X.Y.Z` with integrity different from the validated tarball. | Treat as a release integrity incident. Investigate and cut a new version; npm versions are never overwritten. |
-| npm signature, Sigstore certificate, workflow/ref/commit/run/attempt, or signed subject mismatch | Public bytes are unattributed, the wrong workflow produced them, or evidence conflicts with this execution. | Treat the published version as unverified. Preserve npm/GitHub evidence, investigate credentials and workflow history, then fix forward with a new version. |
+| npm signature, Sigstore certificate, workflow/ref/workflow-head/run/attempt, or signed subject mismatch | Public bytes are unattributed, the wrong workflow produced them, or evidence conflicts with this execution. | Treat the published version as unverified. Preserve npm/GitHub evidence, investigate credentials and workflow history, then fix forward with a new version. |
 
 Transient registry errors and delayed attestations are retried only within the
 documented bounds. Exhaustion stays red; it is never converted into a successful

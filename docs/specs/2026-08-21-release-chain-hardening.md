@@ -144,7 +144,8 @@ full-SHA pinning and limits allowed publishers to the explicitly used action own
 8. The release workflow validates and packs the exact release commit without OIDC.
 9. A minimal publish job verifies and publishes that exact tarball through npm Trusted Publishing.
 10. A post-publication job without OIDC cryptographically verifies the registry provenance and
-    binds it to the tarball, repository, workflow, ref, release commit and workflow run.
+    binds it to the tarball, repository, workflow, ref, workflow head commit and workflow run. The
+    verified artifact manifest separately binds the tarball to the immutable release commit.
 11. `back-merge.yml` opens or updates the canonical `main` to `develop` PR and arms native
     auto-merge. Strict checks run again before GitHub merges it.
 
@@ -218,11 +219,12 @@ bundles. It then passes the verified provenance bundle and tarball to GitHub CLI
 verifier with exact repository, signer workflow, source ref and source digest constraints.
 
 A pure contract parser additionally requires the signed statement's subject name and digest, build
-workflow path, `refs/heads/main`, release commit, workflow run ID and attempt to match the release
-evidence. Wrong subject, repository, workflow, ref, commit or run is blocking. The workflow is
-successful, including on an existing-version retry, only after this job passes. The verifier never
-claims that provenance proves the package is benign; it proves which signed workflow execution
-produced the observed bytes.
+workflow path, `refs/heads/main`, workflow head commit, workflow run ID and attempt to match the
+current execution. The artifact manifest independently requires the tarball's release commit to
+match the immutable tag. Wrong subject, repository, workflow, ref, workflow head, release commit or
+run is blocking. The workflow is successful, including on an existing-version retry, only after
+this job passes. The verifier never claims that provenance proves the package is benign; it proves
+which signed workflow execution produced the observed bytes.
 
 ## Recovery
 
@@ -347,7 +349,7 @@ new permission or restores token-based publication as a workaround.
 7. npm receives exactly the tarball validated by the non-OIDC job.
 8. Wrong refs, stale checks, conflicts, tag drift and integrity drift fail closed.
 9. A successful workflow has cryptographically verified npm provenance and integrity matching the
-   exact repository, workflow, ref, release commit and run evidence.
+   exact repository, workflow, ref, workflow head, release commit and run evidence.
 10. The matching GitHub Release is immutable and carries a release attestation.
 
 ## Alternatives rejected
