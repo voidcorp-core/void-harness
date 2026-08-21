@@ -1,5 +1,33 @@
 # Changelog
 
+## [3.4.0](https://github.com/voidcorp-core/void-harness/compare/v3.3.0...v3.4.0) (2026-08-21)
+
+
+### Features
+
+* **mission:** close specialist feedback loop ([c386386](https://github.com/voidcorp-core/void-harness/commit/c386386f469e07312c8ba10fd7f679fd2ba2b586))
+* **mission:** expose specialist dispatch contract ([609b00d](https://github.com/voidcorp-core/void-harness/commit/609b00d2a9fb22d4bcf6a4d1326a4fd931b5df45))
+* **release:** bind minimal OIDC publish to public provenance ([7002419](https://github.com/voidcorp-core/void-harness/commit/7002419239f5f1d6732797c4a2e69a33716399ed))
+* **release:** pack the exact release tree without OIDC ([6727e66](https://github.com/voidcorp-core/void-harness/commit/6727e66421434148fa5c2145d55015ebf8a788d5))
+
+
+### Bug Fixes
+
+* **ci:** defer runner paths until steps start ([f9430e7](https://github.com/voidcorp-core/void-harness/commit/f9430e7e745b01c2e1ec40511f4047f09e7735af))
+* **ci:** defer runner paths until steps start ([aa06431](https://github.com/voidcorp-core/void-harness/commit/aa06431027403379d711f676e0e16c0b664ecaca))
+* **ci:** pin every effective workflow dependency ([0d0ce29](https://github.com/voidcorp-core/void-harness/commit/0d0ce29bb2204543c84aa3e579e86c79c4a34684))
+* **cli:** dire a hydrate ce qu il absorbe, et prouver doctor au bon niveau ([835a8ba](https://github.com/voidcorp-core/void-harness/commit/835a8baac3fd7b16024be24e4f390bdee80a8749))
+* **cli:** rapporter une edition de fichier co-possede comme telle, pas comme derive ([befd1d4](https://github.com/voidcorp-core/void-harness/commit/befd1d476b0b9a639cce2ba5dbafe0b83ddd532b))
+* **release:** bind promotion and back-merge identity ([b61fc0d](https://github.com/voidcorp-core/void-harness/commit/b61fc0d57bdfd242067396b78f815a354bfcee9d))
+* **release:** enforce the npm trusted publishing floor ([8b4a8e0](https://github.com/voidcorp-core/void-harness/commit/8b4a8e01370bb2ae9dc39ab74df7f016964cf469))
+* **release:** execute bounded release boundary checks ([88c8858](https://github.com/voidcorp-core/void-harness/commit/88c88581ef73966e4696d08bdec2fc7448397d3a))
+* **release:** prove the executed artifact verifiers ([7b007ef](https://github.com/voidcorp-core/void-harness/commit/7b007ef97fd5dc6673a9e948cdb042feb4883baa))
+* **release:** separate workflow and release provenance SHAs ([6357d2b](https://github.com/voidcorp-core/void-harness/commit/6357d2bad2866815f29cf0a9921659c77509ab78))
+* **release:** verify the original publication execution ([43c6f3c](https://github.com/voidcorp-core/void-harness/commit/43c6f3ca8bd1c82b6a60c4294be751c2d88d3a98))
+* **skills:** enforce the two-level discovery description budget ([a8fdbd2](https://github.com/voidcorp-core/void-harness/commit/a8fdbd28169df969d29cde031cb0e8927f59d8a8))
+* **skills:** parse discovery descriptions at canonical boundaries ([68c05d3](https://github.com/voidcorp-core/void-harness/commit/68c05d3c7660011eda738c673cae9dcc56ebce82))
+* **telemetry:** recognize real agent usage ([8b53f8f](https://github.com/voidcorp-core/void-harness/commit/8b53f8f40b68f0562c13fa63f306e445744cf38e))
+
 ## [3.3.0](https://github.com/voidcorp-core/void-harness/compare/v3.2.0...v3.3.0) (2026-08-21)
 
 
