@@ -8,7 +8,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { doctor } from '../../packages/cli/src/commands/doctor.js';
@@ -120,6 +120,37 @@ describe('doctor', () => {
     expect(out).toContain('packs coherence');
     expect(out).toContain('local pack assets match');
     expect(out).not.toContain('pinned in config but not enabled');
+  });
+
+  // The doctrine file is created once from a template and its own first lines
+  // tell the reader it is theirs. Writing one rule into it used to print
+  // `x void manifest 1 file(s) differ` and exit 1, naming `hydrate` as the
+  // remedy -- which restores nothing there, it re-records the hash. Proven at
+  // this level and not only on `judgeLayout`, because the defect lived in what
+  // `observeManifest` counted, one layer below the verdict.
+  it('stays green after the project writes into its own doctrine file', async () => {
+    await init(['--runtime', 'claude', '--no-interactive']);
+    appendFileSync(join(dir, '.void', 'PROJECT-DOCTRINE.md'), '\n- never fetch in a component.\n');
+    output = '';
+
+    const out = await runDoctor();
+
+    expect(out).toContain('assets match manifest');
+    expect(out).toContain('co-owned file(s) carry project edits');
+    expect(out).not.toContain('differ from manifest');
+  });
+
+  // Co-ownership licences writing INTO the file, never removing it, and it must
+  // not become a hole a real drift hides in.
+  it('still reports a managed asset whose bytes drifted, doctrine edited or not', async () => {
+    await init(['--runtime', 'claude', '--no-interactive']);
+    appendFileSync(join(dir, '.void', 'PROJECT-DOCTRINE.md'), '\n- a rule.\n');
+    appendFileSync(join(dir, '.claude', 'skills', 'void-tdd', 'SKILL.md'), '\nedited by hand\n');
+    output = '';
+
+    const out = await runDoctor();
+
+    expect(out).toContain('1 file(s) differ from manifest');
   });
 
   it('reports the source repository as self-host not-installed instead of skipping green', async () => {

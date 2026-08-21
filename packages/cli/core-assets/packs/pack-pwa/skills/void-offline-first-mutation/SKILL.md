@@ -1,6 +1,6 @@
 ---
 name: void-offline-first-mutation
-description: Implement a UI mutation that works offline via the capture-queue + sync pattern: IndexedDB, optimistic UI, idempotency keys, retry, conflict resolution. Self-contained, no harness wrappers.
+description: "Implement a UI mutation that works offline via the capture-queue + sync pattern: IndexedDB, optimistic UI, idempotency keys, retry, conflict resolution. Self-contained, no harness wrappers."
 ---
 
 # offline-first-mutation

@@ -12,7 +12,9 @@ describe('decision immutability workflow', () => {
     const checkoutStep = validateJob?.split('\n\n')[0];
 
     expect(validateJob).toBeDefined();
-    expect(checkoutStep).toContain('uses: actions/checkout@v6');
+    expect(checkoutStep).toContain(
+      'uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803',
+    );
     expect(checkoutStep).toContain('fetch-depth: 0');
   });
 });

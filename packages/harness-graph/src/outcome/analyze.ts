@@ -1,10 +1,10 @@
-import { bareName } from '../behavior/index.js';
+import { activationName } from '../behavior/index.js';
 import type { ActivationKind } from '../behavior/types.js';
 import type { ComponentOutcome, OutcomeEvent } from './types.js';
 
 /** Key a component by firing kind + bare name, matching the cost/behavior joins. */
 export function outcomeKey(kind: ActivationKind, name: string): string {
-  return `${kind}\t${bareName(name)}`;
+  return `${kind}\t${activationName(kind, name)}`;
 }
 
 /**

@@ -4,7 +4,7 @@ The working rules for this repo live in `CLAUDE.md` (mirrored as `AGENTS.md` for
 
 ## Before you write code
 
-1. Read `CLAUDE.md` — the anti-bloat discipline (seven hard rules), sourcing discipline, and hard rules for any added code. A PR that violates the anti-bloat rules is blocked.
+1. Read `CLAUDE.md` — the anti-bloat discipline (eight hard rules), sourcing discipline, and hard rules for any added code. A PR that violates the anti-bloat rules is blocked.
 2. Read `docs/PHILOSOPHY.md` — the three pillars (safety / performance / DX) and why they win.
 3. Read `docs/ARCHITECTURE.md` — package boundaries and dependency direction.
 4. Skim `docs/DECISIONS.md`, then use `void-harness decisions render` for the current decision projection. Do not re-litigate a settled call without superseding it.
@@ -36,7 +36,7 @@ know; the list below is what it covers and why each entry exists.
 
 - `pnpm test` — the suite is the gate before "done".
 - `pnpm lint` and `pnpm typecheck` — zero errors.
-- `pnpm anti-bloat:check` — the seven anti-bloat rules (skill ≤400 LOC, hook ≤100 LOC, description ≤200 chars, `.source` + audit note per skill, ...).
+- `pnpm anti-bloat:check` — the eight anti-bloat rules (skill ≤400 LOC, hook ≤100 LOC, discovery description non-blocking target ≤250 chars and hard cap 500, `.source` + audit note per skill, ...).
 - `pnpm graph:check` / `pnpm graph:check-bundle` — regenerate `catalog.v3.json`, its `model.json` compatibility projection, and the bundle when graph inputs change.
 - `pnpm conformance:install` / `pnpm conformance:hooks` — pack the local CLI, then prove
   account-free install and installed-hook execution for Claude, Codex, and both. CI runs both

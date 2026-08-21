@@ -27,17 +27,44 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: release-back-merge-main-develop
+  cancel-in-progress: true
+
+env:
+  EXPECTED_REPOSITORY: voidcorp-core/void-harness
+  EXPECTED_OWNER: voidcorp-core
+  EXPECTED_REF: refs/heads/main
+  EXPECTED_HEAD: chore/back-merge-main
+  EXPECTED_BASE: develop
+
 jobs:
   back-merge:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/create-github-app-token@v2
+      - name: Validate the back-merge event identity
+        env:
+          OBSERVED_REPOSITORY: ${{ github.repository }}
+          OBSERVED_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [ "$OBSERVED_REPOSITORY" != "$EXPECTED_REPOSITORY" ] ||
+            [ "$OBSERVED_REF" != "$EXPECTED_REF" ]; then
+            echo "back-merge is restricted to $EXPECTED_REPOSITORY at $EXPECTED_REF." >&2
+            exit 1
+          fi
+
+      - uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
         id: app-token
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
@@ -59,7 +86,7 @@ jobs:
             exit 0
           fi
 
-          branch="chore/back-merge-main"
+          branch="$EXPECTED_HEAD"
           git checkout -B "$branch" origin/develop
           # A conflict here is a real event, not a hiccup: it means develop and
           # main both changed a file release-please owns. Fail loudly rather than
@@ -70,13 +97,21 @@ jobs:
           fi
           git push --force-with-lease origin "$branch"
 
-          existing=$(gh pr list --head "$branch" --base develop --state open --json number --jq '.[0].number // empty')
-          if [ -z "$existing" ]; then
+          mapfile -t existing_prs < <(gh pr list --repo "$EXPECTED_REPOSITORY" \
+            --head "$branch" --base "$EXPECTED_BASE" --state open \
+            --limit 2 --json number --jq '.[].number')
+          if [ "${#existing_prs[@]}" -gt 1 ]; then
+            echo "more than one canonical back-merge pull request is open." >&2
+            exit 1
+          fi
+
+          if [ "${#existing_prs[@]}" -eq 0 ]; then
             # printf rather than a literal multi-line string: a body line at
             # column zero ends the YAML block scalar, which is what made this
             # workflow unparseable on its first real run. The sibling workflow
             # survived only because it already used this form.
-            (gh pr create --base develop --head "$branch" \
+            (gh pr create --repo "$EXPECTED_REPOSITORY" \
+              --base "$EXPECTED_BASE" --head "$branch" \
               --title 'chore: back-merge main into develop' \
               --body "$(printf '%s\n\n%s\n' \
                 'Release-please writes the version bumps and the changelog to `main`, so `main` gains commits `develop` does not have and branch protection refuses the next promotion until they meet. This carries them back down.' \
@@ -84,12 +119,29 @@ jobs:
               >/dev/null)
             # `gh pr create` prints a URL, not JSON, so the number is read back
             # from the branch rather than parsed out of its output.
-            existing=$(gh pr view "$branch" --json number --jq '.number')
+            existing=$(gh pr view "$branch" --repo "$EXPECTED_REPOSITORY" \
+              --json number --jq '.number')
           else
+            existing=${existing_prs[0]}
             echo "back-merge pull request already open; it now carries the newer main."
           fi
+
+          identity=$(gh pr view "$existing" --repo "$EXPECTED_REPOSITORY" \
+            --json baseRefName,headRefName,headRepository,headRepositoryOwner,isCrossRepository)
+          jq -e \
+            --arg repository "$EXPECTED_REPOSITORY" \
+            --arg owner "$EXPECTED_OWNER" \
+            --arg head "$EXPECTED_HEAD" \
+            --arg base "$EXPECTED_BASE" \
+            '.baseRefName == $base and .headRefName == $head and
+             .headRepository.nameWithOwner == $repository and
+             .headRepositoryOwner.login == $owner and
+             (.isCrossRepository | not)' <<<"$identity" >/dev/null || {
+            echo "the back-merge PR has the wrong repository, head, base or fork state." >&2
+            exit 1
+          }
 
           # Native auto-merge, which waits for the required checks and respects
           # branch protection. It does not bypass anything: if a check fails the
           # pull request simply stays open.
-          gh pr merge "$existing" --auto --merge
+          gh pr merge "$existing" --repo "$EXPECTED_REPOSITORY" --auto --merge

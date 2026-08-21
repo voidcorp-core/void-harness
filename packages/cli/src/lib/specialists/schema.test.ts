@@ -38,6 +38,15 @@ describe('parseSpecialistContract', () => {
     expect(() => parseSpecialistContract({ ...ARCHITECT_CONTRACT, independence: 'shared-context' }, 'context.yaml')).toThrow(/independence/);
   });
 
+  it('accepts 500 description characters and rejects 501', () => {
+    expect(parseSpecialistContract({ ...ARCHITECT_CONTRACT, description: 'x'.repeat(500) }, 'target.yaml').description)
+      .toHaveLength(500);
+    expect(() => parseSpecialistContract(
+      { ...ARCHITECT_CONTRACT, description: 'x'.repeat(501) },
+      'over-cap.yaml',
+    )).toThrow(/description.*500/i);
+  });
+
   it('renders the failure-policy invariants into every native agent contract', () => {
     const instructions = renderSpecialistInstructions(ARCHITECT_CONTRACT);
 

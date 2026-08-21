@@ -15,23 +15,42 @@ One ticket, taken from ready to shipped, with the coverage a senior expert team 
 
 ## Canonical team orchestration
 
-For `team` missions, the prose below is not the execution record. Load the canonical mission plan
-before invoking an agent, then follow `workflows/implement.workflow.yaml`. The pure Mission
-Engine controller is the authority for the next action and verdict.
+For `team` missions, the prose below is not the routing authority. Load the canonical mission plan
+before invoking an agent. The pure Mission Engine controller owns state and verdict; the CLI
+materializes its runtime-neutral specialist envelopes from the current plan.
 
 1. Keep one `leadWriterId` for implementation and every correction. Reviewers never edit.
-2. After implementation, invoke each applicable native specialist in a separate fresh context:
-   `solution-architect`, `security-engineer`, and `test-qa-engineer`. Run independent reviews in
-   parallel when the runtime supports it. Give each specialist only its plan slice and bounded
-   context pack; explicitly assign one review lens and leave the other lenses to their owners.
-3. Parse each raw JSON result through the specialist completion contract. Append exactly one
-   `specialist.completed` event for an accepted completion; append `specialist.failed` for timeout,
-   malformed output, wrong role, duplicate completion, or unavailable isolation.
-4. Treat specialist output as structured findings, evidence requests, and limitations. It is never
+2. Start the controller-owned run with `mission start --ticket <ticket>`,
+   then call `mission dispatch --id <mission> --json` for every next action. The start binds the
+   canonical ticket path, ticket content, and frozen routing snapshot; dispatch accepts none of
+   them again and refuses a changed ticket. Runtime identity comes from the native session marker,
+   never a caller option; an unattested shell is permanently degraded.
+   Never pass a locally chosen stage, round, runtime, or role list: the frozen mission start and
+   pure controller own those decisions. Iterate every returned envelope only when the action is
+   `invoke-specialists`; an empty list with another action is a state transition, not a routing hint.
+3. Invoke each envelope's exact `agentName` in a separate fresh context. Codex uses native
+   `spawn_agent` with `agent_type`; Claude Code uses native `Agent` with `subagent_type`. Run
+   independent envelopes in parallel when the runtime supports it. Give each only its plan slice
+   and bounded context pack; reviewers never edit. The dispatch command records
+   `specialist.requested`. Once the fresh context identity is known, submit a bounded JSON file
+   containing only `{ envelope, contextId }` through `void-harness mission specialist-event
+   --status started`.
+4. Parse each raw JSON result through the specialist completion contract, then submit only
+   `{ envelope, contextId, completion }` with `--status completed`. On timeout or adapter failure,
+   submit `{ envelope, contextId, reason }` with `--status failed`; never retain the prompt or raw model output.
+   A malformed output, wrong role, stale hash, duplicate completion, or unavailable isolation is a
+   failed completion and makes certification blocked/degraded.
+5. Treat specialist output as structured findings, evidence requests, and limitations. It is never
    authoritative free-form prose and never grants write ownership.
-5. Send one coherent correction batch to the same lead writer. Recompute review input hashes and
-   rerun only specialists whose inputs changed.
-6. Stop after two review rounds. A missing completion, stale proof, timeout, degraded specialist,
+6. Send one coherent correction batch to the same lead writer. Recompute review input hashes and
+   rerun only specialists whose inputs changed. After `run-lead-writer`, `run-correction`, or
+   `run-preparation-correction`, call `mission writer-event --id <mission>`; it consumes the
+   controller's pending writer receipt rather than trusting caller-supplied identity or round.
+   Then request the next controller action. For `run-verification`, use `mission verify`.
+   `complete` and `stop` close the mission automatically. On interruption or abandonment, call
+   `mission close --id <mission> --reason interrupted|abandoned` so lifecycle learning can
+   distinguish unfinished work from a still-active dispatch.
+7. Stop after two review rounds. A missing completion, stale proof, timeout, degraded specialist,
    or persistent blocker ends `blocked`/`degraded`, never green.
 
 Claude and Codex use their installed native agent definitions. A sequential self-review in the

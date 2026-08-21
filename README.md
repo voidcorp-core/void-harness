@@ -202,9 +202,9 @@ pnpm verify     # every gate CI runs, in its order
 [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md), then
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the package boundaries.
 
-Seven anti-bloat rules gate every pull request: a skill stays under 400 lines
+Eight anti-bloat rules gate every pull request: a skill stays under 400 lines
 and covers one subject, two skills may not overlap by more than 30%, a
-frontmatter description stays under 200 characters, hooks stay under 100 lines
+discovery description has a non-blocking 250-character target and a hard cap at 500, hooks stay under 100 lines
 with no home-grown DSL, agents keep an explicit scope, and skill tests gate the
 release. They exist because a doctrine that grows without limit stops being
 read.

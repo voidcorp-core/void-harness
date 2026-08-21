@@ -77,8 +77,10 @@ describe('resolveModel — npm consumer reuses the shipped model.json', () => {
  * `activations.jsonl`; that stream stopped being read on 2026-08-18, and a test
  * feeding a retired reader proves nothing about the command.
  */
-const missionEvents = (session: number) => {
-  const missionId = `mis_0123456789abcdef0123456789abcde${session}`;
+const missionEvents = (
+  session: number,
+  missionId = `mis_0123456789abcdef0123456789abcde${session}`,
+) => {
   const lines: string[] = [];
   for (let e = 0; e < 8; e += 1) {
     lines.push(
@@ -99,13 +101,16 @@ const missionEvents = (session: number) => {
   return { missionId, body: lines.join('\n') };
 };
 
-function consumerDir(enabledPacks: Record<string, boolean>): string {
+function consumerDir(
+  enabledPacks: Record<string, boolean>,
+  options: { readonly missionIds?: readonly string[] } = {},
+): string {
   const root = mkdtempSync(join(tmpdir(), 'void-graph-consumer-'));
   mkdirSync(join(root, '.claude'), { recursive: true });
   writeFileSync(join(root, '.claude', 'settings.json'), JSON.stringify({ enabledPlugins: enabledPacks }));
   mkdirSync(join(root, '.void'), { recursive: true });
   for (let session = 0; session < 3; session += 1) {
-    const { missionId, body } = missionEvents(session);
+    const { missionId, body } = missionEvents(session, options.missionIds?.[session]);
     const dir = join(root, '.void', 'machine', 'runs', missionId);
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'events.jsonl'), `${body}\n`);
@@ -147,6 +152,21 @@ describe('graph (bundled consumer mode)', () => {
     expect(out).toContain('graph behavior');
     expect(out).toContain('sessions 3');
     expect(out).not.toContain('insufficient data');
+  });
+
+  it('behavior reports synthetic sessions excluded from human evidence', async () => {
+    process.chdir(consumerDir({ 'harness-nextjs@voidcorp': true }, {
+      missionIds: [
+        'mis_selfhost_0123456789abcdef0123456789abcdef',
+        'mis_smoke0000000000000000001',
+        'mis_human0000000000000000001',
+      ],
+    }));
+
+    await graph(['behavior'], { bundledModelJson: BUNDLED });
+
+    expect(out).toContain('synthetic excluded');
+    expect(out).toContain('2 sessions');
   });
 
   it('cost falls back to static mode with no transcripts and reports', async () => {

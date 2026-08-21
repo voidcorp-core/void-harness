@@ -32,19 +32,18 @@ Two long-lived branches, with different gates and different levels of autonomy.
 
 | | `develop` | `main` |
 |---|---|---|
-| Merged by | autopilot, once every required check is green | a human, after reading the change as a whole |
+| Merged by | a human for normal work; native auto-merge only for the canonical release back-merge | a human, after reading the change as a whole |
 | Guarantees | the suite passed and the doctrine floor held | the above, plus a human said yes |
 | CI (`ci.yml`, `void-enforce.yml`) | identical job set to `main` | identical job set to `develop` |
 | `release.yml` | never fires | fires on every push — release-please, then publish |
 | Server-side protection | same required checks as `main`, no force-push, no deletion | unchanged |
 
-**`develop` is the autonomous branch, so it carries the *same* checks as `main`, not
-fewer.** The predicate autopilot merges on is "every required check is green", and
-that predicate is satisfied by an *absence* of checks exactly as happily as by
-passing ones. A `develop` without CI would not make autopilot cautious; it would
-make it blind and confident. This is why `develop` may not exist unprotected, and
-why `branch-protection.ts` treats "protection could not be determined" as
-"unprotected" (see `packages/cli/src/lib/autopilot/branch-protection.ts`).
+**`develop` is the integration branch, so it carries the *same* checks as `main`,
+not fewer.** Automation may prepare work there, but normal pull requests still
+stop for a human merge. The only armed auto-merge allowed in the repository is
+`chore/back-merge-main -> develop`, after its required checks pass. A `develop`
+without CI would make every automation path blind, which is why protection
+failures are treated as unprotected rather than inferred safe.
 
 Releasing is unchanged and still happens **only from `main`**: `release.yml` is
 triggered by `push: branches: [main]` and nothing about the two-branch flow touches
@@ -135,36 +134,67 @@ The bump script touches **all of these**. Don't edit them by hand.
 
 `packages/cli/core-assets/.claude-plugin/plugin.json` is **generated** at `prepack` time — do not edit.
 
-## The flow (automated — you do not hand-bump)
+## The normal flow: exactly two PR merges
 
-Releasing is driven by **release-please** off the Conventional Commits this repo
-already enforces. No one runs the bump script by hand in the normal path.
+Releasing is driven by **release-please** from the Conventional Commits already
+enforced here. No one edits a version, dispatches a workflow or approves a job in
+Actions on the routine path.
 
-1. **Merge feature/fix PRs to `main`** (directly, or promoted from `develop` — see
-   Branches above). `feat:` → minor, `fix:` → patch,
-   a breaking change → minor (pre-1.0; `bump-minor-pre-major`). `docs:`/`chore:`/
-   `ci:`/`test:` alone do not trigger a release.
-2. **release-please maintains a single "release PR"** (`.github/workflows/release.yml`).
-   It computes the next version, bumps it across **every** manifest at once (via
-   `extra-files` in `release-please-config.json` — the same file list as the bump
-   script, plus the core-assets mirror) and writes `CHANGELOG.md`. It opens that
-   PR with a **GitHub App token**, so the PR receives its required checks the way
-   any other PR does.
-3. **Merge the release PR when you want to cut the release.** That tags `vX.Y.Z`,
-   creates the GitHub release, and (once the one-time bootstrap below is done)
-   **automatically publishes** `voidharness` to npm. Merge only after `validate`,
-   `enforce` and all three install-conformance checks pass. This merge is the only
-   human gate (HITL) — there is no separate publish step and no stored token.
-4. **Automated publish (`.github/workflows/release.yml`, `publish` job)** via npm
-   **Trusted Publishing (OIDC) — tokenless**. Gated on `release_created`, it runs
-   under `id-token: write` (no `NODE_AUTH_TOKEN`, no secret): `pnpm check:publish`
-   (fails closed if any `workspace:` specifier survived a packed tarball), then
-   `pnpm --filter voidharness publish`. Publishing only ever happens in
-   CI, from the tagged commit, so the `workspace:` rewrite, the guard, and an npm
-   **provenance attestation** are always applied. Only the self-contained CLI is
-   published; packs and the kernel ship via the marketplace / bundle. The repo's
-   `packageManager` is **pnpm 10** (bumped from 9 because OIDC trusted publishing
-   landed in pnpm 10; 11.0.8 has a known 404 bug — pnpm/pnpm#11513).
+1. `promotion.yml` maintains one `develop -> main` PR and records every promoted
+   commit, its merged source PR, merge actor and auto-merge history. **Release
+   action 1:** merge that promotion PR after its five current checks pass and the
+   complete accounting is explainable.
+2. On `main`, release-please maintains one version/changelog PR. It changes every
+   versioned manifest in lockstep and is opened with the bounded Release App, so
+   normal branch-protection checks run. `feat:` gives a minor bump, `fix:` a patch,
+   and a breaking change a minor bump before 1.0.
+3. **Release action 2:** merge the release-please PR after reading the version and
+   changelog and after `validate`, `enforce`, and the three install-conformance
+   checks pass. This merge creates `vX.Y.Z` and the GitHub Release. It is the npm
+   publication authorization.
+4. `validate-release`, with `contents: read` and no OIDC, resolves the immutable
+   tag, proves its commit is on protected `main`, validates the exact tree, and
+   packs `voidharness-X.Y.Z.tgz` once. It uploads that tarball plus an integrity
+   manifest containing the release identity, SHA-256 and npm SHA-512 integrity.
+5. `publish` is the only job with `id-token: write`. It checks the artifact's exact
+   GitHub ID, service digest, workflow run and head SHA before download, then
+   recomputes every manifest and tarball check. It performs no checkout, install,
+   build, test, pack or package lifecycle step. If the version is absent it runs
+   `npm publish "$TARBALL_PATH" --access public --ignore-scripts`; if the exact
+   version already exists it never attempts an overwrite. Its tested classifier
+   distinguishes structured npm errors on stderr, transient failures, missing
+   attestations and conflicting bytes, and it requires npm 11.5.1 or newer.
+6. `verify-publication`, with no OIDC, environment or package credential, installs
+   the exact public version with scripts disabled, runs
+   `npm audit signatures --json --include-attestations`, and verifies the npm
+   bundle with `gh attestation verify --digest-alg sha512`. The signed subject,
+   repository, workflow, `main` ref, workflow head commit, run and attempt must
+   all match. A new publish must name the current execution; an existing-version
+   retry derives and verifies the original canonical producer from the signed
+   bundle instead of pretending the retry signed historical bytes. The separately
+   verified artifact manifest binds those bytes to the release commit selected by
+   the immutable tag. Registry metadata alone is not success.
+7. `back-merge.yml` returns the approved release output to `develop` through the
+   sole canonical native auto-merge path after the same five checks pass.
+
+There is no normal-path workflow dispatch, deployment approval, npm token or
+manual laptop publish. A green publish without a green `verify-publication` is an
+incomplete release, not success.
+
+### Exceptional retry after a failed publication
+
+Recovery is deliberately visible in Actions because it is exceptional. Dispatch
+`release.yml` **from `main`** with the required input `release_tag` set to the
+existing closed form `vX.Y.Z`. The matching GitHub Release must already exist, its
+tag commit must still be reachable from protected `main`, and all versioned
+manifests must match `X.Y.Z`.
+
+The retry rebuilds and validates that immutable tree, then follows the same
+artifact, registry and provenance gates. It never means "publish whatever main
+contains now", never moves a tag, never repairs an old release tree, and never
+overwrites a registry version. If npm already contains the exact bytes, the retry
+is idempotent only after the same cryptographic verifier passes. Otherwise fix the
+cause on `develop` and cut a new version.
 
 ### First publish (one-time bootstrap)
 
@@ -197,43 +227,68 @@ with no token and no 2FA-bypass:
 4. From the next release on, the CI `publish` job publishes tokenlessly. You never
    run `publish` by hand again.
 
-## What stops a branch from publishing
+## External controls that make the workflow claims true
 
-npm cannot answer this question for us. A trusted publisher matches organisation,
-repository, workflow **filename**, an optional environment, and the allowed
-actions — [there is no branch or ref field](https://docs.npmjs.com/trusted-publishers).
-Every run of `release.yml` therefore looks equally legitimate to the registry,
-whichever branch it was fired from.
+npm matches organization, repository, workflow filename and optional environment;
+it does not match a branch. The workflow is therefore only one layer. Before a
+production release, an operator with temporary administrative authority reads
+these controls, changes only a mismatching value, then reads it back:
 
-The restriction lives in three places, and **all three are required**. Two of them
-are outside this repository, so a green CI does not prove they are in place.
+- `main` allows pushes only by `folpe`; the Release App, teams and other users are
+  absent. `main` and `develop` keep strict `validate`, `enforce`, and the Ubuntu,
+  macOS and Windows install-conformance checks, with admin enforcement and no
+  force-push or deletion.
+- Repository Actions are enabled with `allowed_actions: selected` and
+  `sha_pinning_required: true`. GitHub-owned actions are allowed; the only public
+  patterns are `pnpm/action-setup@*` and
+  `googleapis/release-please-action@*`. Every effective workflow reference is a
+  full commit SHA.
+- The Release App installation is selected-repository mode for exactly
+  `voidcorp-core/void-harness`. Its ceiling is repository `Contents: write` and
+  `Pull requests: write`, plus implicit metadata read. It has no Actions,
+  Administration, Environments, Secrets or organization permission.
+- One active `v*` ruleset lets only that App create a tag. A second active `v*`
+  ruleset blocks tag update and deletion with no bypass. Immutable releases are
+  enabled for this repository.
+- `npm-publish` accepts only `main`, has no required reviewer and cannot be
+  admin-bypassed. Its absence of reviewers is intentional: the release PR merge
+  is the second human authorization, so an Actions approval would be a hidden
+  third action.
+- npm Trusted Publisher is exactly organization `voidcorp-core`, repository
+  `void-harness`, workflow `release.yml`, environment `npm-publish`, publish-only.
+  Maintainer accounts and the organization use secure 2FA, and no legacy or
+  granular token retains publish authority.
 
-1. **In the workflow** (done, and tested): the `publish` job carries
-   `github.ref == 'refs/heads/main'`, checks out `${{ github.sha }}` explicitly
-   rather than whatever the ref points at, and declares
-   `environment: npm-publish`. `release-please` carries the same ref condition —
-   it holds the App token. Every action is pinned by full commit SHA, because a
-   major tag is repointable by its owner and is a second route to the same token.
-   `test/workflows/workflows-parse.test.ts` fails if any of this is removed.
-2. **On GitHub** (manual): Settings → Environments → `npm-publish`, with
-   **required reviewers**, `main` as the only deployment branch, and
-   *Allow administrators to bypass* **off** — a protection its own admin can step
-   around without a trace is a reminder, not a gate.
+Safe read-only audit examples, none of which print a token or App key:
 
-   **Where the approval actually is**, because it is not obvious and it stops the
-   release until you find it: the run page of the `release` workflow, under the
-   `publish` job, shows a *Review deployments* banner at the top. Not in the pull
-   request, not in Settings. GitHub also emails it. Until you click there, the job
-   sits in `waiting` and npm never sees a request. Referencing an environment that does not exist creates
-   it silently and unprotected, so this step is what turns the declaration into a
-   gate. Without it the workflow reads as locked and is not.
-3. **On npm** (manual): the trusted publisher must name that same environment.
-   Without it, a modified copy of `release.yml` on another branch is still
-   accepted by the registry — the workflow filename is all it checks.
+```bash
+gh api repos/voidcorp-core/void-harness/branches/main/protection
+gh api repos/voidcorp-core/void-harness/actions/permissions
+gh api repos/voidcorp-core/void-harness/actions/permissions/selected-actions
+gh api --paginate repos/voidcorp-core/void-harness/rulesets
+gh api repos/voidcorp-core/void-harness/environments/npm-publish
+gh api repos/voidcorp-core/void-harness/immutable-releases
+npm trust list voidharness --json
+```
 
-Step 1 alone is worth having: it blocks the accidental dispatch and the wrong
-branch. It does not survive someone editing the workflow, which is what steps 2
-and 3 are for.
+The npm command requires an authenticated npm 11.15 or newer maintainer session;
+it never runs in the publishing workflow. Installation-repository pagination and
+organization 2FA inspection likewise need owner/admin authority. These checks are
+operator-run because storing a standing administrator credential beside a publish
+workflow would create a more powerful release path than the one being audited.
+
+### Fail-closed diagnostics
+
+| Diagnostic | Likely cause | Safe correction |
+|---|---|---|
+| `release tag must match vX.Y.Z` or no matching GitHub Release | The recovery input is malformed, missing, or points at something that was never released. | Dispatch from `main` with the existing immutable tag. Do not substitute a SHA or move/create a tag by hand. |
+| `artifact-id`, service digest, workflow run/head, manifest, or tarball digest mismatch | The cross-job artifact is stale, substituted, corrupt, or belongs to another run. | Stop. Preserve the run evidence, discard the artifact, and rerun from the same immutable tag only after identifying the mismatch. |
+| `Published version has different bytes` | npm already owns `X.Y.Z` with integrity different from the validated tarball. | Treat as a release integrity incident. Investigate and cut a new version; npm versions are never overwritten. |
+| npm signature, Sigstore certificate, workflow/ref/workflow-head/run/attempt, or signed subject mismatch | Public bytes are unattributed, the wrong workflow produced them, or evidence conflicts with this execution. | Treat the published version as unverified. Preserve npm/GitHub evidence, investigate credentials and workflow history, then fix forward with a new version. |
+
+Transient registry errors and delayed attestations are retried only within the
+documented bounds. Exhaustion stays red; it is never converted into a successful
+publish merely because the version is visible.
 
 Two CI gates fail the build on a drift so a version bump can never ship a stale
 artifact: `pnpm version:check` (every manifest at the canonical version) and
@@ -270,8 +325,9 @@ and none of the removed machinery has crept back. A single `GITHUB_TOKEN`
 fallback would restore the whole failure silently and would only be noticed at
 the next release.
 
-The publish job still reruns its release safety suite against the tagged tree, as
-defense in depth and for manual re-publish runs.
+`validate-release` reruns the full release safety suite against the tagged tree.
+The OIDC-capable `publish` job deliberately cannot run that repository code; its
+defense in depth is artifact service identity plus independent byte verification.
 
 The CI validation lane also runs `self-host sync --mode release-gate` followed
 by the strict self-host doctor. It builds the hook runner directly from current
@@ -284,13 +340,10 @@ reported as degraded rather than certified. When present, a bounded `--version`
 process smoke receives no ambient credentials. Install conformance and later
 runtime-invocation certification remain separate gates.
 
-### Manual fallback
-
-`scripts/bump-version.mjs <patch|minor|major|X.Y.Z>` still bumps all manifests
-**and the certification `harnessVersion`** (source + core-assets mirror) in
-lockstep for an emergency/offline release. After it, run
-`pnpm --filter voidharness build:assets` to sync the rest of the mirror,
-commit `chore: release vX.Y.Z`, tag, push. Prefer the automated flow.
+There is no manual release fallback. `scripts/bump-version.mjs` remains a local
+maintenance utility, but repository versions, release tags and npm publication
+belong to release-please and the protected chain. A release failure is recovered
+with the immutable tag retry above or with a new fix and version.
 
 Consumers on a project pull the new version with:
 

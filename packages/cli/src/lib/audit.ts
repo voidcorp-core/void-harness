@@ -1,3 +1,5 @@
+import { activationName } from '@voidcorp/harness-graph';
+
 // The outbound self-evolution audit: classify normalized local usage entries.
 // (written by the skill-usage-meter hook, one `<iso>\t<skill>` line per Skill
 // invocation) and classify each harness skill as active / stale / never-used —
@@ -41,11 +43,25 @@ export interface AuditFinding {
  * skills. `projectCount` (>=1) is folded into the detail so an aggregated push
  * says "across N projects" — privacy-scoped counts only, never a path.
  */
-export function auditFindings(report: AuditReport, projectCount = 1): AuditFinding[] {
+export function auditFindings(
+  report: AuditReport,
+  projectCount = 1,
+  evidence: {
+    readonly sufficient: boolean;
+    readonly retirementEvidenceSufficient: boolean;
+  } = { sufficient: true, retirementEvidenceSufficient: true },
+): AuditFinding[] {
+  if (!evidence.sufficient) return [];
   const scope = projectCount > 1 ? ` across ${projectCount} projects` : '';
   const out: AuditFinding[] = [];
-  for (const s of report.never) {
-    out.push({ type: 'never', component: `skill:${bareSkill(s.skill)}`, detail: `never fired${scope}` });
+  if (evidence.retirementEvidenceSufficient) {
+    for (const s of report.never) {
+      out.push({
+        type: 'never',
+        component: `skill:${bareSkill(s.skill)}`,
+        detail: `never fired${scope}`,
+      });
+    }
   }
   for (const s of report.stale) {
     const since = s.daysSince !== undefined ? `${s.daysSince}d ago` : 'unknown';
@@ -81,10 +97,19 @@ export function parseUsageLog(text: string): UsageEntry[] {
 }
 
 /** Most recent usage timestamp for a skill (ISO sorts lexicographically). */
+function canonicalOwnedSkill(skill: string): string | undefined {
+  const canonical = activationName('skill', skill);
+  return /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(canonical)
+    ? canonical
+    : undefined;
+}
+
 function latestUse(usage: readonly UsageEntry[], skill: string): string | undefined {
+  const expected = canonicalOwnedSkill(skill);
+  if (expected === undefined) return undefined;
   let latest: string | undefined;
   for (const entry of usage) {
-    if (entry.skill !== skill) continue;
+    if (canonicalOwnedSkill(entry.skill) !== expected) continue;
     if (latest === undefined || entry.timestamp > latest) latest = entry.timestamp;
   }
   return latest;

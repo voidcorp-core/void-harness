@@ -107,3 +107,24 @@ opens and to Done only after merge.
 Sources consulted: official Claude Code subagent and headless-mode docs; official Codex subagent and
 non-interactive-mode docs. Adapted rather than copied. Rejected: sequential self-review, reviewer
 writes, majority voting, all-proof invalidation, unbounded retries, and timeout-as-success.
+
+## 2026-08-21 — canonical dispatch replaces the local reviewer roster
+
+The skill still named a three-role Architecture/Security/QA minimum after the canonical specialist
+catalog had grown to sixteen roles. That prose was executable and therefore became a second routing
+table: applicable specialists outside the trio could be installed and tested without ever running.
+
+The orchestration section now starts one controller-owned mission and loops on `void-harness
+mission dispatch`, iterating envelopes only when the returned action is `invoke-specialists`.
+The Mission Engine owns applicability, stage, round, contract version and input hash; the skill owns
+native runtime handoff and records the same lead writer after implementation/correction. Codex maps
+`agentName` to `spawn_agent`'s `agent_type`, Claude Code to `Agent`'s `subagent_type`. The nonexistent
+workflow-file reference was removed. Rejected: adding all sixteen names to prose, or letting the
+caller pass stage/round, because either would recreate a second routing authority.
+
+The hardened handoff also binds the ticket content at mission start, derives writer identity and
+round from a controller-issued receipt, and records an explicit closure on completion, stop,
+interruption, or abandonment. This prevents ticket substitution and forged writer progress while
+giving the audit an honest boundary for distinguishing unfinished work from an agent that never
+launched. Runtime identity is derived from native session markers rather than a caller option;
+unknown shells are degraded and Codex markers take precedence over a coincident Claude marker.

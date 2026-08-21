@@ -493,7 +493,12 @@ function observeManifest(root: string): ManifestObservation {
   }
   if (manifest === undefined) return { kind: 'unreadable' };
   const report = verifyInstallManifest(root, manifest);
-  return { kind: 'present', version: manifest.version, drifted: report.missingTotal + report.mismatchedTotal };
+  return {
+    kind: 'present',
+    version: manifest.version,
+    drifted: report.missingTotal + report.mismatchedTotal,
+    coEdited: report.coEditedTotal,
+  };
 }
 
 /**

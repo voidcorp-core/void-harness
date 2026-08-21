@@ -1,36 +1,95 @@
 import { execFile as nodeExecFile } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { readFile, realpath, stat } from 'node:fs/promises';
-import { basename, extname, isAbsolute, join, relative, resolve } from 'node:path';
+import { realpath } from 'node:fs/promises';
+import { basename, extname, join, relative, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import {
+  createSpecialistDispatch,
   compileMissionPlan,
   classifyRisk,
   mergePolicies,
+  orchestrateMissionTeam,
   selectMissionMode,
+  type MissionTeamAction,
   type MissionPlan,
+  type MissionSpecialistPlan,
+  type CanonicalEvent,
+  type SpecialistRuntimeCapability,
+  type SpecialistDispatchEnvelope,
+  type SpecialistDispatchRuntime,
   type MissionVerdictStatus,
   type RecoveryDecision,
 } from '@voidcorp/mission-engine';
+import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
 import { findCoreSource } from '../lib/paths.js';
+import { specialistCapabilityFor } from '../lib/runtime-adapters.js';
 import { loadProjectPolicies } from '../lib/policy-loader.js';
 import { loadProfiles } from '../lib/profile-loader.js';
+import { readBoundedProjectFile } from '../lib/safe-read.js';
 import { loadSpecialists } from '../lib/specialists/load.js';
 import { archiveMission, pruneMissions } from '../lib/runs/archive.js';
 import { inspectCurrentMission } from '../lib/runs/inspect-current.js';
 import { collectKnownSecrets } from '../lib/runs/redact.js';
 import {
   createMission,
+  inspectMission,
+  loadMissionControllerPlan,
+  missionControllerRoutingHash,
   resumeMission,
+  writeMissionControllerPlan,
   type MissionMode,
+  type MissionControllerTicketBinding,
 } from '../lib/runs/store.js';
 import { verifyMissionCommand } from '../lib/runs/verify.js';
+import {
+  parseSpecialistLifecycleInput,
+  recordSpecialistLifecycle,
+  recordSpecialistRequests,
+  type SpecialistLifecycleStatus,
+} from '../lib/runs/specialist-lifecycle.js';
 import { detectProfileInput, detectStack } from '../lib/stack.js';
 
 const MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
 const execFile = promisify(nodeExecFile);
 const MAX_TICKET_BYTES = 100_000;
+
+export interface CoordinatorRuntimeIdentity {
+  readonly runtime: SpecialistDispatchRuntime;
+  readonly attested: boolean;
+}
+
+/** Runtime markers are injected by the native shell. Codex markers take
+ * precedence so a Codex coordinator cannot gain Claude capability by also
+ * supplying CLAUDECODE. An unknown shell stays on the degraded Codex path. */
+export function coordinatorRuntimeIdentity(
+  environment: Readonly<Record<string, string | undefined>>,
+): CoordinatorRuntimeIdentity {
+  const codex = [
+    environment.CODEX_SESSION_ID,
+    environment.CODEX_THREAD_ID,
+    environment.CODEX_CI,
+  ].some((value) => typeof value === 'string' && value.length > 0);
+  if (codex) return Object.freeze({ runtime: 'codex', attested: true });
+  if (environment.CLAUDECODE === '1') {
+    return Object.freeze({ runtime: 'claude', attested: true });
+  }
+  return Object.freeze({ runtime: 'codex', attested: false });
+}
+
+export function constrainCapabilityByAttestation(
+  identity: CoordinatorRuntimeIdentity,
+  capability: SpecialistRuntimeCapability,
+): SpecialistRuntimeCapability {
+  if (identity.attested) return capability;
+  return Object.freeze({
+    status: capability.status === 'unavailable' ? 'unavailable' : 'degraded',
+    limitations: Object.freeze([
+      'coordinator runtime identity is not attested by a native session marker',
+      ...capability.limitations,
+    ]),
+  });
+}
 
 interface InvalidArgs {
   readonly kind: 'invalid';
@@ -46,9 +105,33 @@ export type MissionArgs =
       readonly json: boolean;
     }
   | {
+      readonly kind: 'dispatch';
+      readonly missionId: string;
+      readonly json: boolean;
+    }
+  | {
+      readonly kind: 'specialist-event';
+      readonly missionId: string;
+      readonly status: SpecialistLifecycleStatus;
+      readonly inputPath: string;
+      readonly json: boolean;
+    }
+  | {
       readonly kind: 'start';
       readonly title: string;
       readonly mode: MissionMode;
+      readonly ticketPath?: string;
+      readonly json: boolean;
+    }
+  | {
+      readonly kind: 'writer-event';
+      readonly missionId: string;
+      readonly json: boolean;
+    }
+  | {
+      readonly kind: 'close';
+      readonly missionId: string;
+      readonly reason: 'interrupted' | 'abandoned';
       readonly json: boolean;
     }
   | {
@@ -145,7 +228,7 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
     }
     const optionError = validateOptions(
       options,
-      ['--title', '--mode'],
+      ['--title', '--mode', '--ticket'],
       ['--json'],
     );
     if (optionError !== undefined) {
@@ -173,10 +256,26 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
         'use --mode fast|team|fortress',
       );
     }
+    const ticketPath = valueAfter(options, '--ticket');
+    if (ticketPath !== undefined && mode === 'fast') {
+      return invalid(
+        'controller-owned specialist missions cannot use fast mode',
+        'use --mode team or --mode fortress',
+      );
+    }
+    if (ticketPath === undefined) {
+      return {
+        kind: 'start',
+        title,
+        mode,
+        json: options.includes('--json'),
+      };
+    }
     return {
       kind: 'start',
       title,
       mode,
+      ticketPath,
       json: options.includes('--json'),
     };
   }
@@ -196,6 +295,103 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
       );
     }
     return { kind: 'plan', ticketPath, json: options.includes('--json') };
+  }
+  if (subcommand === 'dispatch') {
+    if (divider !== -1) {
+      return invalid('dispatch does not accept a command', 'remove the -- separator');
+    }
+    const optionError = validateOptions(
+      options,
+      ['--id'],
+      ['--json'],
+    );
+    if (optionError !== undefined) {
+      return invalid(optionError, 'void-harness mission dispatch --help');
+    }
+    const missionId = missionIdFrom(options);
+    if (typeof missionId !== 'string') return missionId;
+    return {
+      kind: 'dispatch',
+      missionId,
+      json: options.includes('--json'),
+    };
+  }
+  if (subcommand === 'writer-event') {
+    if (divider !== -1) {
+      return invalid('writer-event does not accept a command', 'remove the -- separator');
+    }
+    const optionError = validateOptions(
+      options,
+      ['--id'],
+      ['--json'],
+    );
+    if (optionError !== undefined) {
+      return invalid(optionError, 'void-harness mission writer-event --help');
+    }
+    const missionId = missionIdFrom(options);
+    if (typeof missionId !== 'string') return missionId;
+    return {
+      kind: 'writer-event',
+      missionId,
+      json: options.includes('--json'),
+    };
+  }
+  if (subcommand === 'close') {
+    if (divider !== -1) {
+      return invalid('close does not accept a command', 'remove the -- separator');
+    }
+    const optionError = validateOptions(options, ['--id', '--reason'], ['--json']);
+    if (optionError !== undefined) {
+      return invalid(optionError, 'void-harness mission close --help');
+    }
+    const missionId = missionIdFrom(options);
+    if (typeof missionId !== 'string') return missionId;
+    const reason = valueAfter(options, '--reason');
+    if (reason !== 'interrupted' && reason !== 'abandoned') {
+      return invalid(
+        'close reason must be interrupted or abandoned',
+        'pass --reason interrupted|abandoned',
+      );
+    }
+    return {
+      kind: 'close',
+      missionId,
+      reason,
+      json: options.includes('--json'),
+    };
+  }
+  if (subcommand === 'specialist-event') {
+    if (divider !== -1) {
+      return invalid('specialist-event does not accept a command', 'remove the -- separator');
+    }
+    const optionError = validateOptions(
+      options,
+      ['--id', '--status', '--input'],
+      ['--json'],
+    );
+    if (optionError !== undefined) {
+      return invalid(optionError, 'void-harness mission specialist-event --help');
+    }
+    const missionId = missionIdFrom(options);
+    if (typeof missionId !== 'string') return missionId;
+    const status = valueAfter(options, '--status');
+    if (status !== 'started' && status !== 'completed' && status !== 'failed') {
+      return invalid(
+        'status must be started, completed, or failed',
+        'pass --status started|completed|failed',
+      );
+    }
+    const inputPath = valueAfter(options, '--input');
+    if (inputPath === undefined) {
+      return invalid('missing required option --input', 'pass --input <json-file>');
+    }
+    return {
+      kind: 'specialist-event',
+      missionId,
+      status,
+      inputPath,
+      json: options.includes('--json'),
+    };
   }
   if (subcommand === 'verify') {
     const optionError = validateOptions(
@@ -277,32 +473,26 @@ export function parseMissionArgs(args: readonly string[]): MissionArgs {
   }
   return invalid(
     `unknown mission subcommand '${subcommand}'`,
-    'use plan, start, resume, verify, inspect, archive, or prune',
+    'use plan, start, dispatch, specialist-event, writer-event, close, resume, verify, inspect, archive, or prune',
   );
-}
-
-function isWithin(root: string, target: string): boolean {
-  const path = relative(root, target);
-  return path === '' || (!path.startsWith('..') && !isAbsolute(path));
 }
 
 async function readTicket(root: string, ticketPath: string): Promise<{
   readonly id: string;
   readonly title: string;
   readonly body: string;
+  readonly path: string;
 }> {
   const canonicalRoot = await realpath(resolve(root));
-  const canonicalTicket = await realpath(resolve(canonicalRoot, ticketPath));
-  if (!isWithin(canonicalRoot, canonicalTicket)) {
-    throw new Error('MISSION_TICKET_PATH_ESCAPE: ticket resolves outside project root');
-  }
-  const metadata = await stat(canonicalTicket);
-  if (!metadata.isFile() || metadata.size > MAX_TICKET_BYTES) {
-    throw new Error(
-      `MISSION_TICKET_INVALID: ticket must be a file under ${MAX_TICKET_BYTES} bytes`,
-    );
-  }
-  const body = await readFile(canonicalTicket, 'utf8');
+  const loaded = await readBoundedProjectFile({
+    root: canonicalRoot,
+    inputPath: ticketPath,
+    maxBytes: MAX_TICKET_BYTES,
+    pathEscapeMessage: 'MISSION_TICKET_PATH_ESCAPE: ticket resolves outside project root',
+    invalidMessage: `MISSION_TICKET_INVALID: ticket must be a stable file under ${MAX_TICKET_BYTES} bytes`,
+  });
+  const canonicalTicket = loaded.resolvedPath;
+  const body = loaded.body;
   if (body.trim() === '') throw new Error('MISSION_TICKET_INVALID: ticket is empty');
   const heading = body.split('\n').find((line) => /^#\s+\S/.test(line));
   const fallback = basename(canonicalTicket, extname(canonicalTicket));
@@ -310,7 +500,27 @@ async function readTicket(root: string, ticketPath: string): Promise<{
     id: fallback.slice(0, 128),
     title: (heading?.replace(/^#\s+/, '').trim() ?? fallback).slice(0, 200),
     body,
+    path: normalizeControllerTicketPath(relative(canonicalRoot, canonicalTicket)),
   });
+}
+
+export function normalizeControllerTicketPath(path: string): string {
+  return path.replaceAll('\\', '/');
+}
+
+async function readLifecycleJson(root: string, inputPath: string): Promise<unknown> {
+  const loaded = await readBoundedProjectFile({
+    root,
+    inputPath,
+    maxBytes: MAX_TICKET_BYTES,
+    pathEscapeMessage: 'SPECIALIST_LIFECYCLE_PATH_ESCAPE: input resolves outside project root',
+    invalidMessage: `SPECIALIST_LIFECYCLE_INPUT_INVALID: input must be a stable file under ${MAX_TICKET_BYTES} bytes`,
+  });
+  try {
+    return JSON.parse(loaded.body);
+  } catch {
+    throw new Error('SPECIALIST_LIFECYCLE_INPUT_INVALID: input must contain valid JSON');
+  }
 }
 
 interface DetectedFiles {
@@ -327,7 +537,9 @@ async function gitFiles(root: string): Promise<DetectedFiles> {
     ]);
     return Object.freeze({
       files: Object.freeze(
-        [...new Set(`${changed.stdout}\n${untracked.stdout}`.split('\n').filter(Boolean))].sort(),
+        [...new Set(`${changed.stdout}\n${untracked.stdout}`
+          .split('\n')
+          .filter((file) => file !== '' && !file.startsWith('.void/')))].sort(),
       ),
       status: 'known',
     });
@@ -367,8 +579,15 @@ export async function planMission(
   ticketPath: string,
   generatedAt = new Date().toISOString(),
 ): Promise<MissionPlan> {
-  const [ticket, coreRoot, diff] = await Promise.all([
-    readTicket(root, ticketPath),
+  return (await planBoundMission(root, ticketPath, generatedAt)).plan;
+}
+
+async function compileMission(
+  root: string,
+  ticket: Awaited<ReturnType<typeof readTicket>>,
+  generatedAt: string,
+): Promise<MissionPlan> {
+  const [coreRoot, diff] = await Promise.all([
     findCoreSource(),
     gitFiles(root),
   ]);
@@ -381,7 +600,7 @@ export async function planMission(
   const stack = detectedStack(root, profileInput);
   return compileMissionPlan({
     schemaVersion: 2,
-    ticket,
+    ticket: { id: ticket.id, title: ticket.title, body: ticket.body },
     diff,
     stack,
     policy: mergePolicies(policies, generatedAt),
@@ -391,6 +610,375 @@ export async function planMission(
     },
     specialists: { catalog: specialists },
   }, { generatedAt });
+}
+
+function controllerTicketBinding(
+  ticket: Awaited<ReturnType<typeof readTicket>>,
+): MissionControllerTicketBinding {
+  return Object.freeze({
+    path: ticket.path,
+    contentHash: `sha256:${createHash('sha256').update(ticket.body).digest('hex')}`,
+  });
+}
+
+async function planBoundMission(
+  root: string,
+  ticketPath: string,
+  generatedAt = new Date().toISOString(),
+): Promise<{
+  readonly plan: MissionPlan;
+  readonly ticket: MissionControllerTicketBinding;
+}> {
+  const ticket = await readTicket(root, ticketPath);
+  const plan = await compileMission(root, ticket, generatedAt);
+  return Object.freeze({
+    plan,
+    ticket: controllerTicketBinding(ticket),
+  });
+}
+
+export async function dispatchMissionSpecialists(
+  root: string,
+  input: Extract<MissionArgs, { readonly kind: 'dispatch' }>,
+  generatedAt = new Date().toISOString(),
+  capabilityOverride?: SpecialistRuntimeCapability,
+): Promise<{
+  readonly planHash: string;
+  readonly phase: string;
+  readonly action: MissionTeamAction;
+  readonly nextWriterRound?: number;
+  readonly envelopes: readonly SpecialistDispatchEnvelope[];
+}> {
+  const [stored, inspected] = await Promise.all([
+    loadMissionControllerPlan(root, input.missionId),
+    inspectMission(root, input.missionId, { dependencies: {} }),
+  ]);
+  if (inspected.stream.events.some((event) => event.kind === 'mission.closed')) {
+    throw new Error('MISSION_CLOSED: specialist dispatch is no longer active');
+  }
+  const live = await planBoundMission(root, stored.ticket.path, generatedAt);
+  const livePlan = live.plan;
+  if (
+    live.ticket.path !== stored.ticket.path
+    || live.ticket.contentHash !== stored.ticket.contentHash
+  ) {
+    throw new Error(
+      'MISSION_TICKET_CHANGED: the controller-bound ticket path or content changed; start a new mission',
+    );
+  }
+  if (missionRoutingHash(inspected.stream.events) !== stored.routingHash) {
+    throw new Error('MISSION_CONTROLLER_PLAN_INVALID: stored routing does not match mission start');
+  }
+  const currentInputHashes = Object.fromEntries(livePlan.specialists.map((specialist) => [
+    specialist.specialistId,
+    specialist.proof.inputHash,
+  ]));
+  const preImplementationInputHashes: Record<string, string> = {};
+  for (const specialist of stored.plan.specialists) {
+    const inputHash = specialist.inputHash ?? currentInputHashes[specialist.specialistId];
+    if (inputHash === undefined) {
+      throw new Error(
+        `MISSION_CONTROLLER_PLAN_INVALID: pre-implementation hash missing for ${specialist.specialistId}`,
+      );
+    }
+    preImplementationInputHashes[specialist.specialistId] = inputHash;
+  }
+  const runtimeIdentity = missionRuntimeIdentity(inspected.stream.events);
+  const runtime = runtimeIdentity?.runtime;
+  const rawCapability = capabilityOverride ?? (runtime === undefined
+    ? { status: 'unavailable' as const, limitations: ['mission runtime identity is missing'] }
+    : await specialistCapabilityFor(root, runtime));
+  const specialistRuntime = runtimeIdentity === undefined
+    ? rawCapability
+    : constrainCapabilityByAttestation(runtimeIdentity, rawCapability);
+  const decision = orchestrateMissionTeam({
+    plan: stored.plan,
+    stream: inspected.stream,
+    evidenceContext: { dependencies: {} },
+    currentInputHashesByStage: {
+      'pre-implementation': preImplementationInputHashes,
+      'post-implementation': currentInputHashes,
+    },
+    maxReviewRounds: 2,
+    specialistRuntime,
+  });
+  const envelopes = decision.action.kind === 'invoke-specialists' && runtime !== undefined
+    ? createSpecialistDispatch({
+        missionId: input.missionId,
+        runtime,
+        plan: stored.plan,
+        action: decision.action,
+        currentInputHashes: decision.action.stage === 'pre-implementation'
+          ? preImplementationInputHashes
+          : currentInputHashes,
+      })
+    : Object.freeze([]);
+  if (envelopes.length > 0) {
+    await recordSpecialistRequests(root, input.missionId, envelopes, stored.plan.planHash);
+  }
+  const writerEvents = inspected.stream.events.filter((event) =>
+    event.kind === 'lead-writer.completed').length;
+  const writerAction = isLeadWriterAction(decision.action)
+    ? decision.action
+    : undefined;
+  const nextWriterRound = writerAction === undefined ? undefined : writerEvents + 1;
+  if (nextWriterRound !== undefined && writerAction !== undefined) {
+    await recordLeadWriterRequest(
+      root,
+      input.missionId,
+      stored.plan.planHash,
+      writerAction,
+      nextWriterRound,
+    );
+  }
+  if (decision.action.kind === 'complete' || decision.action.kind === 'stop') {
+    await recordMissionClosure(
+      root,
+      input.missionId,
+      decision.action.kind === 'complete' ? 'completed' : 'controller-stop',
+      'void-harness:mission.dispatch',
+    );
+  }
+  return Object.freeze({
+    planHash: stored.plan.planHash,
+    phase: decision.phase,
+    action: decision.action,
+    ...(
+      nextWriterRound === undefined ? {} : { nextWriterRound }
+    ),
+    envelopes,
+  });
+}
+
+function missionSpecialistPlan(plan: MissionPlan): MissionSpecialistPlan {
+  return Object.freeze({
+    planHash: plan.planHash,
+    context: Object.freeze({
+      status: plan.context.status,
+      issues: Object.freeze([...plan.context.issues]),
+    }),
+    specialists: Object.freeze(plan.specialists.map((specialist) => Object.freeze({
+      specialistId: specialist.specialistId,
+      contractVersion: specialist.contractVersion,
+      inputHash: specialist.proof.inputHash,
+      state: specialist.state,
+      stages: Object.freeze([...specialist.stages]),
+    }))),
+  });
+}
+
+function missionRuntimeIdentity(
+  events: readonly { readonly kind: string; readonly payload: unknown }[],
+): CoordinatorRuntimeIdentity | undefined {
+  const started = events.find((event) => event.kind === 'mission.started');
+  const runtime = objectField(started?.payload, 'runtime');
+  if (runtime !== 'claude' && runtime !== 'codex') return undefined;
+  return Object.freeze({
+    runtime,
+    attested: objectField(started?.payload, 'runtimeAttested') === true,
+  });
+}
+
+function missionRoutingHash(
+  events: readonly { readonly kind: string; readonly payload: unknown }[],
+): string | undefined {
+  const started = events.find((event) => event.kind === 'mission.started');
+  const routingHash = objectField(started?.payload, 'routingHash');
+  return typeof routingHash === 'string' ? routingHash : undefined;
+}
+
+function objectField(value: unknown, key: string): unknown {
+  return isUnknownRecord(value) ? value[key] : undefined;
+}
+
+function isUnknownRecord(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && Boolean(value) && !Array.isArray(value);
+}
+
+function rejectClosedMission(events: readonly CanonicalEvent[]): void {
+  if (events.some((event) => event.kind === 'mission.closed')) {
+    throw new Error('MISSION_CLOSED: controller transition is no longer accepted');
+  }
+}
+
+export async function recordLeadWriterCompletion(
+  root: string,
+  input: Extract<MissionArgs, { readonly kind: 'writer-event' }>,
+): Promise<void> {
+  const inspected = await inspectMission(root, input.missionId, { dependencies: {} });
+  if (inspected.stream.events.some((event) => event.kind === 'mission.closed')) {
+    throw new Error('MISSION_CLOSED: lead-writer completion is no longer accepted');
+  }
+  const requests = inspected.stream.events.filter((event) =>
+    event.kind === 'lead-writer.requested'
+    && event.source === 'void-harness:mission.dispatch')
+    .sort((left, right) => right.seq - left.seq);
+  const request = requests[0];
+  if (request === undefined || !isUnknownRecord(request.payload)) {
+    throw new Error('MISSION_WRITER_EVENT_INVALID: no controller writer request is pending');
+  }
+  const writerId = request.payload.writerId;
+  const planHash = request.payload.planHash;
+  const implementationRound = request.payload.implementationRound;
+  const actionKind = request.payload.actionKind;
+  if (
+    typeof writerId !== 'string'
+    || request.subject !== writerId
+    || typeof planHash !== 'string'
+    || !Number.isSafeInteger(implementationRound)
+    || (actionKind !== 'run-lead-writer'
+      && actionKind !== 'run-correction'
+      && actionKind !== 'run-preparation-correction')
+  ) {
+    throw new Error('MISSION_WRITER_EVENT_INVALID: writer request is malformed');
+  }
+  const existing = inspected.stream.events.find((event) =>
+    event.kind === 'lead-writer.completed'
+    && objectField(event.payload, 'requestEventId') === request.eventId);
+  if (existing !== undefined) return;
+  const eventId = `evt_${createHash('sha256')
+    .update([
+      input.missionId,
+      'lead-writer.completed',
+      request.eventId,
+    ].join('|'))
+    .digest('hex')}`;
+  const result = await writeSequencedEventOnce({
+    root,
+    missionId: input.missionId,
+    eventId,
+    draft: {
+      source: writerId,
+      kind: 'lead-writer.completed',
+      subject: writerId,
+      causationId: request.eventId,
+      correlationId: input.missionId,
+      payload: {
+        writerId,
+        planHash,
+        actionKind,
+        implementationRound: Number(implementationRound),
+        requestEventId: request.eventId,
+      },
+    },
+    validate: rejectClosedMission,
+  });
+  if (
+    result.event.kind !== 'lead-writer.completed'
+    || result.event.subject !== writerId
+    || result.event.causationId !== request.eventId
+    || objectField(result.event.payload, 'implementationRound') !== implementationRound
+  ) {
+    throw new Error('MISSION_WRITER_EVENT_CONFLICT: implementation round already has another owner');
+  }
+}
+
+type LeadWriterAction = Extract<MissionTeamAction, {
+  readonly kind: 'run-lead-writer' | 'run-correction' | 'run-preparation-correction';
+}>;
+
+function isLeadWriterAction(action: MissionTeamAction): action is LeadWriterAction {
+  return action.kind === 'run-lead-writer'
+    || action.kind === 'run-correction'
+    || action.kind === 'run-preparation-correction';
+}
+
+async function recordLeadWriterRequest(
+  root: string,
+  missionId: string,
+  planHash: string,
+  action: LeadWriterAction,
+  implementationRound: number,
+): Promise<void> {
+  const findingIds = action.kind === 'run-lead-writer' ? [] : [...action.findingIds];
+  const eventId = `evt_${createHash('sha256')
+    .update([
+      missionId,
+      'lead-writer.requested',
+      planHash,
+      action.kind,
+      action.writerId,
+      String(implementationRound),
+      ...findingIds,
+    ].join('|'))
+    .digest('hex')}`;
+  const result = await writeSequencedEventOnce({
+    root,
+    missionId,
+    eventId,
+    draft: {
+      source: 'void-harness:mission.dispatch',
+      kind: 'lead-writer.requested',
+      subject: action.writerId,
+      correlationId: missionId,
+      payload: {
+        planHash,
+        actionKind: action.kind,
+        writerId: action.writerId,
+        implementationRound,
+        findingIds,
+      },
+    },
+    validate: rejectClosedMission,
+  });
+  if (
+    result.event.kind !== 'lead-writer.requested'
+    || result.event.source !== 'void-harness:mission.dispatch'
+    || result.event.subject !== action.writerId
+    || objectField(result.event.payload, 'implementationRound') !== implementationRound
+  ) {
+    throw new Error('MISSION_WRITER_REQUEST_CONFLICT: controller action receipt conflicts');
+  }
+}
+
+type MissionClosureReason =
+  | 'completed'
+  | 'controller-stop'
+  | 'interrupted'
+  | 'abandoned';
+
+export async function recordMissionClosure(
+  root: string,
+  missionId: string,
+  reason: MissionClosureReason,
+  source = 'void-harness:mission.close',
+): Promise<void> {
+  const inspected = await inspectMission(root, missionId, { dependencies: {} });
+  const existing = inspected.stream.events.find((event) => event.kind === 'mission.closed');
+  if (existing !== undefined) {
+    if (objectField(existing.payload, 'reason') === reason) return;
+    throw new Error('MISSION_CLOSURE_CONFLICT: mission already closed for another reason');
+  }
+  const eventId = `evt_${createHash('sha256')
+    .update([missionId, 'mission.closed'].join('|'))
+    .digest('hex')}`;
+  let result: Awaited<ReturnType<typeof writeSequencedEventOnce>>;
+  try {
+    result = await writeSequencedEventOnce({
+      root,
+      missionId,
+      eventId,
+      draft: {
+        source,
+        kind: 'mission.closed',
+        subject: 'mission',
+        correlationId: missionId,
+        payload: { reason },
+      },
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('HOOK_EVENT_ID_CONFLICT:')) {
+      throw new Error('MISSION_CLOSURE_CONFLICT: mission already closed for another reason');
+    }
+    throw error;
+  }
+  if (
+    result.event.kind !== 'mission.closed'
+    || result.event.subject !== 'mission'
+    || objectField(result.event.payload, 'reason') !== reason
+  ) {
+    throw new Error('MISSION_CLOSURE_CONFLICT: mission already closed for another reason');
+  }
 }
 
 function renderPlan(plan: MissionPlan): string {
@@ -432,8 +1020,12 @@ export function missionRecoveryExitCode(
 function usage(): string {
   return `void-harness mission
 
-  mission start --title <title> [--mode fast|team|fortress] [--json]
+  mission start --title <title> [--ticket <markdown-file>] [--mode fast|team|fortress] [--json]
   mission plan --ticket <markdown-file> [--json]
+  mission dispatch --id <id> [--json]
+  mission specialist-event --id <id> --status started|completed|failed --input <json-file> [--json]
+  mission writer-event --id <id> [--json]
+  mission close --id <id> --reason interrupted|abandoned [--json]
   mission verify --id <id> [--shell] [--json] -- <command...>
   mission resume --id <id> [--json]
   mission inspect --id <id> [--json]
@@ -502,16 +1094,81 @@ export async function mission(args: readonly string[]): Promise<void> {
       process.stdout.write(parsed.json ? `${JSON.stringify(plan)}\n` : `${renderPlan(plan)}\n`);
       return;
     }
+    if (parsed.kind === 'dispatch') {
+      const dispatched = await dispatchMissionSpecialists(root, parsed);
+      process.stdout.write(
+        parsed.json
+          ? `${JSON.stringify(dispatched)}\n`
+          : `${dispatched.planHash}\n${dispatched.phase}: ${dispatched.action.kind}\n${dispatched.envelopes
+            .map((envelope) => `${envelope.agentName} ${envelope.stage} round=${envelope.reviewRound}`)
+            .join('\n')}${dispatched.envelopes.length === 0 ? '' : '\n'}`,
+      );
+      return;
+    }
+    if (parsed.kind === 'specialist-event') {
+      const lifecycle = parseSpecialistLifecycleInput(
+        parsed.status,
+        await readLifecycleJson(root, parsed.inputPath),
+      );
+      await recordSpecialistLifecycle(root, parsed.missionId, lifecycle);
+      process.stdout.write(
+        parsed.json
+          ? `${JSON.stringify({ recorded: true, status: parsed.status })}\n`
+          : `recorded specialist.${parsed.status}\n`,
+      );
+      return;
+    }
+    if (parsed.kind === 'writer-event') {
+      await recordLeadWriterCompletion(root, parsed);
+      process.stdout.write(
+        parsed.json
+          ? `${JSON.stringify({ recorded: true, status: 'completed' })}\n`
+          : 'recorded lead-writer.completed\n',
+      );
+      return;
+    }
+    if (parsed.kind === 'close') {
+      await recordMissionClosure(root, parsed.missionId, parsed.reason);
+      process.stdout.write(
+        parsed.json
+          ? `${JSON.stringify({ closed: true, reason: parsed.reason })}\n`
+          : `closed mission: ${parsed.reason}\n`,
+      );
+      return;
+    }
     if (parsed.kind === 'start') {
-      const diff = await gitFiles(root);
-      const stack = detectedStack(root, detectProfileInput(root, diff.files));
-      const selection = selectMissionMode(classifyRisk({
-        ticket: parsed.title,
-        files: diff.files,
-        stack: stack.technologies,
-        complete: diff.status === 'known' && stack.status === 'known',
-      }), parsed.mode);
+      const bound = parsed.ticketPath === undefined
+        ? undefined
+        : await planBoundMission(root, parsed.ticketPath);
+      const plan = bound?.plan;
+      const diff = plan === undefined ? await gitFiles(root) : undefined;
+      const stack = diff === undefined
+        ? undefined
+        : detectedStack(root, detectProfileInput(root, diff.files));
+      const selection = plan === undefined && diff !== undefined && stack !== undefined
+        ? selectMissionMode(classifyRisk({
+            ticket: parsed.title,
+            files: diff.files,
+            stack: stack.technologies,
+            complete: diff.status === 'known' && stack.status === 'known',
+          }), parsed.mode)
+        : selectMissionMode(plan?.risk ?? classifyRisk({
+            ticket: parsed.title,
+            files: [],
+            stack: [],
+            complete: false,
+          }), parsed.mode);
       const missionId = `mis_${randomUUID()}`;
+      const controllerPlan = plan === undefined ? undefined : missionSpecialistPlan(plan);
+      const ticketBinding = bound?.ticket;
+      const runtimeIdentity = bound === undefined
+        ? undefined
+        : coordinatorRuntimeIdentity(process.env);
+      const routingHash = controllerPlan === undefined
+        ? undefined
+        : ticketBinding === undefined
+          ? undefined
+          : missionControllerRoutingHash(controllerPlan, ticketBinding);
       await createMission(root, {
         missionId,
         title: parsed.title,
@@ -520,10 +1177,39 @@ export async function mission(args: readonly string[]): Promise<void> {
         ...(selection.promotion === undefined
           ? {}
           : { promotionReason: selection.promotion.reason }),
+        ...(plan === undefined || runtimeIdentity === undefined || routingHash === undefined
+          ? {}
+          : {
+              teamController: {
+                planHash: plan.planHash,
+                routingHash,
+                leadWriterId: 'writer:primary',
+                runtime: runtimeIdentity.runtime,
+                runtimeAttested: runtimeIdentity.attested,
+              },
+          }),
       });
+      if (controllerPlan !== undefined) {
+        if (ticketBinding === undefined) {
+          throw new Error('MISSION_CONTROLLER_PLAN_INVALID: ticket binding is missing');
+        }
+        const storedHash = await writeMissionControllerPlan(
+          root,
+          missionId,
+          controllerPlan,
+          ticketBinding,
+        );
+        if (storedHash !== routingHash) {
+          throw new Error('MISSION_CONTROLLER_PLAN_INVALID: routing hash changed while storing');
+        }
+      }
       process.stdout.write(
         parsed.json
-          ? `${JSON.stringify({ missionId, ...selection })}\n`
+          ? `${JSON.stringify({
+              missionId,
+              ...selection,
+              ...(plan === undefined ? {} : { planHash: plan.planHash }),
+            })}\n`
           : `${missionId}\n${selection.promotion === undefined
             ? ''
             : `mode ${selection.requestedMode} -> ${selection.effectiveMode}\n`}`,

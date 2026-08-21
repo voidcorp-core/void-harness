@@ -1,6 +1,7 @@
 # Système — faits vérifiables
 
-Chaque ligne renvoie au fichier qui la prouve. Relevé sur `main` au commit `15d6689`.
+Chaque ligne renvoie au fichier qui la prouve. Inventaire relevé sur `main` au
+commit `15d6689` ; les règles de garde restent actualisées lorsqu'elles changent.
 
 ## Inventaire
 
@@ -46,21 +47,22 @@ Toutes les entrées invoquent le même exécutable, `packages/core/hooks/_void-h
 
 ## Règles de décision écrites
 
-### Sept règles anti-bloat
+### Huit règles anti-bloat
 
-`CLAUDE.md` énonce sept règles numérotées : ≤ 400 lignes par skill (1), un skill = un sujet (2), pas de recouvrement de responsabilité > 30 % (3), `description` de frontmatter ≤ 200 caractères (4), hooks ≤ 100 lignes (5), périmètre explicite des agents (6), tests de skill verts en CI (7).
+`CLAUDE.md` énonce huit règles numérotées : ≤ 400 lignes par skill (1), un skill = un sujet (2), pas de recouvrement de responsabilité > 30 % (3), cible éditoriale de 250 caractères et plafond bloquant de 500 pour les descriptions de découverte (4), hooks ≤ 100 lignes (5), périmètre explicite des agents (6), tests de skill verts en CI (7), nom `void-` non ambigu et grammaticalement classé (8).
 
-`scripts/anti-bloat-check.sh` applique trois de ces sept règles :
+`scripts/anti-bloat-check.sh` applique mécaniquement les seuils et conventions suivants :
 
 | Règle | Seuil | Appliquée par un script |
 |---|---|---|
 | 1 — SKILL.md | ≤ 400 lignes | oui, `scripts/anti-bloat-check.sh:22-31` |
-| 4 — description | ≤ 200 caractères | oui, `scripts/anti-bloat-check.sh:75-93` |
+| 4 — description | cible ≤ 250, plafond 500 caractères | oui, sur skills core/packs, agents et spécialistes canoniques |
 | 5 — hooks | ≤ 100 lignes | oui, `scripts/anti-bloat-check.sh:33-43` |
 | 2 — un skill, un sujet | — | non trouvé dans `scripts/` |
 | 3 — recouvrement > 30 % | — | non trouvé dans `scripts/` |
 | 6 — périmètre des agents | — | non trouvé dans `scripts/` |
 | 7 — tests de skill | — | étape `Skill tests`, `.github/workflows/ci.yml:177` |
+| 8 — nom des skills | préfixe `void-`, grammaire `action`/`standard` | oui, `scripts/anti-bloat-check.sh` |
 
 Les fichiers de hook préfixés par `_` sont exclus du plafond de la règle 5. Preuve : `scripts/anti-bloat-check.sh:33-35`.
 

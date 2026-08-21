@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:3f4871e3400c82fc553b1d20382d8b3e5a797dc2698deca12e061a1dfb2f1340"
+    "rootHash": "sha256:38edd914717cc749769d007cb26068ce7ad12a179e1f1c8ad295ed386f8d5ade"
   },
   "nodes": [
     {
@@ -156,11 +156,11 @@
         "legacy": {
           "description": "Judges a diff against VoidCorp doctrine that hooks/reviewers miss: weak tests, over-abstraction, broken boundaries, anti-bloat. Read-only; routes security to security-audit, bugs to /void-code-review.",
           "id": "agent:doctrine-critic",
-          "lines": 90,
+          "lines": 92,
           "name": "doctrine-critic",
           "pack": null,
           "source": "packages/core/agents/doctrine-critic.md",
-          "staticTokens": 1093,
+          "staticTokens": 1128,
           "type": "agent"
         }
       },
@@ -2588,7 +2588,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-pwa/skills/void-manifest-checklist/SKILL.md",
-          "staticTokens": 1566,
+          "staticTokens": 1567,
           "type": "skill"
         }
       },
@@ -2636,7 +2636,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-pwa/skills/void-offline-first-mutation/SKILL.md",
-          "staticTokens": 2497,
+          "staticTokens": 2498,
           "type": "skill"
         }
       },
@@ -2732,7 +2732,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-react/skills/void-accessibility-check/SKILL.md",
-          "staticTokens": 1537,
+          "staticTokens": 1538,
           "type": "skill"
         }
       },
@@ -2828,7 +2828,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-react/skills/void-form-pattern/SKILL.md",
-          "staticTokens": 1685,
+          "staticTokens": 1686,
           "type": "skill"
         }
       },
@@ -3116,7 +3116,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-server/skills/void-server-action/SKILL.md",
-          "staticTokens": 2123,
+          "staticTokens": 2124,
           "type": "skill"
         }
       },
@@ -3419,7 +3419,7 @@
             }
           ],
           "id": "skill:void-audit",
-          "lines": 81,
+          "lines": 84,
           "name": "void-audit",
           "owner": "folpe",
           "pack": null,
@@ -3428,7 +3428,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-audit/SKILL.md",
-          "staticTokens": 724,
+          "staticTokens": 818,
           "type": "skill"
         }
       },
@@ -4247,7 +4247,7 @@
             }
           ],
           "id": "skill:void-implement",
-          "lines": 141,
+          "lines": 160,
           "name": "void-implement",
           "owner": "folpe",
           "pack": null,
@@ -4256,7 +4256,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-implement/SKILL.md",
-          "staticTokens": 3728,
+          "staticTokens": 4151,
           "type": "skill"
         }
       },
@@ -4393,7 +4393,7 @@
             }
           ],
           "id": "skill:void-make-pdf",
-          "lines": 46,
+          "lines": 53,
           "name": "void-make-pdf",
           "owner": "folpe",
           "pack": null,
@@ -4402,7 +4402,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-make-pdf/SKILL.md",
-          "staticTokens": 790,
+          "staticTokens": 871,
           "type": "skill"
         }
       },
@@ -5297,6 +5297,84 @@
   ],
   "edges": [
     {
+      "id": "catalog:edge:companion-of:0883a7cd7d304443d9fe1b44956736e9",
+      "from": "catalog:skill:skill:void-graph",
+      "to": "catalog:skill:skill:void-audit",
+      "kind": "companion-of",
+      "data": {
+        "legacy": {
+          "evidence": "void-graph SKILL.md: adjacent void-audit proposes what to do about staleness",
+          "from": "skill:void-graph",
+          "kind": "companion-of",
+          "origin": "declared",
+          "to": "skill:void-audit"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:companion-of:4467e3d13b415f2265448b23c5cc47e6",
+      "from": "catalog:skill:skill:void-merge",
+      "to": "catalog:skill:skill:void-autopilot",
+      "kind": "companion-of",
+      "data": {
+        "legacy": {
+          "evidence": "merge SKILL.md: void-autopilot produces an integration PR this skill can drain",
+          "from": "skill:void-merge",
+          "kind": "companion-of",
+          "origin": "declared",
+          "to": "skill:void-autopilot"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:companion-of:4df13b567a63abd62da4d48a440227e6",
+      "from": "catalog:skill:skill:void-doctor",
+      "to": "catalog:skill:skill:void-verify",
+      "kind": "companion-of",
+      "data": {
+        "legacy": {
+          "evidence": "doctor SKILL.md: void-verify proves one unit of work; doctor proves the harness that guards every unit",
+          "from": "skill:void-doctor",
+          "kind": "companion-of",
+          "origin": "declared",
+          "to": "skill:void-verify"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:companion-of:5453cfa83f31653a36cdf97ccf288347",
       "from": "catalog:skill:skill:void-devex-audit",
       "to": "catalog:skill:skill:void-ui-review",
@@ -5308,6 +5386,110 @@
           "kind": "companion-of",
           "origin": "declared",
           "to": "skill:void-ui-review"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:companion-of:60a02929ea33c8ac509835664d0ce277",
+      "from": "catalog:hook:hook:outcome-meter",
+      "to": "catalog:skill:skill:void-graph",
+      "kind": "companion-of",
+      "data": {
+        "legacy": {
+          "evidence": "graph cost joins PostToolUse outcomes to component invocations to expose yield",
+          "from": "hook:outcome-meter",
+          "kind": "companion-of",
+          "origin": "declared",
+          "to": "skill:void-graph"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:companion-of:773ae6b9c8f47ffc9955ce681ed4a377",
+      "from": "catalog:skill:skill:void-merge",
+      "to": "catalog:skill:skill:void-implement",
+      "kind": "companion-of",
+      "data": {
+        "legacy": {
+          "evidence": "merge SKILL.md: void-implement opens the PRs this skill drains",
+          "from": "skill:void-merge",
+          "kind": "companion-of",
+          "origin": "declared",
+          "to": "skill:void-implement"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:companion-of:8ecdb5abf2cf646320ea4175d5033e0d",
+      "from": "catalog:skill:skill:void-checkpoint",
+      "to": "catalog:skill:skill:void-learn",
+      "kind": "companion-of",
+      "data": {
+        "legacy": {
+          "evidence": "checkpoint SKILL.md: Adjacent void-learn takes the durable rules out of the session before the checkpoint is written",
+          "from": "skill:void-checkpoint",
+          "kind": "companion-of",
+          "origin": "declared",
+          "to": "skill:void-learn"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:companion-of:b0f1d0faa0c9e0fa24df16e87c866ad1",
+      "from": "catalog:hook:hook:sessionstart-context",
+      "to": "catalog:skill:skill:void-context",
+      "kind": "companion-of",
+      "data": {
+        "legacy": {
+          "evidence": "CHEATSHEET: sessionstart-context loads the project's standing context once, at the start of a session",
+          "from": "hook:sessionstart-context",
+          "kind": "companion-of",
+          "origin": "declared",
+          "to": "skill:void-context"
         }
       },
       "provenance": {
@@ -5349,6 +5531,84 @@
       }
     },
     {
+      "id": "catalog:edge:companion-of:c3877aec8f3eefa2155f90594aaaad2b",
+      "from": "catalog:hook:hook:auto-format",
+      "to": "catalog:skill:skill:void-commit-discipline",
+      "kind": "companion-of",
+      "data": {
+        "legacy": {
+          "evidence": "CHEATSHEET: auto-format formats on write, so formatting never appears in a behavioural diff",
+          "from": "hook:auto-format",
+          "kind": "companion-of",
+          "origin": "declared",
+          "to": "skill:void-commit-discipline"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:companion-of:fc90eee31b815b2e970a5b9fc3b9a754",
+      "from": "catalog:hook:hook:activation-meter",
+      "to": "catalog:skill:skill:void-graph",
+      "kind": "companion-of",
+      "data": {
+        "legacy": {
+          "evidence": "void-graph SKILL.md: the analyzer correlates the installed model with activation-meter mission events",
+          "from": "hook:activation-meter",
+          "kind": "companion-of",
+          "origin": "declared",
+          "to": "skill:void-graph"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:0083ade450e77924f9f75baa6d306e28",
+      "from": "catalog:pack:pack:pack-monorepo",
+      "to": "catalog:skill:skill:pack-monorepo/void-package-extraction",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-monorepo contains skill void-package-extraction",
+          "from": "pack:pack-monorepo",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-monorepo/void-package-extraction"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:07bb37de7641708ef3ef273333227a48",
       "from": "catalog:skill:skill:void-decide",
       "to": "catalog:skill:skill:void-plan",
@@ -5360,6 +5620,58 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:void-plan"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:0810d2b10ad901e7857acd7543617544",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:agent:agent:security-engineer",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "agent:security-engineer"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:0835c4000482e37c2f59e95aa72f7a69",
+      "from": "catalog:skill:skill:void-autopilot",
+      "to": "catalog:skill:skill:void-implement",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: Caller: autopilot runs this once per ticket in parallel worktrees, whole and once",
+          "from": "skill:void-autopilot",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:void-implement"
         }
       },
       "provenance": {
@@ -5401,6 +5713,110 @@
       }
     },
     {
+      "id": "catalog:edge:composes:0ed3560de2e492e59f07fb137f361789",
+      "from": "catalog:pack:pack:pack-nextjs",
+      "to": "catalog:skill:skill:pack-nextjs/void-parallel-routes-slots",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-nextjs contains skill void-parallel-routes-slots",
+          "from": "pack:pack-nextjs",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-nextjs/void-parallel-routes-slots"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:0f79a4fff92b97bd120624cb02a6b899",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:profile:profile:base",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "profile:base"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:121a5c7dc715dc6da07dcea08a1c7998",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:agent:agent:data-migration-engineer",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "agent:data-migration-engineer"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:12bbe0ec674d4150f88cc3918c01d6c7",
+      "from": "catalog:pack:pack:pack-mobile",
+      "to": "catalog:skill:skill:pack-mobile/void-eas-build-profile",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-mobile contains skill void-eas-build-profile",
+          "from": "pack:pack-mobile",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-mobile/void-eas-build-profile"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:13c4f617c10a59d00699b8d64c410cd7",
       "from": "catalog:skill:skill:void-qa",
       "to": "catalog:skill:skill:void-ui-review",
@@ -5427,6 +5843,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:13f72e2d02d281a5ccfbaf9f4d2c051a",
+      "from": "catalog:pack:pack:pack-server",
+      "to": "catalog:skill:skill:pack-server/void-env-validation",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-server contains skill void-env-validation",
+          "from": "pack:pack-server",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-server/void-env-validation"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:1442a9f31497ce8aad1c6e4c285b892f",
       "from": "catalog:skill:skill:void-implement",
       "to": "catalog:skill:skill:void-migrations",
@@ -5447,6 +5889,32 @@
           {
             "kind": "contract",
             "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:199280b475842ed71c9aa977975b732b",
+      "from": "catalog:pack:pack:pack-server",
+      "to": "catalog:skill:skill:pack-server/void-webhook-handler-pattern",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-server contains skill void-webhook-handler-pattern",
+          "from": "pack:pack-server",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-server/void-webhook-handler-pattern"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
             "hashOrVersion": "1"
           }
         ]
@@ -5499,6 +5967,58 @@
           {
             "kind": "contract",
             "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:1f86c9f5aec5300c1859e8d697ee9bb5",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:profile:profile:monorepo",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "profile:monorepo"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:20f9f824001de5277f516ef866f1ebfa",
+      "from": "catalog:pack:pack:pack-mobile",
+      "to": "catalog:skill:skill:pack-mobile/void-ota-update-strategy",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-mobile contains skill void-ota-update-strategy",
+          "from": "pack:pack-mobile",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-mobile/void-ota-update-strategy"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
             "hashOrVersion": "1"
           }
         ]
@@ -5687,6 +6207,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:2887a888af483423f81554f9276b852a",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:agent:agent:devex-docs-engineer",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "agent:devex-docs-engineer"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:2adbf7b3e1551d3e3e2f469dd2e7bfde",
       "from": "catalog:skill:skill:void-verify",
       "to": "catalog:skill:skill:void-plan",
@@ -5707,6 +6253,32 @@
           {
             "kind": "contract",
             "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:2c1a231de4de036d8cd5672e44f9f805",
+      "from": "catalog:pack:pack:pack-pwa",
+      "to": "catalog:skill:skill:pack-pwa/void-install-prompt-ux",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-pwa contains skill void-install-prompt-ux",
+          "from": "pack:pack-pwa",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-pwa/void-install-prompt-ux"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
             "hashOrVersion": "1"
           }
         ]
@@ -5843,6 +6415,84 @@
       }
     },
     {
+      "id": "catalog:edge:composes:3881f67a285e1d5c616fab0d7cedbbcd",
+      "from": "catalog:pack:pack:pack-server",
+      "to": "catalog:skill:skill:pack-server/void-testing-server-modules",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-server contains skill void-testing-server-modules",
+          "from": "pack:pack-server",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-server/void-testing-server-modules"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:3a76d4c159dfa66cff69ee31161e0db6",
+      "from": "catalog:pack:pack:pack-monorepo",
+      "to": "catalog:skill:skill:pack-monorepo/void-turbo-pipeline-tuning",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-monorepo contains skill void-turbo-pipeline-tuning",
+          "from": "pack:pack-monorepo",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-monorepo/void-turbo-pipeline-tuning"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:3be1e5c44b3ad4f22a076e9d286c0a99",
+      "from": "catalog:skill:skill:void-claude-md",
+      "to": "catalog:skill:skill:void-source-driven-development",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "claude-md SKILL.md: deferred tool configuration is grounded in version-matched official sources",
+          "from": "skill:void-claude-md",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:void-source-driven-development"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:3be24e9b680a48ba82a4a546a7c2726f",
       "from": "catalog:skill:skill:void-migrations",
       "to": "catalog:skill:skill:void-observability",
@@ -5869,6 +6519,84 @@
       }
     },
     {
+      "id": "catalog:edge:composes:3ef62fb38d46e19fe07b47b6758db50a",
+      "from": "catalog:pack:pack:pack-react",
+      "to": "catalog:skill:skill:pack-react/void-state-architecture",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-react contains skill void-state-architecture",
+          "from": "pack:pack-react",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-react/void-state-architecture"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:420f7820c22a69dc9f18900df0cf13f8",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:agent:agent:frontend-engineer",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "agent:frontend-engineer"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:457ac2ddf234b0e9fd83fd655838b912",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:agent:agent:performance-engineer",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "agent:performance-engineer"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:491d0c76fe73f39f4f2d64a31cb5b982",
       "from": "catalog:skill:skill:void-debug",
       "to": "catalog:skill:skill:void-commit-discipline",
@@ -5880,6 +6608,84 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:void-commit-discipline"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:49280df8fdd8674b829543e37720f1b8",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:agent:agent:observability-sre-engineer",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "agent:observability-sre-engineer"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:49b4da26306bd99c3070860c884bd93e",
+      "from": "catalog:pack:pack:pack-pwa",
+      "to": "catalog:skill:skill:pack-pwa/void-manifest-checklist",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-pwa contains skill void-manifest-checklist",
+          "from": "pack:pack-pwa",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-pwa/void-manifest-checklist"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:4c0e028c734da44d688146e8c8d1436f",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:profile:profile:react",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "profile:react"
         }
       },
       "provenance": {
@@ -5999,6 +6805,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:559836ae8105988cd4e219285dd3a37b",
+      "from": "catalog:skill:skill:void-make-pdf",
+      "to": "catalog:agent:agent:pdf-specialist",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "make-pdf SKILL.md: a generated deliverable is reviewed by the read-only pdf-specialist agent",
+          "from": "skill:void-make-pdf",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "agent:pdf-specialist"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:56f49e779e55de7c2364bfa831b311ed",
       "from": "catalog:skill:skill:void-domain-driven-design",
       "to": "catalog:skill:skill:void-hexagonal-architecture",
@@ -6019,6 +6851,58 @@
           {
             "kind": "contract",
             "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:57eadb639a73fec01333b52830c418a3",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:agent:agent:test-qa-engineer",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "agent:test-qa-engineer"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:582c0154b14884195bb2e56340654def",
+      "from": "catalog:pack:pack:pack-mobile",
+      "to": "catalog:skill:skill:pack-mobile/void-expo-config-plugins",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-mobile contains skill void-expo-config-plugins",
+          "from": "pack:pack-mobile",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-mobile/void-expo-config-plugins"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
             "hashOrVersion": "1"
           }
         ]
@@ -6051,6 +6935,162 @@
       }
     },
     {
+      "id": "catalog:edge:composes:5d90875dc73ec189415602b773513e73",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:profile:profile:pwa",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "profile:pwa"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:5f225ff001b7895a07989d87ab4bf2b0",
+      "from": "catalog:pack:pack:pack-server",
+      "to": "catalog:skill:skill:pack-server/void-drizzle-migration-safe",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-server contains skill void-drizzle-migration-safe",
+          "from": "pack:pack-server",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-server/void-drizzle-migration-safe"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:5fc3b2f41b40187b33eab9f3be58ca0c",
+      "from": "catalog:pack:pack:pack-server",
+      "to": "catalog:skill:skill:pack-server/void-rate-limit-strategy",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-server contains skill void-rate-limit-strategy",
+          "from": "pack:pack-server",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-server/void-rate-limit-strategy"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:5fc70935f9920dec19f1ebb30ed87053",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:profile:profile:typescript",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "profile:typescript"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:602aa7200c5de82c802cb64357d3a54e",
+      "from": "catalog:pack:pack:pack-server",
+      "to": "catalog:skill:skill:pack-server/void-server-action",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-server contains skill void-server-action",
+          "from": "pack:pack-server",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-server/void-server-action"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:634fc8c03303e6f852664f0a0b3c6baa",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:profile:profile:nextjs",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "profile:nextjs"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:65f50bc26c8012a477ea480d8aa66224",
       "from": "catalog:skill:skill:void-migrations",
       "to": "catalog:skill:skill:void-tdd",
@@ -6062,6 +7102,32 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:void-tdd"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:661598fe672b3809f1f2f631008fb909",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:agent:agent:domain-architect",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "agent:domain-architect"
         }
       },
       "provenance": {
@@ -6207,6 +7273,84 @@
       }
     },
     {
+      "id": "catalog:edge:composes:778a20637d98a7da4fb3e6ea95571032",
+      "from": "catalog:pack:pack:pack-react",
+      "to": "catalog:skill:skill:pack-react/void-client-vs-server-component",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-react contains skill void-client-vs-server-component",
+          "from": "pack:pack-react",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-react/void-client-vs-server-component"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:790ba13ea5badeb132c02c290d3a1a45",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:profile:profile:node-server",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "profile:node-server"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:796ff44824dfe37a1acfddec2369b60e",
+      "from": "catalog:pack:pack:pack-react",
+      "to": "catalog:skill:skill:pack-react/void-form-pattern",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-react contains skill void-form-pattern",
+          "from": "pack:pack-react",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-react/void-form-pattern"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:7ad5bb3747ffb1372f3ecd81a60fb416",
       "from": "catalog:skill:skill:void-qa",
       "to": "catalog:skill:skill:void-tdd",
@@ -6270,6 +7414,32 @@
           "kind": "composes",
           "origin": "declared",
           "to": "agent:doctrine-critic"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:7d3a150e5a66d1bfc55610bc13cd9527",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:agent:agent:solution-architect",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "agent:solution-architect"
         }
       },
       "provenance": {
@@ -6493,6 +7663,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:8f6e6eecd68dd05536001d06d5a85de9",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:agent:agent:api-integration-engineer",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "agent:api-integration-engineer"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:91e1d5f3ed4c0f9316ba223aa47b18a7",
       "from": "catalog:skill:skill:void-code-review",
       "to": "catalog:skill:skill:void-tdd",
@@ -6597,6 +7793,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:98f3419493ce8128e1fab38254918e8f",
+      "from": "catalog:pack:pack:pack-nextjs",
+      "to": "catalog:skill:skill:pack-nextjs/void-cache-component-pattern",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-nextjs contains skill void-cache-component-pattern",
+          "from": "pack:pack-nextjs",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-nextjs/void-cache-component-pattern"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:98f623a7df03f40cafe94e0446b81fc4",
       "from": "catalog:skill:skill:void-code-review",
       "to": "catalog:skill:skill:void-typescript-strict",
@@ -6617,6 +7839,32 @@
           {
             "kind": "contract",
             "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:9a96505bc45b150b51b7df7e925b5b1a",
+      "from": "catalog:pack:pack:pack-nextjs",
+      "to": "catalog:skill:skill:pack-nextjs/void-loading-error-boundaries",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-nextjs contains skill void-loading-error-boundaries",
+          "from": "pack:pack-nextjs",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-nextjs/void-loading-error-boundaries"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
             "hashOrVersion": "1"
           }
         ]
@@ -6675,6 +7923,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:a12886b0768a238a094085d48a21a48a",
+      "from": "catalog:pack:pack:pack-nextjs",
+      "to": "catalog:skill:skill:pack-nextjs/void-instrumentation-setup",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-nextjs contains skill void-instrumentation-setup",
+          "from": "pack:pack-nextjs",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-nextjs/void-instrumentation-setup"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:a1412ee7bd8c5598d45ddbc7925e4d12",
       "from": "catalog:skill:skill:void-functional",
       "to": "catalog:skill:skill:void-domain-driven-design",
@@ -6727,6 +8001,58 @@
       }
     },
     {
+      "id": "catalog:edge:composes:a8b1568f4c539c6db88102af46cef474",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:profile:profile:expo",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "profile:expo"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:a910f012cd8083aa7a9edf41e6c5df12",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:agent:agent:visual-craft-director",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "agent:visual-craft-director"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:ab7d1b4b9f1a205955e9da672dfe97b0",
       "from": "catalog:skill:skill:void-security-guidance",
       "to": "catalog:skill:skill:void-observability",
@@ -6738,6 +8064,32 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:void-observability"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:ac6056688b6d4b25d6d0e050efa09f53",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:agent:agent:experience-designer",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "agent:experience-designer"
         }
       },
       "provenance": {
@@ -6779,6 +8131,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:adc7f444024c5b088f995b8b64493aae",
+      "from": "catalog:skill:skill:void-autopilot",
+      "to": "catalog:workflow-def:workflow-def:autopilot",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "autopilot SKILL.md: Claude executes the orchestration plan with its Workflow primitive",
+          "from": "skill:void-autopilot",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "workflow-def:autopilot"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:addc912ca0d5c676e4fe4e0cfee96d40",
       "from": "catalog:skill:skill:void-async-safety",
       "to": "catalog:skill:skill:void-migrations",
@@ -6805,6 +8183,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:b0ad1e7b43911053516dbcb65fe17021",
+      "from": "catalog:pack:pack:pack-server",
+      "to": "catalog:skill:skill:pack-server/void-background-job-pattern",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-server contains skill void-background-job-pattern",
+          "from": "pack:pack-server",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-server/void-background-job-pattern"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:b0b0ce460a9aec53ebe74b8fdb266803",
       "from": "catalog:skill:skill:void-api-and-interface-design",
       "to": "catalog:skill:skill:void-security-guidance",
@@ -6825,6 +8229,32 @@
           {
             "kind": "contract",
             "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:b14a16dbba4eeaccc844080f4d90aec2",
+      "from": "catalog:pack:pack:pack-monorepo",
+      "to": "catalog:skill:skill:pack-monorepo/void-dependency-direction",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-monorepo contains skill void-dependency-direction",
+          "from": "pack:pack-monorepo",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-monorepo/void-dependency-direction"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
             "hashOrVersion": "1"
           }
         ]
@@ -7039,6 +8469,110 @@
       }
     },
     {
+      "id": "catalog:edge:composes:bea7fa8a335fd6f308cf5f2851ac85d8",
+      "from": "catalog:pack:pack:pack-pwa",
+      "to": "catalog:skill:skill:pack-pwa/void-offline-first-mutation",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-pwa contains skill void-offline-first-mutation",
+          "from": "pack:pack-pwa",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-pwa/void-offline-first-mutation"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:beec509ad22062cff47c28b4a0c38cea",
+      "from": "catalog:pack:pack:pack-react",
+      "to": "catalog:skill:skill:pack-react/void-accessibility-check",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-react contains skill void-accessibility-check",
+          "from": "pack:pack-react",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-react/void-accessibility-check"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:c0f2f7c4c2f102d1ae3cefb6463d6021",
+      "from": "catalog:skill:skill:void-claude-md",
+      "to": "catalog:skill:skill:void-learn",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "claude-md SKILL.md: void-learn routes project-specific rules and harness gaps",
+          "from": "skill:void-claude-md",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:void-learn"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:c179394a1fff5faa119ac4099ee2fe40",
+      "from": "catalog:pack:pack:pack-pwa",
+      "to": "catalog:skill:skill:pack-pwa/void-service-worker-strategy",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-pwa contains skill void-service-worker-strategy",
+          "from": "pack:pack-pwa",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-pwa/void-service-worker-strategy"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:c279a39aeaddaa583b98deab66c45078",
       "from": "catalog:skill:skill:void-ui-review",
       "to": "catalog:skill:skill:void-qa",
@@ -7102,6 +8636,58 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:void-plan"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:ca5f368943da77e0ef13317862104cec",
+      "from": "catalog:pack:pack:pack-monorepo",
+      "to": "catalog:skill:skill:pack-monorepo/void-service-package",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-monorepo contains skill void-service-package",
+          "from": "pack:pack-monorepo",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-monorepo/void-service-package"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:caa1799448c7ca5c12dbb15cd10cbac7",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:agent:agent:pdf-specialist",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "agent:pdf-specialist"
         }
       },
       "provenance": {
@@ -7195,6 +8781,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:ce765c2e5de432ac7d79201bcf791689",
+      "from": "catalog:skill:skill:void-merge",
+      "to": "catalog:skill:skill:void-commit-discipline",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "merge SKILL.md: a merge commit explains why through void-commit-discipline",
+          "from": "skill:void-merge",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:void-commit-discipline"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:ceb64372dd3062942a9f202890ee0c49",
       "from": "catalog:skill:skill:void-plan",
       "to": "catalog:skill:skill:void-migrations",
@@ -7215,6 +8827,32 @@
           {
             "kind": "contract",
             "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:d0e9a802d1eb74672d1c5eb47d901702",
+      "from": "catalog:pack:pack:pack-nextjs",
+      "to": "catalog:skill:skill:pack-nextjs/void-route-group-decision",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-nextjs contains skill void-route-group-decision",
+          "from": "pack:pack-nextjs",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-nextjs/void-route-group-decision"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
             "hashOrVersion": "1"
           }
         ]
@@ -7299,6 +8937,58 @@
       }
     },
     {
+      "id": "catalog:edge:composes:d8c5f96eee1a083e9eeb36f4766edd8d",
+      "from": "catalog:skill:skill:void-merge",
+      "to": "catalog:skill:skill:void-verify",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "merge SKILL.md: after the last merge, the base is proven through void-verify",
+          "from": "skill:void-merge",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:void-verify"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:d8d22667e0573ec8e74da0c690ddda96",
+      "from": "catalog:pack:pack:pack-mobile",
+      "to": "catalog:skill:skill:pack-mobile/void-expo-router-pattern",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "pack pack-mobile contains skill void-expo-router-pattern",
+          "from": "pack:pack-mobile",
+          "kind": "composes",
+          "origin": "derived",
+          "to": "skill:pack-mobile/void-expo-router-pattern"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "adapter",
+            "ref": "catalog-v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:d9353e9191ee8cc716f24a2726fbb127",
       "from": "catalog:skill:skill:void-implement",
       "to": "catalog:skill:skill:void-domain-driven-design",
@@ -7310,6 +9000,32 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:void-domain-driven-design"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:decb7df510812d328cec581bb0305296",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:agent:agent:product-challenger",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "agent:product-challenger"
         }
       },
       "provenance": {
@@ -7455,6 +9171,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:f37adce4cc399be2bbcb9fb37ba9cd2e",
+      "from": "catalog:skill:skill:void-claude-md",
+      "to": "catalog:skill:skill:void-context",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "claude-md SKILL.md: void-context is the foundation; CLAUDE.md spends from the same context budget",
+          "from": "skill:void-claude-md",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "skill:void-context"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:f409a1b351fe1188f82f6213bd522dfc",
       "from": "catalog:skill:skill:void-code-review",
       "to": "catalog:agent:agent:doctrine-critic",
@@ -7559,6 +9301,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:f9c18ae778f37b5d60affc7c9cc614fc",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:agent:agent:independent-code-reviewer",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: iterate every returned envelope; never substitute a local role list",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "agent:independent-code-reviewer"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:fa68e6a52defb7d57519073497310a13",
       "from": "catalog:skill:skill:void-implement",
       "to": "catalog:skill:skill:void-qa",
@@ -7622,6 +9390,84 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:void-testing"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:fbc09215a123fe3117bd2cac23485aca",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:agent:agent:accessibility-specialist",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: iterate every returned specialist envelope; never substitute a local role list",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "agent:accessibility-specialist"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:ff465de5c5a47ec14fd810d20863d60f",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:profile:profile:sql",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "profile:sql"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:enforces:17176d2ba008ecd3afc3ab9fcd88cb54",
+      "from": "catalog:hook:hook:trim-large-output",
+      "to": "catalog:skill:skill:void-context",
+      "kind": "enforces",
+      "data": {
+        "legacy": {
+          "evidence": "CHEATSHEET: trim-large-output bounds oversized tool output before it consumes the context window",
+          "from": "hook:trim-large-output",
+          "kind": "enforces",
+          "origin": "declared",
+          "to": "skill:void-context"
         }
       },
       "provenance": {
@@ -8183,6 +10029,32 @@
       }
     },
     {
+      "id": "catalog:edge:enforces:db9966fd96182409d4dbc1c4050b35e6",
+      "from": "catalog:hook:hook:secret-in-content",
+      "to": "catalog:skill:skill:void-security-guidance",
+      "kind": "enforces",
+      "data": {
+        "legacy": {
+          "evidence": "secret-in-content refuses writes that carry credentials — enforces security-guidance's no-secret boundary",
+          "from": "hook:secret-in-content",
+          "kind": "enforces",
+          "origin": "declared",
+          "to": "skill:void-security-guidance"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:enforces:de8185e29ce95ef86245c1d1c3393828",
       "from": "catalog:hook:hook:large-cl-grep",
       "to": "catalog:skill:skill:void-commit-discipline",
@@ -8261,17 +10133,17 @@
       }
     },
     {
-      "id": "catalog:edge:invokes:456739a17826979a4ffce7752ccda2bf",
-      "from": "catalog:skill:skill:void-autopilot",
-      "to": "catalog:skill:skill:void-implement",
-      "kind": "invokes",
+      "id": "catalog:edge:enforces:ea559ecce9137da9f436de135b2e1761",
+      "from": "catalog:hook:hook:stop-typecheck",
+      "to": "catalog:skill:skill:void-typescript-strict",
+      "kind": "enforces",
       "data": {
         "legacy": {
-          "evidence": "implement SKILL.md: Caller: autopilot runs this once per ticket in parallel worktrees, whole and once",
-          "from": "skill:void-autopilot",
-          "kind": "invokes",
+          "evidence": "stop-typecheck typechecks the touched TypeScript surface before session end — enforces typescript-strict",
+          "from": "hook:stop-typecheck",
+          "kind": "enforces",
           "origin": "declared",
-          "to": "skill:void-implement"
+          "to": "skill:void-typescript-strict"
         }
       },
       "provenance": {
@@ -8298,6 +10170,110 @@
           "kind": "overlaps",
           "origin": "declared",
           "to": "skill:void-plan-review"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:routes-to:2614b220c62d9b1bf1aa774de6bef05f",
+      "from": "catalog:skill:skill:void-doctor",
+      "to": "catalog:skill:skill:void-learn",
+      "kind": "routes-to",
+      "data": {
+        "legacy": {
+          "evidence": "doctor SKILL.md: a missing doctrine rule is routed to void-learn, never fixed here",
+          "from": "skill:void-doctor",
+          "kind": "routes-to",
+          "origin": "declared",
+          "to": "skill:void-learn"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:routes-to:48f22290c4d060c58145299c39bb5c57",
+      "from": "catalog:skill:skill:void-retrospective",
+      "to": "catalog:skill:skill:void-learn",
+      "kind": "routes-to",
+      "data": {
+        "legacy": {
+          "evidence": "retrospective SKILL.md: route each durable pattern to learn",
+          "from": "skill:void-retrospective",
+          "kind": "routes-to",
+          "origin": "declared",
+          "to": "skill:void-learn"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:routes-to:5141f2c5bfa6365b158b381a1f804600",
+      "from": "catalog:skill:skill:void-audit",
+      "to": "catalog:skill:skill:void-learn",
+      "kind": "routes-to",
+      "data": {
+        "legacy": {
+          "evidence": "void-audit SKILL.md: an accepted proposal is filed through void-learn, which owns the HITL capture",
+          "from": "skill:void-audit",
+          "kind": "routes-to",
+          "origin": "declared",
+          "to": "skill:void-learn"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:routes-to:7fd2e6a4d34a8e7868abb347b4f8c0b6",
+      "from": "catalog:skill:skill:void-make-pdf",
+      "to": "catalog:skill:skill:void-verify",
+      "kind": "routes-to",
+      "data": {
+        "legacy": {
+          "evidence": "make-pdf SKILL.md: void-verify carries observed PDF proof into the final gate",
+          "from": "skill:void-make-pdf",
+          "kind": "routes-to",
+          "origin": "declared",
+          "to": "skill:void-verify"
         }
       },
       "provenance": {

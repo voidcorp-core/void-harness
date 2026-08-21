@@ -1,7 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readMissionJournals } from '@voidcorp/hook-runner';
-import { parseActivations } from '@voidcorp/harness-graph';
+import {
+  activationName,
+  isSyntheticBehaviorSession,
+  parseActivations,
+} from '@voidcorp/harness-graph';
 import { type UsageEntry, parseUsageLog } from './audit.js';
 
 /**
@@ -39,12 +43,11 @@ export function loadTelemetryStream(root: string, _legacyFile: string): string {
   return loadCanonicalEventBody(root);
 }
 
-/** Bare skill names that have fired (drop the `<plugin>:` prefix, dedupe). */
+/** Provider-aware installed skill names that have fired. */
 export function usedSkillNames(usage: readonly UsageEntry[]): Set<string> {
   const out = new Set<string>();
   for (const e of usage) {
-    const colon = e.skill.lastIndexOf(':');
-    out.add(colon >= 0 ? e.skill.slice(colon + 1) : e.skill);
+    out.add(activationName('skill', e.skill));
   }
   return out;
 }
@@ -58,7 +61,12 @@ export function usedSkillNames(usage: readonly UsageEntry[]): Set<string> {
 export function skillActivationsToUsage(text: string): UsageEntry[] {
   const out: UsageEntry[] = [];
   for (const ev of parseActivations(text)) {
-    if (ev.kind !== 'skill' || ev.ts === '' || ev.name === '') continue;
+    if (
+      ev.kind !== 'skill'
+      || ev.ts === ''
+      || ev.name === ''
+      || isSyntheticBehaviorSession(ev.sessionId)
+    ) continue;
     out.push({ timestamp: ev.ts, skill: ev.name });
   }
   return out;

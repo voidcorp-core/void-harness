@@ -63,12 +63,12 @@ request overrides automatic selection. Human gates and merges remain human.
 
 ## Anti-bloat discipline
 
-Seven hard rules. **Any PR violating these is blocked.**
+Eight hard rules. **Any PR violating these is blocked.**
 
 1. **≤ 400 lines per skill.** No exception. If you need more, split.
 2. **One skill = one subject.** A skill that talks about TDD AND mutation testing splits into two.
 3. **No responsibility overlap > 30%** between two skills. If detected, fuse or clarify boundary.
-4. **Frontmatter `description` ≤ 200 chars**, precise enough that auto-discovery picks the right skill from the description alone.
+4. **Discovery `description` hard cap 500 chars; editorial target ≤ 250**, for skills and agents. Exceeding the target alone is non-blocking; use 251–500 only for triggers, synonyms, or exclusions that improve selection. Procedure stays in the body.
 5. **Hooks ≤ 100 lines**, shell or simple TS. No DSL maison, no framework. Shared logic goes in a sourced, `_`-prefixed hook library (e.g. `hooks/_hooklib.sh`), which is exempt from the per-hook cap.
 6. **Agents have an explicit scope**. `doctrine-critic` judges code against doctrine — it does not also do QA, design, or shipping (those are their own skills/workflows).
 7. **Skill tests pass in CI.** A broken skill blocks the release.

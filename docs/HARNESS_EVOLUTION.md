@@ -30,20 +30,30 @@ The body carries source-project context (repo, commit SHA, file path) for tracea
 
 ## Outbound (harness → consumers)
 
-Periodically the harness should audit itself:
+Periodically the harness should audit the synergy of its parts:
 
-- Skills not invoked recently in any tracked session → candidate for deprecation
+- Hooks, skills, or agents with broken name joins → telemetry repair first
+- Components that error → repair before tuning or retirement
+- Structurally orphaned components → wiring review
+- Expensive, low-yield components → trigger tuning or boundary fusion
+- Components absent across at least twenty human sessions → retirement review
 - Upstream tooling deprecations (e.g., a library a skill references getting deprecated)
 - Repeated matrix conflicts in `docs/plans/skill-decision-matrix.md` → boundaries need reshaping
 
-`void-harness audit` reports this from canonical `.void/runs/*/events.jsonl` journals; legacy activation and usage logs are merged as read-only history. It classifies harness skills as active, stale (`--stale-days <n>`, default 30), or never fired - the latter two are deprecation candidates. It reports only; deprecation PRs stay hand-authored (HITL). Upstream-tooling deprecation and matrix-conflict detection are planned extensions.
+`void-harness audit` reports this from canonical `.void/runs/*/events.jsonl` journals; legacy
+activation and usage logs are merged as read-only history. It joins declared graph relations,
+human-session activations, outcomes and cost across hooks, skills and agents. Self-host and smoke
+missions are excluded. Three human sessions and twenty events permit repair/wiring/tuning proposals;
+retirement review requires twenty human sessions. It reports only; every modification, fusion or
+retirement remains hand-authored through `void-learn` (HITL). Upstream-tooling deprecation and
+decision-matrix-conflict detection are planned extensions.
 
 ### Cross-project rollup and opt-in push (#72)
 
 A single repo's telemetry is too thin to trust a "never fired" verdict (a skill fires a handful of times in one project). Each project self-registers into a global index at `~/.void/projects/` — the `activation-meter` hook, the first time it runs in a project, drops a pointer file holding that project's root (telemetry-driven, so even projects wired before this feature announce themselves; the index stays on this machine and holds only paths).
 
 - `void-harness audit --all-projects` and `void-graph cost|behavior --all-projects` aggregate the `.void/*.jsonl` of every registered project before classifying, so the gates actually clear.
-- `void-harness audit --push` files the aggregated deprecation candidates as GitHub issues on `voidcorp-core/void-harness`, labelled `harness-feedback`. It is **dry-run by default** (prints the create/update plan and stops); a real push additionally requires an interactive confirmation, and a re-run **updates the same issue** (deterministic title per `type:component`) instead of duplicating. The issues carry component names and aggregate counts only — never a project path, file content, or session id. A missing or unauthenticated `gh` fails loud. HITL is absolute: no issue is ever filed without the explicit flag and the confirmation.
+- `void-harness audit --push` files only evidence-eligible proposals as GitHub issues on `voidcorp-core/void-harness`, labelled `harness-feedback`. It is **dry-run by default** (prints the create/update plan and stops); a real push additionally requires an interactive confirmation, and a re-run **updates the same issue** (deterministic title per `type:component`) instead of duplicating. The issues carry component names and aggregate counts only — never a project path, file content, or session id. A missing or unauthenticated `gh` fails loud. HITL is absolute: no issue is ever filed without the explicit flag and the confirmation.
 
 ## HITL is absolute
 

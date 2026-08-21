@@ -8,6 +8,7 @@ import {
   adapterFor,
   adaptersFor,
   detectedAdapters,
+  specialistCapabilityFor,
   type RuntimeWireContext,
 } from './runtime-adapters.js';
 
@@ -105,6 +106,9 @@ describe('codex adapter', () => {
       limitations: expect.arrayContaining([expect.stringContaining('parent runtime overrides')]),
     });
     expect(inspection.checks.find((check) => check.name === 'codex hook smoke')?.ok).toBe(true);
+    await expect(specialistCapabilityFor(dir, 'codex')).resolves.toMatchObject({
+      status: 'degraded',
+    });
   });
 
   it('keeps a Node runner live when its executable bit is absent', async () => {
@@ -168,6 +172,9 @@ describe('claude adapter', () => {
     // degradation this used to report never existed.
     expect(checks.find((c) => c.name === 'claude agents')?.status).toBeUndefined();
     expect(checks.find((c) => c.name === 'claude agents')?.message).toMatch(/isolated by their tools allowlist/i);
+    await expect(specialistCapabilityFor(dir, 'claude')).resolves.toMatchObject({
+      status: 'available',
+    });
   });
 
   it('reports a stale Claude specialist contract version as unhealthy', async () => {

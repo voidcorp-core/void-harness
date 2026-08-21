@@ -9,9 +9,19 @@ import { describe, expect, it } from 'vitest';
 // file issue" and ran no job at all, on the first real release. Neither of the
 // checks that were run could have seen it, because neither parsed the YAML.
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const GITHUB = join(ROOT, '.github');
 const WORKFLOWS = join(ROOT, '.github', 'workflows');
 
+function listYamlFiles(root: string): string[] {
+  return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) return listYamlFiles(path);
+    return entry.name.endsWith('.yml') || entry.name.endsWith('.yaml') ? [path] : [];
+  });
+}
+
 const files = readdirSync(WORKFLOWS).filter((name) => name.endsWith('.yml') || name.endsWith('.yaml'));
+const githubYamlFiles = listYamlFiles(GITHUB);
 
 describe('workflow files', () => {
   it('has at least the workflows this repository runs on', () => {
@@ -33,6 +43,20 @@ describe('workflow files', () => {
   it.each(files)('%s contains no tab, which YAML forbids for indentation', (name) => {
     expect(readFileSync(join(WORKFLOWS, name), 'utf8')).not.toContain('\t');
   });
+
+  it.each(githubYamlFiles)(
+    '%s pins every external action and reusable workflow to a full SHA',
+    (name) => {
+      const used = [
+        ...readFileSync(name, 'utf8').matchAll(/^\s*(?:-\s*)?uses:\s*(\S+)/gm),
+      ].map((match) => match[1] ?? '');
+      const floating = used.filter(
+        (reference) => !reference.startsWith('./') && !/@[0-9a-f]{40}$/.test(reference),
+      );
+
+      expect(floating).toEqual([]);
+    },
+  );
 });
 
 // A job holding `id-token: write` can mint the OIDC token npm accepts as proof
@@ -60,13 +84,5 @@ describe('workflows that can publish', () => {
     // The ONLY restriction npm can enforce beyond the workflow filename. Without
     // it, a modified copy of this file on any branch publishes just as validly.
     expect(readFileSync(join(WORKFLOWS, name), 'utf8')).toMatch(/^\s+environment:\s*\S+/m);
-  });
-
-  it.each(publishing)('%s pins every action to a full commit SHA', (name) => {
-    const used = [...readFileSync(join(WORKFLOWS, name), 'utf8').matchAll(/uses:\s*(\S+)/g)].map((match) => match[1]);
-    // A major tag is repointable by its owner: it is a second route to the same
-    // token, and it moves without anything in this repository changing.
-    const floating = used.filter((reference) => !/@[0-9a-f]{40}$/.test(reference ?? ''));
-    expect(floating).toEqual([]);
   });
 });

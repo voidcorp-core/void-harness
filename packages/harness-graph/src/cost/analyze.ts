@@ -1,6 +1,12 @@
 import type { GraphModel, NodeType } from '../model/types.js';
 import type { ActivationEvent, ActivationKind, ActivationTrigger } from '../behavior/types.js';
-import { FIRING_KIND, bareName, triggerMatches, within } from '../behavior/index.js';
+import {
+  FIRING_KIND,
+  activationNames,
+  isSyntheticBehaviorSession,
+  triggerMatches,
+  within,
+} from '../behavior/index.js';
 import { analyzeOutcomes, outcomeKey } from '../outcome/analyze.js';
 import { DEFAULT_PRICING, deriveDollars } from './pricing.js';
 import type { CostFlag, CostOptions, CostReport, CostRow, CostStats, RealSignal, SessionCost, SessionTokens } from './types.js';
@@ -70,7 +76,8 @@ export function analyzeCost(
   const lowYieldStaticMin = opts.lowYieldStaticMin ?? DEFAULT_LOW_YIELD_STATIC_MIN;
   const pricing = opts.pricing ?? DEFAULT_PRICING;
 
-  const scoped = activations.filter((e) => within(e, opts.sinceMs));
+  const scoped = activations.filter((event) =>
+    within(event, opts.sinceMs) && !isSyntheticBehaviorSession(event.sessionId));
   const sessions = new Set(scoped.map((e) => e.sessionId));
   const stats: CostStats = { events: scoped.length, sessions: sessions.size };
 
@@ -78,7 +85,12 @@ export function analyzeCost(
   const mode: CostReport['mode'] = costById.size > 0 ? 'full' : 'static-only';
 
   // Value side (issue #71): completions per component, joined by kind + bare name.
-  const outcomeByKey = analyzeOutcomes(opts.outcomes ?? []);
+  const outcomeByKey = analyzeOutcomes((opts.outcomes ?? []).filter((event) => {
+    if (isSyntheticBehaviorSession(event.sessionId)) return false;
+    if (opts.sinceMs === undefined) return true;
+    const timestamp = Date.parse(event.ts);
+    return !Number.isNaN(timestamp) && timestamp >= opts.sinceMs;
+  }));
 
   if (stats.sessions < minSessions || stats.events < minEvents) {
     return { sufficient: false, stats, rows: [], mode };
@@ -90,20 +102,21 @@ export function analyzeCost(
   const situationsBySession = new Map<string, ActivationTrigger[]>();
   const situations: ActivationTrigger[] = [];
   for (const e of scoped) {
-    const name = bareName(e.name);
     let byName = firedCount.get(e.kind);
     if (!byName) {
       byName = new Map();
       firedCount.set(e.kind, byName);
     }
-    byName.set(name, (byName.get(name) ?? 0) + 1);
-    const key = `${e.kind}\t${name}`;
-    let set = firedSessions.get(key);
-    if (!set) {
-      set = new Set();
-      firedSessions.set(key, set);
+    for (const name of activationNames(e.kind, e.name)) {
+      byName.set(name, (byName.get(name) ?? 0) + 1);
+      const key = `${e.kind}\t${name}`;
+      let set = firedSessions.get(key);
+      if (!set) {
+        set = new Set();
+        firedSessions.set(key, set);
+      }
+      set.add(e.sessionId);
     }
-    set.add(e.sessionId);
     if (e.kind === 'tool') {
       situations.push(e.trigger);
       const list = situationsBySession.get(e.sessionId) ?? [];

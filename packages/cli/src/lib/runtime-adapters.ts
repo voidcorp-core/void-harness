@@ -558,6 +558,39 @@ const codexAdapter: RuntimeAdapter = {
 /** The registry. Adding a runtime = one more adapter here. */
 export const ADAPTERS: readonly RuntimeAdapter[] = [claudeAdapter, codexAdapter];
 
+/** Lightweight specialist readiness for mission dispatch. Unlike a full runtime
+ * inspection this does not execute a hook smoke test on every controller step. */
+export async function specialistCapabilityFor(
+  projectRoot: string,
+  runtime: Runtime,
+  options: RuntimeInspectOptions = {},
+): Promise<SpecialistRuntimeCapability> {
+  if (runtime === 'codex') {
+    const specialists = await codexSpecialistsHealth(projectRoot);
+    return effectiveSpecialistCapability(
+      specialists.ok,
+      specialists.detail,
+      CODEX_SPECIALIST_SAFETY,
+    );
+  }
+  const localAgents = join(projectRoot, '.claude', 'agents');
+  const localSpecialist = join(localAgents, 'security-engineer.md');
+  const agentsRoot = await safeRegularFile(localSpecialist)
+    ? localAgents
+    : (() => {
+        const cacheRoot = options.claudeCacheRoot
+          ?? join(homedir(), '.claude', 'plugins', 'cache');
+        const pluginDir = locatePluginDir(cacheRoot, CORE_PLUGIN_NAME);
+        return pluginDir === undefined ? undefined : join(pluginDir, 'agents');
+      })();
+  const specialists = await claudeSpecialistsCheck(agentsRoot);
+  return effectiveSpecialistCapability(
+    specialists.ok,
+    specialists.message,
+    CLAUDE_SPECIALIST_SAFETY,
+  );
+}
+
 export function adapterFor(runtime: Runtime): RuntimeAdapter {
   const found = ADAPTERS.find((a) => a.id === runtime);
   if (!found) throw new Error(`no adapter for runtime '${runtime}'`);

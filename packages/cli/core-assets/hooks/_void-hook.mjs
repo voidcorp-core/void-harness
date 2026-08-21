@@ -2341,7 +2341,7 @@ function runtimeSession(raw) {
 }
 function categoryFor(tool) {
   if (tool === "Skill") return "skill";
-  if (tool === "Task" || tool === "Agent") return "agent";
+  if (tool === "Task" || tool === "Agent" || tool === "collaborationspawn_agent" || tool === "collaboration.spawn_agent") return "agent";
   if (tool === "Workflow") return "workflow";
   return "tool";
 }
@@ -2351,7 +2351,7 @@ function nameFor(tool, category, input) {
   }
   if (category === "agent") {
     return text(
-      input["subagent_type"] ?? input["agent"],
+      input["subagent_type"] ?? input["agent_type"] ?? input["agent"],
       tool === "Agent" ? "claude" : "unknown"
     );
   }
@@ -2873,6 +2873,14 @@ async function existingIdempotentEvent(logPath, options, currentBytes) {
   }
   return existing;
 }
+async function currentCanonicalEvents(logPath, currentBytes) {
+  if (currentBytes === 0) return [];
+  const stream = replayEventLog(await readFile2(logPath, "utf8"));
+  if (stream.continuity === "partial" || stream.duplicateEventIds > 0) {
+    throw new Error("HOOK_EVENT_LOG_INTEGRITY: continuity cannot be proved");
+  }
+  return stream.events;
+}
 async function writeSequencedEventInternal(options) {
   if (options.eventId !== void 0 && !EVENT_ID2.test(options.eventId)) {
     throw new Error("HOOK_INVALID_EVENT_ID: expected evt_<opaque-id>");
@@ -2908,6 +2916,9 @@ async function writeSequencedEventInternal(options) {
     );
     if (existing !== void 0) {
       return Object.freeze({ event: existing, appended: false });
+    }
+    if (options.validate !== void 0) {
+      await options.validate(await currentCanonicalEvents(logPath, currentBytes));
     }
     if (currentBytes >= MAX_EVENT_LOG_BYTES) {
       throw new Error("HOOK_EVENT_LOG_FULL: rotate or archive the run");

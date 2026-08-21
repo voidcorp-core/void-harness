@@ -35,4 +35,14 @@ describe('deriveEdges', () => {
       expect.objectContaining({ from: 'skill:pack-nextjs/cache', to: 'skill:cache', kind: 'extends', origin: 'derived' }),
     );
   });
+  it('links each pack to the skills it contains', () => {
+    expect(edges).toContainEqual(
+      expect.objectContaining({
+        from: 'pack:pack-nextjs',
+        to: 'skill:pack-nextjs/cache',
+        kind: 'composes',
+        origin: 'derived',
+      }),
+    );
+  });
 });

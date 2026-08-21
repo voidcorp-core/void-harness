@@ -107,6 +107,59 @@ describe('analyzeBehavior — dead-node', () => {
     expect(findings.filter((f) => f.kind === 'dead-node').flatMap((f) => f.nodes)).toContain('agent:a2');
   });
 
+  it('keeps a telemetry gap when the only agent activation is foreign to the installed model', () => {
+    const twoAgents: GraphModel = {
+      version: 1,
+      nodes: [node('agent:a1', 'agent'), node('agent:a2', 'agent')],
+      edges: [],
+    };
+    const events = [
+      ev({ kind: 'agent', name: 'claude-code-guide', sessionId: 'x1' }),
+      ev({ kind: 'tool', name: 'Edit', sessionId: 'x1' }),
+    ];
+
+    const findings = analyzeBehavior(twoAgents, events, SMALL).findings;
+
+    expect(findings.filter((f) => f.kind === 'telemetry-gap')).toEqual([
+      expect.objectContaining({ nodes: ['agent:a1', 'agent:a2'] }),
+    ]);
+    expect(findings.filter((f) => f.kind === 'dead-node')).toHaveLength(0);
+  });
+
+  it('does not let a foreign provider homonym count as a local firing', () => {
+    const localSkills: GraphModel = {
+      version: 1,
+      nodes: [node('skill:void-tdd', 'skill'), node('skill:void-testing', 'skill')],
+      edges: [],
+    };
+    const events = [
+      ev({ kind: 'skill', name: 'superpowers:void-tdd', sessionId: 'x1' }),
+      ev({ kind: 'tool', name: 'Edit', sessionId: 'x1' }),
+    ];
+
+    const findings = analyzeBehavior(localSkills, events, SMALL).findings;
+
+    expect(findings.filter((f) => f.kind === 'telemetry-gap')).toEqual([
+      expect.objectContaining({ nodes: ['skill:void-tdd', 'skill:void-testing'] }),
+    ]);
+  });
+
+  it.each(['tdd', 'harness:tdd', 'void-tdd', 'harness:void-tdd'])(
+    'joins the local runtime alias %s to the installed void-prefixed skill',
+    (name) => {
+      const localSkills: GraphModel = {
+        version: 1,
+        nodes: [node('skill:void-tdd', 'skill')],
+        edges: [],
+      };
+      const findings = analyzeBehavior(localSkills, [
+        ev({ kind: 'skill', name, sessionId: 'x1' }),
+      ], SMALL).findings;
+
+      expect(findings.flatMap((finding) => finding.nodes)).not.toContain('skill:void-tdd');
+    },
+  );
+
   it('never flags an always-loaded doctrine skill as dead, even when never invoked', () => {
     const doctrineModel: GraphModel = {
       version: 1,
@@ -144,9 +197,47 @@ describe('analyzeBehavior — should-have-fired', () => {
     const shf = analyzeBehavior(model, events, SMALL).findings.filter((f) => f.kind === 'should-have-fired');
     expect(shf.flatMap((f) => f.nodes)).not.toContain('skill:lonely');
   });
+
+  it('never expects an always-loaded doctrine skill to fire through the skill tool', () => {
+    const alwaysTriggered: GraphModel = {
+      version: 1,
+      nodes: [{
+        ...node('skill:void-typescript-strict', 'skill', { tools: ['Edit'] }),
+        activation: 'always',
+      }],
+      edges: [],
+    };
+    const events = [ev({
+      kind: 'tool',
+      name: 'Edit',
+      sessionId: 's1',
+      trigger: { tool: 'Edit', fileGlobs: ['src/a.ts'], ext: ['ts'] },
+    })];
+
+    expect(analyzeBehavior(alwaysTriggered, events, SMALL).findings).toEqual([]);
+  });
 });
 
 describe('analyzeBehavior — window + determinism', () => {
+
+  it('excludes self-host and smoke missions from human behavior evidence', () => {
+    const events = [
+      ev({ kind: 'agent', name: 'code-explorer', sessionId: 'mis_selfhost_aabbccdd' }),
+      ev({ kind: 'tool', name: 'Edit', sessionId: 'mis_selfhost_aabbccdd' }),
+      ev({ kind: 'agent', name: 'code-explorer', sessionId: 'mis_smoke0000000000000000001' }),
+      ev({ kind: 'skill', name: 'tdd', sessionId: 'mis_human0000000000000000001' }),
+    ];
+
+    const report = analyzeBehavior(model, events, SMALL);
+
+    expect(report.stats).toEqual({
+      events: 1,
+      sessions: 1,
+      excludedEvents: 3,
+      excludedSessions: 2,
+    });
+    expect(report.findings.flatMap((finding) => finding.nodes)).toContain('agent:code-explorer');
+  });
   it('excludes events older than sinceMs', () => {
     const cutoff = Date.parse('2026-06-20T00:00:00Z');
     const events = [
