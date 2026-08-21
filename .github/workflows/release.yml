@@ -166,100 +166,266 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # Tokenless, provenance-signed publish of voidharness via npm Trusted
-  # Publishing (OIDC), gated on a release having been cut (i.e. a human merged the
-  # release PR). NO npm token exists anywhere: `id-token: write` lets the runner
-  # mint a short-lived, workflow-scoped credential that npm trusts, and provenance
-  # is attached automatically. `pnpm publish` rewrites the internal `workspace:*`
-  # dep to a real range; `check:publish` fails closed if any `workspace:`
-  # specifier survives into a packed tarball.
-  #
-  # PREREQUISITE (one-time, see docs/RELEASING.md): npm Trusted Publishing can NOT
-  # create a brand-new package — the trusted publisher is configured on an
-  # EXISTING package's settings page. So v1 is bootstrapped by a single manual
-  # `pnpm publish` (interactive 2FA, no stored token); the trusted publisher is
-  # then linked to (org: voidcorp-core, repo: void-harness, workflow: release.yml),
-  # and every release from the next one on publishes here with zero tokens.
-  #
-  # The repo's packageManager is pnpm 10 (bumped from 9 precisely because OIDC
-  # trusted publishing landed in pnpm 10; 11.0.8 has a known 404 regression,
-  # pnpm/pnpm#11513). action-setup reads the version from packageManager — no
-  # `version:` input here (setting both errors: ERR_PNPM_BAD_PM_VERSION).
+  # This is the only OIDC-capable job. It executes no repository or package
+  # lifecycle code: validation packed the final bytes once, and this job only
+  # authenticates the immutable cross-job artifact before publishing that local
+  # tarball through npm Trusted Publishing.
   publish:
     needs: [release-please, validate-release]
-    # Runs when a release was just cut (the normal path) OR on a manual dispatch
-    # (re-publish the current version after a failed run). `always()` lets it
-    # evaluate on dispatch even though the gating output is empty then.
-    # `github.ref` is the ONLY branch restriction that exists anywhere in this
-    # chain. npm's trusted publisher matches organisation, repository, workflow
-    # FILENAME and an optional environment — it has no branch or ref field, so
-    # every run of this file is equally legitimate to the registry (verified in
-    # the npm docs and on the package settings page, 2026-08-20). Drop this
-    # condition and a dispatch from any branch publishes that branch's tree under
-    # the package name, provenance-signed.
     if: ${{ always() && needs.validate-release.result == 'success' }}
     runs-on: ubuntu-latest
-    # The second half of the same lock, and the half npm can enforce: configure
-    # this exact environment name on the package's trusted publisher, and a
-    # modified copy of this workflow on another branch stops being accepted. Its
-    # deployment branch policy allows `main` only.
-    #
-    # It carries NO required reviewers, deliberately (2026-08-21). One lived here
-    # and made publishing a third human action after the two pull-request merges
-    # above it — the only one whose button is in the Actions tab, asking the
-    # question the release merge had just answered. See docs/RELEASING.md.
+    concurrency:
+      group: npm-voidharness-publish
+      cancel-in-progress: false
     environment: npm-publish
     permissions:
       contents: read
+      actions: read
       id-token: write
+    env:
+      EXPECTED_REPOSITORY: voidcorp-core/void-harness
+      MINIMUM_NPM_MAJOR: 11
+      MAX_CLASSIFICATION_ATTEMPTS: 3
+      MAX_PUBLICATION_ATTEMPTS: 12
+      ARTIFACT_ID: ${{ needs.validate-release.outputs.artifact_id }}
+      ARTIFACT_NAME: ${{ needs.validate-release.outputs.artifact_name }}
+      ARTIFACT_DIGEST: ${{ needs.validate-release.outputs.artifact_digest }}
+      RELEASE_TAG: ${{ needs.validate-release.outputs.release_tag }}
+      RELEASE_VERSION: ${{ needs.validate-release.outputs.version }}
+      RELEASE_COMMIT: ${{ needs.validate-release.outputs.release_commit }}
+      TARBALL_NAME: ${{ needs.validate-release.outputs.tarball_name }}
+      EXPECTED_SHA256: ${{ needs.validate-release.outputs.sha256 }}
+      EXPECTED_INTEGRITY: ${{ needs.validate-release.outputs.integrity }}
+      ARTIFACT_DIR: ${{ runner.temp }}/validated-release
     steps:
-      # Pinned by SHA, not by major tag: a tag is repointable by its owner, which
-      # is a second route to the token this job holds, and it moves without
-      # anything in this repository changing.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          # Explicit: publish the commit the run was created for, never whatever
-          # the ref points at by the time the job starts.
-          ref: ${{ needs.validate-release.outputs.release_commit }}
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
-      # NO `registry-url:` here, deliberately, and it must stay that way.
-      # setup-node reacts to it by writing `//registry.npmjs.org/:_authToken=
-      # ${NODE_AUTH_TOKEN}` into a temp .npmrc (and pointing NPM_CONFIG_USERCONFIG
-      # at it), with NODE_AUTH_TOKEN defaulted to the literal placeholder
-      # `XXXXX-XXXXX-XXXXX-XXXXX`. npm then sees a credential already configured,
-      # never initiates the OIDC exchange, and authenticates with that garbage
-      # token -- which the registry answers with a bare `E404 PUT /voidharness`,
-      # a permission error wearing a not-found costume. See actions/setup-node#1551.
-      # registry.npmjs.org is the default registry anyway, so the input bought
-      # nothing and cost the whole trusted-publishing flow.
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
 
-      # The release PR now receives the normal branch-protection checks through
-      # the dispatch above. This remains a separate, stronger publish gate: it
-      # validates the exact tagged tree and also covers manual workflow_dispatch
-      # re-publishes. Publishing to npm is irreversible; defense in depth here is
-      # intentional.
-      #
-      # `pnpm build` FIRST, mirroring ci.yml: packs resolve cross-package imports
-      # through their dist exports, so the type declarations must exist before
-      # typecheck or it fails on unresolvable @voidcorp/* modules. Omitting it is
-      # what made the first gated 2.0.0 run fail (correctly, but for the wrong
-      # reason) and left the tag cut with nothing published.
-      - name: Validate the tree being published
+      - name: Require a Trusted Publishing-compatible npm
         run: |
-          pnpm version:check
-          pnpm build
-          pnpm typecheck
-          pnpm test
+          set -euo pipefail
+          node -e 'const major=Number(process.argv[1].split(".")[0]); if (!Number.isInteger(major) || major < Number(process.env.MINIMUM_NPM_MAJOR)) throw new Error(`npm ${process.argv[1]} is too old`)' "$(npm --version)"
 
-      # Guard: no `workspace:` specifier may survive into a published tarball.
-      - run: pnpm check:publish
-      # prepack (builds the kernel + CLI + core-assets) runs automatically, so the
-      # published tarball is self-contained. --no-git-checks: the tag is already
-      # cut; the tree is the release commit. No NODE_AUTH_TOKEN — auth is OIDC.
-      - name: Publish to npm (OIDC trusted publishing, provenance auto)
-        run: pnpm --filter voidharness publish --access public --no-git-checks
+      - name: Verify release artifact service metadata
+        id: verify-release-artifact-metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN_ID: ${{ github.run_id }}
+          WORKFLOW_HEAD_SHA: ${{ github.sha }}
+          METADATA_PATH: ${{ runner.temp }}/release-artifact-metadata.json
+        run: |
+          set -euo pipefail
+          gh api "repos/$EXPECTED_REPOSITORY/actions/artifacts/$ARTIFACT_ID" > "$METADATA_PATH"
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+
+          const artifact = JSON.parse(readFileSync(process.env.METADATA_PATH, 'utf8'));
+          const fail = (message) => { throw new Error(`release artifact metadata: ${message}`); };
+          if (String(artifact.id) !== process.env.ARTIFACT_ID) fail('artifact-id mismatch');
+          if (artifact.name !== process.env.ARTIFACT_NAME) fail('artifact name mismatch');
+          if (artifact.digest !== `sha256:${process.env.ARTIFACT_DIGEST}`) {
+            fail('artifact-digest mismatch');
+          }
+          if (artifact.expired !== false) fail('expired artifact');
+          if (String(artifact.workflow_run?.id) !== process.env.RELEASE_RUN_ID) {
+            fail('workflow_run id mismatch');
+          }
+          if (artifact.workflow_run?.head_sha !== process.env.WORKFLOW_HEAD_SHA) {
+            fail('workflow_run head_sha mismatch');
+          }
+          NODE
+
+      - name: Download the exact validated artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          artifact-ids: ${{ needs.validate-release.outputs.artifact_id }}
+          path: ${{ runner.temp }}/validated-release
+          github-token: ${{ github.token }}
+          repository: voidcorp-core/void-harness
+          run-id: ${{ github.run_id }}
+          merge-multiple: true
+
+      - name: Verify release artifact bytes and package identity
+        id: verify-release-artifact
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          import { createHash } from 'node:crypto';
+          import { appendFileSync, readFileSync, readdirSync } from 'node:fs';
+          import { join } from 'node:path';
+
+          const fail = (message) => { throw new Error(`release artifact: ${message}`); };
+          const expectedFiles = ['release-artifact.json', process.env.TARBALL_NAME].sort();
+          const files = readdirSync(process.env.ARTIFACT_DIR).sort();
+          if (JSON.stringify(files) !== JSON.stringify(expectedFiles)) {
+            fail('artifact must contain only the manifest and exact tarball');
+          }
+          const manifestPath = join(process.env.ARTIFACT_DIR, 'release-artifact.json');
+          const tarballPath = join(process.env.ARTIFACT_DIR, process.env.TARBALL_NAME);
+          const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+          const tarball = readFileSync(tarballPath);
+          const expected = {
+            schemaVersion: 1,
+            releaseTag: process.env.RELEASE_TAG,
+            version: process.env.RELEASE_VERSION,
+            releaseCommit: process.env.RELEASE_COMMIT,
+            packageName: 'voidharness',
+            tarballName: process.env.TARBALL_NAME,
+            bytes: tarball.length,
+            sha256: createHash('sha256').update(tarball).digest('hex'),
+            integrity: `sha512-${createHash('sha512').update(tarball).digest('base64')}`,
+          };
+          for (const [field, value] of Object.entries(expected)) {
+            if (manifest[field] !== value) fail(`manifest mismatch at ${field}`);
+          }
+          if (expected.sha256 !== process.env.EXPECTED_SHA256) fail('SHA-256 output mismatch');
+          if (expected.integrity !== process.env.EXPECTED_INTEGRITY) fail('SHA-512 output mismatch');
+          const packageManifest = JSON.parse(execFileSync(
+            'tar', ['-xOf', tarballPath, 'package/package.json'], { encoding: 'utf8' },
+          ));
+          if (
+            packageManifest.name !== 'voidharness' ||
+            packageManifest.version !== process.env.RELEASE_VERSION
+          ) {
+            fail('embedded package identity mismatch');
+          }
+          appendFileSync(process.env.GITHUB_OUTPUT, `tarball_path=${tarballPath}\n`);
+          NODE
+
+      - name: Classify the registry version with bounded retries
+        id: registry
+        env:
+          REGISTRY_RESPONSE: ${{ runner.temp }}/registry-version.json
+          REGISTRY_ERROR: ${{ runner.temp }}/registry-version.error
+        run: |
+          set -euo pipefail
+          state=transient
+          for ((attempt=1; attempt<=MAX_CLASSIFICATION_ATTEMPTS; attempt++)); do
+            if npm view "voidharness@$RELEASE_VERSION" dist --json > "$REGISTRY_RESPONSE" 2> "$REGISTRY_ERROR"; then
+              if node -e 'const fs=require("node:fs"); const dist=JSON.parse(fs.readFileSync(process.env.REGISTRY_RESPONSE,"utf8")); if (dist.integrity !== process.env.EXPECTED_INTEGRITY) process.exit(66); if (!(dist.attestations && dist.attestations.url) || dist.attestations.provenance?.predicateType !== "https://slsa.dev/provenance/v1") process.exit(75)' ; then
+                state=ready
+                break
+              else
+                validation_status=$?
+                if [[ "$validation_status" -eq 66 ]]; then
+                  echo "Published version has different bytes" >&2
+                  exit 1
+                fi
+                state=missing-attestation
+              fi
+            elif node -e 'const fs=require("node:fs"); try { process.exit(JSON.parse(fs.readFileSync(process.env.REGISTRY_RESPONSE,"utf8")).error?.code === "E404" ? 0 : 1); } catch { process.exit(1); }'; then
+              state=E404
+            else
+              state=transient
+            fi
+            if [[ "$attempt" -lt "$MAX_CLASSIFICATION_ATTEMPTS" ]]; then sleep 5; fi
+          done
+          if [[ "$state" == ready ]]; then
+            echo "state=ready" >> "$GITHUB_OUTPUT"
+          elif [[ "$state" == E404 ]]; then
+            echo "state=absent" >> "$GITHUB_OUTPUT"
+          else
+            cat "$REGISTRY_ERROR" >&2
+            echo "Registry state did not become classifiable" >&2
+            exit 1
+          fi
+
+      - name: Publish validated tarball through npm OIDC
+        if: ${{ steps.registry.outputs.state == 'absent' }}
+        env:
+          TARBALL_PATH: ${{ steps.verify-release-artifact.outputs.tarball_path }}
+        run: npm publish "$TARBALL_PATH" --access public --ignore-scripts
+
+      - name: Require registry integrity and provenance candidate
+        env:
+          REGISTRY_RESPONSE: ${{ runner.temp }}/published-version.json
+          REGISTRY_ERROR: ${{ runner.temp }}/published-version.error
+        run: |
+          set -euo pipefail
+          for ((attempt=1; attempt<=MAX_PUBLICATION_ATTEMPTS; attempt++)); do
+            if npm view "voidharness@$RELEASE_VERSION" dist --json > "$REGISTRY_RESPONSE" 2> "$REGISTRY_ERROR"; then
+              if node -e 'const fs=require("node:fs"); const dist=JSON.parse(fs.readFileSync(process.env.REGISTRY_RESPONSE,"utf8")); if (dist.integrity !== process.env.EXPECTED_INTEGRITY) process.exit(66); if (!(dist.attestations && dist.attestations.url) || dist.attestations.provenance?.predicateType !== "https://slsa.dev/provenance/v1") process.exit(75)' ; then
+                exit 0
+              else
+                validation_status=$?
+                if [[ "$validation_status" -eq 66 ]]; then
+                  echo "Registry integrity conflicts with the validated tarball" >&2
+                  exit 1
+                fi
+              fi
+            fi
+            if [[ "$attempt" -lt "$MAX_PUBLICATION_ATTEMPTS" ]]; then sleep 10; fi
+          done
+          cat "$REGISTRY_ERROR" >&2
+          echo "Registry integrity and provenance did not converge" >&2
+          exit 1
+
+  # This job has no OIDC or package credential. It verifies the public registry
+  # result using npm's signature verifier and GitHub CLI's certificate policy.
+  verify-publication:
+    needs: [release-please, validate-release, publish]
+    if: ${{ always() && needs.publish.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      VERIFIED_NPM_VERSION: 11.12.1
+      MINIMUM_GH_VERSION: 2.97.0
+      RELEASE_VERSION: ${{ needs.validate-release.outputs.version }}
+      RELEASE_COMMIT: ${{ needs.validate-release.outputs.release_commit }}
+      EXPECTED_INTEGRITY: ${{ needs.validate-release.outputs.integrity }}
+      RELEASE_RUN_ID: ${{ github.run_id }}
+      RELEASE_RUN_ATTEMPT: ${{ github.run_attempt }}
+      VERIFY_ROOT: ${{ runner.temp }}/publication-verification
+      NPM_AUDIT_PATH: ${{ runner.temp }}/publication-verification/npm-audit.json
+      SLSA_BUNDLE_PATH: ${{ runner.temp }}/publication-verification/slsa-bundle.json
+      GH_VERIFICATION_PATH: ${{ runner.temp }}/publication-verification/gh-verification.json
+      TARBALL_PATH: ${{ runner.temp }}/publication-verification/voidharness-${{ needs.validate-release.outputs.version }}.tgz
+    steps:
+      - name: Check out the exact verification implementation
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          path: release-control
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+
+      - name: Pin tested npm and require the tested GitHub CLI floor
+        run: |
+          set -euo pipefail
+          npm install --global "npm@$VERIFIED_NPM_VERSION" --ignore-scripts
+          test "$(npm --version)" = "$VERIFIED_NPM_VERSION"
+          node -e 'const observed=process.argv[1].match(/gh version ([0-9]+\.[0-9]+\.[0-9]+)/)?.[1]; const parts=(v)=>v.split(".").map(Number); const [a,b,c]=parts(observed||"0.0.0"); const [x,y,z]=parts(process.env.MINIMUM_GH_VERSION); if (a<x || (a===x && (b<y || (b===y && c<z)))) throw new Error(`gh ${observed||"unknown"} is below ${process.env.MINIMUM_GH_VERSION}`)' "$(gh version | head -n 1)"
+
+      - name: Verify npm signatures and collect the exact registry tarball
+        working-directory: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$VERIFY_ROOT"
+          cd "$VERIFY_ROOT"
+          npm init --yes
+          npm install "voidharness@$RELEASE_VERSION" --ignore-scripts --package-lock=false
+          npm pack "voidharness@$RELEASE_VERSION" --ignore-scripts --pack-destination "$VERIFY_ROOT"
+          npm audit signatures --json --include-attestations > "$NPM_AUDIT_PATH"
+          node "$GITHUB_WORKSPACE/release-control/scripts/verify-release-publication.mjs" extract
+
+      - name: Verify GitHub workflow identity and signed SLSA statement
+        run: |
+          set -euo pipefail
+          gh attestation verify "$TARBALL_PATH" \
+            --bundle "$SLSA_BUNDLE_PATH" \
+            --repo voidcorp-core/void-harness \
+            --signer-workflow voidcorp-core/void-harness/.github/workflows/release.yml \
+            --source-ref refs/heads/main \
+            --source-digest "$RELEASE_COMMIT" \
+            --signer-digest "$RELEASE_COMMIT" \
+            --deny-self-hosted-runners \
+            --predicate-type https://slsa.dev/provenance/v1 \
+            --digest-alg sha512 \
+            --format json > "$GH_VERIFICATION_PATH"
+          node "$GITHUB_WORKSPACE/release-control/scripts/verify-release-publication.mjs" verify

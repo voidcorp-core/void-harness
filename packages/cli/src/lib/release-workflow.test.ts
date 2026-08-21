@@ -200,13 +200,16 @@ describe('minimal OIDC publication and independent provenance verification', () 
     expect(publishJob).toContain(
       'actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131',
     );
-    expect(publishJob).toContain('artifact-ids: ${{ needs.validate-release.outputs.artifact_id }}');
+    expect(publishJob).toContain(
+      'artifact-ids: $' + '{{ needs.validate-release.outputs.artifact_id }}',
+    );
+    expect(publishJob).toContain('merge-multiple: true');
   });
 
   it('executes no repository or package lifecycle code while OIDC is available', () => {
     expect(effectivePublishJob).not.toContain('actions/checkout@');
     expect(effectivePublishJob).not.toContain('pnpm');
-    expect(effectivePublishJob).not.toMatch(/\bnpm\s+(?:ci|install|run|test|pack)\b/);
+    expect(effectivePublishJob).not.toMatch(/\bnpm[ \t]+(?:ci|install|run|test|pack)\b/);
     expect(effectivePublishJob).not.toMatch(/\b(?:prepack|prepare|postinstall)\b/);
     expect(effectivePublishJob).toContain('MINIMUM_NPM_MAJOR: 11');
     expect(effectivePublishJob).toContain(

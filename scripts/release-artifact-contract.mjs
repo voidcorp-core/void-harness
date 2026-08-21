@@ -4,6 +4,7 @@ export const RELEASE_PACKAGE = 'voidharness';
 
 const RELEASE_TAG = /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
 const RELEASE_COMMIT = /^[0-9a-f]{40}$/;
+const ARTIFACT_DIGEST = /^[0-9a-f]{64}$/;
 
 function fail(message) {
   throw new Error(`release artifact: ${message}`);
@@ -109,4 +110,33 @@ export function verifyReleaseArtifact(input) {
     }
   }
   return expected;
+}
+
+export function verifyArtifactMetadata(input) {
+  const artifact = input?.artifact;
+  const expected = input?.expected;
+  if (!artifact || typeof artifact !== 'object' || !expected || typeof expected !== 'object') {
+    fail('artifact metadata and expectations are required');
+  }
+  if (String(artifact.id) !== expected.id) fail('artifact id does not match validation output');
+  if (artifact.name !== expected.name) fail('artifact name does not match validation output');
+  if (
+    typeof expected.digest !== 'string' ||
+    !ARTIFACT_DIGEST.test(expected.digest) ||
+    artifact.digest !== `sha256:${expected.digest}`
+  ) {
+    fail('artifact service digest does not match validation output');
+  }
+  if (artifact.expired !== false) fail('artifact is expired or has no closed expiry state');
+  if (String(artifact.workflow_run?.id) !== expected.workflowRunId) {
+    fail('artifact workflow run does not match the current release run');
+  }
+  if (
+    typeof expected.workflowHeadSha !== 'string' ||
+    !RELEASE_COMMIT.test(expected.workflowHeadSha) ||
+    artifact.workflow_run?.head_sha !== expected.workflowHeadSha
+  ) {
+    fail('artifact workflow head SHA does not match the current release run');
+  }
+  return artifact;
 }
