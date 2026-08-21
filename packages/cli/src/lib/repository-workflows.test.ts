@@ -11,17 +11,26 @@ const files = readdirSync(WORKFLOWS).filter(
   (name) => name.endsWith('.yml') || name.endsWith('.yaml'),
 );
 
+type Permissions = Record<string, unknown> | 'read-all' | 'write-all';
+
 type Workflow = {
-  permissions?: Record<string, unknown>;
+  permissions?: Permissions;
   jobs?: Record<
     string,
     {
       environment?: unknown;
-      permissions?: Record<string, unknown>;
+      permissions?: Permissions;
       steps?: Array<{ run?: unknown }>;
     }
   >;
 };
+
+function grantsOidcWrite(permissions: Permissions | undefined): boolean {
+  return (
+    permissions === 'write-all' ||
+    (typeof permissions === 'object' && permissions?.['id-token'] === 'write')
+  );
+}
 
 function parseWorkflow(name: string): Workflow {
   const document = parseDocument(readFileSync(join(WORKFLOWS, name), 'utf8'), {
@@ -61,13 +70,11 @@ describe('repository workflow execution contracts', () => {
 
   it('grants OIDC to exactly release.yml/publish with the bounded job contract', () => {
     const workflows = files.map((name) => ({ name, workflow: parseWorkflow(name) }));
-    expect(
-      workflows.filter(({ workflow }) => workflow.permissions?.['id-token'] === 'write'),
-    ).toEqual([]);
+    expect(workflows.filter(({ workflow }) => grantsOidcWrite(workflow.permissions))).toEqual([]);
     const oidcJobs = workflows.flatMap(({ name, workflow }) =>
       Object.entries(workflow.jobs ?? {}).flatMap(([jobName, job]) => {
         const effectivePermissions = job.permissions ?? workflow.permissions ?? {};
-        return effectivePermissions['id-token'] === 'write' ? [{ name, jobName, job }] : [];
+        return grantsOidcWrite(effectivePermissions) ? [{ name, jobName, job }] : [];
       }),
     );
 
@@ -80,5 +87,25 @@ describe('repository workflow execution contracts', () => {
       'id-token': 'write',
     });
     expect(oidcJobs[0]?.job.environment).toBe('npm-publish');
+  });
+
+  it('treats workflow-level and job-level write-all as effective OIDC write authority', () => {
+    const workflowLevel = parseDocument(
+      'permissions: write-all\njobs:\n  inherited:\n    runs-on: ubuntu-latest\n',
+    ).toJS() as Workflow;
+    const jobLevel = parseDocument(
+      'permissions: read-all\njobs:\n  explicit:\n    runs-on: ubuntu-latest\n    permissions: write-all\n',
+    ).toJS() as Workflow;
+
+    expect(grantsOidcWrite(workflowLevel.permissions)).toBe(true);
+    expect(
+      grantsOidcWrite(
+        workflowLevel.jobs?.inherited?.permissions ?? workflowLevel.permissions,
+      ),
+    ).toBe(true);
+    expect(grantsOidcWrite(jobLevel.jobs?.explicit?.permissions)).toBe(true);
+    expect(grantsOidcWrite('read-all')).toBe(false);
+    expect(grantsOidcWrite({ 'id-token': 'write' })).toBe(true);
+    expect(grantsOidcWrite({ contents: 'write' })).toBe(false);
   });
 });
