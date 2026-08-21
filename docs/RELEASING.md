@@ -215,18 +215,28 @@ are outside this repository, so a green CI does not prove they are in place.
    it holds the App token. Every action is pinned by full commit SHA, because a
    major tag is repointable by its owner and is a second route to the same token.
    `test/workflows/workflows-parse.test.ts` fails if any of this is removed.
-2. **On GitHub** (manual): Settings → Environments → `npm-publish`, with
-   **required reviewers**, `main` as the only deployment branch, and
-   *Allow administrators to bypass* **off** — a protection its own admin can step
-   around without a trace is a reminder, not a gate.
+2. **On GitHub** (manual): Settings → Environments → `npm-publish`, with `main`
+   as the only deployment branch. Referencing an environment that does not exist
+   creates it silently and unprotected, so this step is what turns the workflow's
+   declaration into a restriction. Without it the workflow reads as locked and is
+   not.
 
-   **Where the approval actually is**, because it is not obvious and it stops the
-   release until you find it: the run page of the `release` workflow, under the
-   `publish` job, shows a *Review deployments* banner at the top. Not in the pull
-   request, not in Settings. GitHub also emails it. Until you click there, the job
-   sits in `waiting` and npm never sees a request. Referencing an environment that does not exist creates
-   it silently and unprotected, so this step is what turns the declaration into a
-   gate. Without it the workflow reads as locked and is not.
+   **No required reviewers**, and that is a decision rather than an omission
+   (2026-08-21). The environment carried one until then, which made publishing a
+   third human action after merging the promotion pull request and merging the
+   release pull request — and the only one of the three whose button lives in the
+   Actions tab, on the run page, under a *Review deployments* banner that is not
+   in the pull request and not in Settings. It asked the same question the release
+   merge had just answered, in the one place nobody is already looking. Merging
+   the release pull request is the deliberate act: it is where the version bump
+   and the changelog are read. What the environment still does — restrict the
+   branch, and give npm a name to match in step 3 — is untouched by the removal.
+
+   What is genuinely lost: write access to `main` now reaches npm without a
+   further human. That access already allowed editing this workflow, so the
+   reviewer bought one speed bump on a route that was open either way. The
+   alternatives weighed, and the reversal cost, are in
+   `docs/decisions-log/2026-08-21-npm-publish-environment-carries-no-required-reviewers--096831d9-a312-4c7b-aa92-0901769acde7.md`.
 3. **On npm** (manual): the trusted publisher must name that same environment.
    Without it, a modified copy of `release.yml` on another branch is still
    accepted by the registry — the workflow filename is all it checks.

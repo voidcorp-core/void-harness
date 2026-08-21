@@ -101,9 +101,13 @@ jobs:
     runs-on: ubuntu-latest
     # The second half of the same lock, and the half npm can enforce: configure
     # this exact environment name on the package's trusted publisher, and a
-    # modified copy of this workflow on another branch stops being accepted.
-    # Protect it with required reviewers — the environment is what makes the
-    # publication a deliberate human act rather than a side effect of a push.
+    # modified copy of this workflow on another branch stops being accepted. Its
+    # deployment branch policy allows `main` only.
+    #
+    # It carries NO required reviewers, deliberately (2026-08-21). One lived here
+    # and made publishing a third human action after the two pull-request merges
+    # above it — the only one whose button is in the Actions tab, asking the
+    # question the release merge had just answered. See docs/RELEASING.md.
     environment: npm-publish
     permissions:
       contents: read
