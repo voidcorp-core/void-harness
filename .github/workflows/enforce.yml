@@ -6,10 +6,10 @@
 #   on: pull_request
 #   jobs:
 #     enforce:
-#       uses: voidcorp-core/void-harness/.github/workflows/enforce.yml@main
+#       uses: voidcorp-core/void-harness/.github/workflows/enforce.yml@<full-sha>
 #
-# Pin @main to a release tag once you want a stable floor. This complements — it
-# does not replace — your own lint/test CI: it enforces the doctrine floor only.
+# Pin the reusable workflow to a full commit SHA. This complements — it does not
+# replace — your own lint/test CI: it enforces the doctrine floor only.
 name: void-enforce (reusable)
 
 on:
@@ -27,9 +27,19 @@ jobs:
     steps:
       # fetch-depth: 0 gives the base commit so the diff (and fail-closed base
       # resolution) works; a shallow checkout would make the base unresolvable.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
-      - uses: voidcorp-core/void-harness/.github/actions/void-enforce@main
+      # The `github` context belongs to the caller. These `job` contexts identify
+      # the immutable reusable workflow implementation selected by the caller.
+      # Ref: https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#job-context
+      - name: Check out the immutable enforcement implementation
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .void-enforce-runtime
+          persist-credentials: false
+      - uses: ./.void-enforce-runtime/.github/actions/void-enforce
         with:
           base-ref: ${{ inputs.base-ref }}
