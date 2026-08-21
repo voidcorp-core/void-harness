@@ -232,16 +232,16 @@ describe('minimal OIDC publication and independent provenance verification', () 
     expect(publishJob).toContain('MAX_PUBLICATION_ATTEMPTS: 12');
     expect(publishJob).toContain('E404');
     expect(publishJob).toContain('dist.integrity');
-    expect(publishJob).toContain('dist.attestations.url');
+    expect(publishJob).toContain('dist.attestations?.url');
   });
 
   it('distinguishes a new publish from an existing version producer', () => {
     expect(publishJob).toContain(
       'publication_mode: $' + '{{ steps.registry.outputs.state }}',
     );
-    expect(publishJob).toContain('state=new');
-    expect(publishJob).toContain('state=existing');
-    expect(publishJob).toContain("steps.registry.outputs.state == 'new'");
+    expect(publishJob).toContain('publication_mode=new');
+    expect(publishJob).toContain('publication_mode=existing');
+    expect(publishJob).toContain('if [[ "$state" == existing || "$state" == absent ]]');
     expect(verifyPublicationJob).toContain(
       'PUBLICATION_MODE: $' + '{{ needs.publish.outputs.publication_mode }}',
     );

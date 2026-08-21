@@ -53,24 +53,16 @@ jobs:
           fields=autoMergeRequest,baseRefName,headRefName
           fields+=,headRepository,headRepositoryOwner,isCrossRepository
           pr=$(gh pr view "$PR_NUMBER" --repo "$EXPECTED_REPOSITORY" --json "$fields")
-          if [ "$(jq -r '.autoMergeRequest != null' <<<"$pr")" != true ]; then
-            echo "auto-merge is not armed on PR #$PR_NUMBER."
-            exit 0
-          fi
+          PR_JSON="$pr" node --input-type=module <<'NODE'
+          import { assertCanonicalAutoMerge } from './scripts/auto-merge-contract.mjs';
 
-          jq -e \
-            --arg repository "$EXPECTED_REPOSITORY" \
-            --arg owner "${EXPECTED_REPOSITORY%%/*}" \
-            --arg head "$EXPECTED_HEAD" \
-            --arg base "$EXPECTED_BASE" \
-            '.baseRefName == $base and .headRefName == $head and
-             .headRepository.nameWithOwner == $repository and
-             .headRepositoryOwner.login == $owner and
-             (.isCrossRepository | not)' <<<"$pr" >/dev/null || {
-            echo "auto-merge is not canonical for $EXPECTED_REPOSITORY." >&2
-            exit 1
-          }
-          echo "auto-merge identity is canonical for PR #$PR_NUMBER."
+          const outcome = assertCanonicalAutoMerge(JSON.parse(process.env.PR_JSON), {
+            repository: process.env.EXPECTED_REPOSITORY,
+            head: process.env.EXPECTED_HEAD,
+            base: process.env.EXPECTED_BASE,
+          });
+          process.stdout.write(`${outcome}\n`);
+          NODE
       - uses: ./.github/actions/void-enforce
         with:
           base-ref: ${{ inputs.base-ref }}
