@@ -159,7 +159,7 @@ Commits produced in pair with an AI agent include `Co-Authored-By`. Authorship t
 
 ---
 
-## Bug fix commit pairs (composes with debug)
+## Bug fix commit pairs (composes with void-debug)
 
 A bug fix is TWO commits:
 

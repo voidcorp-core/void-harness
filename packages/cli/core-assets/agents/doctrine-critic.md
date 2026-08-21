@@ -80,7 +80,7 @@ auditable, not vibes.
 - <file:line> — <observation>
 
 ### Handoffs (owned by another tool, not judged here)
-- Security: trust-boundary code at <file:line> → run security-audit
+- Security: trust-boundary code at <file:line> → run void-security-audit
 - Bugs/perf: → run /void-code-review
 ```
 

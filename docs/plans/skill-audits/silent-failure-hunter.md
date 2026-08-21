@@ -44,8 +44,8 @@ exactly that class of defect, and nothing else.
 | Source | URL | Status | Verdict |
 |---|---|---|---|
 | void-harness `doctrine-critic` agent | packages/core/agents/doctrine-critic.md | read | kept: frontmatter shape, read-only allowlist, isolated-context, route-don't-perform, verdict-as-final-message |
-| void-harness `async-safety` skill | plans/skill-audits/async-safety.md | read | kept: un-awaited / at-least-once / "did it succeed? unclear" framing as the discipline this agent audits |
-| void-harness `observability` skill | plans/skill-audits/observability.md | read | kept: "an unrecorded error is unobservable" as a finding criterion |
+| void-harness `async-safety` skill | plans/skill-audits/void-async-safety.md | read | kept: un-awaited / at-least-once / "did it succeed? unclear" framing as the discipline this agent audits |
+| void-harness `observability` skill | plans/skill-audits/void-observability.md | read | kept: "an unrecorded error is unobservable" as a finding criterion |
 | Claude Code subagent docs | https://code.claude.com/docs/en/sub-agents.md | read | `tools` comma-separated allowlist; read-only = omit Edit/Write/NotebookEdit |
 
 ## Adaptation strategy

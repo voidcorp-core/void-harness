@@ -6,14 +6,14 @@ Turborepo monorepo conventions for the [void-harness](https://github.com/voidcor
 
 ### Core helpers (`@voidcorp/pack-monorepo/*`)
 
-- **`./result`** — `Result<T, E>` discriminated union + `ok`, `err`, `map`, `flatMap`, `mapErr`, `unwrap`, `unwrapOrThrow`, `tryCatch`, `tryCatchAsync`, `combine`. Composes with the `functional` skill.
+- **`./result`** — `Result<T, E>` discriminated union + `ok`, `err`, `map`, `flatMap`, `mapErr`, `unwrap`, `unwrapOrThrow`, `tryCatch`, `tryCatchAsync`, `combine`. Composes with the `void-functional` skill.
 - **`./option`** — `Option<T>` + helpers. Use when you want exhaustive pattern matching (the compiler refuses to forget the `none` branch).
 - **`./pipe`** — type-safe `pipe(value, f1, f2, ...)` up to 10 stages.
 
 ### Shared configs
 
-- **`tsconfig.strict.json`** — the strict TypeScript baseline mandated by the `typescript-strict` skill (strict + noUncheckedIndexedAccess + exactOptionalPropertyTypes + verbatimModuleSyntax). Extend it in your consumer `tsconfig.json`.
-- **`biome.json`** _(Phase E follow-up)_ — Biome shared config with the lint rules expected by `typescript-strict` (`@typescript-eslint/switch-exhaustiveness-check` equivalent, `no-enum`, etc.).
+- **`tsconfig.strict.json`** — the strict TypeScript baseline mandated by the `void-typescript-strict` skill (strict + noUncheckedIndexedAccess + exactOptionalPropertyTypes + verbatimModuleSyntax). Extend it in your consumer `tsconfig.json`.
+- **`biome.json`** _(Phase E follow-up)_ — Biome shared config with the lint rules expected by `void-typescript-strict` (`@typescript-eslint/switch-exhaustiveness-check` equivalent, `no-enum`, etc.).
 
 ### Claude / Codex modules (`@voidcorp/pack-monorepo/claude/*`)
 

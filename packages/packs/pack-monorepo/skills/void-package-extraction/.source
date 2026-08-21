@@ -1,4 +1,4 @@
-Sources for `package-extraction` skill (see plans/skill-audits/package-extraction.md for the full audit):
+Sources for `void-package-extraction` skill (see `docs/plans/skill-audits/void-package-extraction.md` for the full audit):
 
 - No external source. Native 3-question decision gate for the monorepo-specific "should this be extracted into a package?" trade-off.
 

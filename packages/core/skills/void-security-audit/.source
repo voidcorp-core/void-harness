@@ -1,4 +1,4 @@
-Sources for `security-audit` skill (see plans/skill-audits/security-audit.md for full audit):
+Sources for `void-security-audit` skill (see `docs/plans/skill-audits/void-security-audit.md` for full audit):
 
 - gstack /cso — the phase-driven audit methodology, distilled and rewritten (DEV-387, epic DEV-383).
 - OWASP Top 10 — https://owasp.org/www-project-top-ten/ — phase scoping.

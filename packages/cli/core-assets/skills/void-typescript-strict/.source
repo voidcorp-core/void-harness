@@ -1,4 +1,4 @@
-Sources for `typescript-strict` skill (see plans/skill-audits/typescript-strict.md for full audit):
+Sources for `void-typescript-strict` skill (see `docs/plans/skill-audits/void-typescript-strict.md` for full audit):
 
 - citypaul/.dotfiles tsconfig stance — strict + noUncheckedIndexedAccess + exactOptionalPropertyTypes baseline
 - Anders Hejlsberg + TypeScript handbook — https://www.typescriptlang.org/docs/handbook/ — type system semantics

@@ -1,4 +1,4 @@
-Sources for `debug` skill (see plans/skill-audits/debug.md for full audit):
+Sources for `void-debug` skill (see `docs/plans/skill-audits/void-debug.md` for full audit):
 
 - gstack /investigate — VENDORED (DEV-388): the four-phase mechanism + Iron Law were already this skill's core (superpowers lineage, ~85-90% overlap); DEV-388 folded the remaining diagnostic aids (pattern-lookup table, 3-strike rule, blast-radius gate, instrument-to-confirm, recurring-bug-smell, red-flags). Everything else was deliberately NOT re-vendored (already present).
 - superpowers/debug — composed, similar discipline, cross-reference for anti-drift psychology.

@@ -1,4 +1,4 @@
-Sources for `server-action` skill (see plans/skill-audits/server-action.md for the full audit):
+Sources for `void-server-action` skill (see `docs/plans/skill-audits/void-server-action.md` for the full audit):
 
 - Next.js 16 docs — `'use server'` and defineAction semantics — distilled, not copied.
 - Vercel security guidance — trust-boundary obligations for Server Actions.

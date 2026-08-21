@@ -1,4 +1,4 @@
-Sources for `commit-discipline` skill (see plans/skill-audits/commit-discipline.md for full audit):
+Sources for `void-commit-discipline` skill (see `docs/plans/skill-audits/void-commit-discipline.md` for full audit):
 
 - Conventional Commits spec — https://www.conventionalcommits.org — foundation, allowed type list, footer conventions.
 - Folpe "always say why" rule (from DECLIK CLAUDE.md) — load-bearing addition: substantive commits MUST explain rationale.

@@ -1,4 +1,4 @@
-Sources for `hexagonal-architecture` skill (see plans/skill-audits/hexagonal-architecture.md for full audit):
+Sources for `void-hexagonal-architecture` skill (see `docs/plans/skill-audits/void-hexagonal-architecture.md` for full audit):
 
 - Alistair Cockburn "Hexagonal Architecture" 2005 — https://alistair.cockburn.us/hexagonal-architecture/ — original ports + adapters definition
 - Bruno Boucard & Thomas Pierrain workshops/talks — testing strategy at the boundary

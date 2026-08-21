@@ -1,4 +1,4 @@
-Sources for `autopilot` (see plans/skill-audits/autopilot.md for the audit):
+Sources for `void-autopilot` (see `docs/plans/skill-audits/void-autopilot.md` for the audit):
 
 - void-harness `backlog-autopilot` (this repo, being replaced) — the attended parallel burst,
   its worktree isolation and its human confirmation flow. Autopilot keeps the shape and drops

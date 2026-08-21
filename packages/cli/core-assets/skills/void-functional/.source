@@ -1,4 +1,4 @@
-Sources for `functional` skill (see plans/skill-audits/functional.md for full audit):
+Sources for `void-functional` skill (see `docs/plans/skill-audits/void-functional.md` for full audit):
 
 - Scott Wlaschin "Domain Modeling Made Functional" — https://pragprog.com/titles/swdddf — DDD + FP synthesis, Result for railway-oriented programming
 - Mark Seemann "Code That Fits in Your Head" — FP discipline, complexity budget, command-query separation

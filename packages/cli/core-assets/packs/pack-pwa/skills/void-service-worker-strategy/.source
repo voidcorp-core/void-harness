@@ -1,4 +1,4 @@
-Sources for `service-worker-strategy` skill (see plans/skill-audits/service-worker-strategy.md for the full audit):
+Sources for `void-service-worker-strategy` skill (see `docs/plans/skill-audits/void-service-worker-strategy.md` for the full audit):
 
 - No external source table in the audit — skill distilled into the canonical per-resource-class strategy table, cache versioning rule, update activation patterns, and a Serwist-based config + DevTools debug section.
 

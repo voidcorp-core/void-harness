@@ -1,4 +1,4 @@
-Sources for `service-package` skill (see plans/skill-audits/service-package.md for the full audit):
+Sources for `void-service-package` skill (see `docs/plans/skill-audits/void-service-package.md` for the full audit):
 
 - No external source. Native distillation of the `01-monorepo-layout.md` module (which describes the 5+5 topology) into a step-by-step package-creation workflow.
 

@@ -1,4 +1,4 @@
-Sources for `observability` skill (see plans/skill-audits/observability.md for full audit):
+Sources for `void-observability` skill (see `docs/plans/skill-audits/void-observability.md` for full audit):
 
 - pino — https://getpino.io — structured logger, fast, dev-pretty mode
 - OpenTelemetry semantic conventions — https://opentelemetry.io/docs/specs/semconv/ — attribute naming, trace/span model, W3C TraceContext

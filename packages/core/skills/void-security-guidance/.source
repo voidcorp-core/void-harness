@@ -1,4 +1,4 @@
-Sources for `security-guidance` skill (see plans/skill-audits/security-guidance.md for full audit):
+Sources for `void-security-guidance` skill (see `docs/plans/skill-audits/void-security-guidance.md` for full audit):
 
 - security-audit — the deep-audit ceiling; full audits delegated there (was gstack /cso, vendored in DEV-387).
 - citypaul/.dotfiles security stance — daily defaults.

@@ -1,4 +1,4 @@
-Sources for `accessibility` skill (see plans/skill-audits/accessibility.md for full audit):
+Sources for `void-accessibility` skill (see `docs/plans/skill-audits/void-accessibility.md` for full audit):
 
 - WCAG 2.2 AA — https://www.w3.org/WAI/WCAG22/quickref/ — target level
 - Radix UI primitives — https://www.radix-ui.com — no hand-rolled a11y

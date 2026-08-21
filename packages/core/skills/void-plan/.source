@@ -1,4 +1,4 @@
-Sources for `plan` skill (see plans/skill-audits/plan.md for full audit):
+Sources for `void-plan` skill (see `docs/plans/skill-audits/void-plan.md` for full audit):
 
 - superpowers/plan — primary source. Used to ship Phase A–C of this very harness.
 - superpowers/executing-plans — KEEP EXTERNAL. Plans transition to it. No improvement vector identified.

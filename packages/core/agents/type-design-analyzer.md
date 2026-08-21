@@ -85,7 +85,7 @@ the illegal state on every blocker so the verdict is auditable, not vibes.
 
 ### Handoffs (owned by another tool)
 - Bugs/perf: → run /void-code-review
-- Security at <file:line>: → run security-audit
+- Security at <file:line>: → run void-security-audit
 - Doctrine/anti-bloat: → dispatch doctrine-critic
 ```
 

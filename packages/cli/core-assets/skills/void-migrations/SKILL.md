@@ -159,7 +159,7 @@ drizzle-kit generate
 # apply to dev branch
 bunx drizzle-kit migrate --config drizzle.dev.config.ts
 
-# integration test the migration (composes with tdd)
+# integration test the migration (composes with void-tdd)
 bunx vitest run tests/migrations/
 
 # PR with the template

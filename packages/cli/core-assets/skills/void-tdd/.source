@@ -1,4 +1,4 @@
-Sources for `tdd` skill (see plans/skill-audits/tdd.md for full audit):
+Sources for `void-tdd` skill (see `docs/plans/skill-audits/void-tdd.md` for full audit):
 
 - DECLIK port — /Users/folpe/Developer/DECLIK/.claude/skills/tdd/SKILL.md (377 LOC, top-5%, distills the below)
 - superpowers/test-driven-development — Iron Law + Red Flags + Common Rationalizations

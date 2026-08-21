@@ -1,4 +1,4 @@
-Sources for `plan-review` skill (see plans/skill-audits/plan-review.md for full audit):
+Sources for `void-plan-review` skill (see `docs/plans/skill-audits/void-plan-review.md` for full audit):
 
 - gstack /plan-ceo-review (1434 LOC + sections) — the CEO lens: premise/leverage/trajectory challenge, mandatory weighted alternatives, and the four scope modes (EXPANSION/SELECTIVE/HOLD/REDUCTION). The EXPANSION mode is the plan-level "10x" move.
 - gstack /plan-eng-review (990 LOC + sections) — the Eng lens: architecture soundness, four-data-path failure modes, the deep test-coverage trace + regression-iron-rule + coverage map, performance.

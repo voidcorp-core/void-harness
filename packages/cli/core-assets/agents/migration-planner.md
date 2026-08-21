@@ -89,7 +89,7 @@ further questions — numbered, ordered steps, each with its rollback and gate.
 
 ### Handoffs
 - Execution: → implement under tdd + plan
-- Security review of <step>: → run security-audit
+- Security review of <step>: → run void-security-audit
 ```
 
 If the change is genuinely trivial and safe in one step (e.g. a pure additive nullable

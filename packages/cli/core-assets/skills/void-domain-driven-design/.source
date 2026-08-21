@@ -1,4 +1,4 @@
-Sources for `domain-driven-design` skill (see plans/skill-audits/domain-driven-design.md for full audit):
+Sources for `void-domain-driven-design` skill (see `docs/plans/skill-audits/void-domain-driven-design.md` for full audit):
 
 - Eric Evans "Domain-Driven Design: Tackling Complexity in the Heart of Software" 2003 — book — foundation, strategic DDD vocabulary
 - Vaughn Vernon "Implementing Domain-Driven Design" 2013 — book — tactical patterns, "small aggregates" rule

@@ -1,4 +1,4 @@
-Sources for `turbo-pipeline-tuning` skill (see plans/skill-audits/turbo-pipeline-tuning.md for the full audit):
+Sources for `void-turbo-pipeline-tuning` skill (see `docs/plans/skill-audits/void-turbo-pipeline-tuning.md` for the full audit):
 
 - Turborepo docs — official guidance on dependsOn, outputs, and cache keys
 - Vercel best-practices guide — remote-cache and pipeline tuning recommendations

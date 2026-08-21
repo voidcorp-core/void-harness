@@ -1,4 +1,4 @@
-Sources for `expo-config-plugins` skill (see plans/skill-audits/expo-config-plugins.md for the full audit):
+Sources for `void-expo-config-plugins` skill (see `docs/plans/skill-audits/void-expo-config-plugins.md` for the full audit):
 
 - Expo config plugins / Expo Modules official documentation — no URL recorded in the audit — distilled the "Expo way" (config plugin OR Expo Module covers ~95% of native needs) into a decision tree (Expo module → community plugin → custom config plugin → Expo Module → eject) plus the common-modules table and a concrete custom-plugin example.
 

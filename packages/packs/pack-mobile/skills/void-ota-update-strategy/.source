@@ -1,4 +1,4 @@
-Sources for `ota-update-strategy` skill (see plans/skill-audits/ota-update-strategy.md for the full audit):
+Sources for `void-ota-update-strategy` skill (see `docs/plans/skill-audits/void-ota-update-strategy.md` for the full audit):
 
 - EAS Update official documentation — no URL recorded in the audit — distilled the runtime-version model (fingerprint vs appVersion policy), the JS-only-vs-rebuild boundary, channels, and rollback into a change-type table plus an explicit "what CAN'T go in OTA" list, with a strong recommendation toward the fingerprint policy.
 

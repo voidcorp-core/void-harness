@@ -44,15 +44,23 @@ and commit the result. Editing a hook also changes its line count, which the gra
 
 Read `CLAUDE.md` ("Anti-bloat discipline" and "Sourcing discipline") before writing one. In short: one skill, one subject; no more than 30% responsibility overlap with an existing skill; distilled and adapted from its sources, never vendored verbatim; a `.source` sidecar next to it and an audit note in `docs/plans/skill-audits/`.
 
-Name it by what someone would type looking for it without knowing it exists, and
-declare which grammar applies in the frontmatter. `kind: action` is a thing you
-run and takes the bare verb (`plan`, `verify`, `implement`); `kind: standard`
-governs how code is written and takes the subject it governs (`tdd`,
-`observability`). No gerund on an action, no agent-noun for a mechanism, no
-filler suffix. `pnpm anti-bloat:check` refuses all four, and
-`pnpm skills:check-references` proves that nothing points at a name that stopped
-existing. The reasoning, and the alternatives that were rejected, are in
-`docs/decisions-log/2026-08-18-skill-naming-rule-three-families--c109429b-480e-48a9-baba-93f644f9e9e1.md`.
+Name it `void-<what someone would type looking for it without knowing it exists>`,
+and declare which grammar applies to the part after the prefix in the frontmatter.
+`kind: action` is a thing you run and takes the bare verb (`void-plan`,
+`void-verify`, `void-implement`); `kind: standard` governs how code is written and
+takes the subject it governs (`void-tdd`, `void-observability`). No gerund on an
+action, no agent-noun for a mechanism, no filler suffix. The prefix is not
+decoration: a runtime resolves skills from several providers, and the level this
+harness installs into loses every collision it enters, silently.
+
+`pnpm anti-bloat:check` refuses all four shapes. `pnpm skills:check-references`
+proves that nothing points at a name that stopped existing, and
+`pnpm skills:register-check` refuses any `void-` token or any
+`skills/<name>/SKILL.md` path that resolves to nothing — read
+`docs/SKILL-REFERENCES.md` before renaming one, it lists every place code names a
+skill. The reasoning, and the alternatives that were rejected, are in
+`docs/decisions-log/2026-08-18-skill-naming-rule-three-families--c109429b-480e-48a9-baba-93f644f9e9e1.md`
+and in the decision on prefixing every shipped skill.
 
 ## Multi-runtime
 

@@ -1,4 +1,4 @@
-Sources for `brainstorm` skill (see plans/skill-audits/brainstorm.md for full audit):
+Sources for `void-brainstorm` skill (see `docs/plans/skill-audits/void-brainstorm.md` for full audit):
 
 - superpowers/brainstorm — primary source. Hard gate, one-question, multi-choice preferred, 2–3 approaches, spec-write, transition to plan.
 - gstack /office-hours — VENDORED (DEV-386): the YC product diagnostic (six forcing questions, anti-sycophancy, 10x ambition move) distilled into the "Pressure-testing a raw idea" upstream mode. Builder-visual/cross-model/gstack-runtime rejected. Was composed upstream; now absorbed as the gstack teardown removes it.
@@ -11,4 +11,4 @@ Strategy: distill. Three deliberate changes from superpowers:
 2. Transition target: plan (vendored equivalent)
 3. No trigger filter on activation (per Section 0bis hedge resolution)
 
-No companion hooks; the gate is a process discipline enforced via code-review flags downstream.
+No companion hooks; the gate is a process discipline enforced via void-code-review flags downstream.

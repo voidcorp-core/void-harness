@@ -1,4 +1,4 @@
-Sources for `implement` skill (see plans/skill-audits/implement.md for full audit):
+Sources for `void-implement` skill (see `docs/plans/skill-audits/void-implement.md` for full audit):
 
 - Original void-harness composition skill. No single external source: it is the
   canonical "execute one ticket end-to-end" conductor that the harness lacked.

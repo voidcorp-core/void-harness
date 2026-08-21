@@ -1,4 +1,4 @@
-Sources for `testing` skill (see plans/skill-audits/testing.md for full audit):
+Sources for `void-testing` skill (see `docs/plans/skill-audits/void-testing.md` for full audit):
 
 - Kent C. Dodds "Common Testing Mistakes" + Testing Library philosophy — https://kentcdodds.com/blog/common-mistakes-with-react-testing-library
 - James Shore "Testing Without Mocks" (Art of Agile Development 2nd ed.) — https://www.jamesshore.com/v2/books/aoad2/testing_without_mocks — sociable tests, nullable infrastructure

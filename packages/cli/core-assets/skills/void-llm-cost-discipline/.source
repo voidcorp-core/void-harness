@@ -1,4 +1,4 @@
-Sources for `llm-cost-discipline` skill (see plans/skill-audits/llm-cost-discipline.md for full audit):
+Sources for `void-llm-cost-discipline` skill (see `docs/plans/skill-audits/void-llm-cost-discipline.md` for full audit):
 
 - Anthropic prompt caching docs — https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching — foundation (cache_control, hit rate signals, TTL options)
 - Anthropic batch API — https://docs.anthropic.com/en/docs/build-with-claude/batch-processing — 50% discount for non-interactive workloads

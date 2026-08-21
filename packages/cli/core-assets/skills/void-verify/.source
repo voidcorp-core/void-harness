@@ -1,4 +1,4 @@
-Sources for `verify` skill (see plans/skill-audits/verify.md for full audit):
+Sources for `void-verify` skill (see `docs/plans/skill-audits/void-verify.md` for full audit):
 
 - superpowers/verify — primary (checklist + observation discipline).
 - citypaul/.dotfiles completion checklists — TS-strict checklist items.

@@ -219,7 +219,7 @@ Streaming overhead is wasted on machine consumers.
 ## Structured logging per LLM call
 
 ```typescript
-// composes with observability
+// composes with void-observability
 logger.info({
   model: 'claude-sonnet-4-6',
   inputTokens: response.usage.input_tokens,
@@ -237,7 +237,7 @@ The Sentry / Vercel Analytics integration in `pack-nextjs` aggregates cache hit 
 
 ---
 
-## LLM I/O is untrusted (composes with security-guidance)
+## LLM I/O is untrusted (composes with void-security-guidance)
 
 - Prompt injection: user-controlled text is data, not instructions. Separate system from user clearly. Defense in depth: tool invocations re-validate at the tool boundary.
 - Output hallucination: validate with Zod if parsing structured. Never `eval()`, never `innerHTML`, never SQL / shell with LLM output.
@@ -283,7 +283,7 @@ See `void-security-guidance` skill for full LLM trust-boundary patterns.
 | Sonnet seems insufficient | Quantify it: benchmark Sonnet vs Opus on the actual prompts (cost + quality) before upgrading. |
 | Cache hit rate low | Prompt structure problem — variable content interleaved with stable. Restructure to put stable blocks first with `cache_control`. |
 | Cost budget exceeded | Audit via cost dashboard. Top 3 endpoints. Apply caching, batching, model downgrade where quality allows. |
-| Token budget too small | Validate via observability — what's the actual output size? Adjust budget OR truncate the input intelligently. |
+| Token budget too small | Validate via void-observability — what's the actual output size? Adjust budget OR truncate the input intelligently. |
 | Latency too high | Streaming for user-facing. Batch for background. |
 
 ---

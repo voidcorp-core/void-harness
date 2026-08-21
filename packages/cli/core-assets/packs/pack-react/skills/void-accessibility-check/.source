@@ -1,4 +1,4 @@
-Sources for `accessibility-check` skill (see plans/skill-audits/accessibility-check.md for the full audit):
+Sources for `void-accessibility-check` skill (see `docs/plans/skill-audits/void-accessibility-check.md` for the full audit):
 
 - WCAG 2.2 quick reference — authoritative for contrast and touch target sizes.
 - WebAIM "Designing for Screen Reader Compatibility" — source of the "name accessible to AT" framing.

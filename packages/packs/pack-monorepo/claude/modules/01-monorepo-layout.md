@@ -32,7 +32,7 @@ The split between `packages/` and `_modules/` is the load-bearing boundary: tier
 | `@repo/ui` | `@repo/core` | `@repo/db`, `@repo/auth` |
 | `apps/*` | any `@repo/*` | any other `apps/*` |
 
-The `boundary-direction-check` hook enforces these via tsconfig `paths` plus grep checks. Composes with the `hexagonal-architecture` skill: domain (`apps/*/src/domain/`, `apps/*/src/services/`) MUST NOT import from `apps/*/src/infrastructure/` or framework runtime modules.
+The `boundary-direction-check` hook enforces these via tsconfig `paths` plus grep checks. Composes with the `void-hexagonal-architecture` skill: domain (`apps/*/src/domain/`, `apps/*/src/services/`) MUST NOT import from `apps/*/src/infrastructure/` or framework runtime modules.
 
 ## Service layout (`5+5` per service package)
 
@@ -45,7 +45,7 @@ packages/<name>/src/
   index.ts                   # public barrel (always present)
 ```
 
-Composes with `hexagonal-architecture` (ports + adapters), `domain-driven-design` (named per aggregate), `functional` (helpers are pure).
+Composes with `void-hexagonal-architecture` (ports + adapters), `void-domain-driven-design` (named per aggregate), `void-functional` (helpers are pure).
 
 ## Hard rules
 
@@ -61,8 +61,8 @@ Composes with `hexagonal-architecture` (ports + adapters), `domain-driven-design
 
 ## Composition with void-harness skills
 
-- **`hexagonal-architecture`** — port direction + adapter thinness enforced via the layout.
-- **`tdd`** — paths default to `apps/*/src/**` business code; spikes in `apps/*/scripts/spike-*`.
-- **`migrations`** — migration files at `apps/*/db/migrations/` (Drizzle convention).
-- **`observability`** — `@repo/core/logger` is the only logger; structured logs by default.
-- **`async-safety`** — retry / idempotency / dead-letter discipline applied to webhooks, jobs, crons. Concrete patterns in `webhook-handler-pattern` and `background-job-pattern`.
+- **`void-hexagonal-architecture`** — port direction + adapter thinness enforced via the layout.
+- **`void-tdd`** — paths default to `apps/*/src/**` business code; spikes in `apps/*/scripts/spike-*`.
+- **`void-migrations`** — migration files at `apps/*/db/migrations/` (Drizzle convention).
+- **`void-observability`** — `@repo/core/logger` is the only logger; structured logs by default.
+- **`void-async-safety`** — retry / idempotency / dead-letter discipline applied to webhooks, jobs, crons. Concrete patterns in `void-webhook-handler-pattern` and `void-background-job-pattern`.

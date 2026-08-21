@@ -1,4 +1,4 @@
-Sources for `form-pattern` skill (see plans/skill-audits/form-pattern.md for the full audit):
+Sources for `void-form-pattern` skill (see `docs/plans/skill-audits/void-form-pattern.md` for the full audit):
 
 - react-hook-form docs — canonical controlled-form pattern and skeleton.
 - @hookform/resolvers Zod adapter — schema-sharing resolver pattern.

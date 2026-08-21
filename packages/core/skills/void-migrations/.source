@@ -1,4 +1,4 @@
-Sources for `migrations` skill (see plans/skill-audits/migrations.md for full audit):
+Sources for `void-migrations` skill (see `docs/plans/skill-audits/void-migrations.md` for full audit):
 
 - GoCardless "Zero-Downtime Postgres Migrations" — https://gocardless.com/blog/zero-downtime-postgres-migrations-the-hard-parts/ — foundation, locking analysis + two-phase patterns
 - Strong Migrations (Rails) — https://github.com/ankane/strong_migrations — rule catalog ported to TS/Drizzle

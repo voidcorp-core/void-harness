@@ -1,4 +1,4 @@
-Sources for `claude-md` skill (see plans/skill-audits/claude-md.md for full audit):
+Sources for `void-claude-md` skill (see `docs/plans/skill-audits/void-claude-md.md` for full audit):
 
 - HumanLayer — "Writing a good CLAUDE.md" — the load-bearing insight: Claude Code wraps CLAUDE.md in a system-reminder framed "may or may not be relevant," the system prompt already carries ~50 instructions, and every added line competes for finite attention. Hence: keep it minimal and universal, never put code-style rules in it (send a linter, not an LLM), reference file:line instead of inlining rotting snippets, defer detail to docs (progressive disclosure), and prune by asking "would removing this cause an error?". https://www.humanlayer.dev/blog/writing-a-good-claude-md
 

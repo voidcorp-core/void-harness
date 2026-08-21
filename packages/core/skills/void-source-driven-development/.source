@@ -1,4 +1,4 @@
-Sources for `source-driven-development` skill (see plans/skill-audits/source-driven-development.md for full audit):
+Sources for `void-source-driven-development` skill (see `docs/plans/skill-audits/void-source-driven-development.md` for full audit):
 
 - void-harness CLAUDE.md / AGENTS.md hard rule — "Read the official documentation of any third-party tool BEFORE writing its config." This skill encodes that rule and makes it enforceable.
 - Anthropic Claude Code best practices — guidance to give the model current, authoritative context (point it at official docs / fetch real references) rather than relying on training recall, which drifts across versions. https://www.anthropic.com/engineering/claude-code-best-practices

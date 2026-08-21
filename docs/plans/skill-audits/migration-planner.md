@@ -42,7 +42,7 @@ the reading code, a blocking backfill on a hot table, a step nobody can roll bac
 
 | Source | URL | Status | Verdict |
 |---|---|---|---|
-| void-harness `migrations` skill | plans/skill-audits/migrations.md | read | kept: expand-contract, two-phase deploy ordering, batched/idempotent backfill, lock/blast-radius awareness — the principles this agent sequences |
+| void-harness `migrations` skill | plans/skill-audits/void-migrations.md | read | kept: expand-contract, two-phase deploy ordering, batched/idempotent backfill, lock/blast-radius awareness — the principles this agent sequences |
 | void-harness `doctrine-critic` agent | packages/core/agents/doctrine-critic.md | read | kept: frontmatter shape, read-only allowlist, isolated-context, route-don't-perform |
 | Martin Fowler / Sadalage "Refactoring Databases" — parallel change | https://martinfowler.com/bliki/ParallelChange.html | read | kept: expand / migrate / contract as three deployable phases |
 | Stripe / GitHub online-migration practice (zero-downtime ALTER) | https://stripe.com/blog/online-migrations | read | kept: dual-write/dual-read, backfill, cutover, drop-after-bake ordering |

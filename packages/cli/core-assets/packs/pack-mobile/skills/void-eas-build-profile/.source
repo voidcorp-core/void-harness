@@ -1,4 +1,4 @@
-Sources for `eas-build-profile` skill (see plans/skill-audits/eas-build-profile.md for the full audit):
+Sources for `void-eas-build-profile` skill (see `docs/plans/skill-audits/void-eas-build-profile.md` for the full audit):
 
 - Expo / EAS Build official documentation — no URL recorded in the audit — distilled the documented 3-profile eas.json convention (development/preview/production) and the per-option motivation that the docs scatter; added the void-harness defaults (APP_VARIANT side-by-side installs, secrets via `eas secret`, autoIncrement).
 

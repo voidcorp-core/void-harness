@@ -1,4 +1,4 @@
-Sources for `ticket` skill (see plans/skill-audits/ticket.md for full audit):
+Sources for `void-ticket` skill (see `docs/plans/skill-audits/void-ticket.md` for full audit):
 
 - loomcrafthq/ticket-craft — reference for the platform-agnostic tracker template
   (Context / Scope / Technical Specs / AC / DoD / Edge Cases) and T-shirt sizing.

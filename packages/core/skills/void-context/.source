@@ -1,4 +1,4 @@
-Sources for `context` skill (see plans/skill-audits/context.md for full audit):
+Sources for `void-context` skill (see `docs/plans/skill-audits/void-context.md` for full audit):
 
 - Anthropic / Claude Code best practices — context management guidance: use /clear between unrelated tasks; /compact <focus> to condense long sessions; delegate investigation to subagents to protect the main window. https://www.anthropic.com/engineering/claude-code-best-practices
 - Anthropic engineering — "Effective context engineering for AI agents" (context as a finite, attention-competing budget; subagents return distilled conclusions, not raw material). https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents

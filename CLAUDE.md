@@ -15,7 +15,7 @@ Marketplace: `voidcorp` (https://github.com/voidcorp-core/void-harness). Claude 
 
 `PHILOSOPHY.md` is the universal void-harness doctrine (managed — overwritten on init). `PROJECT-DOCTRINE.md` holds project-specific rules: context, ADRs, in-flight decisions (created once, never overwritten by init).
 
-To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The `capture-rule` skill auto-invokes, classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.
+To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The `void-learn` skill auto-invokes, classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.
 
 ### Active program — when present
 

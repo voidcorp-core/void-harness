@@ -58,7 +58,7 @@
       "name": "doctrine-critic",
       "pack": null,
       "source": "packages/core/agents/doctrine-critic.md",
-      "staticTokens": 1092,
+      "staticTokens": 1093,
       "type": "agent"
     },
     {
@@ -108,7 +108,7 @@
       "name": "migration-planner",
       "pack": null,
       "source": "packages/core/agents/migration-planner.md",
-      "staticTokens": 1151,
+      "staticTokens": 1153,
       "type": "agent"
     },
     {
@@ -168,7 +168,7 @@
       "name": "silent-failure-hunter",
       "pack": null,
       "source": "packages/core/agents/silent-failure-hunter.md",
-      "staticTokens": 1172,
+      "staticTokens": 1173,
       "type": "agent"
     },
     {
@@ -198,7 +198,7 @@
       "name": "type-design-analyzer",
       "pack": null,
       "source": "packages/core/agents/type-design-analyzer.md",
-      "staticTokens": 1186,
+      "staticTokens": 1187,
       "type": "agent"
     },
     {
@@ -318,7 +318,7 @@
       "name": "migration-pr-template",
       "pack": null,
       "source": "packages/core/hooks/migration-pr-template.sh",
-      "staticTokens": 425,
+      "staticTokens": 426,
       "type": "hook"
     },
     {
@@ -398,7 +398,7 @@
       "name": "pre-PR-review-evidence",
       "pack": null,
       "source": "packages/core/hooks/pre-PR-review-evidence.sh",
-      "staticTokens": 375,
+      "staticTokens": 376,
       "type": "hook"
     },
     {
@@ -1834,7 +1834,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-commit-discipline/SKILL.md",
-      "staticTokens": 1867,
+      "staticTokens": 1868,
       "type": "skill"
     },
     {
@@ -1894,7 +1894,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-debug/SKILL.md",
-      "staticTokens": 2323,
+      "staticTokens": 2325,
       "type": "skill"
     },
     {
@@ -2235,7 +2235,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-llm-cost-discipline/SKILL.md",
-      "staticTokens": 2515,
+      "staticTokens": 2519,
       "type": "skill"
     },
     {
@@ -2327,7 +2327,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-migrations/SKILL.md",
-      "staticTokens": 2194,
+      "staticTokens": 2195,
       "triggers": {
         "globs": [
           "**/migrations/**",

@@ -1,4 +1,4 @@
-Sources for `learn` skill (see plans/skill-audits/learn.md for the full audit).
+Sources for `void-learn` skill (see `docs/plans/skill-audits/void-learn.md` for the full audit).
 
 This skill is the 2026-07-09 fusion of three former skills (issue #75) — it inherits their attributions:
 

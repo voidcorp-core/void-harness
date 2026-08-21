@@ -1,4 +1,4 @@
-Sources for `manifest-checklist` skill (see plans/skill-audits/manifest-checklist.md for the full audit):
+Sources for `void-manifest-checklist` skill (see `docs/plans/skill-audits/void-manifest-checklist.md` for the full audit):
 
 - No external source audited — native VoidCorp skill (field-by-field manifest checklist with the WHY for each, anti-pattern list, optional-fields-worth-adding section).
 

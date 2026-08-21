@@ -40,7 +40,7 @@ if ! printf "%s" "$BODY" | grep -qiE '##\s*Review\s*Evidence'; then
 pre-PR-review-evidence (warn): PR body lacks a '## Review Evidence' block.
 
 In strict mode, the PR body must include the review evidence (dimensions
-covered, blockers, nits, composed agents). See the 'code-review' skill for
+covered, blockers, nits, composed agents). See the 'void-code-review' skill for
 the template.
 EOF
   exit 2

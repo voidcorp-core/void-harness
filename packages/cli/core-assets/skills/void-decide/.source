@@ -1,4 +1,4 @@
-Sources for `decide` skill (see plans/skill-audits/decide.md for full audit):
+Sources for `void-decide` skill (see `docs/plans/skill-audits/void-decide.md` for full audit):
 
 - Michael Nygard, "Documenting Architecture Decisions" (2011) — https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions — the original ADR format (Context / Decision / Consequences) and the immutable-record lifecycle.
 - adr.github.io / Markdown Architectural Decision Records (MADR) — https://adr.github.io/ — status and supersession lifecycle retained; sequential numbering rejected because it creates a parallel-writer coordination point.

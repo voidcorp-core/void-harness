@@ -183,7 +183,7 @@ Retry-until-green is rejected.
 - **Upstream — `void-observability`**: if visibility is the gap, fix it first.
 - **With `void-tdd`**: the reproducing test is written in strict mode. The fix follows the cycle.
 - **With `void-code-review`**: PR body includes the root-cause section. The reviewer verifies the test reproduces the bug before the fix.
-- **With `void-refactor`**: structural fixes compose with refactor's Two-Hat principle.
+- **With `void-refactor`**: structural fixes compose with void-refactor's Two-Hat principle.
 - **With `doctrine-critic` agent**: for structural roots affecting multiple bugs of the same kind.
 - **With `void-commit-discipline`**: `fix:` commits include the "why" (root cause).
 - **`gstack:/investigate` is fully vendored here** (DEV-388): its diagnostic aids (pattern lookup, 3-strike, blast-radius, instrument-to-confirm) are the section above; the phase skeleton + Iron Law + regression-test rule were already this skill's core (deliberately not re-vendored).

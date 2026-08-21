@@ -1,4 +1,4 @@
-Sources for `offline-first-mutation` skill (see plans/skill-audits/offline-first-mutation.md for the full audit):
+Sources for `void-offline-first-mutation` skill (see `docs/plans/skill-audits/void-offline-first-mutation.md` for the full audit):
 
 - Solaar `@solaar/ui/offline` implementation — primary source; pattern lifted with adaptation to be stack-neutral.
 - Stripe API idempotency-key docs — confirms the client-generates-UUID approach for HTTP idempotency.

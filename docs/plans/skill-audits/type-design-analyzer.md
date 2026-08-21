@@ -45,9 +45,9 @@ nothing else.
 | Source | URL | Status | Verdict |
 |---|---|---|---|
 | void-harness `doctrine-critic` agent | packages/core/agents/doctrine-critic.md | read | kept: frontmatter shape, read-only allowlist, isolated-context, route-don't-perform, verdict format |
-| void-harness `typescript-strict` skill | plans/skill-audits/typescript-strict.md | read | kept: this agent judges *above* the mechanical `no-any`/`no-as-cast` floor |
-| void-harness `functional` skill | plans/skill-audits/functional.md | read | kept: make-illegal-states-unrepresentable, discriminated unions, branded types |
-| void-harness `api-and-interface-design` skill | plans/skill-audits/api-and-interface-design.md | read | kept: parse-at-the-boundary, domain type ≠ transport/persistence type |
+| void-harness `typescript-strict` skill | plans/skill-audits/void-typescript-strict.md | read | kept: this agent judges *above* the mechanical `no-any`/`no-as-cast` floor |
+| void-harness `functional` skill | plans/skill-audits/void-functional.md | read | kept: make-illegal-states-unrepresentable, discriminated unions, branded types |
+| void-harness `api-and-interface-design` skill | plans/skill-audits/void-api-and-interface-design.md | read | kept: parse-at-the-boundary, domain type ≠ transport/persistence type |
 | "Parse, don't validate" (Alexis King) | https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/ | read | mental model: make illegal states unrepresentable; boundary parsing |
 | Claude Code subagent docs | https://code.claude.com/docs/en/sub-agents.md | read | read-only allowlist = omit Edit/Write/NotebookEdit |
 

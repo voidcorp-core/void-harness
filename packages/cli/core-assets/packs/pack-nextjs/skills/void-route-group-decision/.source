@@ -1,4 +1,4 @@
-Sources for `route-group-decision` skill (see plans/skill-audits/route-group-decision.md for the full audit):
+Sources for `void-route-group-decision` skill (see `docs/plans/skill-audits/void-route-group-decision.md` for the full audit):
 
 - No external source listed in the audit. Original void-harness convention: group route groups (name) by trust boundary, not visual section, behind a 3-condition gate.
 

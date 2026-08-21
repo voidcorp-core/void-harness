@@ -1,4 +1,4 @@
-Sources for `async-safety` skill (see plans/skill-audits/async-safety.md for full audit):
+Sources for `void-async-safety` skill (see `docs/plans/skill-audits/void-async-safety.md` for full audit):
 
 - Stripe "Designing robust webhook handlers" — https://stripe.com/blog/idempotency — foundation, idempotency keys, replay protection
 - Stripe webhook signing docs — https://docs.stripe.com/webhooks#verify-events — signature + timestamp window pattern

@@ -12,7 +12,7 @@
 //
 // This command does NOT copy skills/agents/hooks — Claude Code fetches the
 // plugin from the marketplace on session start. Skills appear as
-// /harness:tdd, /harness-nextjs:..., etc.
+// /harness:void-tdd, /harness-nextjs:..., etc.
 
 import { existsSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
