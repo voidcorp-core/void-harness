@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:77268d64f1404511209f400b5845ec3994b9b75af798f2a3e8970dd8b7ec6e4f"
+    "rootHash": "sha256:a2b45595d527d0e52cc977406120b420bcc0c1ba834054493a7f43585d3e512f"
   },
   "nodes": [
     {
@@ -156,11 +156,11 @@
         "legacy": {
           "description": "Judges a diff against VoidCorp doctrine that hooks/reviewers miss: weak tests, over-abstraction, broken boundaries, anti-bloat. Read-only; routes security to security-audit, bugs to /void-code-review.",
           "id": "agent:doctrine-critic",
-          "lines": 90,
+          "lines": 92,
           "name": "doctrine-critic",
           "pack": null,
           "source": "packages/core/agents/doctrine-critic.md",
-          "staticTokens": 1100,
+          "staticTokens": 1128,
           "type": "agent"
         }
       },

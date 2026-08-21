@@ -35,9 +35,10 @@ Au 2026-08-21, les sources contiennent 90 descriptions de skills et d'agents :
 - une description au-dessus de 250 ;
 - aucune description au-dessus de 500.
 
-Le gate global couvre déjà les skills core, les skills de packs et les agents,
-mais utilise 512. Les documents vivants et plusieurs tests spécialisés utilisent
-encore 200.
+Le gate global couvre déjà les skills core, les skills de packs et les agents
+Markdown, mais mesure seulement la ligne physique `description:` et utilise 512.
+Le schéma des spécialistes canoniques bloque séparément à 200. Les documents
+vivants et plusieurs tests spécialisés utilisent encore 200.
 
 La spécification Agent Skills autorise 1 à 1 024 caractères et demande de décrire
 ce que la skill fait, quand l'utiliser et les mots-clés qui facilitent sa
@@ -74,10 +75,12 @@ La règle couvre :
 
 - `packages/core/skills/*/SKILL.md` ;
 - `packages/packs/*/skills/*/SKILL.md` ;
-- `packages/core/agents/*.md`.
+- `packages/core/agents/*.md` ;
+- `packages/core/specialists/*.yaml`, source canonique des spécialistes générés.
 
-Les miroirs générés sous `packages/cli/core-assets/` héritent de la source et ne
-sont pas contrôlés une seconde fois.
+Les miroirs générés sous `packages/cli/core-assets/` héritent de la source. Les
+projections Markdown/TOML des spécialistes ne remplacent jamais le contrôle de
+leur YAML canonique.
 
 ### Hooks
 
@@ -98,6 +101,8 @@ L'implémentation doit :
 - faire afficher au gate la cible 250 et le plafond 500 ;
 - rapporter sans échouer les descriptions entre 251 et 500 ;
 - échouer à 501 ;
+- mesurer la valeur YAML résolue, y compris les scalaires cités et multilignes ;
+- aligner le schéma canonique des spécialistes sur le plafond 500 ;
 - aligner le test global de portabilité sur 500 ;
 - aligner les tests spécialisés qui présentent 200 comme le budget global ;
 - mettre à jour `AGENTS.md` et `CLAUDE.md` ensemble ;
@@ -115,7 +120,8 @@ TDD strict pour le gate :
 
 1. un test échoue d'abord parce que la doctrine et le contrôle ne portent pas les
    nouveaux seuils ;
-2. des cas limites prouvent 250, 251, 500 et 501 ;
+2. des cas limites prouvent 250, 251, 500 et 501 pour les sources core, pack,
+   agent et spécialiste, y compris les scalaires YAML cités et multilignes ;
 3. `pnpm anti-bloat:check`, les tests ciblés, `pnpm sync:docs`,
    `pnpm skills:check-references` et `pnpm derive:check` passent ;
 4. le diff généré est inspecté pour éviter qu'une régénération n'embarque des
@@ -135,6 +141,7 @@ des hooks.
 - Une description de 251 ou 500 caractères passe avec une note non bloquante.
 - Une description de 501 caractères fait échouer le gate.
 - La règle s'applique aux skills core, aux skills de packs et aux agents.
+- La source YAML canonique des spécialistes est contrôlée avant ses projections.
 - Aucun texte courant ne présente encore 200 ou 512 comme plafond global.
 - Les hooks restent gouvernés par le plafond de 100 lignes et leur routage
   événementiel.

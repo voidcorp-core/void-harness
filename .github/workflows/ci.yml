@@ -106,8 +106,9 @@ jobs:
       - name: Anti-bloat checks
         # Single source of truth: scripts/anti-bloat-check.sh enforces the size
         # caps (skills ≤400, hooks ≤100), hook shell syntax, AND the frontmatter
-        # description ≤200 cap across skills + agents. Inlining a subset here let
-        # the agent description cap go unenforced in CI (it only ran locally).
+        # discovery description target ≤250 and hard cap 500 across core skills,
+        # pack skills, agents, and canonical specialists. Inlining a subset here
+        # let the agent description cap go unenforced in CI (it only ran locally).
         run: pnpm anti-bloat:check
 
       - name: Decision records valid and accepted records immutable

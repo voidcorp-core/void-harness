@@ -1,7 +1,7 @@
 ---
 title: Aligner les budgets de description des skills et agents
 date: 2026-08-21
-status: in-progress
+status: done
 spec: docs/specs/2026-08-21-discovery-description-budgets.md
 ticket:
 author: Folpe + Codex
@@ -23,12 +23,14 @@ leur plafond de 100 lignes.
 ### Step 1 — Prouver les deux niveaux aux frontières
 
 - **Goal**: ajouter un test comportemental qui exécute le vrai gate sur des
-  fixtures de skills et d'agents à 250, 251, 500 et 501 caractères.
+  fixtures de skills core, skills de packs, agents et spécialistes à 250, 251,
+  500 et 501 caractères, avec scalaires YAML cités et multilignes.
 - **Depends on**: none
 - **TDD mode**: strict
 - **Verification gate**: le nouveau test échoue contre le gate à 512 parce que
   251 n'est pas rapporté et 501 n'est pas refusé ; les fixtures prouvent aussi
-  qu'un agent est couvert, pas seulement une skill.
+  que les sources pack et spécialiste sont couvertes, pas seulement une skill
+  core ou sa projection générée.
 - **Expected commits**:
   - `test(skills): encode the two-level discovery description budget`
 - **Notes**: créer
@@ -55,7 +57,8 @@ leur plafond de 100 lignes.
   `test/skills/frontmatter-is-agnostic.test.ts` sur le plafond 500. Les tests de
   `void-autopilot`, `void-checkpoint` et `doctrine-critic` qui présentent 200
   comme budget global passent à la cible 250 ; ils peuvent rester plus stricts
-  que le plafond sans le renommer en cap.
+  que le plafond sans le renommer en cap. Le schéma spécialiste passe à 500 et
+  le catalogue lit la valeur YAML résolue plutôt que la première ligne physique.
 
 ### Step 3 — Faire converger la doctrine et les artefacts livrés
 
@@ -83,15 +86,17 @@ intermédiaire n'est nécessaire. La revue porte sur le diff final avant livrais
 
 ## Resume point
 
-**Next step**: Step 1 (Prouver les deux niveaux aux frontières)
+**Next step**: aucune — plan terminé.
 
 **Completed**:
 
 - Spec approuvée : `docs/specs/2026-08-21-discovery-description-budgets.md`.
 - ADR accepté : `adr:81cbd775-9ba2-4e94-a172-47968ff44180`.
+- Step 1 : frontières initiales encodées dans `b7cb910`, puis contournements YAML,
+  packs et spécialistes reproduits dans `432d8dd`.
+- Step 2 : cible/plafond appliqués dans `a8fdbd2`, puis mesure YAML canonique et
+  schéma spécialiste corrigés dans `68c05d3`.
+- Step 3 : doctrine, surfaces CI, miroirs et projections alignés dans le commit
+  de clôture du plan ; les trois revues indépendantes ne conservent aucun blocker.
 
-**Pending**:
-
-- Step 1 : test comportemental rouge aux quatre frontières.
-- Step 2 : gate et assertions alignés.
-- Step 3 : doctrine, miroirs et vérification finale.
+**Pending**: aucun.

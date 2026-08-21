@@ -24,7 +24,11 @@ function write(path: string, content: string): void {
 function descriptionField(descriptionLength: number, style: ScalarStyle): string {
   const value = 'x'.repeat(descriptionLength);
   if (style === 'quoted') return `description: ${JSON.stringify(value)}`;
-  if (style === 'folded') return `description: >-\n  ${value}`;
+  if (style === 'folded') {
+    const firstLength = Math.floor((descriptionLength - 1) / 2);
+    const secondLength = descriptionLength - firstLength - 1;
+    return `description: >-\n  ${'x'.repeat(firstLength)}\n  ${'x'.repeat(secondLength)}`;
+  }
   return `description: ${value}`;
 }
 
@@ -87,6 +91,13 @@ function runGate(owner: DescriptionOwner, descriptionLength: number, style: Scal
     encoding: 'utf8',
   });
   return { ...fixture, result };
+}
+
+function runFixture(fixture: Fixture) {
+  return spawnSync('bash', [ANTI_BLOAT_CHECK], {
+    cwd: fixture.root,
+    encoding: 'utf8',
+  });
 }
 
 afterEach(() => {
@@ -168,5 +179,22 @@ describe('discovery description budget', () => {
     expect(output).toContain(
       `${descriptionLength === 501 ? 'FAIL' : 'NOTE'}: ${relativePath} description is ${descriptionLength} chars`,
     );
+  });
+
+  it.each([
+    ['malformed YAML', 'description: ['],
+    ['a missing description', 'license: MIT'],
+    ['a non-string description', 'description: [one, two]'],
+  ])('fails closed when %s cannot be measured', (_label, field) => {
+    const fixture = createFixture('skill', 10);
+    write(
+      join(fixture.root, fixture.relativePath),
+      `---\nname: void-example\n${field}\n---\n\n# Example\n`,
+    );
+    const result = runFixture(fixture);
+    const output = `${result.stdout}${result.stderr}`;
+
+    expect(result.status).toBe(1);
+    expect(output).toContain(`FAIL: ${fixture.relativePath} description cannot be measured`);
   });
 });

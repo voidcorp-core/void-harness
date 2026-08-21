@@ -70,10 +70,14 @@ It carries no security engine (→ `/cso`) and no bug-finder (→ `/code-review`
 - **Routes, never re-implements.** Security and bug review name a handoff in the
   verdict instead of being performed, so overlap with `/cso` and `/code-review`
   stays well under the 30% anti-bloat ceiling.
+- **Carries the two-level discovery budget.** The 2026-08-21 policy gives skills
+  and agents a 250-character editorial target and a 500-character hard cap.
+  Longer valid descriptions spend the extra budget on routing signal, never on
+  procedure (`adr:81cbd775-9ba2-4e94-a172-47968ff44180`).
 
 ## Verification checklist
 
-- [x] Frontmatter valid: `name`, `description` ≤ 200 chars, read-only `tools`
+- [x] Frontmatter valid: `name`, `description` within the 250-char target, read-only `tools`
 - [x] Mirrored byte-identically into `packages/cli/core-assets/agents/`
 - [x] Manifests + README + ARCHITECTURE drop the "roadmap"/"planned" three-agent
   wording and name `doctrine-critic`
