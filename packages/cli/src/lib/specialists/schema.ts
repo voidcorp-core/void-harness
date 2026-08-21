@@ -1,12 +1,13 @@
-import { z } from 'zod';
 import {
   parseSpecialistCompletionValue,
   type SpecialistCompletion,
 } from '@voidcorp/mission-engine';
+import { z } from 'zod';
 
 export type { SpecialistCompletion } from '@voidcorp/mission-engine';
 
 export const MAX_SPECIALIST_OUTPUT_BYTES = 64 * 1024;
+export const DISCOVERY_DESCRIPTION_CAP = 500;
 
 const slug = z.string().min(1).max(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 const boundedText = (maximum: number) => z.string().trim().min(1).max(maximum);
@@ -16,7 +17,7 @@ const specialistContractSchema = z.strictObject({
   id: z.string().regex(/^core:[a-z0-9]+(?:-[a-z0-9]+)*$/),
   version: z.number().int().positive().max(10_000),
   name: slug,
-  description: boundedText(200),
+  description: boundedText(DISCOVERY_DESCRIPTION_CAP),
   scope: slug,
   independence: z.literal('fresh-context'),
   writeAccess: z.literal('none'),

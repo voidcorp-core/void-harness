@@ -1,6 +1,6 @@
 ---
 name: doctrine-critic
-description: Judges a diff against VoidCorp doctrine that hooks/reviewers miss: weak tests, over-abstraction, broken boundaries, anti-bloat. Read-only; routes security to security-audit, bugs to /void-code-review.
+description: "Judges a diff against VoidCorp doctrine that hooks/reviewers miss: weak tests, over-abstraction, broken boundaries, anti-bloat. Read-only; routes security to security-audit, bugs to /void-code-review."
 tools: Read, Grep, Glob, Bash
 model: sonnet
 color: purple
@@ -48,8 +48,8 @@ stats.
 4. **Over-abstraction / YAGNI.** Premature generalisation, indirection with one
    caller, a factory for a single type, configurability nobody asked for.
 5. **Anti-bloat rules** (when the diff touches a skill, hook, or agent): ≤ 400 LOC
-   per skill, one subject per skill, overlap < 30 %, description ≤ 200 chars, hooks
-   ≤ 100 LOC, agents with an explicit non-spilling scope.
+   per skill, one subject per skill, overlap < 30 %, description target ≤ 250 chars
+   and hard cap 500, hooks ≤ 100 LOC, agents with an explicit non-spilling scope.
 6. **Commit "why".** A conventional-commit header that explains *what* but not
    *why* meets the convention by the letter, not the intent.
 

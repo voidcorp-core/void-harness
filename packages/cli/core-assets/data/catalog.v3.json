@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:3f4871e3400c82fc553b1d20382d8b3e5a797dc2698deca12e061a1dfb2f1340"
+    "rootHash": "sha256:77268d64f1404511209f400b5845ec3994b9b75af798f2a3e8970dd8b7ec6e4f"
   },
   "nodes": [
     {
@@ -160,7 +160,7 @@
           "name": "doctrine-critic",
           "pack": null,
           "source": "packages/core/agents/doctrine-critic.md",
-          "staticTokens": 1093,
+          "staticTokens": 1100,
           "type": "agent"
         }
       },
@@ -2588,7 +2588,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-pwa/skills/void-manifest-checklist/SKILL.md",
-          "staticTokens": 1566,
+          "staticTokens": 1567,
           "type": "skill"
         }
       },
@@ -2636,7 +2636,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-pwa/skills/void-offline-first-mutation/SKILL.md",
-          "staticTokens": 2497,
+          "staticTokens": 2498,
           "type": "skill"
         }
       },
@@ -2732,7 +2732,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-react/skills/void-accessibility-check/SKILL.md",
-          "staticTokens": 1537,
+          "staticTokens": 1538,
           "type": "skill"
         }
       },
@@ -2828,7 +2828,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-react/skills/void-form-pattern/SKILL.md",
-          "staticTokens": 1685,
+          "staticTokens": 1686,
           "type": "skill"
         }
       },
@@ -3116,7 +3116,7 @@
             "codex"
           ],
           "source": "packages/packs/pack-server/skills/void-server-action/SKILL.md",
-          "staticTokens": 2123,
+          "staticTokens": 2124,
           "type": "skill"
         }
       },

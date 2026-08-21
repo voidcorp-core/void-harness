@@ -12,6 +12,7 @@ set -euo pipefail
 FAILED=0
 DESCRIPTION_TARGET=250
 DESCRIPTION_CAP=500
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 
 echo "anti-bloat-check"
 
@@ -78,25 +79,12 @@ done <<<"$HOOK_FILES"
 # Above-target descriptions remain valid, but the note keeps their catalogue
 # cost visible. Only the hard cap blocks the change.
 echo "  rule 4: frontmatter description target $DESCRIPTION_TARGET chars, hard cap $DESCRIPTION_CAP chars"
-DESC_FILES=$(printf "%s\n" "$SKILL_FILES"; ls packages/core/agents/*.md 2>/dev/null || true)
-while IFS= read -r f; do
-  [[ -n "$f" && -e "$f" ]] || continue
-  DESC=$(awk '/^description:/{ sub(/^description: */,""); print; exit }' "$f" 2>/dev/null || true)
-  # Strip a single pair of surrounding quotes: a valid-YAML quoted description
-  # (needed when the text carries a colon) must be measured by its value, not its
-  # quoting — mirrors read-frontmatter's stripQuotes.
-  case "$DESC" in
-    \"*\") DESC="${DESC#\"}"; DESC="${DESC%\"}" ;;
-    \'*\') DESC="${DESC#\'}"; DESC="${DESC%\'}" ;;
-  esac
-  LEN=${#DESC}
-  if [[ "$LEN" -gt "$DESCRIPTION_CAP" ]]; then
-    echo "    FAIL: $f description is $LEN chars (cap $DESCRIPTION_CAP)" >&2
-    FAILED=1
-  elif [[ "$LEN" -gt "$DESCRIPTION_TARGET" ]]; then
-    echo "    NOTE: $f description is $LEN chars (target $DESCRIPTION_TARGET, cap $DESCRIPTION_CAP)"
-  fi
-done <<<"$DESC_FILES"
+SPECIALIST_FILES=$(find packages/core/specialists -maxdepth 1 -type f -name '*.yaml' 2>/dev/null || true)
+DESC_FILES=$(printf "%s\n" "$SKILL_FILES"; ls packages/core/agents/*.md 2>/dev/null || true; printf "%s\n" "$SPECIALIST_FILES")
+if ! printf "%s\n" "$DESC_FILES" \
+  | node "$SCRIPT_DIR/check-description-budgets.mjs" "$DESCRIPTION_TARGET" "$DESCRIPTION_CAP"; then
+  FAILED=1
+fi
 
 # Skill name convention (Anthropic Agent Skills spec): the frontmatter `name`
 # must equal the parent directory name and match ^[a-z0-9]+(-[a-z0-9]+)*$
