@@ -11,7 +11,7 @@ export function event(
     ts: '2026-07-24T12:00:00.000Z',
     source: 'runtime:codex',
     kind: 'runtime.tool.started',
-    subject: 'skill:harness:void-tdd',
+    subject: 'skill:harness:tdd',
     correlationId: 'mis_0123456789abcdef0123456789abcdef',
     payload: { category: 'skill', tool: 'Skill' },
     ...overrides,
