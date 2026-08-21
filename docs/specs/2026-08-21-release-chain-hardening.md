@@ -181,8 +181,9 @@ This job has `contents: read` and no `id-token` permission.
 
 `publish` is the only job with `id-token: write`. It:
 
-1. queries the exact artifact ID through GitHub's artifact API and requires its digest, workflow run
-   and release SHA to match the validation job outputs before downloading it with SHA-pinned actions;
+1. queries the exact artifact ID through GitHub's artifact API and requires its service digest,
+   workflow run and workflow head SHA to match the current run before downloading it with SHA-pinned
+   actions; the verified inner manifest separately binds the tarball to the resolved release SHA;
 2. recomputes SHA-256 and SHA-512 and fails on any mismatch;
 3. verifies the tarball name and embedded package name/version;
 4. executes no install, build, lifecycle hook or repository script;

@@ -212,10 +212,11 @@ The binding design is
      Use only full-SHA GitHub actions needed to provision a compatible Node/npm runtime and download
      the validated artifact by the exact artifact ID output from Step 4.
   3. Query `GET /repos/voidcorp-core/void-harness/actions/artifacts/{artifact_id}` with the job's
-     `actions: read` token. Require the immutable artifact ID, `digest`, `workflow_run.id`,
-     `workflow_run.head_sha` and non-expired state to match the validation outputs and current run
-     before download. Treat the download action's built-in digest warning as defense in depth, not
-     the fail-closed gate.
+     `actions: read` token. Require the immutable artifact ID, service `digest`, `workflow_run.id`,
+     `workflow_run.head_sha` and non-expired state to match the upload outputs and current workflow
+     run before download. The run head may differ from an older release commit during recovery; the
+     inner manifest separately binds the tarball to that resolved release SHA. Treat the download
+     action's built-in digest warning as defense in depth, not the fail-closed gate.
   4. Recompute SHA-256 and SHA-512, validate the artifact's own manifest, tarball filename and
      embedded `package/package.json`, and stop before npm/OIDC use on any mismatch.
   5. Query `voidharness@X.Y.Z`. If absent after bounded classification retries, run
@@ -260,6 +261,9 @@ The binding design is
   npm's local gzipped tarball package specification is the publication boundary. npm's signature
   verifier and GitHub CLI's identity constraints are both required; checking registry metadata alone
   is not accepted as provenance verification.
+  Compatibility was proven on 2026-08-21 with npm 11.12.1 and GitHub CLI 2.97.0 against the public
+  `voidharness@3.3.0` npm bundle. GitHub CLI must receive `--digest-alg sha512`; its SHA-256 default
+  rejects npm's SHA-512 subject before certificate policy evaluation.
 
 ### Step 6 - Make the operator contract truthful and recoverable
 
@@ -490,7 +494,8 @@ lockfile edits, secret handling and unrelated organization policy remain out of 
 ### Implementation Tasks
 
 - **P1**: Bind the cross-job artifact to GitHub's immutable artifact ID, service digest, workflow run
-  and release SHA before trusting its internal checksum manifest. Folded into Steps 4 and 5.
+  and workflow head SHA before trusting its internal checksum manifest; bind the tarball's distinct
+  release SHA inside that verified manifest. Folded into Steps 4 and 5.
 - **P1**: Treat tag and GitHub context values as untrusted shell input; pass through environment,
   validate a closed grammar, quote expansions and use option terminators. Folded into Step 4.
 - **P2**: Require npm 11+ and `--ignore-scripts` so publishing a local tarball cannot execute its

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const WORKFLOWS = join(ROOT, '.github', 'workflows');
+const RELEASING = readFileSync(join(ROOT, 'docs', 'RELEASING.md'), 'utf8');
 
 function workflow(name: string): string {
   return readFileSync(join(WORKFLOWS, name), 'utf8');
@@ -88,5 +89,28 @@ describe('release automation authority', () => {
     expect(source).toContain('headRepository');
     expect(source).toContain('headRepositoryOwner');
     expect(source).toContain('isCrossRepository');
+  });
+});
+
+describe('release operator contract', () => {
+  it('documents exactly two routine actions and no Actions approval', () => {
+    expect(RELEASING).toMatch(/Release\s+action 1:/);
+    expect(RELEASING).toMatch(/Release\s+action 2:/);
+    expect(RELEASING).toContain('There is no normal-path workflow dispatch, deployment approval');
+    expect(RELEASING).toContain('sole canonical native auto-merge path');
+  });
+
+  it('documents tag-bound recovery and every external authority boundary', () => {
+    expect(RELEASING).toContain('release_tag');
+    expect(RELEASING).toContain('existing closed form `vX.Y.Z`');
+    for (const control of [
+      'sha_pinning_required: true',
+      'selected-repository mode',
+      'Immutable releases',
+      'npm-publish',
+      'npm trust list voidharness --json',
+    ]) {
+      expect(RELEASING).toContain(control);
+    }
   });
 });

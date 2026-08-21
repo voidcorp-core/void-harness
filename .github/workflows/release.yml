@@ -6,13 +6,10 @@ name: release
 # extra-files in release-please-config.json) and writes the changelog. Merging
 # that PR tags `vX.Y.Z` and cuts a GitHub release. No one hand-bumps a version.
 #
-# HITL is preserved and is exactly ONE deliberate human action: merging the
-# release PR. That merge cuts the GitHub release, which fires the `publish` job
-# below — a provenance-signed `pnpm publish` to npm. There is no separate
-# "publish" button and no manual `npm publish` from a laptop: publishing only
-# ever happens in CI, from tagged source, so `workspace:` rewrite + the
-# check:publish guard + npm provenance are always applied. Pre-1.0 policy
-# (config): feat -> minor, fix -> patch, breaking -> minor (bump-minor-pre-major).
+# The routine chain has exactly two deliberate human actions, both on pull
+# requests: merge the develop-to-main promotion, then merge the release-please
+# version/changelog PR. The second merge cuts the release and authorizes this
+# workflow to publish. There is no Actions approval or publish button.
 
 on:
   push:
