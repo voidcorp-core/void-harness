@@ -126,6 +126,40 @@ describe('analyzeBehavior — dead-node', () => {
     expect(findings.filter((f) => f.kind === 'dead-node')).toHaveLength(0);
   });
 
+  it('does not let a foreign provider homonym count as a local firing', () => {
+    const localSkills: GraphModel = {
+      version: 1,
+      nodes: [node('skill:void-tdd', 'skill'), node('skill:void-testing', 'skill')],
+      edges: [],
+    };
+    const events = [
+      ev({ kind: 'skill', name: 'superpowers:void-tdd', sessionId: 'x1' }),
+      ev({ kind: 'tool', name: 'Edit', sessionId: 'x1' }),
+    ];
+
+    const findings = analyzeBehavior(localSkills, events, SMALL).findings;
+
+    expect(findings.filter((f) => f.kind === 'telemetry-gap')).toEqual([
+      expect.objectContaining({ nodes: ['skill:void-tdd', 'skill:void-testing'] }),
+    ]);
+  });
+
+  it.each(['tdd', 'harness:tdd', 'void-tdd', 'harness:void-tdd'])(
+    'joins the local runtime alias %s to the installed void-prefixed skill',
+    (name) => {
+      const localSkills: GraphModel = {
+        version: 1,
+        nodes: [node('skill:void-tdd', 'skill')],
+        edges: [],
+      };
+      const findings = analyzeBehavior(localSkills, [
+        ev({ kind: 'skill', name, sessionId: 'x1' }),
+      ], SMALL).findings;
+
+      expect(findings.flatMap((finding) => finding.nodes)).not.toContain('skill:void-tdd');
+    },
+  );
+
   it('never flags an always-loaded doctrine skill as dead, even when never invoked', () => {
     const doctrineModel: GraphModel = {
       version: 1,
@@ -162,6 +196,25 @@ describe('analyzeBehavior — should-have-fired', () => {
     ];
     const shf = analyzeBehavior(model, events, SMALL).findings.filter((f) => f.kind === 'should-have-fired');
     expect(shf.flatMap((f) => f.nodes)).not.toContain('skill:lonely');
+  });
+
+  it('never expects an always-loaded doctrine skill to fire through the skill tool', () => {
+    const alwaysTriggered: GraphModel = {
+      version: 1,
+      nodes: [{
+        ...node('skill:void-typescript-strict', 'skill', { tools: ['Edit'] }),
+        activation: 'always',
+      }],
+      edges: [],
+    };
+    const events = [ev({
+      kind: 'tool',
+      name: 'Edit',
+      sessionId: 's1',
+      trigger: { tool: 'Edit', fileGlobs: ['src/a.ts'], ext: ['ts'] },
+    })];
+
+    expect(analyzeBehavior(alwaysTriggered, events, SMALL).findings).toEqual([]);
   });
 });
 

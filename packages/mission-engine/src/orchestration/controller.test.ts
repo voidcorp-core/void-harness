@@ -5,15 +5,17 @@ import type { MissionPlan } from '../mission/plan.js';
 import { event } from '../test/events.js';
 import { DIFF_A, evidenceDraft } from '../test/evidence.js';
 import { sealEvidence } from '../evidence/schema.js';
-import {
-  MVP_SPECIALIST_IDS,
-} from './review-loop.js';
 import { orchestrateMissionTeam } from './controller.js';
 import type { SpecialistId } from '../specialist/routing.js';
 
 const HASH = `sha256:${'a'.repeat(64)}`;
 const HASH_B = `sha256:${'b'.repeat(64)}`;
 const HASH_C = `sha256:${'c'.repeat(64)}`;
+const TEST_SPECIALIST_IDS = Object.freeze([
+  'core:solution-architect',
+  'core:security-engineer',
+  'core:test-qa-engineer',
+] as const);
 const INPUTS: Readonly<Record<string, string>> = {
   'core:solution-architect': HASH,
   'core:security-engineer': HASH,
@@ -27,7 +29,7 @@ const PLAN = {
     { pass: 'security', state: 'pending' },
     { pass: 'qa', state: 'pending' },
   ],
-  specialists: MVP_SPECIALIST_IDS.map((specialistId) => ({
+  specialists: TEST_SPECIALIST_IDS.map((specialistId) => ({
     specialistId,
     contractVersion: 1,
     state: 'applicable',
@@ -35,7 +37,7 @@ const PLAN = {
   })),
 } as MissionPlan;
 
-function started(): CanonicalEvent {
+function started(strictLifecycle = false): CanonicalEvent {
   return event({
     kind: 'mission.started',
     subject: 'mission',
@@ -45,6 +47,7 @@ function started(): CanonicalEvent {
       planHash: PLAN.planHash,
       leadWriterId: 'writer:primary',
       runtime: 'codex',
+      ...(strictLifecycle ? { routingHash: `sha256:${'d'.repeat(64)}` } : {}),
     },
   });
 }
@@ -77,6 +80,7 @@ function completion(
       stage,
       reviewRound,
       inputHash,
+      contractVersion: 1,
       contextId: `ctx_${stage}_${identitySuffix}_${specialistId.slice(5)}`,
       completion: {
         schemaVersion: 1,
@@ -98,8 +102,49 @@ function completion(
   });
 }
 
+function lifecycleCompletion(
+  specialistId: SpecialistId,
+  startSeq: number,
+  stage: 'pre-implementation' | 'post-implementation',
+  requestAfterStart = false,
+  requestSource = 'void-harness:mission.dispatch',
+): readonly CanonicalEvent[] {
+  const contextId = `ctx_${stage}_1_${specialistId.slice(5)}`;
+  const common = {
+    contractVersion: 1,
+    stage,
+    reviewRound: 1,
+    inputHash: HASH,
+  };
+  const requested = event({
+      seq: startSeq + (requestAfterStart ? 1 : 0),
+      eventId: `evt_requested_${startSeq}_${specialistId.slice(5)}`,
+      source: requestSource,
+      kind: 'specialist.requested',
+      subject: specialistId,
+      payload: {
+        ...common,
+        planHash: PLAN.planHash,
+        runtime: 'codex',
+        agentName: specialistId.slice(5),
+      },
+    });
+  const startedEvent = event({
+      seq: startSeq + (requestAfterStart ? 0 : 1),
+      eventId: `evt_started_${startSeq}_${specialistId.slice(5)}`,
+      source: 'runtime:codex',
+      kind: 'specialist.started',
+      subject: specialistId,
+      payload: { ...common, contextId },
+    });
+  return [
+    ...(requestAfterStart ? [startedEvent, requested] : [requested, startedEvent]),
+    completion(specialistId, startSeq + 2, 'pass', stage),
+  ];
+}
+
 function preReviews(inputHash = HASH): readonly CanonicalEvent[] {
-  return MVP_SPECIALIST_IDS.map((specialistId, index) =>
+  return TEST_SPECIALIST_IDS.map((specialistId, index) =>
     completion(specialistId, index + 2, 'pass', 'pre-implementation', inputHash));
 }
 
@@ -137,7 +182,7 @@ describe('mission team controller', () => {
     expect(beforePreparation.phase).toBe('preparation');
     expect(beforePreparation.action).toMatchObject({
       kind: 'invoke-specialists',
-      specialistIds: MVP_SPECIALIST_IDS,
+      specialistIds: TEST_SPECIALIST_IDS,
       stage: 'pre-implementation',
     });
     const beforeImplementation = decide([started(), ...preReviews()]);
@@ -164,7 +209,7 @@ describe('mission team controller', () => {
     expect(decision.phase).toBe('review');
     expect(decision.action).toMatchObject({
       kind: 'invoke-specialists',
-      specialistIds: MVP_SPECIALIST_IDS,
+      specialistIds: TEST_SPECIALIST_IDS,
       reviewRound: 1,
       stage: 'post-implementation',
     });
@@ -190,7 +235,7 @@ describe('mission team controller', () => {
 
     expect(decision.action).toMatchObject({
       kind: 'invoke-specialists',
-      specialistIds: [...MVP_SPECIALIST_IDS, 'core:frontend-engineer'],
+      specialistIds: [...TEST_SPECIALIST_IDS, 'core:frontend-engineer'],
     });
   });
 
@@ -206,13 +251,13 @@ describe('mission team controller', () => {
 
     expect(preparing.action).toMatchObject({
       kind: 'invoke-specialists',
-      specialistIds: MVP_SPECIALIST_IDS,
+      specialistIds: TEST_SPECIALIST_IDS,
     });
     expect(preparing.verdict.status).toBe('degraded');
     expect(preparing.reasons).toContain(`specialist runtime: ${limitation}`);
 
     const proof = sealEvidence(evidenceDraft());
-    const reviews = MVP_SPECIALIST_IDS.map((specialistId, index) =>
+    const reviews = TEST_SPECIALIST_IDS.map((specialistId, index) =>
       completion(specialistId, index + 6)
     );
     const finished = decide(
@@ -320,9 +365,33 @@ describe('mission team controller', () => {
 
   it('verifies only with complete reviews and fresh command proof', () => {
     const proof = sealEvidence(evidenceDraft());
-    const reviews = MVP_SPECIALIST_IDS.map((specialistId, index) =>
-      completion(specialistId, index + 6)
-    );
+    const pre = TEST_SPECIALIST_IDS.flatMap((specialistId, index) =>
+      lifecycleCompletion(specialistId, 2 + (index * 3), 'pre-implementation'));
+    const reviews = TEST_SPECIALIST_IDS.flatMap((specialistId, index) =>
+      lifecycleCompletion(specialistId, 12 + (index * 3), 'post-implementation'));
+    const decision = decide([
+      started(),
+      ...pre,
+      writer(11),
+      ...reviews,
+      event({
+        seq: 21,
+        eventId: 'evt_00000000-0000-4000-8000-000000000021',
+        kind: 'evidence.recorded',
+        subject: proof.evidenceId,
+        payload: { evidence: proof },
+      }),
+    ]);
+
+    expect(decision.phase).toBe('verified');
+    expect(decision.action).toEqual({ kind: 'complete' });
+    expect(decision.verdict.status).toBe('verified');
+  });
+
+  it('cannot certify completion-only specialist events as green', () => {
+    const proof = sealEvidence(evidenceDraft());
+    const reviews = TEST_SPECIALIST_IDS.map((specialistId, index) =>
+      completion(specialistId, index + 6));
     const decision = decide([
       started(),
       ...preReviews(),
@@ -337,9 +406,55 @@ describe('mission team controller', () => {
       }),
     ]);
 
-    expect(decision.phase).toBe('verified');
-    expect(decision.action).toEqual({ kind: 'complete' });
-    expect(decision.verdict.status).toBe('verified');
+    expect(decision.phase).toBe('degraded');
+    expect(decision.action.kind).toBe('stop');
+    expect(decision.reasons).toEqual(expect.arrayContaining([
+      expect.stringContaining('specialist lifecycle is unbound'),
+    ]));
+  });
+
+  it.each([
+    ['start-before-request', true, 'void-harness:mission.dispatch'],
+    ['wrong-request-source', false, 'runtime:codex'],
+  ] as const)('cannot certify a %s specialist chain', (_name, reversed, source) => {
+    const proof = sealEvidence(evidenceDraft());
+    const pre = TEST_SPECIALIST_IDS.flatMap((specialistId, index) =>
+      lifecycleCompletion(specialistId, 2 + (index * 3), 'pre-implementation'));
+    const reviews = TEST_SPECIALIST_IDS.flatMap((specialistId, index) =>
+      lifecycleCompletion(
+        specialistId,
+        12 + (index * 3),
+        'post-implementation',
+        index === 0 ? reversed : false,
+        index === 0 ? source : 'void-harness:mission.dispatch',
+      ));
+    const decision = decide([
+      started(),
+      ...pre,
+      writer(11),
+      ...reviews,
+      event({
+        seq: 21,
+        eventId: 'evt_00000000-0000-4000-8000-000000000021',
+        kind: 'evidence.recorded',
+        subject: proof.evidenceId,
+        payload: { evidence: proof },
+      }),
+    ]);
+
+    expect(decision.phase).toBe('degraded');
+    expect(decision.reasons).toEqual(expect.arrayContaining([
+      expect.stringContaining('specialist lifecycle is unbound'),
+    ]));
+  });
+
+  it('rejects a strict-mode writer completion without its controller receipt', () => {
+    const decision = decide([started(true), ...preReviews(), writer()]);
+
+    expect(decision.phase).toBe('degraded');
+    expect(decision.reasons).toContain(
+      'lead writer completion is not bound to a controller request',
+    );
   });
 
   it('does not let a pre-implementation completion satisfy post-implementation review', () => {
@@ -347,13 +462,13 @@ describe('mission team controller', () => {
 
     expect(decision.phase).toBe('review');
     expect(decision.review.stage).toBe('post-implementation');
-    expect(decision.review.missingSpecialists).toEqual(MVP_SPECIALIST_IDS);
+    expect(decision.review.missingSpecialists).toEqual(TEST_SPECIALIST_IDS);
   });
 
   it('reconciles fresh post-build reviews after a bounded writer correction', () => {
-    const postInputs = Object.fromEntries(MVP_SPECIALIST_IDS.map((id) => [id, HASH_B]));
-    const correctedInputs = Object.fromEntries(MVP_SPECIALIST_IDS.map((id) => [id, HASH_C]));
-    const initialReviews = MVP_SPECIALIST_IDS.map((specialistId, index) =>
+    const postInputs = Object.fromEntries(TEST_SPECIALIST_IDS.map((id) => [id, HASH_B]));
+    const correctedInputs = Object.fromEntries(TEST_SPECIALIST_IDS.map((id) => [id, HASH_C]));
+    const initialReviews = TEST_SPECIALIST_IDS.map((specialistId, index) =>
       completion(
         specialistId,
         index + 6,
@@ -376,11 +491,11 @@ describe('mission team controller', () => {
     expect(afterCorrection.review).toMatchObject({
       stage: 'post-implementation',
       reviewRound: 2,
-      missingSpecialists: MVP_SPECIALIST_IDS,
+      missingSpecialists: TEST_SPECIALIST_IDS,
       issues: [],
     });
 
-    const freshReviews = MVP_SPECIALIST_IDS.map((specialistId, index) =>
+    const freshReviews = TEST_SPECIALIST_IDS.map((specialistId, index) =>
       completion(specialistId, index + 10, 'pass', 'post-implementation', HASH_C, 2));
     const reconciled = decide([...correctedEvents, ...freshReviews], PLAN, correctedInputs, INPUTS);
 
@@ -394,7 +509,7 @@ describe('mission team controller', () => {
   });
 
   it('rejects post-review completions recorded before implementation', () => {
-    const earlyPost = MVP_SPECIALIST_IDS.map((specialistId, index) =>
+    const earlyPost = TEST_SPECIALIST_IDS.map((specialistId, index) =>
       completion(specialistId, index + 5));
     const decision = decide([
       started(),
@@ -410,8 +525,8 @@ describe('mission team controller', () => {
   });
 
   it('rejects a repeated review round after a writer correction boundary', () => {
-    const correctedInputs = Object.fromEntries(MVP_SPECIALIST_IDS.map((id) => [id, HASH_C]));
-    const initialReviews = MVP_SPECIALIST_IDS.map((specialistId, index) =>
+    const correctedInputs = Object.fromEntries(TEST_SPECIALIST_IDS.map((id) => [id, HASH_C]));
+    const initialReviews = TEST_SPECIALIST_IDS.map((specialistId, index) =>
       completion(
         specialistId,
         index + 6,
@@ -419,7 +534,7 @@ describe('mission team controller', () => {
         'post-implementation',
         HASH_B,
       ));
-    const repeatedRound = MVP_SPECIALIST_IDS.map((specialistId, index) =>
+    const repeatedRound = TEST_SPECIALIST_IDS.map((specialistId, index) =>
       completion(
         specialistId,
         index + 10,
@@ -474,13 +589,13 @@ describe('mission team controller', () => {
   });
 
   it('cannot erase findings with a higher review round before writer correction', () => {
-    const firstRound = MVP_SPECIALIST_IDS.map((specialistId, index) =>
+    const firstRound = TEST_SPECIALIST_IDS.map((specialistId, index) =>
       completion(
         specialistId,
         index + 6,
         specialistId === 'core:security-engineer' ? 'changes-requested' : 'pass',
       ));
-    const bypassRound = MVP_SPECIALIST_IDS.map((specialistId, index) =>
+    const bypassRound = TEST_SPECIALIST_IDS.map((specialistId, index) =>
       completion(specialistId, index + 9, 'pass', 'post-implementation', HASH, 2));
 
     const decision = decide([

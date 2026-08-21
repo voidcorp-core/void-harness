@@ -11,13 +11,6 @@ import type {
   SpecialistInvocationStage,
 } from '../specialist/routing.js';
 
-export const MVP_SPECIALIST_IDS = Object.freeze([
-  'core:solution-architect',
-  'core:security-engineer',
-  'core:test-qa-engineer',
-] as const);
-
-export type MvpSpecialistId = typeof MVP_SPECIALIST_IDS[number];
 export type ReviewLoopStatus =
   | 'awaiting-review'
   | 'correction-required'

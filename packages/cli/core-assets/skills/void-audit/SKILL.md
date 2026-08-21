@@ -38,15 +38,16 @@ anywhere.
 
 ## Read it
 
-The report names components that have not fired recently, upstream sources that have deprecated
-what a skill was distilled from, and conflicts between decisions. Three things to say about it,
-in this order:
+The report joins skills, agents, hooks, their graph relations, human-session activations, outcomes,
+and static cost. It proposes one of five actions: repair telemetry, repair failures, wire an orphan,
+tune/fuse low-yield overlap, or review retirement. Three things to say about it, in this order:
 
 1. **What the data can support.** A skill absent from the events is a skill that did not fire in
    the observed window. It is not a skill nobody needs, and the difference is the whole
    interpretation. Say the window and the event count.
-2. **What is worth proposing.** A deprecation, a fusion, a rewrite. One line each, with what it
-   would cost to be wrong.
+2. **What is worth proposing.** A wiring fix, trigger tuning, fusion, rewrite, or retirement review.
+   One line each, with what it would cost to be wrong. Ordinary tuning needs the behavior window;
+   retirement needs at least twenty human sessions.
 3. **What the data cannot support yet.** Insufficient events is a finding, not a failure: it
    means the harness has not been used enough in this project for the question to have an
    answer.
@@ -60,6 +61,8 @@ declines it. Auto-applying a deprecation from usage data would delete the skill 
 a year and matters both times.
 
 **No inference from silence.** A component absent from the events is absent from the events.
+Self-host and smoke missions never count as human adoption evidence. A whole component family with
+broken telemetry is repaired before any member is judged.
 
 ---
 

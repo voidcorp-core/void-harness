@@ -56,6 +56,24 @@ describe('auditSkills', () => {
     const report = auditSkills({ allSkills: ['harness:tdd'], usage: withForeign, nowMs: now, staleDays: 30 });
     expect(report.active.length + report.stale.length + report.never.length).toBe(1);
   });
+
+  it('joins local runtime names to void-prefixed skills without accepting foreign providers', () => {
+    const local = auditSkills({
+      allSkills: ['harness:void-brainstorm'],
+      usage: [{ timestamp: '2026-06-19T10:00:00Z', skill: 'brainstorm' }],
+      nowMs: now,
+      staleDays: 30,
+    });
+    const foreign = auditSkills({
+      allSkills: ['harness:void-brainstorm'],
+      usage: [{ timestamp: '2026-06-19T10:00:00Z', skill: 'superpowers:void-brainstorm' }],
+      nowMs: now,
+      staleDays: 30,
+    });
+
+    expect(local.active.map((item) => item.skill)).toEqual(['harness:void-brainstorm']);
+    expect(foreign.never.map((item) => item.skill)).toEqual(['harness:void-brainstorm']);
+  });
 });
 
 describe('auditFindings', () => {
@@ -77,5 +95,21 @@ describe('auditFindings', () => {
     const never = findings.find((f) => f.type === 'never');
     expect(never?.detail).toBe('never fired across 4 projects');
     expect(JSON.stringify(findings)).not.toMatch(/\/(Users|home)\//);
+  });
+
+  it('does not propose deletion from an insufficient human evidence window', () => {
+    expect(auditFindings(report, 1, {
+      sufficient: false,
+      retirementEvidenceSufficient: false,
+    })).toEqual([]);
+  });
+
+  it('keeps stale tuning evidence but withholds never-fired retirement below the strong window', () => {
+    const findings = auditFindings(report, 1, {
+      sufficient: true,
+      retirementEvidenceSufficient: false,
+    });
+
+    expect(findings.map((finding) => finding.type)).toEqual(['stale']);
   });
 });

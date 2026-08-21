@@ -6,7 +6,6 @@ import {
   type MissionVerdict,
   type MissionVerdictStatus,
 } from '../evidence/verdict.js';
-import type { MissionPlan } from '../mission/plan.js';
 import {
   reduceReviewLoop,
   type ReviewLoopState,
@@ -14,7 +13,20 @@ import {
 import type {
   SpecialistId,
   SpecialistInvocationStage,
+  SpecialistRoutingDecision,
 } from '../specialist/routing.js';
+
+export interface MissionSpecialistPlan {
+  readonly planHash: string;
+  readonly context: {
+    readonly status: 'complete' | 'degraded';
+    readonly issues: readonly string[];
+  };
+  readonly specialists: readonly (Pick<
+    SpecialistRoutingDecision,
+    'specialistId' | 'contractVersion' | 'state' | 'stages'
+  > & { readonly inputHash?: string })[];
+}
 
 export type MissionTeamPhase =
   | 'preparation'
@@ -54,7 +66,7 @@ export interface SpecialistRuntimeCapability {
 }
 
 export interface MissionTeamControllerInput {
-  readonly plan: MissionPlan;
+  readonly plan: MissionSpecialistPlan;
   readonly stream: EventStreamState;
   readonly evidenceContext: EvidenceContext;
   readonly currentInputHashesByStage: Readonly<Record<
@@ -78,12 +90,14 @@ interface MissionStart {
   readonly planHash: string;
   readonly valid: boolean;
   readonly runtime: 'claude' | 'codex' | undefined;
+  readonly strictLifecycle: boolean;
 }
 
 interface TeamEventPayload extends Readonly<Record<string, JsonValue>> {
   readonly leadWriterId?: JsonValue;
   readonly planHash?: JsonValue;
   readonly runtime?: JsonValue;
+  readonly routingHash?: JsonValue;
   readonly mode?: JsonValue;
   readonly writerId?: JsonValue;
 }
@@ -101,12 +115,15 @@ function missionStart(input: MissionTeamControllerInput): MissionStart {
   const leadWriterId = payload?.leadWriterId;
   const planHash = payload?.planHash;
   const runtime = payload?.runtime;
+  const routingHash = payload?.routingHash;
   return {
     leadWriterId: typeof leadWriterId === 'string' ? leadWriterId : '',
     planHash: typeof planHash === 'string' ? planHash : '',
     runtime: runtime === 'claude' || runtime === 'codex' ? runtime : undefined,
+    strictLifecycle: typeof routingHash === 'string'
+      && /^sha256:[a-f0-9]{64}$/.test(routingHash),
     valid: events.length === 1
-      && payload?.mode === 'team'
+      && (payload?.mode === 'team' || payload?.mode === 'fortress')
       && typeof leadWriterId === 'string'
       && leadWriterId.length > 0
       && leadWriterId.length <= 128
@@ -115,8 +132,32 @@ function missionStart(input: MissionTeamControllerInput): MissionStart {
   };
 }
 
+function writerLifecycleViolation(
+  input: MissionTeamControllerInput,
+  start: MissionStart,
+): boolean {
+  if (!start.strictLifecycle) return false;
+  return writerCompletions(input).some((completion) => {
+    const requestEventId = lifecycleField(completion, 'requestEventId');
+    const implementationRound = lifecycleField(completion, 'implementationRound');
+    const request = typeof requestEventId === 'string'
+      ? input.stream.events.find((event) => event.eventId === requestEventId)
+      : undefined;
+    return request === undefined
+      || request.seq >= completion.seq
+      || request.kind !== 'lead-writer.requested'
+      || request.source !== 'void-harness:mission.dispatch'
+      || request.subject !== start.leadWriterId
+      || completion.subject !== start.leadWriterId
+      || completion.causationId !== request.eventId
+      || lifecycleField(request, 'writerId') !== start.leadWriterId
+      || lifecycleField(request, 'planHash') !== start.planHash
+      || lifecycleField(request, 'implementationRound') !== implementationRound;
+  });
+}
+
 function requiredSpecialists(
-  plan: MissionPlan,
+  plan: MissionSpecialistPlan,
   stage: SpecialistInvocationStage,
 ): readonly SpecialistId[] {
   if (!Array.isArray(plan.specialists)) return [];
@@ -126,7 +167,7 @@ function requiredSpecialists(
     .map((specialist) => specialist.specialistId);
 }
 
-function contractVersions(plan: MissionPlan): Readonly<Record<string, number>> {
+function contractVersions(plan: MissionSpecialistPlan): Readonly<Record<string, number>> {
   if (!Array.isArray(plan.specialists)) return {};
   return Object.fromEntries(plan.specialists.map((specialist) => [
     specialist.specialistId,
@@ -145,6 +186,50 @@ function writerViolation(input: MissionTeamControllerInput, expected: string): b
 
 function writerCompletions(input: MissionTeamControllerInput): readonly CanonicalEvent[] {
   return input.stream.events.filter((event) => event.kind === 'lead-writer.completed');
+}
+
+function lifecycleField(event: CanonicalEvent, key: string): JsonValue | undefined {
+  const payload = record(event.payload);
+  return payload?.[key];
+}
+
+function sameSpecialistDispatch(
+  left: CanonicalEvent,
+  right: CanonicalEvent,
+): boolean {
+  return left.missionId === right.missionId
+    && left.subject === right.subject
+    && lifecycleField(left, 'contractVersion') === lifecycleField(right, 'contractVersion')
+    && lifecycleField(left, 'stage') === lifecycleField(right, 'stage')
+    && lifecycleField(left, 'reviewRound') === lifecycleField(right, 'reviewRound')
+    && lifecycleField(left, 'inputHash') === lifecycleField(right, 'inputHash');
+}
+
+function unboundCompletionReasons(
+  input: MissionTeamControllerInput,
+  runtime: 'claude' | 'codex' | undefined,
+): readonly string[] {
+  const reasons: string[] = [];
+  for (const completion of input.stream.events.filter((event) =>
+    event.kind === 'specialist.completed')) {
+    const started = input.stream.events.find((event) =>
+      event.seq < completion.seq
+      && event.kind === 'specialist.started'
+      && event.source === `runtime:${runtime ?? 'invalid'}`
+      && sameSpecialistDispatch(event, completion)
+      && lifecycleField(event, 'contextId') === lifecycleField(completion, 'contextId'));
+    const requested = started === undefined ? undefined : input.stream.events.find((event) =>
+      event.seq < started.seq
+      && event.kind === 'specialist.requested'
+      && event.source === 'void-harness:mission.dispatch'
+      && sameSpecialistDispatch(event, completion)
+      && lifecycleField(event, 'planHash') === input.plan.planHash
+      && lifecycleField(event, 'runtime') === runtime);
+    if (requested === undefined || started === undefined) {
+      reasons.push(`specialist lifecycle is unbound: ${completion.subject}`);
+    }
+  }
+  return [...new Set(reasons)].sort();
 }
 
 function overrideVerdict(
@@ -333,6 +418,11 @@ export function orchestrateMissionTeam(
   if (writerViolation(input, start.leadWriterId)) {
     return stopped('degraded', preReview, baseVerdict, ['lead writer ownership changed']);
   }
+  if (writerLifecycleViolation(input, start)) {
+    return stopped('degraded', preReview, baseVerdict, [
+      'lead writer completion is not bound to a controller request',
+    ]);
+  }
   if (!preReview.readyForVerdict) {
     return applyRuntimeCertification(
       decideReviewPhase(start, preReview, baseVerdict, 'pre-implementation'),
@@ -363,8 +453,17 @@ export function orchestrateMissionTeam(
     currentInputHashes: input.currentInputHashesByStage['post-implementation'],
     maxRounds: input.maxReviewRounds,
   });
-  return applyRuntimeCertification(
-    decideReviewPhase(start, postReview, baseVerdict, 'post-implementation'),
-    input.specialistRuntime,
+  const postDecision = decideReviewPhase(
+    start,
+    postReview,
+    baseVerdict,
+    'post-implementation',
   );
+  if (postDecision.action.kind === 'complete') {
+    const lifecycleReasons = unboundCompletionReasons(input, start.runtime);
+    if (lifecycleReasons.length > 0) {
+      return stopped('degraded', postReview, baseVerdict, lifecycleReasons);
+    }
+  }
+  return applyRuntimeCertification(postDecision, input.specialistRuntime);
 }

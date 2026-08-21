@@ -1,13 +1,17 @@
 import {
-  MVP_SPECIALIST_IDS,
   reduceReviewLoop,
   replayEventLog,
-  type MvpSpecialistId,
   type SpecialistId,
 } from '@voidcorp/mission-engine';
 import type { EvalCase, EvalReport, RunOutcome, ScoreResult } from '../types.js';
 
 export const MISSION_TEAM_EVENTS = '.void/eval/mission-team.events.jsonl';
+
+const MISSION_TEAM_SPECIALIST_IDS: readonly SpecialistId[] = Object.freeze([
+  'core:security-engineer',
+  'core:solution-architect',
+  'core:test-qa-engineer',
+]);
 
 const BLOCKER_SIGNALS = [
   'securityBlocker',
@@ -67,20 +71,20 @@ function reviewFrom(outcome: RunOutcome) {
     return undefined;
   }
   const currentInputHashes = Object.fromEntries(
-    MVP_SPECIALIST_IDS.map((specialistId) => {
+    MISSION_TEAM_SPECIALIST_IDS.map((specialistId) => {
       const completion = [...stream.events].reverse().find((event) =>
         event.kind === 'specialist.completed' && event.subject === specialistId
       );
       const payload = record(completion?.payload);
       return [specialistId, String(payload?.['inputHash'] ?? '')];
     }),
-  ) as Record<MvpSpecialistId, string>;
+  );
   return reduceReviewLoop({
     stage: 'post-implementation',
     expectedSource: specialistSource,
     events: stream.events,
-    requiredSpecialists: MVP_SPECIALIST_IDS,
-    contractVersions: Object.fromEntries(MVP_SPECIALIST_IDS.map((id) => [id, 2])),
+    requiredSpecialists: MISSION_TEAM_SPECIALIST_IDS,
+    contractVersions: Object.fromEntries(MISSION_TEAM_SPECIALIST_IDS.map((id) => [id, 2])),
     currentInputHashes,
     maxRounds: 2,
   });
@@ -99,7 +103,7 @@ function findingText(
     readonly recommendation: string;
     readonly evidence: readonly { readonly path: string; readonly detail: string }[];
   }[],
-  specialistId: MvpSpecialistId,
+  specialistId: SpecialistId,
 ): string {
   return findings
     .filter((finding) => finding.reportedBy.includes(specialistId))

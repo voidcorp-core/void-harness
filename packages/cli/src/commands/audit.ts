@@ -1,8 +1,9 @@
 // `void-harness audit` — the outbound self-evolution audit (issue #17 cluster C).
 //
 // Read canonical mission events plus legacy history and report which harness
-// skills are active, stale or never fired. The never/stale lists are the signal a
-// human weighs when proposing a deprecation. HITL: this reports, it never acts.
+// skills are active, stale or never observed. Graph relations, human-session
+// evidence, outcomes, and cost decide whether that observation can become a
+// bounded proposal. HITL: this reports, it never acts.
 // Upstream-deprecation and decision-matrix-conflict detection are a documented
 // follow-up (they need data sources beyond the usage log).
 
@@ -10,12 +11,28 @@ import * as p from '@clack/prompts';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { type SkillAudit, auditFindings, auditSkills } from '../lib/audit.js';
+import {
+  analyzeSynergy,
+  parseActivations,
+  parseOutcomes,
+  parseSpecialistLifecycle,
+  type GraphModel,
+  type SynergyProposal,
+} from '@voidcorp/harness-graph';
+import { type SkillAudit, auditSkills } from '../lib/audit.js';
 import { loadCanonicalEventBody, loadSkillUsage } from '../lib/graph-io.js';
 import { findCoreSource } from '../lib/paths.js';
 import { checkGh } from '../lib/prerequisites.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
-import { discoverProjects, findingToIssue, reconcileIssues, type IssueDraft } from '../lib/rollup.js';
+import {
+  discoverProjects,
+  findingToIssue,
+  mergeCanonicalTelemetry,
+  reconcileIssues,
+  type IssueDraft,
+  type RollupFinding,
+} from '../lib/rollup.js';
+import { resolveModel } from './graph.js';
 
 const DEFAULT_STALE_DAYS = 30;
 
@@ -30,6 +47,22 @@ function harnessSkills(coreSource: string): string[] {
     .filter((name) => existsSync(join(skillsDir, name, 'SKILL.md')))
     .map((name) => `harness:${name}`)
     .sort();
+}
+
+export function auditableHarnessSkills(
+  allSkills: readonly string[],
+  model: GraphModel,
+): {
+  readonly observable: readonly string[];
+  readonly passive: readonly string[];
+} {
+  const passiveNames = new Set(model.nodes
+    .filter((node) => node.type === 'skill' && node.activation === 'always')
+    .map((node) => `harness:${node.name}`));
+  return Object.freeze({
+    observable: Object.freeze(allSkills.filter((skill) => !passiveNames.has(skill))),
+    passive: Object.freeze(allSkills.filter((skill) => passiveNames.has(skill))),
+  });
 }
 
 function flag(args: readonly string[], name: string): string | undefined {
@@ -47,12 +80,28 @@ export async function audit(args: readonly string[]): Promise<void> {
 
   const coreSource = await findCoreSource();
   const allSkills = harnessSkills(coreSource);
+  const model = await resolveModel(coreSource, undefined);
+  const skillSurface = auditableHarnessSkills(allSkills, model);
 
   // Canonical mission events are authoritative; legacy logs preserve history.
   const projects = aggregate ? discoverProjects() : [root];
   const usage = (projects.length > 0 ? projects : [root]).flatMap((r) => loadSkillUsage(r));
 
-  const report = auditSkills({ allSkills, usage, nowMs: Date.now(), staleDays });
+  const report = auditSkills({
+    allSkills: skillSurface.observable,
+    usage,
+    nowMs: Date.now(),
+    staleDays,
+  });
+  const eventBody = aggregate
+    ? mergeCanonicalTelemetry(projects.length > 0 ? projects : [root])
+    : loadCanonicalEventBody(root);
+  const synergy = analyzeSynergy(
+    model,
+    parseActivations(eventBody),
+    parseOutcomes(eventBody),
+    { lifecycle: parseSpecialistLifecycle(eventBody) },
+  );
 
   banner('audit');
   blank();
@@ -68,26 +117,70 @@ export async function audit(args: readonly string[]): Promise<void> {
     );
   }
   line(
-    `${c.dim('skills')} ${allSkills.length} ${c.dim(glyph.dot)} ${c.green(`${report.active.length} active`)} ${c.dim(glyph.dot)} ${c.yellow(`${report.stale.length} stale`)} ${c.dim(glyph.dot)} ${c.dim(`${report.never.length} never`)} ${c.dim(`(stale > ${staleDays}d)`)}`,
+    `${c.dim('skills')} ${allSkills.length} ${c.dim(glyph.dot)} ${c.green(`${report.active.length} active`)} ${c.dim(glyph.dot)} ${c.yellow(`${report.stale.length} stale`)} ${c.dim(glyph.dot)} ${c.dim(`${report.never.length} never`)} ${c.dim(glyph.dot)} ${c.dim(`${skillSurface.passive.length} passive doctrine`)} ${c.dim(`(stale > ${staleDays}d)`)}`,
   );
 
-  reportSection('stale (used, but not in the window)', report.stale);
-  reportSection('never fired', report.never);
+  reportSection(
+    synergy.sufficient
+      ? 'stale (used, but not in the window)'
+      : 'stale observations (insufficient window; no proposal)',
+    report.stale,
+  );
+  reportSection(
+    synergy.retirementEvidenceSufficient
+      ? 'never fired (retirement review is evidence-eligible)'
+      : 'never observed (retirement evidence is insufficient)',
+    report.never,
+  );
+  blank();
+  line(c.bold('  skill + agent + hook synergy'));
+  line(
+    `    ${synergy.stats.events} human events ${c.dim(glyph.dot)} ${synergy.stats.sessions} sessions ${c.dim(glyph.dot)} ${synergy.stats.excludedSessions} synthetic sessions excluded`,
+  );
+  if (!synergy.sufficient) {
+    line(c.yellow('    evidence window is insufficient; no tuning or retirement proposal is safe.'));
+  } else if (synergy.proposals.length === 0) {
+    line(c.green('    no repair, wiring, tuning, fusion, or retirement proposal.'));
+  } else {
+    for (const proposal of synergy.proposals) {
+      for (const outputLine of renderSynergyProposal(proposal).split('\n')) {
+        line(`    ${outputLine}`);
+      }
+    }
+  }
 
   blank();
   if (push) {
-    await pushFindings(report, projects.length, args.includes('--dry-run'));
+    const findings: RollupFinding[] = synergy.proposals.map((proposal) => ({
+        type: proposal.kind,
+        component: proposal.component,
+        detail: proposal.evidence,
+      }));
+    await pushFindings(findings, args.includes('--dry-run'));
     return;
   }
-  if (report.stale.length === 0 && report.never.length === 0) {
+  if (
+    report.stale.length === 0
+    && report.never.length === 0
+    && synergy.proposals.length === 0
+  ) {
     footer(c.dim('every harness skill has fired recently — nothing to propose.'));
   } else {
     footer(
       c.dim(
-        'proposals are HITL: a stale/never skill is a candidate for deprecation, not an auto-action. `void-harness audit --push` files them as issues (dry-run by default).',
+        'observations become HITL proposals only after their evidence gate. `void-harness audit --push` files eligible proposals as issues (dry-run by default).',
       ),
     );
   }
+}
+
+export function renderSynergyProposal(proposal: SynergyProposal): string {
+  return [
+    `${proposal.kind} ${proposal.component}`,
+    `  evidence: ${proposal.evidence}`,
+    `  risk: ${proposal.risk}`,
+    '  -> learn candidate (HITL)',
+  ].join('\n');
 }
 
 /** gh issue titles already carrying our label, so a re-run updates instead of duplicating. */
@@ -107,8 +200,11 @@ function existingFeedbackTitles(repo: string): Set<string> {
  * to confirm the create/update plan first. A missing/unauthenticated gh fails LOUD
  * (never a silent no-op).
  */
-async function pushFindings(report: AuditReportLike, projectCount: number, forceDryRun: boolean): Promise<void> {
-  const drafts = auditFindings(report, projectCount).map(findingToIssue);
+async function pushFindings(
+  findings: readonly RollupFinding[],
+  forceDryRun: boolean,
+): Promise<void> {
+  const drafts = findings.map(findingToIssue);
   if (drafts.length === 0) {
     footer(c.dim('no stale/never skills — nothing to file.'));
     return;
@@ -147,9 +243,6 @@ function createIssue(repo: string, d: IssueDraft): void {
     { stdio: 'ignore' },
   );
 }
-
-/** Structural subset of AuditReport that auditFindings needs. */
-type AuditReportLike = Parameters<typeof auditFindings>[0];
 
 function reportSection(title: string, items: readonly SkillAudit[]): void {
   if (items.length === 0) return;

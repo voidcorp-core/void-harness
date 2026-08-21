@@ -1,9 +1,8 @@
-import type { MissionPlan } from '../mission/plan.js';
 import type {
   SpecialistId,
   SpecialistInvocationStage,
 } from '../specialist/routing.js';
-import type { MissionTeamAction } from './controller.js';
+import type { MissionSpecialistPlan, MissionTeamAction } from './controller.js';
 
 const MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
 const SHA256 = /^sha256:[a-f0-9]{64}$/;
@@ -17,7 +16,7 @@ export type InvokeSpecialistsAction = Extract<
 export interface SpecialistDispatchInput {
   readonly missionId: string;
   readonly runtime: SpecialistDispatchRuntime;
-  readonly plan: MissionPlan;
+  readonly plan: MissionSpecialistPlan;
   readonly action: InvokeSpecialistsAction;
   readonly currentInputHashes: Readonly<Record<string, string>>;
 }

@@ -43,3 +43,10 @@ pnpm --filter @voidcorp/make-pdf make-pdf <input.md> [output.pdf] [--a4|--legal]
 - MUST NOT bundle/download a Chromium (use `puppeteer-core` + the system browser).
 - MUST NOT fail silently when Chrome is absent — the error is explicit.
 - MUST NOT trust raw HTML embedded in markdown — the sanitizer runs unconditionally. (It matches `javascript:` literally; the output is printed, never live-rendered, so a surviving entity-encoded scheme is inert — harden before any live-render reuse.)
+
+## Composition
+
+Downstream: a generated deliverable is reviewed by the read-only `pdf-specialist` agent for faithful
+rendering, pagination, accessibility, and artifact evidence. The renderer owns production; the
+specialist judges the output and never edits it. `void-verify` carries that observed proof into the
+final gate.

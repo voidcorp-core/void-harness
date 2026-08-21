@@ -88,6 +88,70 @@ describe('writeSequencedEvent', () => {
     })).rejects.toThrow('HOOK_EVENT_ID_CONFLICT');
   });
 
+  it('validates transition preconditions while holding the mission lock', async () => {
+    const closedRoot = await tempRoot();
+    await writeSequencedEventOnce({
+      root: closedRoot,
+      missionId: MISSION_ID,
+      eventId: `evt_${'c'.repeat(64)}`,
+      draft: {
+        source: 'void-harness:mission.close',
+        kind: 'mission.closed',
+        subject: 'mission',
+        correlationId: MISSION_ID,
+        payload: { reason: 'interrupted' },
+      },
+    });
+    await expect(writeSequencedEventOnce({
+      root: closedRoot,
+      missionId: MISSION_ID,
+      eventId: `evt_${'d'.repeat(64)}`,
+      draft: draft(1),
+      validate: (events) => {
+        if (events.some((event) => event.kind === 'mission.closed')) {
+          throw new Error('MISSION_CLOSED');
+        }
+      },
+    })).rejects.toThrow('MISSION_CLOSED');
+
+    const orderedRoot = await tempRoot();
+    let releaseValidation: (() => void) | undefined;
+    let signalEntered: (() => void) | undefined;
+    const entered = new Promise<void>((resolveEntered) => {
+      signalEntered = resolveEntered;
+    });
+    const release = new Promise<void>((resolveRelease) => {
+      releaseValidation = resolveRelease;
+    });
+    const transition = writeSequencedEventOnce({
+      root: orderedRoot,
+      missionId: MISSION_ID,
+      eventId: `evt_${'e'.repeat(64)}`,
+      draft: draft(2),
+      validate: async () => {
+        signalEntered?.();
+        await release;
+      },
+    });
+    await entered;
+    const closure = writeSequencedEventOnce({
+      root: orderedRoot,
+      missionId: MISSION_ID,
+      eventId: `evt_${'f'.repeat(64)}`,
+      draft: {
+        source: 'void-harness:mission.close',
+        kind: 'mission.closed',
+        subject: 'mission',
+        correlationId: MISSION_ID,
+        payload: { reason: 'interrupted' },
+      },
+    });
+    releaseValidation?.();
+    const [transitionResult, closureResult] = await Promise.all([transition, closure]);
+
+    expect(transitionResult.event.seq).toBeLessThan(closureResult.event.seq);
+  });
+
   it('rejects invalid stable IDs and partial logs for idempotent writes', async () => {
     const invalidRoot = await tempRoot();
     await expect(writeSequencedEventOnce({

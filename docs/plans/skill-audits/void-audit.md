@@ -41,3 +41,22 @@ description, drifting apart the moment one is edited.
 `void-doctor` asks whether the harness is wired. `void-audit` asks whether its parts still
 earn their place. `void-graph` shows the shape they sit in. `verify` is unrelated: it proves
 one unit of work, not the harness that guards it.
+
+## 2026-08-21 — evidence-backed synergy proposals
+
+The previous audit classified skill usage in isolation. It could call every agent dead when Codex
+spawn telemetry was merely misclassified, and it had no way to distinguish an orphan, a failing
+component, an expensive low-yield component, or a genuine retirement candidate.
+
+The report now joins graph relations, human activations, outcomes and cost for skills, agents and
+hooks. It emits one prioritized action per component: repair telemetry, repair, retirement review,
+wire, or tune/fuse. Self-host and smoke missions are excluded. Ordinary proposals require a usable
+window; retirement requires twenty human sessions. Every output is a `void-learn` candidate with
+evidence and reversal risk, never an automatic edit or deletion.
+
+Provider-aware joins normalize local legacy aliases (`tdd`, `harness:tdd`) to their installed
+`void-` identity while preserving foreign providers. Specialist requests missing a start, and
+starts missing a terminal event, become repair proposals only after an explicit mission closure;
+an active mission remains observation-only. Always-loaded doctrine skills are reported separately
+as passive and never enter the stale/never invocation list because following them does not call the
+runtime skill primitive.

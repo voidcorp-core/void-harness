@@ -10,30 +10,38 @@ import {
   usedSkillNames,
 } from './graph-io.js';
 
-function canonicalSkill(seq: number, name: string): string {
+function canonicalSkill(
+  seq: number,
+  name: string,
+  missionId = 'mis_0123456789abcdef',
+): string {
   return JSON.stringify({
     schemaVersion: 1,
     seq,
     eventId: `evt_0000000${seq}`,
-    missionId: 'mis_0123456789abcdef',
+    missionId,
     ts: '2026-07-05T00:00:00.000Z',
     source: 'runtime:codex',
     kind: 'runtime.tool.started',
     subject: `skill:${name}`,
-    correlationId: 'mis_0123456789abcdef',
+    correlationId: missionId,
     payload: { category: 'skill', tool: 'Skill', fileGlobs: [], extensions: [] },
   });
 }
 
 describe('usedSkillNames', () => {
-  it('strips the plugin prefix and dedupes', () => {
+  it('canonicalizes local aliases without claiming foreign-provider homonyms', () => {
     const set = usedSkillNames([
       { timestamp: '2026-06-01T00:00:00Z', skill: 'harness:tdd' },
       { timestamp: '2026-06-02T00:00:00Z', skill: 'tdd' },
-      { timestamp: '2026-06-03T00:00:00Z', skill: 'superpowers:brainstorm' },
+      { timestamp: '2026-06-03T00:00:00Z', skill: 'void-tdd' },
+      { timestamp: '2026-06-04T00:00:00Z', skill: 'harness:void-tdd' },
+      { timestamp: '2026-06-05T00:00:00Z', skill: 'superpowers:void-tdd' },
     ]);
-    expect(set.has('tdd')).toBe(true);
-    expect(set.has('brainstorm')).toBe(true);
+
+    expect(set.has('void-tdd')).toBe(true);
+    expect(set.has('superpowers:void-tdd')).toBe(true);
+    expect(set.has('tdd')).toBe(false);
     expect(set.size).toBe(2);
   });
 });
@@ -132,6 +140,31 @@ describe('loadSkillUsage', () => {
         timestamp: '2026-07-05T00:00:00.000Z',
         skill: 'harness:tdd',
       });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('excludes self-host and smoke firings from human skill adoption', () => {
+    const root = voidProject({});
+    const human = 'mis_0123456789abcdef';
+    const synthetic = 'mis_selfhost_0123456789abcdef';
+    for (const missionId of [human, synthetic]) {
+      mkdirSync(join(root, '.void', 'machine', 'runs', missionId), { recursive: true });
+    }
+    writeFileSync(
+      join(root, '.void', 'machine', 'runs', human, 'events.jsonl'),
+      `${canonicalSkill(1, 'void-plan', human)}\n`,
+    );
+    writeFileSync(
+      join(root, '.void', 'machine', 'runs', synthetic, 'events.jsonl'),
+      `${canonicalSkill(1, 'void-implement', synthetic)}\n`,
+    );
+    try {
+      expect(loadSkillUsage(root)).toEqual([{
+        timestamp: '2026-07-05T00:00:00.000Z',
+        skill: 'void-plan',
+      }]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

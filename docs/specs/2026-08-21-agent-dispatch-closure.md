@@ -28,7 +28,9 @@ Cette tranche ferme la boucle sans transformer les hooks en orchestrateur :
 3. un protocole de dispatch déterministe transforme `invoke-specialists` en invocations bornées ;
 4. `void-implement` exécute chaque spécialiste applicable, sans liste de rôles locale ;
 5. le cycle de vie `started/completed/failed` rend les lancements, fins et échecs observables ;
-6. un corpus réaliste mesure précision, rappel, dispatch et complétion.
+6. un corpus réaliste mesure précision, rappel, dispatch et complétion ;
+7. le graphe joint hooks, skills et agents à leur coût et à leurs résultats pour alimenter
+   `void-learn` en propositions réversibles.
 
 ## Invariants
 
@@ -48,6 +50,12 @@ Cette tranche ferme la boucle sans transformer les hooks en orchestrateur :
   agents installés.
 - Le dispatcher n'exécute ni shell ni modèle lui-même. Il émet un contrat que le runtime actif
   consomme avec sa primitive native.
+- Un hook n'est jamais une autorité de routage. Il observe une invocation ou bloque une violation
+  certaine ; il ne choisit pas un spécialiste.
+- Une skill conduit le cycle mais ne maintient pas une seconde liste d'agents. Toute amélioration
+  de routage se fait dans les contrats canoniques et se prouve par le corpus.
+- Une absence d'usage ne provoque jamais une suppression. Après vingt sessions humaines, elle peut
+  seulement produire une revue de retrait que `void-learn` soumet à un humain.
 
 ## Contrat de dispatch
 
@@ -79,16 +87,44 @@ specialist.requested -> specialist.started -> specialist.completed
 ```
 
 `specialist.completed` conserve le résultat structuré déjà compris par `reduceReviewLoop`.
-`specialist.failed` garde un code et une raison bornés, sans prompt ni sortie brute.
+`specialist.failed` garde le même `contextId` et une raison bornée, sans prompt ni sortie brute.
+Un terminal sans requête et démarrage antérieurs exacts est refusé ; les retries identiques sont
+idempotents et un second terminal concurrent entre en conflit sur le même identifiant atomique.
 
 ## Intégration runtime
 
 Le CLI expose le prochain état sûr en JSON. `void-implement` boucle dessus :
 
-1. demander la prochaine action ;
-2. pour `invoke-specialists`, lancer chaque enveloppe avec l'agent natif exact ;
-3. enregistrer le début puis la complétion ou l'échec ;
-4. redemander la prochaine action jusqu'à correction, vérification, arrêt ou complétion.
+1. démarrer une mission avec le ticket ; le runtime est dérivé du marqueur de session natif et son
+   plan de spécialistes minimal est figé
+   dans le run, hashé et lié à `mission.started`, avec le chemin canonique et le hash du contenu
+   du ticket ;
+2. demander la prochaine action sans fournir localement étape, round, runtime ou rôles ;
+3. pour `invoke-specialists`, lancer chaque enveloppe avec l'agent natif exact ;
+4. `dispatch` enregistre `requested`, puis le runtime soumet un fichier JSON borné à
+   `mission specialist-event` pour `started`, `completed` ou `failed` ;
+5. après une action d'écriture, appeler `mission writer-event --id ...` ; la commande consomme le
+   reçu d'action du contrôleur et en dérive writer et round ;
+6. redemander la prochaine action jusqu'à correction, vérification, arrêt ou complétion.
+
+Le fichier ne peut contenir que l'enveloppe et les champs du statut : `contextId`, complétion
+structurée ou raison bornée. Le CLI refuse les champs inconnus, les chemins hors projet, les
+fichiers de plus de 100 Ko, tout contenu détecté comme secret et toute divergence
+mission/runtime/spécialiste/version/étape/round/hash/contexte. Il ne journalise ni prompt ni sortie
+brute. Les requêtes et transitions de dispatch sont idempotentes pour une même identité complète.
+Les fichiers sont lus depuis le même descripteur `no-follow` que celui validé, puis l'inode et le
+confinement sont revérifiés. Chaque transition revalide `mission.closed` sous le verrou du séquenceur
+et aucun événement spécialiste situé après la première fermeture n'entre dans l'audit.
+Le plan figé garde le routage pré-implémentation ; les hashes post-implémentation sont recalculés
+sur le diff courant, sans permettre au CLI de réinventer la liste des spécialistes. `dispatch`
+n'accepte plus le ticket : il relit le ticket lié au démarrage et refuse que son contenu ait changé.
+Le runtime n'est plus un argument : les marqueurs Codex priment sur `CLAUDECODE=1`, documenté par
+Claude Code pour les commandes issues de son shell, et une identité absente reste dégradée. Ainsi un
+coordinateur Codex ne peut pas demander la capacité Claude plus forte.
+Les actions terminales du contrôleur écrivent `mission.closed`. Une interruption ou un abandon doit
+passer par `mission close --reason interrupted|abandoned`. Ce marqueur est le seul qui autorise
+l'audit à conclure qu'une requête n'a jamais démarré ou qu'un démarrage n'a jamais terminé ; une
+mission active n'est jamais classée morte.
 
 Les descriptions natives restent importantes mais ne sont plus l'unique mécanisme. La
 documentation Codex actuelle précise que la délégation suit une demande directe ou une instruction
@@ -98,6 +134,7 @@ leur laissant leur primitive native :
 
 - https://learn.chatgpt.com/docs/agent-configuration/subagents
 - https://code.claude.com/docs/en/sub-agents
+- https://code.claude.com/docs/en/env-vars#claudecode
 
 ## Télémétrie
 
@@ -113,9 +150,41 @@ Les événements explicites du contrôleur prouvent le lifecycle métier. Les é
 `runtime.tool.*` prouvent que la primitive runtime a bien été appelée. Les deux signaux se
 complètent ; aucun n'est inféré de l'autre.
 
-`graph behavior` calcule la vie sur les noms installés. Une activation `agent:claude-code-guide`
-ne prouve rien sur `security-engineer`. Le rapport affiche aussi le nombre d'événements et de
-sessions synthétiques exclus.
+`graph behavior` calcule la vie sur les noms installés et respecte le fournisseur. Une activation
+`superpowers:void-tdd` ne prouve rien sur le `void-tdd` local, comme
+`agent:claude-code-guide` ne prouve rien sur `security-engineer`. Le rapport affiche aussi le
+nombre d'événements et de sessions synthétiques exclus.
+
+## Boucle d'optimisation hooks + skills + agents
+
+La boucle a un seul propriétaire par responsabilité :
+
+```text
+hooks (mesure + garde) -> graphe (jointure) -> audit (proposition)
+        ^                                           |
+        |                                           v
+runtime <- skills (conduite) <- contrats <- learn (décision HITL)
+                    |
+                    v
+              agents (jugement borné)
+```
+
+`void-graph` et `void-audit` croisent quatre preuves : relations déclarées, activations humaines,
+résultats et coût statique/runtime. Une mission self-host ou smoke n'entre jamais dans la preuve
+d'adoption. Le lifecycle détecte les chaînes forgées ou mal attribuées et les échecs explicites en
+joignant l'identité complète du dispatch ; une requête simplement en cours n'est jamais condamnée.
+Une seule proposition prioritaire est émise par composant :
+
+1. `repair-telemetry` quand la jointure de noms est cassée ;
+2. `repair` quand des complétions échouent ;
+3. `retirement-review` après au moins vingt sessions humaines sans activation ;
+4. `wire` quand le composant est orphelin dans le graphe ;
+5. `tune-or-fuse` quand le composant coûte beaucoup pour peu de résultats.
+
+La priorité empêche un faux signal de retrait de masquer une télémétrie cassée. Chaque proposition
+porte sa preuve, le risque d'une mauvaise décision et le marqueur `learnCandidate`. `void-learn`
+reste l'unique porte d'écriture : modifier, fusionner ou retirer demande une décision humaine et
+une preuve ciblée ; le rapport n'édite rien.
 
 ## Mesures d'acceptation
 
@@ -130,6 +199,10 @@ performance, produit, DevEx, PDF et contrôles négatifs. Le score publie :
 
 Le corpus déterministe doit atteindre 100 % sur ces invariants avant merge. Les evals LLM restent
 une couche complémentaire et ne remplacent pas les tests de contrat.
+
+L'audit vivant a deux seuils distincts : trois sessions et vingt événements humains suffisent pour
+proposer réparation, câblage ou réglage ; un retrait exige vingt sessions humaines. Avant ces
+seuils, l'absence de données est rendue explicitement et aucune proposition n'est émise.
 
 ## Hors périmètre
 

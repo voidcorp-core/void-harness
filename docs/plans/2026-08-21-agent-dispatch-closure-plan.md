@@ -36,8 +36,10 @@ skill prose and CLI rendering.
 ## Slice 4 - Runtime handoff
 
 - Add a machine-readable CLI surface for the next team action and its envelopes.
-- Persist enough immutable mission-plan context to resume safely.
+- Persist an integrity-bound routing snapshot and canonical ticket-content binding to resume safely.
+- Derive runtime identity from the native session and degrade every unattested coordinator.
 - Add bounded commands to append start, completion and failure events.
+- Bind writer completions to controller-issued action receipts and add an explicit mission closure.
 - Update `void-implement` to iterate returned envelopes and use the native runtime agent primitive.
 - Add conformance tests proving the same controller decision produces equivalent Claude and Codex
   handoffs.
@@ -49,7 +51,18 @@ skill prose and CLI rendering.
 - Gate deterministic metrics at 100 %.
 - Keep paid/model-backed evals optional and separately reported.
 
-## Slice 6 - Documentation, review and proof
+## Slice 6 - Closed learning loop
+
+- Declare every canonical `void-implement -> specialist` relation in the graph.
+- Connect activation/outcome meters to `void-graph`, then `void-audit` and `void-retrospective` to
+  `void-learn`.
+- Join structure, human activations, outcomes and cost into one bounded proposal per component.
+- Prioritize telemetry repair before failure repair, retirement, wiring and tuning/fusion.
+- Diagnose missing starts or terminals only for explicitly closed missions; active work stays neutral.
+- Require the ordinary evidence window for tuning and twenty human sessions for retirement review.
+- Keep every proposal report-only; `void-learn` remains the explicit HITL mutation gate.
+
+## Slice 7 - Documentation, review and proof
 
 - Align architecture and skill audit docs with the live dispatcher and telemetry boundary.
 - Run architecture, security and QA specialist reviews; dispose every finding.
@@ -61,4 +74,5 @@ skill prose and CLI rendering.
 1. Telemetry tests green before dispatcher work.
 2. Pure dispatch contract green before CLI wiring.
 3. Lifecycle and runtime conformance green before skill prose changes.
-4. Full repository verification green before handoff.
+4. Synergy analysis green before any retirement proposal is rendered.
+5. Full repository verification green before handoff.
