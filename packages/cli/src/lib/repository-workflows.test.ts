@@ -12,6 +12,7 @@ const files = readdirSync(WORKFLOWS).filter(
 );
 
 type Workflow = {
+  permissions?: Record<string, unknown>;
   jobs?: Record<
     string,
     {
@@ -42,15 +43,32 @@ describe('repository workflow execution contracts', () => {
         expect(result.status, `${name}:${jobName}:step-${stepIndex + 1}\n${result.stderr}`).toBe(
           0,
         );
+        for (const [programIndex, match] of [
+          ...step.run.matchAll(/node[^\n]*<<'NODE'\n([\s\S]*?)\nNODE/g),
+        ].entries()) {
+          const node = spawnSync(process.execPath, ['--check', '--input-type=module'], {
+            input: match[1],
+            encoding: 'utf8',
+          });
+          expect(
+            node.status,
+            `${name}:${jobName}:step-${stepIndex + 1}:node-${programIndex + 1}\n${node.stderr}`,
+          ).toBe(0);
+        }
       }
     }
   });
 
   it('grants OIDC to exactly release.yml/publish with the bounded job contract', () => {
-    const oidcJobs = files.flatMap((name) =>
-      Object.entries(parseWorkflow(name).jobs ?? {}).flatMap(([jobName, job]) =>
-        job.permissions?.['id-token'] === 'write' ? [{ name, jobName, job }] : [],
-      ),
+    const workflows = files.map((name) => ({ name, workflow: parseWorkflow(name) }));
+    expect(
+      workflows.filter(({ workflow }) => workflow.permissions?.['id-token'] === 'write'),
+    ).toEqual([]);
+    const oidcJobs = workflows.flatMap(({ name, workflow }) =>
+      Object.entries(workflow.jobs ?? {}).flatMap(([jobName, job]) => {
+        const effectivePermissions = job.permissions ?? workflow.permissions ?? {};
+        return effectivePermissions['id-token'] === 'write' ? [{ name, jobName, job }] : [];
+      }),
     );
 
     expect(oidcJobs.map(({ name, jobName }) => ({ name, jobName }))).toEqual([
