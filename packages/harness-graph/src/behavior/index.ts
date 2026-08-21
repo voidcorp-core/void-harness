@@ -16,6 +16,8 @@ export interface BehaviorOptions {
 export interface BehaviorStats {
   readonly events: number;
   readonly sessions: number;
+  readonly excludedEvents: number;
+  readonly excludedSessions: number;
 }
 
 export interface BehaviorReport {
@@ -51,12 +53,25 @@ export function within(ev: ActivationEvent, sinceMs: number | undefined): boolea
   return !Number.isNaN(t) && t >= sinceMs;
 }
 
+/** Internal self-host and hook-smoke missions prove the harness can exercise itself,
+ * not that a human workflow selected a component. Keep them out of adoption evidence. */
+export function isSyntheticBehaviorSession(sessionId: string): boolean {
+  return sessionId.startsWith('mis_selfhost_') || sessionId.startsWith('mis_smoke');
+}
+
 export function analyzeBehavior(model: GraphModel, events: readonly ActivationEvent[], opts: BehaviorOptions = {}): BehaviorReport {
   const minSessions = opts.minSessions ?? DEFAULT_MIN_SESSIONS;
   const minEvents = opts.minEvents ?? DEFAULT_MIN_EVENTS;
-  const scoped = events.filter((e) => within(e, opts.sinceMs));
+  const withinWindow = events.filter((e) => within(e, opts.sinceMs));
+  const excluded = withinWindow.filter((event) => isSyntheticBehaviorSession(event.sessionId));
+  const scoped = withinWindow.filter((event) => !isSyntheticBehaviorSession(event.sessionId));
   const sessions = new Set(scoped.map((e) => e.sessionId));
-  const stats: BehaviorStats = { events: scoped.length, sessions: sessions.size };
+  const stats: BehaviorStats = {
+    events: scoped.length,
+    sessions: sessions.size,
+    excludedEvents: excluded.length,
+    excludedSessions: new Set(excluded.map((event) => event.sessionId)).size,
+  };
 
   if (stats.sessions < minSessions || stats.events < minEvents) {
     return { sufficient: false, stats, findings: [] };
@@ -99,18 +114,20 @@ export function analyzeBehavior(model: GraphModel, events: readonly ActivationEv
   // evidence of a recorder break. A single-node kind stays a dead-node: with one member,
   // "kind unrecorded" is indistinguishable from a genuinely dead component.
   const GAP_MIN_NODES = 2;
-  const firingNodesByKind = new Map<ActivationKind, string[]>();
+  const firingNodesByKind = new Map<ActivationKind, GraphNode[]>();
   for (const n of model.nodes) {
     const kind = FIRING_KIND[n.type];
     if (kind === undefined || n.activation === 'always') continue;
     const list = firingNodesByKind.get(kind) ?? [];
-    list.push(n.id);
+    list.push(n);
     firingNodesByKind.set(kind, list);
   }
   const gappedKinds = new Set<ActivationKind>();
-  for (const [kind, ids] of firingNodesByKind) {
+  for (const [kind, nodes] of firingNodesByKind) {
     const fired = firedByKind.get(kind);
-    if (ids.length >= GAP_MIN_NODES && (fired === undefined || fired.size === 0)) {
+    const matchingActivation = nodes.some((node) => fired?.has(node.name) === true);
+    if (nodes.length >= GAP_MIN_NODES && !matchingActivation) {
+      const ids = nodes.map((node) => node.id);
       gappedKinds.add(kind);
       findings.push({
         kind: 'telemetry-gap',

@@ -467,12 +467,22 @@ export async function graph(
       line(
         `  ${c.yellow('insufficient data')} ${c.dim(glyph.dot)} ${report.stats.events} events, ${report.stats.sessions} sessions ${c.dim('(need >=20 events / >=3 sessions)')}`,
       );
+      if (report.stats.excludedSessions > 0) {
+        line(
+          `  ${c.dim('synthetic excluded')} ${report.stats.excludedEvents} events ${c.dim(glyph.dot)} ${report.stats.excludedSessions} sessions`,
+        );
+      }
       footer(c.dim('let the activation-meter hook accumulate more sessions, then retry.'));
       return;
     }
     line(
       `  ${c.dim('events')} ${report.stats.events} ${c.dim(glyph.dot)} ${c.dim('sessions')} ${report.stats.sessions} ${c.dim(glyph.dot)} ${c.dim('findings')} ${report.findings.length}`,
     );
+    if (report.stats.excludedSessions > 0) {
+      line(
+        `  ${c.dim('synthetic excluded')} ${report.stats.excludedEvents} events ${c.dim(glyph.dot)} ${report.stats.excludedSessions} sessions`,
+      );
+    }
     for (const f of report.findings) {
       blank();
       const tag = f.count !== undefined ? c.dim(` (x${f.count})`) : '';

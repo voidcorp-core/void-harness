@@ -107,6 +107,25 @@ describe('analyzeBehavior — dead-node', () => {
     expect(findings.filter((f) => f.kind === 'dead-node').flatMap((f) => f.nodes)).toContain('agent:a2');
   });
 
+  it('keeps a telemetry gap when the only agent activation is foreign to the installed model', () => {
+    const twoAgents: GraphModel = {
+      version: 1,
+      nodes: [node('agent:a1', 'agent'), node('agent:a2', 'agent')],
+      edges: [],
+    };
+    const events = [
+      ev({ kind: 'agent', name: 'claude-code-guide', sessionId: 'x1' }),
+      ev({ kind: 'tool', name: 'Edit', sessionId: 'x1' }),
+    ];
+
+    const findings = analyzeBehavior(twoAgents, events, SMALL).findings;
+
+    expect(findings.filter((f) => f.kind === 'telemetry-gap')).toEqual([
+      expect.objectContaining({ nodes: ['agent:a1', 'agent:a2'] }),
+    ]);
+    expect(findings.filter((f) => f.kind === 'dead-node')).toHaveLength(0);
+  });
+
   it('never flags an always-loaded doctrine skill as dead, even when never invoked', () => {
     const doctrineModel: GraphModel = {
       version: 1,
@@ -147,6 +166,25 @@ describe('analyzeBehavior — should-have-fired', () => {
 });
 
 describe('analyzeBehavior — window + determinism', () => {
+
+  it('excludes self-host and smoke missions from human behavior evidence', () => {
+    const events = [
+      ev({ kind: 'agent', name: 'code-explorer', sessionId: 'mis_selfhost_aabbccdd' }),
+      ev({ kind: 'tool', name: 'Edit', sessionId: 'mis_selfhost_aabbccdd' }),
+      ev({ kind: 'agent', name: 'code-explorer', sessionId: 'mis_smoke0000000000000000001' }),
+      ev({ kind: 'skill', name: 'tdd', sessionId: 'mis_human0000000000000000001' }),
+    ];
+
+    const report = analyzeBehavior(model, events, SMALL);
+
+    expect(report.stats).toEqual({
+      events: 1,
+      sessions: 1,
+      excludedEvents: 3,
+      excludedSessions: 2,
+    });
+    expect(report.findings.flatMap((finding) => finding.nodes)).toContain('agent:code-explorer');
+  });
   it('excludes events older than sinceMs', () => {
     const cutoff = Date.parse('2026-06-20T00:00:00Z');
     const events = [
