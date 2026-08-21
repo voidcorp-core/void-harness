@@ -548,13 +548,20 @@ on `develop` is accepted and contained, not described as server-enforced.
 
 ## Resume point
 
-**Next step**: Step 1 (Enforce the human-only `main` boundary)
+**Next step**: Checkpoint A. Review and merge implementation PR #272 into `develop` only after its
+five required checks are green on the current head. The merge remains human.
 
 **Completed**:
 
 - Approved spec: `docs/specs/2026-08-21-release-chain-hardening.md`
 - Accepted ADR: `adr:7ead6842-9674-49b5-ac85-1d182da4c5bf`
+- Steps 1 through 7, including the human-only `main` restriction, immutable workflow dependencies,
+  bounded promotion/back-merge identity, no-OIDC artifact validation, minimal OIDC publication,
+  producer-aware public provenance verification and the operator contract.
+- Fresh complete `pnpm verify` evidence and independent architecture, security and QA reviews with
+  every implementation finding disposed.
+- Implementation PR #272 targets `develop`.
 
 **Pending**:
 
-- Step 1 through Step 9 and both explicit checkpoints.
+- Checkpoint A, Step 8, Checkpoint B and Step 9 production proof.
