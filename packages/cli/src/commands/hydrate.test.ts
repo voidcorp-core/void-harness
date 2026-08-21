@@ -101,6 +101,7 @@ describe('verificationLines', () => {
 
     expect(lines[0]).toContain('126 file(s) restored and hash-verified');
     expect(lines.join('\n')).toContain('.void/PROJECT-DOCTRINE.md');
+    expect(lines.join('\n')).toContain('kept as the project left them');
     expect(lines.join('\n')).not.toMatch(/differ from the manifest/);
   });
 

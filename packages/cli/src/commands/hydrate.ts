@@ -77,7 +77,7 @@ export function verificationLines(report: ManifestVerification): string[] {
     // matching. Not a warning — writing into a co-owned file is its purpose.
     if (report.coEditedTotal > 0) {
       proof.push(
-        `${report.coEditedTotal} co-owned file(s) carry project edits, recorded as they are: `
+        `${report.coEditedTotal} co-owned file(s) kept as the project left them, and re-recorded: `
         + `${report.coEdited.join(', ')}`,
       );
     }
@@ -113,7 +113,9 @@ async function readManifestBody(root: string): Promise<string | undefined> {
 
 export async function hydrate(args: readonly string[]): Promise<void> {
   const root = process.cwd();
-  const plan = planHydrate(await readManifestBody(root), cliVersion());
+  const priorBody = await readManifestBody(root);
+  const plan = planHydrate(priorBody, cliVersion());
+  const priorManifest = priorBody === undefined ? undefined : parseInstallManifest(priorBody);
 
   banner('hydrate');
   meta('project', root);
@@ -129,6 +131,14 @@ export async function hydrate(args: readonly string[]): Promise<void> {
   meta('manifest', plan.message);
   blank();
 
+  // Read BEFORE `init`, because init rewrites the manifest from what it staged
+  // and a co-owned file is staged from the project. By the time the verification
+  // below runs, the recorded hash is whatever the project wrote, so a difference
+  // that existed a moment ago has already been absorbed. Asking now is the only
+  // moment the question can be answered, and `hydrate` promises a proof rather
+  // than a claim -- absorbing an edit without saying so is the opposite.
+  const before = priorManifest === undefined ? [] : verifyInstallManifest(root, priorManifest).coEdited;
+
   // Materialization is `init`'s job and stays there: one code path writes the
   // assets, so hydrate can never drift from what an install produces.
   await init(['--no-interactive', ...args.filter((arg) => arg !== '--verify-only')]);
@@ -142,7 +152,7 @@ export async function hydrate(args: readonly string[]): Promise<void> {
   }
 
   blank();
-  const report = verifyInstallManifest(root, manifest);
+  const report = { ...verifyInstallManifest(root, manifest), coEdited: before, coEditedTotal: before.length };
   for (const text of verificationLines(report)) line(report.ok ? c.green(text) : c.yellow(text));
   blank();
   if (!report.ok) {
