@@ -48,6 +48,17 @@ const effectiveJob = releasePleaseJob
   .filter((line) => !/^\s*#/.test(line))
   .join('\n');
 
+function job(name: string): string {
+  return releaseWorkflow.split(`\n  ${name}:\n`)[1]?.split(/\n {2}[\w-]+:\n/)[0] ?? '';
+}
+
+function withoutComments(source: string): string {
+  return source
+    .split('\n')
+    .filter((line) => !/^\s*#/.test(line))
+    .join('\n');
+}
+
 describe('the release pull request is opened by the App', () => {
   it('mints an App token from the repository secrets', () => {
     // Matched without its version: the action is pinned by commit SHA since the
@@ -160,5 +171,78 @@ describe('the release tree is validated and packed without OIDC', () => {
     expect(validateReleaseJob).toContain('artifact-id');
     expect(validateReleaseJob).toContain('artifact-digest');
     expect(validateReleaseJob).toContain('steps.prepare.outputs.manifest_path');
+  });
+});
+
+describe('minimal OIDC publication and independent provenance verification', () => {
+  const publishJob = job('publish');
+  const effectivePublishJob = withoutComments(publishJob);
+  const verifyPublicationJob = job('verify-publication');
+  const effectiveVerifyPublicationJob = withoutComments(verifyPublicationJob);
+
+  it('gives OIDC to the serialized publish job only', () => {
+    expect(releaseWorkflow.match(/^\s+id-token:\s*write$/gm)).toHaveLength(1);
+    expect(publishJob).toContain('environment: npm-publish');
+    expect(publishJob).toContain('contents: read');
+    expect(publishJob).toContain('actions: read');
+    expect(publishJob).toContain('id-token: write');
+    expect(publishJob).toContain('group: npm-voidharness-publish');
+    expect(publishJob).toContain('cancel-in-progress: false');
+  });
+
+  it('downloads only the exact validated artifact after checking service metadata', () => {
+    expect(publishJob).toContain(
+      'repos/$EXPECTED_REPOSITORY/actions/artifacts/$ARTIFACT_ID',
+    );
+    for (const field of ['artifact-id', 'artifact-digest', 'workflow_run', 'head_sha', 'expired']) {
+      expect(publishJob).toContain(field);
+    }
+    expect(publishJob).toContain(
+      'actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131',
+    );
+    expect(publishJob).toContain('artifact-ids: ${{ needs.validate-release.outputs.artifact_id }}');
+  });
+
+  it('executes no repository or package lifecycle code while OIDC is available', () => {
+    expect(effectivePublishJob).not.toContain('actions/checkout@');
+    expect(effectivePublishJob).not.toContain('pnpm');
+    expect(effectivePublishJob).not.toMatch(/\bnpm\s+(?:ci|install|run|test|pack)\b/);
+    expect(effectivePublishJob).not.toMatch(/\b(?:prepack|prepare|postinstall)\b/);
+    expect(effectivePublishJob).toContain('MINIMUM_NPM_MAJOR: 11');
+    expect(effectivePublishJob).toContain(
+      'npm publish "$TARBALL_PATH" --access public --ignore-scripts',
+    );
+  });
+
+  it('fails closed on artifact corruption and bounds registry retries', () => {
+    expect(publishJob).toContain('verify-release-artifact');
+    expect(publishJob).toContain('MAX_CLASSIFICATION_ATTEMPTS: 3');
+    expect(publishJob).toContain('MAX_PUBLICATION_ATTEMPTS: 12');
+    expect(publishJob).toContain('E404');
+    expect(publishJob).toContain('dist.integrity');
+    expect(publishJob).toContain('dist.attestations.url');
+  });
+
+  it('verifies registry signatures and exact workflow provenance without OIDC', () => {
+    expect(verifyPublicationJob).toContain('needs: [release-please, validate-release, publish]');
+    expect(verifyPublicationJob).toContain('contents: read');
+    expect(verifyPublicationJob).not.toContain('id-token: write');
+    expect(verifyPublicationJob).not.toContain('environment: npm-publish');
+    expect(effectiveVerifyPublicationJob).not.toContain('RELEASE_APP_PRIVATE_KEY');
+    expect(effectiveVerifyPublicationJob).not.toContain('NODE_AUTH_TOKEN');
+    expect(verifyPublicationJob).toContain('VERIFIED_NPM_VERSION: 11.12.1');
+    expect(verifyPublicationJob).toContain('MINIMUM_GH_VERSION: 2.97.0');
+    expect(verifyPublicationJob).toContain('npm audit signatures --json --include-attestations');
+    expect(verifyPublicationJob).toContain('--ignore-scripts');
+    expect(verifyPublicationJob).toContain('--digest-alg sha512');
+    expect(verifyPublicationJob).toContain('--deny-self-hosted-runners');
+    expect(verifyPublicationJob).toContain('--source-ref refs/heads/main');
+    expect(verifyPublicationJob).toContain('--predicate-type https://slsa.dev/provenance/v1');
+  });
+
+  it('keeps every npm authentication mechanism absent', () => {
+    expect(effective).not.toContain('NODE_AUTH_TOKEN');
+    expect(effective).not.toContain('registry-url:');
+    expect(effective).not.toMatch(/_authToken|NPM_CONFIG_USERCONFIG/);
   });
 });

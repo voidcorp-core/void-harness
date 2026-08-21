@@ -4,6 +4,7 @@ import {
   assertVersionEntries,
   createReleaseArtifactManifest,
   parseReleaseTag,
+  verifyArtifactMetadata,
   verifyReleaseArtifact,
 } from '../../scripts/release-artifact-contract.mjs';
 
@@ -26,6 +27,58 @@ describe('release artifact identity', () => {
     for (const invalid of ['3.4.0', 'v3.4', 'v3.4.0-rc.1', 'v3.4.0/../../x', 'v03.4.0']) {
       expect(() => parseReleaseTag(invalid)).toThrow(/release tag/i);
     }
+  });
+
+  it('binds the service artifact to this run and release commit', () => {
+    expect(
+      verifyArtifactMetadata({
+        artifact: {
+          id: 4242,
+          name: 'voidharness-release-3.4.0-987-2',
+          digest: `sha256:${'b'.repeat(64)}`,
+          expired: false,
+          workflow_run: { id: 987, head_sha: RELEASE_COMMIT },
+        },
+        expected: {
+          id: '4242',
+          name: 'voidharness-release-3.4.0-987-2',
+          digest: `sha256:${'b'.repeat(64)}`,
+          workflowRunId: '987',
+          releaseCommit: RELEASE_COMMIT,
+        },
+      }),
+    ).toMatchObject({ id: 4242, expired: false });
+  });
+
+  it.each([
+    ['id', { id: 4243 }, /artifact id/i],
+    ['name', { name: 'other' }, /artifact name/i],
+    ['digest', { digest: `sha256:${'c'.repeat(64)}` }, /service digest/i],
+    ['expiry', { expired: true }, /expired/i],
+    ['run', { workflow_run: { id: 988, head_sha: RELEASE_COMMIT } }, /workflow run/i],
+    ['commit', { workflow_run: { id: 987, head_sha: 'd'.repeat(40) } }, /release commit/i],
+  ])('rejects artifact metadata with the wrong %s', (_name, mutation, error) => {
+    const artifact = {
+      id: 4242,
+      name: 'voidharness-release-3.4.0-987-2',
+      digest: `sha256:${'b'.repeat(64)}`,
+      expired: false,
+      workflow_run: { id: 987, head_sha: RELEASE_COMMIT },
+      ...mutation,
+    };
+
+    expect(() =>
+      verifyArtifactMetadata({
+        artifact,
+        expected: {
+          id: '4242',
+          name: 'voidharness-release-3.4.0-987-2',
+          digest: `sha256:${'b'.repeat(64)}`,
+          workflowRunId: '987',
+          releaseCommit: RELEASE_COMMIT,
+        },
+      }),
+    ).toThrow(error);
   });
 
   it('requires every versioned manifest to equal the release tag', () => {
