@@ -226,6 +226,25 @@ describe('minimal OIDC publication and independent provenance verification', () 
     expect(publishJob).toContain('dist.attestations.url');
   });
 
+  it('distinguishes a new publish from an existing version producer', () => {
+    expect(publishJob).toContain(
+      "publication_mode: ${{ steps.registry.outputs.state }}",
+    );
+    expect(publishJob).toContain('state=new');
+    expect(publishJob).toContain('state=existing');
+    expect(publishJob).toContain("steps.registry.outputs.state == 'new'");
+    expect(verifyPublicationJob).toContain(
+      'PUBLICATION_MODE: ${{ needs.publish.outputs.publication_mode }}',
+    );
+    expect(verifyPublicationJob).toContain('id: provenance');
+    expect(verifyPublicationJob).toContain(
+      '--source-digest "${{ steps.provenance.outputs.workflow_head_sha }}"',
+    );
+    expect(verifyPublicationJob).toContain(
+      'PRODUCER_RUN_ID: ${{ steps.provenance.outputs.run_id }}',
+    );
+  });
+
   it('verifies registry signatures and exact workflow provenance without OIDC', () => {
     expect(verifyPublicationJob).toContain('needs: [release-please, validate-release, publish]');
     expect(verifyPublicationJob).toContain('contents: read');

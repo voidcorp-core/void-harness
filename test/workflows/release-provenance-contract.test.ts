@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   extractNpmProvenanceBundle,
   integrityToSha512Hex,
+  resolveNpmPublicationProvenance,
   verifyPublicationProvenance,
 } from '../../scripts/release-provenance-contract.mjs';
 
@@ -12,10 +13,24 @@ const TARBALL = Buffer.from('published tarball');
 const SHA512 = createHash('sha512').update(TARBALL).digest('hex');
 const RUN_ID = '32466960155';
 const RUN_ATTEMPT = '2';
-const INVOCATION =
-  `https://github.com/voidcorp-core/void-harness/actions/runs/${RUN_ID}/attempts/${RUN_ATTEMPT}`;
 
-function statement() {
+type Producer = {
+  workflowHeadSha: string;
+  runId: string;
+  runAttempt: string;
+};
+
+const CURRENT_PRODUCER: Producer = {
+  workflowHeadSha: WORKFLOW_HEAD_SHA,
+  runId: RUN_ID,
+  runAttempt: RUN_ATTEMPT,
+};
+
+function invocation(producer: Producer) {
+  return `https://github.com/voidcorp-core/void-harness/actions/runs/${producer.runId}/attempts/${producer.runAttempt}`;
+}
+
+function statement(producer = CURRENT_PRODUCER) {
   return {
     _type: 'https://in-toto.io/Statement/v1',
     subject: [{ name: 'pkg:npm/voidharness@3.4.0', digest: { sha512: SHA512 } }],
@@ -33,20 +48,20 @@ function statement() {
         resolvedDependencies: [
           {
             uri: 'git+https://github.com/voidcorp-core/void-harness@refs/heads/main',
-            digest: { gitCommit: WORKFLOW_HEAD_SHA },
+            digest: { gitCommit: producer.workflowHeadSha },
           },
         ],
       },
       runDetails: {
         builder: { id: 'https://github.com/actions/runner/github-hosted' },
-        metadata: { invocationId: INVOCATION },
+        metadata: { invocationId: invocation(producer) },
       },
     },
   };
 }
 
-function fixture() {
-  const signedStatement = statement();
+function fixture(producer = CURRENT_PRODUCER) {
+  const signedStatement = statement(producer);
   const bundle = {
     mediaType: 'application/vnd.dev.sigstore.bundle.v0.3+json',
     verificationMaterial: { certificate: { rawBytes: 'fixture' }, tlogEntries: [{}] },
@@ -80,12 +95,12 @@ function fixture() {
             githubWorkflowRef: 'refs/heads/main',
             buildSignerURI:
               'https://github.com/voidcorp-core/void-harness/.github/workflows/release.yml@refs/heads/main',
-            buildSignerDigest: WORKFLOW_HEAD_SHA,
+            buildSignerDigest: producer.workflowHeadSha,
             runnerEnvironment: 'github-hosted',
             sourceRepositoryURI: 'https://github.com/voidcorp-core/void-harness',
-            sourceRepositoryDigest: WORKFLOW_HEAD_SHA,
+            sourceRepositoryDigest: producer.workflowHeadSha,
             sourceRepositoryRef: 'refs/heads/main',
-            runInvocationURI: INVOCATION,
+            runInvocationURI: invocation(producer),
           },
         },
         verifiedTimestamps: [
@@ -103,9 +118,13 @@ const expected = {
   version: '3.4.0',
   sha512: SHA512,
   releaseCommit: RELEASE_COMMIT,
-  workflowHeadSha: WORKFLOW_HEAD_SHA,
-  runId: RUN_ID,
-  runAttempt: RUN_ATTEMPT,
+  publicationMode: 'new',
+  currentWorkflowHeadSha: WORKFLOW_HEAD_SHA,
+  currentRunId: RUN_ID,
+  currentRunAttempt: RUN_ATTEMPT,
+  producerWorkflowHeadSha: WORKFLOW_HEAD_SHA,
+  producerRunId: RUN_ID,
+  producerRunAttempt: RUN_ATTEMPT,
 };
 
 describe('published npm provenance', () => {
@@ -125,11 +144,62 @@ describe('published npm provenance', () => {
       packageName: 'voidharness',
       version: '3.4.0',
       releaseCommit: RELEASE_COMMIT,
+      publicationMode: 'new',
       workflowHeadSha: WORKFLOW_HEAD_SHA,
       runId: RUN_ID,
       runAttempt: RUN_ATTEMPT,
       sha512: SHA512,
     });
+  });
+
+  it('accepts an existing version attested by its earlier canonical publishing run', () => {
+    const earlierProducer = {
+      workflowHeadSha: 'c'.repeat(40),
+      runId: '30000000001',
+      runAttempt: '1',
+    };
+    const currentRetry = {
+      ...expected,
+      publicationMode: 'existing',
+      currentWorkflowHeadSha: 'd'.repeat(40),
+      currentRunId: '40000000002',
+      currentRunAttempt: '3',
+    };
+    const value = fixture(earlierProducer);
+
+    expect(resolveNpmPublicationProvenance(value.npmAudit, currentRetry)).toEqual({
+      bundle: value.bundle,
+      workflowHeadSha: earlierProducer.workflowHeadSha,
+      runId: earlierProducer.runId,
+      runAttempt: earlierProducer.runAttempt,
+    });
+    expect(
+      verifyPublicationProvenance({
+        ...value,
+        expected: {
+          ...currentRetry,
+          producerWorkflowHeadSha: earlierProducer.workflowHeadSha,
+          producerRunId: earlierProducer.runId,
+          producerRunAttempt: earlierProducer.runAttempt,
+        },
+      }),
+    ).toMatchObject({
+      publicationMode: 'existing',
+      workflowHeadSha: earlierProducer.workflowHeadSha,
+      runId: earlierProducer.runId,
+      runAttempt: earlierProducer.runAttempt,
+    });
+  });
+
+  it('rejects an earlier producer when this execution claims a new publication', () => {
+    const earlierProducer = {
+      workflowHeadSha: 'c'.repeat(40),
+      runId: '30000000001',
+      runAttempt: '1',
+    };
+    expect(() =>
+      resolveNpmPublicationProvenance(fixture(earlierProducer).npmAudit, expected),
+    ).toThrow(/current workflow execution/i);
   });
 
   it.each([
