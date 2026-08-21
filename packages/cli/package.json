@@ -1,6 +1,6 @@
 {
   "name": "voidharness",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "description": "void-harness CLI — install an opinionated engineering doctrine on any project; render deterministic project health. Run via `npx voidharness`; command: void-harness (alias vh).",
   "license": "MIT",
   "author": "Folpe @ VoidCorp",
