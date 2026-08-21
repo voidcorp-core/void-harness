@@ -240,6 +240,9 @@ describe('minimal OIDC publication and independent provenance verification', () 
     expect(verifyPublicationJob).toContain('--digest-alg sha512');
     expect(verifyPublicationJob).toContain('--deny-self-hosted-runners');
     expect(verifyPublicationJob).toContain('--source-ref refs/heads/main');
+    expect(verifyPublicationJob).toContain('WORKFLOW_HEAD_SHA: $' + '{{ github.sha }}');
+    expect(verifyPublicationJob).toContain('--source-digest "$WORKFLOW_HEAD_SHA"');
+    expect(verifyPublicationJob).toContain('--signer-digest "$WORKFLOW_HEAD_SHA"');
     expect(verifyPublicationJob).toContain('--predicate-type https://slsa.dev/provenance/v1');
   });
 

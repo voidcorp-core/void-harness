@@ -6,7 +6,8 @@ import {
   verifyPublicationProvenance,
 } from '../../scripts/release-provenance-contract.mjs';
 
-const COMMIT = 'a'.repeat(40);
+const RELEASE_COMMIT = 'a'.repeat(40);
+const WORKFLOW_HEAD_SHA = 'b'.repeat(40);
 const TARBALL = Buffer.from('published tarball');
 const SHA512 = createHash('sha512').update(TARBALL).digest('hex');
 const RUN_ID = '32466960155';
@@ -32,7 +33,7 @@ function statement() {
         resolvedDependencies: [
           {
             uri: 'git+https://github.com/voidcorp-core/void-harness@refs/heads/main',
-            digest: { gitCommit: COMMIT },
+            digest: { gitCommit: WORKFLOW_HEAD_SHA },
           },
         ],
       },
@@ -79,10 +80,10 @@ function fixture() {
             githubWorkflowRef: 'refs/heads/main',
             buildSignerURI:
               'https://github.com/voidcorp-core/void-harness/.github/workflows/release.yml@refs/heads/main',
-            buildSignerDigest: COMMIT,
+            buildSignerDigest: WORKFLOW_HEAD_SHA,
             runnerEnvironment: 'github-hosted',
             sourceRepositoryURI: 'https://github.com/voidcorp-core/void-harness',
-            sourceRepositoryDigest: COMMIT,
+            sourceRepositoryDigest: WORKFLOW_HEAD_SHA,
             sourceRepositoryRef: 'refs/heads/main',
             runInvocationURI: INVOCATION,
           },
@@ -101,7 +102,8 @@ const expected = {
   packageName: 'voidharness',
   version: '3.4.0',
   sha512: SHA512,
-  releaseCommit: COMMIT,
+  releaseCommit: RELEASE_COMMIT,
+  workflowHeadSha: WORKFLOW_HEAD_SHA,
   runId: RUN_ID,
   runAttempt: RUN_ATTEMPT,
 };
@@ -122,7 +124,8 @@ describe('published npm provenance', () => {
     expect(verifyPublicationProvenance({ npmAudit, ghVerification, expected })).toEqual({
       packageName: 'voidharness',
       version: '3.4.0',
-      releaseCommit: COMMIT,
+      releaseCommit: RELEASE_COMMIT,
+      workflowHeadSha: WORKFLOW_HEAD_SHA,
       runId: RUN_ID,
       runAttempt: RUN_ATTEMPT,
       sha512: SHA512,
@@ -147,7 +150,7 @@ describe('published npm provenance', () => {
     }],
     ['commit', (value: ReturnType<typeof fixture>) => {
       value.ghVerification[0].verificationResult.signature.certificate.sourceRepositoryDigest =
-        'b'.repeat(40);
+        'c'.repeat(40);
     }],
     ['run', (value: ReturnType<typeof fixture>) => {
       value.ghVerification[0].verificationResult.signature.certificate.runInvocationURI =
