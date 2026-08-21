@@ -50,6 +50,21 @@ function classify(input: { status: number; stdout: unknown; stderr: string }) {
 }
 
 describe('inline npm registry classifier', () => {
+  it('classifies npm 11 JSON E404 output on stdout as absent', () => {
+    const result = classify({
+      status: 1,
+      stdout: {
+        error: {
+          code: 'E404',
+          summary: 'No match found for version 3.4.0',
+        },
+      },
+      stderr: 'npm error code E404\nnpm error 404 No match found for version 3.4.0',
+    });
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe('absent');
+  });
+
   it('reads a structured E404 from stderr and classifies the version as absent', () => {
     const result = classify({
       status: 1,

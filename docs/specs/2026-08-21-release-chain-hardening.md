@@ -200,7 +200,8 @@ npm accepts a local gzipped tarball as the package specification for `npm publis
 
 Before publishing, the job queries `voidharness@X.Y.Z`:
 
-- if a structured npm `E404` is read from the captured error stream, it publishes;
+- if a structured npm `E404` is read from the captured JSON output (`stdout` with npm 11, with a
+  legacy structured-`stderr` fallback), it publishes;
 - if present with the exact expected integrity and an attestation candidate, it skips publication
   and delegates the success decision to the same post-publication verifier;
 - if present with different integrity or missing provenance after bounded registry retries, it stops
