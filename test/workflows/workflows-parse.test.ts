@@ -57,6 +57,19 @@ describe('workflow files', () => {
       expect(floating).toEqual([]);
     },
   );
+
+  it.each(files)('%s uses the runner context only after a job runner starts', (name) => {
+    const lines = readFileSync(join(WORKFLOWS, name), 'utf8').split('\n');
+    const offenders = lines
+      .map((line, index) => ({
+        indentation: line.length - line.trimStart().length,
+        line,
+        number: index + 1,
+      }))
+      .filter(({ indentation, line }) => indentation < 8 && /\$\{\{\s*runner\./.test(line));
+
+    expect(offenders.map((offender) => `${name}:${String(offender.number)}`)).toEqual([]);
+  });
 });
 
 // A job holding `id-token: write` can mint the OIDC token npm accepts as proof
