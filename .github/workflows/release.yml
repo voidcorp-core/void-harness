@@ -171,6 +171,8 @@ jobs:
     needs: [release-please, validate-release]
     if: ${{ always() && needs.validate-release.result == 'success' }}
     runs-on: ubuntu-latest
+    outputs:
+      publication_mode: ${{ steps.registry.outputs.state }}
     concurrency:
       group: npm-voidharness-publish
       cancel-in-progress: false
@@ -320,9 +322,9 @@ jobs:
             if [[ "$attempt" -lt "$MAX_CLASSIFICATION_ATTEMPTS" ]]; then sleep 5; fi
           done
           if [[ "$state" == ready ]]; then
-            echo "state=ready" >> "$GITHUB_OUTPUT"
+            echo "state=existing" >> "$GITHUB_OUTPUT"
           elif [[ "$state" == E404 ]]; then
-            echo "state=absent" >> "$GITHUB_OUTPUT"
+            echo "state=new" >> "$GITHUB_OUTPUT"
           else
             cat "$REGISTRY_ERROR" >&2
             echo "Registry state did not become classifiable" >&2
@@ -330,7 +332,7 @@ jobs:
           fi
 
       - name: Publish validated tarball through npm OIDC
-        if: ${{ steps.registry.outputs.state == 'absent' }}
+        if: ${{ steps.registry.outputs.state == 'new' }}
         env:
           TARBALL_PATH: ${{ steps.verify-release-artifact.outputs.tarball_path }}
         run: npm publish "$TARBALL_PATH" --access public --ignore-scripts
@@ -372,10 +374,11 @@ jobs:
       MINIMUM_GH_VERSION: 2.97.0
       RELEASE_VERSION: ${{ needs.validate-release.outputs.version }}
       RELEASE_COMMIT: ${{ needs.validate-release.outputs.release_commit }}
-      WORKFLOW_HEAD_SHA: ${{ github.sha }}
+      PUBLICATION_MODE: ${{ needs.publish.outputs.publication_mode }}
+      CURRENT_WORKFLOW_HEAD_SHA: ${{ github.sha }}
       EXPECTED_INTEGRITY: ${{ needs.validate-release.outputs.integrity }}
-      RELEASE_RUN_ID: ${{ github.run_id }}
-      RELEASE_RUN_ATTEMPT: ${{ github.run_attempt }}
+      CURRENT_RUN_ID: ${{ github.run_id }}
+      CURRENT_RUN_ATTEMPT: ${{ github.run_attempt }}
       VERIFY_ROOT: ${{ runner.temp }}/publication-verification
       NPM_AUDIT_PATH: ${{ runner.temp }}/publication-verification/npm-audit.json
       SLSA_BUNDLE_PATH: ${{ runner.temp }}/publication-verification/slsa-bundle.json
@@ -401,6 +404,7 @@ jobs:
           node -e 'const observed=process.argv[1].match(/gh version ([0-9]+\.[0-9]+\.[0-9]+)/)?.[1]; const parts=(v)=>v.split(".").map(Number); const [a,b,c]=parts(observed||"0.0.0"); const [x,y,z]=parts(process.env.MINIMUM_GH_VERSION); if (a<x || (a===x && (b<y || (b===y && c<z)))) throw new Error(`gh ${observed||"unknown"} is below ${process.env.MINIMUM_GH_VERSION}`)' "$(gh version | head -n 1)"
 
       - name: Verify npm signatures and collect the exact registry tarball
+        id: provenance
         working-directory: ${{ runner.temp }}
         run: |
           set -euo pipefail
@@ -413,6 +417,10 @@ jobs:
           node "$GITHUB_WORKSPACE/release-control/scripts/verify-release-publication.mjs" extract
 
       - name: Verify GitHub workflow identity and signed SLSA statement
+        env:
+          PRODUCER_WORKFLOW_HEAD_SHA: ${{ steps.provenance.outputs.workflow_head_sha }}
+          PRODUCER_RUN_ID: ${{ steps.provenance.outputs.run_id }}
+          PRODUCER_RUN_ATTEMPT: ${{ steps.provenance.outputs.run_attempt }}
         run: |
           set -euo pipefail
           gh attestation verify "$TARBALL_PATH" \
@@ -420,8 +428,8 @@ jobs:
             --repo voidcorp-core/void-harness \
             --signer-workflow voidcorp-core/void-harness/.github/workflows/release.yml \
             --source-ref refs/heads/main \
-            --source-digest "$WORKFLOW_HEAD_SHA" \
-            --signer-digest "$WORKFLOW_HEAD_SHA" \
+            --source-digest "${{ steps.provenance.outputs.workflow_head_sha }}" \
+            --signer-digest "${{ steps.provenance.outputs.workflow_head_sha }}" \
             --deny-self-hosted-runners \
             --predicate-type https://slsa.dev/provenance/v1 \
             --digest-alg sha512 \

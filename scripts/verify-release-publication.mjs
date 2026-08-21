@@ -3,8 +3,8 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import {
-  extractNpmProvenanceBundle,
   integrityToSha512Hex,
+  resolveNpmPublicationProvenance,
   verifyPublicationProvenance,
 } from './release-provenance-contract.mjs';
 
@@ -18,30 +18,47 @@ function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 
-function expectedEvidence() {
+function publicationContext() {
   return {
     packageName: 'voidharness',
     version: requiredEnv('RELEASE_VERSION'),
     sha512: integrityToSha512Hex(requiredEnv('EXPECTED_INTEGRITY')),
     releaseCommit: requiredEnv('RELEASE_COMMIT'),
-    workflowHeadSha: requiredEnv('WORKFLOW_HEAD_SHA'),
-    runId: requiredEnv('RELEASE_RUN_ID'),
-    runAttempt: requiredEnv('RELEASE_RUN_ATTEMPT'),
+    publicationMode: requiredEnv('PUBLICATION_MODE'),
+    currentWorkflowHeadSha: requiredEnv('CURRENT_WORKFLOW_HEAD_SHA'),
+    currentRunId: requiredEnv('CURRENT_RUN_ID'),
+    currentRunAttempt: requiredEnv('CURRENT_RUN_ATTEMPT'),
+  };
+}
+
+function expectedEvidence() {
+  return {
+    ...publicationContext(),
+    producerWorkflowHeadSha: requiredEnv('PRODUCER_WORKFLOW_HEAD_SHA'),
+    producerRunId: requiredEnv('PRODUCER_RUN_ID'),
+    producerRunAttempt: requiredEnv('PRODUCER_RUN_ATTEMPT'),
   };
 }
 
 function extract() {
-  const expected = expectedEvidence();
+  const expected = publicationContext();
   const tarballBytes = readFileSync(requiredEnv('TARBALL_PATH'));
   const observedDigest = createHash('sha512').update(tarballBytes).digest('hex');
   if (observedDigest !== expected.sha512) {
     throw new Error('registry tarball SHA-512 does not match the validated release artifact');
   }
-  const bundle = extractNpmProvenanceBundle(
+  const provenance = resolveNpmPublicationProvenance(
     readJson(requiredEnv('NPM_AUDIT_PATH')),
     expected,
   );
-  writeFileSync(requiredEnv('SLSA_BUNDLE_PATH'), `${JSON.stringify(bundle)}\n`, { flag: 'wx' });
+  writeFileSync(requiredEnv('SLSA_BUNDLE_PATH'), `${JSON.stringify(provenance.bundle)}\n`, {
+    flag: 'wx',
+  });
+  writeFileSync(
+    requiredEnv('GITHUB_OUTPUT'),
+    `workflow_head_sha=${provenance.workflowHeadSha}\nrun_id=${provenance.runId}\nrun_attempt=${provenance.runAttempt}\n`,
+    { flag: 'a' },
+  );
 }
 
 function verify() {

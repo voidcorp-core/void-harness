@@ -228,20 +228,20 @@ describe('minimal OIDC publication and independent provenance verification', () 
 
   it('distinguishes a new publish from an existing version producer', () => {
     expect(publishJob).toContain(
-      "publication_mode: ${{ steps.registry.outputs.state }}",
+      'publication_mode: $' + '{{ steps.registry.outputs.state }}',
     );
     expect(publishJob).toContain('state=new');
     expect(publishJob).toContain('state=existing');
     expect(publishJob).toContain("steps.registry.outputs.state == 'new'");
     expect(verifyPublicationJob).toContain(
-      'PUBLICATION_MODE: ${{ needs.publish.outputs.publication_mode }}',
+      'PUBLICATION_MODE: $' + '{{ needs.publish.outputs.publication_mode }}',
     );
     expect(verifyPublicationJob).toContain('id: provenance');
     expect(verifyPublicationJob).toContain(
-      '--source-digest "${{ steps.provenance.outputs.workflow_head_sha }}"',
+      '--source-digest "$' + '{{ steps.provenance.outputs.workflow_head_sha }}"',
     );
     expect(verifyPublicationJob).toContain(
-      'PRODUCER_RUN_ID: ${{ steps.provenance.outputs.run_id }}',
+      'PRODUCER_RUN_ID: $' + '{{ steps.provenance.outputs.run_id }}',
     );
   });
 
@@ -259,9 +259,15 @@ describe('minimal OIDC publication and independent provenance verification', () 
     expect(verifyPublicationJob).toContain('--digest-alg sha512');
     expect(verifyPublicationJob).toContain('--deny-self-hosted-runners');
     expect(verifyPublicationJob).toContain('--source-ref refs/heads/main');
-    expect(verifyPublicationJob).toContain('WORKFLOW_HEAD_SHA: $' + '{{ github.sha }}');
-    expect(verifyPublicationJob).toContain('--source-digest "$WORKFLOW_HEAD_SHA"');
-    expect(verifyPublicationJob).toContain('--signer-digest "$WORKFLOW_HEAD_SHA"');
+    expect(verifyPublicationJob).toContain(
+      'CURRENT_WORKFLOW_HEAD_SHA: $' + '{{ github.sha }}',
+    );
+    expect(verifyPublicationJob).toContain(
+      '--source-digest "$' + '{{ steps.provenance.outputs.workflow_head_sha }}"',
+    );
+    expect(verifyPublicationJob).toContain(
+      '--signer-digest "$' + '{{ steps.provenance.outputs.workflow_head_sha }}"',
+    );
     expect(verifyPublicationJob).toContain('--predicate-type https://slsa.dev/provenance/v1');
   });
 

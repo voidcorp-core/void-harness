@@ -14,6 +14,7 @@ const RELEASE_COMMIT = /^[0-9a-f]{40}$/;
 const RELEASE_VERSION = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
 const SHA512_HEX = /^[0-9a-f]{128}$/;
 const DECIMAL_ID = /^[1-9][0-9]*$/;
+const PUBLICATION_MODES = new Set(['new', 'existing']);
 
 function fail(message) {
   throw new Error(`release provenance: ${message}`);
@@ -28,7 +29,7 @@ function requireArray(value, label) {
   return value;
 }
 
-function expectedEvidence(value) {
+function publicationContext(value) {
   if (!isObject(value)) fail('expected evidence is required');
   if (value.packageName !== PACKAGE_NAME) fail(`package name must be ${PACKAGE_NAME}`);
   if (typeof value.version !== 'string' || !RELEASE_VERSION.test(value.version)) {
@@ -40,23 +41,60 @@ function expectedEvidence(value) {
   if (typeof value.releaseCommit !== 'string' || !RELEASE_COMMIT.test(value.releaseCommit)) {
     fail('release commit must be a lowercase 40-character SHA');
   }
-  if (typeof value.workflowHeadSha !== 'string' || !RELEASE_COMMIT.test(value.workflowHeadSha)) {
-    fail('workflow head must be a lowercase 40-character SHA');
+  if (!PUBLICATION_MODES.has(value.publicationMode)) {
+    fail('publication mode must be new or existing');
   }
-  if (typeof value.runId !== 'string' || !DECIMAL_ID.test(value.runId)) {
-    fail('workflow run id must be a positive decimal string');
+  if (
+    typeof value.currentWorkflowHeadSha !== 'string' ||
+    !RELEASE_COMMIT.test(value.currentWorkflowHeadSha)
+  ) {
+    fail('current workflow head must be a lowercase 40-character SHA');
   }
-  if (typeof value.runAttempt !== 'string' || !DECIMAL_ID.test(value.runAttempt)) {
-    fail('workflow run attempt must be a positive decimal string');
+  if (typeof value.currentRunId !== 'string' || !DECIMAL_ID.test(value.currentRunId)) {
+    fail('current workflow run id must be a positive decimal string');
+  }
+  if (
+    typeof value.currentRunAttempt !== 'string' ||
+    !DECIMAL_ID.test(value.currentRunAttempt)
+  ) {
+    fail('current workflow run attempt must be a positive decimal string');
   }
   return value;
 }
 
-function invocationUri(expected) {
-  return `${REPOSITORY_URL}/actions/runs/${expected.runId}/attempts/${expected.runAttempt}`;
+function expectedEvidence(value) {
+  const expected = publicationContext(value);
+  if (
+    typeof expected.producerWorkflowHeadSha !== 'string' ||
+    !RELEASE_COMMIT.test(expected.producerWorkflowHeadSha)
+  ) {
+    fail('producer workflow head must be a lowercase 40-character SHA');
+  }
+  if (typeof expected.producerRunId !== 'string' || !DECIMAL_ID.test(expected.producerRunId)) {
+    fail('producer workflow run id must be a positive decimal string');
+  }
+  if (
+    typeof expected.producerRunAttempt !== 'string' ||
+    !DECIMAL_ID.test(expected.producerRunAttempt)
+  ) {
+    fail('producer workflow run attempt must be a positive decimal string');
+  }
+  if (
+    expected.publicationMode === 'new' &&
+    (expected.producerWorkflowHeadSha !== expected.currentWorkflowHeadSha ||
+      expected.producerRunId !== expected.currentRunId ||
+      expected.producerRunAttempt !== expected.currentRunAttempt)
+  ) {
+    fail('new publication provenance must match the current workflow execution');
+  }
+  return expected;
 }
 
-function validateStatement(statement, expected, source) {
+function invocationUri(producer) {
+  return `${REPOSITORY_URL}/actions/runs/${producer.runId}/attempts/${producer.runAttempt}`;
+}
+
+function inspectStatement(statement, expected, source) {
   if (!isObject(statement)) fail(`${source} statement is missing`);
   if (statement._type !== 'https://in-toto.io/Statement/v1') {
     fail(`${source} statement type is not in-toto v1`);
@@ -88,18 +126,39 @@ function validateStatement(statement, expected, source) {
     definition?.resolvedDependencies,
     `${source} resolved dependencies`,
   );
-  if (
-    dependencies.length !== 1 ||
-    dependencies[0]?.uri !== `git+${REPOSITORY_URL}@${SOURCE_REF}` ||
-    dependencies[0]?.digest?.gitCommit !== expected.workflowHeadSha
-  ) {
+  if (dependencies.length !== 1 || dependencies[0]?.uri !== `git+${REPOSITORY_URL}@${SOURCE_REF}`) {
     fail(`${source} resolved workflow head is missing or conflicting`);
+  }
+  const workflowHeadSha = dependencies[0]?.digest?.gitCommit;
+  if (typeof workflowHeadSha !== 'string' || !RELEASE_COMMIT.test(workflowHeadSha)) {
+    fail(`${source} resolved workflow head is not a lowercase 40-character SHA`);
   }
   if (statement.predicate?.runDetails?.builder?.id !== GITHUB_HOSTED_BUILDER) {
     fail(`${source} builder is not GitHub-hosted`);
   }
-  if (statement.predicate?.runDetails?.metadata?.invocationId !== invocationUri(expected)) {
-    fail(`${source} workflow run or attempt does not match release evidence`);
+  const invocationId = statement.predicate?.runDetails?.metadata?.invocationId;
+  const invocationPattern = new RegExp(
+    `^${REPOSITORY_URL}/actions/runs/([1-9][0-9]*)/attempts/([1-9][0-9]*)$`,
+  );
+  const invocationMatch =
+    typeof invocationId === 'string' ? invocationPattern.exec(invocationId) : null;
+  if (!invocationMatch) {
+    fail(`${source} workflow invocation is missing or noncanonical`);
+  }
+  return Object.freeze({
+    workflowHeadSha,
+    runId: invocationMatch[1],
+    runAttempt: invocationMatch[2],
+  });
+}
+
+function requireProducer(producer, expected, source) {
+  if (
+    producer.workflowHeadSha !== expected.producerWorkflowHeadSha ||
+    producer.runId !== expected.producerRunId ||
+    producer.runAttempt !== expected.producerRunAttempt
+  ) {
+    fail(`${source} workflow producer does not match release evidence`);
   }
 }
 
@@ -132,8 +191,8 @@ export function integrityToSha512Hex(integrity) {
   return digest.toString('hex');
 }
 
-export function extractNpmProvenanceBundle(npmAudit, untrustedExpected) {
-  const expected = expectedEvidence(untrustedExpected);
+export function resolveNpmPublicationProvenance(npmAudit, untrustedExpected) {
+  const expected = publicationContext(untrustedExpected);
   if (!isObject(npmAudit)) fail('npm audit result is missing');
   const invalid = requireArray(npmAudit.invalid, 'npm invalid signatures');
   const missing = requireArray(npmAudit.missing, 'npm missing signatures');
@@ -152,13 +211,31 @@ export function extractNpmProvenanceBundle(npmAudit, untrustedExpected) {
   ).filter((entry) => entry?.predicateType === SLSA_PREDICATE);
   if (bundles.length !== 1) fail('npm must verify exactly one SLSA provenance bundle');
   const bundle = bundles[0].bundle;
-  validateStatement(decodeBundleStatement(bundle), expected, 'npm-verified');
-  return bundle;
+  const producer = inspectStatement(decodeBundleStatement(bundle), expected, 'npm-verified');
+  if (
+    expected.publicationMode === 'new' &&
+    (producer.workflowHeadSha !== expected.currentWorkflowHeadSha ||
+      producer.runId !== expected.currentRunId ||
+      producer.runAttempt !== expected.currentRunAttempt)
+  ) {
+    fail('new publication provenance must match the current workflow execution');
+  }
+  return Object.freeze({ bundle, ...producer });
+}
+
+export function extractNpmProvenanceBundle(npmAudit, untrustedExpected) {
+  return resolveNpmPublicationProvenance(npmAudit, untrustedExpected).bundle;
 }
 
 export function verifyPublicationProvenance(input) {
   const expected = expectedEvidence(input?.expected);
-  extractNpmProvenanceBundle(input?.npmAudit, expected);
+  const npmProvenance = resolveNpmPublicationProvenance(input?.npmAudit, expected);
+  requireProducer(npmProvenance, expected, 'npm-verified');
+  const producer = {
+    workflowHeadSha: expected.producerWorkflowHeadSha,
+    runId: expected.producerRunId,
+    runAttempt: expected.producerRunAttempt,
+  };
 
   const verifications = requireArray(input?.ghVerification, 'GitHub verified attestations');
   if (verifications.length !== 1) {
@@ -173,12 +250,12 @@ export function verifyPublicationProvenance(input) {
     certificate.githubWorkflowRepository !== REPOSITORY ||
     certificate.githubWorkflowRef !== SOURCE_REF ||
     certificate.buildSignerURI !== WORKFLOW_URI ||
-    certificate.buildSignerDigest !== expected.workflowHeadSha ||
+    certificate.buildSignerDigest !== producer.workflowHeadSha ||
     certificate.runnerEnvironment !== 'github-hosted' ||
     certificate.sourceRepositoryURI !== REPOSITORY_URL ||
-    certificate.sourceRepositoryDigest !== expected.workflowHeadSha ||
+    certificate.sourceRepositoryDigest !== producer.workflowHeadSha ||
     certificate.sourceRepositoryRef !== SOURCE_REF ||
-    certificate.runInvocationURI !== invocationUri(expected)
+    certificate.runInvocationURI !== invocationUri(producer)
   ) {
     fail('verified certificate identity does not match the release workflow evidence');
   }
@@ -191,15 +268,16 @@ export function verifyPublicationProvenance(input) {
   ) {
     fail('verified Sigstore transparency-log timestamp is missing');
   }
-  validateStatement(result.statement, expected, 'GitHub-verified');
+  requireProducer(inspectStatement(result.statement, expected, 'GitHub-verified'), expected, 'GitHub-verified');
 
   return Object.freeze({
     packageName: PACKAGE_NAME,
     version: expected.version,
     releaseCommit: expected.releaseCommit,
-    workflowHeadSha: expected.workflowHeadSha,
-    runId: expected.runId,
-    runAttempt: expected.runAttempt,
+    publicationMode: expected.publicationMode,
+    workflowHeadSha: producer.workflowHeadSha,
+    runId: producer.runId,
+    runAttempt: producer.runAttempt,
     sha512: expected.sha512,
   });
 }
