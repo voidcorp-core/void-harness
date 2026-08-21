@@ -13,6 +13,7 @@ on:
   # gate that blocks forever instead of a gate that judges.
   pull_request:
     branches: [main, develop]
+    types: [opened, synchronize, reopened, auto_merge_enabled, auto_merge_disabled]
   # release.yml dispatches this workflow on Release Please PRs so the same
   # doctrine floor required by branch protection runs before their merge.
   workflow_dispatch:
@@ -22,6 +23,10 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   enforce:
     runs-on: ubuntu-latest
@@ -29,6 +34,43 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
+      - name: Reject auto-merge outside the canonical back-merge
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          OBSERVED_REPOSITORY: ${{ github.repository }}
+          EXPECTED_REPOSITORY: voidcorp-core/void-harness
+          EXPECTED_HEAD: chore/back-merge-main
+          EXPECTED_BASE: develop
+        run: |
+          set -euo pipefail
+          if [ "$OBSERVED_REPOSITORY" != "$EXPECTED_REPOSITORY" ]; then
+            echo "auto-merge authority is defined only for $EXPECTED_REPOSITORY." >&2
+            exit 1
+          fi
+
+          fields=autoMergeRequest,baseRefName,headRefName
+          fields+=,headRepository,headRepositoryOwner,isCrossRepository
+          pr=$(gh pr view "$PR_NUMBER" --repo "$EXPECTED_REPOSITORY" --json "$fields")
+          if [ "$(jq -r '.autoMergeRequest != null' <<<"$pr")" != true ]; then
+            echo "auto-merge is not armed on PR #$PR_NUMBER."
+            exit 0
+          fi
+
+          jq -e \
+            --arg repository "$EXPECTED_REPOSITORY" \
+            --arg owner "${EXPECTED_REPOSITORY%%/*}" \
+            --arg head "$EXPECTED_HEAD" \
+            --arg base "$EXPECTED_BASE" \
+            '.baseRefName == $base and .headRefName == $head and
+             .headRepository.nameWithOwner == $repository and
+             .headRepositoryOwner.login == $owner and
+             (.isCrossRepository | not)' <<<"$pr" >/dev/null || {
+            echo "auto-merge is not canonical for $EXPECTED_REPOSITORY." >&2
+            exit 1
+          }
+          echo "auto-merge identity is canonical for PR #$PR_NUMBER."
       - uses: ./.github/actions/void-enforce
         with:
           base-ref: ${{ inputs.base-ref }}

@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -20,7 +20,7 @@ describe('release automation authority', () => {
 
   it('contains exactly one native auto-merge command in the canonical workflow', () => {
     const commands = allWorkflows.flatMap(({ name, source }) =>
-      [...source.matchAll(/^\s*gh pr merge\b[^\n]*--auto\b/gm)].map((match) => ({
+      [...source.matchAll(/^\s*gh pr merge\b(?=[^\n]*--auto\b)[^\n]*/gm)].map((match) => ({
         name,
         command: match[0].trim(),
       })),
@@ -43,7 +43,9 @@ describe('release automation authority', () => {
   });
 
   it('rechecks live auto-merge state on every pull request transition', () => {
-    expect(voidEnforce).toMatch(/types:\s*\[[^\]]*auto_merge_enabled[^\]]*auto_merge_disabled[^\]]*\]/);
+    expect(voidEnforce).toMatch(
+      /types:\s*\[[^\]]*auto_merge_enabled[^\]]*auto_merge_disabled[^\]]*\]/,
+    );
     expect(voidEnforce).toContain('pull-requests: read');
     expect(voidEnforce).toContain('gh pr view "$PR_NUMBER"');
     expect(voidEnforce).toContain('autoMergeRequest');
@@ -65,13 +67,16 @@ describe('release automation authority', () => {
   });
 
   it.each([
-    ['promotion.yml', promotion, 'release-promotion-develop-main'],
-    ['back-merge.yml', backMerge, 'release-back-merge-main-develop'],
-  ])('%s is single-flight and scopes its App token to this repository', (_name, source, group) => {
+    ['promotion.yml', promotion, 'release-promotion-develop-main', 'read'],
+    ['back-merge.yml', backMerge, 'release-back-merge-main-develop', 'write'],
+  ])('%s is single-flight and scopes its App token to this repository', (_name, source, group, contents) => {
     expect(source).toContain(`group: ${group}`);
     expect(source).toContain('cancel-in-progress: true');
-    expect(source).toContain('owner: ${{ github.repository_owner }}');
-    expect(source).toContain('repositories: ${{ github.event.repository.name }}');
+    expect(source).toMatch(/owner: \$\{\{ github\.repository_owner \}\}/);
+    expect(source).toMatch(/repositories: \$\{\{ github\.event\.repository\.name \}\}/);
+    expect(source).toContain(`permission-contents: ${contents}`);
+    expect(source).toContain('permission-pull-requests: write');
+    expect(source).not.toMatch(/permission-(?:actions|administration|environments|secrets):/);
   });
 
   it.each([
