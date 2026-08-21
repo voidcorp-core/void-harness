@@ -159,14 +159,14 @@ Every generated `CLAUDE.md` or `AGENTS.md` carries the same conditional bootstra
 `.void/active.md` exists with `status: executing`, the runtime reads its plan and spec before
 choosing implementation work. A plain continue/start/resume request recovers exactly one started
 scoped ticket, or selects the first ready ticket from the pointer's stable issue order and the
-tracker’s native blocker relations. The complete ticket is then executed through `implement`.
+tracker’s native blocker relations. The complete ticket is then executed through `void-implement`.
 More than one started scoped ticket is a competing-claim error, never an implicit selection.
 
 The pointer is opt-in and project-owned. `init`, `update`, and runtime adapters never create or
-mutate it. `ticket` creates it only after a human-approved multi-ticket plan has been fully
+mutate it. `void-ticket` creates it only after a human-approved multi-ticket plan has been fully
 materialized in a capable tracker. It stores immutable routing only: program, plan/spec links,
 provider scope, ordered ticket identifiers, lifecycle-state names, human gates, and the required
-`autopilot` consent block. Mutable status, assignee, blockers, resume comments, and PR/evidence
+`void-autopilot` consent block. Mutable status, assignee, blockers, resume comments, and PR/evidence
 links live only in the tracker.
 
 `packages/cli/src/lib/autopilot/active-program.ts` is the only parser of that contract. It
@@ -289,7 +289,7 @@ Two content-aware hooks sit beside the filename/path guards:
 - **`stop-typecheck.sh`** (Stop, **advisory**) — when a TS project has uncommitted
   `.ts` changes at end of turn, it runs a timeout-bounded `tsc --noEmit` scoped to
   the nearest tsconfig of the touched files and surfaces type errors on stderr, so
-  the "typecheck clean" item of `verify` is answered from
+  the "typecheck clean" item of `void-verify` is answered from
   observation. It **never blocks** (a blocking Stop would trap the session) and
   no-ops with no TS project, no TS edit, or no `tsc`.
 
@@ -297,7 +297,7 @@ Two content-aware hooks sit beside the filename/path guards:
 
 A pack **may not carry a bundled runtime `dependencies` edge on another pack** — that hides a dependency graph and couples release cycles. If two packs share substantial logic, that logic belongs in `core/`.
 
-One exception is allowed: an **explicit, documented `peerDependency` of composition** — a stack pack that deliberately presupposes another (e.g. `pack-nextjs` peer-depends on `pack-monorepo` for the `Result`/`ok`/`err` primitives, and `init` co-installs them). This is not a hidden edge: it is declared in `package.json` `peerDependencies`, documented in the pack README, and the consumer installs both. Extracting three functional primitives into their own package to avoid it would be premature (see `package-extraction`). Prefer this over a new shared package when the shared surface is small and the composition is intentional.
+One exception is allowed: an **explicit, documented `peerDependency` of composition** — a stack pack that deliberately presupposes another (e.g. `pack-nextjs` peer-depends on `pack-monorepo` for the `Result`/`ok`/`err` primitives, and `init` co-installs them). This is not a hidden edge: it is declared in `package.json` `peerDependencies`, documented in the pack README, and the consumer installs both. Extracting three functional primitives into their own package to avoid it would be premature (see `void-package-extraction`). Prefer this over a new shared package when the shared surface is small and the composition is intentional.
 
 ### CLI scope
 
@@ -313,7 +313,7 @@ The CLI does **not** edit the consumer's source code. The consumer's CLAUDE.md i
 
 ## Inter-plugin contracts (the core-hub model)
 
-The core plugin is **always installed** and acts as the hub between plugins. A sibling plugin (today: `forge`, the ideation pipeline) routes into the core's execution capabilities (`brainstorm`, `plan`, `ticket`, `tdd`, ...) rather than reimplementing them or dangling a pointer at a gstack skill. The nominal routing assumes the core is present; the coupling is nonetheless a **versioned artifact contract**, not a hard plugin dependency, so each plugin still makes sense alone — forge degrades to producing a standalone spec, core works with a hand-written spec.
+The core plugin is **always installed** and acts as the hub between plugins. A sibling plugin (today: `forge`, the ideation pipeline) routes into the core's execution capabilities (`void-brainstorm`, `void-plan`, `void-ticket`, `void-tdd`, ...) rather than reimplementing them or dangling a pointer at a gstack skill. The nominal routing assumes the core is present; the coupling is nonetheless a **versioned artifact contract**, not a hard plugin dependency, so each plugin still makes sense alone — forge degrades to producing a standalone spec, core works with a hand-written spec.
 
 Re-splitting core into `core` + `dev` (execution) sub-plugins is explicitly **deferred (YAGNI)**: one core-hub is enough until a second consumer of the "execution" half exists.
 
@@ -339,7 +339,7 @@ The body carries the **18 load-bearing recon variables** (the interface's payloa
 
 **Ingestion rule** (core skills): when a `source: forge` spec exists, **verify and fill the gaps — never re-ask what it already answers**. A partial spec (recon without critique, or a missing field from an older `forge_version`) is ingested for what it has, with the missing pieces listed as the only open questions. Two specs in one repo are disambiguated by `slug` / date.
 
-`brainstorm`, `plan`, and `ticket` each honor this rule (see their SKILL.md "Ingesting a forge spec" note). The forge side of the contract lives in `voidcorp-core/forge` (forge#4).
+`void-brainstorm`, `void-plan`, and `void-ticket` each honor this rule (see their SKILL.md "Ingesting a forge spec" note). The forge side of the contract lives in `voidcorp-core/forge` (forge#4).
 
 ## Dependency direction
 
@@ -995,7 +995,7 @@ Local PreToolUse hooks only enforce the floor on the machine running them — a
 cloud agent, a `--dangerously-skip-permissions` run, or any non-Claude author
 never sees them. The **void-enforce Action** replays the same floor on every PR,
 server-side, so the floor is incontournable regardless of author. It complements
-(does not replace) the server-side branch protection `autopilot` already
+(does not replace) the server-side branch protection `void-autopilot` already
 requires.
 
 - `core/enforce/ci-enforce.sh` — the diff driver. Given `--base <ref>`, it walks

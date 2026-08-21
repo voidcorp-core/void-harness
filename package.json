@@ -51,6 +51,8 @@
     "derive": "node scripts/derive.mjs",
     "derive:check": "node scripts/derive.mjs --check",
     "skills:check-references": "node scripts/check-skill-references.mjs",
+    "skills:register": "node scripts/build-skill-references.mjs",
+    "skills:register-check": "node scripts/build-skill-references.mjs --check",
     "skills:check-paths": "node scripts/check-asset-paths.mjs"
   },
   "devDependencies": {

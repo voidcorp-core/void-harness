@@ -201,7 +201,7 @@ context isolation.
 `trim-large-output` is **not** mirrored. Its `PostToolUse` output rewriting
 (`updatedToolOutput`) is unconfirmed on Codex and a sibling field is documented as
 failing there, so wiring it would spill files to disk for no context benefit. The
-irreducible residue (Workflow tool, claude-in-chrome, unpublished `make-pdf`,
+irreducible residue (Workflow tool, claude-in-chrome, unpublished `void-make-pdf`,
 subagent isolation) is tabled in `docs/CODEX.md` — that is where the notion of a
 prerequisite keeps its meaning.
 
@@ -308,7 +308,7 @@ depend on, making the packs truly independent. Rejected as premature: the entire
 shared surface is three pure functional primitives, and `pack-nextjs`'s only use
 is `Result`/`ok`/`err` in one file. Creating, versioning, and publishing a new
 package to remove one small, intentional edge is exactly the extraction
-`package-extraction` warns against — more moving parts than the coupling it
+`void-package-extraction` warns against — more moving parts than the coupling it
 removes.
 
 Resolution: **amend the rule** rather than the code. The ban now targets what it
@@ -842,11 +842,11 @@ DevEx) + an `all` orchestrated mode, NOT 4-5 dedicated skills and NOT a section 
 
 Load-bearing choices:
 - **One skill = one subject.** The subject is "critique a written plan before execution"; the four lenses are
-  dimensions of it — exactly the shape of `code-review` (six dimensions, one skill). Four dedicated skills
+  dimensions of it — exactly the shape of `void-code-review` (six dimensions, one skill). Four dedicated skills
   would be anti-bloat, fragment the subject, and force per-pair overlap policing. A `writing-plans` section
   was rejected: authoring a plan and adversarially critiquing it from four personas are different subjects, and
   folding would create the >30% overlap the ticket warned against. Boundary: `writing-plans` authors and owns
-  plan structure/registries; `plan-review` critiques and proposes findings; the author disposes.
+  plan structure/registries; `void-plan-review` critiques and proposes findings; the author disposes.
 - **autoplan dissolves into the `all` mode**, not a separate skill (YAGNI): once the lenses are one skill, "run
   the four and auto-decide" is a mode. Its real value survives — the decision taxonomy (auto-decide Mechanical
   only; Taste + User-challenge escalate), the 6 decision principles, cross-lens theme synthesis, single gate.
@@ -854,7 +854,7 @@ Load-bearing choices:
   substrate (scope gate, one-finding-one-question, task list, verdict, second-opinion) is factored ONCE; each
   lens is cut to its irreducible core (CEO premise/ambition/trajectory; Eng test-coverage trace + failure
   modes; Design perceived pixels/states/slop; DevEx TTHW/journey/benchmark) to stay under the 30% cap.
-- **`activation: on-demand`** — invoked deliberately on an artifact, like `security-audit`. Distilled 5 sources
+- **`activation: on-demand`** — invoked deliberately on an artifact, like `void-security-audit`. Distilled 5 sources
   (~7000 LOC) into 129 LOC. Rejected: all gstack runtime, and the named-founder "how great X think" rosters
   (highest copy-risk, least load-bearing — the value is the checks, not the name-dropping).
 
@@ -913,44 +913,44 @@ Why: a floor that forbids ever adding a dependency is not a floor, it is a wall.
 dependency PR already follows — the change makes the automated gate agree with how dependencies legitimately
 land, without opening a tamper path.
 
-## 2026-07-10: the live DX audit is a dedicated `devex-audit` skill, not an extension (DEV-398)
+## 2026-07-10: the live DX audit is a dedicated `void-devex-audit` skill, not an extension (DEV-398)
 
 De-gstackification: the gstack coverage audit found `devex-review` (gstack's "Live Developer Experience Audit")
 to be the one real coverage gap after waves 1-3. The DX *methodology* was already vendored, but only its
-plan-time half — `plan-devex-review` → the DevEx lens of `plan-review` (TTHW target, journey, error paths,
+plan-time half — `plan-devex-review` → the DevEx lens of `void-plan-review` (TTHW target, journey, error paths,
 docs, upgrade, as *plan requirements*). What was missing is the live application of that method to an existing,
-deployed surface, exactly as `ui-review` audits a shipped UI versus `plan-review`'s Design lens judging the plan.
+deployed surface, exactly as `void-ui-review` audits a shipped UI versus `void-plan-review`'s Design lens judging the plan.
 
 The ticket posed three options. Decision:
 
-- **Option 1 — extend `ui-review` to also cover dev surfaces: REJECTED.** Two subjects in one skill (visual/
+- **Option 1 — extend `void-ui-review` to also cover dev surfaces: REJECTED.** Two subjects in one skill (visual/
   interaction UI craft AND the developer journey: naming, errors, docs, upgrade). Violates anti-bloat rule 2
   (one skill = one subject) and rule 3 (> 30% overlap). Different audience, different evidence.
-- **Option 3 — a "live" mode inside `plan-review`: REJECTED.** `plan-review` judges *written plans* before code;
+- **Option 3 — a "live" mode inside `void-plan-review`: REJECTED.** `void-plan-review` judges *written plans* before code;
   its own anti-rules forbid reviewing shipped code. A live audit is a different artifact at a different stage.
 - **Option 2 — a dedicated `harness:devex-audit` (`on-demand`, floor/ceiling pattern): CHOSEN.** It mirrors the
-  precedent already set by `ui-review`, which positions itself as the audit ceiling versus `plan-review`'s Design
-  lens (the plan) and `frontend-design` (the build floor). The triangle here is `plan-review` DevEx lens (plan) /
-  `api-and-interface-design` (build the contract) / `devex-audit` (audit the shipped contract).
+  precedent already set by `void-ui-review`, which positions itself as the audit ceiling versus `void-plan-review`'s Design
+  lens (the plan) and `void-frontend-design` (the build floor). The triangle here is `void-plan-review` DevEx lens (plan) /
+  `void-api-and-interface-design` (build the contract) / `void-devex-audit` (audit the shipped contract).
 
 Load-bearing choices:
 - **The < 30% overlap is structural, not verbal.** vs the plan-review DevEx lens: same dimension names, but that
   lens states them as plan *promises* while this skill *measures* the shipped reality with an evidence tag
   (TESTED/PARTIAL/INFERRED) and a plan-vs-reality delta — opposite lifecycle stage, opposite epistemics. vs
-  `ui-review`: different subject (visual craft vs developer journey). vs `api-and-interface-design`: build floor
+  `void-ui-review`: different subject (visual craft vs developer journey). vs `void-api-and-interface-design`: build floor
   (design the contract) vs audit ceiling (judge it shipped).
-- **Near-mechanical, decided in-cycle.** Because the `ui-review` precedent already settled this exact shape, the
+- **Near-mechanical, decided in-cycle.** Because the `void-ui-review` precedent already settled this exact shape, the
   choice was made during the ticket rather than surfaced as an open taste decision — the ticket's recommendation
   (option 2) and the established pattern agreed.
 - **Reject the gstack runtime, defer the browser.** Only the DX method is vendored (first principles, measured-TTHW
   tiers, gap-method scoring, six evidence-tagged passes). The gstack review-log/dashboard, `gstack-*` bins,
   external hall-of-fame file, and telemetry are rejected; the live browser driver defers to Vague 4, the same
-  line `ui-review` holds. The skill stays valuable pre-Vague-4 because CLI/README/CHANGELOG/types are bash-testable
+  line `void-ui-review` holds. The skill stays valuable pre-Vague-4 because CLI/README/CHANGELOG/types are bash-testable
   today; only hosted-web surfaces defer.
 
 Why: the DX capability needed a home, and the home had to respect the one-skill-one-subject floor. Bolting it onto
-`ui-review` or `plan-review` would have blurred two audiences into one skill; a dedicated audit-ceiling skill keeps
-each boundary sharp and reuses a pattern the codebase already proved with `ui-review`.
+`void-ui-review` or `void-plan-review` would have blurred two audiences into one skill; a dedicated audit-ceiling skill keeps
+each boundary sharp and reuses a pattern the codebase already proved with `void-ui-review`.
 
 ## 2026-07-10: split design craft into frontend-design (build) + ui-review (audit); internalise impeccable (DEV-389)
 
@@ -960,8 +960,8 @@ skills custom, on le fait"), so the harness does not depend on an outside skill.
 methodology from four sources — gstack `/design-review`, `/design-consultation`, `/design-shotgun`, and the
 standalone `impeccable` — and splits it by lifecycle.
 
-Decision: **`frontend-design` (build-time floor) + a new `harness:ui-review` (audit-time ceiling)**, mirroring
-`security-guidance`/`security-audit` and `writing-plans`/`plan-review`. NOT one mega-skill, NOT a dependency on
+Decision: **`void-frontend-design` (build-time floor) + a new `harness:ui-review` (audit-time ceiling)**, mirroring
+`void-security-guidance`/`void-security-audit` and `writing-plans`/`void-plan-review`. NOT one mega-skill, NOT a dependency on
 external impeccable.
 
 - **frontend-design** gains impeccable's build-time craft: the current-AI-tell absolute bans (side-stripe,
@@ -990,7 +990,7 @@ keeps each skill lean and one-subject, and makes the harness self-contained on b
 
 ## 2026-07-10: rebuild make-pdf on marked + puppeteer-core (system Chrome, page numbers), not a band-aid (DEV-391)
 
-De-gstackification Vague 4 (epic DEV-383), REBUILD. gstack `/make-pdf` produces the PDFs DECLIK signed
+De-gstackification Vague 4 (epic DEV-383), REBUILD. gstack `/void-make-pdf` produces the PDFs DECLIK signed
 deliverables depend on, via the browse daemon. A first pass rebuilt it with a hand-rolled markdown parser + the
 raw `chrome --headless --print-to-pdf` flag to avoid a dependency; Folpe rejected that as a band-aid ("pas de
 rustine, état de l'art"). Rebuilt on the researched state-of-the-art path instead.
@@ -1013,7 +1013,7 @@ light (no Chromium download).
 
 ## 2026-07-10: QA browser methodology re-pointed onto claude-in-chrome, not a daemon port (DEV-390)
 
-De-gstackification Vague 4 (REBUILD). gstack's QA methodology (`/qa`, `/qa-only`, the live half of `/design-review`)
+De-gstackification Vague 4 (REBUILD). gstack's QA methodology (`/void-qa`, `/qa-only`, the live half of `/design-review`)
 is valuable, but it drives the gstack `browse` daemon — ~190 CDP/Chromium files. A full port is weeks; Claude Code
 already ships the `claude-in-chrome` MCP. Decision: **re-point the QA prose onto the claude-in-chrome MCP** as a new
 `harness:qa` skill, and do not port the daemon.
@@ -1021,14 +1021,14 @@ already ships the `claude-in-chrome` MCP. Decision: **re-point the QA prose onto
 Load-bearing choices:
 - **One skill, one subject.** `harness:qa` = "live browser QA of a running web app." `/qa-only` folds in as a
   `--report-only` mode (report-only is a mode, not a subject). The live visual QA from `/design-review` folds in as
-  a "visual pass" that **composes `ui-review`** (which already owns the visual-craft methodology) rather than
-  restating it. The regression test in the fix loop composes `tdd`/`testing`. < 30% overlap is structural: this
+  a "visual pass" that **composes `void-ui-review`** (which already owns the visual-craft methodology) rather than
+  restating it. The regression test in the fix loop composes `void-tdd`/`void-testing`. < 30% overlap is structural: this
   drives the browser + functional/fix loop; ui-review judges visuals; devex-audit audits dev surfaces; tdd/testing
   author suites.
 - **Reject the runtime AND the test-framework bootstrap.** The gstack runtime (browse binary, gbrain/learnings,
   telemetry, `~/.gstack` artifacts, cookie-profile import) is rejected as operational surface. Separately, gstack
-  `/qa`'s Test-Framework-Bootstrap block (detect runtime → install a framework → write TESTING.md) is rejected as
-  scope creep — standing up a framework is `tdd`/`testing`, and a QA skill that also bootstraps one is two subjects.
+  `/void-qa`'s Test-Framework-Bootstrap block (detect runtime → install a framework → write TESTING.md) is rejected as
+  scope creep — standing up a framework is `void-tdd`/`void-testing`, and a QA skill that also bootstraps one is two subjects.
 - **Cookie import is moot.** claude-in-chrome drives the user's real, logged-in Chrome, so `~/.gstack/chromium-profile`
   cookie import has no purpose — documented as a rejection per the ticket.
 - **Assumed limitation, stated not faked.** claude-in-chrome needs an interactive Chrome; headless cloud/cron QA is
@@ -1038,7 +1038,7 @@ Load-bearing choices:
   carried "Always use /browse … Never use claude-in-chrome", which predates the claude-in-chrome adoption and made
   the skill unusable. Because it is his personal file affecting every project, the exact edit was confirmed with him
   (not applied silently): the blanket ban is **replaced by a scoped rule** — claude-in-chrome is the browser layer
-  for `harness:qa`/`ui-review` live audits, `/browse` stays available until the Vague 6 teardown. (Alternatives
+  for `harness:qa`/`void-ui-review` live audits, `/browse` stays available until the Vague 6 teardown. (Alternatives
   offered: flip the default globally, or delete the rule outright; Folpe chose the scoped replacement.)
 
 Why: the QA methodology is the durable value; the daemon is not. Re-pointing keeps the prose and drops ~190 files
@@ -1076,7 +1076,7 @@ tiering captures the win without a quality-loss path.
 
 ## 2026-07-10: no native ship skill — ticket-runner pass 11 + gh + release-please IS the ship path (DEV-400)
 
-Second teardown-unblocking ticket. The routing pointed `Ship | gstack (/ship)` and `code-review` named `ship
+Second teardown-unblocking ticket. The routing pointed `Ship | gstack (/ship)` and `void-code-review` named `ship
 (gstack)` downstream. gstack `/ship` did: run tests, bump version, write changelog, commit, push, open the PR.
 
 Decision: **do not vendor a `harness:ship` skill.** Every step /ship performed is already owned:
@@ -1085,13 +1085,13 @@ Decision: **do not vendor a `harness:ship` skill.** Every step /ship performed i
 - commit → `harness:commit-discipline`; PR → `ticket-runner` pass 11 (Ship) + `gh`.
 A dedicated ship skill would be a thin orchestrator over skills that already compose — YAGNI. Evidence: every PR
 in this de-gstack epic (#82–#96, ~15 PRs) shipped via exactly `ticket-runner` + `gh` + release-please, no `/ship`.
-Removed the gstack `/ship` routing (CLAUDE.md + AGENTS.md, in parity) and the `code-review` downstream ref;
+Removed the gstack `/ship` routing (CLAUDE.md + AGENTS.md, in parity) and the `void-code-review` downstream ref;
 the "vendored from gstack /ship" **attributions** in ticket-runner / verification-before-completion stay (they
 credit a vendored methodology, not a live dependency).
 
 Same PR, a **stale-ref sweep** (DEV-390 loose ends found during the teardown inventory, too small to ticket):
-`ticket-runner`'s UX pass said "QA stays gstack /qa until Vague 4" → now `harness:qa`; `verification`'s mobile
-row said "gstack /browse" → claude-in-chrome via `harness:qa`; `source-driven-development` mislabelled
+`ticket-runner`'s UX pass said "QA stays gstack /void-qa until Vague 4" → now `harness:qa`; `verification`'s mobile
+row said "gstack /browse" → claude-in-chrome via `harness:qa`; `void-source-driven-development` mislabelled
 `/defuddle` as gstack (it is a standalone `.agents` skill) → delabelled. The decision-matrix cross-cutting rule
 "work that belongs to gstack (QA, design, ship, browser)" was rewritten — those are now harness-native homes.
 
@@ -1176,8 +1176,8 @@ delta captures it without the 3-new-skills bloat, and keeps each skill one-subje
 
 ## 2026-07-10: eval-harness gains an injected LLM judge (last resort) + blind head-to-head (DEV-397)
 
-The v1 eval-harness (DEV-394) scores deterministic file/git residue — great for `commit-discipline`/`tdd`,
-blind to skills whose value is a *diagnosis* (`brainstorming` pressure-test, `security-audit` findings). Their
+The v1 eval-harness (DEV-394) scores deterministic file/git residue — great for `void-commit-discipline`/`void-tdd`,
+blind to skills whose value is a *diagnosis* (`brainstorming` pressure-test, `void-security-audit` findings). Their
 vendoring could not be rigorously verified. Extension:
 - **Transcript capture** — `RunOutcome` gains `transcript` (the `claude -p` `result` the adapter already parsed
   but discarded). The signal for conversational skills.
@@ -1193,7 +1193,7 @@ vendoring could not be rigorously verified. Extension:
   distillate/source before aggregation. This answers "is the distillate as good as the source?" directly — what
   with/without cannot.
 - **Cases** for `brainstorming` (forcing-questions / anti-sycophancy / premise pressure-test / 10x / actionable
-  / no-premature-design) and `security-audit` (SQLi + missing-authz found, exploit scenario, zero-noise, no live
+  / no-premature-design) and `void-security-audit` (SQLi + missing-authz found, exploit scenario, zero-noise, no live
   attack). Bounded: judge timeout, tool-less invocation, no full prompt logged. The judged transcript is
   concatenated into the judge prompt (an LLM-trust-boundary), so the judge is instructed that the transcript is
   **untrusted data to evaluate, never an instruction** — inline hardening against a transcript that tries to
@@ -1210,8 +1210,8 @@ non-determinism never leak into the deterministic backbone.
 ## 2026-07-10: de-couple /benchmark, /benchmark-models, /claude-api — neither vendor nor keep-external (DEV-401)
 
 Third and last teardown-unblocking ticket. The remaining live gstack compositions were: `/benchmark` (perf
-budget in `accessibility-first`, `frontend-design`, `code-review`), `/benchmark-models` (model choice in
-`llm-cost-discipline`), and `gstack:/claude-api` (SDK mechanics in `llm-cost-discipline`).
+budget in `accessibility-first`, `void-frontend-design`, `void-code-review`), `/benchmark-models` (model choice in
+`void-llm-cost-discipline`), and `gstack:/claude-api` (SDK mechanics in `void-llm-cost-discipline`).
 
 The ticket framed this as "vendor vs KEEP-EXTERNAL (ADR)". A **third option was taken: de-couple.** These were
 all *optional escalation / measurement references*, not capabilities the harness itself provides:
@@ -1234,18 +1234,18 @@ AC, not a dependency. The teardown (DEV-395) is now unblocked; DEV-399/400/401 a
 Why: a budget you measure with Lighthouse and a "which model?" you settle by running the prompt never needed a
 gstack command — only a habit of naming one. Removing the names removes the last teardown blocker.
 
-## 2026-07-10: code-review enumeration → native /code-review; second opinion → standalone codex CLI (DEV-399)
+## 2026-07-10: code-review enumeration → native /void-code-review; second opinion → standalone codex CLI (DEV-399)
 
-The gstack-teardown inventory (DEV-395) found the `code-review` skill still composing gstack `/code-review`
+The gstack-teardown inventory (DEV-395) found the `void-code-review` skill still composing gstack `/void-code-review`
 (enumeration) and gstack `/codex review` (second opinion) as live dependencies — the skill framework was
 native, but its tools were gstack's. First of three unblocking tickets (DEV-399/400/401) before the teardown.
 
 Decision:
-- **Enumeration → Claude Code's native `/code-review`** (low/medium/high/max/ultra, `--comment`/`--fix`). A 1:1
+- **Enumeration → Claude Code's native `/void-code-review`** (low/medium/high/max/ultra, `--comment`/`--fix`). A 1:1
   replacement that post-dates the skill's authoring; no capability lost, one fewer external dependency.
 - **Second opinion → the standalone `codex` CLI** (`~/.local/bin/codex`), kept for its cross-model value.
   Rejected: dropping it (loses the different-model-family coverage that is its entire point) and substituting
-  native `/code-review ultra` (still Claude family, not cross-model). The CLI is installed independently of
+  native `/void-code-review ultra` (still Claude family, not cross-model). The CLI is installed independently of
   gstack and survives the teardown, so the capability is preserved gstack-free.
 
 Scoped tight: `/benchmark` (perf dimension) and `/ship` (downstream) stay gstack-composed here, owned by
@@ -1346,7 +1346,7 @@ Why: office-hours' idea-pressure-test is durable craftsman value that belongs at
 retro's durable kernel is real but distinct and partly gamification, so it earns its own skill and its own
 scoping decision rather than a forced fold.
 
-## 2026-07-09: vendor gstack /cso as a dedicated `security-audit` skill, not an extension of `security-guidance` (DEV-387)
+## 2026-07-09: vendor gstack /cso as a dedicated `void-security-audit` skill, not an extension of `void-security-guidance` (DEV-387)
 
 De-gstackification Vague 1 (epic DEV-383). `harness:security-guidance` always pointed at gstack `/cso`
 for the periodic deep audit ("compose gstack /cso for full audits"). The teardown turns that into a dead
@@ -1354,13 +1354,13 @@ reference, so the /cso methodology (OWASP Top 10, STRIDE, secrets archaeology, s
 LLM, skill supply chain) had to be vendored into the harness.
 
 Decision: a **dedicated `harness:security-audit` skill** (the periodic ceiling), NOT an extension of
-`security-guidance` (the daily floor). Every live reference to /cso now points to `security-audit`: the
-four skills that routed to it (`security-guidance`, `code-review`, `ticket-runner`,
+`void-security-guidance` (the daily floor). Every live reference to /cso now points to `void-security-audit`: the
+four skills that routed to it (`void-security-guidance`, `void-code-review`, `ticket-runner`,
 `verification-before-completion`) and the five read-only agents that handed security off to it
 (`doctrine-critic`, `silent-failure-hunter`, `type-design-analyzer`, `code-explorer`, `migration-planner`).
 
 Load-bearing choices:
-- **One skill = one subject.** `security-guidance` is continuous boundary discipline applied passively on
+- **One skill = one subject.** `void-security-guidance` is continuous boundary discipline applied passively on
   every diff (`activation: always`); a full audit is a periodic, deliberate, read-only investigation
   producing a findings report (`activation: on-demand`). Different subject, activation, and lifecycle.
   Folding the phase framework into the 257-LOC floor skill would breach the 400-line cap and dilute its
@@ -1397,7 +1397,7 @@ the acceptance criteria require reporting the **offending JSON path** for each p
 (`paths.business`, `packs.@voidcorp/harness-nextjs`), which is exactly what Zod's
 `safeParse().error.issues[].path` yields for free; reimplementing path-precise error reporting is
 the kind of wheel-reinvention the sourcing discipline warns against, and the harness doctrine
-itself mandates Zod at every input boundary (`security-guidance`). The dependency weight is not a
+itself mandates Zod at every input boundary (`void-security-guidance`). The dependency weight is not a
 concern here: the CLI is distributed via the marketplace (git), not an npm install, and it is
 bundled with esbuild/tsup so Zod is tree-shaken into the output.
 
@@ -1434,7 +1434,7 @@ from three to one, taking the skill count from 31 to 29.
 Forge (ideation) previously dangled its downstream handoff at gstack `/ticket-craft` — a dead pointer
 once gstack is being removed. Folpe's inter-plugin decision: the **core plugin is always installed
 and is the hub**; forge routes into the core's execution skills (`brainstorming`, `writing-plans`,
-`ticket-writer`, `tdd`, ...). The interface is a **versioned markdown artifact contract** the harness
+`ticket-writer`, `void-tdd`, ...). The interface is a **versioned markdown artifact contract** the harness
 owns the format of (`docs/specs/*.md`, frontmatter `source: forge` + the 18 recon variables + winning
 design + critique verdict), so each plugin still stands alone: forge degrades to emitting a standalone
 spec, core works from a hand-written one. `brainstorming` / `writing-plans` / `ticket-writer` ingest a
@@ -1700,8 +1700,8 @@ agents are dead / should be trimmed" from pre-fix telemetry.
 
 ## 2026-07-04: graph cost/behavior liveness -- `activation` frontmatter over enforces-edge inference; two telemetry blind spots closed
 
-Context: the consumer cost report flagged doctrine skills (`tdd`, `security-guidance`,
-`commit-discipline`, ...) as `dead` / `low-yield`. Root cause: the activation-meter is a
+Context: the consumer cost report flagged doctrine skills (`void-tdd`, `void-security-guidance`,
+`void-commit-discipline`, ...) as `dead` / `low-yield`. Root cause: the activation-meter is a
 PreToolUse hook, so it only records a `skill` event when a skill is invoked through the
 Skill tool. Doctrine skills are never invoked that way -- their rule is carried passively
 via `@.void/PHILOSOPHY.md` + enforcing hooks -- so `invocations` is permanently 0 and
@@ -1725,9 +1725,9 @@ runs it mechanically every commit), or (b) its principle is stated explicitly in
 - 14 backed by an `enforces` edge: accessibility-first, code-review, commit-discipline,
   domain-driven-design, frontend-design, functional, hexagonal-architecture, llm-cost-discipline,
   migrations-safety, observability, refactoring, security-guidance, testing, typescript-strict.
-- `tdd` -- backed by the `tdd-guard` hook; this change adds the missing
+- `void-tdd` -- backed by the `tdd-guard` hook; this change adds the missing
   `enforces: tdd-guard -> tdd` edge so the backing is declared, not implicit.
-- `source-driven-development` -- backed by the PHILOSOPHY hard rule "Read the official
+- `void-source-driven-development` -- backed by the PHILOSOPHY hard rule "Read the official
   documentation of any third-party tool BEFORE writing its config".
 
 An earlier, broader cut (21) also tagged async-safety, api-and-interface-design,
@@ -1741,7 +1741,7 @@ hook or a PHILOSOPHY line), never before.
 Alternative rejected -- infer "always-loaded" from the existing `enforces` edges (a skill
 that a hook enforces). Rejected: it is a proxy for a different property ("enforced by a
 hook"), not "followed passively as doctrine". They correlate today but decouple tomorrow
-(a hook enforcing a non-PHILOSOPHY skill, or the reverse), and it structurally misses `tdd`
+(a hook enforcing a non-PHILOSOPHY skill, or the reverse), and it structurally misses `void-tdd`
 (no declared `enforces` edge) and any doctrine skill without a hook. Encoding the mode
 explicitly on the node is the honest fix; deducing it from a proxy re-introduces the same
 class of lie. `backlog-autopilot` is enforced yet stays `on-demand`, confirming the proxy
@@ -1890,7 +1890,7 @@ broken-route blocks CI".
 ## 2026-06-26: "secrets via env" carves out customer-provided (BYO) credentials
 
 Context: an ADR audit of a consumer project (sesame, multi-tenant) surfaced a case
-the doctrine handled wrong (issue #34). `PHILOSOPHY.md` and `security-guidance`
+the doctrine handled wrong (issue #34). `PHILOSOPHY.md` and `void-security-guidance`
 stated "secrets via env / no secret in the DB" without qualification. That is
 correct for the app's OWN infra secrets, but wrong for a credential the customer
 provides (a BYO API key, e.g. a per-tenant data-source key): env holds one value,
@@ -1902,7 +1902,7 @@ Decision: add a single narrowly-scoped exception (not a new skill, not a mode). 
 customer-provided credential is application **data** — store it encrypted at rest
 per tenant (AES-256-GCM), keep the master key in env, never return it to a client
 (masked last-four). The app's own secrets still go in env, never the DB. Recorded
-in `PHILOSOPHY.md` (the hard rule), the `security-guidance` skill (a Secrets
+in `PHILOSOPHY.md` (the hard rule), the `void-security-guidance` skill (a Secrets
 subsection), and the skill audit.
 
 Alternatives rejected: (a) leave the rule absolute — keeps it wrong for a real,
@@ -2013,12 +2013,12 @@ prompt text); no new CLI surface.
 Context: the risk-gated `--auto-merge` path hardcoded `gh pr merge --auto
 --squash` (issue #31). A squash collapses an integration PR that bundles N
 tickets — each with its own `test:`/`fix:` commits and "why" bodies — into a
-single commit, against `commit-discipline`'s "the git log is documentation", and
+single commit, against `void-commit-discipline`'s "the git log is documentation", and
 it silently overrides a downstream repo whose convention is merge commits.
 
 Decision: make the strategy a validated enum, `--auto-merge-method=merge|squash|
 rebase` (env `AUTO_MERGE_METHOD`, file `autoMergeMethod`, same flags > env > file
-> default precedence as the rest of `BacklogConfig`), **default `merge`**.
+> default precedence as the rest of `BacklogConfig`), **default `void-merge`**.
 `mergeArgs(branch, method)` builds `--<method>`; an unrecognized value narrows to
 undefined and falls through to the next source, so a typo never silently arms an
 unexpected strategy.
@@ -2096,7 +2096,7 @@ deleted loop.
   graph / label / manual IDs), detect logical clusters (>= 2 linked tickets, with
   a **file-footprint overlap** corroborating the graph edge); otherwise drain a
   **batch of 4** independent tickets. Default batch size aligned to 4.
-- **Opus everywhere** — deliberate derogation from `llm-cost-discipline` (Sonnet
+- **Opus everywhere** — deliberate derogation from `void-llm-cost-discipline` (Sonnet
   default): the run is subscription-billed, not API-metered, and the top-5 %
   quality bar wants constant judgment. Overridable by flag.
 
@@ -2164,7 +2164,7 @@ Decision: move the boundary off the hook.
   `--rebase-merges`, `--strategy-option`, `--unsafe-paths`) are blocked in
   `block-dangerous-bash`, because Claude permission patterns are prefix-only and
   cannot catch a mid-command flag.
-- A3: `source-driven-development` gains an offline branch (inject the doc as a
+- A3: `void-source-driven-development` gains an offline branch (inject the doc as a
   port, validate with Zod) and a blocking `source-debt` (label + PR checkbox);
   the loop withholds auto-merge while a source-debt is open. Egress stays at zero.
 
@@ -2195,7 +2195,7 @@ consumer project; the harness's job is to teach the correct pattern so the
 consumer's agent does it right.
 
 Decision: fix each as guidance in the skill that owns the subject.
-- B1 → a "Fail-soft outbound HTTP" section in core `async-safety` (the mirror of
+- B1 → a "Fail-soft outbound HTTP" section in core `void-async-safety` (the mirror of
   its outbox pattern: a degradable read on the request path — timeout + decided
   failure mode).
 - B2 → `harness-server:server-action` taught the bug itself
@@ -2550,11 +2550,11 @@ Alternatives rejected:
 Context: research across anthropics/skills, the Claude Code creators' interviews, and
 the best-practice corpus surfaced gaps not yet covered by the 22 core skills.
 
-Decision: add `source-driven-development` (read official docs for the installed
+Decision: add `void-source-driven-development` (read official docs for the installed
 version before writing config; cite the source), `context-management` (the window is
 the core constraint: clear, compact, two-correction reset, fresh-context subagents,
 state on disk), `compounding` (end-of-cycle ritual: name the reusable pattern and
-route it via capture-rule / harness-evolution), and `api-and-interface-design`
+route it via capture-rule / harness-evolution), and `void-api-and-interface-design`
 (contract-first public interfaces, minimal surface, versioning). New skills adopt a
 `## Rationalizations` table (pre-empts the model's excuses to skip the skill) and a
 `## Verification` proof-gate as the standard anatomy.
@@ -2742,13 +2742,13 @@ the global layer already ship and found heavy responsibility overlap, in tension
 with anti-bloat rules 3 (overlap > 30 %) and 6 (no spillover into gstack):
 
 - `senior-reviewer` ≈ global `pr-reviewer` agent + `tdd-guardian` + `ts-enforcer`,
-  gstack `/review`, built-in `/code-review` (incl. `ultra`), harness `code-review`
+  gstack `/review`, built-in `/void-code-review` (incl. `ultra`), harness `void-code-review`
   skill. ~75 % overlap.
 - `security-reviewer` ≈ gstack `/cso` (OWASP/STRIDE/secrets/supply-chain, the exact
-  scope), built-in `/security-review`, harness `security-guidance` skill (which
+  scope), built-in `/security-review`, harness `void-security-guidance` skill (which
   already delegates to `/cso`). ~85 % overlap.
-- `architect-critic` ≈ gstack `/plan-eng-review`, harness `hexagonal-architecture` +
-  `domain-driven-design` skills + pack `dependency-direction`, and the deterministic
+- `architect-critic` ≈ gstack `/plan-eng-review`, harness `void-hexagonal-architecture` +
+  `void-domain-driven-design` skills + pack `void-dependency-direction`, and the deterministic
   `boundary-direction-check.sh` hook. ~70 % overlap.
 
 The principle: an agent only earns its place when it adds something a skill or a
@@ -2763,13 +2763,13 @@ letter but not the spirit, the seven anti-bloat rules on skills/hooks themselves
 Decision: ship a single `doctrine-critic` agent (read-only, isolated context). It
 judges doctrine conformance and **routes** rather than re-implements: it flags
 trust-boundary code and hands off to `/cso`, and hands line-level bug hunting to
-`/code-review`. Spec: `plans/2026-06-01-doctrine-critic-agent.md`. DEV-363 is
+`/void-code-review`. Spec: `plans/2026-06-01-doctrine-critic-agent.md`. DEV-363 is
 rescoped 3 → 1; the `security-reviewer` and `architect-critic` slots are dropped
 (their value already lives in `/cso`, the boundary hook, and the hexagonal/DDD
 skills). Manifests move from "3 agents on the roadmap" to "1 shipped".
 
 Naming: "critic", not "reviewer", to avoid routing ambiguity with `pr-reviewer`,
-gstack `/review`, and built-in `/code-review` — three review tools already in a
+gstack `/review`, and built-in `/void-code-review` — three review tools already in a
 consumer session. "doctrine", not "harness" (which reads as the install itself,
 colliding with `doctor`/`audit`) and not "craftsman"/"conformance" (vaguer / more
 process-flavoured). It inherits the "critic" of the dropped `architect-critic`.

@@ -68,14 +68,14 @@ Relevé le 2026-08-20, chaque ligne vérifiée dans le dépôt.
 
 | Maillon | État | Ce qui manque |
 | -- | -- | -- |
-| Cadrage automatique | **partiel** | `brainstorm` porte déjà son déclencheur (« Notice that the exchange has become design »), mais 8 activations de skill sur 812 appels d'outil ont été mesurées sur un projet réel. Le texte existe, le déclenchement non — DEV-641. |
-| Spec → plan → tickets | **livré** | `brainstorm` → `plan` → `ticket`, chaînage écrit dans les skills. |
-| Cycle d'exécution complet | **livré** | `implement`, douze passes à prédicat observable. |
-| Chaînage entre skills | **manque** | Rien ne relie `implement` à `merge`, ni l'implémentation à la QA et à la passe sécurité — DEV-641. |
+| Cadrage automatique | **partiel** | `void-brainstorm` porte déjà son déclencheur (« Notice that the exchange has become design »), mais 8 activations de skill sur 812 appels d'outil ont été mesurées sur un projet réel. Le texte existe, le déclenchement non — DEV-641. |
+| Spec → plan → tickets | **livré** | `void-brainstorm` → `void-plan` → `void-ticket`, chaînage écrit dans les skills. |
+| Cycle d'exécution complet | **livré** | `void-implement`, douze passes à prédicat observable. |
+| Chaînage entre skills | **manque** | Rien ne relie `void-implement` à `void-merge`, ni l'implémentation à la QA et à la passe sécurité — DEV-641. |
 | Merge autonome sur `develop` | **conçu, non livré** | DEV-612. Bloqué par DEV-618 (séquentiel par défaut). DEV-613 est livré : la CI tire sur `develop` et la branche est protégée. |
-| Boucle longue et reprise | **manque le déclencheur** | La skill `context` fixe déjà la bande saine à 40–60 % d'usage, et `checkpoint` sait écrire l'état. Mais `checkpoint` dit lui-même « the trigger is the human, or your own reading » : **aucun mécanisme ne surveille le contexte ni ne décide de sauvegarder et repartir**. C'est le maillon qui manque à une chaîne longue, et son absence dégrade en silence — un modèle n'annonce pas qu'il a oublié une contrainte, il la laisse tomber. |
+| Boucle longue et reprise | **manque le déclencheur** | La skill `void-context` fixe déjà la bande saine à 40–60 % d'usage, et `void-checkpoint` sait écrire l'état. Mais `void-checkpoint` dit lui-même « the trigger is the human, or your own reading » : **aucun mécanisme ne surveille le contexte ni ne décide de sauvegarder et repartir**. C'est le maillon qui manque à une chaîne longue, et son absence dégrade en silence — un modèle n'annonce pas qu'il a oublié une contrainte, il la laisse tomber. |
 | Doctrine rejouée | **en cours** | La directive permanente par `UserPromptSubmit` (spec du 2026-08-20) ; l'audit de placement de chaque règle, DEV-650. |
-| QA navigateur avant promotion | **livré** | `qa`, via claude-in-chrome. |
+| QA navigateur avant promotion | **livré** | `void-qa`, via claude-in-chrome. |
 
 ## Ce que la cible n'est pas
 

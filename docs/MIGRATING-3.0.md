@@ -37,19 +37,19 @@ The old names resolve to nothing; there is no alias.
 
 | before | after |
 |---|---|
-| `brainstorming` | `brainstorm` |
-| `writing-plans` | `plan` |
-| `ticket-writer` | `ticket` |
-| `ticket-runner` | `implement` |
-| `verification-before-completion` | `verify` |
-| `systematic-debugging` | `debug` |
-| `learning-capture` | `learn` |
-| `adr-workflow` | `decide` |
-| `refactoring` | `refactor` |
-| `accessibility-first` | `accessibility` |
-| `context-management` | `context` |
-| `claude-md-authoring` | `claude-md` |
-| `migrations-safety` | `migrations` |
+| `brainstorming` | `void-brainstorm` |
+| `writing-plans` | `void-plan` |
+| `ticket-writer` | `void-ticket` |
+| `ticket-runner` | `void-implement` |
+| `verification-before-completion` | `void-verify` |
+| `systematic-debugging` | `void-debug` |
+| `learning-capture` | `void-learn` |
+| `adr-workflow` | `void-decide` |
+| `refactoring` | `void-refactor` |
+| `accessibility-first` | `void-accessibility` |
+| `context-management` | `void-context` |
+| `claude-md-authoring` | `void-claude-md` |
+| `migrations-safety` | `void-migrations` |
 
 One rule decides all of them, and it is now checked rather than intended. A skill
 is named by what someone would type looking for it without knowing it exists: an

@@ -10,7 +10,7 @@
  * `.claude/commands/` and nowhere else, so every gesture living there was
  * Claude-only by construction.
  *
- * Keeping both formats also produced the defect that started this: `/checkpoint`
+ * Keeping both formats also produced the defect that started this: `/void-checkpoint`
  * existed as command and as skill, each with its own description, and the two had
  * drifted into advertising different jobs for one gesture.
  *
@@ -98,13 +98,13 @@ describe('slash command namespace', () => {
   });
 
   /**
-   * `void-feedback` was branch B of `learn` rewritten: same agnostic and
+   * `void-feedback` was branch B of `void-learn` rewritten: same agnostic and
    * harness-worthy bar, same `gh issue create`, same HITL. Two copies of one
    * flow, under two names, which the name-collision rule above cannot see.
    */
   it('folds void-feedback into learn rather than keeping the second copy', () => {
     expect(existsSync(join(ROOT, 'packages/core/skills/void-feedback'))).toBe(false);
-    const learn = readFileSync(join(ROOT, 'packages/core/skills/learn/SKILL.md'), 'utf8');
+    const learn = readFileSync(join(ROOT, 'packages/core/skills/void-learn/SKILL.md'), 'utf8');
     expect(learn).toContain('gh issue create');
     // The trigger phrases folded into `description`, where the spec wants them:
     // it asks a description to say what a skill does and when to use it, and

@@ -51,13 +51,13 @@ describe('enforce', () => {
     const { code, stderr } = enforce('no-any', write('src/x.ts', 'const a: any = 1;'));
     expect(code).toBe(2);
     expect(stderr).toContain('TYPESCRIPT_ANY:');
-    expect(stderr).toContain('(doctrine: the typescript-strict skill)');
+    expect(stderr).toContain('(doctrine: the void-typescript-strict skill)');
   });
 
   it('keeps the evidence under the named doctrine rather than inside the sentence', () => {
     const { stderr } = enforce('no-console', write('src/x.ts', 'console.log("x");'));
     const [first] = stderr.split('\n');
-    expect(first).toMatch(/\(doctrine: the observability skill\)$/);
+    expect(first).toMatch(/\(doctrine: the void-observability skill\)$/);
     expect(stderr).toContain('\n- console.* in src/x.ts:1');
   });
 
@@ -113,7 +113,7 @@ describe('lifecycle context', () => {
   }
 
   it('names a skill the project recorded but can no longer resolve, from the session after', () => {
-    const root = projectWith('ticket', 'ticket-writer');
+    const root = projectWith('void-ticket', 'ticket-writer');
     try {
       // The first opening computes the verdict after its own stdout, so it is
       // the next one that carries it. One session of delay costs nothing here,
@@ -126,7 +126,7 @@ describe('lifecycle context', () => {
   });
 
   it('says nothing extra when every recorded name still resolves', () => {
-    const root = projectWith('ticket', 'ticket');
+    const root = projectWith('void-ticket', 'void-ticket');
     try {
       banner(root);
       expect(banner(root)).not.toContain('cannot resolve');

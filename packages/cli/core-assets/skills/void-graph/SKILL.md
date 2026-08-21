@@ -77,4 +77,4 @@ single session and should be labelled as a preview when you show it.
 ## Composition
 
 Adjacent: `void-audit` proposes what to do about staleness; this shows the shape it sits in.
-Downstream: an accepted trim is filed through `learn`.
+Downstream: an accepted trim is filed through `void-learn`.

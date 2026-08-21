@@ -18,15 +18,15 @@ How work is framed before and after the code is written.
 
 | | |
 |---|---|
-| `brainstorm` | Engage on a raw idea, or the moment an exchange settles a behaviour, boundary or trade-off: pressure-test, one question at a time, 2-3 approaches, spec written and approved before… |
-| `plan` | Turn an approved spec into vertical slices with dependencies, TDD mode, verification gates, checkpoints, and a tracker handoff. |
-| `plan-review` | Critique a written plan (not a diff) via four lenses: CEO premise/ambition, Eng test-coverage, Design states/slop, DevEx time-to-first-value. |
-| `tdd` | TDD in three modes (strict/souple/exploratory) chosen by path. |
-| `debug` | Four phases (investigate, analyze, hypothesize, implement). Iron Law: no fix without a failing test reproducing the bug AND a root cause. |
-| `refactor` | Tidy-First. Tidyings commit separately from behavior changes (Two-Hat). |
-| `verify` | Final pre-flight checklist. Twelve items observed (not assumed) — typecheck, tests, hooks, mobile+desktop, commit why, review evidence. |
-| `context` | Context is the agent's core constraint. Use when a task spans many files, a session mixes subjects, corrections loop, or replies forget earlier constraints. |
-| `checkpoint` | Write .void/machine/checkpoint.md before a clear, an interruption, or the end of a day, so the next session resumes without re-deriving anything. |
+| `void-brainstorm` | Engage on a raw idea, or the moment an exchange settles a behaviour, boundary or trade-off: pressure-test, one question at a time, 2-3 approaches, spec written and approved before… |
+| `void-plan` | Turn an approved spec into vertical slices with dependencies, TDD mode, verification gates, checkpoints, and a tracker handoff. |
+| `void-plan-review` | Critique a written plan (not a diff) via four lenses: CEO premise/ambition, Eng test-coverage, Design states/slop, DevEx time-to-first-value. |
+| `void-tdd` | TDD in three modes (strict/souple/exploratory) chosen by path. |
+| `void-debug` | Four phases (investigate, analyze, hypothesize, implement). Iron Law: no fix without a failing test reproducing the bug AND a root cause. |
+| `void-refactor` | Tidy-First. Tidyings commit separately from behavior changes (Two-Hat). |
+| `void-verify` | Final pre-flight checklist. Twelve items observed (not assumed) — typecheck, tests, hooks, mobile+desktop, commit why, review evidence. |
+| `void-context` | Context is the agent's core constraint. Use when a task spans many files, a session mixes subjects, corrections loop, or replies forget earlier constraints. |
+| `void-checkpoint` | Write .void/machine/checkpoint.md before a clear, an interruption, or the end of a day, so the next session resumes without re-deriving anything. |
 
 ### Code architecture
 
@@ -34,12 +34,12 @@ Where the boundaries are, and who owns which type.
 
 | | |
 |---|---|
-| `hexagonal-architecture` | Ports + adapters. Domain owns interfaces, adapters at the edge, function-parameter injection only, no DI / CQRS / mediator. |
-| `domain-driven-design` | Bounded contexts, aggregates as consistency boundaries, value objects as branded types, always-valid domain, ubiquitous language. |
-| `functional` | Pure-by-default, errors as values (Result<T, E>), discriminated unions for state, immutability defaults, functional core / imperative shell. |
-| `api-and-interface-design` | Contract-first design of any public interface — package exports, HTTP/REST, RPC/tRPC, SDK, module boundary. |
-| `typescript-strict` | TS strict baseline. Zero any budget, branded types for domain primitives, discriminated unions over enums, exhaustive switches via never, satisfies over as. |
-| `decide` | Capture structural choices as one immutable ADR file with collision-free identity, explicit alternatives, reversal cost, and supersession. |
+| `void-hexagonal-architecture` | Ports + adapters. Domain owns interfaces, adapters at the edge, function-parameter injection only, no DI / CQRS / mediator. |
+| `void-domain-driven-design` | Bounded contexts, aggregates as consistency boundaries, value objects as branded types, always-valid domain, ubiquitous language. |
+| `void-functional` | Pure-by-default, errors as values (Result<T, E>), discriminated unions for state, immutability defaults, functional core / imperative shell. |
+| `void-api-and-interface-design` | Contract-first design of any public interface — package exports, HTTP/REST, RPC/tRPC, SDK, module boundary. |
+| `void-typescript-strict` | TS strict baseline. Zero any budget, branded types for domain primitives, discriminated unions over enums, exhaustive switches via never, satisfies over as. |
+| `void-decide` | Capture structural choices as one immutable ADR file with collision-free identity, explicit alternatives, reversal cost, and supersession. |
 
 ### Boundaries and production
 
@@ -47,12 +47,12 @@ What happens where the system meets something it does not control.
 
 | | |
 |---|---|
-| `security-guidance` | Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. |
-| `security-audit` | Periodic deep security audit — OWASP Top 10, STRIDE, secrets, supply chain, CI/CD, infra, LLM. |
-| `async-safety` | Idempotency by design. At-least-once with consumer dedup. Signature verify, replay window, idempotency keys, outbox, bounded retries, DLQ. |
-| `migrations` | Zero-downtime Postgres migrations. Two-phase changes, batched backfills, locking analysis, banned DDL patterns, CONCURRENTLY indexes, dev branch test, immutable after merge. |
-| `observability` | Structured logs (no string interp), trace IDs end-to-end, error boundaries at async boundaries, anonymized user scope, no PII/secrets ever. |
-| `llm-cost-discipline` | Sonnet default (Opus needs comment), prompt caching for >1024-token prompts, batch API for non-interactive, max_tokens declared, bounded retries, no full prompts in logs. |
+| `void-security-guidance` | Default-secure at trust boundaries. Zod at every input, secrets via env, SQL parameterized, Better-Auth, LLM I/O untrusted. |
+| `void-security-audit` | Periodic deep security audit — OWASP Top 10, STRIDE, secrets, supply chain, CI/CD, infra, LLM. |
+| `void-async-safety` | Idempotency by design. At-least-once with consumer dedup. Signature verify, replay window, idempotency keys, outbox, bounded retries, DLQ. |
+| `void-migrations` | Zero-downtime Postgres migrations. Two-phase changes, batched backfills, locking analysis, banned DDL patterns, CONCURRENTLY indexes, dev branch test, immutable after merge. |
+| `void-observability` | Structured logs (no string interp), trace IDs end-to-end, error boundaries at async boundaries, anonymized user scope, no PII/secrets ever. |
+| `void-llm-cost-discipline` | Sonnet default (Opus needs comment), prompt caching for >1024-token prompts, batch API for non-interactive, max_tokens declared, bounded retries, no full prompts in logs. |
 
 ### Quality, tests and interface
 
@@ -60,13 +60,13 @@ Proving the thing works, and that it is worth looking at.
 
 | | |
 |---|---|
-| `testing` | How to write a good test. Behavior over implementation, real code over mocks, factories over beforeEach, pyramid respected, pristine output, no snapshot creep. |
-| `code-review` | Pre-PR critical pass. Six dimensions (correctness, tests, security, structure, readability, perf). |
-| `qa` | Live browser QA of a running web app via the claude-in-chrome MCP: systematic exploration, edge/error/empty states, atomic fix loop, evidence-backed report. |
-| `accessibility` | WCAG 2.2 AA floor. Radix primitives only, touch >=44x44, keyboard parity, semantic HTML, form labels, aria-live errors, mobile-first dual-quality. |
-| `frontend-design` | Anti-AI-slop UI. Density first, 3-size hierarchy, motion <250ms, components via @repo/ui (Radix/shadcn), mobile-first dual-quality. |
-| `ui-review` | Audit and polish an EXISTING UI: the AI-slop test, heuristic critique, technical audit (contrast/a11y/responsive/perf), refine modes. |
-| `devex-audit` | Audit an EXISTING dev-facing surface (API/CLI/SDK/docs): measured TTHW, real error-path tracing, evidence-backed DX scorecard, scoped refine. |
+| `void-testing` | How to write a good test. Behavior over implementation, real code over mocks, factories over beforeEach, pyramid respected, pristine output, no snapshot creep. |
+| `void-code-review` | Pre-PR critical pass. Six dimensions (correctness, tests, security, structure, readability, perf). |
+| `void-qa` | Live browser QA of a running web app via the claude-in-chrome MCP: systematic exploration, edge/error/empty states, atomic fix loop, evidence-backed report. |
+| `void-accessibility` | WCAG 2.2 AA floor. Radix primitives only, touch >=44x44, keyboard parity, semantic HTML, form labels, aria-live errors, mobile-first dual-quality. |
+| `void-frontend-design` | Anti-AI-slop UI. Density first, 3-size hierarchy, motion <250ms, components via @repo/ui (Radix/shadcn), mobile-first dual-quality. |
+| `void-ui-review` | Audit and polish an EXISTING UI: the AI-slop test, heuristic critique, technical audit (contrast/a11y/responsive/perf), refine modes. |
+| `void-devex-audit` | Audit an EXISTING dev-facing surface (API/CLI/SDK/docs): measured TTHW, real error-path tracing, evidence-backed DX scorecard, scoped refine. |
 
 ### Delivery and tickets
 
@@ -74,13 +74,13 @@ From a validated plan to a merged pull request.
 
 | | |
 |---|---|
-| `commit-discipline` | Conventional Commits + mandatory "why" in body + scope + breaking-change marking. |
-| `ticket` | Use when turning a finished brainstorm, plan, or design decision into a tracker ticket. |
-| `implement` | Use when taking a single ticket from ready through shipped at expert-team quality. |
-| `merge` | Vider la file des PR ouvertes sans casser le dépôt. |
-| `autopilot` | Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR a human merges. |
-| `retrospective` | Periodic engineering retro over a window: read git log / PRs / . |
-| `make-pdf` | Turn a markdown file into a publication-quality PDF — marked + puppeteer-core on the system Chrome, with page-number footers. |
+| `void-commit-discipline` | Conventional Commits + mandatory "why" in body + scope + breaking-change marking. |
+| `void-ticket` | Use when turning a finished brainstorm, plan, or design decision into a tracker ticket. |
+| `void-implement` | Use when taking a single ticket from ready through shipped at expert-team quality. |
+| `void-merge` | Vider la file des PR ouvertes sans casser le dépôt. |
+| `void-autopilot` | Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR a human merges. |
+| `void-retrospective` | Periodic engineering retro over a window: read git log / PRs / . |
+| `void-make-pdf` | Turn a markdown file into a publication-quality PDF — marked + puppeteer-core on the system Chrome, with page-number footers. |
 
 ### The harness on itself
 
@@ -88,9 +88,9 @@ How the doctrine stays true as the project moves.
 
 | | |
 |---|---|
-| `claude-md` | Author a lean, runnable CLAUDE.md (or AGENTS.md). Only universal instructions; defer detail to docs; push style to linters and certainties to hooks. |
-| `source-driven-development` | Ground every third-party config or API usage in the official docs for the installed version, not training memory. |
-| `learn` | Capture a lesson when it appears — a stated project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a harness gap. |
+| `void-claude-md` | Author a lean, runnable CLAUDE.md (or AGENTS.md). Only universal instructions; defer detail to docs; push style to linters and certainties to hooks. |
+| `void-source-driven-development` | Ground every third-party config or API usage in the official docs for the installed version, not training memory. |
+| `void-learn` | Capture a lesson when it appears — a stated project rule, a recurring/deja-vu fix, an end-of-cycle pattern, or a harness gap. |
 | `void-doctor` | Run the harness health checks and report what is healthy, missing or stale, with the exact command that repairs each finding. |
 | `void-audit` | Run the outbound audit over local mission events and surface skills that never fire, upstream deprecations and matrix conflicts, as proposals a human disposes of. |
 | `void-graph` | Read the installed harness as a graph and report what is dead, underused or expensive. |
@@ -103,59 +103,59 @@ Activated per project with `npx voidharness add <pack>`.
 
 | | |
 |---|---|
-| `eas-build-profile` | Configure eas.json profiles (development, preview, production) with the right env, bundle ID, signing, distribution. |
-| `expo-config-plugins` | Add native functionality to an Expo app via config plugins, never by ejecting. |
-| `expo-router-pattern` | File-based routing in Expo via expo-router — layouts, tabs, modals, deep links. |
-| `ota-update-strategy` | Ship JS-only fixes via EAS Update; full rebuild via EAS Build. |
+| `void-eas-build-profile` | Configure eas.json profiles (development, preview, production) with the right env, bundle ID, signing, distribution. |
+| `void-expo-config-plugins` | Add native functionality to an Expo app via config plugins, never by ejecting. |
+| `void-expo-router-pattern` | File-based routing in Expo via expo-router — layouts, tabs, modals, deep links. |
+| `void-ota-update-strategy` | Ship JS-only fixes via EAS Update; full rebuild via EAS Build. |
 
 **pack-monorepo** — 4 skills
 
 | | |
 |---|---|
-| `dependency-direction` | Enforce the @repo/* import direction in a Turborepo workspace. |
-| `package-extraction` | Decide whether code in apps/<app>/ should be extracted into a new packages/<name>/ workspace. |
-| `service-package` | Create or extend a packages/<name>/ service in a harness-monorepo workspace: the 5+5 file layout, @repo/* boundaries, ports-and-adapters direction. |
-| `turbo-pipeline-tuning` | Configure turbo.json tasks correctly — dependsOn, outputs, cache keys, persistent tasks, remote cache. |
+| `void-dependency-direction` | Enforce the @repo/* import direction in a Turborepo workspace. |
+| `void-package-extraction` | Decide whether code in apps/<app>/ should be extracted into a new packages/<name>/ workspace. |
+| `void-service-package` | Create or extend a packages/<name>/ service in a harness-monorepo workspace: the 5+5 file layout, @repo/* boundaries, ports-and-adapters direction. |
+| `void-turbo-pipeline-tuning` | Configure turbo.json tasks correctly — dependsOn, outputs, cache keys, persistent tasks, remote cache. |
 
 **pack-nextjs** — 5 skills
 
 | | |
 |---|---|
-| `cache-component-pattern` | Use Next.js 16 Cache Components correctly — when to opt in ('use cache'), when to opt out ('use no cache'), cache key strategy, scoping by user/org. |
-| `instrumentation-setup` | Wire instrumentation.ts in Next.js 16 — Sentry, pino logger, OpenTelemetry traces. |
-| `loading-error-boundaries` | Place loading.tsx, error.tsx, not-found.tsx files at the right level — neither too high (poor UX) nor too low (unhandled errors). |
-| `parallel-routes-slots` | Use Next.js parallel routes (@slot) and intercepting routes ((. |
-| `route-group-decision` | Decide when to use a (route-group), what to name it, and how to share layouts. |
+| `void-cache-component-pattern` | Use Next.js 16 Cache Components correctly — when to opt in ('use cache'), when to opt out ('use no cache'), cache key strategy, scoping by user/org. |
+| `void-instrumentation-setup` | Wire instrumentation.ts in Next.js 16 — Sentry, pino logger, OpenTelemetry traces. |
+| `void-loading-error-boundaries` | Place loading.tsx, error.tsx, not-found.tsx files at the right level — neither too high (poor UX) nor too low (unhandled errors). |
+| `void-parallel-routes-slots` | Use Next.js parallel routes (@slot) and intercepting routes ((. |
+| `void-route-group-decision` | Decide when to use a (route-group), what to name it, and how to share layouts. |
 
 **pack-pwa** — 4 skills
 
 | | |
 |---|---|
-| `install-prompt-ux` | Surface the PWA install prompt at the right moment (engagement signal) with the right UI (custom button, not auto-prompt). |
-| `manifest-checklist` | Get manifest.webmanifest right the first time — required fields, icon sizes (192, 512, maskable), display modes, scope, start_url. |
-| `offline-first-mutation` | Implement a UI mutation that works offline via the capture-queue + sync pattern: IndexedDB, optimistic UI, idempotency keys, retry, conflict resolution. |
-| `service-worker-strategy` | Pick caching strategy per route class (NetworkFirst, CacheFirst, StaleWhileRevalidate, NetworkOnly), version your caches, handle update activation. |
+| `void-install-prompt-ux` | Surface the PWA install prompt at the right moment (engagement signal) with the right UI (custom button, not auto-prompt). |
+| `void-manifest-checklist` | Get manifest.webmanifest right the first time — required fields, icon sizes (192, 512, maskable), display modes, scope, start_url. |
+| `void-offline-first-mutation` | Implement a UI mutation that works offline via the capture-queue + sync pattern: IndexedDB, optimistic UI, idempotency keys, retry, conflict resolution. |
+| `void-service-worker-strategy` | Pick caching strategy per route class (NetworkFirst, CacheFirst, StaleWhileRevalidate, NetworkOnly), version your caches, handle update activation. |
 
 **pack-react** — 4 skills
 
 | | |
 |---|---|
-| `accessibility-check` | Per-component accessibility checklist: semantic HTML, ARIA, keyboard, focus, contrast, touch targets. |
-| `client-vs-server-component` | Decide which components run on server vs client in a React 19 / Next. |
-| `form-pattern` | Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. |
-| `state-architecture` | Decide where state lives — local, lifted, URL, server, client global. |
+| `void-accessibility-check` | Per-component accessibility checklist: semantic HTML, ARIA, keyboard, focus, contrast, touch targets. |
+| `void-client-vs-server-component` | Decide which components run on server vs client in a React 19 / Next. |
+| `void-form-pattern` | Build forms with react-hook-form + Zod resolver (void-harness default): validation, error UX, submit flow with Server Actions. |
+| `void-state-architecture` | Decide where state lives — local, lifted, URL, server, client global. |
 
 **pack-server** — 7 skills
 
 | | |
 |---|---|
-| `background-job-pattern` | Run async work outside the request lifecycle: when to use a queue (Inngest, Trigger, Cloudflare Queues) vs a cron route. |
-| `drizzle-migration-safe` | Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. |
-| `env-validation` | Validate environment variables at boot via Zod in @repo/core/env. |
-| `rate-limit-strategy` | Choose rate limit window, max, and key strategy per action class. |
-| `server-action` | Create a Next.js 16 Server Action with the void trust-boundary checklist: Zod ingress, auth, rate limit, observability, structured errors. |
-| `testing-server-modules` | Unit-test modules guarded by server-only / client-only under Vitest by aliasing those packages to an empty stub. |
-| `webhook-handler-pattern` | Build a webhook handler with signature verification, idempotency, and dead-letter routing. |
+| `void-background-job-pattern` | Run async work outside the request lifecycle: when to use a queue (Inngest, Trigger, Cloudflare Queues) vs a cron route. |
+| `void-drizzle-migration-safe` | Write Drizzle migrations safe under concurrent traffic: zero-downtime add/rename of columns, indexes, FKs, enums. |
+| `void-env-validation` | Validate environment variables at boot via Zod in @repo/core/env. |
+| `void-rate-limit-strategy` | Choose rate limit window, max, and key strategy per action class. |
+| `void-server-action` | Create a Next.js 16 Server Action with the void trust-boundary checklist: Zod ingress, auth, rate limit, observability, structured errors. |
+| `void-testing-server-modules` | Unit-test modules guarded by server-only / client-only under Vitest by aliasing those packages to an empty stub. |
+| `void-webhook-handler-pattern` | Build a webhook handler with signature verification, idempotency, and dead-letter routing. |
 
 ---
 

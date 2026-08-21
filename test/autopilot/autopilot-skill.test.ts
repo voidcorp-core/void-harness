@@ -10,9 +10,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const SKILL = readFileSync(new URL('../../packages/core/skills/autopilot/SKILL.md', import.meta.url), 'utf8');
+const SKILL = readFileSync(new URL('../../packages/core/skills/void-autopilot/SKILL.md', import.meta.url), 'utf8');
 const TICKET_RUNNER = readFileSync(
-  new URL('../../packages/core/skills/implement/SKILL.md', import.meta.url),
+  new URL('../../packages/core/skills/void-implement/SKILL.md', import.meta.url),
   'utf8',
 );
 
@@ -33,7 +33,7 @@ describe('autopilot skill frontmatter', () => {
   it('declares both runtimes, because the plan is runtime-neutral by design', () => {
     // The runtimes declaration is harness metadata, so it lives in the sidecar:
     // a SKILL.md carries only the six fields the Agent Skills spec defines.
-    expect(readFileSync(new URL('../../packages/core/skills/autopilot/harness.yaml', import.meta.url), 'utf8'))
+    expect(readFileSync(new URL('../../packages/core/skills/void-autopilot/harness.yaml', import.meta.url), 'utf8'))
       .toContain('runtimes: [claude, codex]');
   });
 
@@ -50,7 +50,7 @@ describe('autopilot skill frontmatter', () => {
 
 describe('delegation to implement', () => {
   it('names implement as the one owner of the per-ticket cycle', () => {
-    expect(body(SKILL)).toMatch(/implement/);
+    expect(body(SKILL)).toMatch(/void-implement/);
     expect(body(SKILL)).toMatch(/owns no ticket cycle/i);
   });
 
@@ -115,13 +115,13 @@ describe('remote effects are denied to workers', () => {
 
 describe('provenance', () => {
   it('ships a .source next to the skill', () => {
-    const source = readFileSync(new URL('../../packages/core/skills/autopilot/.source', import.meta.url), 'utf8');
+    const source = readFileSync(new URL('../../packages/core/skills/void-autopilot/.source', import.meta.url), 'utf8');
     expect(source).toMatch(/backlog-autopilot/);
     expect(source).toMatch(/worktree/i);
   });
 
   it('records what was dropped from its predecessor, not only what was kept', () => {
-    const audit = readFileSync(new URL('../../docs/plans/skill-audits/autopilot.md', import.meta.url), 'utf8');
+    const audit = readFileSync(new URL('../../docs/plans/skill-audits/void-autopilot.md', import.meta.url), 'utf8');
     expect(audit).toMatch(/What was dropped/i);
     expect(audit).toMatch(/auto-merge/i);
   });

@@ -54,8 +54,8 @@ A scannable map covering, in this order, only the parts that exist:
 ## Out of scope — route, never perform
 
 - **Quality / doctrine judgement** → that is `doctrine-critic`; do not grade the code.
-- **Bugs / correctness / perf** → `/code-review`. You report structure, not defects.
-- **Security audit** → `security-audit`. You may note "auth lives in X"; you do not assess it.
+- **Bugs / correctness / perf** → `/void-code-review`. You report structure, not defects.
+- **Security audit** → `void-security-audit`. You may note "auth lives in X"; you do not assess it.
 - **Type design** → `type-design-analyzer`. **Silent failures** →
   `silent-failure-hunter`. Name where they live; do not analyse them.
 

@@ -50,7 +50,7 @@ export interface AutopilotCommandContext {
 const USAGE = `
 void-harness autopilot — deterministic planning for the attended cluster mode.
 
-Invoked by the /harness:autopilot skill, which hydrates observations from the
+Invoked by the /void-autopilot skill, which hydrates observations from the
 tracker and pipes them in. The CLI computes; it never contacts Linear, GitHub or
 git, and it spawns no agent.
 

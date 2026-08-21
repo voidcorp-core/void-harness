@@ -46,8 +46,8 @@ function fakeSource(skills: Record<string, string[] | undefined>): string {
 
 describe('parseFrontmatter', () => {
   it('extracts the leading YAML block', () => {
-    const fm = parseFrontmatter('---\nname: tdd\nruntimes: [claude, codex]\n---\nbody');
-    expect(fm.name).toBe('tdd');
+    const fm = parseFrontmatter('---\nname: void-tdd\nruntimes: [claude, codex]\n---\nbody');
+    expect(fm.name).toBe('void-tdd');
     expect(fm.runtimes).toEqual(['claude', 'codex']);
   });
 
@@ -88,7 +88,7 @@ describe('listCodexSkills', () => {
     const names = await listCodexSkills(CORE_ROOT);
     expect(names.length).toBeGreaterThan(20); // ~36 core skills today
     // spot-check a known-core skill is present
-    expect(names).toContain('tdd');
+    expect(names).toContain('void-tdd');
   });
 
   it('returns [] when the source has no skills dir', async () => {

@@ -1,12 +1,12 @@
 # `tdd-guard` hook
 
-PreToolUse hook on `Edit` / `Write`. Materializes the `tdd` skill's Iron Law mechanically: blocks edits to production paths that add behavior without a corresponding test change in the same staged change set, unless a legitimate bypass applies.
+PreToolUse hook on `Edit` / `Write`. Materializes the `void-tdd` skill's Iron Law mechanically: blocks edits to production paths that add behavior without a corresponding test change in the same staged change set, unless a legitimate bypass applies.
 
 In `strict` mode: blocks (exit 1).
 In `souple` mode: warns (exit 2).
 In `exploratory` mode: no-op (exit 0).
 
-See `plans/skill-audits/tdd.md` for the Iron Law and the bypass rationale. See Section 0bis.3 of `plans/2026-05-29-void-harness-design.md` for the list of legitimate bypasses.
+See `docs/plans/skill-audits/void-tdd.md` for the Iron Law and the bypass rationale. See Section 0bis.3 of `docs/plans/2026-05-29-void-harness-design.md` for the list of legitimate bypasses.
 
 ## Configuration
 
@@ -30,7 +30,7 @@ If `.void/config.json` is absent, sensible defaults are used (see hook source).
 1. Doc-only changes (`.md`, `.mdx`, `.txt`, files under `docs/`)
 2. Config and build files (`package.json`, `tsconfig.json`, `vitest.config.*`, `next.config.*`, `tailwind.config.*`, `drizzle.config.*`, `biome.json`, `eslint.config.*`)
 3. Test fixtures and seed data (`tests/fixtures/**`, `**/__tests__/fixtures/**`, `**/seed/**`)
-4. DB migrations (`**/migrations/**`, `drizzle/meta/**`) — covered by `migrations` skill
+4. DB migrations (`**/migrations/**`, `drizzle/meta/**`) — covered by `void-migrations` skill
 5. Spike paths (consumer-defined; default `apps/*/scripts/spike-*`)
 6. Codemods (`**/codemods/**`)
 7. Type-only changes (`*.d.ts`)

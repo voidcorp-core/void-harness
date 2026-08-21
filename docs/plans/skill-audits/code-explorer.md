@@ -43,7 +43,7 @@ entire value is the *compression* — explore widely, report tightly.
 | Source | URL | Status | Verdict |
 |---|---|---|---|
 | void-harness `doctrine-critic` agent | packages/core/agents/doctrine-critic.md | read | kept: frontmatter shape, read-only allowlist, isolated-context, output-as-final-message |
-| void-harness `context` skill | plans/skill-audits/context.md | read | kept: sub-agent isolation protects the main window; compress, don't dump |
+| void-harness `context` skill | plans/skill-audits/void-context.md | read | kept: sub-agent isolation protects the main window; compress, don't dump |
 | Anthropic subagents guidance | https://code.claude.com/docs/en/sub-agents.md | read | kept: a focused sub-agent returns a summary, not its full transcript, to the parent |
 
 ## Adaptation strategy

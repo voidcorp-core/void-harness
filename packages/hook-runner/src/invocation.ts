@@ -28,7 +28,7 @@ export interface ResolutionVerdict {
 
 const SKILL_RUNTIME_DIRS = ['.claude', '.agents'] as const;
 
-/** Strip any plugin namespace (`harness:tdd` -> `tdd`), the form the defect was recorded under. */
+/** Strip any plugin namespace (`harness:void-tdd` -> `void-tdd`), the form the defect was recorded under. */
 function bareName(raw: string): string {
   const colon = raw.lastIndexOf(':');
   return colon >= 0 ? raw.slice(colon + 1) : raw;

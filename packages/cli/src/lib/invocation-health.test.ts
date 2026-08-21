@@ -26,8 +26,8 @@ describe('judgeInvocation', () => {
       installedSkills: 41,
     });
 
-    expect(check.message).toContain('session-handoff -> checkpoint');
-    expect(check.message).toContain('ticket-runner -> implement');
+    expect(check.message).toContain('session-handoff -> void-checkpoint');
+    expect(check.message).toContain('ticket-runner -> void-implement');
   });
 
 
@@ -92,8 +92,8 @@ describe('observeInvocation', () => {
   it('reads the project on disk, both journal locations and both runtimes', () => {
     const root = mkdtempSync(join(tmpdir(), 'void-doctor-invocation-'));
     roots.push(root);
-    mkdirSync(join(root, '.claude', 'skills', 'tdd'), { recursive: true });
-    writeFileSync(join(root, '.claude', 'skills', 'tdd', 'SKILL.md'), '---\n---\n');
+    mkdirSync(join(root, '.claude', 'skills', 'void-tdd'), { recursive: true });
+    writeFileSync(join(root, '.claude', 'skills', 'void-tdd', 'SKILL.md'), '---\n---\n');
     const mission = join(root, '.void', 'runs', 'mis_aaaaaaaaaaaaaaaa');
     mkdirSync(mission, { recursive: true });
     writeFileSync(
@@ -125,8 +125,8 @@ describe('judgeInvocation, on a rename nothing calls any more', () => {
 
     expect(check.ok).toBe(true);
     expect(check.status).toBe('pass');
-    expect(check.message).toContain('ticket-writer -> ticket');
-    expect(check.message).toContain('session-handoff -> checkpoint');
+    expect(check.message).toContain('ticket-writer -> void-ticket');
+    expect(check.message).toContain('session-handoff -> void-checkpoint');
   });
 
   it('offers no remedy for something already resolved', () => {

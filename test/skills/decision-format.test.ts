@@ -10,7 +10,7 @@
  * listed in the structural-conformance spec, measured at 294 records across
  * three projects.
  *
- * The rule is narrow on purpose: skills name the `decide` skill, which owns the
+ * The rule is narrow on purpose: skills name the `void-decide` skill, which owns the
  * location and its escape hatches, rather than repeating a path seven times.
  * `docs/DECISIONS.md` survives in this repository as a frozen landing page and
  * in specs and decision records that quote history as written, so only the live
@@ -42,7 +42,7 @@ describe('the decision format a skill prescribes', () => {
   });
 
   it('is owned by one skill, which names the command and the location', () => {
-    const decide = readFileSync(join(root, 'packages/core/skills/decide/SKILL.md'), 'utf8');
+    const decide = readFileSync(join(root, 'packages/core/skills/void-decide/SKILL.md'), 'utf8');
     expect(decide).toContain('docs/decisions/');
     expect(decide).toContain('void-harness decisions new');
   });

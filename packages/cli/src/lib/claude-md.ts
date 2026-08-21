@@ -53,14 +53,14 @@ export function harnessBlock(input: ClaudeMdBlockInputs, runtime: Runtime = 'cla
     ? [`@.void/installed/PHILOSOPHY.md`, `@.void/PROJECT-DOCTRINE.md`]
     : [`- \`.void/installed/PHILOSOPHY.md\``, `- \`.void/PROJECT-DOCTRINE.md\``];
   const captureLine = isClaude
-    ? `To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The \`capture-rule\` skill auto-invokes, classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.`
-    : `To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The capture-rule workflow classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.`;
+    ? `To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The \`void-learn\` skill auto-invokes, classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.`
+    : `To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The \`void-learn\` workflow classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.`;
   // The namespace belongs to the channel, never to the runtime.
   const prefixed = isClaude && input.channel === 'marketplace';
-  const ticketRunner = prefixed ? '`harness:implement`' : '`implement`';
+  const ticketRunner = prefixed ? '`harness:void-implement`' : '`void-implement`';
   const invocationLine = isClaude
-    ? `Every skill is invoked by its name: \`${prefixed ? '/harness:implement' : '/implement'}\`, \`${prefixed ? '/harness:tdd' : '/tdd'}\`. A skill that composes another names it the same way; the syntax is the runtime's, the name is the skill's.`
-    : `Every skill is invoked by its name: \`$implement\`, \`$tdd\`. A skill that composes another names it the same way; the syntax is the runtime's, the name is the skill's.`;
+    ? `Every skill is invoked by its name: \`${prefixed ? '/harness:void-implement' : '/void-implement'}\`, \`${prefixed ? '/harness:void-tdd' : '/void-tdd'}\`. A skill that composes another names it the same way; the syntax is the runtime's, the name is the skill's.`
+    : `Every skill is invoked by its name: \`$void-implement\`, \`$void-tdd\`. A skill that composes another names it the same way; the syntax is the runtime's, the name is the skill's.`;
   return [
     BEGIN_MARKER,
     '',

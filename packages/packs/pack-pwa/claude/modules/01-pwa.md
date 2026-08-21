@@ -40,7 +40,7 @@ UI write → captureQueue.enqueue(intent) → optimistic update → sync()
 - `sync()` retries with exponential backoff, marks intents as committed/failed.
 - Conflict resolution: server is source of truth; local optimistic state is overwritten on conflict.
 
-The capture-queue + sync pattern is small (~100 lines) — consumers own it directly in their codebase. See `offline-first-mutation` skill for the canonical implementation.
+The capture-queue + sync pattern is small (~100 lines) — consumers own it directly in their codebase. See `void-offline-first-mutation` skill for the canonical implementation.
 
 ## Install prompt UX
 
@@ -53,4 +53,4 @@ The capture-queue + sync pattern is small (~100 lines) — consumers own it dire
 - `harness-react` — components subscribe to capture-queue state via hooks.
 - `harness-server` — Server Actions are the sync target; their idempotency-key handling pairs with capture-queue keys.
 - `harness-nextjs` — Serwist plugin in `next.config.ts`, manifest in `app/manifest.ts`.
-- `async-safety` — sync engine retries are bounded, dead-letter routing on permanent failure.
+- `void-async-safety` — sync engine retries are bounded, dead-letter routing on permanent failure.

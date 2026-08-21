@@ -17,7 +17,7 @@ This pack ships through two channels, and it matters which artifact carries what
 
 ### Async safety wrappers (`@voidcorp/pack-nextjs/async`) — npm
 
-Composes with the `async-safety` skill — the canonical verify, dedup, handle, mark pattern.
+Composes with the `void-async-safety` skill — the canonical verify, dedup, handle, mark pattern.
 
 - **`withWebhookSafety`** — wrap a webhook handler with signature verification, idempotency-key dedup, structured outcome. Order enforced by the wrapper; business handler stays pure.
 - **`withJobSafety`** _(Phase E follow-up)_ — same shape for background jobs (BullMQ / Inngest / Trigger.dev / Vercel Cron).
@@ -25,7 +25,7 @@ Composes with the `async-safety` skill — the canonical verify, dedup, handle, 
 
 ### UI primitives (`@voidcorp/pack-nextjs/ui`) — npm
 
-_(Phase E follow-up)_ — shadcn/Radix-based `@repo/ui` components composing with the `accessibility` and `frontend-design` skills (mobile-first dual-quality tokens, Tappable helper, Sentry breadcrumbs, axe-core integration, palette tokens with documented WCAG AA contrast).
+_(Phase E follow-up)_ — shadcn/Radix-based `@repo/ui` components composing with the `void-accessibility` and `void-frontend-design` skills (mobile-first dual-quality tokens, Tappable helper, Sentry breadcrumbs, axe-core integration, palette tokens with documented WCAG AA contrast).
 
 ### CLAUDE.md / Codex modules (`@voidcorp/pack-nextjs/claude/modules`) — npm
 
