@@ -236,6 +236,7 @@ jobs:
           set -euo pipefail
           gh api "repos/$EXPECTED_REPOSITORY/actions/artifacts/$ARTIFACT_ID" > "$METADATA_PATH"
           node --input-type=module <<'NODE'
+          // artifact-metadata-verifier:begin
           import { readFileSync } from 'node:fs';
 
           const artifact = JSON.parse(readFileSync(process.env.METADATA_PATH, 'utf8'));
@@ -252,6 +253,7 @@ jobs:
           if (artifact.workflow_run?.head_sha !== process.env.WORKFLOW_HEAD_SHA) {
             fail('workflow_run head_sha mismatch');
           }
+          // artifact-metadata-verifier:end
           NODE
 
       - name: Download the exact validated artifact
@@ -269,6 +271,7 @@ jobs:
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
+          // artifact-byte-verifier:begin
           import { execFileSync } from 'node:child_process';
           import { createHash } from 'node:crypto';
           import { appendFileSync, readFileSync, readdirSync } from 'node:fs';
@@ -310,6 +313,7 @@ jobs:
             fail('embedded package identity mismatch');
           }
           appendFileSync(process.env.GITHUB_OUTPUT, `tarball_path=${tarballPath}\n`);
+          // artifact-byte-verifier:end
           NODE
 
       - name: Classify registry, publish if absent, and require provenance
@@ -327,7 +331,7 @@ jobs:
             npm_view_status=$?
             set -e
             NPM_VIEW_STATUS="$npm_view_status" node --input-type=module <<'NODE'
-          # registry-classifier:begin
+          // registry-classifier:begin
           import { readFileSync } from 'node:fs';
 
           const fail = (message) => { throw new Error(`registry classification: ${message}`); };
@@ -371,7 +375,7 @@ jobs:
             ) process.stdout.write('existing\n');
             else process.stdout.write('retry\n');
           }
-          # registry-classifier:end
+          // registry-classifier:end
           NODE
           }
 

@@ -10,7 +10,7 @@ const RELEASE = readFileSync(join(ROOT, '.github', 'workflows', 'release.yml'), 
 const INTEGRITY = `sha512-${Buffer.alloc(64, 7).toString('base64')}`;
 
 function classifierSource(): string {
-  const match = /# registry-classifier:begin\n([\s\S]*?)\n\s*# registry-classifier:end/.exec(
+  const match = /\/\/ registry-classifier:begin\n([\s\S]*?)\n\s*\/\/ registry-classifier:end/.exec(
     RELEASE,
   );
   expect(match, 'release.yml must expose the tested inline classifier').not.toBeNull();
