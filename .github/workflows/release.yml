@@ -372,6 +372,7 @@ jobs:
       MINIMUM_GH_VERSION: 2.97.0
       RELEASE_VERSION: ${{ needs.validate-release.outputs.version }}
       RELEASE_COMMIT: ${{ needs.validate-release.outputs.release_commit }}
+      WORKFLOW_HEAD_SHA: ${{ github.sha }}
       EXPECTED_INTEGRITY: ${{ needs.validate-release.outputs.integrity }}
       RELEASE_RUN_ID: ${{ github.run_id }}
       RELEASE_RUN_ATTEMPT: ${{ github.run_attempt }}
@@ -419,8 +420,8 @@ jobs:
             --repo voidcorp-core/void-harness \
             --signer-workflow voidcorp-core/void-harness/.github/workflows/release.yml \
             --source-ref refs/heads/main \
-            --source-digest "$RELEASE_COMMIT" \
-            --signer-digest "$RELEASE_COMMIT" \
+            --source-digest "$WORKFLOW_HEAD_SHA" \
+            --signer-digest "$WORKFLOW_HEAD_SHA" \
             --deny-self-hosted-runners \
             --predicate-type https://slsa.dev/provenance/v1 \
             --digest-alg sha512 \

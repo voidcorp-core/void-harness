@@ -40,6 +40,9 @@ function expectedEvidence(value) {
   if (typeof value.releaseCommit !== 'string' || !RELEASE_COMMIT.test(value.releaseCommit)) {
     fail('release commit must be a lowercase 40-character SHA');
   }
+  if (typeof value.workflowHeadSha !== 'string' || !RELEASE_COMMIT.test(value.workflowHeadSha)) {
+    fail('workflow head must be a lowercase 40-character SHA');
+  }
   if (typeof value.runId !== 'string' || !DECIMAL_ID.test(value.runId)) {
     fail('workflow run id must be a positive decimal string');
   }
@@ -88,9 +91,9 @@ function validateStatement(statement, expected, source) {
   if (
     dependencies.length !== 1 ||
     dependencies[0]?.uri !== `git+${REPOSITORY_URL}@${SOURCE_REF}` ||
-    dependencies[0]?.digest?.gitCommit !== expected.releaseCommit
+    dependencies[0]?.digest?.gitCommit !== expected.workflowHeadSha
   ) {
-    fail(`${source} resolved release commit is missing or conflicting`);
+    fail(`${source} resolved workflow head is missing or conflicting`);
   }
   if (statement.predicate?.runDetails?.builder?.id !== GITHUB_HOSTED_BUILDER) {
     fail(`${source} builder is not GitHub-hosted`);
@@ -170,10 +173,10 @@ export function verifyPublicationProvenance(input) {
     certificate.githubWorkflowRepository !== REPOSITORY ||
     certificate.githubWorkflowRef !== SOURCE_REF ||
     certificate.buildSignerURI !== WORKFLOW_URI ||
-    certificate.buildSignerDigest !== expected.releaseCommit ||
+    certificate.buildSignerDigest !== expected.workflowHeadSha ||
     certificate.runnerEnvironment !== 'github-hosted' ||
     certificate.sourceRepositoryURI !== REPOSITORY_URL ||
-    certificate.sourceRepositoryDigest !== expected.releaseCommit ||
+    certificate.sourceRepositoryDigest !== expected.workflowHeadSha ||
     certificate.sourceRepositoryRef !== SOURCE_REF ||
     certificate.runInvocationURI !== invocationUri(expected)
   ) {
@@ -194,6 +197,7 @@ export function verifyPublicationProvenance(input) {
     packageName: PACKAGE_NAME,
     version: expected.version,
     releaseCommit: expected.releaseCommit,
+    workflowHeadSha: expected.workflowHeadSha,
     runId: expected.runId,
     runAttempt: expected.runAttempt,
     sha512: expected.sha512,

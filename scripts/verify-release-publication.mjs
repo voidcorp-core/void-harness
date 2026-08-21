@@ -24,6 +24,7 @@ function expectedEvidence() {
     version: requiredEnv('RELEASE_VERSION'),
     sha512: integrityToSha512Hex(requiredEnv('EXPECTED_INTEGRITY')),
     releaseCommit: requiredEnv('RELEASE_COMMIT'),
+    workflowHeadSha: requiredEnv('WORKFLOW_HEAD_SHA'),
     runId: requiredEnv('RELEASE_RUN_ID'),
     runAttempt: requiredEnv('RELEASE_RUN_ATTEMPT'),
   };
