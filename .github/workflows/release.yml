@@ -81,7 +81,6 @@ jobs:
       EXPECTED_REPOSITORY: voidcorp-core/void-harness
       CONTROL_ROOT: ${{ github.workspace }}/release-control
       RELEASE_TREE: ${{ github.workspace }}/release-tree
-      ARTIFACT_DIR: ${{ runner.temp }}/voidharness-release
     outputs:
       release_tag: ${{ steps.resolve.outputs.release_tag }}
       version: ${{ steps.resolve.outputs.version }}
@@ -146,6 +145,8 @@ jobs:
 
       - name: Pack the final npm tarball exactly once
         working-directory: release-tree
+        env:
+          ARTIFACT_DIR: ${{ runner.temp }}/voidharness-release
         run: |
           mkdir -p "$ARTIFACT_DIR"
           pnpm --filter voidharness pack --pack-destination "$ARTIFACT_DIR"
@@ -153,6 +154,7 @@ jobs:
       - name: Bind package identity and byte integrity
         id: prepare
         env:
+          ARTIFACT_DIR: ${{ runner.temp }}/voidharness-release
           RELEASE_COMMIT: ${{ steps.resolve.outputs.release_commit }}
         run: node release-control/scripts/prepare-release-artifact.mjs prepare
 
@@ -199,7 +201,6 @@ jobs:
       TARBALL_NAME: ${{ needs.validate-release.outputs.tarball_name }}
       EXPECTED_SHA256: ${{ needs.validate-release.outputs.sha256 }}
       EXPECTED_INTEGRITY: ${{ needs.validate-release.outputs.integrity }}
-      ARTIFACT_DIR: ${{ runner.temp }}/validated-release
     steps:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
@@ -268,6 +269,8 @@ jobs:
 
       - name: Verify release artifact bytes and package identity
         id: verify-release-artifact
+        env:
+          ARTIFACT_DIR: ${{ runner.temp }}/validated-release
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
@@ -425,11 +428,6 @@ jobs:
       EXPECTED_INTEGRITY: ${{ needs.validate-release.outputs.integrity }}
       CURRENT_RUN_ID: ${{ github.run_id }}
       CURRENT_RUN_ATTEMPT: ${{ github.run_attempt }}
-      VERIFY_ROOT: ${{ runner.temp }}/publication-verification
-      NPM_AUDIT_PATH: ${{ runner.temp }}/publication-verification/npm-audit.json
-      SLSA_BUNDLE_PATH: ${{ runner.temp }}/publication-verification/slsa-bundle.json
-      GH_VERIFICATION_PATH: ${{ runner.temp }}/publication-verification/gh-verification.json
-      TARBALL_PATH: ${{ runner.temp }}/publication-verification/voidharness-${{ needs.validate-release.outputs.version }}.tgz
     steps:
       - name: Check out the exact verification implementation
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -452,6 +450,11 @@ jobs:
       - name: Verify npm signatures and collect the exact registry tarball
         id: provenance
         working-directory: ${{ runner.temp }}
+        env:
+          VERIFY_ROOT: ${{ runner.temp }}/publication-verification
+          NPM_AUDIT_PATH: ${{ runner.temp }}/publication-verification/npm-audit.json
+          SLSA_BUNDLE_PATH: ${{ runner.temp }}/publication-verification/slsa-bundle.json
+          TARBALL_PATH: ${{ runner.temp }}/publication-verification/voidharness-${{ needs.validate-release.outputs.version }}.tgz
         run: |
           set -euo pipefail
           mkdir -p "$VERIFY_ROOT"
@@ -464,6 +467,10 @@ jobs:
 
       - name: Verify GitHub workflow identity and signed SLSA statement
         env:
+          NPM_AUDIT_PATH: ${{ runner.temp }}/publication-verification/npm-audit.json
+          SLSA_BUNDLE_PATH: ${{ runner.temp }}/publication-verification/slsa-bundle.json
+          GH_VERIFICATION_PATH: ${{ runner.temp }}/publication-verification/gh-verification.json
+          TARBALL_PATH: ${{ runner.temp }}/publication-verification/voidharness-${{ needs.validate-release.outputs.version }}.tgz
           PRODUCER_WORKFLOW_HEAD_SHA: ${{ steps.provenance.outputs.workflow_head_sha }}
           PRODUCER_RUN_ID: ${{ steps.provenance.outputs.run_id }}
           PRODUCER_RUN_ATTEMPT: ${{ steps.provenance.outputs.run_attempt }}
