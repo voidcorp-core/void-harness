@@ -532,8 +532,8 @@ lockfile edits, secret handling and unrelated organization policy remain out of 
   artifact failure paths and the OIDC uniqueness assertion covered only `release.yml` job grants.
   Disposition: added executable registry, auto-merge and exact inline artifact-verifier fixtures;
   strict YAML parsing; Bash and Node heredoc syntax checks; and a repository-wide effective-
-  permissions assertion that rejects workflow-level OIDC inheritance and names `release.yml/publish`
-  as the sole grant.
+  permissions assertion that rejects workflow-level OIDC inheritance, including scalar
+  `permissions: write-all`, and names `release.yml/publish` as the sole grant.
 - **P2, independent security review**: npm's `E404` classifier read the success stream after a
   failed command, while the Release App token request inherited its installation ceiling.
   Disposition: one tested inline classifier now consumes exit status plus both captured streams and
