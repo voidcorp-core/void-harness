@@ -70,7 +70,19 @@ export function planHydrate(
 
 /** Render a verification as the lines a reader needs, worst first. */
 export function verificationLines(report: ManifestVerification): string[] {
-  if (report.ok) return [`${report.verified} file(s) restored and hash-verified`];
+  if (report.ok) {
+    const proof = [`${report.verified} file(s) restored and hash-verified`];
+    // Said out loud, because the proof line alone would be a small lie about
+    // these: the manifest was re-stamped over what the project wrote, not found
+    // matching. Not a warning — writing into a co-owned file is its purpose.
+    if (report.coEditedTotal > 0) {
+      proof.push(
+        `${report.coEditedTotal} co-owned file(s) carry project edits, recorded as they are: `
+        + `${report.coEdited.join(', ')}`,
+      );
+    }
+    return proof;
+  }
   const out: string[] = [];
   if (report.mismatchedTotal > 0) {
     out.push(`${report.mismatchedTotal} file(s) differ from the manifest:`);

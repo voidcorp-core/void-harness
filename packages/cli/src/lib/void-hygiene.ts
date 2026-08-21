@@ -20,6 +20,11 @@ export interface ManifestObservation {
   readonly version?: string;
   /** Files whose bytes differ from the manifest, when it was verifiable. */
   readonly drifted?: number;
+  /**
+   * Co-owned files whose bytes differ. Counted apart from `drifted`: the project
+   * is invited to write into these, so a difference is the file being used.
+   */
+  readonly coEdited?: number;
 }
 
 export interface LayoutObservation {
@@ -138,13 +143,25 @@ function manifestCheck(observation: LayoutObservation): CheckResult {
     return fail(name, 'the install manifest is present but not readable', 'restore it from git, or re-run void-harness init');
   }
   // Drift is a real failure: the working tree claims a version it does not hold.
-  return (manifest.drifted ?? 0) === 0
-    ? pass(name, `assets match manifest ${manifest.version ?? 'unknown'}`)
-    : fail(
-        name,
-        `${manifest.drifted} file(s) differ from manifest ${manifest.version ?? 'unknown'}`,
-        `npx voidharness@${manifest.version ?? 'x.y.z'} hydrate — it restores and proves every file`,
-      );
+  if ((manifest.drifted ?? 0) > 0) {
+    return fail(
+      name,
+      `${manifest.drifted} file(s) differ from manifest ${manifest.version ?? 'unknown'}`,
+      `npx voidharness@${manifest.version ?? 'x.y.z'} hydrate — it restores and proves every file`,
+    );
+  }
+  // A co-owned file carrying project edits is not drift, and is not an advisory
+  // either: writing a rule into `.void/PROJECT-DOCTRINE.md` is what the file is
+  // for. It is still named, because "assets match manifest" alone would read as
+  // byte-identical and send whoever compares hashes by hand looking for a bug.
+  const coEdited = manifest.coEdited ?? 0;
+  const version = manifest.version ?? 'unknown';
+  return pass(
+    name,
+    coEdited === 0
+      ? `assets match manifest ${version}`
+      : `assets match manifest ${version}; ${String(coEdited)} co-owned file(s) carry project edits`,
+  );
 }
 
 function derivedCheck(observation: LayoutObservation): CheckResult {

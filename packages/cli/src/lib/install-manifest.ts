@@ -17,6 +17,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { isCoOwned } from './co-owned.js';
 import { isSafeRelativePath } from './transaction.js';
 
 /** Committed, `project` class — deliberately NOT under `.void/machine/`. */
@@ -46,6 +47,14 @@ export interface ManifestVerification {
   /** Paths present with different bytes, capped for readability. */
   readonly mismatched: readonly string[];
   readonly mismatchedTotal: number;
+  /**
+   * Co-owned paths whose bytes differ, capped for readability. Reported apart
+   * from `mismatched` and excluded from `ok`: the project is invited to write
+   * into these, so a difference is the file being used, not an asset diverging
+   * from the version it claims.
+   */
+  readonly coEdited: readonly string[];
+  readonly coEditedTotal: number;
 }
 
 const HEX_64 = /^[a-f0-9]{64}$/;
@@ -106,10 +115,23 @@ export function parseInstallManifest(body: string): InstallManifest | undefined 
  * Recompute every hash on disk and report the drift. An unreadable file counts
  * as missing rather than throwing: the caller wants a verdict on the whole
  * install, not the first failure.
+ *
+ * A differing CO-OWNED file is not drift. `.void/PROJECT-DOCTRINE.md` is created
+ * once from a template and the project is told to edit it freely; `CLAUDE.md` and
+ * `.gitignore` carry a harness block inside a document the project also writes.
+ * Their hashes stop matching the first time anyone uses them as intended, and
+ * counting that as drift made `doctor` exit non-zero on normal work while naming
+ * `hydrate` as the remedy -- which restores nothing there, it re-stamps the hash
+ * over whatever the project wrote. A red verdict nobody can extinguish is a red
+ * verdict everybody learns to skip past.
+ *
+ * A co-owned file that is GONE is still reported: co-ownership licences writing
+ * into the file, never removing it.
  */
 export function verifyInstallManifest(root: string, manifest: InstallManifest): ManifestVerification {
   const missing: string[] = [];
   const mismatched: string[] = [];
+  const coEdited: string[] = [];
   let verified = 0;
 
   for (const file of manifest.files) {
@@ -121,6 +143,7 @@ export function verifyInstallManifest(root: string, manifest: InstallManifest): 
       continue;
     }
     if (sha256Of(content) === file.sha256) verified += 1;
+    else if (isCoOwned(file.path)) coEdited.push(file.path);
     else mismatched.push(file.path);
   }
 
@@ -131,5 +154,7 @@ export function verifyInstallManifest(root: string, manifest: InstallManifest): 
     missingTotal: missing.length,
     mismatched: mismatched.slice(0, MAX_REPORTED),
     mismatchedTotal: mismatched.length,
+    coEdited: coEdited.slice(0, MAX_REPORTED),
+    coEditedTotal: coEdited.length,
   };
 }

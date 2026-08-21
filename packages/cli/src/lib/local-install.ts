@@ -10,6 +10,7 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
+import { CO_OWNED_FILES } from './co-owned.js';
 import {
   buildInstallManifest,
   INSTALL_MANIFEST_PATH,
@@ -28,17 +29,14 @@ import type { Runtime } from './runtime.js';
 import type { InstallSource } from './runtime-assets.js';
 import type { FileMutation } from './transaction.js';
 
-const SHARED_FILES = [
-  // Co-owned in the strongest sense: the harness owns exactly its marked block,
-  // the project owns every other line. Seeding it here is what lets init patch
-  // the block instead of writing a file over whatever the project had.
-  '.gitignore',
-  '.void/config.json',
-  '.void/PROJECT-DOCTRINE.md',
-  '.claude/settings.json',
-  'CLAUDE.md',
-  'AGENTS.md',
-] as const;
+// Co-owned in the strongest sense: the harness owns exactly its marked block,
+// the project owns every other line. Seeding these is what lets init patch the
+// block instead of writing a file over whatever the project had.
+//
+// Read from `co-owned.ts` rather than listed here: the manifest verification
+// needs the same answer to tell a project's own writing apart from drift, and a
+// second copy is how the two start disagreeing.
+const SHARED_FILES = CO_OWNED_FILES;
 
 const MANAGED_PREFIXES = [
   '.void/hooks/',
