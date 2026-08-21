@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.4.1](https://github.com/voidcorp-core/void-harness/compare/v3.4.0...v3.4.1) (2026-08-21)
+
+
+### Bug Fixes
+
+* **release:** accept npm JSON errors from stdout ([a691d7c](https://github.com/voidcorp-core/void-harness/commit/a691d7c8145dc4603e18f82ebb3c7f7c4dda5d31))
+* **release:** classify npm 11 JSON errors from stdout ([e870536](https://github.com/voidcorp-core/void-harness/commit/e870536d245711cc3657e5b8af0515b5773ad3d3))
+
 ## [3.4.0](https://github.com/voidcorp-core/void-harness/compare/v3.3.0...v3.4.0) (2026-08-21)
 
 
