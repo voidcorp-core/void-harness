@@ -70,6 +70,15 @@ describe('the release pull request is opened by the App', () => {
     expect(releasePleaseJob).toMatch(
       /private-key: \$\{\{ secrets\.RELEASE_APP_PRIVATE_KEY \}\}/,
     );
+    expect(releasePleaseJob).toMatch(/owner: \$\{\{ github\.repository_owner \}\}/);
+    expect(releasePleaseJob).toMatch(
+      /repositories: \$\{\{ github\.event\.repository\.name \}\}/,
+    );
+    expect(releasePleaseJob).toContain('permission-contents: write');
+    expect(releasePleaseJob).toContain('permission-pull-requests: write');
+    expect(releasePleaseJob).not.toMatch(
+      /permission-(?:actions|administration|environments|secrets):/,
+    );
   });
 
   it('hands that token to release-please rather than letting it default', () => {
