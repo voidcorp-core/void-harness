@@ -175,6 +175,24 @@ function stopped(
   };
 }
 
+function applyRuntimeCertification(
+  decision: MissionTeamDecision,
+  capability: SpecialistRuntimeCapability,
+): MissionTeamDecision {
+  if (capability.status === 'available') return decision;
+  const runtimeReasons = capability.limitations.map((item) => `specialist runtime: ${item}`);
+  const reasons = [...new Set([...decision.reasons, ...runtimeReasons])];
+  if (decision.action.kind === 'complete') {
+    return stopped('degraded', decision.review, decision.verdict, reasons);
+  }
+  const status = decision.verdict.status === 'blocked' ? 'blocked' : 'degraded';
+  return {
+    ...decision,
+    verdict: overrideVerdict(decision.verdict, status, runtimeReasons),
+    reasons,
+  };
+}
+
 function decideReviewPhase(
   start: MissionStart,
   review: ReviewLoopState,
@@ -279,12 +297,11 @@ export function orchestrateMissionTeam(
       'effective specialist runtime capability is invalid or missing',
     ]);
   }
-  if (input.specialistRuntime.status !== 'available') {
-    const phase = input.specialistRuntime.status === 'unavailable' ? 'blocked' : 'degraded';
+  if (input.specialistRuntime.status === 'unavailable') {
     const limitations = input.specialistRuntime.limitations.length > 0
       ? input.specialistRuntime.limitations
       : ['effective specialist runtime capability is not available'];
-    return stopped(phase, preReview, baseVerdict, limitations.map((item) =>
+    return stopped('blocked', preReview, baseVerdict, limitations.map((item) =>
       `specialist runtime: ${item}`));
   }
   if (!Array.isArray(input.plan.specialists)) {
@@ -317,17 +334,20 @@ export function orchestrateMissionTeam(
     return stopped('degraded', preReview, baseVerdict, ['lead writer ownership changed']);
   }
   if (!preReview.readyForVerdict) {
-    return decideReviewPhase(start, preReview, baseVerdict, 'pre-implementation');
+    return applyRuntimeCertification(
+      decideReviewPhase(start, preReview, baseVerdict, 'pre-implementation'),
+      input.specialistRuntime,
+    );
   }
   if (completions.length === 0) {
     const reasons = ['lead writer implementation is incomplete'];
-    return {
+    return applyRuntimeCertification({
       phase: 'implementation',
       action: { kind: 'run-lead-writer', writerId: start.leadWriterId },
       review: preReview,
       verdict: overrideVerdict(baseVerdict, 'unverified', reasons),
       reasons,
-    };
+    }, input.specialistRuntime);
   }
   if (firstWriterSeq === undefined || lastWriterSeq === undefined) {
     throw new Error('MISSION_TEAM_INVARIANT: writer completion boundary is missing');
@@ -343,5 +363,8 @@ export function orchestrateMissionTeam(
     currentInputHashes: input.currentInputHashesByStage['post-implementation'],
     maxRounds: input.maxReviewRounds,
   });
-  return decideReviewPhase(start, postReview, baseVerdict, 'post-implementation');
+  return applyRuntimeCertification(
+    decideReviewPhase(start, postReview, baseVerdict, 'post-implementation'),
+    input.specialistRuntime,
+  );
 }

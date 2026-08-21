@@ -112,6 +112,10 @@ function decide(
   plan: MissionPlan = PLAN,
   postInputHashes: Readonly<Record<string, string>> = INPUTS,
   preInputHashes: Readonly<Record<string, string>> = INPUTS,
+  specialistRuntime: Parameters<typeof orchestrateMissionTeam>[0]['specialistRuntime'] = {
+    status: 'available',
+    limitations: [],
+  },
 ) {
   return orchestrateMissionTeam({
     plan,
@@ -122,7 +126,7 @@ function decide(
       'post-implementation': postInputHashes,
     },
     maxReviewRounds: 2,
-    specialistRuntime: { status: 'available', limitations: [] },
+    specialistRuntime,
   });
 }
 
@@ -188,6 +192,65 @@ describe('mission team controller', () => {
       kind: 'invoke-specialists',
       specialistIds: [...MVP_SPECIALIST_IDS, 'core:frontend-engineer'],
     });
+  });
+
+  it('dispatches reviews in degraded isolation but never certifies them green', () => {
+    const limitation = 'parent sandbox can override read-only specialist policy';
+    const preparing = decide(
+      [started()],
+      PLAN,
+      INPUTS,
+      INPUTS,
+      { status: 'degraded', limitations: [limitation] },
+    );
+
+    expect(preparing.action).toMatchObject({
+      kind: 'invoke-specialists',
+      specialistIds: MVP_SPECIALIST_IDS,
+    });
+    expect(preparing.verdict.status).toBe('degraded');
+    expect(preparing.reasons).toContain(`specialist runtime: ${limitation}`);
+
+    const proof = sealEvidence(evidenceDraft());
+    const reviews = MVP_SPECIALIST_IDS.map((specialistId, index) =>
+      completion(specialistId, index + 6)
+    );
+    const finished = decide(
+      [
+        started(),
+        ...preReviews(),
+        writer(),
+        ...reviews,
+        event({
+          seq: 9,
+          eventId: 'evt_00000000-0000-4000-8000-000000000009',
+          kind: 'evidence.recorded',
+          subject: proof.evidenceId,
+          payload: { evidence: proof },
+        }),
+      ],
+      PLAN,
+      INPUTS,
+      INPUTS,
+      { status: 'degraded', limitations: [limitation] },
+    );
+
+    expect(finished.phase).toBe('degraded');
+    expect(finished.action).toMatchObject({ kind: 'stop' });
+    expect(finished.verdict.status).toBe('degraded');
+  });
+
+  it('still blocks before dispatch when the specialist runtime is unavailable', () => {
+    const decision = decide(
+      [started()],
+      PLAN,
+      INPUTS,
+      INPUTS,
+      { status: 'unavailable', limitations: ['native agents are not installed'] },
+    );
+
+    expect(decision.phase).toBe('blocked');
+    expect(decision.action).toMatchObject({ kind: 'stop' });
   });
 
   it('stops when specialist routing is degraded instead of completing without review', () => {
@@ -458,10 +521,7 @@ describe('mission team controller', () => {
     ]));
   });
 
-  it.each([
-    ['degraded', 'degraded'],
-    ['unavailable', 'blocked'],
-  ] as const)('fails closed when the effective specialist runtime is %s', (status, phase) => {
+  it('fails closed when the effective specialist runtime is unavailable', () => {
     const decision = orchestrateMissionTeam({
       plan: PLAN,
       stream: stream([started()]),
@@ -471,10 +531,13 @@ describe('mission team controller', () => {
         'post-implementation': INPUTS,
       },
       maxReviewRounds: 2,
-      specialistRuntime: { status, limitations: ['fresh-context isolation is not enforced'] },
+      specialistRuntime: {
+        status: 'unavailable',
+        limitations: ['fresh-context isolation is not enforced'],
+      },
     });
 
-    expect(decision.phase).toBe(phase);
+    expect(decision.phase).toBe('blocked');
     expect(decision.action.kind).toBe('stop');
     expect(decision.verdict.status).not.toBe('verified');
   });
