@@ -33,6 +33,17 @@ describe('workflow files', () => {
   it.each(files)('%s contains no tab, which YAML forbids for indentation', (name) => {
     expect(readFileSync(join(WORKFLOWS, name), 'utf8')).not.toContain('\t');
   });
+
+  it.each(files)('%s pins every external action and reusable workflow to a full SHA', (name) => {
+    const used = [
+      ...readFileSync(join(WORKFLOWS, name), 'utf8').matchAll(/^\s*(?:-\s*)?uses:\s*(\S+)/gm),
+    ].map((match) => match[1] ?? '');
+    const floating = used.filter(
+      (reference) => !reference.startsWith('./') && !/@[0-9a-f]{40}$/.test(reference),
+    );
+
+    expect(floating).toEqual([]);
+  });
 });
 
 // A job holding `id-token: write` can mint the OIDC token npm accepts as proof
