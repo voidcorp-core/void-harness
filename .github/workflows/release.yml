@@ -187,7 +187,7 @@ jobs:
       id-token: write
     env:
       EXPECTED_REPOSITORY: voidcorp-core/void-harness
-      MINIMUM_NPM_MAJOR: 11
+      MINIMUM_NPM_VERSION: 11.5.1
       MAX_CLASSIFICATION_ATTEMPTS: 3
       MAX_PUBLICATION_ATTEMPTS: 12
       ARTIFACT_ID: ${{ needs.validate-release.outputs.artifact_id }}
@@ -208,7 +208,22 @@ jobs:
       - name: Require a Trusted Publishing-compatible npm
         run: |
           set -euo pipefail
-          node -e 'const major=Number(process.argv[1].split(".")[0]); if (!Number.isInteger(major) || major < Number(process.env.MINIMUM_NPM_MAJOR)) throw new Error(`npm ${process.argv[1]} is too old`)' "$(npm --version)"
+          OBSERVED_NPM_VERSION="$(npm --version)" node --input-type=module <<'NODE'
+          const parse = (value) => {
+            const match = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.exec(value);
+            if (!match) throw new Error(`npm version ${value} is not a stable semantic version`);
+            return match.slice(1).map(Number);
+          };
+          const observed = parse(process.env.OBSERVED_NPM_VERSION);
+          const minimum = parse(process.env.MINIMUM_NPM_VERSION);
+          const isOlder = observed.some((part, index) =>
+            observed.slice(0, index).every((value, prefix) => value === minimum[prefix]) &&
+            part < minimum[index],
+          );
+          if (isOlder) {
+            throw new Error(`npm ${observed.join('.')} is below ${minimum.join('.')}`);
+          }
+          NODE
 
       - name: Verify release artifact service metadata
         id: verify-release-artifact-metadata
