@@ -222,8 +222,9 @@ The binding design is
   5. Query `voidharness@X.Y.Z`. If absent after bounded classification retries, run
      `npm publish ./voidharness-X.Y.Z.tgz --access public --ignore-scripts` with npm 11.5.1 or newer.
      Classify npm's captured stdout, stderr and exit status through executable fixtures: only a
-     structured stderr `E404` means absent, a bounded set of transport/server errors retries, and
-     malformed, authorization, conflicting-output or integrity failures stop. If present, require
+     structured JSON `E404` means absent (`stdout` with npm 11, with a legacy structured-`stderr`
+     fallback), a bounded set of transport/server errors retries, and malformed, authorization,
+     conflicting-output or integrity failures stop. If present, require
      matching `dist.integrity` and an attestation endpoint, skip publication, and pass the candidate
      to the verifier below. Do not call the candidate a success yet.
   6. After a new publish, poll the registry for a bounded period and require matching integrity plus
