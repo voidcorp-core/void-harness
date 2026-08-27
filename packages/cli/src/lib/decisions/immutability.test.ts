@@ -210,6 +210,21 @@ describe('isMechanicalReferenceMigration', () => {
       'Use `docs/linked.md`.\n',
     )).toBe(false);
   });
+
+  it('allows declared runtime targets that a fresh checkout has not materialized', async () => {
+    const root = await tempRoot();
+
+    expect(isMechanicalReferenceMigration(
+      root,
+      'Read `.void/PHILOSOPHY.md`.\n',
+      'Read `.void/installed/PHILOSOPHY.md`.\n',
+    )).toBe(true);
+    expect(isMechanicalReferenceMigration(
+      root,
+      'Inspect `.void/local/runs/`.\n',
+      'Inspect `.void/machine/runs/`.\n',
+    )).toBe(true);
+  });
 });
 
 describe('isSafeGitRef', () => {
