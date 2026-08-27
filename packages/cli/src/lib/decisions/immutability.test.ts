@@ -191,9 +191,12 @@ describe('isMechanicalReferenceMigration', () => {
     const root = await tempRoot();
     const outside = await tempRoot();
     await mkdir(join(root, 'docs'), { recursive: true });
+    await mkdir(join(root, '.void', 'installed'), { recursive: true });
     await mkdir(join(root, '.void', 'machine'), { recursive: true });
     await writeFile(join(outside, 'outside.md'), 'outside\n', 'utf8');
+    await writeFile(join(root, '.void', 'installed', 'PHILOSOPHY.md'), 'doctrine\n', 'utf8');
     await symlink(join(outside, 'outside.md'), join(root, 'docs', 'linked.md'));
+    await symlink(join(outside, 'missing'), join(root, '.void', 'machine', 'cache'));
     await symlink(outside, join(root, '.void', 'machine', 'runs'));
 
     expect(isMechanicalReferenceMigration(
@@ -215,6 +218,16 @@ describe('isMechanicalReferenceMigration', () => {
       root,
       'Inspect `.void/local/runs/missing.json`.\n',
       'Inspect `.void/machine/runs/missing.json`.\n',
+    )).toBe(false);
+    expect(isMechanicalReferenceMigration(
+      root,
+      'Inspect `.void/local/cache/missing.json`.\n',
+      'Inspect `.void/machine/cache/missing.json`.\n',
+    )).toBe(false);
+    expect(isMechanicalReferenceMigration(
+      root,
+      'Read `.void/PHILOSOPHY.md/child`.\n',
+      'Read `.void/installed/PHILOSOPHY.md/child`.\n',
     )).toBe(false);
   });
 
