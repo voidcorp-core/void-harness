@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import {
   existsSync,
+  lstatSync,
   readFileSync,
   realpathSync,
 } from 'node:fs';
@@ -147,8 +148,10 @@ function existingAncestorsStayInside(root: string, candidate: string): boolean {
   let current = root;
   for (const segment of relative(root, candidate).split(sep)) {
     current = resolve(current, segment);
-    if (!existsSync(current)) return true;
-    if (!isInside(root, realpathSync(current))) return false;
+    const metadata = lstatSync(current, { throwIfNoEntry: false });
+    if (metadata === undefined) return true;
+    const resolved = realpathSync(current);
+    if (!isInside(root, resolved) || !lstatSync(resolved).isDirectory()) return false;
   }
   return true;
 }
