@@ -438,7 +438,7 @@
       "name": "sessionstart-context",
       "pack": null,
       "source": "packages/core/hooks/sessionstart-context.sh",
-      "staticTokens": 84,
+      "staticTokens": 87,
       "type": "hook"
     },
     {
@@ -1733,7 +1733,7 @@
         }
       ],
       "id": "skill:void-checkpoint",
-      "lines": 219,
+      "lines": 226,
       "name": "void-checkpoint",
       "owner": "folpe",
       "pack": null,
@@ -1742,7 +1742,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-checkpoint/SKILL.md",
-      "staticTokens": 2703,
+      "staticTokens": 2813,
       "type": "skill"
     },
     {
@@ -1855,7 +1855,7 @@
         }
       ],
       "id": "skill:void-context",
-      "lines": 162,
+      "lines": 168,
       "name": "void-context",
       "owner": "folpe",
       "pack": null,
@@ -1864,7 +1864,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-context/SKILL.md",
-      "staticTokens": 2582,
+      "staticTokens": 2874,
       "type": "skill"
     },
     {

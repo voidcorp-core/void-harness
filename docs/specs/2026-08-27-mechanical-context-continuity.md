@@ -169,6 +169,7 @@ schema_version: 1
 objective_hash: sha256:...
 work_revision: 18
 semantic_revision: 17
+sealed_work_revision: 17
 nudge_emitted: true
 transcript_fingerprint: sha256:...
 transcript_cursor_bytes: 42891
@@ -200,6 +201,11 @@ Règles :
 
 Le curseur est lié à une empreinte du `transcript_path`. Quand l'empreinte change, la lecture
 reprend à zéro sur le nouveau transcript sans réinitialiser la chaîne cumulative du checkpoint.
+Un transcript est lu via un descripteur borné sans suivi de lien symbolique. Son chemin canonique
+doit rester dans le projet. Claude Code peut aussi utiliser son répertoire de transcript propre au
+projet lorsque l'identifiant de session est borné et correspond exactement au nom de fichier.
+Codex ne dispose pas ici d'une provenance externe équivalente : ses transcripts externes sont
+ignorés.
 
 ## Configuration
 
@@ -314,6 +320,7 @@ minimales :
 
 - bloc mécanique absent ou ambigu ;
 - `semantic_revision` en retard ;
+- le dernier `PreCompact` ne scelle pas la révision de travail courante ;
 - `/clear` non réconcilié.
 
 Une fenêtre inconnue dégrade la capacité de nudge, pas nécessairement la reprise. Une erreur
@@ -327,19 +334,32 @@ l'autorité jusqu'à une écriture atomique réussie.
 - Un transcript absent, retardé, tronqué ou illisible conserve la dernière observation connue ;
   aucune estimation n'est inventée.
 - L'acquisition du verrou n'attend jamais activement. Un verrou de moins de 1 000 ms fait
-  abandonner l'écriture courante ; un verrou plus ancien est remplacé une seule fois.
-- Une écriture atomique échouée laisse l'ancien checkpoint intact.
+  abandonner l'écriture courante ; un verrou plus ancien est remplacé par le gagnant d'une élection
+  de reprise exclusive, les autres invocations abandonnant sans attendre.
+- Le verrou couvre la lecture, la décision et le remplacement ; une écriture sémantique invalide
+  `sealed_work_revision` et seul un `PreCompact` réussi le remet à la révision courante.
+- La mutation reste ancrée au descripteur du répertoire machine validé. Une écriture atomique
+  échouée ferme et nettoie son fichier temporaire sans toucher à l'ancien checkpoint.
 - Un bloc ambigu n'est jamais réparé automatiquement.
 - Une même cause n'émet qu'un diagnostic local par cycle ; les répétitions restent silencieuses.
 - Le `ResumeBundle` porte la dégradation visible au lieu de transformer l'erreur en succès.
 
 ## Performance
 
-La fonctionnalité reprend le budget du hook runner :
+DEV-651 porte les budgets qu'il peut causalement garantir :
 
-- p95 inférieur à 75 ms à chaud ;
-- p95 inférieur à 150 ms à froid ;
-- overhead propre inférieur à 25 ms.
+- p95 mural inférieur à 75 ms à chaud ;
+- coût CPU incrémental p95 inférieur à 25 ms face au no-op du même bundle livré.
+
+Le benchmark lance 25 processus frais sur le bundle livré complet pour le froid et répète un
+scénario représentatif dans le même processus pour le chaud. Les processus frais mesurent aussi le
+même bundle en no-op et un processus Node nu. Chacun rapporte son uptime et son temps CPU. Après
+trois groupes de warm-up exclus, les 25 groupes mesurés alternent leur ordre. Les p95 muraux bruts
+et leurs deltas restent diagnostiques : la contention du scheduler d'une CI partagée n'est pas
+attribuée à la feature. Le delta des p95 CPU entre feature et no-op du même bundle gate DEV-651.
+Les budgets globaux p95 froid inférieur à 150 ms et no-op/Node inférieur à 25 ms ne sont ni
+supprimés ni attribués à cette feature : la baseline préexistante qui les dépasse est suivie dans
+[DEV-662](https://linear.app/voidcorp/issue/DEV-662/reduire-le-cold-start-du-hook-runner-livre).
 
 La lecture est incrémentale depuis `transcript_cursor_bytes` et ne dépasse jamais 1 048 576
 octets par invocation. Si le delta est plus grand, l'adaptateur lit sa fin à partir de la
@@ -375,7 +395,8 @@ aucun fallback ne relit le transcript entier sur le chemin interactif.
 - nudge puis checkpoint puis compaction donne une reprise complète ;
 - compaction sans rafraîchissement sémantique donne une reprise dégradée ;
 - `/clear` donne une reprise dégradée et exige la reconstruction ;
-- benchmark chaud, froid et overhead sous les trois budgets.
+- benchmark hot mural et coût CPU feature/no-op sous les deux budgets DEV-651 ; p95 muraux
+  froid, Node et no-op publiés avec leur suivi DEV-662.
 
 Les tests étendent les suites existantes de `mission-engine` et `hook-runner`. Aucun framework ou
 banc parallèle n'est ajouté.
@@ -417,7 +438,7 @@ parseur tolérant l'ignore ; aucune migration inverse n'est requise.
 - [ ] Un nouvel objectif ouvre une nouvelle chaîne sans reset implicite par session ou branche.
 - [ ] Une écriture concurrente ou échouée ne corrompt pas l'ancien checkpoint.
 - [ ] Les deux runtimes passent la même matrice de contrat.
-- [ ] Les trois budgets de latence sont prouvés sur la machine de référence.
+- [ ] Les deux budgets DEV-651 sont prouvés ; les baselines murales DEV-662 sont publiées.
 - [ ] L'ADR `PreCompact` supersède explicitement la position de la note d'audit.
 
 ## Décisions rejetées

@@ -182,10 +182,50 @@ a YAML syntax.
 Automatic continuity is capability-gated rather than Linear-specific: the declared provider
 must support reading and updating status, relations, assignee, comments, and review evidence. If
 that surface is unavailable, the runtime stops the remote action instead of inferring progress
-from local files. `.void/machine/checkpoint.md` is replaced at a deliberate session close and stays
-readable offline; neither it nor the programme stores a current or next unit.
+from local files. The semantic sections of `.void/machine/checkpoint.md` are replaced at a
+deliberate session close and stay readable offline; neither the checkpoint nor the programme stores
+a current or next unit.
 Human gates and merges remain human. A standalone ticket or sequential plan keeps using its normal
 ticket or resume-point flow and does not need a programme descriptor.
+
+### Mechanical context continuity
+
+The checkpoint is also the single local continuity file. A uniquely delimited mechanical block
+coexists with the semantic sections: `void-checkpoint` owns objective, position, proven state, open
+loops, dead ends, assumptions, and the exact next action; the lifecycle handler owns only observed
+usage, bounded read/modified paths, overflow, and revision/cycle facts. Every semantic rewrite must
+preserve that block byte-for-byte. There is no sidecar or reconciliation daemon.
+
+The dependency direction remains the normal one. `mission-engine` makes pure revision, recency,
+threshold, merge, and complete/degraded decisions. `hook-runner` normalizes Claude Code and Codex
+payloads, reads at most 1,048,576 transcript bytes, confines project paths, and replaces the block
+under a no-wait lock through a same-directory temporary file and rename. Runtime manifests only
+map `UserPromptSubmit`, `PostToolUse`, `PreCompact`, and `SessionStart` to that handler.
+The lock covers the complete read-modify-write decision. Stale takeover is serialized by a
+no-wait claim chain whose generations are created exclusively and never ranked by timestamps, and
+checkpoint mutation stays anchored to an opened, verified machine directory while relative
+no-follow files are read and renamed. Transcript reads use no-follow bounded descriptors. Codex
+transcripts remain project-local; Claude may also use its
+project-scoped transcript directory when the file name exactly matches a bounded session ID.
+Configuration reads are regular-file-only and capped at 65,536 bytes. Direct runtime read/write
+payloads contribute paths, while shell-mediated reads remain unobserved.
+
+The latest complete `message.usage` record is an occupation observation, not accumulated session
+cost. A nudge is possible only when `.void/config.json` supplies a positive `context.windowTokens`;
+the 40–60% integer threshold defaults to 50. Unknown windows produce no percentage. The handler
+never invokes `/clear`, `/compact`, or `void-checkpoint`, and never authors semantic residue.
+`SessionStart:clear` is consequently degraded until a later semantic checkpoint reconciles the
+revisions. A semantic rewrite invalidates the previous `sealed_work_revision`; only a successful
+`PreCompact` can seal the current work revision, so a failed seal cannot be rendered complete on
+the next compact resume. See the decision
+[PreCompact may preserve mechanical checkpoint state](decisions-log/2026-08-27-precompact-preserves-mechanical-checkpoint-state--da9bb0a9-9c5a-46df-9459-27a583e92af2.md).
+
+The continuity benchmark executes the exact delivered hook bundle in 25 fresh processes and keeps
+bare Node, same-bundle no-op, and representative-event measurements separate. DEV-651 gates only
+the hot wall path and incremental feature-versus-no-op CPU cost. It still publishes raw wall
+latencies, but external scheduler contention cannot make the causal feature gate flaky. The
+existing global cold-start and no-op-versus-Node wall budgets remain owned by
+[DEV-662](https://linear.app/voidcorp/issue/DEV-662/reduire-le-cold-start-du-hook-runner-livre).
 
 ### Source self-host boundary
 

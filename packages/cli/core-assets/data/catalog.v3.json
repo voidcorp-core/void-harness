@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:4205f6b2bde2a6367dc868896ba8286dd7e618cd6a494ff0e99532430dd34238"
+    "rootHash": "sha256:7e2e4037d8df88c7d47c0b6e9a0b639eaf57612462a91cd35dbd360dcb388086"
   },
   "nodes": [
     {
@@ -1224,7 +1224,7 @@
           "name": "sessionstart-context",
           "pack": null,
           "source": "packages/core/hooks/sessionstart-context.sh",
-          "staticTokens": 84,
+          "staticTokens": 87,
           "type": "hook"
         }
       },
@@ -3563,7 +3563,7 @@
             }
           ],
           "id": "skill:void-checkpoint",
-          "lines": 219,
+          "lines": 226,
           "name": "void-checkpoint",
           "owner": "folpe",
           "pack": null,
@@ -3572,7 +3572,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-checkpoint/SKILL.md",
-          "staticTokens": 2703,
+          "staticTokens": 2813,
           "type": "skill"
         }
       },
@@ -3757,7 +3757,7 @@
             }
           ],
           "id": "skill:void-context",
-          "lines": 162,
+          "lines": 168,
           "name": "void-context",
           "owner": "folpe",
           "pack": null,
@@ -3766,7 +3766,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-context/SKILL.md",
-          "staticTokens": 2582,
+          "staticTokens": 2874,
           "type": "skill"
         }
       },
