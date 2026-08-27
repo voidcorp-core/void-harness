@@ -1,19 +1,19 @@
 import {
-  mkdtemp,
   mkdir,
+  mkdtemp,
   symlink,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { DecisionRecord } from './types.js';
 import {
   immutableDecisionIssues,
   isMechanicalReferenceMigration,
   isSafeGitRef,
   parseGitNameStatus,
 } from './immutability.js';
+import type { DecisionRecord } from './types.js';
 
 async function tempRoot(): Promise<string> {
   return mkdtemp(join(tmpdir(), 'void-decisions-immutability-'));
@@ -191,8 +191,10 @@ describe('isMechanicalReferenceMigration', () => {
     const root = await tempRoot();
     const outside = await tempRoot();
     await mkdir(join(root, 'docs'), { recursive: true });
+    await mkdir(join(root, '.void', 'machine'), { recursive: true });
     await writeFile(join(outside, 'outside.md'), 'outside\n', 'utf8');
     await symlink(join(outside, 'outside.md'), join(root, 'docs', 'linked.md'));
+    await symlink(outside, join(root, '.void', 'machine', 'runs'));
 
     expect(isMechanicalReferenceMigration(
       root,
@@ -208,6 +210,11 @@ describe('isMechanicalReferenceMigration', () => {
       root,
       'Use `plans/ACTIVE.md`.\n',
       'Use `docs/linked.md`.\n',
+    )).toBe(false);
+    expect(isMechanicalReferenceMigration(
+      root,
+      'Inspect `.void/local/runs/missing.json`.\n',
+      'Inspect `.void/machine/runs/missing.json`.\n',
     )).toBe(false);
   });
 

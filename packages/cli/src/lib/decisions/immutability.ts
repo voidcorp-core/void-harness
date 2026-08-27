@@ -11,6 +11,13 @@ import {
   sep,
 } from 'node:path';
 import { promisify } from 'node:util';
+import {
+  INSTALLED_ENTRIES,
+  MACHINE_ENTRIES,
+  VOID_DIR,
+  VOID_INSTALLED_DIR,
+  VOID_MACHINE_DIR,
+} from '@voidcorp/hook-runner';
 import { parseDecision } from './parse.js';
 import type {
   DecisionIssue,
@@ -128,12 +135,32 @@ function isInside(root: string, candidate: string): boolean {
   return path === '' || (!isAbsolute(path) && path !== '..' && !path.startsWith(`..${sep}`));
 }
 
+function isDeclaredRuntimeTarget(target: string): boolean {
+  const [voidDir, ownership, entry] = target.split('/');
+  if (voidDir !== VOID_DIR || entry === undefined) return false;
+  if (ownership === VOID_MACHINE_DIR) return MACHINE_ENTRIES.includes(entry);
+  if (ownership === VOID_INSTALLED_DIR) return INSTALLED_ENTRIES.includes(entry);
+  return false;
+}
+
+function existingAncestorsStayInside(root: string, candidate: string): boolean {
+  let current = root;
+  for (const segment of relative(root, candidate).split(sep)) {
+    current = resolve(current, segment);
+    if (!existsSync(current)) return true;
+    if (!isInside(root, realpathSync(current))) return false;
+  }
+  return true;
+}
+
 function isExistingLocalTarget(root: string, target: string): boolean {
   try {
     const realRoot = realpathSync(root);
     const candidate = resolve(realRoot, target);
-    if (!isInside(realRoot, candidate) || !existsSync(candidate)) return false;
-    return isInside(realRoot, realpathSync(candidate));
+    if (!isInside(realRoot, candidate)) return false;
+    if (existsSync(candidate)) return isInside(realRoot, realpathSync(candidate));
+    return isDeclaredRuntimeTarget(slash(relative(realRoot, candidate)))
+      && existingAncestorsStayInside(realRoot, candidate);
   } catch {
     return false;
   }
