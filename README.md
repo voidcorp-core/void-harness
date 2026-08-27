@@ -93,6 +93,48 @@ npx voidharness runtime add codex # wire a second runtime
 npx voidharness update            # recompile owned assets from a newer CLI
 ```
 
+## Context continuity, within the limits the runtimes expose
+
+Claude Code and Codex both route `UserPromptSubmit`, `PostToolUse`, `PreCompact`, and
+`SessionStart` through the same local continuity handler. It keeps one bounded mechanical block in
+`.void/machine/checkpoint.md`: the latest complete token observation, the 20 most recent unique
+read paths, the 20 most recent unique modified paths, overflow counts, and semantic/work revisions.
+`PreCompact` seals that block atomically; the next `SessionStart` injects the semantic checkpoint,
+the bounded working set, and an explicit complete/degraded status.
+
+The runtime does not expose a reliable context-window size. If you know it, opt into a threshold
+nudge in `.void/config.json`:
+
+```json
+{
+  "context": {
+    "windowTokens": 200000,
+    "checkpointThresholdPercent": 50
+  }
+}
+```
+
+The threshold must be an integer from 40 through 60 and defaults to 50 when `context` is present.
+Without `windowTokens`, the handler records the latest usage counters but computes no percentage
+and emits no threshold nudge. Transcript reads stay local, inspect only usage counters, and are
+bounded to 1,048,576 bytes per invocation; prompt and response content are neither logged nor sent.
+Only runtime-reported direct read/write paths are observed. Shell-mediated reads are intentionally
+not inferred. Codex transcripts must stay inside the project; Claude may also use its
+project-scoped transcript directory when an exact, bounded session identifier names the file.
+
+The limits are intentional: the harness never invokes `/clear` or `/compact`, and the hook never
+writes objective, progress, dead ends, assumptions, or a next action. A nudge asks the agent to
+invoke `void-checkpoint`; it does not invoke the skill. A brutal `/clear` before a recent semantic
+checkpoint can therefore still require reconstruction.
+
+The reproducible performance check runs 25 fresh processes against the exact shipped hook bundle
+and publishes bare Node, same-bundle no-op, representative continuity, and their wall and CPU
+measurements. DEV-651 gates the representative hot wall path below 75 ms p95 and its incremental
+CPU cost over the same-bundle no-op below 25 ms p95. Raw wall latency stays visible without making
+shared-CI scheduler noise a feature gate. The unchanged shared-runner wall budgets, cold below
+150 ms p95 and no-op over Node below 25 ms p95, are tracked in
+[DEV-662](https://linear.app/voidcorp/issue/DEV-662/reduire-le-cold-start-du-hook-runner-livre).
+
 ## What it does not do
 
 It does not make an agent good. It removes the failure modes that come from an

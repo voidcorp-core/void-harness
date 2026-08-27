@@ -87,11 +87,15 @@ ADRs are an append-only data model, not a generated document:
   identity; concurrent workers never allocate a shared counter or index.
 - `void-harness decisions check` validates the schema, unique identities,
   supersession links and cycles. In CI, `DECISIONS_BASE` also rejects edits,
-  renames or deletions of accepted records.
+  renames or deletions of accepted records. Its only edit exception is a
+  repository-local path substitution with unchanged frontmatter, headings,
+  structure and surrounding prose, and an existing root-confined target.
 - Decision loading is root-confined, rejects symlinks and bounds each record to
   256 KiB before parsing.
 - `void-harness decisions render --format markdown|json` produces a read-only
-  projection on stdout. It never commits or rewrites a shared artifact.
+  projection on stdout. It computes effective supersession from inbound
+  `supersedes` links, preserves the declared status, and names every replacing
+  record. It never commits or rewrites a shared artifact.
 - `docs/DECISIONS.md` is only the frozen pre-v3 landing page. Existing repos keep
   their detected ADR directory; new consumer projects default to
   `docs/decisions/`.
@@ -153,33 +157,75 @@ Rules:
   See the ownership-is-union-of-receipt-and-manifest decision.
 - `doctor` iterates the *detected* adapters for each runtime's wiring + doc health; Claude marketplace checks (`gh`, plugin cache, remote versions) apply only to an explicit marketplace install. Adapter inspection distinguishes `installed`, `wired`, `fired`, and `observed`. The `fired` postcondition executes the installed Node runner against an isolated fixture and reads back its canonical event; a zero exit without that event stays red. In the source repository, `doctor` delegates to the self-host receipt and current-source checks instead of applying consumer assumptions. See `docs/CODEX.md`.
 
-### Consumer active-program handoff
+### Consumer programme and session handoff
 
 Every generated `CLAUDE.md` or `AGENTS.md` carries the same conditional bootstrap: if
-`.void/active.md` exists with `status: executing`, the runtime reads its plan and spec before
-choosing implementation work. A plain continue/start/resume request recovers exactly one started
-scoped ticket, or selects the first ready ticket from the pointer's stable issue order and the
-tracker’s native blocker relations. The complete ticket is then executed through `void-implement`.
-More than one started scoped ticket is a competing-claim error, never an implicit selection.
+`.void/program.md` exists with `status: executing`, the runtime reads its plan and spec before
+choosing implementation work. `ResumeBundle` composes that versioned global context with the local
+checkpoint and Git. A plain continue/start/resume request uses the declared progress adapter to
+recover exactly one started scoped unit, or selects the first ready unit from the stable order and
+native blocker relations. More than one started unit is a competing-claim error.
 
-The pointer is opt-in and project-owned. `init`, `update`, and runtime adapters never create or
-mutate it. `void-ticket` creates it only after a human-approved multi-ticket plan has been fully
-materialized in a capable tracker. It stores immutable routing only: program, plan/spec links,
-provider scope, ordered ticket identifiers, lifecycle-state names, human gates, and the required
-`void-autopilot` consent block. Mutable status, assignee, blockers, resume comments, and PR/evidence
-links live only in the tracker.
+The programme is opt-in and project-owned. `init`, `update`, and runtime adapters never create or
+mutate it. `void-ticket` creates it only after a human-approved multi-unit plan has been fully
+materialized in a capable progress provider. It stores durable context and routing only: programme,
+plan/spec links, provider scope, ordered unit identifiers, lifecycle-state roles, human gates, and
+the required `autopilot` consent block. Mutable status, assignee, blockers, comments, and review
+evidence live only in the provider.
 
-`packages/cli/src/lib/autopilot/active-program.ts` is the only parser of that contract. It
+`packages/cli/src/lib/autopilot/program.ts` is the only parser of that contract. It
 validates every field on read and refuses a file that is present but wrong, rather than falling
 back to a default: a typo in `mergeGate` must never be what hands a merge to a machine. Paths
 declared in the file stay repo-relative and non-escaping, so a program cannot point at `/etc` with
 a YAML syntax.
 
-Automatic continuity is capability-gated rather than Linear-specific: the configured provider
+Automatic continuity is capability-gated rather than Linear-specific: the declared provider
 must support reading and updating status, relations, assignee, comments, and review evidence. If
-that surface is unavailable, the runtime stops instead of inferring progress from local files.
+that surface is unavailable, the runtime stops the remote action instead of inferring progress
+from local files. The semantic sections of `.void/machine/checkpoint.md` are replaced at a
+deliberate session close and stay readable offline; neither the checkpoint nor the programme stores
+a current or next unit.
 Human gates and merges remain human. A standalone ticket or sequential plan keeps using its normal
-ticket or resume-point flow and does not need an active pointer.
+ticket or resume-point flow and does not need a programme descriptor.
+
+### Mechanical context continuity
+
+The checkpoint is also the single local continuity file. A uniquely delimited mechanical block
+coexists with the semantic sections: `void-checkpoint` owns objective, position, proven state, open
+loops, dead ends, assumptions, and the exact next action; the lifecycle handler owns only observed
+usage, bounded read/modified paths, overflow, and revision/cycle facts. Every semantic rewrite must
+preserve that block byte-for-byte. There is no sidecar or reconciliation daemon.
+
+The dependency direction remains the normal one. `mission-engine` makes pure revision, recency,
+threshold, merge, and complete/degraded decisions. `hook-runner` normalizes Claude Code and Codex
+payloads, reads at most 1,048,576 transcript bytes, confines project paths, and replaces the block
+under a no-wait lock through a same-directory temporary file and rename. Runtime manifests only
+map `UserPromptSubmit`, `PostToolUse`, `PreCompact`, and `SessionStart` to that handler.
+The lock covers the complete read-modify-write decision. Stale takeover is serialized by a
+no-wait claim chain whose generations are created exclusively and never ranked by timestamps, and
+checkpoint mutation stays anchored to an opened, verified machine directory while relative
+no-follow files are read and renamed. Transcript reads use no-follow bounded descriptors. Codex
+transcripts remain project-local; Claude may also use its
+project-scoped transcript directory when the file name exactly matches a bounded session ID.
+Configuration reads are regular-file-only and capped at 65,536 bytes. Direct runtime read/write
+payloads contribute paths, while shell-mediated reads remain unobserved.
+
+The latest complete `message.usage` record is an occupation observation, not accumulated session
+cost. A nudge is possible only when `.void/config.json` supplies a positive `context.windowTokens`;
+the 40–60% integer threshold defaults to 50. Unknown windows produce no percentage. The handler
+never invokes `/clear`, `/compact`, or `void-checkpoint`, and never authors semantic residue.
+`SessionStart:clear` is consequently degraded until a later semantic checkpoint reconciles the
+revisions. A semantic rewrite invalidates the previous `sealed_work_revision`; only a successful
+`PreCompact` can seal the current work revision, so a failed seal cannot be rendered complete on
+the next compact resume. See the decision
+[PreCompact may preserve mechanical checkpoint state](decisions-log/2026-08-27-precompact-preserves-mechanical-checkpoint-state--da9bb0a9-9c5a-46df-9459-27a583e92af2.md).
+
+The continuity benchmark executes the exact delivered hook bundle in 25 fresh processes and keeps
+bare Node, same-bundle no-op, and representative-event measurements separate. DEV-651 gates only
+the hot wall path and incremental feature-versus-no-op CPU cost. It still publishes raw wall
+latencies, but external scheduler contention cannot make the causal feature gate flaky. The
+existing global cold-start and no-op-versus-Node wall budgets remain owned by
+[DEV-662](https://linear.app/voidcorp/issue/DEV-662/reduire-le-cold-start-du-hook-runner-livre).
 
 ### Source self-host boundary
 
@@ -848,7 +894,7 @@ the records carry the reasoning at each step.**
 
 | class | what it means | examples | git |
 | --- | --- | --- | --- |
-| `project` | the project authors it; the harness never overwrites it | `.void/config.json`, `.void/PROJECT-DOCTRINE.md`, `.void/active.md`, `.claude/settings.json` | tracked |
+| `project` | the project authors it; the harness never overwrites it | `.void/config.json`, `.void/PROJECT-DOCTRINE.md`, `.void/program.md`, `.claude/settings.json` | tracked |
 | `derived` | `void-harness init` re-materializes it from the harness assets | `.claude/skills/`, `.claude/agents/`, `.agents/skills/`, `.codex/agents/`, `.void/installed/PHILOSOPHY.md` | ignored, per receipt |
 | `observed` | this machine's history; meaningless in another checkout | `machine/runs/`, `machine/cache/`, `machine/receipts/`, `machine/status.json`, `machine/retired/*.jsonl` | never |
 

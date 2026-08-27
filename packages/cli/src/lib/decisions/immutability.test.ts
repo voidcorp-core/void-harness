@@ -1,10 +1,23 @@
+import {
+  mkdir,
+  mkdtemp,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { DecisionRecord } from './types.js';
 import {
   immutableDecisionIssues,
+  isMechanicalReferenceMigration,
   isSafeGitRef,
   parseGitNameStatus,
 } from './immutability.js';
+import type { DecisionRecord } from './types.js';
+
+async function tempRoot(): Promise<string> {
+  return mkdtemp(join(tmpdir(), 'void-decisions-immutability-'));
+}
 
 function record(
   id: string,
@@ -90,6 +103,21 @@ describe('immutableDecisionIssues', () => {
     ).toEqual([]);
   });
 
+  it('allows an accepted modification only after its reference migration was proven', () => {
+    const path = 'docs/decisions/a.md';
+    const base = new Map([
+      [path, record('adr:a', path, 'accepted')],
+    ]);
+
+    expect(
+      immutableDecisionIssues(
+        [{ kind: 'modified', before: path }],
+        base,
+        new Set([path]),
+      ),
+    ).toEqual([]);
+  });
+
   it('fails closed when an existing changed record cannot be parsed at the base', () => {
     expect(
       immutableDecisionIssues(
@@ -103,6 +131,119 @@ describe('immutableDecisionIssues', () => {
         message: 'could not prove the base decision status; immutability check fails closed',
       },
     ]);
+  });
+});
+
+describe('isMechanicalReferenceMigration', () => {
+  it('allows bounded local paths in prose, links and fenced commands', async () => {
+    const root = await tempRoot();
+    await mkdir(join(root, '.void'), { recursive: true });
+    await mkdir(join(root, 'docs', 'plans'), { recursive: true });
+    await mkdir(join(root, 'packages', 'core', 'skills', 'void-tdd'), { recursive: true });
+    await writeFile(join(root, '.void', 'program.md'), 'program\n', 'utf8');
+    await writeFile(join(root, 'docs', 'plans', 'current.md'), 'plan\n', 'utf8');
+
+    expect(isMechanicalReferenceMigration(
+      root,
+      'Use `plans/ACTIVE.md`.\n',
+      'Use `.void/program.md`.\n',
+    )).toBe(true);
+    expect(isMechanicalReferenceMigration(
+      root,
+      'Read the [plan](plans/old.md).\n',
+      'Read the [plan](docs/plans/current.md).\n',
+    )).toBe(true);
+    expect(isMechanicalReferenceMigration(
+      root,
+      '```\n$ npx skills-ref validate packages/core/skills/tdd\n```\n',
+      '```\n$ npx skills-ref validate packages/core/skills/void-tdd\n```\n',
+    )).toBe(true);
+  });
+
+  it('rejects prose, frontmatter, title and structure edits', async () => {
+    const root = await tempRoot();
+    await mkdir(join(root, '.void'), { recursive: true });
+    await writeFile(join(root, '.void', 'program.md'), 'program\n', 'utf8');
+
+    expect(isMechanicalReferenceMigration(
+      root,
+      'Use `plans/ACTIVE.md`.\n',
+      'Prefer `.void/program.md`.\n',
+    )).toBe(false);
+    expect(isMechanicalReferenceMigration(
+      root,
+      '---\ntitle: plans/ACTIVE.md\n---\n# Decision\n',
+      '---\ntitle: .void/program.md\n---\n# Decision\n',
+    )).toBe(false);
+    expect(isMechanicalReferenceMigration(
+      root,
+      '# plans/ACTIVE.md\n\nContext.\n',
+      '# .void/program.md\n\nContext.\n',
+    )).toBe(false);
+    expect(isMechanicalReferenceMigration(
+      root,
+      'Use `plans/ACTIVE.md`.\n',
+      'Use `.void/program.md` now.\n',
+    )).toBe(false);
+  });
+
+  it('rejects missing, escaping and symlinked targets', async () => {
+    const root = await tempRoot();
+    const outside = await tempRoot();
+    await mkdir(join(root, 'docs'), { recursive: true });
+    await mkdir(join(root, '.void', 'installed'), { recursive: true });
+    await mkdir(join(root, '.void', 'machine'), { recursive: true });
+    await writeFile(join(outside, 'outside.md'), 'outside\n', 'utf8');
+    await writeFile(join(root, '.void', 'installed', 'PHILOSOPHY.md'), 'doctrine\n', 'utf8');
+    await symlink(join(outside, 'outside.md'), join(root, 'docs', 'linked.md'));
+    await symlink(join(outside, 'missing'), join(root, '.void', 'machine', 'cache'));
+    await symlink(outside, join(root, '.void', 'machine', 'runs'));
+
+    expect(isMechanicalReferenceMigration(
+      root,
+      'Use `plans/ACTIVE.md`.\n',
+      'Use `docs/missing.md`.\n',
+    )).toBe(false);
+    expect(isMechanicalReferenceMigration(
+      root,
+      'Use `plans/ACTIVE.md`.\n',
+      'Use `../outside.md`.\n',
+    )).toBe(false);
+    expect(isMechanicalReferenceMigration(
+      root,
+      'Use `plans/ACTIVE.md`.\n',
+      'Use `docs/linked.md`.\n',
+    )).toBe(false);
+    expect(isMechanicalReferenceMigration(
+      root,
+      'Inspect `.void/local/runs/missing.json`.\n',
+      'Inspect `.void/machine/runs/missing.json`.\n',
+    )).toBe(false);
+    expect(isMechanicalReferenceMigration(
+      root,
+      'Inspect `.void/local/cache/missing.json`.\n',
+      'Inspect `.void/machine/cache/missing.json`.\n',
+    )).toBe(false);
+    expect(isMechanicalReferenceMigration(
+      root,
+      'Read `.void/PHILOSOPHY.md/child`.\n',
+      'Read `.void/installed/PHILOSOPHY.md/child`.\n',
+    )).toBe(false);
+  });
+
+  it('allows declared runtime targets that a fresh checkout has not materialized', async () => {
+    const root = await tempRoot();
+
+    expect(isMechanicalReferenceMigration(
+      root,
+      'Read `.void/PHILOSOPHY.md`.\n',
+      'Read `.void/installed/PHILOSOPHY.md`.\n',
+    )).toBe(true);
+    expect(isMechanicalReferenceMigration(
+      root,
+      'Inspect `.void/local/runs/`.\n',
+      'Inspect `.void/machine/runs/`.\n',
+    )).toBe(true);
   });
 });
 

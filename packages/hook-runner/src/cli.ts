@@ -1,3 +1,4 @@
+import { governingSkill, RULE_NAMES, withGoverningSkill } from './enforcement/governing-skill.js';
 import {
   discoverProjectRoot,
   evaluateRule,
@@ -6,16 +7,19 @@ import {
   parseHookText,
   type RuleName,
 } from './enforcement/runner.js';
-import { governingSkill, RULE_NAMES, withGoverningSkill } from './enforcement/governing-skill.js';
-import { cachedInvocationAlert, refreshInvocationVerdict } from './invocation.js';
-import { sessionStartOutput } from './lifecycle/context.js';
-import { resolveInstall } from './lifecycle/context-executor.js';
 import { readFreshnessCache } from './freshness/cache.js';
 import { compareFreshness } from './freshness/compare.js';
 import { freshnessNotice, resolveFreshness } from './freshness/notice.js';
-import type { LifecycleExecution } from './lifecycle/executor-shared.js';
+import { cachedInvocationAlert, refreshInvocationVerdict } from './invocation.js';
+import { auditCheckpoint } from './lifecycle/checkpoint-audit.js';
+import { sessionStartOutput } from './lifecycle/context.js';
+import { executeContextContinuity } from './lifecycle/context-continuity-executor.js';
+import { resolveInstall } from './lifecycle/context-executor.js';
+import { type LifecycleExecution, record } from './lifecycle/executor-shared.js';
 import { executeFormat } from './lifecycle/format-executor.js';
 import { executeLargeChange } from './lifecycle/large-change-executor.js';
+import { observeResume } from './lifecycle/resume-observer.js';
+import { checkpointReminderOutput } from './lifecycle/session-close-intent.js';
 import { executeTrim } from './lifecycle/trim-executor.js';
 import { executeTypecheck } from './lifecycle/typecheck-executor.js';
 import {
@@ -132,8 +136,17 @@ async function runLifecycle(input: Uint8Array): Promise<void> {
   const agentRuntime = runtime(process.argv[4] ?? process.env['VOID_AGENT_RUNTIME']);
   const root = projectRoot();
   const rawInput = optionalPayload(input);
-  if (hook === 'context') {
-    const execution: LifecycleExecution = { status: 'ok', details: {} };
+  if (hook === 'context' || hook === 'context-continuity') {
+    const inputRecord = record(rawInput);
+    const event = inputRecord?.['hook_event_name'];
+    if (hook === 'context-continuity' && event !== 'SessionStart') {
+      const execution = executeContextContinuity(rawInput ?? {}, root, agentRuntime, Date.now());
+      if (execution.output !== undefined) {
+        process.stdout.write(`${JSON.stringify(execution.output)}\n`);
+      }
+      await observeHook(hook, execution, rawInput ?? {}, agentRuntime, root);
+      return;
+    }
     const install = resolveInstall(root, process.env);
     // Read the cache only: session start must never wait on a network round-trip.
     // The refresh below happens after stdout is written, so a slow or dead registry
@@ -149,7 +162,21 @@ async function runLifecycle(input: Uint8Array): Promise<void> {
     // start must not wait on an answer that can be one session old without
     // anyone being worse off. The recompute happens below, after stdout.
     const alert = cachedInvocationAlert(root);
-    process.stdout.write(`${JSON.stringify(sessionStartOutput(install.version, notice, alert))}\n`);
+    if (event === 'SessionStart' || hook === 'context') {
+      const source = inputRecord?.['source'];
+      const resume = observeResume(root, Date.now(), {
+        ...(source === 'startup' || source === 'resume' || source === 'clear'
+          || source === 'compact' || source === 'fork'
+          ? { source }
+          : {}),
+      });
+      process.stdout.write(
+        `${JSON.stringify(sessionStartOutput(install.version, notice, alert, resume.context))}\n`,
+      );
+    }
+    const execution = hook === 'context-continuity'
+      ? executeContextContinuity(rawInput ?? {}, root, agentRuntime, Date.now())
+      : { status: 'ok', details: {} } satisfies LifecycleExecution;
     await refreshFreshnessInBackground(install.version);
     refreshInvocationVerdict(root);
     await observeHook(hook, execution, rawInput ?? {}, agentRuntime, root);
@@ -163,6 +190,41 @@ async function runLifecycle(input: Uint8Array): Promise<void> {
       agentRuntime,
       root,
     );
+    return;
+  }
+  if (hook === 'checkpoint-reminder') {
+    const prompt = record(rawInput)?.['prompt'];
+    const output = typeof prompt === 'string' ? checkpointReminderOutput(prompt) : undefined;
+    const execution: LifecycleExecution = {
+      status: output === undefined ? 'skipped' : 'ok',
+      details: { reminded: output !== undefined },
+    };
+    if (output !== undefined) process.stdout.write(`${JSON.stringify(output)}\n`);
+    await observeHook(hook, execution, rawInput, agentRuntime, root);
+    return;
+  }
+  if (hook === 'checkpoint-audit') {
+    const now = Date.now();
+    const observed = observeResume(root, now);
+    const audit = auditCheckpoint({
+      now,
+      checkpoint: observed.bundle.checkpoint,
+      ...(observed.checkpointWrittenAt === undefined
+        ? {}
+        : { checkpointWrittenAt: observed.checkpointWrittenAt }),
+      git: observed.bundle.git,
+    });
+    const execution: LifecycleExecution = {
+      status: audit.status,
+      details: { reasons: [...audit.reasons] },
+      ...(audit.reasons.length === 0
+        ? {}
+        : {
+            diagnostic: `void-harness SessionEnd audit: ${audit.reasons.join(', ')}\n`,
+          }),
+    };
+    if (execution.diagnostic !== undefined) process.stderr.write(execution.diagnostic);
+    await observeHook(hook, execution, rawInput, agentRuntime, root);
     return;
   }
   const execution = hook === 'format'
