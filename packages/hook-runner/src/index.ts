@@ -33,6 +33,7 @@ export {
   isMachineEntry,
   legacyVoidPath,
   patchGitignore,
+  stripManagedBlock,
   pendingMigrations,
   previousMachinePath,
   voidDir,

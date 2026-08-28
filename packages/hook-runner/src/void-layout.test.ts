@@ -391,6 +391,15 @@ describe('taking the block back out of a project .gitignore', () => {
     expect(rules).toContain('node_modules');
   });
 
+  it('leaves no blank first line when the block stood at the top of the file', () => {
+    // `init` on a project with no .gitignore writes the block and nothing else,
+    // so a later rule lands under it. Removing the block from the top must not
+    // leave the file opening on an empty line.
+    const topBlock = `${gitignoreBlock()}\ncoverage/\n`;
+
+    expect(stripManagedBlock(topBlock)).toBe('coverage/\n');
+  });
+
   it('collapses the hole it leaves rather than stacking blank lines', () => {
     expect(stripManagedBlock(patchGitignore('node_modules\n'))).not.toMatch(/\n{3}/);
   });
