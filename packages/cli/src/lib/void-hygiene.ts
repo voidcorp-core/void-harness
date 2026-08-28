@@ -27,6 +27,25 @@ export interface ManifestObservation {
   readonly coEdited?: number;
 }
 
+/**
+ * What `.void/machine/receipts/install-v1.json` claims this machine wrote.
+ *
+ * The receipt and the install manifest record the same event, but only one of
+ * them is tracked. The manifest is, so git can revert it; the receipt sits under
+ * the ignored `.void/machine/` and cannot be reverted with the working tree.
+ * That makes it the only witness left when the installed assets are rolled back
+ * underneath the harness, which is why it is observed separately.
+ */
+export interface ReceiptObservation {
+  /** Absent, unreadable, or the version it names. */
+  readonly kind: 'absent' | 'unreadable' | 'present';
+  readonly version?: string;
+  /** Receipt-owned paths that are not on disk, sampled for the message. */
+  readonly missing?: readonly string[];
+  /** How many are missing in total; `missing` may carry only the first few. */
+  readonly missingTotal?: number;
+}
+
 export interface LayoutObservation {
   /** Observed artifacts still sitting at the pre-split location. */
   readonly pending: readonly string[];
@@ -44,6 +63,8 @@ export interface LayoutObservation {
   readonly trackedObserved: readonly string[];
   /** What `.void/install-manifest.json` says about this project, if anything. */
   readonly manifest: ManifestObservation;
+  /** What the local install receipt claims it wrote, if anything. */
+  readonly receipt: ReceiptObservation;
   /** How many ignorable derived files git still tracks (regenerated content). */
   readonly trackedDerivedCount: number;
   /**
