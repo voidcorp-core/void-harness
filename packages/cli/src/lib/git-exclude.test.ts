@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -26,6 +26,11 @@ function repo(): string {
   return root;
 }
 
+// macOS puts temp directories under a /var symlink and git answers with the real
+// path, so the two are compared resolved rather than as written.
+const real = (path: string | undefined): string | undefined =>
+  path === undefined ? undefined : realpathSync(path);
+
 const ignored = (root: string, path: string): boolean =>
   spawnSync('git', ['check-ignore', '-q', path], { cwd: root }).status === 0;
 
@@ -39,7 +44,7 @@ describe('locating the exclude file', () => {
   it('finds it in an ordinary repository', () => {
     const root = repo();
 
-    expect(excludeFilePath(root)).toBe(join(root, '.git', 'info', 'exclude'));
+    expect(real(excludeFilePath(root))).toBe(real(join(root, '.git', 'info', 'exclude')));
   });
 
   // The one that matters here. In a linked worktree `.git` is a FILE pointing at
@@ -52,7 +57,7 @@ describe('locating the exclude file', () => {
     const linked = join(scratch('void-exclude-wt-'), 'checkout');
     spawnSync('git', ['worktree', 'add', '-q', linked, '-b', 'wt'], { cwd: root });
 
-    expect(excludeFilePath(linked)).toBe(join(root, '.git', 'info', 'exclude'));
+    expect(real(excludeFilePath(linked))).toBe(real(join(root, '.git', 'info', 'exclude')));
   });
 
   it('reports nothing for a directory git does not track', () => {
