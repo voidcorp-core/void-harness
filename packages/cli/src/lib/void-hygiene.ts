@@ -185,6 +185,55 @@ function manifestCheck(observation: LayoutObservation): CheckResult {
   );
 }
 
+/**
+ * Does the disk still hold what the install said it wrote?
+ *
+ * The manifest cannot answer this. It is tracked, so whatever reverts the assets
+ * usually reverts the manifest with them, and the two then agree on a version
+ * the project no longer runs. The receipt is not tracked, so it survives, and
+ * the disagreement between the two is the only thing left that knows.
+ */
+function receiptCheck(observation: LayoutObservation): CheckResult {
+  const name = 'void receipt';
+  const receipt = observation.receipt;
+  if (receipt.kind === 'absent') {
+    // A marketplace install records nothing locally, and a project can run fine
+    // without a receipt. It just cannot prove its assets are the ones installed.
+    return {
+      name,
+      ok: true,
+      status: 'advisory',
+      message: 'no install receipt — nothing records which assets this machine wrote',
+      fix: 'void-harness update writes one; a marketplace install records none',
+    };
+  }
+  if (receipt.kind === 'unreadable') {
+    return unknown(name, 'the install receipt is present but not readable', 'void-harness update rewrites it');
+  }
+  const version = receipt.version ?? 'unknown';
+  const missingTotal = receipt.missingTotal ?? 0;
+  const fix = `npx voidharness@${version} update — it rewrites every recorded asset`;
+  if (missingTotal === 0) return pass(name, `every file receipt ${version} recorded is on disk`);
+  const example = receipt.missing?.[0];
+  const shown = example === undefined ? '' : `, for example ${example}`;
+  const manifest = observation.manifest;
+  // Only when the two records name different versions is "rolled back" a claim
+  // rather than a guess: the receipt moved forward and the manifest did not, and
+  // a tracked file cannot move backwards on its own.
+  const rolledBack = manifest.kind === 'present'
+    && manifest.version !== undefined
+    && manifest.version !== version;
+  if (rolledBack) {
+    return fail(
+      name,
+      `receipt ${version} records ${String(missingTotal)} file(s) that are gone while the manifest says ${manifest.version ?? 'unknown'}`
+      + `: the installed assets were rolled back after the update${shown}`,
+      fix,
+    );
+  }
+  return fail(name, `receipt ${version} records ${String(missingTotal)} file(s) that are not on disk${shown}`, fix);
+}
+
 function derivedCheck(observation: LayoutObservation): CheckResult {
   const name = 'void derived';
   if (observation.trackedDerivedCount === 0) return pass(name, 'no regenerated content in the index');
@@ -237,6 +286,10 @@ export function judgeLayout(observation: LayoutObservation): readonly CheckResul
     orphanCheck(observation),
     trackedCheck(observation),
     manifestCheck(observation),
+    // After the manifest, deliberately: when the assets were rolled back the
+    // manifest reads green, and the reader needs the two lines side by side to
+    // see that the green one is answering about the wrong version.
+    receiptCheck(observation),
     derivedCheck(observation),
   ]);
 }
