@@ -22,7 +22,7 @@ humanGates:
   - DEV-623
 autopilot:
   schemaVersion: 1
-  enabled: false
+  enabled: true
   clusterSize: 4
   base: develop
   mergeGate: human
