@@ -157,6 +157,45 @@ Rules:
   See the ownership-is-union-of-receipt-and-manifest decision.
 - `doctor` iterates the *detected* adapters for each runtime's wiring + doc health; Claude marketplace checks (`gh`, plugin cache, remote versions) apply only to an explicit marketplace install. Adapter inspection distinguishes `installed`, `wired`, `fired`, and `observed`. The `fired` postcondition executes the installed Node runner against an isolated fixture and reads back its canonical event; a zero exit without that event stays red. In the source repository, `doctor` delegates to the self-host receipt and current-source checks instead of applying consumer assumptions. See `docs/CODEX.md`.
 
+### Capability, not lowest common denominator
+
+Parity settles *what* is installed. It does not settle *how* a pass runs when the
+runtimes differ in what they can do, and they do. Measured against the official
+documentation of each:
+
+| | Claude Code | Codex |
+|---|---|---|
+| parallel subagents | 20 concurrent | 6 (`agents.max_concurrent_threads_per_session`) |
+| agent to agent | `SendMessage` + sibling roster; agent teams add a shared task list | none — "subagents don't directly communicate with each other" |
+| availability | teams are experimental, off unless `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` | native |
+
+**A pass declares the capability it wants; each adapter takes the maximum its
+runtime offers; a runtime that lacks it degrades rather than blocks.** A review
+wanting N independent adversarial lenses becomes a debate between teammates on
+Claude, successive arbitrated fan-out rounds on Codex, and one lens at a time on
+a runtime nobody has written an adapter for yet — slower, still correct.
+
+Levelling every pass to the intersection would be the tempting mistake: it caps
+quality at the weakest supported runtime forever, and each new runtime can only
+lower the ceiling. Designing to the strongest makes the harness single-runtime in
+practice while claiming otherwise. Both are rejected in the
+adapters-take-each-runtime-maximum decision.
+
+Three rules keep the degradation honest:
+
+- **The output contract does not vary with the runtime.** Only the execution
+  does. Without that, certification could no longer tell a degraded run from a
+  failed one, and two projects on two runtimes could not be compared.
+- **The result names the execution that actually ran.** A fan-out reported as a
+  debate is a claim about evidence that does not exist. Same rule as everywhere
+  here: the proof, not the memory.
+- **Capability is detected, never inferred from the runtime name.** Agent teams
+  are off by default, so a Claude session may legitimately have to fall back, and
+  branching on the name would report a capability the session does not have.
+
+The declaration lives in the mission plan, so no core command learns a runtime
+name — the same seam that already holds for `init`, `doctor` and `status`.
+
 ### Consumer programme and session handoff
 
 Every generated `CLAUDE.md` or `AGENTS.md` carries the same conditional bootstrap: if
