@@ -18,6 +18,7 @@ import {
   legacyVoidPath,
   ownershipOf,
   patchGitignore,
+  stripManagedBlock,
   pendingMigrations,
   voidMachinePath,
   voidReadPath,
@@ -355,6 +356,53 @@ describe('the ignore rule', () => {
 
   it('ends with a newline, so the next appended rule is not glued to ours', () => {
     expect(patchGitignore('node_modules\n').endsWith('\n')).toBe(true);
+  });
+});
+
+// The rules move to `.git/info/exclude`, which no checkout can revert, so every
+// existing install has to have the block taken back out of its `.gitignore`.
+// Leaving both would be worse than either: two sources of the same rules, one of
+// which still disappears when you switch branches.
+describe('taking the block back out of a project .gitignore', () => {
+  it('removes the managed block and leaves every project rule standing', () => {
+    const stripped = stripManagedBlock(patchGitignore('node_modules\ndist/\n.env\n'));
+
+    expect(stripped).not.toContain('void-harness:begin');
+    expect(stripped).not.toContain('.void/machine/');
+    for (const rule of ['node_modules', 'dist/', '.env']) expect(stripped).toContain(rule);
+  });
+
+  it('returns a file that never had the block byte for byte', () => {
+    // Migration runs on every update, including the ones that have nothing to
+    // migrate. Rewriting an untouched file would show a diff the project did not
+    // ask for, in a command it did not run for that.
+    const original = 'node_modules\ndist/\n';
+
+    expect(stripManagedBlock(original)).toBe(original);
+  });
+
+  it('leaves a project rule written after the block reachable', () => {
+    // Removing a block by cutting between markers can swallow the newline that
+    // separated it from what follows, gluing two rules into one nonsense line.
+    const withTrailing = `${patchGitignore('node_modules\n')}coverage/\n`;
+    const rules = stripManagedBlock(withTrailing).split('\n');
+
+    expect(rules).toContain('coverage/');
+    expect(rules).toContain('node_modules');
+  });
+
+  it('collapses the hole it leaves rather than stacking blank lines', () => {
+    expect(stripManagedBlock(patchGitignore('node_modules\n'))).not.toMatch(/\n{3}/);
+  });
+
+  it('ends with a newline whenever anything is left', () => {
+    expect(stripManagedBlock(patchGitignore('node_modules\n')).endsWith('\n')).toBe(true);
+  });
+
+  it('yields an empty file when the block was all there was', () => {
+    // A project whose only ignore rules came from the harness ends up with an
+    // empty .gitignore, not a file holding one stray blank line.
+    expect(stripManagedBlock(patchGitignore(''))).toBe('');
   });
 });
 
