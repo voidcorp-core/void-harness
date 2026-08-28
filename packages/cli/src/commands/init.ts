@@ -18,13 +18,13 @@ import { existsSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { derivedIgnoreEntries, patchGitignore } from '@voidcorp/hook-runner';
+import { stripManagedBlock } from '@voidcorp/hook-runner';
+import { writeExcludeBlock } from '../lib/git-exclude.js';
 import * as p from '@clack/prompts';
 import {
   prepareInstallCommit,
   seedInstallStage,
   stageInstallManifest,
-  stagedRelativePaths,
   withholdProjectOwned,
 } from '../lib/local-install.js';
 import { type PackConfig, resolveEffectivePin } from '../lib/pack-config.js';
@@ -341,7 +341,7 @@ export async function init(args: readonly string[]): Promise<void> {
     // Before the manifest, the ignore block and the transaction: what the project
     // already owns leaves the stage, so nothing downstream claims it.
     const keptByProject = await withholdProjectOwned(projectRoot, stageRoot);
-    await ensureGitignoreBlock(stageRoot, derivedIgnoreEntries(await stagedRelativePaths(stageRoot)));
+    await ensureIgnoreRules(projectRoot, stageRoot);
 
     // The committed record of exactly what this install materialized, so any
     // other checkout can restore the same bytes and PROVE it did. Written last,
@@ -530,23 +530,42 @@ async function writeConfig(
 }
 
 /**
- * Add or refresh the managed `.gitignore` block, preserving every rule the
- * project wrote itself. Idempotent, and reports "unchanged" rather than claiming
- * a write it did not make.
+ * Declare what git should not see, and take the old declaration back out.
+ *
+ * The rules go to the repository's exclude file, which no commit contains and no
+ * checkout can therefore revert. They used to live in a marked block inside the
+ * project's `.gitignore`; that file is tracked, so the protection was
+ * branch-dependent while the assets it protects are not, and switching to a
+ * branch cut before the install left the whole harness exposed to the next
+ * `git clean`.
+ *
+ * The exclude is written against the PROJECT root, not the stage: it is git
+ * metadata living outside the mirror the transaction publishes, it is per-clone,
+ * and it is therefore recorded in no manifest -- there is nothing for another
+ * checkout to restore, since each one writes its own.
+ *
+ * The `.gitignore` is edited in the STAGE, so removing the old block travels
+ * through the same transaction as everything else and rolls back with it.
  */
-async function ensureGitignoreBlock(projectRoot: string, derivedEntries: readonly string[]): Promise<void> {
-  const path = join(projectRoot, '.gitignore');
-  const original = existsSync(path) ? await readFile(path, 'utf8') : '';
-  const patched = patchGitignore(original);
-  if (patched === original) {
-    line(`${c.dim(glyph.dot)}  ${c.dim('.gitignore'.padEnd(18))}${c.dim('block already current')}`);
-    return;
-  }
-  await writeFile(path, patched);
-  line(
-    `${c.green(glyph.check)}  ${c.dim('.gitignore'.padEnd(18))}`
-    + `${original === '' ? 'created' : 'block written'} (.void/machine/ and .void/installed/ ignored, the rest of .void/ tracked)`,
-  );
+async function ensureIgnoreRules(projectRoot: string, stageRoot: string): Promise<void> {
+  const outcome = writeExcludeBlock(projectRoot);
+  const label = outcome === 'skipped'
+    ? c.dim('not a git repository, nothing to hide from it')
+    : outcome === 'unchanged'
+      ? c.dim('rules already current')
+      : 'rules written (.void/machine/ and .void/installed/ ignored, the rest of .void/ tracked)';
+  const mark = outcome === 'written' ? c.green(glyph.check) : c.dim(glyph.dot);
+  line(`${mark}  ${c.dim('git exclude'.padEnd(18))}${label}`);
+
+  // Only when the project has one. Creating an empty `.gitignore` to hold
+  // nothing of ours would be a file the project never asked for.
+  const path = join(stageRoot, '.gitignore');
+  if (!existsSync(path)) return;
+  const original = await readFile(path, 'utf8');
+  const stripped = stripManagedBlock(original);
+  if (stripped === original) return;
+  await writeFile(path, stripped);
+  line(`${c.green(glyph.check)}  ${c.dim('.gitignore'.padEnd(18))}managed block removed — the file is the project's again`);
 }
 
 /**
