@@ -29,6 +29,47 @@ await mkdir(dirname(TARGET), { recursive: true });
 //  - core/graph/ (the ~1.9MB void-graph.mjs bundle): the npm CLI ships the small state-input JSON
 //    (data/, below) that `status` needs, not the heavy studio bundle; the marketplace channel still
 //    ships packages/core directly for the live graph studio.
+// What `packages/core/` is allowed to put in the published tarball, and why.
+//
+// The copy below is recursive, so without this list anything dropped into
+// packages/core/ ships to every consumer from that moment on, read or not, and
+// nothing ever asks whether it should. That is how `workflows/` survived: two
+// dead YAML descriptors whose only remaining reference was a test asserting the
+// skill must NOT route through one of them.
+//
+// The list says what ships, not what is read -- a declared entry everybody
+// forgot still ships. It narrows the class rather than closing it, which is
+// worth stating rather than pretending. See the shipped-core-surface-is-declared
+// decision.
+const SHIPPED = new Map([
+  ['PHILOSOPHY.md', 'the universal doctrine, read from the package'],
+  ['PROJECT-DOCTRINE.template.md', 'seeds .void/PROJECT-DOCTRINE.md once at init'],
+  ['adapters', 'security scanner manifests'],
+  ['agents', 'the specialist agent definitions each runtime stages'],
+  ['codex', 'the Codex safety floor (hooks.json)'],
+  ['data', 'the state-input JSON `status` scores against'],
+  ['enforce', 'the enforcement floor configuration'],
+  ['graph', 'excluded from the copy below; declared so its absence is deliberate'],
+  ['hooks', 'the runtime hook bundle a consumer executes'],
+  ['modules', 'extension point `install --global` copies when present'],
+  ['policies', 'the routing policies the mission engine merges'],
+  ['profiles', 'stack profiles compiled into a project'],
+  ['skills', 'the skills themselves'],
+  ['specialists', 'native specialist contracts per runtime'],
+  ['templates', 'the GitHub workflow a project can adopt'],
+]);
+
+const present = await readdir(SOURCE);
+const undeclared = present.filter((entry) => !SHIPPED.has(entry) && !entry.startsWith('.'));
+if (undeclared.length > 0) {
+  console.error(
+    `copy-core-assets: ${undeclared.join(', ')} would ship to every consumer, undeclared.\n`
+    + '  Add it to SHIPPED with the reason it ships, or delete it. A published\n'
+    + '  tarball is not the place to find out something was never read.',
+  );
+  process.exit(1);
+}
+
 const GRAPH_DIR = join(SOURCE, 'graph');
 await cp(SOURCE, TARGET, {
   recursive: true,
