@@ -88,7 +88,9 @@ Without it no transition is planned — the CLI never guesses what your board ca
 a state. ticketStates maps a ticket id to its observed state, so a write that
 would change nothing is skipped rather than sent.
 
-Merging is a human gate: there is no --auto-merge.
+There is no --auto-merge flag. A machine merge is declared once in the program
+(autopilot.mergeGate: union-reviewed, plus deployBranch), and is granted only for
+a target that does not deploy and a union review that came back clean.
 `.trimStart();
 
 function ok(stdout: string): AutopilotCommandResult {
@@ -476,13 +478,15 @@ export function runAutopilotCommand(
 
   try {
     if (argv.includes('--auto-merge')) {
-      // Refused on every path, not just one: the merge gate is the human
-      // contract of the whole feature, so the flag must never quietly appear.
+      // Still refused on every path, and the capability existing now is why it
+      // matters more, not less. Consent to a machine merge is a durable
+      // declaration in the program -- same reasoning as `autopilot.enabled` --
+      // never a switch someone can put on one invocation and forget.
       throw autopilotFailure(
         'AUTOPILOT_USAGE',
         'autopilot does not accept --auto-merge',
-        'merging the integration PR is a human gate of the autopilot contract',
-        'drop --auto-merge and merge the PR yourself once its checks are green',
+        'granting a merge is declared in the program, not passed to a run',
+        'set `autopilot.mergeGate: union-reviewed` with a `deployBranch` in the program; the grant then needs a clean union review too',
       );
     }
     if (argv.includes('--help') || argv.includes('-h')) return ok(USAGE);
