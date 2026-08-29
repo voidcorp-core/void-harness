@@ -73,3 +73,26 @@ export function freshnessNotice(freshness: Freshness, source: InstallSource | un
   const { installed, latest } = freshness;
   return `void-harness ${installed} is installed; ${latest ?? 'a newer version'} is published. Run \`void-harness update\` to upgrade.`;
 }
+
+/**
+ * The same fact, worded for the one surface that can reach a person.
+ *
+ * A SessionStart hook cannot write to the user: `additionalContext` is read by
+ * the model alone, `systemMessage` is discarded for that event, and
+ * `terminalSequence` carries escape codes rather than prose. The agent's reply is
+ * the only channel left, so the line asks for the relay instead of assuming it.
+ *
+ * Bounded to once per session on purpose. A standing notice repeated every turn
+ * is how a real one stops being read.
+ *
+ * Silence follows exactly the same rules as `freshnessNotice`, marketplace and
+ * unknown sources included -- naming a command that cannot update that install
+ * would be confidently wrong however it is worded.
+ */
+export function freshnessRelay(freshness: Freshness, source: InstallSource | undefined): string | undefined {
+  if (freshness.verdict !== 'behind' || source !== 'local') return undefined;
+  const { installed, latest } = freshness;
+  return `A newer harness is published: ${installed} is installed, ${latest ?? 'a newer version'} is available. `
+    + 'Tell the user this once, near the start of your first reply, and name the command that installs it: '
+    + '`void-harness update`. Do not repeat it later in the session.';
+}

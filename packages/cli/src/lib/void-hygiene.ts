@@ -27,6 +27,25 @@ export interface ManifestObservation {
   readonly coEdited?: number;
 }
 
+/**
+ * What `.void/machine/receipts/install-v1.json` claims this machine wrote.
+ *
+ * The receipt and the install manifest record the same event, but only one of
+ * them is tracked. The manifest is, so git can revert it; the receipt sits under
+ * the ignored `.void/machine/` and cannot be reverted with the working tree.
+ * That makes it the only witness left when the installed assets are rolled back
+ * underneath the harness, which is why it is observed separately.
+ */
+export interface ReceiptObservation {
+  /** Absent, unreadable, or the version it names. */
+  readonly kind: 'absent' | 'unreadable' | 'present';
+  readonly version?: string;
+  /** Receipt-owned paths that are not on disk, sampled for the message. */
+  readonly missing?: readonly string[];
+  /** How many are missing in total; `missing` may carry only the first few. */
+  readonly missingTotal?: number;
+}
+
 export interface LayoutObservation {
   /** Observed artifacts still sitting at the pre-split location. */
   readonly pending: readonly string[];
@@ -44,6 +63,8 @@ export interface LayoutObservation {
   readonly trackedObserved: readonly string[];
   /** What `.void/install-manifest.json` says about this project, if anything. */
   readonly manifest: ManifestObservation;
+  /** What the local install receipt claims it wrote, if anything. */
+  readonly receipt: ReceiptObservation;
   /** How many ignorable derived files git still tracks (regenerated content). */
   readonly trackedDerivedCount: number;
   /**
@@ -164,6 +185,55 @@ function manifestCheck(observation: LayoutObservation): CheckResult {
   );
 }
 
+/**
+ * Does the disk still hold what the install said it wrote?
+ *
+ * The manifest cannot answer this. It is tracked, so whatever reverts the assets
+ * usually reverts the manifest with them, and the two then agree on a version
+ * the project no longer runs. The receipt is not tracked, so it survives, and
+ * the disagreement between the two is the only thing left that knows.
+ */
+function receiptCheck(observation: LayoutObservation): CheckResult {
+  const name = 'void receipt';
+  const receipt = observation.receipt;
+  if (receipt.kind === 'absent') {
+    // A marketplace install records nothing locally, and a project can run fine
+    // without a receipt. It just cannot prove its assets are the ones installed.
+    return {
+      name,
+      ok: true,
+      status: 'advisory',
+      message: 'no install receipt — nothing records which assets this machine wrote',
+      fix: 'void-harness update writes one; a marketplace install records none',
+    };
+  }
+  if (receipt.kind === 'unreadable') {
+    return unknown(name, 'the install receipt is present but not readable', 'void-harness update rewrites it');
+  }
+  const version = receipt.version ?? 'unknown';
+  const missingTotal = receipt.missingTotal ?? 0;
+  const fix = `npx voidharness@${version} update — it rewrites every recorded asset`;
+  if (missingTotal === 0) return pass(name, `every file receipt ${version} recorded is on disk`);
+  const example = receipt.missing?.[0];
+  const shown = example === undefined ? '' : `, for example ${example}`;
+  const manifest = observation.manifest;
+  // Only when the two records name different versions is "rolled back" a claim
+  // rather than a guess: the receipt moved forward and the manifest did not, and
+  // a tracked file cannot move backwards on its own.
+  const rolledBack = manifest.kind === 'present'
+    && manifest.version !== undefined
+    && manifest.version !== version;
+  if (rolledBack) {
+    return fail(
+      name,
+      `receipt ${version} records ${String(missingTotal)} file(s) that are gone while the manifest says ${manifest.version ?? 'unknown'}`
+      + `: the installed assets were rolled back after the update${shown}`,
+      fix,
+    );
+  }
+  return fail(name, `receipt ${version} records ${String(missingTotal)} file(s) that are not on disk${shown}`, fix);
+}
+
 function derivedCheck(observation: LayoutObservation): CheckResult {
   const name = 'void derived';
   if (observation.trackedDerivedCount === 0) return pass(name, 'no regenerated content in the index');
@@ -216,6 +286,10 @@ export function judgeLayout(observation: LayoutObservation): readonly CheckResul
     orphanCheck(observation),
     trackedCheck(observation),
     manifestCheck(observation),
+    // After the manifest, deliberately: when the assets were rolled back the
+    // manifest reads green, and the reader needs the two lines side by side to
+    // see that the green one is answering about the wrong version.
+    receiptCheck(observation),
     derivedCheck(observation),
   ]);
 }

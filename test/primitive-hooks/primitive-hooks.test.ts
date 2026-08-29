@@ -6,17 +6,17 @@
  *                              covers post-compaction via source=compact)
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdtempSync,
-  readFileSync,
   readdirSync,
+  readFileSync,
   rmSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 const H = (n: string) => resolve(process.cwd(), `packages/core/hooks/${n}`);
 
@@ -118,11 +118,20 @@ describe('activation-meter.sh', () => {
 
 describe('context-injecting hooks', () => {
   it('sessionstart emits SessionStart additionalContext JSON', () => {
-    const r = run('sessionstart-context.sh', '{}');
-    expect(r.code).toBe(0);
-    const out = JSON.parse(r.stdout);
-    expect(out.hookSpecificOutput.hookEventName).toBe('SessionStart');
-    expect(out.hookSpecificOutput.additionalContext).toContain('floor');
+    const root = mkdtempSync(join(tmpdir(), 'void-sessionstart-'));
+    try {
+      const r = run(
+        'sessionstart-context.sh',
+        '{"hook_event_name":"SessionStart","source":"startup"}',
+        { CLAUDE_PROJECT_DIR: root, VOID_GLOBAL_DIR: join(root, '.void', 'global') },
+      );
+      expect(r.code).toBe(0);
+      const out = JSON.parse(r.stdout);
+      expect(out.hookSpecificOutput.hookEventName).toBe('SessionStart');
+      expect(out.hookSpecificOutput.additionalContext).toContain('floor');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
 });

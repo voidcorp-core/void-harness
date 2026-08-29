@@ -6,6 +6,9 @@ import { basename, extname, join, relative, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import {
   createSpecialistDispatch,
+  planLensExecution,
+  type LensPlan,
+  type OrchestrationCapability,
   compileMissionPlan,
   classifyRisk,
   mergePolicies,
@@ -23,6 +26,7 @@ import {
 } from '@voidcorp/mission-engine';
 import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
 import { findCoreSource } from '../lib/paths.js';
+import { observeOrchestrationCapability } from '../lib/orchestration-capability.js';
 import { specialistCapabilityFor } from '../lib/runtime-adapters.js';
 import { loadProjectPolicies } from '../lib/policy-loader.js';
 import { loadProfiles } from '../lib/profile-loader.js';
@@ -642,12 +646,20 @@ export async function dispatchMissionSpecialists(
   input: Extract<MissionArgs, { readonly kind: 'dispatch' }>,
   generatedAt = new Date().toISOString(),
   capabilityOverride?: SpecialistRuntimeCapability,
+  orchestrationOverride?: OrchestrationCapability,
 ): Promise<{
   readonly planHash: string;
   readonly phase: string;
   readonly action: MissionTeamAction;
   readonly nextWriterRound?: number;
   readonly envelopes: readonly SpecialistDispatchEnvelope[];
+  /**
+   * How wide to run the envelopes, and what the runtime could actually carry.
+   *
+   * A ceiling, never a truncation: every envelope is still returned, because the
+   * controller returns `verified` only once every applicable completion is in.
+   */
+  readonly lensPlan?: LensPlan;
 }> {
   const [stored, inspected] = await Promise.all([
     loadMissionControllerPlan(root, input.missionId),
@@ -713,6 +725,15 @@ export async function dispatchMissionSpecialists(
           : currentInputHashes,
       })
     : Object.freeze([]);
+  // Independent lenses, which is what the canonical plan declares them to be:
+  // fresh context, assigned lens only, no write access. A debate is a different
+  // demand and belongs to the pass that makes it, not to this one.
+  const lensPlan = envelopes.length > 0 && runtime !== undefined
+    ? planLensExecution(
+        { declaredLenses: envelopes.length, wants: 'independent' },
+        orchestrationOverride ?? observeOrchestrationCapability(runtime, process.env),
+      )
+    : undefined;
   if (envelopes.length > 0) {
     await recordSpecialistRequests(root, input.missionId, envelopes, stored.plan.planHash);
   }
@@ -747,6 +768,7 @@ export async function dispatchMissionSpecialists(
       nextWriterRound === undefined ? {} : { nextWriterRound }
     ),
     envelopes,
+    ...(lensPlan === undefined ? {} : { lensPlan }),
   });
 }
 

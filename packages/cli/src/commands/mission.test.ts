@@ -371,6 +371,25 @@ describe('parseMissionArgs', () => {
       event.kind === 'specialist.requested');
 
     expect(first.envelopes.length).toBeGreaterThan(0);
+    // The lens width is a concurrency ceiling, never a truncation. The controller
+    // requires every applicable completion before it will return `verified`, so
+    // dropping an envelope to fit a narrow runtime would not run a smaller pass —
+    // it would stall the mission on a completion nobody was asked for.
+    const narrow = await dispatchMissionSpecialists(
+      root,
+      input,
+      '2026-08-21T12:00:00.000Z',
+      capability,
+      { runtime: 'claude', maxConcurrentAgents: 1, agentToAgent: false },
+    );
+    expect(narrow.envelopes.map((envelope) => envelope.specialistId))
+      .toEqual(first.envelopes.map((envelope) => envelope.specialistId));
+    expect(narrow.lensPlan?.lenses).toBe(1);
+    expect(narrow.lensPlan?.declaredLenses).toBe(first.envelopes.length);
+    expect(narrow.lensPlan?.mode).toBe('serial');
+    // Says which runtime it planned for, so a result can never imply a wider pass.
+    expect(narrow.lensPlan?.reason).toContain('claude');
+    expect(first.lensPlan?.mode).toBe('fan-out');
     expect(first.action).toMatchObject({
       kind: 'invoke-specialists',
       stage: 'pre-implementation',

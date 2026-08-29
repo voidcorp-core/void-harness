@@ -1,10 +1,19 @@
-import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { build } from 'esbuild';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 // The entrypoint runs on import, so it is exercised the way a hook actually runs
 // it: bundled exactly as `pnpm build` does, then executed as a child process with
@@ -45,6 +54,36 @@ const write = (file: string, content: string): unknown => ({
   tool_name: 'Write',
   tool_input: { file_path: file, content },
 });
+
+function stageLifecycle(
+  root: string,
+  payload: unknown,
+): { readonly release: () => void; readonly completed: Promise<number | null> } {
+  const child = spawn(
+    process.execPath,
+    [hook, 'lifecycle', 'context-continuity', 'codex'],
+    {
+      env: { ...process.env, VOID_PROJECT_ROOT: root },
+      stdio: ['pipe', 'ignore', 'pipe'],
+    },
+  );
+  let stderr = '';
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk: string) => {
+    stderr += chunk;
+  });
+  const completed = new Promise<number | null>((resolveRun, rejectRun) => {
+    child.on('error', rejectRun);
+    child.on('close', (code) => {
+      if (code === 0) resolveRun(code);
+      else rejectRun(new Error(`staged hook failed (${String(code)}): ${stderr}`));
+    });
+  });
+  return {
+    release: () => child.stdin.end(JSON.stringify(payload)),
+    completed,
+  };
+}
 
 describe('enforce', () => {
   it('names the doctrine a refusal comes from, so the skill can be reached from the message', () => {
@@ -133,5 +172,271 @@ describe('lifecycle context', () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+
+  it('injects identical resume context for Claude Code and Codex', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-resume-parity-'));
+    mkdirSync(join(root, '.void', 'machine'), { recursive: true });
+    writeFileSync(join(root, '.void', 'config.json'), '{}\n');
+    writeFileSync(
+      join(root, '.void', 'program.md'),
+      '---\nschemaVersion: 1\nstatus: executing\nprogram: parity\nplan: docs/plan.md\nspec: docs/spec.md\nautopilot:\n  enabled: false\n---\n',
+    );
+    writeFileSync(join(root, '.void', 'machine', 'checkpoint.md'), '## Objective\n\nResume equally.\n');
+
+    try {
+      const context = (agentRuntime: 'claude' | 'codex'): string => {
+        const result = spawnSync(process.execPath, [hook, 'lifecycle', 'context', agentRuntime], {
+          input: JSON.stringify({ hook_event_name: 'SessionStart', source: 'compact' }),
+          encoding: 'utf8',
+          env: { ...process.env, VOID_PROJECT_ROOT: root },
+        });
+        return JSON.parse(result.stdout ?? '{}').hookSpecificOutput.additionalContext as string;
+      };
+      expect(context('claude')).toBe(context('codex'));
+      expect(context('codex')).toContain('Program: parity');
+      expect(context('codex')).toContain('Objective: Resume equally.');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('seals PreCompact and resumes through the unique continuity handler', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-continuity-cli-'));
+    mkdirSync(join(root, '.void', 'machine'), { recursive: true });
+    writeFileSync(join(root, '.void', 'config.json'), '{}\n');
+    writeFileSync(join(root, '.void', 'machine', 'checkpoint.md'), '## Objective\n\nCLI parity.\n');
+
+    try {
+      const compact = spawnSync(
+        process.execPath,
+        [hook, 'lifecycle', 'context-continuity', 'codex'],
+        {
+          input: JSON.stringify({ hook_event_name: 'PreCompact', trigger: 'auto' }),
+          encoding: 'utf8',
+          env: { ...process.env, VOID_PROJECT_ROOT: root },
+        },
+      );
+      expect(compact.status).toBe(0);
+      expect(readFileSync(join(root, '.void', 'machine', 'checkpoint.md'), 'utf8')).toContain(
+        'void-harness:context-continuity:begin',
+      );
+
+      const resume = spawnSync(
+        process.execPath,
+        [hook, 'lifecycle', 'context-continuity', 'claude'],
+        {
+          input: JSON.stringify({ hook_event_name: 'SessionStart', source: 'compact' }),
+          encoding: 'utf8',
+          env: { ...process.env, VOID_PROJECT_ROOT: root },
+        },
+      );
+      expect(JSON.parse(resume.stdout ?? '{}').hookSpecificOutput.additionalContext).toContain(
+        'Context continuity: complete',
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('elects one stale-lock takeover before replaying the no-wait loser', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-continuity-concurrent-'));
+    mkdirSync(join(root, '.void', 'machine'), { recursive: true });
+    writeFileSync(join(root, '.void', 'config.json'), '{}\n');
+    const checkpoint = join(root, '.void', 'machine', 'checkpoint.md');
+    const lock = `${checkpoint}.lock`;
+    const orphanClaim = `${lock}.recovery`;
+    writeFileSync(
+      checkpoint,
+      `## Objective\n\nSerialize stale recovery.\n\n${'bounded context '.repeat(25_000)}`,
+    );
+    writeFileSync(lock, 'stale\n');
+    utimesSync(lock, new Date(0), new Date(0));
+    writeFileSync(orphanClaim, 'abandoned\n');
+    utimesSync(orphanClaim, new Date(0), new Date(0));
+
+    try {
+      await new Promise((resolveWait) => setTimeout(resolveWait, 1_100));
+      const paths = ['src/first.ts', 'src/second.ts', 'src/third.ts'];
+      const contenders = paths.map((path) => stageLifecycle(root, {
+          hook_event_name: 'PostToolUse',
+          session_id: 'concurrent-context',
+          tool_name: 'read_file',
+          tool_input: { path },
+          tool_response: { success: true },
+      }));
+      await new Promise((resolveReady) => setTimeout(resolveReady, 500));
+      for (const contender of contenders) contender.release();
+      await Promise.all(contenders.map((contender) => contender.completed));
+
+      const concurrent = readFileSync(checkpoint, 'utf8');
+      expect(paths.filter((path) => concurrent.includes(path))).toHaveLength(1);
+      expect(existsSync(orphanClaim)).toBe(false);
+      const runs = join(root, '.void', 'machine', 'runs');
+      const statuses = readdirSync(runs).flatMap((mission) =>
+        readFileSync(join(runs, mission, 'events.jsonl'), 'utf8')
+          .trim()
+          .split('\n')
+          .filter((line) => line !== '')
+          .map((line) => JSON.parse(line) as { readonly payload?: { readonly status?: string } })
+          .map((event) => event.payload?.status)
+          .filter((status): status is string => status !== undefined));
+      expect(statuses.sort()).toEqual(['ok', 'skipped', 'skipped']);
+      for (const path of paths.filter((candidate) => !concurrent.includes(candidate))) {
+        spawnSync(process.execPath, [hook, 'lifecycle', 'context-continuity', 'codex'], {
+          input: JSON.stringify({
+            hook_event_name: 'PostToolUse',
+            session_id: 'concurrent-context',
+            tool_name: 'read_file',
+            tool_input: { path },
+            tool_response: { success: true },
+          }),
+          encoding: 'utf8',
+          env: { ...process.env, VOID_PROJECT_ROOT: root },
+        });
+      }
+      const recovered = readFileSync(checkpoint, 'utf8');
+      expect(recovered).toContain('src/first.ts');
+      expect(recovered).toContain('src/second.ts');
+      expect(recovered).toContain('src/third.ts');
+      expect(recovered.match(/void-harness:context-continuity:begin/g)).toHaveLength(1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('injects a threshold nudge without replacing the submitted prompt', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-continuity-nudge-'));
+    mkdirSync(join(root, '.void', 'machine'), { recursive: true });
+    writeFileSync(
+      join(root, '.void', 'config.json'),
+      '{"context":{"windowTokens":1000,"checkpointThresholdPercent":50}}\n',
+    );
+    writeFileSync(join(root, '.void', 'machine', 'checkpoint.md'), '## Objective\n\nNudge once.\n');
+    const transcript = join(root, 'transcript.jsonl');
+    writeFileSync(transcript, `${JSON.stringify({
+      message: {
+        usage: {
+          input_tokens: 470,
+          output_tokens: 10,
+          cache_read_input_tokens: 10,
+          cache_creation_input_tokens: 10,
+        },
+      },
+    })}\n`);
+
+    try {
+      spawnSync(process.execPath, [hook, 'lifecycle', 'context-continuity', 'codex'], {
+        input: JSON.stringify({ hook_event_name: 'PreCompact' }),
+        encoding: 'utf8',
+        env: { ...process.env, VOID_PROJECT_ROOT: root },
+      });
+      const result = spawnSync(
+        process.execPath,
+        [hook, 'lifecycle', 'context-continuity', 'codex'],
+        {
+          input: JSON.stringify({
+            hook_event_name: 'UserPromptSubmit',
+            transcript_path: transcript,
+            prompt: 'continue the implementation',
+          }),
+          encoding: 'utf8',
+          env: { ...process.env, VOID_PROJECT_ROOT: root },
+        },
+      );
+
+      expect(result.status).toBe(0);
+      expect(JSON.parse(result.stdout ?? '{}').hookSpecificOutput.additionalContext).toMatch(
+        /void-checkpoint/i,
+      );
+      expect(result.stdout).not.toContain('continue the implementation');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('session close lifecycle', () => {
+  it('emits a checkpoint reminder only for explicit close intent', () => {
+    const invoke = (prompt: string): string => {
+      const result = spawnSync(process.execPath, [hook, 'lifecycle', 'checkpoint-reminder', 'codex'], {
+        input: JSON.stringify({ hook_event_name: 'UserPromptSubmit', prompt }),
+        encoding: 'utf8',
+        env: { ...process.env, VOID_PROJECT_ROOT: workspace },
+      });
+      return result.stdout ?? '';
+    };
+    expect(invoke('on reprend demain')).toContain('void-checkpoint');
+    expect(invoke('stop the process')).toBe('');
+  });
+
+  it('audits SessionEnd without creating or changing a checkpoint', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-session-end-'));
+    mkdirSync(join(root, '.void'), { recursive: true });
+    writeFileSync(join(root, '.void', 'config.json'), '{}\n');
+    const checkpoint = join(root, '.void', 'machine', 'checkpoint.md');
+
+    try {
+      const result = spawnSync(process.execPath, [hook, 'lifecycle', 'checkpoint-audit', 'claude'], {
+        input: JSON.stringify({ hook_event_name: 'SessionEnd', reason: 'other' }),
+        encoding: 'utf8',
+        env: { ...process.env, VOID_PROJECT_ROOT: root },
+      });
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain('checkpoint-absent');
+      expect(existsSync(checkpoint)).toBe(false);
+      expect(readFileSync(join(root, '.void', 'config.json'), 'utf8')).toBe('{}\n');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+// Neutralising the freshness call in `cli.ts` changed nothing any test could see,
+// so the wiring was carried by nobody. It matters more than the wording: a
+// SessionStart hook cannot write to the user, so if this line stops being emitted
+// the upgrade prompt does not degrade, it disappears.
+describe('the upgrade prompt the session banner carries', () => {
+  function staleProject(): { root: string; cache: string } {
+    const root = mkdtempSync(join(tmpdir(), 'void-freshness-root-'));
+    const cache = mkdtempSync(join(tmpdir(), 'void-freshness-cache-'));
+    mkdirSync(join(root, '.void', 'machine', 'receipts'), { recursive: true });
+    writeFileSync(
+      join(root, '.void', 'machine', 'receipts', 'install-v1.json'),
+      JSON.stringify({ schemaVersion: 1, version: '0.17.0', source: 'local', runtimes: ['claude'], files: [] }),
+    );
+    mkdirSync(join(cache, 'void-harness'), { recursive: true });
+    writeFileSync(
+      join(cache, 'void-harness', 'freshness.json'),
+      JSON.stringify({ latest: '2.1.0', checkedAt: Date.now() }),
+    );
+    return { root, cache };
+  }
+
+  const banner = (root: string, cache: string): string =>
+    spawnSync(process.execPath, [hook, 'lifecycle', 'context', 'claude'], {
+      input: JSON.stringify({ hook_event_name: 'SessionStart', session_id: 'freshness', source: 'startup' }),
+      encoding: 'utf8',
+      env: { ...process.env, VOID_PROJECT_ROOT: root, XDG_CACHE_HOME: cache },
+    }).stdout ?? '';
+
+  it('names both versions and asks for the relay when the install is behind', () => {
+    const { root, cache } = staleProject();
+    const out = banner(root, cache);
+
+    expect(out).toContain('0.17.0');
+    expect(out).toContain('2.1.0');
+    expect(out).toContain('void-harness update');
+    expect(out.toLowerCase()).toContain('tell the user');
+  });
+
+  it('says nothing at all when the install is current', () => {
+    const { root, cache } = staleProject();
+    writeFileSync(
+      join(cache, 'void-harness', 'freshness.json'),
+      JSON.stringify({ latest: '0.17.0', checkedAt: Date.now() }),
+    );
+
+    expect(banner(root, cache).toLowerCase()).not.toContain('tell the user');
   });
 });

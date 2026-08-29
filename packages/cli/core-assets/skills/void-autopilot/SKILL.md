@@ -20,7 +20,7 @@ inside autopilot, stop: that behaviour has one owner, and duplicating it means t
 drift and tickets get a different standard depending on how they were started.
 
 It also never merges. Not with a flag, not when the checks are green, not when the diff is
-small. `mergeGate: human` is the only value the active program accepts.
+small. `mergeGate: human` is the only value the programme descriptor accepts.
 
 ---
 
@@ -37,7 +37,7 @@ spawns no agent. Every input and output carries `schemaVersion: 1`.
 **The adapters.** Claude executes the orchestration plan with its Workflow primitive, Codex
 with native subagents. Both read the *same* `OrchestrationPlan` and return the *same*
 `WorkerResult`. An adapter that is missing, or a permission that cannot be proven, returns
-`unsupported-runtime` before any tracker mutation.
+`unsupported-runtime` before any progress-provider mutation.
 
 **The workers.** One ticket, one worktree, one branch, one full `void-implement` run.
 
@@ -45,12 +45,12 @@ with native subagents. Both read the *same* `OrchestrationPlan` and return the *
 
 ## Where the target comes from
 
-The run takes no argument in the normal case. `.void/active.md` names the tracker, the scope and
-the base, so there is nothing to repoint and nothing to ask: not which ticket, not which cluster,
-not which run id, not which tracker.
+The run takes no argument in the normal case. `.void/program.md` names the progress provider, its
+opaque scope and the base, so there is nothing to repoint and nothing to ask: not which work unit,
+not which cluster, not which run id, not which provider.
 
-That file is also the consent, and consent is never inferred. An absent `.void/active.md`, a
-`status` other than `executing`, an `void-autopilot` block that is missing or unreadable, or
+That file is also the consent, and consent is never inferred. An absent `.void/program.md`, a
+`status` other than `executing`, an `autopilot` block that is missing or unreadable, or
 `autopilot.enabled: false` all mean the same thing — say so and stop. Inventing a target here
 claims tickets nobody agreed to hand over.
 
@@ -85,16 +85,29 @@ claims tickets nobody agreed to hand over.
    integration SHA, the diff hash and the exact argv; rebase, conflict or a moved base makes
    it stale and it is re-run. Nothing is published on a proof about a tree that no longer
    exists.
-10. **Publish.** One explicit, non-forced refspec, one branch, one PR. Never a worker branch:
+10. **Read the union.** Only the union shows what no worker could: the same concept named
+    twice, two modules that disagree about a word, an assertion one range falsifies for
+    another. Each range already passed its own gates, so re-reviewing files buys nothing here.
+    One fresh context over the whole base-to-head diff, told to **refute** it and to report
+    only what survived — a pass asked to check for problems finds none and means nothing by
+    it. Every finding carries an anchor a reader can open; one without is not a finding.
+    Finding nothing is the verdict "failed to refute", never "the diff is good". The verdict
+    is bound to the integration SHA: a range added or a CI fix pushed afterwards makes it
+    stale, and stale is unread. Required when the program declares `mergeGate:
+    union-reviewed`, since the grant reads it; under `mergeGate: human` the human is the
+    reader and this pass is optional.
+11. **Publish.** One explicit, non-forced refspec, one branch, one PR. Never a worker branch:
     pushing one publishes unreviewed history under an official-looking name and starts CI on
     it. The body carries included and excluded tickets with their commit ranges, the conflicts
     resolved and why, the local proofs and the remote runs actually spent.
-11. **Drive the checks.** A red check this diff explains is fixed locally and the *same*
+12. **Drive the checks.** A red check this diff explains is fixed locally and the *same*
     branch is pushed again — counting the extra run rather than hiding it. A red check the
     diff does not explain is escalated, never silenced: no required check is ever disabled to
-    make a run finish. When every required check is green the PR is left ready, and the
-    included tickets move to In Review with the PR link and their range.
-12. **Close on proof.** Done comes from an observed merge, never from a local cursor: an
+    make a run finish. When every required check is green, what happens next comes from the
+    grant, never from the operator's judgement: merged when the target does not deploy and the
+    union came back clean, handed to a human with the refusal otherwise. Included tickets move
+    to In Review with the PR link and their range.
+13. **Close on proof.** Done comes from an observed merge, never from a local cursor: an
     absent PR is not a merge, and a closed one is not a merge either.
 
 ---
@@ -159,6 +172,6 @@ plan itself, not only in the prompt, so an adapter that honours the plan cannot 
 
 ## Composition
 
-Upstream: `void-ticket` authors the tickets and the active program pointer.
+Upstream: `void-ticket` authors the work units and the program descriptor.
 Per ticket: `void-implement`, entire, once. Downstream: the reconciler owns the
 integration branch, the suite and the PR. The human owns the merge.

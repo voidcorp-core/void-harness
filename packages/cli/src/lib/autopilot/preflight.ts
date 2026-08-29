@@ -32,7 +32,7 @@ export interface ParsedProgram {
   };
 }
 
-/** An `ACTIVE.md` that exists and did not parse, with the parser's own verdict. */
+/** A program descriptor that exists and did not parse, with its own verdict. */
 export interface MalformedProgram {
   readonly malformed: {
     readonly problem: string;
@@ -41,25 +41,25 @@ export interface MalformedProgram {
 }
 
 function malformedProgram(observation: AutopilotObservation): MalformedProgram['malformed'] | undefined {
-  const program = observation.activeProgram;
-  return program !== null && 'malformed' in program ? program.malformed : undefined;
+  const program = observation.program;
+  return program !== undefined && 'malformed' in program ? program.malformed : undefined;
 }
 
 /** The frontmatter, or undefined when there is none to read (absent or malformed). */
 function parsedProgram(observation: AutopilotObservation): ParsedProgram | undefined {
-  const program = observation.activeProgram;
-  return program === null || 'malformed' in program ? undefined : program;
+  const program = observation.program;
+  return program === undefined || 'malformed' in program ? undefined : program;
 }
 
 export interface AutopilotObservation {
   /**
-   * Parsed `plans/ACTIVE.md` frontmatter; null when the file is absent, and a
+   * Parsed `.void/program.md` frontmatter; undefined when the file is absent, and a
    * `malformed` record when it exists but could not be parsed — two different
    * things to tell a reader, and only one of them means "author a program".
    * The parser already produces a problem and a fix; carrying them here is what
    * saves the reader from re-deriving the parse error by hand.
    */
-  readonly activeProgram: ParsedProgram | MalformedProgram | null;
+  readonly program: ParsedProgram | MalformedProgram | undefined;
   /** Runtime adapters detected in the project, e.g. `['claude']`. */
   readonly adapters: readonly string[];
   /**
@@ -100,17 +100,17 @@ function unprobed(name: string, message: string): CheckResult {
   return { name, ok: false, status: 'unprobed', message };
 }
 
-function activeProgramCheck(observation: AutopilotObservation): CheckResult {
-  const name = 'autopilot ACTIVE';
+function programCheck(observation: AutopilotObservation): CheckResult {
+  const name = 'autopilot program';
   const broken = malformedProgram(observation);
   if (broken !== undefined) {
-    return fail(name, `plans/ACTIVE.md could not be parsed: ${broken.problem}`, broken.fix);
+    return fail(name, `.void/program.md could not be parsed: ${broken.problem}`, broken.fix);
   }
   const program = parsedProgram(observation);
   if (program === undefined) {
     return unknown(
       name,
-      'no plans/ACTIVE.md, so there is no program to drain',
+      'no .void/program.md, so there is no program to drain',
       'author one with void-ticket, or ignore autopilot in this project',
     );
   }
@@ -121,21 +121,23 @@ function activeProgramCheck(observation: AutopilotObservation): CheckResult {
       'set status: executing once the plan and its ticket pool are approved',
     );
   }
-  if (program.autopilot?.enabled !== true) {
+  // Declaring the block is the consent. A program without one has not withheld a
+  // flag, it never asked for the feature.
+  if (program.autopilot === undefined) {
     return fail(
       name,
-      'autopilot.enabled is not true, so nothing resumes automatically',
-      'set autopilot.enabled: true in the ACTIVE frontmatter',
+      'the program declares no autopilot block, so nothing resumes automatically',
+      'add an autopilot block to the program frontmatter; declaring it is the consent',
     );
   }
-  return pass(name, 'executing, autopilot enabled');
+  return pass(name, 'executing, autopilot declared');
 }
 
 // A file that did not parse has no fields to judge. Passing "human merge gate"
 // and failing "no verifyCommands" off an unparsed file states two things the
 // file never said — the same misattribution this preflight exists to avoid.
-const UNPARSED = 'not judged: plans/ACTIVE.md could not be parsed';
-const UNPARSED_FIX = 'fix the frontmatter reported by the ACTIVE check above, then run doctor again';
+const UNPARSED = 'not judged: .void/program.md could not be parsed';
+const UNPARSED_FIX = 'fix the frontmatter reported by the program check above, then run doctor again';
 
 function mergeGateCheck(observation: AutopilotObservation): CheckResult {
   const name = 'autopilot merge';
@@ -260,7 +262,7 @@ function protectionCheck(observation: AutopilotObservation): CheckResult {
  */
 export function autopilotPreflight(observation: AutopilotObservation): readonly CheckResult[] {
   return Object.freeze([
-    activeProgramCheck(observation),
+    programCheck(observation),
     mergeGateCheck(observation),
     verifyCommandsCheck(observation),
     adapterCheck(observation),

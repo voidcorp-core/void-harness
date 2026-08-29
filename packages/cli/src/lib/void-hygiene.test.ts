@@ -11,6 +11,7 @@ function observation(over: Partial<LayoutObservation> = {}): LayoutObservation {
     observedPaths: [],
     orphanedAssets: [],
     manifest: { kind: 'present', version: '2.5.1', drifted: 0 },
+    receipt: { kind: 'present', version: '2.5.1', missing: [], missingTotal: 0 },
     ...over,
   };
 }
@@ -170,6 +171,80 @@ describe('void orphans', () => {
     expect(orphans({ orphanedAssets: ['a', 'b'] }).ok).toBe(true);
   });
 })
+
+// The install writes two records of the same event, and only one of them
+// survives a git operation. `.void/install-manifest.json` is tracked, so
+// `git checkout` reverts it; the receipt lives under the ignored `.void/machine/`
+// and does not. That asymmetry is the whole point of this check: after an
+// upgrade across a rename, `git checkout -- . && git clean -fd` restores the
+// previous ignore block and then deletes the assets that block no longer covers,
+// leaving a project whose manifest and disk agree on the OLD version while the
+// receipt still records the new one. Every other check passes, git reports a
+// clean tree, and the harness is silently back one version.
+describe('void receipt', () => {
+  const receipt = (over: Partial<LayoutObservation> = {}): CheckResult =>
+    judgeLayout(observation(over)).find((check) => check.name === 'void receipt') as CheckResult;
+
+  it('passes when every file the install recorded is still on disk', () => {
+    expect(receipt().ok).toBe(true);
+  });
+
+  it('fails when the install recorded files that are no longer there', () => {
+    const check = receipt({
+      receipt: {
+        kind: 'present',
+        version: '3.4.1',
+        missing: ['.claude/skills/void-tdd/SKILL.md'],
+        missingTotal: 80,
+      },
+    });
+
+    expect(check.status).toBe('fail');
+    expect(check.message).toContain('80');
+    expect(check.message).toContain('3.4.1');
+    expect(check.fix).toContain('3.4.1');
+  });
+
+  it('names the rollback when the manifest disagrees, because that is the diagnosis', () => {
+    // Receipt ahead of manifest is not "some files vanished". It is one specific
+    // sequence, and naming it saves the hours the audit spent finding it.
+    const check = receipt({
+      manifest: { kind: 'present', version: '3.1.0', drifted: 0 },
+      receipt: { kind: 'present', version: '3.4.1', missing: ['.claude/skills/void-tdd/SKILL.md'], missingTotal: 80 },
+    });
+
+    expect(check.message).toContain('3.1.0');
+    expect(check.message).toContain('rolled back');
+  });
+
+  it('does not claim a rollback when both records name the same version', () => {
+    // Files can also go missing by hand, or by a failed write. Saying "rolled
+    // back" there would send the reader looking for a git operation that never
+    // happened, which is the class of misleading message this check exists to
+    // stop making.
+    const check = receipt({
+      manifest: { kind: 'present', version: '3.4.1', drifted: 0 },
+      receipt: { kind: 'present', version: '3.4.1', missing: ['.claude/agents/doctrine-critic.md'], missingTotal: 1 },
+    });
+
+    expect(check.status).toBe('fail');
+    expect(check.message).not.toContain('rolled back');
+    expect(check.message).toContain('doctrine-critic');
+  });
+
+  it('treats an absent receipt as unproven, never as a failure', () => {
+    // A marketplace install records no local receipt. Nothing is wrong; there is
+    // simply nothing to compare, and saying so beats inventing a verdict.
+    const check = receipt({ receipt: { kind: 'absent' } });
+    expect(check.ok).toBe(true);
+    expect(check.status).toBe('advisory');
+  });
+
+  it('does not confuse an unreadable receipt with missing assets', () => {
+    const check = receipt({ receipt: { kind: 'unreadable' } });
+    expect(check.status).toBe('unknown');
+  });
+});
 
 // Collapsing the ignore block to whole directories is only safe if the one thing
 // it can silently swallow gets reported: a skill the project wrote by hand, in

@@ -4,7 +4,7 @@
 
 ## void-harness (managed by `void-harness init`)
 
-Marketplace: `voidcorp` (https://github.com/voidcorp-core/void-harness). Claude Code doctrine active in this project:
+Claude Code doctrine active in this project:
 
 - `void` — universal craftsman skills (TDD, TypeScript strict, hexagonal, DDD, ...)
 
@@ -17,9 +17,11 @@ Marketplace: `voidcorp` (https://github.com/voidcorp-core/void-harness). Claude 
 
 To capture a new rule, just say it ("ajoute la règle…", "always X here", "never Y"). The `void-learn` skill auto-invokes, classifies project-specific vs universal, proposes the wording, waits for your confirmation, then writes. Never silent.
 
-### Active program — when present
+Every skill is invoked by its name: `/void-implement`, `/void-tdd`. A skill that composes another names it the same way; the syntax is the runtime's, the name is the skill's.
 
-If `.void/active.md` exists with `status: executing`, read it and its linked plan/spec before choosing implementation work. On a continue/start/resume request without a named ticket, recover the scoped ticket if exactly one is started; if several are started, stop and surface the competing claims; otherwise select the first ready ticket from the declared order and native blocker relations. Fetch the complete ticket before running `void-implement`. The tracker owns mutable execution state: keep status, assignee, blockers, resume comments, and evidence/PR links current; ACTIVE never stores a current or next ticket. If the tracker cannot be read or updated, stop rather than infer progress locally. A specific user request overrides selection; human gates and merges remain human. The file's `autopilot` block carries consent to autonomous execution and is never inferred: `enabled: false`, an absent block, or an unreadable one forbids autonomous selection entirely.
+### Program — when present
+
+If `.void/program.md` exists with `status: executing`, read it and its linked plan/spec before choosing implementation work. The programme holds global context; the local checkpoint holds session residue, and `ResumeBundle` composes both with Git. On a continue/start/resume request without a named work unit, use the declared progress provider: recover the scoped unit if exactly one is started; if several are started, stop and surface the competing claims; otherwise select the first ready unit from the declared order and native blocker relations. Fetch the complete unit before running `void-implement`. The declared progress provider owns mutable execution state; the program and checkpoint never store a current or next unit. If the provider or a required capability is unavailable, do not infer remote progress; stop the action that needs it. If no progress provider is declared, require a specific unit instead of selecting one. A specific user request overrides selection; human gates and merges remain human. Declaring an `autopilot` block IS the consent to autonomous execution, and consent is never inferred from anything else: an absent block, or an unreadable one, forbids autonomous selection entirely. A declared progress provider is not consent either.
 
 Run `void-harness doctor` to verify the install.
 
@@ -44,22 +46,24 @@ A **public, MIT** harness installed free and account-free via `npx voidharness` 
 3. `docs/ARCHITECTURE.md` — package boundaries + dependency direction
 4. `docs/specs/` and `docs/plans/` — approved designs, and how each was executed
 
-## Active program bootstrap
+## Program bootstrap
 
-`.void/active.md` is the durable cross-session handoff when it exists with
-`status: executing`. Before choosing implementation work, read it, then read the global plan and
-spec it references. If the user asks to continue, start, or resume without naming a ticket, do not
-ask them to repoint the session:
+`.void/program.md` is the durable global programme descriptor when it exists with
+`status: executing`. Before choosing implementation work, read its global plan and spec.
+`ResumeBundle` composes that context with the local checkpoint and Git.
 
-1. query the configured tracker scope and recover any already-started ticket;
-2. otherwise select the next ready ticket from native tracker state and `blockedBy` relations;
-3. fetch the complete ticket and relations before acting;
-4. execute that unit with `void-implement`;
-5. keep the tracker state, assignee, evidence/PR links, blockers, and resume comment current.
+If the user asks to continue, start, or resume without naming a work unit:
 
-The tracker owns mutable execution state; `.void/active.md` never stores a hand-maintained “next
-ticket”. If the tracker is unavailable, stop rather than infer progress locally. A specific user
-request overrides automatic selection. Human gates and merges remain human.
+1. use the declared progress adapter and recover exactly one already-started scoped unit;
+2. if several units are started, stop and surface the competing claims;
+3. otherwise select the first ready unit from the declared order and native blocker relations;
+4. fetch the complete provider-native unit and relations before running `void-implement`;
+5. keep mutable provider state and review evidence current when the adapter supports them.
+
+The declared provider owns mutable progress. The programme and checkpoint never store a current or
+next unit. If no provider is declared, require a specific unit; if a required capability is
+unavailable, stop that action rather than infer remote progress. A specific user request overrides
+automatic selection. Human gates and merges remain human.
 
 ## Anti-bloat discipline
 
@@ -111,7 +115,7 @@ Before this, the floor ran in every consumer project and in none of ours — whi
 ## Meta-rules
 
 - Any new convention added in a commit MUST be reflected in `docs/*.md` in the same commit
-- Any non-obvious decision (where a credible alternative exists) MUST be created as its own collision-free file with `void-harness decisions new`; accepted records are immutable and changes supersede them. `docs/DECISIONS.md` is a frozen legacy landing page, never a worker-owned artifact; `pnpm decisions:check` gates structure and immutability.
+- Any non-obvious decision (where a credible alternative exists) MUST be created as its own collision-free file with `void-harness decisions new`; accepted decision content is immutable and changes supersede it. The only in-place exception is a bounded repository-local reference migration whose surrounding text is unchanged and whose new target exists inside the repository. Accepted files are never deleted or renamed. `docs/DECISIONS.md` is a frozen legacy landing page, never a worker-owned artifact; `pnpm decisions:check` gates structure and immutability.
 - Removed concepts must be removed from the docs at the same time
 - Tests run via `pnpm test`; do not skip TDD when adding logic
 - Versions are never hand-edited: release-please bumps every manifest in lockstep from Conventional Commits, and `pnpm version:check` fails CI on any drift (see `docs/RELEASING.md`)
@@ -149,4 +153,4 @@ The harness improves from real project usage, never auto-applied.
 
 ## Autonomous mode (opt-in)
 
-`void-autopilot` (core skill) is the single, **in-session** backlog drainer. It replaced `backlog-autopilot` at the 2026-07-30 cutover, which deleted the superseded engine rather than deprecating it — two engines in one release means two answers to "how does a cluster get drained". A human launches `/void-autopilot`; it drains a tracker pool into one integration PR. The flow: an in-session launcher selects independent ready tickets, a **review budget** shrinks the cluster from structural doubt (unknown footprint, low confidence, collision zone) rather than from ticket estimates, routing is **parallel where footprints are disjoint, sequential where they collide** (lockfiles and migrations always sequential), and — after **human confirmation** — the runtime adapter fans out one **worktree subagent** per ticket. Claude executes the `OrchestrationPlan` through the **Workflow** tool, Codex through **native subagents**; both consume the same plan and return the same `WorkerResult`. The reconciler then integrates the verified commit ranges, seals the full suite against the integration SHA, publishes one branch through one explicit non-forced refspec, drives the checks, and holds the tracker until a human merges. The deterministic core (selection, review budget, lease, reconciliation, publication, recovery, tracker lifecycle) is the CLI `void-harness autopilot`; it contacts nothing and spawns no agent. The per-ticket quality cycle is the dedicated `void-implement` skill (single source of truth) that each worker runs; tickets are authored by `void-ticket`. Durable boundaries: HITL at backlog curation and PR merge, **commit-only** workers, server-side branch protection required on the base, security hooks live, `--dangerously-skip-permissions` sandbox-gated. **There is no `--auto-merge`, on any path** — it is refused by the CLI and by a source gate, because merging is where a human reads the diff as a whole. Multi-cluster autonomy and a **headless backend** (walk-away/cron) are reserved and deferred. See `docs/specs/2026-07-25-autopilot.md`, `docs/plans/2026-07-25-autopilot-plan.md`, and the Autopilot ADR.
+`void-autopilot` (core skill) is the single, **in-session** backlog drainer. It replaced `backlog-autopilot` at the 2026-07-30 cutover, which deleted the superseded engine rather than deprecating it — two engines in one release means two answers to "how does a cluster get drained". A human launches `/void-autopilot`; it drains a tracker pool into one integration PR. The flow: an in-session launcher selects independent ready tickets, a **review budget** shrinks the cluster from structural doubt (unknown footprint, low confidence, collision zone) rather than from ticket estimates, routing is **parallel where footprints are disjoint, sequential where they collide** (lockfiles and migrations always sequential), and — after **human confirmation** — the runtime adapter fans out one **worktree subagent** per ticket. Claude executes the `OrchestrationPlan` through the **Workflow** tool, Codex through **native subagents**; both consume the same plan and return the same `WorkerResult`. The reconciler then integrates the verified commit ranges, seals the full suite against the integration SHA, publishes one branch through one explicit non-forced refspec, drives the checks, and holds the tracker until the merge. The deterministic core (selection, review budget, lease, reconciliation, publication, recovery, tracker lifecycle) is the CLI `void-harness autopilot`; it contacts nothing and spawns no agent. The per-ticket quality cycle is the dedicated `void-implement` skill (single source of truth) that each worker runs; tickets are authored by `void-ticket`. Durable boundaries: HITL at backlog curation and at the promotion to production, **commit-only** workers, server-side branch protection required on the base, security hooks live, `--dangerously-skip-permissions` sandbox-gated. **There is no `--auto-merge` flag, on any path** — it is refused by the CLI, because consent to a machine merge is a durable declaration in the program (`autopilot.mergeGate: union-reviewed` plus `deployBranch`), never a switch on one run. The grant then needs both conditions of the union-is-read-before-it-merges decision: the target is not the branch that deploys, and an adversarial fresh-context reading of the **whole integrated diff** came back clean. An unread, inconclusive or stale reading refuses, because silence is not approval. Promotion to the deploying branch stays human, and what a person judges there is the feature, not the code. Multi-cluster autonomy and a **headless backend** (walk-away/cron) are reserved and deferred. See `docs/specs/2026-07-25-autopilot.md`, `docs/plans/2026-07-25-autopilot-plan.md`, and the Autopilot ADR.

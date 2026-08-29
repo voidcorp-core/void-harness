@@ -16,15 +16,17 @@ export interface GitSignals {
   /** False when the directory is not a git repository, or git is unusable. */
   readonly available: boolean;
   readonly branch: string | undefined;
+  readonly head?: string;
   readonly dirtyFiles: number;
   readonly unpushedCommits: number;
   readonly lastCommitAt: number | undefined;
   readonly commitsToday: number;
 }
 
-export interface ActiveProgramSignal {
+export interface ProgramSignal {
   readonly program: string;
-  readonly issueCount: number;
+  readonly provider: string | undefined;
+  readonly unitCount: number;
 }
 
 export interface CheckpointSignal {
@@ -40,7 +42,7 @@ export interface SummaryInput {
   readonly git: GitSignals;
   readonly decisions: DecisionsObservation;
   readonly planCount: number;
-  readonly activeProgram?: ActiveProgramSignal;
+  readonly program?: ProgramSignal;
   /** Absent until the session checkpoint ships. Absence is a fact, not a fault. */
   readonly checkpoint?: CheckpointSignal;
 }
@@ -74,7 +76,7 @@ export interface ProjectSummary {
   readonly idleDays: number | undefined;
   readonly decisions: DecisionsObservation;
   readonly planCount: number;
-  readonly activeProgram: ActiveProgramSignal | undefined;
+  readonly program: ProgramSignal | undefined;
   readonly resumeLine: string | undefined;
   /** Ordered most severe first. Empty means nothing at risk here. */
   readonly attention: readonly Attention[];
@@ -142,7 +144,7 @@ export function summarizeProject(input: SummaryInput): ProjectSummary {
     idleDays: idleDaysOf(input.git, input.now),
     decisions: input.decisions,
     planCount: input.planCount,
-    activeProgram: input.activeProgram,
+    program: input.program,
     resumeLine: input.checkpoint?.resumeLine,
     attention: attentionOf(input),
     conformance: conformanceOf(input),

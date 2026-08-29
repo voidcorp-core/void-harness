@@ -10,42 +10,41 @@
 //      marketplace fetch) — only when remote checks run; --no-remote skips it
 
 import { execFileSync } from 'node:child_process';
-import { isMachineEntry, pendingMigrations, VOID_MACHINE_DIR } from '@voidcorp/hook-runner';
-import { judgeInvocation, observeInvocation } from '../lib/invocation-health.js';
-import { judgeLayout, judgeProjectSkills, type LayoutObservation, type ManifestObservation } from '../lib/void-hygiene.js';
-import { observedWriteCandidates, type ObservedPathObservation } from '../lib/observed-write-paths.js';
-import { INSTALL_MANIFEST_PATH, parseInstallManifest, verifyInstallManifest } from '../lib/install-manifest.js';
-import { type DiscoveredAsset, looksHarnessAuthored, orphanedAssets } from '../lib/orphaned-assets.js';
-import { ownedDerivedPaths } from '../lib/void-migration.js';
-import { type Dirent, existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { type Dirent, existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { readActiveProgram } from '../lib/autopilot/active-program.js';
+import { isMachineEntry, pendingMigrations, resolveFreshness, VOID_MACHINE_DIR } from '@voidcorp/hook-runner';
 import { autopilotPreflight } from '../lib/autopilot/preflight.js';
+import { programPath, readProgramDescriptor } from '../lib/autopilot/program.js';
 import { packsCoherenceIssues, validateConfig } from '../lib/config-schema.js';
-import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../lib/packs.js';
+import { applyRepair, conformanceRules, inspectConformance } from '../lib/conformance/run.js';
+import { checkGlyph, checkShowsFix } from '../lib/doctor-render.js';
+import { publishedVersionCheck } from '../lib/freshness-check.js';
+import { INSTALL_MANIFEST_PATH, parseInstallManifest, verifyInstallManifest } from '../lib/install-manifest.js';
+import { judgeInvocation, observeInvocation } from '../lib/invocation-health.js';
 import { inspectHarnessLintExclusion } from '../lib/lint-exclusion.js';
+import { type ObservedPathObservation, observedWriteCandidates } from '../lib/observed-write-paths.js';
+import { type DiscoveredAsset, looksHarnessAuthored, orphanedAssets } from '../lib/orphaned-assets.js';
+import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../lib/packs.js';
 import { cliVersion, findCoreSource } from '../lib/paths.js';
 import { type CheckResult, checkEnforceWorkflow, checkGh } from '../lib/prerequisites.js';
 import { readInstallReceipt } from '../lib/receipts.js';
-import { publishedVersionCheck } from '../lib/freshness-check.js';
+import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
+import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
 import {
   judgeRunnerStaleness,
   runnerStalenessCheck,
   suspendedStructureNote,
   suspendsStructureChecks,
 } from '../lib/runner-staleness.js';
-import { checkGlyph, checkShowsFix } from '../lib/doctor-render.js';
-import { applyRepair, conformanceRules, inspectConformance } from '../lib/conformance/run.js';
-import { resolveFreshness } from '@voidcorp/hook-runner';
-import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
-import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
 import { detectedAdapters } from '../lib/runtime-adapters.js';
 import { localPackAssetIssues } from '../lib/runtime-assets.js';
 import { selfRepoDoctorTarget } from '../lib/self-repo.js';
-import { runSelfHostDoctor } from './self-host.js';
 import { marketplaceRepoFrom, readSettings, settingsPathFor } from '../lib/settings.js';
 import { compareVersions, normalizeVersion } from '../lib/version.js';
+import { judgeLayout, judgeProjectSkills, type LayoutObservation, type ManifestObservation, type ReceiptObservation } from '../lib/void-hygiene.js';
+import { ownedDerivedPaths } from '../lib/void-migration.js';
+import { runSelfHostDoctor } from './self-host.js';
 
 /** Plain pack names (no @voidcorp/ prefix, core excluded) pinned in config.packs. */
 function configPackNames(config: { packs?: Record<string, string> }): string[] {
@@ -60,6 +59,15 @@ function enabledPackNames(plugins: Record<string, unknown>): string[] {
     .filter((k) => plugins[k] === true)
     .map((k) => k.split('@')[0] ?? '')
     .filter((name) => name.length > 0 && name !== CORE_PLUGIN_NAME);
+}
+
+function declaresProgram(root: string): boolean {
+  try {
+    return existsSync(join(root, programPath(root)));
+  } catch {
+    // Ambiguity is still a declaration. The parser owns the actionable error.
+    return true;
+  }
 }
 
 /**
@@ -310,7 +318,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
   // they do not use. Non-mutating throughout — doctor must stay safe to run
   // while a cluster is in flight, so nothing here touches a tracker, a remote
   // or a git ref, and what it cannot read reports as unknown rather than false.
-  if (existsSync(join(root, 'plans', 'ACTIVE.md'))) {
+  if (declaresProgram(root)) {
     checks.push(...autopilotPreflight(observeAutopilot(root)));
   }
 
@@ -502,6 +510,36 @@ function observeManifest(root: string): ManifestObservation {
 }
 
 /**
+ * Compare the local install receipt against the disk.
+ *
+ * The receipt records what this machine actually wrote. Unlike the manifest it
+ * is not tracked, so a `git checkout` cannot revert it alongside the working
+ * tree -- which makes it the only record that still names the assets when they
+ * have been removed underneath the harness.
+ *
+ * Only the first few missing paths are carried: the message names a count and
+ * an example, and a hundred paths in a terminal check is noise, not evidence.
+ */
+async function observeReceipt(root: string): Promise<ReceiptObservation> {
+  let receipt: Awaited<ReturnType<typeof readInstallReceipt>>;
+  try {
+    receipt = await readInstallReceipt(root);
+  } catch {
+    return { kind: 'unreadable' };
+  }
+  if (receipt === undefined) return { kind: 'absent' };
+  const missing = receipt.files
+    .map((file) => file.path)
+    .filter((path) => !existsSync(join(root, ...path.split('/'))));
+  return {
+    kind: 'present',
+    version: receipt.version,
+    missing: missing.slice(0, 3),
+    missingTotal: missing.length,
+  };
+}
+
+/**
  * Ask git what it actually does with observed state, rather than trusting that
  * the ignore block is present: a rule can be absent, overridden by a later rule,
  * or powerless because the path was tracked before the rule existed.
@@ -530,6 +568,7 @@ async function observeLayout(root: string): Promise<LayoutObservation> {
       trackedDerivedCount: 0,
       orphanedAssets: observeOrphanedAssets(root),
       manifest: observeManifest(root),
+      receipt: await observeReceipt(root),
     };
   }
 
@@ -565,6 +604,7 @@ async function observeLayout(root: string): Promise<LayoutObservation> {
     trackedDerivedCount,
     orphanedAssets: observeOrphanedAssets(root),
     manifest: observeManifest(root),
+    receipt: await observeReceipt(root),
   };
 }
 
@@ -675,14 +715,14 @@ function observeObservedPaths(root: string, insideRepo: boolean): readonly Obser
  * could ever satisfy here, and operators paid for the detour (#193).
  */
 function observeAutopilot(root: string): Parameters<typeof autopilotPreflight>[0] {
-  let program: ReturnType<typeof readActiveProgram> | null = null;
-  let malformed: { problem: string; fix: string } | null = null;
+  let program: ReturnType<typeof readProgramDescriptor>;
+  let malformed: { problem: string; fix: string } | undefined;
   try {
-    program = readActiveProgram(root) ?? null;
+    program = readProgramDescriptor(root);
   } catch (error) {
-    // A malformed ACTIVE is reported by the check below as a failure of the
+    // A malformed program is reported by the check below as a failure of the
     // program, not as a crash of doctor — and as malformed, not as absent.
-    // Collapsing both into null printed "no plans/ACTIVE.md" in front of a file
+    // Collapsing both into absence printed "no program" in front of a file
     // that was right there, and threw away the parser's own verdict, which is
     // exactly the thing the reader needs (#193).
     const failure = (error as { failure?: { problem?: unknown; fix?: unknown } }).failure;
@@ -696,19 +736,22 @@ function observeAutopilot(root: string): Parameters<typeof autopilotPreflight>[0
   }
 
   return {
-    activeProgram:
-      malformed !== null
+    program:
+      malformed !== undefined
         ? { malformed }
-        : program === null
-          ? null
+        : program === undefined
+          ? undefined
           : {
               status: program.status,
-              autopilot: {
-                enabled: program.autopilot.enabled,
-                clusterSize: program.autopilot.clusterSize,
-                mergeGate: program.autopilot.mergeGate,
-                verifyCommands: program.autopilot.verifyCommands,
-              },
+              // Absent means the program opted out, which preflight reports as
+              // such. Reporting an empty block instead would read as consent.
+              ...(program.autopilot === undefined ? {} : {
+                autopilot: {
+                  clusterSize: program.autopilot.clusterSize,
+                  mergeGate: program.autopilot.mergeGate,
+                  verifyCommands: program.autopilot.verifyCommands,
+                },
+              }),
             },
     adapters: detectedAdapters(root).map((adapter) => adapter.id),
     trackerConnector: 'unprobed',
@@ -716,7 +759,6 @@ function observeAutopilot(root: string): Parameters<typeof autopilotPreflight>[0
     baseProtected: 'unprobed',
   };
 }
-
 /**
  * Hand-written skills that git no longer sees.
  *

@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:38edd914717cc749769d007cb26068ce7ad12a179e1f1c8ad295ed386f8d5ade"
+    "rootHash": "sha256:4208665784e6425bc89fcf49357063fe59bf35280569dc977f261b9284433c0a"
   },
   "nodes": [
     {
@@ -1224,7 +1224,7 @@
           "name": "sessionstart-context",
           "pack": null,
           "source": "packages/core/hooks/sessionstart-context.sh",
-          "staticTokens": 84,
+          "staticTokens": 87,
           "type": "hook"
         }
       },
@@ -3467,7 +3467,7 @@
             }
           ],
           "id": "skill:void-autopilot",
-          "lines": 165,
+          "lines": 178,
           "name": "void-autopilot",
           "owner": "folpe",
           "pack": null,
@@ -3476,7 +3476,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-autopilot/SKILL.md",
-          "staticTokens": 2414,
+          "staticTokens": 2699,
           "type": "skill"
         }
       },
@@ -3563,7 +3563,7 @@
             }
           ],
           "id": "skill:void-checkpoint",
-          "lines": 225,
+          "lines": 226,
           "name": "void-checkpoint",
           "owner": "folpe",
           "pack": null,
@@ -3572,7 +3572,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-checkpoint/SKILL.md",
-          "staticTokens": 2770,
+          "staticTokens": 2813,
           "type": "skill"
         }
       },
@@ -3757,7 +3757,7 @@
             }
           ],
           "id": "skill:void-context",
-          "lines": 162,
+          "lines": 168,
           "name": "void-context",
           "owner": "folpe",
           "pack": null,
@@ -3766,7 +3766,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-context/SKILL.md",
-          "staticTokens": 2582,
+          "staticTokens": 2874,
           "type": "skill"
         }
       },
@@ -3853,7 +3853,7 @@
             }
           ],
           "id": "skill:void-decide",
-          "lines": 139,
+          "lines": 148,
           "name": "void-decide",
           "owner": "folpe",
           "pack": null,
@@ -3862,7 +3862,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-decide/SKILL.md",
-          "staticTokens": 1017,
+          "staticTokens": 1168,
           "type": "skill"
         }
       },
@@ -4256,7 +4256,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-implement/SKILL.md",
-          "staticTokens": 4151,
+          "staticTokens": 4163,
           "type": "skill"
         }
       },
@@ -4593,7 +4593,7 @@
             }
           ],
           "id": "skill:void-plan",
-          "lines": 235,
+          "lines": 240,
           "name": "void-plan",
           "owner": "folpe",
           "pack": null,
@@ -4602,7 +4602,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-plan/SKILL.md",
-          "staticTokens": 2612,
+          "staticTokens": 2623,
           "type": "skill"
         }
       },
@@ -5088,7 +5088,7 @@
             }
           ],
           "id": "skill:void-ticket",
-          "lines": 157,
+          "lines": 170,
           "name": "void-ticket",
           "owner": "folpe",
           "pack": null,
@@ -5097,7 +5097,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-ticket/SKILL.md",
-          "staticTokens": 2325,
+          "staticTokens": 2329,
           "type": "skill"
         }
       },
