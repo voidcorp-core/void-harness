@@ -15,6 +15,10 @@ import { autopilotFailure } from './errors.js';
 
 export type ProgramStatus = 'executing' | 'completed';
 
+export type MergeGate = 'human' | 'union-reviewed';
+
+const MERGE_GATES: readonly MergeGate[] = ['human', 'union-reviewed'];
+
 export interface ProgressStates {
   readonly ready: readonly string[];
   readonly started: readonly string[];
@@ -46,8 +50,23 @@ export interface AutopilotConfig {
   readonly clusterSize: number;
   /** `auto` resolves develop then main; anything else must exist. */
   readonly base: string;
-  /** Only `human` is accepted: merging is the human boundary of the feature. */
-  readonly mergeGate: 'human';
+  /**
+   * Who may merge the integration pull request.
+   *
+   * `human` keeps every merge a person's. `union-reviewed` grants the merge to
+   * the machine on the two conditions the union-is-read-before-it-merges record
+   * states: production is not downstream, and an adversarial reading of the
+   * whole integrated diff came back clean.
+   */
+  readonly mergeGate: MergeGate;
+  /**
+   * The branch that deploys. Required by `union-reviewed`, absent otherwise.
+   *
+   * Never defaulted. Guessing `main` would put the human gate in the wrong place
+   * in a project that ships from `production`, or from its integration branch,
+   * and nothing would report it.
+   */
+  readonly deployBranch?: string;
   /** argv arrays, executed with shell:false. */
   readonly verifyCommands: readonly (readonly string[])[];
   readonly ownership: AutopilotOwnership;
@@ -232,11 +251,38 @@ function parseAutopilot(value: unknown): AutopilotConfig {
     );
   }
 
-  if (block.mergeGate !== 'human') {
+  if (typeof block.mergeGate !== 'string' || !MERGE_GATES.includes(block.mergeGate as MergeGate)) {
     invalid(
       'the program descriptor declares a merge gate autopilot will not honour',
-      `\`autopilot.mergeGate\` is ${String(block.mergeGate)}, and only \`human\` exists`,
-      'set `autopilot.mergeGate: human`; merging the integration PR is a human action',
+      `\`autopilot.mergeGate\` is ${String(block.mergeGate)}, and only ${MERGE_GATES.join(' and ')} exist`,
+      'set `autopilot.mergeGate: human`, or `union-reviewed` with a `deployBranch`',
+    );
+  }
+  const mergeGate = block.mergeGate as MergeGate;
+  const deployBranch = block.deployBranch;
+  if (mergeGate === 'union-reviewed') {
+    if (typeof deployBranch !== 'string' || deployBranch.trim().length === 0) {
+      invalid(
+        'the program grants a merge without saying which branch deploys',
+        '`autopilot.deployBranch` is missing, and `union-reviewed` cannot tell production from integration without it',
+        'set `autopilot.deployBranch` to the exact name of the branch that ships',
+      );
+    }
+    // Said once here rather than discovered as a refusal on every merge. The
+    // grant re-checks the resolved target at merge time regardless, since `base:
+    // auto` is only resolved then and can land on this same branch.
+    if (deployBranch === (block.base ?? 'auto')) {
+      invalid(
+        'the program integrates straight into the branch it says deploys',
+        `\`autopilot.base\` and \`autopilot.deployBranch\` are both ${String(deployBranch)}`,
+        'integrate into a branch that does not ship, or set `mergeGate: human`',
+      );
+    }
+  } else if (deployBranch !== undefined) {
+    invalid(
+      'the program names a deploying branch under a gate that never reads it',
+      '`autopilot.deployBranch` is set while `mergeGate` is `human`',
+      'remove `deployBranch`, or set `mergeGate: union-reviewed` to use it',
     );
   }
 
@@ -264,7 +310,8 @@ function parseAutopilot(value: unknown): AutopilotConfig {
     enabled: block.enabled,
     clusterSize: clusterSize as number,
     base,
-    mergeGate: 'human',
+    mergeGate,
+    ...(deployBranch === undefined ? {} : { deployBranch }),
     verifyCommands: verifyCommands(block.verifyCommands),
     ownership: {
       sequential: pathList(ownership.sequential, 'autopilot.ownership.sequential'),
