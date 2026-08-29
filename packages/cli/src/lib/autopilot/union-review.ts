@@ -14,6 +14,7 @@
 // tree, and whose silence gets read as approval. All three refuse here, and they
 // refuse with the same words a human would need to unblock them.
 
+import { planLensExecution, type LensPlan, type OrchestrationCapability } from '@voidcorp/mission-engine';
 import { autopilotFailure } from './errors.js';
 
 /** A contradiction between workers that no single worker could have seen. */
@@ -142,6 +143,13 @@ export interface UnionReviewRequest {
   readonly diffCommand: readonly string[];
   readonly instruction: string;
   readonly ticketIds: readonly string[];
+  /**
+   * How many readers run and in what shape, on the runtime actually present.
+   *
+   * Required rather than defaulted: a request that does not know its own width
+   * would be guessing, and the verdict has to name what really ran.
+   */
+  readonly lensPlan: LensPlan;
 }
 
 export interface UnionReviewRequestInput {
@@ -149,6 +157,8 @@ export interface UnionReviewRequestInput {
   readonly integrationSha: string;
   readonly baseSha: string;
   readonly ticketIds: readonly string[];
+  readonly declaredLenses: number;
+  readonly capability: OrchestrationCapability;
 }
 
 /**
@@ -181,6 +191,14 @@ export function buildUnionReviewRequest(input: UnionReviewRequestInput): UnionRe
       'does not mean the diff is good.',
     ].join(' '),
     ticketIds: [...input.ticketIds],
+    // Adversarial, which is the one demand this pass genuinely makes: its value
+    // is readers trying to break each other's reading of the same diff. Where the
+    // runtime cannot carry a conversation the controller arbitrates successive
+    // rounds instead, and the plan says which of the two happened.
+    lensPlan: planLensExecution(
+      { declaredLenses: input.declaredLenses, wants: 'adversarial-debate' },
+      input.capability,
+    ),
   };
 }
 

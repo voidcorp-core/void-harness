@@ -120,6 +120,8 @@ describe('asking for the reading', () => {
     integrationSha: SHA,
     baseSha: OTHER,
     ticketIds: ['DEV-1', 'DEV-2'],
+    declaredLenses: 3,
+    capability: { runtime: 'codex', maxConcurrentAgents: 6, agentToAgent: false },
   });
 
   it('asks for the whole integrated diff, not a per-ticket range', () => {
