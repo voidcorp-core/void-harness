@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { InstallReceipt } from '../lib/receipts.js';
+import { sourceRepoVerdict } from './init.js';
 import {
   completeOwnership,
   localInitArgs,
@@ -48,6 +49,21 @@ describe('localInitArgs', () => {
    */
   it('forwards --force so the remedy it prints can actually be applied', () => {
     expect(localInitArgs(receipt('local'), [], { force: true })).toContain('--force');
+  });
+
+  /**
+   * The two travel together on the source repo, and each keeps its own meaning:
+   * --force answers a conflict on some managed asset, --preserve-doctrine says
+   * the canonical CLAUDE.md / AGENTS.md / PHILOSOPHY.md here are the source and
+   * not a copy of it. Sending only the first rewrote the doctrine as a side
+   * effect of unblocking two hook files.
+   */
+  it('carries --preserve-doctrine alongside --force, since they answer different things', () => {
+    const args = localInitArgs(receipt('local'), [], { force: true, preserveDoctrine: true });
+    expect(args).toContain('--force');
+    expect(args).toContain('--preserve-doctrine');
+    expect(sourceRepoVerdict({ isSourceRepo: true, force: true, preserveDoctrine: true }))
+      .toBe('preserve-doctrine');
   });
 });
 

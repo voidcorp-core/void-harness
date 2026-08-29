@@ -194,8 +194,39 @@ export function sourceRepoVerdict(input: {
   readonly force: boolean;
   readonly preserveDoctrine: boolean;
 }): SourceRepoVerdict {
-  if (!input.isSourceRepo || input.force) return 'proceed';
-  return input.preserveDoctrine ? 'preserve-doctrine' : 'refuse';
+  if (!input.isSourceRepo) return 'proceed';
+  // Ordered ahead of `force` on purpose. The two flags answer different people:
+  // `preserveDoctrine` is what `update` declares about the repo it runs in,
+  // `--force` is what an operator types to get past a conflict on some managed
+  // asset. Reading force first let unblocking two hook files rewrite the
+  // canonical CLAUDE.md as a side effect, which nothing had asked for.
+  if (input.preserveDoctrine) return 'preserve-doctrine';
+  return input.force ? 'proceed' : 'refuse';
+}
+
+/**
+ * What `init` does with a `.void/config.json` that is already there.
+ *
+ * `--force` seizes ownership of a *managed* asset: one the harness owns alone
+ * and can prove it wrote. The config is *co-owned* -- the project tunes paths,
+ * modes and commands, the harness only records pack pins -- so the flag has
+ * nothing to say about it, and treating it as licence to overwrite cost a
+ * monorepo its whole enforcement floor: `paths.business` fell back to the
+ * single-app default, the config stayed valid, and nothing went red.
+ *
+ * It keeps exactly one job here, the case where merging is not possible at all:
+ * a config too broken to parse.
+ */
+export type ConfigWriteVerdict = 'scaffold' | 'merge' | 'overwrite-unreadable' | 'keep-unreadable';
+
+export function configWriteVerdict(input: {
+  readonly exists: boolean;
+  readonly readable: boolean;
+  readonly force: boolean;
+}): ConfigWriteVerdict {
+  if (!input.exists) return 'scaffold';
+  if (input.readable) return 'merge';
+  return input.force ? 'overwrite-unreadable' : 'keep-unreadable';
 }
 
 export async function init(args: readonly string[]): Promise<void> {
@@ -478,8 +509,31 @@ async function writeConfig(
   // must record every activated pack, never leave it absent (the fake-pack bug).
   const packPin = pin ?? `^${cliVersion()}`;
 
-  // --force OR first-time: write the full scaffold seeded with detected stack.
-  if (!existsSync(configPath) || opts.force) {
+  // Read before deciding: whether the config can be merged into is the fact the
+  // verdict turns on, and it is only knowable after parsing it.
+  const exists = existsSync(configPath);
+  let parsed: PackConfig | undefined;
+  if (exists) {
+    try {
+      parsed = JSON.parse(await readFile(configPath, 'utf8'));
+    } catch {
+      parsed = undefined;
+    }
+  }
+  const verdict = configWriteVerdict({ exists, readable: parsed !== undefined, force: opts.force });
+
+  if (verdict === 'keep-unreadable') {
+    line(`${c.yellow(glyph.up)}  ${c.dim('.void/config.json'.padEnd(18))}unreadable, leaving untouched (use --force to overwrite)`);
+    return;
+  }
+
+  if (verdict === 'scaffold' || verdict === 'overwrite-unreadable') {
+    // Named before the write, never after. This is the one path where --force
+    // replaces a file the project co-owns, and whatever paths or modes it had
+    // tuned are not recoverable from a config nothing could parse.
+    if (verdict === 'overwrite-unreadable') {
+      line(`${c.yellow(glyph.up)}  ${c.dim('.void/config.json'.padEnd(18))}overwriting unparseable config (--force); hand-tuned keys are lost`);
+    }
     const config = buildDefaultConfig(seed);
     for (const pack of packs) config.packs[`@voidcorp/${pack.name}`] = packPin;
     await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`);
@@ -487,15 +541,9 @@ async function writeConfig(
     return;
   }
 
-  // Existing config: merge in any newly-selected packs without touching the
-  // user's hand-tuned paths/commands/modes or existing pack pins.
-  let existing: PackConfig = {};
-  try {
-    existing = JSON.parse(await readFile(configPath, 'utf8'));
-  } catch {
-    line(`${c.yellow(glyph.up)}  ${c.dim('.void/config.json'.padEnd(18))}unreadable, leaving untouched (use --force to overwrite)`);
-    return;
-  }
+  // Merge in any newly-selected packs without touching the user's hand-tuned
+  // paths/commands/modes or existing pack pins.
+  const existing: PackConfig = parsed ?? {};
   const currentPacks = { ...(existing.packs ?? {}) };
   // A fresh remote pin wins; else the config's canonical pin; else this CLI's
   // version — an activated pack is always recorded with a valid version, never
