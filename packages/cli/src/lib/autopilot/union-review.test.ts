@@ -229,3 +229,47 @@ describe('what happens once the checks have spoken', () => {
     expect(decide('ready', { review: undefined }).action).toBe('await-human');
   });
 });
+
+// `agentToAgent` changes no outcome while every caller asks for independent
+// lenses, and a field nothing reads is a belief about behaviour that does not
+// exist. The union read is where a debate genuinely applies: its whole value is
+// lenses that try to break each other's reading of the same diff.
+describe('how wide the union is read', () => {
+  const claudeTeams = { runtime: 'claude', maxConcurrentAgents: 20, agentToAgent: true };
+  const codex = { runtime: 'codex', maxConcurrentAgents: 6, agentToAgent: false };
+
+  const ask = (capability: typeof codex, lenses = 3) =>
+    buildUnionReviewRequest({
+      integrationBranch: 'autopilot/c1',
+      integrationSha: SHA,
+      baseSha: OTHER,
+      ticketIds: ['DEV-1'],
+      declaredLenses: lenses,
+      capability,
+    });
+
+  it('lets the readers argue where the runtime carries a conversation', () => {
+    expect(ask(claudeTeams).lensPlan.mode).toBe('debate');
+  });
+
+  it('falls back to arbitrated rounds where they cannot talk to each other', () => {
+    const plan = ask(codex).lensPlan;
+
+    expect(plan.mode).toBe('fan-out');
+    expect(plan.degraded).toBe(true);
+  });
+
+  it('keeps one reader as the floor, so the pass never disappears', () => {
+    // A runtime with no room still reads the union, serially. Losing the pass
+    // entirely would grant the merge on silence.
+    const plan = ask({ runtime: 'kimi', maxConcurrentAgents: 1, agentToAgent: false }).lensPlan;
+
+    expect(plan.mode).toBe('serial');
+    expect(plan.lenses).toBe(1);
+  });
+
+  it('names the execution that ran, so a verdict cannot imply the stronger read', () => {
+    expect(ask(codex).lensPlan.reason).toContain('codex');
+    expect(ask(claudeTeams).lensPlan.reason).toContain('claude');
+  });
+});
