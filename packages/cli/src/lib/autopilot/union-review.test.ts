@@ -194,7 +194,7 @@ describe('where the reader\'s prose stops', () => {
 });
 
 describe('what happens once the checks have spoken', () => {
-  const after = (checks: 'ready' | 'fix' | 'escalate' | 'wait', over = {}) =>
+  const decide = (checks: 'ready' | 'fix' | 'escalate' | 'wait', over = {}) =>
     planPostCheckAction({
       checks,
       grant: judgeMergeGrant({
@@ -207,25 +207,25 @@ describe('what happens once the checks have spoken', () => {
     });
 
   it('merges when the checks are green and the union was cleared', () => {
-    expect(after('ready').action).toBe('merge');
+    expect(decide('ready').action).toBe('merge');
   });
 
   it('holds while the checks have not settled, whatever the grant says', () => {
     // Deciding a merge on a branch whose checks are still running would be
     // deciding it on evidence that does not exist yet.
     for (const checks of ['fix', 'escalate', 'wait'] as const) {
-      expect(after(checks).action).toBe('hold');
+      expect(decide(checks).action).toBe('hold');
     }
   });
 
   it('hands green checks to a human when the grant refused, and says why', () => {
-    const outcome = after('ready', { target: 'main' });
+    const outcome = decide('ready', { target: 'main' });
 
     expect(outcome.action).toBe('await-human');
     expect(outcome.detail).toContain('ships');
   });
 
   it('never merges an unread union even with every check green', () => {
-    expect(after('ready', { review: undefined }).action).toBe('await-human');
+    expect(decide('ready', { review: undefined }).action).toBe('await-human');
   });
 });

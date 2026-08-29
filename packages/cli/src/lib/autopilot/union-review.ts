@@ -264,3 +264,37 @@ export function parseUnionReview(raw: unknown, observedSha: string): UnionReview
 export function inconclusiveReview(observedSha: string): UnionReview {
   return { schemaVersion: 1, integrationSha: observedSha, verdict: 'inconclusive', contradictions: [] };
 }
+
+
+/** Where the checks stand, as `planCheckResponse` reports it. */
+export type CheckStand = 'ready' | 'fix' | 'escalate' | 'wait';
+
+export type PostCheckAction = 'merge' | 'await-human' | 'hold';
+
+export interface PostCheckOutcome {
+  readonly action: PostCheckAction;
+  readonly detail: string;
+}
+
+/**
+ * What happens to a published integration branch once its checks have spoken.
+ *
+ * Two questions that must not collapse into one. Where the checks stand is not
+ * whether this union may merge itself, and deciding the second while the first
+ * is unsettled would decide it on evidence that does not exist yet -- so
+ * anything but `ready` holds, whatever the grant says.
+ */
+export function planPostCheckAction(input: {
+  readonly checks: CheckStand;
+  readonly grant: MergeGrant;
+}): PostCheckOutcome {
+  if (input.checks !== 'ready') {
+    return { action: 'hold', detail: 'the checks have not settled; nothing to decide yet' };
+  }
+  if (input.grant.kind === 'granted') {
+    return { action: 'merge', detail: 'checks are green and the union came back clean' };
+  }
+  // The reason travels with the hand-off. A branch left to a person without one
+  // makes them re-derive what the run already knew.
+  return { action: 'await-human', detail: input.grant.detail };
+}
