@@ -253,26 +253,37 @@ function derivedCheck(observation: LayoutObservation): CheckResult {
 /**
  * Skills the project wrote itself that git no longer sees.
  *
- * The managed ignore block names whole runtime directories now, instead of the
- * 148 lines it took to keep two files tracked. That collapse can swallow exactly
- * one thing: a skill written by hand in `.claude/skills/`, beside the ones the
- * harness generates. Losing it is losing work, not a regenerable file, and the
- * loss is silent -- `git status` simply stops mentioning it.
+ * This used to be the mechanism: the block ignored `.claude/skills/*` wholesale,
+ * every project skill fell under it, and this check told the project which line
+ * to write by hand to get its own work back. That is not a guarantee -- it
+ * assumes somebody runs doctor before the clone that drops the work.
  *
- * So it is reported, with the one line that rescues it. Advisory rather than a
- * failure: an ignored skill still loads at runtime, so nothing is broken today;
- * what is at risk is the next clone.
+ * The block now hides the shipped skills by their `void-` prefix and leaves
+ * everything else alone, so this became the net it should always have been. What
+ * can still hide a project skill is a name: one whose own name opens with the
+ * prefix reserved for shipped skills falls under the pattern. That is the likely
+ * cause, so it is the one reported --
+ * teaching the exception line again would be teaching a workaround for a name
+ * collision. Anything else is a rule the project itself wrote, and git names it
+ * more precisely than this check ever could.
+ *
+ * Advisory rather than a failure: an ignored skill still loads at runtime, so
+ * nothing is broken today; what is at risk is the next clone.
  */
 export function judgeProjectSkills(ignored: readonly string[]): CheckResult {
   const name = 'project skills';
-  if (ignored.length === 0) return pass(name, 'no hand-written skill hidden by the managed block');
+  if (ignored.length === 0) return pass(name, 'no project skill hidden from git');
   const names = ignored.map((path) => path.split('/').pop() ?? path);
+  const reserved = names.filter((skill) => skill.startsWith('void-'));
+  const fix = reserved.length > 0
+    ? `rename without the reserved void- prefix, which marks a shipped skill: ${reserved.join(', ')}`
+    : `a project rule hides these; run git check-ignore -v ${ignored[0] ?? ''} to see which`;
   return {
     name,
     ok: false,
     status: 'advisory',
-    message: `${ignored.length} hand-written skill(s) ignored by the managed block: ${names.join(', ')}`,
-    fix: `add one line per skill below the block, e.g. ${ignored.map((path) => `!${path}/`).join(' ')}`,
+    message: `${ignored.length} project skill(s) hidden from git: ${names.join(', ')}`,
+    fix,
   };
 }
 

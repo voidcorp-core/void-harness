@@ -9237,6 +9237,15 @@ var UNIT_ROOTS = Object.freeze([
   ".agents/skills",
   ".codex/agents"
 ]);
+var PREFIXED_UNIT_ROOTS = Object.freeze([
+  ".claude/skills",
+  ".agents/skills"
+]);
+var LISTED_UNIT_ROOTS = Object.freeze([
+  ".claude/agents",
+  ".claude/commands",
+  ".codex/agents"
+]);
 var MACHINE_ENTRIES = Object.freeze(
   Object.keys(VOID_OWNERSHIP).filter((entry) => VOID_OWNERSHIP[entry] === "observed").sort()
 );

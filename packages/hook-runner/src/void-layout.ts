@@ -188,11 +188,40 @@ export const DERIVED_LOAD_BEARING: readonly string[] = Object.freeze([
  * one command. Used only to keep the generated ignore block readable: a unit the
  * receipt owns collapses to `<root>/<unit>/` instead of listing its every file.
  */
-const UNIT_ROOTS: readonly string[] = Object.freeze([
+export const UNIT_ROOTS: readonly string[] = Object.freeze([
   '.claude/skills',
   '.claude/agents',
   '.claude/commands',
   '.agents/skills',
+  '.codex/agents',
+]);
+
+/**
+ * The prefix every skill this harness ships carries, and nothing else does.
+ *
+ * CLAUDE.md rule 8 makes it an invariant rather than an observation, and
+ * `scripts/anti-bloat-check.sh` fails the build on a shipped skill without it.
+ * That is what lets the block name eighty-two owned skill directories with two
+ * pattern lines -- and, unlike any list, stay right about a skill the project
+ * adds long after the last install.
+ */
+const SHIPPED_SKILL_PREFIX = 'void-';
+
+/** Unit roots whose every owned child carries `SHIPPED_SKILL_PREFIX`. */
+export const PREFIXED_UNIT_ROOTS: readonly string[] = Object.freeze([
+  '.claude/skills',
+  '.agents/skills',
+]);
+
+/**
+ * Unit roots holding units the harness owns under names it shares with the
+ * project: an agent is named for a person you could hire, so `doctrine-critic`
+ * looks exactly like an agent the project wrote. No pattern separates them, so
+ * these are listed from the receipt, one entry each.
+ */
+export const LISTED_UNIT_ROOTS: readonly string[] = Object.freeze([
+  '.claude/agents',
+  '.claude/commands',
   '.codex/agents',
 ]);
 
@@ -377,31 +406,42 @@ export function pendingMigrations(root: string): string[] {
 }
 
 /**
- * The managed `.gitignore` block. `derivedEntries` comes from
- * `derivedIgnoreEntries(receipt.files)` — pass an empty list and the block covers
- * observed state only, which is what a project with no readable receipt gets.
+ * The entries the block must list one by one: what the receipt owns under a root
+ * where no pattern tells harness content from the project's own.
  */
+function listedOwnedEntries(ownedPaths: readonly string[]): string[] {
+  return derivedIgnoreEntries(ownedPaths).filter((entry) =>
+    LISTED_UNIT_ROOTS.some((root) => entry.startsWith(`${root}/`)),
+  );
+}
+
 /**
- * The managed block, whole.
+ * The managed block, whole. `ownedPaths` comes from the install receipt; pass an
+ * empty list and the block covers observed state and the shipped-skill pattern
+ * only, which is what a project with no readable receipt gets.
  *
- * It used to name every generated file one by one, from the install receipt:
- * 148 lines in this repository to keep exactly TWO files tracked. The reason
- * was real -- `.claude/skills/` is shared, and a skill the project wrote by hand
- * lives there too -- but the price was a wall nobody reads, regenerated on every
- * install.
+ * It used to name every generated file one by one: 148 lines in this repository
+ * to keep exactly TWO files tracked. Collapsing that to whole directories made
+ * it readable and cost the safety property -- `.claude/skills/` is shared, so
+ * `.claude/skills/*` swallowed the skills the project had written, and the block
+ * left the project to re-include each by hand with `doctor` reporting the
+ * omission. A net that assumes you run doctor before losing the work is not a
+ * net: the loss lands at the first clone.
  *
- * The directories are collapsed instead, with the two exceptions named. The form
- * matters more than it looks: `.claude/` would exclude the directory itself, and
- * git then refuses to re-include anything below it, so `!.claude/settings.json`
- * would be silently dead. `.claude/*` descends into it and the exception holds.
- * `void-layout.test.ts` asserts that against real git rather than against the
- * text of this block.
+ * Neither wall nor blanket, then. The harness names what it owns the cheapest
+ * way its own naming allows: a pattern where its names carry one, a list where
+ * they do not. Every shipped skill is `void-`prefixed by CLAUDE.md rule 8, so
+ * two pattern lines replace eighty-two entries and stay right about a skill
+ * added after the last install. Agents are named for a person you could hire and
+ * carry no prefix, so they are listed -- far fewer, and the receipt has them.
  *
- * What the project writes itself stays visible with one explicit line, e.g.
- * `!.claude/skills/my-skill/`, and `doctor` reports a skill that is ignored
- * without one -- the silent loss this collapse would otherwise cause.
+ * The form matters more than it looks: `.claude/` would exclude the directory
+ * itself, and git then refuses to re-include anything below it, so
+ * `!.claude/settings.json` would be silently dead. `.claude/*` descends into it
+ * and the exception holds. `void-layout.test.ts` asserts all of this against
+ * real git rather than against the text of this block.
  */
-export function gitignoreBlock(): string {
+export function gitignoreBlock(ownedPaths: readonly string[] = []): string {
   return [
     BEGIN_MARKER,
     '# .void/ has three levels, named by what deleting them costs. Everything the',
@@ -424,18 +464,22 @@ export function gitignoreBlock(): string {
     '# break. The two exceptions below are the opposite -- their absence is an',
     '# error, because .claude/settings.json names the hooks and .codex/hooks.json',
     '# IS the safety floor.',
-    '# A skill this project wrote itself stays visible with one line of its own:',
-    '#   !.claude/skills/my-skill/',
-    '# `void-harness doctor` reports one that is ignored without it.',
+    '# Nothing here covers what the PROJECT wrote. Its skills, agents and commands',
+    '# stay visible to git with no line to add by hand: the shipped skills match a',
+    "# prefix nothing else carries, and the agents below are named from the receipt.",
     '.claude/*',
     '!.claude/settings.json',
     '!.claude/skills/',
-    '.claude/skills/*',
+    `.claude/skills/${SHIPPED_SKILL_PREFIX}*/`,
+    '!.claude/agents/',
+    '!.claude/commands/',
     '.agents/*',
     '!.agents/skills/',
-    '.agents/skills/*',
+    `.agents/skills/${SHIPPED_SKILL_PREFIX}*/`,
     '.codex/*',
     '!.codex/hooks.json',
+    '!.codex/agents/',
+    ...listedOwnedEntries(ownedPaths),
     END_MARKER,
   ].join('\n');
 }
@@ -472,8 +516,8 @@ export function stripManagedBlock(original: string): string {
   return joined.endsWith('\n') ? joined : `${joined}\n`;
 }
 
-export function patchGitignore(original: string): string {
-  const block = gitignoreBlock();
+export function patchGitignore(original: string, ownedPaths: readonly string[] = []): string {
+  const block = gitignoreBlock(ownedPaths);
   const begin = original.indexOf(BEGIN_MARKER);
   const end = original.indexOf(END_MARKER);
   if (begin !== -1 && end !== -1) {
