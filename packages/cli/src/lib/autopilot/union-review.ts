@@ -14,6 +14,8 @@
 // tree, and whose silence gets read as approval. All three refuse here, and they
 // refuse with the same words a human would need to unblock them.
 
+import { autopilotFailure } from './errors.js';
+
 /** A contradiction between workers that no single worker could have seen. */
 export interface Contradiction {
   readonly summary: string;
@@ -120,4 +122,145 @@ export function judgeMergeGrant(input: MergeGrantInput): MergeGrant {
     );
   }
   return { kind: 'granted' };
+}
+
+
+const MAX_CONTRADICTIONS = 50;
+const MAX_EVIDENCE = 20;
+const MAX_TEXT = 2000;
+const VERDICTS: readonly UnionVerdict[] = ['clean', 'contradicted', 'inconclusive'];
+
+function invalid(problem: string, cause: string, fix: string): never {
+  throw autopilotFailure('AUTOPILOT_CONTRACT', problem, cause, fix);
+}
+
+export interface UnionReviewRequest {
+  readonly schemaVersion: 1;
+  readonly integrationBranch: string;
+  readonly integrationSha: string;
+  /** argv producing the whole integrated diff, base to head. */
+  readonly diffCommand: readonly string[];
+  readonly instruction: string;
+  readonly ticketIds: readonly string[];
+}
+
+export interface UnionReviewRequestInput {
+  readonly integrationBranch: string;
+  readonly integrationSha: string;
+  readonly baseSha: string;
+  readonly ticketIds: readonly string[];
+}
+
+/**
+ * What the union reader is asked, and over what.
+ *
+ * The diff spans base to head rather than any single worker range: the defect
+ * this pass exists for is two workers each locally correct and disagreeing with
+ * each other, which no range contains.
+ *
+ * The instruction says refute. A pass told to check for problems reports none
+ * and means nothing by it; a pass told to break the union and failing has made a
+ * claim that can be wrong, which is what makes a clean verdict worth having.
+ */
+export function buildUnionReviewRequest(input: UnionReviewRequestInput): UnionReviewRequest {
+  return {
+    schemaVersion: 1,
+    integrationBranch: input.integrationBranch,
+    integrationSha: input.integrationSha,
+    diffCommand: ['git', 'diff', `${input.baseSha}..${input.integrationSha}`],
+    instruction: [
+      'Read the whole integrated diff and try to REFUTE it. You are not checking',
+      'for problems: you are trying to break the union, and reporting only what',
+      'survived. Each worker was correct in isolation and each range already',
+      'passed its own gates, so per-file review adds nothing here.',
+      'Look for what only the union shows: the same concept named twice, two',
+      'modules that disagree about a word, an assertion in one range that another',
+      'range falsifies, a proof that does not prove what it claims.',
+      'Report a contradiction only with a concrete anchor a reader can open.',
+      'Finding nothing means you failed to refute it, which is the verdict; it',
+      'does not mean the diff is good.',
+    ].join(' '),
+    ticketIds: [...input.ticketIds],
+  };
+}
+
+function parseContradictions(value: unknown): readonly Contradiction[] {
+  if (!Array.isArray(value) || value.length > MAX_CONTRADICTIONS) {
+    invalid(
+      'the union review has an unusable contradiction list',
+      `\`contradictions\` must be an array of at most ${MAX_CONTRADICTIONS} entries`,
+      'report each contradiction as one entry with a summary and its anchors',
+    );
+  }
+  return value.map((entry) => {
+    const found = entry as Partial<Contradiction>;
+    const summary = found?.summary;
+    if (typeof summary !== 'string' || summary.trim().length === 0 || summary.length > MAX_TEXT) {
+      invalid(
+        'a union contradiction does not say what it found',
+        '`summary` must be a non-empty string',
+        'state each contradiction as one bounded sentence',
+      );
+    }
+    const evidence = found?.evidence;
+    // A finding with no anchor cannot be checked or fixed, and would block the
+    // merge on an assertion nobody can act on. Refused rather than downgraded.
+    if (
+      !Array.isArray(evidence)
+      || evidence.length === 0
+      || evidence.length > MAX_EVIDENCE
+      || evidence.some((item) => typeof item !== 'string' || item.trim().length === 0)
+    ) {
+      invalid(
+        'a union contradiction names nowhere to look',
+        `\`evidence\` must hold 1 to ${MAX_EVIDENCE} non-empty anchors`,
+        'give each contradiction at least one file, path or identifier a reader can open',
+      );
+    }
+    return { summary, evidence: [...evidence] as readonly string[] };
+  });
+}
+
+/**
+ * The boundary where the reader's prose stops.
+ *
+ * `observedSha` is the tree the CALLER took the diff from. The reader never
+ * supplies it: it is the one field that could turn a stale verdict into a
+ * fresh-looking one, so a claimed value is ignored rather than trusted.
+ *
+ * Unparsable output throws. Defaulting to `clean` would make every malformed
+ * answer an approval, which is the failure this whole pass exists to prevent.
+ */
+export function parseUnionReview(raw: unknown, observedSha: string): UnionReview {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    invalid(
+      'the union review is not an object',
+      'the reader returned something that is not a JSON object',
+      'have the reader return { verdict, contradictions }',
+    );
+  }
+  const body = raw as { readonly verdict?: unknown; readonly contradictions?: unknown };
+  const verdict = body.verdict;
+  if (typeof verdict !== 'string' || !VERDICTS.includes(verdict as UnionVerdict)) {
+    invalid(
+      'the union review does not carry a usable verdict',
+      `\`verdict\` must be one of ${VERDICTS.join(', ')}`,
+      'have the reader answer clean, contradicted or inconclusive',
+    );
+  }
+  return {
+    schemaVersion: 1,
+    integrationSha: observedSha,
+    verdict: verdict as UnionVerdict,
+    contradictions: parseContradictions(body.contradictions),
+  };
+}
+
+/**
+ * The verdict of a reading that never returned -- a timeout, an adapter failure,
+ * an interrupted run. Not clean and not contradicted: it cleared nothing, and it
+ * says so rather than falling back to a default someone would read as approval.
+ */
+export function inconclusiveReview(observedSha: string): UnionReview {
+  return { schemaVersion: 1, integrationSha: observedSha, verdict: 'inconclusive', contradictions: [] };
 }
