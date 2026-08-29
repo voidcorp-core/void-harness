@@ -3,8 +3,8 @@ schemaVersion: 1
 id: "adr:053e6114-d596-4ef5-bb2d-7109bcaa4533"
 createdAt: "2026-08-28T23:41:05.716Z"
 title: "The union is read before it merges; a human reads it where production is next"
-status: proposed
-deciders: []
+status: accepted
+deciders: ["folpe"]
 supersedes: ["adr:911e4259-d82c-4039-a440-3e611d5c6f3b"]
 ---
 
