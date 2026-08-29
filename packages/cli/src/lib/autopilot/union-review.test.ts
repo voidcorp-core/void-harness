@@ -4,6 +4,7 @@ import {
   inconclusiveReview,
   judgeMergeGrant,
   parseUnionReview,
+  planPostCheckAction,
   type UnionReview,
 } from './union-review.js';
 
@@ -189,5 +190,42 @@ describe('where the reader\'s prose stops', () => {
     expect(review.verdict).toBe('inconclusive');
     expect(judgeMergeGrant({ target: 'develop', deployBranch: 'main', integrationSha: SHA, review }).kind)
       .toBe('refused');
+  });
+});
+
+describe('what happens once the checks have spoken', () => {
+  const after = (checks: 'ready' | 'fix' | 'escalate' | 'wait', over = {}) =>
+    planPostCheckAction({
+      checks,
+      grant: judgeMergeGrant({
+        target: 'develop',
+        deployBranch: 'main',
+        integrationSha: SHA,
+        review: clean(),
+        ...over,
+      }),
+    });
+
+  it('merges when the checks are green and the union was cleared', () => {
+    expect(after('ready').action).toBe('merge');
+  });
+
+  it('holds while the checks have not settled, whatever the grant says', () => {
+    // Deciding a merge on a branch whose checks are still running would be
+    // deciding it on evidence that does not exist yet.
+    for (const checks of ['fix', 'escalate', 'wait'] as const) {
+      expect(after(checks).action).toBe('hold');
+    }
+  });
+
+  it('hands green checks to a human when the grant refused, and says why', () => {
+    const outcome = after('ready', { target: 'main' });
+
+    expect(outcome.action).toBe('await-human');
+    expect(outcome.detail).toContain('ships');
+  });
+
+  it('never merges an unread union even with every check green', () => {
+    expect(after('ready', { review: undefined }).action).toBe('await-human');
   });
 });
