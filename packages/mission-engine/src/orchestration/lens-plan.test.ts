@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { planLensExecution, type RuntimeCapability } from './lens-plan.js';
+import { planLensExecution, type OrchestrationCapability } from './lens-plan.js';
 
 // Measured against each runtime's own documentation, not guessed.
-const CLAUDE_TEAMS: RuntimeCapability = { runtime: 'claude', maxConcurrentAgents: 20, agentToAgent: true };
-const CLAUDE_PLAIN: RuntimeCapability = { runtime: 'claude', maxConcurrentAgents: 20, agentToAgent: false };
-const CODEX: RuntimeCapability = { runtime: 'codex', maxConcurrentAgents: 6, agentToAgent: false };
-const UNKNOWN: RuntimeCapability = { runtime: 'kimi', maxConcurrentAgents: 1, agentToAgent: false };
+const CLAUDE_TEAMS: OrchestrationCapability = { runtime: 'claude', maxConcurrentAgents: 20, agentToAgent: true };
+const CLAUDE_PLAIN: OrchestrationCapability = { runtime: 'claude', maxConcurrentAgents: 20, agentToAgent: false };
+const CODEX: OrchestrationCapability = { runtime: 'codex', maxConcurrentAgents: 6, agentToAgent: false };
+const UNKNOWN: OrchestrationCapability = { runtime: 'kimi', maxConcurrentAgents: 1, agentToAgent: false };
 
-const plan = (wants: 'independent' | 'adversarial-debate', lenses: number, capability: RuntimeCapability) =>
+const plan = (wants: 'independent' | 'adversarial-debate', lenses: number, capability: OrchestrationCapability) =>
   planLensExecution({ declaredLenses: lenses, wants }, capability);
 
 describe('taking each runtime to its maximum', () => {

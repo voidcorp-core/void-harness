@@ -32,7 +32,7 @@ export interface LensDemand {
 }
 
 /** What the runtime in front of us can actually do, as observed. */
-export interface RuntimeCapability {
+export interface OrchestrationCapability {
   readonly runtime: string;
   readonly maxConcurrentAgents: number;
   /** Whether agents can message each other, rather than only the caller. */
@@ -56,7 +56,7 @@ function invalid(message: string): never {
   throw new Error(message);
 }
 
-export function planLensExecution(demand: LensDemand, capability: RuntimeCapability): LensPlan {
+export function planLensExecution(demand: LensDemand, capability: OrchestrationCapability): LensPlan {
   if (!Number.isInteger(demand.declaredLenses) || demand.declaredLenses < 1) {
     // An empty pass would return a clean verdict nobody produced, which is worse
     // than any degraded one.

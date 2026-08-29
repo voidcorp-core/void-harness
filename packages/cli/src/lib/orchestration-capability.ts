@@ -16,7 +16,7 @@
 // A runtime the harness has never met is credited with one lens at a time. Not
 // zero, which would refuse the pass, and not someone else's ceiling.
 
-import type { RuntimeCapability } from '@voidcorp/mission-engine';
+import type { OrchestrationCapability } from '@voidcorp/mission-engine';
 
 export type CapabilityEnvironment = Readonly<Partial<Record<string, string>>>;
 
@@ -58,10 +58,10 @@ function configuredCeiling(env: CapabilityEnvironment, variable: string | undefi
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
-export function observeRuntimeCapability(
+export function observeOrchestrationCapability(
   runtime: string,
   env: CapabilityEnvironment,
-): RuntimeCapability {
+): OrchestrationCapability {
   const known = KNOWN[runtime];
   if (known === undefined) {
     return { runtime, maxConcurrentAgents: 1, agentToAgent: false };

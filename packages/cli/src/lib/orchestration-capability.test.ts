@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { observeRuntimeCapability } from './runtime-capability.js';
+import { observeOrchestrationCapability } from './orchestration-capability.js';
 
 describe('what the runtime in front of us can actually do', () => {
   it('reads Claude agent teams from the flag that switches them on', () => {
     // Experimental and off by default, so it is asked rather than assumed.
-    const on = observeRuntimeCapability('claude', { CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1' });
-    const off = observeRuntimeCapability('claude', {});
+    const on = observeOrchestrationCapability('claude', { CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1' });
+    const off = observeOrchestrationCapability('claude', {});
 
     expect(on.agentToAgent).toBe(true);
     expect(off.agentToAgent).toBe(false);
@@ -14,18 +14,18 @@ describe('what the runtime in front of us can actually do', () => {
   it('never reports agent-to-agent messaging on Codex, which documents it has none', () => {
     // "Subagents don't directly communicate with each other." Setting Claude's
     // flag in a Codex session must not import a capability the runtime lacks.
-    const capability = observeRuntimeCapability('codex', { CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1' });
+    const capability = observeOrchestrationCapability('codex', { CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1' });
 
     expect(capability.agentToAgent).toBe(false);
   });
 
   it('carries each runtime documented ceiling by default', () => {
-    expect(observeRuntimeCapability('claude', {}).maxConcurrentAgents).toBe(20);
-    expect(observeRuntimeCapability('codex', {}).maxConcurrentAgents).toBe(6);
+    expect(observeOrchestrationCapability('claude', {}).maxConcurrentAgents).toBe(20);
+    expect(observeOrchestrationCapability('codex', {}).maxConcurrentAgents).toBe(6);
   });
 
   it('honours a lowered ceiling the operator configured', () => {
-    expect(observeRuntimeCapability('claude', { CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS: '4' }).maxConcurrentAgents)
+    expect(observeOrchestrationCapability('claude', { CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS: '4' }).maxConcurrentAgents)
       .toBe(4);
   });
 
@@ -34,7 +34,7 @@ describe('what the runtime in front of us can actually do', () => {
     // a thousand. The documented default is the safe answer.
     for (const raw of ['0', '-3', 'many', '', '2.5']) {
       expect(
-        observeRuntimeCapability('claude', { CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS: raw }).maxConcurrentAgents,
+        observeOrchestrationCapability('claude', { CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS: raw }).maxConcurrentAgents,
         raw,
       ).toBe(20);
     }
@@ -44,7 +44,7 @@ describe('what the runtime in front of us can actually do', () => {
     // Not zero, which would refuse the pass, and not a guess at someone else's
     // ceiling. One is what any runtime can do, so support is never a
     // precondition for working at all.
-    const capability = observeRuntimeCapability('kimi', {});
+    const capability = observeOrchestrationCapability('kimi', {});
 
     expect(capability.runtime).toBe('kimi');
     expect(capability.maxConcurrentAgents).toBe(1);
