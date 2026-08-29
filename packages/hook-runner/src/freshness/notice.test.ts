@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { CACHE_TTL_MS, writeFreshnessCache } from './cache.js';
-import { freshnessNotice, resolveFreshness } from './notice.js';
+import { freshnessNotice, freshnessRelay, resolveFreshness } from './notice.js';
 
 const tempEnv = async (): Promise<{ XDG_CACHE_HOME: string }> => ({
   XDG_CACHE_HOME: await mkdtemp(join(tmpdir(), 'void-notice-')),
@@ -115,5 +115,45 @@ describe('freshnessNotice', () => {
   it('is a single line, so a session banner never turns into a wall of text', () => {
     const notice = freshnessNotice({ verdict: 'behind', installed: '0.17.0', latest: '2.1.0' }, 'local') ?? '';
     expect(notice).not.toContain('\n');
+  });
+});
+
+// A SessionStart hook cannot write to the user: `additionalContext` is model-only,
+// `systemMessage` is discarded for the event, and `terminalSequence` carries escape
+// codes, not prose. So the only surface that reaches a person is the agent's own
+// reply -- and this session proved the gap, receiving the upgrade line at startup
+// and never passing it on. The relay wording is what closes it.
+describe('freshnessRelay', () => {
+  const behind = { verdict: 'behind', installed: '0.17.0', latest: '2.1.0' } as const;
+
+  it('carries both versions and the exact command, like the terminal line does', () => {
+    const relay = freshnessRelay(behind, 'local') ?? '';
+    expect(relay).toContain('0.17.0');
+    expect(relay).toContain('2.1.0');
+    expect(relay).toContain('void-harness update');
+  });
+
+  it('asks the agent to tell the user, which no hook field can do itself', () => {
+    expect(freshnessRelay(behind, 'local')).toMatch(/tell the user/i);
+  });
+
+  it('bounds the telling to once, so it never becomes noise every turn', () => {
+    expect(freshnessRelay(behind, 'local')).toMatch(/once/i);
+  });
+
+  it('reads differently from the terminal line, which needs no relaying', () => {
+    // `status` and `doctor` print straight to a person. Handing them an
+    // instruction addressed to an agent would be nonsense on their surface.
+    expect(freshnessRelay(behind, 'local')).not.toBe(freshnessNotice(behind, 'local'));
+  });
+
+  it.each(['up-to-date', 'ahead', 'unknown'] as const)('stays silent on the %s verdict', (verdict) => {
+    expect(freshnessRelay({ verdict, installed: '2.1.0', latest: '2.1.0' }, 'local')).toBeUndefined();
+  });
+
+  it.each(['marketplace', undefined] as const)('stays silent for the %s source', (source) => {
+    // Same rule as the notice: advising `void-harness update` to someone whose
+    // install this command cannot update is confidently wrong.
+    expect(freshnessRelay(behind, source)).toBeUndefined();
   });
 });
