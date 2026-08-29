@@ -28,7 +28,6 @@ progress:
 humanGates: [DEV-433]
 autopilot:
   schemaVersion: 1
-  enabled: true
   clusterSize: 4
   base: auto
   mergeGate: human
@@ -92,18 +91,24 @@ describe('parseProgramDescriptor', () => {
       },
     });
     expect(descriptor.humanGates).toEqual(['DEV-433']);
-    expect(descriptor.autopilot.enabled).toBe(true);
+    expect(descriptor.autopilot?.clusterSize).toBe(4);
   });
 
-  it('accepts no progress source when autonomous selection is disabled', () => {
-    const descriptor = parseProgramDescriptor(
-      withoutProgress(
-        withAutopilot('autopilot:\n  schemaVersion: 1\n  enabled: false\n  mergeGate: human'),
-      ),
-    );
+  // Declaring the block IS the consent, so the opt-out is not writing one.
+  // Nobody configures a feature in full in order to disable it.
+  it('treats an absent autopilot block as the opt-out, and asks nothing more of it', () => {
+    const descriptor = parseProgramDescriptor(withoutProgress(withAutopilot('')));
 
+    expect(descriptor.autopilot).toBeUndefined();
     expect(descriptor.progress).toBeUndefined();
-    expect(descriptor.autopilot.enabled).toBe(false);
+  });
+
+  it('ignores an `enabled` left over from a descriptor written before this', () => {
+    // Rejecting the unknown field would turn every existing program into an
+    // error on upgrade, for a line that now says what its presence already says.
+    const descriptor = parseProgramDescriptor(VALID.replace('  clusterSize: 4', '  enabled: true\n  clusterSize: 4'));
+
+    expect(descriptor.autopilot?.clusterSize).toBe(4);
   });
 
   it('rejects autonomous selection without a progress source', () => {
@@ -150,15 +155,20 @@ describe('parseProgramDescriptor', () => {
     expect((thrown as { failure: { code: string } }).failure.code).toBe('AUTOPILOT_PROGRAM');
   });
 
-  it('requires an explicit autopilot decision', () => {
-    expect(() => parseProgramDescriptor(VALID.replace(/autopilot:\n(?:.*\n)*?---/, '---'))).toThrow(
-      /autopilot/,
-    );
+  it('never reads a declared progress provider as consent to autonomy', () => {
+    // The inverse of the rule the mandatory-flag test used to protect, and the
+    // one that actually matters: a project can wire its tracker for `resume`,
+    // `status` and the lifecycle without ever asking for autonomous selection.
+    // Inferring consent from a provider would hand it autonomy it never sought.
+    const descriptor = parseProgramDescriptor(VALID.replace(/autopilot:\n(?:.*\n)*?---/, '---'));
+
+    expect(descriptor?.autopilot).toBeUndefined();
+    expect(descriptor?.progress?.provider).toBe('linear');
   });
 
   it('rejects unsafe autopilot commands and paths', () => {
     const shellCommand =
-      'autopilot:\n  schemaVersion: 1\n  enabled: true\n  mergeGate: human\n  verifyCommands:\n    - pnpm test';
+      'autopilot:\n  schemaVersion: 1\n  mergeGate: human\n  verifyCommands:\n    - pnpm test';
     expect(() => parseProgramDescriptor(withAutopilot(shellCommand))).toThrow(/verifyCommands/);
     expect(() => parseProgramDescriptor(VALID.replace('docs/plans/2026-07-24-plan.md', '/etc/passwd'))).toThrow(
       /plan/,
@@ -166,6 +176,41 @@ describe('parseProgramDescriptor', () => {
     expect(() =>
       parseProgramDescriptor(VALID.replace('sequential: [pnpm-lock.yaml]', 'sequential: [../../etc/hosts]')),
     ).toThrow(/ownership/);
+  });
+
+  // `union-reviewed` is the gate the union-is-read-before-it-merges record
+  // grants: an integration branch may merge itself once an adversarial reading
+  // of the whole diff came back clean, and the human moves to the promotion.
+  it('accepts the union-reviewed gate when the deploying branch is named', () => {
+    const descriptor = parseProgramDescriptor(
+      VALID.replace('mergeGate: human', 'mergeGate: union-reviewed\n  deployBranch: main'),
+    );
+
+    expect(descriptor?.autopilot?.mergeGate).toBe('union-reviewed');
+    expect(descriptor?.autopilot?.deployBranch).toBe('main');
+  });
+
+  it('refuses to grant the merge without knowing which branch deploys', () => {
+    // Defaulting to `main` would be the name-based guess the record rejects: a
+    // project shipping from `production`, or from `develop` itself, would get
+    // the human gate in the wrong place and never notice.
+    expect(() => parseProgramDescriptor(VALID.replace('mergeGate: human', 'mergeGate: union-reviewed')))
+      .toThrow(/deployBranch/);
+  });
+
+  it('refuses a gate that would integrate straight into the deploying branch', () => {
+    // Declaring union-reviewed while every integration targets production is a
+    // contradiction, and it is better said once here than discovered as a
+    // refusal on every merge.
+    expect(() => parseProgramDescriptor(
+      VALID
+        .replace('base: auto', 'base: main')
+        .replace('mergeGate: human', 'mergeGate: union-reviewed\n  deployBranch: main'),
+    )).toThrow(/deployBranch/);
+  });
+
+  it('leaves deployBranch absent when the gate is human, which needs no such thing', () => {
+    expect(parseProgramDescriptor(VALID)?.autopilot?.deployBranch).toBeUndefined();
   });
 
   it('rejects unknown status, merge gate and cluster size values', () => {
@@ -254,6 +299,12 @@ describe("this repository's program", () => {
 
     expect(descriptor?.status).toBe('executing');
     expect(descriptor?.progress?.provider).toBe('linear');
-    expect(descriptor?.autopilot.mergeGate).toBe('human');
+    // This repository integrates into develop and ships from main, so it takes
+    // the granted gate. The pair is asserted rather than the value alone: a
+    // deploy branch equal to the base would make every merge refuse, and the
+    // refusal would look like a bug in the gate rather than a wrong descriptor.
+    expect(descriptor?.autopilot?.mergeGate).toBe('union-reviewed');
+    expect(descriptor?.autopilot?.deployBranch).toBe('main');
+    expect(descriptor?.autopilot?.deployBranch).not.toBe(descriptor?.autopilot?.base);
   });
 });

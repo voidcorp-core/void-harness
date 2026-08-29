@@ -391,3 +391,52 @@ describe('session close lifecycle', () => {
     }
   });
 });
+
+// Neutralising the freshness call in `cli.ts` changed nothing any test could see,
+// so the wiring was carried by nobody. It matters more than the wording: a
+// SessionStart hook cannot write to the user, so if this line stops being emitted
+// the upgrade prompt does not degrade, it disappears.
+describe('the upgrade prompt the session banner carries', () => {
+  function staleProject(): { root: string; cache: string } {
+    const root = mkdtempSync(join(tmpdir(), 'void-freshness-root-'));
+    const cache = mkdtempSync(join(tmpdir(), 'void-freshness-cache-'));
+    mkdirSync(join(root, '.void', 'machine', 'receipts'), { recursive: true });
+    writeFileSync(
+      join(root, '.void', 'machine', 'receipts', 'install-v1.json'),
+      JSON.stringify({ schemaVersion: 1, version: '0.17.0', source: 'local', runtimes: ['claude'], files: [] }),
+    );
+    mkdirSync(join(cache, 'void-harness'), { recursive: true });
+    writeFileSync(
+      join(cache, 'void-harness', 'freshness.json'),
+      JSON.stringify({ latest: '2.1.0', checkedAt: Date.now() }),
+    );
+    return { root, cache };
+  }
+
+  const banner = (root: string, cache: string): string =>
+    spawnSync(process.execPath, [hook, 'lifecycle', 'context', 'claude'], {
+      input: JSON.stringify({ hook_event_name: 'SessionStart', session_id: 'freshness', source: 'startup' }),
+      encoding: 'utf8',
+      env: { ...process.env, VOID_PROJECT_ROOT: root, XDG_CACHE_HOME: cache },
+    }).stdout ?? '';
+
+  it('names both versions and asks for the relay when the install is behind', () => {
+    const { root, cache } = staleProject();
+    const out = banner(root, cache);
+
+    expect(out).toContain('0.17.0');
+    expect(out).toContain('2.1.0');
+    expect(out).toContain('void-harness update');
+    expect(out.toLowerCase()).toContain('tell the user');
+  });
+
+  it('says nothing at all when the install is current', () => {
+    const { root, cache } = staleProject();
+    writeFileSync(
+      join(cache, 'void-harness', 'freshness.json'),
+      JSON.stringify({ latest: '0.17.0', checkedAt: Date.now() }),
+    );
+
+    expect(banner(root, cache).toLowerCase()).not.toContain('tell the user');
+  });
+});

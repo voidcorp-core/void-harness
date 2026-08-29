@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
+import { gitignoreBlock } from '@voidcorp/hook-runner';
 import { migrateVoidLayout, ownedDerivedPaths, planVoidMigration, untrackDerived } from './void-migration.js';
 
 const temporary: string[] = [];
@@ -49,7 +50,7 @@ describe('migrateVoidLayout', () => {
     const second = await migrateVoidLayout(root);
 
     expect(second.moved).toEqual([]);
-    expect(second.gitignoreTouched).toBe(false);
+    expect(second.gitignoreBlockRemoved).toBe(false);
   });
 
   /**
@@ -247,42 +248,55 @@ describe('migrateVoidLayout', () => {
     expect(existsSync(join(root, '.void/machine/cache/x.json.legacy.2'))).toBe(true);
   });
 
-  it('writes the ignore block, preserving the rules the project already had', async () => {
+  it('takes the block back out, preserving the rules the project already had', async () => {
+    // The rules now live in `.git/info/exclude`, which no checkout can revert.
+    // Leaving a copy here too would keep one branch-dependent source alive.
     const root = project({ '.void/cache/x.json': 'a\n' });
-    writeFileSync(join(root, '.gitignore'), 'node_modules\ndist/\n');
+    writeFileSync(join(root, '.gitignore'), `node_modules\ndist/\n\n${gitignoreBlock()}\n`);
 
     const result = await migrateVoidLayout(root);
     const ignore = readFileSync(join(root, '.gitignore'), 'utf8');
 
-    expect(result.gitignoreTouched).toBe(true);
+    expect(result.gitignoreBlockRemoved).toBe(true);
     expect(ignore).toContain('node_modules');
     expect(ignore).toContain('dist/');
-    expect(ignore).toContain('.void/machine/');
+    expect(ignore).not.toContain('.void/machine/');
+    expect(ignore).not.toContain('void-harness:begin');
   });
 
-  it('replaces the improvised rule that started this, instead of stacking on it', async () => {
-    // The block is marked, so a later run refreshes it in place. The hand-written
-    // `.void/*` + `!` pair above it is the project's own text and is preserved —
-    // reported, not silently rewritten.
+  it('leaves the improvised rule the project wrote itself exactly where it is', async () => {
+    // `.void/*` + `!` is the project's own text, not ours. It is reported by
+    // doctor, never rewritten — and least of all by a command removing our block.
     const root = project({ '.void/cache/x.json': 'a\n' });
-    writeFileSync(join(root, '.gitignore'), '.void/*\n!.void/PROJECT-DOCTRINE.md\n');
+    writeFileSync(join(root, '.gitignore'), `.void/*\n!.void/PROJECT-DOCTRINE.md\n\n${gitignoreBlock()}\n`);
 
     await migrateVoidLayout(root);
     const ignore = readFileSync(join(root, '.gitignore'), 'utf8');
 
-    expect(ignore).toContain('.void/machine/');
-    expect(ignore.match(/void-harness:begin/g)).toHaveLength(1);
+    expect(ignore).toContain('.void/*');
+    expect(ignore).toContain('!.void/PROJECT-DOCTRINE.md');
+    expect(ignore).not.toContain('void-harness:begin');
+  });
+
+  it('never creates a .gitignore just to hold nothing of ours', async () => {
+    const root = project({ '.void/cache/x.json': 'a\n' });
+
+    const result = await migrateVoidLayout(root);
+
+    expect(result.gitignoreBlockRemoved).toBe(false);
+    expect(existsSync(join(root, '.gitignore'))).toBe(false);
   });
 
   it('writes nothing in dry-run, while answering exactly what it would do', async () => {
     const root = project({ '.void/cache/x.json': 'a\n' });
+    writeFileSync(join(root, '.gitignore'), `${gitignoreBlock()}\n`);
 
     const result = await migrateVoidLayout(root, true);
 
     expect(result.moved).toEqual(['cache']);
-    expect(result.gitignoreTouched).toBe(true);
+    expect(result.gitignoreBlockRemoved).toBe(true);
     expect(existsSync(join(root, '.void/machine/activations.jsonl'))).toBe(false);
-    expect(existsSync(join(root, '.gitignore'))).toBe(false);
+    expect(readFileSync(join(root, '.gitignore'), 'utf8')).toContain('void-harness:begin');
   });
 
   it('does nothing at all in a project the harness never touched', async () => {
@@ -291,7 +305,7 @@ describe('migrateVoidLayout', () => {
 
     const result = await migrateVoidLayout(root);
 
-    expect(result).toEqual({ moved: [], conflicts: [], parked: [], gitignoreTouched: false });
+    expect(result).toEqual({ moved: [], conflicts: [], parked: [], gitignoreBlockRemoved: false });
     expect(existsSync(join(root, '.gitignore'))).toBe(false);
   });
 });

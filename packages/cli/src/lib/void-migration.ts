@@ -19,6 +19,7 @@ import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/p
 import { join } from 'node:path';
 import { INSTALL_MANIFEST_PATH, parseInstallManifest } from './install-manifest.js';
 import { readInstallReceipt } from './receipts.js';
+import { writeExcludeBlock } from './git-exclude.js';
 import {
   derivedIgnoreEntries,
   isOwnedDerived,
@@ -28,7 +29,7 @@ import {
   VOID_INSTALLED_DIR,
   VOID_MACHINE_DIR,
   ownershipOf,
-  patchGitignore,
+  stripManagedBlock,
   pendingMigrations,
   previousMachinePath,
   voidInstalledDir,
@@ -44,15 +45,19 @@ export interface VoidMigrationResult {
   readonly conflicts: readonly string[];
   /** Entries where a legacy copy was preserved beside the destination. */
   readonly parked: readonly string[];
-  /** True when the managed `.gitignore` block was added or refreshed. */
-  readonly gitignoreTouched: boolean;
+  /**
+   * True when the managed block was taken back out of the project's
+   * `.gitignore`. The rules live in `.git/info/exclude` now, which no checkout
+   * can revert; a copy left here would keep one branch-dependent source alive.
+   */
+  readonly gitignoreBlockRemoved: boolean;
 }
 
 const EMPTY: VoidMigrationResult = Object.freeze({
   moved: [],
   conflicts: [],
   parked: [],
-  gitignoreTouched: false,
+  gitignoreBlockRemoved: false,
 });
 
 /**
@@ -216,18 +221,27 @@ export async function untrackDerived(root: string, dryRun = false): Promise<Untr
 }
 
 /**
- * Move observed state under `.void/local/` and install the managed `.gitignore`
- * block. Idempotent: a migrated project reports nothing moved and an unchanged
- * ignore file. `dryRun` computes the same answer and writes nothing.
+ * Move observed state under `.void/machine/`, and take the managed block back
+ * out of the project's `.gitignore` if an older install left one there.
+ * Idempotent: a migrated project reports nothing moved and no block removed.
+ * `dryRun` computes the same answer and writes nothing.
  */
 export async function migrateVoidLayout(root: string, dryRun = false): Promise<VoidMigrationResult> {
   if (!existsSync(join(root, '.void'))) return EMPTY;
 
   const { movable, conflicts } = planVoidMigration(root);
+  // The rules move in one motion. Stripping the block without writing the
+  // exclude first would leave a window -- a crash, a full disk, an interrupt --
+  // in which nothing at all covers the installed assets, and the next
+  // `git clean` would take them. Write first, then remove.
+  if (!dryRun) writeExcludeBlock(root);
+
+  // Never create the file: a project with no `.gitignore` has no block of ours
+  // to remove, and writing an empty one would be a file it never asked for.
   const gitignorePath = join(root, '.gitignore');
   const original = existsSync(gitignorePath) ? await readFile(gitignorePath, 'utf8') : '';
-  const patched = patchGitignore(original);
-  const gitignoreTouched = patched !== original;
+  const stripped = stripManagedBlock(original);
+  const gitignoreBlockRemoved = stripped !== original;
 
   // Everything pending moves, including what the destination already holds.
   // Leaving a half-migrated entry in place meant the drift never resolved:
@@ -237,7 +251,7 @@ export async function migrateVoidLayout(root: string, dryRun = false): Promise<V
   const pending = [...movable, ...conflicts].sort();
   const failed: string[] = [];
 
-  if (dryRun) return { moved: pending, conflicts: [], parked: [], gitignoreTouched };
+  if (dryRun) return { moved: pending, conflicts: [], parked: [], gitignoreBlockRemoved };
 
   if (pending.length > 0) {
     await mkdir(voidMachineDir(root), { recursive: true });
@@ -307,7 +321,7 @@ export async function migrateVoidLayout(root: string, dryRun = false): Promise<V
     // An empty directory that will not go is cosmetic; never fail the update for it.
   }
 
-  if (gitignoreTouched) await writeFile(gitignorePath, patched);
+  if (gitignoreBlockRemoved) await writeFile(gitignorePath, stripped);
 
-  return { moved, conflicts: failed.sort(), parked: parked.sort(), gitignoreTouched };
+  return { moved, conflicts: failed.sort(), parked: parked.sort(), gitignoreBlockRemoved };
 }

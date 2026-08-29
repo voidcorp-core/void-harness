@@ -445,6 +445,33 @@ export function gitignoreBlock(): string {
  * project wrote itself untouched. Idempotent: patching an already-patched file
  * with the same entries returns it unchanged.
  */
+/**
+ * Take the managed block back out of a project `.gitignore`.
+ *
+ * The rules belong in `.git/info/exclude`, which is per-clone and untracked and
+ * therefore cannot be reverted by a checkout. Every install made before that
+ * still carries the block here, and two sources for the same rules is worse than
+ * either one: the surviving copy would keep disappearing on a branch switch
+ * while the project believed the other one covered it.
+ *
+ * Returns the input unchanged when there is no block. Migration runs on every
+ * update, including the ones with nothing to migrate, and rewriting an untouched
+ * file would show a diff nobody asked that command for.
+ */
+export function stripManagedBlock(original: string): string {
+  const begin = original.indexOf(BEGIN_MARKER);
+  const end = original.indexOf(END_MARKER);
+  if (begin === -1 || end === -1 || end < begin) return original;
+  // Keep exactly one newline on each side of the hole. Cutting between the
+  // markers alone leaves the separator that preceded the block glued to the rule
+  // that followed it, which silently merges two rules into one nonsense line.
+  const before = original.slice(0, begin).replace(/\n+$/, '\n');
+  const after = original.slice(end + END_MARKER.length).replace(/^\n+/, '');
+  const joined = `${before}${after}`.replace(/\n{3,}/g, '\n\n');
+  if (joined.trim() === '') return '';
+  return joined.endsWith('\n') ? joined : `${joined}\n`;
+}
+
 export function patchGitignore(original: string): string {
   const block = gitignoreBlock();
   const begin = original.indexOf(BEGIN_MARKER);

@@ -42,7 +42,7 @@ import { localPackAssetIssues } from '../lib/runtime-assets.js';
 import { selfRepoDoctorTarget } from '../lib/self-repo.js';
 import { marketplaceRepoFrom, readSettings, settingsPathFor } from '../lib/settings.js';
 import { compareVersions, normalizeVersion } from '../lib/version.js';
-import { judgeLayout, judgeProjectSkills, type LayoutObservation, type ManifestObservation } from '../lib/void-hygiene.js';
+import { judgeLayout, judgeProjectSkills, type LayoutObservation, type ManifestObservation, type ReceiptObservation } from '../lib/void-hygiene.js';
 import { ownedDerivedPaths } from '../lib/void-migration.js';
 import { runSelfHostDoctor } from './self-host.js';
 
@@ -510,6 +510,36 @@ function observeManifest(root: string): ManifestObservation {
 }
 
 /**
+ * Compare the local install receipt against the disk.
+ *
+ * The receipt records what this machine actually wrote. Unlike the manifest it
+ * is not tracked, so a `git checkout` cannot revert it alongside the working
+ * tree -- which makes it the only record that still names the assets when they
+ * have been removed underneath the harness.
+ *
+ * Only the first few missing paths are carried: the message names a count and
+ * an example, and a hundred paths in a terminal check is noise, not evidence.
+ */
+async function observeReceipt(root: string): Promise<ReceiptObservation> {
+  let receipt: Awaited<ReturnType<typeof readInstallReceipt>>;
+  try {
+    receipt = await readInstallReceipt(root);
+  } catch {
+    return { kind: 'unreadable' };
+  }
+  if (receipt === undefined) return { kind: 'absent' };
+  const missing = receipt.files
+    .map((file) => file.path)
+    .filter((path) => !existsSync(join(root, ...path.split('/'))));
+  return {
+    kind: 'present',
+    version: receipt.version,
+    missing: missing.slice(0, 3),
+    missingTotal: missing.length,
+  };
+}
+
+/**
  * Ask git what it actually does with observed state, rather than trusting that
  * the ignore block is present: a rule can be absent, overridden by a later rule,
  * or powerless because the path was tracked before the rule existed.
@@ -538,6 +568,7 @@ async function observeLayout(root: string): Promise<LayoutObservation> {
       trackedDerivedCount: 0,
       orphanedAssets: observeOrphanedAssets(root),
       manifest: observeManifest(root),
+      receipt: await observeReceipt(root),
     };
   }
 
@@ -573,6 +604,7 @@ async function observeLayout(root: string): Promise<LayoutObservation> {
     trackedDerivedCount,
     orphanedAssets: observeOrphanedAssets(root),
     manifest: observeManifest(root),
+    receipt: await observeReceipt(root),
   };
 }
 
@@ -711,12 +743,15 @@ function observeAutopilot(root: string): Parameters<typeof autopilotPreflight>[0
           ? undefined
           : {
               status: program.status,
-              autopilot: {
-                enabled: program.autopilot.enabled,
-                clusterSize: program.autopilot.clusterSize,
-                mergeGate: program.autopilot.mergeGate,
-                verifyCommands: program.autopilot.verifyCommands,
-              },
+              // Absent means the program opted out, which preflight reports as
+              // such. Reporting an empty block instead would read as consent.
+              ...(program.autopilot === undefined ? {} : {
+                autopilot: {
+                  clusterSize: program.autopilot.clusterSize,
+                  mergeGate: program.autopilot.mergeGate,
+                  verifyCommands: program.autopilot.verifyCommands,
+                },
+              }),
             },
     adapters: detectedAdapters(root).map((adapter) => adapter.id),
     trackerConnector: 'unprobed',

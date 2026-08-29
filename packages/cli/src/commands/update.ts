@@ -371,7 +371,7 @@ export function ownedFromManifestPaths(
  */
 async function reportVoidMigration(projectRoot: string, dryRun: boolean): Promise<void> {
   const result = await migrateVoidLayout(projectRoot, dryRun);
-  if (result.moved.length === 0 && result.conflicts.length === 0 && !result.gitignoreTouched) return;
+  if (result.moved.length === 0 && result.conflicts.length === 0 && !result.gitignoreBlockRemoved) return;
 
   const verb = dryRun ? 'would move' : 'moved';
   if (result.moved.length > 0) {
@@ -382,8 +382,8 @@ async function reportVoidMigration(projectRoot: string, dryRun: boolean): Promis
       line(`${c.dim(' '.repeat(4))}${c.dim('git may show these as deletions — commit them; the new path is ignored')}`);
     }
   }
-  if (result.gitignoreTouched) {
-    line(`${c.green(glyph.check)}  ${c.dim('gitignore'.padEnd(12))}${dryRun ? 'would write' : 'wrote'} the managed block (.void/machine/ and .void/installed/ ignored, the rest of .void/ tracked)`);
+  if (result.gitignoreBlockRemoved) {
+    line(`${c.green(glyph.check)}  ${c.dim('gitignore'.padEnd(12))}${dryRun ? 'would move' : 'moved'} the managed block to .git/info/exclude, where no checkout can revert it`);
   }
   // Say it when git will notice. Moving a TRACKED file shows up as a deletion
   // plus an untracked one, and finding nine staged deletions you did not ask for

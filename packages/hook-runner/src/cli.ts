@@ -9,7 +9,7 @@ import {
 } from './enforcement/runner.js';
 import { readFreshnessCache } from './freshness/cache.js';
 import { compareFreshness } from './freshness/compare.js';
-import { freshnessNotice, resolveFreshness } from './freshness/notice.js';
+import { freshnessRelay, resolveFreshness } from './freshness/notice.js';
 import { cachedInvocationAlert, refreshInvocationVerdict } from './invocation.js';
 import { auditCheckpoint } from './lifecycle/checkpoint-audit.js';
 import { sessionStartOutput } from './lifecycle/context.js';
@@ -152,10 +152,12 @@ async function runLifecycle(input: Uint8Array): Promise<void> {
     // The refresh below happens after stdout is written, so a slow or dead registry
     // costs the next session a stale answer, never this one a slow launch.
     const cached = readFreshnessCache(process.env, Date.now());
+    // The relay wording, not the terminal one: nothing this hook can emit reaches
+    // the user, so the line has to ask the agent to pass it on.
     const notice =
       cached === undefined
         ? undefined
-        : freshnessNotice(compareFreshness(install.version, cached.latest), install.source);
+        : freshnessRelay(compareFreshness(install.version, cached.latest), install.source);
     // The harness cannot see an invocation the runtime refused, so what it reads
     // here is the trace one leaves: a name it recorded that no longer resolves.
     // Read, never compute: judging the journals costs 49 ms here, and a session

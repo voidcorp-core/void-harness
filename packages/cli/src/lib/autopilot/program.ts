@@ -15,6 +15,10 @@ import { autopilotFailure } from './errors.js';
 
 export type ProgramStatus = 'executing' | 'completed';
 
+export type MergeGate = 'human' | 'union-reviewed';
+
+const MERGE_GATES: readonly MergeGate[] = ['human', 'union-reviewed'];
+
 export interface ProgressStates {
   readonly ready: readonly string[];
   readonly started: readonly string[];
@@ -41,13 +45,27 @@ export interface AutopilotOwnership {
 
 export interface AutopilotConfig {
   readonly schemaVersion: 1;
-  readonly enabled: boolean;
   /** Ceiling on one cluster, 1..4. */
   readonly clusterSize: number;
   /** `auto` resolves develop then main; anything else must exist. */
   readonly base: string;
-  /** Only `human` is accepted: merging is the human boundary of the feature. */
-  readonly mergeGate: 'human';
+  /**
+   * Who may merge the integration pull request.
+   *
+   * `human` keeps every merge a person's. `union-reviewed` grants the merge to
+   * the machine on the two conditions the union-is-read-before-it-merges record
+   * states: production is not downstream, and an adversarial reading of the
+   * whole integrated diff came back clean.
+   */
+  readonly mergeGate: MergeGate;
+  /**
+   * The branch that deploys. Required by `union-reviewed`, absent otherwise.
+   *
+   * Never defaulted. Guessing `main` would put the human gate in the wrong place
+   * in a project that ships from `production`, or from its integration branch,
+   * and nothing would report it.
+   */
+  readonly deployBranch?: string;
   /** argv arrays, executed with shell:false. */
   readonly verifyCommands: readonly (readonly string[])[];
   readonly ownership: AutopilotOwnership;
@@ -61,7 +79,8 @@ export interface ProgramDescriptor {
   readonly spec: string;
   readonly progress?: ProgressLocator;
   readonly humanGates: readonly string[];
-  readonly autopilot: AutopilotConfig;
+  /** Present when the program consents to autopilot; absent is the opt-out. */
+  readonly autopilot?: AutopilotConfig;
 }
 
 /**
@@ -203,14 +222,17 @@ function verifyCommands(value: unknown): readonly (readonly string[])[] {
   });
 }
 
-function parseAutopilot(value: unknown): AutopilotConfig {
-  if (value === undefined) {
-    invalid(
-      'the program descriptor declares no `autopilot` block',
-      'the contract requires an explicit autopilot decision, even a negative one',
-      'add an `autopilot:` block with `schemaVersion: 1`, `enabled: false` and `mergeGate: human` to opt out',
-    );
-  }
+/**
+ * The autopilot block, or undefined when the program declares none.
+ *
+ * Declaring the block IS the consent: it carries the cluster size, the base, the
+ * merge gate, the verify commands and the ownership partition, so writing all of
+ * that and then disabling it says "I configured this and I do not want it", which
+ * nobody means. Omitting the block is the opt-out. See the
+ * autopilot-block-is-the-consent decision.
+ */
+function parseAutopilot(value: unknown): AutopilotConfig | undefined {
+  if (value === undefined) return undefined;
   const block = record(value, 'autopilot');
 
   const schemaVersion = block.schemaVersion;
@@ -224,19 +246,38 @@ function parseAutopilot(value: unknown): AutopilotConfig {
     );
   }
 
-  if (typeof block.enabled !== 'boolean') {
-    invalid(
-      'the program descriptor does not say whether autopilot is enabled',
-      '`autopilot.enabled` is not a boolean',
-      'set `autopilot.enabled` to true or false; consent is never inferred',
-    );
-  }
-
-  if (block.mergeGate !== 'human') {
+  if (typeof block.mergeGate !== 'string' || !MERGE_GATES.includes(block.mergeGate as MergeGate)) {
     invalid(
       'the program descriptor declares a merge gate autopilot will not honour',
-      `\`autopilot.mergeGate\` is ${String(block.mergeGate)}, and only \`human\` exists`,
-      'set `autopilot.mergeGate: human`; merging the integration PR is a human action',
+      `\`autopilot.mergeGate\` is ${String(block.mergeGate)}, and only ${MERGE_GATES.join(' and ')} exist`,
+      'set `autopilot.mergeGate: human`, or `union-reviewed` with a `deployBranch`',
+    );
+  }
+  const mergeGate = block.mergeGate as MergeGate;
+  const deployBranch = block.deployBranch;
+  if (mergeGate === 'union-reviewed') {
+    if (typeof deployBranch !== 'string' || deployBranch.trim().length === 0) {
+      invalid(
+        'the program grants a merge without saying which branch deploys',
+        '`autopilot.deployBranch` is missing, and `union-reviewed` cannot tell production from integration without it',
+        'set `autopilot.deployBranch` to the exact name of the branch that ships',
+      );
+    }
+    // Said once here rather than discovered as a refusal on every merge. The
+    // grant re-checks the resolved target at merge time regardless, since `base:
+    // auto` is only resolved then and can land on this same branch.
+    if (deployBranch === (block.base ?? 'auto')) {
+      invalid(
+        'the program integrates straight into the branch it says deploys',
+        `\`autopilot.base\` and \`autopilot.deployBranch\` are both ${String(deployBranch)}`,
+        'integrate into a branch that does not ship, or set `mergeGate: human`',
+      );
+    }
+  } else if (deployBranch !== undefined) {
+    invalid(
+      'the program names a deploying branch under a gate that never reads it',
+      '`autopilot.deployBranch` is set while `mergeGate` is `human`',
+      'remove `deployBranch`, or set `mergeGate: union-reviewed` to use it',
     );
   }
 
@@ -261,10 +302,10 @@ function parseAutopilot(value: unknown): AutopilotConfig {
   const ownership = block.ownership === undefined ? {} : record(block.ownership, 'autopilot.ownership');
   return {
     schemaVersion: 1,
-    enabled: block.enabled,
     clusterSize: clusterSize as number,
     base,
-    mergeGate: 'human',
+    mergeGate,
+    ...(deployBranch === undefined ? {} : { deployBranch }),
     verifyCommands: verifyCommands(block.verifyCommands),
     ownership: {
       sequential: pathList(ownership.sequential, 'autopilot.ownership.sequential'),
@@ -353,11 +394,13 @@ function descriptorOf(
   progress: ProgressLocator | undefined,
 ): ProgramDescriptor {
   const autopilot = parseAutopilot(root.autopilot);
-  if (autopilot.enabled && progress === undefined) {
+  // Consent without a provider is a request the core cannot serve: it would have
+  // to infer remote progress, which is exactly what it must never do.
+  if (autopilot !== undefined && progress === undefined) {
     invalid(
-      'the program enables autopilot without a progress source',
-      '`autopilot.enabled` is true but `progress` is absent',
-      'declare a progress provider and its state roles, or set `autopilot.enabled: false`',
+      'the program declares autopilot without a progress source',
+      'an `autopilot` block is present but `progress` is absent',
+      'declare a progress provider and its state roles, or remove the `autopilot` block to opt out',
     );
   }
   return {
@@ -368,7 +411,7 @@ function descriptorOf(
     spec: confinedPath(requiredString(root, 'spec', 'frontmatter'), 'spec'),
     ...(progress === undefined ? {} : { progress }),
     humanGates: parseHumanGates(root),
-    autopilot,
+    ...(autopilot === undefined ? {} : { autopilot }),
   };
 }
 

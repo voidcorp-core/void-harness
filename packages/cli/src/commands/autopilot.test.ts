@@ -100,12 +100,18 @@ describe('runAutopilotCommand', () => {
     expect(result.stderr).toMatch(/clusterSize/);
   });
 
-  it('refuses --auto-merge because merging stays a human gate', () => {
+  it('refuses --auto-merge, and says where the durable declaration lives', () => {
+    // The capability exists now, but consent to it is a declaration in the
+    // program, never a switch on one invocation -- same reasoning as
+    // `autopilot.enabled`. A flag that could grant a merge per run is exactly
+    // what the refusal keeps out, so the message has to teach the real lever
+    // rather than deny that one exists.
     const result = runAutopilotCommand(['plan', '--auto-merge'], observation());
 
     expect(result.exitCode).toBe(2);
     expect(result.stderr).toContain('--auto-merge');
-    expect(result.stderr).toMatch(/human/i);
+    expect(result.stderr).toContain('mergeGate');
+    expect(result.stderr).toMatch(/program/i);
   });
 
   it('refuses an unknown subcommand', () => {
