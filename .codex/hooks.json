@@ -122,6 +122,15 @@
     ],
     "PostToolUse": [
       {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/Users/folpe/Developer/void-harness/.void/hooks/_void-hook.mjs\" lifecycle context-continuity codex"
+          }
+        ]
+      },
+      {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
           {
@@ -140,12 +149,51 @@
         ]
       }
     ],
-    "SessionStart": [
+    "PreCompact": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "node \"/Users/folpe/Developer/void-harness/.void/hooks/_void-hook.mjs\" lifecycle context codex"
+            "command": "node \"/Users/folpe/Developer/void-harness/.void/hooks/_void-hook.mjs\" lifecycle context-continuity codex"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/Users/folpe/Developer/void-harness/.void/hooks/_void-hook.mjs\" lifecycle context-continuity codex"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/Users/folpe/Developer/void-harness/.void/hooks/_void-hook.mjs\" lifecycle context-continuity codex"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/Users/folpe/Developer/void-harness/.void/hooks/_void-hook.mjs\" lifecycle checkpoint-reminder codex"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/Users/folpe/Developer/void-harness/.void/hooks/_void-hook.mjs\" lifecycle checkpoint-audit codex"
           }
         ]
       }
