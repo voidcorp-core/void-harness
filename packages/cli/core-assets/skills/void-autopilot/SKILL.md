@@ -85,16 +85,29 @@ claims tickets nobody agreed to hand over.
    integration SHA, the diff hash and the exact argv; rebase, conflict or a moved base makes
    it stale and it is re-run. Nothing is published on a proof about a tree that no longer
    exists.
-10. **Publish.** One explicit, non-forced refspec, one branch, one PR. Never a worker branch:
+10. **Read the union.** Only the union shows what no worker could: the same concept named
+    twice, two modules that disagree about a word, an assertion one range falsifies for
+    another. Each range already passed its own gates, so re-reviewing files buys nothing here.
+    One fresh context over the whole base-to-head diff, told to **refute** it and to report
+    only what survived — a pass asked to check for problems finds none and means nothing by
+    it. Every finding carries an anchor a reader can open; one without is not a finding.
+    Finding nothing is the verdict "failed to refute", never "the diff is good". The verdict
+    is bound to the integration SHA: a range added or a CI fix pushed afterwards makes it
+    stale, and stale is unread. Required when the program declares `mergeGate:
+    union-reviewed`, since the grant reads it; under `mergeGate: human` the human is the
+    reader and this pass is optional.
+11. **Publish.** One explicit, non-forced refspec, one branch, one PR. Never a worker branch:
     pushing one publishes unreviewed history under an official-looking name and starts CI on
     it. The body carries included and excluded tickets with their commit ranges, the conflicts
     resolved and why, the local proofs and the remote runs actually spent.
-11. **Drive the checks.** A red check this diff explains is fixed locally and the *same*
+12. **Drive the checks.** A red check this diff explains is fixed locally and the *same*
     branch is pushed again — counting the extra run rather than hiding it. A red check the
     diff does not explain is escalated, never silenced: no required check is ever disabled to
-    make a run finish. When every required check is green the PR is left ready, and the
-    included tickets move to In Review with the PR link and their range.
-12. **Close on proof.** Done comes from an observed merge, never from a local cursor: an
+    make a run finish. When every required check is green, what happens next comes from the
+    grant, never from the operator's judgement: merged when the target does not deploy and the
+    union came back clean, handed to a human with the refusal otherwise. Included tickets move
+    to In Review with the PR link and their range.
+13. **Close on proof.** Done comes from an observed merge, never from a local cursor: an
     absent PR is not a merge, and a closed one is not a merge either.
 
 ---
