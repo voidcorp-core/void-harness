@@ -1,5 +1,54 @@
 # Changelog
 
+## [3.5.0](https://github.com/voidcorp-core/void-harness/compare/v3.4.1...v3.5.0) (2026-08-29)
+
+
+### Features
+
+* audit findings — ignore rules out of .gitignore, union-read merge gate, per-runtime orchestration ([42fd718](https://github.com/voidcorp-core/void-harness/commit/42fd7180731f4617bf795e76c6172b291ab48c83))
+* **autopilot:** ask the union reader, and stop its prose at the schema ([f30e89b](https://github.com/voidcorp-core/void-harness/commit/f30e89ba3b183cdaffbd316f4ddcdc6522d770cf))
+* **autopilot:** decide the merge only once the checks have spoken ([add1fe6](https://github.com/voidcorp-core/void-harness/commit/add1fe62c2487dcb7266d885f453308167b12663))
+* **autopilot:** instruct the runtime to read the union before it merges ([ad726d2](https://github.com/voidcorp-core/void-harness/commit/ad726d2ab27a3f87c16f82045efe18cd34a61c1c))
+* **autopilot:** judge whether an integrated union may merge itself ([ce9e35c](https://github.com/voidcorp-core/void-harness/commit/ce9e35c84aaef143050f60d76af3bd4ac64c75ef))
+* **autopilot:** let a program declare the union-reviewed merge gate ([3efff9d](https://github.com/voidcorp-core/void-harness/commit/3efff9df036cdc66a5f36409a75f3ff674fdcf84))
+* **autopilot:** point the --auto-merge refusal at the durable declaration ([95fee53](https://github.com/voidcorp-core/void-harness/commit/95fee532ea9f1b85e7e9ec027e52003dcf53b364))
+* **autopilot:** read the union as wide as the runtime can argue ([bea5b67](https://github.com/voidcorp-core/void-harness/commit/bea5b674c21059b13fefcfd51431f9fb9fa9d739))
+* **autopilot:** remove the enabled flag; the block is the consent ([9ae5e21](https://github.com/voidcorp-core/void-harness/commit/9ae5e213184c3be29ab57ec785b7ff5498872247))
+* **context:** nudge semantic checkpoints at a reliable threshold ([db79f29](https://github.com/voidcorp-core/void-harness/commit/db79f29d56529e6d09d4ca9596beb64f38c71d1a))
+* **context:** preserve mechanical state before compaction ([3333c32](https://github.com/voidcorp-core/void-harness/commit/3333c32bf287d32d392f7efe3ce9194c5fc13586))
+* **context:** track the bounded working set across sessions ([7ab4baa](https://github.com/voidcorp-core/void-harness/commit/7ab4baae78eeb51ba7466491941cb3c5f16b2ca6))
+* **context:** unify program resume and mechanical continuity ([#283](https://github.com/voidcorp-core/void-harness/issues/283)) ([2a40ad0](https://github.com/voidcorp-core/void-harness/commit/2a40ad0a9dfc9577b7fd93f7f139086ac92e8a60))
+* **decisions:** distinguish references from decision content ([2cda4ec](https://github.com/voidcorp-core/void-harness/commit/2cda4ec3c914810abe1b4972c276d856d578dd23))
+* **freshness:** make the session banner ask for the upgrade to be relayed ([80ef00e](https://github.com/voidcorp-core/void-harness/commit/80ef00e59f5d2834a11f7416085ccf1157205dcf))
+* **hooks:** inject resume context and checkpoint reminders ([e0b52ac](https://github.com/voidcorp-core/void-harness/commit/e0b52acb83fe43618cb6e9a7d9d131920b57bb81))
+* **install:** move the ignore rules to the repository exclude file ([b24cbc1](https://github.com/voidcorp-core/void-harness/commit/b24cbc1f954c3bf78db03c23bb45a86adea5a9de))
+* **install:** write the ignore rules where no checkout can revert them ([134832c](https://github.com/voidcorp-core/void-harness/commit/134832c206dba13610a61cf816a5544afa60d168))
+* **mission:** plan how wide the specialist lenses run on this runtime ([6e7a155](https://github.com/voidcorp-core/void-harness/commit/6e7a15509f8566ceaca476068b2e693b8c377d17))
+* **orchestration:** take each runtime to its maximum, degrade rather than block ([5047c5b](https://github.com/voidcorp-core/void-harness/commit/5047c5b812979d52de473d334b8d40f099d2c637))
+* **program:** make program.md the durable descriptor ([2ea431e](https://github.com/voidcorp-core/void-harness/commit/2ea431eb735833e43b6f1c6be6cd0d60abe8cf0a))
+* **resume:** compose program checkpoint and git state ([500e17a](https://github.com/voidcorp-core/void-harness/commit/500e17aa9861434904ea9ad91f84645f6f1c0cf6))
+* **runtime:** observe what each runtime can do, in the one place a name appears ([b5a4868](https://github.com/voidcorp-core/void-harness/commit/b5a4868f6803ec2396f41b3778691435ea09d5f7))
+
+
+### Bug Fixes
+
+* **context:** abandon failed recovery claims ([90194cb](https://github.com/voidcorp-core/void-harness/commit/90194cb025a54949046765a969c3846e7a6e4f35))
+* **context:** benchmark the shipped lifecycle hook ([4bfc36e](https://github.com/voidcorp-core/void-harness/commit/4bfc36e48bc3d67d72fe113f9a57234f3551ae5f))
+* **context:** fence stale recovery by generation ([47bed9e](https://github.com/voidcorp-core/void-harness/commit/47bed9e4202bf0a5c0c9b15dbfee95ea4a9e13d4))
+* **context:** fence stale takeover atomically ([d13f5df](https://github.com/voidcorp-core/void-harness/commit/d13f5df8661fae48c919b26fb5e3e0cd2d7d97fb))
+* **context:** harden continuity failure boundaries ([a28d991](https://github.com/voidcorp-core/void-harness/commit/a28d991f2d15a1093937f769dce7a8c6ec50d0de))
+* **context:** preserve the elected recovery claim ([8e874e8](https://github.com/voidcorp-core/void-harness/commit/8e874e8d67a557ed4492f355cc69942cd5867ba2))
+* **context:** recognize repeated resume cycles ([d780269](https://github.com/voidcorp-core/void-harness/commit/d7802692586bb18a45dbc02074795f9a4504f26e))
+* **context:** recover continuity locks after crashes ([748a9b4](https://github.com/voidcorp-core/void-harness/commit/748a9b4758429a840664679dd17efb97d37d2693))
+* **context:** serialize continuity recovery safely ([6a5cb5d](https://github.com/voidcorp-core/void-harness/commit/6a5cb5d6ea1625932a8985013788d1af95e759ea))
+* **context:** stabilize causal hook benchmark ([fee2379](https://github.com/voidcorp-core/void-harness/commit/fee23794a2ede9c8bf9180417429848c7a93b7a0))
+* **decisions:** fail closed on unsafe ancestors ([25a32c5](https://github.com/voidcorp-core/void-harness/commit/25a32c53346f206d9231de15bd321f5f31af2ad7))
+* **decisions:** validate declared runtime references ([f097cf0](https://github.com/voidcorp-core/void-harness/commit/f097cf06d70422494f74655c228cb5b051496c37))
+* **doctor:** name the rollback the manifest cannot see ([8911e83](https://github.com/voidcorp-core/void-harness/commit/8911e834f492b4b9c0ef3f8c6c046f542101f2df))
+* **doctor:** resolve effective Biome file scope ([74f3c69](https://github.com/voidcorp-core/void-harness/commit/74f3c697ea04f83c33654e2ea48a2bc18c6d9f73))
+* **layout:** classify the canonical program descriptor ([8fb4909](https://github.com/voidcorp-core/void-harness/commit/8fb4909669b7a440c70feec9bc275ed62a7bfa30))
+* **layout:** remove the managed block without disturbing its neighbours ([ce3133b](https://github.com/voidcorp-core/void-harness/commit/ce3133bd46e4a130d0e3ee0a208f673adf9504d5))
+
 ## [3.4.1](https://github.com/voidcorp-core/void-harness/compare/v3.4.0...v3.4.1) (2026-08-21)
 
 
