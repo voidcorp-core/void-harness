@@ -22,10 +22,10 @@ humanGates:
   - DEV-623
 autopilot:
   schemaVersion: 1
-  enabled: true
   clusterSize: 4
   base: develop
-  mergeGate: human
+  mergeGate: union-reviewed
+  deployBranch: main
   verifyCommands:
     - [pnpm, build]
     - [pnpm, test]
@@ -109,8 +109,10 @@ They are gates for different reasons. `DEV-620` changes what every consumer rece
 a publication. `DEV-623` may not open at all: the spec conditions the whole interface on `resume`
 having proved, in a terminal, that it saves time.
 
-PR merge remains human. `autopilot` may select independent ready units only through its documented
-attended confirmation flow. The program descriptor does not create a headless backend and
+Promotion to `main` remains human, and what a person judges there is the feature. The integration
+PR into `develop` merges itself only once an adversarial reading of the whole integrated diff came
+back clean; unread, inconclusive or stale all refuse. `autopilot` may select independent ready units
+only through its documented attended confirmation flow. The program descriptor does not create a headless backend and
 does not weaken single-writer rules for lockfiles, migrations, generated assets, or shared
 contracts.
 

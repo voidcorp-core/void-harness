@@ -45,7 +45,6 @@ export interface AutopilotOwnership {
 
 export interface AutopilotConfig {
   readonly schemaVersion: 1;
-  readonly enabled: boolean;
   /** Ceiling on one cluster, 1..4. */
   readonly clusterSize: number;
   /** `auto` resolves develop then main; anything else must exist. */
@@ -80,7 +79,8 @@ export interface ProgramDescriptor {
   readonly spec: string;
   readonly progress?: ProgressLocator;
   readonly humanGates: readonly string[];
-  readonly autopilot: AutopilotConfig;
+  /** Present when the program consents to autopilot; absent is the opt-out. */
+  readonly autopilot?: AutopilotConfig;
 }
 
 /**
@@ -222,14 +222,17 @@ function verifyCommands(value: unknown): readonly (readonly string[])[] {
   });
 }
 
-function parseAutopilot(value: unknown): AutopilotConfig {
-  if (value === undefined) {
-    invalid(
-      'the program descriptor declares no `autopilot` block',
-      'the contract requires an explicit autopilot decision, even a negative one',
-      'add an `autopilot:` block with `schemaVersion: 1`, `enabled: false` and `mergeGate: human` to opt out',
-    );
-  }
+/**
+ * The autopilot block, or undefined when the program declares none.
+ *
+ * Declaring the block IS the consent: it carries the cluster size, the base, the
+ * merge gate, the verify commands and the ownership partition, so writing all of
+ * that and then disabling it says "I configured this and I do not want it", which
+ * nobody means. Omitting the block is the opt-out. See the
+ * autopilot-block-is-the-consent decision.
+ */
+function parseAutopilot(value: unknown): AutopilotConfig | undefined {
+  if (value === undefined) return undefined;
   const block = record(value, 'autopilot');
 
   const schemaVersion = block.schemaVersion;
@@ -240,14 +243,6 @@ function parseAutopilot(value: unknown): AutopilotConfig {
         ? '`autopilot.schemaVersion` is absent'
         : `\`autopilot.schemaVersion\` is ${String(schemaVersion)}`,
       'set `autopilot.schemaVersion: 1`, or upgrade the harness to a version that reads this schema',
-    );
-  }
-
-  if (typeof block.enabled !== 'boolean') {
-    invalid(
-      'the program descriptor does not say whether autopilot is enabled',
-      '`autopilot.enabled` is not a boolean',
-      'set `autopilot.enabled` to true or false; consent is never inferred',
     );
   }
 
@@ -307,7 +302,6 @@ function parseAutopilot(value: unknown): AutopilotConfig {
   const ownership = block.ownership === undefined ? {} : record(block.ownership, 'autopilot.ownership');
   return {
     schemaVersion: 1,
-    enabled: block.enabled,
     clusterSize: clusterSize as number,
     base,
     mergeGate,
@@ -400,11 +394,13 @@ function descriptorOf(
   progress: ProgressLocator | undefined,
 ): ProgramDescriptor {
   const autopilot = parseAutopilot(root.autopilot);
-  if (autopilot.enabled && progress === undefined) {
+  // Consent without a provider is a request the core cannot serve: it would have
+  // to infer remote progress, which is exactly what it must never do.
+  if (autopilot !== undefined && progress === undefined) {
     invalid(
-      'the program enables autopilot without a progress source',
-      '`autopilot.enabled` is true but `progress` is absent',
-      'declare a progress provider and its state roles, or set `autopilot.enabled: false`',
+      'the program declares autopilot without a progress source',
+      'an `autopilot` block is present but `progress` is absent',
+      'declare a progress provider and its state roles, or remove the `autopilot` block to opt out',
     );
   }
   return {
@@ -415,7 +411,7 @@ function descriptorOf(
     spec: confinedPath(requiredString(root, 'spec', 'frontmatter'), 'spec'),
     ...(progress === undefined ? {} : { progress }),
     humanGates: parseHumanGates(root),
-    autopilot,
+    ...(autopilot === undefined ? {} : { autopilot }),
   };
 }
 

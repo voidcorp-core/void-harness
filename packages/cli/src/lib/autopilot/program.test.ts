@@ -155,10 +155,15 @@ describe('parseProgramDescriptor', () => {
     expect((thrown as { failure: { code: string } }).failure.code).toBe('AUTOPILOT_PROGRAM');
   });
 
-  it('requires an explicit autopilot decision', () => {
-    expect(() => parseProgramDescriptor(VALID.replace(/autopilot:\n(?:.*\n)*?---/, '---'))).toThrow(
-      /autopilot/,
-    );
+  it('never reads a declared progress provider as consent to autonomy', () => {
+    // The inverse of the rule the mandatory-flag test used to protect, and the
+    // one that actually matters: a project can wire its tracker for `resume`,
+    // `status` and the lifecycle without ever asking for autonomous selection.
+    // Inferring consent from a provider would hand it autonomy it never sought.
+    const descriptor = parseProgramDescriptor(VALID.replace(/autopilot:\n(?:.*\n)*?---/, '---'));
+
+    expect(descriptor?.autopilot).toBeUndefined();
+    expect(descriptor?.progress?.provider).toBe('linear');
   });
 
   it('rejects unsafe autopilot commands and paths', () => {
@@ -205,7 +210,7 @@ describe('parseProgramDescriptor', () => {
   });
 
   it('leaves deployBranch absent when the gate is human, which needs no such thing', () => {
-    expect(parseProgramDescriptor(VALID)?.autopilot.deployBranch).toBeUndefined();
+    expect(parseProgramDescriptor(VALID)?.autopilot?.deployBranch).toBeUndefined();
   });
 
   it('rejects unknown status, merge gate and cluster size values', () => {
@@ -294,6 +299,12 @@ describe("this repository's program", () => {
 
     expect(descriptor?.status).toBe('executing');
     expect(descriptor?.progress?.provider).toBe('linear');
-    expect(descriptor?.autopilot?.mergeGate).toBe('human');
+    // This repository integrates into develop and ships from main, so it takes
+    // the granted gate. The pair is asserted rather than the value alone: a
+    // deploy branch equal to the base would make every merge refuse, and the
+    // refusal would look like a bug in the gate rather than a wrong descriptor.
+    expect(descriptor?.autopilot?.mergeGate).toBe('union-reviewed');
+    expect(descriptor?.autopilot?.deployBranch).toBe('main');
+    expect(descriptor?.autopilot?.deployBranch).not.toBe(descriptor?.autopilot?.base);
   });
 });

@@ -743,12 +743,15 @@ function observeAutopilot(root: string): Parameters<typeof autopilotPreflight>[0
           ? undefined
           : {
               status: program.status,
-              autopilot: {
-                enabled: program.autopilot.enabled,
-                clusterSize: program.autopilot.clusterSize,
-                mergeGate: program.autopilot.mergeGate,
-                verifyCommands: program.autopilot.verifyCommands,
-              },
+              // Absent means the program opted out, which preflight reports as
+              // such. Reporting an empty block instead would read as consent.
+              ...(program.autopilot === undefined ? {} : {
+                autopilot: {
+                  clusterSize: program.autopilot.clusterSize,
+                  mergeGate: program.autopilot.mergeGate,
+                  verifyCommands: program.autopilot.verifyCommands,
+                },
+              }),
             },
     adapters: detectedAdapters(root).map((adapter) => adapter.id),
     trackerConnector: 'unprobed',

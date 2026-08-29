@@ -121,14 +121,16 @@ function programCheck(observation: AutopilotObservation): CheckResult {
       'set status: executing once the plan and its ticket pool are approved',
     );
   }
-  if (program.autopilot?.enabled !== true) {
+  // Declaring the block is the consent. A program without one has not withheld a
+  // flag, it never asked for the feature.
+  if (program.autopilot === undefined) {
     return fail(
       name,
-      'autopilot.enabled is not true, so nothing resumes automatically',
-      'set autopilot.enabled: true in the program frontmatter',
+      'the program declares no autopilot block, so nothing resumes automatically',
+      'add an autopilot block to the program frontmatter; declaring it is the consent',
     );
   }
-  return pass(name, 'executing, autopilot enabled');
+  return pass(name, 'executing, autopilot declared');
 }
 
 // A file that did not parse has no fields to judge. Passing "human merge gate"
