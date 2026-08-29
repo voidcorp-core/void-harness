@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { judgeMergeGrant, type UnionReview } from './union-review.js';
+import {
+  buildUnionReviewRequest,
+  inconclusiveReview,
+  judgeMergeGrant,
+  parseUnionReview,
+  type UnionReview,
+} from './union-review.js';
 
 const SHA = 'a'.repeat(40);
 const OTHER = 'b'.repeat(40);
@@ -104,5 +110,84 @@ describe('what may merge itself', () => {
       const verdict = grant(over);
       expect(verdict.kind === 'refused' && verdict.fix.length > 0).toBe(true);
     }
+  });
+});
+
+describe('asking for the reading', () => {
+  const request = () => buildUnionReviewRequest({
+    integrationBranch: 'autopilot/c1',
+    integrationSha: SHA,
+    baseSha: OTHER,
+    ticketIds: ['DEV-1', 'DEV-2'],
+  });
+
+  it('asks for the whole integrated diff, not a per-ticket range', () => {
+    // The defect class this exists for is invisible in any single range: two
+    // workers each locally correct, disagreeing with each other.
+    expect(request().diffCommand).toEqual(['git', 'diff', `${OTHER}..${SHA}`]);
+  });
+
+  it('instructs the reader to refute, never to confirm', () => {
+    // A pass told to check for problems reports none. A pass told to break the
+    // union reports what it could not break, which is a different claim.
+    expect(request().instruction.toLowerCase()).toContain('refute');
+  });
+
+  it('names what was integrated, so a contradiction can be attributed', () => {
+    expect(request().ticketIds).toEqual(['DEV-1', 'DEV-2']);
+  });
+});
+
+describe('where the reader\'s prose stops', () => {
+  it('takes the tree from the caller, never from the reader', () => {
+    // The reader has no business asserting which tree it read: it would be the
+    // one field that could turn a stale verdict into a fresh-looking one.
+    const parsed = parseUnionReview({ verdict: 'clean', contradictions: [] }, SHA);
+
+    expect(parsed.integrationSha).toBe(SHA);
+  });
+
+  it('ignores a sha the reader tries to claim', () => {
+    const parsed = parseUnionReview(
+      { verdict: 'clean', contradictions: [], integrationSha: OTHER },
+      SHA,
+    );
+
+    expect(parsed.integrationSha).toBe(SHA);
+  });
+
+  it('refuses output it cannot parse rather than defaulting to clean', () => {
+    for (const raw of [undefined, null, 'looks fine to me', {}, { verdict: 'ok' }]) {
+      expect(() => parseUnionReview(raw, SHA)).toThrow();
+    }
+  });
+
+  it('refuses a contradiction with nothing to check it against', () => {
+    // A finding with no anchor cannot be verified or fixed, and would block the
+    // merge on an assertion nobody can act on.
+    expect(() => parseUnionReview(
+      { verdict: 'contradicted', contradictions: [{ summary: 'something feels off', evidence: [] }] },
+      SHA,
+    )).toThrow();
+  });
+
+  it('accepts a contradiction that names where to look', () => {
+    const parsed = parseUnionReview({
+      verdict: 'contradicted',
+      contradictions: [{ summary: 'two commands disagree on "wired"', evidence: ['a.ts:40'] }],
+    }, SHA);
+
+    expect(parsed.verdict).toBe('contradicted');
+    expect(parsed.contradictions[0]?.evidence).toEqual(['a.ts:40']);
+  });
+
+  it('builds an inconclusive verdict for a reading that never returned', () => {
+    // A timeout or an adapter failure is not a clean union and not a
+    // contradicted one. It gets its own verdict rather than a default.
+    const review = inconclusiveReview(SHA);
+
+    expect(review.verdict).toBe('inconclusive');
+    expect(judgeMergeGrant({ target: 'develop', deployBranch: 'main', integrationSha: SHA, review }).kind)
+      .toBe('refused');
   });
 });
