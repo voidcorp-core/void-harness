@@ -78,5 +78,5 @@ export {
   fetchLatestVersion,
   resolveRegistry,
 } from './freshness/registry.js';
-export { freshnessNotice, resolveFreshness, type InstallSource } from './freshness/notice.js';
+export { freshnessNotice, freshnessRelay, resolveFreshness, type InstallSource } from './freshness/notice.js';
 export { readNpmrc } from './freshness/npmrc.js';

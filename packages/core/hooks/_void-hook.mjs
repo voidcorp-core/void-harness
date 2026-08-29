@@ -1073,10 +1073,10 @@ async function resolveFreshness(options) {
   await writeFreshnessCache(env, { latest, checkedAt: now });
   return compareFreshness(installed, latest);
 }
-function freshnessNotice(freshness, source) {
+function freshnessRelay(freshness, source) {
   if (freshness.verdict !== "behind" || source !== "local") return void 0;
   const { installed, latest } = freshness;
-  return `void-harness ${installed} is installed; ${latest ?? "a newer version"} is published. Run \`void-harness update\` to upgrade.`;
+  return `A newer harness is published: ${installed} is installed, ${latest ?? "a newer version"} is available. Tell the user this once, near the start of your first reply, and name the command that installs it: \`void-harness update\`. Do not repeat it later in the session.`;
 }
 
 // src/invocation.ts
@@ -4621,7 +4621,7 @@ async function runLifecycle(input) {
     }
     const install = resolveInstall(root, process.env);
     const cached = readFreshnessCache(process.env, Date.now());
-    const notice = cached === void 0 ? void 0 : freshnessNotice(compareFreshness(install.version, cached.latest), install.source);
+    const notice = cached === void 0 ? void 0 : freshnessRelay(compareFreshness(install.version, cached.latest), install.source);
     const alert = cachedInvocationAlert(root);
     if (event === "SessionStart" || hook === "context") {
       const source = inputRecord?.["source"];
