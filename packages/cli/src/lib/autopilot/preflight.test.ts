@@ -7,7 +7,7 @@ function observation(over: Partial<AutopilotObservation> = {}): AutopilotObserva
   return {
     program: {
       status: 'executing',
-      autopilot: { enabled: true, mergeGate: 'human', verifyCommands: [['pnpm', 'test']] },
+      autopilot: { mergeGate: 'human', verifyCommands: [['pnpm', 'test']] },
     },
     adapters: ['claude'],
     trackerConnector: true,
@@ -53,18 +53,20 @@ describe('the program', () => {
 
   it('fails a program that is not executing', () => {
     const results = autopilotPreflight(
-      observation({ program: { status: 'completed', autopilot: { enabled: true } } }),
+      observation({ program: { status: 'completed', autopilot: {} } }),
     );
 
     expect(named(results, 'autopilot program')?.status).toBe('fail');
   });
 
-  it('fails when autopilot is not enabled, because nothing would resume', () => {
+  it('fails when the program declares no autopilot block, because that is the opt-out', () => {
+    // Declaring the block is the consent. A program without one has not withheld
+    // a flag, it has not asked for the feature at all.
     const results = autopilotPreflight(
-      observation({ program: { status: 'executing', autopilot: { enabled: false } } }),
+      observation({ program: { status: 'executing' } }),
     );
 
-    expect(named(results, 'autopilot program')?.message).toMatch(/enabled/);
+    expect(named(results, 'autopilot program')?.message).toMatch(/autopilot/);
   });
 });
 
@@ -81,7 +83,7 @@ describe('the merge gate', () => {
   it('accepts only a human gate', () => {
     const results = autopilotPreflight(
       observation({
-        program: { status: 'executing', autopilot: { enabled: true, mergeGate: 'auto' } },
+        program: { status: 'executing', autopilot: { mergeGate: 'auto' } },
       }),
     );
 
@@ -92,7 +94,7 @@ describe('the merge gate', () => {
 
   it('treats an absent gate as human rather than as a missing value', () => {
     const results = autopilotPreflight(
-      observation({ program: { status: 'executing', autopilot: { enabled: true } } }),
+      observation({ program: { status: 'executing', autopilot: {} } }),
     );
 
     expect(named(results, 'autopilot merge')?.ok).toBe(true);
@@ -103,7 +105,7 @@ describe('the verify commands', () => {
   it('fails when there are none, because nothing would prove the branch', () => {
     const results = autopilotPreflight(
       observation({
-        program: { status: 'executing', autopilot: { enabled: true, verifyCommands: [] } },
+        program: { status: 'executing', autopilot: { verifyCommands: [] } },
       }),
     );
 
@@ -114,7 +116,7 @@ describe('the verify commands', () => {
     for (const command of [[], ['pnpm', ''], 'pnpm test' as unknown as string[]]) {
       const results = autopilotPreflight(
         observation({
-          program: { status: 'executing', autopilot: { enabled: true, verifyCommands: [command] } },
+          program: { status: 'executing', autopilot: { verifyCommands: [command] } },
         }),
       );
 

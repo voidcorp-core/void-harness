@@ -28,7 +28,6 @@ progress:
 humanGates: [DEV-433]
 autopilot:
   schemaVersion: 1
-  enabled: true
   clusterSize: 4
   base: auto
   mergeGate: human
@@ -92,18 +91,24 @@ describe('parseProgramDescriptor', () => {
       },
     });
     expect(descriptor.humanGates).toEqual(['DEV-433']);
-    expect(descriptor.autopilot.enabled).toBe(true);
+    expect(descriptor.autopilot?.clusterSize).toBe(4);
   });
 
-  it('accepts no progress source when autonomous selection is disabled', () => {
-    const descriptor = parseProgramDescriptor(
-      withoutProgress(
-        withAutopilot('autopilot:\n  schemaVersion: 1\n  enabled: false\n  mergeGate: human'),
-      ),
-    );
+  // Declaring the block IS the consent, so the opt-out is not writing one.
+  // Nobody configures a feature in full in order to disable it.
+  it('treats an absent autopilot block as the opt-out, and asks nothing more of it', () => {
+    const descriptor = parseProgramDescriptor(withoutProgress(withAutopilot('')));
 
+    expect(descriptor.autopilot).toBeUndefined();
     expect(descriptor.progress).toBeUndefined();
-    expect(descriptor.autopilot.enabled).toBe(false);
+  });
+
+  it('ignores an `enabled` left over from a descriptor written before this', () => {
+    // Rejecting the unknown field would turn every existing program into an
+    // error on upgrade, for a line that now says what its presence already says.
+    const descriptor = parseProgramDescriptor(VALID.replace('  clusterSize: 4', '  enabled: true\n  clusterSize: 4'));
+
+    expect(descriptor.autopilot?.clusterSize).toBe(4);
   });
 
   it('rejects autonomous selection without a progress source', () => {
@@ -158,7 +163,7 @@ describe('parseProgramDescriptor', () => {
 
   it('rejects unsafe autopilot commands and paths', () => {
     const shellCommand =
-      'autopilot:\n  schemaVersion: 1\n  enabled: true\n  mergeGate: human\n  verifyCommands:\n    - pnpm test';
+      'autopilot:\n  schemaVersion: 1\n  mergeGate: human\n  verifyCommands:\n    - pnpm test';
     expect(() => parseProgramDescriptor(withAutopilot(shellCommand))).toThrow(/verifyCommands/);
     expect(() => parseProgramDescriptor(VALID.replace('docs/plans/2026-07-24-plan.md', '/etc/passwd'))).toThrow(
       /plan/,
@@ -176,8 +181,8 @@ describe('parseProgramDescriptor', () => {
       VALID.replace('mergeGate: human', 'mergeGate: union-reviewed\n  deployBranch: main'),
     );
 
-    expect(descriptor?.autopilot.mergeGate).toBe('union-reviewed');
-    expect(descriptor?.autopilot.deployBranch).toBe('main');
+    expect(descriptor?.autopilot?.mergeGate).toBe('union-reviewed');
+    expect(descriptor?.autopilot?.deployBranch).toBe('main');
   });
 
   it('refuses to grant the merge without knowing which branch deploys', () => {
@@ -289,6 +294,6 @@ describe("this repository's program", () => {
 
     expect(descriptor?.status).toBe('executing');
     expect(descriptor?.progress?.provider).toBe('linear');
-    expect(descriptor?.autopilot.mergeGate).toBe('human');
+    expect(descriptor?.autopilot?.mergeGate).toBe('human');
   });
 });
