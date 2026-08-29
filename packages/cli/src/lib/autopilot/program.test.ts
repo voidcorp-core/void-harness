@@ -168,6 +168,41 @@ describe('parseProgramDescriptor', () => {
     ).toThrow(/ownership/);
   });
 
+  // `union-reviewed` is the gate the union-is-read-before-it-merges record
+  // grants: an integration branch may merge itself once an adversarial reading
+  // of the whole diff came back clean, and the human moves to the promotion.
+  it('accepts the union-reviewed gate when the deploying branch is named', () => {
+    const descriptor = parseProgramDescriptor(
+      VALID.replace('mergeGate: human', 'mergeGate: union-reviewed\n  deployBranch: main'),
+    );
+
+    expect(descriptor?.autopilot.mergeGate).toBe('union-reviewed');
+    expect(descriptor?.autopilot.deployBranch).toBe('main');
+  });
+
+  it('refuses to grant the merge without knowing which branch deploys', () => {
+    // Defaulting to `main` would be the name-based guess the record rejects: a
+    // project shipping from `production`, or from `develop` itself, would get
+    // the human gate in the wrong place and never notice.
+    expect(() => parseProgramDescriptor(VALID.replace('mergeGate: human', 'mergeGate: union-reviewed')))
+      .toThrow(/deployBranch/);
+  });
+
+  it('refuses a gate that would integrate straight into the deploying branch', () => {
+    // Declaring union-reviewed while every integration targets production is a
+    // contradiction, and it is better said once here than discovered as a
+    // refusal on every merge.
+    expect(() => parseProgramDescriptor(
+      VALID
+        .replace('base: auto', 'base: main')
+        .replace('mergeGate: human', 'mergeGate: union-reviewed\n  deployBranch: main'),
+    )).toThrow(/deployBranch/);
+  });
+
+  it('leaves deployBranch absent when the gate is human, which needs no such thing', () => {
+    expect(parseProgramDescriptor(VALID)?.autopilot.deployBranch).toBeUndefined();
+  });
+
   it('rejects unknown status, merge gate and cluster size values', () => {
     expect(() => parseProgramDescriptor(VALID.replace('status: executing', 'status: paused'))).toThrow(
       /status/,
