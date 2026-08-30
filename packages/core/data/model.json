@@ -2175,7 +2175,7 @@
         }
       ],
       "id": "skill:void-implement",
-      "lines": 167,
+      "lines": 169,
       "name": "void-implement",
       "owner": "folpe",
       "pack": null,
@@ -2184,7 +2184,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-implement/SKILL.md",
-      "staticTokens": 4794,
+      "staticTokens": 5051,
       "type": "skill"
     },
     {
