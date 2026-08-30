@@ -1,20 +1,21 @@
 ---
 schemaVersion: 1
 status: executing
-program: expert-team-execution
-plan: docs/plans/2026-08-30-expert-team-execution-plan.md
-spec: docs/specs/2026-08-30-expert-team-execution.md
+program: merge-grant-and-install-safety
+plan: docs/plans/2026-08-30-shipped-guards-plan.md
+spec: docs/specs/2026-08-30-shipped-guards-that-are-open.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
-  order: [DEV-676, DEV-443]
+  order: [DEV-677, DEV-673, DEV-665, DEV-664]
   states:
     ready: [Backlog, Todo]
     started: [In Progress]
     review: [In Review]
     done: [Done, Canceled]
 humanGates:
-  - checkpoint-a
+  - DEV-677
+  - DEV-673
 autopilot:
   schemaVersion: 1
   clusterSize: 4
@@ -30,20 +31,31 @@ autopilot:
       - packages/cli/core-assets/**
       - packages/harness-graph/model.json
       - packages/harness-graph/catalog.v3.json
+      # DEV-677 and DEV-673 both rewrite the merge grant, so the router must
+      # sequence them rather than fan them out. Declared here rather than left to
+      # footprint inference, because a semantic conflict in the guard that
+      # authorizes a merge is the one no tooling resolves after the fact.
+      - packages/cli/src/lib/autopilot/union-review.ts
     reconcileOnly: []
 ---
 
-# Program: an expert team that challenges before it writes
+# Program: close the guards that are shipped and open
 
 This file is the stable global context for the executing program. It deliberately names neither a
 current nor a next work unit. The provider declared under `progress` owns claims, dependencies,
 review state and the remote resume trail; this file only locates that state.
 
-The pointer moved off `knowledge-and-resume` on 2026-08-30 because the work in flight is the
-expert-team spine and a descriptor that names a different plan makes every resume reconstruct the
-wrong context. `knowledge-and-resume` is not closed and none of its tickets were deleted; moving
-back is one frontmatter line. See the plan's cut: the programme is deliberately **two slices**,
-not eight, and it ends at a human review of one full ticket run rather than at a feature list.
+The pointer moved on 2026-08-30, after the expert-team spine shipped in #298 and #299 and its
+Checkpoint A was read. The programme is now the pool of **delivered defects** the day surfaced:
+guards that are live and open. Each was kept rather than dropped by the admission rule precisely
+because it is shipped, and a shipped defect does not compare against the work in progress.
+
+`DEV-677` and `DEV-673` both rewrite `judgeMergeGrant`. They are declared sequential under
+`autopilot.ownership` rather than left to footprint inference: two agents rewriting the guard that
+authorizes a merge produce a semantic conflict, and no tooling resolves one after the fact.
+
+This is also the first attended dogfood of `autopilot` against a real pool. What it reveals about
+the drainer counts as much as what it fixes.
 
 ## Sources of truth
 
@@ -98,12 +110,14 @@ provider.
 
 ## Human gates and autonomy boundary
 
-`checkpoint-a` is the single human gate: after slice 2, one real ticket runs end to end through
-the panel and Folpe reads it. Nothing from the plan's deferred table re-enters before that.
+Checkpoint A was read on 2026-08-30 and is closed: the panel convened before the writing, refuted
+a stale ticket premise from four independent lenses, and the run closed six production merge
+grants. What it also revealed -- a context pack that was empty at the stage where the panel
+convenes first -- was fixed inside the same unit.
 
-It is a gate on **direction**, not on findings. Findings are arbitrated inside the cycle by the
-forced comparison against the unit in progress, so no queue accumulates and no human is a
-bottleneck on them.
+The gate now is the merge of the integration PR into `develop`, and promotion to `main` stays
+human as always. Findings are arbitrated inside the cycle by the forced comparison against the
+unit in progress, so no queue accumulates and no human is a bottleneck on them.
 
 Promotion to `main` remains human, and what a person judges there is the feature. The integration
 PR into `develop` merges itself only once an adversarial reading of the whole integrated diff came
