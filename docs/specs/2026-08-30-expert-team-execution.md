@@ -138,6 +138,30 @@ a hook rather than prose.
 Dependency inversion stays in `void-hexagonal-architecture`: it is already owned, and the
 anti-bloat rule forbids more than 30% overlap between two skills.
 
+## Where the reasoning came from
+
+Recorded because the conclusions are useless without the arguments that produced them, and
+because two of them overturned what was about to be built.
+
+- **One writer, many readers** — [When Parallelism Pays Off](https://arxiv.org/pdf/2606.00953),
+  [LLM Consortium for Software Design Refinement](https://arxiv.org/pdf/2606.01490),
+  [Single-Agent vs Multi-Agent AI](https://www.augmentcode.com/guides/single-agent-vs-multi-agent-ai).
+  Writes need sequential coordination, reads parallelise, and merging independently generated
+  work degrades structural coherence more than a simpler single-shot approach. This is what
+  ruled out "each role writes its own part", which was the intuition being considered.
+- **Sequential integration** — the same sources: parallel merge breaks on semantic conflicts,
+  where both sides compile alone and fail together, and no tooling resolves them.
+- **One skill, not five, for design principles** — [Building skills for AI agents](https://next.redhat.com/2026/07/28/building-skills-for-ai-agents-pitfalls-and-best-practices/),
+  [Organizing and Benchmarking Agent Skills at Ecosystem Scale](https://arxiv.org/pdf/2603.02176).
+  Narrow skills beat broad ones in general — but an irrelevant loaded skill *actively misleads*
+  rather than idling, and these principles all fire at one instant. This is the argument that
+  reversed the first recommendation, which had been to group them for convenience.
+- **Long-horizon drift** — [SlopCodeBench](https://arxiv.org/html/2603.24755v1). Quality
+  degrades as an agent extends its own previous work across rounds, and single-shot checks do
+  not see it.
+- **The measured facts of 2026-08-29/30** are in DEV-666 (63 verdicts), DEV-667 (five
+  mechanisms that never fired), DEV-668 (principle coverage), DEV-669 (missing specialists).
+
 ## Acceptance criteria
 
 - [ ] `void-implement` convenes the predicate-selected specialists **before** the first line, in parallel, and names them.
