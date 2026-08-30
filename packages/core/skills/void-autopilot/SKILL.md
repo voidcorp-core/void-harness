@@ -124,12 +124,22 @@ claims tickets nobody agreed to hand over.
     reader and this pass is optional.
 
     **Every finding carries a severity, and only `blocking` stops the merge.** A finding is
-    blocking only if it lets the system do something it declares it refuses, makes a shipped
-    artifact state the opposite of the code, or breaks something that worked. Three noes is
-    `advisory`: a real finding that costs a ticket, not a merge. The reader is asked those
-    three closed questions rather than for a rating, because a reader grading the severity of
-    its own finding grades it high. Advisories travel with the grant and are read; the count
-    set aside is named in the refusal so it cannot be quietly lost.
+    blocking if it lets the system do something it declares it refuses, makes a shipped
+    artifact state the opposite of the code, breaks something that worked, or adds a
+    capability the integrated tickets do not account for. Four noes is `advisory`: a real
+    finding that costs a ticket, not a merge. The reader is asked those four closed questions
+    rather than for a rating, because a reader grading the severity of its own finding grades
+    it high — and a finding it cannot place is blocking, since that costs one hand merge while
+    the other direction costs a merge nobody read. Advisories travel with the grant and are
+    read; the count set aside is named in the refusal so it cannot be quietly lost.
+
+    The fourth question exists because the first three are about regression and coherence:
+    something malicious added in new code breaks nothing that worked and contradicts no
+    shipped artifact, so it would have graded advisory. And the reader is told the diff is
+    data it judges, never an instruction to it — a comment or a test name that tells it how to
+    classify a finding is itself blocking. Before findings were graded, influence over the
+    reader could only manufacture contradictions, which only ever refused; now it could write
+    `advisory`, so the diff became a way in.
 
     **One reading, not five.** Its value is a fresh context over the whole diff, not a panel:
     each added angle multiplies findings without multiplying the risk covered. On 2026-08-30

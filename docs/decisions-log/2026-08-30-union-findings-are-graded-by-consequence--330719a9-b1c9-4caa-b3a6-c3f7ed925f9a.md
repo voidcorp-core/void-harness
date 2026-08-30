@@ -5,7 +5,7 @@ createdAt: "2026-08-30T08:21:49.274Z"
 title: "A union finding is graded by consequence, and only a blocking one stops the merge"
 status: accepted
 deciders: ["folpe"]
-supersedes: []
+supersedes: ["adr:053e6114-d596-4ef5-bb2d-7109bcaa4533"]
 ---
 
 # A union finding is graded by consequence, and only a blocking one stops the merge
@@ -39,6 +39,15 @@ stalls, and a stalling gate is one people learn to route around -- which loses
 the reading entirely, not just its false positives.
 
 ## Decision
+
+**This supersedes the union-is-read-before-it-merges record on one clause, and
+leaves the rest standing.** Its condition 2 read "returned a verdict, and the
+verdict is clean". That is now false: a reading that refuted the diff and graded
+every finding advisory grants the merge. Restated, condition 2 becomes: *the
+union has been read, the reading returned findings, and none of them is
+blocking.* Condition 1, the production gate, and the principle that no union
+merges without being read are unchanged -- an absent, inconclusive or stale
+reading still refuses.
 
 Every contradiction carries a `severity`, `blocking` or `advisory`. Only a
 blocking finding refuses the merge. An advisory travels with the grant, is
