@@ -56,22 +56,31 @@ describe('the budget one run gets', () => {
   // block is the consent to run unattended, and a command line that could widen
   // it would turn that declaration into a suggestion.
   it('takes the declared budget when nothing is asked for', () => {
-    expect(resolveChainBudget({ declaredMs: DEFAULT_CHAIN_BUDGET_MS })).toBe(DEFAULT_CHAIN_BUDGET_MS);
+    expect(resolveChainBudget({ declaredMs: DEFAULT_CHAIN_BUDGET_MS, declared: true }))
+      .toBe(DEFAULT_CHAIN_BUDGET_MS);
   });
 
   it('lets one run ask for less than the programme declares', () => {
-    expect(resolveChainBudget({ declaredMs: DEFAULT_CHAIN_BUDGET_MS, requested: '30m' }))
+    expect(resolveChainBudget({ declaredMs: DEFAULT_CHAIN_BUDGET_MS, declared: true, requested: '30m' }))
       .toBe(30 * MINUTE);
   });
 
   it('refuses a request longer than the declaration, rather than clamping it silently', () => {
-    expect(() => resolveChainBudget({ declaredMs: DEFAULT_CHAIN_BUDGET_MS, requested: '6h' }))
-      .toThrow(/never widen it/i);
+    // `declared: true` is what makes this a ceiling. The same number reached by
+    // falling back is not one -- see "a fallback is not a declaration" below.
+    expect(() => resolveChainBudget({
+      declaredMs: DEFAULT_CHAIN_BUDGET_MS,
+      declared: true,
+      requested: '6h',
+    })).toThrow(/never widen it/i);
   });
 
   it('refuses a request that is not a duration at all', () => {
-    expect(() => resolveChainBudget({ declaredMs: DEFAULT_CHAIN_BUDGET_MS, requested: '6' }))
-      .toThrow(/not a duration/i);
+    expect(() => resolveChainBudget({
+      declaredMs: DEFAULT_CHAIN_BUDGET_MS,
+      declared: false,
+      requested: '6',
+    })).toThrow(/not a duration/i);
   });
 });
 
@@ -221,5 +230,38 @@ describe('the journal a person reads afterwards', () => {
 
   it('says plainly that nothing merged, rather than rendering an empty list', () => {
     expect(renderMergeJournal([]).toLowerCase()).toContain('nothing');
+  });
+});
+
+describe('a fallback is not a declaration', () => {
+  // Folpe, 2026-08-30: "the 2h default must be the fallback when I ask for
+  // autopilot without a duration". A default nobody wrote is not a ceiling
+  // anybody consented to, and refusing an explicit `6h` against it is a default
+  // impersonating a declaration -- the failure class this repository spent the
+  // day closing everywhere else.
+  it('lets an invocation name any duration when the programme declared none', () => {
+    expect(resolveChainBudget({ declaredMs: DEFAULT_CHAIN_BUDGET_MS, declared: false, requested: '6h' }))
+      .toBe(6 * 60 * 60_000);
+  });
+
+  it('still refuses a duration past the hard maximum, declaration or not', () => {
+    expect(() => resolveChainBudget({
+      declaredMs: DEFAULT_CHAIN_BUDGET_MS,
+      declared: false,
+      requested: '48h',
+    })).toThrow();
+  });
+
+  it('falls back to two hours when nothing is declared and nothing is asked', () => {
+    expect(resolveChainBudget({ declaredMs: DEFAULT_CHAIN_BUDGET_MS, declared: false }))
+      .toBe(DEFAULT_CHAIN_BUDGET_MS);
+  });
+
+  it('keeps a written chainBudget a ceiling an invocation may only shorten', () => {
+    const declaredMs = 2 * 60 * 60_000;
+
+    expect(resolveChainBudget({ declaredMs, declared: true, requested: '30m' })).toBe(30 * 60_000);
+    expect(() => resolveChainBudget({ declaredMs, declared: true, requested: '6h' }))
+      .toThrow(/shorten/);
   });
 });

@@ -82,6 +82,33 @@ claims tickets nobody agreed to hand over.
 
 ---
 
+## Hydration: filling what the CLI validates
+
+The CLI contacts nothing, so you are the only layer that reads the tracker and git. It does not
+leave you guessing what it wants: **run `autopilot scaffold <plan|start|status|marker>` and fill
+the payload it prints.** Each field comes back with a note saying where to obtain it, and a
+refusal names the field, the type and the note. If you find yourself opening a `.ts` file to
+learn a shape, stop and run the scaffold instead -- that is the whole reason it exists.
+
+**For `plan`.** Read `.void/program.md` once: `progress.order` is the pool, `progress.states`
+tells ready from done. Fetch every unit in that order that is not done. `ready` is its state in
+`states.ready`; `blockedByOpen` is true when any native blocker is not done -- read the relation,
+never the prose. `footprints.areas` are the paths the ticket names as its anchors; `highRisk` is
+a guard, a migration, a lockfile or a published contract; `confidence` is your own statement
+about how well you know the footprint, and a low one is what shrinks the cluster on purpose.
+
+**For `start`.** Render the marker with `scaffold marker`, fill it, and post it as a comment on
+**every** ticket in the cluster before claiming any of them. Then claim each one. Then re-read
+**every** ticket -- state, assignee and comments -- into `reobservation`. Report each write in
+`applied`, and use `unknown` when a write's result did not come back: a write you are unsure of
+makes the whole picture untrustworthy even when the re-observation looks converged, and saying so
+is what keeps the lease honest. `state` is the local cursor, with `base.sha` the full commit the
+run was planned against.
+
+**For `status`.** Every field is a `BoundaryReading`: `{ kind: "value", value: ... }` when you
+read it, `{ kind: "nil" }` when you could not. Those are different answers and the recovery
+verdict depends on the difference -- an absent pull request is an absence, not a merge.
+
 ## The cycle
 
 1. **Preflight.** Prove the runtime adapter, the connectors, git permissions, the base branch
@@ -180,6 +207,40 @@ claims tickets nobody agreed to hand over.
     SHA each verdict was bound to, the merge commit it produced, the union verdict and the
     checks observed green. The person reading afterwards is deciding whether to trust the
     result, so "it merged" is not the question they have.
+
+---
+
+## The chain: `mode autopilot 6h`
+
+A duration, not a ticket count -- "drain the backlog while I am out" is a length of time, and
+five units says nothing about whether that is twenty minutes or a day.
+
+The budget comes from `autopilot.chainBudget`. **Written, it is a ceiling** and an invocation may
+only shorten it: the declaration is the consent to run unattended, and a consent any command line
+could widen would not be one. **Absent, two hours is a fallback** and `--for 6h` runs six hours,
+because nobody consented to a default by leaving a field out.
+
+The loop is yours; the decision is not. Between every unit:
+
+1. Pipe the chain observation into `autopilot chain --for <duration>`. It returns the budget it
+   resolved, the decision, the unit to take, and the journal so far.
+2. On `continue`, take `nextUnit`: its own worktree and branch off the union branch, then
+   **`void-implement` entire, once**. Merge that range into the union branch.
+3. Run the full suite on the merged base and observe the result **against the merge commit**.
+   Feed it back as `postMerge`.
+4. Ask again.
+
+On `stop`, the run ends there. It is not a pause: leases, branches, commits and the cursor stay
+exactly where they are, and the report names the unit it stopped on and the reason. Four reasons
+end a run badly -- a red base, a base nobody verified, a verification taken on some other tree,
+and a budget or clock that cannot be read -- and two end it well: the budget is spent, or nothing
+is ready. `nextUnit` is absent on every stop, so a caller cannot take one anyway.
+
+A unit already under way is never cut in half. The budget decides whether to START another one;
+cutting mid-unit leaves a worktree and half a ticket, which costs more than the overrun it saves.
+
+The pull request body carries the journal verbatim. It is what makes per-unit provenance a claim
+a reader can check rather than a summary somebody wrote afterwards.
 
 ---
 

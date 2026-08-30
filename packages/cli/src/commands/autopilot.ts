@@ -14,6 +14,15 @@
 import { type ClusterPlan, type ClusterPlanInput, planCluster } from '../lib/autopilot/cluster-plan.js';
 import { type ConfirmationInput, confirmReservation } from '../lib/autopilot/cluster-reservation.js';
 import { autopilotFailure, renderAutopilotFailure, toAutopilotFailure } from '../lib/autopilot/errors.js';
+import { decideChainStep, type ChainObservation } from '../lib/autopilot/chain-step.js';
+import { readProgramDescriptor } from '../lib/autopilot/program.js';
+import {
+  INPUT_SHAPES,
+  markerTemplate,
+  scaffoldFor,
+  validateAgainstShape,
+  type AutopilotInputStep,
+} from '../lib/autopilot/input-shape.js';
 import {
   type PullRequestObservation,
   recoverRemote,
@@ -55,7 +64,9 @@ tracker and pipes them in. The CLI computes; it never contacts Linear, GitHub or
 git, and it spawns no agent.
 
 Usage:
+  void-harness autopilot scaffold <plan|start|status|marker> [--json]
   echo '<CandidateObservation>'  | void-harness autopilot plan   [--json]
+  echo '<ChainObservation>'      | void-harness autopilot chain  [--for <2h|90m>] [--json]
   echo '<ReservationReceipt>'    | void-harness autopilot start  [--json]
   echo '<RemoteObservation>'     | void-harness autopilot status [--run <id>] [--json]
   echo '<RemoteObservation>'     | void-harness autopilot resume [--run <id>] [--json]
@@ -116,17 +127,26 @@ function flagValue(argv: readonly string[], flag: string): string | undefined {
   return value;
 }
 
-function parseStdin<T>(stdin: string, what: string): T {
+function parseStdin<T>(stdin: string, what: string, step?: AutopilotInputStep): T {
+  let parsed: unknown;
   try {
-    return JSON.parse(stdin) as T;
+    parsed = JSON.parse(stdin);
   } catch (error) {
     throw autopilotFailure(
       'AUTOPILOT_INPUT',
       `the ${what} on stdin is not valid JSON`,
       error instanceof Error ? error.message : String(error),
-      `pipe the ${what} the skill produced, unmodified, into this command`,
+      step === undefined
+        ? `pipe the ${what} the skill produced, unmodified, into this command`
+        : `run \`void-harness autopilot scaffold ${step}\` for the shape this step accepts`,
     );
   }
+  // Validate before the command reads a field. Without this a missing
+  // `state.base` surfaced as `Cannot read properties of undefined (reading
+  // 'branch')` from wherever it happened to be read, which names neither the
+  // field nor where to obtain it.
+  if (step !== undefined) validateAgainstShape(parsed, step);
+  return parsed as T;
 }
 
 /** A run nobody needs to act on again. */
@@ -277,7 +297,7 @@ function lifecycleFor(
 }
 
 function situationFrom(state: RunState, stdin: string): Resolved {
-  const observation = parseStdin<Partial<RemoteObservation>>(stdin, 'remote observation');
+  const observation = parseStdin<Partial<RemoteObservation>>(stdin, 'remote observation', 'status');
   if (
     observation?.tracker === undefined ||
     observation?.pullRequest === undefined ||
@@ -370,13 +390,71 @@ function emit(json: boolean, value: unknown, human: string): AutopilotCommandRes
   return ok(json ? `${JSON.stringify(value, null, 2)}\n` : human);
 }
 
+function scaffoldCommand(argv: readonly string[], json: boolean): AutopilotCommandResult {
+  const step = argv[0];
+  // The marker is not a step's payload, it is a comment body, so it is scaffolded
+  // here rather than left as the one thing a run still had to read source for.
+  if (step === 'marker') {
+    return ok(`${markerTemplate()}\n`);
+  }
+  if (step === undefined || !Object.hasOwn(INPUT_SHAPES, step)) {
+    throw autopilotFailure(
+      'AUTOPILOT_INPUT',
+      'scaffold needs the step whose shape you want',
+      step === undefined ? 'no step was named' : `\`${step}\` is not a step`,
+      `name one of ${Object.keys(INPUT_SHAPES).join(', ')}, marker`,
+    );
+  }
+  const known = step as AutopilotInputStep;
+  const shape = INPUT_SHAPES[known];
+  const body = `${JSON.stringify(scaffoldFor(known), null, 2)}\n`;
+  if (json) return ok(body);
+  // The human rendering carries WHERE each field comes from. The JSON is what a
+  // caller pipes back in; the notes are what stop them reading the types.
+  const notes = shape.fields
+    .map((field) => `  ${field.name.padEnd(24)} ${field.from}`)
+    .join('\n');
+  return ok(`# ${shape.what}\n${body}\n# where each field comes from\n${notes}\n`);
+}
+
+function chainCommand(
+  argv: readonly string[],
+  stdin: string,
+  json: boolean,
+  context: AutopilotCommandContext,
+): AutopilotCommandResult {
+  const observation = parseStdin<ChainObservation>(stdin, 'chain observation', 'chain');
+  const descriptor = readProgramDescriptor(context.root);
+  if (descriptor?.autopilot === undefined) {
+    throw autopilotFailure(
+      'AUTOPILOT_CONTRACT',
+      'the chain needs the programme to declare an autopilot block',
+      '`.void/program.md` is absent, unreadable, or carries no `autopilot` block',
+      'declare `autopilot` in `.void/program.md`; that block is the consent to run unattended',
+    );
+  }
+  const requested = flagValue(argv, '--for');
+  const step = decideChainStep(
+    { ...observation, ...(requested === undefined ? {} : { requested }) },
+    descriptor.autopilot,
+  );
+  const human = step.decision.kind === 'continue'
+    ? `continue: take ${step.nextUnit ?? '(none)'} — ${step.decision.detail}\n`
+    : `stop (${step.decision.reason}): ${step.decision.detail}\nfix: ${step.decision.fix}\n`;
+  return emit(json, step, human);
+}
+
 function planCommand(stdin: string, json: boolean): AutopilotCommandResult {
-  const plan = planCluster(parseStdin<ClusterPlanInput>(stdin, 'candidate observation'));
+  const plan = planCluster(parseStdin<ClusterPlanInput>(stdin, 'candidate observation', 'plan'));
   return emit(json, plan, renderPlan(plan));
 }
 
 function startCommand(stdin: string, json: boolean, context: AutopilotCommandContext): AutopilotCommandResult {
-  const receipt = parseStdin<ConfirmationInput & { readonly state: RunState }>(stdin, 'reservation receipt');
+  const receipt = parseStdin<ConfirmationInput & { readonly state: RunState }>(
+    stdin,
+    'reservation receipt',
+    'start',
+  );
   const outcome = confirmReservation({
     intent: receipt.intent,
     applied: receipt.applied ?? [],
@@ -502,13 +580,28 @@ export function runAutopilotCommand(
     }
 
     if (subcommand === 'plan') return planCommand(stdin, json);
+    if (subcommand === 'chain') {
+      if (context === undefined) {
+        throw autopilotFailure(
+          'AUTOPILOT_CONTRACT',
+          '`chain` needs a project root and a clock',
+          'the command was invoked without an execution context',
+          'invoke autopilot through the CLI entry point rather than calling it directly',
+        );
+      }
+      return chainCommand(argv, stdin, json, context);
+    }
+    if (subcommand === 'scaffold') {
+      const rest = argv.slice(argv.indexOf(subcommand) + 1).filter((arg) => !arg.startsWith('-'));
+      return scaffoldCommand(rest, json);
+    }
 
     const stateful = ['start', 'status', 'resume', 'abort'];
     if (!stateful.includes(subcommand)) {
       throw autopilotFailure(
         'AUTOPILOT_USAGE',
         `autopilot has no '${subcommand}' subcommand`,
-        `known subcommands are plan, ${stateful.join(', ')}`,
+        `known subcommands are scaffold, plan, chain, ${stateful.join(', ')}`,
         'run `void-harness autopilot --help` for the full contract',
       );
     }
@@ -548,7 +641,7 @@ export function runAutopilotCommand(
  * would otherwise hang on a terminal, waiting for input nobody is going to type.
  */
 export async function autopilot(argv: readonly string[]): Promise<void> {
-  const wantsStdin = argv.some((arg) => ['plan', 'start', 'status', 'resume'].includes(arg));
+  const wantsStdin = argv.some((arg) => ['plan', 'chain', 'start', 'status', 'resume'].includes(arg));
   const stdin = wantsStdin && !process.stdin.isTTY ? await readAllStdin() : '';
 
   const result = runAutopilotCommand(argv, stdin, {
