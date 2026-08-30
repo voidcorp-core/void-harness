@@ -263,15 +263,66 @@ function matchesPath(pattern: string, path: string): boolean {
   return matchesFrom(pattern.split('/'), 0, segments, 0);
 }
 
+/**
+ * One branch name, in the one shape a comparison can be trusted on.
+ *
+ * `target` is resolved from the remote and arrives canonical. `deployBranch` is
+ * typed by a person into a programme descriptor and is validated by nothing --
+ * so `origin/main`, `refs/heads/main`, `Main` and `main ` all failed to equal the
+ * resolved `main`, and the branch that ships was granted to a machine. The one
+ * refusal that must never be wrong was the only input with no shape.
+ *
+ * Case is folded deliberately. Git treats `Main` and `main` as two branches, so
+ * folding can only ever refuse a pair git would have let through, and every error
+ * this check makes has to be a refusal.
+ */
+function branchIdentity(name: string): string {
+  const trimmed = name.trim();
+  for (const prefix of ['refs/heads/', 'refs/remotes/', 'remotes/']) {
+    if (trimmed.startsWith(prefix)) return trimmed.slice(prefix.length).toLowerCase();
+  }
+  return trimmed.toLowerCase();
+}
+
+/**
+ * Do these two names risk being the same branch?
+ *
+ * `origin/main` and `main` cannot be told apart from `release/main` and `main`
+ * without knowing the remotes, and this function has no way to know them. So it
+ * refuses both: a suffix match on a whole segment counts as the same branch.
+ *
+ * That costs a false refusal to a project integrating into `release/main` while
+ * shipping from `main`. The trade is not symmetric. A false refusal is a merge a
+ * person does by hand and can see; the other direction is a machine merging into
+ * production, which nobody sees until it has shipped.
+ */
+function sameBranch(target: string, deployBranch: string): boolean {
+  const left = branchIdentity(target);
+  const right = branchIdentity(deployBranch);
+  if (left === right) return true;
+  return left.endsWith(`/${right}`) || right.endsWith(`/${left}`);
+}
+
 export function judgeMergeGrant(input: MergeGrantInput): MergeGrant {
   // Production first, and deliberately before every other check. When the target
   // deploys and the reading is also stale, reporting the stale reading would send
   // someone to run a pass that cannot unlock anything.
-  if (input.target === input.deployBranch) {
+  // A `deployBranch` that names nothing is not an absence of production, it is an
+  // unusable declaration -- and this is the check whose silence costs the most.
+  const deploy = input.deployBranch.trim();
+  if (deploy.length === 0) {
+    return refused(
+      'production-downstream',
+      'the programme declares no branch that deploys, so no target can be shown not to be it',
+      'set `autopilot.deployBranch` to the branch that ships, then ask again',
+    );
+  }
+  if (sameBranch(input.target, deploy)) {
     return refused(
       'production-downstream',
       `merging into \`${input.target}\` ships, and what a person judges there is the feature`,
-      'merge it yourself once you have seen the integration branch behave',
+      'merge it yourself once you have seen the integration branch behave;'
+        + ' a target ending in the deploying branch is read as that branch',
     );
   }
 

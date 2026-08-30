@@ -51,6 +51,49 @@ describe('what may merge itself', () => {
     expect(verdict.kind === 'refused' && verdict.reason).toBe('production-downstream');
   });
 
+  // The refusal that costs the most was the only input with no shape. `target` is
+  // resolved from the remote and arrives canonical; `deployBranch` is typed by a
+  // person and validated by nothing, so every one of these spellings used to be
+  // "not main" and granted a machine merge into the branch that ships.
+  it('refuses whatever spelling the programme used for the branch that deploys', () => {
+    for (const deployBranch of [
+      'origin/main',
+      'refs/heads/main',
+      'refs/remotes/origin/main',
+      'remotes/origin/main',
+      'Main',
+      '  main  ',
+    ]) {
+      const verdict = grant({ target: 'main', deployBranch });
+      expect(verdict.kind, deployBranch).toBe('refused');
+      if (verdict.kind === 'refused') {
+        expect(verdict.reason, deployBranch).toBe('production-downstream');
+      }
+    }
+  });
+
+  it('refuses when the programme names no deploying branch at all', () => {
+    const verdict = grant({ deployBranch: '   ' });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') expect(verdict.reason).toBe('production-downstream');
+  });
+
+  it('still grants an integration branch that is not the deploying one', () => {
+    expect(grant({ target: 'develop', deployBranch: 'origin/main' }).kind).toBe('granted');
+    expect(grant({ target: 'main-staging', deployBranch: 'main' }).kind).toBe('granted');
+    expect(grant({ target: 'mainline', deployBranch: 'main' }).kind).toBe('granted');
+  });
+
+  // `origin/main` and `release/main` are indistinguishable without knowing the
+  // remotes, so a whole-segment suffix counts as the same branch. The false
+  // refusal it costs is a merge a person does by hand; the other direction is a
+  // machine merging into production.
+  it('reads a target ending in the deploying branch as that branch', () => {
+    const verdict = grant({ target: 'release/main', deployBranch: 'main' });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') expect(verdict.reason).toBe('production-downstream');
+  });
+
   it('puts the gate on the deploying branch even when it is not called main', () => {
     expect(grant({ target: 'develop', deployBranch: 'develop' }).kind).toBe('refused');
     expect(grant({ target: 'main', deployBranch: 'ship' }).kind).toBe('granted');
