@@ -95,9 +95,11 @@ is direct — parallel merge breaks on semantic conflicts, which no tooling reso
 automatically, and this repository saw two artifact conflicts in five supposedly disjoint
 tickets on 2026-08-29. Sequencing removes the entire class.
 
-The chain is bounded by **time**, not by a ticket count: `chainBudget`, two hours by default,
-overridable per invocation. It stops at the first failure without starting the next unit, and
-an unverified base stops it exactly like a red one.
+The chain is bounded by **time**, not by a ticket count: `chainBudget`, two hours by default.
+An invocation may shorten one run and never lengthen it, because the declaration is the consent
+to run unattended. It stops at the first failure without starting the next unit; an unverified
+base, and one verified on a tree other than the merge it just produced, both stop it exactly
+like a red one.
 
 **And it watches for drift.** SlopCodeBench measures what happens when an agent repeatedly
 extends its own previous work: quality degrades across rounds in a way single-shot checks do

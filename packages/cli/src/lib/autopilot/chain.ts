@@ -35,7 +35,9 @@ export type PostMergeObservation =
 export type ChainStopReason =
   | 'post-merge-red'
   | 'post-merge-unverified'
+  | 'post-merge-stale'
   | 'budget-spent'
+  | 'budget-unreadable'
   | 'nothing-ready';
 
 export type ChainDecision =
@@ -57,7 +59,8 @@ const MINUTE_MS = 60_000;
  * Time rather than a ticket count, because time is what someone actually means:
  * "drain the backlog while I am out" is a duration, and a count of five says
  * nothing about whether that is twenty minutes or a day. Two hours is the length
- * of a session someone waits through and still reads afterwards.
+ * of a session someone waits through and still reads afterwards. See the
+ * unattended-run-is-bounded-by-time decision.
  */
 export const DEFAULT_CHAIN_BUDGET_MS = 120 * MINUTE_MS;
 
@@ -84,6 +87,33 @@ export function parseChainBudget(text: string): number {
     throw new Error(`\`${text}\` is longer than 24h, which is more than anyone reviews in one sitting`);
   }
   return total;
+}
+
+/**
+ * The budget one run actually gets, from the declaration and what was asked.
+ *
+ * An invocation may only ever ASK FOR LESS. The programme block is the consent to
+ * run unattended, and a consent has a size: letting a command line widen it would
+ * make the declared duration a suggestion, and the durable declaration is the
+ * whole reason a flag cannot start a machine merge in the first place.
+ *
+ * A longer request is refused rather than quietly clamped. Someone who types 6h
+ * has a plan for six hours, and silently giving them two would have them come
+ * back to a run that stopped for no reason they were told about.
+ */
+export function resolveChainBudget(input: {
+  readonly declaredMs: number;
+  readonly requested?: string | undefined;
+}): number {
+  if (input.requested === undefined) return input.declaredMs;
+  const requested = parseChainBudget(input.requested);
+  if (requested > input.declaredMs) {
+    throw new Error(
+      `\`${input.requested}\` is longer than the ${describe(input.declaredMs)} the programme declares;`
+      + ' an invocation may shorten a run, never widen it',
+    );
+  }
+  return requested;
 }
 
 const short = (sha: string): string => sha.slice(0, 7);
@@ -121,13 +151,28 @@ export function planChainStep(input: {
   // The base first, and deliberately before the cap. A cap reached on a broken
   // base is still a broken base, and reporting "cap" would read as a nominal end
   // and send nobody to look at it.
-  if (input.merged.length > 0) {
+  const last = input.merged[input.merged.length - 1];
+  if (last !== undefined) {
     if (input.postMerge === undefined) {
       return stop(
         'post-merge-unverified',
         true,
         'the merged base was never verified, and an unverified base is not a green one',
         'run the full suite on the base, then decide whether the chain may continue',
+      );
+    }
+    // A verdict about another tree is not a verdict, exactly as `review-stale`
+    // reads it on the merge grant. A suite that ran before this merge landed, or
+    // on a base someone else has since pushed to, describes a tree the chain is
+    // no longer standing on -- and it is the reading a green result would be
+    // trusted on.
+    if (input.postMerge.sha !== last.mergeCommit) {
+      return stop(
+        'post-merge-stale',
+        true,
+        `the suite was observed on ${short(input.postMerge.sha)}, and the merge produced`
+          + ` ${short(last.mergeCommit)}`,
+        'run the full suite on the commit the merge actually produced, then decide',
       );
     }
     if (input.postMerge.kind === 'red') {
@@ -139,6 +184,22 @@ export function planChainStep(input: {
         'fix the base before anything else merges; the next unit was not started',
       );
     }
+  }
+
+  // A budget or a clock that is not a number makes every comparison below false,
+  // and `NaN <= 0` is false -- so an unreadable budget used to read as "time
+  // left" and continue. The one direction this must never fail in.
+  if (
+    !Number.isFinite(input.budgetMs) || input.budgetMs <= 0
+    || !Number.isFinite(input.elapsedMs) || input.elapsedMs < 0
+  ) {
+    return stop(
+      'budget-unreadable',
+      true,
+      `the run has no usable budget: ${String(input.budgetMs)}ms given,`
+        + ` ${String(input.elapsedMs)}ms elapsed`,
+      'give the run a duration it can measure itself against, then start it again',
+    );
   }
 
   const remaining = input.budgetMs - input.elapsedMs;
@@ -153,7 +214,7 @@ export function planChainStep(input: {
   // A unit already under way is never cut in half; the budget decides whether to
   // START another. So the question is not "is there time left" but "is there
   // enough", answered from what this run has actually taken rather than a guess.
-  if (input.merged.length > 0) {
+  if (last !== undefined) {
     const perUnit = input.elapsedMs / input.merged.length;
     if (remaining < perUnit) {
       return stop(

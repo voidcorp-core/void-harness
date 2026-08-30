@@ -3,6 +3,7 @@ import {
   DEFAULT_CHAIN_BUDGET_MS,
   parseChainBudget,
   planChainStep,
+  resolveChainBudget,
   renderMergeJournal,
   type MergedUnit,
   type PostMergeObservation,
@@ -49,7 +50,66 @@ describe('what keeps a chain going', () => {
   });
 });
 
+describe('the budget one run gets', () => {
+  // The skill told consumers the invocation could override the declared budget,
+  // and no code implemented it. Now it does -- in one direction. The programme
+  // block is the consent to run unattended, and a command line that could widen
+  // it would turn that declaration into a suggestion.
+  it('takes the declared budget when nothing is asked for', () => {
+    expect(resolveChainBudget({ declaredMs: DEFAULT_CHAIN_BUDGET_MS })).toBe(DEFAULT_CHAIN_BUDGET_MS);
+  });
+
+  it('lets one run ask for less than the programme declares', () => {
+    expect(resolveChainBudget({ declaredMs: DEFAULT_CHAIN_BUDGET_MS, requested: '30m' }))
+      .toBe(30 * MINUTE);
+  });
+
+  it('refuses a request longer than the declaration, rather than clamping it silently', () => {
+    expect(() => resolveChainBudget({ declaredMs: DEFAULT_CHAIN_BUDGET_MS, requested: '6h' }))
+      .toThrow(/never widen it/i);
+  });
+
+  it('refuses a request that is not a duration at all', () => {
+    expect(() => resolveChainBudget({ declaredMs: DEFAULT_CHAIN_BUDGET_MS, requested: '6' }))
+      .toThrow(/not a duration/i);
+  });
+});
+
 describe('what stops a chain', () => {
+  // The merge-grant side already refuses a reading about another tree
+  // (`review-stale`). The chain trusted any green observation it was handed,
+  // including one taken before the merge landed, which is the reading that lets
+  // the next unit start on an unverified base.
+  it('stops when the suite was observed on a tree other than the merge commit', () => {
+    const decision = step({ postMerge: { kind: 'green', sha: SHA, suite: '1068 passed' } });
+    expect(decision.kind).toBe('stop');
+    if (decision.kind === 'stop') {
+      expect(decision.reason).toBe('post-merge-stale');
+      expect(decision.failed).toBe(true);
+      expect(decision.detail).toContain(SHA.slice(0, 7));
+    }
+  });
+
+  // `NaN <= 0` is false, and so is every other comparison, so an unreadable
+  // budget read as "there is time left" and the chain continued on it.
+  it('stops on a budget or a clock it cannot measure, rather than continuing', () => {
+    for (const over of [
+      { budgetMs: Number.NaN },
+      { elapsedMs: Number.NaN },
+      { budgetMs: Number.POSITIVE_INFINITY },
+      { budgetMs: 0 },
+      { elapsedMs: -1 },
+    ]) {
+      const decision = step(over);
+      expect(decision.kind, JSON.stringify(over)).toBe('stop');
+      if (decision.kind === 'stop') {
+        expect(decision.reason, JSON.stringify(over)).toBe('budget-unreadable');
+        expect(decision.failed).toBe(true);
+      }
+    }
+  });
+
+
   // The whole point of chaining: one bad merge must not become ten.
   it('stops immediately when the suite is red on the merged base, naming the SHA', () => {
     const decision = step({
