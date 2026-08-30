@@ -33,13 +33,25 @@ const SKILL = readFileSync(
 
 const FLAT = SKILL.replace(/\s+/g, ' ');
 
+/** The refusal table, one row per line, whitespace flattened inside each row. */
+const ROWS = SKILL.split('\n')
+  .filter((line) => line.startsWith('| `'))
+  .map((line) => line.replace(/\s+/g, ' '));
+
 describe('the autopilot skill describes the gate the CLI applies', () => {
   it.each(MERGE_REFUSALS)('names the %s refusal, so a reader can act on it', (refusal) => {
     expect(SKILL).toContain(refusal);
   });
 
-  it.each(MERGE_REFUSALS)('states what actually raises %s, in the words the CLI exports', (refusal) => {
-    expect(FLAT).toContain(MERGE_REFUSAL_TRIGGERS[refusal].replace(/\s+/g, ' '));
+  // Paired to the refusal, not merely present in the file. The version before
+  // this one asserted the sentence appeared anywhere in the flattened skill, so
+  // SWAPPING the `production-downstream` and `human-gate` cells left the shipped
+  // skill saying production ships when a unit is listed in `humanGates` -- and
+  // the whole suite stayed green. Presence is not description.
+  it.each(MERGE_REFUSALS)('puts what raises %s on that refusal own row', (refusal) => {
+    const row = ROWS.find((line) => line.startsWith(`| \`${refusal}\` |`));
+    expect(row, `no table row names ${refusal}`).toBeDefined();
+    expect(row).toContain(MERGE_REFUSAL_TRIGGERS[refusal].replace(/\s+/g, ' '));
   });
 
   // The specific lie this file exists to make impossible. `ownership.sequential`

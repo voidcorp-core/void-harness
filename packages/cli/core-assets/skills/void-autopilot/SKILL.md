@@ -172,7 +172,7 @@ into `autopilot status`, and act on the verdict it returns:
 | `republish` | the remote head lags the local one | push the same branch again |
 | `rebase` | the base moved under the run | rebase, reconcile again, re-run the whole suite; the proofs are stale |
 | `await-checks` / `fix-checks` | required checks pending, or red on this diff | wait, or fix locally and push again |
-| `ready` | every required check is green | leave it for the human, move the included tickets to In Review |
+| `ready` | every required check is green | ask the grant, and do what it returns: merge when it grants, hand it over with the refusal when it does not; move the included tickets to In Review either way |
 | `merged` | GitHub reported a merge commit | move the included tickets to Done, close the lease |
 | `blocked` | closed unmerged, a foreign branch, a merge with no commit, a red check this diff does not own | stop and report; none of these is a completion |
 | `observe-again` | the reading was partial | read it again; a partial answer is not an answer |
@@ -222,4 +222,6 @@ plan itself, not only in the prompt, so an adapter that honours the plan cannot 
 
 Upstream: `void-ticket` authors the work units and the program descriptor.
 Per ticket: `void-implement`, entire, once. Downstream: the reconciler owns the
-integration branch, the suite and the PR. The human owns the merge.
+integration branch, the suite and the PR. The merge belongs to whoever the grant
+names: the human under `mergeGate: human`, and under `union-reviewed` the human
+still for anything the grant refuses, promotion to the deploying branch included.

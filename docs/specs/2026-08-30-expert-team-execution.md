@@ -110,20 +110,36 @@ it at the run rather than at the skill.
 
 ## The design principles gap
 
-Measured across `packages/core/skills/*/SKILL.md`:
+Counted, not estimated. One case-insensitive match per principle over the shipped skills, which
+anyone can re-run:
 
-| principle | where it lives today | verdict |
+```sh
+for p in 'DRY' 'KISS' 'single responsibilit' 'cohesion' 'coupling' \
+         'dependency inversion' 'open.closed' 'Liskov' 'interface segregation'; do
+  printf '%-24s %s\n' "$p" "$(grep -rliE "$p" packages/core/skills/*/SKILL.md | wc -l)"
+done
+```
+
+| principle | files naming it | which |
 |---|---|---|
-| Dependency inversion | `void-hexagonal-architecture` | covered |
-| DRY | named in 16 skills, owned by none | dispersed |
-| KISS | named in 8, owned by none | dispersed |
-| Single responsibility | `void-brainstorm` only | gap |
-| Cohesion | nowhere | total gap |
-| Coupling | 4 skills, in passing | not owned |
-| Open/closed, Liskov, interface segregation | nowhere | gaps |
+| DRY | 0 | the three `dry` hits are `dry run` (`void-plan`, `void-verify`, `void-migrations`) |
+| KISS | 0 | |
+| Single responsibility | 0 | |
+| Cohesion | 0 | |
+| Coupling | 2 | `void-plan-review`, `void-testing`, both in passing |
+| Dependency inversion | 0 | `void-hexagonal-architecture` teaches it without naming it |
+| Open/closed, Liskov, interface segregation | 0 | |
 
-DRY is the worst case: named everywhere, owned nowhere, and its ubiquity creates the illusion
-of coverage.
+So the gap is not dispersion, it is absence: eight of the nine are named in no shipped skill at
+all, and the ninth appears twice as an aside. Dependency inversion is the one genuinely covered
+case, and it is covered in substance rather than by name -- ports and adapters with the domain
+owning its interfaces is the principle, whatever it is called.
+
+An earlier draft of this section claimed DRY was "named in 16 skills" and KISS in 8, and called
+DRY the worst case because its ubiquity created an illusion of coverage. Both numbers were 0.
+The correction is kept visible here rather than quietly edited, because the defect this document
+catalogues at its own line 30 -- a design resting on an enforcement that did not exist -- is the
+one it committed.
 
 **One skill, not five.** The deciding criterion is not breadth but trigger time: these
 principles all fire at the same instant — "I am writing code". Five skills would mean five
