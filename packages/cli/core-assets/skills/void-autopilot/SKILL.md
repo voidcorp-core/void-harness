@@ -1,12 +1,15 @@
 ---
 name: void-autopilot
-description: Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR a human merges.
+description: Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR the programme's declared merge gate disposes of.
 ---
 
 # autopilot
 
 Take up to four independent ready tickets, work each one properly, hand back a single
-integration PR. You stay the merge gate.
+integration PR. Who disposes of that PR is the programme's declaration, not this skill's:
+`mergeGate: human` keeps it yours, `mergeGate: union-reviewed` lets the grant merge it into
+a non-deploying branch once every refusal below is cleared. Promotion to the branch that
+deploys stays human in both cases.
 
 **Attribution**: see `.source`.
 
@@ -19,8 +22,31 @@ per ticket. If you find yourself writing "then the worker runs the tests, then r
 inside autopilot, stop: that behaviour has one owner, and duplicating it means the two copies
 drift and tickets get a different standard depending on how they were started.
 
-It also never merges. Not with a flag, not when the checks are green, not when the diff is
-small. `mergeGate: human` is the only value the programme descriptor accepts.
+It also never merges on a flag. Not on the command line, not because the checks are green,
+not because the diff is small. Consent to a machine merge is a durable declaration in the
+programme — `mergeGate: union-reviewed` together with a `deployBranch` — and there is no
+`--auto-merge` on any path.
+
+Under that declaration the grant refuses unless **all** of the following hold, and each
+refusal names itself:
+
+| refusal | when |
+|---|---|
+| `production-downstream` | the target is the branch that deploys |
+| `human-gate` | the cluster carries a unit listed in `humanGates` |
+| `base-unprotected` | server-side protection of the base was not positively observed, and unknown counts as unprotected |
+| `sensitive-path` | the diff touches a migration, a workflow or action under `.github/`, a lockfile or `CODEOWNERS` (the `mergeBlocks` list, deliberately not `ownership.sequential`), or the diff could not be listed |
+| `union-unread` | no reading ran, or the one that ran could not finish |
+| `union-contradicted` | the reading refuted the integrated diff |
+| `review-stale` | the reading is about a tree the branch head has moved away from |
+
+The first four sit ahead of the reading on purpose: no re-reading can lift them, so reporting
+a stale verdict there would send someone off to run a pass that cannot unlock anything.
+
+Each cell above is the sentence the CLI exports next to the check that raises it, and a test
+compares the two. This table said `sensitive-path` fired on `ownership.sequential` while the
+code deliberately did the opposite: every refusal was named, so a test that looked for names
+stayed green while the description was wrong.
 
 ---
 
@@ -109,6 +135,28 @@ claims tickets nobody agreed to hand over.
     to In Review with the PR link and their range.
 13. **Close on proof.** Done comes from an observed merge, never from a local cursor: an
     absent PR is not a merge, and a closed one is not a merge either.
+14. **Verify the base you just changed.** After a merge, run the full suite on the merged
+    base — not on the branch, which no longer exists as the thing that shipped. Green lets the
+    chain continue; red stops it where it stands. A base nobody verified stops it too: not
+    observing is not the same as being fine, and only one of the two is safe.
+15. **Take the next unit, or stop and say why.** The chain continues only while the base is
+    green, units remain ready, and time is left in the run's budget. It stops at the first
+    failure without starting the next unit — that single rule is what keeps one bad merge
+    from becoming ten, and it is the reason chaining is worth anything. A stop on a red base
+    is a failure and reads as one; a stop on a spent budget or an empty backlog is a nominal
+    end.
+
+    **The budget is a duration, not a ticket count**, because a duration is what someone
+    means: "drain the backlog while I am out" is two hours or six, never five tickets.
+    `autopilot.chainBudget` declares it (two hours by default). An invocation may shorten a
+    single run — *run autopilot for 30m* — and never lengthen it: the declaration is the
+    consent to run unattended, and a consent has a size. A unit already under way is never cut in half;
+    the budget decides whether to **start** another, and it decides from what this run has
+    actually taken rather than from a guess, so it does not begin a unit it cannot finish.
+16. **Leave the journal.** What merged, in which order, on which evidence: the integration
+    SHA each verdict was bound to, the merge commit it produced, the union verdict and the
+    checks observed green. The person reading afterwards is deciding whether to trust the
+    result, so "it merged" is not the question they have.
 
 ---
 
@@ -124,7 +172,7 @@ into `autopilot status`, and act on the verdict it returns:
 | `republish` | the remote head lags the local one | push the same branch again |
 | `rebase` | the base moved under the run | rebase, reconcile again, re-run the whole suite; the proofs are stale |
 | `await-checks` / `fix-checks` | required checks pending, or red on this diff | wait, or fix locally and push again |
-| `ready` | every required check is green | leave it for the human, move the included tickets to In Review |
+| `ready` | every required check is green | ask the grant, and do what it returns: merge when it grants, hand it over with the refusal when it does not; move the included tickets to In Review either way |
 | `merged` | GitHub reported a merge commit | move the included tickets to Done, close the lease |
 | `blocked` | closed unmerged, a foreign branch, a merge with no commit, a red check this diff does not own | stop and report; none of these is a completion |
 | `observe-again` | the reading was partial | read it again; a partial answer is not an answer |
@@ -174,4 +222,6 @@ plan itself, not only in the prompt, so an adapter that honours the plan cannot 
 
 Upstream: `void-ticket` authors the work units and the program descriptor.
 Per ticket: `void-implement`, entire, once. Downstream: the reconciler owns the
-integration branch, the suite and the PR. The human owns the merge.
+integration branch, the suite and the PR. The merge belongs to whoever the grant
+names: the human under `mergeGate: human`, and under `union-reviewed` the human
+still for anything the grant refuses, promotion to the deploying branch included.

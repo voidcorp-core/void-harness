@@ -22,6 +22,17 @@ export interface MechanicalContextState {
   readonly semanticRevision: number;
   readonly sealedWorkRevision: number;
   readonly nudgeEmitted: boolean;
+  /**
+   * Whether the hook has already admitted it has nothing to watch with.
+   *
+   * A second latch rather than a second use of `nudgeEmitted`, because the two
+   * say opposite things. `nudgeEmitted` means the reminder fired and must not
+   * repeat; this one means the reminder CANNOT fire and the reason was stated
+   * once. Folding the admission into the fired latch consumes the reminder that
+   * configuring a window is supposed to enable -- the message says "set this to
+   * turn it on", and setting it turns nothing on.
+   */
+  readonly unwatchableNotified: boolean;
   readonly transcriptFingerprint: string;
   readonly transcriptCursorBytes: number;
   readonly lastMeasurementAtMs: number;
@@ -245,6 +256,11 @@ function mechanicalScalars(
     | 'readFiles' | 'modifiedFiles'>,
 ): MechanicalContextState | undefined {
   const nudgeEmitted = booleanScalar(block, 'nudge_emitted');
+  // Absent means "never said", which is the honest reading of a block written
+  // before this field existed. Required would turn every older checkpoint
+  // malformed, and a parser that throws away the record is the failure this file
+  // is written to avoid.
+  const unwatchableNotified = booleanScalar(block, 'unwatchable_notified') ?? false;
   const clearPending = booleanScalar(block, 'clear_pending');
   const transcriptCursorBytes = integerScalar(block, 'transcript_cursor_bytes');
   const lastMeasurementAtMs = integerScalar(block, 'last_measurement_at_ms');
@@ -263,6 +279,7 @@ function mechanicalScalars(
     schemaVersion: 1,
     ...required,
     nudgeEmitted,
+    unwatchableNotified,
     transcriptCursorBytes,
     lastMeasurementAtMs,
     lastUsedTokens,
@@ -305,6 +322,7 @@ export function renderMechanicalContextBlock(state: MechanicalContextState): str
     `semantic_revision: ${String(state.semanticRevision)}`,
     `sealed_work_revision: ${String(state.sealedWorkRevision)}`,
     `nudge_emitted: ${String(state.nudgeEmitted)}`,
+    `unwatchable_notified: ${String(state.unwatchableNotified)}`,
     `transcript_fingerprint: ${state.transcriptFingerprint}`,
     `transcript_cursor_bytes: ${String(state.transcriptCursorBytes)}`,
     `last_measurement_at_ms: ${String(state.lastMeasurementAtMs)}`,
@@ -374,6 +392,7 @@ export function advanceMechanicalContext(
       semanticRevision: revision,
       sealedWorkRevision: 0,
       nudgeEmitted: false,
+      unwatchableNotified: false,
       readFiles: [],
       modifiedFiles: [],
       readFilesOverflow: 0,
@@ -422,6 +441,9 @@ export function advanceMechanicalContext(
     nudgeEmitted: observation.resumeSource === 'clear' || observation.resumeSource === 'compact'
       ? false
       : state.nudgeEmitted,
+    unwatchableNotified: observation.resumeSource === 'clear' || observation.resumeSource === 'compact'
+      ? false
+      : state.unwatchableNotified,
     lastUsedTokens: observation.usedTokens ?? state.lastUsedTokens,
     readFiles: reads.paths,
     modifiedFiles: modifications.paths,

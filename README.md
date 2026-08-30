@@ -115,6 +115,9 @@ nudge in `.void/config.json`:
 ```
 
 The threshold must be an integer from 40 through 60 and defaults to 50 when `context` is present.
+Without `windowTokens` there is no percentage to compare, so the nudge cannot fire — and the
+handler says so once rather than going quiet, because a watchdog that stays silent about not
+watching is indistinguishable from one that found nothing.
 Without `windowTokens`, the handler records the latest usage counters but computes no percentage
 and emits no threshold nudge. Transcript reads stay local, inspect only usage counters, and are
 bounded to 1,048,576 bytes per invocation; prompt and response content are neither logged nor sent.

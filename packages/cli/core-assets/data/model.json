@@ -1666,7 +1666,7 @@
       "type": "skill"
     },
     {
-      "description": "Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR a human merges.",
+      "description": "Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR the programme's declared merge gate disposes of.",
       "enforcement": {
         "floor": "ci",
         "inline": {
@@ -1683,7 +1683,7 @@
         }
       ],
       "id": "skill:void-autopilot",
-      "lines": 178,
+      "lines": 228,
       "name": "void-autopilot",
       "owner": "folpe",
       "pack": null,
@@ -1692,7 +1692,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-autopilot/SKILL.md",
-      "staticTokens": 2699,
+      "staticTokens": 3661,
       "type": "skill"
     },
     {

@@ -1753,6 +1753,7 @@ function stateFromMechanicalBody(block2) {
 }
 function mechanicalScalars(block2, required) {
   const nudgeEmitted = booleanScalar(block2, "nudge_emitted");
+  const unwatchableNotified = booleanScalar(block2, "unwatchable_notified") ?? false;
   const clearPending = booleanScalar(block2, "clear_pending");
   const transcriptCursorBytes = integerScalar(block2, "transcript_cursor_bytes");
   const lastMeasurementAtMs = integerScalar(block2, "last_measurement_at_ms");
@@ -1766,6 +1767,7 @@ function mechanicalScalars(block2, required) {
     schemaVersion: 1,
     ...required,
     nudgeEmitted,
+    unwatchableNotified,
     transcriptCursorBytes,
     lastMeasurementAtMs,
     lastUsedTokens,
@@ -1803,6 +1805,7 @@ function renderMechanicalContextBlock(state) {
     `semantic_revision: ${String(state.semanticRevision)}`,
     `sealed_work_revision: ${String(state.sealedWorkRevision)}`,
     `nudge_emitted: ${String(state.nudgeEmitted)}`,
+    `unwatchable_notified: ${String(state.unwatchableNotified)}`,
     `transcript_fingerprint: ${state.transcriptFingerprint}`,
     `transcript_cursor_bytes: ${String(state.transcriptCursorBytes)}`,
     `last_measurement_at_ms: ${String(state.lastMeasurementAtMs)}`,
@@ -1851,6 +1854,7 @@ function advanceMechanicalContext(state, observation) {
       semanticRevision: revision,
       sealedWorkRevision: 0,
       nudgeEmitted: false,
+      unwatchableNotified: false,
       readFiles: [],
       modifiedFiles: [],
       readFilesOverflow: 0,
@@ -1875,6 +1879,7 @@ function advanceMechanicalContext(state, observation) {
     semanticRevision: reconcile ? workRevision : state.semanticRevision,
     sealedWorkRevision: observation.compactionSealed === true ? workRevision : reconcile ? 0 : state.sealedWorkRevision,
     nudgeEmitted: observation.resumeSource === "clear" || observation.resumeSource === "compact" ? false : state.nudgeEmitted,
+    unwatchableNotified: observation.resumeSource === "clear" || observation.resumeSource === "compact" ? false : state.unwatchableNotified,
     lastUsedTokens: observation.usedTokens ?? state.lastUsedTokens,
     readFiles: reads.paths,
     modifiedFiles: modifications.paths,
@@ -2351,6 +2356,7 @@ function initialState(raw) {
     semanticRevision: hasSemantic ? 1 : 0,
     sealedWorkRevision: 0,
     nudgeEmitted: false,
+    unwatchableNotified: false,
     transcriptFingerprint: EMPTY_TRANSCRIPT_HASH,
     transcriptCursorBytes: 0,
     lastMeasurementAtMs: 0,
@@ -2852,6 +2858,14 @@ function measureContext(state, input, root, event, runtime3, now) {
     skippedLines: observed.skippedLines
   };
 }
+function unwatchableOutput(event) {
+  return {
+    hookSpecificOutput: {
+      hookEventName: event,
+      additionalContext: "Context usage is being recorded but cannot be watched: no `context.windowTokens` is configured in `.void/config.json`, so no percentage and no checkpoint threshold can be computed. Set it to the model context window to enable the reminder."
+    }
+  };
+}
 function nudgeOutput(event, thresholdPercent) {
   return {
     hookSpecificOutput: {
@@ -2934,7 +2948,9 @@ function evolveCheckpoint(root, now, runtime3, observation, input, event) {
       semanticCheckpointWritten: false
     });
     const measurement = input === void 0 || event === void 0 ? { state: advanced, emitNudge: false, skippedBytes: 0, skippedLines: 0 } : measureContext(advanced, input, root, event, runtime3, now);
-    const next = reconcile ? advanceMechanicalContext(measurement.state, { semanticCheckpointWritten: true }) : measurement.state;
+    const measured = reconcile ? advanceMechanicalContext(measurement.state, { semanticCheckpointWritten: true }) : measurement.state;
+    const unwatchable = thresholdConfig(root).windowTokens === void 0 && !measured.unwatchableNotified && event !== void 0;
+    const next = unwatchable ? { ...measured, unwatchableNotified: true } : measured;
     if (next === current && block2.status === "valid") {
       return {
         execution: { status: "skipped", details: { reason: "duplicate-observation" } }
@@ -2953,7 +2969,7 @@ function evolveCheckpoint(root, now, runtime3, observation, input, event) {
           transcriptSkippedBytes: measurement.skippedBytes,
           transcriptSkippedLines: measurement.skippedLines
         },
-        ...measurement.emitNudge && event !== void 0 ? { output: nudgeOutput(event, thresholdConfig(root).thresholdPercent) } : {}
+        ...measurement.emitNudge && event !== void 0 ? { output: nudgeOutput(event, thresholdConfig(root).thresholdPercent) } : unwatchable && event !== void 0 ? { output: unwatchableOutput(event) } : {}
       }
     };
   });

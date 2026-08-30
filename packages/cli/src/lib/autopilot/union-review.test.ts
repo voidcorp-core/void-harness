@@ -19,8 +19,16 @@ const clean = (over: Partial<UnionReview> = {}): UnionReview => ({
   ...over,
 });
 
+// A base observed protected, so each test varies one dimension rather than
+// tripping the protection refusal that now fails closed by default.
+const PROTECTED = { kind: 'protected', requiredChecks: ['validate'] } as const;
+
 const grant = (over: Partial<Parameters<typeof judgeMergeGrant>[0]> = {}) =>
   judgeMergeGrant({
+    protection: PROTECTED,
+    changedPaths: [],
+    tickets: [],
+    humanGates: [],
     target: 'develop',
     deployBranch: 'main',
     integrationSha: SHA,
@@ -41,6 +49,49 @@ describe('what may merge itself', () => {
 
     expect(verdict.kind).toBe('refused');
     expect(verdict.kind === 'refused' && verdict.reason).toBe('production-downstream');
+  });
+
+  // The refusal that costs the most was the only input with no shape. `target` is
+  // resolved from the remote and arrives canonical; `deployBranch` is typed by a
+  // person and validated by nothing, so every one of these spellings used to be
+  // "not main" and granted a machine merge into the branch that ships.
+  it('refuses whatever spelling the programme used for the branch that deploys', () => {
+    for (const deployBranch of [
+      'origin/main',
+      'refs/heads/main',
+      'refs/remotes/origin/main',
+      'remotes/origin/main',
+      'Main',
+      '  main  ',
+    ]) {
+      const verdict = grant({ target: 'main', deployBranch });
+      expect(verdict.kind, deployBranch).toBe('refused');
+      if (verdict.kind === 'refused') {
+        expect(verdict.reason, deployBranch).toBe('production-downstream');
+      }
+    }
+  });
+
+  it('refuses when the programme names no deploying branch at all', () => {
+    const verdict = grant({ deployBranch: '   ' });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') expect(verdict.reason).toBe('production-downstream');
+  });
+
+  it('still grants an integration branch that is not the deploying one', () => {
+    expect(grant({ target: 'develop', deployBranch: 'origin/main' }).kind).toBe('granted');
+    expect(grant({ target: 'main-staging', deployBranch: 'main' }).kind).toBe('granted');
+    expect(grant({ target: 'mainline', deployBranch: 'main' }).kind).toBe('granted');
+  });
+
+  // `origin/main` and `release/main` are indistinguishable without knowing the
+  // remotes, so a whole-segment suffix counts as the same branch. The false
+  // refusal it costs is a merge a person does by hand; the other direction is a
+  // machine merging into production.
+  it('reads a target ending in the deploying branch as that branch', () => {
+    const verdict = grant({ target: 'release/main', deployBranch: 'main' });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') expect(verdict.reason).toBe('production-downstream');
   });
 
   it('puts the gate on the deploying branch even when it is not called main', () => {
@@ -190,8 +241,14 @@ describe('where the reader\'s prose stops', () => {
     const review = inconclusiveReview(SHA);
 
     expect(review.verdict).toBe('inconclusive');
-    expect(judgeMergeGrant({ target: 'develop', deployBranch: 'main', integrationSha: SHA, review }).kind)
-      .toBe('refused');
+    expect(judgeMergeGrant({
+      target: 'develop',
+      deployBranch: 'main',
+      integrationSha: SHA,
+      review,
+      tickets: [],
+      humanGates: [],
+    }).kind).toBe('refused');
   });
 });
 
@@ -200,6 +257,10 @@ describe('what happens once the checks have spoken', () => {
     planPostCheckAction({
       checks,
       grant: judgeMergeGrant({
+        protection: PROTECTED,
+        changedPaths: [],
+        tickets: [],
+        humanGates: [],
         target: 'develop',
         deployBranch: 'main',
         integrationSha: SHA,
@@ -273,5 +334,198 @@ describe('how wide the union is read', () => {
   it('names the execution that ran, so a verdict cannot imply the stronger read', () => {
     expect(ask(codex).lensPlan.reason).toContain('codex');
     expect(ask(claudeTeams).lensPlan.reason).toContain('claude');
+  });
+});
+
+// Three refusals a clean reading must never be able to lift, added after the
+// mechanism ran for real and merged a cluster with none of them in place.
+//
+// They sit BEFORE the review checks for the same reason `production-downstream`
+// does: a refusal no re-reading can clear must not send anyone off to re-read.
+describe('what the reading is not allowed to unlock', () => {
+  const NUL_REVIEW = clean();
+
+  // The programme names a unit as a human gate. That is a declaration about the
+  // work, not about the diff, so no verdict on the diff can answer it.
+  it('refuses when the cluster carries a unit the programme declared a human gate', () => {
+    const verdict = grant({ tickets: ['DEV-100', 'DEV-620'], humanGates: ['DEV-620'] });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') {
+      expect(verdict.reason).toBe('human-gate');
+      expect(verdict.detail).toContain('DEV-620');
+    }
+  });
+
+  it('grants when no unit of the cluster is gated', () => {
+    expect(grant({ tickets: ['DEV-100'], humanGates: ['DEV-620'] }).kind).toBe('granted');
+  });
+
+  // Server-side protection is the only thing that actually stops a bad push; a
+  // check the harness performs on itself proves nothing. Unknown is treated as
+  // unprotected, exactly as the lease already treats it.
+  it('refuses to merge into a base whose protection was not positively observed', () => {
+    for (const protection of [
+      { kind: 'unprotected' } as const,
+      { kind: 'unknown', reason: 'gh not authenticated' } as const,
+      undefined,
+    ]) {
+      const verdict = grant({ protection });
+      expect(verdict.kind, JSON.stringify(protection)).toBe('refused');
+      if (verdict.kind === 'refused') expect(verdict.reason).toBe('base-unprotected');
+    }
+  });
+
+  it('grants over a base observed protected with required checks', () => {
+    expect(grant({ protection: { kind: 'protected', requiredChecks: ['validate'] } }).kind)
+      .toBe('granted');
+  });
+
+  // What blocks a machine merge is NOT what the programme orders sequentially.
+  // `ownership.sequential` answers "which paths can two workers not write at
+  // once" — it lists regenerated mirrors like `packages/cli/core-assets/**`,
+  // which `derive:check` proves and which nothing is risked by merging. Reusing
+  // it here would have refused the very cluster this mechanism merged on
+  // 2026-08-30: five tickets, eight files under that mirror.
+  //
+  // The blocking list answers a different question — which paths a machine must
+  // not take unread — and it defaults to the ones where being wrong is expensive
+  // and invisible in a diff.
+  it('defaults to blocking migrations, the publish chain and lockfiles', () => {
+    for (const path of [
+      'packages/db/migrations/0007_add_column.sql',
+      '.github/workflows/release.yml',
+      'pnpm-lock.yaml',
+    ]) {
+      const verdict = grant({ changedPaths: [path] });
+      expect(verdict.kind, path).toBe('refused');
+      if (verdict.kind === 'refused') expect(verdict.reason).toBe('sensitive-path');
+    }
+  });
+
+  it('does not block a regenerated mirror, which is what sequential ownership lists', () => {
+    expect(grant({
+      changedPaths: [
+        'packages/cli/core-assets/data/model.json',
+        'packages/core/skills/void-tdd/SKILL.md',
+        'packages/harness-graph/catalog.v3.json',
+      ],
+    }).kind).toBe('granted');
+  });
+
+  it('refuses when the integrated diff touches a path the programme owns sequentially', () => {
+    const verdict = grant({
+      changedPaths: ['packages/cli/src/lib/x.ts', 'pnpm-lock.yaml'],
+      mergeBlocks: ['pnpm-lock.yaml', 'packages/core/**'],
+    });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') {
+      expect(verdict.reason).toBe('sensitive-path');
+      expect(verdict.detail).toContain('pnpm-lock.yaml');
+    }
+  });
+
+  it('matches a sensitive glob, not just an exact path', () => {
+    const verdict = grant({
+      changedPaths: ['packages/core/hooks/_void-hook.mjs'],
+      mergeBlocks: ['packages/core/**'],
+    });
+    expect(verdict.kind).toBe('refused');
+  });
+
+  it('grants when the diff stays clear of every declared path', () => {
+    expect(grant({
+      changedPaths: ['packages/cli/src/lib/x.ts', 'docs/README.md'],
+      mergeBlocks: ['pnpm-lock.yaml', 'packages/core/**'],
+    }).kind).toBe('granted');
+  });
+
+  // Every one of these was silently missed by the first list. A lockfile one
+  // directory down decides an install exactly as much as the root one does, a
+  // composite action runs inside the workflow that publishes, and `CODEOWNERS`
+  // decides who may approve a change to any of them.
+  it('blocks the paths the first list walked past', () => {
+    for (const path of [
+      'apps/web/pnpm-lock.yaml',
+      'packages/cli/package-lock.json',
+      'bun.lock',
+      '.github/actions/setup/action.yml',
+      '.github/CODEOWNERS',
+      'packages/db/migrations/meta/_journal.json',
+      'migrations/0001_init.sql',
+    ]) {
+      const verdict = grant({ changedPaths: [path] });
+      expect(verdict.kind, path).toBe('refused');
+      if (verdict.kind === 'refused') expect(verdict.reason, path).toBe('sensitive-path');
+    }
+  });
+
+  // A guard that fires on ordinary work is one people route around. Prose about
+  // migrations is not a migration, and it used to cost a hand merge.
+  it('does not block prose that merely lives under a migrations directory', () => {
+    expect(grant({ changedPaths: ['docs/migrations/guide.md'] }).kind).toBe('granted');
+  });
+
+  // The old matcher read this as the prefix `packages/`, so a declaration meant
+  // to name migrations refused every file in the repository.
+  it('reads a globstar in the middle as segments, not as a prefix', () => {
+    expect(grant({
+      changedPaths: ['packages/cli/src/lib/x.ts'],
+      mergeBlocks: ['packages/**/migrations/**'],
+    }).kind).toBe('granted');
+    expect(grant({
+      changedPaths: ['packages/db/migrations/0001.sql'],
+      mergeBlocks: ['packages/**/migrations/**'],
+    }).kind).toBe('refused');
+  });
+
+  // The old matcher degraded to exact equality without a `**`, so a declared
+  // extension pattern matched nothing at all and said nothing about it.
+  it('honours a wildcard inside one segment', () => {
+    expect(grant({ changedPaths: ['db/0001.sql'], mergeBlocks: ['**/*.sql'] }).kind)
+      .toBe('refused');
+    expect(grant({ changedPaths: ['db/0001.ts'], mergeBlocks: ['**/*.sql'] }).kind)
+      .toBe('granted');
+  });
+
+  // A pattern this matcher cannot honour is a guard narrower than its own
+  // declaration. It refuses rather than quietly covering less.
+  it('refuses a pattern it does not implement, instead of ignoring it', () => {
+    for (const pattern of ['', 'packages/**src/**', 'a//b', '**/**/**/**/x']) {
+      const verdict = grant({ changedPaths: ['src/x.ts'], mergeBlocks: [pattern] });
+      expect(verdict.kind, pattern).toBe('refused');
+      if (verdict.kind === 'refused') expect(verdict.reason, pattern).toBe('sensitive-path');
+    }
+  });
+
+  // An empty list says "nothing here is sensitive". It does not say "stop
+  // checking whether the diff can be read at all" -- which is what it used to.
+  it('still refuses an unlistable diff when nothing is declared sensitive', () => {
+    const verdict = grant({ changedPaths: undefined, mergeBlocks: [] });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') expect(verdict.reason).toBe('sensitive-path');
+  });
+
+  // Ordering, asserted rather than assumed. A gated unit over an unprotected base
+  // with a stale reading must report the gate: it is the one nothing can lift.
+  it('reports the refusal no re-reading can clear, when several apply at once', () => {
+    const verdict = grant({
+      tickets: ['DEV-620'],
+      humanGates: ['DEV-620'],
+      protection: { kind: 'unprotected' },
+      changedPaths: ['pnpm-lock.yaml'],
+      mergeBlocks: ['pnpm-lock.yaml'],
+      review: { ...NUL_REVIEW, integrationSha: OTHER },
+    });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') expect(verdict.reason).toBe('human-gate');
+  });
+
+  // Absent inputs must not silently grant. A caller that cannot observe the
+  // protection, or cannot list the diff, is in the same position as one that
+  // observed a problem.
+  it('refuses rather than grants when the diff could not be listed', () => {
+    const verdict = grant({ changedPaths: undefined, mergeBlocks: ['pnpm-lock.yaml'] });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') expect(verdict.reason).toBe('sensitive-path');
   });
 });

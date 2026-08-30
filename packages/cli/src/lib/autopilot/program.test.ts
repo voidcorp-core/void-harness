@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_CHAIN_BUDGET_MS } from './chain.js';
 import {
   LEGACY_PROGRAM_PATHS,
   PROGRAM_PATH,
@@ -92,6 +93,22 @@ describe('parseProgramDescriptor', () => {
     });
     expect(descriptor.humanGates).toEqual(['DEV-433']);
     expect(descriptor.autopilot?.clusterSize).toBe(4);
+  });
+
+  // A chain that merges on its own needs a bound, and the bound belongs in the
+  // programme next to the consent rather than on a command line: a run nobody
+  // watches must not be able to widen its own blast radius.
+  it('takes a chain budget as a duration, defaulting to two hours', () => {
+    expect(parseProgramDescriptor(VALID).autopilot?.chainBudgetMs).toBe(DEFAULT_CHAIN_BUDGET_MS);
+    expect(parseProgramDescriptor(VALID.replace('  clusterSize: 4', '  clusterSize: 4\n  chainBudget: 6h'))
+      .autopilot?.chainBudgetMs).toBe(6 * 60 * 60_000);
+  });
+
+  it('refuses a budget that is not a duration, rather than guessing hours', () => {
+    for (const bad of ['0h', 'soon', '6', '48h']) {
+      expect(() => parseProgramDescriptor(VALID.replace('  clusterSize: 4', `  clusterSize: 4\n  chainBudget: ${bad}`)), bad)
+        .toThrow(/chain budget/i);
+    }
   });
 
   // Declaring the block IS the consent, so the opt-out is not writing one.
