@@ -5,6 +5,7 @@ import {
   judgeMergeGrant,
   parseUnionReview,
   planPostCheckAction,
+  type Contradiction,
   type UnionReview,
 } from './union-review.js';
 
@@ -18,6 +19,11 @@ const clean = (over: Partial<UnionReview> = {}): UnionReview => ({
   contradictions: [],
   ...over,
 });
+
+const finding = (
+  severity: 'blocking' | 'advisory',
+  summary = 'two modules disagree about `tenant`',
+): Contradiction => ({ summary, severity, evidence: ['src/a.ts:12'] });
 
 // A base observed protected, so each test varies one dimension rather than
 // tripping the protection refusal that now fails closed by default.
@@ -115,6 +121,7 @@ describe('what may merge itself', () => {
         contradictions: [{
           summary: 'two commands report opposite wiring for the same project',
           evidence: ['packages/cli/src/commands/runtime.ts:40', 'packages/cli/src/commands/status.ts:120'],
+          severity: 'blocking' as const,
         }],
       }),
     });
@@ -187,6 +194,23 @@ describe('asking for the reading', () => {
     expect(request().instruction.toLowerCase()).toContain('refute');
   });
 
+  // The severity gates the merge, so how it is asked for is load-bearing. Asking
+  // "how serious is this?" gets everything rated serious: a reader grading its
+  // own finding has no reason to grade it down. Three closed questions about
+  // consequence can be answered wrong, which is what makes them checkable.
+  it('asks for severity as closed questions, not as a rating', () => {
+    const instruction = request().instruction.toLowerCase();
+
+    expect(instruction).toContain('blocking');
+    expect(instruction).toContain('advisory');
+    expect(instruction).toMatch(/declares it refuses/);
+    expect(instruction).toMatch(/opposite of what the code does/);
+    expect(instruction).toMatch(/break something that worked/);
+    // And the two ways a reader talks itself into blocking everything.
+    expect(instruction).toMatch(/unsure/);
+    expect(instruction).toMatch(/not discarded|are read and acted on/);
+  });
+
   it('names what was integrated, so a contradiction can be attributed', () => {
     expect(request().ticketIds).toEqual(['DEV-1', 'DEV-2']);
   });
@@ -235,6 +259,36 @@ describe('where the reader\'s prose stops', () => {
     expect(parsed.contradictions[0]?.evidence).toEqual(['a.ts:40']);
   });
 
+  // Severity decides whether a merge stops, so a reader that omits it, or that
+  // invents a level, must not be able to buy itself a pass. Absent and unusable
+  // both read as blocking: the only direction where being wrong costs a hand
+  // merge instead of an unread one.
+  it('reads an omitted or unusable severity as blocking', () => {
+    for (const severity of [undefined, '', 'minor', 'BLOCKING', 'nit', 3, null, {}]) {
+      const parsed = parseUnionReview({
+        verdict: 'contradicted',
+        contradictions: [{
+          summary: 'two commands disagree on "wired"',
+          evidence: ['a.ts:40'],
+          ...(severity === undefined ? {} : { severity }),
+        }],
+      }, SHA);
+      expect(parsed.contradictions[0]?.severity, String(severity)).toBe('blocking');
+    }
+  });
+
+  it('takes the two severities the reader is allowed to state', () => {
+    const parsed = parseUnionReview({
+      verdict: 'contradicted',
+      contradictions: [
+        { summary: 'a', evidence: ['a.ts:1'], severity: 'blocking' },
+        { summary: 'b', evidence: ['b.ts:2'], severity: 'advisory' },
+      ],
+    }, SHA);
+
+    expect(parsed.contradictions.map((entry) => entry.severity)).toEqual(['blocking', 'advisory']);
+  });
+
   it('builds an inconclusive verdict for a reading that never returned', () => {
     // A timeout or an adapter failure is not a clean union and not a
     // contradicted one. It gets its own verdict rather than a default.
@@ -249,6 +303,89 @@ describe('where the reader\'s prose stops', () => {
       tickets: [],
       humanGates: [],
     }).kind).toBe('refused');
+  });
+});
+
+// A reading that blocks on everything it finds cannot say yes, and a gate that
+// cannot say yes does not gate, it stalls. Measured on PR #296: two readings,
+// eight then twenty-two contradictions, every one of them real and exactly one
+// of them dangerous. The severity is what lets the same reading refuse the
+// dangerous one and route the rest.
+describe('what a contradiction has to be to stop a merge', () => {
+  it('refuses on a blocking finding, whatever the verdict says', () => {
+    const verdict = grant({
+      review: clean({ verdict: 'contradicted', contradictions: [finding('blocking')] }),
+    });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') {
+      expect(verdict.reason).toBe('union-contradicted');
+      expect(verdict.detail).toContain('tenant');
+    }
+  });
+
+  it('grants when the reader refuted only things that change nothing', () => {
+    expect(grant({
+      review: clean({ verdict: 'contradicted', contradictions: [finding('advisory')] }),
+    }).kind).toBe('granted');
+  });
+
+  // The reading is the only pass that sees the union whole. A finding it made
+  // and nobody reads is that pass wasted, so an advisory travels with the grant
+  // rather than being dropped for not being severe enough.
+  it('carries the advisories it granted over, so they can become tickets', () => {
+    const verdict = grant({
+      review: clean({
+        verdict: 'contradicted',
+        contradictions: [finding('advisory', 'the skill names a flag that does not exist')],
+      }),
+    });
+    expect(verdict.kind).toBe('granted');
+    if (verdict.kind === 'granted') {
+      expect(verdict.advisories).toHaveLength(1);
+      expect(verdict.advisories[0]?.summary).toContain('flag that does not exist');
+    }
+  });
+
+  // The failure mode this whole module is written against: a reader answering
+  // `clean` while listing what it found. Before the severity existed, the list
+  // was simply never consulted under `clean` and the merge was granted.
+  it('refuses a reading that says clean while carrying a blocking finding', () => {
+    const verdict = grant({
+      review: clean({ contradictions: [finding('blocking')] }),
+    });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') expect(verdict.reason).toBe('union-contradicted');
+  });
+
+  // Found by an existing test rather than by design: grading the findings made a
+  // verdict with no finding gradeable as "nothing blocking". A reader that says
+  // it refuted the diff and names nothing has contradicted itself the other way
+  // round, and cannot be weighed at all.
+  it('refuses a refutation that names nothing it found', () => {
+    const verdict = grant({ review: clean({ verdict: 'contradicted', contradictions: [] }) });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') {
+      expect(verdict.reason).toBe('union-contradicted');
+      expect(verdict.detail).toMatch(/names nothing/);
+    }
+  });
+
+  it('still refuses a reading that could not finish, severity or not', () => {
+    expect(grant({ review: clean({ verdict: 'inconclusive' }) }).kind).toBe('refused');
+    expect(grant({
+      review: clean({ verdict: 'inconclusive', contradictions: [finding('advisory')] }),
+    }).kind).toBe('refused');
+  });
+
+  it('names how many findings were set aside, so the count is not hidden', () => {
+    const verdict = grant({
+      review: clean({
+        verdict: 'contradicted',
+        contradictions: [finding('blocking'), finding('advisory'), finding('advisory')],
+      }),
+    });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') expect(verdict.detail).toMatch(/2 advisory/);
   });
 });
 

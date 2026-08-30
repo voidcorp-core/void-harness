@@ -18,11 +18,29 @@ import { planLensExecution, type LensPlan, type OrchestrationCapability } from '
 import type { ProtectionObservation } from './branch-protection.js';
 import { autopilotFailure } from './errors.js';
 
+/**
+ * How much a contradiction costs, which is what decides whether it stops a merge.
+ *
+ * Deliberately two levels, and deliberately not left to the reader's judgement:
+ * a reader asked to rate the severity of its own finding rates it high. The
+ * three questions that separate them are in the instruction below, and they are
+ * closed questions about consequence, not a scale of importance.
+ *
+ * See the union-findings-are-graded-by-consequence decision.
+ */
+export type ContradictionSeverity = 'blocking' | 'advisory';
+
 /** A contradiction between workers that no single worker could have seen. */
 export interface Contradiction {
   readonly summary: string;
   /** Concrete anchors, so the finding can be checked rather than believed. */
   readonly evidence: readonly string[];
+  /**
+   * `blocking` stops the merge; `advisory` travels with the grant and becomes a
+   * ticket. Absent or unusable reads as `blocking`: the direction where being
+   * wrong costs a hand merge rather than an unread one.
+   */
+  readonly severity: ContradictionSeverity;
 }
 
 /**
@@ -132,12 +150,25 @@ export const MERGE_REFUSAL_TRIGGERS = {
     'the diff touches a migration, a workflow or action under `.github/`, a lockfile or `CODEOWNERS`'
     + ' (the `mergeBlocks` list, deliberately not `ownership.sequential`), or the diff could not be listed',
   'union-unread': 'no reading ran, or the one that ran could not finish',
-  'union-contradicted': 'the reading refuted the integrated diff',
+  'union-contradicted':
+    'the reading found at least one blocking contradiction, or reports a refutation it names nothing for'
+    + ' (an advisory finding is carried over and does not stop the merge)',
   'review-stale': 'the reading is about a tree the branch head has moved away from',
 } as const satisfies Readonly<Record<MergeRefusal, string>>;
 
 export type MergeGrant =
-  | { readonly kind: 'granted' }
+  | {
+      readonly kind: 'granted';
+      /**
+       * What the reading found and did not stop the merge for.
+       *
+       * Carried rather than dropped. The union pass is the only one that sees the
+       * whole integrated diff, so a finding it made and nobody reads is that pass
+       * wasted -- and the point of a severity is to route the small ones, not to
+       * silence them.
+       */
+      readonly advisories: readonly Contradiction[];
+    }
   | {
       readonly kind: 'refused';
       readonly reason: MergeRefusal;
@@ -148,6 +179,11 @@ export type MergeGrant =
 function refused(reason: MergeRefusal, detail: string, fix: string): MergeGrant {
   return { kind: 'refused', reason, detail, fix };
 }
+
+const bySeverity = (
+  contradictions: readonly Contradiction[],
+  severity: ContradictionSeverity,
+): readonly Contradiction[] => contradictions.filter((entry) => entry.severity === severity);
 
 /**
  * Where being wrong is expensive and invisible in a diff.
@@ -426,21 +462,48 @@ export function judgeMergeGrant(input: MergeGrantInput): MergeGrant {
       'run the union review against the current head',
     );
   }
-  if (review.verdict === 'contradicted') {
-    const first = review.contradictions[0];
+  // Severity decides, not the verdict word. A reading that refuted only things
+  // that change nothing has done its job and found nothing that stops a merge;
+  // blocking on it is how a gate that cannot say yes stops gating and starts
+  // stalling. Measured on PR #296: two readings, thirty contradictions, every one
+  // real and exactly one dangerous.
+  //
+  // Read across BOTH verdicts on purpose. A reader answering `clean` while
+  // listing what it broke is the ordinary self-contradiction of a pass asked for
+  // a verdict and a list at once, and the list is the half that carries
+  // evidence.
+  // A reader that says it refuted the diff and names nothing has contradicted
+  // itself in the other direction. It cannot be graded -- there is no finding to
+  // weigh -- so it refuses. Symmetric with `clean` carrying a blocking finding:
+  // in both cases the two halves of the answer disagree, and the merge waits for
+  // an answer that does not.
+  if (review.verdict === 'contradicted' && review.contradictions.length === 0) {
+    return refused(
+      'union-contradicted',
+      'the union review reports it refuted the diff and names nothing it found',
+      'run the union review again; a refutation with no finding cannot be acted on',
+    );
+  }
+  const blocking = bySeverity(review.contradictions, 'blocking');
+  const advisories = bySeverity(review.contradictions, 'advisory');
+  if (blocking.length > 0) {
+    const first = blocking[0];
     const named = first === undefined
       ? 'the union review refuted the integrated diff'
       : `the union review found: ${first.summary}`;
-    const more = review.contradictions.length > 1
-      ? ` (and ${String(review.contradictions.length - 1)} more)`
+    const more = blocking.length > 1 ? ` (and ${String(blocking.length - 1)} more blocking)` : '';
+    // The set-aside count travels with the refusal. A number nobody is told is a
+    // number nobody acts on, and these are the findings that become tickets.
+    const aside = advisories.length > 0
+      ? `; ${String(advisories.length)} advisory finding(s) set aside`
       : '';
     return refused(
       'union-contradicted',
-      `${named}${more}`,
+      `${named}${more}${aside}`,
       'fix what the review named, then read the union again against the new head',
     );
   }
-  return { kind: 'granted' };
+  return { kind: 'granted', advisories };
 }
 
 
@@ -507,6 +570,22 @@ export function buildUnionReviewRequest(input: UnionReviewRequestInput): UnionRe
       'Report a contradiction only with a concrete anchor a reader can open.',
       'Finding nothing means you failed to refute it, which is the verdict; it',
       'does not mean the diff is good.',
+      // The severity, stated as closed questions about consequence. Asking for a
+      // rating instead ("how serious is this?") gets everything rated serious:
+      // a reader grading its own finding has no reason to grade it down.
+      'Give every contradiction a `severity`. It is `blocking` if and only if you',
+      'can answer YES to at least one of these three questions, and you must say',
+      'which one and why:',
+      '(1) does it let the system do something it declares it refuses?',
+      '(2) does it make a shipped artifact -- a skill, a doc, an error message --',
+      'state the opposite of what the code does?',
+      '(3) does it break something that worked before this diff?',
+      'Three NOs is `advisory`, and advisory is the ordinary case: a real finding',
+      'that costs a ticket rather than a merge. Do not rate a finding blocking',
+      'because it took effort to find, because it is in security-adjacent code,',
+      'or because you are unsure -- unsure means asking question (1) again about',
+      'a concrete action, and answering no if you cannot name one.',
+      'Advisory findings are read and acted on; they are not discarded.',
     ].join(' '),
     ticketIds: [...input.ticketIds],
     // Adversarial, which is the one demand this pass genuinely makes: its value
@@ -553,7 +632,14 @@ function parseContradictions(value: unknown): readonly Contradiction[] {
         'give each contradiction at least one file, path or identifier a reader can open',
       );
     }
-    return { summary, evidence: [...evidence] as readonly string[] };
+    // Anything that is not exactly `advisory` is blocking. Not a validation that
+    // throws: a reader that omits the field, or invents `minor`, must not be able
+    // to buy itself a pass, and must not be able to fail the whole reading either
+    // -- both directions would hand the outcome to a malformed answer.
+    const severity: ContradictionSeverity = found?.severity === 'advisory'
+      ? 'advisory'
+      : 'blocking';
+    return { summary, evidence: [...evidence] as readonly string[], severity };
   });
 }
 
