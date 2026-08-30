@@ -50,6 +50,8 @@ export interface AutopilotConfig {
   readonly clusterSize: number;
   /** How long one unattended run keeps taking units, in milliseconds. */
   readonly chainBudgetMs: number;
+  /** True when the programme wrote `chainBudget`; false when it fell back. */
+  readonly chainBudgetDeclared: boolean;
   /** `auto` resolves develop then main; anything else must exist. */
   readonly base: string;
   /**
@@ -297,7 +299,13 @@ function parseAutopilot(value: unknown): AutopilotConfig | undefined {
   // rather than passed as a flag, and expressed as a duration because that is what
   // someone means: "drain the backlog while I am out" is two hours or six, never
   // a number of tickets. The invocation may override it for a single run.
+  // Whether it was WRITTEN, not what it evaluates to. Two hours declared by hand
+  // and two hours defaulted are the same number and not the same statement: the
+  // first is a ceiling someone consented to, the second is a fallback nobody
+  // chose, and refusing an explicit `6h` against the second would be a default
+  // impersonating a declaration.
   const rawBudget = block.chainBudget;
+  const chainBudgetDeclared = rawBudget !== undefined;
   let chainBudgetMs = DEFAULT_CHAIN_BUDGET_MS;
   if (rawBudget !== undefined) {
     if (typeof rawBudget !== 'string') {
@@ -332,6 +340,7 @@ function parseAutopilot(value: unknown): AutopilotConfig | undefined {
     schemaVersion: 1,
     clusterSize: clusterSize as number,
     chainBudgetMs,
+    chainBudgetDeclared,
     base,
     mergeGate,
     ...(deployBranch === undefined ? {} : { deployBranch }),

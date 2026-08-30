@@ -15,6 +15,12 @@ import { type ClusterPlan, type ClusterPlanInput, planCluster } from '../lib/aut
 import { type ConfirmationInput, confirmReservation } from '../lib/autopilot/cluster-reservation.js';
 import { autopilotFailure, renderAutopilotFailure, toAutopilotFailure } from '../lib/autopilot/errors.js';
 import {
+  INPUT_SHAPES,
+  scaffoldFor,
+  validateAgainstShape,
+  type AutopilotInputStep,
+} from '../lib/autopilot/input-shape.js';
+import {
   type PullRequestObservation,
   recoverRemote,
   type RecoveryVerdict,
@@ -55,6 +61,7 @@ tracker and pipes them in. The CLI computes; it never contacts Linear, GitHub or
 git, and it spawns no agent.
 
 Usage:
+  void-harness autopilot scaffold <plan|start|status> [--json]
   echo '<CandidateObservation>'  | void-harness autopilot plan   [--json]
   echo '<ReservationReceipt>'    | void-harness autopilot start  [--json]
   echo '<RemoteObservation>'     | void-harness autopilot status [--run <id>] [--json]
@@ -116,17 +123,26 @@ function flagValue(argv: readonly string[], flag: string): string | undefined {
   return value;
 }
 
-function parseStdin<T>(stdin: string, what: string): T {
+function parseStdin<T>(stdin: string, what: string, step?: AutopilotInputStep): T {
+  let parsed: unknown;
   try {
-    return JSON.parse(stdin) as T;
+    parsed = JSON.parse(stdin);
   } catch (error) {
     throw autopilotFailure(
       'AUTOPILOT_INPUT',
       `the ${what} on stdin is not valid JSON`,
       error instanceof Error ? error.message : String(error),
-      `pipe the ${what} the skill produced, unmodified, into this command`,
+      step === undefined
+        ? `pipe the ${what} the skill produced, unmodified, into this command`
+        : `run \`void-harness autopilot scaffold ${step}\` for the shape this step accepts`,
     );
   }
+  // Validate before the command reads a field. Without this a missing
+  // `state.base` surfaced as `Cannot read properties of undefined (reading
+  // 'branch')` from wherever it happened to be read, which names neither the
+  // field nor where to obtain it.
+  if (step !== undefined) validateAgainstShape(parsed, step);
+  return parsed as T;
 }
 
 /** A run nobody needs to act on again. */
@@ -277,7 +293,7 @@ function lifecycleFor(
 }
 
 function situationFrom(state: RunState, stdin: string): Resolved {
-  const observation = parseStdin<Partial<RemoteObservation>>(stdin, 'remote observation');
+  const observation = parseStdin<Partial<RemoteObservation>>(stdin, 'remote observation', 'status');
   if (
     observation?.tracker === undefined ||
     observation?.pullRequest === undefined ||
@@ -370,13 +386,39 @@ function emit(json: boolean, value: unknown, human: string): AutopilotCommandRes
   return ok(json ? `${JSON.stringify(value, null, 2)}\n` : human);
 }
 
+function scaffoldCommand(argv: readonly string[], json: boolean): AutopilotCommandResult {
+  const step = argv[0];
+  if (step === undefined || !Object.hasOwn(INPUT_SHAPES, step)) {
+    throw autopilotFailure(
+      'AUTOPILOT_INPUT',
+      'scaffold needs the step whose shape you want',
+      step === undefined ? 'no step was named' : `\`${step}\` is not a step`,
+      `name one of ${Object.keys(INPUT_SHAPES).join(', ')}`,
+    );
+  }
+  const known = step as AutopilotInputStep;
+  const shape = INPUT_SHAPES[known];
+  const body = `${JSON.stringify(scaffoldFor(known), null, 2)}\n`;
+  if (json) return ok(body);
+  // The human rendering carries WHERE each field comes from. The JSON is what a
+  // caller pipes back in; the notes are what stop them reading the types.
+  const notes = shape.fields
+    .map((field) => `  ${field.name.padEnd(24)} ${field.from}`)
+    .join('\n');
+  return ok(`# ${shape.what}\n${body}\n# where each field comes from\n${notes}\n`);
+}
+
 function planCommand(stdin: string, json: boolean): AutopilotCommandResult {
-  const plan = planCluster(parseStdin<ClusterPlanInput>(stdin, 'candidate observation'));
+  const plan = planCluster(parseStdin<ClusterPlanInput>(stdin, 'candidate observation', 'plan'));
   return emit(json, plan, renderPlan(plan));
 }
 
 function startCommand(stdin: string, json: boolean, context: AutopilotCommandContext): AutopilotCommandResult {
-  const receipt = parseStdin<ConfirmationInput & { readonly state: RunState }>(stdin, 'reservation receipt');
+  const receipt = parseStdin<ConfirmationInput & { readonly state: RunState }>(
+    stdin,
+    'reservation receipt',
+    'start',
+  );
   const outcome = confirmReservation({
     intent: receipt.intent,
     applied: receipt.applied ?? [],
@@ -502,13 +544,17 @@ export function runAutopilotCommand(
     }
 
     if (subcommand === 'plan') return planCommand(stdin, json);
+    if (subcommand === 'scaffold') {
+      const rest = argv.slice(argv.indexOf(subcommand) + 1).filter((arg) => !arg.startsWith('-'));
+      return scaffoldCommand(rest, json);
+    }
 
     const stateful = ['start', 'status', 'resume', 'abort'];
     if (!stateful.includes(subcommand)) {
       throw autopilotFailure(
         'AUTOPILOT_USAGE',
         `autopilot has no '${subcommand}' subcommand`,
-        `known subcommands are plan, ${stateful.join(', ')}`,
+        `known subcommands are scaffold, plan, ${stateful.join(', ')}`,
         'run `void-harness autopilot --help` for the full contract',
       );
     }

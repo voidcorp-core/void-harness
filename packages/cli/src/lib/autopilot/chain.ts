@@ -101,16 +101,33 @@ export function parseChainBudget(text: string): number {
  * has a plan for six hours, and silently giving them two would have them come
  * back to a run that stopped for no reason they were told about.
  */
+/**
+ * How long this run may keep taking new units.
+ *
+ * A written `chainBudget` is a ceiling: someone chose it, in a versioned file,
+ * and an invocation may only shorten it -- the declaration is the consent to run
+ * unattended, and a consent any command line could widen would not be one.
+ *
+ * An ABSENT one is a fallback, and the two must not be confused. Nobody consented
+ * to two hours by leaving the field out, so refusing an explicit `6h` against it
+ * would be a default impersonating a declaration. `declared` is what tells them
+ * apart, and it is why this takes a flag rather than inferring one from the
+ * value: two hours written by hand and two hours defaulted are the same number
+ * and not the same statement.
+ */
 export function resolveChainBudget(input: {
   readonly declaredMs: number;
+  /** True when the programme actually wrote `chainBudget`, false when it fell back. */
+  readonly declared: boolean;
   readonly requested?: string | undefined;
 }): number {
   if (input.requested === undefined) return input.declaredMs;
   const requested = parseChainBudget(input.requested);
-  if (requested > input.declaredMs) {
+  if (input.declared && requested > input.declaredMs) {
     throw new Error(
       `\`${input.requested}\` is longer than the ${describe(input.declaredMs)} the programme declares;`
-      + ' an invocation may shorten a run, never widen it',
+      + ' an invocation may shorten a run, never widen it.'
+      + ' Raise `autopilot.chainBudget` in `.void/program.md` to run longer.',
     );
   }
   return requested;
