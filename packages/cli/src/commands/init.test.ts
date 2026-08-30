@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { buildDefaultConfig, buildFinalChecklist, installDoctrineFiles, resolveInstallSource, sourceRepoVerdict } from './init.js';
+import { buildDefaultConfig, buildFinalChecklist, configWriteVerdict, installDoctrineFiles, resolveInstallSource, sourceRepoVerdict } from './init.js';
 import type { CheckResult } from '../lib/prerequisites.js';
 import type { Stack } from '../lib/stack.js';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -91,6 +91,42 @@ describe('sourceRepoVerdict', () => {
 
   it('keeps --force meaning what it always meant: install anyway, doctrine included', () => {
     expect(sourceRepoVerdict({ isSourceRepo: true, force: true, preserveDoctrine: false })).toBe('proceed');
+  });
+
+  // The two flags answer different people. `preserveDoctrine` is what `update`
+  // declares about the repo it is running in; `--force` is what an operator
+  // types to get past a conflict on two hook files. Letting the second cancel
+  // the first rewrote the canonical CLAUDE.md as a side effect of unblocking
+  // something else entirely.
+  it('keeps the doctrine preserved under --force, because the flag answered a conflict elsewhere', () => {
+    expect(sourceRepoVerdict({ isSourceRepo: true, force: true, preserveDoctrine: true })).toBe('preserve-doctrine');
+  });
+});
+
+// `--force` seizes ownership of a MANAGED asset: one the harness owns alone and
+// can prove it wrote. `.void/config.json` is co-owned -- the project tunes its
+// paths, modes and commands, and the harness only adds pack pins. So the flag
+// buys nothing here, and overwriting cost a monorepo its enforcement floor.
+// It stays useful for exactly one case: a config too broken to merge into.
+describe('configWriteVerdict', () => {
+  it('writes the seeded scaffold when the project has no config yet', () => {
+    expect(configWriteVerdict({ exists: false, readable: false, force: false })).toBe('scaffold');
+  });
+
+  it('merges into a readable config rather than replacing what the project tuned', () => {
+    expect(configWriteVerdict({ exists: true, readable: true, force: false })).toBe('merge');
+  });
+
+  it('still merges under --force, which never spoke about a co-owned file', () => {
+    expect(configWriteVerdict({ exists: true, readable: true, force: true })).toBe('merge');
+  });
+
+  it('leaves an unparseable config untouched, saying so rather than guessing', () => {
+    expect(configWriteVerdict({ exists: true, readable: false, force: false })).toBe('keep-unreadable');
+  });
+
+  it('lets --force replace an unparseable config, the one case nothing can be merged', () => {
+    expect(configWriteVerdict({ exists: true, readable: false, force: true })).toBe('overwrite-unreadable');
   });
 });
 
