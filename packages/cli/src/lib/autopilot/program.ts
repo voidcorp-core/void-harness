@@ -9,6 +9,7 @@
 // `mergeGate` hand a merge to a machine.
 
 import { existsSync, readFileSync } from 'node:fs';
+import { DEFAULT_CHAIN_CAP } from './chain.js';
 import { isAbsolute, join, resolve, sep } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { autopilotFailure } from './errors.js';
@@ -47,6 +48,8 @@ export interface AutopilotConfig {
   readonly schemaVersion: 1;
   /** Ceiling on one cluster, 1..4. */
   readonly clusterSize: number;
+  /** Merges one unattended run makes before handing back. */
+  readonly chainCap: number;
   /** `auto` resolves develop then main; anything else must exist. */
   readonly base: string;
   /**
@@ -111,6 +114,8 @@ export function programPath(root: string): string {
   return present[0] ?? PROGRAM_PATH;
 }
 const MAX_CLUSTER_SIZE = 4;
+/** Beyond this, one run merges more than a person will read afterwards. */
+const MAX_CHAIN_CAP = 20;
 
 function invalid(problem: string, cause: string, fix: string): never {
   throw autopilotFailure('AUTOPILOT_PROGRAM', problem, cause, fix);
@@ -290,6 +295,18 @@ function parseAutopilot(value: unknown): AutopilotConfig | undefined {
     );
   }
 
+  // How many merges one unattended run makes before handing back. Declared beside
+  // the consent rather than passed on a command line: a run nobody is watching
+  // must not be able to widen its own blast radius.
+  const chainCap = block.chainCap ?? DEFAULT_CHAIN_CAP;
+  if (!Number.isInteger(chainCap) || (chainCap as number) < 1 || (chainCap as number) > MAX_CHAIN_CAP) {
+    invalid(
+      'the program descriptor declares an unusable chain cap',
+      `\`autopilot.chainCap\` is ${String(chainCap)}, outside 1..${MAX_CHAIN_CAP}`,
+      `set \`autopilot.chainCap\` between 1 and ${MAX_CHAIN_CAP}`,
+    );
+  }
+
   const base = block.base ?? 'auto';
   if (typeof base !== 'string' || base.trim().length === 0) {
     invalid(
@@ -303,6 +320,7 @@ function parseAutopilot(value: unknown): AutopilotConfig | undefined {
   return {
     schemaVersion: 1,
     clusterSize: clusterSize as number,
+    chainCap: chainCap as number,
     base,
     mergeGate,
     ...(deployBranch === undefined ? {} : { deployBranch }),

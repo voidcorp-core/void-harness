@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_CHAIN_CAP } from './chain.js';
 import {
   LEGACY_PROGRAM_PATHS,
   PROGRAM_PATH,
@@ -92,6 +93,22 @@ describe('parseProgramDescriptor', () => {
     });
     expect(descriptor.humanGates).toEqual(['DEV-433']);
     expect(descriptor.autopilot?.clusterSize).toBe(4);
+  });
+
+  // A chain that merges on its own needs a bound, and the bound belongs in the
+  // programme next to the consent rather than on a command line: a run nobody
+  // watches must not be able to widen its own blast radius.
+  it('takes a chain cap, and defaults to a bounded one when none is declared', () => {
+    expect(parseProgramDescriptor(VALID).autopilot?.chainCap).toBe(DEFAULT_CHAIN_CAP);
+    expect(parseProgramDescriptor(VALID.replace('  clusterSize: 4', '  clusterSize: 4\n  chainCap: 2'))
+      .autopilot?.chainCap).toBe(2);
+  });
+
+  it('refuses a chain cap that is not a bound at all', () => {
+    for (const bad of ['0', '-1', '99', 'many']) {
+      expect(() => parseProgramDescriptor(VALID.replace('  clusterSize: 4', `  clusterSize: 4\n  chainCap: ${bad}`)))
+        .toThrow(/chainCap/);
+    }
   });
 
   // Declaring the block IS the consent, so the opt-out is not writing one.

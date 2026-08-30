@@ -128,6 +128,20 @@ claims tickets nobody agreed to hand over.
     to In Review with the PR link and their range.
 13. **Close on proof.** Done comes from an observed merge, never from a local cursor: an
     absent PR is not a merge, and a closed one is not a merge either.
+14. **Verify the base you just changed.** After a merge, run the full suite on the merged
+    base — not on the branch, which no longer exists as the thing that shipped. Green lets the
+    chain continue; red stops it where it stands. A base nobody verified stops it too: not
+    observing is not the same as being fine, and only one of the two is safe.
+15. **Take the next unit, or stop and say why.** The chain continues only while the base is
+    green, units remain ready, and the run is under `autopilot.chainCap` (five by default).
+    It stops at the first failure without starting the next unit — that single rule is what
+    keeps one bad merge from becoming ten, and it is the reason chaining is worth anything.
+    A stop on a red base is a failure and reads as one; a stop on the cap or on an empty
+    backlog is a nominal end.
+16. **Leave the journal.** What merged, in which order, on which evidence: the integration
+    SHA each verdict was bound to, the merge commit it produced, the union verdict and the
+    checks observed green. The person reading afterwards is deciding whether to trust the
+    result, so "it merged" is not the question they have.
 
 ---
 
