@@ -19,8 +19,14 @@ const clean = (over: Partial<UnionReview> = {}): UnionReview => ({
   ...over,
 });
 
+// A base observed protected, so each test varies one dimension rather than
+// tripping the protection refusal that now fails closed by default.
+const PROTECTED = { kind: 'protected', requiredChecks: ['validate'] } as const;
+
 const grant = (over: Partial<Parameters<typeof judgeMergeGrant>[0]> = {}) =>
   judgeMergeGrant({
+    protection: PROTECTED,
+    changedPaths: [],
     target: 'develop',
     deployBranch: 'main',
     integrationSha: SHA,
@@ -200,6 +206,8 @@ describe('what happens once the checks have spoken', () => {
     planPostCheckAction({
       checks,
       grant: judgeMergeGrant({
+        protection: PROTECTED,
+        changedPaths: [],
         target: 'develop',
         deployBranch: 'main',
         integrationSha: SHA,
@@ -273,5 +281,132 @@ describe('how wide the union is read', () => {
   it('names the execution that ran, so a verdict cannot imply the stronger read', () => {
     expect(ask(codex).lensPlan.reason).toContain('codex');
     expect(ask(claudeTeams).lensPlan.reason).toContain('claude');
+  });
+});
+
+// Three refusals a clean reading must never be able to lift, added after the
+// mechanism ran for real and merged a cluster with none of them in place.
+//
+// They sit BEFORE the review checks for the same reason `production-downstream`
+// does: a refusal no re-reading can clear must not send anyone off to re-read.
+describe('what the reading is not allowed to unlock', () => {
+  const NUL_REVIEW = clean();
+
+  // The programme names a unit as a human gate. That is a declaration about the
+  // work, not about the diff, so no verdict on the diff can answer it.
+  it('refuses when the cluster carries a unit the programme declared a human gate', () => {
+    const verdict = grant({ tickets: ['DEV-100', 'DEV-620'], humanGates: ['DEV-620'] });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') {
+      expect(verdict.reason).toBe('human-gate');
+      expect(verdict.detail).toContain('DEV-620');
+    }
+  });
+
+  it('grants when no unit of the cluster is gated', () => {
+    expect(grant({ tickets: ['DEV-100'], humanGates: ['DEV-620'] }).kind).toBe('granted');
+  });
+
+  // Server-side protection is the only thing that actually stops a bad push; a
+  // check the harness performs on itself proves nothing. Unknown is treated as
+  // unprotected, exactly as the lease already treats it.
+  it('refuses to merge into a base whose protection was not positively observed', () => {
+    for (const protection of [
+      { kind: 'unprotected' } as const,
+      { kind: 'unknown', reason: 'gh not authenticated' } as const,
+      undefined,
+    ]) {
+      const verdict = grant({ protection });
+      expect(verdict.kind, JSON.stringify(protection)).toBe('refused');
+      if (verdict.kind === 'refused') expect(verdict.reason).toBe('base-unprotected');
+    }
+  });
+
+  it('grants over a base observed protected with required checks', () => {
+    expect(grant({ protection: { kind: 'protected', requiredChecks: ['validate'] } }).kind)
+      .toBe('granted');
+  });
+
+  // What blocks a machine merge is NOT what the programme orders sequentially.
+  // `ownership.sequential` answers "which paths can two workers not write at
+  // once" — it lists regenerated mirrors like `packages/cli/core-assets/**`,
+  // which `derive:check` proves and which nothing is risked by merging. Reusing
+  // it here would have refused the very cluster this mechanism merged on
+  // 2026-08-30: five tickets, eight files under that mirror.
+  //
+  // The blocking list answers a different question — which paths a machine must
+  // not take unread — and it defaults to the ones where being wrong is expensive
+  // and invisible in a diff.
+  it('defaults to blocking migrations, the publish chain and lockfiles', () => {
+    for (const path of [
+      'packages/db/migrations/0007_add_column.sql',
+      '.github/workflows/release.yml',
+      'pnpm-lock.yaml',
+    ]) {
+      const verdict = grant({ changedPaths: [path] });
+      expect(verdict.kind, path).toBe('refused');
+      if (verdict.kind === 'refused') expect(verdict.reason).toBe('sensitive-path');
+    }
+  });
+
+  it('does not block a regenerated mirror, which is what sequential ownership lists', () => {
+    expect(grant({
+      changedPaths: [
+        'packages/cli/core-assets/data/model.json',
+        'packages/core/skills/void-tdd/SKILL.md',
+        'packages/harness-graph/catalog.v3.json',
+      ],
+    }).kind).toBe('granted');
+  });
+
+  it('refuses when the integrated diff touches a path the programme owns sequentially', () => {
+    const verdict = grant({
+      changedPaths: ['packages/cli/src/lib/x.ts', 'pnpm-lock.yaml'],
+      mergeBlocks: ['pnpm-lock.yaml', 'packages/core/**'],
+    });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') {
+      expect(verdict.reason).toBe('sensitive-path');
+      expect(verdict.detail).toContain('pnpm-lock.yaml');
+    }
+  });
+
+  it('matches a sensitive glob, not just an exact path', () => {
+    const verdict = grant({
+      changedPaths: ['packages/core/hooks/_void-hook.mjs'],
+      mergeBlocks: ['packages/core/**'],
+    });
+    expect(verdict.kind).toBe('refused');
+  });
+
+  it('grants when the diff stays clear of every declared path', () => {
+    expect(grant({
+      changedPaths: ['packages/cli/src/lib/x.ts', 'docs/README.md'],
+      mergeBlocks: ['pnpm-lock.yaml', 'packages/core/**'],
+    }).kind).toBe('granted');
+  });
+
+  // Ordering, asserted rather than assumed. A gated unit over an unprotected base
+  // with a stale reading must report the gate: it is the one nothing can lift.
+  it('reports the refusal no re-reading can clear, when several apply at once', () => {
+    const verdict = grant({
+      tickets: ['DEV-620'],
+      humanGates: ['DEV-620'],
+      protection: { kind: 'unprotected' },
+      changedPaths: ['pnpm-lock.yaml'],
+      mergeBlocks: ['pnpm-lock.yaml'],
+      review: { ...NUL_REVIEW, integrationSha: OTHER },
+    });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') expect(verdict.reason).toBe('human-gate');
+  });
+
+  // Absent inputs must not silently grant. A caller that cannot observe the
+  // protection, or cannot list the diff, is in the same position as one that
+  // observed a problem.
+  it('refuses rather than grants when the diff could not be listed', () => {
+    const verdict = grant({ changedPaths: undefined, mergeBlocks: ['pnpm-lock.yaml'] });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') expect(verdict.reason).toBe('sensitive-path');
   });
 });

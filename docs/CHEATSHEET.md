@@ -78,7 +78,7 @@ From a validated plan to a merged pull request.
 | `void-ticket` | Use when turning a finished brainstorm, plan, or design decision into a tracker ticket. |
 | `void-implement` | Use when taking a single ticket from ready through shipped at expert-team quality. |
 | `void-merge` | Vider la file des PR ouvertes sans casser le dépôt. |
-| `void-autopilot` | Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR a human merges. |
+| `void-autopilot` | Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR the programme's declared merg… |
 | `void-retrospective` | Periodic engineering retro over a window: read git log / PRs / . |
 | `void-make-pdf` | Turn a markdown file into a publication-quality PDF — marked + puppeteer-core on the system Chrome, with page-number footers. |
 

@@ -1,12 +1,15 @@
 ---
 name: void-autopilot
-description: Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR a human merges.
+description: Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR the programme's declared merge gate disposes of.
 ---
 
 # autopilot
 
 Take up to four independent ready tickets, work each one properly, hand back a single
-integration PR. You stay the merge gate.
+integration PR. Who disposes of that PR is the programme's declaration, not this skill's:
+`mergeGate: human` keeps it yours, `mergeGate: union-reviewed` lets the grant merge it into
+a non-deploying branch once every refusal below is cleared. Promotion to the branch that
+deploys stays human in both cases.
 
 **Attribution**: see `.source`.
 
@@ -19,8 +22,24 @@ per ticket. If you find yourself writing "then the worker runs the tests, then r
 inside autopilot, stop: that behaviour has one owner, and duplicating it means the two copies
 drift and tickets get a different standard depending on how they were started.
 
-It also never merges. Not with a flag, not when the checks are green, not when the diff is
-small. `mergeGate: human` is the only value the programme descriptor accepts.
+It also never merges on a flag. Not on the command line, not because the checks are green,
+not because the diff is small. Consent to a machine merge is a durable declaration in the
+programme — `mergeGate: union-reviewed` together with a `deployBranch` — and there is no
+`--auto-merge` on any path.
+
+Under that declaration the grant refuses unless **all** of the following hold, and each
+refusal names itself:
+
+| refusal | when |
+|---|---|
+| `production-downstream` | the target is the branch that deploys |
+| `human-gate` | the cluster carries a unit listed in `humanGates` |
+| `base-unprotected` | server-side protection of the base was not positively observed — unknown counts as unprotected |
+| `sensitive-path` | the diff touches a path under `ownership.sequential`, or the diff could not be listed |
+| `union-unread` / `union-contradicted` / `review-stale` | the reading is missing, negative, or about another tree |
+
+The first four sit ahead of the reading on purpose: no re-reading can lift them, so reporting
+a stale verdict there would send someone off to run a pass that cannot unlock anything.
 
 ---
 

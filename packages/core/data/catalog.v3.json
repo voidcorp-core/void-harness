@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:d2b4b06a61b648dcf1ed6b51f4a5e1f3d23b5d162ea0fed2011675182fe328c4"
+    "rootHash": "sha256:900d21ebe56bbd6e4e87ef461b2d7dede2dce15485d0802ea436b1b6b310efe1"
   },
   "nodes": [
     {
@@ -3478,7 +3478,7 @@
       "label": "void-autopilot",
       "data": {
         "legacy": {
-          "description": "Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR a human merges.",
+          "description": "Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR the programme's declared merge gate disposes of.",
           "enforcement": {
             "floor": "ci",
             "inline": {
@@ -3495,7 +3495,7 @@
             }
           ],
           "id": "skill:void-autopilot",
-          "lines": 178,
+          "lines": 197,
           "name": "void-autopilot",
           "owner": "folpe",
           "pack": null,
@@ -3504,7 +3504,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-autopilot/SKILL.md",
-          "staticTokens": 2699,
+          "staticTokens": 3007,
           "type": "skill"
         }
       },

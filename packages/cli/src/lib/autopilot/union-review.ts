@@ -15,6 +15,7 @@
 // refuse with the same words a human would need to unblock them.
 
 import { planLensExecution, type LensPlan, type OrchestrationCapability } from '@voidcorp/mission-engine';
+import type { ProtectionObservation } from './branch-protection.js';
 import { autopilotFailure } from './errors.js';
 
 /** A contradiction between workers that no single worker could have seen. */
@@ -48,13 +49,58 @@ export interface MergeGrantInput {
   readonly integrationSha: string;
   /** What the union reader returned, or undefined if none ran. */
   readonly review: UnionReview | undefined;
+  /** Units this cluster carries. Empty when the caller tracks none. */
+  readonly tickets?: readonly string[] | undefined;
+  /** Units the programme declared a human gate, from `humanGates`. */
+  readonly humanGates?: readonly string[] | undefined;
+  /**
+   * Server-side protection of the target, as observed. `undefined` means the
+   * caller could not observe it, which is refused exactly like unprotected --
+   * an unauthenticated `gh`, a network blip and a genuinely open branch look
+   * identical from in here, and only one of them is safe.
+   */
+  readonly protection?: ProtectionObservation | undefined;
+  /** Every path the integrated diff touches, or undefined if it could not be listed. */
+  readonly changedPaths?: readonly string[] | undefined;
+  /**
+   * Paths a machine merge never takes unread. Defaults to `DEFAULT_MERGE_BLOCKS`.
+   *
+   * Deliberately NOT `ownership.sequential`: that list answers which paths two
+   * workers cannot write at once, and it names regenerated mirrors whose contents
+   * a check already proves. Reusing it here refuses clusters that are perfectly
+   * safe to merge, which is how a guard stops protecting and starts obstructing.
+   */
+  readonly mergeBlocks?: readonly string[] | undefined;
 }
 
 export type MergeRefusal =
   | 'production-downstream'
+  | 'human-gate'
+  | 'base-unprotected'
+  | 'sensitive-path'
   | 'union-unread'
   | 'union-contradicted'
   | 'review-stale';
+
+/**
+ * Every refusal the grant can return, in a stable order. Written out rather than
+ * derived from the union type, so the compiler proves the list exhaustive instead
+ * of a cast asserting it -- and so a test can hold the shipped skill to it.
+ *
+ * That test exists because the skill shipped for days telling consumers
+ * "`mergeGate: human` is the only value the programme descriptor accepts" while
+ * the CLI accepted `union-reviewed` and could merge on its own. Prose has no
+ * compiler; this list is the closest thing it gets.
+ */
+export const MERGE_REFUSALS = [
+  'production-downstream',
+  'human-gate',
+  'base-unprotected',
+  'sensitive-path',
+  'union-unread',
+  'union-contradicted',
+  'review-stale',
+] as const satisfies readonly MergeRefusal[];
 
 export type MergeGrant =
   | { readonly kind: 'granted' }
@@ -69,7 +115,49 @@ function refused(reason: MergeRefusal, detail: string, fix: string): MergeGrant 
   return { kind: 'refused', reason, detail, fix };
 }
 
+/**
+ * Where being wrong is expensive and invisible in a diff.
+ *
+ * A migration mutates shared state no file list describes. A workflow under
+ * `.github/` decides who may publish, so merging one unread hands that decision
+ * away. A lockfile decides what every consumer installs, which is the supply
+ * chain. Everything else is ordinary code the union reading is there to judge.
+ *
+ * Kept short on purpose. Every path added here is a merge a person has to do by
+ * hand for as long as it stays, and a guard that fires on ordinary work is one
+ * people route around.
+ */
+export const DEFAULT_MERGE_BLOCKS: readonly string[] = Object.freeze([
+  '**/migrations/**',
+  '.github/workflows/**',
+  'pnpm-lock.yaml',
+  'package-lock.json',
+  'yarn.lock',
+  'bun.lockb',
+]);
+
 const short = (sha: string): string => sha.slice(0, 7);
+
+/**
+ * Does `pattern` cover `path`? Exact match, or a `**` prefix glob.
+ *
+ * Deliberately the smallest matcher that reads the `ownership.sequential` shapes
+ * this repository actually declares (`pnpm-lock.yaml`, `packages/core-assets/**`).
+ * A fuller glob engine here would be a second answer to a question the programme
+ * parser already answers, and the failure direction of a narrow matcher is a
+ * refusal that was not raised -- so the caller is told to keep the patterns
+ * literal rather than clever.
+ */
+function matchesPath(pattern: string, path: string): boolean {
+  if (pattern === path) return true;
+  if (!pattern.includes('**')) return false;
+  // `**/x/**` matches the segment anywhere; `a/b/**` matches a prefix.
+  if (pattern.startsWith('**/')) {
+    const middle = pattern.slice(3).replace(/\/\*\*$/, '');
+    return path === middle || path.includes(`/${middle}/`) || path.startsWith(`${middle}/`);
+  }
+  return path.startsWith(pattern.slice(0, pattern.indexOf('**')));
+}
 
 export function judgeMergeGrant(input: MergeGrantInput): MergeGrant {
   // Production first, and deliberately before every other check. When the target
@@ -81,6 +169,63 @@ export function judgeMergeGrant(input: MergeGrantInput): MergeGrant {
       `merging into \`${input.target}\` ships, and what a person judges there is the feature`,
       'merge it yourself once you have seen the integration branch behave',
     );
+  }
+
+  // The three below sit ahead of every review check, for the reason the one above
+  // does: a refusal no re-reading can lift must not send anyone off to re-read.
+  // They are ordered by how far each is from the diff -- a declaration about the
+  // work, then about the branch, then about the paths.
+
+  // A unit the programme named a human gate is a statement about the work, and no
+  // verdict on the diff answers it.
+  const gated = (input.tickets ?? []).filter((ticket) => (input.humanGates ?? []).includes(ticket));
+  if (gated.length > 0) {
+    return refused(
+      'human-gate',
+      `the cluster carries ${gated.join(', ')}, which the programme declares a human gate`,
+      'merge it yourself, or take the gated unit out of the cluster',
+    );
+  }
+
+  // Server-side protection is the only thing that actually stops a bad push; a
+  // check the harness runs on itself proves nothing about the remote. Absent and
+  // unknown are refused like unprotected, which is how the lease already reads them.
+  const protection = input.protection;
+  if (protection === undefined || protection.kind !== 'protected') {
+    const why = protection === undefined
+      ? 'it was not observed'
+      : protection.kind === 'unknown'
+        ? `it could not be read: ${protection.reason}`
+        : 'the branch carries none';
+    return refused(
+      'base-unprotected',
+      `protection of \`${input.target}\` is not established -- ${why}`,
+      'protect the base with required checks, then ask again; unknown is not protected',
+    );
+  }
+
+  // The paths the programme already declares single-writer are exactly the ones a
+  // machine must not merge unread: a migration mutates shared state no diff
+  // describes, and a lockfile decides what every consumer installs.
+  const blocked = input.mergeBlocks ?? DEFAULT_MERGE_BLOCKS;
+  if (blocked.length > 0) {
+    if (input.changedPaths === undefined) {
+      return refused(
+        'sensitive-path',
+        'the integrated diff could not be listed, so it cannot be shown to avoid the declared paths',
+        'list the diff against the base, then ask again',
+      );
+    }
+    const touched = input.changedPaths.filter((path) =>
+      blocked.some((pattern) => matchesPath(pattern, path)),
+    );
+    if (touched.length > 0) {
+      return refused(
+        'sensitive-path',
+        `the diff touches ${touched.slice(0, 3).join(', ')}, which a machine does not merge unread`,
+        'merge it yourself; a migration, a publish workflow or a lockfile is a human call',
+      );
+    }
   }
 
   const review = input.review;
