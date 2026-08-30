@@ -76,10 +76,17 @@ describe('anti-bloat-check refuses a shipped skill without the prefix', () => {
     return `${result.stdout}${result.stderr}`;
   };
 
-  it('names the unprefixed skill, so the build cannot pass with one', () => {
-    const output = runGate(fixtureWithSkill('tdd'));
-    expect(output).toContain('tdd');
-    expect(output.toLowerCase()).toMatch(/void-|prefix/);
+  // Asserted on ONE line rather than on the output as a whole. Checking that the
+  // name appears somewhere and the word "prefix" appears somewhere is satisfied
+  // by two unrelated lines, so it would still pass against a gate that never
+  // named the offender -- which is the only thing that makes the refusal useful.
+  it('names the unprefixed skill on the line that refuses it', () => {
+    const refusal = runGate(fixtureWithSkill('tdd'))
+      .split('\n')
+      .find((line) => line.includes('FAIL') && /prefix/i.test(line));
+    expect(refusal).toBeDefined();
+    expect(refusal).toContain('tdd');
+    expect(refusal).toContain('void-');
   });
 
   it('says nothing about a skill that carries it', () => {
