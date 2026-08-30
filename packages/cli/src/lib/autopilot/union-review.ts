@@ -49,10 +49,18 @@ export interface MergeGrantInput {
   readonly integrationSha: string;
   /** What the union reader returned, or undefined if none ran. */
   readonly review: UnionReview | undefined;
-  /** Units this cluster carries. Empty when the caller tracks none. */
-  readonly tickets?: readonly string[] | undefined;
-  /** Units the programme declared a human gate, from `humanGates`. */
-  readonly humanGates?: readonly string[] | undefined;
+  /**
+   * Units this cluster carries. Empty when the caller tracks none.
+   *
+   * Required, not optional. Every other input here fails closed when it is
+   * missing, and an optional list that defaults to empty fails OPEN: forgetting
+   * to pass the cluster would silently clear the human gate. The absence that
+   * matters is a programmer's omission rather than a failed observation, so the
+   * compiler refuses it instead of the function.
+   */
+  readonly tickets: readonly string[];
+  /** Units the programme declared a human gate, from `humanGates`. Same reason. */
+  readonly humanGates: readonly string[];
   /**
    * Server-side protection of the target, as observed. `undefined` means the
    * caller could not observe it, which is refused exactly like unprotected --
@@ -69,6 +77,7 @@ export interface MergeGrantInput {
    * workers cannot write at once, and it names regenerated mirrors whose contents
    * a check already proves. Reusing it here refuses clusters that are perfectly
    * safe to merge, which is how a guard stops protecting and starts obstructing.
+   * See the merge-blocks-are-not-sequential-ownership decision.
    */
   readonly mergeBlocks?: readonly string[] | undefined;
 }
@@ -102,6 +111,31 @@ export const MERGE_REFUSALS = [
   'review-stale',
 ] as const satisfies readonly MergeRefusal[];
 
+/**
+ * What actually raises each refusal, in the words the shipped skill must use.
+ *
+ * The list of refusal NAMES above was not enough. `SKILL.md` named every one of
+ * them and still described `sensitive-path` as firing on `ownership.sequential`,
+ * which is the opposite of what the code does -- the token was present, so the
+ * test stayed green while the documentation told a consumer the wrong thing.
+ *
+ * So the condition lives here, next to the code that applies it, and the skill
+ * quotes it. A test compares the two. Changing the behaviour without changing
+ * the sentence now fails, which is the only way prose keeps up with a compiler.
+ */
+export const MERGE_REFUSAL_TRIGGERS = {
+  'production-downstream': 'the target is the branch that deploys',
+  'human-gate': 'the cluster carries a unit listed in `humanGates`',
+  'base-unprotected':
+    'server-side protection of the base was not positively observed, and unknown counts as unprotected',
+  'sensitive-path':
+    'the diff touches a migration, a workflow or action under `.github/`, a lockfile or `CODEOWNERS`'
+    + ' (the `mergeBlocks` list, deliberately not `ownership.sequential`), or the diff could not be listed',
+  'union-unread': 'no reading ran, or the one that ran could not finish',
+  'union-contradicted': 'the reading refuted the integrated diff',
+  'review-stale': 'the reading is about a tree the branch head has moved away from',
+} as const satisfies Readonly<Record<MergeRefusal, string>>;
+
 export type MergeGrant =
   | { readonly kind: 'granted' }
   | {
@@ -128,35 +162,105 @@ function refused(reason: MergeRefusal, detail: string, fix: string): MergeGrant 
  * people route around.
  */
 export const DEFAULT_MERGE_BLOCKS: readonly string[] = Object.freeze([
-  '**/migrations/**',
+  // What a migration directory holds that RUNS. A guide under `docs/migrations/`
+  // is prose about migrations, and blocking it costs a hand merge for nothing.
+  '**/migrations/**/*.sql',
+  '**/migrations/**/*.ts',
+  '**/migrations/**/*.js',
+  // Drizzle's journal. Its contents decide which migrations are considered
+  // applied, so a wrong merge here is a migration that silently never runs.
+  '**/migrations/meta/**',
+  // Both halves of `.github/`: a composite action is executed by the workflows
+  // that publish, so leaving actions out left the door it guards open.
   '.github/workflows/**',
-  'pnpm-lock.yaml',
-  'package-lock.json',
-  'yarn.lock',
-  'bun.lockb',
+  '.github/actions/**',
+  // Every lockfile, at any depth: a workspace member has its own, and the one
+  // that decides an install is not always the one at the root.
+  '**/pnpm-lock.yaml',
+  '**/package-lock.json',
+  '**/yarn.lock',
+  '**/bun.lockb',
+  // Bun writes a text lockfile since 1.2, and kept the binary name for the old
+  // one. Two names, one job.
+  '**/bun.lock',
+  // Who may approve a change to any of the above.
+  '**/CODEOWNERS',
 ]);
 
 const short = (sha: string): string => sha.slice(0, 7);
 
+/** Longer than any real repository path, and the bound on the matcher's work. */
+const MAX_SEGMENTS = 64;
+const MAX_PATTERN_LENGTH = 200;
+const MAX_GLOBSTARS = 3;
+
 /**
- * Does `pattern` cover `path`? Exact match, or a `**` prefix glob.
+ * Is this pattern one the matcher below actually implements?
  *
- * Deliberately the smallest matcher that reads the `ownership.sequential` shapes
- * this repository actually declares (`pnpm-lock.yaml`, `packages/core-assets/**`).
- * A fuller glob engine here would be a second answer to a question the programme
- * parser already answers, and the failure direction of a narrow matcher is a
- * refusal that was not raised -- so the caller is told to keep the patterns
- * literal rather than clever.
+ * The previous matcher degraded to exact equality for anything without `**`, and
+ * read a globstar in the middle of a pattern as a plain prefix, so one meant to
+ * name migrations under `packages` matched the whole tree. Both failures were
+ * silent, and one of them refused every file in the repository while the other
+ * refused none. A pattern this cannot honour is refused out loud instead.
  */
-function matchesPath(pattern: string, path: string): boolean {
-  if (pattern === path) return true;
-  if (!pattern.includes('**')) return false;
-  // `**/x/**` matches the segment anywhere; `a/b/**` matches a prefix.
-  if (pattern.startsWith('**/')) {
-    const middle = pattern.slice(3).replace(/\/\*\*$/, '');
-    return path === middle || path.includes(`/${middle}/`) || path.startsWith(`${middle}/`);
+export function isSupportedMergeBlock(pattern: string): boolean {
+  if (pattern.length === 0 || pattern.length > MAX_PATTERN_LENGTH) return false;
+  const segments = pattern.split('/');
+  if (segments.length > MAX_SEGMENTS) return false;
+  if (segments.filter((segment) => segment === '**').length > MAX_GLOBSTARS) return false;
+  return segments.every(
+    (segment) => segment.length > 0 && (segment === '**' || !segment.includes('**')),
+  );
+}
+
+/** `*` stands for any run of characters that does not cross a `/`. */
+function matchesSegment(pattern: string, segment: string): boolean {
+  const parts = pattern.split('*');
+  const first = parts[0] ?? '';
+  const last = parts[parts.length - 1] ?? '';
+  if (parts.length === 1) return pattern === segment;
+  if (!segment.startsWith(first) || !segment.endsWith(last)) return false;
+  if (segment.length < first.length + last.length) return false;
+  let cursor = first.length;
+  for (let index = 1; index < parts.length - 1; index += 1) {
+    const part = parts[index] ?? '';
+    const found = segment.indexOf(part, cursor);
+    if (found === -1 || found + part.length > segment.length - last.length) return false;
+    cursor = found + part.length;
   }
-  return path.startsWith(pattern.slice(0, pattern.indexOf('**')));
+  return true;
+}
+
+/**
+ * Walk pattern and path together, `**` standing for zero or more whole segments.
+ *
+ * Zero is the case the hand-rolled version got wrong in both directions: a
+ * migrations pattern ending in a globstar then an extension has to match
+ * `migrations/001.sql`, and a globstar between `packages` and `migrations` must
+ * NOT match `packages/cli/src/x.ts`.
+ */
+function matchesFrom(
+  patterns: readonly string[],
+  patternIndex: number,
+  segments: readonly string[],
+  segmentIndex: number,
+): boolean {
+  if (patternIndex === patterns.length) return segmentIndex === segments.length;
+  if (patterns[patternIndex] === '**') {
+    for (let index = segmentIndex; index <= segments.length; index += 1) {
+      if (matchesFrom(patterns, patternIndex + 1, segments, index)) return true;
+    }
+    return false;
+  }
+  if (segmentIndex === segments.length) return false;
+  return matchesSegment(patterns[patternIndex] ?? '', segments[segmentIndex] ?? '')
+    && matchesFrom(patterns, patternIndex + 1, segments, segmentIndex + 1);
+}
+
+function matchesPath(pattern: string, path: string): boolean {
+  const segments = path.split('/');
+  if (segments.length > MAX_SEGMENTS) return false;
+  return matchesFrom(pattern.split('/'), 0, segments, 0);
 }
 
 export function judgeMergeGrant(input: MergeGrantInput): MergeGrant {
@@ -178,7 +282,7 @@ export function judgeMergeGrant(input: MergeGrantInput): MergeGrant {
 
   // A unit the programme named a human gate is a statement about the work, and no
   // verdict on the diff answers it.
-  const gated = (input.tickets ?? []).filter((ticket) => (input.humanGates ?? []).includes(ticket));
+  const gated = input.tickets.filter((ticket) => input.humanGates.includes(ticket));
   if (gated.length > 0) {
     return refused(
       'human-gate',
@@ -204,28 +308,46 @@ export function judgeMergeGrant(input: MergeGrantInput): MergeGrant {
     );
   }
 
-  // The paths the programme already declares single-writer are exactly the ones a
-  // machine must not merge unread: a migration mutates shared state no diff
-  // describes, and a lockfile decides what every consumer installs.
-  const blocked = input.mergeBlocks ?? DEFAULT_MERGE_BLOCKS;
-  if (blocked.length > 0) {
-    if (input.changedPaths === undefined) {
-      return refused(
-        'sensitive-path',
-        'the integrated diff could not be listed, so it cannot be shown to avoid the declared paths',
-        'list the diff against the base, then ask again',
-      );
-    }
-    const touched = input.changedPaths.filter((path) =>
-      blocked.some((pattern) => matchesPath(pattern, path)),
+  // A diff nobody could list is refused before the list is even consulted. It was
+  // inside the `blocked.length > 0` branch, which made `mergeBlocks: []` drop the
+  // refusal on an unreadable diff along with the paths -- an empty list is
+  // "nothing is sensitive", never "stop checking whether the diff exists".
+  if (input.changedPaths === undefined) {
+    return refused(
+      'sensitive-path',
+      'the integrated diff could not be listed, so it cannot be shown to avoid the declared paths',
+      'list the diff against the base, then ask again',
     );
-    if (touched.length > 0) {
-      return refused(
-        'sensitive-path',
-        `the diff touches ${touched.slice(0, 3).join(', ')}, which a machine does not merge unread`,
-        'merge it yourself; a migration, a publish workflow or a lockfile is a human call',
-      );
-    }
+  }
+  const blocked = input.mergeBlocks ?? DEFAULT_MERGE_BLOCKS;
+  // A pattern the matcher cannot honour refuses out loud. Skipping it would make
+  // the guard narrower than its declaration says, which is the one direction a
+  // silent failure must never take here.
+  const unsupported = blocked.filter((pattern) => !isSupportedMergeBlock(pattern));
+  if (unsupported.length > 0) {
+    return refused(
+      'sensitive-path',
+      `\`mergeBlocks\` declares ${unsupported.slice(0, 3).join(', ')}, which this matcher does not implement`,
+      'write each pattern as literal segments, `*` inside one segment and `**` as a whole one',
+    );
+  }
+  const oversized = input.changedPaths.filter((path) => path.split('/').length > MAX_SEGMENTS);
+  if (oversized.length > 0) {
+    return refused(
+      'sensitive-path',
+      `the diff names a path this guard cannot read: ${oversized.slice(0, 1).join('')}`,
+      'merge it yourself; a path no guard could match is not a path it cleared',
+    );
+  }
+  const touched = input.changedPaths.filter((path) =>
+    blocked.some((pattern) => matchesPath(pattern, path)),
+  );
+  if (touched.length > 0) {
+    return refused(
+      'sensitive-path',
+      `the diff touches ${touched.slice(0, 3).join(', ')}, which a machine does not merge unread`,
+      'merge it yourself; a migration, a publish workflow or a lockfile is a human call',
+    );
   }
 
   const review = input.review;

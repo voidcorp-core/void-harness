@@ -34,12 +34,19 @@ refusal names itself:
 |---|---|
 | `production-downstream` | the target is the branch that deploys |
 | `human-gate` | the cluster carries a unit listed in `humanGates` |
-| `base-unprotected` | server-side protection of the base was not positively observed — unknown counts as unprotected |
-| `sensitive-path` | the diff touches a path under `ownership.sequential`, or the diff could not be listed |
-| `union-unread` / `union-contradicted` / `review-stale` | the reading is missing, negative, or about another tree |
+| `base-unprotected` | server-side protection of the base was not positively observed, and unknown counts as unprotected |
+| `sensitive-path` | the diff touches a migration, a workflow or action under `.github/`, a lockfile or `CODEOWNERS` (the `mergeBlocks` list, deliberately not `ownership.sequential`), or the diff could not be listed |
+| `union-unread` | no reading ran, or the one that ran could not finish |
+| `union-contradicted` | the reading refuted the integrated diff |
+| `review-stale` | the reading is about a tree the branch head has moved away from |
 
 The first four sit ahead of the reading on purpose: no re-reading can lift them, so reporting
 a stale verdict there would send someone off to run a pass that cannot unlock anything.
+
+Each cell above is the sentence the CLI exports next to the check that raises it, and a test
+compares the two. This table said `sensitive-path` fired on `ownership.sequential` while the
+code deliberately did the opposite: every refusal was named, so a test that looked for names
+stayed green while the description was wrong.
 
 ---
 
@@ -141,8 +148,9 @@ claims tickets nobody agreed to hand over.
 
     **The budget is a duration, not a ticket count**, because a duration is what someone
     means: "drain the backlog while I am out" is two hours or six, never five tickets.
-    `autopilot.chainBudget` declares it (two hours by default) and the invocation overrides
-    it for one run — *run autopilot for 6h*. A unit already under way is never cut in half;
+    `autopilot.chainBudget` declares it (two hours by default). An invocation may shorten a
+    single run — *run autopilot for 30m* — and never lengthen it: the declaration is the
+    consent to run unattended, and a consent has a size. A unit already under way is never cut in half;
     the budget decides whether to **start** another, and it decides from what this run has
     actually taken rather than from a guess, so it does not begin a unit it cannot finish.
 16. **Leave the journal.** What merged, in which order, on which evidence: the integration

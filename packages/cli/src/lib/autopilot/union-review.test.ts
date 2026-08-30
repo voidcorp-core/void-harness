@@ -27,6 +27,8 @@ const grant = (over: Partial<Parameters<typeof judgeMergeGrant>[0]> = {}) =>
   judgeMergeGrant({
     protection: PROTECTED,
     changedPaths: [],
+    tickets: [],
+    humanGates: [],
     target: 'develop',
     deployBranch: 'main',
     integrationSha: SHA,
@@ -196,8 +198,14 @@ describe('where the reader\'s prose stops', () => {
     const review = inconclusiveReview(SHA);
 
     expect(review.verdict).toBe('inconclusive');
-    expect(judgeMergeGrant({ target: 'develop', deployBranch: 'main', integrationSha: SHA, review }).kind)
-      .toBe('refused');
+    expect(judgeMergeGrant({
+      target: 'develop',
+      deployBranch: 'main',
+      integrationSha: SHA,
+      review,
+      tickets: [],
+      humanGates: [],
+    }).kind).toBe('refused');
   });
 });
 
@@ -208,6 +216,8 @@ describe('what happens once the checks have spoken', () => {
       grant: judgeMergeGrant({
         protection: PROTECTED,
         changedPaths: [],
+        tickets: [],
+        humanGates: [],
         target: 'develop',
         deployBranch: 'main',
         integrationSha: SHA,
@@ -384,6 +394,72 @@ describe('what the reading is not allowed to unlock', () => {
       changedPaths: ['packages/cli/src/lib/x.ts', 'docs/README.md'],
       mergeBlocks: ['pnpm-lock.yaml', 'packages/core/**'],
     }).kind).toBe('granted');
+  });
+
+  // Every one of these was silently missed by the first list. A lockfile one
+  // directory down decides an install exactly as much as the root one does, a
+  // composite action runs inside the workflow that publishes, and `CODEOWNERS`
+  // decides who may approve a change to any of them.
+  it('blocks the paths the first list walked past', () => {
+    for (const path of [
+      'apps/web/pnpm-lock.yaml',
+      'packages/cli/package-lock.json',
+      'bun.lock',
+      '.github/actions/setup/action.yml',
+      '.github/CODEOWNERS',
+      'packages/db/migrations/meta/_journal.json',
+      'migrations/0001_init.sql',
+    ]) {
+      const verdict = grant({ changedPaths: [path] });
+      expect(verdict.kind, path).toBe('refused');
+      if (verdict.kind === 'refused') expect(verdict.reason, path).toBe('sensitive-path');
+    }
+  });
+
+  // A guard that fires on ordinary work is one people route around. Prose about
+  // migrations is not a migration, and it used to cost a hand merge.
+  it('does not block prose that merely lives under a migrations directory', () => {
+    expect(grant({ changedPaths: ['docs/migrations/guide.md'] }).kind).toBe('granted');
+  });
+
+  // The old matcher read this as the prefix `packages/`, so a declaration meant
+  // to name migrations refused every file in the repository.
+  it('reads a globstar in the middle as segments, not as a prefix', () => {
+    expect(grant({
+      changedPaths: ['packages/cli/src/lib/x.ts'],
+      mergeBlocks: ['packages/**/migrations/**'],
+    }).kind).toBe('granted');
+    expect(grant({
+      changedPaths: ['packages/db/migrations/0001.sql'],
+      mergeBlocks: ['packages/**/migrations/**'],
+    }).kind).toBe('refused');
+  });
+
+  // The old matcher degraded to exact equality without a `**`, so a declared
+  // extension pattern matched nothing at all and said nothing about it.
+  it('honours a wildcard inside one segment', () => {
+    expect(grant({ changedPaths: ['db/0001.sql'], mergeBlocks: ['**/*.sql'] }).kind)
+      .toBe('refused');
+    expect(grant({ changedPaths: ['db/0001.ts'], mergeBlocks: ['**/*.sql'] }).kind)
+      .toBe('granted');
+  });
+
+  // A pattern this matcher cannot honour is a guard narrower than its own
+  // declaration. It refuses rather than quietly covering less.
+  it('refuses a pattern it does not implement, instead of ignoring it', () => {
+    for (const pattern of ['', 'packages/**src/**', 'a//b', '**/**/**/**/x']) {
+      const verdict = grant({ changedPaths: ['src/x.ts'], mergeBlocks: [pattern] });
+      expect(verdict.kind, pattern).toBe('refused');
+      if (verdict.kind === 'refused') expect(verdict.reason, pattern).toBe('sensitive-path');
+    }
+  });
+
+  // An empty list says "nothing here is sensitive". It does not say "stop
+  // checking whether the diff can be read at all" -- which is what it used to.
+  it('still refuses an unlistable diff when nothing is declared sensitive', () => {
+    const verdict = grant({ changedPaths: undefined, mergeBlocks: [] });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') expect(verdict.reason).toBe('sensitive-path');
   });
 
   // Ordering, asserted rather than assumed. A gated unit over an unprotected base
