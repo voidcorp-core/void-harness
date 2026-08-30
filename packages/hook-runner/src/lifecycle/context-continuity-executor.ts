@@ -769,6 +769,33 @@ function measureContext(
   };
 }
 
+/**
+ * A watchdog that cannot watch says so, once.
+ *
+ * Silence belongs to a mechanism that did its job and found nothing. Without this
+ * line, "quiet" and "broken" are the same observation and the quiet reading wins
+ * by default: on 2026-08-30 a session ran to 73% of its window with
+ * `nudge_emitted: false`, because no `windowTokens` was ever configured. Every
+ * measurement was recorded faithfully and none could be acted on, and nothing
+ * said so.
+ *
+ * Once, not every turn — a warning repeated on each prompt is a warning nobody
+ * reads, which is the same failure wearing the opposite mask.
+ */
+function unwatchableOutput(
+  event: 'UserPromptSubmit' | 'PostToolUse',
+): NonNullable<ContextContinuityExecution['output']> {
+  return {
+    hookSpecificOutput: {
+      hookEventName: event,
+      additionalContext:
+        'Context usage is being recorded but cannot be watched: no `context.windowTokens` is '
+        + 'configured in `.void/config.json`, so no percentage and no checkpoint threshold can '
+        + 'be computed. Set it to the model context window to enable the reminder.',
+    },
+  };
+}
+
 function nudgeOutput(
   event: 'UserPromptSubmit' | 'PostToolUse',
   thresholdPercent: number,
@@ -890,9 +917,19 @@ function evolveCheckpoint(
     const measurement = input === undefined || event === undefined
       ? { state: advanced, emitNudge: false, skippedBytes: 0, skippedLines: 0 }
       : measureContext(advanced, input, root, event, runtime, now);
-    const next = reconcile
+    const measured = reconcile
       ? advanceMechanicalContext(measurement.state, { semanticCheckpointWritten: true })
       : measurement.state;
+    // Nothing to watch with: say it once, then fall silent like a working one.
+    // `nudgeEmitted` carries "the hook has spoken about context watching", which
+    // covers both the threshold reminder and this admission — either way it has
+    // said its piece and repeating it every prompt would earn it being ignored.
+    const unwatchable = thresholdConfig(root).windowTokens === undefined
+      && !measured.nudgeEmitted
+      && event !== undefined;
+    const next = unwatchable
+      ? { ...measured, nudgeEmitted: true }
+      : measured;
     if (next === current && block.status === 'valid') {
       return {
         execution: { status: 'skipped', details: { reason: 'duplicate-observation' } },
@@ -913,7 +950,9 @@ function evolveCheckpoint(
         },
         ...(measurement.emitNudge && event !== undefined
           ? { output: nudgeOutput(event, thresholdConfig(root).thresholdPercent) }
-          : {}),
+          : unwatchable && event !== undefined
+            ? { output: unwatchableOutput(event) }
+            : {}),
       },
     };
   });

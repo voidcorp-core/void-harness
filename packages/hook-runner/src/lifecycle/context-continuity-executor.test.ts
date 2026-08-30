@@ -565,6 +565,37 @@ describe('executeContextContinuity transcript threshold', () => {
     expect(rearmed.state.nudgeEmitted).toBe(false);
   });
 
+  // A watchdog that cannot watch says so, once. Silence is reserved for a
+  // mechanism that DID its job and found nothing — otherwise "quiet" and "broken"
+  // are the same observation, and the quiet one wins by default.
+  //
+  // Measured on 2026-08-30: this session ran to 73% of its window with
+  // `nudge_emitted: false`, because no `windowTokens` was ever configured. The
+  // hook recorded every measurement faithfully and never mentioned that it could
+  // not act on any of them.
+  it('says once that it cannot watch, rather than staying quiet forever', () => {
+    const root = project();
+    writeFileSync(checkpoint(root), '## Objective\n\nUnknown window.\n');
+    writeFileSync(transcript(root), `${usageLine(900)}\n`);
+    executeContextContinuity({ hook_event_name: 'PreCompact' }, root, 'codex', 1_000);
+
+    const first = executeContextContinuity({
+      hook_event_name: 'UserPromptSubmit',
+      transcript_path: transcript(root),
+    }, root, 'codex', 2_000);
+
+    const said = JSON.stringify(first.output ?? {});
+    expect(said).toContain('windowTokens');
+    expect(said.toLowerCase()).toMatch(/cannot|not watching|unknown/);
+
+    // Once. A warning repeated every turn is a warning nobody reads.
+    const second = executeContextContinuity({
+      hook_event_name: 'UserPromptSubmit',
+      transcript_path: transcript(root),
+    }, root, 'codex', 3_000);
+    expect(JSON.stringify(second.output ?? {})).not.toContain('windowTokens');
+  });
+
   it('records usage but emits no percentage or nudge without a known window', () => {
     const root = project();
     writeFileSync(checkpoint(root), '## Objective\n\nUnknown window.\n');
@@ -576,7 +607,10 @@ describe('executeContextContinuity transcript threshold', () => {
       transcript_path: transcript(root),
     }, root, 'codex', 2_000);
 
-    expect(result.output).toBe(undefined);
+    // No percentage and no threshold reminder — neither is computable. The hook
+    // does say it cannot watch (asserted above); what it must never do is invent
+    // a number or claim a threshold was reached.
+    expect(JSON.stringify(result.output ?? {})).not.toMatch(/reached the configured/);
     expect(JSON.stringify(result.details)).not.toContain('%');
     const parsed = mechanicalState(root);
     expect(parsed.status).toBe('valid');
@@ -680,7 +714,11 @@ describe('executeContextContinuity transcript threshold', () => {
       hook_event_name: 'UserPromptSubmit',
       transcript_path: transcript(root),
     }, root, 'claude', 2_000);
-    expect(symlinked.output).toBe(undefined);
+    // The config was refused, so the window is unknown and no threshold can be
+    // claimed. But refusing it must not cost the watch in silence: a project whose
+    // config is rejected for safety is exactly the one that needs to be told.
+    expect(JSON.stringify(symlinked.output ?? {})).not.toMatch(/reached the configured/);
+    expect(JSON.stringify(symlinked.output ?? {})).toContain('windowTokens');
 
     unlinkSync(join(root, '.void', 'config.json'));
     writeFileSync(join(root, '.void', 'config.json'), ' '.repeat(70_000));
