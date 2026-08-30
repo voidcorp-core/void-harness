@@ -21,6 +21,9 @@ import type { RuleName } from './runner.js';
  */
 const GOVERNING_SKILL = {
   'boundary-direction': 'void-hexagonal-architecture',
+  // The remedy the refusal teaches -- build the byte rather than type it -- is a
+  // fixture practice, and void-testing is the only skill that already carries it.
+  'control-character': 'void-testing',
   'dangerous-command': 'void-security-guidance',
   'design-slop': 'void-frontend-design',
   'no-any': 'void-typescript-strict',
@@ -41,6 +44,7 @@ const GOVERNING_SKILL = {
  */
 export const RULE_NAMES = [
   'boundary-direction',
+  'control-character',
   'dangerous-command',
   'design-slop',
   'no-any',

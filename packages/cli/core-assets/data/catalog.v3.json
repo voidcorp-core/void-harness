@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:e4707a788299614e80156e697676bdc05de9bb7aa995fd8f32b3a38c2ee61f0d"
+    "rootHash": "sha256:d2b4b06a61b648dcf1ed6b51f4a5e1f3d23b5d162ea0fed2011675182fe328c4"
   },
   "nodes": [
     {
@@ -787,6 +787,34 @@
           {
             "kind": "path",
             "ref": "packages/core/hooks/boundary-direction-check.sh",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:hook:hook:control-character-grep",
+      "kind": "hook",
+      "label": "control-character-grep",
+      "data": {
+        "legacy": {
+          "description": "",
+          "id": "hook:control-character-grep",
+          "lines": 11,
+          "name": "control-character-grep",
+          "pack": null,
+          "source": "packages/core/hooks/control-character-grep.sh",
+          "staticTokens": 96,
+          "type": "hook"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/hooks/control-character-grep.sh",
             "hashOrVersion": "catalog-v1"
           }
         ]
@@ -10144,6 +10172,32 @@
           "kind": "enforces",
           "origin": "declared",
           "to": "skill:void-typescript-strict"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:enforces:ef4575afa48d0b82b63a4b504706e7d4",
+      "from": "catalog:hook:hook:control-character-grep",
+      "to": "catalog:skill:skill:void-testing",
+      "kind": "enforces",
+      "data": {
+        "legacy": {
+          "evidence": "control-character-grep refuses an invisible control byte in a source file — enforces testing's rule that a fixture needing one builds it rather than holding it literally",
+          "from": "hook:control-character-grep",
+          "kind": "enforces",
+          "origin": "declared",
+          "to": "skill:void-testing"
         }
       },
       "provenance": {

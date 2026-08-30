@@ -1,6 +1,9 @@
 // src/enforcement/governing-skill.ts
 var GOVERNING_SKILL = {
   "boundary-direction": "void-hexagonal-architecture",
+  // The remedy the refusal teaches -- build the byte rather than type it -- is a
+  // fixture practice, and void-testing is the only skill that already carries it.
+  "control-character": "void-testing",
   "dangerous-command": "void-security-guidance",
   "design-slop": "void-frontend-design",
   "no-any": "void-typescript-strict",
@@ -15,6 +18,7 @@ var GOVERNING_SKILL = {
 };
 var RULE_NAMES = [
   "boundary-direction",
+  "control-character",
   "dangerous-command",
   "design-slop",
   "no-any",
@@ -141,6 +145,37 @@ function boundaryDirection(edits, projectRoot2) {
   return evidenceVerdict(
     "MONOREPO_UNDECLARED_DEPENDENCY",
     "imports a workspace package this one does not declare; add it to package.json dependencies",
+    evidence
+  );
+}
+
+// src/rules/control-character.ts
+var SOURCE_EXTENSIONS = /\.(?:ts|tsx|js|mjs|json|md|yaml|sh)$/;
+var ALLOWED = /* @__PURE__ */ new Set([9, 10, 13]);
+function isControl(point) {
+  return (point < 32 || point === 127) && !ALLOWED.has(point);
+}
+var MAX_EVIDENCE = 6;
+function hexPoint(point) {
+  return `U+${point.toString(16).toUpperCase().padStart(4, "0")}`;
+}
+function controlCharacter(edits) {
+  const evidence = [];
+  for (const edit of edits) {
+    const path = normalizedPath(edit.path);
+    if (!SOURCE_EXTENSIONS.test(path)) continue;
+    edit.addedContent.split(/\r?\n/).forEach((line, lineIndex) => {
+      [...line].forEach((character, column) => {
+        if (evidence.length >= MAX_EVIDENCE) return;
+        const point = character.codePointAt(0) ?? 0;
+        if (!isControl(point)) return;
+        evidence.push(`${path}:${lineIndex + 1}:${column + 1} ${hexPoint(point)}`);
+      });
+    });
+  }
+  return evidenceVerdict(
+    "CONTROL_CHARACTER_IN_SOURCE",
+    "control character in a source file; it is invisible in the diff and drops the file out of the project graph. A fixture that needs the byte builds it (String.fromCharCode(0), Buffer.concat) instead of holding it literally.",
     evidence
   );
 }
@@ -690,6 +725,7 @@ function normalizeToolCall(value) {
 
 // src/enforcement/runner.ts
 var MAX_HOOK_INPUT_BYTES = 1024 * 1024;
+var BINARY_INPUT_MESSAGE = "HOOK_INPUT_BINARY: a NUL byte in the tool payload. A source file holding one is dropped from the project graph, and no diff shows it. A fixture that needs the byte builds it (String.fromCharCode(0), Buffer.concat) instead of holding it literally.";
 function containsNul(value) {
   if (typeof value === "string") return value.includes("\0");
   if (Array.isArray(value)) return value.some((item) => containsNul(item));
@@ -701,13 +737,13 @@ function parseHookText(input) {
     throw new Error("HOOK_INPUT_TOO_LARGE");
   }
   const text2 = new TextDecoder("utf-8", { fatal: true }).decode(input);
-  if (text2.includes("\0")) throw new Error("HOOK_INPUT_BINARY");
+  if (text2.includes("\0")) throw new Error(BINARY_INPUT_MESSAGE);
   return text2;
 }
 function parseHookPayload(input) {
   const text2 = parseHookText(input);
   const parsed = JSON.parse(text2);
-  if (containsNul(parsed)) throw new Error("HOOK_INPUT_BINARY");
+  if (containsNul(parsed)) throw new Error(BINARY_INPUT_MESSAGE);
   return parsed;
 }
 function physicalPath(path) {
@@ -837,6 +873,7 @@ function evaluateRule(rule, rawInput, options) {
     return protectedFile(call.edits.map((edit) => edit.path));
   }
   if (rule === "secret-content") return secretContent(call.edits);
+  if (rule === "control-character") return controlCharacter(call.edits);
   if (rule === "tdd-order") return tddVerdict(options.root, call.edits);
   const edits = projectEdits(options.root, call.edits);
   if (rule === "no-any") return noAny(edits);
