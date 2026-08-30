@@ -80,3 +80,7 @@ export {
 } from './freshness/registry.js';
 export { freshnessNotice, freshnessRelay, resolveFreshness, type InstallSource } from './freshness/notice.js';
 export { readNpmrc } from './freshness/npmrc.js';
+// The rule roster, exported so the wiring tests can be derived from it rather
+// than repeating the names. A rule the runner knows and no runtime invokes is a
+// rule that never runs, and a hand-written list cannot catch that.
+export { RULE_NAMES, governingSkill } from './enforcement/governing-skill.js';

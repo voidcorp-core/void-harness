@@ -15,6 +15,7 @@ import {
   resolve,
 } from 'node:path';
 import { boundaryDirection } from '../rules/boundary-direction.js';
+import { controlCharacter } from '../rules/control-character.js';
 import { dangerousCommand } from '../rules/dangerous-command.js';
 import { designSlop } from '../rules/design-slop.js';
 import { noAny } from '../rules/no-any.js';
@@ -39,6 +40,7 @@ import type {
 export const MAX_HOOK_INPUT_BYTES = 1024 * 1024;
 
 export type RuleName =
+  | 'control-character'
   | 'dangerous-command'
   | 'boundary-direction'
   | 'design-slop'
@@ -57,6 +59,21 @@ export interface EvaluateRuleOptions {
   readonly env?: Readonly<Record<string, string | undefined>>;
 }
 
+/**
+ * Why the payload was refused, rather than the bare code it used to carry.
+ *
+ * A NUL never reaches the `control-character` rule: this guard runs first,
+ * because a NUL inside a JSON envelope is a parsing hazard before it is anything
+ * else, and refusing here protects every rule at once. But refusing anonymously
+ * left the author with a code and no idea what they had written -- and a NUL is
+ * invisible, so there is nothing to see in the editor either.
+ */
+const BINARY_INPUT_MESSAGE =
+  'HOOK_INPUT_BINARY: a NUL byte in the tool payload. A source file holding one is'
+  + ' dropped from the project graph, and no diff shows it. A fixture that needs the'
+  + ' byte builds it (String.fromCharCode(0), Buffer.concat) instead of holding it'
+  + ' literally.';
+
 function containsNul(value: unknown): boolean {
   if (typeof value === 'string') return value.includes('\u0000');
   if (Array.isArray(value)) return value.some((item) => containsNul(item));
@@ -69,14 +86,14 @@ export function parseHookText(input: Uint8Array): string {
     throw new Error('HOOK_INPUT_TOO_LARGE');
   }
   const text = new TextDecoder('utf-8', { fatal: true }).decode(input);
-  if (text.includes('\u0000')) throw new Error('HOOK_INPUT_BINARY');
+  if (text.includes('\u0000')) throw new Error(BINARY_INPUT_MESSAGE);
   return text;
 }
 
 export function parseHookPayload(input: Uint8Array): unknown {
   const text = parseHookText(input);
   const parsed: unknown = JSON.parse(text);
-  if (containsNul(parsed)) throw new Error('HOOK_INPUT_BINARY');
+  if (containsNul(parsed)) throw new Error(BINARY_INPUT_MESSAGE);
   return parsed;
 }
 
@@ -261,6 +278,10 @@ export function evaluateRule(
     return protectedFile(call.edits.map((edit) => edit.path));
   }
   if (rule === 'secret-content') return secretContent(call.edits);
+  // Judged on the raw edits, like secrets and protected files: a NUL byte is
+  // damage wherever it lands, and narrowing to the project's business paths
+  // would have missed both of the two that reached committed source.
+  if (rule === 'control-character') return controlCharacter(call.edits);
   if (rule === 'tdd-order') return tddVerdict(options.root, call.edits);
   const edits = projectEdits(options.root, call.edits);
   if (rule === 'no-any') return noAny(edits);

@@ -72,6 +72,38 @@ Two properties are load-bearing and easy to break:
   `update`, and until it does, a reader that only knew the current path would
   report months of history as none.
 
+### Naming what the harness owns in a shared directory
+
+`.claude/`, `.agents/` and `.codex/` are shared: the runtime reads the project's
+own skills, agents and commands from the same directories the harness writes
+into. Deciding which side a file belongs to is the ignore block's whole job, and
+it uses whichever of two regimes is cheaper for that root.
+
+- **By prefix**, for `.claude/skills` and `.agents/skills`. Every shipped skill is
+  `void-`prefixed (rule 8), so two pattern lines cover 82 owned directories. A
+  pattern also has no stale window: it stays right about a skill the project adds
+  long after the last install, which no list can do. This is only sound because
+  the prefix is checked — `scripts/anti-bloat-check.sh` fails the build on a
+  shipped skill without it, and `test/skills/shipped-skill-carries-the-prefix.test.ts`
+  holds the gate itself to that. A convention no build enforces would make the
+  manifest the better discriminator, which is what the superseded 2026-08-20
+  decision said.
+- **By list**, for `.claude/agents`, `.codex/agents` and `.claude/commands`. An
+  agent is named for a person you could hire, so no pattern separates ours from
+  the project's; they are named individually from the install receipt.
+
+`UNIT_ROOTS` must stay exactly the union of `PREFIXED_UNIT_ROOTS` and
+`LISTED_UNIT_ROOTS`, asserted in `void-layout.test.ts`: a root in neither is
+covered by nothing and listed by nothing, so its content is committed on the next
+`git add .` without anyone deciding that.
+
+Both regimes fail the same way round on purpose. Absent a readable receipt, or on
+a project still holding pre-prefix skill directories, harness content becomes
+*visible* rather than the project's content becoming *hidden* — derived content
+committed is a diff in a review, reversible with `update --untrack-derived`;
+a project's own skill hidden is work that leaves at the next clone with nothing
+to see. See the decision on naming owned content by prefix then by list.
+
 The migration merges rather than refuses: on a per-file collision the destination
 wins and the legacy copy is parked beside it as `*.legacy`. Choosing a winner by
 size or date was rejected on evidence — measured across the park, the legacy copy

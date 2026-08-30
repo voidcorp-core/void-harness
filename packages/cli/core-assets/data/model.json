@@ -283,6 +283,16 @@
     },
     {
       "description": "",
+      "id": "hook:control-character-grep",
+      "lines": 11,
+      "name": "control-character-grep",
+      "pack": null,
+      "source": "packages/core/hooks/control-character-grep.sh",
+      "staticTokens": 96,
+      "type": "hook"
+    },
+    {
+      "description": "",
       "id": "hook:large-cl-grep",
       "lines": 10,
       "name": "large-cl-grep",
@@ -2165,7 +2175,7 @@
         }
       ],
       "id": "skill:void-implement",
-      "lines": 160,
+      "lines": 166,
       "name": "void-implement",
       "owner": "folpe",
       "pack": null,
@@ -2174,7 +2184,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-implement/SKILL.md",
-      "staticTokens": 4163,
+      "staticTokens": 4635,
       "type": "skill"
     },
     {
@@ -2700,7 +2710,7 @@
         }
       ],
       "id": "skill:void-ticket",
-      "lines": 170,
+      "lines": 198,
       "name": "void-ticket",
       "owner": "folpe",
       "pack": null,
@@ -2709,7 +2719,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-ticket/SKILL.md",
-      "staticTokens": 2329,
+      "staticTokens": 2675,
       "type": "skill"
     },
     {
@@ -2885,6 +2895,13 @@
       "kind": "enforces",
       "origin": "declared",
       "evidence": "boundary-direction-check enforces the import direction — enforces hexagonal-architecture"
+    },
+    {
+      "from": "hook:control-character-grep",
+      "to": "skill:void-testing",
+      "kind": "enforces",
+      "origin": "declared",
+      "evidence": "control-character-grep refuses an invisible control byte in a source file — enforces testing's rule that a fixture needing one builds it rather than holding it literally"
     },
     {
       "from": "hook:large-cl-grep",

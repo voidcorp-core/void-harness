@@ -59,7 +59,10 @@ export function excludeFilePath(projectRoot: string): string | undefined {
  * error -- `init` runs in projects that are not versioned yet, and a project
  * with no git has nothing to hide from it.
  */
-export function writeExcludeBlock(projectRoot: string): ExcludeOutcome {
+export function writeExcludeBlock(
+  projectRoot: string,
+  ownedPaths: readonly string[] = [],
+): ExcludeOutcome {
   const path = excludeFilePath(projectRoot);
   if (path === undefined) return 'skipped';
   let original = '';
@@ -72,7 +75,11 @@ export function writeExcludeBlock(projectRoot: string): ExcludeOutcome {
   }
   // The same marked block as before, so a project migrating from the `.gitignore`
   // era recognises it, and so one function keeps deciding what the rules ARE.
-  const patched = patchGitignore(original);
+  // `ownedPaths` names the units no pattern can tell from the project's own --
+  // the agents. Absent, they simply stay visible: a harness agent committed by
+  // mistake is a diff somebody can see, where a project agent hidden by mistake
+  // is work nobody notices leaving.
+  const patched = patchGitignore(original, ownedPaths);
   if (patched === original) return 'unchanged';
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, patched);

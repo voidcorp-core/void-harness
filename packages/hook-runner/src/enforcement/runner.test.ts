@@ -197,3 +197,32 @@ describe('paths.business accepts more than one root', () => {
     expect(configuredStrings({ business: ['a', 3, 'b'] }, 'business', 'x')).toEqual(['a', 'b']);
   });
 })
+
+// The NUL byte never reaches the control-character rule: the runner refuses the
+// whole payload first, because a NUL in a JSON envelope is a parsing hazard
+// before it is a style question, and that guard protects every rule at once.
+//
+// It refused anonymously though, and `HOOK_INPUT_BINARY` alone tells the author
+// nothing about what they just wrote or what to do instead -- which is the exact
+// failure the governing-skill work exists to end. The guard stays where it is;
+// only the sentence changes.
+describe('the binary-input guard says what it caught', () => {
+  const encode = (value: unknown): Uint8Array => new TextEncoder().encode(JSON.stringify(value));
+  const NUL = String.fromCharCode(0);
+
+  it('still refuses a payload carrying a NUL byte', () => {
+    expect(() => parseHookPayload(encode({ tool_input: { content: `a${NUL}b` } })))
+      .toThrow(/HOOK_INPUT_BINARY/);
+  });
+
+  it('names the byte and the remedy rather than a bare code', () => {
+    let message = '';
+    try {
+      parseHookPayload(encode({ tool_input: { content: `a${NUL}b` } }));
+    } catch (error) {
+      message = error instanceof Error ? error.message : '';
+    }
+    expect(message).toContain('NUL');
+    expect(message).toContain('String.fromCharCode');
+  });
+});

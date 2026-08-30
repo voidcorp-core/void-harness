@@ -136,7 +136,7 @@ Before this, the floor ran in every consumer project and in none of ours — whi
 | Live browser QA of a running web app     | `void-qa` (claude-in-chrome MCP: explore, states, atomic fix loop, report; `--report-only` for no-fix) |
 | Periodic engineering retrospective       | `void-retrospective` (window signals → improvement decisions → learn)  |
 | Closing a session gracefully — before a clear, an interruption, or the end of a day | `void-checkpoint` (route state to its owner, keep the residue, one exact next action) |
-| Ship a PR                                | `void-implement` pass 11 + `void-commit-discipline` + `gh` (release-please owns versions/changelog) |
+| Ship a PR                                | `void-implement`'s ship pass + `void-commit-discipline` + `gh` (release-please owns versions/changelog) |
 
 ## On gstack and superpowers
 

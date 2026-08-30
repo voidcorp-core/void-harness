@@ -31,6 +31,34 @@ A `docs/specs/*.md` spec with `source: forge` in its frontmatter (the forge→ha
 
 ---
 
+## Search the tracker before you write
+
+The backlog already answered part of this. Query it on the **subject**, never on
+the title you are about to write: DEV-591 was called "unstable test suite" and
+DEV-561 "test contention" — no shared word, same question, three days apart.
+Search several phrasings of the thing itself, and include **closed** tickets: one
+closed because the approach was wrong is exactly the one not to reopen unchanged.
+
+An overlap means reading that ticket **in full** before deciding, not its title.
+What costs a day is not the duplicate, it is the reasoning that was in the first
+one: DEV-561 had established that an intermittent test is a question nobody has
+answered rather than noise to isolate, and DEV-591 recommended what it forbade.
+
+Then exactly one of two things, and creating in silence is neither:
+
+- **enrich the existing ticket**, when the subject is the same;
+- **create, linked, naming the difference** in one sentence, when the scope is
+  deliberately disjoint.
+
+Never merge two tickets on your own: a resemblance is not an identity, and that
+call is the human's. Say what you searched and what came back — a search nobody
+can see did not happen. If the tracker is unreachable, say so and keep writing;
+a handoff blocked on a lookup is worse than a duplicate.
+
+Thirty results means the terms were too broad, not the backlog too large.
+
+---
+
 ## The ticket: required slots
 
 Render into the tracker description. Every slot is REQUIRED unless marked optional. A missing required slot means the ticket is not ready.

@@ -246,21 +246,29 @@ describe('void receipt', () => {
   });
 });
 
-// Collapsing the ignore block to whole directories is only safe if the one thing
-// it can silently swallow gets reported: a skill the project wrote by hand, in
-// the same directory as the 41 the harness generates. It is ignored by default
-// now, and losing it is losing work rather than a regenerable file.
+// The block no longer ignores a project skill by default, so this check stopped
+// being the mechanism and became the net. What can still hide one is a name: a
+// project skill called `void-something` falls under the pattern that hides the
+// shipped ones. Teaching the old remedy -- write the exception by hand -- would
+// now be teaching a workaround for a name collision.
 describe('judgeProjectSkills', () => {
   it('passes when the project wrote none of its own', () => {
     expect(judgeProjectSkills([]).ok).toBe(true);
   });
 
-  it('names each ignored skill and the exact line that rescues it', () => {
-    const check = judgeProjectSkills(['.claude/skills/ma-skill', '.agents/skills/autre']);
+  it('names the reserved prefix as the cause, since that is what hides a skill now', () => {
+    const check = judgeProjectSkills(['.claude/skills/void-ma-skill']);
     expect(check.ok).toBe(false);
-    expect(check.message).toContain('ma-skill');
-    expect(check.message).toContain('autre');
-    expect(check.fix).toContain('!.claude/skills/ma-skill/');
+    expect(check.message).toContain('void-ma-skill');
+    expect(check.fix).toContain('void-');
+    expect(check.fix).not.toContain('!.claude/skills/void-ma-skill/');
+  });
+
+  it('sends an unexplained case to git, which names the exact rule', () => {
+    const check = judgeProjectSkills(['.claude/skills/ma-skill']);
+    expect(check.ok).toBe(false);
+    expect(check.fix).toContain('git check-ignore -v');
+    expect(check.fix).not.toContain('!.claude/skills/ma-skill/');
   });
 
   it('is advisory, never a blocker: an ignored skill still loads at runtime', () => {

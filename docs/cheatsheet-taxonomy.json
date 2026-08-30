@@ -87,6 +87,7 @@
         "block-dangerous-bash": "Refuses destructive shell before it runs: recursive deletes, force pushes, history rewrites.",
         "block-protected-push": "Refuses a push to a protected branch, so the remote is never the last line of defence.",
         "protect-sensitive-files": "Refuses edits to secrets, keys, lockfiles and other single-writer paths.",
+        "control-character-grep": "Refuses an invisible control byte in a source file, which no diff shows and which drops the file out of the project graph entirely.",
         "secret-in-content": "Refuses a write whose content carries a credential, even into an unprotected file."
       }
     },

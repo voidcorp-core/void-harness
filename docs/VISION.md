@@ -72,7 +72,7 @@ Relevé le 2026-08-27, chaque ligne vérifiée dans le dépôt.
 | -- | -- | -- |
 | Cadrage automatique | **partiel** | `void-brainstorm` porte déjà son déclencheur (« Notice that the exchange has become design »), mais 8 activations de skill sur 812 appels d'outil ont été mesurées sur un projet réel. Le texte existe, le déclenchement non — DEV-641. |
 | Spec → plan → tickets | **livré** | `void-brainstorm` → `void-plan` → `void-ticket`, chaînage écrit dans les skills. |
-| Cycle d'exécution complet | **livré** | `void-implement`, douze passes à prédicat observable. |
+| Cycle d'exécution complet | **livré** | `void-implement`, treize passes à prédicat observable. |
 | Chaînage entre skills | **manque** | Rien ne relie `void-implement` à `void-merge`, ni l'implémentation à la QA et à la passe sécurité — DEV-641. |
 | Merge autonome sur `develop` | **conçu, non livré** | DEV-612. Bloqué par DEV-618 (séquentiel par défaut). DEV-613 est livré : la CI tire sur `develop` et la branche est protégée. |
 | Boucle longue et reprise | **mécanique livrée, nettoyage externe** | Le handler commun mesure le dernier `usage` complet quand une fenêtre est configurée, émet un seul nudge, préserve le bloc mécanique à `PreCompact` et réinjecte `ResumeBundle`. Il ne peut ni invoquer `void-checkpoint`, ni déclencher `/clear` ou `/compact` : le résidu sémantique reste agentique et un `/clear` brutal peut encore imposer une reconstruction. |
