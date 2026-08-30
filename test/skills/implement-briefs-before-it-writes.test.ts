@@ -55,9 +55,10 @@ describe('the implement cycle briefs before it writes', () => {
     const convene = passMatching(/invoke-specialists|convene/i);
     const write = passMatching(/TDD implementation/);
 
-    expect(convene).toBeDefined();
-    expect(write).toBeDefined();
-    expect(convene!.number).toBeLessThan(write!.number);
+    expect(convene?.number).toBeDefined();
+    expect(write?.number).toBeDefined();
+    expect(convene?.number ?? Number.POSITIVE_INFINITY)
+      .toBeLessThan(write?.number ?? Number.NEGATIVE_INFINITY);
   });
 
   it('names the stage the controller actually returns first', () => {

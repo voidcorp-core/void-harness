@@ -156,6 +156,36 @@ function derivedTokens(content: {
     + content.artifacts.reduce((total, item) => total + estimateTokens(item.text), 0);
 }
 
+const CITED_PATHS_MAX = 32;
+const BACKTICKED = /`([^`\n]{3,200})`/g;
+/** A repository path: at least one directory segment and a file extension. This
+ * deliberately misses a bare `README`, because admitting extensionless tokens
+ * would admit every identifier a ticket writes in backticks. */
+const REPOSITORY_PATH = /^[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)+\.[A-Za-z0-9]{1,8}$/;
+
+/**
+ * The anchors a ticket names, so a pre-implementation brief carries the code it
+ * is about.
+ *
+ * Pure: it decides what a path looks like, never whether one exists. The caller
+ * owns the filesystem, and the split is what makes this testable without one.
+ * Ticket text is untrusted like every other input, so the result is bounded,
+ * deduplicated and sorted -- an unbounded list would let a ticket dictate how
+ * much a pack costs.
+ */
+export function citedPaths(text: string): readonly string[] {
+  if (typeof text !== 'string') return Object.freeze([]);
+  const found = new Set<string>();
+  for (const match of text.matchAll(BACKTICKED)) {
+    const candidate = (match[1] ?? '').trim();
+    if (!REPOSITORY_PATH.test(candidate)) continue;
+    if (candidate.split('/').includes('..')) continue;
+    found.add(candidate);
+    if (found.size >= CITED_PATHS_MAX) break;
+  }
+  return Object.freeze([...found].sort());
+}
+
 export function compileContextPack(input: ContextPackInput): ContextPack {
   if (
     !Number.isSafeInteger(input.budgetTokens)

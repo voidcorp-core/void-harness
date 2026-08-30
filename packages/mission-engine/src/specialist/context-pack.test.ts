@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { canonicalJsonHash } from '../evidence/canonical-json.js';
 import {
+  citedPaths,
   compileContextPack,
   parseContextPackValue,
   type ContextPackInput,
@@ -191,5 +192,32 @@ describe('parseContextPackValue', () => {
     }],
   ])('refuses %s', (_name, value) => {
     expect(() => parseContextPackValue(value, BINDING)).toThrow(/CONTEXT_PACK_INVALID/);
+  });
+});
+
+describe('citedPaths', () => {
+  it('finds the anchors a ticket names in backticks, which is where they are written', () => {
+    expect(citedPaths('See `packages/cli/src/lib/autopilot/union-review.ts` and `a/b.ts`.'))
+      .toEqual(['a/b.ts', 'packages/cli/src/lib/autopilot/union-review.ts']);
+  });
+
+  it('ignores prose, identifiers and commands that merely sit in backticks', () => {
+    expect(citedPaths('`judgeMergeGrant` refuses when `input.target === input.deployBranch`.'))
+      .toEqual([]);
+    expect(citedPaths('run `pnpm verify` then `git diff HEAD`')).toEqual([]);
+  });
+
+  it('refuses to name anything outside the repository', () => {
+    expect(citedPaths('read `/etc/passwd` and `../../secrets/key.pem`')).toEqual([]);
+  });
+
+  it('returns each anchor once, sorted, so a pack is deterministic', () => {
+    expect(citedPaths('`a/b.ts` then `a/b.ts` then `a/a.ts`')).toEqual(['a/a.ts', 'a/b.ts']);
+  });
+
+  it('is bounded, because a ticket is untrusted text like any other input', () => {
+    const many = Array.from({ length: 500 }, (_item, index) => `\`d/f${index}.ts\``).join(' ');
+
+    expect(citedPaths(many).length).toBeLessThanOrEqual(32);
   });
 });

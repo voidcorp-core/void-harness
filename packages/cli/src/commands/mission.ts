@@ -23,7 +23,10 @@ import {
   type SpecialistDispatchRuntime,
   type MissionVerdictStatus,
   type RecoveryDecision,
+  citedPaths,
+  type ContextArtifact,
   type ContextPackInput,
+  type SpecialistInvocationStage,
 } from '@voidcorp/mission-engine';
 import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
 import { findCoreSource } from '../lib/paths.js';
@@ -565,46 +568,103 @@ const CONTEXT_PACK_BUDGET_TOKENS = 12_000;
  * dependency rather than repairing it, and a diff git could not produce is named
  * in the pack rather than rendered as an empty one.
  */
+const ANCHOR_MAX_BYTES = 200_000;
+
+/** Read one repository file for the pack, or return nothing rather than fail the
+ * dispatch: a missing anchor is named in the pack, never a reason to convene
+ * nobody. */
+async function packArtifact(
+  root: string,
+  path: string,
+): Promise<ContextArtifact | undefined> {
+  try {
+    const loaded = await readBoundedProjectFile({
+      root,
+      inputPath: path,
+      maxBytes: ANCHOR_MAX_BYTES,
+      pathEscapeMessage: 'MISSION_PACK_PATH_ESCAPE: anchor resolves outside project root',
+      invalidMessage: 'MISSION_PACK_INVALID: anchor must be a stable bounded file',
+    });
+    return { path, text: loaded.body };
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Compile what every convened specialist reads instead of exploring, for the
+ * stage it is convened at.
+ *
+ * The two stages ask different questions and need different evidence. At
+ * `post-implementation` the subject is the diff. At `pre-implementation` there
+ * IS no diff -- nothing has been written, which is the entire point of briefing
+ * first -- so the subject is the ticket and the code it names. The first version
+ * of this shipped the diff at both stages, and the panel convened on eleven
+ * tokens of empty fence while `omitted` claimed nothing had been left out. That
+ * is the silent cap this module exists to refuse, in the stage that matters most.
+ *
+ * Measured on 2026-08-30 by running the cycle: six specialists convened at
+ * `pre-implementation` with an empty pack. Unit tests, typecheck and eighteen
+ * gates were all green on it.
+ */
 async function compileDispatchContent(
   root: string,
   files: DetectedFiles,
+  stage: SpecialistInvocationStage,
+  ticketPath: string,
 ): Promise<Omit<ContextPackInput, 'dispatch'>> {
   const options = { cwd: root, encoding: 'utf8' as const, maxBuffer: 4_000_000, timeout: 10_000 };
-  let diff = '';
   const unavailable: string[] = [];
-  try {
-    const result = await execFile('git', ['diff', '--relative', 'HEAD'], options);
-    diff = result.stdout;
-  } catch {
-    unavailable.push('diff (git unavailable)');
-  }
-  if (files.status === 'unknown') unavailable.push('touched paths (git unavailable)');
+  const secrets = collectKnownSecrets();
 
-  // `git diff HEAD` reports tracked modifications only, while `gitFiles` also
-  // lists untracked files. Without this, a touched path appears in the pack with
-  // its content nowhere in the diff and `omitted` still empty -- the pack would
-  // assert full coverage of a change it never described, which is the silent cap
-  // this module exists to refuse, on the paths most likely to carry new code.
-  let untracked: readonly string[] = [];
-  try {
-    const listed = await execFile('git', ['ls-files', '--others', '--exclude-standard'], options);
-    untracked = listed.stdout.split('\n').filter((file) => file !== '');
-  } catch {
-    unavailable.push('untracked files (git unavailable)');
+  let diff = '';
+  if (stage === 'post-implementation') {
+    try {
+      const result = await execFile('git', ['diff', '--relative', 'HEAD'], options);
+      diff = result.stdout;
+    } catch {
+      unavailable.push('diff (git unavailable)');
+    }
+    if (files.status === 'unknown') unavailable.push('touched paths (git unavailable)');
+
+    // `git diff HEAD` reports tracked modifications only, while `gitFiles` also
+    // lists untracked files. Without this, a touched path appears in the pack
+    // with its content nowhere in the diff and `omitted` still empty -- the pack
+    // would assert full coverage of a change it never described, on the paths
+    // most likely to carry new code.
+    try {
+      const listed = await execFile('git', ['ls-files', '--others', '--exclude-standard'], options);
+      for (const file of listed.stdout.split('\n').filter((entry) => entry !== '')) {
+        unavailable.push(`${file} (untracked, not in the diff)`);
+      }
+    } catch {
+      unavailable.push('untracked files (git unavailable)');
+    }
+  } else {
+    unavailable.push('diff (pre-implementation: nothing is written yet)');
   }
-  for (const file of untracked) unavailable.push(`${file} (untracked, not in the diff)`);
 
   // The completion path already refuses secret-bearing events. The pack reaches
   // a model runtime and whatever it persists, which is the wider blast radius of
   // the two, so an in-flight credential is masked here rather than forwarded.
-  const secrets = collectKnownSecrets();
-  const redacted = redactText(diff, secrets);
-  if (redacted !== diff) unavailable.push('diff (secrets redacted)');
+  const redactedDiff = redactText(diff, secrets);
+  if (redactedDiff !== diff) unavailable.push('diff (secrets redacted)');
+
+  // Ticket first: it is the brief at both stages, and the compiler spends the
+  // budget in the order artifacts arrive.
+  const ticket = await packArtifact(root, ticketPath);
+  if (ticket === undefined) unavailable.push(`${ticketPath} (unreadable)`);
+  const anchors = ticket === undefined
+    ? []
+    : (await Promise.all(citedPaths(ticket.text).map((path) => packArtifact(root, path))));
+  const artifacts = [ticket, ...anchors]
+    .filter((item): item is ContextArtifact => item !== undefined)
+    .map((item) => ({ path: item.path, text: redactText(item.text, secrets) }));
 
   return {
-    diff: redacted,
-    touchedPaths: files.files,
-    artifacts: [],
+    diff: redactedDiff,
+    touchedPaths: stage === 'post-implementation' ? files.files : [],
+    artifacts,
     lens: 'full',
     budgetTokens: CONTEXT_PACK_BUDGET_TOKENS,
     unavailable,
@@ -782,7 +842,12 @@ export async function dispatchMissionSpecialists(
         currentInputHashes: decision.action.stage === 'pre-implementation'
           ? preImplementationInputHashes
           : currentInputHashes,
-        contextContent: await compileDispatchContent(root, await gitFiles(root)),
+        contextContent: await compileDispatchContent(
+          root,
+          await gitFiles(root),
+          decision.action.stage,
+          stored.ticket.path,
+        ),
       })
     : Object.freeze([]);
   // Independent lenses, which is what the canonical plan declares them to be:
