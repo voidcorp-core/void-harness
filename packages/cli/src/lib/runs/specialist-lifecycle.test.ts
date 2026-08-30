@@ -2,6 +2,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { compileContextPack } from '@voidcorp/mission-engine';
 import { appendMissionEvent, createMission, inspectMission } from './store.js';
 import {
   parseSpecialistLifecycleInput,
@@ -11,6 +12,13 @@ import {
 
 const ID = 'mis_0123456789abcdef0123456789abcdef';
 const HASH = `sha256:${'a'.repeat(64)}`;
+const PACK = compileContextPack({
+  diff: 'diff --git a/a.ts b/a.ts\n+const a = 1;\n',
+  touchedPaths: ['a.ts'],
+  artifacts: [],
+  lens: 'full',
+  budgetTokens: 12_000,
+});
 const ENVELOPE = {
   schemaVersion: 1,
   missionId: ID,
@@ -21,6 +29,7 @@ const ENVELOPE = {
   stage: 'post-implementation',
   reviewRound: 1,
   inputHash: HASH,
+  contextPack: PACK,
 } as const;
 const COMPLETION = {
   schemaVersion: 1,
@@ -120,6 +129,10 @@ describe('specialist lifecycle adapter', () => {
       },
     });
     expect(JSON.stringify(inspected.stream.events)).not.toContain('rawPrompt');
+    // The pack is content-addressed, so the log keeps the identity and not the
+    // diff. Embedding it would repeat the whole diff per specialist per round in
+    // a file that is written once and read forever.
+    expect(JSON.stringify(inspected.stream.events)).not.toContain('contextPack');
   });
 
   it('rejects forged, conflicting, and secret-bearing terminal events', async () => {

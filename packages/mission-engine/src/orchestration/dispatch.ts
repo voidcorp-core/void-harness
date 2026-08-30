@@ -1,3 +1,4 @@
+import type { ContextPack } from '../specialist/context-pack.js';
 import type {
   SpecialistId,
   SpecialistInvocationStage,
@@ -19,6 +20,10 @@ export interface SpecialistDispatchInput {
   readonly plan: MissionSpecialistPlan;
   readonly action: InvokeSpecialistsAction;
   readonly currentInputHashes: Readonly<Record<string, string>>;
+  /** What every convened specialist reads instead of exploring the repository.
+   * Required, not optional: a dispatch that may omit it is a dispatch that
+   * silently reverts to the blind panel measured on 2026-08-30. */
+  readonly contextPack: ContextPack;
 }
 
 export interface SpecialistDispatchEnvelope {
@@ -31,6 +36,7 @@ export interface SpecialistDispatchEnvelope {
   readonly stage: SpecialistInvocationStage;
   readonly reviewRound: number;
   readonly inputHash: string;
+  readonly contextPack: ContextPack;
 }
 
 function invalid(detail: string): never {
@@ -63,6 +69,16 @@ export function createSpecialistDispatch(
     invalid('controller action contains duplicate specialists');
   }
   if (!Array.isArray(input.plan.specialists)) invalid('plan specialists are missing');
+  const pack = input.contextPack;
+  if (
+    pack === undefined
+    || pack === null
+    || pack.schemaVersion !== 1
+    || typeof pack.contextId !== 'string'
+    || !SHA256.test(pack.contextId)
+  ) {
+    invalid('context pack is missing or invalid');
+  }
 
   const envelopes = input.action.specialistIds.map((specialistId) => {
     const matches = input.plan.specialists.filter((item) => item.specialistId === specialistId);
@@ -97,6 +113,7 @@ export function createSpecialistDispatch(
       stage: input.action.stage,
       reviewRound: input.action.reviewRound,
       inputHash,
+      contextPack: pack,
     });
   });
   return Object.freeze(envelopes);

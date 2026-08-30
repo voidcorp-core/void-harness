@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
 import {
+  parseContextPackValue,
   parseSpecialistCompletionValue,
   type CanonicalEvent,
   type EventDraft,
@@ -53,6 +54,7 @@ const ENVELOPE_KEYS = [
   'stage',
   'reviewRound',
   'inputHash',
+  'contextPack',
 ] as const;
 
 function invalid(detail: string): never {
@@ -101,6 +103,9 @@ function parseEnvelope(value: unknown): SpecialistDispatchEnvelope {
   ) {
     invalid('dispatch envelope is malformed');
   }
+  // The pack carries its own identity check, so a pack edited between the
+  // dispatch and the reading is refused here rather than read as authoritative.
+  const contextPack = parseContextPackValue(value.contextPack);
   return {
     schemaVersion: 1,
     missionId: value.missionId,
@@ -111,6 +116,7 @@ function parseEnvelope(value: unknown): SpecialistDispatchEnvelope {
     stage: value.stage,
     reviewRound: Number(value.reviewRound),
     inputHash: value.inputHash,
+    contextPack,
   };
 }
 

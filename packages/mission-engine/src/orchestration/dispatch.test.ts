@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MissionPlan } from '../mission/plan.js';
+import { compileContextPack } from '../specialist/context-pack.js';
 import type { SpecialistId } from '../specialist/routing.js';
 import { createSpecialistDispatch } from './dispatch.js';
 
@@ -10,6 +11,14 @@ const IDS = [
   'core:test-qa-engineer',
   'core:frontend-engineer',
 ] as const satisfies readonly SpecialistId[];
+
+const PACK = compileContextPack({
+  diff: 'diff --git a/a.ts b/a.ts\n+const a = 1;\n',
+  touchedPaths: ['a.ts'],
+  artifacts: [],
+  lens: 'full',
+  budgetTokens: 12_000,
+});
 
 const PLAN = {
   specialists: IDS.map((specialistId, index) => ({
@@ -32,6 +41,7 @@ function dispatch(overrides: Partial<Parameters<typeof createSpecialistDispatch>
       reviewRound: 2,
     },
     currentInputHashes: Object.fromEntries(IDS.map((id) => [id, HASH])),
+    contextPack: PACK,
     ...overrides,
   });
 }
@@ -48,7 +58,20 @@ describe('createSpecialistDispatch', () => {
       stage: 'post-implementation',
       reviewRound: 2,
       inputHash: HASH,
+      contextPack: PACK,
     })));
+  });
+
+  it('hands the specialist the pack, so it reads the diff instead of searching for it', () => {
+    const [envelope] = dispatch();
+
+    expect(envelope?.contextPack.diff).toContain('const a = 1;');
+    expect(envelope?.contextPack.contextId).toBe(PACK.contextId);
+  });
+
+  it('refuses to convene a specialist with no pack, because a blind panel is worse than none', () => {
+    expect(() => dispatch({ contextPack: undefined as never }))
+      .toThrow(/SPECIALIST_DISPATCH_INVALID/);
   });
 
   it.each([

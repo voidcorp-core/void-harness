@@ -23,6 +23,8 @@ import {
   type SpecialistDispatchRuntime,
   type MissionVerdictStatus,
   type RecoveryDecision,
+  compileContextPack,
+  type ContextPack,
 } from '@voidcorp/mission-engine';
 import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
 import { findCoreSource } from '../lib/paths.js';
@@ -552,6 +554,39 @@ async function gitFiles(root: string): Promise<DetectedFiles> {
   }
 }
 
+/** Token budget one specialist may spend reading, per the expert-team spec. */
+const CONTEXT_PACK_BUDGET_TOKENS = 12_000;
+
+/**
+ * Compile what every convened specialist reads instead of exploring.
+ *
+ * Measured on 2026-08-30: `Grep` and `Glob` spawn a `rg` binary that is absent
+ * wherever `rg` is only a shell function, so five specialists convened on a real
+ * diff read nothing and answered anyway. Handing them the diff removes the
+ * dependency rather than repairing it, and a diff git could not produce is named
+ * in the pack rather than rendered as an empty one.
+ */
+async function compileDispatchPack(root: string, files: DetectedFiles): Promise<ContextPack> {
+  const options = { cwd: root, encoding: 'utf8' as const, maxBuffer: 4_000_000, timeout: 10_000 };
+  let diff = '';
+  const unavailable: string[] = [];
+  try {
+    const result = await execFile('git', ['diff', '--relative', 'HEAD'], options);
+    diff = result.stdout;
+  } catch {
+    unavailable.push('diff (git unavailable)');
+  }
+  if (files.status === 'unknown') unavailable.push('touched paths (git unavailable)');
+  return compileContextPack({
+    diff,
+    touchedPaths: files.files,
+    artifacts: [],
+    lens: 'full',
+    budgetTokens: CONTEXT_PACK_BUDGET_TOKENS,
+    unavailable,
+  });
+}
+
 function detectedStack(root: string, profileInput: ReturnType<typeof detectProfileInput>): {
   readonly technologies: readonly string[];
   readonly status: 'known' | 'unknown';
@@ -723,6 +758,7 @@ export async function dispatchMissionSpecialists(
         currentInputHashes: decision.action.stage === 'pre-implementation'
           ? preImplementationInputHashes
           : currentInputHashes,
+        contextPack: await compileDispatchPack(root, await gitFiles(root)),
       })
     : Object.freeze([]);
   // Independent lenses, which is what the canonical plan declares them to be:
