@@ -22,6 +22,9 @@ import {
   pendingMigrations,
   voidMachinePath,
   voidReadPath,
+  PREFIXED_UNIT_ROOTS,
+  LISTED_UNIT_ROOTS,
+  UNIT_ROOTS,
 } from './void-layout.js';
 
 const temporary: string[] = [];
@@ -436,11 +439,19 @@ describe('the managed ignore block, as git reads it', () => {
     for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
   });
 
-  function repoWithBlock(): string {
+  // What a receipt of this shape claims. The skills are deliberately absent: they
+  // are matched by prefix, so the block never needs to be told about them.
+  const OWNED: readonly string[] = [
+    '.claude/agents/doctrine-critic.md',
+    '.codex/agents/solution-architect.toml',
+    '.claude/commands/void-ship.md',
+  ];
+
+  function repoWithBlock(owned: readonly string[] = []): string {
     const root = mkdtempSync(join(tmpdir(), 'void-ignore-'));
     roots.push(root);
     spawnSync('git', ['init', '-q'], { cwd: root });
-    writeFileSync(join(root, '.gitignore'), `${gitignoreBlock()}\n`);
+    writeFileSync(join(root, '.gitignore'), `${gitignoreBlock(owned)}\n`);
     return root;
   }
 
@@ -461,28 +472,61 @@ describe('the managed ignore block, as git reads it', () => {
     expect(ignored(root, '.codex/hooks.json')).toBe(false);
   });
 
-  it('ignores what the harness regenerates, whatever its name', () => {
-    const root = repoWithBlock();
-    touch(root, '.claude/skills/tdd/SKILL.md');
+  it('ignores what the harness regenerates, named by prefix or by receipt', () => {
+    const root = repoWithBlock(OWNED);
+    touch(root, '.claude/skills/void-tdd/SKILL.md');
     touch(root, '.claude/agents/doctrine-critic.md');
-    touch(root, '.agents/skills/verify/SKILL.md');
-    touch(root, '.codex/agents/solution-architect.md');
-    expect(ignored(root, '.claude/skills/tdd/SKILL.md')).toBe(true);
+    touch(root, '.agents/skills/void-verify/SKILL.md');
+    touch(root, '.codex/agents/solution-architect.toml');
+    expect(ignored(root, '.claude/skills/void-tdd/SKILL.md')).toBe(true);
     expect(ignored(root, '.claude/agents/doctrine-critic.md')).toBe(true);
-    expect(ignored(root, '.agents/skills/verify/SKILL.md')).toBe(true);
-    expect(ignored(root, '.codex/agents/solution-architect.md')).toBe(true);
+    expect(ignored(root, '.agents/skills/void-verify/SKILL.md')).toBe(true);
+    expect(ignored(root, '.codex/agents/solution-architect.toml')).toBe(true);
   });
 
-  it('lets a project re-include a skill it wrote itself, which is the whole risk of collapsing', () => {
-    const root = repoWithBlock();
+  // THE defect this replaces. The block used to ignore `.claude/skills/*` and
+  // leave the project to write `!.claude/skills/my-skill/` by hand, with doctor
+  // reporting the omission. A net that assumes you run doctor before losing the
+  // work is not a net: the loss lands at the first clone.
+  it('never ignores a skill the project wrote, with nothing to write by hand', () => {
+    const root = repoWithBlock(OWNED);
     touch(root, '.claude/skills/ma-skill/SKILL.md');
-    expect(ignored(root, '.claude/skills/ma-skill/SKILL.md')).toBe(true);
-    const current = readFileSync(join(root, '.gitignore'), 'utf8');
-    writeFileSync(join(root, '.gitignore'), `${current}\n!.claude/skills/ma-skill/\n`);
+    touch(root, '.agents/skills/ma-skill/SKILL.md');
     expect(ignored(root, '.claude/skills/ma-skill/SKILL.md')).toBe(false);
+    expect(ignored(root, '.agents/skills/ma-skill/SKILL.md')).toBe(false);
   });
 
-  it('stays short, because 148 lines to protect two files is what this replaces', () => {
-    expect(gitignoreBlock().split('\n').filter((line) => !line.startsWith('#')).length).toBeLessThan(20);
+  // The skills are covered by a pattern, so a skill added long after the last
+  // install is visible too -- there is no window where the block is stale about
+  // it. That is what the prefix buys over any list, and CLAUDE.md rule 8 makes
+  // the prefix an invariant rather than an observation.
+  it('never ignores a project skill created after the block was written', () => {
+    const root = repoWithBlock([]);
+    touch(root, '.claude/skills/added-later/SKILL.md');
+    expect(ignored(root, '.claude/skills/added-later/SKILL.md')).toBe(false);
+  });
+
+  it('never ignores an agent the project wrote itself', () => {
+    const root = repoWithBlock(OWNED);
+    touch(root, '.claude/agents/mon-agent.md');
+    touch(root, '.codex/agents/mon-agent.toml');
+    expect(ignored(root, '.claude/agents/mon-agent.md')).toBe(false);
+    expect(ignored(root, '.codex/agents/mon-agent.toml')).toBe(false);
+  });
+
+  // Measured, not asserted loosely: 148 lines is what this replaces, and the
+  // skills -- the largest population by far -- cost two pattern lines instead of
+  // eighty-two. What is left is the agents, which carry no prefix to match on.
+  // A root that falls into neither regime is ignored by nothing and listed by
+  // nothing, so its content is committed on the next `git add .` -- silently, at
+  // the moment somebody adds a directory here and thinks about nothing else.
+  it('leaves no unit root outside the two regimes', () => {
+    expect([...PREFIXED_UNIT_ROOTS, ...LISTED_UNIT_ROOTS].sort()).toEqual([...UNIT_ROOTS].sort());
+  });
+
+  it('stays far short of the 148-line wall it replaces', () => {
+    const rules = gitignoreBlock(OWNED).split('\n').filter((line) => !line.startsWith('#'));
+    expect(rules.length).toBeLessThan(60);
+    expect(rules.filter((rule) => rule.includes('skills')).length).toBeLessThan(8);
   });
 });

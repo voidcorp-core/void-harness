@@ -23,6 +23,7 @@ import { writeExcludeBlock } from '../lib/git-exclude.js';
 import * as p from '@clack/prompts';
 import {
   prepareInstallCommit,
+  stagedRelativePaths,
   seedInstallStage,
   stageInstallManifest,
   withholdProjectOwned,
@@ -372,7 +373,7 @@ export async function init(args: readonly string[]): Promise<void> {
     // Before the manifest, the ignore block and the transaction: what the project
     // already owns leaves the stage, so nothing downstream claims it.
     const keptByProject = await withholdProjectOwned(projectRoot, stageRoot);
-    await ensureIgnoreRules(projectRoot, stageRoot);
+    await ensureIgnoreRules(projectRoot, stageRoot, await stagedRelativePaths(stageRoot));
 
     // The committed record of exactly what this install materialized, so any
     // other checkout can restore the same bytes and PROVE it did. Written last,
@@ -595,8 +596,12 @@ async function writeConfig(
  * The `.gitignore` is edited in the STAGE, so removing the old block travels
  * through the same transaction as everything else and rolls back with it.
  */
-async function ensureIgnoreRules(projectRoot: string, stageRoot: string): Promise<void> {
-  const outcome = writeExcludeBlock(projectRoot);
+async function ensureIgnoreRules(
+  projectRoot: string,
+  stageRoot: string,
+  ownedPaths: readonly string[],
+): Promise<void> {
+  const outcome = writeExcludeBlock(projectRoot, ownedPaths);
   const label = outcome === 'skipped'
     ? c.dim('not a git repository, nothing to hide from it')
     : outcome === 'unchanged'
