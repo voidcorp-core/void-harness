@@ -23,8 +23,7 @@ import {
   type SpecialistDispatchRuntime,
   type MissionVerdictStatus,
   type RecoveryDecision,
-  compileContextPack,
-  type ContextPack,
+  type ContextPackInput,
 } from '@voidcorp/mission-engine';
 import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
 import { findCoreSource } from '../lib/paths.js';
@@ -36,7 +35,7 @@ import { readBoundedProjectFile } from '../lib/safe-read.js';
 import { loadSpecialists } from '../lib/specialists/load.js';
 import { archiveMission, pruneMissions } from '../lib/runs/archive.js';
 import { inspectCurrentMission } from '../lib/runs/inspect-current.js';
-import { collectKnownSecrets } from '../lib/runs/redact.js';
+import { collectKnownSecrets, redactText } from '../lib/runs/redact.js';
 import {
   createMission,
   inspectMission,
@@ -566,7 +565,10 @@ const CONTEXT_PACK_BUDGET_TOKENS = 12_000;
  * dependency rather than repairing it, and a diff git could not produce is named
  * in the pack rather than rendered as an empty one.
  */
-async function compileDispatchPack(root: string, files: DetectedFiles): Promise<ContextPack> {
+async function compileDispatchContent(
+  root: string,
+  files: DetectedFiles,
+): Promise<Omit<ContextPackInput, 'dispatch'>> {
   const options = { cwd: root, encoding: 'utf8' as const, maxBuffer: 4_000_000, timeout: 10_000 };
   let diff = '';
   const unavailable: string[] = [];
@@ -577,14 +579,36 @@ async function compileDispatchPack(root: string, files: DetectedFiles): Promise<
     unavailable.push('diff (git unavailable)');
   }
   if (files.status === 'unknown') unavailable.push('touched paths (git unavailable)');
-  return compileContextPack({
-    diff,
+
+  // `git diff HEAD` reports tracked modifications only, while `gitFiles` also
+  // lists untracked files. Without this, a touched path appears in the pack with
+  // its content nowhere in the diff and `omitted` still empty -- the pack would
+  // assert full coverage of a change it never described, which is the silent cap
+  // this module exists to refuse, on the paths most likely to carry new code.
+  let untracked: readonly string[] = [];
+  try {
+    const listed = await execFile('git', ['ls-files', '--others', '--exclude-standard'], options);
+    untracked = listed.stdout.split('\n').filter((file) => file !== '');
+  } catch {
+    unavailable.push('untracked files (git unavailable)');
+  }
+  for (const file of untracked) unavailable.push(`${file} (untracked, not in the diff)`);
+
+  // The completion path already refuses secret-bearing events. The pack reaches
+  // a model runtime and whatever it persists, which is the wider blast radius of
+  // the two, so an in-flight credential is masked here rather than forwarded.
+  const secrets = collectKnownSecrets();
+  const redacted = redactText(diff, secrets);
+  if (redacted !== diff) unavailable.push('diff (secrets redacted)');
+
+  return {
+    diff: redacted,
     touchedPaths: files.files,
     artifacts: [],
     lens: 'full',
     budgetTokens: CONTEXT_PACK_BUDGET_TOKENS,
     unavailable,
-  });
+  };
 }
 
 function detectedStack(root: string, profileInput: ReturnType<typeof detectProfileInput>): {
@@ -758,7 +782,7 @@ export async function dispatchMissionSpecialists(
         currentInputHashes: decision.action.stage === 'pre-implementation'
           ? preImplementationInputHashes
           : currentInputHashes,
-        contextPack: await compileDispatchPack(root, await gitFiles(root)),
+        contextContent: await compileDispatchContent(root, await gitFiles(root)),
       })
     : Object.freeze([]);
   // Independent lenses, which is what the canonical plan declares them to be:

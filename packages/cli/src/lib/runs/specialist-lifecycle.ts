@@ -103,9 +103,17 @@ function parseEnvelope(value: unknown): SpecialistDispatchEnvelope {
   ) {
     invalid('dispatch envelope is malformed');
   }
-  // The pack carries its own identity check, so a pack edited between the
-  // dispatch and the reading is refused here rather than read as authoritative.
-  const contextPack = parseContextPackValue(value.contextPack);
+  // The pack is checked against the dispatch it claims to answer, not only
+  // against its own bytes: an unkeyed content hash is recomputable by anyone who
+  // can rewrite the pack, so on its own it detects corruption and not a pack
+  // lifted from another specialist, stage, or review round.
+  const contextPack = parseContextPackValue(value.contextPack, {
+    missionId: value.missionId,
+    specialistId: value.specialistId,
+    stage: value.stage,
+    reviewRound: Number(value.reviewRound),
+    inputHash: value.inputHash,
+  });
   return {
     schemaVersion: 1,
     missionId: value.missionId,

@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:f16ca3ef6f00c2f96f037a836f71dbbee675005d5f4f9809ef94c6ed8e100095"
+    "rootHash": "sha256:c33284eec44970baa6e4dba07dfb6113400835d43e818219559be8e325c11490"
   },
   "nodes": [
     {
@@ -16,11 +16,11 @@
         "legacy": {
           "description": "Reviews applicable WCAG 2.2 AA semantics, keyboard and focus behavior, names, contrast, targets, errors, and assistive evidence.",
           "id": "agent:accessibility-specialist",
-          "lines": 58,
+          "lines": 60,
           "name": "accessibility-specialist",
           "pack": null,
           "source": "packages/core/agents/accessibility-specialist.md",
-          "staticTokens": 707,
+          "staticTokens": 848,
           "type": "agent"
         }
       },
@@ -44,11 +44,11 @@
         "legacy": {
           "description": "Reviews public API and integration contracts for compatibility, validation, failure semantics, idempotency, and operability.",
           "id": "agent:api-integration-engineer",
-          "lines": 58,
+          "lines": 60,
           "name": "api-integration-engineer",
           "pack": null,
           "source": "packages/core/agents/api-integration-engineer.md",
-          "staticTokens": 709,
+          "staticTokens": 850,
           "type": "agent"
         }
       },
@@ -100,11 +100,11 @@
         "legacy": {
           "description": "Reviews persistent schema changes, compatibility, backfills, locking, rollback, and production migration evidence.",
           "id": "agent:data-migration-engineer",
-          "lines": 58,
+          "lines": 60,
           "name": "data-migration-engineer",
           "pack": null,
           "source": "packages/core/agents/data-migration-engineer.md",
-          "staticTokens": 701,
+          "staticTokens": 842,
           "type": "agent"
         }
       },
@@ -128,11 +128,11 @@
         "legacy": {
           "description": "Reviews developer-facing APIs, CLI, SDK, docs, onboarding, errors, examples, upgrades, and measured time to first success.",
           "id": "agent:devex-docs-engineer",
-          "lines": 56,
+          "lines": 58,
           "name": "devex-docs-engineer",
           "pack": null,
           "source": "packages/core/agents/devex-docs-engineer.md",
-          "staticTokens": 693,
+          "staticTokens": 834,
           "type": "agent"
         }
       },
@@ -184,11 +184,11 @@
         "legacy": {
           "description": "Reviews domain language, bounded contexts, aggregates, invariants, and translation boundaries without choosing infrastructure.",
           "id": "agent:domain-architect",
-          "lines": 55,
+          "lines": 57,
           "name": "domain-architect",
           "pack": null,
           "source": "packages/core/agents/domain-architect.md",
-          "staticTokens": 681,
+          "staticTokens": 822,
           "type": "agent"
         }
       },
@@ -212,11 +212,11 @@
         "legacy": {
           "description": "Produces a build-ready UX brief from product intent, states, responsive needs, and accessibility constraints before UI implementation.",
           "id": "agent:experience-designer",
-          "lines": 58,
+          "lines": 60,
           "name": "experience-designer",
           "pack": null,
           "source": "packages/core/agents/experience-designer.md",
-          "staticTokens": 776,
+          "staticTokens": 917,
           "type": "agent"
         }
       },
@@ -240,11 +240,11 @@
         "legacy": {
           "description": "Reviews frontend implementation structure, state modeling, responsive behavior, rendering boundaries, and design-system composition.",
           "id": "agent:frontend-engineer",
-          "lines": 59,
+          "lines": 61,
           "name": "frontend-engineer",
           "pack": null,
           "source": "packages/core/agents/frontend-engineer.md",
-          "staticTokens": 708,
+          "staticTokens": 850,
           "type": "agent"
         }
       },
@@ -268,11 +268,11 @@
         "legacy": {
           "description": "Performs an independent diff review for correctness, maintainability, boundary compliance, and evidence-backed release blockers.",
           "id": "agent:independent-code-reviewer",
-          "lines": 56,
+          "lines": 58,
           "name": "independent-code-reviewer",
           "pack": null,
           "source": "packages/core/agents/independent-code-reviewer.md",
-          "staticTokens": 705,
+          "staticTokens": 846,
           "type": "agent"
         }
       },
@@ -324,11 +324,11 @@
         "legacy": {
           "description": "Reviews runtime reliability, telemetry, SLOs, failure containment, capacity, recovery, and actionable operational evidence.",
           "id": "agent:observability-sre-engineer",
-          "lines": 58,
+          "lines": 60,
           "name": "observability-sre-engineer",
           "pack": null,
           "source": "packages/core/agents/observability-sre-engineer.md",
-          "staticTokens": 705,
+          "staticTokens": 846,
           "type": "agent"
         }
       },
@@ -352,11 +352,11 @@
         "legacy": {
           "description": "Reviews PDF inputs or deliverables for safe handling, faithful rendering, pagination, accessibility, and artifact evidence.",
           "id": "agent:pdf-specialist",
-          "lines": 57,
+          "lines": 59,
           "name": "pdf-specialist",
           "pack": null,
           "source": "packages/core/agents/pdf-specialist.md",
-          "staticTokens": 696,
+          "staticTokens": 838,
           "type": "agent"
         }
       },
@@ -380,11 +380,11 @@
         "legacy": {
           "description": "Reviews measured latency, throughput, memory, bundle, query, and cost budgets against representative workloads.",
           "id": "agent:performance-engineer",
-          "lines": 57,
+          "lines": 59,
           "name": "performance-engineer",
           "pack": null,
           "source": "packages/core/agents/performance-engineer.md",
-          "staticTokens": 694,
+          "staticTokens": 835,
           "type": "agent"
         }
       },
@@ -408,11 +408,11 @@
         "legacy": {
           "description": "Challenges product value, user outcome, scope, and acceptance criteria before implementation without inventing strategy.",
           "id": "agent:product-challenger",
-          "lines": 54,
+          "lines": 56,
           "name": "product-challenger",
           "pack": null,
           "source": "packages/core/agents/product-challenger.md",
-          "staticTokens": 686,
+          "staticTokens": 828,
           "type": "agent"
         }
       },
@@ -436,11 +436,11 @@
         "legacy": {
           "description": "Reviews concrete trust boundaries and exploitable security risk without editing or attacking systems.",
           "id": "agent:security-engineer",
-          "lines": 65,
+          "lines": 67,
           "name": "security-engineer",
           "pack": null,
           "source": "packages/core/agents/security-engineer.md",
-          "staticTokens": 708,
+          "staticTokens": 849,
           "type": "agent"
         }
       },
@@ -492,11 +492,11 @@
         "legacy": {
           "description": "Reviews architecture boundaries, trade-offs, and reversibility without editing the project.",
           "id": "agent:solution-architect",
-          "lines": 56,
+          "lines": 58,
           "name": "solution-architect",
           "pack": null,
           "source": "packages/core/agents/solution-architect.md",
-          "staticTokens": 673,
+          "staticTokens": 814,
           "type": "agent"
         }
       },
@@ -520,11 +520,11 @@
         "legacy": {
           "description": "Reviews behavioral coverage, failure paths, and release evidence without editing the project.",
           "id": "agent:test-qa-engineer",
-          "lines": 59,
+          "lines": 61,
           "name": "test-qa-engineer",
           "pack": null,
           "source": "packages/core/agents/test-qa-engineer.md",
-          "staticTokens": 677,
+          "staticTokens": 819,
           "type": "agent"
         }
       },
@@ -576,11 +576,11 @@
         "legacy": {
           "description": "Independently reviews rendered UI craft, responsive states, accessibility, and current-diff visual evidence after implementation.",
           "id": "agent:visual-craft-director",
-          "lines": 61,
+          "lines": 63,
           "name": "visual-craft-director",
           "pack": null,
           "source": "packages/core/agents/visual-craft-director.md",
-          "staticTokens": 825,
+          "staticTokens": 966,
           "type": "agent"
         }
       },

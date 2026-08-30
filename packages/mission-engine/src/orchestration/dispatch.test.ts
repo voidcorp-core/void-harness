@@ -12,13 +12,13 @@ const IDS = [
   'core:frontend-engineer',
 ] as const satisfies readonly SpecialistId[];
 
-const PACK = compileContextPack({
+const CONTENT = {
   diff: 'diff --git a/a.ts b/a.ts\n+const a = 1;\n',
   touchedPaths: ['a.ts'],
   artifacts: [],
   lens: 'full',
   budgetTokens: 12_000,
-});
+} as const;
 
 const PLAN = {
   specialists: IDS.map((specialistId, index) => ({
@@ -41,7 +41,7 @@ function dispatch(overrides: Partial<Parameters<typeof createSpecialistDispatch>
       reviewRound: 2,
     },
     currentInputHashes: Object.fromEntries(IDS.map((id) => [id, HASH])),
-    contextPack: PACK,
+    contextContent: CONTENT,
     ...overrides,
   });
 }
@@ -58,7 +58,16 @@ describe('createSpecialistDispatch', () => {
       stage: 'post-implementation',
       reviewRound: 2,
       inputHash: HASH,
-      contextPack: PACK,
+      contextPack: compileContextPack({
+        ...CONTENT,
+        dispatch: {
+          missionId: 'mis_0123456789abcdef0123456789abcdef',
+          specialistId,
+          stage: 'post-implementation',
+          reviewRound: 2,
+          inputHash: HASH,
+        },
+      }),
     })));
   });
 
@@ -66,11 +75,17 @@ describe('createSpecialistDispatch', () => {
     const [envelope] = dispatch();
 
     expect(envelope?.contextPack.diff).toContain('const a = 1;');
-    expect(envelope?.contextPack.contextId).toBe(PACK.contextId);
+    expect(envelope?.contextPack.dispatch.specialistId).toBe(envelope?.specialistId);
+  });
+
+  it('gives each specialist its own pack, so one cannot be replayed as another', () => {
+    const ids = dispatch().map((envelope) => envelope.contextPack.contextId);
+
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('refuses to convene a specialist with no pack, because a blind panel is worse than none', () => {
-    expect(() => dispatch({ contextPack: undefined as never }))
+    expect(() => dispatch({ contextContent: undefined as never }))
       .toThrow(/SPECIALIST_DISPATCH_INVALID/);
   });
 

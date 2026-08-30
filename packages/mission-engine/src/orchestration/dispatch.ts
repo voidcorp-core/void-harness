@@ -1,4 +1,4 @@
-import type { ContextPack } from '../specialist/context-pack.js';
+import { compileContextPack, type ContextPack, type ContextPackInput } from '../specialist/context-pack.js';
 import type {
   SpecialistId,
   SpecialistInvocationStage,
@@ -22,8 +22,10 @@ export interface SpecialistDispatchInput {
   readonly currentInputHashes: Readonly<Record<string, string>>;
   /** What every convened specialist reads instead of exploring the repository.
    * Required, not optional: a dispatch that may omit it is a dispatch that
-   * silently reverts to the blind panel measured on 2026-08-30. */
-  readonly contextPack: ContextPack;
+   * silently reverts to the blind panel measured on 2026-08-30. The binding is
+   * added per specialist here, so a pack handed to one reviewer cannot be
+   * replayed into another's envelope. */
+  readonly contextContent: Omit<ContextPackInput, 'dispatch'>;
 }
 
 export interface SpecialistDispatchEnvelope {
@@ -69,15 +71,9 @@ export function createSpecialistDispatch(
     invalid('controller action contains duplicate specialists');
   }
   if (!Array.isArray(input.plan.specialists)) invalid('plan specialists are missing');
-  const pack = input.contextPack;
-  if (
-    pack === undefined
-    || pack === null
-    || pack.schemaVersion !== 1
-    || typeof pack.contextId !== 'string'
-    || !SHA256.test(pack.contextId)
-  ) {
-    invalid('context pack is missing or invalid');
+  const content = input.contextContent;
+  if (content === undefined || content === null || typeof content.diff !== 'string') {
+    invalid('context pack content is missing or invalid');
   }
 
   const envelopes = input.action.specialistIds.map((specialistId) => {
@@ -113,7 +109,16 @@ export function createSpecialistDispatch(
       stage: input.action.stage,
       reviewRound: input.action.reviewRound,
       inputHash,
-      contextPack: pack,
+      contextPack: compileContextPack({
+        ...content,
+        dispatch: {
+          missionId: input.missionId,
+          specialistId,
+          stage: input.action.stage,
+          reviewRound: input.action.reviewRound,
+          inputHash,
+        },
+      }),
     });
   });
   return Object.freeze(envelopes);

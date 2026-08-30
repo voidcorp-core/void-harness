@@ -11,7 +11,6 @@ import {
   type SpecialistRoutingDecision,
 } from '@voidcorp/mission-engine';
 import { describe, expect, it } from 'vitest';
-import { compileContextPack } from '@voidcorp/mission-engine';
 import { loadSpecialists } from './load.js';
 
 const CORE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', 'core');
@@ -149,13 +148,13 @@ function completionEvent(
   };
 }
 
-const CORPUS_PACK = compileContextPack({
+const CORPUS_CONTENT = {
   diff: 'diff --git a/a.ts b/a.ts\n+const a = 1;\n',
   touchedPaths: ['a.ts'],
   artifacts: [],
   lens: 'full',
   budgetTokens: 12_000,
-});
+} as const;
 
 describe('canonical 40-case specialist routing corpus', () => {
   it('keeps routing, dispatch, completion recognition, and false greens at 100/100/100/0', async () => {
@@ -203,7 +202,7 @@ describe('canonical 40-case specialist routing corpus', () => {
               decision.specialistId,
               HASH,
             ])),
-            contextPack: CORPUS_PACK,
+            contextContent: CORPUS_CONTENT,
           });
       const envelopeIds = envelopes.map((envelope) => envelope.specialistId);
       dispatchedExpected += envelopeIds.filter((id) => expectedForStage.includes(id)).length;
@@ -282,7 +281,7 @@ describe('canonical 40-case specialist routing corpus', () => {
         decision.specialistId,
         HASH,
       ])),
-      contextPack: CORPUS_PACK,
+      contextContent: CORPUS_CONTENT,
     });
 
     expect(envelopes.map((envelope) => envelope.specialistId)).not.toEqual(
