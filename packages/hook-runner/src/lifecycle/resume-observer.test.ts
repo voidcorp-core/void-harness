@@ -108,6 +108,7 @@ describe('observeResume', () => {
       semanticRevision: 1,
       sealedWorkRevision: 1,
       nudgeEmitted: false,
+      unwatchableNotified: false,
       transcriptFingerprint: `sha256:${'b'.repeat(64)}`,
       transcriptCursorBytes: 0,
       lastMeasurementAtMs: 0,

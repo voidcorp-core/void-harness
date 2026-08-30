@@ -596,6 +596,40 @@ describe('executeContextContinuity transcript threshold', () => {
     expect(JSON.stringify(second.output ?? {})).not.toContain('windowTokens');
   });
 
+  // The message says "set `windowTokens` to enable the reminder", so setting it
+  // must enable the reminder. Folding the admission into `nudgeEmitted` made that
+  // sentence false: the latch it consumed is the one the threshold check reads,
+  // and it only re-arms on clear or compact -- the very event the reminder exists
+  // to precede. Two claims, two latches.
+  it('enables the reminder when the window it asked for is configured', () => {
+    const root = project();
+    writeFileSync(checkpoint(root), '## Objective\n\nWindow arrives mid-session.\n');
+    writeFileSync(transcript(root), `${usageLine(300)}\n`);
+    executeContextContinuity({ hook_event_name: 'PreCompact' }, root, 'codex', 1_000);
+    const admitted = executeContextContinuity({
+      hook_event_name: 'UserPromptSubmit',
+      transcript_path: transcript(root),
+    }, root, 'codex', 2_000);
+    expect(JSON.stringify(admitted.output ?? {})).toContain('windowTokens');
+
+    writeFileSync(
+      join(root, '.void', 'config.json'),
+      `${JSON.stringify({ context: { windowTokens: 1_000 } })}\n`,
+    );
+    appendFileSync(transcript(root), `${usageLine(900)}\n`);
+    const nudged = executeContextContinuity({
+      hook_event_name: 'UserPromptSubmit',
+      transcript_path: transcript(root),
+    }, root, 'codex', 3_000);
+
+    expect(nudged.output?.hookSpecificOutput.additionalContext).toMatch(/void-checkpoint/i);
+    const parsed = mechanicalState(root);
+    expect(parsed.status).toBe('valid');
+    if (parsed.status !== 'valid') return;
+    expect(parsed.state.nudgeEmitted).toBe(true);
+    expect(parsed.state.unwatchableNotified).toBe(true);
+  });
+
   it('records usage but emits no percentage or nudge without a known window', () => {
     const root = project();
     writeFileSync(checkpoint(root), '## Objective\n\nUnknown window.\n');

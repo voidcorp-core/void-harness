@@ -51,6 +51,7 @@ function mechanical(over: Partial<MechanicalContextState> = {}): MechanicalConte
     semanticRevision: 3,
     sealedWorkRevision: 3,
     nudgeEmitted: false,
+    unwatchableNotified: false,
     transcriptFingerprint: `sha256:${'b'.repeat(64)}`,
     transcriptCursorBytes: 0,
     lastMeasurementAtMs: 0,

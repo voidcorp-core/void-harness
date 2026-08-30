@@ -84,6 +84,7 @@ function initialState(raw: string): MechanicalContextState {
     semanticRevision: hasSemantic ? 1 : 0,
     sealedWorkRevision: 0,
     nudgeEmitted: false,
+    unwatchableNotified: false,
     transcriptFingerprint: EMPTY_TRANSCRIPT_HASH,
     transcriptCursorBytes: 0,
     lastMeasurementAtMs: 0,
@@ -921,14 +922,15 @@ function evolveCheckpoint(
       ? advanceMechanicalContext(measurement.state, { semanticCheckpointWritten: true })
       : measurement.state;
     // Nothing to watch with: say it once, then fall silent like a working one.
-    // `nudgeEmitted` carries "the hook has spoken about context watching", which
-    // covers both the threshold reminder and this admission — either way it has
-    // said its piece and repeating it every prompt would earn it being ignored.
+    // Its own latch, deliberately not `nudgeEmitted`: that one means the reminder
+    // fired, and setting it here would consume the very reminder this message
+    // tells the reader to enable. The two latches re-arm together on clear and
+    // compact, which is the only place either claim stops being true.
     const unwatchable = thresholdConfig(root).windowTokens === undefined
-      && !measured.nudgeEmitted
+      && !measured.unwatchableNotified
       && event !== undefined;
     const next = unwatchable
-      ? { ...measured, nudgeEmitted: true }
+      ? { ...measured, unwatchableNotified: true }
       : measured;
     if (next === current && block.status === 'valid') {
       return {
