@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:aec57c715d7bc5e8dad0b4735c53e69cb29b3ab81fcab6035a0f5e34b9ed39f2"
+    "rootHash": "sha256:e4707a788299614e80156e697676bdc05de9bb7aa995fd8f32b3a38c2ee61f0d"
   },
   "nodes": [
     {
@@ -4247,7 +4247,7 @@
             }
           ],
           "id": "skill:void-implement",
-          "lines": 160,
+          "lines": 166,
           "name": "void-implement",
           "owner": "folpe",
           "pack": null,
@@ -4256,7 +4256,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-implement/SKILL.md",
-          "staticTokens": 4163,
+          "staticTokens": 4635,
           "type": "skill"
         }
       },
