@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:4208665784e6425bc89fcf49357063fe59bf35280569dc977f261b9284433c0a"
+    "rootHash": "sha256:aec57c715d7bc5e8dad0b4735c53e69cb29b3ab81fcab6035a0f5e34b9ed39f2"
   },
   "nodes": [
     {
@@ -5088,7 +5088,7 @@
             }
           ],
           "id": "skill:void-ticket",
-          "lines": 170,
+          "lines": 198,
           "name": "void-ticket",
           "owner": "folpe",
           "pack": null,
@@ -5097,7 +5097,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-ticket/SKILL.md",
-          "staticTokens": 2329,
+          "staticTokens": 2675,
           "type": "skill"
         }
       },

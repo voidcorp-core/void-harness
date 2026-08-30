@@ -2700,7 +2700,7 @@
         }
       ],
       "id": "skill:void-ticket",
-      "lines": 170,
+      "lines": 198,
       "name": "void-ticket",
       "owner": "folpe",
       "pack": null,
@@ -2709,7 +2709,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-ticket/SKILL.md",
-      "staticTokens": 2329,
+      "staticTokens": 2675,
       "type": "skill"
     },
     {
