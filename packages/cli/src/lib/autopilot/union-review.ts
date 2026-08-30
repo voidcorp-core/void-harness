@@ -148,7 +148,8 @@ export const MERGE_REFUSALS = [
  * the sentence now fails, which is the only way prose keeps up with a compiler.
  */
 export const MERGE_REFUSAL_TRIGGERS = {
-  'production-downstream': 'the target is the branch that deploys',
+  'production-downstream':
+    'the target resolves to the branch that deploys, or one of the two cannot be read as a branch name at all',
   'human-gate': 'the cluster carries a unit listed in `humanGates`',
   'base-unprotected':
     'server-side protection of the base was not positively observed, and unknown counts as unprotected',
@@ -323,6 +324,18 @@ function matchesPath(pattern: string, path: string): boolean {
   return matchesFrom(pattern.split('/'), 0, segments, 0);
 }
 
+type BranchRef =
+  | { readonly kind: 'branch'; readonly identity: string }
+  | { readonly kind: 'unrecognised' };
+type BranchComparison = 'same' | 'different' | 'undecidable';
+
+const UNRECOGNISED: BranchRef = Object.freeze({ kind: 'unrecognised' as const });
+const BRANCH_PREFIXES = ['refs/heads/', 'refs/remotes/', 'remotes/'] as const;
+const PSEUDO_REFS = new Set(['HEAD', 'FETCH_HEAD', 'ORIG_HEAD', 'MERGE_HEAD', 'CHERRY_PICK_HEAD']);
+const OBJECT_NAME = /^[0-9a-f]{40}$|^[0-9a-f]{64}$/;
+const MAX_BRANCH_NAME = 255;
+const CONTROL_OR_FORBIDDEN = new RegExp('[\\u0000-\\u001f\\u007f ~^:?*[\\\\]');
+
 /**
  * One branch name, in the one shape a comparison can be trusted on.
  *
@@ -338,10 +351,63 @@ function matchesPath(pattern: string, path: string): boolean {
  */
 function branchIdentity(name: string): string {
   const trimmed = name.trim();
-  for (const prefix of ['refs/heads/', 'refs/remotes/', 'remotes/']) {
+  for (const prefix of BRANCH_PREFIXES) {
     if (trimmed.startsWith(prefix)) return trimmed.slice(prefix.length).toLowerCase();
   }
   return trimmed.toLowerCase();
+}
+
+/**
+ * Is this a name git would accept for a branch?
+ *
+ * The rules are git's own, read from `git check-ref-format` for the installed
+ * version rather than remembered: no component beginning with a dot or ending in
+ * `.lock`, no `..`, no control character, space, tilde, caret or colon, no `?`,
+ * `*` or `[`, no leading, trailing or doubled slash, no trailing dot, no `@{`,
+ * not the single character `@`, and no backslash.
+ */
+function isBranchNameShape(identity: string): boolean {
+  if (identity.length === 0 || identity.length > MAX_BRANCH_NAME) return false;
+  if (identity === '@') return false;
+  // Written as codepoints rather than literal control characters: git rule 4
+  // bans everything below \\040 and DEL, and a literal one in source is itself
+  // the kind of invisible input this check exists to refuse.
+  if (CONTROL_OR_FORBIDDEN.test(identity)) return false;
+  if (identity.includes('..') || identity.includes('@{')) return false;
+  if (identity.startsWith('/') || identity.endsWith('/') || identity.includes('//')) return false;
+  if (identity.endsWith('.')) return false;
+  return identity.split('/').every((part) => !part.startsWith('.') && !part.endsWith('.lock'));
+}
+
+/**
+ * Read a ref the way the grant needs it, or say it could not.
+ *
+ * The previous version was `string -> string` and therefore total: it lowercased
+ * whatever it was handed, so every shape it did not understand became a token
+ * that matched nothing, and matching nothing is what grants a merge. Probed on
+ * 2026-08-30, six spellings reached production that way -- an empty target, a
+ * bare object name, `HEAD`, `main^`, and a `deployBranch` of `refs/heads/` or
+ * `origin/`, both of which normalise away to nothing after passing an emptiness
+ * check that ran on the raw string.
+ *
+ * Shape only. Whether an unreadable ref refuses is the grant's decision, and it
+ * lives at the point that authorizes rather than in a string helper.
+ */
+function parseBranchRef(name: unknown): BranchRef {
+  if (typeof name !== 'string') return UNRECOGNISED;
+  const trimmed = name.trim();
+  // A ref under a namespace this function does not know is not a branch: a tag,
+  // a pull-request head and a note all name something else entirely.
+  if (trimmed.startsWith('refs/') && !BRANCH_PREFIXES.some((p) => trimmed.startsWith(p))) {
+    return UNRECOGNISED;
+  }
+  const identity = branchIdentity(trimmed);
+  if (!isBranchNameShape(identity)) return UNRECOGNISED;
+  // Legal branch names, but never a branch in practice. `HEAD` and its siblings
+  // are symbolic refs, and a full object name is a commit. Refusing both costs a
+  // false refusal to nobody, and admitting them costs a production merge.
+  if (PSEUDO_REFS.has(identity.toUpperCase()) || OBJECT_NAME.test(identity)) return UNRECOGNISED;
+  return { kind: 'branch', identity };
 }
 
 /**
@@ -355,12 +421,20 @@ function branchIdentity(name: string): string {
  * shipping from `main`. The trade is not symmetric. A false refusal is a merge a
  * person does by hand and can see; the other direction is a machine merging into
  * production, which nobody sees until it has shipped.
+ *
+ * `undecidable` is a third answer on purpose: a boolean cannot distinguish "not
+ * the deploying branch" from "I could not read one of these", and the two must
+ * not lead to the same outcome.
  */
-function sameBranch(target: string, deployBranch: string): boolean {
-  const left = branchIdentity(target);
-  const right = branchIdentity(deployBranch);
-  if (left === right) return true;
-  return left.endsWith(`/${right}`) || right.endsWith(`/${left}`);
+function sameBranch(target: unknown, deployBranch: unknown): BranchComparison {
+  const left = parseBranchRef(target);
+  const right = parseBranchRef(deployBranch);
+  if (left.kind !== 'branch' || right.kind !== 'branch') return 'undecidable';
+  if (left.identity === right.identity) return 'same';
+  return left.identity.endsWith(`/${right.identity}`)
+    || right.identity.endsWith(`/${left.identity}`)
+    ? 'same'
+    : 'different';
 }
 
 export function judgeMergeGrant(input: MergeGrantInput): MergeGrant {
@@ -369,15 +443,17 @@ export function judgeMergeGrant(input: MergeGrantInput): MergeGrant {
   // someone to run a pass that cannot unlock anything.
   // A `deployBranch` that names nothing is not an absence of production, it is an
   // unusable declaration -- and this is the check whose silence costs the most.
-  const deploy = input.deployBranch.trim();
-  if (deploy.length === 0) {
+  const comparison = sameBranch(input.target, input.deployBranch);
+  if (comparison === 'undecidable') {
     return refused(
       'production-downstream',
-      'the programme declares no branch that deploys, so no target can be shown not to be it',
-      'set `autopilot.deployBranch` to the branch that ships, then ask again',
+      'one of the target and the deploying branch cannot be read as a branch name,'
+        + ' so no target can be shown not to be production',
+      'set `autopilot.deployBranch` to the branch that ships and pass a branch name'
+        + ' as the target, then ask again',
     );
   }
-  if (sameBranch(input.target, deploy)) {
+  if (comparison === 'same') {
     return refused(
       'production-downstream',
       `merging into \`${input.target}\` ships, and what a person judges there is the feature`,
