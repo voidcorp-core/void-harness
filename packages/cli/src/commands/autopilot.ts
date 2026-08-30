@@ -16,6 +16,7 @@ import { type ConfirmationInput, confirmReservation } from '../lib/autopilot/clu
 import { autopilotFailure, renderAutopilotFailure, toAutopilotFailure } from '../lib/autopilot/errors.js';
 import {
   INPUT_SHAPES,
+  markerTemplate,
   scaffoldFor,
   validateAgainstShape,
   type AutopilotInputStep,
@@ -61,7 +62,7 @@ tracker and pipes them in. The CLI computes; it never contacts Linear, GitHub or
 git, and it spawns no agent.
 
 Usage:
-  void-harness autopilot scaffold <plan|start|status> [--json]
+  void-harness autopilot scaffold <plan|start|status|marker> [--json]
   echo '<CandidateObservation>'  | void-harness autopilot plan   [--json]
   echo '<ReservationReceipt>'    | void-harness autopilot start  [--json]
   echo '<RemoteObservation>'     | void-harness autopilot status [--run <id>] [--json]
@@ -388,12 +389,17 @@ function emit(json: boolean, value: unknown, human: string): AutopilotCommandRes
 
 function scaffoldCommand(argv: readonly string[], json: boolean): AutopilotCommandResult {
   const step = argv[0];
+  // The marker is not a step's payload, it is a comment body, so it is scaffolded
+  // here rather than left as the one thing a run still had to read source for.
+  if (step === 'marker') {
+    return ok(`${markerTemplate()}\n`);
+  }
   if (step === undefined || !Object.hasOwn(INPUT_SHAPES, step)) {
     throw autopilotFailure(
       'AUTOPILOT_INPUT',
       'scaffold needs the step whose shape you want',
       step === undefined ? 'no step was named' : `\`${step}\` is not a step`,
-      `name one of ${Object.keys(INPUT_SHAPES).join(', ')}`,
+      `name one of ${Object.keys(INPUT_SHAPES).join(', ')}, marker`,
     );
   }
   const known = step as AutopilotInputStep;

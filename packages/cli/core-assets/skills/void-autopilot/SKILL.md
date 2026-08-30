@@ -82,6 +82,33 @@ claims tickets nobody agreed to hand over.
 
 ---
 
+## Hydration: filling what the CLI validates
+
+The CLI contacts nothing, so you are the only layer that reads the tracker and git. It does not
+leave you guessing what it wants: **run `autopilot scaffold <plan|start|status|marker>` and fill
+the payload it prints.** Each field comes back with a note saying where to obtain it, and a
+refusal names the field, the type and the note. If you find yourself opening a `.ts` file to
+learn a shape, stop and run the scaffold instead -- that is the whole reason it exists.
+
+**For `plan`.** Read `.void/program.md` once: `progress.order` is the pool, `progress.states`
+tells ready from done. Fetch every unit in that order that is not done. `ready` is its state in
+`states.ready`; `blockedByOpen` is true when any native blocker is not done -- read the relation,
+never the prose. `footprints.areas` are the paths the ticket names as its anchors; `highRisk` is
+a guard, a migration, a lockfile or a published contract; `confidence` is your own statement
+about how well you know the footprint, and a low one is what shrinks the cluster on purpose.
+
+**For `start`.** Render the marker with `scaffold marker`, fill it, and post it as a comment on
+**every** ticket in the cluster before claiming any of them. Then claim each one. Then re-read
+**every** ticket -- state, assignee and comments -- into `reobservation`. Report each write in
+`applied`, and use `unknown` when a write's result did not come back: a write you are unsure of
+makes the whole picture untrustworthy even when the re-observation looks converged, and saying so
+is what keeps the lease honest. `state` is the local cursor, with `base.sha` the full commit the
+run was planned against.
+
+**For `status`.** Every field is a `BoundaryReading`: `{ kind: "value", value: ... }` when you
+read it, `{ kind: "nil" }` when you could not. Those are different answers and the recovery
+verdict depends on the difference -- an absent pull request is an absence, not a merge.
+
 ## The cycle
 
 1. **Preflight.** Prove the runtime adapter, the connectors, git permissions, the base branch

@@ -12,6 +12,7 @@
 // Here the scaffold IS the shape, and a test asserts the validator accepts it.
 
 import { autopilotFailure } from './errors.js';
+import { MARKER_BEGIN, MARKER_END } from './linear-marker.js';
 
 export type AutopilotInputStep = 'plan' | 'start' | 'status';
 
@@ -265,4 +266,28 @@ export function validateAgainstShape(payload: unknown, step: AutopilotInputStep)
       `${field.from}. Run \`void-harness autopilot scaffold ${step}\` for the whole shape.`,
     );
   }
+}
+
+/**
+ * The lease marker's exact wire form, delimiters included.
+ *
+ * The marker is the one payload a run cannot obtain from a scaffold: its
+ * delimiters live in `linear-marker.ts` and appeared in no output, so driving a
+ * run meant opening that file -- which is the whole thing this slice removes.
+ * Placeholders rather than a rendered marker, because rendering requires values
+ * only the caller has, and a template with obviously-fake values fails loudly
+ * when someone forgets to fill one.
+ */
+export function markerTemplate(): string {
+  const payload = {
+    schemaVersion: 1,
+    programId: '<the `program` slug from .void/program.md>',
+    runId: '<your run id, e.g. run-2026-01-01-example>',
+    clusterId: '<your cluster id>',
+    baseBranch: '<autopilot.base from .void/program.md>',
+    baseSha: '<git rev-parse on that branch, all 40 characters>',
+    integrationBranch: '<autopilot/<runId>>',
+    expiresAt: '<ISO-8601 instant after which this lease is stale>',
+  };
+  return `${MARKER_BEGIN}\n${JSON.stringify(payload, null, 2)}\n${MARKER_END}`;
 }

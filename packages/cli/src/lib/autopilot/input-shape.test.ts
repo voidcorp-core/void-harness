@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { MARKER_BEGIN, MARKER_END } from './linear-marker.js';
 import {
   INPUT_SHAPES,
+  markerTemplate,
   scaffoldFor,
   validateAgainstShape,
   type AutopilotInputStep,
@@ -71,5 +73,26 @@ describe('a refused payload names the field', () => {
     const plan = scaffoldFor('plan') as Record<string, unknown>;
     expect(() => validateAgainstShape({ ...plan, extra: 1 }, 'plan'))
       .not.toThrow();
+  });
+});
+
+describe('the lease marker is obtainable without reading source', () => {
+  // The gate for this slice is driving a run from scaffold output alone. The
+  // marker was the one payload still requiring a source read: its delimiters
+  // live in `linear-marker.ts` and appear in no output.
+  it('shows the exact delimiters a ticket comment must carry', () => {
+    const rendered = markerTemplate();
+
+    expect(rendered).toContain(MARKER_BEGIN);
+    expect(rendered).toContain(MARKER_END);
+  });
+
+  it('carries every field the marker validates, so a filled copy parses', () => {
+    const rendered = markerTemplate();
+
+    for (const field of ['programId', 'runId', 'clusterId', 'baseBranch', 'baseSha',
+      'integrationBranch', 'expiresAt']) {
+      expect(rendered, field).toContain(field);
+    }
   });
 });
