@@ -14,6 +14,8 @@
 import { type ClusterPlan, type ClusterPlanInput, planCluster } from '../lib/autopilot/cluster-plan.js';
 import { type ConfirmationInput, confirmReservation } from '../lib/autopilot/cluster-reservation.js';
 import { autopilotFailure, renderAutopilotFailure, toAutopilotFailure } from '../lib/autopilot/errors.js';
+import { decideChainStep, type ChainObservation } from '../lib/autopilot/chain-step.js';
+import { readProgramDescriptor } from '../lib/autopilot/program.js';
 import {
   INPUT_SHAPES,
   markerTemplate,
@@ -64,6 +66,7 @@ git, and it spawns no agent.
 Usage:
   void-harness autopilot scaffold <plan|start|status|marker> [--json]
   echo '<CandidateObservation>'  | void-harness autopilot plan   [--json]
+  echo '<ChainObservation>'      | void-harness autopilot chain  [--for <2h|90m>] [--json]
   echo '<ReservationReceipt>'    | void-harness autopilot start  [--json]
   echo '<RemoteObservation>'     | void-harness autopilot status [--run <id>] [--json]
   echo '<RemoteObservation>'     | void-harness autopilot resume [--run <id>] [--json]
@@ -414,6 +417,33 @@ function scaffoldCommand(argv: readonly string[], json: boolean): AutopilotComma
   return ok(`# ${shape.what}\n${body}\n# where each field comes from\n${notes}\n`);
 }
 
+function chainCommand(
+  argv: readonly string[],
+  stdin: string,
+  json: boolean,
+  context: AutopilotCommandContext,
+): AutopilotCommandResult {
+  const observation = parseStdin<ChainObservation>(stdin, 'chain observation', 'chain');
+  const descriptor = readProgramDescriptor(context.root);
+  if (descriptor?.autopilot === undefined) {
+    throw autopilotFailure(
+      'AUTOPILOT_CONTRACT',
+      'the chain needs the programme to declare an autopilot block',
+      '`.void/program.md` is absent, unreadable, or carries no `autopilot` block',
+      'declare `autopilot` in `.void/program.md`; that block is the consent to run unattended',
+    );
+  }
+  const requested = flagValue(argv, '--for');
+  const step = decideChainStep(
+    { ...observation, ...(requested === undefined ? {} : { requested }) },
+    descriptor.autopilot,
+  );
+  const human = step.decision.kind === 'continue'
+    ? `continue: take ${step.nextUnit ?? '(none)'} — ${step.decision.detail}\n`
+    : `stop (${step.decision.reason}): ${step.decision.detail}\nfix: ${step.decision.fix}\n`;
+  return emit(json, step, human);
+}
+
 function planCommand(stdin: string, json: boolean): AutopilotCommandResult {
   const plan = planCluster(parseStdin<ClusterPlanInput>(stdin, 'candidate observation', 'plan'));
   return emit(json, plan, renderPlan(plan));
@@ -550,6 +580,17 @@ export function runAutopilotCommand(
     }
 
     if (subcommand === 'plan') return planCommand(stdin, json);
+    if (subcommand === 'chain') {
+      if (context === undefined) {
+        throw autopilotFailure(
+          'AUTOPILOT_CONTRACT',
+          '`chain` needs a project root and a clock',
+          'the command was invoked without an execution context',
+          'invoke autopilot through the CLI entry point rather than calling it directly',
+        );
+      }
+      return chainCommand(argv, stdin, json, context);
+    }
     if (subcommand === 'scaffold') {
       const rest = argv.slice(argv.indexOf(subcommand) + 1).filter((arg) => !arg.startsWith('-'));
       return scaffoldCommand(rest, json);
@@ -560,7 +601,7 @@ export function runAutopilotCommand(
       throw autopilotFailure(
         'AUTOPILOT_USAGE',
         `autopilot has no '${subcommand}' subcommand`,
-        `known subcommands are scaffold, plan, ${stateful.join(', ')}`,
+        `known subcommands are scaffold, plan, chain, ${stateful.join(', ')}`,
         'run `void-harness autopilot --help` for the full contract',
       );
     }
@@ -600,7 +641,7 @@ export function runAutopilotCommand(
  * would otherwise hang on a terminal, waiting for input nobody is going to type.
  */
 export async function autopilot(argv: readonly string[]): Promise<void> {
-  const wantsStdin = argv.some((arg) => ['plan', 'start', 'status', 'resume'].includes(arg));
+  const wantsStdin = argv.some((arg) => ['plan', 'chain', 'start', 'status', 'resume'].includes(arg));
   const stdin = wantsStdin && !process.stdin.isTTY ? await readAllStdin() : '';
 
   const result = runAutopilotCommand(argv, stdin, {

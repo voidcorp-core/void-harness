@@ -14,7 +14,7 @@
 import { autopilotFailure } from './errors.js';
 import { MARKER_BEGIN, MARKER_END } from './linear-marker.js';
 
-export type AutopilotInputStep = 'plan' | 'start' | 'status';
+export type AutopilotInputStep = 'plan' | 'start' | 'status' | 'chain';
 
 type FieldType = 'string' | 'number' | 'boolean' | 'array' | 'object';
 
@@ -172,6 +172,36 @@ export const INPUT_SHAPES: Readonly<Record<AutopilotInputStep, InputShape>> = Ob
         name: 'state.integration',
         type: 'object',
         from: 'all null and `prState: none` until the integration branch exists',
+      },
+    ],
+  },
+  chain: {
+    what: 'chain observation',
+    fields: [
+      {
+        name: 'schemaVersion',
+        type: 'number',
+        from: 'always 1',
+        example: 1,
+      },
+      {
+        name: 'merged',
+        type: 'array',
+        from: 'one entry per unit this run already merged, oldest first; empty on the first step',
+        example: [],
+      },
+      {
+        name: 'elapsedMs',
+        type: 'number',
+        from: 'now minus the run start; the budget is spent in wall clock, not in units',
+        example: 0,
+      },
+      {
+        name: 'pool',
+        type: 'array',
+        from: '`progress.order` filtered to units that are not done, INCLUDING the ones this run'
+          + ' already merged -- the step subtracts them itself',
+        example: ['DEV-1', 'DEV-2'],
       },
     ],
   },
