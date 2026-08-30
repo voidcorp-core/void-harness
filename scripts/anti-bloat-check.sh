@@ -138,6 +138,19 @@ for f in packages/core/skills/*/SKILL.md packages/packs/*/skills/*/SKILL.md; do
       echo "    FAIL: $f name '$NAME' ends in a filler suffix; the subject alone is the name" >&2
       FAILED=1 ;;
   esac
+  # The prefix, which rule 8 calls the durable invariant. A runtime resolves
+  # skills from several providers and the level this harness installs into loses
+  # every collision it enters, silently -- that is why the rule exists.
+  #
+  # It is also load-bearing somewhere it does not look like it: the managed
+  # ignore block matches `.claude/skills/void-*/` rather than naming 82 owned
+  # directories, so a shipped skill without the prefix would be committed into
+  # every consumer's repository. That block cites this gate; until now the gate
+  # was not here, and the citation was false.
+  if [[ "$NAME" != void-* ]]; then
+    echo "    FAIL: $f name '$NAME' ships without the void- prefix (rule 8)" >&2
+    FAILED=1
+  fi
 done
 
 # Sourcing discipline: every skill (core + packs) ships a co-located `.source`

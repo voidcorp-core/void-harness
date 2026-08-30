@@ -199,8 +199,11 @@ export const UNIT_ROOTS: readonly string[] = Object.freeze([
 /**
  * The prefix every skill this harness ships carries, and nothing else does.
  *
- * CLAUDE.md rule 8 makes it an invariant rather than an observation, and
- * `scripts/anti-bloat-check.sh` fails the build on a shipped skill without it.
+ * CLAUDE.md rule 8 makes it an invariant rather than an observation: the prefix
+ * gate in `scripts/anti-bloat-check.sh` fails the build on a shipped skill
+ * without it, and a test holds that gate to its word. Read this comment as a
+ * dependency, not a remark -- delete the gate and the block below starts
+ * committing derived content into every consumer's repository.
  * That is what lets the block name eighty-two owned skill directories with two
  * pattern lines -- and, unlike any list, stay right about a skill the project
  * adds long after the last install.

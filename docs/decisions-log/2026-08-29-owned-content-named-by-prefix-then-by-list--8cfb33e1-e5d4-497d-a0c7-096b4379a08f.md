@@ -5,7 +5,7 @@ createdAt: "2026-08-29T20:05:00.000Z"
 title: "the harness names what it owns by prefix where it can, by list where it cannot"
 status: accepted
 deciders: ["folpe"]
-supersedes: []
+supersedes: ["adr:47d7b6de-c349-40ea-a38a-119570234355"]
 ---
 
 # the harness names what it owns by prefix where it can, by list where it cannot
@@ -35,15 +35,45 @@ is the wall again, and it also carries a second flaw nobody stated: any list is
 stale about a skill added after the last install, so that skill is ignored until
 the next one.
 
+## What this supersedes, and what it leaves standing
+
+The 2026-08-20 decision `harness-owns-its-skills-project-keeps-its-own` settled two
+things. The first, that the harness owns exclusively the skills it ships and the
+project owns every other, **stands untouched** -- this decision serves it rather
+than reopening it.
+
+The second is replaced: that decision made the *manifest* the only way to tell the
+two apart, and rejected the alternative by name -- "confier la distinction à une
+convention de nom ou à un sous-répertoire réservé. Rejeté : le manifeste répond
+déjà exactement à cette question, et une seconde source de vérité dériverait de la
+première."
+
+That objection was correct as things stood, and it is answered rather than
+ignored. The prefix is not a second source of truth derived from the manifest: it
+is a rule the build enforces, so the two cannot disagree. Where the objection was
+strongest -- a convention nobody checks is not an invariant -- it was also, until
+this change, exactly right: `scripts/anti-bloat-check.sh` was cited as enforcing
+the prefix and did not. This decision ships that gate, which is what makes the
+regime sound. Without it, the 2026-08-20 answer would remain the better one.
+
+Two facts the earlier decision could not weigh, both measured since:
+
+- deriving the block from the manifest produces **127 entries** on this
+  repository, which is the 148-line wall it was written to avoid, restored;
+- a list is stale about a skill added after the last install, so that skill stays
+  ignored until the next one -- the very loss the decision exists to prevent,
+  reduced in size but not in kind.
+
 ## Decision
 
 The harness names what it owns the cheapest way its own naming allows: a pattern
 where its names carry one, a list where they do not.
 
-Every skill this harness ships is `void-`prefixed -- CLAUDE.md rule 8, enforced
-by `scripts/anti-bloat-check.sh`, so an invariant and not an observation. Two
-pattern lines therefore replace 82 owned skill directories, and, being a pattern,
-they stay right about a skill the project adds long after the last install.
+Every skill this harness ships is `void-`prefixed -- CLAUDE.md rule 8, enforced by
+the prefix gate this decision adds to `scripts/anti-bloat-check.sh`, so an
+invariant and not an observation. Two pattern lines therefore replace 82 owned
+skill directories, and, being a pattern, they stay right about a skill the project
+adds long after the last install.
 
 Agents are named for a person you could hire (`doctrine-critic`,
 `solution-architect`), so nothing separates one of ours from one the project
@@ -88,6 +118,10 @@ Negative:
 - **Derive every entry from the receipt, as before #250.** Rejected on the
   measurement: 127 entries here, the wall restored, and still stale about
   anything added later.
+- **Keep the manifest as the only discriminator**, per the 2026-08-20 decision.
+  Rejected on the two measurements above, and only once the prefix gate exists:
+  a convention no build checks would have made this the weaker answer, which is
+  precisely what that decision said.
 - **Prefix the agents too, and pattern everything.** Rejected as out of scope and
   against the naming doctrine, which gives an agent the name of a person you
   could hire. Worth revisiting only if agents ever need the collision protection

@@ -79,11 +79,15 @@ own skills, agents and commands from the same directories the harness writes
 into. Deciding which side a file belongs to is the ignore block's whole job, and
 it uses whichever of two regimes is cheaper for that root.
 
-- **By prefix**, for `.claude/skills` and `.agents/skills`. Every shipped skill
-  is `void-`prefixed (rule 8, enforced by `scripts/anti-bloat-check.sh`), so two
-  pattern lines cover 82 owned directories. A pattern also has no stale window:
-  it stays right about a skill the project adds long after the last install,
-  which no list can do.
+- **By prefix**, for `.claude/skills` and `.agents/skills`. Every shipped skill is
+  `void-`prefixed (rule 8), so two pattern lines cover 82 owned directories. A
+  pattern also has no stale window: it stays right about a skill the project adds
+  long after the last install, which no list can do. This is only sound because
+  the prefix is checked — `scripts/anti-bloat-check.sh` fails the build on a
+  shipped skill without it, and `test/skills/shipped-skill-carries-the-prefix.test.ts`
+  holds the gate itself to that. A convention no build enforces would make the
+  manifest the better discriminator, which is what the superseded 2026-08-20
+  decision said.
 - **By list**, for `.claude/agents`, `.codex/agents` and `.claude/commands`. An
   agent is named for a person you could hire, so no pattern separates ours from
   the project's; they are named individually from the install receipt.
