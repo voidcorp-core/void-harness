@@ -78,6 +78,99 @@ describe('what may merge itself', () => {
     }
   });
 
+  // Found by the panel convened before this was written, on 2026-08-30. A parser
+  // with the signature `string -> string` cannot say "I do not recognise this",
+  // so every shape it does not understand became a token matching nothing, and a
+  // grant. Six spellings reached production that way, probed on the real
+  // function. The rules below are git's own, read from `git check-ref-format`.
+  it('refuses a target it cannot read as a branch, rather than reading it as not-production', () => {
+    for (const target of [
+      '',
+      '   ',
+      'b'.repeat(40),
+      'HEAD',
+      'main^',
+      'main~1',
+      'main:x',
+      'main@{0}',
+      'main.lock',
+      'refs/tags/main',
+      'refs/pull/12/merge',
+      '.main',
+      'main..x',
+      '/main',
+      'main/',
+      'main//x',
+      'main.',
+      'main?',
+      'main*',
+      'main[',
+      'main\\x',
+      '@',
+      'ma in',
+    ]) {
+      const verdict = grant({ target, deployBranch: 'main' });
+      expect(verdict.kind, target).toBe('refused');
+      if (verdict.kind === 'refused') {
+        expect(verdict.reason, target).toBe('production-downstream');
+      }
+    }
+  });
+
+  // The emptiness check ran on the raw string, so a prefix that normalises away
+  // passed a guard measuring eleven characters and then matched nothing.
+  it('judges an unusable deploying branch after normalising it, not before', () => {
+    for (const deployBranch of ['refs/heads/', 'refs/remotes/', 'remotes/', 'origin/']) {
+      const verdict = grant({ target: 'main', deployBranch });
+      expect(verdict.kind, deployBranch).toBe('refused');
+      if (verdict.kind === 'refused') {
+        expect(verdict.reason, deployBranch).toBe('production-downstream');
+      }
+    }
+  });
+
+  // Both sides read through the same parser, so a suite that varies only one of
+  // them cannot tell a correct fix from one that normalises the resolved side.
+  it('reads every spelling on both sides of the comparison, not only one', () => {
+    const forms = [
+      'main',
+      'origin/main',
+      'refs/heads/main',
+      'refs/remotes/origin/main',
+      'remotes/origin/main',
+      '  main  ',
+      'Main',
+    ];
+    for (const target of forms) {
+      for (const deployBranch of forms) {
+        const verdict = grant({ target, deployBranch });
+        expect(verdict.kind, `${target} vs ${deployBranch}`).toBe('refused');
+        if (verdict.kind === 'refused') {
+          expect(verdict.reason, `${target} vs ${deployBranch}`).toBe('production-downstream');
+        }
+      }
+    }
+  });
+
+  // Without this, a refusal for another reason reads as the guard working: the
+  // production check runs first, and four other refusals are reachable from a
+  // half-built input.
+  it('proves the fixture is grantable, so a refusal means this guard and not another', () => {
+    expect(grant({ target: 'develop', deployBranch: 'main' }).kind).toBe('granted');
+  });
+
+  // Loosening this would let a stale reading look fresh, so the sweep for raw
+  // comparisons deliberately stops at branch names.
+  it('keeps the integration sha compared exactly, abbreviation included', () => {
+    const verdict = grant({
+      target: 'develop',
+      review: clean({ integrationSha: SHA.slice(0, 7) }),
+    });
+
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') expect(verdict.reason).toBe('review-stale');
+  });
+
   it('refuses when the programme names no deploying branch at all', () => {
     const verdict = grant({ deployBranch: '   ' });
     expect(verdict.kind).toBe('refused');

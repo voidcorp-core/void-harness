@@ -32,7 +32,7 @@ refusal names itself:
 
 | refusal | when |
 |---|---|
-| `production-downstream` | the target is the branch that deploys |
+| `production-downstream` | the target resolves to the branch that deploys, or one of the two cannot be read as a branch name at all |
 | `human-gate` | the cluster carries a unit listed in `humanGates` |
 | `base-unprotected` | server-side protection of the base was not positively observed, and unknown counts as unprotected |
 | `sensitive-path` | the diff touches a migration, a workflow or action under `.github/`, a lockfile or `CODEOWNERS` (the `mergeBlocks` list, deliberately not `ownership.sequential`), or the diff could not be listed |
