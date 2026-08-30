@@ -35,7 +35,7 @@ export type PostMergeObservation =
 export type ChainStopReason =
   | 'post-merge-red'
   | 'post-merge-unverified'
-  | 'cap-reached'
+  | 'budget-spent'
   | 'nothing-ready';
 
 export type ChainDecision =
@@ -49,15 +49,53 @@ export type ChainDecision =
       readonly fix: string;
     };
 
+const MINUTE_MS = 60_000;
+
 /**
- * How many merges an unattended run makes before handing back.
+ * How long an unattended run works before handing back.
  *
- * A bound, not a target. Its job is to keep the blast radius of a wrong decision
- * finite and to give a person something to read while the work is still fresh.
+ * Time rather than a ticket count, because time is what someone actually means:
+ * "drain the backlog while I am out" is a duration, and a count of five says
+ * nothing about whether that is twenty minutes or a day. Two hours is the length
+ * of a session someone waits through and still reads afterwards.
  */
-export const DEFAULT_CHAIN_CAP = 5;
+export const DEFAULT_CHAIN_BUDGET_MS = 120 * MINUTE_MS;
+
+/** Past this, one run produces more than anyone reviews in a sitting. */
+const MAX_CHAIN_BUDGET_MS = 24 * 60 * MINUTE_MS;
+
+/**
+ * Read a duration a person types: `2h`, `90m`, `1h30m`.
+ *
+ * Refuses a bare number rather than assuming hours. Someone who writes `6` might
+ * mean six hours or six tickets, and guessing which is how an unattended run ends
+ * up running for a day.
+ */
+export function parseChainBudget(text: string): number {
+  const match = /^\s*(?:(\d+)\s*h)?\s*(?:(\d+)\s*m)?\s*$/i.exec(text);
+  const hours = match?.[1];
+  const minutes = match?.[2];
+  if (match === null || (hours === undefined && minutes === undefined)) {
+    throw new Error(`\`${text}\` is not a duration; write it as 2h, 90m or 1h30m`);
+  }
+  const total = (Number(hours ?? 0) * 60 + Number(minutes ?? 0)) * MINUTE_MS;
+  if (total <= 0) throw new Error(`\`${text}\` is not a duration anyone can work for`);
+  if (total > MAX_CHAIN_BUDGET_MS) {
+    throw new Error(`\`${text}\` is longer than 24h, which is more than anyone reviews in one sitting`);
+  }
+  return total;
+}
 
 const short = (sha: string): string => sha.slice(0, 7);
+
+/** A duration as someone would say it, for a message a person reads. */
+function describe(ms: number): string {
+  const minutes = Math.max(1, Math.round(ms / MINUTE_MS));
+  if (minutes < 60) return `${String(minutes)}m`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${String(hours)}h` : `${String(hours)}h${String(rest)}m`;
+}
 
 function stop(
   reason: ChainStopReason,
@@ -71,7 +109,10 @@ function stop(
 export function planChainStep(input: {
   /** Everything merged so far in this run, oldest first. */
   readonly merged: readonly MergedUnit[];
-  readonly cap: number;
+  /** How long this run may keep taking new units. */
+  readonly budgetMs: number;
+  /** How long it has been running. */
+  readonly elapsedMs: number;
   /** The base after the most recent merge, or undefined if it was not observed. */
   readonly postMerge: PostMergeObservation | undefined;
   /** How many units remain ready to be taken. */
@@ -100,13 +141,29 @@ export function planChainStep(input: {
     }
   }
 
-  if (input.merged.length >= input.cap) {
+  const remaining = input.budgetMs - input.elapsedMs;
+  if (remaining <= 0) {
     return stop(
-      'cap-reached',
+      'budget-spent',
       false,
-      `${String(input.merged.length)} unit(s) merged, which is the cap for one run`,
+      `the ${describe(input.budgetMs)} given to this run is spent`,
       'read the journal, then start another run if the direction still holds',
     );
+  }
+  // A unit already under way is never cut in half; the budget decides whether to
+  // START another. So the question is not "is there time left" but "is there
+  // enough", answered from what this run has actually taken rather than a guess.
+  if (input.merged.length > 0) {
+    const perUnit = input.elapsedMs / input.merged.length;
+    if (remaining < perUnit) {
+      return stop(
+        'budget-spent',
+        false,
+        `${describe(remaining)} left and each unit has taken about ${describe(perUnit)};`
+          + ' the next one would not finish inside the budget',
+        'read the journal, then start another run if the direction still holds',
+      );
+    }
   }
 
   if (input.nextReady <= 0) {
@@ -115,7 +172,8 @@ export function planChainStep(input: {
 
   return {
     kind: 'continue',
-    detail: `base green after ${String(input.merged.length)} merge(s), ${String(input.nextReady)} unit(s) ready`,
+    detail: `base green after ${String(input.merged.length)} merge(s), ${String(input.nextReady)} unit(s) ready,`
+      + ` ${describe(input.budgetMs - input.elapsedMs)} left`,
   };
 }
 

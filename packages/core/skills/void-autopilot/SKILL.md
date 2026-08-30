@@ -133,11 +133,18 @@ claims tickets nobody agreed to hand over.
     chain continue; red stops it where it stands. A base nobody verified stops it too: not
     observing is not the same as being fine, and only one of the two is safe.
 15. **Take the next unit, or stop and say why.** The chain continues only while the base is
-    green, units remain ready, and the run is under `autopilot.chainCap` (five by default).
-    It stops at the first failure without starting the next unit — that single rule is what
-    keeps one bad merge from becoming ten, and it is the reason chaining is worth anything.
-    A stop on a red base is a failure and reads as one; a stop on the cap or on an empty
-    backlog is a nominal end.
+    green, units remain ready, and time is left in the run's budget. It stops at the first
+    failure without starting the next unit — that single rule is what keeps one bad merge
+    from becoming ten, and it is the reason chaining is worth anything. A stop on a red base
+    is a failure and reads as one; a stop on a spent budget or an empty backlog is a nominal
+    end.
+
+    **The budget is a duration, not a ticket count**, because a duration is what someone
+    means: "drain the backlog while I am out" is two hours or six, never five tickets.
+    `autopilot.chainBudget` declares it (two hours by default) and the invocation overrides
+    it for one run — *run autopilot for 6h*. A unit already under way is never cut in half;
+    the budget decides whether to **start** another, and it decides from what this run has
+    actually taken rather than from a guess, so it does not begin a unit it cannot finish.
 16. **Leave the journal.** What merged, in which order, on which evidence: the integration
     SHA each verdict was bound to, the merge commit it produced, the union verdict and the
     checks observed green. The person reading afterwards is deciding whether to trust the

@@ -9,7 +9,7 @@
 // `mergeGate` hand a merge to a machine.
 
 import { existsSync, readFileSync } from 'node:fs';
-import { DEFAULT_CHAIN_CAP } from './chain.js';
+import { DEFAULT_CHAIN_BUDGET_MS, parseChainBudget } from './chain.js';
 import { isAbsolute, join, resolve, sep } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { autopilotFailure } from './errors.js';
@@ -48,8 +48,8 @@ export interface AutopilotConfig {
   readonly schemaVersion: 1;
   /** Ceiling on one cluster, 1..4. */
   readonly clusterSize: number;
-  /** Merges one unattended run makes before handing back. */
-  readonly chainCap: number;
+  /** How long one unattended run keeps taking units, in milliseconds. */
+  readonly chainBudgetMs: number;
   /** `auto` resolves develop then main; anything else must exist. */
   readonly base: string;
   /**
@@ -114,8 +114,6 @@ export function programPath(root: string): string {
   return present[0] ?? PROGRAM_PATH;
 }
 const MAX_CLUSTER_SIZE = 4;
-/** Beyond this, one run merges more than a person will read afterwards. */
-const MAX_CHAIN_CAP = 20;
 
 function invalid(problem: string, cause: string, fix: string): never {
   throw autopilotFailure('AUTOPILOT_PROGRAM', problem, cause, fix);
@@ -295,16 +293,29 @@ function parseAutopilot(value: unknown): AutopilotConfig | undefined {
     );
   }
 
-  // How many merges one unattended run makes before handing back. Declared beside
-  // the consent rather than passed on a command line: a run nobody is watching
-  // must not be able to widen its own blast radius.
-  const chainCap = block.chainCap ?? DEFAULT_CHAIN_CAP;
-  if (!Number.isInteger(chainCap) || (chainCap as number) < 1 || (chainCap as number) > MAX_CHAIN_CAP) {
-    invalid(
-      'the program descriptor declares an unusable chain cap',
-      `\`autopilot.chainCap\` is ${String(chainCap)}, outside 1..${MAX_CHAIN_CAP}`,
-      `set \`autopilot.chainCap\` between 1 and ${MAX_CHAIN_CAP}`,
-    );
+  // How long one unattended run keeps taking units. Declared beside the consent
+  // rather than passed as a flag, and expressed as a duration because that is what
+  // someone means: "drain the backlog while I am out" is two hours or six, never
+  // a number of tickets. The invocation may override it for a single run.
+  const rawBudget = block.chainBudget;
+  let chainBudgetMs = DEFAULT_CHAIN_BUDGET_MS;
+  if (rawBudget !== undefined) {
+    if (typeof rawBudget !== 'string') {
+      invalid(
+        'the program descriptor declares an unusable chain budget',
+        `\`autopilot.chainBudget\` is ${String(rawBudget)}, which is not a duration`,
+        'write it as a duration, e.g. `chainBudget: 2h`',
+      );
+    }
+    try {
+      chainBudgetMs = parseChainBudget(rawBudget as string);
+    } catch (error) {
+      invalid(
+        'the program descriptor declares an unusable chain budget',
+        error instanceof Error ? error.message : 'unreadable duration',
+        'write it as a duration, e.g. `chainBudget: 2h`',
+      );
+    }
   }
 
   const base = block.base ?? 'auto';
@@ -320,7 +331,7 @@ function parseAutopilot(value: unknown): AutopilotConfig | undefined {
   return {
     schemaVersion: 1,
     clusterSize: clusterSize as number,
-    chainCap: chainCap as number,
+    chainBudgetMs,
     base,
     mergeGate,
     ...(deployBranch === undefined ? {} : { deployBranch }),
