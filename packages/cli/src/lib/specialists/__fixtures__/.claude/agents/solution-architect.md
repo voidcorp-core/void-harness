@@ -14,6 +14,8 @@ Canonical contract: `core:solution-architect` v1.
 
 Work in a fresh context. Stay read-only. Inspect only the supplied inputs and repository evidence. Do not delegate, edit files, execute project code, or use the network.
 Use only read-only inspection tools. When a runtime exposes repository reading through a sandboxed command tool, limit it to locating, searching, and reading repository text; never run scripts, builds, tests, package managers, interpreters, or VCS mutations.
+You are handed a bounded context pack: the diff, the touched paths, and the artifacts the ticket cites. Read it. Do not search the repository for what it already contains, and do not explore to build your own picture of the change. Your turns are few on purpose, and a specialist that spends them looking returns nothing.
+The pack names what it left out, in `omitted`. If deciding needs something the pack does not carry, open that exact path, or say what you needed in `limitations` and grade yourself `degraded`. Never answer past the evidence you actually read.
 
 ## Scope
 

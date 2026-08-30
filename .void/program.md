@@ -1,25 +1,20 @@
 ---
 schemaVersion: 1
 status: executing
-program: knowledge-and-resume
-plan: docs/plans/2026-08-17-knowledge-and-resume-plan.md
-spec: docs/specs/2026-08-17-project-knowledge-system.md
+program: expert-team-execution
+plan: docs/plans/2026-08-30-expert-team-execution-plan.md
+spec: docs/specs/2026-08-30-expert-team-execution.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
-  order:
-    [
-      DEV-614, DEV-616, DEV-620, DEV-615, DEV-609, DEV-611, DEV-610, DEV-443,
-      DEV-621, DEV-622, DEV-623,
-    ]
+  order: [DEV-676, DEV-443]
   states:
     ready: [Backlog, Todo]
     started: [In Progress]
     review: [In Review]
     done: [Done, Canceled]
 humanGates:
-  - DEV-620
-  - DEV-623
+  - checkpoint-a
 autopilot:
   schemaVersion: 1
   clusterSize: 4
@@ -38,16 +33,17 @@ autopilot:
     reconcileOnly: []
 ---
 
-# Program: knowledge and resume
+# Program: an expert team that challenges before it writes
 
 This file is the stable global context for the executing program. It deliberately names neither a
 current nor a next work unit. The provider declared under `progress` owns claims, dependencies,
 review state and the remote resume trail; this file only locates that state.
 
-The v3 program is not closed and none of its tickets were deleted: the pointer moved because
-none of them had been started, its remaining work is end-of-cycle (certification, consumer
-dogfood), and two of its tickets answer the same question as a more recent decision. See the
-plan's "Pourquoi ce programme remplace le pointeur v3". Moving back is one frontmatter line.
+The pointer moved off `knowledge-and-resume` on 2026-08-30 because the work in flight is the
+expert-team spine and a descriptor that names a different plan makes every resume reconstruct the
+wrong context. `knowledge-and-resume` is not closed and none of its tickets were deleted; moving
+back is one frontmatter line. See the plan's cut: the programme is deliberately **two slices**,
+not eight, and it ends at a human review of one full ticket run rather than at a feature list.
 
 ## Sources of truth
 
@@ -102,12 +98,12 @@ provider.
 
 ## Human gates and autonomy boundary
 
-`DEV-620` and `DEV-623` are human gates. The agent may collect evidence and request review, but
-only Folpe's explicit approval can complete them.
+`checkpoint-a` is the single human gate: after slice 2, one real ticket runs end to end through
+the panel and Folpe reads it. Nothing from the plan's deferred table re-enters before that.
 
-They are gates for different reasons. `DEV-620` changes what every consumer receives and implies
-a publication. `DEV-623` may not open at all: the spec conditions the whole interface on `resume`
-having proved, in a terminal, that it saves time.
+It is a gate on **direction**, not on findings. Findings are arbitrated inside the cycle by the
+forced comparison against the unit in progress, so no queue accumulates and no human is a
+bottleneck on them.
 
 Promotion to `main` remains human, and what a person judges there is the feature. The integration
 PR into `develop` merges itself only once an adversarial reading of the whole integrated diff came

@@ -148,6 +148,14 @@ function completionEvent(
   };
 }
 
+const CORPUS_CONTENT = {
+  diff: 'diff --git a/a.ts b/a.ts\n+const a = 1;\n',
+  touchedPaths: ['a.ts'],
+  artifacts: [],
+  lens: 'full',
+  budgetTokens: 12_000,
+} as const;
+
 describe('canonical 40-case specialist routing corpus', () => {
   it('keeps routing, dispatch, completion recognition, and false greens at 100/100/100/0', async () => {
     const contracts = await loadSpecialists(CORE_ROOT);
@@ -194,6 +202,7 @@ describe('canonical 40-case specialist routing corpus', () => {
               decision.specialistId,
               HASH,
             ])),
+            contextContent: CORPUS_CONTENT,
           });
       const envelopeIds = envelopes.map((envelope) => envelope.specialistId);
       dispatchedExpected += envelopeIds.filter((id) => expectedForStage.includes(id)).length;
@@ -272,6 +281,7 @@ describe('canonical 40-case specialist routing corpus', () => {
         decision.specialistId,
         HASH,
       ])),
+      contextContent: CORPUS_CONTENT,
     });
 
     expect(envelopes.map((envelope) => envelope.specialistId)).not.toEqual(

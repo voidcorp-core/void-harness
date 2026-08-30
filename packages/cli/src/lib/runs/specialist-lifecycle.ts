@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
 import {
+  parseContextPackValue,
   parseSpecialistCompletionValue,
   type CanonicalEvent,
   type EventDraft,
@@ -53,6 +54,7 @@ const ENVELOPE_KEYS = [
   'stage',
   'reviewRound',
   'inputHash',
+  'contextPack',
 ] as const;
 
 function invalid(detail: string): never {
@@ -101,6 +103,17 @@ function parseEnvelope(value: unknown): SpecialistDispatchEnvelope {
   ) {
     invalid('dispatch envelope is malformed');
   }
+  // The pack is checked against the dispatch it claims to answer, not only
+  // against its own bytes: an unkeyed content hash is recomputable by anyone who
+  // can rewrite the pack, so on its own it detects corruption and not a pack
+  // lifted from another specialist, stage, or review round.
+  const contextPack = parseContextPackValue(value.contextPack, {
+    missionId: value.missionId,
+    specialistId: value.specialistId,
+    stage: value.stage,
+    reviewRound: Number(value.reviewRound),
+    inputHash: value.inputHash,
+  });
   return {
     schemaVersion: 1,
     missionId: value.missionId,
@@ -111,6 +124,7 @@ function parseEnvelope(value: unknown): SpecialistDispatchEnvelope {
     stage: value.stage,
     reviewRound: Number(value.reviewRound),
     inputHash: value.inputHash,
+    contextPack,
   };
 }
 

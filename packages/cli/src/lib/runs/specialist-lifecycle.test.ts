@@ -2,6 +2,7 @@ import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { compileContextPack } from '@voidcorp/mission-engine';
 import { appendMissionEvent, createMission, inspectMission } from './store.js';
 import {
   parseSpecialistLifecycleInput,
@@ -11,6 +12,24 @@ import {
 
 const ID = 'mis_0123456789abcdef0123456789abcdef';
 const HASH = `sha256:${'a'.repeat(64)}`;
+/** A pack binds to one round, so a second round compiles its own. */
+function packFor(reviewRound: number) {
+  return compileContextPack({
+    diff: 'diff --git a/a.ts b/a.ts\n+const a = 1;\n',
+    touchedPaths: ['a.ts'],
+    artifacts: [],
+    lens: 'full',
+    budgetTokens: 12_000,
+    dispatch: {
+      missionId: ID,
+      specialistId: 'core:security-engineer',
+      stage: 'post-implementation',
+      reviewRound,
+      inputHash: HASH,
+    },
+  });
+}
+const PACK = packFor(1);
 const ENVELOPE = {
   schemaVersion: 1,
   missionId: ID,
@@ -21,6 +40,7 @@ const ENVELOPE = {
   stage: 'post-implementation',
   reviewRound: 1,
   inputHash: HASH,
+  contextPack: PACK,
 } as const;
 const COMPLETION = {
   schemaVersion: 1,
@@ -87,7 +107,7 @@ describe('specialist lifecycle adapter', () => {
       contextId: 'ctx_security_0001',
       completion: COMPLETION,
     }));
-    const roundTwo = { ...ENVELOPE, reviewRound: 2 };
+    const roundTwo = { ...ENVELOPE, reviewRound: 2, contextPack: packFor(2) };
     await recordSpecialistRequests(root, ID, [roundTwo], HASH);
     await recordSpecialistLifecycle(root, ID, parseSpecialistLifecycleInput('started', {
       envelope: roundTwo,
@@ -120,6 +140,19 @@ describe('specialist lifecycle adapter', () => {
       },
     });
     expect(JSON.stringify(inspected.stream.events)).not.toContain('rawPrompt');
+    // The pack is content-addressed, so the log keeps the identity and not the
+    // diff. Embedding it would repeat the whole diff per specialist per round in
+    // a file that is written once and read forever.
+    expect(JSON.stringify(inspected.stream.events)).not.toContain('contextPack');
+  });
+
+  it('refuses a pack lifted from another round, which an unkeyed hash would accept', () => {
+    // PACK is bound to round 1 and its bytes are intact, so the content hash
+    // alone says yes. What refuses it is the binding.
+    expect(() => parseSpecialistLifecycleInput('started', {
+      envelope: { ...ENVELOPE, reviewRound: 2 },
+      contextId: 'ctx_security_0002',
+    })).toThrow('CONTEXT_PACK_INVALID');
   });
 
   it('rejects forged, conflicting, and secret-bearing terminal events', async () => {
@@ -157,7 +190,7 @@ describe('specialist lifecycle adapter', () => {
     expect(inspected.stream.events.filter((event) =>
       event.kind === 'specialist.completed' || event.kind === 'specialist.failed')).toHaveLength(1);
 
-    const secretRound = { ...ENVELOPE, reviewRound: 2 };
+    const secretRound = { ...ENVELOPE, reviewRound: 2, contextPack: packFor(2) };
     await recordSpecialistRequests(root, ID, [secretRound], HASH);
     await recordSpecialistLifecycle(root, ID, parseSpecialistLifecycleInput('started', {
       envelope: secretRound,
