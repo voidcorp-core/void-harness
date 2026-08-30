@@ -94,120 +94,21 @@ later slice ships a panel that cannot see.
 - **Notes**: this is prose against a compiler. The test is what keeps it true, and this repo has
   now twice shipped a skill asserting the opposite of its CLI.
 
-### Step 3 — A brief that carries its own acceptance criteria
+## Out of scope, deliberately
 
-- **Goal**: a specialist returns findings AND the criteria it will verify them by; the writer
-  implements against those criteria and checks itself.
-- **Depends on**: step 2
-- **TDD mode**: strict (contract change, parsed at a boundary)
-- **Scope**: add a bounded `verificationCriteria` to the completion contract, validated like
-  every other field; a finding without one is `degraded`, never silently accepted; the criteria
-  reach the writer's brief; the recap names which were met.
-- **Verification gate**: a completion missing the field is rejected with a named cause; a
-  ticket run end to end shows each criterion echoed in the verification pass. `pnpm verify`
-  green.
-- **Expected commits**:
-  - `test(mission): a specialist that names no verification criterion is degraded, not accepted`
-  - `feat(mission): a brief carries the criteria the writer will be judged on`
-- **Notes**: this is what buys speed rather than spending it — the review afterwards confirms
-  instead of discovering. If it does not remove a round trip, it has failed and should be
-  reverted rather than kept for tidiness.
+Cut on 2026-08-30, after the plan reached eight slices and three open decisions in one day.
+The cause was mechanical: these slices were found by **reading** the code, and reading finds
+defects without end. None of them was found by a run that failed. They stay as tickets and
+re-enter a plan only when a real end-to-end run shows they block something.
 
-### Step 4 — A refusal that proposes, chooses, and surfaces
-
-- **Goal**: a specialist that says no never silently blocks; it proposes alternatives, picks
-  one, and that choice appears in the recap.
-- **Depends on**: step 3
-- **TDD mode**: strict
-- **Scope**: a `blocked` verdict requires at least one named alternative and a chosen one; the
-  recap renders every specialist choice with its author.
-- **Verification gate**: a `blocked` completion with no alternative is refused; the recap of a
-  real run names each choice and who made it.
-- **Expected commits**:
-  - `test(mission): a refusal without an alternative is not a usable refusal`
-  - `feat(mission): a blocked verdict carries options and the one it chose`
-- **Notes**: under an unattended run a block stops the chain while a named choice does not. That
-  is the whole reason this step exists, and it is why it precedes any autopilot work.
-
-### Checkpoint A — after Step 4
-
-The panel now convenes before writing, sees the code, carries its own acceptance criteria, and
-refuses usefully. Stop. Run `void-verify`. Folpe reviews one full ticket run end to end before
-anything else is built on top.
-
-### Step 5 — The x10 fires on every brainstorm
-
-- **Goal**: the ambition pass stops being trapped in the raw-product-idea mode.
-- **Depends on**: none (parallel with 1–4)
-- **TDD mode**: souple
-- **Scope**: `void-brainstorm` line 69 scopes the pressure-test to a raw product idea and line 84
-  carries the 10x inside it. The 10x becomes unconditional; the demand pressure-test stays scoped
-  to a raw idea, because a technical ticket has no demand to test.
-- **Verification gate**: a technical brainstorm produces an ambitious option and a creative
-  reframing, not only the safe increment. A clause test pins the unconditional wording.
-- **Expected commits**:
-  - `test(skills): the ambition pass is not scoped to a product idea`
-  - `feat(skills): push the x10 on every brainstorm, since the timid version is the default one`
-- **Notes**: `void-implement` must NOT re-open scope as a consequence. A wrong angle returns to
-  brainstorm explicitly, which is a named and rare event.
-
-### Step 6 — One skill owns the design principles
-
-- **Goal**: `void-design-principles` exists and is invoked when code is written.
-- **Depends on**: none (parallel with 1–4)
-- **Ticket**: DEV-668
-- **TDD mode**: strict for the hooks, souple for the prose
-- **Scope**: single skill owning SRP, OCP, LSP, ISP, DRY, KISS, cohesion, coupling. Dependency
-  inversion stays in `void-hexagonal-architecture`. Anything mechanically checkable becomes a
-  hook, not prose. The two passing mentions of coupling (`void-plan-review`, `void-testing`) are
-  either redirected or removed.
-- **Verification gate**: measured overlap < 30% against every existing skill,
-  `void-hexagonal-architecture` first; `pnpm anti-bloat:check` green; under 400 lines; and the
-  skill is observed firing in invocation telemetry, not merely declared.
-- **Expected commits**:
-  - `test(skills): every principle is stated so a reviewer can point at it in a diff`
-  - `feat(skills): one skill owns the design principles, loaded at the moment they fire`
-- **Notes**: the ticket's numbers were wrong until today — DRY was claimed in 16 skills and is in
-  0. The gap is absence, not dispersion, so there is almost nothing to remove and everything to
-  write. Any coverage number in the skill comes from a replayable command.
-
-### Step 7 — The three missing specialists
-
-- **Goal**: the role that judges prose written for agents exists, plus `backend-engineer` and
-  `release-engineer`.
-- **Depends on**: steps 1, 2
-- **Ticket**: DEV-669
-- **TDD mode**: strict for the contracts and the wiring
-- **Scope**: three canonical contracts compiled for both runtimes, each declaring its tool
-  whitelist (DEV-634). The prose specialist is convened by an observable predicate: the diff
-  touches a skill, an agent, doctrine, or a refusal message.
-- **Verification gate**: replayed against the five defects in DEV-667, the prose specialist names
-  at least three. Each of the three is observed invoked in telemetry.
-- **Expected commits**:
-  - `test(agents): the prose specialist names the defects that shipped past every gate`
-  - `feat(agents): a specialist for the prose this project actually produces`
-- **Notes**: strictly after steps 1 and 2. Adding three specialists to a panel that is not
-  convened and cannot see takes the count from sixteen to nineteen and changes nothing — the
-  ticket says so itself.
-
-### Step 8 — The chain, sequential and watched for drift
-
-- **Goal**: `void-autopilot` chains through a union branch instead of a parallel cluster, and
-  stops when the work stops being as good as it was.
-- **Depends on**: steps 1–4
-- **Ticket**: DEV-670 partially; needs its own decomposition before execution
-- **TDD mode**: strict
-- **Scope**: sequential chain (union branch, one feature branch per unit, consolidation, one PR);
-  wire `planChainStep` / `resolveChainBudget` / `renderMergeJournal`, which today have no
-  production caller; point the eval apparatus (`apps/eval-harness`, `gut-skill.ts`,
-  `--sensitivity`) at the run rather than at the skill.
-- **Verification gate**: a real two-unit chain runs, its journal names what merged on what
-  evidence, and an injected quality regression stops it.
-- **Expected commits**: to be decomposed — this slice is larger than the others and should
-  become its own plan rather than one step.
-- **Notes**: the biggest and least specified. It also carries DEV-674 (an advisory still has no
-  consumer) and DEV-673 (six classes of diff still granted), both of which land in the same
-  files. Do not start it before Checkpoint A.
+| was | slice | ticket | why it is not here |
+|---|---|---|---|
+| 3 | A brief carrying its own acceptance criteria | — | speculative: no run has yet cost us the round trip it removes |
+| 4 | A refusal that proposes and chooses | — | matters under unattended runs, which slice 8 defers anyway |
+| 5 | The x10 fires on every brainstorm | — | independent of this spine; one clause in `void-brainstorm` |
+| 6 | One skill owns the design principles | DEV-668 | independent; ready to execute on its own |
+| 7 | The three missing specialists | DEV-669, DEV-634 | adding roles to a panel that just learned to see changes nothing yet |
+| 8 | The chain, sequential and watched for drift | DEV-670, DEV-673, DEV-674 | larger than 1-7 combined; needs its own plan from a measured baseline |
 
 ## Execution handoff
 
@@ -217,16 +118,11 @@ this table and installs `.void/program.md`; the declared Linear provider then ow
 | key | slice | depends on | tickets | gate |
 |---|---|---|---|---|
 | 1 | Give a specialist eyes | — | DEV-676, DEV-443 | — |
-| 2 | Convene before the first line | 1 | — | — |
-| 3 | A brief carrying its criteria | 2 | — | — |
-| 4 | A refusal that proposes | 3 | — | **human: Checkpoint A** |
-| 5 | The x10 on every brainstorm | — | — | — |
-| 6 | One skill owns the principles | — | DEV-668 | — |
-| 7 | The three missing specialists | 1, 2 | DEV-669, DEV-634 | — |
-| 8 | The chain, sequential and watched | 1–4 | DEV-670, DEV-673, DEV-674 | **needs its own plan** |
+| 2 | Convene before the first line | 1 | — | **human: one full ticket run, reviewed by Folpe** |
 
-Slices 5 and 6 are independent of the 1→4 spine and of each other: they can run in parallel with
-it, and they are the two that touch no orchestration code.
+After slice 2, execution **stops**. One real ticket runs end to end through the panel, Folpe
+reads it, and what that run actually lacked becomes the next plan. Nothing from the deferred
+table re-enters before that.
 
 DEV-666 (63 triage verdicts) is not a slice here. It is backlog curation, which is a human gate
 by doctrine, and it feeds this plan rather than depending on it.
@@ -236,12 +132,13 @@ by doctrine, and it feeds this plan rather than depending on it.
 Named rather than resolved, because each would change what gets built and none is mine to
 settle alone.
 
-1. **Does the panel really fire on every ticket?** The spec says the floor is the panel and only
-   depth varies. Measured cost is five specialists per ticket at 12 000 tokens each. On an XS
-   ticket that is a real bill for three lines of "no trust boundary touched". The alternative —
-   a predicate-selected subset — is what the controller already implements. The spec argues the
-   floor version; the code implements the subset version. **They disagree, and step 2 forces the
-   choice.**
+1. ~~**Does the panel really fire on every ticket?**~~ **Settled 2026-08-30 by Folpe, in favour
+   of the spec**: the panel is a floor, and what shrinks when a specialist has nothing important
+   to say is the lens, not the guest list. `appliesWhen` stops deciding *whether* a specialist
+   speaks and starts deciding *how much* it says. Recorded as
+   `docs/decisions-log/2026-08-30-panel-is-a-floor-the-lens-shrinks--fcc230d9-3324-42a7-afb8-b4922b0cb0f0.md`.
+   Step 2 therefore also changes `routeSpecialists` and the `not-applicable` filter in
+   `controller.ts`; step 1 gains the reduced-lens budget alongside the context pack.
 2. **What happens to a specialist that never changes an outcome?** The spec says the eval
    apparatus decides, not taste. That apparatus does not exist for this question yet, so until it
    does, nothing retires a role.
