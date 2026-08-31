@@ -146,7 +146,10 @@ with nothing else in place.
     what comes back, what a stop means.
 - **Verification gate**: a real run on a two-unit pool, **no human interaction between launch and
   the PR**. And the declared-mechanism-has-a-caller test goes green, which is the mechanical proof
-  that nothing was left unwired. Two adversarial cases, because one happy run proves one
+  that nothing was left unwired. **That test is already written** — it found the twenty-four on
+  2026-08-31 and lives in the session scratchpad rather than in `test/`, because a test that is red
+  by design breaks every `pnpm verify` until the slice that makes it green. It is committed with
+  this slice, not before. Two adversarial cases, because one happy run proves one
   trajectory: a second launch against a held pool refuses, and a run killed between merge and
   publish resumes rather than re-merging. `pnpm verify` green on the integration SHA.
 - **Expected commits**:
