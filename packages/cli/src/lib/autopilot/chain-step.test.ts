@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CHAIN_BUDGET_MS, type MergedUnit } from './chain.js';
 import { decideChainStep, type ChainObservation } from './chain-step.js';
+import type { CarriedDebt } from './debt-carry.js';
 
 const SHA = 'a'.repeat(40);
 const MERGE = 'b'.repeat(40);
@@ -111,5 +112,55 @@ describe('what the chain does next', () => {
 
     expect(step.decision.kind).toBe('stop');
     if (step.decision.kind === 'stop') expect(step.decision.reason).toBe('post-merge-unverified');
+  });
+});
+
+describe('what a stop tells a person who is not at a terminal', () => {
+  it('carries a disposition on every stop, not only a reason', () => {
+    const step = decideChainStep(
+      observation({
+        merged: [unit(['DEV-1'])],
+        postMerge: { kind: 'red', sha: MERGE, failing: ['x.test.ts'] },
+        elapsedMs: 20 * MINUTE,
+      }),
+      program,
+    );
+
+    expect(step.decision.kind).toBe('stop');
+    expect(step.disposition).toContain('DEV-1');
+    expect(step.disposition).toMatch(/loses nothing/i);
+  });
+
+  it('says nothing is at risk when a run stopped before merging anything', () => {
+    const step = decideChainStep(
+      observation({ merged: [], postMerge: undefined, elapsedMs: 0, pool: [] }),
+      program,
+    );
+
+    expect(step.disposition).toMatch(/nothing merged/i);
+  });
+
+  it('names the debts the run is handing back', () => {
+    const debts: readonly CarriedDebt[] = [
+      { unit: 'DEV-1', proof: 'surface-run', severity: 'high', reason: 'not run here' },
+    ];
+    const step = decideChainStep(
+      observation({
+        merged: [unit(['DEV-1'])],
+        postMerge: { kind: 'green', sha: MERGE, suite: 'ok' },
+        elapsedMs: 20 * MINUTE,
+        debts,
+      }),
+      program,
+    );
+
+    expect(step.disposition).toContain('surface-run');
+  });
+
+  it('carries the disposition on a continue too, so the surface is the same all run', () => {
+    const step = decideChainStep(observation(), program);
+
+    expect(step.decision.kind).toBe('continue');
+    expect(step.disposition).toBeTruthy();
   });
 });

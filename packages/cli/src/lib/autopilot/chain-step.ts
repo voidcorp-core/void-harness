@@ -6,6 +6,7 @@
 // This is the composition; the loop that acts on it belongs to the skill,
 // because the CLI contacts nothing and spawns no agent.
 
+import { carryDebt, renderDisposition, type CarriedDebt } from './debt-carry.js';
 import {
   planChainStep,
   renderMergeJournal,
@@ -27,6 +28,8 @@ export interface ChainObservation {
   readonly pool: readonly string[];
   /** A duration this one run asks for, e.g. `6h`. */
   readonly requested?: string | undefined;
+  /** What earlier units of this run owe, carried forward and reported. */
+  readonly debts?: readonly CarriedDebt[] | undefined;
 }
 
 export interface ChainProgram {
@@ -41,6 +44,15 @@ export interface ChainStep {
   readonly nextUnit?: string;
   /** What merged so far, rendered for the pull request body. */
   readonly journal: string;
+  /**
+   * What is kept and what remains, in one sentence.
+   *
+   * Present on a continue as well as on a stop: a person watching a long run
+   * should not meet a different surface depending on whether it ended.
+   */
+  readonly disposition: string;
+  /** Bounded, severity-ordered, for the next unit's brief. */
+  readonly carriedDebts: readonly CarriedDebt[];
 }
 
 export function decideChainStep(
@@ -69,10 +81,18 @@ export function decideChainStep(
   // spent budget ends the run rather than pausing it.
   const nextUnit = decision.kind === 'continue' ? remaining[0] : undefined;
 
+  const debts = carryDebt(observation.debts ?? [], { withNote: true });
+
   return {
     budgetMs,
     decision,
     ...(nextUnit === undefined ? {} : { nextUnit }),
     journal: renderMergeJournal(observation.merged),
+    disposition: renderDisposition({
+      merged: observation.merged.flatMap((merged) => merged.tickets),
+      remaining,
+      debts,
+    }),
+    carriedDebts: debts,
   };
 }

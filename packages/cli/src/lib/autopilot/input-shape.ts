@@ -197,6 +197,13 @@ export const INPUT_SHAPES: Readonly<Record<AutopilotInputStep, InputShape>> = Ob
         example: 0,
       },
       {
+        name: 'debts',
+        type: 'array',
+        from: 'what earlier units of THIS run owe; empty on the first step. The step bounds and'
+          + ' orders them, so pass everything and let it decide what a brief carries',
+        example: [],
+      },
+      {
         name: 'pool',
         type: 'array',
         from: '`progress.order` filtered to units that are not done, INCLUDING the ones this run'

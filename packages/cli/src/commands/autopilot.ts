@@ -438,9 +438,12 @@ function chainCommand(
     { ...observation, ...(requested === undefined ? {} : { requested }) },
     descriptor.autopilot,
   );
+  // The disposition is on both arms on purpose. Someone watching a long run
+  // should not meet a different surface depending on whether it ended.
   const human = step.decision.kind === 'continue'
-    ? `continue: take ${step.nextUnit ?? '(none)'} — ${step.decision.detail}\n`
-    : `stop (${step.decision.reason}): ${step.decision.detail}\nfix: ${step.decision.fix}\n`;
+    ? `continue: take ${step.nextUnit ?? '(none)'} — ${step.decision.detail}\n${step.disposition}\n`
+    : `stop (${step.decision.reason}): ${step.decision.detail}\nfix: ${step.decision.fix}\n`
+      + `${step.disposition}\n`;
   return emit(json, step, human);
 }
 
