@@ -684,6 +684,91 @@ describe('what the reading is not allowed to unlock', () => {
     expect(grant({ tickets: ['DEV-100'], humanGates: ['DEV-620'] }).kind).toBe('granted');
   });
 
+  // Without this, every refusal below reads as the guard working: the gate check
+  // runs fifth, and a half-built input reaches it already refused.
+  it('proves a cluster carrying the same unit ungated is grantable', () => {
+    expect(grant({ tickets: ['DEV-100', 'DEV-671'], humanGates: [] }).kind).toBe('granted');
+  });
+
+  // `humanGates` has exactly the provenance this module already distrusts for
+  // `deployBranch`: typed by a person into a programme descriptor and validated
+  // by nothing. Compared with `Array.includes`, a descriptor carrying `dev-671`
+  // or `#DEV-671` against a cluster carrying `DEV-671` matched NOTHING -- and
+  // matching nothing is what grants the merge the person reserved for themselves.
+  //
+  // The direction is inverted from the ref defect next door: an unreadable ref
+  // refuses a legitimate merge, which a person sees and corrects, while this one
+  // lifts a declared gate without a word. Read as a cross-product, because a
+  // suite varying one side cannot tell a correct fix from one that normalises
+  // only the side it happened to vary.
+  it('compares a gated unit on one identity from both sides, whatever the spelling', () => {
+    const forms = ['DEV-671', 'dev-671', 'Dev-671', '#DEV-671', 'DEV-671 ', '  #dev-671  '];
+    for (const ticket of forms) {
+      for (const gate of forms) {
+        const verdict = grant({ tickets: ['DEV-100', ticket], humanGates: [gate] });
+        expect(verdict.kind, `${ticket} vs ${gate}`).toBe('refused');
+        if (verdict.kind === 'refused') {
+          expect(verdict.reason, `${ticket} vs ${gate}`).toBe('human-gate');
+          expect(verdict.detail, `${ticket} vs ${gate}`).toContain(ticket);
+        }
+      }
+    }
+  });
+
+  // Folding an identity must not widen it. A gate that fires on a neighbouring
+  // unit is a guard firing on ordinary work, which is how a gate stops being
+  // respected.
+  it('does not read a neighbouring unit as the gated one', () => {
+    for (const gate of ['DEV-67', 'DEV-6710', 'EV-671', 'DEV-671-b', 'DEV#671']) {
+      expect(grant({ tickets: ['DEV-671'], humanGates: [gate] }).kind, gate).toBe('granted');
+    }
+  });
+
+  // The same direction discipline the branch identity next door applies: an
+  // identity that cannot be read cannot be shown NOT to name the reserved unit,
+  // and the descriptor boundary is not the only way into this function -- a
+  // rehydrated cluster reaches it with no parse behind it.
+  it('counts an identity it cannot read as gated rather than as ungated', () => {
+    // The last two look like the unit they are not. Two strings that render the
+    // same can differ in bytes -- a non-breaking hyphen, a Cyrillic `Е` -- and a
+    // gate lifted by a character nobody can see is this defect in its worst form.
+    for (const gate of [
+      '',
+      '   ',
+      '#',
+      ' # ',
+      '##DEV-671',
+      'DEV 671',
+      'D'.repeat(300),
+      'DEV‑671',
+      'ЕV-671',
+    ]) {
+      const verdict = grant({ tickets: ['DEV-671'], humanGates: [gate] });
+      expect(verdict.kind, JSON.stringify(gate)).toBe('refused');
+      if (verdict.kind === 'refused') {
+        expect(verdict.reason, JSON.stringify(gate)).toBe('human-gate');
+      }
+    }
+    for (const ticket of ['', '  ', '#', 'DEV 671']) {
+      const verdict = grant({ tickets: [ticket], humanGates: ['DEV-620'] });
+      expect(verdict.kind, JSON.stringify(ticket)).toBe('refused');
+      if (verdict.kind === 'refused') {
+        expect(verdict.reason, JSON.stringify(ticket)).toBe('human-gate');
+      }
+    }
+  });
+
+  // A refusal a person cannot act on is a stall. An unreadable identity is not
+  // the same problem as a declared gate, so it does not borrow its sentence.
+  it('says which identity it could not read, instead of naming a gate nobody declared', () => {
+    const verdict = grant({ tickets: ['DEV-671'], humanGates: ['  '] });
+    expect(verdict.kind).toBe('refused');
+    if (verdict.kind === 'refused') {
+      expect(verdict.detail).toContain('could not be read');
+      expect(verdict.detail).not.toContain('declares a human gate');
+    }
+  });
+
   // Server-side protection is the only thing that actually stops a bad push; a
   // check the harness performs on itself proves nothing. Unknown is treated as
   // unprotected, exactly as the lease already treats it.
