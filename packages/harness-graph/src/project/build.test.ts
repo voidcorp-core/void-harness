@@ -33,8 +33,31 @@ import { createNodeFileSystemPort } from './extractors/filesystem.js';
 import { projectFileId, type ProjectGitSnapshot } from './extractors/types.js';
 import { createTypeScriptExtractor } from './extractors/typescript.js';
 import { createNodeProjectRootPort } from './root.js';
-import { createNodeProjectChangeJournal, type ProjectWatchPort } from './journal.js';
-import { answeringAnchor, cleanupProjectTempDirs, createExactProjectChangeJournal, fixtureCompilerLookup, projectTempDir } from './test-support.js';
+import {
+	createNodeProjectChangeJournal,
+	PROJECT_JOURNAL_ANCHOR_PREFIX,
+	type ProjectWatchPort,
+} from './journal.js';
+
+/**
+ * The sentinel half of an injected watch port: a stream that answers.
+ *
+ * Every observation anchors itself in the event stream before it freezes a
+ * generation, so a port that never reports its own sentinel makes the journal
+ * say `uncertain` — correctly, since a watcher that answers nothing cannot prove
+ * a tree stood still. A test that is about something else says so by handing the
+ * anchor back, the way a filesystem does.
+ */
+function answeringAnchor(deliver: (filename: string) => void): ProjectWatchPort['anchor'] {
+	let sentinels = 0;
+	return async () => {
+		sentinels += 1;
+		const path = `.git/${PROJECT_JOURNAL_ANCHOR_PREFIX}${String(sentinels)}`;
+		setTimeout(() => deliver(path), 0);
+		return Object.freeze({ path, release: () => undefined });
+	};
+}
+import { cleanupProjectTempDirs, createExactProjectChangeJournal, fixtureCompilerLookup, projectTempDir } from './test-support.js';
 // @ts-expect-error -- shared JS conformance helper, no type declarations
 import { packageManagerCommand } from '../../../cli/scripts/conformance-process.mjs';
 

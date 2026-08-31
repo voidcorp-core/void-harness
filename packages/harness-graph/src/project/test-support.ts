@@ -7,16 +7,12 @@ import {
 	type CompilerLookup,
 	createNodeCompilerLookup,
 } from './extractors/compiler-host.js';
-import {
-	PROJECT_JOURNAL_ANCHOR_PREFIX,
-	projectPathIsIgnored,
-} from './extractors/filesystem.js';
+import { projectPathIsIgnored } from './extractors/filesystem.js';
 import type { ProjectRootIdentity } from './extractors/types.js';
 import type {
 	ProjectChangeJournal,
 	ProjectChangeObservation,
 	ProjectChangeValidation,
-	ProjectWatchPort,
 } from './journal.js';
 
 const run = promisify(execFile);
@@ -274,26 +270,4 @@ export function fixtureCompilerLookup(): CompilerLookup {
 		resolve: () => node.resolve(process.cwd()),
 		load: (modulePath: string) => node.load(modulePath),
 	});
-}
-
-
-/**
- * The sentinel half of an injected watch port: a stream that answers.
- *
- * Every observation now anchors itself in the event stream before it freezes a
- * generation, so a port that never reports its own sentinel makes the journal
- * say `uncertain` — correctly, since a watcher that answers nothing cannot prove
- * a tree stood still. Tests that are about something else say so by handing the
- * anchor back, the way a filesystem does.
- */
-export function answeringAnchor(
-	deliver: (filename: string) => void,
-): ProjectWatchPort['anchor'] {
-	let sentinels = 0;
-	return async () => {
-		sentinels += 1;
-		const path = `.git/${PROJECT_JOURNAL_ANCHOR_PREFIX}${String(sentinels)}`;
-		setTimeout(() => deliver(path), 0);
-		return Object.freeze({ path, release: () => undefined });
-	};
 }
