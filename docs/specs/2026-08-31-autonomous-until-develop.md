@@ -1,7 +1,7 @@
 ---
 title: Autonomous until develop
 date: 2026-08-31
-status: in-design
+status: approved
 author: Folpe + Claude
 ticket:
 related:
@@ -178,6 +178,20 @@ both uses:
 
 A merge journal lists commits. This states outcomes against intentions, which is what a person
 promoting to production actually judges.
+
+## Order, settled 2026-08-31
+
+Three decisions, taken rather than left to the plan:
+
+1. **Proofs before the script.** A script that orchestrates without the proofs only automates
+   blind trust, and it would run beautifully while proving nothing. The proofs are what make the
+   automation worth having.
+2. **The twenty-four unwired functions are wired BY writing the script.** They are not a separate
+   clean-up: `planWorktreeSetup`, `orderWorkers`, `buildReconcilePlan`, `verifyRange`,
+   `buildPublishPlan` and the rest are exactly what the script calls. Wiring them first, with no
+   caller in mind, would be inventing a second orchestration.
+3. **The final verifier ships in this iteration.** It is the artifact the human gate reads, and an
+   autonomous run whose account arrives later is an autonomous run nobody promotes.
 
 ## Acceptance criteria
 
