@@ -63,6 +63,13 @@ implementation revealed -- and it is caused by deferring. Three corrections went
 the plan the day they were found rather than into a "v2": the unconstrained argv, the three causes
 absence conflated, and the six unattended hours nobody could read.
 
+**And a correction names what it touches before it lands.** A correction is local and urgent while
+doctrine is global and quiet, so the cheapest move is to solve the immediate problem and not notice
+that a decision forbade it. Honouring a decision, or touching none, is applied in place and said
+out loud. Contradicting one is not a correction at all: it is a supersession, and it goes through
+the decision file that already exists for that. See the decision on correcting in flight unless it
+supersedes.
+
 ## Sources of truth
 
 Read these before selecting or executing work:
