@@ -40,6 +40,18 @@ describe('ProjectGraph filesystem paths', () => {
 		expect(projectPathIsIgnored('.VOID/PROJECT-DOCTRINE.md')).toBe(false);
 	});
 
+	// The journal writes a sentinel into the tree it watches to know its event
+	// stream has caught up. It lives for milliseconds, but a scan running in that
+	// window would index it as a source file and a later scan would then see it
+	// disappear — the journal's synchronisation reported as the mutation it exists
+	// to rule out. The name is reserved wherever it lands, root included.
+	it('never indexes a change-journal sentinel, wherever it was placed', () => {
+		expect(projectPathIsIgnored('.void-journal-anchor-4211-1')).toBe(true);
+		expect(projectPathIsIgnored('.git/.void-journal-anchor-4211-1')).toBe(true);
+		expect(projectPathIsIgnored('packages/app/.void-journal-anchor-4211-2')).toBe(true);
+		expect(projectPathIsIgnored('src/void-journal-anchor.ts')).toBe(false);
+	});
+
 	it(
 		'indexes authored .void files while excluding generated state and ordinary assets',
 		async () => {
