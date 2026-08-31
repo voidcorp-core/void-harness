@@ -150,7 +150,10 @@ export const MERGE_REFUSALS = [
 export const MERGE_REFUSAL_TRIGGERS = {
   'production-downstream':
     'the target resolves to the branch that deploys, or one of the two cannot be read as a branch name at all',
-  'human-gate': 'the cluster carries a unit listed in `humanGates`',
+  'human-gate':
+    'the cluster carries a unit listed in `humanGates`, compared on a normalised identity'
+    + ' (case, surrounding space and one leading `#` folded), or an identity on either side'
+    + ' could not be read at all',
   'base-unprotected':
     'server-side protection of the base was not positively observed, and unknown counts as unprotected',
   'sensitive-path':
@@ -437,6 +440,70 @@ function sameBranch(target: unknown, deployBranch: unknown): BranchComparison {
     : 'different';
 }
 
+type TicketRef =
+  | { readonly kind: 'unit'; readonly identity: string }
+  | { readonly kind: 'unrecognised' };
+
+const UNRECOGNISED_UNIT: TicketRef = Object.freeze({ kind: 'unrecognised' as const });
+const MAX_UNIT_ID = 128;
+/**
+ * Everything a provider-native unit id is not: printable ASCII, no space.
+ *
+ * One rule rather than a list of bans, and deliberately including every
+ * codepoint above ASCII. Two strings that look identical can differ -- a
+ * non-breaking hyphen, a Cyrillic `Е`, the same accent composed and decomposed --
+ * and this comparison authorizes a merge on string equality, so an identity whose
+ * appearance and bytes can disagree is one it must not conclude on. Every id a
+ * tracker mints (`DEV-671`, `ABC-123`, `owner/repo#12`) is inside this set;
+ * anything outside it costs a hand merge, which is the side to be wrong on.
+ *
+ * A literal, unlike the branch check above: that one has to name control
+ * characters and writes them through `new RegExp` so none appears in source. This
+ * range starts above them, so it has nothing to hide from: `!` through `~` is
+ * printable ASCII with the space and DEL left out.
+ */
+const OUTSIDE_A_UNIT_ID = /[^!-~]/;
+
+/**
+ * One work-unit identity, in the one shape a comparison can be trusted on.
+ *
+ * `tickets` is derived from the cluster the run assembled. `humanGates` is typed
+ * by a person into a programme descriptor and validated by nothing -- exactly the
+ * provenance `deployBranch` is distrusted for above. So `dev-671`, `#DEV-671` and
+ * `DEV-671 ` all failed to equal the `DEV-671` the cluster carried, and the one
+ * gate by which a person reserves a decision lifted itself.
+ *
+ * Case is folded, the surrounding space is dropped, and one leading `#` goes:
+ * that is the whole vocabulary a person uses to write the same unit down. It
+ * folds only forms that name the same unit, so every error it can make is a
+ * refusal -- which is the direction this check has to fail in.
+ */
+function unitIdentity(name: string): string {
+  const trimmed = name.trim();
+  const bare = trimmed.startsWith('#') ? trimmed.slice(1).trim() : trimmed;
+  return bare.toLowerCase();
+}
+
+/**
+ * Read a work-unit identifier, or say it could not.
+ *
+ * Total on purpose in the same way `parseBranchRef` is not: a helper returning a
+ * string for every input has no way to say "this is not an identity", and the
+ * token it invents instead matches nothing -- which here is a granted merge.
+ *
+ * Shape only. Whether an unreadable identity gates is the grant's decision.
+ */
+function parseUnitRef(name: string): TicketRef {
+  if (name.length > MAX_UNIT_ID) return UNRECOGNISED_UNIT;
+  const identity = unitIdentity(name);
+  if (identity.length === 0) return UNRECOGNISED_UNIT;
+  // A second `#` survived the one that was stripped, so the caller is not writing
+  // the vocabulary this understands, and folding further would be guessing.
+  if (identity.startsWith('#')) return UNRECOGNISED_UNIT;
+  if (OUTSIDE_A_UNIT_ID.test(identity)) return UNRECOGNISED_UNIT;
+  return { kind: 'unit', identity };
+}
+
 export function judgeMergeGrant(input: MergeGrantInput): MergeGrant {
   // Production first, and deliberately before every other check. When the target
   // deploys and the reading is also stale, reporting the stale reading would send
@@ -469,12 +536,43 @@ export function judgeMergeGrant(input: MergeGrantInput): MergeGrant {
 
   // A unit the programme named a human gate is a statement about the work, and no
   // verdict on the diff answers it.
-  const gated = input.tickets.filter((ticket) => input.humanGates.includes(ticket));
+  //
+  // Both sides read through one identity, never compared raw. `Array.includes`
+  // asked for exact equality of two strings a person writes by hand, so a
+  // descriptor saying `dev-671` while the cluster said `DEV-671` matched nothing
+  // -- and matching nothing is what GRANTS the merge that was reserved. The
+  // direction is inverted from the ref check above: an unreadable ref refuses a
+  // legitimate merge, which a person sees and corrects, while this lifted a
+  // declared gate in silence.
+  const units = input.tickets.map((ticket) => ({ raw: ticket, ref: parseUnitRef(ticket) }));
+  const gates = input.humanGates.map((gate) => ({ raw: gate, ref: parseUnitRef(gate) }));
+  const declared = new Set(
+    gates.flatMap((gate) => (gate.ref.kind === 'unit' ? [gate.ref.identity] : [])),
+  );
+  const gated = units.filter(
+    (unit) => unit.ref.kind === 'unit' && declared.has(unit.ref.identity),
+  );
   if (gated.length > 0) {
+    const named = gated.map((unit) => unit.raw).join(', ');
     return refused(
       'human-gate',
-      `the cluster carries ${gated.join(', ')}, which the programme declares a human gate`,
+      `the cluster carries ${named}, which the programme declares a human gate`,
       'merge it yourself, or take the gated unit out of the cluster',
+    );
+  }
+  // An identity nothing could read cannot be shown NOT to name the reserved unit,
+  // so it counts as gated. Refused with its own sentence rather than borrowing
+  // the one above: a person told a gate was declared, when none matched, goes
+  // looking in the wrong file.
+  const unreadable = [...units, ...gates].filter((entry) => entry.ref.kind !== 'unit');
+  if (unreadable.length > 0) {
+    const shown = unreadable.slice(0, 3).map((entry) => JSON.stringify(entry.raw)).join(', ');
+    return refused(
+      'human-gate',
+      `a unit identity could not be read (${shown}), and one that cannot be compared`
+        + ' against `humanGates` counts as gated',
+      'write every cluster unit and every `humanGates` entry as its provider-native id,'
+        + ' then ask again',
     );
   }
 
