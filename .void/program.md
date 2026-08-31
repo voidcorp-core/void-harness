@@ -1,9 +1,9 @@
 ---
 schemaVersion: 1
 status: executing
-program: merge-grant-and-install-safety
-plan: docs/plans/2026-08-30-shipped-guards-plan.md
-spec: docs/specs/2026-08-30-shipped-guards-that-are-open.md
+program: autonomous-until-develop
+plan: docs/plans/2026-08-31-autonomous-until-develop-plan.md
+spec: docs/specs/2026-08-31-autonomous-until-develop.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
@@ -13,9 +13,7 @@ progress:
     started: [In Progress]
     review: [In Review]
     done: [Done, Canceled]
-humanGates:
-  - DEV-677
-  - DEV-673
+humanGates: []
 autopilot:
   schemaVersion: 1
   clusterSize: 4
@@ -39,23 +37,31 @@ autopilot:
     reconcileOnly: []
 ---
 
-# Program: close the guards that are shipped and open
+# Program: autonomous until develop
 
 This file is the stable global context for the executing program. It deliberately names neither a
 current nor a next work unit. The provider declared under `progress` owns claims, dependencies,
 review state and the remote resume trail; this file only locates that state.
 
-The pointer moved on 2026-08-30, after the expert-team spine shipped in #298 and #299 and its
-Checkpoint A was read. The programme is now the pool of **delivered defects** the day surfaced:
-guards that are live and open. Each was kept rather than dropped by the admission rule precisely
-because it is shipped, and a shipped defect does not compare against the work in progress.
+The pointer moved on 2026-08-31 to the programme now in flight: `autopilot 6h` runs to the end
+with nobody present, and the only human gate is the promotion to the branch that deploys.
 
-`DEV-677` and `DEV-673` both rewrite `judgeMergeGrant`. They are declared sequential under
-`autopilot.ownership` rather than left to footprint inference: two agents rewriting the guard that
-authorizes a merge produce a semantic conflict, and no tooling resolves one after the fact.
+`progress.order` names the four shipped guards rather than this programme's slices, and that is
+the field working as specified rather than a mismatch: it is a **deterministic tie-break among
+simultaneously ready units**, not the programme's decomposition. The guards are ready, they are
+real, and they are the pool the first real run drains. The slices are executed directly from the
+plan and become units only when an autopilot has to drain them unattended.
 
-This is also the first attended dogfood of `autopilot` against a real pool. What it reveals about
-the drainer counts as much as what it fixes.
+`humanGates` is empty on purpose. Folpe settled it on 2026-08-31: the only human gate is
+`develop -> main`, which `production-downstream` already refuses to a machine. A gate declared per
+ticket stops a run in front of a person, which is the thing this programme exists to remove. The
+field stays in the contract for consumers who want it.
+
+**Corrections land in the artefact being worked on, never in a successor.** Spec drift is the
+documented failure of this whole family of workflows -- the files stop matching what
+implementation revealed -- and it is caused by deferring. Three corrections went into the spec and
+the plan the day they were found rather than into a "v2": the unconstrained argv, the three causes
+absence conflated, and the six unattended hours nobody could read.
 
 ## Sources of truth
 
