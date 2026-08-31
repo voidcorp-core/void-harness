@@ -44,7 +44,10 @@ export type PanelOutcome =
 const WRITING = new Set(['lead-writer.requested', 'lead-writer.completed']);
 
 export function judgePanelBeforeWriting(events: readonly PanelEvent[]): PanelOutcome {
-  if (!Array.isArray(events) || events.length === 0) {
+  // Not `Array.isArray`: it narrows a `readonly T[]` to `any[]` and takes the
+  // element type with it. Harmless here today and a trap the moment a narrowed
+  // field indexes anything, which is how it surfaced in `debt-carry.ts`.
+  if (events === undefined || events.length === 0) {
     return {
       kind: 'unproven',
       reason: 'no-events',
