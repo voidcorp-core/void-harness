@@ -57,6 +57,7 @@ says which it is.
 | `void-init-stage` | scratch prefix for the isolated init stage |
 | `void-install-conformance` | conformance run label, `packages/cli/scripts/` |
 | `void-internal` | marker for sidecars a consumer never receives |
+| `void-journal-anchor` | reserved basename of a change-journal sentinel |
 | `void-last-event-id` | graph studio live-render cursor |
 | `void-layout` | module owning the void directory layout |
 | `void-migration` | name of the void layout migration check |

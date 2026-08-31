@@ -281,11 +281,15 @@ async function rootWasReplaced(state: JournalState): Promise<boolean> {
 function awaitAnchor(state: JournalState, path: string, timeoutMs: number): Promise<boolean> {
 	if (state.anchorsSeen.delete(path)) return Promise.resolve(true);
 	return new Promise<boolean>((resolve) => {
+		// Deliberately not unref'd. Waiting for a sentinel is work in progress, like
+		// any other pending read, and the watchers themselves are unref'd: a program
+		// whose only outstanding operation is this one would otherwise exit with the
+		// await unsettled rather than with an answer. The wait is bounded, so
+		// keeping the loop alive delays nothing beyond that bound.
 		const timer = setTimeout(() => {
 			state.awaitedAnchors.delete(path);
 			resolve(false);
 		}, timeoutMs);
-		timer.unref?.();
 		state.awaitedAnchors.set(path, () => {
 			clearTimeout(timer);
 			resolve(true);
