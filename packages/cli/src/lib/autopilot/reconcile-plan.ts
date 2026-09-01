@@ -15,11 +15,22 @@
 //      regenerating the same lockfile is four conflicts and one wrong answer.
 //   3. Order is declared, not discovered. Sequential tickets keep their lane
 //      order so a rerun produces the same branch.
+//   4. A range carries only what its own ticket claimed. Ancestry says a range
+//      is the history it says it is; it says nothing about whose files are in
+//      it, and two disjoint footprints merge without a conflict either way.
+//      `footprint-audit` answers the second question, and a breach is excluded
+//      rather than merged.
 
 import { autopilotFailure } from './errors.js';
+import { auditFootprint, type DeclaredFootprint } from './footprint-audit.js';
 import type { RangeVerdict } from './git-observation.js';
 
-export type IntegrationExclusion = 'unverified-range' | 'not-green' | 'no-usable-commit';
+export type IntegrationExclusion =
+  | 'unverified-range'
+  | 'not-green'
+  | 'no-usable-commit'
+  | 'footprint-breach'
+  | 'footprint-unobserved';
 
 export interface ExcludedRange {
   readonly ticketId: string;
@@ -48,8 +59,10 @@ export interface VerifiedRange {
   readonly branch: string;
   readonly headSha: string;
   readonly verdict: RangeVerdict;
-  /** Files the worker touched, used to detect shared-artefact ownership. */
+  /** Files the worker said it touched. A claim, kept only as a fallback. */
   readonly files: readonly string[];
+  /** Files git reported for the range. The only evidence the audit accepts. */
+  readonly observedFiles?: readonly string[];
 }
 
 export interface ReconcileInput {
@@ -59,6 +72,14 @@ export interface ReconcileInput {
   readonly ranges: readonly VerifiedRange[];
   /** Path patterns only the reconciler may write, from the active program. */
   readonly reconcileOnly: readonly string[];
+  /**
+   * What every ticket of the cluster declared, ran or not.
+   *
+   * Absent or empty means nothing was claimed, so nothing can be stolen and the
+   * audit does not run. It is not a way to opt out: the planner already
+   * consumes these, and a cluster that reached orchestration has them.
+   */
+  readonly footprints?: readonly DeclaredFootprint[];
   /** argv that regenerates the shared artefacts, run once at the end. */
   readonly rebuildCommand?: readonly string[];
 }
@@ -101,6 +122,7 @@ export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
   }
 
   const integrationBranch = `autopilot/${input.clusterId}`;
+  const footprints = input.footprints ?? [];
   const excluded: ExcludedRange[] = [];
   const integrate: VerifiedRange[] = [];
 
@@ -121,12 +143,37 @@ export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
       });
       continue;
     }
+    if (footprints.length > 0) {
+      if (range.observedFiles === undefined) {
+        // The same rule ancestry already follows: what the worker says it
+        // touched is a claim, and a claim cannot clear a range of carrying
+        // somebody else's work.
+        excluded.push({
+          ticketId: range.ticketId,
+          reason: 'footprint-unobserved',
+          detail:
+            `\`${range.ticketId}\` was never read from git for the files it touches, and the` +
+            " worker's own list is not an observation",
+        });
+        continue;
+      }
+      const audit = auditFootprint(
+        { ticketId: range.ticketId, files: range.observedFiles },
+        { footprints, exempt: input.reconcileOnly },
+      );
+      if (audit.kind === 'breach') {
+        excluded.push({ ticketId: range.ticketId, reason: 'footprint-breach', detail: audit.detail });
+        continue;
+      }
+    }
     integrate.push(range);
   }
 
   const sharedPaths = [
     ...new Set(
-      integrate.flatMap((range) => range.files.filter((file) => matchesAny(file, input.reconcileOnly))),
+      integrate.flatMap((range) =>
+        (range.observedFiles ?? range.files).filter((file) => matchesAny(file, input.reconcileOnly)),
+      ),
     ),
   ].sort();
 

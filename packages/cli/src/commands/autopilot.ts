@@ -60,6 +60,7 @@ import {
 } from '../lib/autopilot/verification-plan.js';
 import { buildOrchestrationPlan, type OrchestrationPlan } from '../lib/autopilot/orchestration-plan.js';
 import { resolveClusterOutcome, type ClusterOutcome, type WorkerFailure } from '../lib/autopilot/partial-success.js';
+import type { DeclaredFootprint } from '../lib/autopilot/footprint-audit.js';
 import { buildReconcilePlan, type ReconcilePlan, type VerifiedRange } from '../lib/autopilot/reconcile-plan.js';
 import { parseWorkerResult, type WorkerResult } from '../lib/autopilot/worker-result.js';
 import { orderWorkers, type OrderFootprint } from '../lib/autopilot/worker-order.js';
@@ -621,6 +622,8 @@ interface ReconcileObservation {
   readonly reconcileOnly?: readonly string[];
   readonly rebuildCommand?: readonly string[];
   readonly maxCommits?: number;
+  /** What every ticket of the cluster declared, as `orchestrate` received it. */
+  readonly footprints?: readonly DeclaredFootprint[];
 }
 
 /**
@@ -681,6 +684,7 @@ function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult 
       headSha: sighting?.headSha ?? '',
       verdict,
       files: result?.files ?? [],
+      ...(sighting?.observedFiles === undefined ? {} : { observedFiles: sighting.observedFiles }),
     };
   });
 
@@ -700,6 +704,7 @@ function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult 
     base: observation.base,
     ranges,
     reconcileOnly: observation.reconcileOnly ?? [],
+    ...(observation.footprints === undefined ? {} : { footprints: observation.footprints }),
     ...(observation.rebuildCommand === undefined ? {} : { rebuildCommand: observation.rebuildCommand }),
   });
 

@@ -225,3 +225,86 @@ describe('buildReconcilePlan', () => {
     expect(() => buildReconcilePlan(input({ ranges: [] }))).toThrow(/reconcile/i);
   });
 });
+
+describe('buildReconcilePlan footprint audit', () => {
+  const footprints = [
+    { id: 'DEV-1', areas: ['src/DEV-1.ts'] },
+    { id: 'DEV-2', areas: ['src/DEV-2.ts'] },
+  ];
+
+  it('integrates a range whose observed files stay inside its own declaration', () => {
+    const plan = buildReconcilePlan(
+      input({
+        ranges: [range({ ticketId: 'DEV-1', observedFiles: ['src/DEV-1.ts'] })],
+        footprints,
+      }),
+    );
+
+    expect(plan.integrate).toEqual(['DEV-1']);
+    expect(plan.excluded).toEqual([]);
+  });
+
+  it('integrates a range that widened into files nobody else claimed', () => {
+    const plan = buildReconcilePlan(
+      input({
+        ranges: [range({ ticketId: 'DEV-1', observedFiles: ['src/DEV-1.ts', 'src/neighbour.ts'] })],
+        footprints,
+      }),
+    );
+
+    expect(plan.integrate).toEqual(['DEV-1']);
+  });
+
+  it('refuses a range carrying a file another ticket of the cluster declared', () => {
+    const plan = buildReconcilePlan(
+      input({
+        ranges: [range({ ticketId: 'DEV-1', observedFiles: ['src/DEV-1.ts', 'src/DEV-2.ts'] })],
+        footprints,
+      }),
+    );
+
+    expect(plan.integrate).toEqual([]);
+    expect(plan.excluded[0]?.reason).toBe('footprint-breach');
+    expect(plan.excluded[0]?.detail).toContain('src/DEV-2.ts');
+    expect(plan.excluded[0]?.detail).toContain('DEV-2');
+    expect(kinds(plan)).toEqual(['create-branch']);
+  });
+
+  it('refuses a range git was never read for, because a worker claim is not an observation', () => {
+    const plan = buildReconcilePlan(
+      input({ ranges: [range({ ticketId: 'DEV-1' })], footprints }),
+    );
+
+    expect(plan.excluded[0]?.reason).toBe('footprint-unobserved');
+  });
+
+  it('does not audit a cluster that declared no footprint at all', () => {
+    const plan = buildReconcilePlan(input({ ranges: [range({ ticketId: 'DEV-1' })] }));
+
+    expect(plan.integrate).toEqual(['DEV-1']);
+  });
+
+  it('does not refuse over a path the reconciler strips and rebuilds itself', () => {
+    const plan = buildReconcilePlan(
+      input({
+        ranges: [range({ ticketId: 'DEV-1', observedFiles: ['src/DEV-1.ts', 'pnpm-lock.yaml'] })],
+        footprints: [...footprints, { id: 'DEV-2', areas: ['pnpm-lock.yaml'] }],
+        reconcileOnly: ['pnpm-lock.yaml'],
+      }),
+    );
+
+    expect(plan.integrate).toEqual(['DEV-1']);
+    expect(plan.sharedPaths).toEqual(['pnpm-lock.yaml']);
+  });
+
+  it('detects a shared artefact from git rather than from the worker report', () => {
+    const plan = buildReconcilePlan(
+      input({
+        ranges: [range({ ticketId: 'DEV-1', files: [], observedFiles: ['pnpm-lock.yaml'] })],
+        reconcileOnly: ['pnpm-lock.yaml'],
+      }),
+    );
+
+    expect(plan.sharedPaths).toEqual(['pnpm-lock.yaml']);
+  });
+});
