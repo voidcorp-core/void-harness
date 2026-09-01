@@ -247,6 +247,13 @@ export const DEFAULT_MERGE_BLOCKS: readonly string[] = Object.freeze([
   // Bun writes a text lockfile since 1.2, and kept the binary name for the old
   // one. Two names, one job.
   '**/bun.lock',
+  // A manifest runs. `prepare` fires on every install, a fresh clone included,
+  // and `prepack` on the way to npm, so the argument that admitted composite
+  // actions holds here word for word -- and the lockfile was already guarded
+  // while the file that governs it was not.
+  '**/package.json',
+  // Where an install is told which registry to trust and with what credential.
+  '**/.npmrc',
   // Who may approve a change to any of the above.
   '**/CODEOWNERS',
 ]);
