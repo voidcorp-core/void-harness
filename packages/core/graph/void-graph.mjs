@@ -16618,9 +16618,9 @@ import { delimiter, dirname as dirname3, isAbsolute as isAbsolute22, join as joi
 import { TextDecoder as TextDecoder2 } from "util";
 import { lstat as lstat2, opendir as opendir2, realpath as realpath2 } from "fs/promises";
 import { dirname as dirname22, join as join7 } from "path";
-import { stat } from "fs/promises";
+import { stat, unlink, writeFile } from "fs/promises";
 import { watch as watchNode } from "fs";
-import { basename, dirname as dirname4 } from "path";
+import { basename, dirname as dirname4, join as join32 } from "path";
 import { posix as posix6 } from "path";
 import { createHash as createHash42 } from "crypto";
 var DEFAULT_PROJECT_QUERY_BUDGET = Object.freeze({
@@ -16854,6 +16854,7 @@ async function readBoundedHandle(handle2, expectedSize, maximumBytes) {
   return buffer.subarray(0, offset);
 }
 var IGNORED_DIRECTORY_NAMES = /* @__PURE__ */ new Set([".git", ".next", "coverage", "dist", "node_modules"]);
+var PROJECT_JOURNAL_ANCHOR_PREFIX = ".void-journal-anchor-";
 var INDEXED_VOID_FILES = /* @__PURE__ */ new Set([
   ".void/project-doctrine.md",
   ".void/philosophy.md",
@@ -16937,7 +16938,7 @@ function projectPathIsIgnored(path) {
   if (voidIndex === 0 && comparisonPath !== ".void" && !INDEXED_VOID_FILES.has(comparisonPath)) {
     return true;
   }
-  return segments.some((segment2) => IGNORED_DIRECTORY_NAMES.has(segment2)) || BINARY_ASSET_EXTENSIONS.has(posix3.extname(comparisonPath));
+  return segments.some((segment2) => IGNORED_DIRECTORY_NAMES.has(segment2)) || posix3.basename(comparisonPath).startsWith(PROJECT_JOURNAL_ANCHOR_PREFIX) || BINARY_ASSET_EXTENSIONS.has(posix3.extname(comparisonPath));
 }
 async function confinedRoot(root) {
   const canonical = await realpath(root);
@@ -19534,7 +19535,32 @@ function createNodeGitPort(options = {}) {
 }
 var DEFAULT_MAX_ROOTS = 16;
 var DEFAULT_MAX_CHANGED_PATHS = 1e4;
+var DEFAULT_ANCHOR_TIMEOUT_MS = 1e3;
+var MAX_REMEMBERED_ANCHORS = 64;
+var ANCHOR_DIRECTORIES = [".git", ".void", ""];
+var anchorSequence = 0;
+async function placeAnchor(root) {
+  anchorSequence += 1;
+  const name = `${PROJECT_JOURNAL_ANCHOR_PREFIX}${String(process.pid)}-${String(anchorSequence)}`;
+  for (const directory of ANCHOR_DIRECTORIES) {
+    const relative32 = directory === "" ? name : `${directory}/${name}`;
+    const absolute = join32(root, relative32);
+    try {
+      await writeFile(absolute, "", { flag: "wx", mode: 384 });
+    } catch {
+      continue;
+    }
+    return Object.freeze({
+      path: relative32,
+      release: () => {
+        unlink(absolute).catch(() => void 0);
+      }
+    });
+  }
+  return void 0;
+}
 var NODE_WATCH_PORT = {
+  anchor: placeAnchor,
   watch(path, recursive, onEvent, onError) {
     const watcher = watchNode(
       path,
@@ -19574,13 +19600,17 @@ function closeState(state) {
 function validateJournalLimits(options) {
   const maxRoots = options.maxRoots ?? DEFAULT_MAX_ROOTS;
   const maxChangedPaths = options.maxChangedPaths ?? DEFAULT_MAX_CHANGED_PATHS;
+  const anchorTimeoutMs = options.anchorTimeoutMs ?? DEFAULT_ANCHOR_TIMEOUT_MS;
   if (!Number.isSafeInteger(maxRoots) || maxRoots < 1 || maxRoots > 1024) {
     throw new Error("PROJECT_JOURNAL_INVALID: maxRoots must be between 1 and 1024");
   }
   if (!Number.isSafeInteger(maxChangedPaths) || maxChangedPaths < 1 || maxChangedPaths > 5e4) {
     throw new Error("PROJECT_JOURNAL_INVALID: maxChangedPaths must be between 1 and 50000");
   }
-  return Object.freeze({ maxRoots, maxChangedPaths });
+  if (!Number.isSafeInteger(anchorTimeoutMs) || anchorTimeoutMs < 1 || anchorTimeoutMs > 6e4) {
+    throw new Error("PROJECT_JOURNAL_INVALID: anchorTimeoutMs must be between 1 and 60000");
+  }
+  return Object.freeze({ maxRoots, maxChangedPaths, anchorTimeoutMs });
 }
 function markUncertain(state) {
   state.sequence += 1n;
@@ -19598,11 +19628,53 @@ async function rootWasReplaced(state) {
     return false;
   }
 }
+function awaitAnchor(state, path, timeoutMs) {
+  if (state.anchorsSeen.delete(path)) return Promise.resolve(true);
+  return new Promise((resolve32) => {
+    const timer = setTimeout(() => {
+      state.awaitedAnchors.delete(path);
+      resolve32(false);
+    }, timeoutMs);
+    state.awaitedAnchors.set(path, () => {
+      clearTimeout(timer);
+      resolve32(true);
+    });
+  });
+}
+async function catchUpWithStream(state, context) {
+  if (!state.reliable) return;
+  const anchor = await context.watchPort.anchor(state.root.path).catch(() => void 0);
+  if (anchor === void 0) {
+    markUncertain(state);
+    return;
+  }
+  try {
+    if (!await awaitAnchor(state, anchor.path, context.anchorTimeoutMs)) markUncertain(state);
+  } finally {
+    state.awaitedAnchors.delete(anchor.path);
+    anchor.release();
+  }
+}
 function failState(state) {
   if (!state.reliable) return;
   state.reliable = false;
   markUncertain(state);
   closeState(state);
+}
+function recordAnchor(state, path) {
+  if (!basename(path).startsWith(PROJECT_JOURNAL_ANCHOR_PREFIX)) return false;
+  const waiting = state.awaitedAnchors.get(path);
+  if (waiting !== void 0) {
+    state.awaitedAnchors.delete(path);
+    waiting();
+    return true;
+  }
+  if (state.anchorsSeen.size >= MAX_REMEMBERED_ANCHORS) {
+    const oldest = state.anchorsSeen.values().next().value;
+    if (oldest !== void 0) state.anchorsSeen.delete(oldest);
+  }
+  state.anchorsSeen.add(path);
+  return true;
 }
 function markPath(state, rawPath, maxChangedPaths) {
   let path;
@@ -19612,6 +19684,7 @@ function markPath(state, rawPath, maxChangedPaths) {
     markUncertain(state);
     return;
   }
+  if (recordAnchor(state, path)) return;
   if (projectPathIsIgnored(path)) return;
   state.sequence += 1n;
   if (state.saturated) {
@@ -19636,7 +19709,9 @@ function emptyState(root, handles) {
     accepted: void 0,
     uncertainAt: void 0,
     saturated: false,
-    reliable: true
+    reliable: true,
+    anchorsSeen: /* @__PURE__ */ new Set(),
+    awaitedAnchors: /* @__PURE__ */ new Map()
   };
 }
 function watchRoot(state, context) {
@@ -19728,14 +19803,18 @@ function createJournal(context) {
   return {
     async observe(root) {
       const state = stateFor(root, context);
-      await new Promise((resolve32) => setImmediate(resolve32));
+      await catchUpWithStream(state, context);
       if (await rootWasReplaced(state)) markRootUncertain(state);
       return observation(state, context.authority);
     },
     async validate(root, expected) {
       const state = context.states.get(root.path);
-      await new Promise((resolve32) => setImmediate(resolve32));
       if (state === void 0 || !sameRoot(state.root, root) || !state.reliable || expected.authority !== context.authority) {
+        return "unavailable";
+      }
+      const anchoredAt = state.sequence;
+      await catchUpWithStream(state, context);
+      if (state.sequence !== anchoredAt && state.uncertainAt === state.sequence) {
         return "unavailable";
       }
       return state.sequence.toString() === expected.generation ? "valid" : "changed";
