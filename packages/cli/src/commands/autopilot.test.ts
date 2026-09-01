@@ -333,6 +333,9 @@ ${enabled}  clusterSize: 2
       clusterId: 'cluster-1',
       base: { branch: 'develop', sha: SETUP_SHA },
       cluster: ['DEV-1'],
+      // Declared even when empty: the step refuses an observation that omits the
+      // field, so an audit cannot be turned off by leaving it out.
+      footprints: [],
       results: [workerResult()],
       failures: [],
       observations: [
@@ -420,7 +423,11 @@ ${enabled}  clusterSize: 2
     const result = runAutopilotCommand(
       ['reconcile', '--json'],
       reconciliation({
-        footprints: [{ id: 'DEV-1', areas: ['packages/cli/src/x.ts'] }],
+        cluster: ['DEV-1', 'DEV-2'],
+        footprints: [
+          { id: 'DEV-1', areas: ['packages/cli/src/x.ts'] },
+          { id: 'DEV-2', areas: ['packages/core/templates'] },
+        ],
         observations: [
           {
             ticketId: 'DEV-1',
@@ -437,14 +444,61 @@ ${enabled}  clusterSize: 2
     expect(JSON.parse(result.stdout).plan.integrate).toEqual(['DEV-1']);
   });
 
-  it('refuses a range whose files git was never read for, once footprints exist', () => {
+  it('refuses a range whose files git was never read for', () => {
     const result = runAutopilotCommand(
       ['reconcile', '--json'],
-      reconciliation({ footprints: [{ id: 'DEV-1', areas: ['packages/cli/src'] }] }),
+      reconciliation({
+        cluster: ['DEV-1', 'DEV-2'],
+        footprints: [
+          { id: 'DEV-1', areas: ['packages/cli/src'] },
+          { id: 'DEV-2', areas: ['packages/core/templates'] },
+        ],
+      }),
       ctx(repo()),
     );
 
     expect(JSON.stringify(JSON.parse(result.stdout).plan.excluded)).toContain('footprint-unobserved');
+  });
+
+  // The audit used to be gated on `footprints` being present, and what fed them
+  // in was a sentence in a prompt addressed to a sub-agent that had never seen
+  // them. The most available way to obtain a list you do not have is to derive
+  // it from the branch diff, which makes the audit tautologically green.
+  it('refuses to reconcile a cluster of several that declared no footprint', () => {
+    const result = runAutopilotCommand(
+      ['reconcile', '--json'],
+      reconciliation({ cluster: ['DEV-1', 'DEV-2'] }),
+      ctx(repo()),
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/footprint/i);
+    expect(result.stderr).toContain('DEV-2');
+  });
+
+  it('carries the footprints out of orchestrate, so reconcile is handed them rather than asked for them', () => {
+    const result = runAutopilotCommand(['orchestrate', '--json'], orchestration(), ctx(repo()));
+    const emitted = JSON.parse(result.stdout);
+
+    expect(emitted.footprints).toEqual([
+      { id: 'DEV-1', areas: ['packages/cli'] },
+      { id: 'DEV-2', areas: ['packages/core'] },
+    ]);
+  });
+
+  it('emits one spelling of each area, so ordering and reconciliation read the same list', () => {
+    const result = runAutopilotCommand(
+      ['orchestrate', '--json'],
+      orchestration({
+        footprints: [
+          { id: 'DEV-1', areas: ['./packages/cli/'], highRisk: false, confidence: 0.9, touchesMigration: false },
+          { id: 'DEV-2', areas: ['packages/core'], highRisk: false, confidence: 0.9, touchesMigration: false },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    expect(JSON.parse(result.stdout).footprints[0].areas).toEqual(['packages/cli']);
   });
 
   it('integrates nothing when every worker came back blocked', () => {

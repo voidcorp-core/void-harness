@@ -9,20 +9,39 @@ const H2 = '0000000000000000000000000000000000000012';
 const usable = (commits: string[]): RangeVerdict => ({ kind: 'usable', commits });
 
 function range(over: Partial<VerifiedRange> & { ticketId: string }): VerifiedRange {
+  const files = over.files ?? [`src/${over.ticketId}.ts`];
   return {
     branch: `autopilot-worker/cluster-1/${over.ticketId}`,
     headSha: H1,
     verdict: usable([H1]),
-    files: [`src/${over.ticketId}.ts`],
+    files,
+    // Git's own reading, which every cluster of more than one ticket now
+    // requires. Defaulted to the same paths so a fixture states them once.
+    observedFiles: files,
     ...over,
   };
 }
 
+/** A range git was never read for, without writing `undefined` into the shape. */
+function unobserved(over: Partial<VerifiedRange> & { ticketId: string }): VerifiedRange {
+  const { observedFiles: _neverRead, ...rest } = range(over);
+  return rest;
+}
+
 function input(over: Partial<ReconcileInput> = {}): ReconcileInput {
+  const ranges = over.ranges ?? [
+    range({ ticketId: 'DEV-1' }),
+    range({ ticketId: 'DEV-2', headSha: H2, verdict: usable([H2]) }),
+  ];
   return {
     clusterId: 'cluster-1',
     base: { branch: 'main', sha: BASE },
-    ranges: [range({ ticketId: 'DEV-1' }), range({ ticketId: 'DEV-2', headSha: H2, verdict: usable([H2]) })],
+    ranges,
+    // The cluster and its declaration are what the audit is about, so a fixture
+    // that says nothing about them still declares them honestly: every ticket
+    // that produced a range, each owning the file named after it.
+    cluster: ranges.map((entry) => entry.ticketId),
+    footprints: ranges.map((entry) => ({ id: entry.ticketId, areas: [`src/${entry.ticketId}.ts`] })),
     reconcileOnly: [],
     ...over,
   };
@@ -232,12 +251,13 @@ describe('buildReconcilePlan footprint audit', () => {
     { id: 'DEV-2', areas: ['src/DEV-2.ts'] },
   ];
 
+  /** A two-ticket cluster where only DEV-1 came back: the shape the audit is for. */
+  const audited = (over: Partial<ReconcileInput> = {}): ReconcileInput =>
+    input({ cluster: ['DEV-1', 'DEV-2'], footprints, ...over });
+
   it('integrates a range whose observed files stay inside its own declaration', () => {
     const plan = buildReconcilePlan(
-      input({
-        ranges: [range({ ticketId: 'DEV-1', observedFiles: ['src/DEV-1.ts'] })],
-        footprints,
-      }),
+      audited({ ranges: [range({ ticketId: 'DEV-1', observedFiles: ['src/DEV-1.ts'] })] }),
     );
 
     expect(plan.integrate).toEqual(['DEV-1']);
@@ -246,10 +266,7 @@ describe('buildReconcilePlan footprint audit', () => {
 
   it('integrates a range that widened into files nobody else claimed', () => {
     const plan = buildReconcilePlan(
-      input({
-        ranges: [range({ ticketId: 'DEV-1', observedFiles: ['src/DEV-1.ts', 'src/neighbour.ts'] })],
-        footprints,
-      }),
+      audited({ ranges: [range({ ticketId: 'DEV-1', observedFiles: ['src/DEV-1.ts', 'src/neighbour.ts'] })] }),
     );
 
     expect(plan.integrate).toEqual(['DEV-1']);
@@ -257,10 +274,7 @@ describe('buildReconcilePlan footprint audit', () => {
 
   it('refuses a range carrying a file another ticket of the cluster declared', () => {
     const plan = buildReconcilePlan(
-      input({
-        ranges: [range({ ticketId: 'DEV-1', observedFiles: ['src/DEV-1.ts', 'src/DEV-2.ts'] })],
-        footprints,
-      }),
+      audited({ ranges: [range({ ticketId: 'DEV-1', observedFiles: ['src/DEV-1.ts', 'src/DEV-2.ts'] })] }),
     );
 
     expect(plan.integrate).toEqual([]);
@@ -272,21 +286,59 @@ describe('buildReconcilePlan footprint audit', () => {
 
   it('refuses a range git was never read for, because a worker claim is not an observation', () => {
     const plan = buildReconcilePlan(
-      input({ ranges: [range({ ticketId: 'DEV-1' })], footprints }),
+      audited({ ranges: [unobserved({ ticketId: 'DEV-1' })] }),
     );
 
     expect(plan.excluded[0]?.reason).toBe('footprint-unobserved');
   });
 
-  it('does not audit a cluster that declared no footprint at all', () => {
-    const plan = buildReconcilePlan(input({ ranges: [range({ ticketId: 'DEV-1' })] }));
+  it('refuses to plan at all when a cluster of several declared no footprint', () => {
+    // With no declaration there is no audit, no exclusion and no signal: the
+    // plan comes back with an empty `excluded`, exactly as after a clean audit.
+    // Nothing distinguished audited-and-clean from never-audited, so the guard
+    // was off by default and silent about it.
+    expect(() =>
+      buildReconcilePlan(
+        input({ cluster: ['DEV-1', 'DEV-2'], footprints: [], ranges: [range({ ticketId: 'DEV-1' })] }),
+      ),
+    ).toThrow(/declared no footprint|DEV-1, DEV-2/);
+  });
+
+  it('names the cluster tickets whose declaration is missing', () => {
+    expect(() =>
+      buildReconcilePlan(
+        audited({ cluster: ['DEV-1', 'DEV-2', 'DEV-3'], ranges: [range({ ticketId: 'DEV-1' })] }),
+      ),
+    ).toThrow(/DEV-3/);
+  });
+
+  it('audits nothing for a cluster of one, because no other ticket can be robbed', () => {
+    // The audit only ever answers "does this belong to somebody else". Alone,
+    // there is no somebody else, and demanding an observation to answer nothing
+    // would stall a run for ceremony.
+    const plan = buildReconcilePlan(
+      input({ cluster: ['DEV-1'], footprints: [], ranges: [unobserved({ ticketId: 'DEV-1' })] }),
+    );
 
     expect(plan.integrate).toEqual(['DEV-1']);
+    expect(plan.excluded).toEqual([]);
+  });
+
+  it('refuses a range whose observed file list is empty though it carries commits', () => {
+    // A commit that changed no file is not a thing git produces here. An empty
+    // list is an incoherent observation, and accepting it passes the audit
+    // trivially -- the same silence as never observing at all.
+    const plan = buildReconcilePlan(
+      audited({ ranges: [range({ ticketId: 'DEV-1', observedFiles: [] })] }),
+    );
+
+    expect(plan.integrate).toEqual([]);
+    expect(plan.excluded[0]?.reason).toBe('footprint-unobserved');
   });
 
   it('does not refuse over a path the reconciler strips and rebuilds itself', () => {
     const plan = buildReconcilePlan(
-      input({
+      audited({
         ranges: [range({ ticketId: 'DEV-1', observedFiles: ['src/DEV-1.ts', 'pnpm-lock.yaml'] })],
         footprints: [...footprints, { id: 'DEV-2', areas: ['pnpm-lock.yaml'] }],
         reconcileOnly: ['pnpm-lock.yaml'],
@@ -312,9 +364,8 @@ describe('buildReconcilePlan footprint audit', () => {
     // disarms one has to disarm the other, or the two disagree about which
     // files the reconciler owns.
     const plan = buildReconcilePlan(
-      input({
+      audited({
         ranges: [range({ ticketId: 'DEV-1', observedFiles: ['src/DEV-1.ts', 'packages/core/data/model.json'] })],
-        footprints,
         reconcileOnly: ['packages/core/data/'],
       }),
     );
