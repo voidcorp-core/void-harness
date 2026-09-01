@@ -380,4 +380,26 @@ describe('auditFootprint', () => {
       ),
     ).toThrow(/claims nothing/i);
   });
+
+  it('lets a glob and a directory that both reach a file through, which is what ordering must earn', () => {
+    // Neither area is strictly narrower than the other, so this is a tie and
+    // both tickets were entitled -- and the verdict does not even report the
+    // file as growth, because the range's own glob reaches it. That is correct
+    // ONLY because `orderWorkers` sequences this pair; it read the two as
+    // disjoint while comparing names, and the pair then ran in two concurrent
+    // worktrees with this verdict as the last word. The audit is not the
+    // backstop for the ordering step, it is the step whose leniency ordering
+    // has to earn, so this expectation is pinned here on purpose.
+    const verdict = auditFootprint(
+      { ticketId: 'DEV-1', files: ['packages/core/b/x.test.ts'] },
+      input({
+        footprints: [
+          { id: 'DEV-1', areas: ['packages/**/*.test.ts'] },
+          { id: 'DEV-2', areas: ['packages/core/b'] },
+        ],
+      }),
+    );
+
+    expect(verdict).toEqual({ kind: 'within-scope', widened: [] });
+  });
 });

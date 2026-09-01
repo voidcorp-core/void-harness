@@ -139,6 +139,37 @@ describe('planCluster', () => {
     ]);
   });
 
+  it('sequences a glob against a directory it reaches, so the confirmed lanes are the run lanes', () => {
+    const plan = planCluster(
+      input({
+        tickets: [tk({ id: 'A' }), tk({ id: 'B' })],
+        footprints: [
+          fp({ id: 'A', areas: ['packages/**/*.test.ts'] }),
+          fp({ id: 'B', areas: ['packages/core/b'] }),
+        ],
+      }),
+    );
+    expect(plan.parallel).toEqual([]);
+    expect(plan.sequential).toEqual([
+      { id: 'A', reasons: ['footprint-overlap'] },
+      { id: 'B', reasons: ['footprint-overlap'] },
+    ]);
+  });
+
+  it('keeps two globs rooted in sibling packages in their own lanes', () => {
+    const plan = planCluster(
+      input({
+        tickets: [tk({ id: 'A' }), tk({ id: 'B' })],
+        footprints: [
+          fp({ id: 'A', areas: ['packages/cli/**/*.ts'] }),
+          fp({ id: 'B', areas: ['packages/core/**/*.ts'] }),
+        ],
+      }),
+    );
+    expect(plan.parallel).toEqual(['A', 'B']);
+    expect(plan.sequential).toEqual([]);
+  });
+
   it('reads a trailing slash and a leading dot-slash as the same area every reader reads', () => {
     const plan = planCluster(
       input({
