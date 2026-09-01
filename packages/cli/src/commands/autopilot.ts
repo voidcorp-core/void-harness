@@ -13,7 +13,28 @@
 
 import { type ClusterPlan, type ClusterPlanInput, planCluster } from '../lib/autopilot/cluster-plan.js';
 import { verifyRange, type RangeObservation } from '../lib/autopilot/git-observation.js';
+import {
+  buildUnionReviewRequest,
+  inconclusiveReview,
+  judgeMergeGrant,
+  planPostCheckAction,
+  type CheckStand,
+  type MergeGrant,
+  type UnionReview,
+} from '../lib/autopilot/union-review.js';
 import { judgePanelBeforeWriting, type PanelEvent, type PanelOutcome } from '../lib/autopilot/panel-proof.js';
+import {
+  renderPullRequestBody,
+  type ExcludedTicket,
+  type ReconciliationDecision,
+  type TicketProvenance,
+} from '../lib/autopilot/pr-body.js';
+import {
+  accountCiRuns,
+  buildPublishPlan,
+  type ExistingPullRequest,
+  type PublishPlan,
+} from '../lib/autopilot/publish-plan.js';
 import { assessProofs, type ProofAssessment, type ProofContext, type VerificationProof } from '../lib/autopilot/proof-invalidation.js';
 import {
   judgeRangeProofs,
@@ -774,6 +795,154 @@ function gateCommand(stdin: string, json: boolean): AutopilotCommandResult {
   return emit(json, verdict, lines.join('\n'));
 }
 
+/**
+ * One branch, one explicit refspec, one pull request that carries its own
+ * provenance.
+ *
+ * The body is rendered here rather than written by whoever publishes, because
+ * the body IS the account: what merged, on what evidence, what was left out and
+ * how to resume it. A summary somebody types afterwards is a different artefact
+ * with the same name.
+ *
+ * The CI count travels through `accountCiRuns` so an undecidable trigger budget
+ * comes back as "cannot be stated" rather than as a number a reader would take
+ * on trust.
+ */
+interface PublishObservation {
+  readonly clusterId: string;
+  readonly remote: string;
+  readonly base: { readonly branch: string; readonly sha: string };
+  readonly integrationSha: string;
+  readonly proofs: ProofAssessment;
+  readonly workerBranches: readonly string[];
+  readonly existingPullRequest?: ExistingPullRequest | null;
+  readonly included: readonly TicketProvenance[];
+  readonly excluded: readonly ExcludedTicket[];
+  readonly decisions: readonly ReconciliationDecision[];
+  readonly verification: readonly { readonly name: string; readonly passed: boolean }[];
+  readonly ci: { readonly expectedRunsPerPush: number | null; readonly pushes: number; readonly unknowns: readonly string[] };
+  readonly blockers: readonly string[];
+}
+
+function publishCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<PublishObservation>(stdin, 'publish observation');
+  const plan: PublishPlan = buildPublishPlan({
+    clusterId: observation.clusterId,
+    remote: observation.remote,
+    base: { branch: observation.base.branch },
+    integrationSha: observation.integrationSha,
+    proofs: observation.proofs,
+    workerBranches: observation.workerBranches,
+    ...(observation.existingPullRequest === undefined
+      ? {}
+      : { existingPullRequest: observation.existingPullRequest }),
+  });
+  const ci = accountCiRuns(observation.ci);
+  const body = renderPullRequestBody({
+    clusterId: observation.clusterId,
+    base: observation.base,
+    integrationSha: observation.integrationSha,
+    included: observation.included,
+    excluded: observation.excluded,
+    decisions: observation.decisions,
+    verification: observation.verification,
+    ci,
+    blockers: observation.blockers,
+  });
+
+  const human = [
+    `integration branch: ${plan.integrationBranch}`,
+    ...plan.steps.map((step) => `  ${step.command.join(' ')}`),
+    ...plan.blocked.map((block) => `  BLOCKED ${block.reason}: ${block.detail}`),
+    '',
+    `pull request: ${plan.pullRequest.number === null ? 'to create' : `#${String(plan.pullRequest.number)}`}`,
+    `  body -> ${plan.pullRequest.bodyPath}`,
+    '',
+  ].join('\n');
+  return emit(json, { schemaVersion: 1, plan, ci, body }, human);
+}
+
+/**
+ * Whether this integration branch may merge itself, and what to do next.
+ *
+ * The grant is the product's trust boundary, and it fails closed on every input:
+ * an unobserved protection reads like an unprotected branch, an unread union
+ * reads like a refusal, and the branch that deploys is never a target whatever
+ * the reading says.
+ *
+ * The request a reader would answer travels back with a refusal for
+ * `union-unread`, so nobody assembles it by hand -- which is how a reading gets
+ * skipped, and a skipped reading is exactly what this refuses.
+ */
+interface GrantObservation {
+  readonly target: string;
+  readonly deployBranch: string;
+  readonly integrationBranch: string;
+  readonly integrationSha: string;
+  readonly baseSha: string;
+  readonly tickets: readonly string[];
+  readonly humanGates: readonly string[];
+  readonly protection?: Parameters<typeof judgeMergeGrant>[0]['protection'];
+  readonly changedPaths?: readonly string[];
+  readonly mergeBlocks?: readonly string[];
+  readonly checks: CheckStand;
+  /** What the reader returned. `null` says plainly that none ran. */
+  readonly review: UnionReview | null;
+  readonly declaredLenses: number;
+  readonly capability: Parameters<typeof buildUnionReviewRequest>[0]['capability'];
+}
+
+function grantCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<GrantObservation>(stdin, 'merge grant observation');
+  // An absent reading is not an inconclusive one, and neither is an approval.
+  // Both refuse, and they refuse under names that send a reader to different
+  // places: one to run the pass, one to read what it could not settle.
+  const review = observation.review ?? undefined;
+  const grant: MergeGrant = judgeMergeGrant({
+    target: observation.target,
+    deployBranch: observation.deployBranch,
+    integrationSha: observation.integrationSha,
+    review,
+    tickets: observation.tickets,
+    humanGates: observation.humanGates,
+    protection: observation.protection,
+    changedPaths: observation.changedPaths,
+    mergeBlocks: observation.mergeBlocks,
+  });
+  const action = planPostCheckAction({ checks: observation.checks, grant });
+  const request = review === undefined
+    ? buildUnionReviewRequest({
+        integrationBranch: observation.integrationBranch,
+        integrationSha: observation.integrationSha,
+        baseSha: observation.baseSha,
+        ticketIds: observation.tickets,
+        declaredLenses: observation.declaredLenses,
+        capability: observation.capability,
+      })
+    : undefined;
+
+  const human = [
+    grant.kind === 'granted'
+      ? `grant: granted${grant.advisories.length === 0 ? '' : ` (${String(grant.advisories.length)} advisory finding(s) filed)`}`
+      : `grant: refused (${grant.reason}) — ${grant.detail}`,
+    `next: ${action.action} — ${action.detail}`,
+    ...(request === undefined
+      ? []
+      : ['', 'the reading nobody ran:', `  ${request.diffCommand.join(' ')}`]),
+    '',
+  ].join('\n');
+  return emit(
+    json,
+    {
+      schemaVersion: 1,
+      grant,
+      action,
+      ...(request === undefined ? {} : { request }),
+    },
+    human,
+  );
+}
+
 function planCommand(stdin: string, json: boolean): AutopilotCommandResult {
   const plan = planCluster(parseStdin<ClusterPlanInput>(stdin, 'candidate observation', 'plan'));
   return emit(json, plan, renderPlan(plan));
@@ -914,6 +1083,8 @@ export function runAutopilotCommand(
     if (subcommand === 'reconcile') return reconcileCommand(stdin, json);
     if (subcommand === 'verify') return verifyCommand(stdin, json);
     if (subcommand === 'gate') return gateCommand(stdin, json);
+    if (subcommand === 'publish') return publishCommand(stdin, json);
+    if (subcommand === 'grant') return grantCommand(stdin, json);
     if (subcommand === 'chain') {
       if (context === undefined) {
         throw autopilotFailure(
@@ -935,7 +1106,7 @@ export function runAutopilotCommand(
       throw autopilotFailure(
         'AUTOPILOT_USAGE',
         `autopilot has no '${subcommand}' subcommand`,
-        `known subcommands are scaffold, plan, orchestrate, reconcile, verify, gate, chain, ${stateful.join(', ')}`,
+        `known subcommands are scaffold, plan, orchestrate, reconcile, verify, gate, publish, grant, chain, ${stateful.join(', ')}`,
         'run `void-harness autopilot --help` for the full contract',
       );
     }

@@ -491,6 +491,125 @@ ${enabled}  clusterSize: 2
     expect(verdict.budget.kind).toBe('within');
   });
 
+  /** Everything the run knows once the integration branch is green. */
+  function publication(over: Record<string, unknown> = {}): string {
+    return JSON.stringify({
+      schemaVersion: 1,
+      clusterId: 'cluster-1',
+      remote: 'origin',
+      base: { branch: 'develop', sha: SETUP_SHA },
+      integrationSha: `${A}1`,
+      proofs: { schemaVersion: 1, statuses: [], missing: [], sealed: true },
+      workerBranches: ['autopilot/cluster-1/DEV-1'],
+      included: [
+        {
+          ticketId: 'DEV-1',
+          title: 'a unit',
+          range: { baseSha: SETUP_SHA, headSha: `${A}1`, commits: [`${A}1`] },
+        },
+      ],
+      excluded: [],
+      decisions: [],
+      verification: [{ name: 'pnpm verify', passed: true }],
+      ci: { expectedRunsPerPush: 1, pushes: 1, unknowns: [] },
+      blockers: [],
+      ...over,
+    });
+  }
+
+  // One branch, one explicit refspec, one pull request whose body is the
+  // provenance. Three functions computed it and none had a caller.
+  it('states the publication as commands and renders the body that travels with it', () => {
+    const result = runAutopilotCommand(['publish', '--json'], publication(), ctx(repo()));
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.plan.steps.some((step: { kind: string }) => step.kind === 'push-branch')).toBe(true);
+    expect(emitted.body).toContain('DEV-1');
+    expect(emitted.body).toContain('cluster-1');
+  });
+
+  // The count a reader would otherwise take on trust. When the trigger budget
+  // cannot be decided, the account says so instead of stating a number.
+  it('refuses to state a CI run count it cannot decide', () => {
+    const result = runAutopilotCommand(
+      ['publish', '--json'],
+      publication({ ci: { expectedRunsPerPush: null, pushes: 2, unknowns: ['back-merge.yml'] } }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.ci.total).toBeNull();
+    expect(emitted.ci.honest).toBe(false);
+    expect(emitted.body).toContain('back-merge.yml');
+  });
+
+  it('refuses to publish a branch whose proofs are not sealed', () => {
+    const result = runAutopilotCommand(
+      ['publish', '--json'],
+      publication({ proofs: { schemaVersion: 1, statuses: [], missing: [['pnpm', 'verify']], sealed: false } }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.plan.blocked ?? emitted.plan.blocks).toBeTruthy();
+  });
+
+  /** Where a machine merge stands, from the outside. */
+  function grantObservation(over: Record<string, unknown> = {}): string {
+    return JSON.stringify({
+      schemaVersion: 1,
+      target: 'develop',
+      deployBranch: 'main',
+      integrationBranch: 'autopilot/cluster-1',
+      integrationSha: `${A}1`,
+      baseSha: SETUP_SHA,
+      tickets: ['DEV-1'],
+      humanGates: [],
+      protection: { kind: 'protected', requiredChecks: ['validate'] },
+      changedPaths: ['packages/cli/src/x.ts'],
+      checks: 'ready',
+      review: { schemaVersion: 1, integrationSha: `${A}1`, verdict: 'clean', contradictions: [] },
+      declaredLenses: 3,
+      capability: { runtime: 'claude', maxConcurrentAgents: 4, agentToAgent: false },
+      ...over,
+    });
+  }
+
+  it('grants a machine merge only when every condition of the record holds', () => {
+    const result = runAutopilotCommand(['grant', '--json'], grantObservation(), ctx(repo()));
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.grant.kind).toBe('granted');
+    expect(emitted.action.action).toBe('merge');
+  });
+
+  // Silence is not approval. A reading that never happened refuses, and the
+  // request the reader would answer travels back so nobody assembles it by hand.
+  it('refuses when no union reading happened, and hands back the request for one', () => {
+    const result = runAutopilotCommand(['grant', '--json'], grantObservation({ review: null }), ctx(repo()));
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.grant.kind).toBe('refused');
+    expect(emitted.grant.reason).toBe('union-unread');
+    expect(emitted.request.diffCommand).toContain('git');
+  });
+
+  it('holds instead of deciding while the checks have not settled', () => {
+    const result = runAutopilotCommand(['grant', '--json'], grantObservation({ checks: 'wait' }), ctx(repo()));
+
+    expect(JSON.parse(result.stdout).action.action).toBe('hold');
+  });
+
+  it('refuses when the target is the branch that deploys, whatever the reading says', () => {
+    const result = runAutopilotCommand(['grant', '--json'], grantObservation({ target: 'main' }), ctx(repo()));
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.grant.kind).toBe('refused');
+    expect(emitted.grant.reason).toBe('production-downstream');
+  });
+
   it('reports the local cursor and asks for a remote read when status gets no observation', () => {
     const root = repo();
     writeRun(root, runState());
