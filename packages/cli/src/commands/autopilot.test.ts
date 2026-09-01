@@ -399,6 +399,98 @@ ${enabled}  clusterSize: 2
     expect(JSON.stringify(emitted.outcome.excluded)).toContain('DEV-1');
   });
 
+  const TREE = 'e'.repeat(40);
+
+  // The suite that decides a merge is stated as commands with a ceiling, not
+  // improvised by whoever runs it.
+  it('states the suite to run on the integration sha, bounded', () => {
+    const result = runAutopilotCommand(
+      ['verify', '--json'],
+      JSON.stringify({
+        schemaVersion: 1,
+        integrationSha: SETUP_SHA,
+        commands: [['pnpm', 'verify']],
+      }),
+      ctx(repo()),
+    );
+
+    expect(result.exitCode).toBe(0);
+    const plan = JSON.parse(result.stdout);
+    expect(plan.integrationSha).toBe(SETUP_SHA);
+    expect(plan.commands[0].command).toEqual(['pnpm', 'verify']);
+    expect(plan.commands[0].timeoutMs).toBeGreaterThan(0);
+  });
+
+  /** What a unit owes, and what was actually observed of it. */
+  function gateObservation(over: Record<string, unknown> = {}): string {
+    return JSON.stringify({
+      schemaVersion: 1,
+      mergedTreeHash: TREE,
+      required: [
+        { id: 'suite-green', proofClass: 'absolute', command: ['pnpm', 'verify'] },
+      ],
+      evidence: [
+        {
+          evidenceId: 'ev-1',
+          command: ['pnpm', 'verify'],
+          diffHash: TREE,
+          status: 'passed',
+          exitCode: 0,
+        },
+      ],
+      ...over,
+    });
+  }
+
+  it('merges a unit whose absolute proof was actually run on this tree', () => {
+    const result = runAutopilotCommand(['gate', '--json'], gateObservation(), ctx(repo()));
+
+    expect(result.exitCode).toBe(0);
+    const verdict = JSON.parse(result.stdout);
+    expect(verdict.proofs.kind).toBe('merge');
+  });
+
+  // The direction that matters. A proof nobody ran is not a proof, and the
+  // absence of a record is the absence of the act.
+  it('refuses a unit whose absolute proof was never run, and names the action', () => {
+    const result = runAutopilotCommand(['gate', '--json'], gateObservation({ evidence: [] }), ctx(repo()));
+
+    const verdict = JSON.parse(result.stdout);
+    expect(verdict.proofs.kind).toBe('refuse');
+    expect(['STOP_CHAIN', 'RETRY_MODIFIED']).toContain(verdict.proofs.action);
+  });
+
+  it('refuses a unit whose proof was run against a tree that has since moved', () => {
+    const result = runAutopilotCommand(
+      ['gate', '--json'],
+      gateObservation({ evidence: [{ evidenceId: 'ev-1', command: ['pnpm', 'verify'], diffHash: 'f'.repeat(40), status: 'passed', exitCode: 0 }] }),
+      ctx(repo()),
+    );
+
+    expect(JSON.parse(result.stdout).proofs.kind).toBe('refuse');
+  });
+
+  // The panel and the budget are judged in the same breath, because a unit that
+  // exhausted its turns and a unit that skipped its panel both stop the chain.
+  it('judges the panel and the unit budget alongside the proofs', () => {
+    const result = runAutopilotCommand(
+      ['gate', '--json'],
+      gateObservation({
+        panel: [
+          { kind: 'specialist.completed', seq: 1, stage: 'pre-implementation' },
+          { kind: 'lead-writer.requested', seq: 2 },
+        ],
+        spend: { turns: 2, tokens: 1000, elapsedMs: 1000 },
+        ceilings: { turns: 10, tokens: 100000, elapsedMs: 600000 },
+      }),
+      ctx(repo()),
+    );
+
+    const verdict = JSON.parse(result.stdout);
+    expect(verdict.panel.kind).toBe('satisfied');
+    expect(verdict.budget.kind).toBe('within');
+  });
+
   it('reports the local cursor and asks for a remote read when status gets no observation', () => {
     const root = repo();
     writeRun(root, runState());

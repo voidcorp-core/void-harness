@@ -13,6 +13,22 @@
 
 import { type ClusterPlan, type ClusterPlanInput, planCluster } from '../lib/autopilot/cluster-plan.js';
 import { verifyRange, type RangeObservation } from '../lib/autopilot/git-observation.js';
+import { judgePanelBeforeWriting, type PanelEvent, type PanelOutcome } from '../lib/autopilot/panel-proof.js';
+import { assessProofs, type ProofAssessment, type ProofContext, type VerificationProof } from '../lib/autopilot/proof-invalidation.js';
+import {
+  judgeRangeProofs,
+  type ProofEvidence,
+  type RangeVerdict as ProofRangeVerdict,
+  type RequiredProof,
+} from '../lib/autopilot/required-proof.js';
+import { judgeUnitBudget, type UnitBudgetVerdict, type UnitCeilings, type UnitSpend } from '../lib/autopilot/unit-budget.js';
+import {
+  buildVerificationPlan,
+  judgeVerification,
+  type CommandOutcome,
+  type VerificationPlan,
+  type VerificationVerdict,
+} from '../lib/autopilot/verification-plan.js';
 import { buildOrchestrationPlan, type OrchestrationPlan } from '../lib/autopilot/orchestration-plan.js';
 import { resolveClusterOutcome, type ClusterOutcome, type WorkerFailure } from '../lib/autopilot/partial-success.js';
 import { buildReconcilePlan, type ReconcilePlan, type VerifiedRange } from '../lib/autopilot/reconcile-plan.js';
@@ -661,6 +677,103 @@ function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult 
   return emit(json, { schemaVersion: 1, outcome, plan } satisfies ReconcileOutcome, human);
 }
 
+/**
+ * The suite that decides a merge, stated rather than improvised.
+ *
+ * Bounded on purpose: a command with no ceiling is how an unattended run spends
+ * its whole budget waiting for something that already hung.
+ */
+interface VerificationObservation {
+  readonly integrationSha: string;
+  readonly commands: readonly (readonly string[])[];
+  readonly timeoutMs?: number;
+  readonly maxOutputBytes?: number;
+}
+
+function verifyCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<VerificationObservation>(stdin, 'verification observation');
+  const plan = buildVerificationPlan({
+    integrationSha: observation.integrationSha,
+    commands: observation.commands,
+    ...(observation.timeoutMs === undefined ? {} : { timeoutMs: observation.timeoutMs }),
+    ...(observation.maxOutputBytes === undefined ? {} : { maxOutputBytes: observation.maxOutputBytes }),
+  });
+  const human = [
+    `on ${plan.integrationSha.slice(0, 7)}, ${String(plan.commands.length)} command(s):`,
+    ...plan.commands.map((command) => `  ${command.command.join(' ')} (${String(command.timeoutMs)}ms)`),
+    '',
+  ].join('\n');
+  return emit(json, plan, human);
+}
+
+/**
+ * Everything a unit must satisfy before its range may merge, judged at once.
+ *
+ * Four judgements that used to be four paragraphs: did the declared proofs
+ * actually run against THIS tree, did the panel speak before the writing, did
+ * the unit stay inside its ceilings, and is the evidence still fresh. They are
+ * answered together because they answer one question, and a caller who has to
+ * remember the fourth is a caller who will forget it.
+ *
+ * Absence of a record is absence of the act, on every one of them.
+ */
+interface GateObservation {
+  readonly mergedTreeHash: string;
+  readonly required: readonly RequiredProof[];
+  readonly evidence: readonly ProofEvidence[];
+  readonly panel?: readonly PanelEvent[];
+  readonly spend?: UnitSpend;
+  readonly ceilings?: UnitCeilings;
+  readonly outcomes?: readonly CommandOutcome[];
+  readonly plan?: VerificationPlan;
+  readonly freshness?: { readonly proofs: readonly VerificationProof[]; readonly context: ProofContext };
+}
+
+interface GateVerdict {
+  readonly schemaVersion: 1;
+  readonly proofs: ProofRangeVerdict;
+  readonly panel?: PanelOutcome;
+  readonly budget?: UnitBudgetVerdict;
+  readonly suite?: VerificationVerdict;
+  readonly freshness?: ProofAssessment;
+}
+
+function gateCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<GateObservation>(stdin, 'gate observation');
+  const proofs = judgeRangeProofs(observation.required, observation.evidence, observation.mergedTreeHash);
+  const panel = observation.panel === undefined ? undefined : judgePanelBeforeWriting(observation.panel);
+  const budget = observation.spend === undefined || observation.ceilings === undefined
+    ? undefined
+    : judgeUnitBudget(observation.spend, observation.ceilings);
+  const suite = observation.plan === undefined || observation.outcomes === undefined
+    ? undefined
+    : judgeVerification(observation.plan, observation.outcomes);
+  const freshness = observation.freshness === undefined
+    ? undefined
+    : assessProofs(observation.freshness.proofs, observation.freshness.context);
+
+  const verdict: GateVerdict = {
+    schemaVersion: 1,
+    proofs,
+    ...(panel === undefined ? {} : { panel }),
+    ...(budget === undefined ? {} : { budget }),
+    ...(suite === undefined ? {} : { suite }),
+    ...(freshness === undefined ? {} : { freshness }),
+  };
+
+  const lines = [
+    proofs.kind === 'merge'
+      ? `proofs: merge${proofs.debts.length === 0 ? '' : ` with ${String(proofs.debts.length)} debt(s)`}`
+      : `proofs: refuse (${proofs.action}) — ${proofs.detail}`,
+    ...proofs.debts.map((debt) => `  debt ${debt.proof} (${debt.severity}): ${debt.reason}`),
+    ...(panel === undefined ? [] : [`panel: ${panel.kind === 'satisfied' ? 'spoke before the writing' : `${panel.reason} — ${panel.detail}`}`]),
+    ...(budget === undefined ? [] : [`budget: ${budget.kind === 'within' ? 'within its ceilings' : `exhausted ${budget.ceiling}`}`]),
+    ...(suite === undefined ? [] : [`suite: ${suite.green ? 'green' : `red — ${suite.failures.map((failure) => failure.name).join(', ')}`}`]),
+    '',
+  ];
+  return emit(json, verdict, lines.join('\n'));
+}
+
 function planCommand(stdin: string, json: boolean): AutopilotCommandResult {
   const plan = planCluster(parseStdin<ClusterPlanInput>(stdin, 'candidate observation', 'plan'));
   return emit(json, plan, renderPlan(plan));
@@ -799,6 +912,8 @@ export function runAutopilotCommand(
     if (subcommand === 'plan') return planCommand(stdin, json);
     if (subcommand === 'orchestrate') return orchestrateCommand(stdin, json);
     if (subcommand === 'reconcile') return reconcileCommand(stdin, json);
+    if (subcommand === 'verify') return verifyCommand(stdin, json);
+    if (subcommand === 'gate') return gateCommand(stdin, json);
     if (subcommand === 'chain') {
       if (context === undefined) {
         throw autopilotFailure(
@@ -820,7 +935,7 @@ export function runAutopilotCommand(
       throw autopilotFailure(
         'AUTOPILOT_USAGE',
         `autopilot has no '${subcommand}' subcommand`,
-        `known subcommands are scaffold, plan, orchestrate, reconcile, chain, ${stateful.join(', ')}`,
+        `known subcommands are scaffold, plan, orchestrate, reconcile, verify, gate, chain, ${stateful.join(', ')}`,
         'run `void-harness autopilot --help` for the full contract',
       );
     }
