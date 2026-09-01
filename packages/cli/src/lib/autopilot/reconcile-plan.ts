@@ -22,6 +22,7 @@
 //      rather than merged.
 
 import { autopilotFailure } from './errors.js';
+import { normaliseArea } from './footprint-area.js';
 import { auditFootprint, type DeclaredFootprint } from './footprint-audit.js';
 import type { RangeVerdict } from './git-observation.js';
 
@@ -99,8 +100,12 @@ const SLUG = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 function matchesAny(path: string, patterns: readonly string[]): boolean {
   // Deliberately literal: a prefix or an exact path. Glob matching lives in
   // worker-order, where the active program's own patterns are compiled; here a
-  // pattern arrives already resolved to concrete paths by the caller.
-  return patterns.some((pattern) => path === pattern || path.startsWith(`${pattern}/`));
+  // pattern arrives already resolved to concrete paths by the caller. Spelling
+  // still goes through the one normaliser, so a trailing slash cannot make the
+  // strip step and the audit exemption disagree about the same list.
+  return patterns
+    .map(normaliseArea)
+    .some((pattern) => path === pattern || path.startsWith(`${pattern}/`));
 }
 
 export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {

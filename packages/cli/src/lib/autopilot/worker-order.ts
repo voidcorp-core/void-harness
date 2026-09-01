@@ -10,6 +10,7 @@
 
 import picomatch from 'picomatch';
 import { autopilotFailure } from './errors.js';
+import { type CompiledArea, areasOverlap, compileArea } from './footprint-area.js';
 
 export type SequenceReason =
   | 'unknown-footprint'
@@ -47,9 +48,13 @@ export interface WorkerOrder {
 
 const DEFAULT_MIN_CONFIDENCE = 0.5;
 
-function overlaps(a: readonly string[], b: readonly string[]): boolean {
-  const set = new Set(a);
-  return b.some((area) => set.has(area));
+// Read through `footprint-area`, the same relation the reconciliation audit
+// uses. Compared by exact string equality, `packages/cli/src` and
+// `packages/cli/src/lib/x.ts` were disjoint here and nested there: the pair ran
+// in parallel, and the audit then refused the second ticket's own neighbouring
+// file on the first's behalf. One reading, or the two drift by construction.
+function overlaps(a: readonly CompiledArea[], b: readonly CompiledArea[]): boolean {
+  return a.some((left) => b.some((right) => areasOverlap(left, right)));
 }
 
 export function orderWorkers(input: OrderInput): WorkerOrder {
@@ -63,6 +68,11 @@ export function orderWorkers(input: OrderInput): WorkerOrder {
   }
   const minConfidence = input.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
   const byId = new Map(input.footprints.map((footprint) => [footprint.id, footprint]));
+  // Compiled once, and before any ordering: an area that claims nothing is a
+  // contract failure, not a ticket that happens to collide with nobody.
+  const areasById = new Map(
+    input.footprints.map((footprint) => [footprint.id, footprint.areas.map(compileArea)] as const),
+  );
 
   // Compiled once: an ownership list is short, but this runs per area per ticket.
   const owned = input.sequentialOwnership.map((pattern) => picomatch(pattern));
@@ -82,12 +92,13 @@ export function orderWorkers(input: OrderInput): WorkerOrder {
       if (footprint.confidence < minConfidence) why.push('low-confidence');
       if (footprint.highRisk) why.push('high-risk');
       if (footprint.touchesMigration) why.push('migration');
-      if (footprint.areas.some(isOwned)) why.push('shared-ownership');
+      const areas = areasById.get(ticketId) ?? [];
+      if (areas.some((entry) => isOwned(entry.area))) why.push('shared-ownership');
 
       const collides = input.tickets.some((other) => {
         if (other === ticketId) return false;
-        const otherFootprint = byId.get(other);
-        return otherFootprint !== undefined && overlaps(footprint.areas, otherFootprint.areas);
+        const otherAreas = areasById.get(other);
+        return otherAreas !== undefined && overlaps(areas, otherAreas);
       });
       if (collides) why.push('footprint-overlap');
     }

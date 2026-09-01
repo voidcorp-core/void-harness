@@ -20,7 +20,7 @@
 // Pure: it decides, it observes nothing. The caller supplies the files git
 // reported for the range, never the ones the worker said it touched.
 
-import picomatch from 'picomatch';
+import { areaClaims, compileArea, normaliseArea } from './footprint-area.js';
 
 export interface DeclaredFootprint {
   readonly id: string;
@@ -65,31 +65,22 @@ export interface FootprintAuditInput {
   readonly exempt: readonly string[];
 }
 
-/**
- * Does `area` claim `file`?
- *
- * Three forms, because a footprint is written by a human in a ticket and all
- * three appear there: the exact path, the directory that contains it, and the
- * glob. Deliberately generous, and symmetric — the same reading decides both
- * what a ticket owns and what its neighbour owns, so being generous never
- * refuses a range it would otherwise have accepted.
- */
-function claims(area: string, file: string, match: (value: string) => boolean): boolean {
-  return file === area || file.startsWith(`${area}/`) || match(file);
-}
-
 export function auditFootprint(range: AuditedRange, input: FootprintAuditInput): FootprintVerdict {
+  // Compiled through the shared reading, so the audit and `orderWorkers` cannot
+  // disagree about what an area claims -- and so an area that claims nothing is
+  // refused here rather than passing as an empty claim.
   const compiled = input.footprints.map((footprint) => ({
     id: footprint.id,
-    areas: footprint.areas.map((area) => ({ area, match: picomatch(area) })),
+    areas: footprint.areas.map(compileArea),
   }));
+  const exempt = input.exempt.map(normaliseArea);
   const isExempt = (file: string): boolean =>
-    input.exempt.some((pattern) => file === pattern || file.startsWith(`${pattern}/`));
+    exempt.some((pattern) => file === pattern || file.startsWith(`${pattern}/`));
 
   const owns = (ticketId: string, file: string): boolean =>
     compiled
       .filter((footprint) => footprint.id === ticketId)
-      .some((footprint) => footprint.areas.some((entry) => claims(entry.area, file, entry.match)));
+      .some((footprint) => footprint.areas.some((entry) => areaClaims(entry, file)));
 
   const intrusions: Intrusion[] = [];
   const widened: string[] = [];
@@ -102,7 +93,7 @@ export function auditFootprint(range: AuditedRange, input: FootprintAuditInput):
       .filter(
         (footprint) =>
           footprint.id !== range.ticketId &&
-          footprint.areas.some((entry) => claims(entry.area, file, entry.match)),
+          footprint.areas.some((entry) => areaClaims(entry, file)),
       )
       .map((footprint) => footprint.id);
 

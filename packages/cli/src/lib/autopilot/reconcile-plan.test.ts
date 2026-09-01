@@ -307,4 +307,19 @@ describe('buildReconcilePlan footprint audit', () => {
 
     expect(plan.sharedPaths).toEqual(['pnpm-lock.yaml']);
   });
+  it('strips a reconcileOnly path written with a trailing slash', () => {
+    // The strip step and the audit exemption read one list. A spelling that
+    // disarms one has to disarm the other, or the two disagree about which
+    // files the reconciler owns.
+    const plan = buildReconcilePlan(
+      input({
+        ranges: [range({ ticketId: 'DEV-1', observedFiles: ['src/DEV-1.ts', 'packages/core/data/model.json'] })],
+        footprints,
+        reconcileOnly: ['packages/core/data/'],
+      }),
+    );
+
+    expect(plan.integrate).toEqual(['DEV-1']);
+    expect(plan.sharedPaths).toEqual(['packages/core/data/model.json']);
+  });
 });
