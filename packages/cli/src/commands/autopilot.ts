@@ -12,7 +12,62 @@
 // converged by re-observation.
 
 import { type ClusterPlan, type ClusterPlanInput, planCluster } from '../lib/autopilot/cluster-plan.js';
-import { type ConfirmationInput, confirmReservation } from '../lib/autopilot/cluster-reservation.js';
+import { selectBase, type BaseObservation, type BaseSelection } from '../lib/autopilot/base-selection.js';
+import {
+  decideBranchProtection,
+  interpretProtectionResponse,
+  type ProtectionResponse,
+} from '../lib/autopilot/branch-protection.js';
+import { verifyRange, type RangeObservation } from '../lib/autopilot/git-observation.js';
+import {
+  buildUnionReviewRequest,
+  inconclusiveReview,
+  judgeMergeGrant,
+  planPostCheckAction,
+  type CheckStand,
+  type MergeGrant,
+  type UnionReview,
+} from '../lib/autopilot/union-review.js';
+import { judgePanelBeforeWriting, type PanelEvent, type PanelOutcome } from '../lib/autopilot/panel-proof.js';
+import {
+  renderPullRequestBody,
+  type ExcludedTicket,
+  type ReconciliationDecision,
+  type TicketProvenance,
+} from '../lib/autopilot/pr-body.js';
+import {
+  accountCiRuns,
+  buildPublishPlan,
+  type ExistingPullRequest,
+  type PublishPlan,
+} from '../lib/autopilot/publish-plan.js';
+import { assessProofs, type ProofAssessment, type ProofContext, type VerificationProof } from '../lib/autopilot/proof-invalidation.js';
+import {
+  judgeRangeProofs,
+  type ProofEvidence,
+  type RangeVerdict as ProofRangeVerdict,
+  type RequiredProof,
+} from '../lib/autopilot/required-proof.js';
+import { judgeUnitBudget, type UnitBudgetVerdict, type UnitCeilings, type UnitSpend } from '../lib/autopilot/unit-budget.js';
+import {
+  buildVerificationPlan,
+  judgeVerification,
+  type CommandOutcome,
+  type VerificationPlan,
+  type VerificationVerdict,
+} from '../lib/autopilot/verification-plan.js';
+import { buildOrchestrationPlan, type OrchestrationPlan } from '../lib/autopilot/orchestration-plan.js';
+import { resolveClusterOutcome, type ClusterOutcome, type WorkerFailure } from '../lib/autopilot/partial-success.js';
+import { buildReconcilePlan, type ReconcilePlan, type VerifiedRange } from '../lib/autopilot/reconcile-plan.js';
+import { parseWorkerResult, type WorkerResult } from '../lib/autopilot/worker-result.js';
+import { orderWorkers, type OrderFootprint } from '../lib/autopilot/worker-order.js';
+import { planWorktreeSetup, planWorktreeTeardown } from '../lib/autopilot/worktree-lifecycle.js';
+import {
+  type ConfirmationInput,
+  confirmReservation,
+  planReservation,
+  type ReservationRequest,
+} from '../lib/autopilot/cluster-reservation.js';
 import { autopilotFailure, renderAutopilotFailure, toAutopilotFailure } from '../lib/autopilot/errors.js';
 import { decideChainStep, type ChainObservation } from '../lib/autopilot/chain-step.js';
 import { readProgramDescriptor } from '../lib/autopilot/program.js';
@@ -31,16 +86,22 @@ import {
 import type { RunState, TicketRunState } from '../lib/autopilot/run-state.js';
 import { listRunIds, readRun, writeRun } from '../lib/autopilot/state-store.js';
 import {
+  type ActionReceipt,
+  type LifecycleInput,
   type LifecyclePlan,
   type LifecycleTicket,
   planTrackerLifecycle,
+  reconcileLifecycle,
 } from '../lib/autopilot/tracker-lifecycle.js';
 import {
   type BoundaryReading,
   type NextAction,
   nextAction,
   type PullRequestReading,
+  type RawReading,
+  readBoundary,
   type RunSituation,
+  type TrackerReading,
 } from '../lib/autopilot/transition-oracle.js';
 
 export interface AutopilotCommandResult {
@@ -460,6 +521,581 @@ function chainCommand(
   return emit(json, step, human);
 }
 
+/**
+ * What a confirmed cluster becomes: lanes, assignments, and the git commands.
+ *
+ * The step between "these tickets" and "this worker is running" was prose in the
+ * skill, and the four functions that compute it -- ordering, assignment, setup,
+ * teardown -- had no caller anywhere. A run that follows a paragraph decides
+ * which tickets may write at once by reading, which is the one decision that
+ * must not depend on anybody having read carefully.
+ *
+ * Nothing here touches the repository. It returns argv the caller executes, so
+ * the step stays testable without a git tree and the executor stays visible.
+ */
+interface OrchestrationObservation {
+  readonly runId: string;
+  readonly clusterId: string;
+  readonly base: { readonly branch: string; readonly sha: string };
+  readonly tickets: readonly string[];
+  readonly footprints: readonly OrderFootprint[];
+  readonly sequentialOwnership?: readonly string[];
+  readonly minConfidence?: number;
+  readonly clusterSize: number;
+  readonly planPath: string;
+  readonly specPath: string;
+}
+
+interface OrchestrationOutcome {
+  readonly schemaVersion: 1;
+  readonly plan: OrchestrationPlan;
+  /** Why each sequenced ticket lost its parallel slot. */
+  readonly reasons: Readonly<Record<string, readonly string[]>>;
+  readonly setup: readonly { readonly ticketId: string; readonly command: readonly string[] }[];
+  readonly teardown: readonly { readonly ticketId: string; readonly command: readonly string[] }[];
+}
+
+function orchestrateCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<OrchestrationObservation>(stdin, 'orchestration observation');
+  const order = orderWorkers({
+    tickets: observation.tickets,
+    footprints: observation.footprints,
+    sequentialOwnership: observation.sequentialOwnership ?? [],
+    ...(observation.minConfidence === undefined ? {} : { minConfidence: observation.minConfidence }),
+  });
+  const plan = buildOrchestrationPlan({
+    runId: observation.runId,
+    clusterId: observation.clusterId,
+    base: observation.base,
+    parallel: order.parallel,
+    sequential: order.sequential,
+    clusterSize: observation.clusterSize,
+    planPath: observation.planPath,
+    specPath: observation.specPath,
+  });
+  const outcome: OrchestrationOutcome = {
+    schemaVersion: 1,
+    plan,
+    reasons: order.reasons,
+    setup: planWorktreeSetup(plan),
+    teardown: planWorktreeTeardown(plan),
+  };
+  const human = [
+    `${String(plan.assignments.length)} assignment(s), width ${String(plan.concurrency)}`,
+    ...plan.assignments.map((assignment) => {
+      const why = order.reasons[assignment.ticketId];
+      const because = why === undefined || why.length === 0 ? '' : ` — ${why.join(', ')}`;
+      return `  ${assignment.ticketId.padEnd(10)} ${assignment.lane}${because}`;
+    }),
+    '',
+    'before any worker:',
+    ...outcome.setup.map((step) => `  ${step.command.join(' ')}`),
+    '',
+    'once the run is done with them:',
+    ...outcome.teardown.map((step) => `  ${step.command.join(' ')}`),
+    '',
+  ].join('\n');
+  return emit(json, outcome, human);
+}
+
+/**
+ * What the run does with what came back from the workers.
+ *
+ * Four steps that were a paragraph in the skill: parse each answer, resolve
+ * which of them the cluster can integrate, check every range against what GIT
+ * says rather than what the worker claimed, and state the merge as commands.
+ *
+ * The order is the safety. A worker's own report is never evidence: the range
+ * is verified against an observation of the repository, and a head the worker
+ * claims but git does not have is excluded rather than merged.
+ */
+interface ReconcileObservation {
+  readonly clusterId: string;
+  readonly base: { readonly branch: string; readonly sha: string };
+  readonly cluster: readonly string[];
+  readonly results: readonly unknown[];
+  readonly failures?: readonly WorkerFailure[];
+  readonly observations: readonly RangeObservation[];
+  readonly reconcileOnly?: readonly string[];
+  readonly rebuildCommand?: readonly string[];
+  readonly maxCommits?: number;
+}
+
+/**
+ * A cluster where nothing survived carries no merge plan, and says so.
+ *
+ * `buildReconcilePlan` refuses an empty range, which is right for a merge but
+ * wrong for a cycle: every worker blocked is an ordinary outcome of a run, not
+ * a misuse of the command. The shape says which of the two happened rather than
+ * handing back an empty plan that reads like a merge with nothing in it.
+ */
+type ReconcileOutcome =
+  | { readonly schemaVersion: 1; readonly outcome: ClusterOutcome; readonly plan: ReconcilePlan }
+  | { readonly schemaVersion: 1; readonly outcome: ClusterOutcome };
+
+function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<ReconcileObservation>(stdin, 'reconcile observation');
+  // Parsed one by one so a malformed answer names its own ticket. A worker whose
+  // result cannot be read is not an integration candidate, and pretending it is
+  // one would merge a range nobody described.
+  const parsed: WorkerResult[] = [];
+  const failures: WorkerFailure[] = [...(observation.failures ?? [])];
+  for (const raw of observation.results) {
+    try {
+      parsed.push(parseWorkerResult(raw));
+    } catch (error) {
+      const ticketId = (raw as { ticketId?: unknown }).ticketId;
+      failures.push({
+        ticketId: typeof ticketId === 'string' ? ticketId : 'unknown',
+        detail: error instanceof Error ? error.message : 'the worker result could not be read',
+      });
+    }
+  }
+
+  const outcome = resolveClusterOutcome({
+    cluster: observation.cluster,
+    results: parsed,
+    failures,
+  });
+
+  const observed = new Map(observation.observations.map((entry) => [entry.ticketId, entry]));
+  const ranges: VerifiedRange[] = outcome.integrate.map((ticketId) => {
+    const result = parsed.find((entry) => entry.ticketId === ticketId);
+    const sighting = observed.get(ticketId);
+    const verdict = sighting === undefined
+      ? {
+          kind: 'rejected' as const,
+          ticketId,
+          reason: 'malformed-observation' as const,
+          detail: 'git was never observed for this range, and a claim is not an observation',
+        }
+      : verifyRange(sighting, {
+          declaredCommits: result?.commits ?? [],
+          ...(observation.maxCommits === undefined ? {} : { maxCommits: observation.maxCommits }),
+        });
+    return {
+      ticketId,
+      branch: result?.branch ?? '',
+      headSha: sighting?.headSha ?? '',
+      verdict,
+      files: result?.files ?? [],
+    };
+  });
+
+  if (ranges.length === 0) {
+    const nothing = [
+      `${outcome.kind}: no range survived the cluster`,
+      ...outcome.excluded.map((entry) => `  excluded ${entry.ticketId}: ${entry.reason} — ${entry.detail}`),
+      '',
+      'Every branch the run created is preserved, so nothing is lost by stopping here.',
+      '',
+    ].join('\n');
+    return emit(json, { schemaVersion: 1, outcome } satisfies ReconcileOutcome, nothing);
+  }
+
+  const plan = buildReconcilePlan({
+    clusterId: observation.clusterId,
+    base: observation.base,
+    ranges,
+    reconcileOnly: observation.reconcileOnly ?? [],
+    ...(observation.rebuildCommand === undefined ? {} : { rebuildCommand: observation.rebuildCommand }),
+  });
+
+  const human = [
+    `${outcome.kind}: ${plan.integrate.length === 0 ? '(nothing)' : plan.integrate.join(', ')}`,
+    ...outcome.excluded.map((entry) => `  excluded ${entry.ticketId}: ${entry.reason}`),
+    ...plan.excluded.map((entry) => `  excluded ${entry.ticketId}: ${entry.reason}`),
+    '',
+    `integration branch: ${plan.integrationBranch}`,
+    ...plan.steps.map((step) => `  ${step.command.join(' ')}`),
+    '',
+    'Every branch above is preserved. Nothing here deletes a worker branch.',
+    '',
+  ].join('\n');
+  return emit(json, { schemaVersion: 1, outcome, plan } satisfies ReconcileOutcome, human);
+}
+
+/**
+ * The suite that decides a merge, stated rather than improvised.
+ *
+ * Bounded on purpose: a command with no ceiling is how an unattended run spends
+ * its whole budget waiting for something that already hung.
+ */
+interface VerificationObservation {
+  readonly integrationSha: string;
+  readonly commands: readonly (readonly string[])[];
+  readonly timeoutMs?: number;
+  readonly maxOutputBytes?: number;
+}
+
+function verifyCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<VerificationObservation>(stdin, 'verification observation');
+  const plan = buildVerificationPlan({
+    integrationSha: observation.integrationSha,
+    commands: observation.commands,
+    ...(observation.timeoutMs === undefined ? {} : { timeoutMs: observation.timeoutMs }),
+    ...(observation.maxOutputBytes === undefined ? {} : { maxOutputBytes: observation.maxOutputBytes }),
+  });
+  const human = [
+    `on ${plan.integrationSha.slice(0, 7)}, ${String(plan.commands.length)} command(s):`,
+    ...plan.commands.map((command) => `  ${command.command.join(' ')} (${String(command.timeoutMs)}ms)`),
+    '',
+  ].join('\n');
+  return emit(json, plan, human);
+}
+
+/**
+ * Everything a unit must satisfy before its range may merge, judged at once.
+ *
+ * Four judgements that used to be four paragraphs: did the declared proofs
+ * actually run against THIS tree, did the panel speak before the writing, did
+ * the unit stay inside its ceilings, and is the evidence still fresh. They are
+ * answered together because they answer one question, and a caller who has to
+ * remember the fourth is a caller who will forget it.
+ *
+ * Absence of a record is absence of the act, on every one of them.
+ */
+interface GateObservation {
+  readonly mergedTreeHash: string;
+  readonly required: readonly RequiredProof[];
+  readonly evidence: readonly ProofEvidence[];
+  readonly panel?: readonly PanelEvent[];
+  readonly spend?: UnitSpend;
+  readonly ceilings?: UnitCeilings;
+  readonly outcomes?: readonly CommandOutcome[];
+  readonly plan?: VerificationPlan;
+  readonly freshness?: { readonly proofs: readonly VerificationProof[]; readonly context: ProofContext };
+}
+
+interface GateVerdict {
+  readonly schemaVersion: 1;
+  readonly proofs: ProofRangeVerdict;
+  readonly panel?: PanelOutcome;
+  readonly budget?: UnitBudgetVerdict;
+  readonly suite?: VerificationVerdict;
+  readonly freshness?: ProofAssessment;
+}
+
+function gateCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<GateObservation>(stdin, 'gate observation');
+  const proofs = judgeRangeProofs(observation.required, observation.evidence, observation.mergedTreeHash);
+  const panel = observation.panel === undefined ? undefined : judgePanelBeforeWriting(observation.panel);
+  const budget = observation.spend === undefined || observation.ceilings === undefined
+    ? undefined
+    : judgeUnitBudget(observation.spend, observation.ceilings);
+  const suite = observation.plan === undefined || observation.outcomes === undefined
+    ? undefined
+    : judgeVerification(observation.plan, observation.outcomes);
+  const freshness = observation.freshness === undefined
+    ? undefined
+    : assessProofs(observation.freshness.proofs, observation.freshness.context);
+
+  const verdict: GateVerdict = {
+    schemaVersion: 1,
+    proofs,
+    ...(panel === undefined ? {} : { panel }),
+    ...(budget === undefined ? {} : { budget }),
+    ...(suite === undefined ? {} : { suite }),
+    ...(freshness === undefined ? {} : { freshness }),
+  };
+
+  const lines = [
+    proofs.kind === 'merge'
+      ? `proofs: merge${proofs.debts.length === 0 ? '' : ` with ${String(proofs.debts.length)} debt(s)`}`
+      : `proofs: refuse (${proofs.action}) — ${proofs.detail}`,
+    ...proofs.debts.map((debt) => `  debt ${debt.proof} (${debt.severity}): ${debt.reason}`),
+    ...(panel === undefined ? [] : [`panel: ${panel.kind === 'satisfied' ? 'spoke before the writing' : `${panel.reason} — ${panel.detail}`}`]),
+    ...(budget === undefined ? [] : [`budget: ${budget.kind === 'within' ? 'within its ceilings' : `exhausted ${budget.ceiling}`}`]),
+    ...(suite === undefined ? [] : [`suite: ${suite.green ? 'green' : `red — ${suite.failures.map((failure) => failure.name).join(', ')}`}`]),
+    '',
+  ];
+  return emit(json, verdict, lines.join('\n'));
+}
+
+/**
+ * One branch, one explicit refspec, one pull request that carries its own
+ * provenance.
+ *
+ * The body is rendered here rather than written by whoever publishes, because
+ * the body IS the account: what merged, on what evidence, what was left out and
+ * how to resume it. A summary somebody types afterwards is a different artefact
+ * with the same name.
+ *
+ * The CI count travels through `accountCiRuns` so an undecidable trigger budget
+ * comes back as "cannot be stated" rather than as a number a reader would take
+ * on trust.
+ */
+interface PublishObservation {
+  readonly clusterId: string;
+  readonly remote: string;
+  readonly base: { readonly branch: string; readonly sha: string };
+  readonly integrationSha: string;
+  readonly proofs: ProofAssessment;
+  readonly workerBranches: readonly string[];
+  readonly existingPullRequest?: ExistingPullRequest | null;
+  readonly included: readonly TicketProvenance[];
+  readonly excluded: readonly ExcludedTicket[];
+  readonly decisions: readonly ReconciliationDecision[];
+  readonly verification: readonly { readonly name: string; readonly passed: boolean }[];
+  readonly ci: { readonly expectedRunsPerPush: number | null; readonly pushes: number; readonly unknowns: readonly string[] };
+  readonly blockers: readonly string[];
+}
+
+function publishCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<PublishObservation>(stdin, 'publish observation');
+  const plan: PublishPlan = buildPublishPlan({
+    clusterId: observation.clusterId,
+    remote: observation.remote,
+    base: { branch: observation.base.branch },
+    integrationSha: observation.integrationSha,
+    proofs: observation.proofs,
+    workerBranches: observation.workerBranches,
+    ...(observation.existingPullRequest === undefined
+      ? {}
+      : { existingPullRequest: observation.existingPullRequest }),
+  });
+  const ci = accountCiRuns(observation.ci);
+  const body = renderPullRequestBody({
+    clusterId: observation.clusterId,
+    base: observation.base,
+    integrationSha: observation.integrationSha,
+    included: observation.included,
+    excluded: observation.excluded,
+    decisions: observation.decisions,
+    verification: observation.verification,
+    ci,
+    blockers: observation.blockers,
+  });
+
+  const human = [
+    `integration branch: ${plan.integrationBranch}`,
+    ...plan.steps.map((step) => `  ${step.command.join(' ')}`),
+    ...plan.blocked.map((block) => `  BLOCKED ${block.reason}: ${block.detail}`),
+    '',
+    `pull request: ${plan.pullRequest.number === null ? 'to create' : `#${String(plan.pullRequest.number)}`}`,
+    `  body -> ${plan.pullRequest.bodyPath}`,
+    '',
+  ].join('\n');
+  return emit(json, { schemaVersion: 1, plan, ci, body }, human);
+}
+
+/**
+ * Whether this integration branch may merge itself, and what to do next.
+ *
+ * The grant is the product's trust boundary, and it fails closed on every input:
+ * an unobserved protection reads like an unprotected branch, an unread union
+ * reads like a refusal, and the branch that deploys is never a target whatever
+ * the reading says.
+ *
+ * The request a reader would answer travels back with a refusal for
+ * `union-unread`, so nobody assembles it by hand -- which is how a reading gets
+ * skipped, and a skipped reading is exactly what this refuses.
+ */
+interface GrantObservation {
+  readonly target: string;
+  readonly deployBranch: string;
+  readonly integrationBranch: string;
+  readonly integrationSha: string;
+  readonly baseSha: string;
+  readonly tickets: readonly string[];
+  readonly humanGates: readonly string[];
+  readonly protection?: Parameters<typeof judgeMergeGrant>[0]['protection'];
+  readonly changedPaths?: readonly string[];
+  readonly mergeBlocks?: readonly string[];
+  readonly checks: CheckStand;
+  /** What the reader returned. `null` says plainly that none ran. */
+  readonly review: UnionReview | null;
+  readonly declaredLenses: number;
+  readonly capability: Parameters<typeof buildUnionReviewRequest>[0]['capability'];
+}
+
+function grantCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<GrantObservation>(stdin, 'merge grant observation');
+  // An absent reading is not an inconclusive one, and neither is an approval.
+  // Both refuse, and they refuse under names that send a reader to different
+  // places: one to run the pass, one to read what it could not settle.
+  const review = observation.review ?? undefined;
+  const grant: MergeGrant = judgeMergeGrant({
+    target: observation.target,
+    deployBranch: observation.deployBranch,
+    integrationSha: observation.integrationSha,
+    review,
+    tickets: observation.tickets,
+    humanGates: observation.humanGates,
+    protection: observation.protection,
+    changedPaths: observation.changedPaths,
+    mergeBlocks: observation.mergeBlocks,
+  });
+  const action = planPostCheckAction({ checks: observation.checks, grant });
+  const request = review === undefined
+    ? buildUnionReviewRequest({
+        integrationBranch: observation.integrationBranch,
+        integrationSha: observation.integrationSha,
+        baseSha: observation.baseSha,
+        ticketIds: observation.tickets,
+        declaredLenses: observation.declaredLenses,
+        capability: observation.capability,
+      })
+    : undefined;
+
+  const human = [
+    grant.kind === 'granted'
+      ? `grant: granted${grant.advisories.length === 0 ? '' : ` (${String(grant.advisories.length)} advisory finding(s) filed)`}`
+      : `grant: refused (${grant.reason}) — ${grant.detail}`,
+    `next: ${action.action} — ${action.detail}`,
+    ...(request === undefined
+      ? []
+      : ['', 'the reading nobody ran:', `  ${request.diffCommand.join(' ')}`]),
+    '',
+  ].join('\n');
+  return emit(
+    json,
+    {
+      schemaVersion: 1,
+      grant,
+      action,
+      ...(request === undefined ? {} : { request }),
+    },
+    human,
+  );
+}
+
+/**
+ * Which branch a run integrates into, and whether it is really protected.
+ *
+ * The two questions travel together because the answer to the first decides
+ * what the second is asked about. And the protection is INTERPRETED from the
+ * raw response rather than read off a boolean somebody set: an unauthenticated
+ * `gh`, a network blip and a genuinely open branch look identical from the
+ * outside, and only one of them is safe to merge into.
+ */
+interface BaseSelectionObservation extends BaseObservation {
+  readonly protection?: ProtectionResponse;
+}
+
+function baseCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<BaseSelectionObservation>(stdin, 'base observation');
+  const base: BaseSelection = selectBase(observation);
+  const protection = observation.protection === undefined || base.kind !== 'selected'
+    ? undefined
+    : decideBranchProtection(interpretProtectionResponse(observation.protection), base.branch);
+
+  const human = [
+    base.kind === 'selected'
+      ? `base: ${base.branch} at ${base.sha.slice(0, 7)}`
+      : `base: blocked (${base.reason}) — ${base.detail}`,
+    ...(protection === undefined
+      ? []
+      : [`protection: ${protection.allowed ? 'protected' : `refused (${protection.reason})`} — ${protection.detail}`]),
+    '',
+  ].join('\n');
+  return emit(json, { schemaVersion: 1, base, ...(protection === undefined ? {} : { protection }) }, human);
+}
+
+/**
+ * Classify what each boundary actually answered, before anything reads it.
+ *
+ * A source that failed AND returned a value is a contradiction, not a value and
+ * not a failure; an empty answer is not an absent one. Leaving that
+ * classification to whoever observes is how a run resumes on a fact nobody
+ * established, so it is code here rather than care there.
+ */
+interface RawObservation {
+  readonly tracker: RawReading<TrackerReading>;
+  readonly pullRequest: RawReading<PullRequestReading>;
+  readonly workerRefs: RawReading<readonly string[]>;
+}
+
+function observeCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const raw = parseStdin<RawObservation>(stdin, 'raw boundary observation');
+  const observation = {
+    schemaVersion: 1,
+    tracker: readBoundary(raw.tracker),
+    pullRequest: readBoundary(raw.pullRequest),
+    workerRefs: readBoundary(raw.workerRefs),
+  };
+  const human = [
+    `tracker:      ${observation.tracker.kind}`,
+    `pullRequest:  ${observation.pullRequest.kind}`,
+    `workerRefs:   ${observation.workerRefs.kind}`,
+    '',
+    'Pipe this into `autopilot resume` or `autopilot status`.',
+    '',
+  ].join('\n');
+  return emit(json, observation, human);
+}
+
+/**
+ * What the tracker owes once the run is over, and whether it got it.
+ *
+ * Planned and reconciled by the same command, because the second question is
+ * meaningless without the first: a receipt for an action nobody planned is as
+ * much a defect as a planned action with no receipt, and only a caller holding
+ * both can say so. Receipts are optional -- without them this states the plan.
+ *
+ * An action whose precondition is not met is reported as skipped rather than
+ * silently dropped. A ticket left in the wrong state after a merged run is the
+ * residue nobody notices until the next run trips on it.
+ */
+interface LifecycleObservation extends LifecycleInput {
+  readonly receipts?: readonly ActionReceipt[];
+}
+
+function lifecycleCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<LifecycleObservation>(stdin, 'lifecycle observation');
+  const plan = planTrackerLifecycle(observation);
+  const reconciliation = observation.receipts === undefined
+    ? undefined
+    : reconcileLifecycle(plan, observation.receipts);
+
+  const human = [
+    `${plan.stage}: ${String(plan.actions.length)} action(s)`,
+    ...plan.actions.map((action) => `  ${action.kind} ${action.ticketId ?? ''}`.trimEnd()),
+    ...plan.skipped.map((skip) => `  skipped ${skip.kind} ${skip.ticketId}: ${skip.why}`),
+    ...(reconciliation === undefined
+      ? []
+      : ['', `reconciliation: ${reconciliation.converged ? 'converged' : 'pending'} — ${reconciliation.detail}`]),
+    '',
+  ].join('\n');
+  return emit(
+    json,
+    { ...plan, ...(reconciliation === undefined ? {} : { reconciliation }) },
+    human,
+  );
+}
+
+/**
+ * Whether this run may take the cluster, and what it would do to take it.
+ *
+ * The moment two launches on one pool would collide. It answers with one of
+ * four things -- resume our own lease, reserve a free cluster, name the
+ * competing claims, or refuse -- and never with a boolean: "someone else holds
+ * it" and "the observation is unusable" lead a person to different places.
+ *
+ * Nothing is written. The actions come back for the caller to apply, so the
+ * decision stays testable without a tracker.
+ */
+function reserveCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const request = parseStdin<ReservationRequest>(stdin, 'reservation request');
+  const outcome = planReservation(request);
+  const human = outcome.kind === 'reserve'
+    ? [
+        `reserve: ${String(outcome.actions.length)} action(s)`,
+        ...outcome.actions.map((action) => `  ${action.kind} ${action.issueId ?? ''}`.trimEnd()),
+        '',
+      ].join('\n')
+    : outcome.kind === 'resume'
+      ? `resume: this run already holds ${outcome.issues.join(', ')}\n`
+      : outcome.kind === 'competing-claims'
+        ? [
+            'competing claims — nothing was taken:',
+            ...outcome.claims.map((claim) => `  ${claim.issueId}: ${claim.reason}`),
+            '',
+          ].join('\n')
+        : `blocked (${outcome.reason}): ${outcome.detail}\n`;
+  return emit(json, outcome, human);
+}
+
 function planCommand(stdin: string, json: boolean): AutopilotCommandResult {
   const plan = planCluster(parseStdin<ClusterPlanInput>(stdin, 'candidate observation', 'plan'));
   return emit(json, plan, renderPlan(plan));
@@ -596,6 +1232,16 @@ export function runAutopilotCommand(
     }
 
     if (subcommand === 'plan') return planCommand(stdin, json);
+    if (subcommand === 'orchestrate') return orchestrateCommand(stdin, json);
+    if (subcommand === 'reconcile') return reconcileCommand(stdin, json);
+    if (subcommand === 'verify') return verifyCommand(stdin, json);
+    if (subcommand === 'gate') return gateCommand(stdin, json);
+    if (subcommand === 'publish') return publishCommand(stdin, json);
+    if (subcommand === 'grant') return grantCommand(stdin, json);
+    if (subcommand === 'reserve') return reserveCommand(stdin, json);
+    if (subcommand === 'base') return baseCommand(stdin, json);
+    if (subcommand === 'observe') return observeCommand(stdin, json);
+    if (subcommand === 'lifecycle') return lifecycleCommand(stdin, json);
     if (subcommand === 'chain') {
       if (context === undefined) {
         throw autopilotFailure(
@@ -617,7 +1263,7 @@ export function runAutopilotCommand(
       throw autopilotFailure(
         'AUTOPILOT_USAGE',
         `autopilot has no '${subcommand}' subcommand`,
-        `known subcommands are scaffold, plan, chain, ${stateful.join(', ')}`,
+        `known subcommands are scaffold, plan, orchestrate, reconcile, verify, gate, publish, grant, base, observe, reserve, lifecycle, chain, ${stateful.join(', ')}`,
         'run `void-harness autopilot --help` for the full contract',
       );
     }

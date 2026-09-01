@@ -235,6 +235,496 @@ ${enabled}  clusterSize: 2
     expect(result.exitCode).toBe(0);
   });
 
+  const SETUP_SHA = 'c'.repeat(40);
+
+  /** What the skill knows once a cluster is confirmed and a lease is held. */
+  function orchestration(over: Record<string, unknown> = {}): string {
+    return JSON.stringify({
+      schemaVersion: 1,
+      runId: 'run-a',
+      clusterId: 'cluster-1',
+      base: { branch: 'develop', sha: SETUP_SHA },
+      tickets: ['DEV-1', 'DEV-2'],
+      footprints: [
+        { id: 'DEV-1', areas: ['packages/cli'], highRisk: false, confidence: 0.9, touchesMigration: false },
+        { id: 'DEV-2', areas: ['packages/core'], highRisk: false, confidence: 0.9, touchesMigration: false },
+      ],
+      sequentialOwnership: ['pnpm-lock.yaml'],
+      clusterSize: 2,
+      planPath: 'docs/plans/p.md',
+      specPath: 'docs/specs/s.md',
+      ...over,
+    });
+  }
+
+  // The step between a confirmed cluster and a spawned worker. It was prose in
+  // the skill, so the four functions that compute it -- ordering, assignment,
+  // worktree setup, worktree teardown -- had no caller at all.
+  it('turns a confirmed cluster into the worktree commands a run executes', () => {
+    const result = runAutopilotCommand(['orchestrate', '--json'], orchestration(), ctx(repo()));
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.plan.assignments.map((a: { ticketId: string }) => a.ticketId)).toEqual(['DEV-1', 'DEV-2']);
+    expect(emitted.plan.assignments.every((a: { lane: string }) => a.lane === 'parallel')).toBe(true);
+    expect(emitted.setup[0].command.slice(0, 3)).toEqual(['git', 'worktree', 'add']);
+    expect(emitted.setup[0].command).toContain(SETUP_SHA);
+    expect(emitted.teardown[0].command.slice(0, 3)).toEqual(['git', 'worktree', 'remove']);
+  });
+
+  // The lane is a safety decision, not a speed one: two tickets writing the same
+  // area cannot both hold it.
+  it('sequences what collides, and says why it lost its parallel slot', () => {
+    const result = runAutopilotCommand(
+      ['orchestrate', '--json'],
+      orchestration({
+        footprints: [
+          { id: 'DEV-1', areas: ['packages/cli'], highRisk: false, confidence: 0.9, touchesMigration: false },
+          { id: 'DEV-2', areas: ['packages/cli'], highRisk: false, confidence: 0.9, touchesMigration: false },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    const lanes = Object.fromEntries(
+      emitted.plan.assignments.map((a: { ticketId: string; lane: string }) => [a.ticketId, a.lane]),
+    );
+    expect(Object.values(lanes)).toContain('sequential');
+    expect(JSON.stringify(emitted.reasons)).toContain('footprint-overlap');
+  });
+
+  it('refuses an orchestration whose base sha is not a commit', () => {
+    const result = runAutopilotCommand(
+      ['orchestrate'],
+      orchestration({ base: { branch: 'develop', sha: 'HEAD' } }),
+      ctx(repo()),
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/sha|commit/i);
+  });
+
+  const A = 'a'.repeat(39);
+  const B = 'b'.repeat(39);
+
+  /** One worker's answer, as the runtime schema forces it to come back. */
+  function workerResult(over: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      schemaVersion: 1,
+      ticketId: 'DEV-1',
+      status: 'completed',
+      branch: 'autopilot/cluster-1/DEV-1',
+      baseSha: SETUP_SHA,
+      headSha: `${A}1`,
+      commits: [`${A}1`],
+      files: ['packages/cli/src/x.ts'],
+      proofs: [{ name: 'suite', command: ['pnpm', 'test'], hash: 'd'.repeat(64) }],
+      decisions: [],
+      blocker: null,
+      ...over,
+    };
+  }
+
+  /** What git says about that branch, observed rather than claimed. */
+  function reconciliation(over: Record<string, unknown> = {}): string {
+    return JSON.stringify({
+      schemaVersion: 1,
+      clusterId: 'cluster-1',
+      base: { branch: 'develop', sha: SETUP_SHA },
+      cluster: ['DEV-1'],
+      results: [workerResult()],
+      failures: [],
+      observations: [
+        {
+          ticketId: 'DEV-1',
+          baseSha: SETUP_SHA,
+          headSha: `${A}1`,
+          commits: [{ sha: `${A}1`, parents: [SETUP_SHA] }],
+        },
+      ],
+      reconcileOnly: ['packages/core/graph/void-graph.mjs'],
+      ...over,
+    });
+  }
+
+  // What the run does with what came back from the workers. Four functions
+  // computed it -- parse, resolve, verify each range against git, plan the
+  // merge -- and none of them had a caller: the skill told a model to do it.
+  it('integrates a range git confirms, and states the merge as commands', () => {
+    const result = runAutopilotCommand(['reconcile', '--json'], reconciliation(), ctx(repo()));
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.outcome.integrate).toEqual(['DEV-1']);
+    expect(emitted.plan.integrate).toEqual(['DEV-1']);
+    expect(emitted.plan.integrationBranch).toContain('cluster-1');
+    expect(emitted.plan.steps.length).toBeGreaterThan(0);
+  });
+
+  // The range is what git says, never what the worker claimed. A worker that
+  // reports a commit git does not have is the case this exists for.
+  it('excludes a range whose head git does not agree with', () => {
+    const result = runAutopilotCommand(
+      ['reconcile', '--json'],
+      reconciliation({
+        observations: [
+          {
+            ticketId: 'DEV-1',
+            baseSha: SETUP_SHA,
+            headSha: `${B}2`,
+            commits: [{ sha: `${B}2`, parents: [SETUP_SHA] }],
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.plan.integrate).toEqual([]);
+    expect(JSON.stringify(emitted.plan.excluded)).toMatch(/unverified-range|missing-commit|head-mismatch/);
+  });
+
+  it('integrates nothing when every worker came back blocked', () => {
+    const result = runAutopilotCommand(
+      ['reconcile', '--json'],
+      reconciliation({
+        results: [workerResult({ status: 'blocked', headSha: null, commits: [], blocker: 'the API is down' })],
+      }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.outcome.kind).toBe('nothing-to-integrate');
+    expect(JSON.stringify(emitted.outcome.excluded)).toContain('DEV-1');
+  });
+
+  const TREE = 'e'.repeat(40);
+
+  // The suite that decides a merge is stated as commands with a ceiling, not
+  // improvised by whoever runs it.
+  it('states the suite to run on the integration sha, bounded', () => {
+    const result = runAutopilotCommand(
+      ['verify', '--json'],
+      JSON.stringify({
+        schemaVersion: 1,
+        integrationSha: SETUP_SHA,
+        commands: [['pnpm', 'verify']],
+      }),
+      ctx(repo()),
+    );
+
+    expect(result.exitCode).toBe(0);
+    const plan = JSON.parse(result.stdout);
+    expect(plan.integrationSha).toBe(SETUP_SHA);
+    expect(plan.commands[0].command).toEqual(['pnpm', 'verify']);
+    expect(plan.commands[0].timeoutMs).toBeGreaterThan(0);
+  });
+
+  /** What a unit owes, and what was actually observed of it. */
+  function gateObservation(over: Record<string, unknown> = {}): string {
+    return JSON.stringify({
+      schemaVersion: 1,
+      mergedTreeHash: TREE,
+      required: [
+        { id: 'suite-green', proofClass: 'absolute', command: ['pnpm', 'verify'] },
+      ],
+      evidence: [
+        {
+          evidenceId: 'ev-1',
+          command: ['pnpm', 'verify'],
+          diffHash: TREE,
+          status: 'passed',
+          exitCode: 0,
+        },
+      ],
+      ...over,
+    });
+  }
+
+  it('merges a unit whose absolute proof was actually run on this tree', () => {
+    const result = runAutopilotCommand(['gate', '--json'], gateObservation(), ctx(repo()));
+
+    expect(result.exitCode).toBe(0);
+    const verdict = JSON.parse(result.stdout);
+    expect(verdict.proofs.kind).toBe('merge');
+  });
+
+  // The direction that matters. A proof nobody ran is not a proof, and the
+  // absence of a record is the absence of the act.
+  it('refuses a unit whose absolute proof was never run, and names the action', () => {
+    const result = runAutopilotCommand(['gate', '--json'], gateObservation({ evidence: [] }), ctx(repo()));
+
+    const verdict = JSON.parse(result.stdout);
+    expect(verdict.proofs.kind).toBe('refuse');
+    expect(['STOP_CHAIN', 'RETRY_MODIFIED']).toContain(verdict.proofs.action);
+  });
+
+  it('refuses a unit whose proof was run against a tree that has since moved', () => {
+    const result = runAutopilotCommand(
+      ['gate', '--json'],
+      gateObservation({ evidence: [{ evidenceId: 'ev-1', command: ['pnpm', 'verify'], diffHash: 'f'.repeat(40), status: 'passed', exitCode: 0 }] }),
+      ctx(repo()),
+    );
+
+    expect(JSON.parse(result.stdout).proofs.kind).toBe('refuse');
+  });
+
+  // The panel and the budget are judged in the same breath, because a unit that
+  // exhausted its turns and a unit that skipped its panel both stop the chain.
+  it('judges the panel and the unit budget alongside the proofs', () => {
+    const result = runAutopilotCommand(
+      ['gate', '--json'],
+      gateObservation({
+        panel: [
+          { kind: 'specialist.completed', seq: 1, stage: 'pre-implementation' },
+          { kind: 'lead-writer.requested', seq: 2 },
+        ],
+        spend: { turns: 2, tokens: 1000, elapsedMs: 1000 },
+        ceilings: { turns: 10, tokens: 100000, elapsedMs: 600000 },
+      }),
+      ctx(repo()),
+    );
+
+    const verdict = JSON.parse(result.stdout);
+    expect(verdict.panel.kind).toBe('satisfied');
+    expect(verdict.budget.kind).toBe('within');
+  });
+
+  /** Everything the run knows once the integration branch is green. */
+  function publication(over: Record<string, unknown> = {}): string {
+    return JSON.stringify({
+      schemaVersion: 1,
+      clusterId: 'cluster-1',
+      remote: 'origin',
+      base: { branch: 'develop', sha: SETUP_SHA },
+      integrationSha: `${A}1`,
+      proofs: { schemaVersion: 1, statuses: [], missing: [], sealed: true },
+      workerBranches: ['autopilot/cluster-1/DEV-1'],
+      included: [
+        {
+          ticketId: 'DEV-1',
+          title: 'a unit',
+          range: { baseSha: SETUP_SHA, headSha: `${A}1`, commits: [`${A}1`] },
+        },
+      ],
+      excluded: [],
+      decisions: [],
+      verification: [{ name: 'pnpm verify', passed: true }],
+      ci: { expectedRunsPerPush: 1, pushes: 1, unknowns: [] },
+      blockers: [],
+      ...over,
+    });
+  }
+
+  // One branch, one explicit refspec, one pull request whose body is the
+  // provenance. Three functions computed it and none had a caller.
+  it('states the publication as commands and renders the body that travels with it', () => {
+    const result = runAutopilotCommand(['publish', '--json'], publication(), ctx(repo()));
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.plan.steps.some((step: { kind: string }) => step.kind === 'push-branch')).toBe(true);
+    expect(emitted.body).toContain('DEV-1');
+    expect(emitted.body).toContain('cluster-1');
+  });
+
+  // The count a reader would otherwise take on trust. When the trigger budget
+  // cannot be decided, the account says so instead of stating a number.
+  it('refuses to state a CI run count it cannot decide', () => {
+    const result = runAutopilotCommand(
+      ['publish', '--json'],
+      publication({ ci: { expectedRunsPerPush: null, pushes: 2, unknowns: ['back-merge.yml'] } }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.ci.total).toBeNull();
+    expect(emitted.ci.honest).toBe(false);
+    expect(emitted.body).toContain('back-merge.yml');
+  });
+
+  it('refuses to publish a branch whose proofs are not sealed', () => {
+    const result = runAutopilotCommand(
+      ['publish', '--json'],
+      publication({ proofs: { schemaVersion: 1, statuses: [], missing: [['pnpm', 'verify']], sealed: false } }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.plan.blocked ?? emitted.plan.blocks).toBeTruthy();
+  });
+
+  /** Where a machine merge stands, from the outside. */
+  function grantObservation(over: Record<string, unknown> = {}): string {
+    return JSON.stringify({
+      schemaVersion: 1,
+      target: 'develop',
+      deployBranch: 'main',
+      integrationBranch: 'autopilot/cluster-1',
+      integrationSha: `${A}1`,
+      baseSha: SETUP_SHA,
+      tickets: ['DEV-1'],
+      humanGates: [],
+      protection: { kind: 'protected', requiredChecks: ['validate'] },
+      changedPaths: ['packages/cli/src/x.ts'],
+      checks: 'ready',
+      review: { schemaVersion: 1, integrationSha: `${A}1`, verdict: 'clean', contradictions: [] },
+      declaredLenses: 3,
+      capability: { runtime: 'claude', maxConcurrentAgents: 4, agentToAgent: false },
+      ...over,
+    });
+  }
+
+  it('grants a machine merge only when every condition of the record holds', () => {
+    const result = runAutopilotCommand(['grant', '--json'], grantObservation(), ctx(repo()));
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.grant.kind).toBe('granted');
+    expect(emitted.action.action).toBe('merge');
+  });
+
+  // Silence is not approval. A reading that never happened refuses, and the
+  // request the reader would answer travels back so nobody assembles it by hand.
+  it('refuses when no union reading happened, and hands back the request for one', () => {
+    const result = runAutopilotCommand(['grant', '--json'], grantObservation({ review: null }), ctx(repo()));
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.grant.kind).toBe('refused');
+    expect(emitted.grant.reason).toBe('union-unread');
+    expect(emitted.request.diffCommand).toContain('git');
+  });
+
+  it('holds instead of deciding while the checks have not settled', () => {
+    const result = runAutopilotCommand(['grant', '--json'], grantObservation({ checks: 'wait' }), ctx(repo()));
+
+    expect(JSON.parse(result.stdout).action.action).toBe('hold');
+  });
+
+  it('refuses when the target is the branch that deploys, whatever the reading says', () => {
+    const result = runAutopilotCommand(['grant', '--json'], grantObservation({ target: 'main' }), ctx(repo()));
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.grant.kind).toBe('refused');
+    expect(emitted.grant.reason).toBe('production-downstream');
+  });
+
+  // Which branch a run integrates into, and whether that branch is actually
+  // protected. Three functions decided it and none had a caller: an unread
+  // protection and an open branch look identical from the outside, and only
+  // one of them is safe.
+  it('selects the base and refuses one whose protection could not be read', () => {
+    const chosen = runAutopilotCommand(
+      ['base', '--json'],
+      JSON.stringify({
+        schemaVersion: 1,
+        requested: 'auto',
+        branches: [{ name: 'develop', headSha: SETUP_SHA }, { name: 'main', headSha: `${A}1` }],
+        protection: { ok: true, status: 200, body: JSON.stringify({ required_status_checks: { contexts: ['validate'] } }) },
+      }),
+      ctx(repo()),
+    );
+
+    expect(chosen.exitCode).toBe(0);
+    const emitted = JSON.parse(chosen.stdout);
+    expect(emitted.base.kind).toBe('selected');
+    expect(emitted.base.branch).toBe('develop');
+    expect(emitted.protection.allowed).toBe(true);
+
+    const unread = runAutopilotCommand(
+      ['base', '--json'],
+      JSON.stringify({
+        schemaVersion: 1,
+        requested: 'auto',
+        branches: [{ name: 'develop', headSha: SETUP_SHA }],
+        protection: { ok: false, status: 401, body: '' },
+      }),
+      ctx(repo()),
+    );
+
+    expect(JSON.parse(unread.stdout).protection.allowed).toBe(false);
+  });
+
+  // A raw boundary answer is classified by code, not by a model. `ok:false`
+  // carrying a value is a contradiction, and reading it as either half is how
+  // a run resumes on a fact that was never established.
+  it('classifies a raw boundary answer rather than trusting its shape', () => {
+    const result = runAutopilotCommand(
+      ['observe', '--json'],
+      JSON.stringify({
+        schemaVersion: 1,
+        tracker: { ok: true, value: 'held' },
+        pullRequest: { ok: false, error: 'gh exited 1' },
+        workerRefs: { ok: false, value: ['autopilot/cluster-1/DEV-1'], error: 'partial' },
+      }),
+      ctx(repo()),
+    );
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.tracker).toEqual({ kind: 'value', value: 'held' });
+    expect(emitted.pullRequest.kind).toBe('error');
+    expect(emitted.workerRefs.kind).toBe('contradiction');
+  });
+
+  // What the tracker owes once the run is over, stated rather than remembered.
+  it('states the tracker moves a merged run owes, and skips what it cannot prove', () => {
+    const result = runAutopilotCommand(
+      ['lifecycle', '--json'],
+      JSON.stringify({
+        schemaVersion: 1,
+        stage: 'merged',
+        runId: 'run-a',
+        states: { review: 'In Review', done: 'Done' },
+        pullRequest: { number: 42, url: 'https://example.invalid/42' },
+        mergeSha: `${A}1`,
+        tickets: [
+          { id: 'DEV-1', disposition: 'included', state: 'In Progress', range: `${SETUP_SHA}..${A}1` },
+          { id: 'DEV-2', disposition: 'excluded', state: 'In Progress', cause: 'blocked', resume: 'read the blocker' },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(JSON.stringify(emitted.actions)).toContain('DEV-1');
+    expect(emitted.actions.length).toBeGreaterThan(0);
+  });
+
+  // Taking the lease is the moment two launches on one pool would collide, so
+  // the decision to take it is code rather than a paragraph someone follows.
+  it('plans the reservation of a free cluster as tracker actions', () => {
+    const result = runAutopilotCommand(
+      ['reserve', '--json'],
+      JSON.stringify({
+        schemaVersion: 1,
+        programId: 'void-harness-v3',
+        runId: 'run-a',
+        clusterId: 'cluster-1',
+        cluster: ['DEV-1'],
+        assigneeId: 'user-1',
+        baseBranch: 'develop',
+        baseSha: SETUP_SHA,
+        integrationBranch: 'autopilot/cluster-1',
+        expiresAt: '1970-01-01T02:00:00.000Z',
+        states: { ready: ['Backlog'], started: 'In Progress', done: ['Done'] },
+        observation: {
+          schemaVersion: 1,
+          observedAt: '1970-01-01T00:00:00.000Z',
+          issues: [{ id: 'DEV-1', state: 'Backlog', assigneeId: null, comments: [], blockedBy: [] }],
+        },
+      }),
+      ctx(repo()),
+    );
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.kind).toBe('reserve');
+    expect(JSON.stringify(emitted.actions)).toContain('DEV-1');
+  });
+
   it('reports the local cursor and asks for a remote read when status gets no observation', () => {
     const root = repo();
     writeRun(root, runState());
