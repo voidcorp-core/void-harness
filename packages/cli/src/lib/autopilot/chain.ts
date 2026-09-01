@@ -68,6 +68,19 @@ export const DEFAULT_CHAIN_BUDGET_MS = 120 * MINUTE_MS;
 const MAX_CHAIN_BUDGET_MS = 24 * 60 * MINUTE_MS;
 
 /**
+ * What a first unit is assumed to take, until this run has measured one.
+ *
+ * A cold estimate, and named as one: it is used for exactly as long as there is
+ * nothing better, and the first merge replaces it with what this run actually
+ * spent. Deliberately below anything observed rather than near it -- the job here
+ * is to refuse a run that cannot possibly finish a unit, not to second-guess a
+ * run that might. A unit owes a full TDD cycle, a review pass and the whole
+ * declared verify suite before it merges, and none of that has ever come in
+ * under a quarter of an hour in this repository.
+ */
+const COLD_START_UNIT_MS = 15 * MINUTE_MS;
+
+/**
  * Read a duration a person types: `2h`, `90m`, `1h30m`.
  *
  * Refuses a bare number rather than assuming hours. Someone who writes `6` might
@@ -231,17 +244,27 @@ export function planChainStep(input: {
   // A unit already under way is never cut in half; the budget decides whether to
   // START another. So the question is not "is there time left" but "is there
   // enough", answered from what this run has actually taken rather than a guess.
-  if (last !== undefined) {
-    const perUnit = input.elapsedMs / input.merged.length;
-    if (remaining < perUnit) {
-      return stop(
-        'budget-spent',
-        false,
-        `${describe(remaining)} left and each unit has taken about ${describe(perUnit)};`
+  //
+  // The first unit of a run has nothing to answer from, and skipping the question
+  // there let `for 1m` -- a legal shortening -- start work that takes the better
+  // part of an hour, against an ADR that says a run cannot exceed what was
+  // declared for it. So a cold run is projected against COLD_START_UNIT_MS until
+  // it has a measurement of its own, and from the first merge the measurement
+  // replaces it.
+  const perUnit = last === undefined
+    ? COLD_START_UNIT_MS
+    : input.elapsedMs / input.merged.length;
+  if (remaining < perUnit) {
+    return stop(
+      'budget-spent',
+      false,
+      last === undefined
+        ? `${describe(remaining)} left, and no unit here has ever finished in under`
+          + ` ${describe(COLD_START_UNIT_MS)}; the first one would not finish inside the budget`
+        : `${describe(remaining)} left and each unit has taken about ${describe(perUnit)};`
           + ' the next one would not finish inside the budget',
-        'read the journal, then start another run if the direction still holds',
-      );
-    }
+      'read the journal, then start another run if the direction still holds',
+    );
   }
 
   if (input.nextReady <= 0) {

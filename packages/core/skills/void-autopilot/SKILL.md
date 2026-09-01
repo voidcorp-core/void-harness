@@ -203,6 +203,9 @@ verdict depends on the difference -- an absent pull request is an absence, not a
     consent to run unattended, and a consent has a size. A unit already under way is never cut in half;
     the budget decides whether to **start** another, and it decides from what this run has
     actually taken rather than from a guess, so it does not begin a unit it cannot finish.
+    The first unit has nothing measured yet, so it is projected against a cold estimate of a
+    quarter of an hour, deliberately below anything a unit here has ever taken: *run autopilot
+    for 1m* stops instead of starting an hour of work.
 16. **Leave the journal.** What merged, in which order, on which evidence: the integration
     SHA each verdict was bound to, the merge commit it produced, the union verdict and the
     checks observed green. The person reading afterwards is deciding whether to trust the

@@ -169,6 +169,28 @@ describe('what stops a chain', () => {
     }
   });
 
+  // The projection above needs a unit to have finished. The FIRST one has none,
+  // so `run for 1m` -- a perfectly legal shortening -- used to start a unit that
+  // takes the better part of an hour, and the ADR says a run cannot exceed what
+  // was declared for it. Below what any unit here has ever taken, the run does
+  // not start one at all.
+  it('refuses to start a first unit in a run too short to finish one', () => {
+    const decision = step({ merged: [], budgetMs: 1 * MINUTE, elapsedMs: 0 });
+    expect(decision.kind).toBe('stop');
+    if (decision.kind === 'stop') {
+      expect(decision.reason).toBe('budget-spent');
+      expect(decision.failed).toBe(false);
+      expect(decision.detail).toMatch(/would not finish|not enough/i);
+    }
+  });
+
+  // The control. The floor is a floor, not a second budget: an ordinary run
+  // starts its first unit exactly as before.
+  it('starts a first unit whenever the run has a working session in front of it', () => {
+    expect(step({ merged: [], budgetMs: 120 * MINUTE, elapsedMs: 0 }).kind).toBe('continue');
+    expect(step({ merged: [], budgetMs: 30 * MINUTE, elapsedMs: 0 }).kind).toBe('continue');
+  });
+
   it('continues when the remaining time comfortably fits another unit', () => {
     expect(step({ merged: [unit(), unit()], budgetMs: 300 * MINUTE, elapsedMs: 100 * MINUTE }).kind)
       .toBe('continue');

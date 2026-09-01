@@ -239,7 +239,7 @@ describe('lifecycle context', () => {
     }
   });
 
-  it('elects one stale-lock takeover before replaying the no-wait loser', async () => {
+  it('lets each stale-lock takeover read what the previous one wrote', async () => {
     const root = mkdtempSync(join(tmpdir(), 'void-continuity-concurrent-'));
     mkdirSync(join(root, '.void', 'machine'), { recursive: true });
     writeFileSync(join(root, '.void', 'config.json'), '{}\n');
@@ -269,9 +269,24 @@ describe('lifecycle context', () => {
       for (const contender of contenders) contender.release();
       await Promise.all(contenders.map((contender) => contender.completed));
 
+      // How many contenders meet each other on the lock is the operating system's
+      // business: on a loaded machine the first one releases before the next one
+      // even asks, and that one takes a free lock legitimately. What must hold
+      // whatever the interleaving is that no admitted writer erased another. A
+      // writer reads the checkpoint only after taking the lock and replaces it by
+      // rename, so two overlapping critical sections would leave the later
+      // observation alone; every observation still present therefore proves its
+      // writer read the one before it.
       const concurrent = readFileSync(checkpoint, 'utf8');
-      expect(paths.filter((path) => concurrent.includes(path))).toHaveLength(1);
+      const admitted = paths.filter((path) => concurrent.includes(path));
+      expect(admitted.length).toBeGreaterThanOrEqual(1);
+      expect(concurrent.match(/void-harness:context-continuity:begin/g)).toHaveLength(1);
+      expect(concurrent).toContain('Serialize stale recovery.');
+      expect(concurrent.match(/bounded context /g)).toHaveLength(25_000);
       expect(existsSync(orphanClaim)).toBe(false);
+      expect(
+        readdirSync(join(root, '.void', 'machine')).filter((entry) => entry.includes('.lock')),
+      ).toEqual([]);
       const runs = join(root, '.void', 'machine', 'runs');
       const statuses = readdirSync(runs).flatMap((mission) =>
         readFileSync(join(runs, mission, 'events.jsonl'), 'utf8')
@@ -281,7 +296,12 @@ describe('lifecycle context', () => {
           .map((line) => JSON.parse(line) as { readonly payload?: { readonly status?: string } })
           .map((event) => event.payload?.status)
           .filter((status): status is string => status !== undefined));
-      expect(statuses.sort()).toEqual(['ok', 'skipped', 'skipped']);
+      // An 'ok' with no observation left in the checkpoint would be a writer whose
+      // work another one overwrote, which is the failure this test exists to refuse.
+      expect(statuses.sort()).toEqual([
+        ...admitted.map(() => 'ok'),
+        ...paths.slice(admitted.length).map(() => 'skipped'),
+      ]);
       for (const path of paths.filter((candidate) => !concurrent.includes(candidate))) {
         spawnSync(process.execPath, [hook, 'lifecycle', 'context-continuity', 'codex'], {
           input: JSON.stringify({

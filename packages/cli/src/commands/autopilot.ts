@@ -425,6 +425,19 @@ function chainCommand(
 ): AutopilotCommandResult {
   const observation = parseStdin<ChainObservation>(stdin, 'chain observation', 'chain');
   const descriptor = readProgramDescriptor(context.root);
+  // A consent taken back is refused here, where the next unit would be taken,
+  // and not only reported by doctor. It is the same refusal as an absent block
+  // and a different sentence: someone who wrote `enabled: false` is reading a
+  // block that is right there, and "carries no autopilot block" would send them
+  // hunting for a file problem they do not have.
+  if (descriptor?.autopilotConsentWithheld === true) {
+    throw autopilotFailure(
+      'AUTOPILOT_CONTRACT',
+      'the programme has taken back its consent to run unattended',
+      '`.void/program.md` declares `autopilot.enabled: false`',
+      'set `autopilot.enabled: true`, or remove the field; the rest of the block stays as it is',
+    );
+  }
   if (descriptor?.autopilot === undefined) {
     throw autopilotFailure(
       'AUTOPILOT_CONTRACT',

@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -168,6 +168,71 @@ describe('operator subcommands', () => {
     tracker: { kind: 'value', value: 'held' },
     pullRequest: { kind: 'nil' },
     workerRefs: { kind: 'value', value: [] },
+  });
+
+  const chainObservation = JSON.stringify({
+    schemaVersion: 1,
+    merged: [],
+    elapsedMs: 0,
+    debts: [],
+    pool: ['DEV-1'],
+  });
+
+  /** A programme whose autopilot block is complete, with `enabled` as written. */
+  function programWith(enabled: string): string {
+    return `---
+schemaVersion: 1
+status: executing
+program: void-harness-v3
+plan: docs/plans/p.md
+spec: docs/specs/s.md
+progress:
+  provider: linear
+  scope: voidcorp/DEV
+  order: [DEV-1]
+  states:
+    ready: [Backlog]
+    started: [In Progress]
+    review: [In Review]
+    done: [Done]
+humanGates: []
+autopilot:
+  schemaVersion: 1
+${enabled}  clusterSize: 2
+  base: auto
+  mergeGate: human
+  verifyCommands:
+    - [pnpm, test]
+  ownership:
+    sequential: []
+    reconcileOnly: []
+---
+
+# Program
+`;
+  }
+
+  function withProgram(enabled: string): string {
+    const root = repo();
+    mkdirSync(join(root, '.void'), { recursive: true });
+    writeFileSync(join(root, '.void', 'program.md'), programWith(enabled), 'utf8');
+    return root;
+  }
+
+  // The one that matters. `enabled: false` is a person taking their consent back,
+  // and it is worth nothing unless the command that takes the next unit refuses
+  // to run -- which is where a reader of the shipped doctrine believes it lands.
+  it('refuses to take another unit when the programme took its consent back', () => {
+    const result = runAutopilotCommand(['chain'], chainObservation, ctx(withProgram('  enabled: false\n')));
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain('enabled: false');
+  });
+
+  it('takes the next unit when the block says nothing about `enabled`', () => {
+    const result = runAutopilotCommand(['chain'], chainObservation, ctx(withProgram('')));
+
+    expect(result.exitCode).toBe(0);
   });
 
   it('reports the local cursor and asks for a remote read when status gets no observation', () => {

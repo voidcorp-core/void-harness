@@ -86,6 +86,32 @@ Copying a pattern wholesale is how a design stops being one. These four are not 
   deploy, a remote service) is declared as typed debt, the chain continues, and it surfaces in the
   account.
 
+### An absolute proof is only as sound as its instrument
+
+Making the green suite absolute hands the whole chain's authority to one instrument: the suite's
+determinism. A refutation stops the run with `STOP_CHAIN`, the reason reserved for a real failure,
+and there is deliberately no debt path out of it. So a suite that can fail at random does not
+merely annoy; it kills a six-hour run on a coin toss and returns the person to a dead chain, which
+is precisely the stall this spec exists to remove, reintroduced from below.
+
+This is not hypothetical. Five distinct files failed a full `pnpm verify` on 2026-08-30 and
+2026-08-31 and were green in isolation, none of them touched by the change in flight (DEV-679).
+
+Two rules follow, and they are durable:
+
+- **A flake is closed at its cause, never absorbed by the runner.** No `skip`, no raised timeout,
+  and above all no retry-on-failure anywhere in a gate, a runner or CI. A rerun converts an
+  absolute proof into a probabilistic one: the chain would still stop on `STOP_CHAIN`, but nobody
+  could read what the refutation meant. The measured causes so far were both design defects that
+  load merely revealed, not chance: an assertion that asserted OS scheduling, and an observation
+  that never synchronised with its event stream (see the decisions
+  `a-concurrency-test-proves-safety-not-order` and
+  `an-observation-anchors-itself-in-the-event-stream`).
+- **The instrument is demonstrated before the chain leans on it.** Before a slice makes an
+  unattended run depend on this proof, the suite must show its determinism on this repository:
+  ten consecutive full passes without a failure, with no test weakened to get there. Anything less
+  and the absolute proof is absolute about the machine's mood.
+
 ### The proof is written by the executor, never claimed by the worker
 
 Audited from `prime-agent` (Prime Intellect), whose control boundary is sharper than the one this
@@ -210,6 +236,8 @@ Three decisions, taken rather than left to the plan:
       with the remaining budget intact.
 - [ ] The declared-mechanism-has-a-caller test is green: no exported autopilot function is
       unreachable from production code.
+- [ ] No gate, runner or CI step retries a failed test to reach a green suite, and the suite's
+      determinism is demonstrated by ten consecutive full passes before a slice depends on it.
 
 ## Non-goals
 
