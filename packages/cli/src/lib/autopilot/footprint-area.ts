@@ -29,6 +29,11 @@ export interface CompiledArea {
   /** The area as every consumer reads it: trimmed, no `./`, no trailing `/`. */
   readonly area: string;
   readonly match: (value: string) => boolean;
+  /**
+   * The directory every file this area claims lies under. `''` is the
+   * repository root, which bounds nothing.
+   */
+  readonly reach: string;
 }
 
 /**
@@ -68,9 +73,25 @@ export function normaliseArea(area: string): string {
   return value;
 }
 
+/**
+ * The directory beyond which this area reaches nothing.
+ *
+ * `picomatch.scan` is the parser that compiles the matcher, so this is the
+ * pattern's own idea of where its literal ground ends rather than a second
+ * reading of it invented here: its documented `base` is "the leading non-glob",
+ * so `packages/**\/*.test.ts` reaches only inside `packages`, and a literal
+ * area reaches only inside itself. A negated pattern claims everything it does
+ * NOT name -- `scan` documents `negated` as a leading `!` that is not `!(` --
+ * so its base bounds nothing and it is read as reaching the whole repository.
+ */
+function reachOf(area: string): string {
+  const scanned = picomatch.scan(area);
+  return scanned.negated ? '' : scanned.base;
+}
+
 export function compileArea(area: string): CompiledArea {
   const value = normaliseArea(area);
-  return { area: value, match: picomatch(value) };
+  return { area: value, match: picomatch(value), reach: reachOf(value) };
 }
 
 /**
@@ -99,13 +120,57 @@ export function areaIsNarrower(inner: CompiledArea, outer: CompiledArea): boolea
 }
 
 /**
+ * Do two reaches nest, read as paths rather than as strings?
+ *
+ * Symmetric in one expression rather than a directed test applied twice, so a
+ * reversal inside it is a change a test can see. `packages/core` is a prefix of
+ * the STRING `packages/coreutils` and of no path under it, which is why the
+ * separator is part of the comparison; the repository root nests with
+ * everything.
+ */
+function reachesNest(left: string, right: string): boolean {
+  return (
+    left === '' ||
+    right === '' ||
+    left === right ||
+    left.startsWith(`${right}/`) ||
+    right.startsWith(`${left}/`)
+  );
+}
+
+/**
  * Do two areas contend for the same ground?
  *
  * Symmetric on purpose: `packages/cli/src` claims `packages/cli/src/lib/x.ts`,
- * so the pair overlaps whichever way round the two tickets declared them. Two
- * globs that match no literal form of each other read as disjoint, which
- * under-detects rather than over-detects; the audit stays the backstop.
+ * so the pair overlaps whichever way round the two tickets declared them.
+ *
+ * Asking whether one area claims the other's NAME is not asking whether their
+ * files intersect, and for a glob the two questions come apart. An extension
+ * glob matches no bare directory, so `packages/**\/*.test.ts` and
+ * `packages/core/b` -- "add tests across the packages" beside "refactor
+ * packages/core/b", the shape an estimator writes -- read as disjoint and ran
+ * at once, while the audit was willing to read both claims on
+ * `packages/core/b/x.test.ts` and call it a draw. That leniency is justified by
+ * THIS step having sequenced them, so the pair it cannot see is the one that
+ * arrives unrefused and unreported.
+ *
+ * So a pair separates only when it is PROVEN to: every file an area claims lies
+ * under its `reach`, and two reaches neither of which contains the other can
+ * hold no file in common. Anything else takes its turn. That gives up a lane on
+ * two globs rooted in the same subtree that a wider comparison would keep --
+ * `packages/core/**\/*.md` beside `packages/core/src/**\/*.ts` -- and gives up
+ * every lane to an area rooted at the repository, which is honest about what a
+ * repository-wide glob claims. Two areas in different directories, which is
+ * how a cluster is normally scoped, are untouched.
+ *
+ * This subsumes the name reading rather than sitting beside it. An area whose
+ * name `areaClaims` claims lies under the claimant's reach, and its own reach
+ * is a prefix of its name, so the two reaches are prefixes of one path and
+ * always nest -- testing the name again could refuse nothing more. The
+ * guarantee that matters is that every pair the audit can relate is a pair this
+ * sequences, and that is asserted over a corpus in the tests rather than
+ * restated as a branch no input can reach.
  */
 export function areasOverlap(left: CompiledArea, right: CompiledArea): boolean {
-  return areaClaims(left, right.area) || areaClaims(right, left.area);
+  return reachesNest(left.reach, right.reach);
 }

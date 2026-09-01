@@ -183,4 +183,112 @@ describe('orderWorkers', () => {
     expect(() => orderWorkers(input({ footprints: [fp('A', { areas: ['./'] }), fp('B'), fp('C'), fp('D')] })))
       .toThrow(/claims nothing/i);
   });
+
+  it('sequences a glob against a directory it can reach but does not name', () => {
+    // The ordinary shape an estimator writes: "add tests across the packages"
+    // beside "refactor packages/core/b". Compared by NAME, an extension glob
+    // matches no bare directory and the pair read as disjoint -- while the
+    // audit is willing to read both claims on `packages/core/b/x.test.ts` and
+    // calls it a draw. That leniency is justified by THIS step having sequenced
+    // them. A pair the audit will call a tie and this step lets run at once is
+    // two concurrent worktrees over one file, unrefused and unreported.
+    const order = orderWorkers(
+      input({
+        footprints: [
+          fp('A', { areas: ['packages/**/*.test.ts'] }),
+          fp('B', { areas: ['packages/core/b'] }),
+          fp('C'),
+          fp('D'),
+        ],
+      }),
+    );
+
+    expect(order.parallel).toEqual(['C', 'D']);
+    expect(order.sequential).toEqual(['A', 'B']);
+    expect(order.reasons.A).toContain('footprint-overlap');
+    expect(order.reasons.B).toContain('footprint-overlap');
+  });
+
+  it('sequences two globs whose roots nest, because no file set separates them', () => {
+    const order = orderWorkers(
+      input({
+        footprints: [
+          fp('A', { areas: ['packages/core/**/*.md'] }),
+          fp('B', { areas: ['packages/core/src/**/*.ts'] }),
+          fp('C'),
+          fp('D'),
+        ],
+      }),
+    );
+
+    expect(order.sequential).toEqual(['A', 'B']);
+  });
+
+  it('sequences a repository-wide glob against everything, since it bounds nothing', () => {
+    const order = orderWorkers(input({ footprints: [fp('A', { areas: ['**/*.ts'] }), fp('B'), fp('C'), fp('D')] }));
+
+    expect(order.parallel).toEqual([]);
+    expect(order.sequential).toEqual(['A', 'B', 'C', 'D']);
+  });
+
+  it('keeps two globs rooted in sibling directories parallel', () => {
+    // Conservative is not blunt. Every file `packages/cli/**` reaches lies
+    // under `packages/cli`, and none of them lies under `packages/core`, so
+    // the pair is PROVEN disjoint and keeps its two lanes.
+    const order = orderWorkers(
+      input({
+        footprints: [
+          fp('A', { areas: ['packages/cli/**/*.ts'] }),
+          fp('B', { areas: ['packages/core/**/*.ts'] }),
+          fp('C'),
+          fp('D'),
+        ],
+      }),
+    );
+
+    expect(order.parallel).toEqual(['A', 'B', 'C', 'D']);
+    expect(order.sequential).toEqual([]);
+  });
+
+  it('keeps two globs apart whose roots share a string prefix but not a path', () => {
+    // `packages/core` is a prefix of the STRING `packages/coreutils` and of no
+    // path under it. Read as strings, these two lose both their lanes for a
+    // collision no file can produce.
+    const order = orderWorkers(
+      input({
+        footprints: [
+          fp('A', { areas: ['packages/core/**/*.ts'] }),
+          fp('B', { areas: ['packages/coreutils/**/*.ts'] }),
+          fp('C'),
+          fp('D'),
+        ],
+      }),
+    );
+
+    expect(order.parallel).toEqual(['A', 'B', 'C', 'D']);
+  });
+
+  it('keeps a glob parallel to a directory outside its reach', () => {
+    const order = orderWorkers(
+      input({
+        footprints: [
+          fp('A', { areas: ['packages/**/*.test.ts'] }),
+          fp('B', { areas: ['docs/plans'] }),
+          fp('C'),
+          fp('D'),
+        ],
+      }),
+    );
+
+    expect(order.parallel).toEqual(['A', 'B', 'C', 'D']);
+  });
+
+  it('sequences a negated area against everything, since it claims what it does not name', () => {
+    const order = orderWorkers(
+      input({ footprints: [fp('A', { areas: ['!packages/core/**'] }), fp('B'), fp('C'), fp('D')] }),
+    );
+
+    expect(order.parallel).toEqual([]);
+    expect(order.reasons.B).toContain('footprint-overlap');
+  });
 });

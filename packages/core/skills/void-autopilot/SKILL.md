@@ -202,15 +202,18 @@ read for is excluded as `footprint-unobserved`.
 What it refuses is narrow on purpose. A file **another ticket of the cluster declared** is a
 breach: nothing legitimate produces it. A file nobody predicted is a widening, and it passes --
 a ticket that enumerates from the manifests finds the packages its author missed, and a guard that
-refuses that discovery is a guard that hides defects. A file **both** tickets declared the same
-way passes too: neither declaration is more specific, so both were entitled. A **carve-out** does
-not: `packages/core` claims `packages/core/b/x.ts` by prefix, but a neighbour declaring
-`packages/core/b` drew a boundary rather than repeated one, so the wider ticket writing there is a
-breach. Owning the file no longer ends the question -- it used to, and the carved-out file then
-came back within-scope with an empty widening, invisible rather than merely permitted. Sequencing
-does not compensate: two sequential workers still hold two worktrees on the same base, and it
-addresses lockfiles and migrations, never file theft. A `reconcileOnly` path is not judged,
-since the reconciler strips and rebuilds it anyway.
+refuses that discovery is a guard that hides defects. A file **two tickets both reach** passes too,
+and not only when they spelled it the same way: `packages/**/*.test.ts` and `packages/core/b` both
+reach `packages/core/b/x.test.ts`, neither declaration is more specific than the other, so both
+were entitled. A **carve-out** does not: `packages/core` claims `packages/core/b/x.ts` by prefix,
+but a neighbour declaring `packages/core/b` drew a boundary rather than repeated one, so the wider
+ticket writing there is a breach. Owning the file no longer ends the question -- it used to, and
+the carved-out file then came back within-scope with an empty widening, invisible rather than
+merely permitted. Sequencing does not compensate for theft: two sequential workers still hold two
+worktrees on the same base, and it addresses lockfiles and migrations. What it does buy is the tie:
+a pair the audit will read as jointly entitled is a pair **ordering has sequenced**, which is why
+ordering separates two areas only when no file can lie in both, never merely when neither names the
+other. A `reconcileOnly` path is not judged, since the reconciler strips and rebuilds it anyway.
 
 **The audit cannot be off.** A cluster of more than one ticket that reaches `reconcile` without a
 declaration covering every one of them is refused outright, and so is a range whose observed file
