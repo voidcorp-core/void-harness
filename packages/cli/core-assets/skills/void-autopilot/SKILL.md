@@ -231,7 +231,13 @@ hand-built cluster, not the place the case is meant to be caught -- `plan` exclu
 before any worker starts, because a refusal at reconciliation arrives after the whole run is paid
 for and leaves no legal move: inventing the area is the tautology the audit exists to forbid, and
 shrinking `cluster` is refused as soon as the ticket returned a result. If you reach it anyway,
-declare the areas and plan again, or reconcile each range as its own cluster of one.
+declare the areas and plan again -- and read the whole diff of every range yourself before any of
+it merges, because an entitlement nobody declared cannot be recovered from the range under
+suspicion. The refusal used to offer instead: reconcile each range as its own cluster of one,
+"exactly the coverage a ticket claiming nothing ever had". It is not. The maximum severity an
+undeclared ticket gets exists only because a neighbour sits in the same cluster to be robbed; a
+cluster of one audits nothing, so that split turns the audit off for every ticket of the cluster,
+the ones that did declare included.
 
 Areas are read in one spelling. `packages/core/templates/`, `./packages/core/templates` and
 `packages/core/templates` are the same area, and an area that claims nothing after that reading --

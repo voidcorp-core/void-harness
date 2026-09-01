@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:e8cfa663c196098a307352bb80ede2f77dc052d1e4e975399da0ffb23913743a"
+    "rootHash": "sha256:8328c68950675b8fedb15829a7ca802c7762dbbb90da525c7575c5653d184e66"
   },
   "nodes": [
     {
@@ -3495,7 +3495,7 @@
             }
           ],
           "id": "skill:void-autopilot",
-          "lines": 357,
+          "lines": 363,
           "name": "void-autopilot",
           "owner": "folpe",
           "pack": null,
@@ -3504,7 +3504,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-autopilot/SKILL.md",
-          "staticTokens": 5935,
+          "staticTokens": 6066,
           "type": "skill"
         }
       },

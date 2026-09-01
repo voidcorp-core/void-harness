@@ -146,6 +146,23 @@ function matchesAny(path: string, patterns: readonly string[]): boolean {
  * `requireClusterCoversRun`. `plan` now excludes such a ticket before any worker
  * starts, so this is a backstop for a hand-built cluster -- and a backstop still
  * has to name a move the caller can make.
+ *
+ * The move it named was wrong, and wrong in the one direction a guard cannot
+ * afford. It offered "reconcile each range as its own cluster of one -- exactly
+ * the coverage a ticket claiming nothing ever had". The coverage claim is what
+ * made the move look free, and it is false: an undeclared ticket IS audited at
+ * maximum severity, but only because a neighbour sits in the same cluster to be
+ * robbed. `audited` is `inPlay.size > 1`, so a cluster of one audits nothing --
+ * split, no range is confronted with any declaration, including the ranges that
+ * declared. Measured: DEV-2 declaring nothing and carrying a file DEV-1
+ * declared is refused as a pair and integrates clean as a single, and it was
+ * this refusal that pointed at the second path.
+ *
+ * So the move stays unnamed, and its cost is named instead. What remains is not
+ * a command: the entitlement this ticket never declared cannot be reconstructed
+ * from its own range, because the only surviving evidence is the diff under
+ * suspicion. A human reads the ranges, or the areas are declared and the run is
+ * planned again.
  */
 function requireSymmetricDeclaration(
   cluster: readonly string[],
@@ -168,7 +185,7 @@ function requireSymmetricDeclaration(
       'AUTOPILOT_CONTRACT',
       'this cluster holds a ticket whose declaration names no area',
       `${unnamed.join(', ')} declared \`areas: []\`, which is ground no audit can protect`,
-      'declare the areas on the ticket and let `plan` build the cluster again, which now refuses a footprint naming none; for a run whose workers already finished, reconcile each range as its own cluster of one -- that is exactly the coverage a ticket claiming nothing ever had',
+      'declare the areas on the ticket and let `plan` build the cluster again, which now refuses a footprint naming none; for a run whose workers already finished, read the whole diff of every range yourself before any of it merges, because an entitlement nobody declared cannot be recovered from the range under suspicion. Splitting the cluster into ranges of one is not that reading: it turns the audit off for every ticket of the cluster, the ones that did declare included',
     );
   }
 
