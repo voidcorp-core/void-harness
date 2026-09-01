@@ -1316,4 +1316,15 @@ describe('the stdin contract', () => {
     }
     expect(runAutopilotCommand(['abort'], '', context).stdout).toContain('release the lease on');
   });
+
+  it('resolves the subcommand at its own position when a word appears twice', () => {
+    // `indexOf` answers about the FIRST occurrence, so `--run reconcile
+    // reconcile` asked whether the run NAME was a subcommand. The filter is on
+    // the argument's own index, and this is the argv that tells the two apart:
+    // both spellings hold the word, only one holds it as the subcommand.
+    expect(readsStdin(['--run', 'reconcile', 'reconcile'])).toBe(true);
+    expect(readsStdin(['--run', 'reconcile', 'abort'])).toBe(false);
+    expect(readsStdin(['--run', 'abort', 'abort'])).toBe(false);
+    expect(readsStdin(['--run', 'abort', 'reconcile'])).toBe(true);
+  });
 });
