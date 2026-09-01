@@ -811,6 +811,36 @@ describe('what the reading is not allowed to unlock', () => {
     }
   });
 
+  // A composite action was blocked because it RUNS during publication. A manifest
+  // runs earlier and more often: `prepare` fires on every install, including a
+  // fresh clone, and `prepack` fires on the way to npm. The lockfile was guarded
+  // while the file that governs it and executes code was not.
+  it('refuses a manifest or an npm configuration, which execute on install', () => {
+    for (const path of [
+      'package.json',
+      'packages/cli/package.json',
+      '.npmrc',
+      'packages/cli/.npmrc',
+    ]) {
+      const verdict = grant({ changedPaths: [path] });
+      expect(verdict.kind, path).toBe('refused');
+      if (verdict.kind === 'refused') expect(verdict.reason, path).toBe('sensitive-path');
+    }
+  });
+
+  // The control on the same guard. A refusal that swallows every neighbouring
+  // name stops protecting and starts obstructing, and nobody would notice which
+  // one it had become.
+  it('leaves alone the paths that merely read like a manifest', () => {
+    expect(grant({
+      changedPaths: [
+        'docs/package.json.md',
+        'packages/cli/src/lib/package-json.ts',
+        'packages/cli/src/lib/npmrc.test.ts',
+      ],
+    }).kind).toBe('granted');
+  });
+
   it('does not block a regenerated mirror, which is what sequential ownership lists', () => {
     expect(grant({
       changedPaths: [

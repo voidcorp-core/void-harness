@@ -212,15 +212,6 @@ export async function stageInstallManifest(stageRoot: string, version: string): 
   await writeFile(target, `${JSON.stringify(manifest, null, 2)}\n`);
 }
 
-/**
- * The repo-relative paths this install stages, i.e. exactly what the receipt will
- * claim. `init` uses it to write an ignore block scoped to files the harness
- * owns, rather than to whole runtime directories the project also writes into.
- */
-export async function stagedRelativePaths(stageRoot: string): Promise<string[]> {
-  return (await collectStageFiles(stageRoot)).map((file) => file.path);
-}
-
 /** How many conflicting paths are spelled out before the message gives a count. */
 const MAX_NAMED_CONFLICTS = 5;
 
