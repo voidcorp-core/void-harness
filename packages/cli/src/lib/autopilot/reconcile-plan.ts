@@ -216,6 +216,34 @@ function readObservation(range: VerifiedRange, commits: number): RangeObservatio
   return { kind: 'observed', files };
 }
 
+/**
+ * The paths the strip step reads, or a refusal naming the field it could not read.
+ *
+ * The observation when there is one, the worker's own claim otherwise -- a range
+ * that reached here unaudited is a cluster of one, where the claim is the
+ * documented fallback. The comment used to promise the fallback was safe and the
+ * code still read `.filter` off whatever arrived, so a `files` that came back as
+ * a string turned a strip step into a raw TypeError. Silently treating it as
+ * empty is worse than refusing: the shared artefact would then never be stripped
+ * and the worker's own copy would ride into the merge.
+ */
+function strippableFiles(range: VerifiedRange): readonly string[] {
+  const observed = range.observedFiles;
+  if (Array.isArray(observed)) {
+    return observed.filter((file): file is string => typeof file === 'string');
+  }
+  const claimed: unknown = range.files;
+  if (!Array.isArray(claimed) || claimed.some((file) => typeof file !== 'string')) {
+    throw autopilotFailure(
+      'AUTOPILOT_CONTRACT',
+      'a range carries no readable file list for the shared-artefact strip',
+      `\`files\` for \`${range.ticketId}\` is ${typeof claimed === 'string' ? 'a string' : 'not a list of paths'}`,
+      "pass `git diff --name-only base..head` as `observedFiles`; the worker's own list is the fallback for a cluster of one, and it is still a list of paths",
+    );
+  }
+  return claimed as readonly string[];
+}
+
 export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
   if (!SLUG.test(input.clusterId)) {
     throw autopilotFailure(
@@ -293,13 +321,7 @@ export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
   const sharedPaths = [
     ...new Set(
       integrate.flatMap((range) =>
-        // The observation when it is one, the worker's claim otherwise. A range
-        // that reached here unaudited is a cluster of one, where the claim is
-        // the documented fallback; what must not happen is this line reading
-        // `.filter` off a string and turning a strip step into a TypeError.
-        (Array.isArray(range.observedFiles) ? range.observedFiles : range.files).filter(
-          (file) => typeof file === 'string' && matchesAny(file, input.reconcileOnly),
-        ),
+        strippableFiles(range).filter((file) => matchesAny(file, input.reconcileOnly)),
       ),
     ),
   ].sort();
