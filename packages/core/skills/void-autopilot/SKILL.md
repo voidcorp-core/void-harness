@@ -93,9 +93,14 @@ learn a shape, stop and run the scaffold instead -- that is the whole reason it 
 **For `plan`.** Read `.void/program.md` once: `progress.order` is the pool, `progress.states`
 tells ready from done. Fetch every unit in that order that is not done. `ready` is its state in
 `states.ready`; `blockedByOpen` is true when any native blocker is not done -- read the relation,
-never the prose. `footprints.areas` are the paths the ticket names as its anchors; `highRisk` is
-a guard, a migration, a lockfile or a published contract; `confidence` is your own statement
-about how well you know the footprint, and a low one is what shrinks the cluster on purpose.
+never the prose. `footprints.areas` are the paths the ticket names as its anchors, **at least
+one**: a ticket whose `areas` is empty is excluded as `missing-footprint`, exactly like one the
+estimator never produced. Autopilot routes on footprints, so a ticket naming no ground gives it
+nothing to route on, and reconciliation cannot protect ground nobody named -- admitting it only
+moved the refusal to the last step of the run, after both workers had finished. Run that ticket
+through `void-implement` directly, or name its areas. `highRisk` is a guard, a migration, a
+lockfile or a published contract; `confidence` is your own statement about how well you know the
+footprint, and a low one is what shrinks the cluster on purpose.
 
 **For `start`.** Render the marker with `scaffold marker`, fill it, and post it as a comment on
 **every** ticket in the cluster before claiming any of them. Then claim each one. Then re-read
@@ -221,7 +226,12 @@ ticket absent from `cluster` are each a refusal. Passing the tickets that CAME B
 ones the run reserved is the cheapest way to disarm the guard, and the proof of that
 under-declaration always sits in the same payload as the under-declaration. An `areas: []` entry
 counts as no declaration at all: nothing can be stolen from a ticket that claims nothing, so every
-neighbour walks into its ground reported as a widening.
+neighbour walks into its ground reported as a widening. That refusal is a **backstop** for a
+hand-built cluster, not the place the case is meant to be caught -- `plan` excludes such a ticket
+before any worker starts, because a refusal at reconciliation arrives after the whole run is paid
+for and leaves no legal move: inventing the area is the tautology the audit exists to forbid, and
+shrinking `cluster` is refused as soon as the ticket returned a result. If you reach it anyway,
+declare the areas and plan again, or reconcile each range as its own cluster of one.
 
 Areas are read in one spelling. `packages/core/templates/`, `./packages/core/templates` and
 `packages/core/templates` are the same area, and an area that claims nothing after that reading --

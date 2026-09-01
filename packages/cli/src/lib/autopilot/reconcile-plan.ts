@@ -136,25 +136,39 @@ function matchesAny(path: string, patterns: readonly string[]): boolean {
  * contradiction seen from either end, and neither end says which of the two
  * lists is the wrong one. Guessing would pick a merge over a question.
  *
- * An `areas: []` entry counts as no declaration. `plan` tolerates an unknown
- * footprint -- it costs the ticket a review unit and its parallel lane, and the
- * footprint may still be discovered while the ticket runs. By reconciliation
- * the declaration is final, and a ticket claiming nothing cannot be robbed:
- * every neighbour walks into its ground reported as a widening.
+ * An `areas: []` entry counts as no declaration, and it gets its own refusal.
+ * The two are not the same mistake. An absent entry is a payload assembled
+ * wrong, and the repair is to pass what `orchestrate` returned. An entry that
+ * arrived declaring nothing IS what `orchestrate` returned -- it emits the areas
+ * verbatim -- so sending that caller back for the payload named the gesture that
+ * had just succeeded, at the last step of a run whose workers had all finished,
+ * with both remaining moves forbidden: invent an area, or shrink `cluster` past
+ * `requireClusterCoversRun`. `plan` now excludes such a ticket before any worker
+ * starts, so this is a backstop for a hand-built cluster -- and a backstop still
+ * has to name a move the caller can make.
  */
 function requireSymmetricDeclaration(
   cluster: readonly string[],
   footprints: readonly DeclaredFootprint[],
 ): void {
-  const undeclared = cluster.filter(
-    (id) => !footprints.some((entry) => entry.id === id && entry.areas.length > 0),
-  );
-  if (undeclared.length > 0) {
+  const declared = new Map(footprints.map((entry) => [entry.id, entry.areas]));
+  const absent = cluster.filter((id) => !declared.has(id));
+  if (absent.length > 0) {
     throw autopilotFailure(
       'AUTOPILOT_CONTRACT',
       'this cluster declared no footprint for every ticket it holds',
-      `${undeclared.join(', ')} reached reconciliation without a declared area`,
+      `${absent.join(', ')} reached reconciliation without a declared area`,
       'pass `footprints` exactly as `orchestrate` returned them; the audit cannot be skipped by omitting them',
+    );
+  }
+
+  const unnamed = cluster.filter((id) => (declared.get(id) ?? []).length === 0);
+  if (unnamed.length > 0) {
+    throw autopilotFailure(
+      'AUTOPILOT_CONTRACT',
+      'this cluster holds a ticket whose declaration names no area',
+      `${unnamed.join(', ')} declared \`areas: []\`, which is ground no audit can protect`,
+      'declare the areas on the ticket and let `plan` build the cluster again, which now refuses a footprint naming none; for a run whose workers already finished, reconcile each range as its own cluster of one -- that is exactly the coverage a ticket claiming nothing ever had',
     );
   }
 

@@ -127,18 +127,15 @@ describe('planCluster', () => {
     expect(plan.sequential).toEqual([{ id: 'A', reasons: ['high-risk'] }]);
   });
 
-  it('sequences a low-confidence or unknown footprint because a guess must not fan out', () => {
+  it('sequences a low-confidence footprint because a guess must not fan out', () => {
     const plan = planCluster(
       input({
         tickets: [tk({ id: 'A' }), tk({ id: 'B' })],
-        footprints: [fp({ id: 'A', confidence: 0.2 }), fp({ id: 'B', areas: [] })],
+        footprints: [fp({ id: 'A', confidence: 0.2 }), fp({ id: 'B' })],
       }),
     );
-    expect(plan.parallel).toEqual([]);
-    expect(plan.sequential).toEqual([
-      { id: 'A', reasons: ['low-confidence'] },
-      { id: 'B', reasons: ['unknown-footprint'] },
-    ]);
+    expect(plan.parallel).toEqual(['B']);
+    expect(plan.sequential).toEqual([{ id: 'A', reasons: ['low-confidence'] }]);
   });
 
   it('ignores an excluded ticket when judging overlap because it never joins the run', () => {
@@ -156,7 +153,11 @@ describe('planCluster', () => {
     const plan = planCluster(
       input({
         tickets: [tk({ id: 'A' }), tk({ id: 'B' }), tk({ id: 'C' })],
-        footprints: [fp({ id: 'A', highRisk: true }), fp({ id: 'B', areas: [] }), fp({ id: 'C' })],
+        footprints: [
+          fp({ id: 'A', highRisk: true }),
+          fp({ id: 'B', confidence: 0.2 }),
+          fp({ id: 'C' }),
+        ],
       }),
     );
     expect(plan.cluster).toEqual(['A']);
@@ -179,6 +180,35 @@ describe('planCluster', () => {
     });
     expect(excludedIds(plan, 'missing-footprint')).toEqual(['B']);
     expect(plan.cluster).toEqual(['A']);
+  });
+
+  it('excludes a footprint that names no area, the same silence as no entry at all', () => {
+    // An entry declaring `areas: []` and no entry at all are one state written
+    // two ways: nobody knows what the ticket touches. Admitting one and refusing
+    // the other is what put an undeclarable ticket in front of the
+    // reconciliation audit, which then refused the whole cluster after both
+    // workers had finished. `orderWorkers` already reads the two spellings as
+    // the same `unknown-footprint`; this is the reader that disagreed.
+    const plan = planCluster(
+      input({
+        tickets: [tk({ id: 'A' }), tk({ id: 'B' })],
+        footprints: [fp({ id: 'A' }), fp({ id: 'B', areas: [] })],
+      }),
+    );
+    expect(excludedIds(plan, 'missing-footprint')).toEqual(['B']);
+    expect(plan.cluster).toEqual(['A']);
+    expect(plan.sequential).toEqual([]);
+  });
+
+  it('excludes an unnamed footprint even alone, because a missing one is refused alone too', () => {
+    // Not a rule about neighbours. Autopilot routes on footprints, and a ticket
+    // that names no ground gives it nothing to route on; the human runs it
+    // through `void-implement` directly, or declares its areas.
+    const plan = planCluster(
+      input({ tickets: [tk({ id: 'A' })], footprints: [fp({ id: 'A', areas: [] })] }),
+    );
+    expect(plan.cluster).toEqual([]);
+    expect(excludedIds(plan, 'missing-footprint')).toEqual(['A']);
   });
 
   it('excludes a malformed ticket with a typed cause instead of throwing', () => {
