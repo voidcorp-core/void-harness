@@ -125,6 +125,29 @@ export function readInstallManifest(root: string): InstallManifest | undefined {
 }
 
 /**
+ * Has this path still got the exact bytes the harness wrote into it?
+ *
+ * The mirror image of the `coEdited` verdict below, asked of a single file. A
+ * co-owned file that differs is the project writing into it as invited; a
+ * co-owned file that does NOT differ has never been used, and that is the only
+ * state in which the harness may replace it rather than preserve it.
+ *
+ * Decidable, never guessed: the manifest is the committed record of what an
+ * install actually put there, whatever version wrote it. A path the manifest
+ * cannot attest -- an install predating the manifest, a file we never wrote --
+ * answers `false`, because silence is not proof that nobody edited it.
+ */
+export function isUntouchedSinceInstall(
+  manifest: InstallManifest,
+  path: string,
+  content: Uint8Array | string,
+): boolean {
+  const attested = manifest.files.find((file) => file.path === path);
+  if (attested === undefined) return false;
+  return sha256Of(content) === attested.sha256;
+}
+
+/**
  * Recompute every hash on disk and report the drift. An unreadable file counts
  * as missing rather than throwing: the caller wants a verdict on the whole
  * install, not the first failure.

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   buildInstallManifest,
   INSTALL_MANIFEST_PATH,
+  isUntouchedSinceInstall,
   parseInstallManifest,
   verifyInstallManifest,
 } from './install-manifest.js';
@@ -189,5 +190,30 @@ describe('verifyInstallManifest', () => {
 
     expect(report.missing.length).toBeLessThanOrEqual(20);
     expect(report.missingTotal).toBe(40);
+  });
+});
+
+describe('isUntouchedSinceInstall', () => {
+  const manifest = buildInstallManifest('3.3.0', [
+    { path: '.void/PROJECT-DOCTRINE.md', sha256: sha256('the template') },
+  ]);
+
+  it('recognizes a file still holding the bytes the harness wrote', () => {
+    // The whole point: this is decidable, not guessed. The manifest is the
+    // committed record of what the install put there, so equality is proof the
+    // project has never written a word of it.
+    expect(isUntouchedSinceInstall(manifest, '.void/PROJECT-DOCTRINE.md', 'the template')).toBe(true);
+  });
+
+  it('refuses a file the project has written into', () => {
+    const written = 'the template, plus a rule the team added';
+
+    expect(isUntouchedSinceInstall(manifest, '.void/PROJECT-DOCTRINE.md', written)).toBe(false);
+  });
+
+  it('refuses a path the manifest does not attest, rather than assuming', () => {
+    // A project installed before the manifest existed has no record of what we
+    // wrote. Silence is not proof of an untouched file.
+    expect(isUntouchedSinceInstall(manifest, '.void/program.md', 'anything')).toBe(false);
   });
 });
