@@ -169,6 +169,71 @@ There is no --auto-merge flag. A machine merge is declared once in the program
 a target that does not deploy and a union review that came back clean.
 `.trimStart();
 
+/**
+ * Every subcommand this CLI answers, and whether it reads an observation.
+ *
+ * There used to be two answers to that question. The router knew eighteen
+ * subcommands; the shell that fills stdin knew a hand-kept list of five, and
+ * `reconcile` was not on it. So the footprint audit -- the one gate that decides
+ * whether a worker's range carries a neighbour's files -- was handed an empty
+ * string and replied "the reconcile observation on stdin is not valid JSON" to
+ * valid JSON, for as long as the command has existed. Ten more steps were inert
+ * the same way: `orchestrate`, `verify`, `gate`, `publish`, `progress`,
+ * `grant`, `reserve`, `base`, `observe` and `lifecycle` all parse stdin and all
+ * received nothing. Only `scaffold` and `abort` genuinely read no pipe.
+ *
+ * A second list that has to be remembered is the defect, not the entry that was
+ * forgotten, so there is one list. The router refuses a name this table does not
+ * hold, and the pipe is filled for exactly the names it marks `reads-stdin`.
+ */
+export const SUBCOMMANDS = Object.freeze({
+  scaffold: 'no-stdin',
+  plan: 'reads-stdin',
+  chain: 'reads-stdin',
+  orchestrate: 'reads-stdin',
+  reconcile: 'reads-stdin',
+  verify: 'reads-stdin',
+  gate: 'reads-stdin',
+  publish: 'reads-stdin',
+  progress: 'reads-stdin',
+  grant: 'reads-stdin',
+  reserve: 'reads-stdin',
+  base: 'reads-stdin',
+  observe: 'reads-stdin',
+  lifecycle: 'reads-stdin',
+  start: 'reads-stdin',
+  status: 'reads-stdin',
+  resume: 'reads-stdin',
+  abort: 'no-stdin',
+} as const);
+
+export type AutopilotSubcommand = keyof typeof SUBCOMMANDS;
+
+/**
+ * The first bare word of argv, skipping the value `--run` consumed.
+ *
+ * Filtering on the argument's own index rather than on `indexOf`, which returns
+ * the FIRST occurrence: with the same word twice in argv the old form asked
+ * about the wrong position.
+ */
+function subcommandWord(argv: readonly string[]): string | undefined {
+  return argv.filter((arg, index) => !arg.startsWith('-') && argv[index - 1] !== '--run')[0];
+}
+
+/**
+ * Whether this invocation waits on a pipe.
+ *
+ * Resolved from the subcommand, never from "does any argument look like a step":
+ * `abort --run plan` names a run, and matching anywhere in argv made the shell
+ * wait on a pipe `abort` never reads.
+ */
+export function readsStdin(argv: readonly string[]): boolean {
+  if (argv.includes('--help') || argv.includes('-h')) return false;
+  const word = subcommandWord(argv);
+  if (word === undefined || !Object.hasOwn(SUBCOMMANDS, word)) return false;
+  return SUBCOMMANDS[word as AutopilotSubcommand] === 'reads-stdin';
+}
+
 function ok(stdout: string): AutopilotCommandResult {
   return { stdout, stderr: '', exitCode: 0 };
 }
@@ -1316,8 +1381,8 @@ export function runAutopilotCommand(
     }
     if (argv.includes('--help') || argv.includes('-h')) return ok(USAGE);
 
-    const [subcommand] = argv.filter((arg) => !arg.startsWith('-') && argv[argv.indexOf(arg) - 1] !== '--run');
-    if (subcommand === undefined) {
+    const word = subcommandWord(argv);
+    if (word === undefined) {
       throw autopilotFailure(
         'AUTOPILOT_USAGE',
         'autopilot was invoked without a subcommand',
@@ -1325,6 +1390,15 @@ export function runAutopilotCommand(
         'run `void-harness autopilot plan` with the observation on stdin, or --help',
       );
     }
+    if (!Object.hasOwn(SUBCOMMANDS, word)) {
+      throw autopilotFailure(
+        'AUTOPILOT_USAGE',
+        `autopilot has no '${word}' subcommand`,
+        `known subcommands are ${Object.keys(SUBCOMMANDS).join(', ')}`,
+        'run `void-harness autopilot --help` for the full contract',
+      );
+    }
+    const subcommand: AutopilotSubcommand = word as AutopilotSubcommand;
 
     if (subcommand === 'plan') return planCommand(stdin, json);
     if (subcommand === 'orchestrate') return orchestrateCommand(stdin, json);
@@ -1354,15 +1428,7 @@ export function runAutopilotCommand(
       return scaffoldCommand(rest, json);
     }
 
-    const stateful = ['start', 'status', 'resume', 'abort'];
-    if (!stateful.includes(subcommand)) {
-      throw autopilotFailure(
-        'AUTOPILOT_USAGE',
-        `autopilot has no '${subcommand}' subcommand`,
-        `known subcommands are scaffold, plan, orchestrate, reconcile, verify, gate, publish, progress, grant, base, observe, reserve, lifecycle, chain, ${stateful.join(', ')}`,
-        'run `void-harness autopilot --help` for the full contract',
-      );
-    }
+    // What is left reads the local run cursor, so it needs a root and a clock.
     if (context === undefined) {
       throw autopilotFailure(
         'AUTOPILOT_CONTRACT',
@@ -1395,12 +1461,13 @@ export function runAutopilotCommand(
  * propagates the exit code. Everything decidable stays on the other side of that
  * line, which is why the whole contract is testable without a process.
  *
- * stdin is read only for the subcommands that take it. `plan` without a pipe
- * would otherwise hang on a terminal, waiting for input nobody is going to type.
+ * stdin is read only for the subcommands that take it, and which those are is
+ * `SUBCOMMANDS` -- the same table the router refuses an unknown name from.
+ * `plan` without a pipe would otherwise hang on a terminal, waiting for input
+ * nobody is going to type.
  */
 export async function autopilot(argv: readonly string[]): Promise<void> {
-  const wantsStdin = argv.some((arg) => ['plan', 'chain', 'start', 'status', 'resume'].includes(arg));
-  const stdin = wantsStdin && !process.stdin.isTTY ? await readAllStdin() : '';
+  const stdin = readsStdin(argv) && !process.stdin.isTTY ? await readAllStdin() : '';
 
   const result = runAutopilotCommand(argv, stdin, {
     root: process.cwd(),

@@ -4,7 +4,12 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { RunState } from '../lib/autopilot/run-state.js';
 import { readRun, writeRun } from '../lib/autopilot/state-store.js';
-import { type AutopilotCommandContext, runAutopilotCommand } from './autopilot.js';
+import {
+  type AutopilotCommandContext,
+  readsStdin,
+  runAutopilotCommand,
+  SUBCOMMANDS,
+} from './autopilot.js';
 
 function observation(over: Record<string, unknown> = {}): string {
   return JSON.stringify({
@@ -1210,5 +1215,88 @@ describe('cutover', () => {
   it('routes the canonical surface', () => {
     expect(mainSource).toContain("case 'autopilot':");
     expect(mainSource).toContain("from './commands/autopilot.js'");
+  });
+});
+
+/**
+ * One declaration of what a subcommand is, read by the router and by the pipe.
+ *
+ * The shell decided whether to read stdin from its own hand-kept list of five
+ * names. Eleven subcommands were missing from it, `reconcile` among them, so the
+ * footprint audit answered "not valid JSON" to valid JSON for as long as it has
+ * existed. The list also matched anywhere in argv rather than the subcommand, so
+ * `abort --run plan` read a pipe it never uses.
+ *
+ * The table below is now the single source: the router refuses what it does not
+ * hold, and the pipe reads exactly what it marks. These tests check the table
+ * against the handlers rather than against itself -- a table that agrees only
+ * with its own copy is the bug it replaced.
+ */
+describe('the stdin contract', () => {
+  const ROOT = mkdtempSync(join(tmpdir(), 'vh-autopilot-stdin-'));
+  const context: AutopilotCommandContext = { root: ROOT, now: '2026-07-29T12:00:00.000Z' };
+
+  // `status` and `resume` resolve the local cursor before they look at the pipe,
+  // and a clone with no run refuses for that reason instead. The cursor exists
+  // so the refusal under test is the one about the payload.
+  writeRun(ROOT, {
+    schemaVersion: 1,
+    runId: 'run-stdin',
+    clusterId: 'cluster-stdin',
+    programId: 'void-harness-v3',
+    startedAt: '2026-07-29T10:00:00.000Z',
+    base: { branch: 'main', sha: '2b0e24dc054cf4b7bde36d2e346db341f31501a5' },
+    tickets: [{ id: 'DEV-1', phase: 'pending', branch: null, commits: [], proofs: [], blocker: null }],
+    integration: { branch: null, headSha: null, prUrl: null, prState: 'none' },
+    trackerSynced: false,
+  });
+
+  const readers = Object.entries(SUBCOMMANDS)
+    .filter(([, kind]) => kind === 'reads-stdin')
+    .map(([name]) => name);
+  const silent = Object.entries(SUBCOMMANDS)
+    .filter(([, kind]) => kind !== 'reads-stdin')
+    .map(([name]) => name);
+
+  it.each(readers)('`%s` consumes the observation on stdin', (name) => {
+    // Not JSON on purpose: `status` tolerates an EMPTY pipe, so emptiness would
+    // prove nothing about whether the payload is read at all.
+    const result = runAutopilotCommand([name], 'not json', context);
+
+    expect(result.stderr).toMatch(/not valid JSON/);
+  });
+
+  it.each(silent)('`%s` ignores stdin entirely', (name) => {
+    const result = runAutopilotCommand([name], 'not json', context);
+
+    expect(result.stderr).not.toMatch(/not valid JSON/);
+  });
+
+  it('reads the pipe for every subcommand that consumes it', () => {
+    for (const name of readers) expect(readsStdin([name, '--json'])).toBe(true);
+  });
+
+  it('reads no pipe for a subcommand that never looks at one', () => {
+    for (const name of silent) expect(readsStdin([name])).toBe(false);
+  });
+
+  it('resolves the subcommand rather than scanning every argument', () => {
+    // `--run plan` names a run, not a step. Matching anywhere in argv made the
+    // shell wait on a pipe `abort` does not read.
+    expect(readsStdin(['abort', '--run', 'plan'])).toBe(false);
+    expect(readsStdin(['scaffold', 'reconcile'])).toBe(false);
+  });
+
+  it('reads no pipe for help or for a subcommand nobody routes', () => {
+    expect(readsStdin(['--help'])).toBe(false);
+    expect(readsStdin(['plan', '--help'])).toBe(false);
+    expect(readsStdin(['nonesuch'])).toBe(false);
+    expect(readsStdin([])).toBe(false);
+  });
+
+  it('names every subcommand it holds when one is unknown', () => {
+    const result = runAutopilotCommand(['nonesuch'], '', context);
+
+    for (const name of Object.keys(SUBCOMMANDS)) expect(result.stderr).toContain(name);
   });
 });
