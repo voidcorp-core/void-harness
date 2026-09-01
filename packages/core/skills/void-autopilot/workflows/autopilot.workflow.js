@@ -9,7 +9,8 @@
 //
 // Every decision goes through `void-harness autopilot <step>`, which is pure:
 // it observes nothing and writes nothing, it takes an observation and returns a
-// plan or a verdict. This script decides WHAT to ask and WHEN to stop; agents
+// plan or a verdict. This script never writes run state and never comments on
+// the tracker: it returns what happened, and the caller owns both. This script decides WHAT to ask and WHEN to stop; agents
 // observe the world and run the argv that comes back. Neither of them judges
 // what the other owns.
 //
