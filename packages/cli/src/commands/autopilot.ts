@@ -12,6 +12,13 @@
 // converged by re-observation.
 
 import { type ClusterPlan, type ClusterPlanInput, planCluster } from '../lib/autopilot/cluster-plan.js';
+import { verifyRange, type RangeObservation } from '../lib/autopilot/git-observation.js';
+import { buildOrchestrationPlan, type OrchestrationPlan } from '../lib/autopilot/orchestration-plan.js';
+import { resolveClusterOutcome, type ClusterOutcome, type WorkerFailure } from '../lib/autopilot/partial-success.js';
+import { buildReconcilePlan, type ReconcilePlan, type VerifiedRange } from '../lib/autopilot/reconcile-plan.js';
+import { parseWorkerResult, type WorkerResult } from '../lib/autopilot/worker-result.js';
+import { orderWorkers, type OrderFootprint } from '../lib/autopilot/worker-order.js';
+import { planWorktreeSetup, planWorktreeTeardown } from '../lib/autopilot/worktree-lifecycle.js';
 import { type ConfirmationInput, confirmReservation } from '../lib/autopilot/cluster-reservation.js';
 import { autopilotFailure, renderAutopilotFailure, toAutopilotFailure } from '../lib/autopilot/errors.js';
 import { decideChainStep, type ChainObservation } from '../lib/autopilot/chain-step.js';
@@ -460,6 +467,200 @@ function chainCommand(
   return emit(json, step, human);
 }
 
+/**
+ * What a confirmed cluster becomes: lanes, assignments, and the git commands.
+ *
+ * The step between "these tickets" and "this worker is running" was prose in the
+ * skill, and the four functions that compute it -- ordering, assignment, setup,
+ * teardown -- had no caller anywhere. A run that follows a paragraph decides
+ * which tickets may write at once by reading, which is the one decision that
+ * must not depend on anybody having read carefully.
+ *
+ * Nothing here touches the repository. It returns argv the caller executes, so
+ * the step stays testable without a git tree and the executor stays visible.
+ */
+interface OrchestrationObservation {
+  readonly runId: string;
+  readonly clusterId: string;
+  readonly base: { readonly branch: string; readonly sha: string };
+  readonly tickets: readonly string[];
+  readonly footprints: readonly OrderFootprint[];
+  readonly sequentialOwnership?: readonly string[];
+  readonly minConfidence?: number;
+  readonly clusterSize: number;
+  readonly planPath: string;
+  readonly specPath: string;
+}
+
+interface OrchestrationOutcome {
+  readonly schemaVersion: 1;
+  readonly plan: OrchestrationPlan;
+  /** Why each sequenced ticket lost its parallel slot. */
+  readonly reasons: Readonly<Record<string, readonly string[]>>;
+  readonly setup: readonly { readonly ticketId: string; readonly command: readonly string[] }[];
+  readonly teardown: readonly { readonly ticketId: string; readonly command: readonly string[] }[];
+}
+
+function orchestrateCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<OrchestrationObservation>(stdin, 'orchestration observation');
+  const order = orderWorkers({
+    tickets: observation.tickets,
+    footprints: observation.footprints,
+    sequentialOwnership: observation.sequentialOwnership ?? [],
+    ...(observation.minConfidence === undefined ? {} : { minConfidence: observation.minConfidence }),
+  });
+  const plan = buildOrchestrationPlan({
+    runId: observation.runId,
+    clusterId: observation.clusterId,
+    base: observation.base,
+    parallel: order.parallel,
+    sequential: order.sequential,
+    clusterSize: observation.clusterSize,
+    planPath: observation.planPath,
+    specPath: observation.specPath,
+  });
+  const outcome: OrchestrationOutcome = {
+    schemaVersion: 1,
+    plan,
+    reasons: order.reasons,
+    setup: planWorktreeSetup(plan),
+    teardown: planWorktreeTeardown(plan),
+  };
+  const human = [
+    `${String(plan.assignments.length)} assignment(s), width ${String(plan.concurrency)}`,
+    ...plan.assignments.map((assignment) => {
+      const why = order.reasons[assignment.ticketId];
+      const because = why === undefined || why.length === 0 ? '' : ` — ${why.join(', ')}`;
+      return `  ${assignment.ticketId.padEnd(10)} ${assignment.lane}${because}`;
+    }),
+    '',
+    'before any worker:',
+    ...outcome.setup.map((step) => `  ${step.command.join(' ')}`),
+    '',
+    'once the run is done with them:',
+    ...outcome.teardown.map((step) => `  ${step.command.join(' ')}`),
+    '',
+  ].join('\n');
+  return emit(json, outcome, human);
+}
+
+/**
+ * What the run does with what came back from the workers.
+ *
+ * Four steps that were a paragraph in the skill: parse each answer, resolve
+ * which of them the cluster can integrate, check every range against what GIT
+ * says rather than what the worker claimed, and state the merge as commands.
+ *
+ * The order is the safety. A worker's own report is never evidence: the range
+ * is verified against an observation of the repository, and a head the worker
+ * claims but git does not have is excluded rather than merged.
+ */
+interface ReconcileObservation {
+  readonly clusterId: string;
+  readonly base: { readonly branch: string; readonly sha: string };
+  readonly cluster: readonly string[];
+  readonly results: readonly unknown[];
+  readonly failures?: readonly WorkerFailure[];
+  readonly observations: readonly RangeObservation[];
+  readonly reconcileOnly?: readonly string[];
+  readonly rebuildCommand?: readonly string[];
+  readonly maxCommits?: number;
+}
+
+/**
+ * A cluster where nothing survived carries no merge plan, and says so.
+ *
+ * `buildReconcilePlan` refuses an empty range, which is right for a merge but
+ * wrong for a cycle: every worker blocked is an ordinary outcome of a run, not
+ * a misuse of the command. The shape says which of the two happened rather than
+ * handing back an empty plan that reads like a merge with nothing in it.
+ */
+type ReconcileOutcome =
+  | { readonly schemaVersion: 1; readonly outcome: ClusterOutcome; readonly plan: ReconcilePlan }
+  | { readonly schemaVersion: 1; readonly outcome: ClusterOutcome };
+
+function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<ReconcileObservation>(stdin, 'reconcile observation');
+  // Parsed one by one so a malformed answer names its own ticket. A worker whose
+  // result cannot be read is not an integration candidate, and pretending it is
+  // one would merge a range nobody described.
+  const parsed: WorkerResult[] = [];
+  const failures: WorkerFailure[] = [...(observation.failures ?? [])];
+  for (const raw of observation.results) {
+    try {
+      parsed.push(parseWorkerResult(raw));
+    } catch (error) {
+      const ticketId = (raw as { ticketId?: unknown }).ticketId;
+      failures.push({
+        ticketId: typeof ticketId === 'string' ? ticketId : 'unknown',
+        detail: error instanceof Error ? error.message : 'the worker result could not be read',
+      });
+    }
+  }
+
+  const outcome = resolveClusterOutcome({
+    cluster: observation.cluster,
+    results: parsed,
+    failures,
+  });
+
+  const observed = new Map(observation.observations.map((entry) => [entry.ticketId, entry]));
+  const ranges: VerifiedRange[] = outcome.integrate.map((ticketId) => {
+    const result = parsed.find((entry) => entry.ticketId === ticketId);
+    const sighting = observed.get(ticketId);
+    const verdict = sighting === undefined
+      ? {
+          kind: 'rejected' as const,
+          ticketId,
+          reason: 'malformed-observation' as const,
+          detail: 'git was never observed for this range, and a claim is not an observation',
+        }
+      : verifyRange(sighting, {
+          declaredCommits: result?.commits ?? [],
+          ...(observation.maxCommits === undefined ? {} : { maxCommits: observation.maxCommits }),
+        });
+    return {
+      ticketId,
+      branch: result?.branch ?? '',
+      headSha: sighting?.headSha ?? '',
+      verdict,
+      files: result?.files ?? [],
+    };
+  });
+
+  if (ranges.length === 0) {
+    const nothing = [
+      `${outcome.kind}: no range survived the cluster`,
+      ...outcome.excluded.map((entry) => `  excluded ${entry.ticketId}: ${entry.reason} — ${entry.detail}`),
+      '',
+      'Every branch the run created is preserved, so nothing is lost by stopping here.',
+      '',
+    ].join('\n');
+    return emit(json, { schemaVersion: 1, outcome } satisfies ReconcileOutcome, nothing);
+  }
+
+  const plan = buildReconcilePlan({
+    clusterId: observation.clusterId,
+    base: observation.base,
+    ranges,
+    reconcileOnly: observation.reconcileOnly ?? [],
+    ...(observation.rebuildCommand === undefined ? {} : { rebuildCommand: observation.rebuildCommand }),
+  });
+
+  const human = [
+    `${outcome.kind}: ${plan.integrate.length === 0 ? '(nothing)' : plan.integrate.join(', ')}`,
+    ...outcome.excluded.map((entry) => `  excluded ${entry.ticketId}: ${entry.reason}`),
+    ...plan.excluded.map((entry) => `  excluded ${entry.ticketId}: ${entry.reason}`),
+    '',
+    `integration branch: ${plan.integrationBranch}`,
+    ...plan.steps.map((step) => `  ${step.command.join(' ')}`),
+    '',
+    'Every branch above is preserved. Nothing here deletes a worker branch.',
+    '',
+  ].join('\n');
+  return emit(json, { schemaVersion: 1, outcome, plan } satisfies ReconcileOutcome, human);
+}
+
 function planCommand(stdin: string, json: boolean): AutopilotCommandResult {
   const plan = planCluster(parseStdin<ClusterPlanInput>(stdin, 'candidate observation', 'plan'));
   return emit(json, plan, renderPlan(plan));
@@ -596,6 +797,8 @@ export function runAutopilotCommand(
     }
 
     if (subcommand === 'plan') return planCommand(stdin, json);
+    if (subcommand === 'orchestrate') return orchestrateCommand(stdin, json);
+    if (subcommand === 'reconcile') return reconcileCommand(stdin, json);
     if (subcommand === 'chain') {
       if (context === undefined) {
         throw autopilotFailure(
@@ -617,7 +820,7 @@ export function runAutopilotCommand(
       throw autopilotFailure(
         'AUTOPILOT_USAGE',
         `autopilot has no '${subcommand}' subcommand`,
-        `known subcommands are scaffold, plan, chain, ${stateful.join(', ')}`,
+        `known subcommands are scaffold, plan, orchestrate, reconcile, chain, ${stateful.join(', ')}`,
         'run `void-harness autopilot --help` for the full contract',
       );
     }

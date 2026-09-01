@@ -235,6 +235,170 @@ ${enabled}  clusterSize: 2
     expect(result.exitCode).toBe(0);
   });
 
+  const SETUP_SHA = 'c'.repeat(40);
+
+  /** What the skill knows once a cluster is confirmed and a lease is held. */
+  function orchestration(over: Record<string, unknown> = {}): string {
+    return JSON.stringify({
+      schemaVersion: 1,
+      runId: 'run-a',
+      clusterId: 'cluster-1',
+      base: { branch: 'develop', sha: SETUP_SHA },
+      tickets: ['DEV-1', 'DEV-2'],
+      footprints: [
+        { id: 'DEV-1', areas: ['packages/cli'], highRisk: false, confidence: 0.9, touchesMigration: false },
+        { id: 'DEV-2', areas: ['packages/core'], highRisk: false, confidence: 0.9, touchesMigration: false },
+      ],
+      sequentialOwnership: ['pnpm-lock.yaml'],
+      clusterSize: 2,
+      planPath: 'docs/plans/p.md',
+      specPath: 'docs/specs/s.md',
+      ...over,
+    });
+  }
+
+  // The step between a confirmed cluster and a spawned worker. It was prose in
+  // the skill, so the four functions that compute it -- ordering, assignment,
+  // worktree setup, worktree teardown -- had no caller at all.
+  it('turns a confirmed cluster into the worktree commands a run executes', () => {
+    const result = runAutopilotCommand(['orchestrate', '--json'], orchestration(), ctx(repo()));
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.plan.assignments.map((a: { ticketId: string }) => a.ticketId)).toEqual(['DEV-1', 'DEV-2']);
+    expect(emitted.plan.assignments.every((a: { lane: string }) => a.lane === 'parallel')).toBe(true);
+    expect(emitted.setup[0].command.slice(0, 3)).toEqual(['git', 'worktree', 'add']);
+    expect(emitted.setup[0].command).toContain(SETUP_SHA);
+    expect(emitted.teardown[0].command.slice(0, 3)).toEqual(['git', 'worktree', 'remove']);
+  });
+
+  // The lane is a safety decision, not a speed one: two tickets writing the same
+  // area cannot both hold it.
+  it('sequences what collides, and says why it lost its parallel slot', () => {
+    const result = runAutopilotCommand(
+      ['orchestrate', '--json'],
+      orchestration({
+        footprints: [
+          { id: 'DEV-1', areas: ['packages/cli'], highRisk: false, confidence: 0.9, touchesMigration: false },
+          { id: 'DEV-2', areas: ['packages/cli'], highRisk: false, confidence: 0.9, touchesMigration: false },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    const lanes = Object.fromEntries(
+      emitted.plan.assignments.map((a: { ticketId: string; lane: string }) => [a.ticketId, a.lane]),
+    );
+    expect(Object.values(lanes)).toContain('sequential');
+    expect(JSON.stringify(emitted.reasons)).toContain('footprint-overlap');
+  });
+
+  it('refuses an orchestration whose base sha is not a commit', () => {
+    const result = runAutopilotCommand(
+      ['orchestrate'],
+      orchestration({ base: { branch: 'develop', sha: 'HEAD' } }),
+      ctx(repo()),
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/sha|commit/i);
+  });
+
+  const A = 'a'.repeat(39);
+  const B = 'b'.repeat(39);
+
+  /** One worker's answer, as the runtime schema forces it to come back. */
+  function workerResult(over: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      schemaVersion: 1,
+      ticketId: 'DEV-1',
+      status: 'completed',
+      branch: 'autopilot/cluster-1/DEV-1',
+      baseSha: SETUP_SHA,
+      headSha: `${A}1`,
+      commits: [`${A}1`],
+      files: ['packages/cli/src/x.ts'],
+      proofs: [{ name: 'suite', command: ['pnpm', 'test'], hash: 'd'.repeat(64) }],
+      decisions: [],
+      blocker: null,
+      ...over,
+    };
+  }
+
+  /** What git says about that branch, observed rather than claimed. */
+  function reconciliation(over: Record<string, unknown> = {}): string {
+    return JSON.stringify({
+      schemaVersion: 1,
+      clusterId: 'cluster-1',
+      base: { branch: 'develop', sha: SETUP_SHA },
+      cluster: ['DEV-1'],
+      results: [workerResult()],
+      failures: [],
+      observations: [
+        {
+          ticketId: 'DEV-1',
+          baseSha: SETUP_SHA,
+          headSha: `${A}1`,
+          commits: [{ sha: `${A}1`, parents: [SETUP_SHA] }],
+        },
+      ],
+      reconcileOnly: ['packages/core/graph/void-graph.mjs'],
+      ...over,
+    });
+  }
+
+  // What the run does with what came back from the workers. Four functions
+  // computed it -- parse, resolve, verify each range against git, plan the
+  // merge -- and none of them had a caller: the skill told a model to do it.
+  it('integrates a range git confirms, and states the merge as commands', () => {
+    const result = runAutopilotCommand(['reconcile', '--json'], reconciliation(), ctx(repo()));
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.outcome.integrate).toEqual(['DEV-1']);
+    expect(emitted.plan.integrate).toEqual(['DEV-1']);
+    expect(emitted.plan.integrationBranch).toContain('cluster-1');
+    expect(emitted.plan.steps.length).toBeGreaterThan(0);
+  });
+
+  // The range is what git says, never what the worker claimed. A worker that
+  // reports a commit git does not have is the case this exists for.
+  it('excludes a range whose head git does not agree with', () => {
+    const result = runAutopilotCommand(
+      ['reconcile', '--json'],
+      reconciliation({
+        observations: [
+          {
+            ticketId: 'DEV-1',
+            baseSha: SETUP_SHA,
+            headSha: `${B}2`,
+            commits: [{ sha: `${B}2`, parents: [SETUP_SHA] }],
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.plan.integrate).toEqual([]);
+    expect(JSON.stringify(emitted.plan.excluded)).toMatch(/unverified-range|missing-commit|head-mismatch/);
+  });
+
+  it('integrates nothing when every worker came back blocked', () => {
+    const result = runAutopilotCommand(
+      ['reconcile', '--json'],
+      reconciliation({
+        results: [workerResult({ status: 'blocked', headSha: null, commits: [], blocker: 'the API is down' })],
+      }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.outcome.kind).toBe('nothing-to-integrate');
+    expect(JSON.stringify(emitted.outcome.excluded)).toContain('DEV-1');
+  });
+
   it('reports the local cursor and asks for a remote read when status gets no observation', () => {
     const root = repo();
     writeRun(root, runState());
