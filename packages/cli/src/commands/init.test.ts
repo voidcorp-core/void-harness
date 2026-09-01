@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { buildDefaultConfig, buildFinalChecklist, configWriteVerdict, installDoctrineFiles, resolveInstallSource, sourceRepoVerdict } from './init.js';
 import type { CheckResult } from '../lib/prerequisites.js';
 import type { Stack } from '../lib/stack.js';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -159,13 +160,85 @@ describe('installDoctrineFiles', () => {
     const installed = project();
     mkdirSync(join(installed, '.void/installed'), { recursive: true });
     writeFileSync(join(installed, '.void/installed/PHILOSOPHY.md'), 'CANONICAL PHILOSOPHY\n');
-    await installDoctrineFiles(stage, source(), installed);
+    await installDoctrineFiles(stage, source(), { preserveFrom: installed });
     expect(readFileSync(join(stage, '.void/installed/PHILOSOPHY.md'), 'utf8')).toContain('CANONICAL');
   });
 
   it('still writes the packaged one when preserving a project that has none, rather than leaving a hole', async () => {
     const stage = project();
-    await installDoctrineFiles(stage, source(), project());
+    await installDoctrineFiles(stage, source(), { preserveFrom: project() });
     expect(readFileSync(join(stage, '.void/installed/PHILOSOPHY.md'), 'utf8')).toContain('PACKAGED');
+  });
+
+  /**
+   * The project doctrine is co-owned: the project owns every line, so the
+   * harness preserves it. The one exception is a file the project has never
+   * written into, which the manifest proves byte for byte -- see the decision
+   * on refreshing an untouched project doctrine.
+   */
+  const staged = (body: string): string => {
+    const stage = project();
+    mkdirSync(join(stage, '.void'), { recursive: true });
+    writeFileSync(join(stage, '.void/PROJECT-DOCTRINE.md'), body);
+    return stage;
+  };
+
+  const attesting = (body: string): string => {
+    const installed = project();
+    mkdirSync(join(installed, '.void'), { recursive: true });
+    writeFileSync(
+      join(installed, '.void/install-manifest.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        version: '3.3.0',
+        files: [{ path: '.void/PROJECT-DOCTRINE.md', sha256: createHash('sha256').update(body).digest('hex') }],
+      }),
+    );
+    return installed;
+  };
+
+  const doctrineIn = (stage: string): string =>
+    readFileSync(join(stage, '.void/PROJECT-DOCTRINE.md'), 'utf8');
+
+  it('seeds the project doctrine from the template when the project has none', async () => {
+    const stage = project();
+    await installDoctrineFiles(stage, source());
+    expect(doctrineIn(stage)).toBe('TEMPLATE\n');
+  });
+
+  it('refreshes a project doctrine still byte-identical to the one the install wrote', async () => {
+    // Every consumer that never filled it in keeps paying for the old template
+    // in every session otherwise. The manifest makes that case decidable.
+    const stage = staged('OLD TEMPLATE\n');
+    await installDoctrineFiles(stage, source(), { installationRoot: attesting('OLD TEMPLATE\n') });
+    expect(doctrineIn(stage)).toBe('TEMPLATE\n');
+  });
+
+  it('never touches a project doctrine the project has written into', async () => {
+    const written = 'OLD TEMPLATE\n\n- **no raw fetch in a component**.\n';
+    const stage = staged(written);
+    await installDoctrineFiles(stage, source(), { installationRoot: attesting('OLD TEMPLATE\n') });
+    expect(doctrineIn(stage)).toBe(written);
+  });
+
+  it('preserves the file when no manifest can attest what the harness wrote', async () => {
+    // An install predating the manifest. Silence is not proof of an untouched
+    // file, so the conservative branch wins.
+    const stage = staged('OLD TEMPLATE\n');
+    await installDoctrineFiles(stage, source(), { installationRoot: project() });
+    expect(doctrineIn(stage)).toBe('OLD TEMPLATE\n');
+  });
+
+  it('leaves the file alone when the package carries no template at all', async () => {
+    // A broken package must not be the thing that decides a project's doctrine.
+    const stage = staged('OLD TEMPLATE\n');
+    await installDoctrineFiles(stage, project(), { installationRoot: attesting('OLD TEMPLATE\n') });
+    expect(doctrineIn(stage)).toBe('OLD TEMPLATE\n');
+  });
+
+  it('preserves the file when the installation root is unknown', async () => {
+    const stage = staged('OLD TEMPLATE\n');
+    await installDoctrineFiles(stage, source());
+    expect(doctrineIn(stage)).toBe('OLD TEMPLATE\n');
   });
 });

@@ -81,7 +81,7 @@ export function harnessBlock(input: ClaudeMdBlockInputs, runtime: Runtime = 'cla
     '',
     ...imports,
     '',
-    `\`PHILOSOPHY.md\` is the universal void-harness doctrine (managed — overwritten on init). \`PROJECT-DOCTRINE.md\` holds project-specific rules: context, ADRs, in-flight decisions (created once, never overwritten by init).`,
+    `\`PHILOSOPHY.md\` is the universal void-harness doctrine (managed — overwritten on init). \`PROJECT-DOCTRINE.md\` holds project-specific rules: context, ADRs, in-flight decisions (yours; init never overwrites what you have written in it).`,
     '',
     captureLine,
     '',

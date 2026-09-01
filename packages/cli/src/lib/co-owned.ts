@@ -12,11 +12,18 @@
 // project's own writing apart from drift. Keeping a second copy in either one is
 // how the two answers start disagreeing.
 
+/**
+ * The project's own doctrine. Co-owned in the widest sense -- the harness seeds
+ * it once and every line after that is the project's -- and named here because
+ * `init` and the manifest both have to point at exactly this path.
+ */
+export const PROJECT_DOCTRINE_PATH = '.void/PROJECT-DOCTRINE.md';
+
 /** Paths the harness patches a block into rather than owning outright. */
 export const CO_OWNED_FILES = [
   '.gitignore',
   '.void/config.json',
-  '.void/PROJECT-DOCTRINE.md',
+  PROJECT_DOCTRINE_PATH,
   '.claude/settings.json',
   'CLAUDE.md',
   'AGENTS.md',
