@@ -1299,4 +1299,21 @@ describe('the stdin contract', () => {
 
     for (const name of Object.keys(SUBCOMMANDS)) expect(result.stderr).toContain(name);
   });
+
+  it('routes no name but `abort` to the lease release', () => {
+    // The router lost its refusal to a catch-all `default:`. A name added to the
+    // table and routed nowhere then fell through to `abortCommand` and RELEASED
+    // A LEASE, exit 0, with nothing red anywhere -- the same family of defect as
+    // an audit switched off by omission, inverted: an action nobody asked for
+    // rather than a check nobody ran. Every entry is routed today, so this
+    // reads the table against the handlers rather than against itself.
+    const others = Object.keys(SUBCOMMANDS).filter((name) => name !== 'abort');
+
+    for (const name of others) {
+      const result = runAutopilotCommand([name], '', context);
+
+      expect(result.stdout).not.toContain('release the lease on');
+    }
+    expect(runAutopilotCommand(['abort'], '', context).stdout).toContain('release the lease on');
+  });
 });

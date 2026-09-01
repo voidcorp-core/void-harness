@@ -1363,6 +1363,26 @@ function abortCommand(
   return emit(json, release, `${human}\n`);
 }
 
+/**
+ * A name the table holds and nobody routed.
+ *
+ * The parameter is `never`, so the compiler proves the switch below exhaustive:
+ * adding an entry to `SUBCOMMANDS` without a case stops the build. The runtime
+ * half matters just as much. The router used to end in
+ * `default: return abortCommand(...)`, which meant an unrouted name did not
+ * fail -- it RELEASED THE LEASE on the whole cluster and exited 0. Adding
+ * `release: 'no-stdin'` to the table and routing it nowhere left the suite
+ * green and made `void-harness autopilot release` give the run back.
+ */
+function unroutedSubcommand(subcommand: never): never {
+  throw autopilotFailure(
+    'AUTOPILOT_CONTRACT',
+    'a subcommand this CLI declares is routed nowhere',
+    `\`${String(subcommand)}\` is listed in SUBCOMMANDS and has no handler`,
+    'route the subcommand in `runAutopilotCommand`, or drop it from SUBCOMMANDS; a name in the table that falls through is an action nobody asked for',
+  );
+}
+
 export function runAutopilotCommand(
   argv: readonly string[],
   stdin: string,
@@ -1449,8 +1469,10 @@ export function runAutopilotCommand(
         return statusCommand(argv, stdin, json, context);
       case 'resume':
         return resumeCommand(argv, stdin, json, context);
-      default:
+      case 'abort':
         return abortCommand(argv, json, context);
+      default:
+        return unroutedSubcommand(subcommand);
     }
   } catch (error) {
     return fail(renderAutopilotFailure(toAutopilotFailure(error), json));
