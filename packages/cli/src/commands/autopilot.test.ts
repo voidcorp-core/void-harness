@@ -725,6 +725,72 @@ ${enabled}  clusterSize: 2
     expect(JSON.stringify(emitted.actions)).toContain('DEV-1');
   });
 
+  /** Where the run is, as it would be read from a phone. */
+  function progressObservation(over: Record<string, unknown> = {}): string {
+    return JSON.stringify({
+      schemaVersion: 1,
+      runId: 'run-a',
+      clusterId: 'cluster-1',
+      remote: 'origin',
+      base: { branch: 'develop', sha: SETUP_SHA },
+      integrationSha: `${A}1`,
+      workerBranches: [],
+      beats: [
+        { at: '1970-01-01T00:02:00.000Z', step: 'reconcile', unit: 'DEV-1', spentMs: 120000, remainingMs: 7080000 },
+      ],
+      merged: [
+        {
+          tickets: ['DEV-1'],
+          integrationSha: `${A}1`,
+          mergeCommit: `${B}2`,
+          unionVerdict: 'clean',
+          checks: ['validate'],
+        },
+      ],
+      now: '1970-01-01T00:05:00.000Z',
+      unitCeilingMs: 1800000,
+      ended: false,
+      ...over,
+    });
+  }
+
+  // The gate of this slice: a person reading only the pull request, with no
+  // terminal, can tell a live run from a dead one and name the last unit.
+  it('renders where the run is, and the commands that put it in front of a reader', () => {
+    const result = runAutopilotCommand(['progress', '--json'], progressObservation(), ctx(repo()));
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.liveness.kind).toBe('alive');
+    expect(emitted.body).toContain('DEV-1');
+    expect(emitted.body.split('\n')[0]).toMatch(/ALIVE/);
+    expect(emitted.plan.steps.some((step: { kind: string }) => step.kind === 'create-pull-request')).toBe(true);
+  });
+
+  it('says a run is stalled once its silence outlasts one unit`s ceiling', () => {
+    const result = runAutopilotCommand(
+      ['progress', '--json'],
+      progressObservation({ now: '1970-01-01T00:45:00.000Z' }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.liveness.kind).toBe('stalled');
+    expect(emitted.body).toContain('DEV-1');
+    expect(emitted.body.split('\n')[0]).toMatch(/STALLED/);
+  });
+
+  // A draft is a window. Refusing to open it because the proofs are not sealed
+  // would keep the run invisible for exactly as long as it is unfinished.
+  it('opens the draft without waiting for the proofs that only a merge needs', () => {
+    const result = runAutopilotCommand(['progress', '--json'], progressObservation(), ctx(repo()));
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.plan.blocked).toEqual([]);
+    const create = emitted.plan.steps.find((step: { kind: string }) => step.kind === 'create-pull-request');
+    expect(create.command).toContain('--draft');
+  });
+
   it('reports the local cursor and asks for a remote read when status gets no observation', () => {
     const root = repo();
     writeRun(root, runState());

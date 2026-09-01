@@ -12,6 +12,7 @@
 // converged by re-observation.
 
 import { type ClusterPlan, type ClusterPlanInput, planCluster } from '../lib/autopilot/cluster-plan.js';
+import { type MergedUnit, renderMergeJournal } from '../lib/autopilot/chain.js';
 import { selectBase, type BaseObservation, type BaseSelection } from '../lib/autopilot/base-selection.js';
 import {
   decideBranchProtection,
@@ -19,6 +20,7 @@ import {
   type ProtectionResponse,
 } from '../lib/autopilot/branch-protection.js';
 import { verifyRange, type RangeObservation } from '../lib/autopilot/git-observation.js';
+import { judgeLiveness, renderRunProgress, type RunBeat } from '../lib/autopilot/run-progress.js';
 import {
   buildUnionReviewRequest,
   inconclusiveReview,
@@ -1096,6 +1098,75 @@ function reserveCommand(stdin: string, json: boolean): AutopilotCommandResult {
   return emit(json, outcome, human);
 }
 
+/**
+ * Where the run is, and the commands that put it in front of a reader.
+ *
+ * The slice before this made the cycle unattended, and its gate -- no human
+ * interaction between the launch and the pull request -- is satisfied by a run
+ * that stalls at minute ten and contradicted by nothing. This closes that: after
+ * every decision the run rewrites the body of a draft pull request, so the one
+ * surface a person can read without a terminal is never older than the last
+ * thing that happened.
+ *
+ * Silence is the subject. A quiet run and a dead one look identical, so the
+ * body states which it is, judged against the ceiling a single unit may take.
+ */
+interface ProgressObservation {
+  readonly runId: string;
+  readonly clusterId: string;
+  readonly remote: string;
+  readonly base: { readonly branch: string; readonly sha: string };
+  readonly integrationSha: string;
+  readonly workerBranches: readonly string[];
+  readonly existingPullRequest?: ExistingPullRequest | null;
+  readonly beats: readonly RunBeat[];
+  readonly merged: readonly MergedUnit[];
+  /** ISO instant of this reading. Passed in, never read from a clock here. */
+  readonly now: string;
+  readonly unitCeilingMs: number;
+  readonly ended: boolean;
+}
+
+function progressCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<ProgressObservation>(stdin, 'progress observation');
+  const liveness = judgeLiveness({
+    beats: observation.beats,
+    now: observation.now,
+    unitCeilingMs: observation.unitCeilingMs,
+    ended: observation.ended,
+  });
+  const body = renderRunProgress({
+    runId: observation.runId,
+    base: observation.base,
+    beats: observation.beats,
+    liveness,
+    journal: renderMergeJournal(observation.merged),
+  });
+  // Sealed proofs are what a MERGE owes. A draft owes nothing but honesty, so
+  // it is published with an assessment that claims none.
+  const plan = buildPublishPlan({
+    clusterId: observation.clusterId,
+    remote: observation.remote,
+    base: { branch: observation.base.branch },
+    integrationSha: observation.integrationSha,
+    proofs: { schemaVersion: 1, statuses: [], missing: [], sealed: false },
+    workerBranches: observation.workerBranches,
+    draft: true,
+    ...(observation.existingPullRequest === undefined
+      ? {}
+      : { existingPullRequest: observation.existingPullRequest }),
+  });
+
+  const human = [
+    `${liveness.kind}: ${liveness.detail}`,
+    '',
+    `body -> ${plan.pullRequest.bodyPath}`,
+    ...plan.steps.map((step) => `  ${step.command.join(' ')}`),
+    '',
+  ].join('\n');
+  return emit(json, { schemaVersion: 1, liveness, body, plan }, human);
+}
+
 function planCommand(stdin: string, json: boolean): AutopilotCommandResult {
   const plan = planCluster(parseStdin<ClusterPlanInput>(stdin, 'candidate observation', 'plan'));
   return emit(json, plan, renderPlan(plan));
@@ -1237,6 +1308,7 @@ export function runAutopilotCommand(
     if (subcommand === 'verify') return verifyCommand(stdin, json);
     if (subcommand === 'gate') return gateCommand(stdin, json);
     if (subcommand === 'publish') return publishCommand(stdin, json);
+    if (subcommand === 'progress') return progressCommand(stdin, json);
     if (subcommand === 'grant') return grantCommand(stdin, json);
     if (subcommand === 'reserve') return reserveCommand(stdin, json);
     if (subcommand === 'base') return baseCommand(stdin, json);
@@ -1263,7 +1335,7 @@ export function runAutopilotCommand(
       throw autopilotFailure(
         'AUTOPILOT_USAGE',
         `autopilot has no '${subcommand}' subcommand`,
-        `known subcommands are scaffold, plan, orchestrate, reconcile, verify, gate, publish, grant, base, observe, reserve, lifecycle, chain, ${stateful.join(', ')}`,
+        `known subcommands are scaffold, plan, orchestrate, reconcile, verify, gate, publish, progress, grant, base, observe, reserve, lifecycle, chain, ${stateful.join(', ')}`,
         'run `void-harness autopilot --help` for the full contract',
       );
     }

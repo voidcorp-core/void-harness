@@ -133,6 +133,7 @@ mechanism.
 | `publish` | one branch, one refspec, one pull request, and the body that carries the account | the proofs are not sealed |
 | `grant` | may this merge itself | see the refusal table below |
 | `lifecycle` | what the tracker owes, and whether it got it | — |
+| `progress` | where the run is, and whether its silence means anything | — |
 | `observe` | what each boundary actually answered | — |
 
 Every step takes its observation on stdin and answers with `--json`. Run
@@ -154,6 +155,23 @@ tests hold this file to them.
 - **A migration is never parallel**, whatever its estimate says, and neither is a low-confidence
   footprint, a lockfile or a shared-ownership path. `orchestrate` sequences what it cannot prove
   disjoint, and names why each ticket lost its parallel slot.
+
+### Reading a run while it happens
+
+The pull request opens as a **draft at the first merged unit**, and its body is rewritten after
+every decision. That body is the whole surface: a phone shows six lines, and the first of them says
+`ALIVE`, `STALLED`, `STARTING` or `ENDED`, with the last unit named.
+
+`STALLED` is the one that means something. A quiet run and a dead one look identical from outside,
+so the run compares its own silence against the ceiling a single unit may take: quieter than that
+is working, longer than that has stopped without saying so. An `ENDED` run is never stalled
+however old its last beat, because the two send a reader to opposite places — one to wait, one to
+go looking.
+
+A draft does not wait for sealed proofs. It is a window, and refusing to open a window because the
+work is unfinished keeps the run invisible for exactly as long as it is unfinished. Nothing merges
+from it: the grant still needs everything it needed, and the draft is marked ready only when the
+publication that asks for a merge carries its proofs.
 
 **What stays yours.** Launching the run, confirming the cluster before the lease, and the merge
 into the branch that deploys. Everything a model still does inside the run is judgment: working a
