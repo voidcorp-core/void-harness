@@ -965,9 +965,19 @@ the records carry the reasoning at each step.**
 
 | class | what it means | examples | git |
 | --- | --- | --- | --- |
-| `project` | the project authors it; the harness never overwrites it | `.void/config.json`, `.void/PROJECT-DOCTRINE.md`, `.void/program.md`, `.claude/settings.json` | tracked |
+| `project` | the project authors it; the harness never overwrites what the project wrote | `.void/config.json`, `.void/PROJECT-DOCTRINE.md`, `.void/program.md`, `.claude/settings.json` | tracked |
 | `derived` | `void-harness init` re-materializes it from the harness assets | `.claude/skills/`, `.claude/agents/`, `.agents/skills/`, `.codex/agents/`, `.void/installed/PHILOSOPHY.md` | ignored, per receipt |
 | `observed` | this machine's history; meaningless in another checkout | `machine/runs/`, `machine/cache/`, `machine/receipts/`, `machine/status.json`, `machine/retired/*.jsonl` | never |
+
+`.void/PROJECT-DOCTRINE.md` is the one `project` file `init` may rewrite, and only
+in the single state where rewriting takes nothing from anybody: its bytes still
+match the install manifest's record of what a previous install wrote, which
+proves the project has never written in it. Every other state preserves the file,
+including a missing or unparseable manifest — silence is not proof that nobody
+edited it. The installed file is a stub on purpose, because `CLAUDE.md` imports
+it with `@` into every session; the long form it points at lives in
+[`docs/PROJECT-DOCTRINE-FORMAT.md`](PROJECT-DOCTRINE-FORMAT.md), which nothing
+loads. See the update-refreshes-an-untouched-project-doctrine decision.
 
 The map covers all four materialized directories (`.void/`, `.claude/`,
 `.agents/`, `.codex/`), not just `.void/`: left unclassified they were tracked by
