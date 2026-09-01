@@ -112,6 +112,19 @@ export function parseInstallManifest(body: string): InstallManifest | undefined 
 }
 
 /**
+ * The committed manifest of an installation, or nothing when it cannot be read
+ * or parsed. One reader, because two callers now ask the same question and a
+ * second copy is how the two answers start disagreeing.
+ */
+export function readInstallManifest(root: string): InstallManifest | undefined {
+  try {
+    return parseInstallManifest(readFileSync(join(root, ...INSTALL_MANIFEST_PATH.split('/')), 'utf8'));
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Recompute every hash on disk and report the drift. An unreadable file counts
  * as missing rather than throwing: the caller wants a verdict on the whole
  * install, not the first failure.
