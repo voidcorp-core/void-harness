@@ -32,16 +32,32 @@ export interface CompiledArea {
 }
 
 /**
+ * Does any segment of this path make it unable to name a file git reports?
+ *
+ * git reports a path relative to the repository root, with single separators
+ * and no dot segment. So `packages//core` is not `packages/core` for the exact
+ * comparison, not a prefix of it, and picomatch collapses nothing either; `/abs`
+ * leads with an empty segment; `../x` and `a/./b` are the same failure written
+ * differently. All of them read as ordinary areas and claim nothing, which is
+ * how a spelling disarms the guard rather than tripping it.
+ */
+function claimsNothing(value: string): boolean {
+  return value.split('/').some((segment) => segment === '' || segment === '.' || segment === '..');
+}
+
+/**
  * The one spelling of an area, so two readers cannot disagree about it.
  *
- * Refuses what would claim nothing: an empty area, and an absolute path, which
- * matches no path git ever reports for a range.
+ * Refuses what would claim nothing: an empty area, an absolute path, and any
+ * spelling carrying an empty or a dot segment. None of them matches a path git
+ * ever reports for a range. The stripping runs first, so the two forms a human
+ * legitimately writes -- a leading `./`, a trailing `/` -- survive it.
  */
 export function normaliseArea(area: string): string {
   let value = typeof area === 'string' ? area.trim() : '';
   while (value.startsWith('./')) value = value.slice(2);
   while (value.endsWith('/')) value = value.slice(0, -1);
-  if (value.length === 0 || value.startsWith('/')) {
+  if (value.length === 0 || claimsNothing(value)) {
     throw autopilotFailure(
       'AUTOPILOT_CONTRACT',
       'a declared area claims nothing',

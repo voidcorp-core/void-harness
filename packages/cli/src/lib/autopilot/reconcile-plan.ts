@@ -74,9 +74,11 @@ export interface ReconcileInput {
   /**
    * Every ticket the run reserved, not only those that came back.
    *
-   * It is what decides whether the audit has a question to answer: a ticket that
-   * was blocked, excluded or never spawned still holds its claim, and it is
-   * usually the one whose work got absorbed.
+   * A ticket that was blocked, excluded or never spawned still holds its claim,
+   * and it is usually the one whose work got absorbed. This list no longer
+   * decides on its own whether the audit has a question to answer: it is checked
+   * against `footprints` both ways, so shrinking it to the tickets that returned
+   * is a refusal rather than a quiet exemption.
    */
   readonly cluster: readonly string[];
   /** Path patterns only the reconciler may write, from the active program. */
@@ -88,7 +90,8 @@ export interface ReconcileInput {
    * absence is refused below rather than read as "nothing to audit". An empty
    * `excluded` after a skipped audit is byte for byte an empty `excluded` after
    * a clean one, so an audit that can be off by omission is an audit nobody can
-   * prove ran.
+   * prove ran -- and an entry declaring `areas: []` is that same omission
+   * written as a value.
    */
   readonly footprints?: readonly DeclaredFootprint[];
   /** argv that regenerates the shared artefacts, run once at the end. */
@@ -118,6 +121,101 @@ function matchesAny(path: string, patterns: readonly string[]): boolean {
     .some((pattern) => path === pattern || path.startsWith(`${pattern}/`));
 }
 
+/**
+ * Every ticket in play is declared, and every declaration names a ticket in play.
+ *
+ * The cross-check used to run one way only, and the switch above it was computed
+ * from `cluster` alone. So the audit was disarmed by *shrinking* the payload:
+ * pass the tickets that came back rather than the ones the run reserved, and a
+ * range carrying the absent ticket's file came back with an empty `excluded` --
+ * byte for byte what a clean audit returns. The proof of the under-declaration
+ * was in the same payload, in `footprints`, and nobody read it.
+ *
+ * Both directions are refusals rather than repairs. A declaration for a ticket
+ * the cluster does not hold and a cluster ticket nobody declared are the same
+ * contradiction seen from either end, and neither end says which of the two
+ * lists is the wrong one. Guessing would pick a merge over a question.
+ *
+ * An `areas: []` entry counts as no declaration. `plan` tolerates an unknown
+ * footprint -- it costs the ticket a review unit and its parallel lane, and the
+ * footprint may still be discovered while the ticket runs. By reconciliation
+ * the declaration is final, and a ticket claiming nothing cannot be robbed:
+ * every neighbour walks into its ground reported as a widening.
+ */
+function requireSymmetricDeclaration(
+  cluster: readonly string[],
+  footprints: readonly DeclaredFootprint[],
+): void {
+  const undeclared = cluster.filter(
+    (id) => !footprints.some((entry) => entry.id === id && entry.areas.length > 0),
+  );
+  if (undeclared.length > 0) {
+    throw autopilotFailure(
+      'AUTOPILOT_CONTRACT',
+      'this cluster declared no footprint for every ticket it holds',
+      `${undeclared.join(', ')} reached reconciliation without a declared area`,
+      'pass `footprints` exactly as `orchestrate` returned them; the audit cannot be skipped by omitting them',
+    );
+  }
+
+  const unreserved = [
+    ...new Set(footprints.map((entry) => entry.id).filter((id) => !cluster.includes(id))),
+  ];
+  if (unreserved.length > 0) {
+    throw autopilotFailure(
+      'AUTOPILOT_CONTRACT',
+      'this cluster declared a footprint for a ticket it says it never reserved',
+      `${unreserved.join(', ')} declared an area but is absent from \`cluster\``,
+      'pass `cluster` as EVERY ticket the run reserved, blocked ones included; a ticket that vanishes from that list takes its claim with it',
+    );
+  }
+}
+
+type RangeObservation =
+  | { readonly kind: 'observed'; readonly files: readonly string[] }
+  | { readonly kind: 'unobserved'; readonly detail: string };
+
+/**
+ * Git's reading of what this range touches, or why there is not one.
+ *
+ * The declared type is `readonly string[] | undefined`, and it crossed a JSON
+ * boundary where a type is a wish. Missing, empty, a string, and a list holding
+ * something that is not a path are four spellings of the same silence, and only
+ * one of them announces itself: a string has a `length` and iterates, so the
+ * audit walks it character by character, matches no area with any character,
+ * and returns `within-scope` -- its own word for approval.
+ */
+function readObservation(range: VerifiedRange, commits: number): RangeObservation {
+  const observed: unknown = range.observedFiles;
+  const unobserved = (detail: string): RangeObservation => ({ kind: 'unobserved', detail });
+
+  if (observed === undefined) {
+    return unobserved(
+      `\`${range.ticketId}\` was never read from git for the files it touches, and the` +
+        " worker's own list is not an observation",
+    );
+  }
+  if (!Array.isArray(observed)) {
+    return unobserved(
+      `\`${range.ticketId}\` carries \`observedFiles\` as ${typeof observed}, and only a list of` +
+        ' paths is an observation git produces',
+    );
+  }
+  if (observed.length === 0) {
+    return unobserved(
+      `\`${range.ticketId}\` carries ${String(commits)} commit(s) and an empty observed file list,` +
+        ' which is not an observation git produces',
+    );
+  }
+  const files = observed.filter((file): file is string => typeof file === 'string' && file.trim() !== '');
+  if (files.length !== observed.length) {
+    return unobserved(
+      `\`${range.ticketId}\` carries an entry in \`observedFiles\` that is not a file path`,
+    );
+  }
+  return { kind: 'observed', files };
+}
+
 export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
   if (!SLUG.test(input.clusterId)) {
     throw autopilotFailure(
@@ -138,20 +236,14 @@ export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
 
   const integrationBranch = `autopilot/${input.clusterId}`;
   const footprints = input.footprints ?? [];
-  // Alone, a range has no neighbour to rob: the audit answers nothing, and
-  // demanding an observation to answer nothing would stall a run for ceremony.
-  const audited = input.cluster.length > 1;
-  if (audited) {
-    const undeclared = input.cluster.filter((id) => !footprints.some((entry) => entry.id === id));
-    if (undeclared.length > 0) {
-      throw autopilotFailure(
-        'AUTOPILOT_CONTRACT',
-        'this cluster declared no footprint for every ticket it holds',
-        `${undeclared.join(', ')} reached reconciliation without a declared area`,
-        'pass `footprints` exactly as `orchestrate` returned them; the audit cannot be skipped by omitting them',
-      );
-    }
-  }
+  // Armed by every ticket in play, which is what the run reserved AND what the
+  // payload declared. Reading `cluster` alone let the switch be turned off by a
+  // list one step shorter than the truth. Alone, a range has no neighbour to
+  // rob: the audit answers nothing, and demanding an observation to answer
+  // nothing would stall a run for ceremony.
+  const inPlay = new Set([...input.cluster, ...footprints.map((entry) => entry.id)]);
+  const audited = inPlay.size > 1;
+  if (audited) requireSymmetricDeclaration(input.cluster, footprints);
   const excluded: ExcludedRange[] = [];
   const integrate: VerifiedRange[] = [];
 
@@ -175,23 +267,19 @@ export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
     if (audited) {
       // The same rule ancestry already follows: what the worker says it touched
       // is a claim, and a claim cannot clear a range of carrying somebody else's
-      // work. An empty list is the same silence in another shape -- the range
-      // carries a commit, so git reported files for it.
-      if (range.observedFiles === undefined || range.observedFiles.length === 0) {
+      // work. Missing, empty and malformed are the same silence in three shapes
+      // -- the range carries a commit, so git reported paths for it.
+      const observation = readObservation(range, range.verdict.commits.length);
+      if (observation.kind === 'unobserved') {
         excluded.push({
           ticketId: range.ticketId,
           reason: 'footprint-unobserved',
-          detail:
-            range.observedFiles === undefined
-              ? `\`${range.ticketId}\` was never read from git for the files it touches, and the` +
-                " worker's own list is not an observation"
-              : `\`${range.ticketId}\` carries ${String(range.verdict.commits.length)} commit(s) and an` +
-                ' empty observed file list, which is not an observation git produces',
+          detail: observation.detail,
         });
         continue;
       }
       const audit = auditFootprint(
-        { ticketId: range.ticketId, files: range.observedFiles },
+        { ticketId: range.ticketId, files: observation.files },
         { footprints, exempt: input.reconcileOnly },
       );
       if (audit.kind === 'breach') {
@@ -205,7 +293,13 @@ export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
   const sharedPaths = [
     ...new Set(
       integrate.flatMap((range) =>
-        (range.observedFiles ?? range.files).filter((file) => matchesAny(file, input.reconcileOnly)),
+        // The observation when it is one, the worker's claim otherwise. A range
+        // that reached here unaudited is a cluster of one, where the claim is
+        // the documented fallback; what must not happen is this line reading
+        // `.filter` off a string and turning a strip step into a TypeError.
+        (Array.isArray(range.observedFiles) ? range.observedFiles : range.files).filter(
+          (file) => typeof file === 'string' && matchesAny(file, input.reconcileOnly),
+        ),
       ),
     ),
   ].sort();

@@ -275,6 +275,60 @@ describe('auditFootprint', () => {
     expect(verdict.kind).toBe('within-scope');
   });
 
+  it('refuses a file list that is not the array git produces', () => {
+    // A string has a `length` and iterates, so it survived every emptiness
+    // check and then walked character by character: none of them matched an
+    // area, and the verdict was `within-scope` -- the audit's word for approval.
+    expect(() =>
+      auditFootprint(
+        {
+          ticketId: 'DEV-526',
+          files: 'packages/core/templates/PROJECT-DOCTRINE.md' as unknown as readonly string[],
+        },
+        input(),
+      ),
+    ).toThrow(/observation/i);
+  });
+
+  it('refuses a file list carrying an entry that is not a path', () => {
+    expect(() =>
+      auditFootprint({ ticketId: 'DEV-526', files: [123] as unknown as readonly string[] }, input()),
+    ).toThrow(/observation/i);
+  });
+
+  it('refuses an area whose spelling hides an empty segment', () => {
+    // `packages//core/templates` passes every emptiness and absoluteness check
+    // and still matches nothing: not the exact path git reports, not the prefix,
+    // and picomatch collapses no doubled slash either.
+    expect(() =>
+      auditFootprint(
+        { ticketId: 'DEV-1', files: ['packages/core/templates/stolen.md'] },
+        input({
+          footprints: [
+            { id: 'DEV-1', areas: ['packages/cli/src'] },
+            { id: 'DEV-2', areas: ['packages//core/templates'] },
+          ],
+        }),
+      ),
+    ).toThrow(/claims nothing/i);
+  });
+
+  it('refuses an area that climbs out of the repository', () => {
+    // git reports every path relative to the repository root, so a `..` segment
+    // claims nothing whatever it points at.
+    expect(() =>
+      auditFootprint(
+        { ticketId: 'DEV-1', files: ['packages/core/templates/stolen.md'] },
+        input({
+          footprints: [
+            { id: 'DEV-1', areas: ['packages/cli/src'] },
+            { id: 'DEV-2', areas: ['../packages/core/templates'] },
+          ],
+        }),
+      ),
+    ).toThrow(/claims nothing/i);
+  });
+
   it('refuses an area that claims nothing, rather than reading it as no claim', () => {
     // An absolute path, or one that normalises to nothing, matches no file git
     // ever reports. Silently claiming nothing is exactly the failure the

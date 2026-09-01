@@ -6,7 +6,7 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
   diagnoseSelfHost,
   selfHostChildEnvironment,
@@ -29,15 +29,39 @@ afterEach(async () => {
   ));
 });
 
-async function generatedFixture(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), 'void-self-doctor-'));
-  roots.push(root);
+/**
+ * One real compilation for the whole file, copied per test.
+ *
+ * Every test below needs the same thing: a freshly published shadow artifact of
+ * the real repository. Compiling it once per test cost about 900 ms each and
+ * made every duration a function of how busy the machine was; copying the 1.5 MB
+ * result costs about 110 ms. Three of the four tests then tamper with their own
+ * copy, which is exactly why each gets one -- and why the template, built before
+ * any test and never written to, introduces no order between them.
+ *
+ * The hook carries its own budget because it is the one place here allowed to do
+ * the real work; nothing it asserts depends on how long it takes.
+ */
+let greenArtifact: string;
+
+beforeAll(async () => {
+  greenArtifact = await mkdtemp(join(tmpdir(), 'void-self-doctor-template-'));
   await syncSelfHost(REPO, {
-    generatedRoot: root,
+    generatedRoot: greenArtifact,
     buildHookBundle,
     wireRuntimeSurfaces: wireSelfHostRuntimeSurfaces,
     mode: 'shadow',
   });
+}, 60_000);
+
+afterAll(async () => {
+  await rm(greenArtifact, { recursive: true, force: true });
+});
+
+async function generatedFixture(): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), 'void-self-doctor-'));
+  roots.push(root);
+  await cp(greenArtifact, root, { recursive: true });
   return root;
 }
 
