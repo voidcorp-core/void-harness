@@ -385,6 +385,68 @@ ${enabled}  clusterSize: 2
     expect(JSON.stringify(emitted.plan.excluded)).toMatch(/unverified-range|missing-commit|head-mismatch/);
   });
 
+  // The whole reason this ticket exists: two worktrees share `refs/stash`, so a
+  // range can be perfectly linear and still carry the neighbour's files.
+  it('refuses a range carrying a file another ticket of the cluster declared', () => {
+    const result = runAutopilotCommand(
+      ['reconcile', '--json'],
+      reconciliation({
+        cluster: ['DEV-1', 'DEV-2'],
+        footprints: [
+          { id: 'DEV-1', areas: ['packages/cli/src'] },
+          { id: 'DEV-2', areas: ['packages/core/templates'] },
+        ],
+        observations: [
+          {
+            ticketId: 'DEV-1',
+            baseSha: SETUP_SHA,
+            headSha: `${A}1`,
+            commits: [{ sha: `${A}1`, parents: [SETUP_SHA] }],
+            observedFiles: ['packages/cli/src/x.ts', 'packages/core/templates/stolen.md'],
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.plan.integrate).toEqual([]);
+    expect(JSON.stringify(emitted.plan.excluded)).toContain('footprint-breach');
+    expect(JSON.stringify(emitted.plan.excluded)).toContain('packages/core/templates/stolen.md');
+    expect(JSON.stringify(emitted.plan.excluded)).toContain('DEV-2');
+  });
+
+  it('integrates a range that only widened into files nobody claimed', () => {
+    const result = runAutopilotCommand(
+      ['reconcile', '--json'],
+      reconciliation({
+        footprints: [{ id: 'DEV-1', areas: ['packages/cli/src/x.ts'] }],
+        observations: [
+          {
+            ticketId: 'DEV-1',
+            baseSha: SETUP_SHA,
+            headSha: `${A}1`,
+            commits: [{ sha: `${A}1`, parents: [SETUP_SHA] }],
+            observedFiles: ['packages/cli/src/x.ts', 'packages/cli/src/neighbour.ts'],
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    expect(JSON.parse(result.stdout).plan.integrate).toEqual(['DEV-1']);
+  });
+
+  it('refuses a range whose files git was never read for, once footprints exist', () => {
+    const result = runAutopilotCommand(
+      ['reconcile', '--json'],
+      reconciliation({ footprints: [{ id: 'DEV-1', areas: ['packages/cli/src'] }] }),
+      ctx(repo()),
+    );
+
+    expect(JSON.stringify(JSON.parse(result.stdout).plan.excluded)).toContain('footprint-unobserved');
+  });
+
   it('integrates nothing when every worker came back blocked', () => {
     const result = runAutopilotCommand(
       ['reconcile', '--json'],

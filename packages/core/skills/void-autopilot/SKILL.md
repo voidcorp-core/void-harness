@@ -127,7 +127,7 @@ mechanism.
 | `chain` | take another unit, or stop | the budget cannot cover one, the base is red, or nobody verified it |
 | `reserve` | may this run take the cluster | someone else holds it, or the observation is unusable |
 | `orchestrate` | lanes, assignments, and the git commands that make the worktrees | a base sha that is not a commit |
-| `reconcile` | which ranges merge, as commands | a head the worker claims that git does not have |
+| `reconcile` | which ranges merge, as commands | a head the worker claims that git does not have, or a range holding a file another ticket declared |
 | `verify` | the suite that decides the merge, bounded | — |
 | `gate` | did the proofs run on THIS tree, did the panel speak first, did the unit stay in its ceilings | any of them unproven; absence of a record is absence of the act |
 | `publish` | one branch, one refspec, one pull request, and the body that carries the account | the proofs are not sealed |
@@ -155,6 +155,46 @@ tests hold this file to them.
 - **A migration is never parallel**, whatever its estimate says, and neither is a low-confidence
   footprint, a lockfile or a shared-ownership path. `orchestrate` sequences what it cannot prove
   disjoint, and names why each ticket lost its parallel slot.
+
+### What a worktree does not isolate
+
+A worktree isolates the working tree, the index and `HEAD`. It does **not** isolate the
+repository's refs: `refs/stash`, `refs/tags/*`, `refs/notes/*`, `refs/remotes/*`, `refs/heads/*`
+and the repository config are one namespace for every worktree at once. On 2026-09-01 two workers
+each ran `git stash push` to split a commit, and the second `pop` took the first worker's entry:
+each ended up holding the other's files.
+
+So the plan denies the **class** -- writing anything the repository shares -- and not one command.
+A worker refused `git stash` alone reaches for `git tag`, or `git update-ref`, and lands in the
+same shared space. The one exception is the branch its own assignment names, which is what it was
+created to write. `orchestrate` carries the list, the exception, the commands that break it, the
+replacement gesture and the git documentation it was derived from, so the brief renders the
+prohibition from the plan instead of restating it.
+
+**The replacement gesture**, because a worker denied one reinvents it: to set changes aside,
+`git diff > a file inside your own worktree` and `git apply` it back; to split a commit, commit it
+on your own branch and amend or soft-reset afterwards. Both stay inside the worktree.
+
+Any pre-existing stash entry belongs to whoever left it. A run never lists, pops or cleans the
+stack, and never counts what is on it as residue of its own. An overwritten entry is not lost
+either: its commit becomes unreachable rather than collected, so an incident report gives the sha
+and the command that recovers it.
+
+### A range carries only what its ticket claimed
+
+`reconcile` proves ancestry -- the range is linear, descends from the base, matches the declared
+commits. That says nothing about **whose** files are in it, and two disjoint footprints merge
+without a conflict either way, so contamination reaches the pull request unnoticed. The audit
+answers the second question, against `git diff --name-only` and never against the worker's own
+list: a claim cannot clear a range of carrying somebody else's work, and a range git was never
+read for is excluded as `footprint-unobserved`.
+
+What it refuses is narrow on purpose. A file **another ticket of the cluster declared** is a
+breach: nothing legitimate produces it. A file nobody predicted is a widening, and it passes --
+a ticket that enumerates from the manifests finds the packages its author missed, and a guard that
+refuses that discovery is a guard that hides defects. A file both tickets declared passes too:
+`orchestrate` already sequenced them for that collision. A `reconcileOnly` path is not judged,
+since the reconciler strips and rebuilds it anyway.
 
 ### Reading a run while it happens
 
