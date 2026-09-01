@@ -21,7 +21,7 @@
 // reported for the range, never the ones the worker said it touched.
 
 import { autopilotFailure } from './errors.js';
-import { areaClaims, compileArea, normaliseArea } from './footprint-area.js';
+import { areaClaims, areaIsNarrower, compileArea, normaliseArea, type CompiledArea } from './footprint-area.js';
 
 export interface DeclaredFootprint {
   readonly id: string;
@@ -126,28 +126,43 @@ export function auditFootprint(range: AuditedRange, input: FootprintAuditInput):
   const isExempt = (file: string): boolean =>
     exempt.some((pattern) => file === pattern || file.startsWith(`${pattern}/`));
 
-  const owns = (ticketId: string, file: string): boolean =>
+  const claimingAreas = (ticketId: string, file: string): readonly CompiledArea[] =>
     compiled
       .filter((footprint) => footprint.id === ticketId)
-      .some((footprint) => footprint.areas.some((entry) => areaClaims(entry, file)));
+      .flatMap((footprint) => footprint.areas.filter((entry) => areaClaims(entry, file)));
 
   const intrusions: Intrusion[] = [];
   const widened: string[] = [];
 
   for (const file of range.files) {
     if (isExempt(file)) continue;
-    if (owns(range.ticketId, file)) continue;
 
-    const claimedBy = compiled
-      .filter(
-        (footprint) =>
-          footprint.id !== range.ticketId &&
-          footprint.areas.some((entry) => areaClaims(entry, file)),
-      )
-      .map((footprint) => footprint.id);
+    // Own claim first, but as the areas rather than a yes: a `true` here used to
+    // end the question, and a wider declaration then swallowed a narrower one.
+    // `packages/core` claims `packages/core/b/x.ts` by prefix, so the file
+    // DEV-2 carved out as `packages/core/b` came back within-scope for DEV-1
+    // with an empty `widened` -- invisible, not merely permitted.
+    const mine = claimingAreas(range.ticketId, file);
+    const claimedBy = [
+      ...new Set(
+        compiled
+          .filter((footprint) => footprint.id !== range.ticketId)
+          .filter((footprint) =>
+            // Narrower than EVERY area of ours that reaches this file. Two
+            // spellings of the same area stay a tie, which is the entitlement
+            // both tickets really have; and an empty `mine` makes this
+            // vacuously true, which is the plain case of a file only the
+            // neighbour declared.
+            claimingAreas(footprint.id, file).some((theirs) =>
+              mine.every((ours) => areaIsNarrower(theirs, ours)),
+            ),
+          )
+          .map((footprint) => footprint.id),
+      ),
+    ];
 
-    if (claimedBy.length === 0) widened.push(file);
-    else intrusions.push({ file, claimedBy });
+    if (claimedBy.length > 0) intrusions.push({ file, claimedBy });
+    else if (mine.length === 0) widened.push(file);
   }
 
   if (intrusions.length === 0) return { kind: 'within-scope', widened };

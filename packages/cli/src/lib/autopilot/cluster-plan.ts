@@ -13,6 +13,8 @@
 // not deny the operator the other nineteen; only a caller mistake about the
 // contract itself (unknown schema, out-of-range cluster size) throws.
 
+import { AutopilotError } from './errors.js';
+import { areasOverlap, compileArea, type CompiledArea } from './footprint-area.js';
 import { admitWithinReviewBudget, type ReviewBudget, type ReviewSignal } from './review-budget.js';
 
 export type ExclusionCause =
@@ -126,37 +128,53 @@ function dependent(a: CandidateTicket, b: CandidateTicket): boolean {
   return a.dependsOn.includes(b.id) || b.dependsOn.includes(a.id);
 }
 
-function overlaps(a: readonly string[], b: readonly string[]): boolean {
-  const set = new Set(a);
-  return b.some((area) => set.has(area));
+/**
+ * The one reading of a declared area, the one `worker-order` and the audit use.
+ *
+ * Compared by string equality, `packages/core` and `packages/core/skills` were
+ * disjoint here and nested in both other readers, so this reader announced a
+ * parallel lane the run never took. `orderWorkers` routes, so nothing executed
+ * wrong -- but the cluster plan is the artefact a human confirms, and a plan
+ * that misdescribes its own lanes is confirmed on a false picture.
+ */
+function overlaps(a: readonly CompiledArea[], b: readonly CompiledArea[]): boolean {
+  return a.some((left) => b.some((right) => areasOverlap(left, right)));
 }
 
-export function planCluster(input: ClusterPlanInput): ClusterPlan {
-  if (input.schemaVersion !== 1) {
-    throw new Error(
-      `autopilot: unknown cluster plan schemaVersion ${String(input.schemaVersion)}. This CLI reads version 1; upgrade the caller or the harness so both speak the same contract.`,
-    );
+/**
+ * The compiled areas of a footprint, or `undefined` when one claims nothing.
+ *
+ * The shared reading refuses an area that matches no path git reports. Here
+ * that refusal has to become a typed exclusion instead: one malformed candidate
+ * in a pool of twenty must not deny the operator the other nineteen. Anything
+ * that is not that refusal still escapes, because it is not this reader's.
+ */
+function compileAreas(areas: readonly string[]): readonly CompiledArea[] | undefined {
+  try {
+    return areas.map(compileArea);
+  } catch (error) {
+    if (error instanceof AutopilotError) return undefined;
+    throw error;
   }
-  const clusterSize = input.clusterSize ?? MAX_CLUSTER_SIZE;
-  if (!Number.isInteger(clusterSize) || clusterSize < 1 || clusterSize > MAX_CLUSTER_SIZE) {
-    throw new Error(
-      `autopilot: clusterSize must be an integer between 1 and ${MAX_CLUSTER_SIZE}, received ${clusterSize}. Set clusterSize within that range in the active program.`,
-    );
-  }
-  const minConfidence = input.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
+}
 
-  const excluded: ExcludedTicket[] = [];
-  const footprints = new Map<string, ClusterFootprint>();
-  for (const footprint of input.footprints) {
-    if (typeof footprint?.id === 'string' && !footprints.has(footprint.id)) {
-      footprints.set(footprint.id, footprint);
-    }
-  }
-
-  // Screening, in input order: everything decidable from one candidate alone.
+/**
+ * Everything decidable from one candidate alone, in input order.
+ *
+ * Extracted because it is a second subject: a screen answers "may this ticket
+ * enter at all", the selection and the partition answer "with whom". It also
+ * owns the exclusions, so they are appended here rather than returned in a
+ * parallel list nobody could keep aligned with them.
+ */
+function screenCandidates(
+  tickets: readonly CandidateTicket[],
+  footprints: ReadonlyMap<string, ClusterFootprint>,
+  excluded: ExcludedTicket[],
+  areas: Map<string, readonly CompiledArea[]>,
+): readonly CandidateTicket[] {
   const seen = new Set<string>();
   const candidates: CandidateTicket[] = [];
-  for (const ticket of input.tickets) {
+  for (const ticket of tickets) {
     if (!wellFormedTicket(ticket) || seen.has(ticket.id)) {
       excluded.push({ id: ticket?.id ?? '', cause: 'malformed-input' });
       continue;
@@ -189,6 +207,12 @@ export function planCluster(input: ClusterPlanInput): ClusterPlan {
       excluded.push({ id: ticket.id, cause: 'missing-footprint' });
       continue;
     }
+    const compiled = compileAreas(footprint.areas);
+    if (compiled === undefined) {
+      excluded.push({ id: ticket.id, cause: 'malformed-input' });
+      continue;
+    }
+    areas.set(ticket.id, compiled);
     if (!ticket.ready) {
       excluded.push({ id: ticket.id, cause: 'not-ready' });
       continue;
@@ -199,6 +223,33 @@ export function planCluster(input: ClusterPlanInput): ClusterPlan {
     }
     candidates.push(ticket);
   }
+  return candidates;
+}
+
+export function planCluster(input: ClusterPlanInput): ClusterPlan {
+  if (input.schemaVersion !== 1) {
+    throw new Error(
+      `autopilot: unknown cluster plan schemaVersion ${String(input.schemaVersion)}. This CLI reads version 1; upgrade the caller or the harness so both speak the same contract.`,
+    );
+  }
+  const clusterSize = input.clusterSize ?? MAX_CLUSTER_SIZE;
+  if (!Number.isInteger(clusterSize) || clusterSize < 1 || clusterSize > MAX_CLUSTER_SIZE) {
+    throw new Error(
+      `autopilot: clusterSize must be an integer between 1 and ${MAX_CLUSTER_SIZE}, received ${clusterSize}. Set clusterSize within that range in the active program.`,
+    );
+  }
+  const minConfidence = input.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
+
+  const excluded: ExcludedTicket[] = [];
+  const areas = new Map<string, readonly CompiledArea[]>();
+  const footprints = new Map<string, ClusterFootprint>();
+  for (const footprint of input.footprints) {
+    if (typeof footprint?.id === 'string' && !footprints.has(footprint.id)) {
+      footprints.set(footprint.id, footprint);
+    }
+  }
+
+  const candidates = screenCandidates(input.tickets, footprints, excluded, areas);
 
   // Selection, in rank order: independence first, then the ceiling.
   const ranked = candidates.slice().sort((a, b) => {
@@ -243,7 +294,12 @@ export function planCluster(input: ClusterPlanInput): ClusterPlan {
     const reasons: SequenceReason[] = [];
     if (signal.confidence < minConfidence) reasons.push('low-confidence');
     if (signal.highRisk) reasons.push('high-risk');
-    if (admitted.some((other) => other.id !== signal.id && overlaps(signal.areas, other.areas))) {
+    const mine = areas.get(signal.id) ?? [];
+    if (
+      admitted.some(
+        (other) => other.id !== signal.id && overlaps(mine, areas.get(other.id) ?? []),
+      )
+    ) {
       reasons.push('footprint-overlap');
     }
 

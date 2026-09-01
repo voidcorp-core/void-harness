@@ -202,9 +202,14 @@ read for is excluded as `footprint-unobserved`.
 What it refuses is narrow on purpose. A file **another ticket of the cluster declared** is a
 breach: nothing legitimate produces it. A file nobody predicted is a widening, and it passes --
 a ticket that enumerates from the manifests finds the packages its author missed, and a guard that
-refuses that discovery is a guard that hides defects. A file both tickets declared passes too:
-`orchestrate` sequenced them for that collision, and it reads a nested area the same way the audit
-does, so the two cannot disagree about who claimed what. A `reconcileOnly` path is not judged,
+refuses that discovery is a guard that hides defects. A file **both** tickets declared the same
+way passes too: neither declaration is more specific, so both were entitled. A **carve-out** does
+not: `packages/core` claims `packages/core/b/x.ts` by prefix, but a neighbour declaring
+`packages/core/b` drew a boundary rather than repeated one, so the wider ticket writing there is a
+breach. Owning the file no longer ends the question -- it used to, and the carved-out file then
+came back within-scope with an empty widening, invisible rather than merely permitted. Sequencing
+does not compensate: two sequential workers still hold two worktrees on the same base, and it
+addresses lockfiles and migrations, never file theft. A `reconcileOnly` path is not judged,
 since the reconciler strips and rebuilds it anyway.
 
 **The audit cannot be off.** A cluster of more than one ticket that reaches `reconcile` without a
@@ -231,7 +236,13 @@ hand-built cluster, not the place the case is meant to be caught -- `plan` exclu
 before any worker starts, because a refusal at reconciliation arrives after the whole run is paid
 for and leaves no legal move: inventing the area is the tautology the audit exists to forbid, and
 shrinking `cluster` is refused as soon as the ticket returned a result. If you reach it anyway,
-declare the areas and plan again, or reconcile each range as its own cluster of one.
+declare the areas and plan again -- and read the whole diff of every range yourself before any of
+it merges, because an entitlement nobody declared cannot be recovered from the range under
+suspicion. The refusal used to offer instead: reconcile each range as its own cluster of one,
+"exactly the coverage a ticket claiming nothing ever had". It is not. The maximum severity an
+undeclared ticket gets exists only because a neighbour sits in the same cluster to be robbed; a
+cluster of one audits nothing, so that split turns the audit off for every ticket of the cluster,
+the ones that did declare included.
 
 Areas are read in one spelling. `packages/core/templates/`, `./packages/core/templates` and
 `packages/core/templates` are the same area, and an area that claims nothing after that reading --

@@ -68,6 +68,46 @@ describe('auditFootprint', () => {
     expect(verdict.kind).toBe('within-scope');
   });
 
+  it('refuses a file a narrower neighbour carved out of the range\'s own area', () => {
+    // `owns()` answered first and stopped there, so a wider declaration
+    // swallowed a narrower one: DEV-1 declaring `packages/core` matched
+    // `packages/core/b/x.ts` by prefix, and the file DEV-2 explicitly carved
+    // out came back `within-scope` with an empty `widened` -- not even reported
+    // as growth. Sequencing does not compensate: two sequential workers still
+    // hold two worktrees on the same base, and it addresses lockfiles and
+    // migrations, never file theft.
+    const verdict = auditFootprint(
+      { ticketId: 'DEV-1', files: ['packages/core/b/x.ts'] },
+      input({
+        footprints: [
+          { id: 'DEV-1', areas: ['packages/core'] },
+          { id: 'DEV-2', areas: ['packages/core/b'] },
+        ],
+      }),
+    );
+
+    expect(verdict.kind).toBe('breach');
+    if (verdict.kind !== 'breach') return;
+    expect(verdict.intrusions).toEqual([{ file: 'packages/core/b/x.ts', claimedBy: ['DEV-2'] }]);
+  });
+
+  it('lets the narrower ticket work inside its own carve-out', () => {
+    // The other direction of the same nesting, and the false positive a blunt
+    // "contested ground is a breach" rule would produce: DEV-2 writing where
+    // DEV-2 declared is DEV-2 doing its job, whatever wider area contains it.
+    const verdict = auditFootprint(
+      { ticketId: 'DEV-2', files: ['packages/core/b/x.ts'] },
+      input({
+        footprints: [
+          { id: 'DEV-1', areas: ['packages/core'] },
+          { id: 'DEV-2', areas: ['packages/core/b'] },
+        ],
+      }),
+    );
+
+    expect(verdict.kind).toBe('within-scope');
+  });
+
   it('reads a declared directory as claiming everything under it', () => {
     const verdict = auditFootprint(
       { ticketId: 'DEV-1', files: ['packages/core/skills/void-autopilot/SKILL.md'] },

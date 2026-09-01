@@ -419,10 +419,47 @@ describe('buildReconcilePlan footprint audit', () => {
     // A declaration that arrived and named nothing is not a declaration that
     // never arrived, and the two repairs are different gestures.
     expect(undeclaredMessage).toMatch(/declared `areas: \[\]`/);
-    expect(undeclaredMessage).toMatch(/cluster of one/);
+    expect(undeclaredMessage).toMatch(/declare the areas on the ticket/);
     expect(undeclaredMessage).not.toMatch(/exactly as `orchestrate` returned them/);
     expect(absentMessage).toMatch(/exactly as `orchestrate` returned them/);
-    expect(absentMessage).not.toMatch(/cluster of one/);
+    expect(absentMessage).not.toMatch(/declare the areas on the ticket/);
+  });
+
+  it('does not answer `areas: []` with the split that turns the audit off', () => {
+    // The refusal used to close with: reconcile each range as its own cluster
+    // of one, "exactly the coverage a ticket claiming nothing ever had". The
+    // second half is what makes the first look free, and it is false. A ticket
+    // declaring nothing IS audited at maximum severity -- it owns nothing, so
+    // every file it carries is a neighbour's or a widening -- but only because
+    // the neighbour sits in the SAME cluster. Split into ranges of one,
+    // `audited` is false for every range, the declaring ones included.
+    const footprints = [
+      { id: 'DEV-1', areas: ['packages/cli'] },
+      { id: 'DEV-2', areas: [] },
+    ];
+    // DEV-2 declares nothing and carries a file DEV-1 declared.
+    const stealing = range({ ticketId: 'DEV-2', files: ['packages/cli/a.ts'] });
+
+    let refusal = '';
+    try {
+      buildReconcilePlan(input({ cluster: ['DEV-1', 'DEV-2'], footprints, ranges: [stealing] }));
+    } catch (error) {
+      refusal = error instanceof Error ? error.message : String(error);
+    }
+    expect(refusal).toMatch(/AUTOPILOT_CONTRACT/);
+
+    // The old Fix line's own instruction, executed: the theft merges, and the
+    // plan reports it as an ordinary clean integration.
+    const split = buildReconcilePlan(
+      input({ cluster: ['DEV-2'], footprints: [], ranges: [stealing] }),
+    );
+    expect(split.integrate).toEqual(['DEV-2']);
+    expect(split.excluded).toEqual([]);
+
+    // So the refusal names neither that move nor the coverage claim behind it.
+    expect(refusal).not.toMatch(/reconcile each range as its own cluster of one/);
+    expect(refusal).not.toMatch(/exactly the coverage/);
+    expect(refusal).toMatch(/turns the audit off for every ticket of the cluster/);
   });
 
   it('refuses a range whose observed files arrived as a string rather than a list', () => {
