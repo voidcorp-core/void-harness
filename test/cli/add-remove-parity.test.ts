@@ -40,6 +40,23 @@ afterEach(() => {
  *
  * Built before any test and never written to, so no test depends on another
  * having run. The test that asserts on `init`'s own output still calls it.
+ *
+ * What that did NOT close, measured rather than assumed. `materializes and
+ * removes only receipt-owned local pack assets` still fails about one full suite
+ * in three. Per phase on an idle machine: the fixture copy 29 ms over 72 files
+ * and 733 KB, `add` 691 ms, `remove` 434 ms. So the precondition is already ~2%
+ * of the cost and there is nothing left to trim there -- `add` on a locally
+ * installed project runs a whole `init` (`addLocalPacks` -> `init`), `remove`
+ * does the same, and those two calls ARE what the test asserts on.
+ *
+ * The residual is contention, not redundant work: 693 ms isolated becomes
+ * 5576 ms against the 10 s budget under the full concurrent suite, and the
+ * neighbouring `init` test 365 ms becomes 3961 ms. Both sit within a factor of
+ * two of the ceiling, so any extra load tips one over. The remaining levers are
+ * a sequential lane for the install-heavy files, or `add` / `remove` not
+ * re-running a full `init` -- a change to the suite's execution shape or to the
+ * install path this repository runs on itself. Each wants its own ticket, and
+ * neither is a bigger budget.
  */
 let installedProject: string;
 
