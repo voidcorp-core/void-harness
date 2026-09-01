@@ -232,6 +232,46 @@ describe('the autopilot cycle is a script', () => {
     expect(worker).toContain('void-implement');
   });
 
+  // Two workers in two worktrees share one `refs/stash`, and on 2026-09-01 they
+  // popped each other's entries. The brief carries the class, not the command.
+  it('forbids the worker every ref the repository shares, even when the plan omits the record', async () => {
+    const { calls } = await runWorkflow(configuration());
+    const worker = calls.find((call) => call.label.startsWith('ticket:'))?.prompt ?? '';
+
+    expect(worker).toMatch(/shares across its worktrees/);
+    expect(worker).toContain('refs/stash');
+    expect(worker).toMatch(/git diff/);
+  });
+
+  it('renders the prohibition the plan carries, rather than restating one of its own', async () => {
+    const orchestrate = answers().orchestrate as { plan: Record<string, unknown> };
+    const { calls } = await runWorkflow(
+      configuration(),
+      answers({
+        orchestrate: {
+          ...orchestrate,
+          plan: {
+            ...orchestrate.plan,
+            workerMayWriteSharedGitState: false,
+            sharedGitState: {
+              rule: 'no-write-to-repository-shared-git-state',
+              shared: ['refs/stash', 'refs/notes/*'],
+              exception: 'the branch named by the worker own assignment',
+              examples: ['git stash, in any form'],
+              instead: ['git diff > a file inside your own worktree'],
+              source: 'git-worktree(1), sections REFS and CONFIGURATION FILE',
+            },
+          },
+        },
+      }),
+    );
+    const worker = calls.find((call) => call.label.startsWith('ticket:'))?.prompt ?? '';
+
+    expect(worker).toContain('refs/notes/*');
+    expect(worker).toContain('git-worktree(1)');
+    expect(worker).toMatch(/class, not a list of banned commands/);
+  });
+
   it('stops before claiming anything when the base is not provably protected', async () => {
     await expect(
       runWorkflow(

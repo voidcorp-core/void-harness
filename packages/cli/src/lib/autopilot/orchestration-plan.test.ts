@@ -81,6 +81,47 @@ describe('buildOrchestrationPlan', () => {
     expect(plan.workerMayTransitionTicket).toBe(false);
   });
 
+  it('forbids writing repository-shared git state, as a class rather than one command', () => {
+    const plan = buildOrchestrationPlan(input());
+
+    expect(plan.workerMayWriteSharedGitState).toBe(false);
+    expect(plan.sharedGitState.rule).toBe('no-write-to-repository-shared-git-state');
+    // Named because they bit: two workers popped each other's stash entries.
+    expect(plan.sharedGitState.shared).toContain('refs/stash');
+    expect(plan.sharedGitState.shared.some((entry) => entry.startsWith('refs/tags'))).toBe(true);
+    expect(plan.sharedGitState.shared.some((entry) => entry.startsWith('refs/notes'))).toBe(true);
+    expect(plan.sharedGitState.examples.some((entry) => entry.startsWith('git stash'))).toBe(true);
+  });
+
+  it('leaves out of the prohibition what a worktree really does isolate', () => {
+    // git-worktree(1) REFS: pseudo refs are per-worktree, and refs/bisect,
+    // refs/worktree and refs/rewritten are the exceptions to refs being shared.
+    // Forbidding them out of caution would forbid a worker its own HEAD.
+    const forbidden = buildOrchestrationPlan(input()).sharedGitState.shared.join(' ');
+
+    expect(forbidden).not.toMatch(/refs\/bisect|refs\/worktree|refs\/rewritten|\bHEAD\b|\bindex\b/);
+  });
+
+  it('gives the worker a replacement gesture that stays inside its own worktree', () => {
+    const instead = buildOrchestrationPlan(input()).sharedGitState.instead.join(' ');
+
+    expect(instead).toMatch(/git diff/);
+    expect(instead).not.toMatch(/git stash/);
+  });
+
+  it('cites where the shared list comes from, so it can be re-derived', () => {
+    expect(buildOrchestrationPlan(input()).sharedGitState.source).toMatch(/git-worktree/);
+  });
+
+  it('lets a worker write the one shared ref it owns: the branch its assignment names', () => {
+    // refs/heads is shared like the rest, so the prohibition cannot be "no
+    // shared ref at all" without forbidding the commit the worker exists to make.
+    const plan = buildOrchestrationPlan(input());
+
+    expect(plan.sharedGitState.exception).toMatch(/own assignment/);
+    expect(plan.sharedGitState.shared.some((entry) => entry.startsWith('refs/heads'))).toBe(true);
+  });
+
   it('rejects a ticket appearing in both lanes because its order would be ambiguous', () => {
     expect(() => buildOrchestrationPlan(input({ parallel: ['DEV-1'], sequential: ['DEV-1'] }))).toThrow(/DEV-1/);
   });
