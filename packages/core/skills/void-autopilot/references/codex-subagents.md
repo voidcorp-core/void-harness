@@ -88,3 +88,20 @@ failure for that ticket, not a reason to guess what it meant.
 
 Return the collected results to the L0 skill. This adapter writes no run state
 and comments on no ticket — there is one writer, and it is not the adapter.
+
+### The lists you hand back describe the run, not what came back
+
+`reconcile` audits a range against what the OTHER tickets of the cluster
+declared, so shortening the run description switches the audit off without
+malforming anything. Hand back every ticket the run reserved, blocked ones
+included, and `orchestrate`'s footprints verbatim: a ticket dropped from that
+list takes its claim with it, and the neighbour whose file was absorbed is no
+longer there to be robbed.
+
+The Claude adapter renders those two lists from the orchestration mechanically.
+Here a subagent writes them, which is exactly the seam this warns about, so the
+CLI refuses a payload whose lists disagree: a cluster ticket nobody declared, a
+declaration for a ticket absent from the cluster, and a result, a failure or an
+observed range naming a ticket the cluster does not hold are each a refusal.
+Deriving a footprint list from the branch diff is not an answer either — it
+would only ever agree with the diff it came from.

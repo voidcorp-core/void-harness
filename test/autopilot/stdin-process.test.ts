@@ -123,6 +123,23 @@ describe('the CLI reads the observation a pipeline gives it', () => {
     expect(emitted.plan.steps.length).toBeGreaterThan(0);
   });
 
+  it('refuses a cluster shortened to hide a ticket its own results name', () => {
+    // Both declared lists shortened together, consistently. The third list in
+    // the same payload still holds DEV-2, which is the proof of the shortening.
+    const run = pipeInto(
+      ['reconcile', '--json'],
+      contaminated({
+        cluster: ['DEV-1'],
+        footprints: [{ id: 'DEV-1', areas: ['packages/cli/src'] }],
+        results: [workerResult(), workerResult({ ticketId: 'DEV-2', status: 'blocked', headSha: null, commits: [], proofs: [], blocker: 'stash collision' })],
+      }),
+    );
+
+    expect(run.exitCode).not.toBe(0);
+    expect(run.stderr).toContain('DEV-2');
+    expect(run.stderr).toMatch(/AUTOPILOT_CONTRACT/);
+  });
+
   it('answers `abort` without waiting on a pipe it never reads', () => {
     const run = pipeInto(['abort', '--run', 'plan'], 'not json at all');
 

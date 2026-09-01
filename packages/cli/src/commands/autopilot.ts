@@ -744,6 +744,10 @@ function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult 
     cluster: observation.cluster,
     results: parsed,
     failures,
+    // The third list of this payload. `cluster` and `footprints` can be
+    // shortened together and stay consistent with each other; a range git was
+    // read for names a ticket that was in the run whatever those two say.
+    observed: observation.observations.map((entry) => entry.ticketId),
   });
 
   const observed = new Map(observation.observations.map((entry) => [entry.ticketId, entry]));
