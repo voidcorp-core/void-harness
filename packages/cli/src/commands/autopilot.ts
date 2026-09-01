@@ -60,6 +60,7 @@ import {
 } from '../lib/autopilot/verification-plan.js';
 import { buildOrchestrationPlan, type OrchestrationPlan } from '../lib/autopilot/orchestration-plan.js';
 import { resolveClusterOutcome, type ClusterOutcome, type WorkerFailure } from '../lib/autopilot/partial-success.js';
+import { normaliseArea } from '../lib/autopilot/footprint-area.js';
 import type { DeclaredFootprint } from '../lib/autopilot/footprint-audit.js';
 import { buildReconcilePlan, type ReconcilePlan, type VerifiedRange } from '../lib/autopilot/reconcile-plan.js';
 import { parseWorkerResult, type WorkerResult } from '../lib/autopilot/worker-result.js';
@@ -552,6 +553,17 @@ interface OrchestrationObservation {
 interface OrchestrationOutcome {
   readonly schemaVersion: 1;
   readonly plan: OrchestrationPlan;
+  /**
+   * What each ticket claimed, in one spelling, on the way out.
+   *
+   * Reconciliation needs these and cannot obtain them: it runs in a fresh
+   * context that never saw the orchestration observation. Asking it to "pass the
+   * footprints as they were given to orchestrate" asked it for something it does
+   * not have, and the most available way to produce a footprint list you lack is
+   * to derive it from the branch diff -- which makes the audit tautologically
+   * green. Emitting them makes the hand-off mechanical.
+   */
+  readonly footprints: readonly DeclaredFootprint[];
   /** Why each sequenced ticket lost its parallel slot. */
   readonly reasons: Readonly<Record<string, readonly string[]>>;
   readonly setup: readonly { readonly ticketId: string; readonly command: readonly string[] }[];
@@ -579,6 +591,12 @@ function orchestrateCommand(stdin: string, json: boolean): AutopilotCommandResul
   const outcome: OrchestrationOutcome = {
     schemaVersion: 1,
     plan,
+    // Normalised through the one reading, so ordering and the reconciliation
+    // audit cannot disagree about what an area claims.
+    footprints: observation.footprints.map((footprint) => ({
+      id: footprint.id,
+      areas: footprint.areas.map(normaliseArea),
+    })),
     reasons: order.reasons,
     setup: planWorktreeSetup(plan),
     teardown: planWorktreeTeardown(plan),
@@ -639,7 +657,7 @@ type ReconcileOutcome =
   | { readonly schemaVersion: 1; readonly outcome: ClusterOutcome };
 
 function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult {
-  const observation = parseStdin<ReconcileObservation>(stdin, 'reconcile observation');
+  const observation = parseStdin<ReconcileObservation>(stdin, 'reconcile observation', 'reconcile');
   // Parsed one by one so a malformed answer names its own ticket. A worker whose
   // result cannot be read is not an integration candidate, and pretending it is
   // one would merge a range nobody described.
@@ -702,6 +720,7 @@ function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult 
   const plan = buildReconcilePlan({
     clusterId: observation.clusterId,
     base: observation.base,
+    cluster: observation.cluster,
     ranges,
     reconcileOnly: observation.reconcileOnly ?? [],
     ...(observation.footprints === undefined ? {} : { footprints: observation.footprints }),

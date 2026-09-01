@@ -41,7 +41,44 @@ Every subagent receives the same instruction as its Claude counterpart:
 - apply a migration against the dev/local database only;
 - **never** push, open or update a pull request, merge, or move the ticket to In
   Review or Done;
+- **never** write anything the repository shares across its worktrees;
 - stop at a committed branch and return a `WorkerResult`.
+
+### The prohibitions come off the plan, not off this page
+
+That sentence above is only true if you render them from the plan the way the
+Claude workflow does. Read them, and **fail closed** — only an explicit `true`
+grants, so a plan that lost a field, or an older one that never carried it, is
+refused rather than read as permission:
+
+- `plan.workerMayPush` — push;
+- `plan.workerMayOpenPullRequest` — open or update a pull request;
+- `plan.workerMayTransitionTicket` — merge, or move the ticket to In Review or
+  Done;
+- `plan.workerMayWriteSharedGitState` — write repository-shared git state.
+
+When the last one is not `true`, render `plan.sharedGitState` into the brief in
+full: `shared` (the namespaces), `exception` (the one ref the worker owns),
+`examples` (commands that break it), `instead` (what to do rather than
+reinventing the gesture), `source` (where the list came from). If the plan
+carries no such record, still refuse, in one sentence.
+
+### What a worktree does not isolate
+
+A worktree isolates the working tree, the index and `HEAD`, and nothing else.
+The refs are one namespace for the whole repository — `refs/stash`, tags, notes,
+remotes, every branch but the worker's own, and the repository config. On
+2026-09-01 two subagents each ran `git stash push` to split a commit, and the
+second `pop` took the first's entry: each ended up holding the other's files.
+
+Subagents share filesystem access **and** that ref namespace. So the prohibition
+is a class, not a banned command: a worker refused `git stash` alone reaches for
+`git tag` or `git update-ref` and lands in the same place. To set changes aside,
+`git diff > a file inside your own worktree` and `git apply` it back; to split a
+commit, commit it on your own branch and amend or soft-reset afterwards.
+
+A pre-existing stash entry belongs to whoever left it. Never list, pop or clean
+the stack, and never count what is on it as this run's residue.
 
 ## The answer
 

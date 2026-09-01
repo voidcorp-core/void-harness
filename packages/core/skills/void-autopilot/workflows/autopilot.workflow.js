@@ -374,7 +374,17 @@ while (true) {
     await step(
       'reconcile',
       'the worker answers and, for each branch, what git actually holds between the base and the head',
-      `Pass results verbatim: ${JSON.stringify(results).slice(0, 200)}… and observe each range with \`git log --format='%H %P' base..head\` plus \`git diff --name-only base..head\` as \`observedFiles\`. Observe, never trust the worker's own commit list or file list. Pass \`footprints\` exactly as they were given to orchestrate: the audit refuses a range holding a file another ticket declared.`,
+      [
+        `Pass results verbatim: ${JSON.stringify(results).slice(0, 200)}…`,
+        `Pass cluster: ${JSON.stringify(orchestration.plan.assignments.map((a) => a.ticketId))}.`,
+        // Handed over, never re-derived. This step runs in a fresh context that
+        // never saw the orchestration observation, and the most available way to
+        // produce a footprint list you do not have is to read it off the branch
+        // diff -- which makes the audit green about the diff it came from.
+        `Pass footprints: ${JSON.stringify(orchestration.footprints ?? [])} — verbatim, and add nothing to them.`,
+        `Observe each range with \`git log --format='%H %P' base..head\` plus \`git diff --name-only base..head\` as \`observedFiles\`.`,
+        `Observe, never trust the worker's own commit list or file list. The audit refuses a range holding a file another ticket of the cluster declared.`,
+      ].join('\n'),
       'Reconcile',
     ),
     'the reconciliation',

@@ -116,6 +116,9 @@ describe('both adapters carry the same worker contract', () => {
     ['forbids opening a pull request', /pull request/i],
     ['forbids merging', /merge/i],
     ['forbids moving the ticket', /In Review/i],
+    ['forbids writing what the repository shares', /shares across its worktrees/i],
+    ['names the shared stack that bit', /refs\/stash/],
+    ['gives the replacement gesture', /git diff/i],
     ['requires a WorkerResult', /WorkerResult/],
   ];
 
@@ -128,6 +131,22 @@ describe('both adapters carry the same worker contract', () => {
 
   it.each(clauses)('%s — in the Codex instruction', (_clause, pattern) => {
     expect(flat(CODEX)).toMatch(pattern);
+  });
+
+  // Prose parity is checked by wording above; this one is checked by shape. A
+  // prohibition added to the plan reaches the Claude workflow for free, because
+  // it renders them; the Codex reference is written by hand, and on 2026-09-01
+  // a new refusal reached one adapter and not the other while the reference went
+  // on claiming both received the same instruction.
+  it('names every prohibition the plan carries, in both adapters', () => {
+    const plan: Record<string, unknown> = planFor(FIXTURES['two and two']);
+    const flags = Object.keys(plan).filter((key) => key.startsWith('workerMay'));
+
+    expect(flags.length).toBeGreaterThan(3);
+    for (const flag of flags) {
+      expect(WORKFLOW, `${flag} in the Claude workflow`).toContain(flag);
+      expect(CODEX, `${flag} in the Codex reference`).toContain(flag);
+    }
   });
 
   it('makes neither adapter a writer of state or tracker comments', () => {

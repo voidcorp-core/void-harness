@@ -22,6 +22,7 @@
 //      rather than merged.
 
 import { autopilotFailure } from './errors.js';
+import { normaliseArea } from './footprint-area.js';
 import { auditFootprint, type DeclaredFootprint } from './footprint-audit.js';
 import type { RangeVerdict } from './git-observation.js';
 
@@ -70,14 +71,24 @@ export interface ReconcileInput {
   readonly base: { readonly branch: string; readonly sha: string };
   /** Verified ranges, in the integration order the plan declared. */
   readonly ranges: readonly VerifiedRange[];
+  /**
+   * Every ticket the run reserved, not only those that came back.
+   *
+   * It is what decides whether the audit has a question to answer: a ticket that
+   * was blocked, excluded or never spawned still holds its claim, and it is
+   * usually the one whose work got absorbed.
+   */
+  readonly cluster: readonly string[];
   /** Path patterns only the reconciler may write, from the active program. */
   readonly reconcileOnly: readonly string[];
   /**
    * What every ticket of the cluster declared, ran or not.
    *
-   * Absent or empty means nothing was claimed, so nothing can be stolen and the
-   * audit does not run. It is not a way to opt out: the planner already
-   * consumes these, and a cluster that reached orchestration has them.
+   * Optional in the shape, mandatory in fact for a cluster of more than one:
+   * absence is refused below rather than read as "nothing to audit". An empty
+   * `excluded` after a skipped audit is byte for byte an empty `excluded` after
+   * a clean one, so an audit that can be off by omission is an audit nobody can
+   * prove ran.
    */
   readonly footprints?: readonly DeclaredFootprint[];
   /** argv that regenerates the shared artefacts, run once at the end. */
@@ -99,8 +110,12 @@ const SLUG = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 function matchesAny(path: string, patterns: readonly string[]): boolean {
   // Deliberately literal: a prefix or an exact path. Glob matching lives in
   // worker-order, where the active program's own patterns are compiled; here a
-  // pattern arrives already resolved to concrete paths by the caller.
-  return patterns.some((pattern) => path === pattern || path.startsWith(`${pattern}/`));
+  // pattern arrives already resolved to concrete paths by the caller. Spelling
+  // still goes through the one normaliser, so a trailing slash cannot make the
+  // strip step and the audit exemption disagree about the same list.
+  return patterns
+    .map(normaliseArea)
+    .some((pattern) => path === pattern || path.startsWith(`${pattern}/`));
 }
 
 export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
@@ -123,6 +138,20 @@ export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
 
   const integrationBranch = `autopilot/${input.clusterId}`;
   const footprints = input.footprints ?? [];
+  // Alone, a range has no neighbour to rob: the audit answers nothing, and
+  // demanding an observation to answer nothing would stall a run for ceremony.
+  const audited = input.cluster.length > 1;
+  if (audited) {
+    const undeclared = input.cluster.filter((id) => !footprints.some((entry) => entry.id === id));
+    if (undeclared.length > 0) {
+      throw autopilotFailure(
+        'AUTOPILOT_CONTRACT',
+        'this cluster declared no footprint for every ticket it holds',
+        `${undeclared.join(', ')} reached reconciliation without a declared area`,
+        'pass `footprints` exactly as `orchestrate` returned them; the audit cannot be skipped by omitting them',
+      );
+    }
+  }
   const excluded: ExcludedRange[] = [];
   const integrate: VerifiedRange[] = [];
 
@@ -143,17 +172,21 @@ export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
       });
       continue;
     }
-    if (footprints.length > 0) {
-      if (range.observedFiles === undefined) {
-        // The same rule ancestry already follows: what the worker says it
-        // touched is a claim, and a claim cannot clear a range of carrying
-        // somebody else's work.
+    if (audited) {
+      // The same rule ancestry already follows: what the worker says it touched
+      // is a claim, and a claim cannot clear a range of carrying somebody else's
+      // work. An empty list is the same silence in another shape -- the range
+      // carries a commit, so git reported files for it.
+      if (range.observedFiles === undefined || range.observedFiles.length === 0) {
         excluded.push({
           ticketId: range.ticketId,
           reason: 'footprint-unobserved',
           detail:
-            `\`${range.ticketId}\` was never read from git for the files it touches, and the` +
-            " worker's own list is not an observation",
+            range.observedFiles === undefined
+              ? `\`${range.ticketId}\` was never read from git for the files it touches, and the` +
+                " worker's own list is not an observation"
+              : `\`${range.ticketId}\` carries ${String(range.verdict.commits.length)} commit(s) and an` +
+                ' empty observed file list, which is not an observation git produces',
         });
         continue;
       }

@@ -126,4 +126,61 @@ describe('orderWorkers', () => {
   it('rejects an empty cluster', () => {
     expect(() => orderWorkers(input({ tickets: [], footprints: [] }))).toThrow(/cluster/i);
   });
+  it('sequences a pair whose areas nest, because the audit reads one as claiming the other', () => {
+    // `footprint-audit` reads a directory as claiming everything under it, and
+    // its leniency towards a file both tickets declared is justified by this
+    // step having sequenced them. Compared by exact string equality, these two
+    // ran at once -- and B's own neighbouring file was then refused on A's
+    // behalf, by a guard whose justification had never held.
+    const order = orderWorkers(
+      input({
+        footprints: [
+          fp('A', { areas: ['packages/cli/src'] }),
+          fp('B', { areas: ['packages/cli/src/lib/x.ts'] }),
+          fp('C'),
+          fp('D'),
+        ],
+      }),
+    );
+
+    expect(order.parallel).toEqual(['C', 'D']);
+    expect(order.sequential).toEqual(['A', 'B']);
+    expect(order.reasons.A).toContain('footprint-overlap');
+    expect(order.reasons.B).toContain('footprint-overlap');
+  });
+
+  it('sequences a glob against the file it matches', () => {
+    const order = orderWorkers(
+      input({
+        footprints: [
+          fp('A', { areas: ['packages/*/vitest.config.ts'] }),
+          fp('B', { areas: ['packages/cli/vitest.config.ts'] }),
+          fp('C'),
+          fp('D'),
+        ],
+      }),
+    );
+
+    expect(order.sequential).toEqual(['A', 'B']);
+  });
+
+  it('reads two spellings of the same directory as the same area', () => {
+    const order = orderWorkers(
+      input({
+        footprints: [
+          fp('A', { areas: ['packages/cli/src/'] }),
+          fp('B', { areas: ['./packages/cli/src'] }),
+          fp('C'),
+          fp('D'),
+        ],
+      }),
+    );
+
+    expect(order.sequential).toEqual(['A', 'B']);
+  });
+
+  it('refuses an area that claims nothing rather than ordering around an empty claim', () => {
+    expect(() => orderWorkers(input({ footprints: [fp('A', { areas: ['./'] }), fp('B'), fp('C'), fp('D')] })))
+      .toThrow(/claims nothing/i);
+  });
 });

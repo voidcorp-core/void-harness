@@ -195,4 +195,95 @@ describe('auditFootprint', () => {
 
     expect(verdict.kind).toBe('within-scope');
   });
+  it('reads a declared glob as claiming the files it matches', () => {
+    // The third documented form, and the one no other test exercises: without
+    // it DEV-526 owns none of the configs it declared, and the neighbouring
+    // directory claim turns its own work into a breach.
+    const verdict = auditFootprint(
+      { ticketId: 'DEV-526', files: ['packages/cli/vitest.config.ts'] },
+      input({
+        footprints: [
+          { id: 'DEV-526', areas: ['packages/*/vitest.config.ts'] },
+          { id: 'DEV-2', areas: ['packages/cli'] },
+        ],
+      }),
+    );
+
+    expect(verdict.kind).toBe('within-scope');
+  });
+
+  it('reads a directory written with a trailing slash as the directory it is', () => {
+    // The most natural way to write a directory in a path list. Left unnormalised
+    // it claims nothing at all, so the stolen file below is reported as a
+    // widening -- that is, as approval -- by the guard meant to refuse it.
+    const verdict = auditFootprint(
+      { ticketId: 'DEV-1', files: ['packages/core/templates/stolen.md'] },
+      input({
+        footprints: [
+          { id: 'DEV-1', areas: ['packages/cli/src'] },
+          { id: 'DEV-2', areas: ['packages/core/templates/'] },
+        ],
+      }),
+    );
+
+    expect(verdict.kind).toBe('breach');
+  });
+
+  it('reads a path written with a leading ./ as the path it is', () => {
+    const verdict = auditFootprint(
+      { ticketId: 'DEV-1', files: ['packages/core/templates/stolen.md'] },
+      input({
+        footprints: [
+          { id: 'DEV-1', areas: ['packages/cli/src'] },
+          { id: 'DEV-2', areas: ['./packages/core/templates'] },
+        ],
+      }),
+    );
+
+    expect(verdict.kind).toBe('breach');
+  });
+
+  it('lets a ticket own its own area when it wrote it with a trailing slash', () => {
+    const verdict = auditFootprint(
+      { ticketId: 'DEV-1', files: ['packages/cli/src/lib/x.ts'] },
+      input({
+        footprints: [
+          { id: 'DEV-1', areas: ['packages/cli/src/'] },
+          { id: 'DEV-2', areas: ['packages/cli'] },
+        ],
+      }),
+    );
+
+    expect(verdict.kind).toBe('within-scope');
+  });
+
+  it('exempts a reconcileOnly path written with a trailing slash', () => {
+    // The exemption and the strip step read the same list; a trailing slash that
+    // disarms one has to disarm the other, or the audit clears a file the merge
+    // keeps -- or refuses one the merge is about to revert.
+    const verdict = auditFootprint(
+      { ticketId: 'DEV-1', files: ['packages/core/data/model.json'] },
+      input({
+        footprints: [
+          { id: 'DEV-1', areas: ['packages/cli/src'] },
+          { id: 'DEV-2', areas: ['packages/core/data'] },
+        ],
+        exempt: ['packages/core/data/'],
+      }),
+    );
+
+    expect(verdict.kind).toBe('within-scope');
+  });
+
+  it('refuses an area that claims nothing, rather than reading it as no claim', () => {
+    // An absolute path, or one that normalises to nothing, matches no file git
+    // ever reports. Silently claiming nothing is exactly the failure the
+    // trailing slash produced; refusing is loud and names the area.
+    expect(() =>
+      auditFootprint(
+        { ticketId: 'DEV-1', files: ['a.ts'] },
+        input({ footprints: [{ id: 'DEV-1', areas: ['/packages/cli/src'] }] }),
+      ),
+    ).toThrow(/claims nothing/i);
+  });
 });

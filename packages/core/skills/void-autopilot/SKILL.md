@@ -127,7 +127,7 @@ mechanism.
 | `chain` | take another unit, or stop | the budget cannot cover one, the base is red, or nobody verified it |
 | `reserve` | may this run take the cluster | someone else holds it, or the observation is unusable |
 | `orchestrate` | lanes, assignments, and the git commands that make the worktrees | a base sha that is not a commit |
-| `reconcile` | which ranges merge, as commands | a head the worker claims that git does not have, or a range holding a file another ticket declared |
+| `reconcile` | which ranges merge, as commands | a head the worker claims that git does not have, a range holding a file another ticket declared, or a cluster of several that arrived without its declaration |
 | `verify` | the suite that decides the merge, bounded | — |
 | `gate` | did the proofs run on THIS tree, did the panel speak first, did the unit stay in its ceilings | any of them unproven; absence of a record is absence of the act |
 | `publish` | one branch, one refspec, one pull request, and the body that carries the account | the proofs are not sealed |
@@ -137,8 +137,10 @@ mechanism.
 | `observe` | what each boundary actually answered | — |
 
 Every step takes its observation on stdin and answers with `--json`. Run
-`void-harness autopilot scaffold <step>` for the exact shape and where each field comes from:
-the scaffold IS the contract, so it cannot drift from the validator.
+`void-harness autopilot scaffold` with no step to list the ones it covers, and
+`void-harness autopilot scaffold <step>` for the exact shape and where each field comes from. For
+those steps the scaffold IS the contract, and cannot drift from it: a test pipes every scaffold
+back through its own validator. A step whose refusal can stop a run belongs on that list.
 
 ### What the order guarantees
 
@@ -193,8 +195,22 @@ What it refuses is narrow on purpose. A file **another ticket of the cluster dec
 breach: nothing legitimate produces it. A file nobody predicted is a widening, and it passes --
 a ticket that enumerates from the manifests finds the packages its author missed, and a guard that
 refuses that discovery is a guard that hides defects. A file both tickets declared passes too:
-`orchestrate` already sequenced them for that collision. A `reconcileOnly` path is not judged,
+`orchestrate` sequenced them for that collision, and it reads a nested area the same way the audit
+does, so the two cannot disagree about who claimed what. A `reconcileOnly` path is not judged,
 since the reconciler strips and rebuilds it anyway.
+
+**The audit cannot be off.** A cluster of more than one ticket that reaches `reconcile` without a
+declaration covering every one of them is refused outright, and so is a range whose observed file
+list is missing or empty. An audit that could be skipped by omitting a field produced an empty
+`excluded` byte for byte identical to a clean one, so nobody could tell audited-and-clean from
+never-audited. The declaration is not re-derived either: `orchestrate` returns the footprints it
+ordered on, and the script hands them to `reconcile` -- a list reconstructed from the branch diff
+would only ever agree with the diff it came from. A cluster of one is not audited, because there
+is no other ticket to rob.
+
+Areas are read in one spelling. `packages/core/templates/`, `./packages/core/templates` and
+`packages/core/templates` are the same area, and an area that claims nothing after that reading --
+empty, or absolute -- is refused rather than silently matching no file.
 
 ### Reading a run while it happens
 
@@ -281,8 +297,11 @@ May: run every `void-implement` pass whose predicate fires, run its own targeted
 migration **in dev/local only**, and commit a bisectable range.
 
 May not: push, open or update a pull request, merge anything, move the ticket to In Review or
-Done, or touch a file the plan marks `reconcileOnly`. These are denied in the orchestration
-plan itself, not only in the prompt, so an adapter that honours the plan cannot grant them.
+Done, touch a file the plan marks `reconcileOnly`, or write anything the repository shares across
+its worktrees — `refs/stash`, tags, notes, remotes, any branch but its own, the repository config.
+These are denied in the orchestration plan itself, not only in the prompt, so an adapter that
+honours the plan cannot grant them; both adapters render them from the plan, and a test holds each
+`workerMay…` field to appearing in both.
 
 ---
 
