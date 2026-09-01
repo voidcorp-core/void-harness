@@ -312,6 +312,74 @@ describe('buildReconcilePlan footprint audit', () => {
     ).toThrow(/DEV-3/);
   });
 
+  it('refuses a declaration naming a ticket the cluster says it never reserved', () => {
+    // The switch read `cluster` alone, and the cross-check ran one way only:
+    // every cluster ticket needed a footprint, no footprint needed a cluster
+    // ticket. So a caller passing the tickets that CAME BACK instead of the ones
+    // the run reserved turned the audit off, with the neighbour's declaration
+    // sitting unread in the same payload -- and a range carrying that
+    // neighbour's file came back `excluded: []`, byte for byte a clean audit.
+    expect(() =>
+      buildReconcilePlan(
+        input({
+          cluster: ['DEV-1'],
+          footprints,
+          ranges: [range({ ticketId: 'DEV-1', observedFiles: ['src/DEV-2.ts'] })],
+        }),
+      ),
+    ).toThrow(/DEV-2/);
+  });
+
+  it('refuses a cluster ticket whose declaration names no area at all', () => {
+    // An empty list is the same silence as a missing entry: nothing can be
+    // stolen from a ticket that claims nothing, so admitting it into an audited
+    // cluster hands its neighbours a free pass into its ground.
+    expect(() =>
+      buildReconcilePlan(
+        audited({
+          footprints: [{ id: 'DEV-1', areas: ['src/DEV-1.ts'] }, { id: 'DEV-2', areas: [] }],
+          ranges: [range({ ticketId: 'DEV-1' })],
+        }),
+      ),
+    ).toThrow(/DEV-2/);
+  });
+
+  it('refuses a range whose observed files arrived as a string rather than a list', () => {
+    // `length` on a string is a character count, and `for...of` walks
+    // characters: every one of them matched no area, so the verdict was
+    // `within-scope` and the range integrated. The type says otherwise, but the
+    // payload crosses a JSON boundary where the type is a wish.
+    const plan = buildReconcilePlan(
+      audited({
+        ranges: [
+          range({
+            ticketId: 'DEV-1',
+            observedFiles: 'src/DEV-2.ts' as unknown as readonly string[],
+          }),
+        ],
+      }),
+    );
+
+    expect(plan.integrate).toEqual([]);
+    expect(plan.excluded[0]?.reason).toBe('footprint-unobserved');
+  });
+
+  it('refuses a range whose observed list carries something that is not a path', () => {
+    const plan = buildReconcilePlan(
+      audited({
+        ranges: [
+          range({
+            ticketId: 'DEV-1',
+            observedFiles: ['src/DEV-1.ts', ''] as unknown as readonly string[],
+          }),
+        ],
+      }),
+    );
+
+    expect(plan.integrate).toEqual([]);
+    expect(plan.excluded[0]?.reason).toBe('footprint-unobserved');
+  });
+
   it('audits nothing for a cluster of one, because no other ticket can be robbed', () => {
     // The audit only ever answers "does this belong to somebody else". Alone,
     // there is no somebody else, and demanding an observation to answer nothing

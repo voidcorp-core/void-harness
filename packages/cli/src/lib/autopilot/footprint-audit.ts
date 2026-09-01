@@ -20,6 +20,7 @@
 // Pure: it decides, it observes nothing. The caller supplies the files git
 // reported for the range, never the ones the worker said it touched.
 
+import { autopilotFailure } from './errors.js';
 import { areaClaims, compileArea, normaliseArea } from './footprint-area.js';
 
 export interface DeclaredFootprint {
@@ -65,7 +66,30 @@ export interface FootprintAuditInput {
   readonly exempt: readonly string[];
 }
 
+/**
+ * The file list is what git reported, or the audit answers nothing.
+ *
+ * The type says `readonly string[]`, but this value crossed a JSON boundary
+ * where a type is a wish. A string survives every emptiness check -- it has a
+ * `length`, and `for...of` iterates it -- and then walks character by character:
+ * no character matches an area, so the verdict is `within-scope`, which is this
+ * module's word for approval. Refusing loudly is the whole difference between a
+ * guard and a formality.
+ */
+function requireObservation(files: AuditedRange['files'], ticketId: string): void {
+  const observed =
+    Array.isArray(files) && files.every((file) => typeof file === 'string' && file.trim() !== '');
+  if (observed) return;
+  throw autopilotFailure(
+    'AUTOPILOT_CONTRACT',
+    'a range was audited against something git never observed',
+    `the file list for \`${ticketId}\` is ${typeof files === 'string' ? 'a string' : 'not a list of paths'}`,
+    "pass `git diff --name-only base..head` verbatim; a worker's own list is not an observation",
+  );
+}
+
 export function auditFootprint(range: AuditedRange, input: FootprintAuditInput): FootprintVerdict {
+  requireObservation(range.files, range.ticketId);
   // Compiled through the shared reading, so the audit and `orderWorkers` cannot
   // disagree about what an area claims -- and so an area that claims nothing is
   // refused here rather than passing as an empty claim.

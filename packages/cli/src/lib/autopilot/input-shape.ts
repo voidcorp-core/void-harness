@@ -231,7 +231,9 @@ export const INPUT_SHAPES: Readonly<Record<AutopilotInputStep, InputShape>> = Ob
         name: 'cluster',
         type: 'array',
         from: 'EVERY ticket the run reserved, not only those that came back. A blocked ticket'
-          + ' still holds its claim, and it is usually the one whose work got absorbed',
+          + ' still holds its claim, and it is usually the one whose work got absorbed. Shrinking'
+          + ' this list no longer disarms the audit: a `footprints` entry naming a ticket absent'
+          + ' from here is refused, because the two lists then contradict each other',
         example: ['DEV-1'],
       },
       {
@@ -260,7 +262,9 @@ export const INPUT_SHAPES: Readonly<Record<AutopilotInputStep, InputShape>> = Ob
         type: 'array',
         from: 'the `footprints` `orchestrate` returned, verbatim. A cluster of more than one'
           + ' ticket is refused without them: the audit cannot be skipped by omitting them,'
-          + ' and a list re-derived here would only ever agree with the diff it came from',
+          + ' and a list re-derived here would only ever agree with the diff it came from.'
+          + ' Each entry names one ticket of `cluster` and declares at least one area; an'
+          + ' `areas: []` reads as no declaration at all, so it is refused the same way',
         example: [{ id: 'DEV-1', areas: ['packages/cli/src/lib/example.ts'] }],
       },
     ],
