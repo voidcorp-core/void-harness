@@ -23,7 +23,6 @@ import { writeExcludeBlock } from '../lib/git-exclude.js';
 import * as p from '@clack/prompts';
 import {
   prepareInstallCommit,
-  stagedRelativePaths,
   seedInstallStage,
   stageInstallManifest,
   withholdProjectOwned,
@@ -373,7 +372,14 @@ export async function init(args: readonly string[]): Promise<void> {
     // Before the manifest, the ignore block and the transaction: what the project
     // already owns leaves the stage, so nothing downstream claims it.
     const keptByProject = await withholdProjectOwned(projectRoot, stageRoot);
-    await ensureIgnoreRules(projectRoot, stageRoot, await stagedRelativePaths(stageRoot));
+    // Without the agent names, which only the receipt can justify. The block
+    // has to exist before the transaction -- a `git clean` during an install
+    // would otherwise carry off what it just wrote -- and its patterns are true
+    // whatever happens next. The names are not: a rollback would leave the
+    // repository ignoring agents that were never written, and an agent the
+    // project later writes under one of those names disappears at the first
+    // clone. So they wait for the commit that makes them true.
+    await ensureIgnoreRules(projectRoot, stageRoot);
 
     // The committed record of exactly what this install materialized, so any
     // other checkout can restore the same bytes and PROVE it did. Written last,
@@ -390,6 +396,10 @@ export async function init(args: readonly string[]): Promise<void> {
     });
     await commitFileTransaction(projectRoot, prepared.mutations);
     line(`${c.green(glyph.check)}  ${c.dim('transaction'.padEnd(18))}${prepared.receipt.files.length} owned files committed + receipt written`);
+    // Now that the receipt exists, the block may name what it owns. Read from
+    // the receipt rather than the stage: the stage is what we meant to write,
+    // the receipt is what is on disk.
+    claimOwnedPaths(projectRoot, prepared.receipt.files.map((file) => file.path));
     // A preserved asset is one the previous install owned and this one refuses
     // to delete, because it was edited by hand. Saying nothing here is how a
     // renamed skill keeps loading beside its replacement under a clean success.
@@ -599,9 +609,8 @@ async function writeConfig(
 async function ensureIgnoreRules(
   projectRoot: string,
   stageRoot: string,
-  ownedPaths: readonly string[],
 ): Promise<void> {
-  const outcome = writeExcludeBlock(projectRoot, ownedPaths);
+  const outcome = writeExcludeBlock(projectRoot);
   const label = outcome === 'skipped'
     ? c.dim('not a git repository, nothing to hide from it')
     : outcome === 'unchanged'
@@ -619,6 +628,16 @@ async function ensureIgnoreRules(
   if (stripped === original) return;
   await writeFile(path, stripped);
   line(`${c.green(glyph.check)}  ${c.dim('.gitignore'.padEnd(18))}managed block removed — the file is the project's again`);
+}
+
+/**
+ * Name the units the receipt owns, once the receipt is a fact.
+ *
+ * Silent: the block was already reported when it was written, and a second
+ * `git exclude` line for the same file would read as two different rules.
+ */
+function claimOwnedPaths(projectRoot: string, ownedPaths: readonly string[]): void {
+  writeExcludeBlock(projectRoot, ownedPaths);
 }
 
 /**
