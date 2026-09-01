@@ -122,7 +122,13 @@ it('verifies every indexed file even when one file is too big to read', async ()
 	// The verification scan exists to catch a tree mutated mid-build. An oversized
 	// file is stable and expected: it must not be able to switch that check off.
 	// If verification ran, the entries were compared and no mismatch was recorded.
-	expect(built.issues.some((issue) => issue.code === 'concurrent-change')).toBe(false);
+	// Assert on the offending issues rather than on a boolean: a mismatch here names
+	// a path and a reason, and a bare `true to be false` throws both away.
+	expect(
+		built.issues
+			.filter((issue) => issue.code === 'concurrent-change')
+			.map((issue) => `${issue.path}: ${issue.message}`),
+	).toEqual([]);
 	expect(built.metrics.indexedFiles).toBeGreaterThan(0);
 	expect(built.state).toBe('partial');
 	await rm(root, { recursive: true, force: true });

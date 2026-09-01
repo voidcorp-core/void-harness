@@ -8,10 +8,12 @@ import { createMemoryProjectCachePort } from './cache.js';
 import type { ProjectRootIdentity } from './extractors/types.js';
 import {
 	createNodeProjectChangeJournal,
+	PROJECT_JOURNAL_ANCHOR_PREFIX,
 	type ProjectChangeJournal,
 	type ProjectChangeObservation,
 	type ProjectChangeValidation,
 	type ProjectWatchHandle,
+	type ProjectWatchAnchor,
 	type ProjectWatchPort,
 } from './journal.js';
 import { createNodeProjectRootPort } from './root.js';
@@ -112,7 +114,22 @@ async function expectUnavailableJournalBuild(
 	expect(result.issues).toContainEqual(expect.objectContaining({ code: 'journal-unavailable' }));
 }
 
-function fakeWatchPort() {
+interface FakeWatchOptions {
+	/**
+	 * What the sentinel does, which is the only thing that separates a stream a
+	 * caller has caught up with from one it merely hopes is quiet.
+	 *
+	 * `deliver` behaves like a filesystem: the sentinel's own event arrives, after
+	 * whatever was already in flight. `silent` writes the sentinel and never
+	 * reports it, the shape of a volume that does not notify. `refuse` cannot
+	 * write it at all, the shape of a read-only tree.
+	 */
+	readonly sentinel?: 'deliver' | 'silent' | 'refuse';
+	/** Events already in flight when the sentinel is placed. */
+	readonly inFlight?: readonly string[];
+}
+
+function fakeWatchPort(options: FakeWatchOptions = {}) {
 	const subscriptions: {
 		readonly path: string;
 		readonly recursive: boolean;
@@ -121,6 +138,10 @@ function fakeWatchPort() {
 	}[] = [];
 	let closed = 0;
 	let unrefed = 0;
+	let released = 0;
+	let sentinels = 0;
+	const behaviour = options.sentinel ?? 'deliver';
+	let inFlight: readonly string[] = options.inFlight ?? [];
 	const port: ProjectWatchPort = {
 		watch(path, recursive, event, error): ProjectWatchHandle {
 			subscriptions.push({ path, recursive, event, error });
@@ -133,11 +154,35 @@ function fakeWatchPort() {
 				},
 			};
 		},
+		async anchor(): Promise<ProjectWatchAnchor | undefined> {
+			if (behaviour === 'refuse') return undefined;
+			sentinels += 1;
+			const path = `.git/${PROJECT_JOURNAL_ANCHOR_PREFIX}${String(sentinels)}`;
+			const tree = subscriptions.find((entry) => entry.recursive);
+			// In flight means in flight once: these events were already owed when the
+			// first sentinel was placed, and a stream does not redeliver them.
+			const owed = inFlight;
+			inFlight = [];
+			if (behaviour === 'deliver') {
+				setTimeout(() => {
+					for (const flight of owed) tree?.event('change', flight);
+					tree?.event('change', path);
+				}, 0);
+			}
+			return {
+				path,
+				release: () => {
+					released += 1;
+					// Removing the sentinel is itself a filesystem event.
+					if (behaviour === 'deliver') tree?.event('rename', path);
+				},
+			};
+		},
 	};
 	return {
 		port,
 		subscriptions,
-		counts: () => ({ closed, unrefed }),
+		counts: () => ({ closed, unrefed, released, sentinels }),
 	};
 }
 
@@ -191,6 +236,90 @@ describe('ProjectChangeJournal', () => {
 		});
 		journal.close();
 		expect(fake.counts().closed).toBe(2);
+	});
+});
+
+/**
+ * A watcher stream is not synchronised with the caller that reads it.
+ *
+ * Node states it plainly: event ordering is not guaranteed, events may be
+ * duplicated or missed, and on macOS a recursive watch goes through FSEvents,
+ * which coalesces and delivers on its own schedule. So an observation taken the
+ * instant a watch opens can be handed events that describe writes which happened
+ * *before* it — measured here at ~11ms after `observe()` returned, naming a file
+ * written before the watcher existed. The build read that as a tree mutating
+ * underneath it and called a still project concurrently changed.
+ *
+ * A delay cannot fix this: it guesses at load. The fix is an anchor in the
+ * stream, the mechanism Watchman calls a cookie — place a sentinel inside the
+ * watched tree, wait to see its event, and everything the stream still owed you
+ * has been delivered. What cannot be anchored is not called unchanged; it is
+ * called uncertain, which the journal already knows how to say.
+ */
+describe('ProjectChangeJournal stream synchronisation', () => {
+	it('counts what was already in flight instead of charging it to the next build', async () => {
+		const fake = fakeWatchPort({ inFlight: ['src/written-before-the-watch.ts'] });
+		const journal = createNodeProjectChangeJournal({
+			watchPort: fake.port,
+			authority: 'authoritative',
+		});
+		const root = rootIdentity();
+
+		const observed = await journal.observe(root);
+
+		expect(observed.paths).toEqual(['src/written-before-the-watch.ts']);
+		expect(observed.kind).toBe('cold');
+		expect(await journal.validate(root, observed)).toBe('valid');
+		// One sentinel for the observation, one for the validation, and neither left
+		// behind: a synchronisation that litters the tree it synchronises with would
+		// be its own next false positive.
+		const { sentinels, released } = fake.counts();
+		expect(sentinels).toBe(2);
+		expect(released).toBe(sentinels);
+		journal.close();
+	});
+
+	it('never counts its own sentinel as a change to the project', async () => {
+		const fake = fakeWatchPort();
+		const journal = createNodeProjectChangeJournal({
+			watchPort: fake.port,
+			authority: 'authoritative',
+		});
+		const root = rootIdentity();
+		const cold = await journal.observe(root);
+		expect(journal.accept(root, cold)).toBe(true);
+
+		const second = await journal.observe(root);
+
+		expect(second).toMatchObject({ kind: 'unchanged', generation: '0', paths: [] });
+		expect(fake.counts().sentinels).toBe(2);
+		journal.close();
+	});
+
+	it('says uncertain rather than unchanged when the stream never answers', async () => {
+		const fake = fakeWatchPort({ sentinel: 'silent' });
+		const journal = createNodeProjectChangeJournal({
+			watchPort: fake.port,
+			authority: 'authoritative',
+			anchorTimeoutMs: 20,
+		});
+		const root = rootIdentity();
+
+		expect((await journal.observe(root)).kind).toBe('uncertain');
+		journal.close();
+	});
+
+	it('says uncertain rather than unchanged when no sentinel can be placed', async () => {
+		const fake = fakeWatchPort({ sentinel: 'refuse' });
+		const journal = createNodeProjectChangeJournal({
+			watchPort: fake.port,
+			authority: 'authoritative',
+		});
+		const root = rootIdentity();
+
+		expect((await journal.observe(root)).kind).toBe('uncertain');
+		expect(fake.counts().released).toBe(0);
+		journal.close();
 	});
 });
 

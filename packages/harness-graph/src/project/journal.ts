@@ -1,11 +1,30 @@
-import { stat } from 'node:fs/promises';
+import { stat, unlink, writeFile } from 'node:fs/promises';
 import { watch as watchNode, type FSWatcher } from 'node:fs';
-import { basename, dirname } from 'node:path';
-import { normalizeProjectPath, projectPathIsIgnored } from './extractors/filesystem.js';
+import { basename, dirname, join } from 'node:path';
+import {
+	normalizeProjectPath,
+	PROJECT_JOURNAL_ANCHOR_PREFIX,
+	projectPathIsIgnored,
+} from './extractors/filesystem.js';
 import type { ProjectRootIdentity } from './extractors/types.js';
+
+// Re-exported where the journal is imported from: it is the journal that places
+// a sentinel, even though scanning is what must refuse to index one.
+export { PROJECT_JOURNAL_ANCHOR_PREFIX };
 
 const DEFAULT_MAX_ROOTS = 16;
 const DEFAULT_MAX_CHANGED_PATHS = 10_000;
+/**
+ * How long an observation waits to see its own sentinel come back.
+ *
+ * Measured delivery on macOS for a tree that had just been written is ~11ms, so
+ * this is two orders of magnitude of headroom for a loaded machine. Exceeding it
+ * is not an error: it means the stream could not be caught up with in a bounded
+ * time, and the observation says `uncertain` instead of pretending otherwise.
+ */
+const DEFAULT_ANCHOR_TIMEOUT_MS = 1_000;
+/** Sentinels remembered per root, so one that lands before its waiter is not lost. */
+const MAX_REMEMBERED_ANCHORS = 64;
 
 export type ProjectChangeKind = 'cold' | 'unchanged' | 'changed' | 'uncertain';
 export type ProjectChangeAuthority = 'advisory' | 'authoritative';
@@ -36,6 +55,18 @@ export interface ProjectWatchHandle {
 	unref(): void;
 }
 
+/**
+ * A sentinel placed inside a watched tree so its own event can be recognised.
+ *
+ * `path` is relative to the watched root and is what the stream will report;
+ * `release` removes the sentinel once it has been seen, or once waiting for it
+ * has been given up on.
+ */
+export interface ProjectWatchAnchor {
+	readonly path: string;
+	release(): void;
+}
+
 export interface ProjectWatchPort {
 	watch(
 		path: string,
@@ -43,6 +74,13 @@ export interface ProjectWatchPort {
 		onEvent: (event: 'change' | 'rename', filename: string | undefined) => void,
 		onError: () => void,
 	): ProjectWatchHandle;
+	/**
+	 * Place a sentinel under `root`, or answer `undefined` when none can be placed
+	 * — a read-only tree, a volume that refuses the write. An observation that
+	 * cannot anchor itself reports `uncertain` rather than claiming a stream it
+	 * never caught up with.
+	 */
+	anchor(root: string): Promise<ProjectWatchAnchor | undefined>;
 }
 
 interface JournalState {
@@ -55,9 +93,54 @@ interface JournalState {
 	uncertainAt: bigint | undefined;
 	saturated: boolean;
 	reliable: boolean;
+	readonly anchorsSeen: Set<string>;
+	/**
+	 * Waiters keyed by sentinel path, not a single one.
+	 *
+	 * Git inspection validates the observation while its commands run, so two
+	 * validations overlap routinely. A lone waiter meant the second overwrote the
+	 * first, which then waited out its whole deadline and reported an uncertainty
+	 * that had not happened.
+	 */
+	readonly awaitedAnchors: Map<string, () => void>;
+}
+
+/**
+ * Where a sentinel is written, in order of preference.
+ *
+ * `.git` first, for the reason Watchman writes its cookies there: the directory
+ * is watched like any other but no version control reports what is inside it, so
+ * a sentinel that lives for a few milliseconds never shows up in someone's
+ * `git status`. `.void` next, for a harnessed project without a repository. The
+ * root itself last, under a reserved name the scan is taught to ignore.
+ */
+const ANCHOR_DIRECTORIES = ['.git', '.void', ''] as const;
+
+let anchorSequence = 0;
+
+async function placeAnchor(root: string): Promise<ProjectWatchAnchor | undefined> {
+	anchorSequence += 1;
+	const name = `${PROJECT_JOURNAL_ANCHOR_PREFIX}${String(process.pid)}-${String(anchorSequence)}`;
+	for (const directory of ANCHOR_DIRECTORIES) {
+		const relative = directory === '' ? name : `${directory}/${name}`;
+		const absolute = join(root, relative);
+		try {
+			await writeFile(absolute, '', { flag: 'wx', mode: 0o600 });
+		} catch {
+			continue;
+		}
+		return Object.freeze({
+			path: relative,
+			release: () => {
+				unlink(absolute).catch(() => undefined);
+			},
+		});
+	}
+	return undefined;
 }
 
 const NODE_WATCH_PORT: ProjectWatchPort = {
+	anchor: placeAnchor,
 	watch(path, recursive, onEvent, onError): ProjectWatchHandle {
 		const watcher: FSWatcher = watchNode(
 			path,
@@ -119,6 +202,7 @@ function closeState(state: JournalState): void {
 export interface ProjectJournalOptions {
 	readonly maxRoots?: number;
 	readonly maxChangedPaths?: number;
+	readonly anchorTimeoutMs?: number;
 	readonly watchPort?: ProjectWatchPort;
 	readonly authority?: ProjectChangeAuthority;
 }
@@ -126,6 +210,7 @@ export interface ProjectJournalOptions {
 interface JournalLimits {
 	readonly maxRoots: number;
 	readonly maxChangedPaths: number;
+	readonly anchorTimeoutMs: number;
 }
 
 interface JournalContext extends JournalLimits {
@@ -137,13 +222,17 @@ interface JournalContext extends JournalLimits {
 function validateJournalLimits(options: ProjectJournalOptions): JournalLimits {
 	const maxRoots = options.maxRoots ?? DEFAULT_MAX_ROOTS;
 	const maxChangedPaths = options.maxChangedPaths ?? DEFAULT_MAX_CHANGED_PATHS;
+	const anchorTimeoutMs = options.anchorTimeoutMs ?? DEFAULT_ANCHOR_TIMEOUT_MS;
 	if (!Number.isSafeInteger(maxRoots) || maxRoots < 1 || maxRoots > 1_024) {
 		throw new Error('PROJECT_JOURNAL_INVALID: maxRoots must be between 1 and 1024');
 	}
 	if (!Number.isSafeInteger(maxChangedPaths) || maxChangedPaths < 1 || maxChangedPaths > 50_000) {
 		throw new Error('PROJECT_JOURNAL_INVALID: maxChangedPaths must be between 1 and 50000');
 	}
-	return Object.freeze({ maxRoots, maxChangedPaths });
+	if (!Number.isSafeInteger(anchorTimeoutMs) || anchorTimeoutMs < 1 || anchorTimeoutMs > 60_000) {
+		throw new Error('PROJECT_JOURNAL_INVALID: anchorTimeoutMs must be between 1 and 60000');
+	}
+	return Object.freeze({ maxRoots, maxChangedPaths, anchorTimeoutMs });
 }
 
 function markUncertain(state: JournalState): void {
@@ -182,11 +271,87 @@ async function rootWasReplaced(state: JournalState): Promise<boolean> {
 	}
 }
 
+/**
+ * Wait for a sentinel that may already have arrived.
+ *
+ * The stream can deliver it between the write and this call, so what was
+ * remembered is checked first. Nothing here polls and nothing sleeps: either the
+ * event lands, or the bounded deadline says it did not.
+ */
+function awaitAnchor(state: JournalState, path: string, timeoutMs: number): Promise<boolean> {
+	if (state.anchorsSeen.delete(path)) return Promise.resolve(true);
+	return new Promise<boolean>((resolve) => {
+		// Deliberately not unref'd. Waiting for a sentinel is work in progress, like
+		// any other pending read, and the watchers themselves are unref'd: a program
+		// whose only outstanding operation is this one would otherwise exit with the
+		// await unsettled rather than with an answer. The wait is bounded, so
+		// keeping the loop alive delays nothing beyond that bound.
+		const timer = setTimeout(() => {
+			state.awaitedAnchors.delete(path);
+			resolve(false);
+		}, timeoutMs);
+		state.awaitedAnchors.set(path, () => {
+			clearTimeout(timer);
+			resolve(true);
+		});
+	});
+}
+
+/**
+ * Catch up with the event stream before an observation freezes a generation.
+ *
+ * Without this the journal answers a question nobody asked it: not "has the tree
+ * changed since you looked", but "has anything reached me yet", and the two
+ * differ by exactly the events the stream still owes. A sentinel written into
+ * the watched tree separates them — everything already in flight is delivered
+ * before the sentinel's own event is. Watchman calls this a cookie, and its
+ * reason for preferring it over a delay applies unchanged here: a delay guesses
+ * at load, an anchor does not.
+ */
+async function catchUpWithStream(state: JournalState, context: JournalContext): Promise<void> {
+	if (!state.reliable) return;
+	const anchor = await context.watchPort.anchor(state.root.path).catch(() => undefined);
+	if (anchor === undefined) {
+		markUncertain(state);
+		return;
+	}
+	try {
+		if (!(await awaitAnchor(state, anchor.path, context.anchorTimeoutMs))) markUncertain(state);
+	} finally {
+		state.awaitedAnchors.delete(anchor.path);
+		anchor.release();
+	}
+}
+
 function failState(state: JournalState): void {
 	if (!state.reliable) return;
 	state.reliable = false;
 	markUncertain(state);
 	closeState(state);
+}
+
+/**
+ * Did this event carry a sentinel rather than a change to the project?
+ *
+ * Recognised before anything else, and never counted: a sentinel is written to
+ * be seen, so treating it as a change would make every synchronisation report
+ * the very thing it exists to rule out. It is remembered because it can be
+ * delivered before the observation that placed it starts waiting.
+ */
+function recordAnchor(state: JournalState, path: string): boolean {
+	if (!basename(path).startsWith(PROJECT_JOURNAL_ANCHOR_PREFIX)) return false;
+	const waiting = state.awaitedAnchors.get(path);
+	if (waiting !== undefined) {
+		state.awaitedAnchors.delete(path);
+		waiting();
+		return true;
+	}
+	if (state.anchorsSeen.size >= MAX_REMEMBERED_ANCHORS) {
+		const oldest = state.anchorsSeen.values().next().value;
+		if (oldest !== undefined) state.anchorsSeen.delete(oldest);
+	}
+	state.anchorsSeen.add(path);
+	return true;
 }
 
 function markPath(state: JournalState, rawPath: string, maxChangedPaths: number): void {
@@ -197,6 +362,7 @@ function markPath(state: JournalState, rawPath: string, maxChangedPaths: number)
 		markUncertain(state);
 		return;
 	}
+	if (recordAnchor(state, path)) return;
 	if (projectPathIsIgnored(path)) return;
 	state.sequence += 1n;
 	if (state.saturated) {
@@ -226,6 +392,8 @@ function emptyState(
 		uncertainAt: undefined,
 		saturated: false,
 		reliable: true,
+		anchorsSeen: new Set(),
+		awaitedAnchors: new Map(),
 	};
 }
 
@@ -338,19 +506,28 @@ function createJournal(context: JournalContext): ProjectChangeJournal {
 	return {
 		async observe(root) {
 			const state = stateFor(root, context);
-			await new Promise<void>((resolve) => setImmediate(resolve));
+			await catchUpWithStream(state, context);
 			if (await rootWasReplaced(state)) markRootUncertain(state);
 			return observation(state, context.authority);
 		},
 		async validate(root, expected) {
 			const state = context.states.get(root.path);
-			await new Promise<void>((resolve) => setImmediate(resolve));
 			if (
 				state === undefined ||
 				!sameRoot(state.root, root) ||
 				!state.reliable ||
 				expected.authority !== context.authority
 			) {
+				return 'unavailable';
+			}
+			// The same anchor, for the opposite reason. Here an unsynchronised stream
+			// would answer `valid` about a tree that did move, because the events
+			// proving it had not been delivered yet — a stale cache published as
+			// fresh. Not being able to catch up is therefore reported as
+			// `unavailable`, never as agreement.
+			const anchoredAt = state.sequence;
+			await catchUpWithStream(state, context);
+			if (state.sequence !== anchoredAt && state.uncertainAt === state.sequence) {
 				return 'unavailable';
 			}
 			return state.sequence.toString() === expected.generation ? 'valid' : 'changed';
