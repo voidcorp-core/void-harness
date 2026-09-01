@@ -4,7 +4,8 @@
 // What this command does (idempotent):
 //   1. Create .void/config.json (paths, commands, modes)
 //   2. Copy PHILOSOPHY.md into .void/installed/ (managed, restorable)
-//   3. Create .void/PROJECT-DOCTRINE.md from template if it does not exist
+//   3. Seed .void/PROJECT-DOCTRINE.md from the template, or refresh it while
+//      the project has still never written into it
 //   4. Merge `.claude/settings.json` with `extraKnownMarketplaces.void-harness`
 //      pointing to the GitHub repo, and `enabledPlugins` for the chosen packs
 //   5. Patch CLAUDE.md (and its Codex sister AGENTS.md) with the void-harness
@@ -14,12 +15,14 @@
 // plugin from the marketplace on session start. Skills appear as
 // /harness:void-tdd, /harness-nextjs:..., etc.
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { stripManagedBlock } from '@voidcorp/hook-runner';
+import { PROJECT_DOCTRINE_PATH } from '../lib/co-owned.js';
 import { writeExcludeBlock } from '../lib/git-exclude.js';
+import { isUntouchedSinceInstall, readInstallManifest } from '../lib/install-manifest.js';
 import * as p from '@clack/prompts';
 import {
   prepareInstallCommit,
@@ -332,8 +335,11 @@ export async function init(args: readonly string[]): Promise<void> {
     await seedInstallStage(projectRoot, stageRoot);
     // 1. Write .void/config.json (runtime-agnostic)
     await writeConfig(stageRoot, packs, opts, { pinVersion, stack });
-    // 2. Copy PHILOSOPHY.md + create PROJECT-DOCTRINE.md from template
-    await installDoctrineFiles(stageRoot, sourceRoot, preserveDoctrine ? projectRoot : undefined);
+    // 2. Copy PHILOSOPHY.md + seed or refresh PROJECT-DOCTRINE.md
+    await installDoctrineFiles(stageRoot, sourceRoot, {
+      installationRoot: projectRoot,
+      preserveFrom: preserveDoctrine ? projectRoot : undefined,
+    });
     // 3. Wire each selected runtime through its adapter.
     const wireCtx = {
       projectRoot: stageRoot,
@@ -641,20 +647,54 @@ function claimOwnedPaths(projectRoot: string, ownedPaths: readonly string[]): vo
   writeExcludeBlock(projectRoot, ownedPaths);
 }
 
+export interface DoctrineInstallRoots {
+  /**
+   * The installation being written to, whose committed manifest attests what a
+   * previous install wrote. Absent means no attestation, which preserves.
+   */
+  readonly installationRoot?: string | undefined;
+  /**
+   * An installation whose philosophy is canonical rather than derived — the
+   * source repo, where `docs/PHILOSOPHY.md` is the original and the packaged
+   * copy is necessarily behind it.
+   */
+  readonly preserveFrom?: string | undefined;
+}
+
+/**
+ * Is the staged project doctrine still the untouched file we wrote last time?
+ *
+ * The project owns every line of it, so the answer is normally no and the file
+ * is preserved. Only exact equality with the manifest's record — proof nobody
+ * has written into it — licenses replacing it with the current template. An
+ * unreadable or absent manifest answers no: silence is not proof.
+ */
+function isUntouchedProjectDoctrine(installationRoot: string | undefined, staged: string): boolean {
+  if (installationRoot === undefined) return false;
+  const manifest = readInstallManifest(installationRoot);
+  if (manifest === undefined) return false;
+  try {
+    return isUntouchedSinceInstall(manifest, PROJECT_DOCTRINE_PATH, readFileSync(staged));
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Write the managed doctrine into the staged install.
  *
- * `preserveFrom` names an installation whose philosophy is canonical rather than
- * derived — the source repo, where `docs/PHILOSOPHY.md` is the original and the
- * packaged copy is necessarily behind it. Its own file is staged instead, so the
- * transaction rewrites it byte-for-byte rather than replacing it with an older
- * copy of itself.
+ * The philosophy is ours and is rewritten every time. The project doctrine is
+ * the project's and is preserved every time but one: a file still byte-for-byte
+ * the template an install wrote has never been used, and leaving it there makes
+ * every consumer who never filled it in carry an obsolete template into every
+ * session forever. See the decision on refreshing an untouched project doctrine.
  */
 export async function installDoctrineFiles(
   projectRoot: string,
   sourceRoot: string,
-  preserveFrom?: string,
+  roots: DoctrineInstallRoots = {},
 ): Promise<void> {
+  const { installationRoot, preserveFrom } = roots;
   const voidDir = join(projectRoot, '.void');
   await mkdir(voidDir, { recursive: true });
   const philosophySrc = join(sourceRoot, 'PHILOSOPHY.md');
@@ -676,10 +716,16 @@ export async function installDoctrineFiles(
   }
   const templateSrc = join(sourceRoot, 'PROJECT-DOCTRINE.template.md');
   const doctrineDst = join(voidDir, 'PROJECT-DOCTRINE.md');
-  if (existsSync(doctrineDst)) {
-    line(`${c.dim(glyph.dot)}  ${c.dim('PROJECT-DOCTRINE'.padEnd(18))}${c.dim('exists (preserved)')}`);
-  } else if (existsSync(templateSrc)) {
+  const label = c.dim('PROJECT-DOCTRINE'.padEnd(18));
+  const hasTemplate = existsSync(templateSrc);
+  if (!existsSync(doctrineDst)) {
+    if (!hasTemplate) return;
     await cp(templateSrc, doctrineDst);
-    line(`${c.green(glyph.check)}  ${c.dim('PROJECT-DOCTRINE'.padEnd(18))}created from template`);
+    line(`${c.green(glyph.check)}  ${label}created from template`);
+  } else if (hasTemplate && isUntouchedProjectDoctrine(installationRoot, doctrineDst)) {
+    await cp(templateSrc, doctrineDst);
+    line(`${c.green(glyph.check)}  ${label}refreshed (never filled in)`);
+  } else {
+    line(`${c.dim(glyph.dot)}  ${label}${c.dim('exists (preserved)')}`);
   }
 }

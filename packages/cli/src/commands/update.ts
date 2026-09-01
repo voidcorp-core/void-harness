@@ -18,7 +18,7 @@ import { dirname, join } from 'node:path';
 import { isHarnessSourceRepo } from '../lib/self-repo.js';
 import { CODEX_HOOKS_DIR, refreshCodexFloor } from '../lib/codex-floor.js';
 import { CODEX_SKILLS_DIR, wireCodexSkills } from '../lib/codex-skills.js';
-import { parseInstallManifest, sha256Of, INSTALL_MANIFEST_PATH } from '../lib/install-manifest.js';
+import { readInstallManifest, sha256Of, INSTALL_MANIFEST_PATH } from '../lib/install-manifest.js';
 import { computePinBumps } from '../lib/pack-config.js';
 import { configPackDirs, CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO } from '../lib/packs.js';
 import { cliVersion, findCoreSource } from '../lib/paths.js';
@@ -224,15 +224,6 @@ async function writeReceipt(projectRoot: string, receipt: InstallReceipt): Promi
   await writeFile(receiptPath, encodeReceipt(receipt));
 }
 
-/** The committed manifest, or nothing when it cannot be read or parsed. */
-function readManifest(projectRoot: string): InstallManifest | undefined {
-  try {
-    return parseInstallManifest(readFileSync(join(projectRoot, INSTALL_MANIFEST_PATH), 'utf8'));
-  } catch {
-    return undefined;
-  }
-}
-
 /** What the harness claims, and the bytes the manifest attests for each. */
 export interface ClaimedFile {
   readonly path: string;
@@ -292,7 +283,7 @@ function wiredRuntimes(projectRoot: string): Runtime[] {
  * mechanism exists to avoid.
  */
 function rehydrateFromManifest(projectRoot: string): InstallReceipt | undefined {
-  const manifest = readManifest(projectRoot);
+  const manifest = readInstallManifest(projectRoot);
   if (manifest === undefined) return undefined;
   return {
     schemaVersion: 1,
@@ -309,7 +300,7 @@ function rehydrateFromManifest(projectRoot: string): InstallReceipt | undefined 
  * caller can stay quiet on the nominal case.
  */
 function reclaimMissingPaths(projectRoot: string, receipt: InstallReceipt): InstallReceipt {
-  const manifest = readManifest(projectRoot);
+  const manifest = readInstallManifest(projectRoot);
   // An unreadable manifest is not a dead end here: the receipt still proves
   // everything it covers, and stopping would refuse an update that can proceed.
   if (manifest === undefined) return receipt;
