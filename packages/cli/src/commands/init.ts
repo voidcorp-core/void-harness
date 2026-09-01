@@ -345,6 +345,7 @@ export async function init(args: readonly string[]): Promise<void> {
       marketplaceRepo: opts.marketplaceRepo,
       pinVersion,
       preserveDoctrineDoc: preserveDoctrine,
+      force: opts.force,
     };
     for (const adapter of adapters) {
       const outcome = await adapter.wire(wireCtx);
