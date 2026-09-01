@@ -297,8 +297,11 @@ May: run every `void-implement` pass whose predicate fires, run its own targeted
 migration **in dev/local only**, and commit a bisectable range.
 
 May not: push, open or update a pull request, merge anything, move the ticket to In Review or
-Done, or touch a file the plan marks `reconcileOnly`. These are denied in the orchestration
-plan itself, not only in the prompt, so an adapter that honours the plan cannot grant them.
+Done, touch a file the plan marks `reconcileOnly`, or write anything the repository shares across
+its worktrees — `refs/stash`, tags, notes, remotes, any branch but its own, the repository config.
+These are denied in the orchestration plan itself, not only in the prompt, so an adapter that
+honours the plan cannot grant them; both adapters render them from the plan, and a test holds each
+`workerMay…` field to appearing in both.
 
 ---
 
