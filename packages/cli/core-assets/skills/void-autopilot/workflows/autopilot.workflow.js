@@ -30,6 +30,7 @@ export const meta = {
     { title: 'Verify', detail: 'the declared suite on the merged tree' },
     { title: 'Publish', detail: 'one branch, one pull request, the account in its body' },
     { title: 'Chain', detail: 'take another unit, or stop and say why' },
+    { title: 'Progress', detail: 'rewrite the draft body, so a silence is readable as a stall' },
   ],
 }
 
@@ -232,7 +233,36 @@ if (base.protection && base.protection.allowed !== true) {
 log(`base ${base.base.branch} at ${base.base.sha.slice(0, 7)}`)
 
 const journal = []
+const beats = []
 let taken = 0
+
+/**
+ * Say where the run is, in the one place a person can read without a terminal.
+ *
+ * After EVERY decision, not at the end. A run that publishes only when it
+ * finishes is indistinguishable, while it runs, from one that died at minute
+ * ten — and six hours of that is what the whole unattended cycle was supposed
+ * to remove, not create.
+ *
+ * Failures here are logged and swallowed on purpose: not being readable is bad,
+ * and stopping a healthy run because its status could not be posted is worse.
+ */
+async function beat(stepName, unit) {
+  beats.push({ step: stepName, unit })
+  const answer = await step(
+    'progress',
+    'the beats so far, what merged, the instant now, and the ceiling one unit may take',
+    `Pass beats: ${JSON.stringify(beats)} with a real instant on each, merged: ${JSON.stringify(journal)}, and the run start ${input.now}. Then write the returned body to the path the plan names and run its commands.`,
+    'Progress',
+  )
+  if (!answer || answer.ok !== true) {
+    log(`could not publish progress after ${stepName}: ${answer?.detail ?? 'no answer'}`)
+    return
+  }
+  if (answer.result?.plan?.steps?.length) {
+    await execute(answer.result.plan.steps.map((s) => s.command), 'they put the run in front of a reader', 'Progress')
+  }
+}
 
 // The chain decides how long this goes on, from the budget the programme
 // declared and what the run has actually spent. Bounded here rather than by a
@@ -250,6 +280,7 @@ while (true) {
   )
   if (chain.decision.kind !== 'continue') {
     log(`stop (${chain.decision.reason}): ${chain.decision.detail}`)
+    await beat('chain', chain.decision.reason)
     break
   }
 
@@ -283,6 +314,7 @@ while (true) {
   )
   required(await execute(orchestration.setup.map((s) => s.command), 'they create the worktrees a worker may write in', 'Preflight'), 'creating the worktrees')
 
+  await beat('orchestrate', chain.nextUnit)
   const results = await runWorkers(orchestration.plan)
 
   phase('Reconcile')
@@ -300,6 +332,7 @@ while (true) {
     break
   }
   required(await execute(reconciliation.plan.steps.map((s) => s.command), 'they merge only the ranges git confirmed', 'Reconcile'), 'merging the ranges')
+  await beat('reconcile', reconciliation.plan.integrate.join(', '))
 
   phase('Verify')
   const verification = required(
@@ -321,6 +354,7 @@ while (true) {
   )
   if (gate.proofs.kind !== 'merge') {
     log(`stop (${gate.proofs.action}): ${gate.proofs.detail}`)
+    await beat('gate', gate.proofs.detail)
     break
   }
 
@@ -359,6 +393,7 @@ while (true) {
 
   journal.push({ tickets: reconciliation.plan.integrate, mergeSha: verification.integrationSha })
   taken += 1
+  await beat('publish', reconciliation.plan.integrate.join(', '))
   required(await execute(orchestration.teardown.map((s) => s.command), 'they reclaim the worktrees; no branch is deleted', 'Reconcile'), 'reclaiming the worktrees')
 }
 

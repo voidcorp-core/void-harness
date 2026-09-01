@@ -228,13 +228,17 @@ execution.
 
 ## Resume point
 
-**Next step**: Step 5b — the six hours are readable while they happen.
+**Next step**: Checkpoint A — the first real run, launched by Folpe.
 
 **Completed**: steps 1–4 on 2026-08-31 (PR #303). Step 5 on 2026-09-01: the cycle is a script,
 and the twenty-seven declared mechanisms that had no caller now have one, held by
 `test/autopilot/declared-mechanism-has-a-caller.test.ts`.
 
-**Pending**: step 5b, Checkpoint A — the first real run, launched by Folpe — then step 6. Plus the
+Step 5b on 2026-09-01: the run beats after every decision, the pull request opens as a draft at
+the first merged unit, and a silence longer than one unit's ceiling reads as `STALLED` rather than
+as patience.
+
+**Pending**: Checkpoint A — the first real run, launched by Folpe — then step 6. Plus the
 `void-plan-review` pass the risk flag calls for, which has not run.
 
 

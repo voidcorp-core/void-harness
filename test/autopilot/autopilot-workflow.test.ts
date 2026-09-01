@@ -168,14 +168,47 @@ describe('the autopilot cycle is a script', () => {
       'step:chain',
       'step:reserve',
       'step:orchestrate',
+      'step:progress',
       'step:reconcile',
+      'step:progress',
       'step:verify',
       'step:gate',
       'step:publish',
       'step:grant',
       'step:lifecycle',
+      'step:progress',
       'step:chain',
+      'step:progress',
     ]);
+  });
+
+  // The gate of the readability slice. A person with no terminal reads the
+  // draft body, so it has to be rewritten after every decision -- not at the
+  // end, which is precisely when a stalled run never gets to.
+  it('says where it is after every decision, not once at the end', async () => {
+    const { calls } = await runWorkflow(configuration());
+
+    const beats = labels(calls).filter((label) => label === 'step:progress');
+    expect(beats.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('beats once more on the way out, so a stop is readable too', async () => {
+    const { calls } = await runWorkflow(
+      configuration(),
+      answers({ gate: { proofs: { kind: 'refuse', action: 'STOP_CHAIN', detail: 'no proof ran', debts: [] } } }),
+    );
+
+    // The last thing it does before breaking out is say why.
+    const steps = labels(calls).filter((label) => label.startsWith('step:'));
+    expect(steps[steps.length - 1]).toBe('step:progress');
+  });
+
+  // Not being readable is bad; killing a healthy run because its status could
+  // not be posted is worse.
+  it('keeps working when it cannot publish its own progress', async () => {
+    const { value } = await runWorkflow(configuration(), answers({ progress: null }));
+
+    expect(value).toMatchObject({ unitsTaken: 1 });
   });
 
   it('decides nothing itself: every step is a command that computes the answer', async () => {

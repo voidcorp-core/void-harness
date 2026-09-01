@@ -20,7 +20,7 @@
 import { autopilotFailure } from './errors.js';
 import type { ProofAssessment } from './proof-invalidation.js';
 
-export type PublishStepKind = 'push-branch' | 'create-pull-request';
+export type PublishStepKind = 'push-branch' | 'create-pull-request' | 'update-body' | 'mark-ready';
 
 export interface PublishStep {
   readonly kind: PublishStepKind;
@@ -37,6 +37,8 @@ export interface PublishBlock {
 /** The remote pull request already tracking this branch, as observed. */
 export interface ExistingPullRequest {
   readonly number: number;
+  /** Whether it is still a draft, so the run knows to mark it ready. */
+  readonly draft?: boolean;
   readonly headSha: string;
 }
 
@@ -50,6 +52,15 @@ export interface PublishInput {
   /** Local worker branches, named here only so the plan can be proven free of them. */
   readonly workerBranches: readonly string[];
   readonly existingPullRequest?: ExistingPullRequest | null;
+  /**
+   * Publish the run's current state rather than ask for a merge.
+   *
+   * A draft is a WINDOW, so it does not wait for sealed proofs: refusing to
+   * open one because the work is unfinished is exactly backwards, and a run
+   * nobody can see is the defect this exists to close. Nothing merges from it —
+   * the merge grant still needs everything it needed.
+   */
+  readonly draft?: boolean;
 }
 
 export interface PublishPlan {
@@ -118,7 +129,9 @@ export function buildPublishPlan(input: PublishInput): PublishPlan {
     bodyPath,
   };
 
-  if (!input.proofs.sealed) {
+  // A draft states where the run IS. Only the publication that asks for a merge
+  // owes proofs, and it is the one below.
+  if (!input.proofs.sealed && input.draft !== true) {
     const missing = input.proofs.missing.map((command) => `\`${command.join(' ')}\``).join(', ');
     return {
       schemaVersion: 1,
@@ -171,8 +184,27 @@ export function buildPublishPlan(input: PublishInput): PublishPlan {
         title,
         '--body-file',
         bodyPath,
+        ...(input.draft === true ? ['--draft'] : []),
       ],
       precondition: `the push succeeded and no open pull request already targets \`${input.base.branch}\` from \`${integrationBranch}\``,
+    });
+  } else {
+    // The body is the run's live surface, so it is rewritten rather than
+    // appended to: a reader wants where the run IS, not a transcript to scroll.
+    steps.push({
+      kind: 'update-body',
+      command: ['gh', 'pr', 'edit', String(existing.number), '--body-file', bodyPath],
+      precondition: `pull request #${String(existing.number)} is the one this run opened`,
+    });
+  }
+
+  // Asking for a merge is a separate act from having been readable. A draft
+  // that reached here has its proofs, so it stops being a window.
+  if (input.draft !== true && existing?.draft === true) {
+    steps.push({
+      kind: 'mark-ready',
+      command: ['gh', 'pr', 'ready', String(existing.number)],
+      precondition: `pull request #${String(existing.number)} carries the sealed tree`,
     });
   }
 
