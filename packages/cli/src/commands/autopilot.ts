@@ -12,6 +12,12 @@
 // converged by re-observation.
 
 import { type ClusterPlan, type ClusterPlanInput, planCluster } from '../lib/autopilot/cluster-plan.js';
+import { selectBase, type BaseObservation, type BaseSelection } from '../lib/autopilot/base-selection.js';
+import {
+  decideBranchProtection,
+  interpretProtectionResponse,
+  type ProtectionResponse,
+} from '../lib/autopilot/branch-protection.js';
 import { verifyRange, type RangeObservation } from '../lib/autopilot/git-observation.js';
 import {
   buildUnionReviewRequest,
@@ -56,7 +62,12 @@ import { buildReconcilePlan, type ReconcilePlan, type VerifiedRange } from '../l
 import { parseWorkerResult, type WorkerResult } from '../lib/autopilot/worker-result.js';
 import { orderWorkers, type OrderFootprint } from '../lib/autopilot/worker-order.js';
 import { planWorktreeSetup, planWorktreeTeardown } from '../lib/autopilot/worktree-lifecycle.js';
-import { type ConfirmationInput, confirmReservation } from '../lib/autopilot/cluster-reservation.js';
+import {
+  type ConfirmationInput,
+  confirmReservation,
+  planReservation,
+  type ReservationRequest,
+} from '../lib/autopilot/cluster-reservation.js';
 import { autopilotFailure, renderAutopilotFailure, toAutopilotFailure } from '../lib/autopilot/errors.js';
 import { decideChainStep, type ChainObservation } from '../lib/autopilot/chain-step.js';
 import { readProgramDescriptor } from '../lib/autopilot/program.js';
@@ -75,16 +86,22 @@ import {
 import type { RunState, TicketRunState } from '../lib/autopilot/run-state.js';
 import { listRunIds, readRun, writeRun } from '../lib/autopilot/state-store.js';
 import {
+  type ActionReceipt,
+  type LifecycleInput,
   type LifecyclePlan,
   type LifecycleTicket,
   planTrackerLifecycle,
+  reconcileLifecycle,
 } from '../lib/autopilot/tracker-lifecycle.js';
 import {
   type BoundaryReading,
   type NextAction,
   nextAction,
   type PullRequestReading,
+  type RawReading,
+  readBoundary,
   type RunSituation,
+  type TrackerReading,
 } from '../lib/autopilot/transition-oracle.js';
 
 export interface AutopilotCommandResult {
@@ -943,6 +960,142 @@ function grantCommand(stdin: string, json: boolean): AutopilotCommandResult {
   );
 }
 
+/**
+ * Which branch a run integrates into, and whether it is really protected.
+ *
+ * The two questions travel together because the answer to the first decides
+ * what the second is asked about. And the protection is INTERPRETED from the
+ * raw response rather than read off a boolean somebody set: an unauthenticated
+ * `gh`, a network blip and a genuinely open branch look identical from the
+ * outside, and only one of them is safe to merge into.
+ */
+interface BaseSelectionObservation extends BaseObservation {
+  readonly protection?: ProtectionResponse;
+}
+
+function baseCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<BaseSelectionObservation>(stdin, 'base observation');
+  const base: BaseSelection = selectBase(observation);
+  const protection = observation.protection === undefined || base.kind !== 'selected'
+    ? undefined
+    : decideBranchProtection(interpretProtectionResponse(observation.protection), base.branch);
+
+  const human = [
+    base.kind === 'selected'
+      ? `base: ${base.branch} at ${base.sha.slice(0, 7)}`
+      : `base: blocked (${base.reason}) — ${base.detail}`,
+    ...(protection === undefined
+      ? []
+      : [`protection: ${protection.allowed ? 'protected' : `refused (${protection.reason})`} — ${protection.detail}`]),
+    '',
+  ].join('\n');
+  return emit(json, { schemaVersion: 1, base, ...(protection === undefined ? {} : { protection }) }, human);
+}
+
+/**
+ * Classify what each boundary actually answered, before anything reads it.
+ *
+ * A source that failed AND returned a value is a contradiction, not a value and
+ * not a failure; an empty answer is not an absent one. Leaving that
+ * classification to whoever observes is how a run resumes on a fact nobody
+ * established, so it is code here rather than care there.
+ */
+interface RawObservation {
+  readonly tracker: RawReading<TrackerReading>;
+  readonly pullRequest: RawReading<PullRequestReading>;
+  readonly workerRefs: RawReading<readonly string[]>;
+}
+
+function observeCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const raw = parseStdin<RawObservation>(stdin, 'raw boundary observation');
+  const observation = {
+    schemaVersion: 1,
+    tracker: readBoundary(raw.tracker),
+    pullRequest: readBoundary(raw.pullRequest),
+    workerRefs: readBoundary(raw.workerRefs),
+  };
+  const human = [
+    `tracker:      ${observation.tracker.kind}`,
+    `pullRequest:  ${observation.pullRequest.kind}`,
+    `workerRefs:   ${observation.workerRefs.kind}`,
+    '',
+    'Pipe this into `autopilot resume` or `autopilot status`.',
+    '',
+  ].join('\n');
+  return emit(json, observation, human);
+}
+
+/**
+ * What the tracker owes once the run is over, and whether it got it.
+ *
+ * Planned and reconciled by the same command, because the second question is
+ * meaningless without the first: a receipt for an action nobody planned is as
+ * much a defect as a planned action with no receipt, and only a caller holding
+ * both can say so. Receipts are optional -- without them this states the plan.
+ *
+ * An action whose precondition is not met is reported as skipped rather than
+ * silently dropped. A ticket left in the wrong state after a merged run is the
+ * residue nobody notices until the next run trips on it.
+ */
+interface LifecycleObservation extends LifecycleInput {
+  readonly receipts?: readonly ActionReceipt[];
+}
+
+function lifecycleCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<LifecycleObservation>(stdin, 'lifecycle observation');
+  const plan = planTrackerLifecycle(observation);
+  const reconciliation = observation.receipts === undefined
+    ? undefined
+    : reconcileLifecycle(plan, observation.receipts);
+
+  const human = [
+    `${plan.stage}: ${String(plan.actions.length)} action(s)`,
+    ...plan.actions.map((action) => `  ${action.kind} ${action.ticketId ?? ''}`.trimEnd()),
+    ...plan.skipped.map((skip) => `  skipped ${skip.kind} ${skip.ticketId}: ${skip.why}`),
+    ...(reconciliation === undefined
+      ? []
+      : ['', `reconciliation: ${reconciliation.converged ? 'converged' : 'pending'} — ${reconciliation.detail}`]),
+    '',
+  ].join('\n');
+  return emit(
+    json,
+    { ...plan, ...(reconciliation === undefined ? {} : { reconciliation }) },
+    human,
+  );
+}
+
+/**
+ * Whether this run may take the cluster, and what it would do to take it.
+ *
+ * The moment two launches on one pool would collide. It answers with one of
+ * four things -- resume our own lease, reserve a free cluster, name the
+ * competing claims, or refuse -- and never with a boolean: "someone else holds
+ * it" and "the observation is unusable" lead a person to different places.
+ *
+ * Nothing is written. The actions come back for the caller to apply, so the
+ * decision stays testable without a tracker.
+ */
+function reserveCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const request = parseStdin<ReservationRequest>(stdin, 'reservation request');
+  const outcome = planReservation(request);
+  const human = outcome.kind === 'reserve'
+    ? [
+        `reserve: ${String(outcome.actions.length)} action(s)`,
+        ...outcome.actions.map((action) => `  ${action.kind} ${action.issueId ?? ''}`.trimEnd()),
+        '',
+      ].join('\n')
+    : outcome.kind === 'resume'
+      ? `resume: this run already holds ${outcome.issues.join(', ')}\n`
+      : outcome.kind === 'competing-claims'
+        ? [
+            'competing claims — nothing was taken:',
+            ...outcome.claims.map((claim) => `  ${claim.issueId}: ${claim.reason}`),
+            '',
+          ].join('\n')
+        : `blocked (${outcome.reason}): ${outcome.detail}\n`;
+  return emit(json, outcome, human);
+}
+
 function planCommand(stdin: string, json: boolean): AutopilotCommandResult {
   const plan = planCluster(parseStdin<ClusterPlanInput>(stdin, 'candidate observation', 'plan'));
   return emit(json, plan, renderPlan(plan));
@@ -1085,6 +1238,10 @@ export function runAutopilotCommand(
     if (subcommand === 'gate') return gateCommand(stdin, json);
     if (subcommand === 'publish') return publishCommand(stdin, json);
     if (subcommand === 'grant') return grantCommand(stdin, json);
+    if (subcommand === 'reserve') return reserveCommand(stdin, json);
+    if (subcommand === 'base') return baseCommand(stdin, json);
+    if (subcommand === 'observe') return observeCommand(stdin, json);
+    if (subcommand === 'lifecycle') return lifecycleCommand(stdin, json);
     if (subcommand === 'chain') {
       if (context === undefined) {
         throw autopilotFailure(
@@ -1106,7 +1263,7 @@ export function runAutopilotCommand(
       throw autopilotFailure(
         'AUTOPILOT_USAGE',
         `autopilot has no '${subcommand}' subcommand`,
-        `known subcommands are scaffold, plan, orchestrate, reconcile, verify, gate, publish, grant, chain, ${stateful.join(', ')}`,
+        `known subcommands are scaffold, plan, orchestrate, reconcile, verify, gate, publish, grant, base, observe, reserve, lifecycle, chain, ${stateful.join(', ')}`,
         'run `void-harness autopilot --help` for the full contract',
       );
     }

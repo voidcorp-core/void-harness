@@ -610,6 +610,121 @@ ${enabled}  clusterSize: 2
     expect(emitted.grant.reason).toBe('production-downstream');
   });
 
+  // Which branch a run integrates into, and whether that branch is actually
+  // protected. Three functions decided it and none had a caller: an unread
+  // protection and an open branch look identical from the outside, and only
+  // one of them is safe.
+  it('selects the base and refuses one whose protection could not be read', () => {
+    const chosen = runAutopilotCommand(
+      ['base', '--json'],
+      JSON.stringify({
+        schemaVersion: 1,
+        requested: 'auto',
+        branches: [{ name: 'develop', headSha: SETUP_SHA }, { name: 'main', headSha: `${A}1` }],
+        protection: { ok: true, status: 200, body: JSON.stringify({ required_status_checks: { contexts: ['validate'] } }) },
+      }),
+      ctx(repo()),
+    );
+
+    expect(chosen.exitCode).toBe(0);
+    const emitted = JSON.parse(chosen.stdout);
+    expect(emitted.base.kind).toBe('selected');
+    expect(emitted.base.branch).toBe('develop');
+    expect(emitted.protection.allowed).toBe(true);
+
+    const unread = runAutopilotCommand(
+      ['base', '--json'],
+      JSON.stringify({
+        schemaVersion: 1,
+        requested: 'auto',
+        branches: [{ name: 'develop', headSha: SETUP_SHA }],
+        protection: { ok: false, status: 401, body: '' },
+      }),
+      ctx(repo()),
+    );
+
+    expect(JSON.parse(unread.stdout).protection.allowed).toBe(false);
+  });
+
+  // A raw boundary answer is classified by code, not by a model. `ok:false`
+  // carrying a value is a contradiction, and reading it as either half is how
+  // a run resumes on a fact that was never established.
+  it('classifies a raw boundary answer rather than trusting its shape', () => {
+    const result = runAutopilotCommand(
+      ['observe', '--json'],
+      JSON.stringify({
+        schemaVersion: 1,
+        tracker: { ok: true, value: 'held' },
+        pullRequest: { ok: false, error: 'gh exited 1' },
+        workerRefs: { ok: false, value: ['autopilot/cluster-1/DEV-1'], error: 'partial' },
+      }),
+      ctx(repo()),
+    );
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.tracker).toEqual({ kind: 'value', value: 'held' });
+    expect(emitted.pullRequest.kind).toBe('error');
+    expect(emitted.workerRefs.kind).toBe('contradiction');
+  });
+
+  // What the tracker owes once the run is over, stated rather than remembered.
+  it('states the tracker moves a merged run owes, and skips what it cannot prove', () => {
+    const result = runAutopilotCommand(
+      ['lifecycle', '--json'],
+      JSON.stringify({
+        schemaVersion: 1,
+        stage: 'merged',
+        runId: 'run-a',
+        states: { review: 'In Review', done: 'Done' },
+        pullRequest: { number: 42, url: 'https://example.invalid/42' },
+        mergeSha: `${A}1`,
+        tickets: [
+          { id: 'DEV-1', disposition: 'included', state: 'In Progress', range: `${SETUP_SHA}..${A}1` },
+          { id: 'DEV-2', disposition: 'excluded', state: 'In Progress', cause: 'blocked', resume: 'read the blocker' },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(JSON.stringify(emitted.actions)).toContain('DEV-1');
+    expect(emitted.actions.length).toBeGreaterThan(0);
+  });
+
+  // Taking the lease is the moment two launches on one pool would collide, so
+  // the decision to take it is code rather than a paragraph someone follows.
+  it('plans the reservation of a free cluster as tracker actions', () => {
+    const result = runAutopilotCommand(
+      ['reserve', '--json'],
+      JSON.stringify({
+        schemaVersion: 1,
+        programId: 'void-harness-v3',
+        runId: 'run-a',
+        clusterId: 'cluster-1',
+        cluster: ['DEV-1'],
+        assigneeId: 'user-1',
+        baseBranch: 'develop',
+        baseSha: SETUP_SHA,
+        integrationBranch: 'autopilot/cluster-1',
+        expiresAt: '1970-01-01T02:00:00.000Z',
+        states: { ready: ['Backlog'], started: 'In Progress', done: ['Done'] },
+        observation: {
+          schemaVersion: 1,
+          observedAt: '1970-01-01T00:00:00.000Z',
+          issues: [{ id: 'DEV-1', state: 'Backlog', assigneeId: null, comments: [], blockedBy: [] }],
+        },
+      }),
+      ctx(repo()),
+    );
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.kind).toBe('reserve');
+    expect(JSON.stringify(emitted.actions)).toContain('DEV-1');
+  });
+
   it('reports the local cursor and asks for a remote read when status gets no observation', () => {
     const root = repo();
     writeRun(root, runState());
