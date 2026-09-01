@@ -64,7 +64,9 @@ import {
   type ClaudeSettings,
   mergeLocalSettings,
   mergeSettings,
+  inspectSettings,
   readSettings,
+  settingsWriteVerdict,
   settingsPathFor,
   writeSettings,
 } from './settings.js';
@@ -90,6 +92,11 @@ export interface RuntimeWireContext {
    * packaged block is necessarily behind them.
    */
   readonly preserveDoctrineDoc?: boolean;
+  /**
+   * The operator said to overwrite a co-owned file this install cannot read.
+   * Absent means no: an unreadable file is left alone and reported.
+   */
+  readonly force?: boolean;
 }
 
 export interface RuntimeWireOutcome {
@@ -277,7 +284,12 @@ const claudeAdapter: RuntimeAdapter = {
     source === 'marketplace' ? [checkGh(), checkMarketplaceAccess(repo)] : [],
   async wire(ctx) {
     const settingsPath = settingsPathFor(ctx.projectRoot);
-    const existing = await readSettings(settingsPath);
+    // Inspected rather than read: a settings file the project cannot parse is
+    // not an empty one, and merging into `{}` is how its hooks and permissions
+    // used to disappear.
+    const read = await inspectSettings(settingsPath);
+    const settingsVerdict = settingsWriteVerdict({ read: read.kind, force: ctx.force === true });
+    const existing = read.kind === 'present' ? read.settings : {};
     let status: string;
     let nextSteps: string[];
     const packDirs = ctx.enabledPacks
@@ -304,6 +316,21 @@ const claudeAdapter: RuntimeAdapter = {
           'FAILED: core version could not be resolved from the marketplace — once it is reachable, run void-harness update to pin it',
         );
       }
+    }
+    // Refused rather than half-wired. Every hook this runtime loads is declared
+    // in this file, so an install that skips it and reports success ships a
+    // harness with no enforcement floor -- the failure the whole transaction
+    // exists to avoid. The caller rolls back byte for byte, so the settings the
+    // project cannot parse are still exactly the ones it wrote.
+    if (settingsVerdict === 'keep-unreadable') {
+      throw new Error(
+        '.claude/settings.json could not be parsed, and every hook is declared in it.'
+        + ' Repair the JSON and run this again, or pass --force to replace the file'
+        + ' (its hooks, permissions and environment go with it).',
+      );
+    }
+    if (settingsVerdict === 'overwrite-unreadable') {
+      status = `${status} (unreadable settings.json replaced, as --force asked)`;
     }
     await writeSettings(settingsPath, merged);
     const docResult = ctx.preserveDoctrineDoc === true
