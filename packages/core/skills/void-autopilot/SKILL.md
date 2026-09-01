@@ -127,7 +127,7 @@ mechanism.
 | `chain` | take another unit, or stop | the budget cannot cover one, the base is red, or nobody verified it |
 | `reserve` | may this run take the cluster | someone else holds it, or the observation is unusable |
 | `orchestrate` | lanes, assignments, and the git commands that make the worktrees | a base sha that is not a commit |
-| `reconcile` | which ranges merge, as commands | a head the worker claims that git does not have, a range holding a file another ticket declared, or a cluster and a declaration that contradict each other in either direction |
+| `reconcile` | which ranges merge, as commands | a head the worker claims that git does not have, a range holding a file another ticket declared, or a payload whose cluster, declarations, results and observed ranges do not describe the same run |
 | `verify` | the suite that decides the merge, bounded | — |
 | `gate` | did the proofs run on THIS tree, did the panel speak first, did the unit stay in its ceilings | any of them unproven; absence of a record is absence of the act |
 | `publish` | one branch, one refspec, one pull request, and the body that carries the account | the proofs are not sealed |
@@ -140,7 +140,10 @@ Every step takes its observation on stdin and answers with `--json`. Run
 `void-harness autopilot scaffold` with no step to list the ones it covers, and
 `void-harness autopilot scaffold <step>` for the exact shape and where each field comes from. For
 those steps the scaffold IS the contract, and cannot drift from it: a test pipes every scaffold
-back through its own validator. A step whose refusal can stop a run belongs on that list.
+back through its own validator. Five steps carry one today -- `plan`, `chain`, `start`, `status`
+and `reconcile`. The others are documented by their own refusal, which names the field it wanted
+and where to obtain it; a step whose refusal can stop a run is worth a scaffold, and the ones
+without are a gap rather than a decision.
 
 ### What the order guarantees
 
@@ -208,12 +211,17 @@ could tell audited-and-clean from never-audited. The declaration is not re-deriv
 list reconstructed from the branch diff would only ever agree with the diff it came from. A cluster
 of one is not audited, because there is no other ticket to rob.
 
-**And it cannot be off by shrinking a list either.** `cluster` and `footprints` are checked both
-ways: a cluster ticket nobody declared is refused, and so is a declaration for a ticket the cluster
-says it never reserved. Passing the tickets that CAME BACK rather than the ones the run reserved is
-the cheapest way to disarm the guard, and the proof of that under-declaration sits in the same
-payload. An `areas: []` entry counts as no declaration at all: nothing can be stolen from a ticket
-that claims nothing, so every neighbour walks into its ground reported as a widening.
+**And it cannot be off by shrinking a list either.** `cluster`, `footprints`, `results`,
+`failures` and the ranges git was read for must all describe the same run. Shortening `cluster` and
+`footprints` TOGETHER leaves two lists that agree with each other and an audit armed for one ticket
+where the run reserved two, so the neighbour whose file was absorbed is not there to be robbed. The
+check therefore runs in every direction: a cluster ticket nobody declared, a declaration for a
+ticket the cluster says it never reserved, and a result, a failure or an observed range naming a
+ticket absent from `cluster` are each a refusal. Passing the tickets that CAME BACK rather than the
+ones the run reserved is the cheapest way to disarm the guard, and the proof of that
+under-declaration always sits in the same payload as the under-declaration. An `areas: []` entry
+counts as no declaration at all: nothing can be stolen from a ticket that claims nothing, so every
+neighbour walks into its ground reported as a widening.
 
 Areas are read in one spelling. `packages/core/templates/`, `./packages/core/templates` and
 `packages/core/templates` are the same area, and an area that claims nothing after that reading --

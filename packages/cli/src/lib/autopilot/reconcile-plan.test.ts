@@ -52,6 +52,42 @@ function kinds(plan: ReturnType<typeof buildReconcilePlan>): string[] {
 }
 
 describe('buildReconcilePlan', () => {
+  // Two shapes the module's own comments already claimed to handle. Both arrive
+  // through JSON, where a declared type is a wish, and both used to leave as a
+  // raw TypeError from wherever the value happened to be read -- which names
+  // neither the field nor where to obtain it.
+  it('refuses a range whose claimed file list is not a list of paths', () => {
+    // The fallback the comment calls documented: a cluster of one, where the
+    // worker's own claim is what the strip step reads. It still has to be a list.
+    const [only] = [range({ ticketId: 'DEV-1' })];
+    const broken = { ...(only as VerifiedRange), files: 'pnpm-lock.yaml' as unknown as string[] };
+    const { observedFiles: _neverRead, ...withoutObservation } = broken;
+
+    expect(() =>
+      buildReconcilePlan(
+        input({
+          ranges: [withoutObservation as VerifiedRange],
+          cluster: ['DEV-1'],
+          footprints: [{ id: 'DEV-1', areas: ['src/DEV-1.ts'] }],
+          reconcileOnly: ['pnpm-lock.yaml'],
+        }),
+      ),
+    ).toThrow(/AUTOPILOT_CONTRACT[\s\S]*files/);
+  });
+
+  it('refuses a declaration whose areas are a string rather than a list', () => {
+    expect(() =>
+      buildReconcilePlan(
+        input({
+          footprints: [
+            { id: 'DEV-1', areas: ['src/DEV-1.ts'] },
+            { id: 'DEV-2', areas: 'src/DEV-2.ts' as unknown as string[] },
+          ],
+        }),
+      ),
+    ).toThrow(/AUTOPILOT_CONTRACT[\s\S]*DEV-2/);
+  });
+
   it('creates the integration branch from the pinned base, then merges each range', () => {
     const plan = buildReconcilePlan(input());
 

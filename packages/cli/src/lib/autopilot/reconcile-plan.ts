@@ -216,7 +216,36 @@ function readObservation(range: VerifiedRange, commits: number): RangeObservatio
   return { kind: 'observed', files };
 }
 
-export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
+/**
+ * The paths the strip step reads, or a refusal naming the field it could not read.
+ *
+ * The observation when there is one, the worker's own claim otherwise -- a range
+ * that reached here unaudited is a cluster of one, where the claim is the
+ * documented fallback. The comment used to promise the fallback was safe and the
+ * code still read `.filter` off whatever arrived, so a `files` that came back as
+ * a string turned a strip step into a raw TypeError. Silently treating it as
+ * empty is worse than refusing: the shared artefact would then never be stripped
+ * and the worker's own copy would ride into the merge.
+ */
+function strippableFiles(range: VerifiedRange): readonly string[] {
+  const observed = range.observedFiles;
+  if (Array.isArray(observed)) {
+    return observed.filter((file): file is string => typeof file === 'string');
+  }
+  const claimed: unknown = range.files;
+  if (!Array.isArray(claimed) || claimed.some((file) => typeof file !== 'string')) {
+    throw autopilotFailure(
+      'AUTOPILOT_CONTRACT',
+      'a range carries no readable file list for the shared-artefact strip',
+      `\`files\` for \`${range.ticketId}\` is ${typeof claimed === 'string' ? 'a string' : 'not a list of paths'}`,
+      "pass `git diff --name-only base..head` as `observedFiles`; the worker's own list is the fallback for a cluster of one, and it is still a list of paths",
+    );
+  }
+  return claimed as readonly string[];
+}
+
+/** The two shapes that are a misuse of the command rather than a run outcome. */
+function requireReconcilableInput(input: ReconcileInput): void {
   if (!SLUG.test(input.clusterId)) {
     throw autopilotFailure(
       'AUTOPILOT_CONTRACT',
@@ -233,6 +262,101 @@ export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
       'resolve the cluster outcome first; a run with nothing green opens no pull request',
     );
   }
+}
+
+/**
+ * Why this range does not merge, or `undefined` when it does.
+ *
+ * Ancestry first, then what the range actually carries. Both are exclusions
+ * rather than throws: one bad range costs its own ticket, never the cluster.
+ */
+function excludeRange(
+  range: VerifiedRange,
+  audited: boolean,
+  footprints: readonly DeclaredFootprint[],
+  exempt: readonly string[],
+): ExcludedRange | undefined {
+  if (range.verdict.kind !== 'usable') {
+    return { ticketId: range.ticketId, reason: 'unverified-range', detail: range.verdict.detail };
+  }
+  if (range.verdict.commits.length === 0) {
+    return {
+      ticketId: range.ticketId,
+      reason: 'no-usable-commit',
+      detail: `\`${range.ticketId}\` verified clean but carries no commit to integrate`,
+    };
+  }
+  if (!audited) return undefined;
+
+  // The same rule ancestry already follows: what the worker says it touched is a
+  // claim, and a claim cannot clear a range of carrying somebody else's work.
+  // Missing, empty and malformed are the same silence in three shapes -- the
+  // range carries a commit, so git reported paths for it.
+  const observation = readObservation(range, range.verdict.commits.length);
+  if (observation.kind === 'unobserved') {
+    return { ticketId: range.ticketId, reason: 'footprint-unobserved', detail: observation.detail };
+  }
+  const audit = auditFootprint(
+    { ticketId: range.ticketId, files: observation.files },
+    { footprints, exempt },
+  );
+  return audit.kind === 'breach'
+    ? { ticketId: range.ticketId, reason: 'footprint-breach', detail: audit.detail }
+    : undefined;
+}
+
+/** The merge, then the one rebuild of everything the reconciler owns. */
+function planSteps(
+  input: ReconcileInput,
+  integrationBranch: string,
+  integrate: readonly VerifiedRange[],
+  sharedPaths: readonly string[],
+): readonly ReconcileStep[] {
+  const steps: ReconcileStep[] = [
+    {
+      kind: 'create-branch',
+      ticketId: null,
+      // From the pinned SHA: the base branch may have moved since the lease, and
+      // every worker built on this exact tree.
+      command: ['git', 'checkout', '-b', integrationBranch, input.base.sha],
+      precondition: `no local branch \`${integrationBranch}\` exists, or it already points at ${input.base.sha}`,
+    },
+    ...integrate.map((range): ReconcileStep => ({
+      kind: 'merge-range',
+      ticketId: range.ticketId,
+      // --no-ff keeps each ticket's range identifiable in the history, which is
+      // what lets the pull request body claim per-ticket provenance honestly.
+      command: ['git', 'merge', '--no-ff', '--no-edit', range.headSha],
+      precondition: `\`${range.ticketId}\` was verified usable and ${range.headSha} is reachable`,
+    })),
+  ];
+
+  if (sharedPaths.length === 0) return steps;
+  steps.push({
+    kind: 'strip-shared',
+    ticketId: null,
+    command: ['git', 'checkout', input.base.sha, '--', ...sharedPaths],
+    precondition: 'every range merged; shared artefacts revert to the base before one rebuild',
+  });
+
+  if (input.rebuildCommand === undefined || input.rebuildCommand.length === 0) return steps;
+  steps.push({
+    kind: 'rebuild-shared',
+    ticketId: null,
+    command: [...input.rebuildCommand],
+    precondition: 'shared artefacts reverted to the base state',
+  });
+  steps.push({
+    kind: 'commit-shared',
+    ticketId: null,
+    command: ['git', 'commit', '-m', `chore(autopilot): rebuild shared artefacts for ${input.clusterId}`, '--', ...sharedPaths],
+    precondition: 'the rebuild produced a change; nothing to commit is not a failure',
+  });
+  return steps;
+}
+
+export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
+  requireReconcilableInput(input);
 
   const integrationBranch = `autopilot/${input.clusterId}`;
   const footprints = input.footprints ?? [];
@@ -244,118 +368,29 @@ export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
   const inPlay = new Set([...input.cluster, ...footprints.map((entry) => entry.id)]);
   const audited = inPlay.size > 1;
   if (audited) requireSymmetricDeclaration(input.cluster, footprints);
+
   const excluded: ExcludedRange[] = [];
   const integrate: VerifiedRange[] = [];
-
   for (const range of input.ranges) {
-    if (range.verdict.kind !== 'usable') {
-      excluded.push({
-        ticketId: range.ticketId,
-        reason: 'unverified-range',
-        detail: range.verdict.detail,
-      });
-      continue;
-    }
-    if (range.verdict.commits.length === 0) {
-      excluded.push({
-        ticketId: range.ticketId,
-        reason: 'no-usable-commit',
-        detail: `\`${range.ticketId}\` verified clean but carries no commit to integrate`,
-      });
-      continue;
-    }
-    if (audited) {
-      // The same rule ancestry already follows: what the worker says it touched
-      // is a claim, and a claim cannot clear a range of carrying somebody else's
-      // work. Missing, empty and malformed are the same silence in three shapes
-      // -- the range carries a commit, so git reported paths for it.
-      const observation = readObservation(range, range.verdict.commits.length);
-      if (observation.kind === 'unobserved') {
-        excluded.push({
-          ticketId: range.ticketId,
-          reason: 'footprint-unobserved',
-          detail: observation.detail,
-        });
-        continue;
-      }
-      const audit = auditFootprint(
-        { ticketId: range.ticketId, files: observation.files },
-        { footprints, exempt: input.reconcileOnly },
-      );
-      if (audit.kind === 'breach') {
-        excluded.push({ ticketId: range.ticketId, reason: 'footprint-breach', detail: audit.detail });
-        continue;
-      }
-    }
-    integrate.push(range);
+    const exclusion = excludeRange(range, audited, footprints, input.reconcileOnly);
+    if (exclusion === undefined) integrate.push(range);
+    else excluded.push(exclusion);
   }
 
   const sharedPaths = [
     ...new Set(
       integrate.flatMap((range) =>
-        // The observation when it is one, the worker's claim otherwise. A range
-        // that reached here unaudited is a cluster of one, where the claim is
-        // the documented fallback; what must not happen is this line reading
-        // `.filter` off a string and turning a strip step into a TypeError.
-        (Array.isArray(range.observedFiles) ? range.observedFiles : range.files).filter(
-          (file) => typeof file === 'string' && matchesAny(file, input.reconcileOnly),
-        ),
+        strippableFiles(range).filter((file) => matchesAny(file, input.reconcileOnly)),
       ),
     ),
   ].sort();
-
-  const steps: ReconcileStep[] = [
-    {
-      kind: 'create-branch',
-      ticketId: null,
-      // From the pinned SHA: the base branch may have moved since the lease, and
-      // every worker built on this exact tree.
-      command: ['git', 'checkout', '-b', integrationBranch, input.base.sha],
-      precondition: `no local branch \`${integrationBranch}\` exists, or it already points at ${input.base.sha}`,
-    },
-  ];
-
-  for (const range of integrate) {
-    steps.push({
-      kind: 'merge-range',
-      ticketId: range.ticketId,
-      // --no-ff keeps each ticket's range identifiable in the history, which is
-      // what lets the pull request body claim per-ticket provenance honestly.
-      command: ['git', 'merge', '--no-ff', '--no-edit', range.headSha],
-      precondition: `\`${range.ticketId}\` was verified usable and ${range.headSha} is reachable`,
-    });
-  }
-
-  if (sharedPaths.length > 0) {
-    steps.push({
-      kind: 'strip-shared',
-      ticketId: null,
-      command: ['git', 'checkout', input.base.sha, '--', ...sharedPaths],
-      precondition: 'every range merged; shared artefacts revert to the base before one rebuild',
-    });
-
-    if (input.rebuildCommand !== undefined && input.rebuildCommand.length > 0) {
-      steps.push({
-        kind: 'rebuild-shared',
-        ticketId: null,
-        command: [...input.rebuildCommand],
-        precondition: 'shared artefacts reverted to the base state',
-      });
-      steps.push({
-        kind: 'commit-shared',
-        ticketId: null,
-        command: ['git', 'commit', '-m', `chore(autopilot): rebuild shared artefacts for ${input.clusterId}`, '--', ...sharedPaths],
-        precondition: 'the rebuild produced a change; nothing to commit is not a failure',
-      });
-    }
-  }
 
   return {
     schemaVersion: 1,
     integrationBranch,
     integrate: integrate.map((range) => range.ticketId),
     excluded,
-    steps,
+    steps: planSteps(input, integrationBranch, integrate, sharedPaths),
     sharedPaths,
   };
 }

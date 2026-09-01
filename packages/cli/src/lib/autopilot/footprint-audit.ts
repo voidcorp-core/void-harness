@@ -88,8 +88,33 @@ function requireObservation(files: AuditedRange['files'], ticketId: string): voi
   );
 }
 
+/**
+ * A declaration is a list of areas, for the same reason a range is a list of files.
+ *
+ * `areas` crossed the same JSON boundary as `files`, and a string survives the
+ * emptiness check one layer up -- `'packages/core'.length > 0` is true -- so a
+ * footprint written as a bare path arrives here looking declared, and turns into
+ * `areas.map is not a function` at the line that compiles it. Which names
+ * neither the ticket nor the field.
+ */
+function requireDeclarations(footprints: readonly DeclaredFootprint[]): void {
+  const malformed = footprints.filter(
+    (footprint) =>
+      !Array.isArray(footprint.areas) ||
+      footprint.areas.some((area) => typeof area !== 'string' || area.trim() === ''),
+  );
+  if (malformed.length === 0) return;
+  throw autopilotFailure(
+    'AUTOPILOT_CONTRACT',
+    'a footprint declares its areas as something other than a list of paths',
+    `${malformed.map((footprint) => footprint.id).join(', ')} declared \`areas\` that is not a list of non-empty paths`,
+    'pass `footprints` exactly as `orchestrate` returned them; one entry per ticket, and `areas` is an array even when it holds a single path',
+  );
+}
+
 export function auditFootprint(range: AuditedRange, input: FootprintAuditInput): FootprintVerdict {
   requireObservation(range.files, range.ticketId);
+  requireDeclarations(input.footprints);
   // Compiled through the shared reading, so the audit and `orderWorkers` cannot
   // disagree about what an area claims -- and so an area that claims nothing is
   // refused here rather than passing as an empty claim.
