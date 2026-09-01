@@ -86,6 +86,18 @@ export interface ProgramDescriptor {
   readonly humanGates: readonly string[];
   /** Present when the program consents to autopilot; absent is the opt-out. */
   readonly autopilot?: AutopilotConfig;
+  /**
+   * True when a block was written and then took its consent back with
+   * `enabled: false`.
+   *
+   * The block itself is not returned. A consent taken back and a block never
+   * written forbid exactly the same thing, and returning one value for both is
+   * what stops the next authorisation point from forgetting to read a flag --
+   * the defect this field exists to close. What it carries is the REASON, so a
+   * refusal can name what the author wrote instead of reporting a block they can
+   * see sitting there as missing.
+   */
+  readonly autopilotConsentWithheld: boolean;
 }
 
 /**
@@ -236,9 +248,30 @@ function verifyCommands(value: unknown): readonly (readonly string[])[] {
  * nobody means. Omitting the block is the opt-out. See the
  * autopilot-block-is-the-consent decision.
  */
+/**
+ * Whether the block grants the consent, or takes it back with `enabled: false`.
+ *
+ * Absent is granted, because declaring the block is the consent and nobody
+ * writes a field to agree with what they already wrote. A value that is not a
+ * boolean refuses rather than being read either way: the string `"false"` read
+ * as consent is a run nobody authorised, and the correction costs one line.
+ */
+function consentGranted(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (typeof value !== 'boolean') {
+    invalid(
+      'the program descriptor states its autopilot consent as something other than a boolean',
+      `\`autopilot.enabled\` is ${String(value)}, and a consent is either true or false`,
+      'write `autopilot.enabled: false` to withhold it, `true` to grant it, or leave the field out',
+    );
+  }
+  return value;
+}
+
 function parseAutopilot(value: unknown): AutopilotConfig | undefined {
   if (value === undefined) return undefined;
   const block = record(value, 'autopilot');
+  const granted = consentGranted(block.enabled);
 
   const schemaVersion = block.schemaVersion;
   if (schemaVersion !== 1) {
@@ -336,6 +369,12 @@ function parseAutopilot(value: unknown): AutopilotConfig | undefined {
   }
 
   const ownership = block.ownership === undefined ? {} : record(block.ownership, 'autopilot.ownership');
+
+  // Withheld last, after everything above has been judged. A block that is
+  // present but wrong is an error whether or not it is switched off; letting a
+  // disabled one rot unread would move the failure to the day someone turns it
+  // back on, which is the worst moment to discover it.
+  if (!granted) return undefined;
   return {
     schemaVersion: 1,
     clusterSize: clusterSize as number,
@@ -432,6 +471,9 @@ function descriptorOf(
   progress: ProgressLocator | undefined,
 ): ProgramDescriptor {
   const autopilot = parseAutopilot(root.autopilot);
+  // A block that parsed into nothing is one that took its consent back; there is
+  // no other way for it to be present and produce no config.
+  const autopilotConsentWithheld = root.autopilot !== undefined && autopilot === undefined;
   // Consent without a provider is a request the core cannot serve: it would have
   // to infer remote progress, which is exactly what it must never do.
   if (autopilot !== undefined && progress === undefined) {
@@ -449,6 +491,7 @@ function descriptorOf(
     spec: confinedPath(requiredString(root, 'spec', 'frontmatter'), 'spec'),
     ...(progress === undefined ? {} : { progress }),
     humanGates: parseHumanGates(root),
+    autopilotConsentWithheld,
     ...(autopilot === undefined ? {} : { autopilot }),
   };
 }
