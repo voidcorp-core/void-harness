@@ -116,6 +116,56 @@ describe('planCluster', () => {
     ]);
   });
 
+  it('sequences a nested area, because the plan a human confirms names the lanes', () => {
+    // This reader compared areas by string equality while `worker-order` and
+    // `footprint-audit` both went through `footprint-area`. Measured on the
+    // built binary with `packages/core` and `packages/core/skills`: `plan` said
+    // parallel, `orchestrate` said sequential with `footprint-overlap`.
+    // `orderWorkers` routes, so nothing ran wrong -- but the plan is the
+    // artefact a human confirms, and it described lanes the run never used.
+    const plan = planCluster(
+      input({
+        tickets: [tk({ id: 'A' }), tk({ id: 'B' })],
+        footprints: [
+          fp({ id: 'A', areas: ['packages/core'] }),
+          fp({ id: 'B', areas: ['packages/core/skills'] }),
+        ],
+      }),
+    );
+    expect(plan.parallel).toEqual([]);
+    expect(plan.sequential).toEqual([
+      { id: 'A', reasons: ['footprint-overlap'] },
+      { id: 'B', reasons: ['footprint-overlap'] },
+    ]);
+  });
+
+  it('reads a trailing slash and a leading dot-slash as the same area every reader reads', () => {
+    const plan = planCluster(
+      input({
+        tickets: [tk({ id: 'A' }), tk({ id: 'B' })],
+        footprints: [
+          fp({ id: 'A', areas: ['packages/core/'] }),
+          fp({ id: 'B', areas: ['./packages/core'] }),
+        ],
+      }),
+    );
+    expect(plan.parallel).toEqual([]);
+    expect(plan.sequential.map((entry) => entry.id)).toEqual(['A', 'B']);
+  });
+
+  it('excludes a footprint whose area claims nothing instead of throwing the pool away', () => {
+    // One bad candidate in a pool must not deny the operator the others, so the
+    // shared reading's refusal becomes this reader's typed cause.
+    const plan = planCluster(
+      input({
+        tickets: [tk({ id: 'A' }), tk({ id: 'B' })],
+        footprints: [fp({ id: 'A', areas: ['../x'] }), fp({ id: 'B' })],
+      }),
+    );
+    expect(excludedIds(plan, 'malformed-input')).toEqual(['A']);
+    expect(plan.cluster).toEqual(['B']);
+  });
+
   it('sequences a high-risk ticket because a lockfile or a migration always collides', () => {
     const plan = planCluster(
       input({

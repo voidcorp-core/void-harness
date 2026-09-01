@@ -85,6 +85,20 @@ export function areaClaims(compiled: CompiledArea, file: string): boolean {
 }
 
 /**
+ * Is `inner` a carve-out of `outer` rather than the same ground?
+ *
+ * `packages/core/b` sits inside `packages/core`, and a human who writes both on
+ * two different tickets is drawing a boundary, not repeating one. Strict: the
+ * outer claims the inner's ground and the inner does not claim the outer's, so
+ * two spellings of the SAME area -- and two globs neither of which contains the
+ * other -- are a tie rather than a nesting, and a tie keeps the old reading that
+ * both tickets were entitled.
+ */
+export function areaIsNarrower(inner: CompiledArea, outer: CompiledArea): boolean {
+  return areaClaims(outer, inner.area) && !areaClaims(inner, outer.area);
+}
+
+/**
  * Do two areas contend for the same ground?
  *
  * Symmetric on purpose: `packages/cli/src` claims `packages/cli/src/lib/x.ts`,

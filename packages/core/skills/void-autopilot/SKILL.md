@@ -202,9 +202,14 @@ read for is excluded as `footprint-unobserved`.
 What it refuses is narrow on purpose. A file **another ticket of the cluster declared** is a
 breach: nothing legitimate produces it. A file nobody predicted is a widening, and it passes --
 a ticket that enumerates from the manifests finds the packages its author missed, and a guard that
-refuses that discovery is a guard that hides defects. A file both tickets declared passes too:
-`orchestrate` sequenced them for that collision, and it reads a nested area the same way the audit
-does, so the two cannot disagree about who claimed what. A `reconcileOnly` path is not judged,
+refuses that discovery is a guard that hides defects. A file **both** tickets declared the same
+way passes too: neither declaration is more specific, so both were entitled. A **carve-out** does
+not: `packages/core` claims `packages/core/b/x.ts` by prefix, but a neighbour declaring
+`packages/core/b` drew a boundary rather than repeated one, so the wider ticket writing there is a
+breach. Owning the file no longer ends the question -- it used to, and the carved-out file then
+came back within-scope with an empty widening, invisible rather than merely permitted. Sequencing
+does not compensate: two sequential workers still hold two worktrees on the same base, and it
+addresses lockfiles and migrations, never file theft. A `reconcileOnly` path is not judged,
 since the reconciler strips and rebuilds it anyway.
 
 **The audit cannot be off.** A cluster of more than one ticket that reaches `reconcile` without a
