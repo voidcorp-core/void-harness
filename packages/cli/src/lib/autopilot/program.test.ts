@@ -120,12 +120,51 @@ describe('parseProgramDescriptor', () => {
     expect(descriptor.progress).toBeUndefined();
   });
 
-  it('ignores an `enabled` left over from a descriptor written before this', () => {
-    // Rejecting the unknown field would turn every existing program into an
-    // error on upgrade, for a line that now says what its presence already says.
-    const descriptor = parseProgramDescriptor(VALID.replace('  clusterSize: 4', '  enabled: true\n  clusterSize: 4'));
+  // `enabled: false` is how a project takes back a consent it once gave. Deleting
+  // the block would do it too, at the cost of `base`, `mergeGate`, `verifyCommands`
+  // and `ownership` -- fifteen lines to remove and restore by hand, which is where
+  // the mistake gets made. So the field is read, and the block stays where it is.
+  it('reads `enabled: false` as the consent taken back, and reports which one it was', () => {
+    const descriptor = parseProgramDescriptor(
+      VALID.replace('  clusterSize: 4', '  enabled: false\n  clusterSize: 4'),
+    );
 
-    expect(descriptor.autopilot?.clusterSize).toBe(4);
+    expect(descriptor.autopilot).toBeUndefined();
+    expect(descriptor.autopilotConsentWithheld).toBe(true);
+  });
+
+  it('keeps consent when `enabled` is absent, and when it is written true', () => {
+    const implicit = parseProgramDescriptor(VALID);
+    expect(implicit.autopilot?.clusterSize).toBe(4);
+    expect(implicit.autopilotConsentWithheld).toBe(false);
+
+    const explicit = parseProgramDescriptor(
+      VALID.replace('  clusterSize: 4', '  enabled: true\n  clusterSize: 4'),
+    );
+    expect(explicit.autopilot?.clusterSize).toBe(4);
+    expect(explicit.autopilotConsentWithheld).toBe(false);
+  });
+
+  // The direction of the failure decides this. Reading `"false"` as consent is a
+  // run nobody authorised; refusing it costs one corrected line.
+  it('refuses an `enabled` that is not a boolean rather than reading it as consent', () => {
+    for (const bad of ['"false"', 'off', '0', '[]']) {
+      expect(
+        () => parseProgramDescriptor(VALID.replace('  clusterSize: 4', `  enabled: ${bad}\n  clusterSize: 4`)),
+        bad,
+      ).toThrow(/enabled/);
+    }
+  });
+
+  // A block that is present but wrong is an error here as everywhere else. The
+  // alternative is a descriptor that rots unread while it is disabled and fails
+  // on the day someone turns it back on, which is the worst moment to find out.
+  it('validates a disabled block instead of waving it through', () => {
+    expect(() =>
+      parseProgramDescriptor(
+        VALID.replace('  clusterSize: 4', '  enabled: false\n  clusterSize: 9'),
+      ),
+    ).toThrow(/cluster size/i);
   });
 
   it('rejects autonomous selection without a progress source', () => {

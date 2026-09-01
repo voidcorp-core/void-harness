@@ -24,8 +24,13 @@ import type { CheckResult } from '../prerequisites.js';
 
 export interface ParsedProgram {
   readonly status?: string;
+  /**
+   * True when a block was written and then took its consent back. Carried
+   * separately from `autopilot` because the config is gone by then, and the
+   * reader still needs to be told which of the two silences this is.
+   */
+  readonly autopilotConsentWithheld?: boolean;
   readonly autopilot?: {
-    readonly enabled?: boolean;
     readonly clusterSize?: number;
     readonly mergeGate?: string;
     readonly verifyCommands?: readonly (readonly string[])[];
@@ -119,6 +124,16 @@ function programCheck(observation: AutopilotObservation): CheckResult {
       name,
       `status is ${JSON.stringify(program.status ?? 'absent')}, not "executing"`,
       'set status: executing once the plan and its ticket pool are approved',
+    );
+  }
+  // Two silences, and only one of them means "author a block". Someone who wrote
+  // `enabled: false` can see their block sitting there, and being told it is
+  // absent sends them looking for a file problem they do not have.
+  if (program.autopilotConsentWithheld === true) {
+    return fail(
+      name,
+      'the program declares `enabled: false`, so it has taken back its consent to run unattended',
+      'set `autopilot.enabled: true`, or leave the field out; the block itself stays as it is',
     );
   }
   // Declaring the block is the consent. A program without one has not withheld a

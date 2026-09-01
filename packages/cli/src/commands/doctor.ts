@@ -743,6 +743,7 @@ function observeAutopilot(root: string): Parameters<typeof autopilotPreflight>[0
           ? undefined
           : {
               status: program.status,
+              autopilotConsentWithheld: program.autopilotConsentWithheld,
               // Absent means the program opted out, which preflight reports as
               // such. Reporting an empty block instead would read as consent.
               ...(program.autopilot === undefined ? {} : {

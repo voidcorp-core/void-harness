@@ -68,6 +68,21 @@ describe('the program', () => {
 
     expect(named(results, 'autopilot program')?.message).toMatch(/autopilot/);
   });
+
+  // Two different things to say to a reader. A program that never asked for the
+  // feature is told to declare a block; a program that took its consent back is
+  // told what it wrote, because it can see the block sitting there and would go
+  // looking for a block that is missing.
+  it('names the withheld consent rather than reporting the block as absent', () => {
+    const results = autopilotPreflight(
+      observation({ program: { status: 'executing', autopilotConsentWithheld: true } }),
+    );
+    const check = named(results, 'autopilot program');
+
+    expect(check?.status).toBe('fail');
+    expect(check?.message).toContain('enabled: false');
+    expect(check?.message).not.toMatch(/declares no autopilot block/);
+  });
 });
 
 describe('the provider-agnostic program boundary', () => {
@@ -127,7 +142,7 @@ describe('the verify commands', () => {
   it('says why argv rather than a string, in the fix', () => {
     const results = autopilotPreflight(
       observation({
-        program: { status: 'executing', autopilot: { enabled: true, verifyCommands: [[]] } },
+        program: { status: 'executing', autopilot: { verifyCommands: [[]] } },
       }),
     );
 
