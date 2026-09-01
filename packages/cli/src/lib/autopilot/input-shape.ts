@@ -64,7 +64,10 @@ export const INPUT_SHAPES: Readonly<Record<AutopilotInputStep, InputShape>> = Ob
       {
         name: 'footprints',
         type: 'array',
-        from: 'the paths each ticket names as its anchors; `confidence` is yours to state',
+        from: 'the paths each ticket names as its anchors, at least one -- a ticket whose'
+          + ' `areas` is empty is excluded as `missing-footprint`, because autopilot routes on'
+          + ' footprints and no later step can protect ground nobody named; `confidence` is'
+          + ' yours to state',
         example: [{
           id: 'DEV-1',
           areas: ['packages/cli/src/lib/example.ts'],

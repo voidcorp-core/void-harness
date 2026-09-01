@@ -380,6 +380,51 @@ describe('buildReconcilePlan footprint audit', () => {
     ).toThrow(/DEV-2/);
   });
 
+  it('names a repair for an undeclared ticket rather than asking for the same payload again', () => {
+    // `orchestrate` emits `areas: []` verbatim, so "pass `footprints` exactly as
+    // `orchestrate` returned them" named the gesture that had just succeeded. At
+    // the last step of a run whose workers all finished, a fix line that asks
+    // for the payload again is a dead end: the two remaining moves were
+    // inventing an area, which the whole audit exists to forbid, and shrinking
+    // `cluster`, which `requireClusterCoversRun` refuses. `plan` now excludes
+    // such a ticket before any worker starts, and this stays the backstop for a
+    // hand-built payload -- so it has to say what a caller can actually do.
+    const undeclared = (): void => {
+      buildReconcilePlan(
+        audited({
+          footprints: [{ id: 'DEV-1', areas: ['src/DEV-1.ts'] }, { id: 'DEV-2', areas: [] }],
+          ranges: [range({ ticketId: 'DEV-1' })],
+        }),
+      );
+    };
+    const absent = (): void => {
+      buildReconcilePlan(
+        audited({ footprints: [{ id: 'DEV-1', areas: ['src/DEV-1.ts'] }], ranges: [range({ ticketId: 'DEV-1' })] }),
+      );
+    };
+
+    let undeclaredMessage = '';
+    let absentMessage = '';
+    try {
+      undeclared();
+    } catch (error) {
+      undeclaredMessage = error instanceof Error ? error.message : String(error);
+    }
+    try {
+      absent();
+    } catch (error) {
+      absentMessage = error instanceof Error ? error.message : String(error);
+    }
+
+    // A declaration that arrived and named nothing is not a declaration that
+    // never arrived, and the two repairs are different gestures.
+    expect(undeclaredMessage).toMatch(/declared `areas: \[\]`/);
+    expect(undeclaredMessage).toMatch(/cluster of one/);
+    expect(undeclaredMessage).not.toMatch(/exactly as `orchestrate` returned them/);
+    expect(absentMessage).toMatch(/exactly as `orchestrate` returned them/);
+    expect(absentMessage).not.toMatch(/cluster of one/);
+  });
+
   it('refuses a range whose observed files arrived as a string rather than a list', () => {
     // `length` on a string is a character count, and `for...of` walks
     // characters: every one of them matched no area, so the verdict was

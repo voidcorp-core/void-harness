@@ -24,7 +24,9 @@ export type ExclusionCause =
   | 'cluster-full'
   | 'review-budget-exhausted';
 
-export type SequenceReason = 'unknown-footprint' | 'low-confidence' | 'high-risk' | 'footprint-overlap';
+// No `unknown-footprint` here, unlike `worker-order`: a ticket that names no
+// area never reaches the partition, it is excluded above as `missing-footprint`.
+export type SequenceReason = 'low-confidence' | 'high-risk' | 'footprint-overlap';
 
 export interface CandidateTicket {
   readonly id: string;
@@ -44,7 +46,7 @@ export interface CandidateTicket {
 
 export interface ClusterFootprint {
   readonly id: string;
-  /** Estimated touched areas. Empty = unknown footprint. */
+  /** Estimated touched areas. At least one, or the ticket is not selectable. */
   readonly areas: readonly string[];
   /** Lockfile / migrations / other guaranteed-collision zones. */
   readonly highRisk: boolean;
@@ -163,13 +165,28 @@ export function planCluster(input: ClusterPlanInput): ClusterPlan {
 
     const footprint = footprints.get(ticket.id);
     if (footprint === undefined) {
-      // A footprint the estimator never produced is missing, not empty:
-      // inventing one would silently route real work as "unknown".
+      // A footprint the estimator never produced is missing: inventing an empty
+      // one would silently route real work as "unknown".
       excluded.push({ id: ticket.id, cause: 'missing-footprint' });
       continue;
     }
     if (!wellFormedFootprint(footprint)) {
       excluded.push({ id: ticket.id, cause: 'malformed-input' });
+      continue;
+    }
+    // An entry that names no area is the same silence written as a value, and
+    // this reader was the only one treating the two spellings differently:
+    // `orderWorkers` already reads absent and empty as one `unknown-footprint`.
+    // The disagreement was not cosmetic. Autopilot routes on footprints, so a
+    // ticket naming no ground gives it nothing to route on -- and it gives the
+    // reconciliation audit nothing to protect either, since a claim of nothing
+    // cannot be intruded upon: every neighbour walking into its files reads as
+    // an ordinary widening. Admitting it here therefore bought no coverage and
+    // cost a whole run, because reconciliation refuses the cluster once both
+    // workers have finished, with no move left that is not either inventing an
+    // area or shrinking the cluster past its own guard.
+    if (footprint.areas.length === 0) {
+      excluded.push({ id: ticket.id, cause: 'missing-footprint' });
       continue;
     }
     if (!ticket.ready) {
@@ -224,7 +241,6 @@ export function planCluster(input: ClusterPlanInput): ClusterPlan {
   const sequential: SequencedTicket[] = [];
   for (const signal of admitted) {
     const reasons: SequenceReason[] = [];
-    if (signal.areas.length === 0) reasons.push('unknown-footprint');
     if (signal.confidence < minConfidence) reasons.push('low-confidence');
     if (signal.highRisk) reasons.push('high-risk');
     if (admitted.some((other) => other.id !== signal.id && overlaps(signal.areas, other.areas))) {
