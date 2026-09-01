@@ -158,33 +158,23 @@ function compileAreas(areas: readonly string[]): readonly CompiledArea[] | undef
   }
 }
 
-export function planCluster(input: ClusterPlanInput): ClusterPlan {
-  if (input.schemaVersion !== 1) {
-    throw new Error(
-      `autopilot: unknown cluster plan schemaVersion ${String(input.schemaVersion)}. This CLI reads version 1; upgrade the caller or the harness so both speak the same contract.`,
-    );
-  }
-  const clusterSize = input.clusterSize ?? MAX_CLUSTER_SIZE;
-  if (!Number.isInteger(clusterSize) || clusterSize < 1 || clusterSize > MAX_CLUSTER_SIZE) {
-    throw new Error(
-      `autopilot: clusterSize must be an integer between 1 and ${MAX_CLUSTER_SIZE}, received ${clusterSize}. Set clusterSize within that range in the active program.`,
-    );
-  }
-  const minConfidence = input.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
-
-  const excluded: ExcludedTicket[] = [];
-  const areas = new Map<string, readonly CompiledArea[]>();
-  const footprints = new Map<string, ClusterFootprint>();
-  for (const footprint of input.footprints) {
-    if (typeof footprint?.id === 'string' && !footprints.has(footprint.id)) {
-      footprints.set(footprint.id, footprint);
-    }
-  }
-
-  // Screening, in input order: everything decidable from one candidate alone.
+/**
+ * Everything decidable from one candidate alone, in input order.
+ *
+ * Extracted because it is a second subject: a screen answers "may this ticket
+ * enter at all", the selection and the partition answer "with whom". It also
+ * owns the exclusions, so they are appended here rather than returned in a
+ * parallel list nobody could keep aligned with them.
+ */
+function screenCandidates(
+  tickets: readonly CandidateTicket[],
+  footprints: ReadonlyMap<string, ClusterFootprint>,
+  excluded: ExcludedTicket[],
+  areas: Map<string, readonly CompiledArea[]>,
+): readonly CandidateTicket[] {
   const seen = new Set<string>();
   const candidates: CandidateTicket[] = [];
-  for (const ticket of input.tickets) {
+  for (const ticket of tickets) {
     if (!wellFormedTicket(ticket) || seen.has(ticket.id)) {
       excluded.push({ id: ticket?.id ?? '', cause: 'malformed-input' });
       continue;
@@ -233,6 +223,33 @@ export function planCluster(input: ClusterPlanInput): ClusterPlan {
     }
     candidates.push(ticket);
   }
+  return candidates;
+}
+
+export function planCluster(input: ClusterPlanInput): ClusterPlan {
+  if (input.schemaVersion !== 1) {
+    throw new Error(
+      `autopilot: unknown cluster plan schemaVersion ${String(input.schemaVersion)}. This CLI reads version 1; upgrade the caller or the harness so both speak the same contract.`,
+    );
+  }
+  const clusterSize = input.clusterSize ?? MAX_CLUSTER_SIZE;
+  if (!Number.isInteger(clusterSize) || clusterSize < 1 || clusterSize > MAX_CLUSTER_SIZE) {
+    throw new Error(
+      `autopilot: clusterSize must be an integer between 1 and ${MAX_CLUSTER_SIZE}, received ${clusterSize}. Set clusterSize within that range in the active program.`,
+    );
+  }
+  const minConfidence = input.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
+
+  const excluded: ExcludedTicket[] = [];
+  const areas = new Map<string, readonly CompiledArea[]>();
+  const footprints = new Map<string, ClusterFootprint>();
+  for (const footprint of input.footprints) {
+    if (typeof footprint?.id === 'string' && !footprints.has(footprint.id)) {
+      footprints.set(footprint.id, footprint);
+    }
+  }
+
+  const candidates = screenCandidates(input.tickets, footprints, excluded, areas);
 
   // Selection, in rank order: independence first, then the ceiling.
   const ranked = candidates.slice().sort((a, b) => {
