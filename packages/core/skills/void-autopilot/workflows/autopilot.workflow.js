@@ -257,6 +257,27 @@ function workerPrompt(assignment, plan) {
   ].join('\n')
 }
 
+/**
+ * Where a worker's hook telemetry lands, and why nothing is set here.
+ *
+ * The hooks resolve their root from `VOID_PROJECT_ROOT`, else
+ * `CLAUDE_PROJECT_DIR`, else the git toplevel they discover -- and the
+ * reconciler deletes the worktree, so a discovered toplevel means the run's
+ * telemetry is gone before anyone reads the pull request.
+ *
+ * This adapter sets neither variable, for two reasons that both have to hold.
+ * `agent()` takes label, phase, schema, model, effort, isolation and agentType,
+ * and no environment option, so there is nothing to set it through. And the
+ * runtime already puts the session's project -- the main checkout -- in
+ * `CLAUDE_PROJECT_DIR`, which every subagent inherits, so there is nothing to
+ * repair. The Codex adapter has neither property and exports `VOID_PROJECT_ROOT`
+ * itself at spawn; see `references/codex-subagents.md`.
+ *
+ * Saying it in the worker brief would fix nothing, and this is the mechanism
+ * rather than a preference: an `export` the agent runs in a shell call
+ * does not reach the process the runtime launches hooks in.
+ */
+
 /** Fan the cluster out: disjoint tickets at once, colliding ones one by one. */
 async function runWorkers(plan) {
   const results = []

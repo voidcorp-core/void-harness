@@ -149,6 +149,20 @@ describe('both adapters carry the same worker contract', () => {
     }
   });
 
+  // A worker's hooks write to `VOID_PROJECT_ROOT`, else `CLAUDE_PROJECT_DIR`,
+  // else the toplevel they discover -- which under a worktree is the tree the
+  // reconciler deletes. Claude inherits the session's project dir and its
+  // `agent()` takes no environment option, so it sets nothing and says why;
+  // Codex has neither property and must export the root at spawn.
+  it('answers where a worker writes its hook telemetry, in both adapters', () => {
+    expect(CODEX).toContain('VOID_PROJECT_ROOT');
+    expect(flat(CODEX)).toMatch(/process environment of every subagent you spawn/i);
+    expect(WORKFLOW).toContain('VOID_PROJECT_ROOT');
+    expect(flat(WORKFLOW)).toMatch(/no environment option/i);
+    // Not the brief: an export in a shell call never reaches the hook process.
+    for (const source of [WORKFLOW, CODEX]) expect(flat(source)).toMatch(/does not reach the process/i);
+  });
+
   it('makes neither adapter a writer of state or tracker comments', () => {
     expect(CODEX).toMatch(/writes no run state/i);
     expect(WORKFLOW).toMatch(/never writes run state/i);

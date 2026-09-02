@@ -19,6 +19,26 @@ checkout.
 Subagents share filesystem access. The isolation is the pre-created worktree and
 the explicit working directory you pass, never an assumed sandbox.
 
+### `VOID_PROJECT_ROOT` in every subagent's environment
+
+Set `VOID_PROJECT_ROOT` to the installation root — the directory this adapter is
+running in, which is where the controller created the worktrees from — in the
+process environment of every subagent you spawn.
+
+The hooks resolve where to write their telemetry from `VOID_PROJECT_ROOT`, else
+`CLAUDE_PROJECT_DIR`, else the git toplevel they discover. A Codex subagent has
+neither variable, so it discovers the toplevel of the worktree it is working in,
+and the reconciler deletes that worktree at the end of the run: the run's hook
+telemetry is gone before anyone reads the pull request, while the same run's
+mission journal sits in the main checkout. One run, two halves, one deleted.
+
+It has to be the environment you spawn with, not a line in the brief. An `export`
+the agent runs in a shell call does not reach the process the runtime launches
+hooks in, which is the one that writes. The Claude adapter sets nothing here
+because it cannot and does not need to: the Workflow `agent()` primitive takes no
+environment option, and the runtime already puts the session's project — the main
+checkout — in `CLAUDE_PROJECT_DIR`, which every subagent inherits.
+
 ## Execution
 
 1. Every assignment with `lane: "parallel"` runs concurrently, at most
