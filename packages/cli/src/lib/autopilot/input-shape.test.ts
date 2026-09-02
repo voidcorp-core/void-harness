@@ -165,7 +165,7 @@ describe('the taken list is validated entry by entry, against the merge journal'
       merged: [journal(['DEV-1', 'DEV-2'])],
       taken: [
         { tickets: ['DEV-2', 'DEV-1'], outcome: 'merged' },
-        { tickets: ['DEV-3'], outcome: 'blocked' },
+        { tickets: ['DEV-3'], outcome: 'unit-blocked' },
       ],
     }), 'chain')).not.toThrow();
   });

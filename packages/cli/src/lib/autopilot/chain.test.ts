@@ -371,7 +371,7 @@ describe('a unit that came back unmerged', () => {
   it('measures over the units that finished, not over the ones that merely stopped', () => {
     const decision = step({
       merged: [unit()],
-      taken: [{ tickets: ['DEV-1'], outcome: 'merged' }, { tickets: ['DEV-2'], outcome: 'blocked' }],
+      taken: [{ tickets: ['DEV-1'], outcome: 'merged' }, { tickets: ['DEV-2'], outcome: 'unit-blocked' }],
       budgetMs: 130 * MINUTE,
       elapsedMs: 82 * MINUTE,
     });

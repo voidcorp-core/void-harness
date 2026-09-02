@@ -337,7 +337,7 @@ function judgeBudget(input: {
   // finished. A blocked unit spent the run's time and is in the numerator; it is
   // not a second unit to divide by. See the only-a-finished-unit-measures
   // decision.
-  const finished = input.taken.filter((unit) => unit.outcome !== 'blocked').length;
+  const finished = input.taken.filter((unit) => unit.outcome !== 'unit-blocked').length;
   const cold = finished === 0;
   const perUnit = cold ? COLD_START_UNIT_MS : input.elapsedMs / finished;
   if (remaining < perUnit) {
