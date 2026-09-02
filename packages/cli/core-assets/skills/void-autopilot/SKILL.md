@@ -154,7 +154,7 @@ mechanism.
 | `orchestrate` | lanes, assignments, and the git commands that make the worktrees | a base sha that is not a commit, or a footprint declared for a ticket absent from `tickets` |
 | `reconcile` | which ranges merge, as commands | a head the worker claims that git does not have, a range holding a file another ticket declared, or a payload whose cluster, declarations, results and observed ranges do not describe the same run |
 | `verify` | the suite that decides the merge, bounded | — |
-| `gate` | did the proofs run on THIS tree, did the panel speak first, did the unit stay in its ceilings | any of them unproven; absence of a record is absence of the act |
+| `gate` | did the proofs run on THIS tree, did the panel speak first, did the unit stay in its ceilings, and what reviewed each unit | any of them unproven, or a unit no review pass touched; absence of a record is absence of the act |
 | `publish` | one branch, one refspec, one pull request, and the body that carries the account | the proofs are not sealed |
 | `grant` | may this merge itself, and the one `gh pr merge` it permits | see the refusal table below |
 | `landed` | whether that merge actually landed, from the commit GitHub reports | — |
@@ -183,6 +183,8 @@ tests hold this file to them.
   **re-observe every ticket** and seen all of them converge; partial convergence releases what was
   taken, because half a cluster produces an integration pull request that can never be complete.
   The same rule governs ranges: `reconcile` believes git, never the worker's own commit list.
+- **A worker states what reviewed it.** `WorkerResult.review` names each pass and where it ran, or
+  why none did. No record, no parse; a self-review is named in the body; none refuses the gate.
 - **A migration is never parallel**, whatever its estimate says, and neither is a low-confidence
   footprint, a lockfile or a shared-ownership path. `orchestrate` sequences what it cannot prove
   disjoint, and names why each ticket lost its parallel slot.
@@ -315,11 +317,10 @@ is ready, or a unit is published and waiting for a person. `nextUnit` is absent 
 a caller cannot take one anyway.
 
 A unit is taken once. The observation lists every unit the run took with what became of it --
-`merged`, `published-awaiting-human`, or `unit-blocked` with its cause (no range survived, the
-proofs refused, the reconciler excluded the ticket) -- and none of those is remaining: on
-2026-09-02 the chain knew only `merged`, counted a unit handed to a person as still ready, and
-proposed it again onto its own pull request. A unit that finished measures how long one takes; a
-blocked one measured failing and is left out, and the estimate serves only until one finishes.
+`merged`, `published-awaiting-human`, or `unit-blocked` with its cause -- and none of those is
+remaining: on 2026-09-02 the chain knew only `merged`, counted a unit handed to a person as still
+ready, and proposed it again onto its own pull request. A unit that finished measures how long one
+takes; a blocked one measured failing, and the estimate serves only until one finishes.
 
 A unit already under way is never cut in half. The budget decides whether to START another one;
 cutting mid-unit leaves a worktree and half a ticket, which costs more than the overrun it saves.

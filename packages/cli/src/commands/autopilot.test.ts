@@ -327,6 +327,7 @@ ${enabled}  clusterSize: 2
       files: ['packages/cli/src/x.ts'],
       proofs: [{ name: 'suite', command: ['pnpm', 'test'], hash: 'd'.repeat(64) }],
       decisions: [],
+      review: { kind: 'panel', passes: [{ name: 'code-review', context: 'fresh-context-subagent' }] },
       blocker: null,
       ...over,
     };
@@ -696,6 +697,71 @@ ${enabled}  clusterSize: 2
     expect(verdict.budget.kind).toBe('within');
   });
 
+  // Observed 2026-09-02: a worker whose runtime exposes no fresh-context
+  // subagent ran every review pass on itself, said so in `decisions`, and the
+  // run was green -- in exactly the case the gate was written to catch. The
+  // provenance is a fact now, so the gate has something to read.
+  it('downgrades a unit its own author reviewed, and says which one', () => {
+    const result = runAutopilotCommand(
+      ['gate', '--json'],
+      gateObservation({
+        reviews: [
+          {
+            ticketId: 'DEV-1',
+            provenance: {
+              kind: 'self-review',
+              passes: [{ name: 'code-review', context: 'self-review' }],
+              because: 'this runtime exposes no fresh-context subagent primitive',
+            },
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    const verdict = JSON.parse(result.stdout);
+    expect(verdict.reviews.kind).toBe('downgraded');
+    expect(verdict.reviews.detail).toContain('DEV-1');
+    // The proofs still merge: the worker did the work and reported honestly.
+    // What changes is that nobody can now read this run as panel-grade.
+    expect(verdict.proofs.kind).toBe('merge');
+    expect(result.stdout).toContain('self-reviewed');
+  });
+
+  it('refuses a unit no review pass ever touched', () => {
+    const result = runAutopilotCommand(
+      ['gate', '--json'],
+      gateObservation({
+        reviews: [
+          { ticketId: 'DEV-1', provenance: { kind: 'none', because: 'the mission was abandoned' } },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    expect(JSON.parse(result.stdout).reviews.kind).toBe('refuse');
+  });
+
+  it('states panel grade when every unit was briefed by a fresh context', () => {
+    const result = runAutopilotCommand(
+      ['gate', '--json'],
+      gateObservation({
+        reviews: [
+          {
+            ticketId: 'DEV-1',
+            provenance: {
+              kind: 'panel',
+              passes: [{ name: 'architecture', context: 'fresh-context-subagent' }],
+            },
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    expect(JSON.parse(result.stdout).reviews.kind).toBe('panel-grade');
+  });
+
   /** Everything the run knows once the integration branch is green. */
   function publication(over: Record<string, unknown> = {}): string {
     return JSON.stringify({
@@ -711,6 +777,7 @@ ${enabled}  clusterSize: 2
           ticketId: 'DEV-1',
           title: 'a unit',
           range: { baseSha: SETUP_SHA, headSha: `${A}1`, commits: [`${A}1`] },
+          review: { grade: 'panel-grade', detail: '4 pass(es) in a fresh context' },
         },
       ],
       excluded: [],
@@ -747,6 +814,50 @@ ${enabled}  clusterSize: 2
     expect(emitted.ci.total).toBeNull();
     expect(emitted.ci.honest).toBe(false);
     expect(emitted.body).toContain('back-merge.yml');
+  });
+
+  // The body is the account a person promotes on, so it says what reviewed each
+  // unit. A payload that leaves the grade out names the field it owes rather
+  // than reading `undefined.grade` somewhere inside the renderer.
+  it('names the review grade of every included unit in the body', () => {
+    const result = runAutopilotCommand(
+      ['publish', '--json'],
+      publication({
+        included: [
+          {
+            ticketId: 'DEV-1',
+            title: 'a unit',
+            range: { baseSha: SETUP_SHA, headSha: `${A}1`, commits: [`${A}1`] },
+            review: { grade: 'self-reviewed', detail: 'no fresh-context subagent primitive here' },
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.body).toContain('self-reviewed');
+    expect(emitted.body).toContain('no fresh-context subagent primitive here');
+  });
+
+  it('refuses a publication that does not say what reviewed a unit it merges', () => {
+    const result = runAutopilotCommand(
+      ['publish', '--json'],
+      publication({
+        included: [
+          {
+            ticketId: 'DEV-1',
+            title: 'a unit',
+            range: { baseSha: SETUP_SHA, headSha: `${A}1`, commits: [`${A}1`] },
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain('review');
+    expect(result.stderr).toContain('DEV-1');
   });
 
   it('refuses to publish a branch whose proofs are not sealed', () => {

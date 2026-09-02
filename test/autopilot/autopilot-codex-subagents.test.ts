@@ -149,15 +149,19 @@ describe('both adapters carry the same worker contract', () => {
     }
   });
 
-  // The generic check above holds the FIELD in both briefs. This one holds the
-  // gesture: `mission prune` reads as housekeeping, and a worker that only sees
-  // a flag name it does not recognise runs the command the flag is about.
-  it('names the mission journals a worker may not prune, in both adapters', () => {
-    for (const source of [WORKFLOW, CODEX]) {
-      expect(flat(source)).toMatch(/mission prune/);
-      expect(source).toContain('workerMayPruneMissions');
-    }
-  });
+  // On 2026-09-02 a worker whose runtime exposed no fresh-context subagent ran
+  // every review pass on itself and reported that in `decisions`, which nothing
+  // downstream reads. The record has to be demanded by both answers, or the
+  // adapter that forgets it is the one that goes on merging silently.
+  it.each([['the Claude workflow', WORKFLOW], ['the Codex reference', CODEX]] as const)(
+    'demands the review provenance in the worker answer — %s',
+    (_name, source) => {
+      const text = flat(source);
+      expect(text).toMatch(/review/i);
+      expect(text).toMatch(/fresh-context-subagent/);
+      expect(text).toMatch(/self-review/);
+    },
+  );
 
   it('makes neither adapter a writer of state or tracker comments', () => {
     expect(CODEX).toMatch(/writes no run state/i);

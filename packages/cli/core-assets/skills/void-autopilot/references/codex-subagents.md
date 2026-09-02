@@ -62,8 +62,7 @@ Every subagent receives the same instruction as its Claude counterpart:
 - **never** push, open or update a pull request, merge, or move the ticket to In
   Review or Done;
 - **never** write anything the repository shares across its worktrees;
-- **never** prune the mission journals: `.void/machine/` belongs to the
-  repository, not to the worktree;
+- state what reviewed it, in `review`;
 - stop at a committed branch and return a `WorkerResult`.
 
 ### The prohibitions come off the plan, not off this page
@@ -110,6 +109,35 @@ the stack, and never count what is on it as this run's residue.
 A subagent that answers in prose has not answered. Validate every result against
 the WorkerResult schema before it goes anywhere; an unparsable answer is a
 failure for that ticket, not a reason to guess what it meant.
+
+### `review` is required, and it is what the gate reads
+
+On 2026-09-02 a worker was dispatched six specialists by the engine, could
+convene none of them because its runtime exposed no fresh-context subagent
+primitive, ran every review pass on itself, and said so in `decisions` -- a
+field no later step reads. `reconcile`, `gate` and `publish` therefore produced
+the same branch, the same body and the same green run as a panel-briefed unit,
+on the project's highest-risk ticket.
+
+So the record is a value, and the answer is refused without it:
+
+```json
+"review": {
+  "kind": "panel",
+  "passes": [{ "name": "architecture", "context": "fresh-context-subagent" }]
+}
+```
+
+`kind` is `panel`, `self-review` or `none`. Report `fresh-context-subagent` only
+for a pass a separate fresh context actually ran; a `panel` whose own list holds
+a `self-review` pass is refused, because that contradiction is exactly what
+prose let a worker state. A degradation carries `because`: `{ "kind":
+"self-review", "passes": [...], "because": "<why no panel could be convened>" }`,
+and `{ "kind": "none", "because": ... }` when no pass ran at all.
+
+Report the degradation rather than working around it. A self-reviewed unit still
+merges, with the downgrade named in the pull request body a person promotes on;
+a unit nothing reviewed does not.
 
 Return the collected results to the L0 skill. This adapter writes no run state
 and comments on no ticket — there is one writer, and it is not the adapter.

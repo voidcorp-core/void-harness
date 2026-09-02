@@ -604,6 +604,42 @@ describe('the autopilot cycle is a script', () => {
     await expect(run).rejects.toThrow(/no command/i);
   });
 
+  // The other half of the same silence: the worker's answer now carries what
+  // reviewed it, and the gate is the step that weighs it. A provenance the
+  // script does not hand over is a guard that cannot fire.
+  it('hands the gate what reviewed each unit, from the workers own answers', async () => {
+    const provenance = {
+      kind: 'self-review',
+      passes: [{ name: 'code-review', context: 'self-review' }],
+      because: 'this runtime exposes no fresh-context subagent primitive',
+    };
+    const { calls } = await runWorkflow(configuration(), answers(), (ticketId) => ({
+      ticketId,
+      status: 'completed',
+      review: provenance,
+    }));
+    const gate = calls.find((call) => call.label === 'step:gate')?.prompt ?? '';
+
+    expect(gate).toContain('reviews');
+    expect(gate).toContain('this runtime exposes no fresh-context subagent primitive');
+    expect(gate).toContain('DEV-1');
+  });
+
+  it('stops the run when the gate says no review pass ran on a unit', async () => {
+    const { calls, logs } = await runWorkflow(
+      configuration(),
+      answers({
+        gate: {
+          proofs: { kind: 'merge', debts: [] },
+          reviews: { kind: 'refuse', units: [], detail: 'no review pass ran on DEV-1' },
+        },
+      }),
+    );
+
+    expect(labels(calls)).not.toContain('step:publish');
+    expect(logs.join(' ')).toContain('no review pass ran on DEV-1');
+  });
+
   // The step reads the range as a set against the parent links, so the line
   // must not ask for an order -- the one it used to imply was the reverse of
   // what `git log` prints, and every multi-commit range was refused.

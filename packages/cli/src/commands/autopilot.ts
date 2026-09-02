@@ -71,6 +71,11 @@ import {
   type VerifiedRange,
 } from '../lib/autopilot/reconcile-plan.js';
 import { parseWorkerResult, type WorkerResult } from '../lib/autopilot/worker-result.js';
+import {
+  judgeReviewProvenance,
+  type ReviewOutcome,
+  type UnitReview,
+} from '../lib/autopilot/review-provenance.js';
 import { orderWorkers, type OrderFootprint } from '../lib/autopilot/worker-order.js';
 import { planWorktreeSetup, planWorktreeTeardown } from '../lib/autopilot/worktree-lifecycle.js';
 import {
@@ -903,6 +908,15 @@ interface GateObservation {
   readonly outcomes?: readonly CommandOutcome[];
   readonly plan?: VerificationPlan;
   readonly freshness?: { readonly proofs: readonly VerificationProof[]; readonly context: ProofContext };
+  /**
+   * What reviewed each unit of the range, as the workers reported it.
+   *
+   * The fifth judgement, and the one that used to be unaskable: a worker whose
+   * runtime could convene no panel said so in `decisions`, which nothing here
+   * reads, so a self-reviewed unit merged on the evidence of a panel-briefed
+   * one. `WorkerResult` now carries the record; this is where it is weighed.
+   */
+  readonly reviews?: readonly UnitReview[];
 }
 
 interface GateVerdict {
@@ -912,6 +926,7 @@ interface GateVerdict {
   readonly budget?: UnitBudgetVerdict;
   readonly suite?: VerificationVerdict;
   readonly freshness?: ProofAssessment;
+  readonly reviews?: ReviewOutcome;
 }
 
 function gateCommand(stdin: string, json: boolean): AutopilotCommandResult {
@@ -927,6 +942,9 @@ function gateCommand(stdin: string, json: boolean): AutopilotCommandResult {
   const freshness = observation.freshness === undefined
     ? undefined
     : assessProofs(observation.freshness.proofs, observation.freshness.context);
+  const reviews = observation.reviews === undefined
+    ? undefined
+    : judgeReviewProvenance(observation.reviews);
 
   const verdict: GateVerdict = {
     schemaVersion: 1,
@@ -935,6 +953,7 @@ function gateCommand(stdin: string, json: boolean): AutopilotCommandResult {
     ...(budget === undefined ? {} : { budget }),
     ...(suite === undefined ? {} : { suite }),
     ...(freshness === undefined ? {} : { freshness }),
+    ...(reviews === undefined ? {} : { reviews }),
   };
 
   const lines = [
@@ -945,6 +964,10 @@ function gateCommand(stdin: string, json: boolean): AutopilotCommandResult {
     ...(panel === undefined ? [] : [`panel: ${panel.kind === 'satisfied' ? 'spoke before the writing' : `${panel.reason} — ${panel.detail}`}`]),
     ...(budget === undefined ? [] : [`budget: ${budget.kind === 'within' ? 'within its ceilings' : `exhausted ${budget.ceiling}`}`]),
     ...(suite === undefined ? [] : [`suite: ${suite.green ? 'green' : `red — ${suite.failures.map((failure) => failure.name).join(', ')}`}`]),
+    // Named per unit, not summarised: the reader of a downgraded run has to know
+    // which ticket lost the panel, and a count would hide it.
+    ...(reviews === undefined ? [] : [`reviews: ${reviews.kind} — ${reviews.detail}`]),
+    ...(reviews === undefined ? [] : reviews.units.map((unit) => `  ${unit.ticketId}: ${unit.grade} (${unit.detail})`)),
     '',
   ];
   return emit(json, verdict, lines.join('\n'));
@@ -979,8 +1002,35 @@ interface PublishObservation {
   readonly blockers: readonly string[];
 }
 
+/**
+ * Every merged unit says what reviewed it, or the publication refuses.
+ *
+ * The body is the account someone promotes on, and the grade is the one thing
+ * it could not state until now: a self-reviewed unit and a panel-briefed one
+ * read identically. Refused here rather than rendered, because a missing grade
+ * would otherwise surface as a property read on `undefined` from inside the
+ * renderer, which names neither the field nor where to obtain it.
+ */
+function requireReviewedProvenance(included: readonly TicketProvenance[]): void {
+  const grades: readonly string[] = ['panel-grade', 'self-reviewed', 'unreviewed'];
+  const silent = included.filter((ticket) => {
+    const review: Record<string, unknown> = { ...(ticket.review ?? undefined) };
+    const grade: unknown = review.grade;
+    return typeof grade !== 'string' || !grades.includes(grade);
+  });
+  if (silent.length === 0) return;
+
+  throw autopilotFailure(
+    'AUTOPILOT_CONTRACT',
+    'this publication does not say what reviewed a unit it merges',
+    `${silent.map((ticket) => ticket.ticketId).join(', ')} carries no \`review.grade\``,
+    'pass the review each `WorkerResult` carried, as `gate` graded it: `{ grade: "panel-grade" | "self-reviewed" | "unreviewed", detail }`',
+  );
+}
+
 function publishCommand(stdin: string, json: boolean): AutopilotCommandResult {
   const observation = parseStdin<PublishObservation>(stdin, 'publish observation');
+  requireReviewedProvenance(observation.included);
   const plan: PublishPlan = buildPublishPlan({
     clusterId: observation.clusterId,
     remote: observation.remote,

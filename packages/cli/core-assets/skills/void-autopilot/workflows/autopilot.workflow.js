@@ -162,7 +162,7 @@ function required(answer, what) {
 
 const WORKER_RESULT_SCHEMA = {
   type: 'object',
-  required: ['schemaVersion', 'ticketId', 'status', 'branch', 'baseSha', 'headSha', 'commits', 'files', 'proofs', 'decisions', 'blocker'],
+  required: ['schemaVersion', 'ticketId', 'status', 'branch', 'baseSha', 'headSha', 'commits', 'files', 'proofs', 'decisions', 'review', 'blocker'],
   additionalProperties: true,
   properties: {
     schemaVersion: { const: 1 },
@@ -194,6 +194,28 @@ const WORKER_RESULT_SCHEMA = {
           summary: { type: 'string' },
           basis: { enum: ['ticket', 'plan', 'doctrine', 'convention', 'safest'] },
         },
+      },
+    },
+    // What reviewed this unit, as a value. A worker that could convene no panel
+    // used to report that in `decisions`, which no later step reads, so a
+    // self-reviewed ticket and a panel-briefed one produced the same green run.
+    review: {
+      type: 'object',
+      required: ['kind'],
+      properties: {
+        kind: { enum: ['panel', 'self-review', 'none'] },
+        passes: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['name', 'context'],
+            properties: {
+              name: { type: 'string' },
+              context: { enum: ['fresh-context-subagent', 'self-review'] },
+            },
+          },
+        },
+        because: { type: 'string' },
       },
     },
     blocker: { type: ['string', 'null'] },
@@ -276,6 +298,13 @@ function workerPrompt(assignment, plan) {
     'Return the WorkerResult object. Commits must be full 40-character ids, in order, and the',
     'head must be the last of them. Every proof carries the argv that ran and a sha256 of its',
     'output — a proof you did not run is not a proof.',
+    '',
+    'State what reviewed you, in `review`. `{ kind: "panel", passes: [{ name, context:',
+    '"fresh-context-subagent" }] }` only for passes a separate fresh context actually ran; if this',
+    'runtime exposes no such primitive, report `{ kind: "self-review", passes: [...with context',
+    '"self-review"], because: "<why no panel could be convened>" }`, and `{ kind: "none", because }`',
+    'when no pass ran at all. Report the degradation rather than working around it: a panel claimed',
+    'over passes you ran yourself is refused, and the run is judged on this field, not on prose.',
   ].join('\n')
 }
 
@@ -554,8 +583,13 @@ while (true) {
   const gate = required(
     await step(
       'gate',
-      'the required proofs, the evidence that they ran, the merged tree hash, and the panel events',
-      `The suite you just ran reported: ${JSON.stringify(ran).slice(0, 200)}…. Seal each outcome as evidence with its exact argv. Evidence you did not produce is not evidence.`,
+      'the required proofs, the evidence that they ran, the merged tree hash, the panel events, and what reviewed each unit',
+      [
+        `The suite you just ran reported: ${JSON.stringify(ran).slice(0, 200)}…. Seal each outcome as evidence with its exact argv. Evidence you did not produce is not evidence.`,
+        // Handed over rather than re-observed: the provenance exists only in the
+        // worker's own answer, and a step that cannot read it cannot refuse on it.
+        `Pass reviews verbatim: ${JSON.stringify(results.map((result) => ({ ticketId: result?.ticketId, provenance: result?.review })))}.`,
+      ].join('\n'),
       'Verify',
     ),
     'the gate',
@@ -569,13 +603,25 @@ while (true) {
     if (gate.proofs.action === 'STOP_CHAIN') break
     continue
   }
+  // A unit nothing reviewed does not merge. A self-reviewed one does, and the
+  // pull request body carries the downgrade to the person who promotes it.
+  if (gate.reviews && gate.reviews.kind === 'refuse') {
+    log(`stop (unreviewed): ${gate.reviews.detail}`)
+    await beat('gate', gate.reviews.detail)
+    break
+  }
 
   phase('Publish')
   const publication = required(
     await step(
       'publish',
       'the integration head, the proof assessment, the worker branches, and the provenance of each merged ticket',
-      'Include every excluded ticket with what makes it resumable. The body IS the account someone promotes on.',
+      [
+        'Include every excluded ticket with what makes it resumable. The body IS the account someone promotes on.',
+        // The grade the gate just produced, carried rather than re-judged: the
+        // body is where a person learns a unit was reviewed by its own author.
+        `Each included ticket carries \`review\` as the gate graded it: ${JSON.stringify((gate.reviews?.units ?? []).map((unit) => ({ ticketId: unit.ticketId, grade: unit.grade, detail: unit.detail })))}.`,
+      ].join('\n'),
       'Publish',
     ),
     'the publication',
