@@ -89,9 +89,27 @@ function reachOf(area: string): string {
   return scanned.negated ? '' : scanned.base;
 }
 
+/**
+ * A dot is a character, not a category, so `dot: true`.
+ *
+ * picomatch 4.0.5 documents `dot` as defaulting to false and `*` as matching no
+ * "hidden file or directory" unless the pattern spells the dot itself. Applied
+ * to a footprint that is not a filter, it is a hole: `packages/core/skills/**`
+ * -- the shape an estimator writes for "touch the skills" -- claimed every
+ * `SKILL.md` and not one of the `.source` files the sourcing discipline puts
+ * beside them. The DIRECTORY spelling of that same area claims them, through
+ * the prefix branch, so one area answered two ways about one file and the
+ * theft landed in `widened`, which is the audit's word for approval. 183
+ * tracked files of this repository sit on a hidden path.
+ *
+ * The option only ever adds matches, which is why it is safe in both readings:
+ * more claims mean more pairs sequenced, and a carrier detected where a
+ * widening was reported. It cannot separate a pair that overlapped or clear a
+ * range that breached.
+ */
 export function compileArea(area: string): CompiledArea {
   const value = normaliseArea(area);
-  return { area: value, match: picomatch(value), reach: reachOf(value) };
+  return { area: value, match: picomatch(value, { dot: true }), reach: reachOf(value) };
 }
 
 /**

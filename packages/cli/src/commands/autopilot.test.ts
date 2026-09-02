@@ -491,6 +491,31 @@ ${enabled}  clusterSize: 2
     ]);
   });
 
+  it('refuses a footprint for a ticket the orchestration never listed, naming the list at fault', () => {
+    // `orderWorkers` reads footprints through a map keyed by ticket, so an
+    // entry for nobody is simply never looked up: the over-long list travelled
+    // to the very end of the run, where `requireSymmetricDeclaration` refused
+    // it and told the operator to pass `cluster` as every ticket the run
+    // reserved -- the one list that was right. Refused here, the cost is the
+    // orchestration call rather than the whole run, and the finger points at
+    // the list that actually holds the stray entry.
+    const result = runAutopilotCommand(
+      ['orchestrate'],
+      orchestration({
+        footprints: [
+          { id: 'DEV-1', areas: ['packages/cli'], highRisk: false, confidence: 0.9, touchesMigration: false },
+          { id: 'DEV-2', areas: ['packages/core'], highRisk: false, confidence: 0.9, touchesMigration: false },
+          { id: 'DEV-9', areas: ['packages/harness-graph'], highRisk: false, confidence: 0.9, touchesMigration: false },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain('DEV-9');
+    expect(result.stderr).toMatch(/footprints/);
+  });
+
   it('emits one spelling of each area, so ordering and reconciliation read the same list', () => {
     const result = runAutopilotCommand(
       ['orchestrate', '--json'],
