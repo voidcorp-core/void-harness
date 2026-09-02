@@ -324,8 +324,8 @@ while (true) {
   const chain = required(
     await step(
       'chain',
-      'what merged so far in this run, elapsed milliseconds, the post-merge state of the base, and the pool',
-      `Pass merged: ${JSON.stringify(journal)}. Take elapsed from the run start passed in ${input.now}. Observe the base is green from the last verification of this run, and pass the pool as the programme's order minus what is done.`,
+      'what this run took and what became of each unit, what merged, elapsed milliseconds, the post-merge state of the base, and the pool',
+      `Pass taken: one entry per journal entry with its tickets and outcome, and merged: only the entries whose outcome is merged, from ${JSON.stringify(journal)}. A unit published and waiting for a person is taken, not remaining. Take elapsed from the run start passed in ${input.now}. Observe the base is green from the last verification of this run, and pass the pool as the programme's order minus what is done.`,
       'Chain',
     ),
     'the chain decision',
@@ -453,7 +453,14 @@ while (true) {
     'the tracker lifecycle',
   )
 
-  journal.push({ tickets: reconciliation.plan.integrate, mergeSha: verification.integrationSha })
+  // What became of the unit is recorded here, not inferred later: a unit the
+  // grant did not merge is published and waiting for a person, and the chain
+  // must never propose it again or count it as still ready.
+  journal.push({
+    tickets: reconciliation.plan.integrate,
+    mergeSha: verification.integrationSha,
+    outcome: decision.action.action === 'merge' ? 'merged' : 'published-awaiting-human',
+  })
   taken += 1
   await beat('publish', reconciliation.plan.integrate.join(', '))
   required(await execute(orchestration.teardown.map((s) => s.command), 'they reclaim the worktrees; no branch is deleted', 'Reconcile'), 'reclaiming the worktrees')

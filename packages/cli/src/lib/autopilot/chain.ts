@@ -32,12 +32,30 @@ export type PostMergeObservation =
   | { readonly kind: 'green'; readonly sha: string; readonly suite: string }
   | { readonly kind: 'red'; readonly sha: string; readonly failing: readonly string[] };
 
+/**
+ * Where a unit this run took ended up.
+ *
+ * Three ends, and none of them is "remaining". Measured on 2026-09-02: the only
+ * state the chain knew was `merged`, so a unit published and handed to a person
+ * counted as still ready, and the next decision proposed it again -- to a caller
+ * that would have started a second worker on a ticket whose pull request was
+ * open. A unit is taken once. What it became is a fact about it, not a reason
+ * to take it again.
+ */
+export type TakenOutcome = 'merged' | 'published-awaiting-human' | 'blocked';
+
+export interface TakenUnit {
+  readonly tickets: readonly string[];
+  readonly outcome: TakenOutcome;
+}
+
 export type ChainStopReason =
   | 'post-merge-red'
   | 'post-merge-unverified'
   | 'post-merge-stale'
   | 'budget-spent'
   | 'budget-unreadable'
+  | 'awaiting-human'
   | 'nothing-ready';
 
 export type ChainDecision =
@@ -71,12 +89,16 @@ const MAX_CHAIN_BUDGET_MS = 24 * 60 * MINUTE_MS;
  * What a first unit is assumed to take, until this run has measured one.
  *
  * A cold estimate, and named as one: it is used for exactly as long as there is
- * nothing better, and the first merge replaces it with what this run actually
- * spent. Deliberately below anything observed rather than near it -- the job here
- * is to refuse a run that cannot possibly finish a unit, not to second-guess a
- * run that might. A unit owes a full TDD cycle, a review pass and the whole
- * declared verify suite before it merges, and none of that has ever come in
- * under a quarter of an hour in this repository.
+ * nothing better, and the first unit TAKEN replaces it with what this run
+ * actually spent -- merged or not. On 2026-09-02 a run had measured 84 minutes
+ * for a unit that came back published and unmerged, and still projected the
+ * next one at 15, because only a merge counted. Deliberately below anything
+ * observed rather than near it -- the job here is to refuse a run that cannot
+ * possibly finish a unit, not to second-guess a run that might. A unit owes a
+ * full TDD cycle, a review pass and the whole declared verify suite before it
+ * hands back, and none of that has ever come in under a quarter of an hour in
+ * this repository. Which is also why it stays a floor under the measurement: a
+ * unit blocked in two minutes measured how long failing takes, not finishing.
  */
 const COLD_START_UNIT_MS = 15 * MINUTE_MS;
 
@@ -169,6 +191,8 @@ function stop(
 export function planChainStep(input: {
   /** Everything merged so far in this run, oldest first. */
   readonly merged: readonly MergedUnit[];
+  /** Every unit this run took, oldest first, merged ones included. */
+  readonly taken: readonly TakenUnit[];
   /** How long this run may keep taking new units. */
   readonly budgetMs: number;
   /** How long it has been running. */
@@ -249,21 +273,44 @@ export function planChainStep(input: {
   // there let `for 1m` -- a legal shortening -- start work that takes the better
   // part of an hour, against an ADR that says a run cannot exceed what was
   // declared for it. So a cold run is projected against COLD_START_UNIT_MS until
-  // it has a measurement of its own, and from the first merge the measurement
-  // replaces it.
-  const perUnit = last === undefined
+  // it has a measurement of its own, and from the first unit taken -- merged,
+  // published or blocked -- the measurement replaces it. See the
+  // a-unit-handed-back-is-taken-and-still-measures decision.
+  const cold = input.taken.length === 0;
+  const perUnit = cold
     ? COLD_START_UNIT_MS
-    : input.elapsedMs / input.merged.length;
+    : Math.max(COLD_START_UNIT_MS, input.elapsedMs / input.taken.length);
   if (remaining < perUnit) {
     return stop(
       'budget-spent',
       false,
-      last === undefined
+      cold
         ? `${describe(remaining)} left, and no unit here has ever finished in under`
           + ` ${describe(COLD_START_UNIT_MS)}; the first one would not finish inside the budget`
         : `${describe(remaining)} left and each unit has taken about ${describe(perUnit)};`
           + ' the next one would not finish inside the budget',
       'read the journal, then start another run if the direction still holds',
+    );
+  }
+
+  // After the budget, on purpose: on 2026-09-02 both were true at once, and the
+  // budget is the reading that says why this run is over rather than merely
+  // paused on a person. Before `nothing-ready`, also on purpose: a run that
+  // handed a unit to someone did not run out of work, it is waiting on them.
+  //
+  // Another unit would start on the base as it is, without the change the
+  // person has not accepted yet. That stacks a second pull request on a first
+  // one nobody has read, and turns "the human eye is at the merge" into two
+  // merges to reason about at once.
+  const waiting = input.taken.filter((unit) => unit.outcome === 'published-awaiting-human');
+  if (waiting.length > 0) {
+    const named = waiting.flatMap((unit) => unit.tickets).join(', ');
+    return stop(
+      'awaiting-human',
+      false,
+      `${named} is published and waiting for a person; another unit would stack on a base`
+        + ' that person has not accepted yet',
+      'review the pull request; once it is merged or closed, start another run',
     );
   }
 
