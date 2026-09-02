@@ -42,6 +42,41 @@ function linkedWorktree(main: string): string {
   return path;
 }
 
+/** What `init` leaves behind and `worktree add` never copies: the receipt of this machine's install. */
+function installReceipt(root: string): void {
+  const dir = join(root, '.void', 'machine', 'receipts');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'install-v1.json'), '{"schemaVersion":1}\n');
+}
+
+/** A superproject with `repository()` checked out as the submodule `child`. */
+function submoduleCheckout(): { superproject: string; child: string } {
+  const upstream = repository();
+  const superproject = repository();
+  git(
+    superproject,
+    '-c', 'protocol.file.allow=always',
+    'submodule', 'add', '--quiet', upstream, 'child',
+  );
+  return { superproject, child: join(superproject, 'child') };
+}
+
+/** A repository whose git directory sits beside its checkout, not inside it. */
+function separateGitDirRepository(): string {
+  const parent = scratch('void-roots-separate-');
+  const root = join(parent, 'checkout');
+  git(parent, 'init', '--quiet', `--separate-git-dir=${join(parent, 'repo.git')}`, root);
+  writeFileSync(join(root, 'README.md'), '# fixture\n');
+  git(root, 'add', 'README.md');
+  git(
+    root,
+    '-c', 'user.name=Void Test',
+    '-c', 'user.email=void@example.test',
+    'commit', '--quiet', '-m', 'test: seed',
+  );
+  return root;
+}
+
 describe('resolveProjectRoots', () => {
   it('gives one root, the directory itself, outside any repository', () => {
     const dir = scratch('void-roots-bare-');
@@ -120,5 +155,81 @@ describe('resolveProjectRoots', () => {
 
     expect(roots.workRoot).toBe(realpathSync(roots.workRoot));
     expect(roots.installRoot).toBe(realpathSync(roots.installRoot));
+  });
+
+  // `git worktree list` builds the first record's path from the common directory
+  // with a trailing `/.git` stripped (measured, git 2.50.1). Under a submodule
+  // that is `<super>/.git/modules/<name>`; under `--separate-git-dir` it is the
+  // git directory itself. A resolver that trusted the path installed into
+  // `$GIT_DIR`: doctor red, dispatch blocked, runs written inside the repository.
+  it('gives one root in a submodule checkout, whose listing names the git directory', () => {
+    const { child } = submoduleCheckout();
+
+    const roots = resolveProjectRoots(child);
+
+    expect(roots.workRoot).toBe(realpathSync(child));
+    expect(roots.installRoot).toBe(roots.workRoot);
+  });
+
+  it('names the submodule checkout, never its git directory, from a worktree of it', () => {
+    // The module's git directory records where its checkout is (`core.worktree`),
+    // and asking git for that path's toplevel is what turns the listing back
+    // into a working tree.
+    const { superproject, child } = submoduleCheckout();
+    const linked = linkedWorktree(child);
+
+    const roots = resolveProjectRoots(linked);
+
+    expect(roots.installRoot).toBe(realpathSync(child));
+    expect(roots.installRoot).not.toContain(join(superproject, '.git'));
+  });
+
+  it('gives one root in the main checkout of a --separate-git-dir repository', () => {
+    const root = separateGitDirRepository();
+
+    const roots = resolveProjectRoots(root);
+
+    expect(roots.workRoot).toBe(realpathSync(root));
+    expect(roots.installRoot).toBe(roots.workRoot);
+  });
+
+  it('keeps one root from a worktree of a --separate-git-dir repository, where git names no main tree', () => {
+    // Nothing in a detached git directory records its checkout, so git refuses
+    // to name a toplevel for it. One root, the tree at hand, is the only honest
+    // answer: the git directory is never an installation.
+    const root = separateGitDirRepository();
+    const linked = linkedWorktree(root);
+
+    const roots = resolveProjectRoots(linked);
+
+    expect(roots.workRoot).toBe(realpathSync(linked));
+    expect(roots.installRoot).toBe(roots.workRoot);
+    expect(roots.installRoot).not.toMatch(/repo\.git$/);
+  });
+
+  // `init` installs wherever it is run, a linked worktree included. The receipt
+  // it writes under `.void/machine/` is hidden from git, so it marks the tree
+  // that was installed into and nothing else.
+  it('keeps the tree at hand when it holds the install receipt, even from a linked worktree', () => {
+    const main = repository();
+    const linked = linkedWorktree(main);
+    installReceipt(linked);
+
+    const roots = resolveProjectRoots(linked);
+
+    expect(roots.installRoot).toBe(roots.workRoot);
+  });
+
+  it('prefers the main checkout holding the receipt over a worktree that carries none', () => {
+    const main = repository();
+    installReceipt(main);
+    const linked = linkedWorktree(main);
+    const nested = join(linked, 'src');
+    mkdirSync(nested);
+
+    const roots = resolveProjectRoots(nested);
+
+    expect(roots.workRoot).toBe(realpathSync(nested));
+    expect(roots.installRoot).toBe(realpathSync(main));
   });
 });
