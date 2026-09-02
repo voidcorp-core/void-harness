@@ -43,6 +43,26 @@ refusal names itself:
 The first four sit ahead of the reading on purpose: no re-reading can lift them, so reporting
 a stale verdict there would send someone off to run a pass that cannot unlock anything.
 
+### What makes a finding blocking
+
+Leaving `blocking` undefined is what makes a reading refuse forever: in a mechanism whose
+subject is safety there is always one more true finding, so a pass that blocks on every true
+finding never converges. A finding blocks only when all three hold.
+
+1. **Reachable without forgery.** The nominal path leads there — the workflow as it runs, an
+   agent obeying its brief, an operator in good faith, an ordinary declared footprint. A finding
+   that needs a payload hand-built to lie coherently across several fields does not block. A
+   plausible mistake still does: a mistake is not a lie.
+2. **A real consequence.** Code nobody claimed enters the base, or a guarantee this harness
+   states is false on a path someone takes.
+3. **Owned by this diff.** A pre-existing defect, however grave, is a ticket. Refusing the diff
+   that revealed it neither repairs it nor contains it.
+
+Everything else is advisory: real, anchored, filed, and it does not stop the merge. The number
+of blocking findings measures nothing about the reading — a pass that names none and files four
+is a good pass, and one that promotes an advisory to justify itself is not.
+
+
 Each cell above is the sentence the CLI exports next to the check that raises it, and a test
 compares the two. This table said `sensitive-path` fired on `ownership.sequential` while the
 code deliberately did the opposite: every refusal was named, so a test that looked for names
