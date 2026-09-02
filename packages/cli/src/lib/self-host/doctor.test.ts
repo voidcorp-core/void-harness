@@ -74,9 +74,13 @@ async function generatedFixture(): Promise<string> {
  *
  * Hashing the real repository is 725 files and 175 ms idle, 600 ms under a
  * loaded machine, and none of the tests using this are about the hash: they are
- * about what the doctor concludes once the hash matches. That the real hash
- * function reproduces a receipt's value is idempotence, proven once in
- * `compile.test.ts`; the test that needs a mismatch injects its own below.
+ * about what the doctor concludes once the hash matches. Two things are proven
+ * elsewhere and not repeated here: `compile.test.ts` proves the hash function
+ * itself, that it moves when a source moves and that a second reading of an
+ * unchanged tree reproduces the receipt's value. What `compile.test.ts` cannot
+ * prove is that the doctor reaches that function when nothing is injected, so
+ * exactly one test below leaves `computeSourceHash` undefined and pays the real
+ * hash for it. The test that needs a mismatch injects its own.
  */
 function templateSourceHash(): Promise<string> {
   return Promise.resolve(template.sourceHash);
@@ -157,6 +161,31 @@ describe('diagnoseSelfHost', () => {
     });
     expect(drifted.state).toBe('drifted');
     expect(drifted.blocking).toBe(true);
+  });
+
+  /**
+   * The one diagnosis that hashes the real repository through the doctor's own
+   * default. Every other diagnosis here injects the template's hash, which
+   * bypasses `options.computeSourceHash ?? hashSelfHostSource`; replace or drop
+   * that default and this is the only test that notices. It pays one real hash
+   * on purpose, then stops before any process is spawned: one owned file is
+   * tampered, so the doctor compares the hash it computed against the receipt,
+   * finds them equal, and returns `drifted` carrying that hash. A `stale`
+   * verdict, or a hash other than the receipt's, means the default is gone.
+   */
+  it('hashes the real repository through its default when no hash is injected', async () => {
+    const generatedRoot = await generatedFixture();
+    await writeFile(
+      join(generatedRoot, 'current/.void/hooks/_void-hook.mjs'),
+      'tampered',
+    );
+    const diagnosis = await diagnoseSelfHost(REPO, {
+      generatedRoot,
+      runtimeAvailable: () => false,
+      probeEventReplay: async () => ({ ok: true, detail: 'ok' }),
+    });
+    expect(diagnosis.sourceHash).toBe(template.sourceHash);
+    expect(diagnosis.state).toBe('drifted');
   });
 
   it('does not let a shadow receipt impersonate the release gate', async () => {
