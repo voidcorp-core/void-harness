@@ -66,14 +66,27 @@ install state.
 
 Readers of the installation itself go through `installRoot`: the panel, agents, skills, installed
 doctrine, hook bundle and manifest, and with them `status`, which measures the install and
-persists its snapshot there, and `check`, which compares the installed pins and doctrine. `doctor`
-judges that root and names both when they differ. `doctor` and `check` name the installation
-directory in every remedy they print, because a remedy is a command that acts where it is typed;
-`doctor --fix` writes to the root it judged. The self-host doctor keeps judging the tree at hand, since what it
-compares is the current sources with what they last compiled into. The other writers of the
-installation (`init`, `add`, `remove`, `update`, `hydrate`, `runtime add`) act on the directory
-they run in, unchanged: `init` refuses only the harness source repository, and the exclude block
-is resolved through git rather than a path built by hand.
+persists its snapshot there, `check`, which compares the installed pins and doctrine, and
+`mission`, which reads the controller plan and the journal there. `doctor` judges that root and
+names both when they differ.
+
+One rule holds for every reader of `installRoot`, present and future: what it prints about that
+root names it when the two roots differ, and nothing otherwise. A remedy is a command that acts
+where it is typed, so it carries `remedyPrefix` (`in <installRoot>: `) in front of the command:
+`doctor`'s remedies (`init`, `runtime add`, `add/remove`, `doctor --fix`), `check`'s (`update`,
+`init`) and `status`'s freshness notice (`update`, worded by the hook runner and prefixed by the
+command that prints it) all do. A path is read against the directory the command was typed in,
+so a file written under the installation is named in full through `installedPath`: `status`'s
+footer does. The rule is carried by those two helpers in `project-roots.ts`, not restated per
+command, and a reader that names a command which itself reads `installRoot` (`doctor` pointing
+at `check`) leaves it bare, since that command does what it says wherever it is typed. `mission`
+prints no remedy: its usage lines name subcommands that read `installRoot` themselves and hash
+the tree at hand, so naming the main checkout there would be wrong. `doctor --fix` writes to the
+root it judged. The self-host doctor keeps judging the tree at hand, since what it compares is
+the current sources with what they last compiled into. The other writers of the installation
+(`init`, `add`, `remove`, `update`, `hydrate`, `runtime add`) act on the directory they run in,
+unchanged: `init` refuses only the harness source repository, and the exclude block is resolved
+through git rather than a path built by hand.
 
 ## Consequences
 

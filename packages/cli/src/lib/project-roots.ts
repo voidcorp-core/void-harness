@@ -31,7 +31,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { voidReadPath } from '@voidcorp/hook-runner';
 
 export interface ProjectRoots {
@@ -127,4 +127,14 @@ export function resolveProjectRoots(cwd: string = process.cwd()): ProjectRoots {
  */
 export function remedyPrefix(roots: ProjectRoots): string {
   return roots.workRoot === roots.installRoot ? '' : `in ${roots.installRoot}: `;
+}
+
+/**
+ * How a file written under the installation is named. A printed path is read
+ * against the directory the command was typed in, so from a linked worktree the
+ * file is named in full, or the reader looks for it where git was told not to
+ * put it. Where the two roots coincide it stays relative.
+ */
+export function installedPath(roots: ProjectRoots, relative: string): string {
+  return roots.workRoot === roots.installRoot ? relative : join(roots.installRoot, relative);
 }
