@@ -264,7 +264,7 @@ describe('the autopilot cycle is a script', () => {
       answers({ landed: { verdict: { kind: 'open', mergeSha: null, detail: 'the pull request is still open' }, checks: [] } }),
     );
 
-    expect(value).toMatchObject({ journal: [{ outcome: 'blocked', mergeCommit: null }] });
+    expect(value).toMatchObject({ journal: [{ outcome: 'unit-blocked', mergeCommit: null }] });
     expect((value as { journal: Array<{ cause: string }> }).journal[0]?.cause).toContain('did not land');
   });
 
@@ -282,7 +282,7 @@ describe('the autopilot cycle is a script', () => {
     expect(grants[1]?.prompt).toContain('gh pr checks');
     expect(labels(calls)).not.toContain('step:landed');
     expect(logs.join(' ')).toContain('checks unsettled');
-    expect(value).toMatchObject({ journal: [{ outcome: 'blocked' }] });
+    expect(value).toMatchObject({ journal: [{ outcome: 'unit-blocked' }] });
   });
 
   it('hands a unit to a person only when the grant refused to one', async () => {
@@ -306,7 +306,7 @@ describe('the autopilot cycle is a script', () => {
     expect(lastBeat).toContain('merged verbatim: []');
     const lastChain = calls.filter((call) => call.label === 'step:chain').pop()?.prompt ?? '';
     expect(lastChain).toContain('merged verbatim: []');
-    expect(lastChain).toContain('"outcome":"blocked"');
+    expect(lastChain).toContain('"outcome":"unit-blocked"');
   });
 
   it('applies the lifecycle actions and asks the step whether the tracker converged', async () => {
@@ -477,6 +477,58 @@ describe('the autopilot cycle is a script', () => {
 
     expect(labels(calls)).not.toContain('step:publish');
     expect(logs.join(' ')).toContain('STOP_CHAIN');
+  });
+
+  // The CLI models `blocked` as a third end and nothing shipped produced one:
+  // both break sites left no journal entry, so every ticket in the cluster read
+  // as still remaining and the chain could propose it again.
+  it.each([
+    ['nothing survived reconciliation', { reconcile: { outcome: { kind: 'nothing', detail: 'no range was integrable' }, plan: null } }, /nothing survived/],
+    ['the proofs refused', { gate: { proofs: { kind: 'refuse', action: 'STOP_CHAIN', detail: 'no proof ran', debts: [] } } }, /proofs refused/],
+  ])('journals the unit as blocked, with its cause, when %s', async (_case, staged, cause) => {
+    const { value } = await runWorkflow(configuration(), answers(staged));
+
+    const journal = (value as { journal: Array<{ outcome: string; cause: string }> }).journal;
+    expect(journal).toHaveLength(1);
+    expect(journal[0]?.outcome).toBe('unit-blocked');
+    expect(journal[0]?.cause).toMatch(cause);
+    expect(value).toMatchObject({ unitsTaken: 1 });
+  });
+
+  // A gate that says RETRY_MODIFIED decided this unit is over, not the run.
+  it('lets the chain decide after a blocked unit, unless the gate asked for the run to end', async () => {
+    const { calls } = await runWorkflow(
+      configuration(),
+      answers({ gate: { proofs: { kind: 'refuse', action: 'RETRY_MODIFIED', detail: 'a proof was modified', debts: [] } } }),
+    );
+
+    // Two chain turns: the one that took this unit, and the one it went back to.
+    expect(labels(calls).filter((label) => label === 'step:chain')).toHaveLength(2);
+    // And the worktrees went back, exactly as they do after a publish.
+    expect(calls.some((call) => call.label === 'execute' && call.prompt.includes('worktree remove'))).toBe(true);
+  });
+
+  // Its branch exists and its worker ran. Left out of the journal it went back
+  // in the pool, and the next orchestrate set up a worktree on a branch already
+  // there. It is taken, with the reason the reconciler gave.
+  it('takes a ticket the reconciler excluded, rather than leaving it remaining', async () => {
+    const reconcile = answers().reconcile as { outcome: unknown; plan: Record<string, unknown> };
+    const { value, calls } = await runWorkflow(
+      configuration(),
+      answers({
+        reconcile: {
+          ...reconcile,
+          plan: { ...reconcile.plan, excluded: [{ ticketId: 'DEV-2', reason: 'foreign-file', detail: 'its range holds a file DEV-1 declared' }] },
+        },
+      }),
+    );
+
+    expect((value as { journal: Array<{ tickets: string[]; outcome: string; cause: string }> }).journal).toEqual([
+      expect.objectContaining({ tickets: ['DEV-1'], outcome: 'merged' }),
+      expect.objectContaining({ tickets: ['DEV-2'], outcome: 'unit-blocked', cause: expect.stringContaining('foreign-file') }),
+    ]);
+    const lastChain = calls.filter((call) => call.label === 'step:chain').pop()?.prompt ?? '';
+    expect(lastChain).toContain('"tickets":["DEV-2"],"outcome":"unit-blocked"');
   });
 
   it('carries a refusing step`s own words out as the stop reason', async () => {

@@ -346,6 +346,26 @@ const mergedUnits = () =>
     }))
 
 /**
+ * Write down a unit this run took and could not finish.
+ *
+ * Where the script used to `break`, it left no trace: the CLI models `blocked`
+ * as a third end and nothing shipped ever produced one, so a cluster with no
+ * surviving range and a cluster whose proofs refused both ended as a silent
+ * stop, and every ticket in them read as still remaining. A unit is taken once.
+ * What became of it is a fact about it, not a reason to take it again -- so it
+ * is journaled here, the worktrees are reclaimed exactly as they are after a
+ * publish, and the chain decides whether the run goes on.
+ */
+async function blockUnit(tickets, cause, stepName, teardown) {
+  journal.push({ tickets, outcome: 'unit-blocked', cause, integrationSha: null, mergeCommit: null, unionVerdict: null, checks: [] })
+  taken += 1
+  await beat(stepName, cause)
+  if (teardown.length > 0) {
+    await execute(teardown.map((s) => s.command), 'they reclaim the worktrees; no branch is deleted', 'Reconcile')
+  }
+}
+
+/**
  * Say where the run is, in the one place a person can read without a terminal.
  *
  * After EVERY decision, not at the end. A run that publishes only when it
@@ -468,7 +488,13 @@ while (true) {
   )
   if (!reconciliation.plan) {
     log('nothing survived this cluster; every branch is preserved')
-    break
+    await blockUnit(
+      orchestration.plan.assignments.map((a) => a.ticketId),
+      `nothing survived reconciliation: ${reconciliation.outcome?.detail ?? 'no range was integrable'}`,
+      'reconcile',
+      orchestration.teardown,
+    )
+    continue
   }
   required(await execute(reconciliation.plan.steps.map((s) => s.command), 'they merge only the ranges git confirmed', 'Reconcile'), 'merging the ranges')
   await beat('reconcile', reconciliation.plan.integrate.join(', '))
@@ -493,8 +519,12 @@ while (true) {
   )
   if (gate.proofs.kind !== 'merge') {
     log(`stop (${gate.proofs.action}): ${gate.proofs.detail}`)
-    await beat('gate', gate.proofs.detail)
-    break
+    await blockUnit(reconciliation.plan.integrate, `the proofs refused (${gate.proofs.action}): ${gate.proofs.detail}`, 'gate', orchestration.teardown)
+    // The gate names what it wants: `STOP_CHAIN` ends the run, and anything
+    // else ends this unit only. Reading both as "stop" threw away a
+    // continuation the gate had already decided was safe.
+    if (gate.proofs.action === 'STOP_CHAIN') break
+    continue
   }
 
   phase('Publish')
@@ -596,7 +626,7 @@ while (true) {
   // count any of these as still ready.
   journal.push({
     tickets: reconciliation.plan.integrate,
-    outcome: landed ? 'merged' : decision.action.action === 'await-human' ? 'published-awaiting-human' : 'blocked',
+    outcome: landed ? 'merged' : decision.action.action === 'await-human' ? 'published-awaiting-human' : 'unit-blocked',
     cause: landed
       ? null
       : decision.action.action === 'merge'
@@ -607,6 +637,22 @@ while (true) {
     unionVerdict: decision.unionVerdict ?? 'inconclusive',
     checks: landing?.checks ?? [],
   })
+  // A ticket the reconciler excluded was taken by this run all the same: it was
+  // leased, a worker ran it, and its branch is still there. Journaling only
+  // `integrate` dropped it back into the pool, so the chain proposed it again as
+  // `nextUnit` inside the same run, and the next orchestrate tried to create a
+  // worktree on a branch that already existed. It is taken, with its reason.
+  for (const excluded of reconciliation.plan.excluded ?? []) {
+    journal.push({
+      tickets: [excluded.ticketId],
+      outcome: 'unit-blocked',
+      cause: `excluded at reconciliation (${excluded.reason}): ${excluded.detail}`,
+      integrationSha: null,
+      mergeCommit: null,
+      unionVerdict: null,
+      checks: [],
+    })
+  }
   taken += 1
   await beat('publish', reconciliation.plan.integrate.join(', '))
   required(await execute(orchestration.teardown.map((s) => s.command), 'they reclaim the worktrees; no branch is deleted', 'Reconcile'), 'reclaiming the worktrees')

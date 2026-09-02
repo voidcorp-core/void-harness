@@ -336,7 +336,7 @@ describe('a unit that came back unmerged', () => {
   it('lets a blocked unit hand back and the chain take the next one', () => {
     const decision = step({
       merged: [],
-      taken: [{ tickets: ['DEV-1'], outcome: 'blocked' }],
+      taken: [{ tickets: ['DEV-1'], outcome: 'unit-blocked' }],
       postMerge: undefined,
       budgetMs: 120 * MINUTE,
       elapsedMs: 20 * MINUTE,
@@ -349,7 +349,7 @@ describe('a unit that came back unmerged', () => {
     // long finishing does. Eight minutes left is still not a unit.
     const decision = step({
       merged: [],
-      taken: [{ tickets: ['DEV-1'], outcome: 'blocked' }],
+      taken: [{ tickets: ['DEV-1'], outcome: 'unit-blocked' }],
       postMerge: undefined,
       budgetMs: 10 * MINUTE,
       elapsedMs: 2 * MINUTE,

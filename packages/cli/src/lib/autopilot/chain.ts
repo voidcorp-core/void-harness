@@ -41,8 +41,14 @@ export type PostMergeObservation =
  * that would have started a second worker on a ticket whose pull request was
  * open. A unit is taken once. What it became is a fact about it, not a reason
  * to take it again.
+ *
+ * `unit-blocked` rather than `blocked`, because the skill page that documents
+ * this table also documents the `status` verdict of that name, which is about a
+ * pull request -- closed unmerged, on a foreign branch, merged with no commit.
+ * Two reader-facing states cannot share a word on the same page, and this is the
+ * one nothing had ever produced, so it is the one that moves.
  */
-export type TakenOutcome = 'merged' | 'published-awaiting-human' | 'blocked';
+export type TakenOutcome = 'merged' | 'published-awaiting-human' | 'unit-blocked';
 
 export interface TakenUnit {
   readonly tickets: readonly string[];

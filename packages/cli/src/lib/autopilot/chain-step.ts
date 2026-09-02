@@ -109,7 +109,7 @@ export function decideChainStep(
     disposition: renderDisposition({
       merged: observation.merged.flatMap((merged) => merged.tickets),
       awaitingHuman: ticketsWith(observation.taken, 'published-awaiting-human'),
-      blocked: ticketsWith(observation.taken, 'blocked'),
+      blocked: ticketsWith(observation.taken, 'unit-blocked'),
       remaining,
       debts,
     }),
