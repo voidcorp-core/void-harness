@@ -1,8 +1,10 @@
+import { existsSync } from 'node:fs';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { type MissionSpecialistPlan } from '@voidcorp/mission-engine';
 import {
@@ -25,6 +27,11 @@ import {
   writeMissionControllerPlan,
 } from '../lib/runs/store.js';
 import { recordSpecialistLifecycle } from '../lib/runs/specialist-lifecycle.js';
+import { writeExcludeBlock } from '../lib/git-exclude.js';
+import { resolveProjectRoots } from '../lib/project-roots.js';
+import { adapterFor } from '../lib/runtime-adapters.js';
+
+const CORE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'core');
 
 describe('parseMissionArgs', () => {
   it('persists controller ticket paths with portable separators', () => {
@@ -364,8 +371,8 @@ describe('parseMissionArgs', () => {
       status: 'degraded' as const,
       limitations: ['fixture cannot enforce native isolation'],
     };
-    const first = await dispatchMissionSpecialists(root, input, '2026-08-21T12:00:00.000Z', capability);
-    const second = await dispatchMissionSpecialists(root, input, '2026-08-21T12:00:00.000Z', capability);
+    const first = await dispatchMissionSpecialists(resolveProjectRoots(root), input, '2026-08-21T12:00:00.000Z', capability);
+    const second = await dispatchMissionSpecialists(resolveProjectRoots(root), input, '2026-08-21T12:00:00.000Z', capability);
     const inspected = await inspectMission(root, missionId, { dependencies: {} });
     const requested = inspected.stream.events.filter((event) =>
       event.kind === 'specialist.requested');
@@ -376,7 +383,7 @@ describe('parseMissionArgs', () => {
     // dropping an envelope to fit a narrow runtime would not run a smaller pass —
     // it would stall the mission on a completion nobody was asked for.
     const narrow = await dispatchMissionSpecialists(
-      root,
+      resolveProjectRoots(root),
       input,
       '2026-08-21T12:00:00.000Z',
       capability,
@@ -434,7 +441,7 @@ describe('parseMissionArgs', () => {
       });
     }
     const writerAction = await dispatchMissionSpecialists(
-      root,
+      resolveProjectRoots(root),
       input,
       '2026-08-21T12:00:00.000Z',
       capability,
@@ -463,7 +470,7 @@ describe('parseMissionArgs', () => {
       scripts: { test: 'vitest run' },
     }));
     const post = await dispatchMissionSpecialists(
-      root,
+      resolveProjectRoots(root),
       input,
       '2026-08-21T12:01:00.000Z',
       capability,
@@ -483,7 +490,7 @@ describe('parseMissionArgs', () => {
       '# Different ticket\n\nChange authentication scope.\n',
     );
     await expect(dispatchMissionSpecialists(
-      root,
+      resolveProjectRoots(root),
       input,
       '2026-08-21T12:02:00.000Z',
       capability,
@@ -492,6 +499,90 @@ describe('parseMissionArgs', () => {
       dependencies: {},
     })).stream.events.filter((event) => event.kind === 'specialist.requested').length;
     expect(requestsAfterTicketChange).toBe(requestsBeforeTicketChange);
+  });
+
+  // Measured on 2026-09-02, run-2026-09-02-chain-b: the DEV-704 worker ran
+  // `mission dispatch` in its worktree and got `blocked / stop`, "no native
+  // specialists are installed in this worktree". They were installed in the
+  // main checkout, hidden from git by design, so `worktree add` carried none.
+  it('dispatches from a linked worktree with the panel and journal of the main checkout', async () => {
+    const main = await mkdtemp(join(tmpdir(), 'void-mission-worktree-'));
+    const missionId = 'mis_0123456789abcdef0123456789abcdef';
+    const ticketBody = '# Root resolution\n\nRead the panel from the installation root.\n';
+    await writeFile(join(main, 'package.json'), JSON.stringify({
+      packageManager: 'pnpm@10.34.5',
+    }));
+    await writeFile(join(main, 'DEV-732.md'), ticketBody);
+    execFileSync('git', ['init', '--quiet'], { cwd: main });
+    await adapterFor('claude').wire({
+      projectRoot: main,
+      installationRoot: main,
+      sourceRoot: CORE_ROOT,
+      enabledPlugins: ['harness'],
+      enabledPacks: [],
+      source: 'local',
+      marketplaceRepo: 'acme/void-harness-fork',
+      pinVersion: '0.17.0',
+    });
+    writeExcludeBlock(main);
+    execFileSync('git', ['add', 'package.json', 'DEV-732.md'], { cwd: main });
+    execFileSync('git', [
+      '-c', 'user.name=Void Test',
+      '-c', 'user.email=void@example.test',
+      'commit', '--quiet', '-m', 'test: seed mission fixture',
+    ], { cwd: main });
+    const linked = join(await mkdtemp(join(tmpdir(), 'void-mission-linked-')), 'DEV-732');
+    execFileSync('git', ['worktree', 'add', '--quiet', linked, '-b', 'worker/DEV-732'], { cwd: main });
+    expect(existsSync(join(linked, '.claude', 'agents'))).toBe(false);
+
+    const plan = await planMission(main, 'DEV-732.md', '2026-09-02T12:00:00.000Z');
+    const controllerPlan: MissionSpecialistPlan = {
+      planHash: plan.planHash,
+      context: plan.context,
+      specialists: plan.specialists.map((specialist) => ({
+        specialistId: specialist.specialistId,
+        contractVersion: specialist.contractVersion,
+        inputHash: specialist.proof.inputHash,
+        state: specialist.state,
+        stages: specialist.stages,
+      })),
+    };
+    const ticketBinding = {
+      path: 'DEV-732.md',
+      contentHash: `sha256:${createHash('sha256').update(ticketBody).digest('hex')}`,
+    };
+    await createMission(main, {
+      missionId,
+      title: 'Root resolution',
+      mode: 'team',
+      teamController: {
+        planHash: plan.planHash,
+        routingHash: missionControllerRoutingHash(controllerPlan, ticketBinding),
+        leadWriterId: 'writer:primary',
+        runtime: 'claude',
+      },
+    });
+    await writeMissionControllerPlan(main, missionId, controllerPlan, ticketBinding);
+
+    const roots = resolveProjectRoots(linked);
+    const dispatched = await dispatchMissionSpecialists(
+      roots,
+      { kind: 'dispatch', missionId, json: true },
+      '2026-09-02T12:01:00.000Z',
+    );
+
+    expect(dispatched.phase).not.toBe('blocked');
+    expect(dispatched.action).toMatchObject({
+      kind: 'invoke-specialists',
+      stage: 'pre-implementation',
+    });
+    expect(dispatched.envelopes.length).toBeGreaterThan(0);
+    // The run belongs to the repository, not to the tree: its journal grows in
+    // the main checkout, and the worktree gets no `.void/machine` of its own.
+    const requested = (await inspectMission(main, missionId, { dependencies: {} }))
+      .stream.events.filter((event) => event.kind === 'specialist.requested');
+    expect(requested).toHaveLength(dispatched.envelopes.length);
+    expect(existsSync(join(linked, '.void', 'machine'))).toBe(false);
   });
 
   it('closes a mission once and rejects a conflicting closure reason', async () => {
@@ -544,7 +635,7 @@ describe('parseMissionArgs', () => {
     });
     await writeMissionControllerPlan(root, missionId, controllerPlan, ticketBinding);
 
-    const decision = await dispatchMissionSpecialists(root, {
+    const decision = await dispatchMissionSpecialists(resolveProjectRoots(root), {
       kind: 'dispatch',
       missionId,
       json: true,
@@ -559,7 +650,7 @@ describe('parseMissionArgs', () => {
       kind: 'mission.closed',
       payload: { reason: 'controller-stop' },
     }));
-    await expect(dispatchMissionSpecialists(root, {
+    await expect(dispatchMissionSpecialists(resolveProjectRoots(root), {
       kind: 'dispatch',
       missionId,
       json: true,
