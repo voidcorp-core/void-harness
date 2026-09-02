@@ -27,10 +27,11 @@ import { type ObservedPathObservation, observedWriteCandidates } from '../lib/ob
 import { type DiscoveredAsset, looksHarnessAuthored, orphanedAssets } from '../lib/orphaned-assets.js';
 import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../lib/packs.js';
 import { cliVersion, findCoreSource } from '../lib/paths.js';
+import { resolveProjectRoots } from '../lib/project-roots.js';
 import { type CheckResult, checkEnforceWorkflow, checkGh } from '../lib/prerequisites.js';
 import { readInstallReceipt } from '../lib/receipts.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
-import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
+import { banner, blank, c, footer, glyph, line, meta } from '../lib/render.js';
 import {
   judgeRunnerStaleness,
   runnerStalenessCheck,
@@ -91,11 +92,23 @@ export async function doctor(args: readonly string[]): Promise<void> {
   const wantsFix = args.includes('--fix');
   const dryRun = args.includes('--dry-run');
   const checks: CheckResult[] = [];
-  const root = process.cwd();
+  // What doctor judges is the installation, and the installation belongs to
+  // the repository: from a linked worktree that is the main checkout, where
+  // `init` put the assets git was told not to carry. Judged against the tree
+  // it ran in, doctor read a healthy repository as an absent install (DEV-732).
+  const roots = resolveProjectRoots();
+  const root = roots.installRoot;
+  // Every remedy below is a command that acts on the directory it is typed in.
+  // From a worktree it must therefore name the installation, or following it
+  // installs a second copy exactly where git was told not to look.
+  const where = roots.workRoot === roots.installRoot ? '' : `in ${roots.installRoot}: `;
 
-  const target = selfRepoDoctorTarget(root);
+  // The source repository is judged where it stands: self-host compares the
+  // current sources with what they last compiled into, and those sources are
+  // the tree at hand.
+  const target = selfRepoDoctorTarget(roots.workRoot);
   if (target.kind === 'self-host') {
-    await runSelfHostDoctor(root, args);
+    await runSelfHostDoctor(roots.workRoot, args);
     return;
   }
 
@@ -117,7 +130,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
     banner('doctor');
     blank();
     line(`${c.red('x')}  ${c.dim(stale.name.padEnd(18))} ${stale.message}`);
-    if (stale.fix !== undefined) line(c.dim(`     ${glyph.to} ${stale.fix}`));
+    if (stale.fix !== undefined) line(c.dim(`     ${glyph.to} ${where}${stale.fix}`));
     line(`${c.dim('-')}  ${c.dim(suspended.name.padEnd(18))} ${suspended.message}`);
     footer(c.red('1 check failed, this project\'s structure was not judged'));
     process.exit(1);
@@ -344,6 +357,14 @@ export async function doctor(args: readonly string[]): Promise<void> {
 
   banner('doctor');
   blank();
+  if (roots.workRoot !== roots.installRoot) {
+    // Named only when they differ: in the main checkout there is one root and
+    // nothing to explain. From a worktree, the reader must know which install
+    // the checks below describe.
+    meta('work tree', roots.workRoot);
+    meta('installed', roots.installRoot);
+    blank();
+  }
   for (const check of checks) {
     const marks: Record<ReturnType<typeof checkGlyph>, string> = {
       unknown: c.yellow('?'),
@@ -357,7 +378,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
     // the width, which is how `autopilot worktrees` printed as
     // `worktreesworktrees usable`.
     line(`${marks[checkGlyph(check)]}  ${c.dim(check.name.padEnd(18))} ${check.message}`);
-    if (checkShowsFix(check) && check.fix) line(c.dim(`     ${glyph.to} ${check.fix}`));
+    if (checkShowsFix(check) && check.fix) line(c.dim(`     ${glyph.to} ${where}${check.fix}`));
   }
 
   // Unknown is not failure. A check that could not reach a tracker has not

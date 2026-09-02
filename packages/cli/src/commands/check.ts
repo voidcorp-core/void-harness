@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO, PACKS } from '../lib/packs.js';
+import { resolveProjectRoots } from '../lib/project-roots.js';
 import { readSettings, settingsPathFor } from '../lib/settings.js';
 import {
   fetchRemoteMarketplace,
@@ -23,7 +24,9 @@ interface LocalConfig {
 
 export async function check(args: readonly string[]): Promise<void> {
   const doctrine = args.includes('--doctrine');
-  const projectRoot = process.cwd();
+  // The pins, the settings and the installed doctrine belong to the
+  // installation, which from a linked worktree is the main checkout.
+  const projectRoot = resolveProjectRoots().installRoot;
 
   const repo = await resolveMarketplaceRepo(projectRoot);
   const local = await readLocalConfig(projectRoot);

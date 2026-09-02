@@ -1,8 +1,10 @@
+import type { ProjectRoots } from '../project-roots.js';
 import { computeProjectState, type ProjectState } from './project-state.js';
 import { inspectMission } from './store.js';
 
+/** The tree is hashed from `workRoot`; the journal is read from `installRoot`. */
 export async function inspectCurrentMission(
-  root: string,
+  roots: ProjectRoots,
   missionId: string,
   secrets: readonly string[],
 ): Promise<{
@@ -10,14 +12,14 @@ export async function inspectCurrentMission(
   readonly project: ProjectState;
 }> {
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const before = await computeProjectState(root);
+    const before = await computeProjectState(roots.workRoot);
     const inspected = await inspectMission(
-      root,
+      roots.installRoot,
       missionId,
       { dependencies: { 'git:working-tree': before.diffHash } },
       { secrets },
     );
-    const after = await computeProjectState(root);
+    const after = await computeProjectState(roots.workRoot);
     if (before.diffHash === after.diffHash) {
       return { inspected, project: after };
     }

@@ -1,8 +1,10 @@
+import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { resolveProjectRoots } from './project-roots.js';
 import {
   ADAPTERS,
   adapterFor,
@@ -233,6 +235,52 @@ describe('claude adapter', () => {
     // tools, because the allowlist already denies them.
     expect(inspection.specialistCapability.status).toBe('available');
     expect(inspection.specialistCapability.limitations.join(' ')).not.toMatch(/MCP/i);
+  });
+});
+
+describe('specialists from a linked worktree', () => {
+  function git(cwd: string, ...args: string[]): void {
+    const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
+    if (result.status !== 0) throw new Error(`git ${args.join(' ')}: ${result.stderr}`);
+  }
+
+  // The install lives in the main checkout and is hidden from git on purpose
+  // (`.git/info/exclude`), so `git worktree add` carries none of it. Measured
+  // on 2026-09-02: a worker asked for its panel from its worktree and was told
+  // no specialist was installed. The panel is the same one, read from the
+  // installation root the worktree belongs to.
+  it('reads the same specialists from a worktree as from the main checkout', async () => {
+    const main = scratch();
+    git(main, 'init', '--quiet');
+    await adapterFor('claude').wire(ctxFor(main));
+    writeFileSync(join(main, 'README.md'), '# fixture\n');
+    git(main, 'add', 'README.md');
+    git(
+      main,
+      '-c', 'user.name=Void Test',
+      '-c', 'user.email=void@example.test',
+      'commit', '--quiet', '-m', 'test: seed',
+    );
+    const linked = join(scratch(), 'DEV-000');
+    git(main, 'worktree', 'add', '--quiet', linked, '-b', 'worker/DEV-000');
+    expect(existsSync(join(linked, '.claude', 'agents'))).toBe(false);
+    // No plugin cache to fall back on: the answer must come from the install.
+    const noCache = { claudeCacheRoot: join(scratch(), 'absent') };
+
+    const fromMain = await specialistCapabilityFor(main, 'claude', noCache);
+    const fromWorktree = await specialistCapabilityFor(
+      resolveProjectRoots(linked).installRoot,
+      'claude',
+      noCache,
+    );
+
+    expect(fromMain.status).toBe('available');
+    expect(fromWorktree).toEqual(fromMain);
+    // And the defect, kept as the reason this resolution exists: the worktree
+    // path alone holds no panel.
+    await expect(specialistCapabilityFor(linked, 'claude', noCache)).resolves.toMatchObject({
+      status: 'unavailable',
+    });
   });
 });
 

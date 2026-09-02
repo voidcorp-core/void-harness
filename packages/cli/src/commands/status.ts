@@ -22,6 +22,7 @@ import {
 } from '@voidcorp/harness-graph';
 import { loadTelemetryStream } from '../lib/graph-io.js';
 import { configPackDirs } from '../lib/packs.js';
+import { resolveProjectRoots } from '../lib/project-roots.js';
 import { detectedAdapters } from '../lib/runtime-adapters.js';
 import { banner, blank, c, footer, line } from '../lib/render.js';
 import { freshnessNotice, resolveFreshness } from '@voidcorp/hook-runner';
@@ -142,7 +143,10 @@ function readJson<T>(path: string): T {
 }
 
 export async function status(_args: readonly string[]): Promise<void> {
-  const cwd = process.cwd();
+  // What `status` measures is the installation, and `.void/machine/` is
+  // per-repository state: from a linked worktree both live in the main
+  // checkout (decision of 2026-09-02, runtime state from a worktree).
+  const cwd = resolveProjectRoots().installRoot;
   const certPath = findData('certification.json');
   if (!certPath) {
     footer(c.red('no certification.json found — reinstall the harness, or run `pnpm certification:build` in the monorepo.'));
