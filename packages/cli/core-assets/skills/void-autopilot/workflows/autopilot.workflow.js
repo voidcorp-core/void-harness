@@ -99,6 +99,41 @@ function execute(commands, why, phaseTitle) {
   )
 }
 
+/**
+ * Apply tracker actions a step returned, through the tracker connector.
+ *
+ * A reservation and a lifecycle plan are lists of tracker WRITES, not argv, and
+ * `execute` runs argv. On 2026-09-02 a consumer's first run stopped at the lease:
+ * the actions were filtered through `action.command`, which no tracker action
+ * carries, so the list came back empty and nothing was written or said. The
+ * agent holds the tracker tools; it applies each action exactly once, in order,
+ * and returns one receipt per action so the step that planned them judges
+ * convergence -- the script never concludes a write worked from having asked.
+ */
+function apply(actions, why, phaseTitle) {
+  return agent(
+    [
+      'Apply these tracker actions, in order, through the tracker connector (the issue',
+      'tracker tools available to you), each exactly once:',
+      '',
+      JSON.stringify(actions, null, 2),
+      '',
+      `They were computed by autopilot, not by you: ${why}`,
+      'Do not substitute, reorder, merge or add to them. A comment body is written',
+      'verbatim. An action whose result you could not observe is `unknown`, never',
+      '`applied`; a write with an unknown result is retried as the same write, never',
+      'as a second one.',
+      '',
+      'Return { ok, result, detail } where result carries { receipts: [...] }, one',
+      'receipt per action in the same order: for a reservation action',
+      '{ issueId, kind, result: "applied" | "failed" | "unknown" }, for a lifecycle',
+      'action { idempotencyKey, ok }. `ok` is false when any action failed, and',
+      '`detail` names the first one that did.',
+    ].join('\n'),
+    { label: 'apply', phase: phaseTitle, schema: JSON_RESULT },
+  )
+}
+
 /** A step that refused stops the run: its own words are the stop reason. */
 function required(answer, what) {
   if (!answer || answer.ok !== true || !answer.result) {
@@ -352,7 +387,27 @@ while (true) {
   }
   if (reservation.kind === 'blocked') throw new Error(`autopilot stopped: ${reservation.detail}`)
   if (reservation.kind === 'reserve') {
-    required(await execute(reservation.actions.map((action) => action.command ?? []).filter((command) => command.length > 0), 'they take the lease this run needs', 'Reserve'), 'taking the lease')
+    const applied = required(await apply(reservation.actions, 'they take the lease this run needs', 'Reserve'), 'taking the lease')
+    // The lease is active only once every reserved issue is re-observed in the
+    // claimed state; `start` judges that and writes the run cursor the later
+    // steps read. A partial convergence is handed back, never worked.
+    const lease = required(
+      await step(
+        'start',
+        'the reservation intent, the receipt of every action just applied, a fresh observation of every reserved issue, and the initial run cursor',
+        [
+          `Pass intent verbatim: ${JSON.stringify(reservation.intent)}.`,
+          `Pass applied verbatim: ${JSON.stringify(applied.receipts ?? [])}.`,
+          'Then re-observe every issue of the cluster in the tracker (state, assignee, comments, blocking relations) and pass it as reobservation, unmodified.',
+          `Build state from the intent: schemaVersion 1, its runId, clusterId and programId, startedAt ${input.now}, base from its marker, one pending ticket per reserved issue (branch null, commits and proofs empty, blocker null), integration { branch: null, headSha: null, prUrl: null, prState: "none" }, trackerSynced false.`,
+        ].join(' '),
+        'Reserve',
+      ),
+      'the lease',
+    )
+    if (lease.kind !== 'active') {
+      throw new Error(`autopilot stopped: the lease did not converge (${lease.kind}): ${lease.detail ?? 'see the step output'}`)
+    }
   }
 
   const orchestration = required(
@@ -443,15 +498,33 @@ while (true) {
   )
   log(`grant: ${decision.grant.kind} — next ${decision.action.action}`)
 
-  required(
+  const lifecycle = required(
     await step(
       'lifecycle',
-      'what the tracker should show now, and the receipt of every action already applied',
-      'Apply the actions it returns, then pass the receipts back through the same command so the run can say whether the tracker converged.',
+      'what the tracker should show now: the stage, the pull request, the observed merge commit when there is one, and every ticket with its disposition and native state',
+      'Observe each ticket of the cluster in the tracker and pass its current native state. Pass no receipts on this first call: the step plans the actions, and nothing has been applied yet.',
       'Publish',
     ),
     'the tracker lifecycle',
   )
+  // The plan is applied by an agent holding the tracker tools, and the SAME step
+  // then reads the receipts: the run calls the tracker synced only when the step
+  // says every action converged, never from having asked.
+  let trackerConverged = true
+  if (lifecycle.actions.length > 0) {
+    const moved = required(await apply(lifecycle.actions, 'they move the tickets the run integrated, and comment the ones it left out', 'Publish'), 'moving the tickets')
+    const reconciled = required(
+      await step(
+        'lifecycle',
+        'the same observation as the previous lifecycle call, plus the receipt of every action just applied',
+        `Pass the same stage, pull request, merge commit and tickets as the previous lifecycle call, and receipts verbatim: ${JSON.stringify(moved.receipts ?? [])}.`,
+        'Publish',
+      ),
+      'the tracker reconciliation',
+    )
+    trackerConverged = reconciled.reconciliation?.converged === true
+    if (!trackerConverged) log(`tracker not converged: ${reconciled.reconciliation?.detail ?? 'no reconciliation returned'}`)
+  }
 
   // What became of the unit is recorded here, not inferred later: a unit the
   // grant did not merge is published and waiting for a person, and the chain
@@ -464,6 +537,9 @@ while (true) {
   taken += 1
   await beat('publish', reconciliation.plan.integrate.join(', '))
   required(await execute(orchestration.teardown.map((s) => s.command), 'they reclaim the worktrees; no branch is deleted', 'Reconcile'), 'reclaiming the worktrees')
+  // A tracker that did not converge leaves the run in reconciliation, not in
+  // "synced": the unit stays journaled and the next one is not taken.
+  if (!trackerConverged) break
 }
 
 return { schemaVersion: 1, unitsTaken: taken, journal }

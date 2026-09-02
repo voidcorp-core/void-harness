@@ -63,7 +63,16 @@ function answers(over: Record<string, unknown> = {}): Record<string, unknown> {
       protection: { allowed: true, reason: 'protected', detail: 'required checks declared' },
     },
     chain: { decision: { kind: 'continue', detail: 'time left' }, nextUnit: 'DEV-1' },
-    reserve: { kind: 'reserve', intent: {}, actions: [{ kind: 'transition', command: ['gh', 'issue', 'edit'] }] },
+    reserve: {
+      kind: 'reserve',
+      intent: { runId: 'run-a', clusterId: 'cluster-1', programId: 'p', cluster: ['DEV-1'], marker: { baseSha: SHA } },
+      // Tracker writes, not argv: a transition and a lease comment, exactly what the CLI plans.
+      actions: [
+        { issueId: 'DEV-1', kind: 'transition', toState: 'In Progress' },
+        { issueId: 'DEV-1', kind: 'comment', body: '<!-- void-harness:autopilot-lease:v1 -->' },
+      ],
+    },
+    start: { kind: 'active', marker: { runId: 'run-a' }, issues: ['DEV-1'] },
     orchestrate: {
       plan: {
         schemaVersion: 1,
@@ -92,7 +101,12 @@ function answers(over: Record<string, unknown> = {}): Record<string, unknown> {
     gate: { proofs: { kind: 'merge', debts: [] } },
     publish: { plan: { steps: [{ command: ['git', 'push'] }], blocked: [], pullRequest: { number: null } } },
     grant: { grant: { kind: 'granted', advisories: [] }, action: { action: 'merge', detail: 'every condition holds' } },
-    lifecycle: { stage: 'merged', actions: [], skipped: [] },
+    lifecycle: {
+      stage: 'merged',
+      actions: [{ ticketId: 'DEV-1', kind: 'set-state', toState: 'Done', idempotencyKey: 'run-a:DEV-1:set-state:merged' }],
+      skipped: [],
+      reconciliation: { converged: true, pending: [], unexpected: [], detail: 'every action has a receipt' },
+    },
     ...over,
   };
 }
@@ -111,6 +125,7 @@ async function runWorkflow(
   worker: (ticketId: string) => unknown = (ticketId) => ({ ticketId, status: 'completed' }),
 ) {
   const calls: AgentCall[] = [];
+  const applied: string[] = [];
   const phases: string[] = [];
   const logs: string[] = [];
   let inFlight = 0;
@@ -130,6 +145,10 @@ async function runWorkflow(
 
       if (label.startsWith('ticket:')) return worker(label.slice('ticket:'.length));
       if (label === 'execute') return { ok: true, result: { ran: 1 } };
+      if (label === 'apply') {
+        applied.push(prompt);
+        return { ok: true, result: { receipts: [{ idempotencyKey: 'run-a:DEV-1:set-state:merged', ok: true }] } };
+      }
       const name = label.slice('step:'.length);
       if (name === 'chain') {
         chainTurns += 1;
@@ -157,7 +176,7 @@ async function runWorkflow(
   const body = SOURCE.replace(/^export const meta =/m, 'const meta =');
   const value = await runInNewContext(`(async () => {\n${body}\n})()`, sandbox, { timeout: 10_000 });
 
-  return { calls, phases, logs, peakInFlight, value };
+  return { calls, applied, phases, logs, peakInFlight, value };
 }
 
 const labels = (calls: readonly AgentCall[]): readonly string[] => calls.map((call) => call.label);
@@ -171,6 +190,7 @@ describe('the autopilot cycle is a script', () => {
       'step:base',
       'step:chain',
       'step:reserve',
+      'step:start',
       'step:orchestrate',
       'step:progress',
       'step:reconcile',
@@ -180,10 +200,65 @@ describe('the autopilot cycle is a script', () => {
       'step:publish',
       'step:grant',
       'step:lifecycle',
+      'step:lifecycle',
       'step:progress',
       'step:chain',
       'step:progress',
     ]);
+  });
+
+  // On 2026-09-02 a consumer's first run stopped at the lease: the reservation
+  // came back as tracker actions, the script handed them to the argv executor
+  // through `action.command`, which no tracker action has, and the filtered
+  // list was empty. Nothing was written and nothing said so.
+  it('applies the reservation through the tracker connector, never as argv, then takes the lease with start', async () => {
+    const { calls, applied } = await runWorkflow(configuration());
+
+    const reserveApply = applied.find((prompt) => prompt.includes('"kind": "transition"'));
+    expect(reserveApply).toBeDefined();
+    expect(reserveApply).toContain('DEV-1');
+    expect(reserveApply).toContain('void-harness:autopilot-lease');
+    for (const call of calls.filter((entry) => entry.label === 'execute')) {
+      expect(call.prompt, 'a tracker action handed to the argv executor').not.toMatch(/transition|set-state|idempotencyKey/);
+    }
+    const steps = labels(calls).filter((label) => label.startsWith('step:'));
+    expect(steps.indexOf('step:start')).toBe(steps.indexOf('step:reserve') + 1);
+    const start = calls.find((call) => call.label === 'step:start')?.prompt ?? '';
+    expect(start).toContain('"runId":"run-a"');
+    expect(start).toContain('reobserv');
+  });
+
+  it('stops before any worker when the lease did not converge', async () => {
+    const run = runWorkflow(configuration(), answers({ start: { kind: 'reobserve', detail: 'DEV-1 is still Backlog' } }));
+
+    await expect(run).rejects.toThrow(/lease/);
+  });
+
+  it('applies the lifecycle actions and asks the step whether the tracker converged', async () => {
+    const { calls, applied } = await runWorkflow(configuration());
+
+    expect(applied.some((prompt) => prompt.includes('run-a:DEV-1:set-state:merged'))).toBe(true);
+    const lifecycles = calls.filter((call) => call.label === 'step:lifecycle');
+    expect(lifecycles).toHaveLength(2);
+    expect(lifecycles[0]?.prompt).toMatch(/no receipts/i);
+    expect(lifecycles[1]?.prompt).toContain('run-a:DEV-1:set-state:merged');
+  });
+
+  it('never calls the tracker synced on its own: an unconverged lifecycle ends the run', async () => {
+    const { calls, value } = await runWorkflow(
+      configuration(),
+      answers({
+        lifecycle: {
+          stage: 'merged',
+          actions: [{ ticketId: 'DEV-1', kind: 'set-state', toState: 'Done', idempotencyKey: 'k' }],
+          skipped: [],
+          reconciliation: { converged: false, pending: ['k'], unexpected: [], detail: 'k has no receipt' },
+        },
+      }),
+    );
+
+    expect(value).toMatchObject({ unitsTaken: 1 });
+    expect(labels(calls).filter((label) => label === 'step:chain')).toHaveLength(1);
   });
 
   // The gate of the readability slice. A person with no terminal reads the
