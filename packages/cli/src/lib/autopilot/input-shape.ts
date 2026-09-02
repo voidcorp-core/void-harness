@@ -32,6 +32,11 @@ interface FieldSpec {
 interface InputShape {
   readonly what: string;
   readonly fields: readonly FieldSpec[];
+  /**
+   * What the field types cannot say: how the entries of one field relate to
+   * each other and to another field. Runs after every field has its type.
+   */
+  readonly refine?: (payload: unknown) => void;
 }
 
 const SHA = '0'.repeat(40);
@@ -180,6 +185,7 @@ export const INPUT_SHAPES: Readonly<Record<AutopilotInputStep, InputShape>> = Ob
   },
   chain: {
     what: 'chain observation',
+    refine: refineChain,
     fields: [
       {
         name: 'schemaVersion',
@@ -373,6 +379,109 @@ export function validateAgainstShape(payload: unknown, step: AutopilotInputStep)
       `${field.from}. Run \`void-harness autopilot scaffold ${step}\` for the whole shape.`,
     );
   }
+  shape.refine?.(payload);
+}
+
+const TAKEN_OUTCOMES: readonly string[] = ['merged', 'published-awaiting-human', 'blocked'];
+
+interface TakenUnit {
+  readonly tickets: readonly string[];
+  readonly outcome: string;
+}
+
+function refuseChain(field: string, cause: string, fix: string): never {
+  throw autopilotFailure(
+    'AUTOPILOT_INPUT',
+    `the chain observation carries an unusable \`${field}\``,
+    cause,
+    fix,
+  );
+}
+
+/** The tickets an entry names, or a refusal naming the field it sits in. */
+function ticketsOf(entry: unknown, field: string): readonly string[] {
+  const tickets = at(entry, 'tickets');
+  if (
+    !Array.isArray(tickets) || tickets.length === 0
+    || !tickets.every((id) => typeof id === 'string' && id.length > 0)
+  ) {
+    refuseChain(
+      `${field}.tickets`,
+      `\`${field}.tickets\` must be a non-empty array of ticket ids, received`
+        + ` ${JSON.stringify(tickets)}`,
+      'list at least one ticket id per entry; a unit of nothing is not a unit',
+    );
+  }
+  return tickets;
+}
+
+/** Every `taken` entry read as a unit: three outcomes, tickets owned by one entry. */
+function takenUnits(taken: readonly unknown[]): readonly TakenUnit[] {
+  const owner = new Map<string, number>();
+  return taken.map((entry, index) => {
+    const field = `taken[${String(index)}]`;
+    const outcome = at(entry, 'outcome');
+    if (typeof outcome !== 'string' || !TAKEN_OUTCOMES.includes(outcome)) {
+      refuseChain(
+        `${field}.outcome`,
+        `\`${field}.outcome\` is ${JSON.stringify(outcome)}`,
+        `use one of ${TAKEN_OUTCOMES.map((value) => `\`${value}\``).join(', ')};`
+          + ' a unit ends one of three ways',
+      );
+    }
+    const tickets = ticketsOf(entry, field);
+    for (const id of tickets) {
+      const earlier = owner.get(id);
+      if (earlier !== undefined) {
+        refuseChain(
+          `${field}.tickets`,
+          `${id} is listed by \`taken[${String(earlier)}]\` and again by \`${field}\``,
+          'a unit is taken once; list each ticket in exactly one entry',
+        );
+      }
+      owner.set(id, index);
+    }
+    return { tickets, outcome };
+  });
+}
+
+/** The one `taken` entry that merged exactly these tickets, or a refusal. */
+function refuseUnlessOneUnitMerged(
+  units: readonly TakenUnit[],
+  tickets: readonly string[],
+  field: string,
+): void {
+  const matching = units.filter((unit) => unit.outcome === 'merged'
+    && unit.tickets.length === tickets.length
+    && tickets.every((id) => unit.tickets.includes(id)));
+  if (matching.length === 1) return;
+  refuseChain(
+    field,
+    `\`${field}\` merged ${tickets.join(', ')} as one unit, and \`taken\` has`
+      + ` ${String(matching.length)} merged entries with exactly those tickets`,
+    'give each journal entry exactly one `taken` entry, marked `merged`, with the same tickets',
+  );
+}
+
+/**
+ * The entries of `taken`, each against itself and against the merge journal.
+ *
+ * Measured on 2026-09-02: the shape said "array" and nothing else, so a journal
+ * entry split across two taken entries halved the per-unit measurement, an entry
+ * with no ticket counted as a unit, one ticket in two entries made the chain stop
+ * on a merged ticket as waiting, and a fourth outcome removed a ticket from the
+ * pool without ever being named. The cross-check in `chain-step` compares sets of
+ * tickets, never entries; this is the reading it cannot do.
+ */
+function refineChain(payload: unknown): void {
+  const taken = at(payload, 'taken');
+  const merged = at(payload, 'merged');
+  if (!Array.isArray(taken) || !Array.isArray(merged)) return;
+  const units = takenUnits(taken);
+  merged.forEach((entry, index) => {
+    const field = `merged[${String(index)}]`;
+    refuseUnlessOneUnitMerged(units, ticketsOf(entry, field), field);
+  });
 }
 
 /**
