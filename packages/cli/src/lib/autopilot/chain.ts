@@ -206,40 +206,89 @@ export function planChainStep(input: {
   // base is still a broken base, and reporting "cap" would read as a nominal end
   // and send nobody to look at it.
   const last = input.merged[input.merged.length - 1];
-  if (last !== undefined) {
-    if (input.postMerge === undefined) {
-      return stop(
-        'post-merge-unverified',
-        true,
-        'the merged base was never verified, and an unverified base is not a green one',
-        'run the full suite on the base, then decide whether the chain may continue',
-      );
-    }
-    // A verdict about another tree is not a verdict, exactly as `review-stale`
-    // reads it on the merge grant. A suite that ran before this merge landed, or
-    // on a base someone else has since pushed to, describes a tree the chain is
-    // no longer standing on -- and it is the reading a green result would be
-    // trusted on.
-    if (input.postMerge.sha !== last.mergeCommit) {
-      return stop(
-        'post-merge-stale',
-        true,
-        `the suite was observed on ${short(input.postMerge.sha)}, and the merge produced`
-          + ` ${short(last.mergeCommit)}`,
-        'run the full suite on the commit the merge actually produced, then decide',
-      );
-    }
-    if (input.postMerge.kind === 'red') {
-      const named = input.postMerge.failing.slice(0, 3).join(', ');
-      return stop(
-        'post-merge-red',
-        true,
-        `the suite failed on ${short(input.postMerge.sha)}: ${named}`,
-        'fix the base before anything else merges; the next unit was not started',
-      );
-    }
+  const base = last === undefined ? undefined : judgeBase(last, input.postMerge);
+  if (base !== undefined) return base;
+
+  const budget = judgeBudget(input);
+  if (budget !== undefined) return budget;
+
+  // After the budget, on purpose: on 2026-09-02 both were true at once, and the
+  // budget is the reading that says why this run is over rather than merely
+  // paused on a person. Before `nothing-ready`, also on purpose: a run that
+  // handed a unit to someone did not run out of work, it is waiting on them.
+  //
+  // Another unit would start on the base as it is, without the change the
+  // person has not accepted yet. That stacks a second pull request on a first
+  // one nobody has read, and turns "the human eye is at the merge" into two
+  // merges to reason about at once.
+  const waiting = input.taken.filter((unit) => unit.outcome === 'published-awaiting-human');
+  if (waiting.length > 0) {
+    const named = waiting.flatMap((unit) => unit.tickets).join(', ');
+    return stop(
+      'awaiting-human',
+      false,
+      `${named} is published and waiting for a person; another unit would stack on a base`
+        + ' that person has not accepted yet',
+      'review the pull request; once it is merged or closed, start another run',
+    );
   }
 
+  if (input.nextReady <= 0) {
+    return stop('nothing-ready', false, 'no unit is ready to take', 'nothing to do; the backlog decides when there is');
+  }
+
+  return {
+    kind: 'continue',
+    detail: `base green after ${String(input.merged.length)} merge(s), ${String(input.nextReady)} unit(s) ready,`
+      + ` ${describe(input.budgetMs - input.elapsedMs)} left`,
+  };
+}
+
+/** Whether the base the last merge produced can be stood on; undefined when it can. */
+function judgeBase(
+  last: MergedUnit,
+  postMerge: PostMergeObservation | undefined,
+): ChainDecision | undefined {
+  if (postMerge === undefined) {
+    return stop(
+      'post-merge-unverified',
+      true,
+      'the merged base was never verified, and an unverified base is not a green one',
+      'run the full suite on the base, then decide whether the chain may continue',
+    );
+  }
+  // A verdict about another tree is not a verdict, exactly as `review-stale`
+  // reads it on the merge grant. A suite that ran before this merge landed, or
+  // on a base someone else has since pushed to, describes a tree the chain is
+  // no longer standing on -- and it is the reading a green result would be
+  // trusted on.
+  if (postMerge.sha !== last.mergeCommit) {
+    return stop(
+      'post-merge-stale',
+      true,
+      `the suite was observed on ${short(postMerge.sha)}, and the merge produced`
+        + ` ${short(last.mergeCommit)}`,
+      'run the full suite on the commit the merge actually produced, then decide',
+    );
+  }
+  if (postMerge.kind === 'red') {
+    const named = postMerge.failing.slice(0, 3).join(', ');
+    return stop(
+      'post-merge-red',
+      true,
+      `the suite failed on ${short(postMerge.sha)}: ${named}`,
+      'fix the base before anything else merges; the next unit was not started',
+    );
+  }
+  return undefined;
+}
+
+/** Whether the run may START another unit; undefined when it may. */
+function judgeBudget(input: {
+  readonly taken: readonly TakenUnit[];
+  readonly budgetMs: number;
+  readonly elapsedMs: number;
+}): ChainDecision | undefined {
   // A budget or a clock that is not a number makes every comparison below false,
   // and `NaN <= 0` is false -- so an unreadable budget used to read as "time
   // left" and continue. The one direction this must never fail in.
@@ -292,37 +341,7 @@ export function planChainStep(input: {
       'read the journal, then start another run if the direction still holds',
     );
   }
-
-  // After the budget, on purpose: on 2026-09-02 both were true at once, and the
-  // budget is the reading that says why this run is over rather than merely
-  // paused on a person. Before `nothing-ready`, also on purpose: a run that
-  // handed a unit to someone did not run out of work, it is waiting on them.
-  //
-  // Another unit would start on the base as it is, without the change the
-  // person has not accepted yet. That stacks a second pull request on a first
-  // one nobody has read, and turns "the human eye is at the merge" into two
-  // merges to reason about at once.
-  const waiting = input.taken.filter((unit) => unit.outcome === 'published-awaiting-human');
-  if (waiting.length > 0) {
-    const named = waiting.flatMap((unit) => unit.tickets).join(', ');
-    return stop(
-      'awaiting-human',
-      false,
-      `${named} is published and waiting for a person; another unit would stack on a base`
-        + ' that person has not accepted yet',
-      'review the pull request; once it is merged or closed, start another run',
-    );
-  }
-
-  if (input.nextReady <= 0) {
-    return stop('nothing-ready', false, 'no unit is ready to take', 'nothing to do; the backlog decides when there is');
-  }
-
-  return {
-    kind: 'continue',
-    detail: `base green after ${String(input.merged.length)} merge(s), ${String(input.nextReady)} unit(s) ready,`
-      + ` ${describe(input.budgetMs - input.elapsedMs)} left`,
-  };
+  return undefined;
 }
 
 /**
