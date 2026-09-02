@@ -183,8 +183,7 @@ tests hold this file to them.
   **re-observe every ticket** and seen all of them converge; partial convergence releases what was
   taken, because half a cluster produces an integration pull request that can never be complete.
   The same rule governs ranges: `reconcile` believes git, never the worker's own commit list.
-- **A worker states what reviewed it.** `WorkerResult.review` names each pass and where it ran, or
-  why none did. No record, no parse; a self-review is named in the body; none refuses the gate.
+- **A worker states what reviewed it.** `WorkerResult.review` names each pass and where it ran, or why none did: no record, no parse, and none refuses the gate.
 - **A migration is never parallel**, whatever its estimate says, and neither is a low-confidence
   footprint, a lockfile or a shared-ownership path. `orchestrate` sequences what it cannot prove
   disjoint, and names why each ticket lost its parallel slot.
@@ -319,7 +318,7 @@ a caller cannot take one anyway.
 A unit is taken once. The observation lists every unit the run took with what became of it --
 `merged`, `published-awaiting-human`, or `unit-blocked` with its cause -- and none of those is
 remaining: on 2026-09-02 the chain knew only `merged`, counted a unit handed to a person as still
-ready, and proposed it again onto its own pull request. A unit that finished measures how long one
+ready and proposed it again onto its own pull request. A unit that finished measures how long one
 takes; a blocked one measured failing, and the estimate serves only until one finishes.
 
 A unit already under way is never cut in half. The budget decides whether to START another one;
