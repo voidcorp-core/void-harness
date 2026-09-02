@@ -98,6 +98,10 @@ export async function doctor(args: readonly string[]): Promise<void> {
   // it ran in, doctor read a healthy repository as an absent install (DEV-732).
   const roots = resolveProjectRoots();
   const root = roots.installRoot;
+  // Every remedy below is a command that acts on the directory it is typed in.
+  // From a worktree it must therefore name the installation, or following it
+  // installs a second copy exactly where git was told not to look.
+  const where = roots.workRoot === roots.installRoot ? '' : `in ${roots.installRoot}: `;
 
   // The source repository is judged where it stands: self-host compares the
   // current sources with what they last compiled into, and those sources are
@@ -126,7 +130,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
     banner('doctor');
     blank();
     line(`${c.red('x')}  ${c.dim(stale.name.padEnd(18))} ${stale.message}`);
-    if (stale.fix !== undefined) line(c.dim(`     ${glyph.to} ${stale.fix}`));
+    if (stale.fix !== undefined) line(c.dim(`     ${glyph.to} ${where}${stale.fix}`));
     line(`${c.dim('-')}  ${c.dim(suspended.name.padEnd(18))} ${suspended.message}`);
     footer(c.red('1 check failed, this project\'s structure was not judged'));
     process.exit(1);
@@ -374,7 +378,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
     // the width, which is how `autopilot worktrees` printed as
     // `worktreesworktrees usable`.
     line(`${marks[checkGlyph(check)]}  ${c.dim(check.name.padEnd(18))} ${check.message}`);
-    if (checkShowsFix(check) && check.fix) line(c.dim(`     ${glyph.to} ${check.fix}`));
+    if (checkShowsFix(check) && check.fix) line(c.dim(`     ${glyph.to} ${where}${check.fix}`));
   }
 
   // Unknown is not failure. A check that could not reach a tracker has not

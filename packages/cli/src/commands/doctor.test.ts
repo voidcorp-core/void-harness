@@ -61,11 +61,15 @@ describe('doctor from a linked worktree', () => {
     if (result.status !== 0) throw new Error(`git ${args.join(' ')}: ${result.stderr}`);
   }
 
-  /** Strip the roots block (two lines and its blank) so two reports of one install compare equal. */
+  /**
+   * Strip the roots block (two lines and its blank) and the directory each
+   * remedy names, so two reports of one install compare equal.
+   */
   function report(out: string): string {
     return out
       .split('\n')
       .filter((line) => !/^\s+(work tree|installed)\s+\//.test(line))
+      .map((line) => line.replace(/ in \/\S+: /, ' '))
       .join('\n')
       .replace(/\n{3,}/g, '\n\n');
   }
@@ -96,5 +100,34 @@ describe('doctor from a linked worktree', () => {
     expect(fromMain.out).not.toMatch(/^\s+installed\s+\//m);
     expect(fromWorktree.code).toBe(fromMain.code);
     expect(report(fromWorktree.out)).toBe(report(fromMain.out));
+  });
+
+  // Every remedy doctor prints is a command that acts on the directory it is
+  // typed in. Followed from the worktree, `void-harness init` would install a
+  // second copy exactly where git was told not to look: the defect this
+  // command exists to prevent. So from a worktree each remedy names the
+  // directory it must run in, and in the main checkout it names nothing.
+  it('names the installation directory in every remedy it prints from a worktree', () => {
+    const main = projectRecording(cliVersion());
+    git(main, 'init', '--quiet');
+    git(main, 'add', '.void/config.json', '.void/install-manifest.json');
+    git(
+      main,
+      '-c', 'user.name=Void Test',
+      '-c', 'user.email=void@example.test',
+      'commit', '--quiet', '-m', 'test: seed',
+    );
+    const linked = join(mkdtempSync(join(tmpdir(), 'doctor-linked-')), 'DEV-000');
+    git(main, 'worktree', 'add', '--quiet', linked, '-b', 'worker/DEV-000');
+
+    const fromMain = runDoctor(main);
+    const fromWorktree = runDoctor(linked);
+
+    // The fixture wires no runtime, so at least one remedy is printed.
+    expect(fromMain.out).toMatch(/void-harness init/);
+    expect(fromMain.out).not.toMatch(/ in \/\S+: /);
+    const remedies = fromWorktree.out.split('\n').filter((line) => /^\s+\S+\s+.*void-harness (init|runtime add)/.test(line));
+    expect(remedies.length).toBeGreaterThan(0);
+    for (const remedy of remedies) expect(remedy).toContain(`in ${realpathSync(main)}: `);
   });
 });
