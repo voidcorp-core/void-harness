@@ -318,8 +318,9 @@ A unit is taken once. The observation lists every unit the run took with what be
 `merged`, `published-awaiting-human`, or `unit-blocked` with its cause (no range survived, the
 proofs refused, the reconciler excluded the ticket) -- and none of those is remaining: on
 2026-09-02 the chain knew only `merged`, counted a unit handed to a person as still ready, and
-proposed it again onto its own open pull request. A unit that came back unmerged still measures
-how long a unit takes here, so the cold estimate only ever serves a run that took nothing yet.
+proposed it again onto its own open pull request. A unit that finished -- merged, or published and
+handed to a person -- measures how long one takes; a blocked one measured failing and is left out.
+The fifteen-minute estimate serves only while nothing has finished, and no floor survives a finish.
 
 A unit already under way is never cut in half. The budget decides whether to START another one;
 cutting mid-unit leaves a worktree and half a ticket, which costs more than the overrun it saves.

@@ -92,19 +92,20 @@ export const DEFAULT_CHAIN_BUDGET_MS = 120 * MINUTE_MS;
 const MAX_CHAIN_BUDGET_MS = 24 * 60 * MINUTE_MS;
 
 /**
- * What a first unit is assumed to take, until this run has measured one.
+ * What a unit is assumed to take, until this run has finished one.
  *
- * A cold estimate, and named as one: it is used for exactly as long as there is
- * nothing better, and the first unit TAKEN replaces it with what this run
- * actually spent -- merged or not. On 2026-09-02 a run had measured 84 minutes
- * for a unit that came back published and unmerged, and still projected the
- * next one at 15, because only a merge counted. Deliberately below anything
- * observed rather than near it -- the job here is to refuse a run that cannot
- * possibly finish a unit, not to second-guess a run that might. A unit owes a
- * full TDD cycle, a review pass and the whole declared verify suite before it
- * hands back, and none of that has ever come in under a quarter of an hour in
- * this repository. Which is also why it stays a floor under the measurement: a
- * unit blocked in two minutes measured how long failing takes, not finishing.
+ * A cold estimate, and named as one: it serves for exactly as long as nothing
+ * in this run has FINISHED -- merged, or published and handed to a person --
+ * and the first finish replaces it outright. A blocked unit is not a finish: it
+ * measured how long failing takes, not how long finishing does, so it neither
+ * replaces the estimate nor dilutes a measurement. On 2026-09-02 a run had
+ * measured 84 minutes for a unit that came back published and unmerged, and
+ * still projected the next one at 15, because only a merge counted; the fix
+ * that widened "merged" to "taken" then averaged a two-minute failure in with an
+ * eighty-minute merge and kept this constant as a floor under the result. Both
+ * are gone. Deliberately below anything observed rather than near it -- the job
+ * here is to refuse a run that cannot possibly finish a unit, not to second-guess
+ * a run that might. See the only-a-finished-unit-measures decision.
  */
 const COLD_START_UNIT_MS = 15 * MINUTE_MS;
 
@@ -197,7 +198,10 @@ function stop(
 export function planChainStep(input: {
   /** Everything merged so far in this run, oldest first. */
   readonly merged: readonly MergedUnit[];
-  /** Every unit this run took, oldest first, merged ones included. */
+  /**
+   * Every unit this run took, oldest first, merged ones included. The finished
+   * ones -- merged, or published and waiting -- are what the budget measures by.
+   */
   readonly taken: readonly TakenUnit[];
   /** How long this run may keep taking new units. */
   readonly budgetMs: number;
@@ -324,26 +328,28 @@ function judgeBudget(input: {
   // START another. So the question is not "is there time left" but "is there
   // enough", answered from what this run has actually taken rather than a guess.
   //
-  // The first unit of a run has nothing to answer from, and skipping the question
-  // there let `for 1m` -- a legal shortening -- start work that takes the better
-  // part of an hour, against an ADR that says a run cannot exceed what was
-  // declared for it. So a cold run is projected against COLD_START_UNIT_MS until
-  // it has a measurement of its own, and from the first unit taken -- merged,
-  // published or blocked -- the measurement replaces it. See the
-  // a-unit-handed-back-is-taken-and-still-measures decision.
-  const cold = input.taken.length === 0;
-  const perUnit = cold
-    ? COLD_START_UNIT_MS
-    : Math.max(COLD_START_UNIT_MS, input.elapsedMs / input.taken.length);
+  // A run in which nothing has finished has nothing to answer from, and skipping
+  // the question there let `for 1m` -- a legal shortening -- start work that
+  // takes the better part of an hour, against an ADR that says a run cannot
+  // exceed what was declared for it. So such a run is projected against
+  // COLD_START_UNIT_MS, and from the first unit that finished the measurement
+  // replaces it: the whole elapsed time, failures included, over the units that
+  // finished. A blocked unit spent the run's time and is in the numerator; it is
+  // not a second unit to divide by. See the only-a-finished-unit-measures
+  // decision.
+  const finished = input.taken.filter((unit) => unit.outcome !== 'blocked').length;
+  const cold = finished === 0;
+  const perUnit = cold ? COLD_START_UNIT_MS : input.elapsedMs / finished;
   if (remaining < perUnit) {
     return stop(
       'budget-spent',
       false,
       cold
-        ? `${describe(remaining)} left, and no unit here has ever finished in under`
-          + ` ${describe(COLD_START_UNIT_MS)}; the first one would not finish inside the budget`
-        : `${describe(remaining)} left and each unit has taken about ${describe(perUnit)};`
-          + ' the next one would not finish inside the budget',
+        ? `${describe(remaining)} left, and nothing this run took has finished yet, so the`
+          + ` next unit is projected against the estimate of ${describe(COLD_START_UNIT_MS)};`
+          + ' it would not finish inside the budget'
+        : `${describe(remaining)} left and each finished unit has taken about`
+          + ` ${describe(perUnit)}; the next one would not finish inside the budget`,
       'read the journal, then start another run if the direction still holds',
     );
   }

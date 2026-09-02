@@ -344,9 +344,10 @@ describe('a unit that came back unmerged', () => {
     expect(decision.kind).toBe('continue');
   });
 
-  it('keeps a fast failure from lowering the estimate under what any unit finished in', () => {
+  it('keeps the estimate while nothing has finished, however fast a unit failed', () => {
     // A unit blocked in two minutes measured how long failing takes, not how
-    // long finishing does. Eight minutes left is still not a unit.
+    // long finishing does, so it is not a measurement. Nothing finished, the
+    // estimate still stands, and eight minutes left is still not a unit.
     const decision = step({
       merged: [],
       taken: [{ tickets: ['DEV-1'], outcome: 'unit-blocked' }],
@@ -355,6 +356,47 @@ describe('a unit that came back unmerged', () => {
       elapsedMs: 2 * MINUTE,
     });
     expect(decision.kind).toBe('stop');
-    if (decision.kind === 'stop') expect(decision.reason).toBe('budget-spent');
+    if (decision.kind === 'stop') {
+      expect(decision.reason).toBe('budget-spent');
+      expect(decision.detail).toMatch(/estimate/);
+      expect(decision.detail).toMatch(/15m/);
+    }
+  });
+
+  // The case the two-outcome average got wrong: 80 minutes to merge one unit and
+  // two to block another averaged to 41 per unit, and the chain went on into 48
+  // minutes against a unit this run had finished in 80. Only what finished
+  // measures; the failure spent the run's time and is in `elapsedMs`, but it is
+  // not a second unit to divide by.
+  it('measures over the units that finished, not over the ones that merely stopped', () => {
+    const decision = step({
+      merged: [unit()],
+      taken: [{ tickets: ['DEV-1'], outcome: 'merged' }, { tickets: ['DEV-2'], outcome: 'blocked' }],
+      budgetMs: 130 * MINUTE,
+      elapsedMs: 82 * MINUTE,
+    });
+    expect(decision.kind).toBe('stop');
+    if (decision.kind === 'stop') {
+      expect(decision.reason).toBe('budget-spent');
+      expect(decision.detail).toMatch(/1h22m/);
+      expect(decision.detail).not.toMatch(/estimate/);
+    }
+  });
+
+  // The estimate is transient, as the decision says: once something finished, it
+  // is gone entirely. A project whose units genuinely finish in five minutes can
+  // chain a twelve-minute run, which a floor under the measurement forbade.
+  it('drops the estimate once a unit finished, even one faster than the estimate', () => {
+    const decision = step({
+      merged: [],
+      taken: [{ tickets: ['DEV-1'], outcome: 'published-awaiting-human' }],
+      postMerge: undefined,
+      budgetMs: 12 * MINUTE,
+      elapsedMs: 5 * MINUTE,
+    });
+    // Seven minutes left holds a five-minute unit; the stop here is the person,
+    // not the budget.
+    expect(decision.kind).toBe('stop');
+    if (decision.kind === 'stop') expect(decision.reason).toBe('awaiting-human');
   });
 });

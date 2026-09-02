@@ -197,10 +197,10 @@ export const INPUT_SHAPES: Readonly<Record<AutopilotInputStep, InputShape>> = Ob
         name: 'taken',
         type: 'array',
         from: 'one entry per unit this run took, oldest first, as `{ tickets, outcome }` with'
-          + ' outcome `merged`, `published-awaiting-human` or `unit-blocked`. None of them is'
-          + ' remaining, and a unit that came back unmerged still measures how long a unit'
-          + ' takes here. The `merged` entries above must appear here as `merged`, and'
-          + ' nothing else may: the two lists are cross-checked, not trusted',
+          + ' outcome `merged`, `published-awaiting-human` or `blocked`. None of them is'
+          + ' remaining; a finished one, merged or published, measures how long a unit takes'
+          + ' here, and a blocked one does not. The `merged` entries above must appear here as'
+          + ' `merged`, and nothing else may: the two lists are cross-checked, not trusted',
         example: [],
       },
       {
