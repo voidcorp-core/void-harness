@@ -719,6 +719,9 @@ ${enabled}  clusterSize: 2
       review: { schemaVersion: 1, integrationSha: `${A}1`, verdict: 'clean', contradictions: [] },
       declaredLenses: 3,
       capability: { runtime: 'claude', maxConcurrentAgents: 4, agentToAgent: false },
+      // The grant is asked after the publication, so a pull request exists to
+      // merge; an observation without one is the exception, and it refuses.
+      pullRequest: { number: 12 },
       ...over,
     });
   }
@@ -755,6 +758,88 @@ ${enabled}  clusterSize: 2
     const emitted = JSON.parse(result.stdout);
     expect(emitted.grant.kind).toBe('refused');
     expect(emitted.grant.reason).toBe('production-downstream');
+  });
+
+  // Until 2026-09-02 a granted merge was never run: the workflow wrote `merged`
+  // on the permission and took the next unit on a base that did not hold the
+  // first. The grant now hands back the one command it permits, bound to the
+  // head it read, and `landed` is what turns the command having run into a
+  // merge -- from an observed merge commit, never from the exit code.
+  it('hands back the merge argv, bound to the head it read, when it grants a merge', () => {
+    const result = runAutopilotCommand(['grant', '--json'], grantObservation(), ctx(repo()));
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.action.action).toBe('merge');
+    expect(emitted.merge.steps.map((step: { command: string[] }) => step.command)).toEqual([
+      ['gh', 'pr', 'merge', '12', '--merge', '--match-head-commit', `${A}1`],
+    ]);
+    expect(emitted.unionVerdict).toBe('clean');
+  });
+
+  it.each([
+    ['hold', { checks: 'wait' }],
+    ['await-human', { review: null }],
+  ])('hands back no merge argv when the action is %s', (action, over) => {
+    const result = runAutopilotCommand(['grant', '--json'], grantObservation(over), ctx(repo()));
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.action.action).toBe(action);
+    expect(emitted.merge.steps).toEqual([]);
+  });
+
+  it('refuses a grant that would merge a pull request nobody observed', () => {
+    const result = runAutopilotCommand(['grant', '--json'], grantObservation({ pullRequest: null }), ctx(repo()));
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/pull request/);
+  });
+
+  /** The pull request as GitHub reports it once the merge command returned. */
+  function landing(pr: Record<string, unknown> = {}, reading?: Record<string, unknown>): string {
+    return JSON.stringify({
+      schemaVersion: 1,
+      expected: { integrationBranch: 'autopilot/cluster-1', integrationSha: `${A}1`, baseBranch: 'develop', baseSha: SETUP_SHA },
+      pullRequest: reading ?? {
+        kind: 'value',
+        value: {
+          number: 12,
+          state: 'merged',
+          headRef: 'autopilot/cluster-1',
+          headSha: `${A}1`,
+          baseRef: 'develop',
+          baseSha: SETUP_SHA,
+          mergeSha: `${A}2`,
+          checks: [
+            { name: 'validate', required: true, conclusion: 'success', ownedByDiff: true },
+            { name: 'lint', required: false, conclusion: 'success', ownedByDiff: true },
+          ],
+          ...pr,
+        },
+      },
+    });
+  }
+
+  // The command returning is not a merge. Only the merge commit GitHub reports
+  // is, and the checks the journal names are the required ones observed green.
+  it('reports a landing only from an observed merge commit, with the required checks that were green', () => {
+    const result = runAutopilotCommand(['landed', '--json'], landing(), ctx(repo()));
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.verdict).toMatchObject({ kind: 'merged', mergeSha: `${A}2` });
+    expect(emitted.checks).toEqual(['validate']);
+  });
+
+  it.each([
+    ['a merged state without its commit', landing({ mergeSha: null })],
+    ['a pull request still open', landing({ state: 'open', mergeSha: null })],
+    ['a pull request nobody could read', landing({}, { kind: 'nil' })],
+  ])('never reports a landing for %s', (_case, observation) => {
+    const emitted = JSON.parse(runAutopilotCommand(['landed', '--json'], observation, ctx(repo())).stdout);
+
+    expect(emitted.verdict.kind).not.toBe('merged');
+    expect(emitted.verdict.mergeSha).toBeNull();
   });
 
   // Which branch a run integrates into, and whether that branch is actually

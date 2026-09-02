@@ -324,6 +324,28 @@ const beats = []
 let taken = 0
 
 /**
+ * The two projections of the journal, because the two words are not synonyms.
+ *
+ * `taken` is every unit this run claimed, whatever became of it; `merged` is
+ * only the ones a merge commit was observed for. The whole journal used to go
+ * to both, so the draft body listed a unit waiting on a person under "What
+ * merged so far", and the chain read a base as containing a change that was
+ * never merged into it. Filtered here rather than asked of the agent: a
+ * projection the prompt describes is a projection nobody can prove happened.
+ */
+const takenUnits = () => journal.map((entry) => ({ tickets: entry.tickets, outcome: entry.outcome }))
+const mergedUnits = () =>
+  journal
+    .filter((entry) => entry.outcome === 'merged')
+    .map((entry) => ({
+      tickets: entry.tickets,
+      integrationSha: entry.integrationSha,
+      mergeCommit: entry.mergeCommit,
+      unionVerdict: entry.unionVerdict,
+      checks: entry.checks,
+    }))
+
+/**
  * Say where the run is, in the one place a person can read without a terminal.
  *
  * After EVERY decision, not at the end. A run that publishes only when it
@@ -339,7 +361,7 @@ async function beat(stepName, unit) {
   const answer = await step(
     'progress',
     'the beats so far, what merged, the instant now, and the ceiling one unit may take',
-    `Pass beats: ${JSON.stringify(beats)} with a real instant on each, merged: ${JSON.stringify(journal)}, and the run start ${input.now}. Then write the returned body to the path the plan names and run its commands.`,
+    `Pass beats: ${JSON.stringify(beats)} with a real instant on each, merged verbatim: ${JSON.stringify(mergedUnits())}, and the run start ${input.now}. Then write the returned body to the path the plan names and run its commands.`,
     'Progress',
   )
   if (!answer || answer.ok !== true) {
@@ -360,7 +382,7 @@ while (true) {
     await step(
       'chain',
       'what this run took and what became of each unit, what merged, elapsed milliseconds, the post-merge state of the base, and the pool',
-      `Pass taken: one entry per journal entry with its tickets and outcome, and merged: only the entries whose outcome is merged, from ${JSON.stringify(journal)}. A unit published and waiting for a person is taken, not remaining. Take elapsed from the run start passed in ${input.now}. Observe the base is green from the last verification of this run, and pass the pool as the programme's order minus what is done.`,
+      `Pass taken verbatim: ${JSON.stringify(takenUnits())}, and merged verbatim: ${JSON.stringify(mergedUnits())}. A unit published and waiting for a person is taken, not remaining, and neither is one this run blocked. Take elapsed from the run start passed in ${input.now}. Observe the base is green from the last verification of this run, and pass the pool as the programme's order minus what is done.`,
       'Chain',
     ),
     'the chain decision',
@@ -487,16 +509,56 @@ while (true) {
   )
   required(await execute(publication.plan.steps.map((s) => s.command), 'one branch, one explicit refspec, one pull request', 'Publish'), 'publishing')
 
-  const decision = required(
-    await step(
-      'grant',
-      'where the checks stand, the observed protection, the changed paths, and the union reading if one ran',
-      'A reading nobody ran is passed as null. It refuses, and the refusal hands back the request — running it is a separate act, and claiming it happened is the failure this guards.',
-      'Publish',
-    ),
-    'the merge grant',
-  )
+  const GRANT_NEEDS = 'the pull request it just opened, where the checks stand, the observed protection, the changed paths, and the union reading if one ran'
+  const GRANT_OBSERVE = [
+    'Read the pull request with `gh pr view --json number` and pass it as pullRequest: { "number": <n> }.',
+    'A reading nobody ran is passed as null. It refuses, and the refusal hands back the request — running it is a separate act, and claiming it happened is the failure this guards.',
+  ].join(' ')
+  let decision = required(await step('grant', GRANT_NEEDS, GRANT_OBSERVE, 'Publish'), 'the merge grant')
+
+  // `hold` is not a hand-off to a person. The checks are pending the instant the
+  // branch is pushed, so it is the nominal FIRST answer, and reading it as
+  // "published, awaiting human" both stated a false reason and abandoned a merge
+  // the grant would have given once they settled. So it is asked again, after
+  // waiting on the checks themselves -- and bounded, because a check that never
+  // settles has to end this unit rather than the run's whole clock.
+  const GRANT_REASKS_MAX = 3
+  for (let reask = 1; decision.action.action === 'hold' && reask <= GRANT_REASKS_MAX; reask += 1) {
+    log(`checks unsettled; asking the grant again (${reask}/${GRANT_REASKS_MAX})`)
+    decision = required(
+      await step(
+        'grant',
+        GRANT_NEEDS,
+        `The checks had not settled. First wait for them with \`gh pr checks <number> --watch --fail-fast\`, which only reads and returns when they finish or one fails. Then observe everything again. ${GRANT_OBSERVE}`,
+        'Publish',
+      ),
+      'the merge grant',
+    )
+  }
   log(`grant: ${decision.grant.kind} — next ${decision.action.action}`)
+
+  // A grant is a permission; running it is a separate act, and observing what it
+  // produced is a third. Until 2026-09-02 the first was written down as the
+  // third: the journal said `merged` on the grant alone, nothing ever ran the
+  // merge, and the chain took the next unit on a base that did not hold the
+  // first one. The argv comes from the grant, bound to the head it read.
+  let landing = null
+  if (decision.action.action === 'merge' && decision.merge.steps.length > 0) {
+    required(
+      await execute(decision.merge.steps.map((s) => s.command), 'the grant permitted this one merge, bound to the head it read', 'Publish'),
+      'merging the integration branch',
+    )
+    landing = required(
+      await step(
+        'landed',
+        'what this run expects of the pull request, and the pull request as GitHub reports it now',
+        `Pass expected: { "integrationBranch": "${reconciliation.plan.integrationBranch}", "integrationSha": "${verification.integrationSha}", "baseBranch": "${base.base.branch}", "baseSha": "${base.base.sha}" }. Then re-read the pull request with \`gh pr view --json number,state,headRefName,headRefOid,baseRefName,mergeCommit,statusCheckRollup\` and pass it as pullRequest: { "kind": "value", "value": <the full observation> }, or { "kind": "nil" } when it cannot be read. The command having returned is not a merge: only the merge commit GitHub reports is.`,
+        'Publish',
+      ),
+      'the merge observation',
+    )
+  }
+  const landed = landing?.verdict?.kind === 'merged'
 
   const lifecycle = required(
     await step(
@@ -526,13 +588,24 @@ while (true) {
     if (!trackerConverged) log(`tracker not converged: ${reconciled.reconciliation?.detail ?? 'no reconciliation returned'}`)
   }
 
-  // What became of the unit is recorded here, not inferred later: a unit the
-  // grant did not merge is published and waiting for a person, and the chain
-  // must never propose it again or count it as still ready.
+  // What became of the unit is recorded here, not inferred later, and each of
+  // the three ends is read off a different fact: `merged` off the merge commit
+  // GitHub reported, `published-awaiting-human` off the grant refusing to a
+  // person, `blocked` off a merge that was permitted and did not land, or off
+  // checks that never settled. The chain must never propose the unit again, nor
+  // count any of these as still ready.
   journal.push({
     tickets: reconciliation.plan.integrate,
-    mergeSha: verification.integrationSha,
-    outcome: decision.action.action === 'merge' ? 'merged' : 'published-awaiting-human',
+    outcome: landed ? 'merged' : decision.action.action === 'await-human' ? 'published-awaiting-human' : 'blocked',
+    cause: landed
+      ? null
+      : decision.action.action === 'merge'
+        ? `the merge was permitted and did not land: ${landing?.verdict?.detail ?? 'no landing was observed'}`
+        : decision.action.detail,
+    integrationSha: verification.integrationSha,
+    mergeCommit: landed ? landing.verdict.mergeSha : null,
+    unionVerdict: decision.unionVerdict ?? 'inconclusive',
+    checks: landing?.checks ?? [],
   })
   taken += 1
   await beat('publish', reconciliation.plan.integrate.join(', '))

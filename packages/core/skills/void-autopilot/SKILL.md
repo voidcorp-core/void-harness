@@ -156,7 +156,8 @@ mechanism.
 | `verify` | the suite that decides the merge, bounded | — |
 | `gate` | did the proofs run on THIS tree, did the panel speak first, did the unit stay in its ceilings | any of them unproven; absence of a record is absence of the act |
 | `publish` | one branch, one refspec, one pull request, and the body that carries the account | the proofs are not sealed |
-| `grant` | may this merge itself | see the refusal table below |
+| `grant` | may this merge itself, and the one `gh pr merge` it permits | see the refusal table below |
+| `landed` | whether that merge actually landed, from the commit GitHub reports | — |
 | `lifecycle` | what the tracker owes, and whether it got it | — |
 | `progress` | where the run is, and whether its silence means anything | — |
 | `observe` | what each boundary actually answered | — |

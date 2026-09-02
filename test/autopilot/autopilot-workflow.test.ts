@@ -22,6 +22,8 @@ const SOURCE = readFileSync(
 
 const SHA = '2b0e24dc054cf4b7bde36d2e346db341f31501a5';
 const HEAD = 'b'.repeat(40);
+/** The commit the merge produced on the base, which is never the head it merged. */
+const MERGE_SHA = 'c'.repeat(40);
 
 interface AgentCall {
   readonly prompt: string;
@@ -100,7 +102,13 @@ function answers(over: Record<string, unknown> = {}): Record<string, unknown> {
     verify: { integrationSha: HEAD, commands: [{ name: 'pnpm verify', command: ['pnpm', 'verify'] }] },
     gate: { proofs: { kind: 'merge', debts: [] } },
     publish: { plan: { steps: [{ command: ['git', 'push'] }], blocked: [], pullRequest: { number: null } } },
-    grant: { grant: { kind: 'granted', advisories: [] }, action: { action: 'merge', detail: 'every condition holds' } },
+    grant: {
+      grant: { kind: 'granted', advisories: [] },
+      action: { action: 'merge', detail: 'every condition holds' },
+      merge: { schemaVersion: 1, steps: [{ kind: 'merge-pull-request', command: ['gh', 'pr', 'merge', '12', '--merge', '--match-head-commit', HEAD] }] },
+      unionVerdict: 'clean',
+    },
+    landed: { verdict: { kind: 'merged', mergeSha: MERGE_SHA, detail: 'the pull request reports a merge commit' }, checks: ['validate'] },
     lifecycle: {
       stage: 'merged',
       actions: [{ ticketId: 'DEV-1', kind: 'set-state', toState: 'Done', idempotencyKey: 'run-a:DEV-1:set-state:merged' }],
@@ -199,6 +207,7 @@ describe('the autopilot cycle is a script', () => {
       'step:gate',
       'step:publish',
       'step:grant',
+      'step:landed',
       'step:lifecycle',
       'step:lifecycle',
       'step:progress',
@@ -232,6 +241,72 @@ describe('the autopilot cycle is a script', () => {
     const run = runWorkflow(configuration(), answers({ start: { kind: 'reobserve', detail: 'DEV-1 is still Backlog' } }));
 
     await expect(run).rejects.toThrow(/lease/);
+  });
+
+  // Until 2026-09-02 nothing here ever merged. The journal wrote `merged` on the
+  // grant's permission, and the chain took the next unit on a base that did not
+  // hold the first: exactly the stacking the run is supposed to refuse.
+  it('runs the merge the grant permitted, then journals it only from the observed merge commit', async () => {
+    const { calls, value } = await runWorkflow(configuration());
+
+    const merge = calls.find((call) => call.label === 'execute' && call.prompt.includes('gh pr merge'));
+    expect(merge?.prompt).toContain('--match-head-commit');
+    const steps = labels(calls).filter((label) => label.startsWith('step:'));
+    expect(steps.indexOf('step:landed')).toBe(steps.indexOf('step:grant') + 1);
+    expect(value).toMatchObject({
+      journal: [{ tickets: ['DEV-1'], outcome: 'merged', mergeCommit: MERGE_SHA, unionVerdict: 'clean', checks: ['validate'] }],
+    });
+  });
+
+  it('never writes merged when the permitted merge did not land', async () => {
+    const { value } = await runWorkflow(
+      configuration(),
+      answers({ landed: { verdict: { kind: 'open', mergeSha: null, detail: 'the pull request is still open' }, checks: [] } }),
+    );
+
+    expect(value).toMatchObject({ journal: [{ outcome: 'blocked', mergeCommit: null }] });
+    expect((value as { journal: Array<{ cause: string }> }).journal[0]?.cause).toContain('did not land');
+  });
+
+  // The checks are pending the instant the branch is pushed, so `hold` is the
+  // nominal first answer. Reading it as a hand-off to a person stated a false
+  // reason AND abandoned a merge the grant would have given once they settled.
+  it('asks the grant again while the checks are unsettled, bounded, and never calls that a human hand-off', async () => {
+    const { calls, value, logs } = await runWorkflow(
+      configuration(),
+      answers({ grant: { grant: { kind: 'granted', advisories: [] }, action: { action: 'hold', detail: 'the checks have not settled' }, merge: { schemaVersion: 1, steps: [] }, unionVerdict: 'clean' } }),
+    );
+
+    const grants = calls.filter((call) => call.label === 'step:grant');
+    expect(grants).toHaveLength(4);
+    expect(grants[1]?.prompt).toContain('gh pr checks');
+    expect(labels(calls)).not.toContain('step:landed');
+    expect(logs.join(' ')).toContain('checks unsettled');
+    expect(value).toMatchObject({ journal: [{ outcome: 'blocked' }] });
+  });
+
+  it('hands a unit to a person only when the grant refused to one', async () => {
+    const { value } = await runWorkflow(
+      configuration(),
+      answers({ grant: { grant: { kind: 'refused', reason: 'union-unread', detail: 'nobody read it' }, action: { action: 'await-human', detail: 'nobody read it' }, merge: { schemaVersion: 1, steps: [] }, unionVerdict: null } }),
+    );
+
+    expect(value).toMatchObject({ journal: [{ outcome: 'published-awaiting-human', mergeCommit: null }] });
+  });
+
+  // Same file, same word, two meanings: the draft body listed a unit waiting on
+  // a person under "What merged so far", because the whole journal went to both.
+  it('passes progress and the chain only the units a merge commit was observed for', async () => {
+    const { calls } = await runWorkflow(
+      configuration(),
+      answers({ landed: { verdict: { kind: 'open', mergeSha: null, detail: 'still open' }, checks: [] } }),
+    );
+
+    const lastBeat = calls.filter((call) => call.label === 'step:progress').pop()?.prompt ?? '';
+    expect(lastBeat).toContain('merged verbatim: []');
+    const lastChain = calls.filter((call) => call.label === 'step:chain').pop()?.prompt ?? '';
+    expect(lastChain).toContain('merged verbatim: []');
+    expect(lastChain).toContain('"outcome":"blocked"');
   });
 
   it('applies the lifecycle actions and asks the step whether the tracker converged', async () => {

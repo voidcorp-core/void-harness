@@ -13,6 +13,7 @@
 
 import { type ClusterPlan, type ClusterPlanInput, planCluster } from '../lib/autopilot/cluster-plan.js';
 import { type MergedUnit, renderMergeJournal } from '../lib/autopilot/chain.js';
+import { buildMergePlan } from '../lib/autopilot/merge-plan.js';
 import { selectBase, type BaseObservation, type BaseSelection } from '../lib/autopilot/base-selection.js';
 import {
   decideBranchProtection,
@@ -85,6 +86,7 @@ import {
 import {
   type PullRequestObservation,
   recoverRemote,
+  type RecoveryExpectation,
   type RecoveryVerdict,
 } from '../lib/autopilot/remote-recovery.js';
 import type { RunState, TicketRunState } from '../lib/autopilot/run-state.js';
@@ -166,7 +168,9 @@ would change nothing is skipped rather than sent.
 
 There is no --auto-merge flag. A machine merge is declared once in the program
 (autopilot.mergeGate: union-reviewed, plus deployBranch), and is granted only for
-a target that does not deploy and a union review that came back clean.
+a target that does not deploy and a union review that came back clean. A granted
+merge is one "gh pr merge" bound to the head the grant read, handed back by grant
+as argv; landed then reads the merge commit back, and only that is a merge.
 `.trimStart();
 
 /**
@@ -197,6 +201,7 @@ export const SUBCOMMANDS = Object.freeze({
   publish: 'reads-stdin',
   progress: 'reads-stdin',
   grant: 'reads-stdin',
+  landed: 'reads-stdin',
   reserve: 'reads-stdin',
   base: 'reads-stdin',
   observe: 'reads-stdin',
@@ -1029,6 +1034,8 @@ interface GrantObservation {
   readonly review: UnionReview | null;
   readonly declaredLenses: number;
   readonly capability: Parameters<typeof buildUnionReviewRequest>[0]['capability'];
+  /** The pull request as observed; the merge, when granted, names its number. */
+  readonly pullRequest?: { readonly number: number } | null;
 }
 
 function grantCommand(stdin: string, json: boolean): AutopilotCommandResult {
@@ -1049,6 +1056,13 @@ function grantCommand(stdin: string, json: boolean): AutopilotCommandResult {
     mergeBlocks: observation.mergeBlocks,
   });
   const action = planPostCheckAction({ checks: observation.checks, grant });
+  // The one command a granted merge runs, bound to the head the grant read. It
+  // is argv, not a merge: `landed` reads the merge commit back afterwards.
+  const merge = buildMergePlan({
+    action,
+    pullRequest: observation.pullRequest,
+    integrationSha: observation.integrationSha,
+  });
   const request = review === undefined
     ? buildUnionReviewRequest({
         integrationBranch: observation.integrationBranch,
@@ -1065,6 +1079,7 @@ function grantCommand(stdin: string, json: boolean): AutopilotCommandResult {
       ? `grant: granted${grant.advisories.length === 0 ? '' : ` (${String(grant.advisories.length)} advisory finding(s) filed)`}`
       : `grant: refused (${grant.reason}) — ${grant.detail}`,
     `next: ${action.action} — ${action.detail}`,
+    ...merge.steps.map((step) => `  ${step.command.join(' ')}`),
     ...(request === undefined
       ? []
       : ['', 'the reading nobody ran:', `  ${request.diffCommand.join(' ')}`]),
@@ -1076,10 +1091,49 @@ function grantCommand(stdin: string, json: boolean): AutopilotCommandResult {
       schemaVersion: 1,
       grant,
       action,
+      merge,
+      // What the reading said, carried to the journal entry a merge writes.
+      unionVerdict: review?.verdict ?? null,
       ...(request === undefined ? {} : { request }),
     },
     human,
   );
+}
+
+/**
+ * Whether the merge the grant permitted actually landed.
+ *
+ * The merge command returning is not a merge, and neither is the grant that
+ * permitted it. A merge is the commit GitHub reports for the pull request, read
+ * back after the command ran -- the same reading `status` makes on resume,
+ * without a run cursor, because in the scripted cycle the cursor never learns
+ * the integration head and `status` would answer with no verdict at all.
+ *
+ * The required checks observed green travel with it, because the journal entry
+ * a merge writes names them, and "no checks recorded" next to a merge the grant
+ * only permitted on green checks would be false.
+ */
+interface LandingObservation {
+  readonly expected: RecoveryExpectation;
+  readonly pullRequest: BoundaryReading<PullRequestObservation>;
+}
+
+function landedCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<LandingObservation>(stdin, 'landing observation');
+  const verdict = recoverRemote({ expected: observation.expected, pullRequest: observation.pullRequest });
+  const reading = observation.pullRequest;
+  const checks = reading.kind === 'value' && isDetailed(reading.value)
+    ? reading.value.checks
+        .filter((check) => check.required && check.conclusion === 'success')
+        .map((check) => check.name)
+    : [];
+
+  const human = [
+    `${verdict.kind}: ${verdict.detail}`,
+    ...(verdict.kind === 'merged' ? [`checks green: ${checks.length === 0 ? 'none recorded' : checks.join(', ')}`] : []),
+    '',
+  ].join('\n');
+  return emit(json, { schemaVersion: 1, verdict, checks }, human);
 }
 
 /**
@@ -1459,6 +1513,7 @@ export function runAutopilotCommand(
     if (subcommand === 'publish') return publishCommand(stdin, json);
     if (subcommand === 'progress') return progressCommand(stdin, json);
     if (subcommand === 'grant') return grantCommand(stdin, json);
+    if (subcommand === 'landed') return landedCommand(stdin, json);
     if (subcommand === 'reserve') return reserveCommand(stdin, json);
     if (subcommand === 'base') return baseCommand(stdin, json);
     if (subcommand === 'observe') return observeCommand(stdin, json);
