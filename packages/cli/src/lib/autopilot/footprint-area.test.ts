@@ -3,11 +3,22 @@ import { areaClaims, areaIsNarrower, areasOverlap, compileArea } from './footpri
 
 // Patterns a human plausibly writes in a ticket, plus the shapes that turn a
 // reading of an area into a reading of a string.
+//
+// The dot-leading entries are here because their absence WAS the defect. A
+// corpus proves an invariant only over the ground it covers, and this one
+// covered no hidden path -- while 183 tracked files of this repository sit on
+// one: a `.source` beside every skill, which the sourcing discipline mandates,
+// every `packages/*/.claude-plugin/plugin.json`, every `__fixtures__/.claude/`
+// tree. Both assertions below stayed green through the whole omission.
 const AREAS = [
   'packages/**/*.test.ts',
   'packages/*/vitest.config.ts',
   'packages/core/**',
   'packages/core/b',
+  'packages/core/skills/**',
+  'packages/*/.claude-plugin/plugin.json',
+  '**/.source',
+  '.github/workflows',
   'packages/core/**/*.md',
   'packages/{cli,core}/src',
   'packages/core/[ab]/x.ts',
@@ -33,7 +44,13 @@ const FILES = [
   'packages/core',
   'packages/core/b',
   'packages/core/b/x.test.ts',
+  'packages/core/b/.source',
   'packages/core/a/x.ts',
+  'packages/core/skills/void-tdd/SKILL.md',
+  'packages/core/skills/void-tdd/.source',
+  'packages/core/.claude-plugin/plugin.json',
+  '.github/workflows/ci.yml',
+  '.gitignore',
   'packages/core/README.md',
   'packages/core/src/deep/y.tsx',
   'packages/cli/vitest.config.ts',
@@ -65,6 +82,43 @@ describe('compileArea', () => {
     }
 
     expect(escapes).toEqual([]);
+  });
+
+  it('gives one area one answer per file, whichever of its two spellings was written', () => {
+    // The invariant `normaliseArea` exists to establish, and the one a dot
+    // segment broke. A human writes the same ground either as the directory or
+    // as the glob under it, and the two must not disagree about a single file:
+    // the directory claims by prefix and sees every segment, the glob claimed
+    // through picomatch, whose `dot` defaults to false, so a `*` refused to
+    // match any segment leading with a dot. `packages/core/skills` breached on
+    // a stolen `.source`; `packages/core/skills/**` reported the same theft as
+    // growth, which is this module's word for approval.
+    // An area whose reach is its own name carries no metacharacter, so it is
+    // the literal spelling of some ground and `<area>/**` is the glob spelling
+    // of that same ground.
+    const literals = AREAS.filter((area) => compileArea(area).reach === area);
+    const disagreements: string[] = [];
+    for (const literal of literals) {
+      const asPath = compileArea(literal);
+      const asGlob = compileArea(`${literal}/**`);
+      for (const file of FILES) {
+        if (areaClaims(asPath, file) === areaClaims(asGlob, file)) continue;
+        disagreements.push(`${literal}: ${file}`);
+      }
+    }
+
+    expect(disagreements).toEqual([]);
+  });
+
+  it('claims a hidden file through a glob that never spells the dot', () => {
+    // The concrete shape an estimator writes for "touch the skills", against
+    // the file the sourcing discipline puts beside every one of them.
+    const skills = compileArea('packages/core/skills/**');
+
+    expect(areaClaims(skills, 'packages/core/skills/void-tdd/SKILL.md')).toBe(true);
+    expect(areaClaims(skills, 'packages/core/skills/void-tdd/.source')).toBe(true);
+    expect(areaClaims(compileArea('**'), '.gitignore')).toBe(true);
+    expect(areaClaims(compileArea('packages/**'), 'packages/core/.claude-plugin/plugin.json')).toBe(true);
   });
 
   it('reads a negated area as reaching the whole repository', () => {

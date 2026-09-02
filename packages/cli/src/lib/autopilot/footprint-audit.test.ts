@@ -336,6 +336,56 @@ describe('auditFootprint', () => {
     ).toThrow(/observation/i);
   });
 
+  it('refuses a hidden file another ticket declared, whichever spelling declared it', () => {
+    // Measured on the real sources: `packages/core/skills/**` beside
+    // `packages/cli/src/lib/autopilot` are disjoint, so `orderWorkers` runs
+    // them at once -- correctly, they share no file. What was not correct is
+    // that a range carrying the victim's `.source` came back `within-scope`
+    // with the stolen file listed as growth, while the same range carrying its
+    // `SKILL.md` came back a breach. One area, one file, two answers, decided
+    // by whether the victim wrote the glob or the directory.
+    for (const declared of ['packages/core/skills/**', 'packages/core/skills']) {
+      const verdict = auditFootprint(
+        { ticketId: 'DEV-2', files: ['packages/core/skills/void-tdd/.source'] },
+        input({
+          footprints: [
+            { id: 'DEV-1', areas: [declared] },
+            { id: 'DEV-2', areas: ['packages/cli/src/lib/autopilot'] },
+          ],
+        }),
+      );
+
+      expect(verdict).toMatchObject({
+        kind: 'breach',
+        intrusions: [{ file: 'packages/core/skills/void-tdd/.source', claimedBy: ['DEV-1'] }],
+      });
+    }
+  });
+
+  it('refuses a hidden file carved out of a wider glob, rather than reporting it as growth', () => {
+    // The sequenced reading of the same defect: `packages/core/**` and
+    // `packages/core/b/**` nest, so the pair does take its turn -- and the
+    // audit, the step that decides whose file is whose, still let DEV-1 keep
+    // two of DEV-2's three files because their names lead with a dot. Ordering
+    // is not the backstop here; nothing downstream is.
+    const footprints = [
+      { id: 'DEV-1', areas: ['packages/core/**'] },
+      { id: 'DEV-2', areas: ['packages/core/b/**'] },
+    ];
+    const stolen = [
+      'packages/core/b/.claude-plugin/plugin.json',
+      'packages/core/b/.source',
+      'packages/core/b/x.ts',
+    ];
+
+    const verdict = auditFootprint({ ticketId: 'DEV-1', files: stolen }, input({ footprints }));
+
+    expect(verdict).toMatchObject({
+      kind: 'breach',
+      intrusions: stolen.map((file) => ({ file, claimedBy: ['DEV-2'] })),
+    });
+  });
+
   it('refuses an area whose spelling hides an empty segment', () => {
     // `packages//core/templates` passes every emptiness and absoluteness check
     // and still matches nothing: not the exact path git reports, not the prefix,

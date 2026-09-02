@@ -75,7 +75,12 @@ export function orderWorkers(input: OrderInput): WorkerOrder {
   );
 
   // Compiled once: an ownership list is short, but this runs per area per ticket.
-  const owned = input.sequentialOwnership.map((pattern) => picomatch(pattern));
+  // `dot: true` for the reason `compileArea` carries: picomatch spans no hidden
+  // segment by default, and the paths a program reserves to one writer are
+  // mostly hidden ones -- `.void`, `.claude`, `.github`. `**/hooks/**` saw
+  // `packages/core/hooks` and not `.void/hooks`, so the reservation this reason
+  // exists to honour was the shape it could not see.
+  const owned = input.sequentialOwnership.map((pattern) => picomatch(pattern, { dot: true }));
   const isOwned = (area: string): boolean => owned.some((match) => match(area));
 
   const reasons: Record<string, SequenceReason[]> = {};

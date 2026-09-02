@@ -67,6 +67,30 @@ describe('orderWorkers', () => {
     expect(order.reasons.A).toContain('shared-ownership');
   });
 
+  it('matches an ownership glob against an area that leads with a dot', () => {
+    // Same omission, second matcher: picomatch leaves `dot` false, so a `*`
+    // spans no segment leading with a dot unless the pattern spells that dot
+    // itself. `**/hooks/**` therefore saw `packages/core/hooks/x.sh` and not
+    // `.void/hooks/x.sh` -- and the reserved paths of this repository are
+    // mostly the hidden ones, `.void`, `.claude`, `.github`. A reservation the
+    // ordering cannot see is a single-writer path with two writers on it.
+    const reserved = [
+      { pattern: '**/hooks/**', area: '.void/hooks/no-any.sh' },
+      { pattern: '**/settings.json', area: '.claude/settings.json' },
+    ];
+    for (const { pattern, area } of reserved) {
+      const order = orderWorkers(
+        input({
+          sequentialOwnership: [pattern],
+          footprints: [fp('A', { areas: [area] }), fp('B'), fp('C'), fp('D')],
+        }),
+      );
+
+      expect(order.sequential).toEqual(['A']);
+      expect(order.reasons.A).toContain('shared-ownership');
+    }
+  });
+
   it('sequences low confidence and unknown footprints', () => {
     const order = orderWorkers(
       input({ footprints: [fp('A', { confidence: 0.2 }), fp('B', { areas: [] }), fp('C'), fp('D')] }),
