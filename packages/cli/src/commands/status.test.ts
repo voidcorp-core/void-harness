@@ -1,5 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Certification, ProjectState, Score } from '@voidcorp/harness-graph';
 import { capabilityPackDir } from '@voidcorp/harness-graph';
@@ -176,5 +178,52 @@ describe('statusLines', () => {
   it('marks a capped score with its blockers in the header', () => {
     const capped: Score = { ...score, capped: true, blockers: ['governance'], global: 69 };
     expect(statusLines(state, capped)[0]).toContain('(capped: governance)');
+  });
+});
+
+describe('status from a linked worktree', () => {
+  const CLI = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'bin', 'void-harness.mjs');
+
+  function git(cwd: string, ...args: string[]): void {
+    const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
+    if (result.status !== 0) throw new Error(`git ${args.join(' ')}: ${result.stderr}`);
+  }
+
+  function runStatus(root: string): { code: number; out: string } {
+    const result = spawnSync(process.execPath, [CLI, 'status'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    return { code: result.status ?? 0, out: `${result.stdout ?? ''}${result.stderr ?? ''}` };
+  }
+
+  // `.void/machine/` is per-repository state (decision of 2026-09-02): what
+  // `status` measures is the installation, and where it persists the snapshot
+  // must be where the installation is. Read from the tree it ran in, it
+  // reported a worktree as an uninstalled project and left a `status.json`
+  // there for the reconciler to delete.
+  it('measures the installation and persists the snapshot in the main checkout', () => {
+    const main = mkdtempSync(join(tmpdir(), 'status-main-'));
+    mkdirSync(join(main, '.void'), { recursive: true });
+    writeFileSync(join(main, '.void', 'config.json'), '{}\n');
+    git(main, 'init', '--quiet');
+    git(main, 'add', '.void/config.json');
+    git(
+      main,
+      '-c', 'user.name=Void Test',
+      '-c', 'user.email=void@example.test',
+      'commit', '--quiet', '-m', 'test: seed',
+    );
+    const linked = join(mkdtempSync(join(tmpdir(), 'status-linked-')), 'DEV-000');
+    git(main, 'worktree', 'add', '--quiet', linked, '-b', 'worker/DEV-000');
+
+    const fromMain = runStatus(main);
+    const fromWorktree = runStatus(linked);
+
+    expect(fromMain.code).toBe(0);
+    expect(fromWorktree.code).toBe(0);
+    expect(existsSync(join(main, '.void', 'machine', 'status.json'))).toBe(true);
+    expect(existsSync(join(linked, '.void', 'machine'))).toBe(false);
+    expect(fromWorktree.out).toBe(fromMain.out);
   });
 });
