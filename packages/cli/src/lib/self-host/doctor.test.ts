@@ -14,6 +14,7 @@ import {
 import {
   syncSelfHost,
   type BuildHookBundle,
+  type SelfHostSyncResult,
 } from './compile.js';
 import { wireSelfHostRuntimeSurfaces } from './wire.js';
 
@@ -33,20 +34,23 @@ afterEach(async () => {
  * One real compilation for the whole file, copied per test.
  *
  * Every test below needs the same thing: a freshly published shadow artifact of
- * the real repository. Compiling it once per test cost about 900 ms each and
- * made every duration a function of how busy the machine was; copying the 1.5 MB
- * result costs about 110 ms. Three of the four tests then tamper with their own
- * copy, which is exactly why each gets one -- and why the template, built before
- * any test and never written to, introduces no order between them.
+ * the real repository -- the real one, because the doctor checks its agents
+ * against the canonical specialist catalog of the running CLI, which a smaller
+ * fixture could not satisfy. Compiling it once per test cost about 900 ms each
+ * and made every duration a function of how busy the machine was; copying the
+ * 137-file result costs about 110 ms. Three of the four tests then tamper with
+ * their own copy, which is exactly why each gets one -- and why the template,
+ * built before any test and never written to, introduces no order between them.
  *
  * The hook carries its own budget because it is the one place here allowed to do
  * the real work; nothing it asserts depends on how long it takes.
  */
 let greenArtifact: string;
+let template: SelfHostSyncResult;
 
 beforeAll(async () => {
   greenArtifact = await mkdtemp(join(tmpdir(), 'void-self-doctor-template-'));
-  await syncSelfHost(REPO, {
+  template = await syncSelfHost(REPO, {
     generatedRoot: greenArtifact,
     buildHookBundle,
     wireRuntimeSurfaces: wireSelfHostRuntimeSurfaces,
@@ -63,6 +67,19 @@ async function generatedFixture(): Promise<string> {
   roots.push(root);
   await cp(greenArtifact, root, { recursive: true });
   return root;
+}
+
+/**
+ * The hash the template was compiled from, handed back instead of re-read.
+ *
+ * Hashing the real repository is 725 files and 175 ms idle, 600 ms under a
+ * loaded machine, and none of the tests using this are about the hash: they are
+ * about what the doctor concludes once the hash matches. That the real hash
+ * function reproduces a receipt's value is idempotence, proven once in
+ * `compile.test.ts`; the test that needs a mismatch injects its own below.
+ */
+function templateSourceHash(): Promise<string> {
+  return Promise.resolve(template.sourceHash);
 }
 
 describe('diagnoseSelfHost', () => {
@@ -88,10 +105,18 @@ describe('diagnoseSelfHost', () => {
     });
   });
 
+  /**
+   * The one diagnosis that reaches the runtime inspections, and so the one that
+   * spawns the compiled hook for each runtime: `hook-claude` and `hook-codex`
+   * report `ok` only if the artifact's runner really fired. That is the file's
+   * real proof and it is process spawning, which no fixture makes cheap, so its
+   * budget is stated here rather than raised for every test in a config.
+   */
   it('keeps a valid artifact degraded when native runtimes are unavailable', async () => {
     const generatedRoot = await generatedFixture();
     const diagnosis = await diagnoseSelfHost(REPO, {
       generatedRoot,
+      computeSourceHash: templateSourceHash,
       runtimeAvailable: () => false,
       probeEventReplay: async () => ({ ok: true, detail: 'canonical replay proven' }),
     });
@@ -101,11 +126,13 @@ describe('diagnoseSelfHost', () => {
     expect(diagnosis.checks).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: 'receipt', status: 'ok' }),
       expect.objectContaining({ id: 'discovery', status: 'ok' }),
+      expect.objectContaining({ id: 'hook-claude', status: 'ok' }),
+      expect.objectContaining({ id: 'hook-codex', status: 'ok' }),
       expect.objectContaining({ id: 'event-replay', status: 'ok' }),
       expect.objectContaining({ id: 'runtime-claude', status: 'degraded' }),
       expect.objectContaining({ id: 'runtime-codex', status: 'degraded' }),
     ]));
-  });
+  }, 60_000);
 
   it('distinguishes source staleness from owned-file drift', async () => {
     const generatedRoot = await generatedFixture();
@@ -124,6 +151,7 @@ describe('diagnoseSelfHost', () => {
     );
     const drifted = await diagnoseSelfHost(REPO, {
       generatedRoot,
+      computeSourceHash: templateSourceHash,
       runtimeAvailable: () => false,
       probeEventReplay: async () => ({ ok: true, detail: 'ok' }),
     });
@@ -148,6 +176,7 @@ describe('diagnoseSelfHost', () => {
     await writeFile(join(generatedRoot, 'current', 'unexpected.txt'), 'injected');
     const diagnosis = await diagnoseSelfHost(REPO, {
       generatedRoot,
+      computeSourceHash: templateSourceHash,
       runtimeAvailable: () => false,
       probeEventReplay: async () => ({ ok: true, detail: 'ok' }),
     });
