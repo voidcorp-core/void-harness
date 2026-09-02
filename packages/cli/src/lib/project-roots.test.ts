@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { resolveProjectRoots } from './project-roots.js';
+import { remedyPrefix, resolveProjectRoots } from './project-roots.js';
 
 // Measured on 2026-09-02 (run-2026-09-02-chain-b): an autopilot worker in a
 // linked worktree asked `mission dispatch` for its panel and was told "no
@@ -231,5 +231,23 @@ describe('resolveProjectRoots', () => {
 
     expect(roots.workRoot).toBe(realpathSync(nested));
     expect(roots.installRoot).toBe(realpathSync(main));
+  });
+});
+
+// Every remedy a command prints is a command in turn, and it acts on the
+// directory it is typed in. From a worktree it must name the installation, or
+// following it installs a second copy exactly where git was told not to look.
+describe('remedyPrefix', () => {
+  it('names nothing where the two roots coincide', () => {
+    const main = repository();
+
+    expect(remedyPrefix(resolveProjectRoots(main))).toBe('');
+  });
+
+  it('names the installation directory from a linked worktree', () => {
+    const main = repository();
+    const linked = linkedWorktree(main);
+
+    expect(remedyPrefix(resolveProjectRoots(linked))).toBe(`in ${realpathSync(main)}: `);
   });
 });

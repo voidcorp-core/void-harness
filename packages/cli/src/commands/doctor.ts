@@ -27,7 +27,7 @@ import { type ObservedPathObservation, observedWriteCandidates } from '../lib/ob
 import { type DiscoveredAsset, looksHarnessAuthored, orphanedAssets } from '../lib/orphaned-assets.js';
 import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../lib/packs.js';
 import { cliVersion, findCoreSource } from '../lib/paths.js';
-import { resolveProjectRoots } from '../lib/project-roots.js';
+import { remedyPrefix, resolveProjectRoots } from '../lib/project-roots.js';
 import { type CheckResult, checkEnforceWorkflow, checkGh } from '../lib/prerequisites.js';
 import { readInstallReceipt } from '../lib/receipts.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
@@ -98,10 +98,9 @@ export async function doctor(args: readonly string[]): Promise<void> {
   // it ran in, doctor read a healthy repository as an absent install (DEV-732).
   const roots = resolveProjectRoots();
   const root = roots.installRoot;
-  // Every remedy below is a command that acts on the directory it is typed in.
-  // From a worktree it must therefore name the installation, or following it
-  // installs a second copy exactly where git was told not to look.
-  const where = roots.workRoot === roots.installRoot ? '' : `in ${roots.installRoot}: `;
+  // Every remedy below is a command that acts on the directory it is typed in,
+  // so from a worktree it names the installation (see `remedyPrefix`).
+  const where = remedyPrefix(roots);
 
   // The source repository is judged where it stands: self-host compares the
   // current sources with what they last compiled into, and those sources are

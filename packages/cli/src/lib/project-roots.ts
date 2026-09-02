@@ -118,3 +118,13 @@ export function resolveProjectRoots(cwd: string = process.cwd()): ProjectRoots {
   }
   return Object.freeze({ workRoot, installRoot: main });
 }
+
+/**
+ * What a printed remedy is prefixed with. Every remedy is a command that acts
+ * on the directory it is typed in, so from a linked worktree it names the
+ * installation, or following it installs a second copy exactly where git was
+ * told not to look. Where the two roots coincide it names nothing.
+ */
+export function remedyPrefix(roots: ProjectRoots): string {
+  return roots.workRoot === roots.installRoot ? '' : `in ${roots.installRoot}: `;
+}

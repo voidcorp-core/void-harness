@@ -67,9 +67,9 @@ install state.
 Readers of the installation itself go through `installRoot`: the panel, agents, skills, installed
 doctrine, hook bundle and manifest, and with them `status`, which measures the install and
 persists its snapshot there, and `check`, which compares the installed pins and doctrine. `doctor`
-judges that root, names both when they differ, and names the installation directory in every
-remedy it prints, because a remedy is a command that acts where it is typed; `doctor --fix` writes
-to the root it judged. The self-host doctor keeps judging the tree at hand, since what it
+judges that root and names both when they differ. `doctor` and `check` name the installation
+directory in every remedy they print, because a remedy is a command that acts where it is typed;
+`doctor --fix` writes to the root it judged. The self-host doctor keeps judging the tree at hand, since what it
 compares is the current sources with what they last compiled into. The other writers of the
 installation (`init`, `add`, `remove`, `update`, `hydrate`, `runtime add`) act on the directory
 they run in, unchanged: `init` refuses only the harness source repository, and the exclude block
