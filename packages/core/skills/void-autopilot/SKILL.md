@@ -131,7 +131,7 @@ mechanism.
 | `base` | which branch this run integrates into, and whether it is really protected | the protection could not be read — an unauthenticated `gh` and an open branch look identical |
 | `chain` | take another unit, or stop | the budget cannot cover one, the base is red, or nobody verified it |
 | `reserve` | may this run take the cluster | someone else holds it, or the observation is unusable |
-| `orchestrate` | lanes, assignments, and the git commands that make the worktrees | a base sha that is not a commit |
+| `orchestrate` | lanes, assignments, and the git commands that make the worktrees | a base sha that is not a commit, or a footprint declared for a ticket absent from `tickets` |
 | `reconcile` | which ranges merge, as commands | a head the worker claims that git does not have, a range holding a file another ticket declared, or a payload whose cluster, declarations, results and observed ranges do not describe the same run |
 | `verify` | the suite that decides the merge, bounded | — |
 | `gate` | did the proofs run on THIS tree, did the panel speak first, did the unit stay in its ceilings | any of them unproven; absence of a record is absence of the act |

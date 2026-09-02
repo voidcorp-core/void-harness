@@ -635,8 +635,35 @@ interface OrchestrationOutcome {
   readonly teardown: readonly { readonly ticketId: string; readonly command: readonly string[] }[];
 }
 
+/**
+ * A footprint for nobody, refused where the two lists are still side by side.
+ *
+ * `orderWorkers` reads footprints through a map keyed by ticket, so an entry
+ * naming no ticket of this run is never looked up and nothing here notices it.
+ * It survived instead all the way to `requireSymmetricDeclaration`, at the end
+ * of the run, whose refusal is strong and whose remedy names `cluster` -- "pass
+ * `cluster` as EVERY ticket the run reserved" -- which is the list that was
+ * right. One late run to point the operator at the wrong file.
+ *
+ * Only this direction is a fault. A ticket with no footprint is ordinary here:
+ * `orderWorkers` gives it `unknown-footprint` and a sequential lane, which is
+ * the conservative reading, not a contract failure.
+ */
+function requireFootprintsOfThisRun(observation: OrchestrationObservation): void {
+  const listed = new Set(observation.tickets);
+  const strays = [...new Set(observation.footprints.map((entry) => entry.id).filter((id) => !listed.has(id)))];
+  if (strays.length === 0) return;
+  throw autopilotFailure(
+    'AUTOPILOT_CONTRACT',
+    'this orchestration declares a footprint for a ticket it never listed',
+    `\`footprints\` names ${strays.join(', ')}, absent from \`tickets\``,
+    'drop the stray entry from `footprints`, or add the ticket to `tickets` if the run really did reserve it',
+  );
+}
+
 function orchestrateCommand(stdin: string, json: boolean): AutopilotCommandResult {
   const observation = parseStdin<OrchestrationObservation>(stdin, 'orchestration observation');
+  requireFootprintsOfThisRun(observation);
   const order = orderWorkers({
     tickets: observation.tickets,
     footprints: observation.footprints,
