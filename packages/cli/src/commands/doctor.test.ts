@@ -1,9 +1,10 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { cliVersion } from '../lib/paths.js';
 
 // `doctor` is a command with side effects and a process exit, so it is exercised
 // the way a user meets it: as a binary, in a throwaway project. The behaviour
@@ -51,5 +52,49 @@ describe('doctor and a runner older than the project', () => {
   it('says nothing about the gap when the project is the older one', () => {
     const { out } = runDoctor(projectRecording('0.0.1'));
     expect(out).not.toMatch(/structure checks\s+suspended/);
+  });
+});
+
+describe('doctor from a linked worktree', () => {
+  function git(cwd: string, ...args: string[]): void {
+    const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
+    if (result.status !== 0) throw new Error(`git ${args.join(' ')}: ${result.stderr}`);
+  }
+
+  /** Strip the roots block (two lines and its blank) so two reports of one install compare equal. */
+  function report(out: string): string {
+    return out
+      .split('\n')
+      .filter((line) => !/^\s+(work tree|installed)\s+\//.test(line))
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n');
+  }
+
+  // The install is per repository and hidden from git on purpose, so a linked
+  // worktree carries none of it. Judged against the tree it ran in, doctor
+  // reported a healthy repository as an absent install; it judges the
+  // installation root instead, and says which two directories it looked at.
+  it('judges the installation of the main checkout and names both roots', () => {
+    const main = projectRecording(cliVersion());
+    git(main, 'init', '--quiet');
+    writeFileSync(join(main, 'README.md'), '# fixture\n');
+    git(main, 'add', 'README.md', '.void/config.json', '.void/install-manifest.json');
+    git(
+      main,
+      '-c', 'user.name=Void Test',
+      '-c', 'user.email=void@example.test',
+      'commit', '--quiet', '-m', 'test: seed',
+    );
+    const linked = join(mkdtempSync(join(tmpdir(), 'doctor-linked-')), 'DEV-000');
+    git(main, 'worktree', 'add', '--quiet', linked, '-b', 'worker/DEV-000');
+
+    const fromMain = runDoctor(main);
+    const fromWorktree = runDoctor(linked);
+
+    expect(fromWorktree.out).toContain(realpathSync(linked));
+    expect(fromWorktree.out).toContain(realpathSync(main));
+    expect(fromMain.out).not.toMatch(/^\s+installed\s+\//m);
+    expect(fromWorktree.code).toBe(fromMain.code);
+    expect(report(fromWorktree.out)).toBe(report(fromMain.out));
   });
 });
