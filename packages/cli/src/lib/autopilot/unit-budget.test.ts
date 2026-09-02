@@ -97,6 +97,7 @@ describe('a unit spending its own budget does not spend the run', () => {
       {
         schemaVersion: 1,
         merged: [],
+        taken: [],
         elapsedMs: 60_000,
         postMerge: undefined,
         pool: ['DEV-1', 'DEV-2'],

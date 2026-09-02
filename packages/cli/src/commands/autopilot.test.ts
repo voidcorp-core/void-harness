@@ -178,6 +178,7 @@ describe('operator subcommands', () => {
   const chainObservation = JSON.stringify({
     schemaVersion: 1,
     merged: [],
+    taken: [],
     elapsedMs: 0,
     debts: [],
     pool: ['DEV-1'],
