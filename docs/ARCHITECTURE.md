@@ -136,12 +136,15 @@ macOS's `/var` and `/private/var` never read as two roots. A worktree's `.git` i
 here tests it as a directory.
 
 What follows from it, per the decision on runtime state from a worktree: the installed panel,
-agents and manifest are read from `installRoot`, as are `status` and `check`; `doctor` judges
-that root and names both when they differ; `doctor` and `check` name the installation directory
-in each remedy, since a remedy runs where it is typed; `.void/machine/` is per-repository state,
-so the mission journal, controller plan, evidence and the status snapshot are written there,
-while the ticket, the diff and the verified command stay in `workRoot`. The session checkpoint
-stays with its tree.
+agents and manifest are read from `installRoot`, as are `status`, `check` and `mission`; `doctor`
+judges that root and names both when they differ. Every reader of `installRoot` names that root
+in what it prints about it when the two roots differ, and nothing otherwise: a remedy runs where
+it is typed, so `doctor`, `check` and `status` (its freshness notice) put `remedyPrefix` in front
+of each command; a printed path is read where it is typed, so `status` names its snapshot through
+`installedPath`. Both helpers live in `project-roots.ts`; a new reader uses them rather than
+restating the rule. `.void/machine/` is per-repository state, so the mission journal, controller
+plan, evidence and the status snapshot are written there, while the ticket, the diff and the
+verified command stay in `workRoot`. The session checkpoint stays with its tree.
 
 ## Decision records
 

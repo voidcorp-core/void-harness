@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { remedyPrefix, resolveProjectRoots } from './project-roots.js';
+import { installedPath, remedyPrefix, resolveProjectRoots } from './project-roots.js';
 
 // Measured on 2026-09-02 (run-2026-09-02-chain-b): an autopilot worker in a
 // linked worktree asked `mission dispatch` for its panel and was told "no
@@ -249,5 +249,25 @@ describe('remedyPrefix', () => {
     const linked = linkedWorktree(main);
 
     expect(remedyPrefix(resolveProjectRoots(linked))).toBe(`in ${realpathSync(main)}: `);
+  });
+});
+
+// A printed path is read against the directory the command was typed in. From
+// a worktree a file written under the installation must be named in full, or
+// the reader looks for it exactly where git was told not to put it.
+describe('installedPath', () => {
+  it('stays relative where the two roots coincide', () => {
+    const main = repository();
+
+    expect(installedPath(resolveProjectRoots(main), '.void/machine/status.json')).toBe('.void/machine/status.json');
+  });
+
+  it('names the file under the installation from a linked worktree', () => {
+    const main = repository();
+    const linked = linkedWorktree(main);
+
+    expect(installedPath(resolveProjectRoots(linked), '.void/machine/status.json')).toBe(
+      join(realpathSync(main), '.void/machine/status.json'),
+    );
   });
 });

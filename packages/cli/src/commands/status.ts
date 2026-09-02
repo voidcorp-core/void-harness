@@ -22,7 +22,7 @@ import {
 } from '@voidcorp/harness-graph';
 import { loadTelemetryStream } from '../lib/graph-io.js';
 import { configPackDirs } from '../lib/packs.js';
-import { resolveProjectRoots } from '../lib/project-roots.js';
+import { installedPath, remedyPrefix, resolveProjectRoots } from '../lib/project-roots.js';
 import { detectedAdapters } from '../lib/runtime-adapters.js';
 import { banner, blank, c, footer, line } from '../lib/render.js';
 import { freshnessNotice, resolveFreshness } from '@voidcorp/hook-runner';
@@ -145,8 +145,11 @@ function readJson<T>(path: string): T {
 export async function status(_args: readonly string[]): Promise<void> {
   // What `status` measures is the installation, and `.void/machine/` is
   // per-repository state: from a linked worktree both live in the main
-  // checkout (decision of 2026-09-02, runtime state from a worktree).
-  const cwd = resolveProjectRoots().installRoot;
+  // checkout (decision of 2026-09-02, runtime state from a worktree). What is
+  // printed about that root, a remedy or a path, then names it (see
+  // `remedyPrefix` and `installedPath`): both are read where the command was typed.
+  const roots = resolveProjectRoots();
+  const cwd = roots.installRoot;
   const certPath = findData('certification.json');
   if (!certPath) {
     footer(c.red('no certification.json found — reinstall the harness, or run `pnpm certification:build` in the monorepo.'));
@@ -249,6 +252,7 @@ export async function status(_args: readonly string[]): Promise<void> {
 
   // Advisory, and last: an outdated install still works, so this never touches the
   // score. Answered from cache when one is fresh, so `status` normally stays offline.
+  // The remedy it carries, `update`, acts on the directory it is typed in.
   const receipt = await readInstallReceipt(cwd);
   const notice = freshnessNotice(
     await resolveFreshness({
@@ -257,8 +261,13 @@ export async function status(_args: readonly string[]): Promise<void> {
       now: Date.now(),
     }),
     receipt?.source,
+    remedyPrefix(roots),
   );
   if (notice !== undefined) line(c.yellow(`  ${notice}`));
 
-  footer(persisted ? c.green('state written to .void/machine/status.json') : c.dim('.void not writable — render only'));
+  footer(
+    persisted
+      ? c.green(`state written to ${installedPath(roots, '.void/machine/status.json')}`)
+      : c.dim('.void not writable — render only'),
+  );
 }
