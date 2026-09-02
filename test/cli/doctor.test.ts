@@ -9,6 +9,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { appendFileSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { doctor } from '../../packages/cli/src/commands/doctor.js';
@@ -151,6 +152,37 @@ describe('doctor', () => {
     const out = await runDoctor();
 
     expect(out).toContain('1 file(s) differ from manifest');
+    // Naming it, because the alternative was rehashing the manifest by hand.
+    expect(out).toContain('.claude/skills/void-tdd/SKILL.md');
+  });
+
+  // A real repository, because the defect is entirely about what git decides:
+  // the project carried `.void/*` above the managed block, git does not descend
+  // into an excluded directory, and install-manifest.json, config.json and the
+  // hook runner were all untracked on a fresh clone while .claude/settings.json
+  // named the hooks. The check read the lines and never asked git whether they won.
+  it('names the project rule that hides a path the harness declares tracked', async () => {
+    execFileSync('git', ['init', '-q'], { cwd: dir });
+    writeFileSync(join(dir, '.gitignore'), '.void/*\n!.void/PROJECT-DOCTRINE.md\n');
+    await init(['--runtime', 'claude', '--no-interactive']);
+    output = '';
+
+    const out = await runDoctor();
+
+    expect(out).toContain('void kept');
+    expect(out).toContain('.void/config.json');
+    expect(out).toContain('.gitignore:1:.void/*');
+  });
+
+  it('stays green on the same install without that rule', async () => {
+    execFileSync('git', ['init', '-q'], { cwd: dir });
+    await init(['--runtime', 'claude', '--no-interactive']);
+    output = '';
+
+    const out = await runDoctor();
+
+    expect(out).toContain('git keeps all');
+    expect(out).not.toContain('cannot start without');
   });
 
   it('reports the source repository as self-host not-installed instead of skipping green', async () => {

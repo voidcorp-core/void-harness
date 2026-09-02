@@ -1065,6 +1065,35 @@ next `hydrate`, nothing broken. So: **what breaks stays, what degrades goes**
 `hydrate` restores the ignored content from the manifest and **proves** it —
 see "Exact rehydration" below.
 
+Staying tracked is a declaration, and a declaration is not a proof either. The
+`void kept` check is the mirror of `void ignore`: it asks git about each path the
+harness declares a clone cannot start without — the project-owned half of
+`.void/`, the install manifest, `.claude/settings.json`, and
+`DERIVED_LOAD_BEARING` — and names the rule that wins when one is hidden. A
+project carried, years older than the harness and higher in its `.gitignore`,
+
+```
+.void/*
+!.void/PROJECT-DOCTRINE.md
+```
+
+and git does not descend into an excluded directory, so that rule beat everything
+the managed block declared below it. That clone had no `config.json`, no
+`install-manifest.json` and no `.void/hooks/_void-hook.mjs`, while a committed
+`.claude/settings.json` named seven hooks pointing at the last of them: the
+enforcement floor had stopped applying, and the check that should have said so
+was reading the lines of an ignore file rather than asking git whether they won.
+`init` reports the same finding at install time, where the paths have just been
+written; it reports rather than refuses, because `.gitignore` beating
+`info/exclude` is the correct precedence and a project rule is not an error.
+
+Two measured properties hold the check up. `check-ignore -q` answers *ignored*,
+where `-v` answers *a pattern matched* and exits 0 on a **negation** — reading
+`-v`'s exit code would report every rescued path as hidden, so `-v` is asked only
+afterwards, to name the rule. And a **tracked** file is never reported as
+ignored, so "ignored" here already means "ignored and not in the index", which is
+the only harmful state.
+
 An ignore rule has no effect on a path already in the index, so an existing
 project needs an explicit untrack. `void-harness update --untrack-derived` does
 it in one command — files stay on disk, the index forgets them. It is opt-in and

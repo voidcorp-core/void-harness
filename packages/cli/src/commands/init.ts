@@ -21,7 +21,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { stripManagedBlock } from '@voidcorp/hook-runner';
 import { PROJECT_DOCTRINE_PATH } from '../lib/co-owned.js';
-import { writeExcludeBlock } from '../lib/git-exclude.js';
+import { observeKeptTracked, writeExcludeBlock } from '../lib/git-exclude.js';
 import { isUntouchedSinceInstall, readInstallManifest } from '../lib/install-manifest.js';
 import * as p from '@clack/prompts';
 import {
@@ -407,6 +407,7 @@ export async function init(args: readonly string[]): Promise<void> {
     // the receipt rather than the stage: the stage is what we meant to write,
     // the receipt is what is on disk.
     claimOwnedPaths(projectRoot, prepared.receipt.files.map((file) => file.path));
+    reportHiddenByProject(projectRoot);
     // A preserved asset is one the previous install owned and this one refuses
     // to delete, because it was edited by hand. Saying nothing here is how a
     // renamed skill keeps loading beside its replacement under a clean success.
@@ -645,6 +646,30 @@ async function ensureIgnoreRules(
  */
 function claimOwnedPaths(projectRoot: string, ownedPaths: readonly string[]): void {
   writeExcludeBlock(projectRoot, ownedPaths);
+}
+
+/**
+ * Say when a project rule wins over what this install just wrote.
+ *
+ * Reported, not refused: `.gitignore` beating `info/exclude` is the right
+ * precedence, and a rule the project wrote years before the harness is not an
+ * error to fail an install on. What was an error is doing it silently -- the
+ * project this comes from cloned without `config.json`, without
+ * `install-manifest.json` and without the hook runner, while its committed
+ * `.claude/settings.json` named seven hooks resolving to nothing.
+ *
+ * Asked of git, after the transaction, because only then are the paths on disk
+ * for `check-ignore` to answer about.
+ */
+function reportHiddenByProject(projectRoot: string): void {
+  const hidden = observeKeptTracked(projectRoot).filter((path) => path.ignored === true);
+  if (hidden.length === 0) return;
+  line(`${c.yellow('!')}  ${c.dim('hidden'.padEnd(18))}${hidden.length} installed path(s) hidden from git by a project rule`);
+  for (const entry of hidden.slice(0, 5)) {
+    line(c.dim(`     ${entry.path} — ${entry.rule ?? 'rule unknown'}`));
+  }
+  if (hidden.length > 5) line(c.dim(`     ... ${String(hidden.length - 5)} more`));
+  line(c.dim('     a fresh clone would not get them; narrow that rule, then git add them'));
 }
 
 export interface DoctrineInstallRoots {

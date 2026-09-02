@@ -23,6 +23,7 @@ import { publishedVersionCheck } from '../lib/freshness-check.js';
 import { INSTALL_MANIFEST_PATH, parseInstallManifest, verifyInstallManifest } from '../lib/install-manifest.js';
 import { judgeInvocation, observeInvocation } from '../lib/invocation-health.js';
 import { inspectHarnessLintExclusion } from '../lib/lint-exclusion.js';
+import { observeKeptTracked } from '../lib/git-exclude.js';
 import { type ObservedPathObservation, observedWriteCandidates } from '../lib/observed-write-paths.js';
 import { type DiscoveredAsset, looksHarnessAuthored, orphanedAssets } from '../lib/orphaned-assets.js';
 import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../lib/packs.js';
@@ -536,6 +537,9 @@ function observeManifest(root: string): ManifestObservation {
     kind: 'present',
     version: manifest.version,
     drifted: report.missingTotal + report.mismatchedTotal,
+    // Both halves, already capped by the verification. Naming them is the whole
+    // difference between "something moved" and a path to open.
+    driftedPaths: [...report.missing, ...report.mismatched],
     coEdited: report.coEditedTotal,
   };
 }
@@ -595,6 +599,7 @@ async function observeLayout(root: string): Promise<LayoutObservation> {
       pending: pendingMigrations(root),
       localIgnored: null,
       observedPaths,
+      keptTracked: observeKeptTracked(root),
       trackedObserved: [],
       trackedDerivedCount: 0,
       orphanedAssets: observeOrphanedAssets(root),
@@ -631,6 +636,7 @@ async function observeLayout(root: string): Promise<LayoutObservation> {
     pending: pendingMigrations(root),
     localIgnored,
     observedPaths,
+    keptTracked: observeKeptTracked(root),
     trackedObserved,
     trackedDerivedCount,
     orphanedAssets: observeOrphanedAssets(root),
