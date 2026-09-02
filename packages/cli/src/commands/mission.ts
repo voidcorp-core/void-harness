@@ -30,6 +30,7 @@ import {
 } from '@voidcorp/mission-engine';
 import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
 import { findCoreSource } from '../lib/paths.js';
+import { type ProjectRoots, resolveProjectRoots } from '../lib/project-roots.js';
 import { observeOrchestrationCapability } from '../lib/orchestration-capability.js';
 import { specialistCapabilityFor } from '../lib/runtime-adapters.js';
 import { loadProjectPolicies } from '../lib/policy-loader.js';
@@ -760,8 +761,16 @@ async function planBoundMission(
   });
 }
 
+/**
+ * Two roots, on purpose. The ticket, the diff and the context pack are read
+ * from the tree the command runs in; the mission journal, the controller plan
+ * and the installed specialists belong to the repository and are read from
+ * the installation root. In the main checkout the two are one directory; from
+ * a linked worktree the panel would otherwise be looked for where `git
+ * worktree add` never put it (DEV-732).
+ */
 export async function dispatchMissionSpecialists(
-  root: string,
+  roots: ProjectRoots,
   input: Extract<MissionArgs, { readonly kind: 'dispatch' }>,
   generatedAt = new Date().toISOString(),
   capabilityOverride?: SpecialistRuntimeCapability,
@@ -780,14 +789,15 @@ export async function dispatchMissionSpecialists(
    */
   readonly lensPlan?: LensPlan;
 }> {
+  const { workRoot, installRoot } = roots;
   const [stored, inspected] = await Promise.all([
-    loadMissionControllerPlan(root, input.missionId),
-    inspectMission(root, input.missionId, { dependencies: {} }),
+    loadMissionControllerPlan(installRoot, input.missionId),
+    inspectMission(installRoot, input.missionId, { dependencies: {} }),
   ]);
   if (inspected.stream.events.some((event) => event.kind === 'mission.closed')) {
     throw new Error('MISSION_CLOSED: specialist dispatch is no longer active');
   }
-  const live = await planBoundMission(root, stored.ticket.path, generatedAt);
+  const live = await planBoundMission(workRoot, stored.ticket.path, generatedAt);
   const livePlan = live.plan;
   if (
     live.ticket.path !== stored.ticket.path
@@ -818,7 +828,7 @@ export async function dispatchMissionSpecialists(
   const runtime = runtimeIdentity?.runtime;
   const rawCapability = capabilityOverride ?? (runtime === undefined
     ? { status: 'unavailable' as const, limitations: ['mission runtime identity is missing'] }
-    : await specialistCapabilityFor(root, runtime));
+    : await specialistCapabilityFor(installRoot, runtime));
   const specialistRuntime = runtimeIdentity === undefined
     ? rawCapability
     : constrainCapabilityByAttestation(runtimeIdentity, rawCapability);
@@ -843,8 +853,8 @@ export async function dispatchMissionSpecialists(
           ? preImplementationInputHashes
           : currentInputHashes,
         contextContent: await compileDispatchContent(
-          root,
-          await gitFiles(root),
+          workRoot,
+          await gitFiles(workRoot),
           decision.action.stage,
           stored.ticket.path,
         ),
@@ -860,7 +870,7 @@ export async function dispatchMissionSpecialists(
       )
     : undefined;
   if (envelopes.length > 0) {
-    await recordSpecialistRequests(root, input.missionId, envelopes, stored.plan.planHash);
+    await recordSpecialistRequests(installRoot, input.missionId, envelopes, stored.plan.planHash);
   }
   const writerEvents = inspected.stream.events.filter((event) =>
     event.kind === 'lead-writer.completed').length;
@@ -870,7 +880,7 @@ export async function dispatchMissionSpecialists(
   const nextWriterRound = writerAction === undefined ? undefined : writerEvents + 1;
   if (nextWriterRound !== undefined && writerAction !== undefined) {
     await recordLeadWriterRequest(
-      root,
+      installRoot,
       input.missionId,
       stored.plan.planHash,
       writerAction,
@@ -879,7 +889,7 @@ export async function dispatchMissionSpecialists(
   }
   if (decision.action.kind === 'complete' || decision.action.kind === 'stop') {
     await recordMissionClosure(
-      root,
+      installRoot,
       input.missionId,
       decision.action.kind === 'complete' ? 'completed' : 'controller-stop',
       'void-harness:mission.dispatch',
@@ -1234,7 +1244,11 @@ export async function mission(args: readonly string[]): Promise<void> {
     process.exitCode = 2;
     return;
   }
-  const root = process.cwd();
+  // Resolved once. Everything read from the tree takes `workRoot`; the journal,
+  // the controller plan and the installed panel take `installRoot`.
+  const roots = resolveProjectRoots();
+  const root = roots.workRoot;
+  const journal = roots.installRoot;
   try {
     if (parsed.kind === 'plan') {
       const plan = await planMission(root, parsed.ticketPath);
@@ -1242,7 +1256,7 @@ export async function mission(args: readonly string[]): Promise<void> {
       return;
     }
     if (parsed.kind === 'dispatch') {
-      const dispatched = await dispatchMissionSpecialists(root, parsed);
+      const dispatched = await dispatchMissionSpecialists(roots, parsed);
       process.stdout.write(
         parsed.json
           ? `${JSON.stringify(dispatched)}\n`
@@ -1257,7 +1271,7 @@ export async function mission(args: readonly string[]): Promise<void> {
         parsed.status,
         await readLifecycleJson(root, parsed.inputPath),
       );
-      await recordSpecialistLifecycle(root, parsed.missionId, lifecycle);
+      await recordSpecialistLifecycle(journal, parsed.missionId, lifecycle);
       process.stdout.write(
         parsed.json
           ? `${JSON.stringify({ recorded: true, status: parsed.status })}\n`
@@ -1266,7 +1280,7 @@ export async function mission(args: readonly string[]): Promise<void> {
       return;
     }
     if (parsed.kind === 'writer-event') {
-      await recordLeadWriterCompletion(root, parsed);
+      await recordLeadWriterCompletion(journal, parsed);
       process.stdout.write(
         parsed.json
           ? `${JSON.stringify({ recorded: true, status: 'completed' })}\n`
@@ -1275,7 +1289,7 @@ export async function mission(args: readonly string[]): Promise<void> {
       return;
     }
     if (parsed.kind === 'close') {
-      await recordMissionClosure(root, parsed.missionId, parsed.reason);
+      await recordMissionClosure(journal, parsed.missionId, parsed.reason);
       process.stdout.write(
         parsed.json
           ? `${JSON.stringify({ closed: true, reason: parsed.reason })}\n`
@@ -1316,7 +1330,7 @@ export async function mission(args: readonly string[]): Promise<void> {
         : ticketBinding === undefined
           ? undefined
           : missionControllerRoutingHash(controllerPlan, ticketBinding);
-      await createMission(root, {
+      await createMission(journal, {
         missionId,
         title: parsed.title,
         mode: selection.effectiveMode,
@@ -1341,7 +1355,7 @@ export async function mission(args: readonly string[]): Promise<void> {
           throw new Error('MISSION_CONTROLLER_PLAN_INVALID: ticket binding is missing');
         }
         const storedHash = await writeMissionControllerPlan(
-          root,
+          journal,
           missionId,
           controllerPlan,
           ticketBinding,
@@ -1364,7 +1378,7 @@ export async function mission(args: readonly string[]): Promise<void> {
       return;
     }
     if (parsed.kind === 'resume') {
-      const resumed = await resumeMission(root, parsed.missionId);
+      const resumed = await resumeMission(journal, parsed.missionId);
       process.stdout.write(
         parsed.json
           ? `${JSON.stringify(resumed)}\n`
@@ -1375,7 +1389,7 @@ export async function mission(args: readonly string[]): Promise<void> {
     }
     if (parsed.kind === 'prune') {
       const candidates = await pruneMissions(
-        root,
+        journal,
         parsed.olderThanDays,
         parsed.apply,
       );
@@ -1390,7 +1404,7 @@ export async function mission(args: readonly string[]): Promise<void> {
     }
     if (parsed.kind === 'inspect') {
       const { inspected } = await inspectCurrentMission(
-        root,
+        roots,
         parsed.missionId,
         collectKnownSecrets(),
       );
@@ -1404,11 +1418,11 @@ export async function mission(args: readonly string[]): Promise<void> {
     }
     if (parsed.kind === 'archive') {
       const { project } = await inspectCurrentMission(
-        root,
+        roots,
         parsed.missionId,
         collectKnownSecrets(),
       );
-      const archived = await archiveMission(root, parsed.missionId, {
+      const archived = await archiveMission(journal, parsed.missionId, {
         dependencies: { 'git:working-tree': project.diffHash },
       });
       process.stdout.write(
@@ -1419,7 +1433,7 @@ export async function mission(args: readonly string[]): Promise<void> {
       return;
     }
     const result = await verifyMissionCommand({
-      root,
+      roots,
       missionId: parsed.missionId,
       command: parsed.command,
       shell: parsed.shell,

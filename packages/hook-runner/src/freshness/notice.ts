@@ -67,11 +67,20 @@ export async function resolveFreshness(options: ResolveFreshnessOptions): Promis
  * Silence is the default: only a `behind` verdict on an install this CLI owns
  * produces text. Everything else — current, ahead, undetermined, marketplace,
  * unknown source — says nothing at all.
+ *
+ * `update` acts on the directory it is typed in. A caller that measured the
+ * install elsewhere (a linked worktree reading the main checkout) passes
+ * `where`, and it goes in front of the command; the caller owns that rule,
+ * this line only carries the words.
  */
-export function freshnessNotice(freshness: Freshness, source: InstallSource | undefined): string | undefined {
+export function freshnessNotice(
+  freshness: Freshness,
+  source: InstallSource | undefined,
+  where = '',
+): string | undefined {
   if (freshness.verdict !== 'behind' || source !== 'local') return undefined;
   const { installed, latest } = freshness;
-  return `void-harness ${installed} is installed; ${latest ?? 'a newer version'} is published. Run \`void-harness update\` to upgrade.`;
+  return `void-harness ${installed} is installed; ${latest ?? 'a newer version'} is published. Run ${where}\`void-harness update\` to upgrade.`;
 }
 
 /**
