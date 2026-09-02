@@ -111,6 +111,30 @@ held more data in one journal and far less in another, so no rule picks
 correctly. It runs only inside `update`: writing to a project nobody asked to
 have written to is the line this repo does not cross.
 
+### Two roots: the work tree and the installation
+
+A command reads and writes code in the **work tree**, the directory it ran in. It also reads what
+`init` installed: `.claude/agents`, `.claude/skills`, `.void/installed`, the hook bundle, the
+manifest. That install is a property of the **repository**, exactly like the `.git/info/exclude`
+file that hides it from git, and it lives in the main checkout. In the main checkout the two roots
+are one directory. In a linked worktree they are not, because `git worktree add` restores tracked
+files only. The CLI used to have one root and look for both there, which is how an autopilot
+worker was told no specialist was installed while twenty-one were (DEV-732).
+
+`resolveProjectRoots` (`packages/cli/src/lib/project-roots.ts`) is computed once per command and
+gives `workRoot` and `installRoot`. It asks git, never the filesystem: `rev-parse --show-toplevel`
+for the tree at hand, `worktree list --porcelain` for the main working tree, listed first by
+contract. Outside git, in the main checkout, in a bare repository or with a git older than the
+listing, `installRoot` is `workRoot`, so nothing changes there. Paths are canonical, so macOS's
+`/var` and `/private/var` never read as two roots. A worktree's `.git` is a file; nothing here
+tests it as a directory.
+
+What follows from it, per the decision on runtime state from a worktree: the installed panel,
+agents and manifest are read from `installRoot`; `doctor` judges that root and names both when
+they differ; `.void/machine/` is per-repository state, so the mission journal, controller plan
+and evidence are written there, while the ticket, the diff and the verified command stay in
+`workRoot`. The session checkpoint stays with its tree.
+
 ## Decision records
 
 ADRs are an append-only data model, not a generated document:
