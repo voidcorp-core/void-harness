@@ -89,6 +89,23 @@ failure for that ticket, not a reason to guess what it meant.
 Return the collected results to the L0 skill. This adapter writes no run state
 and comments on no ticket — there is one writer, and it is not the adapter.
 
+### Tracker actions are applied by a subagent that holds the tracker tools
+
+`reserve` and `lifecycle` return tracker WRITES as data — a transition, an
+assignment, a lease comment, a state change with an idempotency key — never
+argv. The argv executor has nothing to run for them, and on 2026-09-02 a
+consumer's first run stopped at the lease for exactly that reason: the list was
+filtered through a `command` field no tracker action carries, came back empty,
+and nothing said so. Here a native subagent holding the tracker tools applies
+each action exactly once, in order, and returns one receipt per action; a
+result it could not observe is `unknown`, never `applied`. The cycle then
+re-observes the reserved issues and calls `autopilot start` with the intent,
+the receipts and that observation, so the lease is active only when every issue
+converged and the run cursor exists before any worker is spawned. After
+publication the same shape repeats: `lifecycle` plans, the subagent applies,
+`lifecycle` reads the receipts, and the run calls the tracker synced only when
+that second call says it converged.
+
 ### The lists you hand back describe the run, not what came back
 
 `reconcile` audits a range against what the OTHER tickets of the cluster
