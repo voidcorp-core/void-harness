@@ -137,10 +137,11 @@ here tests it as a directory.
 
 What follows from it, per the decision on runtime state from a worktree: the installed panel,
 agents and manifest are read from `installRoot`, as are `status` and `check`; `doctor` judges
-that root, names both when they differ, and names the installation directory in each remedy,
-since a remedy runs where it is typed; `.void/machine/` is per-repository state, so the mission
-journal, controller plan, evidence and the status snapshot are written there, while the ticket,
-the diff and the verified command stay in `workRoot`. The session checkpoint stays with its tree.
+that root and names both when they differ; `doctor` and `check` name the installation directory
+in each remedy, since a remedy runs where it is typed; `.void/machine/` is per-repository state,
+so the mission journal, controller plan, evidence and the status snapshot are written there,
+while the ticket, the diff and the verified command stay in `workRoot`. The session checkpoint
+stays with its tree.
 
 ## Decision records
 

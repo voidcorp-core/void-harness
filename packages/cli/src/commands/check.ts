@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO, PACKS } from '../lib/packs.js';
-import { resolveProjectRoots } from '../lib/project-roots.js';
+import { remedyPrefix, resolveProjectRoots } from '../lib/project-roots.js';
 import { readSettings, settingsPathFor } from '../lib/settings.js';
 import {
   fetchRemoteMarketplace,
@@ -47,10 +47,15 @@ export async function check(args: readonly string[], options: CheckOptions = {})
   const remote = options.remote ?? GH_REMOTE;
   // The pins, the settings and the installed doctrine belong to the
   // installation, which from a linked worktree is the main checkout.
-  const projectRoot = resolveProjectRoots(options.cwd).installRoot;
+  const roots = resolveProjectRoots(options.cwd);
+  const installRoot = roots.installRoot;
+  // `update` and `init` act on the directory they are typed in. A remedy
+  // followed from a worktree as printed would install a second copy there,
+  // bumping none of the pins this check measures, so it names the installation.
+  const where = remedyPrefix(roots);
 
-  const repo = await resolveMarketplaceRepo(projectRoot);
-  const local = await readLocalConfig(projectRoot);
+  const repo = await resolveMarketplaceRepo(installRoot);
+  const local = await readLocalConfig(installRoot);
 
   banner('check');
   meta('marketplace', repo);
@@ -67,12 +72,12 @@ export async function check(args: readonly string[], options: CheckOptions = {})
 
   if (doctrine) {
     blank();
-    await reportDoctrineDrift(projectRoot, marketplace.value, repo, remote);
+    await reportDoctrineDrift(installRoot, where, marketplace.value, repo, remote);
   }
 
   if (drift > 0) {
     footer(
-      `${c.yellow(`${drift} plugin${drift > 1 ? 's' : ''} behind`)} ${glyph.emdash} run ${c.bold(
+      `${c.yellow(`${drift} plugin${drift > 1 ? 's' : ''} behind`)} ${glyph.emdash} run ${where}${c.bold(
         'void-harness update',
       )} ${c.dim('(refreshes the plugin cache + bumps the pins this check measures), then restart Claude Code')}`,
     );
@@ -81,8 +86,8 @@ export async function check(args: readonly string[], options: CheckOptions = {})
   }
 }
 
-async function resolveMarketplaceRepo(projectRoot: string): Promise<string> {
-  const settings = await readSettings(settingsPathFor(projectRoot));
+async function resolveMarketplaceRepo(installRoot: string): Promise<string> {
+  const settings = await readSettings(settingsPathFor(installRoot));
   const entry = (settings.extraKnownMarketplaces as Record<string, unknown> | undefined)?.[MARKETPLACE_NAME];
   if (entry && typeof entry === 'object') {
     const source = (entry as { source?: { repo?: string } }).source;
@@ -91,8 +96,8 @@ async function resolveMarketplaceRepo(projectRoot: string): Promise<string> {
   return MARKETPLACE_REPO;
 }
 
-async function readLocalConfig(projectRoot: string): Promise<LocalConfig> {
-  const configPath = join(projectRoot, '.void', 'config.json');
+async function readLocalConfig(installRoot: string): Promise<LocalConfig> {
+  const configPath = join(installRoot, '.void', 'config.json');
   if (!existsSync(configPath)) return {};
   try {
     return JSON.parse(await readFile(configPath, 'utf8')) as LocalConfig;
@@ -155,18 +160,19 @@ function reportVersionDrift(
 }
 
 async function reportDoctrineDrift(
-  projectRoot: string,
+  installRoot: string,
+  where: string,
   marketplace: RemoteMarketplace,
   marketplaceRepo: string,
   remote: CheckRemote,
 ): Promise<void> {
   // New home first, previous one until the project runs `update`.
-  const migrated = join(projectRoot, '.void', 'installed', 'PHILOSOPHY.md');
+  const migrated = join(installRoot, '.void', 'installed', 'PHILOSOPHY.md');
   const localPath = existsSync(migrated)
     ? migrated
-    : join(projectRoot, '.void', 'PHILOSOPHY.md');
+    : join(installRoot, '.void', 'PHILOSOPHY.md');
   if (!existsSync(localPath)) {
-    status('PHILOSOPHY.md missing locally — run `void-harness init` to install.', 'warn');
+    status(`PHILOSOPHY.md missing locally — run ${where}\`void-harness init\` to install.`, 'warn');
     return;
   }
   const localText = await readFile(localPath, 'utf8');
@@ -182,7 +188,7 @@ async function reportDoctrineDrift(
   const localLines = localText.split('\n').length;
   const remoteLines = fetched.value.split('\n').length;
   status(
-    `PHILOSOPHY.md drift (local ${localLines}L, remote ${remoteLines}L) — run \`void-harness init\` to overwrite`,
+    `PHILOSOPHY.md drift (local ${localLines}L, remote ${remoteLines}L) — run ${where}\`void-harness init\` to overwrite`,
     'warn',
   );
 }
