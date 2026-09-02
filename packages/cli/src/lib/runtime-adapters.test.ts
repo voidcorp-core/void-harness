@@ -22,8 +22,8 @@ function scratch(): string {
 
 function ctxFor(projectRoot: string, pinVersion: string | undefined = '0.17.0'): RuntimeWireContext {
   return {
-    projectRoot,
-    installationRoot: projectRoot,
+    stageRoot: projectRoot,
+    installRoot: projectRoot,
     sourceRoot: CORE_ROOT,
     enabledPlugins: ['harness'],
     enabledPacks: [],

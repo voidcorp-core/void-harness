@@ -337,13 +337,13 @@ export async function init(args: readonly string[]): Promise<void> {
     await writeConfig(stageRoot, packs, opts, { pinVersion, stack });
     // 2. Copy PHILOSOPHY.md + seed or refresh PROJECT-DOCTRINE.md
     await installDoctrineFiles(stageRoot, sourceRoot, {
-      installationRoot: projectRoot,
+      installRoot: projectRoot,
       preserveFrom: preserveDoctrine ? projectRoot : undefined,
     });
     // 3. Wire each selected runtime through its adapter.
     const wireCtx = {
-      projectRoot: stageRoot,
-      installationRoot: projectRoot,
+      stageRoot,
+      installRoot: projectRoot,
       sourceRoot,
       enabledPlugins,
       enabledPacks: packs,
@@ -652,7 +652,7 @@ export interface DoctrineInstallRoots {
    * The installation being written to, whose committed manifest attests what a
    * previous install wrote. Absent means no attestation, which preserves.
    */
-  readonly installationRoot?: string | undefined;
+  readonly installRoot?: string | undefined;
   /**
    * An installation whose philosophy is canonical rather than derived — the
    * source repo, where `docs/PHILOSOPHY.md` is the original and the packaged
@@ -669,9 +669,9 @@ export interface DoctrineInstallRoots {
  * has written into it — licenses replacing it with the current template. An
  * unreadable or absent manifest answers no: silence is not proof.
  */
-function isUntouchedProjectDoctrine(installationRoot: string | undefined, staged: string): boolean {
-  if (installationRoot === undefined) return false;
-  const manifest = readInstallManifest(installationRoot);
+function isUntouchedProjectDoctrine(installRoot: string | undefined, staged: string): boolean {
+  if (installRoot === undefined) return false;
+  const manifest = readInstallManifest(installRoot);
   if (manifest === undefined) return false;
   try {
     return isUntouchedSinceInstall(manifest, PROJECT_DOCTRINE_PATH, readFileSync(staged));
@@ -690,12 +690,12 @@ function isUntouchedProjectDoctrine(installationRoot: string | undefined, staged
  * session forever. See the decision on refreshing an untouched project doctrine.
  */
 export async function installDoctrineFiles(
-  projectRoot: string,
+  stageRoot: string,
   sourceRoot: string,
   roots: DoctrineInstallRoots = {},
 ): Promise<void> {
-  const { installationRoot, preserveFrom } = roots;
-  const voidDir = join(projectRoot, '.void');
+  const { installRoot, preserveFrom } = roots;
+  const voidDir = join(stageRoot, '.void');
   await mkdir(voidDir, { recursive: true });
   const philosophySrc = join(sourceRoot, 'PHILOSOPHY.md');
   // Under `installed/`: it is regenerated from a pin and not committed, and the
@@ -722,7 +722,7 @@ export async function installDoctrineFiles(
     if (!hasTemplate) return;
     await cp(templateSrc, doctrineDst);
     line(`${c.green(glyph.check)}  ${label}created from template`);
-  } else if (hasTemplate && isUntouchedProjectDoctrine(installationRoot, doctrineDst)) {
+  } else if (hasTemplate && isUntouchedProjectDoctrine(installRoot, doctrineDst)) {
     await cp(templateSrc, doctrineDst);
     line(`${c.green(glyph.check)}  ${label}refreshed (never filled in)`);
   } else {
