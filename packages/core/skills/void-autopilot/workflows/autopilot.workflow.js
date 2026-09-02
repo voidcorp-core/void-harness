@@ -81,13 +81,31 @@ function step(name, what, observe, phaseTitle) {
   )
 }
 
-/** Run argv a step returned. The plan decided it; this only executes it. */
+/**
+ * Run argv a step returned. The plan decided it; this only executes it.
+ *
+ * An empty list is never "nothing to do" here: every caller is running commands
+ * a step computed, so no command means the step's answer was read wrong. On
+ * 2026-09-02 a reservation's tracker actions were filtered through a field they
+ * do not carry, the list came out empty, and an agent was dispatched with
+ * nothing to run -- only its own honesty surfaced the mismatch, one phase late
+ * and as prose. The refusal is named here instead, before any agent is asked.
+ */
 function execute(commands, why, phaseTitle) {
+  const argv = Array.isArray(commands) ? commands : []
+  const usable = argv.every((command) => Array.isArray(command) && command.length > 0)
+  if (argv.length === 0 || !usable) {
+    throw new Error(
+      `autopilot stopped at ${phaseTitle}: the step returned no command to run (${why}).`
+      + ' Nothing was executed. A list that arrives empty, or holding an entry that is not argv,'
+      + " is a step answer read wrong, not an empty task -- dispatching it would ask an agent to invent the command.",
+    )
+  }
   return agent(
     [
       `Execute these commands in ${input.root}, in order, stopping at the first failure:`,
       '',
-      ...commands.map((command) => `  ${command.join(' ')}`),
+      ...argv.map((command) => `  ${command.join(' ')}`),
       '',
       `They were computed by autopilot, not by you: ${why}`,
       'Do not substitute, reorder or add to them.',
@@ -504,7 +522,7 @@ while (true) {
         // produce a footprint list you do not have is to read it off the branch
         // diff -- which makes the audit green about the diff it came from.
         `Pass footprints: ${JSON.stringify(orchestration.footprints ?? [])} — verbatim, and add nothing to them.`,
-        `Observe each range with \`git log --format='%H %P' base..head\` plus \`git diff --name-only base..head\` as \`observedFiles\`.`,
+        `Observe each range with \`git log --format='%H %P' base..head\` plus \`git diff --name-only base..head\` as \`observedFiles\`. Pass the commits in whatever order git printed them: the step reads the range as a set against those parent links, so it needs no order from you.`,
         `Observe, never trust the worker's own commit list or file list. The audit refuses a range holding a file another ticket of the cluster declared.`,
       ].join('\n'),
       'Reconcile',

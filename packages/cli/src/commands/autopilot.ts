@@ -63,7 +63,13 @@ import { buildOrchestrationPlan, type OrchestrationPlan } from '../lib/autopilot
 import { resolveClusterOutcome, type ClusterOutcome, type WorkerFailure } from '../lib/autopilot/partial-success.js';
 import { normaliseArea } from '../lib/autopilot/footprint-area.js';
 import type { DeclaredFootprint } from '../lib/autopilot/footprint-audit.js';
-import { buildReconcilePlan, type ReconcilePlan, type VerifiedRange } from '../lib/autopilot/reconcile-plan.js';
+import {
+  alignOutcomeWithPlan,
+  buildReconcilePlan,
+  type ReconcilePlan,
+  type SettledOutcome,
+  type VerifiedRange,
+} from '../lib/autopilot/reconcile-plan.js';
 import { parseWorkerResult, type WorkerResult } from '../lib/autopilot/worker-result.js';
 import { orderWorkers, type OrderFootprint } from '../lib/autopilot/worker-order.js';
 import { planWorktreeSetup, planWorktreeTeardown } from '../lib/autopilot/worktree-lifecycle.js';
@@ -748,9 +754,14 @@ interface ReconcileObservation {
  * wrong for a cycle: every worker blocked is an ordinary outcome of a run, not
  * a misuse of the command. The shape says which of the two happened rather than
  * handing back an empty plan that reads like a merge with nothing in it.
+ *
+ * When there IS a plan, the outcome beside it is the settled one: the two used
+ * to be emitted straight out of two steps that answer different questions under
+ * the same word, so one could say `integrate: ["DEV-709"]` while the other
+ * excluded it.
  */
 type ReconcileOutcome =
-  | { readonly schemaVersion: 1; readonly outcome: ClusterOutcome; readonly plan: ReconcilePlan }
+  | { readonly schemaVersion: 1; readonly outcome: SettledOutcome; readonly plan: ReconcilePlan }
   | { readonly schemaVersion: 1; readonly outcome: ClusterOutcome };
 
 function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult {
@@ -828,10 +839,10 @@ function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult 
     ...(observation.rebuildCommand === undefined ? {} : { rebuildCommand: observation.rebuildCommand }),
   });
 
+  const settled = alignOutcomeWithPlan(outcome, plan);
   const human = [
-    `${outcome.kind}: ${plan.integrate.length === 0 ? '(nothing)' : plan.integrate.join(', ')}`,
-    ...outcome.excluded.map((entry) => `  excluded ${entry.ticketId}: ${entry.reason}`),
-    ...plan.excluded.map((entry) => `  excluded ${entry.ticketId}: ${entry.reason}`),
+    `${settled.kind}: ${settled.integrate.length === 0 ? '(nothing)' : settled.integrate.join(', ')}`,
+    ...settled.excluded.map((entry) => `  excluded ${entry.ticketId}: ${entry.reason}`),
     '',
     `integration branch: ${plan.integrationBranch}`,
     ...plan.steps.map((step) => `  ${step.command.join(' ')}`),
@@ -839,7 +850,7 @@ function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult 
     'Every branch above is preserved. Nothing here deletes a worker branch.',
     '',
   ].join('\n');
-  return emit(json, { schemaVersion: 1, outcome, plan } satisfies ReconcileOutcome, human);
+  return emit(json, { schemaVersion: 1, outcome: settled, plan } satisfies ReconcileOutcome, human);
 }
 
 /**

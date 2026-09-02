@@ -267,7 +267,9 @@ export const INPUT_SHAPES: Readonly<Record<AutopilotInputStep, InputShape>> = Ob
         type: 'array',
         from: 'what GIT holds between the base and each head: `git log --format=\'%H %P\''
           + ' base..head` for `commits`, and `git diff --name-only base..head` for'
-          + ' `observedFiles`. A worker\'s own lists are claims, not observations',
+          + ' `observedFiles`. A worker\'s own lists are claims, not observations. Pass the'
+          + ' commits in whatever order git printed them: the range is verified as a set'
+          + ' against those parent links, so no order is expected of you',
         example: [{
           ticketId: 'DEV-1',
           baseSha: SHA,

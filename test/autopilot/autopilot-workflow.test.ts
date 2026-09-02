@@ -578,4 +578,41 @@ describe('the autopilot cycle is a script', () => {
   it('fails loudly on a malformed configuration rather than no-opping', async () => {
     await expect(runWorkflow('not json')).rejects.toThrow();
   });
+
+  // On 2026-09-02 the reservation's tracker actions were filtered through a
+  // field they do not carry, the list came out empty, and the executor was
+  // dispatched with nothing. Only the agent's own honesty surfaced it: it
+  // answered that it had been given no command. A dispatch with nothing to run
+  // is a step read wrong, and it names itself here rather than downstream.
+  it('refuses an empty command list by name instead of dispatching an agent with nothing to run', async () => {
+    const staged = answers().reconcile as { outcome: unknown; plan: Record<string, unknown> };
+    const run = runWorkflow(
+      configuration(),
+      answers({ reconcile: { ...staged, plan: { ...staged.plan, steps: [] } } }),
+    );
+
+    await expect(run).rejects.toThrow(/no command/i);
+  });
+
+  it('refuses a command that is not argv, for the same reason', async () => {
+    const staged = answers().reconcile as { outcome: unknown; plan: Record<string, unknown> };
+    const run = runWorkflow(
+      configuration(),
+      answers({ reconcile: { ...staged, plan: { ...staged.plan, steps: [{ command: [] }] } } }),
+    );
+
+    await expect(run).rejects.toThrow(/no command/i);
+  });
+
+  // The step reads the range as a set against the parent links, so the line
+  // must not ask for an order -- the one it used to imply was the reverse of
+  // what `git log` prints, and every multi-commit range was refused.
+  it('asks for the range without prescribing an order the step does not require', async () => {
+    const { calls } = await runWorkflow(configuration());
+    const reconcile = calls.find((call) => call.label === 'step:reconcile')?.prompt ?? '';
+
+    expect(reconcile).toContain('git log');
+    expect(reconcile).toMatch(/any order|whatever order/i);
+    expect(reconcile).toMatch(/parent/i);
+  });
 });

@@ -7,11 +7,20 @@
 // contains work nobody reviewed.
 //
 // So the range is verified against the observed parent links, not against the
-// command's exit status: every commit descends from the previous one, the first
-// descends from the declared base, none has two parents, and the set is exactly
-// what the worker declared — no more, no less.
+// command's exit status: the commits form one line of history from the declared
+// base, none has two parents, it ends at the declared head, and the set is
+// exactly what the worker declared — no more, no less.
 //
-// Pure. The skill runs `git rev-list --parents`; this decides.
+// The parent links are the evidence, and the order the observation arrived in is
+// not. It used to be: the walk started at the first entry, so it demanded
+// oldest-first while the observation the skill prescribes — `git log` — prints
+// newest-first. Every range of more than one commit was refused, which
+// destroyed exactly the tickets that split a test commit from its
+// implementation, and the refusal named a parent mismatch that reads like a
+// corrupted rebase. A convention only one of the two sides knows is the defect
+// itself, so the set is now read back into its own order.
+//
+// Pure. The skill runs `git log --format='%H %P' base..head`; this decides.
 
 export interface ObservedCommit {
   readonly sha: string;
@@ -23,7 +32,7 @@ export interface RangeObservation {
   readonly ticketId: string;
   readonly baseSha: string;
   readonly headSha: string;
-  /** Commits of `base..head`, oldest first. */
+  /** Commits of `base..head`, in any order: the parent links carry the order. */
   readonly commits: readonly ObservedCommit[];
   /**
    * Files `git diff --name-only base..head` reported, when it was run.
@@ -55,6 +64,7 @@ export type RangeRejection =
   | 'head-mismatch';
 
 export type RangeVerdict =
+  /** `commits` is the range read back into its own order, oldest first. */
   | { readonly kind: 'usable'; readonly commits: readonly string[] }
   | {
       readonly kind: 'rejected';
@@ -115,38 +125,60 @@ export function verifyRange(observation: RangeObservation, expectation: RangeExp
     );
   }
 
-  // Walk the chain. Each commit must have exactly one parent, and that parent
-  // must be the previous commit — the base for the first.
-  let expectedParent = observation.baseSha;
-  for (const commit of observation.commits) {
-    const parent = commit.parents[0];
-    if (parent !== expectedParent) {
-      // Two different failures look identical at the first commit. If some
-      // OTHER commit of the set does descend from the base, the set is a chain
-      // reported in the wrong order; if none does, the worker branched
-      // elsewhere entirely. The distinction is what makes the message useful.
-      const rootedElsewhere =
-        commit === observation.commits[0] &&
-        !observation.commits.some((other) => other.parents[0] === observation.baseSha);
-
-      return rootedElsewhere
-        ? reject(
-            'not-descended-from-base',
-            `\`${ticketId}\` starts at ${commit.sha}, whose parent is ${parent ?? 'none'} rather than the declared base ${observation.baseSha}`,
-          )
-        : reject(
-            'broken-chain',
-            `\`${ticketId}\` reports ${commit.sha} after ${expectedParent}, but its parent is ${parent ?? 'none'}`,
-          );
-    }
-    expectedParent = commit.sha;
+  // Read the set back into its own order, from the base forward. Every commit
+  // has one parent here — the merge check above is what makes that true — so
+  // one line of history is one commit per parent, and the walk that follows
+  // them cannot be longer than the set it walks.
+  const reported = observation.commits.map((commit) => commit.sha);
+  if (new Set(reported).size !== reported.length) {
+    return reject(
+      'broken-chain',
+      `\`${ticketId}\` reports the same commit twice, and a range holds each of its commits once`,
+    );
   }
 
-  const observed = observation.commits.map((commit) => commit.sha);
-  if (expectedParent !== observation.headSha) {
+  const childOf = new Map<string, string>();
+  for (const commit of observation.commits) {
+    const parent = commit.parents[0] ?? '';
+    const sibling = childOf.get(parent);
+    if (sibling !== undefined) {
+      return reject(
+        'broken-chain',
+        `\`${ticketId}\` puts ${commit.sha} and ${sibling} on the same parent ${parent}, which is two lines of history rather than one range`,
+      );
+    }
+    childOf.set(parent, commit.sha);
+  }
+
+  if (!childOf.has(observation.baseSha)) {
+    return reject(
+      'not-descended-from-base',
+      `\`${ticketId}\` holds no commit whose parent is the declared base ${observation.baseSha}; the commits may arrive in any order, but one of them starts at the base`,
+    );
+  }
+
+  const observed: string[] = [];
+  let last = observation.baseSha;
+  for (let hop = 0; hop < observation.commits.length; hop += 1) {
+    const next = childOf.get(last);
+    if (next === undefined) break;
+    observed.push(next);
+    last = next;
+  }
+
+  if (observed.length !== observation.commits.length) {
+    const reached = new Set(observed);
+    const stranded = reported.filter((sha) => !reached.has(sha));
+    return reject(
+      'broken-chain',
+      `\`${ticketId}\` carries ${stranded.join(', ')}, which no parent link joins to the base ${observation.baseSha}; the range is read as a set, so the order it was reported in is not what is missing`,
+    );
+  }
+
+  if (last !== observation.headSha) {
     return reject(
       'head-mismatch',
-      `\`${ticketId}\` declares head ${observation.headSha} while its range ends at ${expectedParent}`,
+      `\`${ticketId}\` declares head ${observation.headSha} while its range ends at ${last}`,
     );
   }
 

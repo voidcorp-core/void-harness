@@ -25,6 +25,7 @@ import { autopilotFailure } from './errors.js';
 import { normaliseArea } from './footprint-area.js';
 import { auditFootprint, type DeclaredFootprint } from './footprint-audit.js';
 import type { RangeVerdict } from './git-observation.js';
+import type { ClusterOutcome, ExcludedWorker } from './partial-success.js';
 
 export type IntegrationExclusion =
   | 'unverified-range'
@@ -423,5 +424,38 @@ export function buildReconcilePlan(input: ReconcileInput): ReconcilePlan {
     excluded,
     steps: planSteps(input, integrationBranch, integrate, sharedPaths),
     sharedPaths,
+  };
+}
+
+/** A cluster outcome that says what the merge plan beside it actually does. */
+export interface SettledOutcome {
+  readonly kind: ClusterOutcome['kind'];
+  readonly integrate: readonly string[];
+  readonly excluded: readonly (ExcludedWorker | ExcludedRange)[];
+  readonly preservedBranches: readonly string[];
+}
+
+/**
+ * The outcome, restated against the plan that came after it.
+ *
+ * `resolveClusterOutcome` answers who CAME BACK usable; the plan then drops
+ * whatever git or the footprint audit refused. Both were emitted side by side
+ * under the same word, and on 2026-09-02 a run answered `outcome.integrate:
+ * ["DEV-709"]` next to `plan.excluded: [DEV-709 unverified-range]`. Whichever a
+ * caller branches on, the other is a lie, and the one that reads `outcome`
+ * publishes an empty branch while reporting success.
+ *
+ * So the plan is authoritative and the outcome is written to agree with it:
+ * `integrate` is the plan's own list, and the exclusions of both steps are one
+ * list, each entry still carrying which step refused it and why.
+ */
+export function alignOutcomeWithPlan(outcome: ClusterOutcome, plan: ReconcilePlan): SettledOutcome {
+  return {
+    kind: plan.integrate.length === 0 ? 'nothing-to-integrate' : 'integrate',
+    // The plan's list, not a filter over the outcome's: a caller that reads one
+    // and a caller that reads the other must obtain the same tickets.
+    integrate: plan.integrate,
+    excluded: [...outcome.excluded, ...plan.excluded],
+    preservedBranches: outcome.preservedBranches,
   };
 }

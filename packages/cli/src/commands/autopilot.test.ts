@@ -371,6 +371,64 @@ ${enabled}  clusterSize: 2
     expect(emitted.plan.steps.length).toBeGreaterThan(0);
   });
 
+  // A worker that split a test commit from its implementation, which strict TDD
+  // requires, produced exactly this observation -- and every one of them was
+  // refused, because the step wanted oldest-first and the script prescribes
+  // `git log`, which prints the reverse.
+  it('integrates a three-commit range observed the way `git log` prints it, newest first', () => {
+    const commits = [`${A}1`, `${A}2`, `${A}3`];
+    const result = runAutopilotCommand(
+      ['reconcile', '--json'],
+      reconciliation({
+        results: [workerResult({ headSha: `${A}3`, commits })],
+        observations: [
+          {
+            ticketId: 'DEV-1',
+            baseSha: SETUP_SHA,
+            headSha: `${A}3`,
+            commits: [
+              { sha: `${A}3`, parents: [`${A}2`] },
+              { sha: `${A}2`, parents: [`${A}1`] },
+              { sha: `${A}1`, parents: [SETUP_SHA] },
+            ],
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.plan.integrate).toEqual(['DEV-1']);
+    expect(emitted.plan.excluded).toEqual([]);
+    expect(emitted.outcome.integrate).toEqual(['DEV-1']);
+  });
+
+  // Verbatim from the run that found this: `outcome` said the ticket integrated
+  // while `plan` excluded it. A caller branching on the wrong one publishes an
+  // empty branch and reports success.
+  it('never answers with an outcome its own plan contradicts', () => {
+    const result = runAutopilotCommand(
+      ['reconcile', '--json'],
+      reconciliation({
+        observations: [
+          {
+            ticketId: 'DEV-1',
+            baseSha: SETUP_SHA,
+            headSha: `${B}2`,
+            commits: [{ sha: `${B}2`, parents: [SETUP_SHA] }],
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.plan.integrate).toEqual([]);
+    expect(emitted.outcome.integrate).toEqual(emitted.plan.integrate);
+    expect(emitted.outcome.kind).toBe('nothing-to-integrate');
+    expect(JSON.stringify(emitted.outcome.excluded)).toContain('unverified-range');
+  });
+
   // The range is what git says, never what the worker claimed. A worker that
   // reports a commit git does not have is the case this exists for.
   it('excludes a range whose head git does not agree with', () => {
