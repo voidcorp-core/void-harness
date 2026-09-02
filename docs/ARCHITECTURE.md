@@ -272,8 +272,20 @@ checkpoint and Git. A plain continue/start/resume request uses the declared prog
 recover exactly one started scoped unit, or selects the first ready unit from the stable order and
 native blocker relations. More than one started unit is a competing-claim error.
 
+`.void/program.md` is the only location, and `LEGACY_PROGRAM_PATHS` is the only place the names it
+carried before (`.void/active.md`, `plans/ACTIVE.md`) still appear — read on the way in, never
+written, so a project that has not run `update` is not reported as having no programme at all.
+Two things hold that to one path. A test greps the living surface, everything the harness ships or
+tells an agent to read, for a legacy name; `docs/` is out of scope, since the specs that decided
+this are the record of why. And `doctor` **names the paths it looked at** when it finds nothing,
+because the same programme at one name printed eight autopilot lines and at another printed none,
+and a silent report is indistinguishable from not having looked.
+
 The programme is opt-in and project-owned. `init`, `update`, and runtime adapters never create or
-mutate it. `void-ticket` creates it only after a human-approved multi-unit plan has been fully
+mutate it. A declaration never migrates into a directory the harness ignores: one project's
+programme was moved from `plans/ACTIVE.md` to `.void/machine/ACTIVE.md` by an `update`, taking its
+running order, its human gates and the `autopilot` block that IS the consent to autonomous
+execution out of the repository with it, where nobody could audit or revise them in a PR. `void-ticket` creates it only after a human-approved multi-unit plan has been fully
 materialized in a capable progress provider. It stores durable context and routing only: programme,
 plan/spec links, provider scope, ordered unit identifiers, lifecycle-state roles, human gates, and
 the required `autopilot` consent block. Mutable status, assignee, blockers, comments, and review

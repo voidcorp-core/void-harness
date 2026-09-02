@@ -15,7 +15,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { isMachineEntry, pendingMigrations, resolveFreshness, VOID_MACHINE_DIR } from '@voidcorp/hook-runner';
 import { autopilotPreflight } from '../lib/autopilot/preflight.js';
-import { programPath, readProgramDescriptor } from '../lib/autopilot/program.js';
+import { LEGACY_PROGRAM_PATHS, PROGRAM_PATH, programPath, readProgramDescriptor } from '../lib/autopilot/program.js';
 import { packsCoherenceIssues, validateConfig } from '../lib/config-schema.js';
 import { applyRepair, conformanceRules, inspectConformance } from '../lib/conformance/run.js';
 import { checkGlyph, checkShowsFix } from '../lib/doctor-render.js';
@@ -336,6 +336,17 @@ export async function doctor(args: readonly string[]): Promise<void> {
   // or a git ref, and what it cannot read reports as unknown rather than false.
   if (declaresProgram(root)) {
     checks.push(...autopilotPreflight(observeAutopilot(root)));
+  } else {
+    // Naming the path, because silence is the one answer a reader cannot tell
+    // from not having looked. A project whose programme sat at another name got
+    // eight autopilot lines at one path and none at the other, and the empty
+    // report read as "no active programme" rather than "I looked over there".
+    checks.push({
+      name: 'program',
+      ok: true,
+      status: 'pass',
+      message: `no active program at ${[PROGRAM_PATH, ...LEGACY_PROGRAM_PATHS].join(' nor ')}, so autopilot's preconditions do not apply`,
+    });
   }
 
   // Structural conformance: conventions the harness DECLARES and can repair

@@ -185,6 +185,33 @@ describe('doctor', () => {
     expect(out).not.toContain('cannot start without');
   });
 
+  // With a programme at one path doctor printed eight autopilot lines; with the
+  // same file at another it printed none, and a silent report reads as "no
+  // active programme". Saying nothing about a thing you looked for is the one
+  // answer a reader cannot tell from not having looked.
+  it('says where it looked for a programme instead of falling silent', async () => {
+    await init(['--runtime', 'claude', '--no-interactive']);
+    output = '';
+
+    const out = await runDoctor();
+
+    expect(out).toContain('.void/program.md');
+    expect(out).toContain('no active program');
+  });
+
+  it('runs the autopilot preconditions once a programme is declared', async () => {
+    await init(['--runtime', 'claude', '--no-interactive']);
+    writeFileSync(
+      join(dir, '.void', 'program.md'),
+      '---\nschemaVersion: 1\nstatus: executing\nprogram: p\nplan: docs/p.md\nspec: docs/s.md\nhumanGates: [merge]\n---\n',
+    );
+    output = '';
+
+    const out = await runDoctor();
+
+    expect(out).not.toContain('no active program');
+  });
+
   it('reports the source repository as self-host not-installed instead of skipping green', async () => {
     writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'void-harness' }));
     mkdirSync(join(dir, 'packages', 'cli'), { recursive: true });
