@@ -515,9 +515,12 @@ describe('a hook fired from a worktree', () => {
   it('falls back to the worktree it discovered when no root is exported', () => {
     const { main, worktree } = repositoryWithWorktree();
     try {
-      const env = { ...process.env, VOID_MISSION_ID: 'mis_bbbbbbbbbbbbbbbb' };
-      delete env.VOID_PROJECT_ROOT;
-      delete env.CLAUDE_PROJECT_DIR;
+      // Annotated and indexed: a spread of `process.env` narrows to the keys it
+      // happens to carry, and this package forbids property access on an index
+      // signature, so both roots are removed by their names.
+      const env: NodeJS.ProcessEnv = { ...process.env, VOID_MISSION_ID: 'mis_bbbbbbbbbbbbbbbb' };
+      delete env['VOID_PROJECT_ROOT'];
+      delete env['CLAUDE_PROJECT_DIR'];
       spawnSync(process.execPath, [hook, 'activation', 'codex'], {
         input: '{}',
         encoding: 'utf8',
