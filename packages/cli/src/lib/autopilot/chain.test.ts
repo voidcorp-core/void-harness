@@ -28,6 +28,7 @@ const MINUTE = 60_000;
 const step = (over: Partial<Parameters<typeof planChainStep>[0]> = {}) =>
   planChainStep({
     merged: [unit()],
+    taken: [{ tickets: ['DEV-1'], outcome: 'merged' }],
     budgetMs: DEFAULT_CHAIN_BUDGET_MS,
     elapsedMs: 10 * MINUTE,
     postMerge: green,
@@ -159,6 +160,7 @@ describe('what stops a chain', () => {
     // Two merges in 100 minutes: about 50 minutes each. 30 minutes left is not enough.
     const decision = step({
       merged: [unit(), unit()],
+      taken: [{ tickets: ['DEV-1'], outcome: 'merged' }, { tickets: ['DEV-2'], outcome: 'merged' }],
       budgetMs: 130 * MINUTE,
       elapsedMs: 100 * MINUTE,
     });
@@ -175,7 +177,9 @@ describe('what stops a chain', () => {
   // was declared for it. Below what any unit here has ever taken, the run does
   // not start one at all.
   it('refuses to start a first unit in a run too short to finish one', () => {
-    const decision = step({ merged: [], budgetMs: 1 * MINUTE, elapsedMs: 0 });
+    const decision = step({
+      merged: [], taken: [], postMerge: undefined, budgetMs: 1 * MINUTE, elapsedMs: 0,
+    });
     expect(decision.kind).toBe('stop');
     if (decision.kind === 'stop') {
       expect(decision.reason).toBe('budget-spent');
@@ -187,13 +191,18 @@ describe('what stops a chain', () => {
   // The control. The floor is a floor, not a second budget: an ordinary run
   // starts its first unit exactly as before.
   it('starts a first unit whenever the run has a working session in front of it', () => {
-    expect(step({ merged: [], budgetMs: 120 * MINUTE, elapsedMs: 0 }).kind).toBe('continue');
-    expect(step({ merged: [], budgetMs: 30 * MINUTE, elapsedMs: 0 }).kind).toBe('continue');
+    const cold = { merged: [], taken: [], postMerge: undefined, elapsedMs: 0 };
+    expect(step({ ...cold, budgetMs: 120 * MINUTE }).kind).toBe('continue');
+    expect(step({ ...cold, budgetMs: 30 * MINUTE }).kind).toBe('continue');
   });
 
   it('continues when the remaining time comfortably fits another unit', () => {
-    expect(step({ merged: [unit(), unit()], budgetMs: 300 * MINUTE, elapsedMs: 100 * MINUTE }).kind)
-      .toBe('continue');
+    expect(step({
+      merged: [unit(), unit()],
+      taken: [{ tickets: ['DEV-1'], outcome: 'merged' }, { tickets: ['DEV-2'], outcome: 'merged' }],
+      budgetMs: 300 * MINUTE,
+      elapsedMs: 100 * MINUTE,
+    }).kind).toBe('continue');
   });
 
   it('reports the red base rather than the spent budget when both are true', () => {
@@ -285,5 +294,67 @@ describe('a fallback is not a declaration', () => {
     expect(resolveChainBudget({ declaredMs, declared: true, requested: '30m' })).toBe(30 * 60_000);
     expect(() => resolveChainBudget({ declaredMs, declared: true, requested: '6h' }))
       .toThrow(/shorten/);
+  });
+});
+
+describe('a unit that came back unmerged', () => {
+  // Measured on 2026-09-02: 84 minutes for one unit that was published and
+  // handed to a person, and the projection still said 15 minutes, because only
+  // a merge counted as a measurement. The operator held the bound; the chain
+  // exists so that nobody has to.
+  it('still measures how long a unit takes here, and the cold estimate steps aside', () => {
+    const decision = step({
+      merged: [],
+      taken: [{ tickets: ['DEV-1'], outcome: 'published-awaiting-human' }],
+      postMerge: undefined,
+      budgetMs: 120 * MINUTE,
+      elapsedMs: 84 * MINUTE,
+    });
+    expect(decision.kind).toBe('stop');
+    if (decision.kind === 'stop') {
+      expect(decision.reason).toBe('budget-spent');
+      expect(decision.detail).toMatch(/1h24m/);
+    }
+  });
+
+  it('stops while it waits for a person, rather than stacking a unit on the same base', () => {
+    const decision = step({
+      merged: [],
+      taken: [{ tickets: ['DEV-1'], outcome: 'published-awaiting-human' }],
+      postMerge: undefined,
+      budgetMs: 120 * MINUTE,
+      elapsedMs: 30 * MINUTE,
+    });
+    expect(decision.kind).toBe('stop');
+    if (decision.kind === 'stop') {
+      expect(decision.reason).toBe('awaiting-human');
+      expect(decision.failed).toBe(false);
+      expect(decision.detail).toContain('DEV-1');
+    }
+  });
+
+  it('lets a blocked unit hand back and the chain take the next one', () => {
+    const decision = step({
+      merged: [],
+      taken: [{ tickets: ['DEV-1'], outcome: 'blocked' }],
+      postMerge: undefined,
+      budgetMs: 120 * MINUTE,
+      elapsedMs: 20 * MINUTE,
+    });
+    expect(decision.kind).toBe('continue');
+  });
+
+  it('keeps a fast failure from lowering the estimate under what any unit finished in', () => {
+    // A unit blocked in two minutes measured how long failing takes, not how
+    // long finishing does. Eight minutes left is still not a unit.
+    const decision = step({
+      merged: [],
+      taken: [{ tickets: ['DEV-1'], outcome: 'blocked' }],
+      postMerge: undefined,
+      budgetMs: 10 * MINUTE,
+      elapsedMs: 2 * MINUTE,
+    });
+    expect(decision.kind).toBe('stop');
+    if (decision.kind === 'stop') expect(decision.reason).toBe('budget-spent');
   });
 });
