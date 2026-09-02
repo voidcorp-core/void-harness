@@ -210,14 +210,14 @@ describe('installDoctrineFiles', () => {
     // Every consumer that never filled it in keeps paying for the old template
     // in every session otherwise. The manifest makes that case decidable.
     const stage = staged('OLD TEMPLATE\n');
-    await installDoctrineFiles(stage, source(), { installationRoot: attesting('OLD TEMPLATE\n') });
+    await installDoctrineFiles(stage, source(), { installRoot: attesting('OLD TEMPLATE\n') });
     expect(doctrineIn(stage)).toBe('TEMPLATE\n');
   });
 
   it('never touches a project doctrine the project has written into', async () => {
     const written = 'OLD TEMPLATE\n\n- **no raw fetch in a component**.\n';
     const stage = staged(written);
-    await installDoctrineFiles(stage, source(), { installationRoot: attesting('OLD TEMPLATE\n') });
+    await installDoctrineFiles(stage, source(), { installRoot: attesting('OLD TEMPLATE\n') });
     expect(doctrineIn(stage)).toBe(written);
   });
 
@@ -225,14 +225,14 @@ describe('installDoctrineFiles', () => {
     // An install predating the manifest. Silence is not proof of an untouched
     // file, so the conservative branch wins.
     const stage = staged('OLD TEMPLATE\n');
-    await installDoctrineFiles(stage, source(), { installationRoot: project() });
+    await installDoctrineFiles(stage, source(), { installRoot: project() });
     expect(doctrineIn(stage)).toBe('OLD TEMPLATE\n');
   });
 
   it('leaves the file alone when the package carries no template at all', async () => {
     // A broken package must not be the thing that decides a project's doctrine.
     const stage = staged('OLD TEMPLATE\n');
-    await installDoctrineFiles(stage, project(), { installationRoot: attesting('OLD TEMPLATE\n') });
+    await installDoctrineFiles(stage, project(), { installRoot: attesting('OLD TEMPLATE\n') });
     expect(doctrineIn(stage)).toBe('OLD TEMPLATE\n');
   });
 

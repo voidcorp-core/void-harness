@@ -81,13 +81,31 @@ function step(name, what, observe, phaseTitle) {
   )
 }
 
-/** Run argv a step returned. The plan decided it; this only executes it. */
+/**
+ * Run argv a step returned. The plan decided it; this only executes it.
+ *
+ * An empty list is never "nothing to do" here: every caller is running commands
+ * a step computed, so no command means the step's answer was read wrong. On
+ * 2026-09-02 a reservation's tracker actions were filtered through a field they
+ * do not carry, the list came out empty, and an agent was dispatched with
+ * nothing to run -- only its own honesty surfaced the mismatch, one phase late
+ * and as prose. The refusal is named here instead, before any agent is asked.
+ */
 function execute(commands, why, phaseTitle) {
+  const argv = Array.isArray(commands) ? commands : []
+  const usable = argv.every((command) => Array.isArray(command) && command.length > 0)
+  if (argv.length === 0 || !usable) {
+    throw new Error(
+      `autopilot stopped at ${phaseTitle}: the step returned no command to run (${why}).`
+      + ' Nothing was executed. A list that arrives empty, or holding an entry that is not argv,'
+      + " is a step answer read wrong, not an empty task -- dispatching it would ask an agent to invent the command.",
+    )
+  }
   return agent(
     [
       `Execute these commands in ${input.root}, in order, stopping at the first failure:`,
       '',
-      ...commands.map((command) => `  ${command.join(' ')}`),
+      ...argv.map((command) => `  ${command.join(' ')}`),
       '',
       `They were computed by autopilot, not by you: ${why}`,
       'Do not substitute, reorder or add to them.',
@@ -144,7 +162,7 @@ function required(answer, what) {
 
 const WORKER_RESULT_SCHEMA = {
   type: 'object',
-  required: ['schemaVersion', 'ticketId', 'status', 'branch', 'baseSha', 'headSha', 'commits', 'files', 'proofs', 'decisions', 'blocker'],
+  required: ['schemaVersion', 'ticketId', 'status', 'branch', 'baseSha', 'headSha', 'commits', 'files', 'proofs', 'decisions', 'review', 'blocker'],
   additionalProperties: true,
   properties: {
     schemaVersion: { const: 1 },
@@ -178,6 +196,28 @@ const WORKER_RESULT_SCHEMA = {
         },
       },
     },
+    // What reviewed this unit, as a value. A worker that could convene no panel
+    // used to report that in `decisions`, which no later step reads, so a
+    // self-reviewed ticket and a panel-briefed one produced the same green run.
+    review: {
+      type: 'object',
+      required: ['kind'],
+      properties: {
+        kind: { enum: ['panel', 'self-review', 'none'] },
+        passes: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['name', 'context'],
+            properties: {
+              name: { type: 'string' },
+              context: { enum: ['fresh-context-subagent', 'self-review'] },
+            },
+          },
+        },
+        because: { type: 'string' },
+      },
+    },
     blocker: { type: ['string', 'null'] },
   },
 }
@@ -198,6 +238,10 @@ function prohibitions(plan) {
     plan.workerMayPush !== true && 'push',
     plan.workerMayOpenPullRequest !== true && 'open or update a pull request',
     plan.workerMayTransitionTicket !== true && 'merge anything, or move the ticket to In Review or Done',
+    plan.workerMayPruneMissions !== true
+      && 'run `void-harness mission prune`, which deletes the mission journals of the whole'
+        + ' repository -- `.void/machine/` is per-repository state, so pruning from your worktree'
+        + ' takes the runs of every worker beside you',
   ].filter(Boolean)
   const lines = [`You must NOT: ${denied.join(', ')}. Stop at a committed branch.`]
 
@@ -254,8 +298,36 @@ function workerPrompt(assignment, plan) {
     'Return the WorkerResult object. Commits must be full 40-character ids, in order, and the',
     'head must be the last of them. Every proof carries the argv that ran and a sha256 of its',
     'output — a proof you did not run is not a proof.',
+    '',
+    'State what reviewed you, in `review`. `{ kind: "panel", passes: [{ name, context:',
+    '"fresh-context-subagent" }] }` only for passes a separate fresh context actually ran; if this',
+    'runtime exposes no such primitive, report `{ kind: "self-review", passes: [...with context',
+    '"self-review"], because: "<why no panel could be convened>" }`, and `{ kind: "none", because }`',
+    'when no pass ran at all. Report the degradation rather than working around it: a panel claimed',
+    'over passes you ran yourself is refused, and the run is judged on this field, not on prose.',
   ].join('\n')
 }
+
+/**
+ * Where a worker's hook telemetry lands, and why nothing is set here.
+ *
+ * The hooks resolve their root from `VOID_PROJECT_ROOT`, else
+ * `CLAUDE_PROJECT_DIR`, else the git toplevel they discover -- and the
+ * reconciler deletes the worktree, so a discovered toplevel means the run's
+ * telemetry is gone before anyone reads the pull request.
+ *
+ * This adapter sets neither variable, for two reasons that both have to hold.
+ * `agent()` takes label, phase, schema, model, effort, isolation and agentType,
+ * and no environment option, so there is nothing to set it through. And the
+ * runtime already puts the session's project -- the main checkout -- in
+ * `CLAUDE_PROJECT_DIR`, which every subagent inherits, so there is nothing to
+ * repair. The Codex adapter has neither property and exports `VOID_PROJECT_ROOT`
+ * itself at spawn; see `references/codex-subagents.md`.
+ *
+ * Saying it in the worker brief would fix nothing, and this is the mechanism
+ * rather than a preference: an `export` the agent runs in a shell call
+ * does not reach the process the runtime launches hooks in.
+ */
 
 /** Fan the cluster out: disjoint tickets at once, colliding ones one by one. */
 async function runWorkers(plan) {
@@ -324,6 +396,48 @@ const beats = []
 let taken = 0
 
 /**
+ * The two projections of the journal, because the two words are not synonyms.
+ *
+ * `taken` is every unit this run claimed, whatever became of it; `merged` is
+ * only the ones a merge commit was observed for. The whole journal used to go
+ * to both, so the draft body listed a unit waiting on a person under "What
+ * merged so far", and the chain read a base as containing a change that was
+ * never merged into it. Filtered here rather than asked of the agent: a
+ * projection the prompt describes is a projection nobody can prove happened.
+ */
+const takenUnits = () => journal.map((entry) => ({ tickets: entry.tickets, outcome: entry.outcome }))
+const mergedUnits = () =>
+  journal
+    .filter((entry) => entry.outcome === 'merged')
+    .map((entry) => ({
+      tickets: entry.tickets,
+      integrationSha: entry.integrationSha,
+      mergeCommit: entry.mergeCommit,
+      unionVerdict: entry.unionVerdict,
+      checks: entry.checks,
+    }))
+
+/**
+ * Write down a unit this run took and could not finish.
+ *
+ * Where the script used to `break`, it left no trace: the CLI models `blocked`
+ * as a third end and nothing shipped ever produced one, so a cluster with no
+ * surviving range and a cluster whose proofs refused both ended as a silent
+ * stop, and every ticket in them read as still remaining. A unit is taken once.
+ * What became of it is a fact about it, not a reason to take it again -- so it
+ * is journaled here, the worktrees are reclaimed exactly as they are after a
+ * publish, and the chain decides whether the run goes on.
+ */
+async function blockUnit(tickets, cause, stepName, teardown) {
+  journal.push({ tickets, outcome: 'unit-blocked', cause, integrationSha: null, mergeCommit: null, unionVerdict: null, checks: [] })
+  taken += 1
+  await beat(stepName, cause)
+  if (teardown.length > 0) {
+    await execute(teardown.map((s) => s.command), 'they reclaim the worktrees; no branch is deleted', 'Reconcile')
+  }
+}
+
+/**
  * Say where the run is, in the one place a person can read without a terminal.
  *
  * After EVERY decision, not at the end. A run that publishes only when it
@@ -339,7 +453,7 @@ async function beat(stepName, unit) {
   const answer = await step(
     'progress',
     'the beats so far, what merged, the instant now, and the ceiling one unit may take',
-    `Pass beats: ${JSON.stringify(beats)} with a real instant on each, merged: ${JSON.stringify(journal)}, and the run start ${input.now}. Then write the returned body to the path the plan names and run its commands.`,
+    `Pass beats: ${JSON.stringify(beats)} with a real instant on each, merged verbatim: ${JSON.stringify(mergedUnits())}, and the run start ${input.now}. Then write the returned body to the path the plan names and run its commands.`,
     'Progress',
   )
   if (!answer || answer.ok !== true) {
@@ -360,7 +474,7 @@ while (true) {
     await step(
       'chain',
       'what this run took and what became of each unit, what merged, elapsed milliseconds, the post-merge state of the base, and the pool',
-      `Pass taken: one entry per journal entry with its tickets and outcome, and merged: only the entries whose outcome is merged, from ${JSON.stringify(journal)}. A unit published and waiting for a person is taken, not remaining. Take elapsed from the run start passed in ${input.now}. Observe the base is green from the last verification of this run, and pass the pool as the programme's order minus what is done.`,
+      `Pass taken verbatim: ${JSON.stringify(takenUnits())}, and merged verbatim: ${JSON.stringify(mergedUnits())}. A unit published and waiting for a person is taken, not remaining, and neither is one this run blocked. Take elapsed from the run start passed in ${input.now}. Observe the base is green from the last verification of this run, and pass the pool as the programme's order minus what is done.`,
       'Chain',
     ),
     'the chain decision',
@@ -437,7 +551,7 @@ while (true) {
         // produce a footprint list you do not have is to read it off the branch
         // diff -- which makes the audit green about the diff it came from.
         `Pass footprints: ${JSON.stringify(orchestration.footprints ?? [])} — verbatim, and add nothing to them.`,
-        `Observe each range with \`git log --format='%H %P' base..head\` plus \`git diff --name-only base..head\` as \`observedFiles\`.`,
+        `Observe each range with \`git log --format='%H %P' base..head\` plus \`git diff --name-only base..head\` as \`observedFiles\`. Pass the commits in whatever order git printed them: the step reads the range as a set against those parent links, so it needs no order from you.`,
         `Observe, never trust the worker's own commit list or file list. The audit refuses a range holding a file another ticket of the cluster declared.`,
       ].join('\n'),
       'Reconcile',
@@ -446,7 +560,13 @@ while (true) {
   )
   if (!reconciliation.plan) {
     log('nothing survived this cluster; every branch is preserved')
-    break
+    await blockUnit(
+      orchestration.plan.assignments.map((a) => a.ticketId),
+      `nothing survived reconciliation: ${reconciliation.outcome?.detail ?? 'no range was integrable'}`,
+      'reconcile',
+      orchestration.teardown,
+    )
+    continue
   }
   required(await execute(reconciliation.plan.steps.map((s) => s.command), 'they merge only the ranges git confirmed', 'Reconcile'), 'merging the ranges')
   await beat('reconcile', reconciliation.plan.integrate.join(', '))
@@ -463,15 +583,31 @@ while (true) {
   const gate = required(
     await step(
       'gate',
-      'the required proofs, the evidence that they ran, the merged tree hash, and the panel events',
-      `The suite you just ran reported: ${JSON.stringify(ran).slice(0, 200)}…. Seal each outcome as evidence with its exact argv. Evidence you did not produce is not evidence.`,
+      'the required proofs, the evidence that they ran, the merged tree hash, the panel events, and what reviewed each unit',
+      [
+        `The suite you just ran reported: ${JSON.stringify(ran).slice(0, 200)}…. Seal each outcome as evidence with its exact argv. Evidence you did not produce is not evidence.`,
+        // Handed over rather than re-observed: the provenance exists only in the
+        // worker's own answer, and a step that cannot read it cannot refuse on it.
+        `Pass reviews verbatim: ${JSON.stringify(results.map((result) => ({ ticketId: result?.ticketId, provenance: result?.review })))}.`,
+      ].join('\n'),
       'Verify',
     ),
     'the gate',
   )
   if (gate.proofs.kind !== 'merge') {
     log(`stop (${gate.proofs.action}): ${gate.proofs.detail}`)
-    await beat('gate', gate.proofs.detail)
+    await blockUnit(reconciliation.plan.integrate, `the proofs refused (${gate.proofs.action}): ${gate.proofs.detail}`, 'gate', orchestration.teardown)
+    // The gate names what it wants: `STOP_CHAIN` ends the run, and anything
+    // else ends this unit only. Reading both as "stop" threw away a
+    // continuation the gate had already decided was safe.
+    if (gate.proofs.action === 'STOP_CHAIN') break
+    continue
+  }
+  // A unit nothing reviewed does not merge. A self-reviewed one does, and the
+  // pull request body carries the downgrade to the person who promotes it.
+  if (gate.reviews && gate.reviews.kind === 'refuse') {
+    log(`stop (unreviewed): ${gate.reviews.detail}`)
+    await beat('gate', gate.reviews.detail)
     break
   }
 
@@ -480,23 +616,68 @@ while (true) {
     await step(
       'publish',
       'the integration head, the proof assessment, the worker branches, and the provenance of each merged ticket',
-      'Include every excluded ticket with what makes it resumable. The body IS the account someone promotes on.',
+      [
+        'Include every excluded ticket with what makes it resumable. The body IS the account someone promotes on.',
+        // The grade the gate just produced, carried rather than re-judged: the
+        // body is where a person learns a unit was reviewed by its own author.
+        `Each included ticket carries \`review\` as the gate graded it: ${JSON.stringify((gate.reviews?.units ?? []).map((unit) => ({ ticketId: unit.ticketId, grade: unit.grade, detail: unit.detail })))}.`,
+      ].join('\n'),
       'Publish',
     ),
     'the publication',
   )
   required(await execute(publication.plan.steps.map((s) => s.command), 'one branch, one explicit refspec, one pull request', 'Publish'), 'publishing')
 
-  const decision = required(
-    await step(
-      'grant',
-      'where the checks stand, the observed protection, the changed paths, and the union reading if one ran',
-      'A reading nobody ran is passed as null. It refuses, and the refusal hands back the request — running it is a separate act, and claiming it happened is the failure this guards.',
-      'Publish',
-    ),
-    'the merge grant',
-  )
+  const GRANT_NEEDS = 'the pull request it just opened, where the checks stand, the observed protection, the changed paths, and the union reading if one ran'
+  const GRANT_OBSERVE = [
+    'Read the pull request with `gh pr view --json number` and pass it as pullRequest: { "number": <n> }.',
+    'A reading nobody ran is passed as null. It refuses, and the refusal hands back the request — running it is a separate act, and claiming it happened is the failure this guards.',
+  ].join(' ')
+  let decision = required(await step('grant', GRANT_NEEDS, GRANT_OBSERVE, 'Publish'), 'the merge grant')
+
+  // `hold` is not a hand-off to a person. The checks are pending the instant the
+  // branch is pushed, so it is the nominal FIRST answer, and reading it as
+  // "published, awaiting human" both stated a false reason and abandoned a merge
+  // the grant would have given once they settled. So it is asked again, after
+  // waiting on the checks themselves -- and bounded, because a check that never
+  // settles has to end this unit rather than the run's whole clock.
+  const GRANT_REASKS_MAX = 3
+  for (let reask = 1; decision.action.action === 'hold' && reask <= GRANT_REASKS_MAX; reask += 1) {
+    log(`checks unsettled; asking the grant again (${reask}/${GRANT_REASKS_MAX})`)
+    decision = required(
+      await step(
+        'grant',
+        GRANT_NEEDS,
+        `The checks had not settled. First wait for them with \`gh pr checks <number> --watch --fail-fast\`, which only reads and returns when they finish or one fails. Then observe everything again. ${GRANT_OBSERVE}`,
+        'Publish',
+      ),
+      'the merge grant',
+    )
+  }
   log(`grant: ${decision.grant.kind} — next ${decision.action.action}`)
+
+  // A grant is a permission; running it is a separate act, and observing what it
+  // produced is a third. Until 2026-09-02 the first was written down as the
+  // third: the journal said `merged` on the grant alone, nothing ever ran the
+  // merge, and the chain took the next unit on a base that did not hold the
+  // first one. The argv comes from the grant, bound to the head it read.
+  let landing = null
+  if (decision.action.action === 'merge' && decision.merge.steps.length > 0) {
+    required(
+      await execute(decision.merge.steps.map((s) => s.command), 'the grant permitted this one merge, bound to the head it read', 'Publish'),
+      'merging the integration branch',
+    )
+    landing = required(
+      await step(
+        'landed',
+        'what this run expects of the pull request, and the pull request as GitHub reports it now',
+        `Pass expected: { "integrationBranch": "${reconciliation.plan.integrationBranch}", "integrationSha": "${verification.integrationSha}", "baseBranch": "${base.base.branch}", "baseSha": "${base.base.sha}" }. Then re-read the pull request with \`gh pr view --json number,state,headRefName,headRefOid,baseRefName,mergeCommit,statusCheckRollup\` and pass it as pullRequest: { "kind": "value", "value": <the full observation> }, or { "kind": "nil" } when it cannot be read. The command having returned is not a merge: only the merge commit GitHub reports is.`,
+        'Publish',
+      ),
+      'the merge observation',
+    )
+  }
+  const landed = landing?.verdict?.kind === 'merged'
 
   const lifecycle = required(
     await step(
@@ -526,14 +707,41 @@ while (true) {
     if (!trackerConverged) log(`tracker not converged: ${reconciled.reconciliation?.detail ?? 'no reconciliation returned'}`)
   }
 
-  // What became of the unit is recorded here, not inferred later: a unit the
-  // grant did not merge is published and waiting for a person, and the chain
-  // must never propose it again or count it as still ready.
+  // What became of the unit is recorded here, not inferred later, and each of
+  // the three ends is read off a different fact: `merged` off the merge commit
+  // GitHub reported, `published-awaiting-human` off the grant refusing to a
+  // person, `blocked` off a merge that was permitted and did not land, or off
+  // checks that never settled. The chain must never propose the unit again, nor
+  // count any of these as still ready.
   journal.push({
     tickets: reconciliation.plan.integrate,
-    mergeSha: verification.integrationSha,
-    outcome: decision.action.action === 'merge' ? 'merged' : 'published-awaiting-human',
+    outcome: landed ? 'merged' : decision.action.action === 'await-human' ? 'published-awaiting-human' : 'unit-blocked',
+    cause: landed
+      ? null
+      : decision.action.action === 'merge'
+        ? `the merge was permitted and did not land: ${landing?.verdict?.detail ?? 'no landing was observed'}`
+        : decision.action.detail,
+    integrationSha: verification.integrationSha,
+    mergeCommit: landed ? landing.verdict.mergeSha : null,
+    unionVerdict: decision.unionVerdict ?? 'inconclusive',
+    checks: landing?.checks ?? [],
   })
+  // A ticket the reconciler excluded was taken by this run all the same: it was
+  // leased, a worker ran it, and its branch is still there. Journaling only
+  // `integrate` dropped it back into the pool, so the chain proposed it again as
+  // `nextUnit` inside the same run, and the next orchestrate tried to create a
+  // worktree on a branch that already existed. It is taken, with its reason.
+  for (const excluded of reconciliation.plan.excluded ?? []) {
+    journal.push({
+      tickets: [excluded.ticketId],
+      outcome: 'unit-blocked',
+      cause: `excluded at reconciliation (${excluded.reason}): ${excluded.detail}`,
+      integrationSha: null,
+      mergeCommit: null,
+      unionVerdict: null,
+      checks: [],
+    })
+  }
   taken += 1
   await beat('publish', reconciliation.plan.integrate.join(', '))
   required(await execute(orchestration.teardown.map((s) => s.command), 'they reclaim the worktrees; no branch is deleted', 'Reconcile'), 'reclaiming the worktrees')

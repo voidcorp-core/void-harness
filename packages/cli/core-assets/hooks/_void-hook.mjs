@@ -585,6 +585,66 @@ function matches(path, globs) {
 function bypass(path, spikeGlobs) {
   return !/\.(?:ts|tsx|js|jsx)$/.test(path) || /(^|\/)docs\//.test(path) || /\.(?:test|spec)\.(?:ts|tsx|js|jsx)$/.test(path) || /\.d\.ts$/.test(path) || /\/(?:tests?|__tests__)\/fixtures\/|\/seed\/|\/migrations\/|\/drizzle\/meta\/|\/codemods?\//.test(path) || /\/__generated__\//.test(path) || matches(path, spikeGlobs);
 }
+var MAX_TOP_LEVEL_STATEMENTS = 512;
+var DIRECTIVE = /^(['"])use [a-z][a-z ]*\1\s*;?/;
+var TYPE_IMPORT = /^import\s+type\s+[^;'"]*from\s*(['"])[^'"]*\1\s*;?/;
+var RE_EXPORT = /^export\s+(?:type\s+)?(?:\*(?:\s+as\s+[A-Za-z_$][\w$]*)?|\{[^}]*\})\s*(?:from\s*(['"])[^'"]*\1)?\s*;?/;
+function endOfLiteral(source, start) {
+  const quote = source[start] ?? "";
+  for (let index = start + 1; index < source.length; index += 1) {
+    const char = source[index] ?? "";
+    if (char === "\\") {
+      index += 1;
+      continue;
+    }
+    if (char === quote) return index;
+  }
+  return void 0;
+}
+function withoutComments(source) {
+  let output = "";
+  let index = 0;
+  while (index < source.length) {
+    const char = source[index] ?? "";
+    const next = source[index + 1] ?? "";
+    if (char === "/" && next === "/") {
+      const end = source.indexOf("\n", index);
+      if (end === -1) return output;
+      index = end;
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      const end = source.indexOf("*/", index + 2);
+      if (end === -1) return void 0;
+      index = end + 2;
+      continue;
+    }
+    if (char === '"' || char === "'" || char === "`") {
+      const end = endOfLiteral(source, index);
+      if (end === void 0) return void 0;
+      output += source.slice(index, end + 1);
+      index = end + 1;
+      continue;
+    }
+    output += char;
+    index += 1;
+  }
+  return output;
+}
+function isPureReExport(source) {
+  const stripped = withoutComments(source);
+  if (stripped === void 0) return false;
+  let rest = stripped.replace(/\s+/g, " ").trim();
+  for (let count = 0; rest !== "" && count < MAX_TOP_LEVEL_STATEMENTS; count += 1) {
+    const statement = DIRECTIVE.exec(rest) ?? TYPE_IMPORT.exec(rest) ?? RE_EXPORT.exec(rest) ?? void 0;
+    if (statement === void 0) return false;
+    rest = rest.slice(statement[0].length).trim();
+  }
+  return rest === "";
+}
+function carriesNoBehaviour(existing, added) {
+  return isPureReExport(existing) && isPureReExport(added);
+}
 function fileMode(path, input) {
   const header = (input.existingHeaders[path] ?? "").split(/\r?\n/).slice(0, 5).join("\n");
   const marker = header.match(/\/\/\s*tdd-mode:\s*(strict|souple|exploratory)/)?.[1];
@@ -602,6 +662,7 @@ function tddOrder(input) {
   for (const edit of input.edits) {
     const path = edit.path.replaceAll("\\", "/");
     if (bypass(path, input.spikeGlobs) || !matches(path, input.businessGlobs)) continue;
+    if (carriesNoBehaviour(input.existingHeaders[path] ?? "", edit.addedContent)) continue;
     const mode = fileMode(path, input);
     if (mode === "exploratory") continue;
     const sibling = siblingFor(path);

@@ -23,8 +23,8 @@ export const wireSelfHostRuntimeSurfaces: WireSelfHostRuntimeSurfaces = async (
 ) => {
   for (const adapter of adaptersFor(['claude', 'codex'])) {
     await adapter.wire({
-      projectRoot: input.artifactRoot,
-      installationRoot: input.finalRoot,
+      stageRoot: input.artifactRoot,
+      installRoot: input.finalRoot,
       sourceRoot: input.overlayRoot,
       enabledPlugins: [CORE_PLUGIN_NAME],
       enabledPacks: [],

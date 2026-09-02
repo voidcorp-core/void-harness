@@ -327,6 +327,7 @@ ${enabled}  clusterSize: 2
       files: ['packages/cli/src/x.ts'],
       proofs: [{ name: 'suite', command: ['pnpm', 'test'], hash: 'd'.repeat(64) }],
       decisions: [],
+      review: { kind: 'panel', passes: [{ name: 'code-review', context: 'fresh-context-subagent' }] },
       blocker: null,
       ...over,
     };
@@ -369,6 +370,64 @@ ${enabled}  clusterSize: 2
     expect(emitted.plan.integrate).toEqual(['DEV-1']);
     expect(emitted.plan.integrationBranch).toContain('cluster-1');
     expect(emitted.plan.steps.length).toBeGreaterThan(0);
+  });
+
+  // A worker that split a test commit from its implementation, which strict TDD
+  // requires, produced exactly this observation -- and every one of them was
+  // refused, because the step wanted oldest-first and the script prescribes
+  // `git log`, which prints the reverse.
+  it('integrates a three-commit range observed the way `git log` prints it, newest first', () => {
+    const commits = [`${A}1`, `${A}2`, `${A}3`];
+    const result = runAutopilotCommand(
+      ['reconcile', '--json'],
+      reconciliation({
+        results: [workerResult({ headSha: `${A}3`, commits })],
+        observations: [
+          {
+            ticketId: 'DEV-1',
+            baseSha: SETUP_SHA,
+            headSha: `${A}3`,
+            commits: [
+              { sha: `${A}3`, parents: [`${A}2`] },
+              { sha: `${A}2`, parents: [`${A}1`] },
+              { sha: `${A}1`, parents: [SETUP_SHA] },
+            ],
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.plan.integrate).toEqual(['DEV-1']);
+    expect(emitted.plan.excluded).toEqual([]);
+    expect(emitted.outcome.integrate).toEqual(['DEV-1']);
+  });
+
+  // Verbatim from the run that found this: `outcome` said the ticket integrated
+  // while `plan` excluded it. A caller branching on the wrong one publishes an
+  // empty branch and reports success.
+  it('never answers with an outcome its own plan contradicts', () => {
+    const result = runAutopilotCommand(
+      ['reconcile', '--json'],
+      reconciliation({
+        observations: [
+          {
+            ticketId: 'DEV-1',
+            baseSha: SETUP_SHA,
+            headSha: `${B}2`,
+            commits: [{ sha: `${B}2`, parents: [SETUP_SHA] }],
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.plan.integrate).toEqual([]);
+    expect(emitted.outcome.integrate).toEqual(emitted.plan.integrate);
+    expect(emitted.outcome.kind).toBe('nothing-to-integrate');
+    expect(JSON.stringify(emitted.outcome.excluded)).toContain('unverified-range');
   });
 
   // The range is what git says, never what the worker claimed. A worker that
@@ -638,6 +697,71 @@ ${enabled}  clusterSize: 2
     expect(verdict.budget.kind).toBe('within');
   });
 
+  // Observed 2026-09-02: a worker whose runtime exposes no fresh-context
+  // subagent ran every review pass on itself, said so in `decisions`, and the
+  // run was green -- in exactly the case the gate was written to catch. The
+  // provenance is a fact now, so the gate has something to read.
+  it('downgrades a unit its own author reviewed, and says which one', () => {
+    const result = runAutopilotCommand(
+      ['gate', '--json'],
+      gateObservation({
+        reviews: [
+          {
+            ticketId: 'DEV-1',
+            provenance: {
+              kind: 'self-review',
+              passes: [{ name: 'code-review', context: 'self-review' }],
+              because: 'this runtime exposes no fresh-context subagent primitive',
+            },
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    const verdict = JSON.parse(result.stdout);
+    expect(verdict.reviews.kind).toBe('downgraded');
+    expect(verdict.reviews.detail).toContain('DEV-1');
+    // The proofs still merge: the worker did the work and reported honestly.
+    // What changes is that nobody can now read this run as panel-grade.
+    expect(verdict.proofs.kind).toBe('merge');
+    expect(result.stdout).toContain('self-reviewed');
+  });
+
+  it('refuses a unit no review pass ever touched', () => {
+    const result = runAutopilotCommand(
+      ['gate', '--json'],
+      gateObservation({
+        reviews: [
+          { ticketId: 'DEV-1', provenance: { kind: 'none', because: 'the mission was abandoned' } },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    expect(JSON.parse(result.stdout).reviews.kind).toBe('refuse');
+  });
+
+  it('states panel grade when every unit was briefed by a fresh context', () => {
+    const result = runAutopilotCommand(
+      ['gate', '--json'],
+      gateObservation({
+        reviews: [
+          {
+            ticketId: 'DEV-1',
+            provenance: {
+              kind: 'panel',
+              passes: [{ name: 'architecture', context: 'fresh-context-subagent' }],
+            },
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    expect(JSON.parse(result.stdout).reviews.kind).toBe('panel-grade');
+  });
+
   /** Everything the run knows once the integration branch is green. */
   function publication(over: Record<string, unknown> = {}): string {
     return JSON.stringify({
@@ -653,6 +777,7 @@ ${enabled}  clusterSize: 2
           ticketId: 'DEV-1',
           title: 'a unit',
           range: { baseSha: SETUP_SHA, headSha: `${A}1`, commits: [`${A}1`] },
+          review: { grade: 'panel-grade', detail: '4 pass(es) in a fresh context' },
         },
       ],
       excluded: [],
@@ -691,6 +816,50 @@ ${enabled}  clusterSize: 2
     expect(emitted.body).toContain('back-merge.yml');
   });
 
+  // The body is the account a person promotes on, so it says what reviewed each
+  // unit. A payload that leaves the grade out names the field it owes rather
+  // than reading `undefined.grade` somewhere inside the renderer.
+  it('names the review grade of every included unit in the body', () => {
+    const result = runAutopilotCommand(
+      ['publish', '--json'],
+      publication({
+        included: [
+          {
+            ticketId: 'DEV-1',
+            title: 'a unit',
+            range: { baseSha: SETUP_SHA, headSha: `${A}1`, commits: [`${A}1`] },
+            review: { grade: 'self-reviewed', detail: 'no fresh-context subagent primitive here' },
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.body).toContain('self-reviewed');
+    expect(emitted.body).toContain('no fresh-context subagent primitive here');
+  });
+
+  it('refuses a publication that does not say what reviewed a unit it merges', () => {
+    const result = runAutopilotCommand(
+      ['publish', '--json'],
+      publication({
+        included: [
+          {
+            ticketId: 'DEV-1',
+            title: 'a unit',
+            range: { baseSha: SETUP_SHA, headSha: `${A}1`, commits: [`${A}1`] },
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain('review');
+    expect(result.stderr).toContain('DEV-1');
+  });
+
   it('refuses to publish a branch whose proofs are not sealed', () => {
     const result = runAutopilotCommand(
       ['publish', '--json'],
@@ -719,6 +888,9 @@ ${enabled}  clusterSize: 2
       review: { schemaVersion: 1, integrationSha: `${A}1`, verdict: 'clean', contradictions: [] },
       declaredLenses: 3,
       capability: { runtime: 'claude', maxConcurrentAgents: 4, agentToAgent: false },
+      // The grant is asked after the publication, so a pull request exists to
+      // merge; an observation without one is the exception, and it refuses.
+      pullRequest: { number: 12 },
       ...over,
     });
   }
@@ -755,6 +927,88 @@ ${enabled}  clusterSize: 2
     const emitted = JSON.parse(result.stdout);
     expect(emitted.grant.kind).toBe('refused');
     expect(emitted.grant.reason).toBe('production-downstream');
+  });
+
+  // Until 2026-09-02 a granted merge was never run: the workflow wrote `merged`
+  // on the permission and took the next unit on a base that did not hold the
+  // first. The grant now hands back the one command it permits, bound to the
+  // head it read, and `landed` is what turns the command having run into a
+  // merge -- from an observed merge commit, never from the exit code.
+  it('hands back the merge argv, bound to the head it read, when it grants a merge', () => {
+    const result = runAutopilotCommand(['grant', '--json'], grantObservation(), ctx(repo()));
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.action.action).toBe('merge');
+    expect(emitted.merge.steps.map((step: { command: string[] }) => step.command)).toEqual([
+      ['gh', 'pr', 'merge', '12', '--merge', '--match-head-commit', `${A}1`],
+    ]);
+    expect(emitted.unionVerdict).toBe('clean');
+  });
+
+  it.each([
+    ['hold', { checks: 'wait' }],
+    ['await-human', { review: null }],
+  ])('hands back no merge argv when the action is %s', (action, over) => {
+    const result = runAutopilotCommand(['grant', '--json'], grantObservation(over), ctx(repo()));
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.action.action).toBe(action);
+    expect(emitted.merge.steps).toEqual([]);
+  });
+
+  it('refuses a grant that would merge a pull request nobody observed', () => {
+    const result = runAutopilotCommand(['grant', '--json'], grantObservation({ pullRequest: null }), ctx(repo()));
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/pull request/);
+  });
+
+  /** The pull request as GitHub reports it once the merge command returned. */
+  function landing(pr: Record<string, unknown> = {}, reading?: Record<string, unknown>): string {
+    return JSON.stringify({
+      schemaVersion: 1,
+      expected: { integrationBranch: 'autopilot/cluster-1', integrationSha: `${A}1`, baseBranch: 'develop', baseSha: SETUP_SHA },
+      pullRequest: reading ?? {
+        kind: 'value',
+        value: {
+          number: 12,
+          state: 'merged',
+          headRef: 'autopilot/cluster-1',
+          headSha: `${A}1`,
+          baseRef: 'develop',
+          baseSha: SETUP_SHA,
+          mergeSha: `${A}2`,
+          checks: [
+            { name: 'validate', required: true, conclusion: 'success', ownedByDiff: true },
+            { name: 'lint', required: false, conclusion: 'success', ownedByDiff: true },
+          ],
+          ...pr,
+        },
+      },
+    });
+  }
+
+  // The command returning is not a merge. Only the merge commit GitHub reports
+  // is, and the checks the journal names are the required ones observed green.
+  it('reports a landing only from an observed merge commit, with the required checks that were green', () => {
+    const result = runAutopilotCommand(['landed', '--json'], landing(), ctx(repo()));
+
+    expect(result.exitCode).toBe(0);
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.verdict).toMatchObject({ kind: 'merged', mergeSha: `${A}2` });
+    expect(emitted.checks).toEqual(['validate']);
+  });
+
+  it.each([
+    ['a merged state without its commit', landing({ mergeSha: null })],
+    ['a pull request still open', landing({ state: 'open', mergeSha: null })],
+    ['a pull request nobody could read', landing({}, { kind: 'nil' })],
+  ])('never reports a landing for %s', (_case, observation) => {
+    const emitted = JSON.parse(runAutopilotCommand(['landed', '--json'], observation, ctx(repo())).stdout);
+
+    expect(emitted.verdict.kind).not.toBe('merged');
+    expect(emitted.verdict.mergeSha).toBeNull();
   });
 
   // Which branch a run integrates into, and whether that branch is actually

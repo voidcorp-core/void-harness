@@ -214,7 +214,7 @@ describe('what the run of 2026-09-02 taught the chain', () => {
   it('never proposes a blocked unit either, and moves on to the next one', () => {
     const step = decideChainStep(
       replay({
-        taken: [{ tickets: ['DEV-703'], outcome: 'blocked' }],
+        taken: [{ tickets: ['DEV-703'], outcome: 'unit-blocked' }],
         elapsedMs: 20 * MINUTE,
       }),
       program,

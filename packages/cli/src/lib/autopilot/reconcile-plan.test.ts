@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { RangeVerdict } from './git-observation.js';
-import { buildReconcilePlan, type ReconcileInput, type VerifiedRange } from './reconcile-plan.js';
+import type { ClusterOutcome } from './partial-success.js';
+import {
+  alignOutcomeWithPlan,
+  buildReconcilePlan,
+  type ReconcileInput,
+  type VerifiedRange,
+} from './reconcile-plan.js';
 
 const BASE = '0000000000000000000000000000000000000001';
 const H1 = '0000000000000000000000000000000000000011';
@@ -558,5 +564,73 @@ describe('buildReconcilePlan footprint audit', () => {
 
     expect(plan.integrate).toEqual(['DEV-1']);
     expect(plan.sharedPaths).toEqual(['packages/core/data/model.json']);
+  });
+});
+
+describe('alignOutcomeWithPlan', () => {
+  const outcome = (over: Partial<ClusterOutcome> = {}): ClusterOutcome => ({
+    kind: 'integrate',
+    integrate: ['DEV-1', 'DEV-2'],
+    excluded: [{ ticketId: 'DEV-3', reason: 'blocked', detail: 'the secret was missing' }],
+    preservedBranches: ['autopilot-worker/cluster-1/DEV-1'],
+    ...over,
+  });
+
+  // Observed 2026-09-02: `outcome` said `integrate: ["DEV-709"]` while `plan`
+  // excluded the same ticket as `unverified-range`. A caller branching on the
+  // first publishes an empty branch and calls it a success.
+  it('states the plan tickets, so a caller reading either field acts on the same set', () => {
+    const plan = buildReconcilePlan(
+      input({
+        ranges: [
+          range({ ticketId: 'DEV-1' }),
+          range({
+            ticketId: 'DEV-2',
+            headSha: H2,
+            verdict: { kind: 'rejected', ticketId: 'DEV-2', reason: 'head-mismatch', detail: 'git ends elsewhere' },
+          }),
+        ],
+      }),
+    );
+
+    const settled = alignOutcomeWithPlan(outcome(), plan);
+
+    expect(settled.integrate).toEqual(plan.integrate);
+    expect(settled.integrate).toEqual(['DEV-1']);
+  });
+
+  it('keeps both refusals in one list, each still naming the step that made it', () => {
+    const plan = buildReconcilePlan(
+      input({
+        ranges: [
+          range({ ticketId: 'DEV-1' }),
+          range({
+            ticketId: 'DEV-2',
+            headSha: H2,
+            verdict: { kind: 'rejected', ticketId: 'DEV-2', reason: 'broken-chain', detail: 'a commit hangs off nothing' },
+          }),
+        ],
+      }),
+    );
+
+    const settled = alignOutcomeWithPlan(outcome(), plan);
+
+    expect(settled.excluded.map((entry) => entry.reason)).toEqual(['blocked', 'unverified-range']);
+    expect(settled.preservedBranches).toEqual(['autopilot-worker/cluster-1/DEV-1']);
+  });
+
+  it('says nothing-to-integrate when the plan kept no range, whatever the outcome claimed', () => {
+    const plan = buildReconcilePlan(
+      input({
+        ranges: [
+          range({
+            ticketId: 'DEV-1',
+            verdict: { kind: 'rejected', ticketId: 'DEV-1', reason: 'head-mismatch', detail: 'git ends elsewhere' },
+          }),
+        ],
+      }),
+    );
+
+    expect(alignOutcomeWithPlan(outcome({ integrate: ['DEV-1'] }), plan).kind).toBe('nothing-to-integrate');
   });
 });

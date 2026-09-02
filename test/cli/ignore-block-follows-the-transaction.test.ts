@@ -103,3 +103,37 @@ describe('the ignore block never outlives a transaction that failed', () => {
     expect(claimedAgentPaths().length).toBeGreaterThan(1);
   });
 });
+
+// `.gitignore` beats `info/exclude`, which is the right way round: a project
+// rule must win over ours. What is not right is winning in silence. The project
+// that prompted this carried `.void/*` from years before the harness, so its
+// clone had no config.json, no install-manifest.json and no hook runner, while
+// `.claude/settings.json` was committed and named seven hooks pointing at them.
+describe('init says so when a project rule hides what it just installed', () => {
+  it('names the path and the rule instead of reporting a clean install', async () => {
+    writeFileSync(join(dir, '.gitignore'), '.void/*\n!.void/PROJECT-DOCTRINE.md\n');
+    const printed: string[] = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk: string | Uint8Array): boolean => {
+      printed.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString());
+      return true;
+    });
+
+    await init(['--runtime', 'claude', '--no-interactive']);
+
+    const out = printed.join('');
+    expect(out).toContain('.void/config.json');
+    expect(out).toContain('.gitignore:1:.void/*');
+  });
+
+  it('says nothing on a project whose rules leave the harness visible', async () => {
+    const printed: string[] = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk: string | Uint8Array): boolean => {
+      printed.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString());
+      return true;
+    });
+
+    await init(['--runtime', 'claude', '--no-interactive']);
+
+    expect(printed.join('')).not.toContain('hidden from git by a project rule');
+  });
+});

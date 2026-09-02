@@ -272,8 +272,20 @@ checkpoint and Git. A plain continue/start/resume request uses the declared prog
 recover exactly one started scoped unit, or selects the first ready unit from the stable order and
 native blocker relations. More than one started unit is a competing-claim error.
 
+`.void/program.md` is the only location, and `LEGACY_PROGRAM_PATHS` is the only place the names it
+carried before (`.void/active.md`, `plans/ACTIVE.md`) still appear — read on the way in, never
+written, so a project that has not run `update` is not reported as having no programme at all.
+Two things hold that to one path. A test greps the living surface, everything the harness ships or
+tells an agent to read, for a legacy name; `docs/` is out of scope, since the specs that decided
+this are the record of why. And `doctor` **names the paths it looked at** when it finds nothing,
+because the same programme at one name printed eight autopilot lines and at another printed none,
+and a silent report is indistinguishable from not having looked.
+
 The programme is opt-in and project-owned. `init`, `update`, and runtime adapters never create or
-mutate it. `void-ticket` creates it only after a human-approved multi-unit plan has been fully
+mutate it. A declaration never migrates into a directory the harness ignores: one project's
+programme was moved from `plans/ACTIVE.md` to `.void/machine/ACTIVE.md` by an `update`, taking its
+running order, its human gates and the `autopilot` block that IS the consent to autonomous
+execution out of the repository with it, where nobody could audit or revise them in a PR. `void-ticket` creates it only after a human-approved multi-unit plan has been fully
 materialized in a capable progress provider. It stores durable context and routing only: programme,
 plan/spec links, provider scope, ordered unit identifiers, lifecycle-state roles, human gates, and
 the required `autopilot` consent block. Mutable status, assignee, blockers, comments, and review
@@ -1064,6 +1076,35 @@ next `hydrate`, nothing broken. So: **what breaks stays, what degrades goes**
 (`DERIVED_LOAD_BEARING`). What makes this safe rather than merely tidy is that
 `hydrate` restores the ignored content from the manifest and **proves** it —
 see "Exact rehydration" below.
+
+Staying tracked is a declaration, and a declaration is not a proof either. The
+`void kept` check is the mirror of `void ignore`: it asks git about each path the
+harness declares a clone cannot start without — the project-owned half of
+`.void/`, the install manifest, `.claude/settings.json`, and
+`DERIVED_LOAD_BEARING` — and names the rule that wins when one is hidden. A
+project carried, years older than the harness and higher in its `.gitignore`,
+
+```
+.void/*
+!.void/PROJECT-DOCTRINE.md
+```
+
+and git does not descend into an excluded directory, so that rule beat everything
+the managed block declared below it. That clone had no `config.json`, no
+`install-manifest.json` and no `.void/hooks/_void-hook.mjs`, while a committed
+`.claude/settings.json` named seven hooks pointing at the last of them: the
+enforcement floor had stopped applying, and the check that should have said so
+was reading the lines of an ignore file rather than asking git whether they won.
+`init` reports the same finding at install time, where the paths have just been
+written; it reports rather than refuses, because `.gitignore` beating
+`info/exclude` is the correct precedence and a project rule is not an error.
+
+Two measured properties hold the check up. `check-ignore -q` answers *ignored*,
+where `-v` answers *a pattern matched* and exits 0 on a **negation** — reading
+`-v`'s exit code would report every rescued path as hidden, so `-v` is asked only
+afterwards, to name the rule. And a **tracked** file is never reported as
+ignored, so "ignored" here already means "ignored and not in the index", which is
+the only harmful state.
 
 An ignore rule has no effect on a path already in the index, so an existing
 project needs an explicit untrack. `void-harness update --untrack-derived` does

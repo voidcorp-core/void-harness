@@ -93,6 +93,17 @@ describe('buildOrchestrationPlan', () => {
     expect(plan.sharedGitState.examples.some((entry) => entry.startsWith('git stash'))).toBe(true);
   });
 
+  it('forbids pruning the mission journals, which belong to the repository', () => {
+    // `.void/machine/` is per-repository state, written from a worktree into the
+    // main checkout (the decision that runtime state from a worktree belongs to
+    // the repository). `mission prune --apply` therefore deletes the journals of
+    // the REPOSITORY, not of the worktree that ran it, so one worker tidying up
+    // takes the evidence of every run, its neighbours' included.
+    const plan = buildOrchestrationPlan(input());
+
+    expect(plan.workerMayPruneMissions).toBe(false);
+  });
+
   it('leaves out of the prohibition what a worktree really does isolate', () => {
     // git-worktree(1) REFS: pseudo refs are per-worktree, and refs/bisect,
     // refs/worktree and refs/rewritten are the exceptions to refs being shared.

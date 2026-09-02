@@ -164,6 +164,21 @@ export async function update(args: readonly string[]): Promise<void> {
   // catches version drift (the marketplace cache/pins above are Claude-only).
   const floorApplied = await refreshCodexFloorStep(projectRoot, opts.dryRun);
 
+  // Step 4: mark the tree. The receipt is machine-local and younger than some
+  // marketplace installs, and this route was the one that never wrote it: the
+  // local routes rebuild it from the manifest, and a marketplace install has
+  // no manifest. An unmarked tree costs nothing in the main checkout; in a
+  // linked worktree that is itself the install, every reader of the
+  // installation prefers the main checkout, which holds nothing (DEV-740). The
+  // receipt claims no file, because nothing here proves which bytes this
+  // machine wrote; it records the channel, the runtimes and the version the
+  // pins now name, which is what `doctor` and `check` read from it.
+  const receiptWritten = receipt === undefined && !opts.dryRun;
+  if (receipt === undefined) {
+    if (receiptWritten) await writeReceipt(projectRoot, marketplaceReceipt(head, projectRoot));
+    line(`${c.green(glyph.check)}  ${c.dim('receipt'.padEnd(12))}${receiptWritten ? 'written' : 'will be written'} ${c.dim(glyph.to)} ${INSTALL_RECEIPT_PATH}`);
+  }
+
   blank();
   if (opts.dryRun) {
     footer(c.dim(`dry-run ${glyph.emdash} no changes written. Drop --dry-run to apply.`));
@@ -172,13 +187,15 @@ export async function update(args: readonly string[]): Promise<void> {
   if (
     pinsTouched === 0 &&
     (cacheRefreshed === 'fresh' || cacheRefreshed === 'skipped') &&
-    !floorApplied
+    !floorApplied &&
+    !receiptWritten
   ) {
     footer(c.dim(`already at ^${head} ${glyph.emdash} nothing to update`));
     return;
   }
   const parts: string[] = [];
   if (pinsTouched > 0) parts.push(c.green(`${pinsTouched} pin${pinsTouched > 1 ? 's' : ''} bumped`));
+  if (receiptWritten) parts.push(c.green('receipt written'));
   if (cacheRefreshed === 'pulled') parts.push(c.green('cache refreshed'));
   if (cacheRefreshed === 'fresh') parts.push(c.dim('cache already fresh'));
   if (cacheRefreshed === 'missing') parts.push(c.dim('cache not present (Claude Code never ran the plugin here?)'));
@@ -215,6 +232,23 @@ export function updateRouteFor(
 ): UpdateRoute {
   if (receipt !== undefined) return receipt.source;
   return hasInstallManifest ? 'local-rehydrate' : 'marketplace';
+}
+
+/**
+ * The receipt of a marketplace install that never had one. It owns no file:
+ * the plugin's assets live in Claude Code's cache, and the files this route
+ * touches in the project were written by a version that recorded nothing, so
+ * claiming them would turn "content we cannot account for" into "content we
+ * wrote" -- the same guess `ownedFromManifestPaths` refuses.
+ */
+function marketplaceReceipt(version: string, projectRoot: string): InstallReceipt {
+  return {
+    schemaVersion: 1,
+    version,
+    source: 'marketplace',
+    runtimes: wiredRuntimes(projectRoot),
+    files: [],
+  };
 }
 
 /** Persist the machine-local receipt the install transaction reads back. */

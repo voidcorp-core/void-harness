@@ -515,8 +515,8 @@ describe('parseMissionArgs', () => {
     await writeFile(join(main, 'DEV-732.md'), ticketBody);
     execFileSync('git', ['init', '--quiet'], { cwd: main });
     await adapterFor('claude').wire({
-      projectRoot: main,
-      installationRoot: main,
+      stageRoot: main,
+      installRoot: main,
       sourceRoot: CORE_ROOT,
       enabledPlugins: ['harness'],
       enabledPacks: [],

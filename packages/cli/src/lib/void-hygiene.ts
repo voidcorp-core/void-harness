@@ -9,6 +9,10 @@
 // Pure. The caller observes with git; this judges.
 
 import {
+  judgeKeptTracked,
+  type KeptTrackedObservation,
+} from './kept-tracked-paths.js';
+import {
   judgeObservedIgnore,
   type ObservedPathObservation,
 } from './observed-write-paths.js';
@@ -20,6 +24,12 @@ export interface ManifestObservation {
   readonly version?: string;
   /** Files whose bytes differ from the manifest, when it was verifiable. */
   readonly drifted?: number;
+  /**
+   * WHICH files differ, capped by the verification itself. A count alone sends
+   * the reader to rehash the manifest by hand to find the one that moved, and
+   * the verification already knows.
+   */
+  readonly driftedPaths?: readonly string[];
   /**
    * Co-owned files whose bytes differ. Counted apart from `drifted`: the project
    * is invited to write into these, so a difference is the file being used.
@@ -65,6 +75,14 @@ export interface LayoutObservation {
   readonly manifest: ManifestObservation;
   /** What the local install receipt claims it wrote, if anything. */
   readonly receipt: ReceiptObservation;
+  /**
+   * Every path the block declares git must KEEP, proven one by one.
+   *
+   * The mirror of `localIgnored`, and the half that failed silently: a project
+   * rule above the managed block wins over it, and a clone then arrives without
+   * the enforcement floor the committed `.claude/settings.json` points at.
+   */
+  readonly keptTracked: readonly KeptTrackedObservation[];
   /** How many ignorable derived files git still tracks (regenerated content). */
   readonly trackedDerivedCount: number;
   /**
@@ -165,9 +183,11 @@ function manifestCheck(observation: LayoutObservation): CheckResult {
   }
   // Drift is a real failure: the working tree claims a version it does not hold.
   if ((manifest.drifted ?? 0) > 0) {
+    const paths = manifest.driftedPaths ?? [];
+    const named = paths.length === 0 ? '' : `: ${paths.join(', ')}`;
     return fail(
       name,
-      `${manifest.drifted} file(s) differ from manifest ${manifest.version ?? 'unknown'}`,
+      `${manifest.drifted} file(s) differ from manifest ${manifest.version ?? 'unknown'}${named}`,
       `npx voidharness@${manifest.version ?? 'x.y.z'} hydrate — it restores and proves every file`,
     );
   }
@@ -294,6 +314,9 @@ export function judgeLayout(observation: LayoutObservation): readonly CheckResul
     // Generalizes the check above from the one declared path to every path the
     // harness can write observed state to, legacy locations included.
     judgeObservedIgnore(observation.observedPaths),
+    // The same question the other way round: a declaration that a path stays
+    // TRACKED is no more a proof than one that a path is ignored.
+    judgeKeptTracked(observation.keptTracked),
     orphanCheck(observation),
     trackedCheck(observation),
     manifestCheck(observation),

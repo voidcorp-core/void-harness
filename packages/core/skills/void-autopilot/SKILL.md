@@ -154,9 +154,10 @@ mechanism.
 | `orchestrate` | lanes, assignments, and the git commands that make the worktrees | a base sha that is not a commit, or a footprint declared for a ticket absent from `tickets` |
 | `reconcile` | which ranges merge, as commands | a head the worker claims that git does not have, a range holding a file another ticket declared, or a payload whose cluster, declarations, results and observed ranges do not describe the same run |
 | `verify` | the suite that decides the merge, bounded | — |
-| `gate` | did the proofs run on THIS tree, did the panel speak first, did the unit stay in its ceilings | any of them unproven; absence of a record is absence of the act |
+| `gate` | did the proofs run on THIS tree, did the panel speak first, did the unit stay in its ceilings, and what reviewed each unit | any of them unproven, or a unit no review pass touched; absence of a record is absence of the act |
 | `publish` | one branch, one refspec, one pull request, and the body that carries the account | the proofs are not sealed |
-| `grant` | may this merge itself | see the refusal table below |
+| `grant` | may this merge itself, and the one `gh pr merge` it permits | see the refusal table below |
+| `landed` | whether that merge actually landed, from the commit GitHub reports | — |
 | `lifecycle` | what the tracker owes, and whether it got it | — |
 | `progress` | where the run is, and whether its silence means anything | — |
 | `observe` | what each boundary actually answered | — |
@@ -182,6 +183,7 @@ tests hold this file to them.
   **re-observe every ticket** and seen all of them converge; partial convergence releases what was
   taken, because half a cluster produces an integration pull request that can never be complete.
   The same rule governs ranges: `reconcile` believes git, never the worker's own commit list.
+- **A worker states what reviewed it.** `WorkerResult.review` names each pass and where it ran, or why none did: no record, no parse, and none refuses the gate.
 - **A migration is never parallel**, whatever its estimate says, and neither is a low-confidence
   footprint, a lockfile or a shared-ownership path. `orchestrate` sequences what it cannot prove
   disjoint, and names why each ticket lost its parallel slot.
@@ -194,12 +196,12 @@ and the repository config are one namespace for every worktree at once. On 2026-
 each ran `git stash push` to split a commit, and the second `pop` took the first worker's entry:
 each ended up holding the other's files.
 
-So the plan denies the **class** -- writing anything the repository shares -- and not one command.
-A worker refused `git stash` alone reaches for `git tag`, or `git update-ref`, and lands in the
-same shared space. The one exception is the branch its own assignment names, which is what it was
-created to write. `orchestrate` carries the list, the exception, the commands that break it, the
-replacement gesture and the git documentation it was derived from, so the brief renders the
-prohibition from the plan instead of restating it.
+So the plan denies the **class** -- writing the git state the repository shares -- not one command:
+a worker refused `git stash` reaches for `git tag` or `git update-ref` and lands in the same shared
+space. `orchestrate` carries the list, the one exception (the branch its own assignment names), the
+breaking commands, the replacement gesture and its git source, so the brief renders the prohibition
+instead of restating it. `.void/machine/` is shared too, by design -- state written from a worktree
+belongs to the repository, per the decision of that name -- so `mission prune` is denied by name.
 
 **The replacement gesture**, because a worker denied one reinvents it: to set changes aside,
 `git diff > a file inside your own worktree` and `git apply` it back; to split a commit, commit it
@@ -314,10 +316,10 @@ is ready, or a unit is published and waiting for a person. `nextUnit` is absent 
 a caller cannot take one anyway.
 
 A unit is taken once. The observation lists every unit the run took with what became of it --
-`merged`, `published-awaiting-human` or `blocked` -- and none of those is remaining: on
-2026-09-02 the chain knew only `merged`, counted a unit handed to a person as still ready, and
-proposed it again onto its own open pull request. A unit that came back unmerged still measures
-how long a unit takes here, so the cold estimate only ever serves a run that took nothing yet.
+`merged`, `published-awaiting-human`, or `unit-blocked` with its cause -- and none of those is
+remaining: on 2026-09-02 the chain knew only `merged`, counted a unit handed to a person as still
+ready and proposed it again onto its own pull request. A unit that finished measures how long one
+takes; a blocked one measured failing, and the estimate serves only until one finishes.
 
 A unit already under way is never cut in half. The budget decides whether to START another one;
 cutting mid-unit leaves a worktree and half a ticket, which costs more than the overrun it saves.
@@ -364,11 +366,11 @@ May: run every `void-implement` pass whose predicate fires, run its own targeted
 migration **in dev/local only**, and commit a bisectable range.
 
 May not: push, open or update a pull request, merge anything, move the ticket to In Review or
-Done, touch a file the plan marks `reconcileOnly`, or write anything the repository shares across
-its worktrees — `refs/stash`, tags, notes, remotes, any branch but its own, the repository config.
-These are denied in the orchestration plan itself, not only in the prompt, so an adapter that
-honours the plan cannot grant them; both adapters render them from the plan, and a test holds each
-`workerMay…` field to appearing in both.
+Done, touch a file the plan marks `reconcileOnly`, prune the mission journals, or write the git
+state the repository shares — `refs/stash`, tags, notes, remotes, any branch but its own, the
+repository config. These are denied in the orchestration plan itself, not only in the prompt, so an
+adapter that honours the plan cannot grant them; both adapters render them from the plan, and a
+test holds each `workerMay…` field to appearing in both.
 
 ---
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { ReviewProvenance } from './review-provenance.js';
 import { parseWorkerResult, type WorkerResult } from './worker-result.js';
 
 const BASE = '2b0e24dc054cf4b7bde36d2e346db341f31501a5';
@@ -16,6 +17,13 @@ const COMPLETED: WorkerResult = {
   files: ['packages/cli/src/lib/thing.ts'],
   proofs: [{ name: 'test', command: ['pnpm', 'test'], hash: 'a'.repeat(64) }],
   decisions: [{ summary: 'Kept the existing error shape.', basis: 'convention' }],
+  review: {
+    kind: 'panel',
+    passes: [
+      { name: 'architecture', context: 'fresh-context-subagent' },
+      { name: 'code-review', context: 'fresh-context-subagent' },
+    ],
+  },
   blocker: null,
 };
 
@@ -131,5 +139,43 @@ describe('parseWorkerResult', () => {
     const result = parseWorkerResult(raw({ tokensUsed: 12345 }));
     expect(result).toEqual(COMPLETED);
     expect((result as unknown as Record<string, unknown>).tokensUsed).toBeUndefined();
+  });
+});
+
+/**
+ * A worker that could convene no panel ran every pass on itself and said so in
+ * `decisions`, which nothing downstream reads. The record has to exist as a
+ * value, refused here when it does not, or the guard that asks "did the panel
+ * speak" has nothing to ask about.
+ */
+describe('parseWorkerResult review provenance', () => {
+  const degraded: ReviewProvenance = {
+    kind: 'self-review',
+    passes: [{ name: 'code-review', context: 'self-review' }],
+    because: 'this worker runtime exposes no fresh-context subagent primitive',
+  };
+
+  it('refuses a result that reports no review provenance at all', () => {
+    const { review: _absent, ...without } = COMPLETED;
+
+    expect(() => parseWorkerResult(without)).toThrow(/review/);
+  });
+
+  it('keeps a degradation the worker declared, verbatim', () => {
+    expect(parseWorkerResult(raw({ review: degraded })).review).toEqual(degraded);
+  });
+
+  it('refuses a panel claimed over passes the worker ran itself', () => {
+    expect(() =>
+      parseWorkerResult(raw({ review: { kind: 'panel', passes: degraded.passes } })),
+    ).toThrow(/self-review/);
+  });
+
+  // A blocked worker owes the record too: it is the one whose ticket someone
+  // picks up next, and "was any of this reviewed" is the first question.
+  it('refuses a blocked result that reports no review provenance', () => {
+    const { review: _absent, ...without } = BLOCKED;
+
+    expect(() => parseWorkerResult(without)).toThrow(/review/);
   });
 });

@@ -149,6 +149,20 @@ describe('both adapters carry the same worker contract', () => {
     }
   });
 
+  // On 2026-09-02 a worker whose runtime exposed no fresh-context subagent ran
+  // every review pass on itself and reported that in `decisions`, which nothing
+  // downstream reads. The record has to be demanded by both answers, or the
+  // adapter that forgets it is the one that goes on merging silently.
+  it.each([['the Claude workflow', WORKFLOW], ['the Codex reference', CODEX]] as const)(
+    'demands the review provenance in the worker answer — %s',
+    (_name, source) => {
+      const text = flat(source);
+      expect(text).toMatch(/review/i);
+      expect(text).toMatch(/fresh-context-subagent/);
+      expect(text).toMatch(/self-review/);
+    },
+  );
+
   it('makes neither adapter a writer of state or tracker comments', () => {
     expect(CODEX).toMatch(/writes no run state/i);
     expect(WORKFLOW).toMatch(/never writes run state/i);
