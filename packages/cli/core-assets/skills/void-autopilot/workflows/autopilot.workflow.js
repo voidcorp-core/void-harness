@@ -198,6 +198,10 @@ function prohibitions(plan) {
     plan.workerMayPush !== true && 'push',
     plan.workerMayOpenPullRequest !== true && 'open or update a pull request',
     plan.workerMayTransitionTicket !== true && 'merge anything, or move the ticket to In Review or Done',
+    plan.workerMayPruneMissions !== true
+      && 'run `void-harness mission prune`, which deletes the mission journals of the whole'
+        + ' repository -- `.void/machine/` is per-repository state, so pruning from your worktree'
+        + ' takes the runs of every worker beside you',
   ].filter(Boolean)
   const lines = [`You must NOT: ${denied.join(', ')}. Stop at a committed branch.`]
 

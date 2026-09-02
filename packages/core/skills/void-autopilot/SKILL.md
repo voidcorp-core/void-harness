@@ -195,12 +195,12 @@ and the repository config are one namespace for every worktree at once. On 2026-
 each ran `git stash push` to split a commit, and the second `pop` took the first worker's entry:
 each ended up holding the other's files.
 
-So the plan denies the **class** -- writing anything the repository shares -- and not one command.
-A worker refused `git stash` alone reaches for `git tag`, or `git update-ref`, and lands in the
-same shared space. The one exception is the branch its own assignment names, which is what it was
-created to write. `orchestrate` carries the list, the exception, the commands that break it, the
-replacement gesture and the git documentation it was derived from, so the brief renders the
-prohibition from the plan instead of restating it.
+So the plan denies the **class** -- writing the git state the repository shares -- not one command:
+a worker refused `git stash` reaches for `git tag` or `git update-ref` and lands in the same shared
+space. `orchestrate` carries the list, the one exception (the branch its own assignment names), the
+breaking commands, the replacement gesture and its git source, so the brief renders the prohibition
+instead of restating it. `.void/machine/` is shared too, by design -- state written from a worktree
+belongs to the repository, per the decision of that name -- so `mission prune` is denied by name.
 
 **The replacement gesture**, because a worker denied one reinvents it: to set changes aside,
 `git diff > a file inside your own worktree` and `git apply` it back; to split a commit, commit it
@@ -367,11 +367,11 @@ May: run every `void-implement` pass whose predicate fires, run its own targeted
 migration **in dev/local only**, and commit a bisectable range.
 
 May not: push, open or update a pull request, merge anything, move the ticket to In Review or
-Done, touch a file the plan marks `reconcileOnly`, or write anything the repository shares across
-its worktrees — `refs/stash`, tags, notes, remotes, any branch but its own, the repository config.
-These are denied in the orchestration plan itself, not only in the prompt, so an adapter that
-honours the plan cannot grant them; both adapters render them from the plan, and a test holds each
-`workerMay…` field to appearing in both.
+Done, touch a file the plan marks `reconcileOnly`, prune the mission journals, or write the git
+state the repository shares — `refs/stash`, tags, notes, remotes, any branch but its own, the
+repository config. These are denied in the orchestration plan itself, not only in the prompt, so an
+adapter that honours the plan cannot grant them; both adapters render them from the plan, and a
+test holds each `workerMay…` field to appearing in both.
 
 ---
 

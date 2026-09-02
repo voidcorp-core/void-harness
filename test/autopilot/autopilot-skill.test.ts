@@ -95,8 +95,13 @@ describe('remote effects are denied to workers', () => {
   // the version a reader trusts.
   it('carries every prohibition in the one list a reader treats as canonical', () => {
     const mayNot = flat(/May not:([\s\S]*?)\n\n/.exec(body(SKILL))?.[1] ?? '');
-    expect(mayNot).toMatch(/shares across its worktrees/i);
+    expect(mayNot).toMatch(/git\s+state the repository shares/i);
     expect(mayNot).toMatch(/refs\/stash/);
+    // `.void/machine` is shared between worktrees the same way, and the harness
+    // writes it on purpose, so the journals are named rather than left to the
+    // class above -- see the decision that runtime state from a worktree
+    // belongs to the repository.
+    expect(mayNot).toMatch(/prune the mission journals/i);
   });
 
   it('keeps the merge a declaration, never a flag', () => {

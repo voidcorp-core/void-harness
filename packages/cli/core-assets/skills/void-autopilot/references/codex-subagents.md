@@ -62,6 +62,8 @@ Every subagent receives the same instruction as its Claude counterpart:
 - **never** push, open or update a pull request, merge, or move the ticket to In
   Review or Done;
 - **never** write anything the repository shares across its worktrees;
+- **never** prune the mission journals: `.void/machine/` belongs to the
+  repository, not to the worktree;
 - stop at a committed branch and return a `WorkerResult`.
 
 ### The prohibitions come off the plan, not off this page
@@ -75,7 +77,10 @@ refused rather than read as permission:
 - `plan.workerMayOpenPullRequest` — open or update a pull request;
 - `plan.workerMayTransitionTicket` — merge, or move the ticket to In Review or
   Done;
-- `plan.workerMayWriteSharedGitState` — write repository-shared git state.
+- `plan.workerMayWriteSharedGitState` — write repository-shared git state;
+- `plan.workerMayPruneMissions` — run `void-harness mission prune`, which
+  deletes the mission journals of the repository and not of the worktree that
+  ran it, its neighbours' runs included.
 
 When the last one is not `true`, render `plan.sharedGitState` into the brief in
 full: `shared` (the namespaces), `exception` (the one ref the worker owns),
