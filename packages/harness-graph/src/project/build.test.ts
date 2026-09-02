@@ -35,8 +35,28 @@ import { createTypeScriptExtractor } from './extractors/typescript.js';
 import { createNodeProjectRootPort } from './root.js';
 import {
 	createNodeProjectChangeJournal,
+	PROJECT_JOURNAL_ANCHOR_PREFIX,
 	type ProjectWatchPort,
 } from './journal.js';
+
+/**
+ * The sentinel half of an injected watch port: a stream that answers.
+ *
+ * Every observation anchors itself in the event stream before it freezes a
+ * generation, so a port that never reports its own sentinel makes the journal
+ * say `uncertain` — correctly, since a watcher that answers nothing cannot prove
+ * a tree stood still. A test that is about something else says so by handing the
+ * anchor back, the way a filesystem does.
+ */
+function answeringAnchor(deliver: (filename: string) => void): ProjectWatchPort['anchor'] {
+	let sentinels = 0;
+	return async () => {
+		sentinels += 1;
+		const path = `.git/${PROJECT_JOURNAL_ANCHOR_PREFIX}${String(sentinels)}`;
+		setTimeout(() => deliver(path), 0);
+		return Object.freeze({ path, release: () => undefined });
+	};
+}
 import { cleanupProjectTempDirs, createExactProjectChangeJournal, fixtureCompilerLookup, projectTempDir } from './test-support.js';
 // @ts-expect-error -- shared JS conformance helper, no type declarations
 import { packageManagerCommand } from '../../../cli/scripts/conformance-process.mjs';
@@ -58,6 +78,9 @@ function controlledChangeJournal() {
 				if (recursive) treeEvent = onEvent;
 				return { close: () => undefined, unref: () => undefined };
 			},
+			// The events this journal reports are the test's to decide; the sentinel
+			// is not one of them.
+			anchor: answeringAnchor((path) => treeEvent?.('change', path)),
 		},
 	});
 	return Object.freeze({
@@ -664,10 +687,15 @@ it('reuses SHA-256 extraction records without rereading unchanged files', async 
 it('performs zero traversal, reads, or hashing for an unchanged observed generation', async () => {
 	const root = await fixtureCopy();
 	const native = createNodeFileSystemPort();
+	let signalTree: (filename: string) => void = () => undefined;
 	const journal = createNodeProjectChangeJournal({
 		authority: 'authoritative',
 		watchPort: {
-			watch: () => ({ close: () => undefined, unref: () => undefined }),
+			watch: (_path, recursive, onEvent) => {
+				if (recursive) signalTree = (filename: string) => onEvent('change', filename);
+				return { close: () => undefined, unref: () => undefined };
+			},
+			anchor: answeringAnchor((path) => signalTree(path)),
 		},
 	});
 	let scans = 0;
@@ -1219,11 +1247,15 @@ it('never publishes provenance observed through a Git root ABA', async () => {
 	await cp(FIXTURE, root, { recursive: true });
 	await cp(FIXTURE, mallory, { recursive: true });
 	let signalRootEntry = (): void => undefined;
+	let signalTree: (filename: string) => void = () => undefined;
 	const watchPort: ProjectWatchPort = {
 		watch(_path, recursive, onEvent) {
-			if (!recursive) signalRootEntry = () => onEvent('rename', 'root');
+			if (recursive) signalTree = (filename: string) => onEvent('change', filename);
+			else signalRootEntry = () => onEvent('rename', 'root');
 			return { close: () => undefined, unref: () => undefined };
 		},
+		// A stream that answers, so this test keeps testing the root swap.
+		anchor: answeringAnchor((path) => signalTree(path)),
 	};
 	const journal = createNodeProjectChangeJournal({ watchPort });
 	const result = await buildProjectGraph({

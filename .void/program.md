@@ -1,25 +1,19 @@
 ---
 schemaVersion: 1
 status: executing
-program: knowledge-and-resume
-plan: docs/plans/2026-08-17-knowledge-and-resume-plan.md
-spec: docs/specs/2026-08-17-project-knowledge-system.md
+program: autonomous-until-develop
+plan: docs/plans/2026-08-31-autonomous-until-develop-plan.md
+spec: docs/specs/2026-08-31-autonomous-until-develop.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
-  order:
-    [
-      DEV-614, DEV-616, DEV-620, DEV-615, DEV-609, DEV-611, DEV-610, DEV-443,
-      DEV-621, DEV-622, DEV-623,
-    ]
+  order: [DEV-677, DEV-673, DEV-665, DEV-664]
   states:
     ready: [Backlog, Todo]
     started: [In Progress]
     review: [In Review]
     done: [Done, Canceled]
-humanGates:
-  - DEV-620
-  - DEV-623
+humanGates: []
 autopilot:
   schemaVersion: 1
   clusterSize: 4
@@ -35,19 +29,46 @@ autopilot:
       - packages/cli/core-assets/**
       - packages/harness-graph/model.json
       - packages/harness-graph/catalog.v3.json
+      # DEV-677 and DEV-673 both rewrite the merge grant, so the router must
+      # sequence them rather than fan them out. Declared here rather than left to
+      # footprint inference, because a semantic conflict in the guard that
+      # authorizes a merge is the one no tooling resolves after the fact.
+      - packages/cli/src/lib/autopilot/union-review.ts
     reconcileOnly: []
 ---
 
-# Program: knowledge and resume
+# Program: autonomous until develop
 
 This file is the stable global context for the executing program. It deliberately names neither a
 current nor a next work unit. The provider declared under `progress` owns claims, dependencies,
 review state and the remote resume trail; this file only locates that state.
 
-The v3 program is not closed and none of its tickets were deleted: the pointer moved because
-none of them had been started, its remaining work is end-of-cycle (certification, consumer
-dogfood), and two of its tickets answer the same question as a more recent decision. See the
-plan's "Pourquoi ce programme remplace le pointeur v3". Moving back is one frontmatter line.
+The pointer moved on 2026-08-31 to the programme now in flight: `autopilot 6h` runs to the end
+with nobody present, and the only human gate is the promotion to the branch that deploys.
+
+`progress.order` names the four shipped guards rather than this programme's slices, and that is
+the field working as specified rather than a mismatch: it is a **deterministic tie-break among
+simultaneously ready units**, not the programme's decomposition. The guards are ready, they are
+real, and they are the pool the first real run drains. The slices are executed directly from the
+plan and become units only when an autopilot has to drain them unattended.
+
+`humanGates` is empty on purpose. Folpe settled it on 2026-08-31: the only human gate is
+`develop -> main`, which `production-downstream` already refuses to a machine. A gate declared per
+ticket stops a run in front of a person, which is the thing this programme exists to remove. The
+field stays in the contract for consumers who want it.
+
+**Corrections land in the artefact being worked on, never in a successor.** Spec drift is the
+documented failure of this whole family of workflows -- the files stop matching what
+implementation revealed -- and it is caused by deferring. Three corrections went into the spec and
+the plan the day they were found rather than into a "v2": the unconstrained argv, the three causes
+absence conflated, and the six unattended hours nobody could read.
+
+**And a correction names what it touches before it lands.** A correction is local and urgent while
+doctrine is global and quiet, so the cheapest move is to solve the immediate problem and not notice
+that a decision forbade it. Honouring a decision, or touching none, is applied in place and said
+out loud. Contradicting one is not a correction at all: it is a supersession, and it goes through
+the decision file that already exists for that. See the decision on correcting in flight unless it
+supersedes.
 
 ## Sources of truth
 
@@ -102,12 +123,14 @@ provider.
 
 ## Human gates and autonomy boundary
 
-`DEV-620` and `DEV-623` are human gates. The agent may collect evidence and request review, but
-only Folpe's explicit approval can complete them.
+Checkpoint A was read on 2026-08-30 and is closed: the panel convened before the writing, refuted
+a stale ticket premise from four independent lenses, and the run closed six production merge
+grants. What it also revealed -- a context pack that was empty at the stage where the panel
+convenes first -- was fixed inside the same unit.
 
-They are gates for different reasons. `DEV-620` changes what every consumer receives and implies
-a publication. `DEV-623` may not open at all: the spec conditions the whole interface on `resume`
-having proved, in a terminal, that it saves time.
+The gate now is the merge of the integration PR into `develop`, and promotion to `main` stays
+human as always. Findings are arbitrated inside the cycle by the forced comparison against the
+unit in progress, so no queue accumulates and no human is a bottleneck on them.
 
 Promotion to `main` remains human, and what a person judges there is the feature. The integration
 PR into `develop` merges itself only once an adversarial reading of the whole integrated diff came

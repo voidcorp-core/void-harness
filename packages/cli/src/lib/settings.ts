@@ -24,14 +24,56 @@ export interface SettingsMutation {
   readonly marketplaceRepo: string;
 }
 
-/** Read the current settings.json, or {} if missing/invalid. */
-export async function readSettings(settingsPath: string): Promise<ClaudeSettings> {
-  if (!existsSync(settingsPath)) return {};
+/**
+ * What is at that path: nothing, something unparseable, or settings.
+ *
+ * Three answers rather than two, because a file that cannot be parsed is not an
+ * empty one. Collapsing them returned `{}` for a trailing comma, the caller
+ * merged into nothing and wrote the result, and the project lost its hooks, its
+ * permissions and its environment without a word.
+ */
+export type SettingsRead =
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'unreadable' }
+  | { readonly kind: 'present'; readonly settings: ClaudeSettings };
+
+export async function inspectSettings(settingsPath: string): Promise<SettingsRead> {
+  if (!existsSync(settingsPath)) return { kind: 'absent' };
   try {
-    return JSON.parse(await readFile(settingsPath, 'utf8')) as ClaudeSettings;
+    return { kind: 'present', settings: JSON.parse(await readFile(settingsPath, 'utf8')) as ClaudeSettings };
   } catch {
-    return {};
+    return { kind: 'unreadable' };
   }
+}
+
+/**
+ * What a write should do with the file that is there.
+ *
+ * The same four answers `.void/config.json` already gets, for the same reason:
+ * the two files are co-owned, and a project that cannot parse one of them has
+ * not asked for it to be replaced. `--force` overwrites, and is named before the
+ * write rather than discovered afterwards.
+ */
+export type SettingsWriteVerdict = 'scaffold' | 'merge' | 'keep-unreadable' | 'overwrite-unreadable';
+
+export function settingsWriteVerdict(input: {
+  readonly read: SettingsRead['kind'];
+  readonly force: boolean;
+}): SettingsWriteVerdict {
+  if (input.read === 'absent') return 'scaffold';
+  if (input.read === 'present') return 'merge';
+  return input.force ? 'overwrite-unreadable' : 'keep-unreadable';
+}
+
+/**
+ * The settings, treating anything unusable as none.
+ *
+ * For readers that only report. A writer must call `inspectSettings` instead:
+ * the whole defect was a writer that could not tell the two apart.
+ */
+export async function readSettings(settingsPath: string): Promise<ClaudeSettings> {
+  const read = await inspectSettings(settingsPath);
+  return read.kind === 'present' ? read.settings : {};
 }
 
 /**

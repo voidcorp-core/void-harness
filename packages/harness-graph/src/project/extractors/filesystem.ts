@@ -14,6 +14,21 @@ import type {
 } from './types.js';
 
 const IGNORED_DIRECTORY_NAMES = new Set(['.git', '.next', 'coverage', 'dist', 'node_modules']);
+/**
+ * Reserved basename prefix for a change-journal sentinel.
+ *
+ * The journal writes one into the tree it watches so it can recognise its own
+ * event and know the stream has caught up with it. It exists for milliseconds,
+ * but a scan crossing that window would index it as a project file and the next
+ * scan would find it gone — the synchronisation reported as the mutation it was
+ * placed to rule out. Reserving the name here, where scanning decides what a
+ * project contains, is what keeps that impossible rather than unlikely.
+ *
+ * It lives in this module and not in the journal because the direction of the
+ * dependency runs this way: the journal already asks the filesystem what is
+ * ignored.
+ */
+export const PROJECT_JOURNAL_ANCHOR_PREFIX = '.void-journal-anchor-';
 const INDEXED_VOID_FILES = new Set([
 	'.void/project-doctrine.md',
 	'.void/philosophy.md',
@@ -121,6 +136,7 @@ export function projectPathIsIgnored(path: string): boolean {
 	}
 	return (
 		segments.some((segment) => IGNORED_DIRECTORY_NAMES.has(segment)) ||
+		posix.basename(comparisonPath).startsWith(PROJECT_JOURNAL_ANCHOR_PREFIX) ||
 		BINARY_ASSET_EXTENSIONS.has(posix.extname(comparisonPath))
 	);
 }

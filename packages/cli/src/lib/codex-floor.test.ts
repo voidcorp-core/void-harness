@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { RULE_NAMES } from '@voidcorp/hook-runner';
 import {
   CODEX_FLOOR_SCRIPTS,
   CODEX_HOOKS_DIR,
@@ -101,23 +102,17 @@ describe('safety-floor matcher coverage', () => {
     }
   });
 
+  // Derived from RULE_NAMES rather than spelled out again. Written by hand, this
+  // list meant a rule could reach the runner and be wired on neither runtime
+  // without one test going red: it proved only that somebody had once typed the
+  // same twelve names twice.
+  const FILE_EDIT_RULES = RULE_NAMES.filter((rule) => rule !== 'dangerous-command');
+
   // Codex edits files through apply_patch; a matcher stuck on Claude's
   // Edit|Write would leave every content-scanning hook dead on that runtime.
   it('covers apply_patch on every file-edit hook', () => {
     const matchers = preToolUseMatchers();
-    for (const rule of [
-      'protected-file',
-      'secret-content',
-      'tdd-order',
-      'no-any',
-      'no-as-cast',
-      'no-console',
-      'no-null',
-      'no-focused-test',
-      'boundary-direction',
-      'test-name',
-      'design-slop',
-    ]) {
+    for (const rule of FILE_EDIT_RULES) {
       expect(matchers.get(rule), `${rule} must be wired`).toBeDefined();
       expect(matchers.get(rule), `${rule} must match apply_patch`).toContain('apply_patch');
     }
@@ -125,20 +120,7 @@ describe('safety-floor matcher coverage', () => {
 
   it('runs every inline rule through the portable Node bundle', () => {
     const manifest = compileCodexHooksManifest(template);
-    for (const rule of [
-      'dangerous-command',
-      'protected-file',
-      'secret-content',
-      'tdd-order',
-      'no-any',
-      'no-as-cast',
-      'no-console',
-      'no-null',
-      'no-focused-test',
-      'boundary-direction',
-      'test-name',
-      'design-slop',
-    ]) {
+    for (const rule of RULE_NAMES) {
       expect(manifest).toContain(`_void-hook.mjs\\" enforce ${rule}`);
     }
   });

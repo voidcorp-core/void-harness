@@ -112,3 +112,22 @@ describe('parseSpecialistCompletion', () => {
     })), ARCHITECT_CONTRACT, [])).toThrow(/canonical completion contract/i);
   });
 });
+
+describe('the convened specialist is told not to explore', () => {
+  const body = renderSpecialistInstructions(ARCHITECT_CONTRACT);
+
+  it('names the context pack as what it reads, in both runtimes', () => {
+    expect(body).toContain('context pack');
+  });
+
+  it('forbids searching for what it was already handed', () => {
+    // Measured 2026-08-30: with two turns and a broken `rg`, five specialists
+    // spent both turns exploring and returned a transition sentence. The pack
+    // only pays off if the instruction stops the search it replaces.
+    expect(body).toMatch(/do not (search|explore)/i);
+  });
+
+  it('makes a specialist that must go beyond the pack declare it', () => {
+    expect(body).toMatch(/limitations/);
+  });
+});

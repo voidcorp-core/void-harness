@@ -1,12 +1,15 @@
 ---
 name: void-autopilot
-description: Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR a human merges.
+description: Use to drain a bounded cluster of independent ready tickets, each run end-to-end by implement in its own worktree, reconciled into one integration PR the programme's declared merge gate disposes of.
 ---
 
 # autopilot
 
 Take up to four independent ready tickets, work each one properly, hand back a single
-integration PR. You stay the merge gate.
+integration PR. Who disposes of that PR is the programme's declaration, not this skill's:
+`mergeGate: human` keeps it yours, `mergeGate: union-reviewed` lets the grant merge it into
+a non-deploying branch once every refusal below is cleared. Promotion to the branch that
+deploys stays human in both cases.
 
 **Attribution**: see `.source`.
 
@@ -19,8 +22,31 @@ per ticket. If you find yourself writing "then the worker runs the tests, then r
 inside autopilot, stop: that behaviour has one owner, and duplicating it means the two copies
 drift and tickets get a different standard depending on how they were started.
 
-It also never merges. Not with a flag, not when the checks are green, not when the diff is
-small. `mergeGate: human` is the only value the programme descriptor accepts.
+It also never merges on a flag. Not on the command line, not because the checks are green,
+not because the diff is small. Consent to a machine merge is a durable declaration in the
+programme — `mergeGate: union-reviewed` together with a `deployBranch` — and there is no
+`--auto-merge` on any path.
+
+Under that declaration the grant refuses unless **all** of the following hold, and each
+refusal names itself:
+
+| refusal | when |
+|---|---|
+| `production-downstream` | the target resolves to the branch that deploys, or one of the two cannot be read as a branch name at all |
+| `human-gate` | the cluster carries a unit listed in `humanGates`, compared on a normalised identity (case, surrounding space and one leading `#` folded), or an identity on either side could not be read at all |
+| `base-unprotected` | server-side protection of the base was not positively observed, and unknown counts as unprotected |
+| `sensitive-path` | the diff touches a migration, a workflow or action under `.github/`, a lockfile or `CODEOWNERS` (the `mergeBlocks` list, deliberately not `ownership.sequential`), or the diff could not be listed |
+| `union-unread` | no reading ran, or the one that ran could not finish |
+| `union-contradicted` | the reading found at least one blocking contradiction, or reports a refutation it names nothing for (an advisory finding is carried over and does not stop the merge) |
+| `review-stale` | the reading is about a tree the branch head has moved away from |
+
+The first four sit ahead of the reading on purpose: no re-reading can lift them, so reporting
+a stale verdict there would send someone off to run a pass that cannot unlock anything.
+
+Each cell above is the sentence the CLI exports next to the check that raises it, and a test
+compares the two. This table said `sensitive-path` fired on `ownership.sequential` while the
+code deliberately did the opposite: every refusal was named, so a test that looked for names
+stayed green while the description was wrong.
 
 ---
 
@@ -56,59 +82,221 @@ claims tickets nobody agreed to hand over.
 
 ---
 
+## Hydration: filling what the CLI validates
+
+The CLI contacts nothing, so you are the only layer that reads the tracker and git. It does not
+leave you guessing what it wants: **run `autopilot scaffold <plan|start|status|marker>` and fill
+the payload it prints.** Each field comes back with a note saying where to obtain it, and a
+refusal names the field, the type and the note. If you find yourself opening a `.ts` file to
+learn a shape, stop and run the scaffold instead -- that is the whole reason it exists.
+
+**For `plan`.** Read `.void/program.md` once: `progress.order` is the pool, `progress.states`
+tells ready from done. Fetch every unit in that order that is not done. `ready` is its state in
+`states.ready`; `blockedByOpen` is true when any native blocker is not done -- read the relation,
+never the prose. `footprints.areas` are the paths the ticket names as its anchors, **at least
+one**: a ticket whose `areas` is empty is excluded as `missing-footprint`, exactly like one the
+estimator never produced. Autopilot routes on footprints, so a ticket naming no ground gives it
+nothing to route on, and reconciliation cannot protect ground nobody named -- admitting it only
+moved the refusal to the last step of the run, after both workers had finished. Run that ticket
+through `void-implement` directly, or name its areas. `highRisk` is a guard, a migration, a
+lockfile or a published contract; `confidence` is your own statement about how well you know the
+footprint, and a low one is what shrinks the cluster on purpose.
+
+**For `start`.** Render the marker with `scaffold marker`, fill it, and post it as a comment on
+**every** ticket in the cluster before claiming any of them. Then claim each one. Then re-read
+**every** ticket -- state, assignee and comments -- into `reobservation`. Report each write in
+`applied`, and use `unknown` when a write's result did not come back: a write you are unsure of
+makes the whole picture untrustworthy even when the re-observation looks converged, and saying so
+is what keeps the lease honest. `state` is the local cursor, with `base.sha` the full commit the
+run was planned against.
+
+**For `status`.** Every field is a `BoundaryReading`: `{ kind: "value", value: ... }` when you
+read it, `{ kind: "nil" }` when you could not. Those are different answers and the recovery
+verdict depends on the difference -- an absent pull request is an absence, not a merge.
+
 ## The cycle
 
-1. **Preflight.** Prove the runtime adapter, the connectors, git permissions, the base branch
-   protection and worktree creation. All of it, before the lease. A capability discovered
-   missing halfway through leaves a claimed cluster nobody is working.
-2. **Plan.** Pipe the candidate observation into `autopilot plan`. Four is a ceiling, not a
-   quota: the review budget shrinks the cluster when footprint, confidence or collision risk
-   would make one PR unreviewable.
-3. **Confirm with the human.** Show the cluster, the lanes, the exclusions and their causes.
-4. **Lease.** Apply the ordered actions the CLI returns, then **re-observe every ticket**.
-   The lease is active only when all of them converged. Partial convergence releases what was
-   taken — half a cluster produces an integration PR that can never be complete.
-5. **Create the worktrees.** The controller creates every worktree and branch before any
-   spawn, including for sequential tickets. A worker never chooses its own checkout and never
-   works in the main one.
-6. **Fan out.** Parallel where footprints are disjoint and confident; sequential for overlap,
-   low confidence, lockfiles, migrations and shared-ownership files. A migration is never
-   parallel, whatever the estimate says.
-7. **Collect.** Parse every result against the schema. Prose is not a result. A worker that
-   was interrupted after committing is re-observed through its git ref, never replayed blind.
-8. **Reconcile.** One integration branch, cut from the *pinned* base commit. Each verified
-   range is merged `--no-ff` so the PR body can claim per-ticket provenance honestly. A range
-   whose ancestry was not proven is excluded before the branch exists — a clean `git merge`
-   exit code says nothing about *what* was merged. Files the plan marks `reconcileOnly` are
-   reverted to the base and rebuilt once, at the end.
-9. **Seal.** Run the full suite on the integrated tree. Every proof is bound to the
-   integration SHA, the diff hash and the exact argv; rebase, conflict or a moved base makes
-   it stale and it is re-run. Nothing is published on a proof about a tree that no longer
-   exists.
-10. **Read the union.** Only the union shows what no worker could: the same concept named
-    twice, two modules that disagree about a word, an assertion one range falsifies for
-    another. Each range already passed its own gates, so re-reviewing files buys nothing here.
-    One fresh context over the whole base-to-head diff, told to **refute** it and to report
-    only what survived — a pass asked to check for problems finds none and means nothing by
-    it. Every finding carries an anchor a reader can open; one without is not a finding.
-    Finding nothing is the verdict "failed to refute", never "the diff is good". The verdict
-    is bound to the integration SHA: a range added or a CI fix pushed afterwards makes it
-    stale, and stale is unread. Required when the program declares `mergeGate:
-    union-reviewed`, since the grant reads it; under `mergeGate: human` the human is the
-    reader and this pass is optional.
-11. **Publish.** One explicit, non-forced refspec, one branch, one PR. Never a worker branch:
-    pushing one publishes unreviewed history under an official-looking name and starts CI on
-    it. The body carries included and excluded tickets with their commit ranges, the conflicts
-    resolved and why, the local proofs and the remote runs actually spent.
-12. **Drive the checks.** A red check this diff explains is fixed locally and the *same*
-    branch is pushed again — counting the extra run rather than hiding it. A red check the
-    diff does not explain is escalated, never silenced: no required check is ever disabled to
-    make a run finish. When every required check is green, what happens next comes from the
-    grant, never from the operator's judgement: merged when the target does not deploy and the
-    union came back clean, handed to a human with the refusal otherwise. Included tickets move
-    to In Review with the PR link and their range.
-13. **Close on proof.** Done comes from an observed merge, never from a local cursor: an
-    absent PR is not a merge, and a closed one is not a merge either.
+**You do not run the cycle. A script does.** `workflows/autopilot.workflow.js` holds the control
+flow, and every decision inside it goes through `void-harness autopilot <step>` — a command that
+observes nothing, writes nothing, and returns a plan or a verdict.
+
+That inversion is the point of this skill. The cycle used to be a numbered list here, and the
+model was the mechanism: it read the list, decided when a unit was done, and remembered to take
+the lease. Twenty-seven functions that compute those decisions had no caller at all, which is what
+a procedure made of prose costs. Prose cannot drift from code when prose is no longer the
+mechanism.
+
+| step | it answers | and refuses when |
+|---|---|---|
+| `base` | which branch this run integrates into, and whether it is really protected | the protection could not be read — an unauthenticated `gh` and an open branch look identical |
+| `chain` | take another unit, or stop | the budget cannot cover one, the base is red, or nobody verified it |
+| `reserve` | may this run take the cluster | someone else holds it, or the observation is unusable |
+| `orchestrate` | lanes, assignments, and the git commands that make the worktrees | a base sha that is not a commit, or a footprint declared for a ticket absent from `tickets` |
+| `reconcile` | which ranges merge, as commands | a head the worker claims that git does not have, a range holding a file another ticket declared, or a payload whose cluster, declarations, results and observed ranges do not describe the same run |
+| `verify` | the suite that decides the merge, bounded | — |
+| `gate` | did the proofs run on THIS tree, did the panel speak first, did the unit stay in its ceilings | any of them unproven; absence of a record is absence of the act |
+| `publish` | one branch, one refspec, one pull request, and the body that carries the account | the proofs are not sealed |
+| `grant` | may this merge itself | see the refusal table below |
+| `lifecycle` | what the tracker owes, and whether it got it | — |
+| `progress` | where the run is, and whether its silence means anything | — |
+| `observe` | what each boundary actually answered | — |
+
+Every step takes its observation on stdin and answers with `--json`. Run
+`void-harness autopilot scaffold` with no step to list the ones it covers, and
+`void-harness autopilot scaffold <step>` for the exact shape and where each field comes from. For
+those steps the scaffold IS the contract, and cannot drift from it: a test pipes every scaffold
+back through its own validator. Five steps carry one today -- `plan`, `chain`, `start`, `status`
+and `reconcile`. The others are documented by their own refusal, which names the field it wanted
+and where to obtain it; a step whose refusal can stop a run is worth a scaffold, and the ones
+without are a gap rather than a decision.
+
+### What the order guarantees
+
+The sequence above is not a convenience, and three of its properties are load-bearing enough that
+tests hold this file to them.
+
+- **Every worktree and branch exists before any spawn**, including for sequential tickets. A worker
+  never chooses its own checkout and never works in the main one — `orchestrate` returns the setup
+  commands, and they run before a single agent starts.
+- **A write that returned is not a fact.** The lease is active only once the run has
+  **re-observe every ticket** and seen all of them converge; partial convergence releases what was
+  taken, because half a cluster produces an integration pull request that can never be complete.
+  The same rule governs ranges: `reconcile` believes git, never the worker's own commit list.
+- **A migration is never parallel**, whatever its estimate says, and neither is a low-confidence
+  footprint, a lockfile or a shared-ownership path. `orchestrate` sequences what it cannot prove
+  disjoint, and names why each ticket lost its parallel slot.
+
+### What a worktree does not isolate
+
+A worktree isolates the working tree, the index and `HEAD`. It does **not** isolate the
+repository's refs: `refs/stash`, `refs/tags/*`, `refs/notes/*`, `refs/remotes/*`, `refs/heads/*`
+and the repository config are one namespace for every worktree at once. On 2026-09-01 two workers
+each ran `git stash push` to split a commit, and the second `pop` took the first worker's entry:
+each ended up holding the other's files.
+
+So the plan denies the **class** -- writing anything the repository shares -- and not one command.
+A worker refused `git stash` alone reaches for `git tag`, or `git update-ref`, and lands in the
+same shared space. The one exception is the branch its own assignment names, which is what it was
+created to write. `orchestrate` carries the list, the exception, the commands that break it, the
+replacement gesture and the git documentation it was derived from, so the brief renders the
+prohibition from the plan instead of restating it.
+
+**The replacement gesture**, because a worker denied one reinvents it: to set changes aside,
+`git diff > a file inside your own worktree` and `git apply` it back; to split a commit, commit it
+on your own branch and amend or soft-reset afterwards. Both stay inside the worktree.
+
+Any pre-existing stash entry belongs to whoever left it. A run never lists, pops or cleans the
+stack, and never counts what is on it as residue of its own. An overwritten entry is not lost
+either: its commit becomes unreachable rather than collected, so an incident report gives the sha
+and the command that recovers it.
+
+### A range carries only what its ticket claimed
+
+`reconcile` proves ancestry -- the range is linear, descends from the base, matches the declared
+commits. That says nothing about **whose** files are in it, and two disjoint footprints merge
+without a conflict either way, so contamination reaches the pull request unnoticed. The audit
+answers the second question, against `git diff --name-only` and never against the worker's own
+list: a claim cannot clear a range of carrying somebody else's work, and a range git was never
+read for is excluded as `footprint-unobserved`.
+
+What it refuses is narrow on purpose. A file **another ticket of the cluster declared** is a
+breach: nothing legitimate produces it. A file nobody predicted is a widening, and it passes --
+a ticket that enumerates from the manifests finds the packages its author missed, and a guard that
+refuses that discovery is a guard that hides defects. A file **two tickets both reach** passes too,
+and not only when they spelled it the same way: `packages/**/*.test.ts` and `packages/core/b` both
+reach `packages/core/b/x.test.ts`, neither declaration is more specific than the other, so both
+were entitled. A **carve-out** does not: `packages/core` claims `packages/core/b/x.ts` by prefix,
+but a neighbour declaring `packages/core/b` drew a boundary rather than repeated one, so the wider
+ticket writing there is a breach. Owning the file no longer ends the question -- it used to, and
+the carved-out file then came back within-scope with an empty widening, invisible rather than
+merely permitted. Sequencing does not compensate for theft: two sequential workers still hold two
+worktrees on the same base, and it addresses lockfiles and migrations. What it does buy is the tie:
+a pair the audit will read as jointly entitled is a pair **ordering has sequenced**, which is why
+ordering separates two areas only when no file can lie in both, never merely when neither names the
+other. A `reconcileOnly` path is not judged, since the reconciler strips and rebuilds it anyway.
+
+**The audit cannot be off.** A cluster of more than one ticket that reaches `reconcile` without a
+declaration covering every one of them is refused outright, and so is a range whose observed file
+list is missing, empty, or not the list of paths git produces. An audit that could be skipped by
+omitting a field produced an empty `excluded` byte for byte identical to a clean one, so nobody
+could tell audited-and-clean from never-audited. The declaration is not re-derived either:
+`orchestrate` returns the footprints it ordered on, and the script hands them to `reconcile` -- a
+list reconstructed from the branch diff would only ever agree with the diff it came from. A cluster
+of one is not audited, because there is no other ticket to rob.
+
+**And it cannot be off by shrinking a list either.** `cluster`, `footprints`, `results`,
+`failures` and the ranges git was read for must all describe the same run. Shortening `cluster` and
+`footprints` TOGETHER leaves two lists that agree with each other and an audit armed for one ticket
+where the run reserved two, so the neighbour whose file was absorbed is not there to be robbed. The
+check therefore runs in every direction: a cluster ticket nobody declared, a declaration for a
+ticket the cluster says it never reserved, and a result, a failure or an observed range naming a
+ticket absent from `cluster` are each a refusal. Passing the tickets that CAME BACK rather than the
+ones the run reserved is the cheapest way to disarm the guard, and the proof of that
+under-declaration always sits in the same payload as the under-declaration. An `areas: []` entry
+counts as no declaration at all: nothing can be stolen from a ticket that claims nothing, so every
+neighbour walks into its ground reported as a widening. That refusal is a **backstop** for a
+hand-built cluster, not the place the case is meant to be caught -- `plan` excludes such a ticket
+before any worker starts, because a refusal at reconciliation arrives after the whole run is paid
+for and leaves no legal move: inventing the area is the tautology the audit exists to forbid, and
+shrinking `cluster` is refused as soon as the ticket returned a result. If you reach it anyway,
+declare the areas and plan again -- and read the whole diff of every range yourself before any of
+it merges, because an entitlement nobody declared cannot be recovered from the range under
+suspicion. The refusal used to offer instead: reconcile each range as its own cluster of one,
+"exactly the coverage a ticket claiming nothing ever had". It is not. The maximum severity an
+undeclared ticket gets exists only because a neighbour sits in the same cluster to be robbed; a
+cluster of one audits nothing, so that split turns the audit off for every ticket of the cluster,
+the ones that did declare included.
+
+Areas are read in one spelling. `packages/core/templates/`, `./packages/core/templates` and
+`packages/core/templates` are the same area, and an area that claims nothing after that reading --
+empty, absolute, or carrying an empty or dot segment such as `packages//core` or `../x` -- is
+refused rather than silently matching no file.
+
+### Reading a run while it happens
+
+The pull request opens as a **draft at the first merged unit**, and its body is rewritten after
+every decision. That body is the whole surface: a phone shows six lines, and the first of them says
+`ALIVE`, `STALLED`, `STARTING` or `ENDED`, with the last unit named.
+
+`STALLED` is the one that means something. A quiet run and a dead one look identical from outside,
+so the run compares its own silence against the ceiling a single unit may take: quieter than that
+is working, longer than that has stopped without saying so. An `ENDED` run is never stalled
+however old its last beat, because the two send a reader to opposite places — one to wait, one to
+go looking.
+
+A draft does not wait for sealed proofs. It is a window, and refusing to open a window because the
+work is unfinished keeps the run invisible for exactly as long as it is unfinished. Nothing merges
+from it: the grant still needs everything it needed, and the draft is marked ready only when the
+publication that asks for a merge carries its proofs.
+
+**What stays yours.** Launching the run, confirming the cluster before the lease, and the merge
+into the branch that deploys. Everything a model still does inside the run is judgment: working a
+ticket, reading the union. The script never asks it to remember a step.
+
+## The chain: `mode autopilot 6h`
+
+A duration, not a ticket count -- "drain the backlog while I am out" is a length of time, and
+five units says nothing about whether that is twenty minutes or a day.
+
+The budget comes from `autopilot.chainBudget`. **Written, it is a ceiling** and an invocation may
+only shorten it: the declaration is the consent to run unattended, and a consent any command line
+could widen would not be one. **Absent, two hours is a fallback** and `--for 6h` runs six hours,
+because nobody consented to a default by leaving a field out.
+
+Neither the loop nor the decision is yours: the script asks `autopilot chain` between every unit
+and acts on what comes back. What matters to a reader is what the answer means.
+
+On `stop`, the run ends there. It is not a pause: leases, branches, commits and the cursor stay
+exactly where they are, and the report names the unit it stopped on and the reason. Four reasons
+end a run badly -- a red base, a base nobody verified, a verification taken on some other tree,
+and a budget or clock that cannot be read -- and two end it well: the budget is spent, or nothing
+is ready. `nextUnit` is absent on every stop, so a caller cannot take one anyway.
+
+A unit already under way is never cut in half. The budget decides whether to START another one;
+cutting mid-unit leaves a worktree and half a ticket, which costs more than the overrun it saves.
+
+The pull request body carries the journal verbatim. It is what makes per-unit provenance a claim
+a reader can check rather than a summary somebody wrote afterwards.
 
 ---
 
@@ -124,7 +312,7 @@ into `autopilot status`, and act on the verdict it returns:
 | `republish` | the remote head lags the local one | push the same branch again |
 | `rebase` | the base moved under the run | rebase, reconcile again, re-run the whole suite; the proofs are stale |
 | `await-checks` / `fix-checks` | required checks pending, or red on this diff | wait, or fix locally and push again |
-| `ready` | every required check is green | leave it for the human, move the included tickets to In Review |
+| `ready` | every required check is green | ask the grant, and do what it returns: merge when it grants, hand it over with the refusal when it does not; move the included tickets to In Review either way |
 | `merged` | GitHub reported a merge commit | move the included tickets to Done, close the lease |
 | `blocked` | closed unmerged, a foreign branch, a merge with no commit, a red check this diff does not own | stop and report; none of these is a completion |
 | `observe-again` | the reading was partial | read it again; a partial answer is not an answer |
@@ -149,8 +337,11 @@ May: run every `void-implement` pass whose predicate fires, run its own targeted
 migration **in dev/local only**, and commit a bisectable range.
 
 May not: push, open or update a pull request, merge anything, move the ticket to In Review or
-Done, or touch a file the plan marks `reconcileOnly`. These are denied in the orchestration
-plan itself, not only in the prompt, so an adapter that honours the plan cannot grant them.
+Done, touch a file the plan marks `reconcileOnly`, or write anything the repository shares across
+its worktrees — `refs/stash`, tags, notes, remotes, any branch but its own, the repository config.
+These are denied in the orchestration plan itself, not only in the prompt, so an adapter that
+honours the plan cannot grant them; both adapters render them from the plan, and a test holds each
+`workerMay…` field to appearing in both.
 
 ---
 
@@ -174,4 +365,6 @@ plan itself, not only in the prompt, so an adapter that honours the plan cannot 
 
 Upstream: `void-ticket` authors the work units and the program descriptor.
 Per ticket: `void-implement`, entire, once. Downstream: the reconciler owns the
-integration branch, the suite and the PR. The human owns the merge.
+integration branch, the suite and the PR. The merge belongs to whoever the grant
+names: the human under `mergeGate: human`, and under `union-reviewed` the human
+still for anything the grant refuses, promotion to the deploying branch included.

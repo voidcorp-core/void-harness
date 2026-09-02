@@ -6,6 +6,7 @@ import {
   mergeMechanicalContextBlock,
   parseCheckpoint,
   parseMechanicalContextBlock,
+  renderMechanicalContextBlock,
 } from './checkpoint.js';
 
 /**
@@ -178,6 +179,7 @@ const MECHANICAL: MechanicalContextState = {
   semanticRevision: 4,
   sealedWorkRevision: 4,
   nudgeEmitted: false,
+  unwatchableNotified: false,
   transcriptFingerprint: `sha256:${'b'.repeat(64)}`,
   transcriptCursorBytes: 128,
   lastMeasurementAtMs: 0,
@@ -288,6 +290,22 @@ describe('advanceMechanicalContext', () => {
     });
   });
 
+  // Every checkpoint written before this field existed lacks the line, and this
+  // parser exists so the record survives its own evolution. Requiring it would
+  // have made every one of them malformed, degrading resume on an upgrade.
+  it('reads a block written before unwatchable_notified existed', () => {
+    const withField = renderMechanicalContextBlock(MECHANICAL);
+    const older = withField.split('\n')
+      .filter((line) => !line.startsWith('unwatchable_notified:'))
+      .join('\n');
+
+    expect(older).not.toContain('unwatchable_notified');
+    const parsed = parseMechanicalContextBlock(older);
+    expect(parsed.status).toBe('valid');
+    if (parsed.status !== 'valid') return;
+    expect(parsed.state.unwatchableNotified).toBe(false);
+  });
+
   it('marks clear degraded once, then reconciles a successful semantic checkpoint', async () => {
     const { advanceMechanicalContext } = await import('./checkpoint.js');
     const cleared = advanceMechanicalContext(MECHANICAL, { resumeSource: 'clear' });
@@ -296,6 +314,7 @@ describe('advanceMechanicalContext', () => {
       workRevision: MECHANICAL.workRevision + 1,
       semanticRevision: MECHANICAL.semanticRevision,
       nudgeEmitted: false,
+      unwatchableNotified: false,
       clearPending: true,
       lastResumeSource: 'clear',
     });
@@ -399,6 +418,7 @@ describe('evaluateContextMeasurement', () => {
     expect(compactedAgain).toMatchObject({
       workRevision: nextCycle.state.workRevision + 1,
       nudgeEmitted: false,
+      unwatchableNotified: false,
       lastResumeSource: 'compact',
     });
     expect(advanceMechanicalContext(compactedAgain, { resumeSource: 'compact' })).toEqual(

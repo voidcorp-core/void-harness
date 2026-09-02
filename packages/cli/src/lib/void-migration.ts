@@ -234,7 +234,9 @@ export async function migrateVoidLayout(root: string, dryRun = false): Promise<V
   // exclude first would leave a window -- a crash, a full disk, an interrupt --
   // in which nothing at all covers the installed assets, and the next
   // `git clean` would take them. Write first, then remove.
-  if (!dryRun) writeExcludeBlock(root);
+  // Scoped to what the receipt owns, same as `init`. A migration that wrote an
+  // unscoped block would hide the project's own agents until the next install.
+  if (!dryRun) writeExcludeBlock(root, [...((await ownedDerivedPaths(root)) ?? [])]);
 
   // Never create the file: a project with no `.gitignore` has no block of ours
   // to remove, and writing an empty one would be a file it never asked for.

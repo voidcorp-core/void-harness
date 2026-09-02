@@ -41,7 +41,13 @@ const ROOT = resolve(HERE, '..');
  * tight bound measures noise, not growth.
  */
 export const PACKAGE_LIMITS = Object.freeze({
-  voidharness: 850_000,
+  // Raised from 850 kB on 2026-09-01, with the autopilot cycle. Two reasons,
+  // and the second is the one that matters: the slice added the nine commands
+  // that give twenty-seven already-shipped functions a caller, so the package
+  // was carrying their weight without their value; and the previous ceiling was
+  // met exactly, to the byte, which means it had stopped warning anyone and was
+  // going to refuse the next commit whatever it contained.
+  voidharness: 900_000,
   '@voidcorp/harness-graph': 120_000,
   '@voidcorp/pack-monorepo': 20_000,
   '@voidcorp/pack-nextjs': 20_000,

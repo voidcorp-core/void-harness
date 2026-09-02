@@ -51,6 +51,10 @@ export const STEPS = [
   },
   { name: 'lint', run: ['pnpm', 'lint'] },
   { name: 'publish safety', run: ['pnpm', 'check:publish'] },
+  // CI has this gate and this loop did not, so `verify` came back green on a
+  // tree CI then refused. A local proof that does not cover what the remote
+  // checks is not the proof it claims to be.
+  { name: 'package size', run: ['pnpm', 'check:size'] },
   { name: 'build', run: ['pnpm', 'build'], slow: true },
   { name: 'project graph benchmark', run: ['pnpm', 'benchmark:project'], slow: true },
   { name: 'context continuity benchmark', run: ['pnpm', 'benchmark:hooks'], slow: true },

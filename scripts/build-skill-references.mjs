@@ -109,6 +109,7 @@ const DECLARED = [
   { name: 'void-init-stage', reason: 'scratch prefix for the isolated init stage' },
   { name: 'void-install-conformance', reason: 'conformance run label, `packages/cli/scripts/`' },
   { name: 'void-internal', reason: 'marker for sidecars a consumer never receives' },
+  { name: 'void-journal-anchor', reason: 'reserved basename of a change-journal sentinel' },
   { name: 'void-last-event-id', reason: 'graph studio live-render cursor' },
   { name: 'void-layout', reason: 'module owning the void directory layout' },
   { name: 'void-migration', reason: 'name of the void layout migration check' },

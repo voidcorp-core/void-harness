@@ -72,6 +72,38 @@ Two properties are load-bearing and easy to break:
   `update`, and until it does, a reader that only knew the current path would
   report months of history as none.
 
+### Naming what the harness owns in a shared directory
+
+`.claude/`, `.agents/` and `.codex/` are shared: the runtime reads the project's
+own skills, agents and commands from the same directories the harness writes
+into. Deciding which side a file belongs to is the ignore block's whole job, and
+it uses whichever of two regimes is cheaper for that root.
+
+- **By prefix**, for `.claude/skills` and `.agents/skills`. Every shipped skill is
+  `void-`prefixed (rule 8), so two pattern lines cover 82 owned directories. A
+  pattern also has no stale window: it stays right about a skill the project adds
+  long after the last install, which no list can do. This is only sound because
+  the prefix is checked — `scripts/anti-bloat-check.sh` fails the build on a
+  shipped skill without it, and `test/skills/shipped-skill-carries-the-prefix.test.ts`
+  holds the gate itself to that. A convention no build enforces would make the
+  manifest the better discriminator, which is what the superseded 2026-08-20
+  decision said.
+- **By list**, for `.claude/agents`, `.codex/agents` and `.claude/commands`. An
+  agent is named for a person you could hire, so no pattern separates ours from
+  the project's; they are named individually from the install receipt.
+
+`UNIT_ROOTS` must stay exactly the union of `PREFIXED_UNIT_ROOTS` and
+`LISTED_UNIT_ROOTS`, asserted in `void-layout.test.ts`: a root in neither is
+covered by nothing and listed by nothing, so its content is committed on the next
+`git add .` without anyone deciding that.
+
+Both regimes fail the same way round on purpose. Absent a readable receipt, or on
+a project still holding pre-prefix skill directories, harness content becomes
+*visible* rather than the project's content becoming *hidden* — derived content
+committed is a diff in a review, reversible with `update --untrack-derived`;
+a project's own skill hidden is work that leaves at the next clone with nothing
+to see. See the decision on naming owned content by prefix then by list.
+
 The migration merges rather than refuses: on a per-file collision the destination
 wins and the legacy copy is parked beside it as `*.legacy`. Choosing a winner by
 size or date was rejected on evidence — measured across the park, the legacy copy
@@ -933,9 +965,19 @@ the records carry the reasoning at each step.**
 
 | class | what it means | examples | git |
 | --- | --- | --- | --- |
-| `project` | the project authors it; the harness never overwrites it | `.void/config.json`, `.void/PROJECT-DOCTRINE.md`, `.void/program.md`, `.claude/settings.json` | tracked |
+| `project` | the project authors it; the harness never overwrites what the project wrote | `.void/config.json`, `.void/PROJECT-DOCTRINE.md`, `.void/program.md`, `.claude/settings.json` | tracked |
 | `derived` | `void-harness init` re-materializes it from the harness assets | `.claude/skills/`, `.claude/agents/`, `.agents/skills/`, `.codex/agents/`, `.void/installed/PHILOSOPHY.md` | ignored, per receipt |
 | `observed` | this machine's history; meaningless in another checkout | `machine/runs/`, `machine/cache/`, `machine/receipts/`, `machine/status.json`, `machine/retired/*.jsonl` | never |
+
+`.void/PROJECT-DOCTRINE.md` is the one `project` file `init` may rewrite, and only
+in the single state where rewriting takes nothing from anybody: its bytes still
+match the install manifest's record of what a previous install wrote, which
+proves the project has never written in it. Every other state preserves the file,
+including a missing or unparseable manifest — silence is not proof that nobody
+edited it. The installed file is a stub on purpose, because `CLAUDE.md` imports
+it with `@` into every session; the long form it points at lives in
+[`docs/PROJECT-DOCTRINE-FORMAT.md`](PROJECT-DOCTRINE-FORMAT.md), which nothing
+loads. See the update-refreshes-an-untouched-project-doctrine decision.
 
 The map covers all four materialized directories (`.void/`, `.claude/`,
 `.agents/`, `.codex/`), not just `.void/`: left unclassified they were tracked by

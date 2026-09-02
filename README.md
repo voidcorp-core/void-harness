@@ -65,7 +65,7 @@ What is installed, in numbers:
 |---|---|---|
 | Core skills | 41 | Automatically, when what you are doing matches |
 | Stack pack skills | 28 | Same, for the packs you activated |
-| Hooks | 31 | On the tool call, before the write lands |
+| Hooks | 32 | On the tool call, before the write lands |
 | Agents | 21 | Delegated by a skill, or invoked by name |
 | Specialists | 16 | Invoked in their own fresh context during review |
 
@@ -115,6 +115,9 @@ nudge in `.void/config.json`:
 ```
 
 The threshold must be an integer from 40 through 60 and defaults to 50 when `context` is present.
+Without `windowTokens` there is no percentage to compare, so the nudge cannot fire — and the
+handler says so once rather than going quiet, because a watchdog that stays silent about not
+watching is indistinguishable from one that found nothing.
 Without `windowTokens`, the handler records the latest usage counters but computes no percentage
 and emits no threshold nudge. Transcript reads stay local, inspect only usage counters, and are
 bounded to 1,048,576 bytes per invocation; prompt and response content are neither logged nor sent.

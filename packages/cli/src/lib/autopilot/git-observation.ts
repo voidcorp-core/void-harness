@@ -25,6 +25,15 @@ export interface RangeObservation {
   readonly headSha: string;
   /** Commits of `base..head`, oldest first. */
   readonly commits: readonly ObservedCommit[];
+  /**
+   * Files `git diff --name-only base..head` reported, when it was run.
+   *
+   * Not read by `verifyRange`, which judges ancestry: it travels with the
+   * observation because it is the same sighting of the same range, and the
+   * footprint audit downstream refuses to accept the worker's own list in its
+   * place.
+   */
+  readonly observedFiles?: readonly string[];
 }
 
 export interface RangeExpectation {

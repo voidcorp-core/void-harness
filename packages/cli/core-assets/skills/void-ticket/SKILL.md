@@ -31,6 +31,76 @@ A `docs/specs/*.md` spec with `source: forge` in its frontmatter (the forge→ha
 
 ---
 
+## Admission: a finding earns its place or it is dropped
+
+Most of what reaches this skill is not a decision someone made, it is a defect someone
+*noticed*. Those arrive without end, because reading code always finds another inconsistency,
+and each one is defensible on its own. A backlog that admits them all stops being pilotable, and
+the objective recedes while every individual step looks correct.
+
+So a noticed defect is not admitted on its merits. It is compared against **the unit being built
+right now**, judged against the program's stated objective, and there are three outcomes and one
+slot:
+
+1. **It blocks the current unit** — it is fixed inside that unit. No ticket.
+2. **It beats the current unit** — it becomes the next unit, and nothing else starts until it is
+   disposed of.
+3. **It loses** — it is dropped. Not filed, not deferred, not "kept for later".
+
+Dropped means lost, and that is the point. A genuine defect is rediscoverable by construction:
+a skill that lies will lie to the next reader, and a run will trip on it again. The only thing
+ever written down is **evidence that cannot be reconstructed** — a failure observed once, a
+measurement — as one line carrying the command that replays it. Never the opinion, never the
+proposed fix, because describing the fix is how a finding smuggles in a design.
+
+Two things are not admissible at all:
+
+- **A reading nobody asked for.** What you noticed in a file you were not convened on does not
+  become work. If it matters, it will be found again by someone who was asked.
+- **An ambition claim.** "This would be tenfold better" belongs to `void-brainstorm`, on a named
+  subject, deliberately. During execution it is an escape hatch, and it is the one that grows
+  plans.
+
+State the comparison out loud when you drop something: what you found, and what it lost to. One
+line. An arbitration nobody can see did not happen.
+
+**Prose incoherence is a first-class defect**, in four forms: inside one skill, between two
+skills, between the user's stated demand and a skill, and between a skill and the code it
+describes. The last is this repository's repeat offender. It still goes through the comparison
+above like anything else.
+
+See the decision on a finding entering only by beating the work in progress.
+
+---
+
+## Search the tracker before you write
+
+The backlog already answered part of this. Query it on the **subject**, never on
+the title you are about to write: DEV-591 was called "unstable test suite" and
+DEV-561 "test contention" — no shared word, same question, three days apart.
+Search several phrasings of the thing itself, and include **closed** tickets: one
+closed because the approach was wrong is exactly the one not to reopen unchanged.
+
+An overlap means reading that ticket **in full** before deciding, not its title.
+What costs a day is not the duplicate, it is the reasoning that was in the first
+one: DEV-561 had established that an intermittent test is a question nobody has
+answered rather than noise to isolate, and DEV-591 recommended what it forbade.
+
+Then exactly one of two things, and creating in silence is neither:
+
+- **enrich the existing ticket**, when the subject is the same;
+- **create, linked, naming the difference** in one sentence, when the scope is
+  deliberately disjoint.
+
+Never merge two tickets on your own: a resemblance is not an identity, and that
+call is the human's. Say what you searched and what came back — a search nobody
+can see did not happen. If the tracker is unreachable, say so and keep writing;
+a handoff blocked on a lookup is worse than a duplicate.
+
+Thirty results means the terms were too broad, not the backlog too large.
+
+---
+
 ## The ticket: required slots
 
 Render into the tracker description. Every slot is REQUIRED unless marked optional. A missing required slot means the ticket is not ready.

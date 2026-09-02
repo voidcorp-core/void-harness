@@ -90,11 +90,26 @@ describe('remote effects are denied to workers', () => {
     expect(mayNot).toMatch(/In Review/i);
   });
 
-  it('keeps merging a human gate with no escape hatch', () => {
+  // The section that added the shared-ref prohibition sat 130 lines above this
+  // list and left it untouched. A canonical list that stops being canonical is
+  // the version a reader trusts.
+  it('carries every prohibition in the one list a reader treats as canonical', () => {
+    const mayNot = flat(/May not:([\s\S]*?)\n\n/.exec(body(SKILL))?.[1] ?? '');
+    expect(mayNot).toMatch(/shares across its worktrees/i);
+    expect(mayNot).toMatch(/refs\/stash/);
+  });
+
+  it('keeps the merge a declaration, never a flag', () => {
     expect(body(SKILL)).toMatch(/never merges/i);
     expect(body(SKILL)).toMatch(/mergeGate: human/);
-    // An auto-merge flag must not reappear as a documented capability.
-    expect(body(SKILL)).not.toMatch(/--auto-merge/);
+    // The flag must not reappear as a CAPABILITY. Naming it to say it does not
+    // exist is the opposite, and forbidding the string outright forbids saying so
+    // -- which is how this assertion first fired on prose that agreed with it.
+    const flat = body(SKILL).replace(/\s+/g, ' ');
+    const mentions = [...flat.matchAll(/[^.]*--auto-merge[^.]*\./g)].map((m) => m[0]);
+    for (const sentence of mentions) {
+      expect(sentence, sentence).toMatch(/\bno\b|\bnot\b|never|refus/i);
+    }
   });
 
   it('requires the controller to create every worktree before any spawn', () => {

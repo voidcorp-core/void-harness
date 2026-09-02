@@ -13,6 +13,8 @@
 // not deny the operator the other nineteen; only a caller mistake about the
 // contract itself (unknown schema, out-of-range cluster size) throws.
 
+import { AutopilotError } from './errors.js';
+import { areasOverlap, compileArea, type CompiledArea } from './footprint-area.js';
 import { admitWithinReviewBudget, type ReviewBudget, type ReviewSignal } from './review-budget.js';
 
 export type ExclusionCause =
@@ -24,7 +26,9 @@ export type ExclusionCause =
   | 'cluster-full'
   | 'review-budget-exhausted';
 
-export type SequenceReason = 'unknown-footprint' | 'low-confidence' | 'high-risk' | 'footprint-overlap';
+// No `unknown-footprint` here, unlike `worker-order`: a ticket that names no
+// area never reaches the partition, it is excluded above as `missing-footprint`.
+export type SequenceReason = 'low-confidence' | 'high-risk' | 'footprint-overlap';
 
 export interface CandidateTicket {
   readonly id: string;
@@ -44,7 +48,7 @@ export interface CandidateTicket {
 
 export interface ClusterFootprint {
   readonly id: string;
-  /** Estimated touched areas. Empty = unknown footprint. */
+  /** Estimated touched areas. At least one, or the ticket is not selectable. */
   readonly areas: readonly string[];
   /** Lockfile / migrations / other guaranteed-collision zones. */
   readonly highRisk: boolean;
@@ -124,9 +128,102 @@ function dependent(a: CandidateTicket, b: CandidateTicket): boolean {
   return a.dependsOn.includes(b.id) || b.dependsOn.includes(a.id);
 }
 
-function overlaps(a: readonly string[], b: readonly string[]): boolean {
-  const set = new Set(a);
-  return b.some((area) => set.has(area));
+/**
+ * The one reading of a declared area, the one `worker-order` and the audit use.
+ *
+ * Compared by string equality, `packages/core` and `packages/core/skills` were
+ * disjoint here and nested in both other readers, so this reader announced a
+ * parallel lane the run never took. `orderWorkers` routes, so nothing executed
+ * wrong -- but the cluster plan is the artefact a human confirms, and a plan
+ * that misdescribes its own lanes is confirmed on a false picture.
+ */
+function overlaps(a: readonly CompiledArea[], b: readonly CompiledArea[]): boolean {
+  return a.some((left) => b.some((right) => areasOverlap(left, right)));
+}
+
+/**
+ * The compiled areas of a footprint, or `undefined` when one claims nothing.
+ *
+ * The shared reading refuses an area that matches no path git reports. Here
+ * that refusal has to become a typed exclusion instead: one malformed candidate
+ * in a pool of twenty must not deny the operator the other nineteen. Anything
+ * that is not that refusal still escapes, because it is not this reader's.
+ */
+function compileAreas(areas: readonly string[]): readonly CompiledArea[] | undefined {
+  try {
+    return areas.map(compileArea);
+  } catch (error) {
+    if (error instanceof AutopilotError) return undefined;
+    throw error;
+  }
+}
+
+/**
+ * Everything decidable from one candidate alone, in input order.
+ *
+ * Extracted because it is a second subject: a screen answers "may this ticket
+ * enter at all", the selection and the partition answer "with whom". It also
+ * owns the exclusions, so they are appended here rather than returned in a
+ * parallel list nobody could keep aligned with them.
+ */
+function screenCandidates(
+  tickets: readonly CandidateTicket[],
+  footprints: ReadonlyMap<string, ClusterFootprint>,
+  excluded: ExcludedTicket[],
+  areas: Map<string, readonly CompiledArea[]>,
+): readonly CandidateTicket[] {
+  const seen = new Set<string>();
+  const candidates: CandidateTicket[] = [];
+  for (const ticket of tickets) {
+    if (!wellFormedTicket(ticket) || seen.has(ticket.id)) {
+      excluded.push({ id: ticket?.id ?? '', cause: 'malformed-input' });
+      continue;
+    }
+    seen.add(ticket.id);
+
+    const footprint = footprints.get(ticket.id);
+    if (footprint === undefined) {
+      // A footprint the estimator never produced is missing: inventing an empty
+      // one would silently route real work as "unknown".
+      excluded.push({ id: ticket.id, cause: 'missing-footprint' });
+      continue;
+    }
+    if (!wellFormedFootprint(footprint)) {
+      excluded.push({ id: ticket.id, cause: 'malformed-input' });
+      continue;
+    }
+    // An entry that names no area is the same silence written as a value, and
+    // this reader was the only one treating the two spellings differently:
+    // `orderWorkers` already reads absent and empty as one `unknown-footprint`.
+    // The disagreement was not cosmetic. Autopilot routes on footprints, so a
+    // ticket naming no ground gives it nothing to route on -- and it gives the
+    // reconciliation audit nothing to protect either, since a claim of nothing
+    // cannot be intruded upon: every neighbour walking into its files reads as
+    // an ordinary widening. Admitting it here therefore bought no coverage and
+    // cost a whole run, because reconciliation refuses the cluster once both
+    // workers have finished, with no move left that is not either inventing an
+    // area or shrinking the cluster past its own guard.
+    if (footprint.areas.length === 0) {
+      excluded.push({ id: ticket.id, cause: 'missing-footprint' });
+      continue;
+    }
+    const compiled = compileAreas(footprint.areas);
+    if (compiled === undefined) {
+      excluded.push({ id: ticket.id, cause: 'malformed-input' });
+      continue;
+    }
+    areas.set(ticket.id, compiled);
+    if (!ticket.ready) {
+      excluded.push({ id: ticket.id, cause: 'not-ready' });
+      continue;
+    }
+    if (ticket.blockedByOpen) {
+      excluded.push({ id: ticket.id, cause: 'blocked-by-open' });
+      continue;
+    }
+    candidates.push(ticket);
+  }
+  return candidates;
 }
 
 export function planCluster(input: ClusterPlanInput): ClusterPlan {
@@ -144,6 +241,7 @@ export function planCluster(input: ClusterPlanInput): ClusterPlan {
   const minConfidence = input.minConfidence ?? DEFAULT_MIN_CONFIDENCE;
 
   const excluded: ExcludedTicket[] = [];
+  const areas = new Map<string, readonly CompiledArea[]>();
   const footprints = new Map<string, ClusterFootprint>();
   for (const footprint of input.footprints) {
     if (typeof footprint?.id === 'string' && !footprints.has(footprint.id)) {
@@ -151,37 +249,7 @@ export function planCluster(input: ClusterPlanInput): ClusterPlan {
     }
   }
 
-  // Screening, in input order: everything decidable from one candidate alone.
-  const seen = new Set<string>();
-  const candidates: CandidateTicket[] = [];
-  for (const ticket of input.tickets) {
-    if (!wellFormedTicket(ticket) || seen.has(ticket.id)) {
-      excluded.push({ id: ticket?.id ?? '', cause: 'malformed-input' });
-      continue;
-    }
-    seen.add(ticket.id);
-
-    const footprint = footprints.get(ticket.id);
-    if (footprint === undefined) {
-      // A footprint the estimator never produced is missing, not empty:
-      // inventing one would silently route real work as "unknown".
-      excluded.push({ id: ticket.id, cause: 'missing-footprint' });
-      continue;
-    }
-    if (!wellFormedFootprint(footprint)) {
-      excluded.push({ id: ticket.id, cause: 'malformed-input' });
-      continue;
-    }
-    if (!ticket.ready) {
-      excluded.push({ id: ticket.id, cause: 'not-ready' });
-      continue;
-    }
-    if (ticket.blockedByOpen) {
-      excluded.push({ id: ticket.id, cause: 'blocked-by-open' });
-      continue;
-    }
-    candidates.push(ticket);
-  }
+  const candidates = screenCandidates(input.tickets, footprints, excluded, areas);
 
   // Selection, in rank order: independence first, then the ceiling.
   const ranked = candidates.slice().sort((a, b) => {
@@ -224,10 +292,14 @@ export function planCluster(input: ClusterPlanInput): ClusterPlan {
   const sequential: SequencedTicket[] = [];
   for (const signal of admitted) {
     const reasons: SequenceReason[] = [];
-    if (signal.areas.length === 0) reasons.push('unknown-footprint');
     if (signal.confidence < minConfidence) reasons.push('low-confidence');
     if (signal.highRisk) reasons.push('high-risk');
-    if (admitted.some((other) => other.id !== signal.id && overlaps(signal.areas, other.areas))) {
+    const mine = areas.get(signal.id) ?? [];
+    if (
+      admitted.some(
+        (other) => other.id !== signal.id && overlaps(mine, areas.get(other.id) ?? []),
+      )
+    ) {
       reasons.push('footprint-overlap');
     }
 

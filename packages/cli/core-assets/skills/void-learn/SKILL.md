@@ -82,7 +82,7 @@ Append to the correct section of `.void/PROJECT-DOCTRINE.md`:
   - **Enforced by**: <skill / hook / manual review>.
 ```
 
-Create a level-2 section header only if the expected one is absent (the template seeds them all).
+Create the level-2 section header when it is absent, which it usually is: the installed file is a stub and its sections appear as they are used. The routing table below is the list of names.
 
 ### 4. Confirm in chat
 

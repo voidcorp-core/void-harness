@@ -4,7 +4,8 @@
 // What this command does (idempotent):
 //   1. Create .void/config.json (paths, commands, modes)
 //   2. Copy PHILOSOPHY.md into .void/installed/ (managed, restorable)
-//   3. Create .void/PROJECT-DOCTRINE.md from template if it does not exist
+//   3. Seed .void/PROJECT-DOCTRINE.md from the template, or refresh it while
+//      the project has still never written into it
 //   4. Merge `.claude/settings.json` with `extraKnownMarketplaces.void-harness`
 //      pointing to the GitHub repo, and `enabledPlugins` for the chosen packs
 //   5. Patch CLAUDE.md (and its Codex sister AGENTS.md) with the void-harness
@@ -14,12 +15,14 @@
 // plugin from the marketplace on session start. Skills appear as
 // /harness:void-tdd, /harness-nextjs:..., etc.
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { stripManagedBlock } from '@voidcorp/hook-runner';
+import { PROJECT_DOCTRINE_PATH } from '../lib/co-owned.js';
 import { writeExcludeBlock } from '../lib/git-exclude.js';
+import { isUntouchedSinceInstall, readInstallManifest } from '../lib/install-manifest.js';
 import * as p from '@clack/prompts';
 import {
   prepareInstallCommit,
@@ -194,8 +197,39 @@ export function sourceRepoVerdict(input: {
   readonly force: boolean;
   readonly preserveDoctrine: boolean;
 }): SourceRepoVerdict {
-  if (!input.isSourceRepo || input.force) return 'proceed';
-  return input.preserveDoctrine ? 'preserve-doctrine' : 'refuse';
+  if (!input.isSourceRepo) return 'proceed';
+  // Ordered ahead of `force` on purpose. The two flags answer different people:
+  // `preserveDoctrine` is what `update` declares about the repo it runs in,
+  // `--force` is what an operator types to get past a conflict on some managed
+  // asset. Reading force first let unblocking two hook files rewrite the
+  // canonical CLAUDE.md as a side effect, which nothing had asked for.
+  if (input.preserveDoctrine) return 'preserve-doctrine';
+  return input.force ? 'proceed' : 'refuse';
+}
+
+/**
+ * What `init` does with a `.void/config.json` that is already there.
+ *
+ * `--force` seizes ownership of a *managed* asset: one the harness owns alone
+ * and can prove it wrote. The config is *co-owned* -- the project tunes paths,
+ * modes and commands, the harness only records pack pins -- so the flag has
+ * nothing to say about it, and treating it as licence to overwrite cost a
+ * monorepo its whole enforcement floor: `paths.business` fell back to the
+ * single-app default, the config stayed valid, and nothing went red.
+ *
+ * It keeps exactly one job here, the case where merging is not possible at all:
+ * a config too broken to parse.
+ */
+export type ConfigWriteVerdict = 'scaffold' | 'merge' | 'overwrite-unreadable' | 'keep-unreadable';
+
+export function configWriteVerdict(input: {
+  readonly exists: boolean;
+  readonly readable: boolean;
+  readonly force: boolean;
+}): ConfigWriteVerdict {
+  if (!input.exists) return 'scaffold';
+  if (input.readable) return 'merge';
+  return input.force ? 'overwrite-unreadable' : 'keep-unreadable';
 }
 
 export async function init(args: readonly string[]): Promise<void> {
@@ -301,8 +335,11 @@ export async function init(args: readonly string[]): Promise<void> {
     await seedInstallStage(projectRoot, stageRoot);
     // 1. Write .void/config.json (runtime-agnostic)
     await writeConfig(stageRoot, packs, opts, { pinVersion, stack });
-    // 2. Copy PHILOSOPHY.md + create PROJECT-DOCTRINE.md from template
-    await installDoctrineFiles(stageRoot, sourceRoot, preserveDoctrine ? projectRoot : undefined);
+    // 2. Copy PHILOSOPHY.md + seed or refresh PROJECT-DOCTRINE.md
+    await installDoctrineFiles(stageRoot, sourceRoot, {
+      installationRoot: projectRoot,
+      preserveFrom: preserveDoctrine ? projectRoot : undefined,
+    });
     // 3. Wire each selected runtime through its adapter.
     const wireCtx = {
       projectRoot: stageRoot,
@@ -314,6 +351,7 @@ export async function init(args: readonly string[]): Promise<void> {
       marketplaceRepo: opts.marketplaceRepo,
       pinVersion,
       preserveDoctrineDoc: preserveDoctrine,
+      force: opts.force,
     };
     for (const adapter of adapters) {
       const outcome = await adapter.wire(wireCtx);
@@ -341,6 +379,13 @@ export async function init(args: readonly string[]): Promise<void> {
     // Before the manifest, the ignore block and the transaction: what the project
     // already owns leaves the stage, so nothing downstream claims it.
     const keptByProject = await withholdProjectOwned(projectRoot, stageRoot);
+    // Without the agent names, which only the receipt can justify. The block
+    // has to exist before the transaction -- a `git clean` during an install
+    // would otherwise carry off what it just wrote -- and its patterns are true
+    // whatever happens next. The names are not: a rollback would leave the
+    // repository ignoring agents that were never written, and an agent the
+    // project later writes under one of those names disappears at the first
+    // clone. So they wait for the commit that makes them true.
     await ensureIgnoreRules(projectRoot, stageRoot);
 
     // The committed record of exactly what this install materialized, so any
@@ -358,6 +403,10 @@ export async function init(args: readonly string[]): Promise<void> {
     });
     await commitFileTransaction(projectRoot, prepared.mutations);
     line(`${c.green(glyph.check)}  ${c.dim('transaction'.padEnd(18))}${prepared.receipt.files.length} owned files committed + receipt written`);
+    // Now that the receipt exists, the block may name what it owns. Read from
+    // the receipt rather than the stage: the stage is what we meant to write,
+    // the receipt is what is on disk.
+    claimOwnedPaths(projectRoot, prepared.receipt.files.map((file) => file.path));
     // A preserved asset is one the previous install owned and this one refuses
     // to delete, because it was edited by hand. Saying nothing here is how a
     // renamed skill keeps loading beside its replacement under a clean success.
@@ -478,8 +527,31 @@ async function writeConfig(
   // must record every activated pack, never leave it absent (the fake-pack bug).
   const packPin = pin ?? `^${cliVersion()}`;
 
-  // --force OR first-time: write the full scaffold seeded with detected stack.
-  if (!existsSync(configPath) || opts.force) {
+  // Read before deciding: whether the config can be merged into is the fact the
+  // verdict turns on, and it is only knowable after parsing it.
+  const exists = existsSync(configPath);
+  let parsed: PackConfig | undefined;
+  if (exists) {
+    try {
+      parsed = JSON.parse(await readFile(configPath, 'utf8'));
+    } catch {
+      parsed = undefined;
+    }
+  }
+  const verdict = configWriteVerdict({ exists, readable: parsed !== undefined, force: opts.force });
+
+  if (verdict === 'keep-unreadable') {
+    line(`${c.yellow(glyph.up)}  ${c.dim('.void/config.json'.padEnd(18))}unreadable, leaving untouched (use --force to overwrite)`);
+    return;
+  }
+
+  if (verdict === 'scaffold' || verdict === 'overwrite-unreadable') {
+    // Named before the write, never after. This is the one path where --force
+    // replaces a file the project co-owns, and whatever paths or modes it had
+    // tuned are not recoverable from a config nothing could parse.
+    if (verdict === 'overwrite-unreadable') {
+      line(`${c.yellow(glyph.up)}  ${c.dim('.void/config.json'.padEnd(18))}overwriting unparseable config (--force); hand-tuned keys are lost`);
+    }
     const config = buildDefaultConfig(seed);
     for (const pack of packs) config.packs[`@voidcorp/${pack.name}`] = packPin;
     await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`);
@@ -487,15 +559,9 @@ async function writeConfig(
     return;
   }
 
-  // Existing config: merge in any newly-selected packs without touching the
-  // user's hand-tuned paths/commands/modes or existing pack pins.
-  let existing: PackConfig = {};
-  try {
-    existing = JSON.parse(await readFile(configPath, 'utf8'));
-  } catch {
-    line(`${c.yellow(glyph.up)}  ${c.dim('.void/config.json'.padEnd(18))}unreadable, leaving untouched (use --force to overwrite)`);
-    return;
-  }
+  // Merge in any newly-selected packs without touching the user's hand-tuned
+  // paths/commands/modes or existing pack pins.
+  const existing: PackConfig = parsed ?? {};
   const currentPacks = { ...(existing.packs ?? {}) };
   // A fresh remote pin wins; else the config's canonical pin; else this CLI's
   // version — an activated pack is always recorded with a valid version, never
@@ -547,7 +613,10 @@ async function writeConfig(
  * The `.gitignore` is edited in the STAGE, so removing the old block travels
  * through the same transaction as everything else and rolls back with it.
  */
-async function ensureIgnoreRules(projectRoot: string, stageRoot: string): Promise<void> {
+async function ensureIgnoreRules(
+  projectRoot: string,
+  stageRoot: string,
+): Promise<void> {
   const outcome = writeExcludeBlock(projectRoot);
   const label = outcome === 'skipped'
     ? c.dim('not a git repository, nothing to hide from it')
@@ -569,19 +638,63 @@ async function ensureIgnoreRules(projectRoot: string, stageRoot: string): Promis
 }
 
 /**
+ * Name the units the receipt owns, once the receipt is a fact.
+ *
+ * Silent: the block was already reported when it was written, and a second
+ * `git exclude` line for the same file would read as two different rules.
+ */
+function claimOwnedPaths(projectRoot: string, ownedPaths: readonly string[]): void {
+  writeExcludeBlock(projectRoot, ownedPaths);
+}
+
+export interface DoctrineInstallRoots {
+  /**
+   * The installation being written to, whose committed manifest attests what a
+   * previous install wrote. Absent means no attestation, which preserves.
+   */
+  readonly installationRoot?: string | undefined;
+  /**
+   * An installation whose philosophy is canonical rather than derived — the
+   * source repo, where `docs/PHILOSOPHY.md` is the original and the packaged
+   * copy is necessarily behind it.
+   */
+  readonly preserveFrom?: string | undefined;
+}
+
+/**
+ * Is the staged project doctrine still the untouched file we wrote last time?
+ *
+ * The project owns every line of it, so the answer is normally no and the file
+ * is preserved. Only exact equality with the manifest's record — proof nobody
+ * has written into it — licenses replacing it with the current template. An
+ * unreadable or absent manifest answers no: silence is not proof.
+ */
+function isUntouchedProjectDoctrine(installationRoot: string | undefined, staged: string): boolean {
+  if (installationRoot === undefined) return false;
+  const manifest = readInstallManifest(installationRoot);
+  if (manifest === undefined) return false;
+  try {
+    return isUntouchedSinceInstall(manifest, PROJECT_DOCTRINE_PATH, readFileSync(staged));
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Write the managed doctrine into the staged install.
  *
- * `preserveFrom` names an installation whose philosophy is canonical rather than
- * derived — the source repo, where `docs/PHILOSOPHY.md` is the original and the
- * packaged copy is necessarily behind it. Its own file is staged instead, so the
- * transaction rewrites it byte-for-byte rather than replacing it with an older
- * copy of itself.
+ * The philosophy is ours and is rewritten every time. The project doctrine is
+ * the project's and is preserved every time but one: a file still byte-for-byte
+ * the template an install wrote has never been used, and leaving it there makes
+ * every consumer who never filled it in carry an obsolete template into every
+ * session forever. See the decision on refreshing an untouched project doctrine.
  */
 export async function installDoctrineFiles(
   projectRoot: string,
   sourceRoot: string,
-  preserveFrom?: string,
+  roots: DoctrineInstallRoots = {},
 ): Promise<void> {
+  const { installationRoot, preserveFrom } = roots;
   const voidDir = join(projectRoot, '.void');
   await mkdir(voidDir, { recursive: true });
   const philosophySrc = join(sourceRoot, 'PHILOSOPHY.md');
@@ -603,10 +716,16 @@ export async function installDoctrineFiles(
   }
   const templateSrc = join(sourceRoot, 'PROJECT-DOCTRINE.template.md');
   const doctrineDst = join(voidDir, 'PROJECT-DOCTRINE.md');
-  if (existsSync(doctrineDst)) {
-    line(`${c.dim(glyph.dot)}  ${c.dim('PROJECT-DOCTRINE'.padEnd(18))}${c.dim('exists (preserved)')}`);
-  } else if (existsSync(templateSrc)) {
+  const label = c.dim('PROJECT-DOCTRINE'.padEnd(18));
+  const hasTemplate = existsSync(templateSrc);
+  if (!existsSync(doctrineDst)) {
+    if (!hasTemplate) return;
     await cp(templateSrc, doctrineDst);
-    line(`${c.green(glyph.check)}  ${c.dim('PROJECT-DOCTRINE'.padEnd(18))}created from template`);
+    line(`${c.green(glyph.check)}  ${label}created from template`);
+  } else if (hasTemplate && isUntouchedProjectDoctrine(installationRoot, doctrineDst)) {
+    await cp(templateSrc, doctrineDst);
+    line(`${c.green(glyph.check)}  ${label}refreshed (never filled in)`);
+  } else {
+    line(`${c.dim(glyph.dot)}  ${label}${c.dim('exists (preserved)')}`);
   }
 }

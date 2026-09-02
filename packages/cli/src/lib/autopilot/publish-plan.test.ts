@@ -109,12 +109,17 @@ describe('buildPublishPlan', () => {
     ]);
   });
 
+  // The body is rewritten because the run now opens its pull request at the
+  // first merged unit rather than at the end: it is already there when the
+  // account is ready, so without this the final report would never be
+  // published. What these two protect is that nothing opens a SECOND one.
   it('does not open a second pull request when one already tracks the branch', () => {
     const plan = buildPublishPlan(
       input({ existingPullRequest: { number: 42, headSha: SHA } }),
     );
 
-    expect(kinds(plan)).toEqual([]);
+    expect(kinds(plan)).not.toContain('create-pull-request');
+    expect(kinds(plan)).toEqual(['update-body']);
     expect(plan.pullRequest.number).toBe(42);
   });
 
@@ -124,7 +129,8 @@ describe('buildPublishPlan', () => {
       input({ existingPullRequest: { number: 42, headSha: OTHER_SHA } }),
     );
 
-    expect(kinds(plan)).toEqual(['push-branch']);
+    expect(kinds(plan)).not.toContain('create-pull-request');
+    expect(kinds(plan)).toEqual(['push-branch', 'update-body']);
     expect(plan.pullRequest.number).toBe(42);
   });
 
@@ -227,5 +233,60 @@ describe('accountCiRuns', () => {
 
   it('counts a first publication as one push', () => {
     expect(accountCiRuns({ expectedRunsPerPush: 1, pushes: 1, unknowns: [] }).total).toBe(1);
+  });
+});
+
+/**
+ * The draft exists to be READ, not to be merged.
+ *
+ * A run that publishes only at the end is unreadable while it runs, and the
+ * slice that made the cycle unattended is satisfied by a run that stalls
+ * silently at minute ten. So the first merged unit opens a draft, and its body
+ * is rewritten after every decision.
+ *
+ * That is why a draft does not wait for sealed proofs: it is a window, and
+ * refusing to open a window because the work is unfinished is exactly backwards.
+ * Nothing merges from it -- the merge grant still needs everything it needed.
+ */
+describe('the draft a run publishes while it works', () => {
+  it('opens even though the proofs are not sealed, because it is a window not a request', () => {
+    const plan = buildPublishPlan(
+      input({ draft: true, proofs: { schemaVersion: 1, statuses: [], missing: [['pnpm', 'test']], sealed: false } }),
+    );
+
+    expect(plan.blocked).toEqual([]);
+    const create = plan.steps.find((step) => step.kind === 'create-pull-request');
+    expect(create?.command).toContain('--draft');
+  });
+
+  it('rewrites the body of the draft it already opened, rather than opening another', () => {
+    const plan = buildPublishPlan(
+      input({ draft: true, existingPullRequest: { number: 42, headSha: 'c'.repeat(40) } }),
+    );
+
+    expect(plan.steps.some((step) => step.kind === 'create-pull-request')).toBe(false);
+    const update = plan.steps.find((step) => step.kind === 'update-body');
+    expect(update?.command.join(' ')).toContain('pr edit');
+    expect(update?.command).toContain('42');
+  });
+
+  // The direction that matters. A draft never becomes mergeable by accident:
+  // the final publication is the one that asks, and it still needs its proofs.
+  it('still refuses a final publication whose proofs are not sealed', () => {
+    const plan = buildPublishPlan(
+      input({ proofs: { schemaVersion: 1, statuses: [], missing: [['pnpm', 'test']], sealed: false } }),
+    );
+
+    expect(plan.steps).toEqual([]);
+    expect(plan.blocked[0]?.reason).toBe('proofs-not-sealed');
+  });
+
+  it('marks a draft ready when the run publishes for real', () => {
+    const plan = buildPublishPlan(
+      input({ existingPullRequest: { number: 42, headSha: 'c'.repeat(40), draft: true } }),
+    );
+
+    const ready = plan.steps.find((step) => step.kind === 'mark-ready');
+    expect(ready?.command.join(' ')).toContain('pr ready');
   });
 });

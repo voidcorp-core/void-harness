@@ -35,5 +35,8 @@
     "tdd": "auto",
     "codeReview": "auto"
   },
-  "core": "^2.5.1"
+  "core": "^3.5.0",
+  "context": {
+    "windowTokens": 1000000
+  }
 }

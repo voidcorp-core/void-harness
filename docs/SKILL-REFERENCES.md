@@ -29,7 +29,7 @@ target of a redirection, and a sibling test already asserts each one still ships
 | `void-functional` | `packages/hook-runner/src/enforcement/governing-skill.ts` |
 | `void-graph` | `apps/graph-studio/scripts/prepare-data.ts`<br>`apps/graph-studio/vite.config.ts`<br>`packages/cli/scripts/build-void-graph.ts`<br>`packages/cli/scripts/copy-core-assets.mjs`<br>`packages/cli/src/commands/graph.ts`<br>`packages/cli/src/lib/build-bundle.ts`<br>`packages/cli/src/lib/bundled-model.ts`<br>`packages/cli/src/lib/self-host/compile.ts`<br>`packages/cli/src/void-graph.ts`<br>`scripts/build-skill-references.mjs`<br>`scripts/derive.mjs`<br>`scripts/verify.mjs` |
 | `void-hexagonal-architecture` | `packages/hook-runner/src/enforcement/governing-skill.ts` |
-| `void-implement` | `packages/cli/src/lib/claude-md.ts` |
+| `void-implement` | `packages/cli/src/lib/autopilot/panel-proof.ts`<br>`packages/cli/src/lib/claude-md.ts` |
 | `void-learn` | `packages/cli/src/lib/claude-md.ts` |
 | `void-observability` | `packages/hook-runner/src/enforcement/governing-skill.ts` |
 | `void-security-guidance` | `packages/hook-runner/src/enforcement/governing-skill.ts` |
@@ -57,6 +57,7 @@ says which it is.
 | `void-init-stage` | scratch prefix for the isolated init stage |
 | `void-install-conformance` | conformance run label, `packages/cli/scripts/` |
 | `void-internal` | marker for sidecars a consumer never receives |
+| `void-journal-anchor` | reserved basename of a change-journal sentinel |
 | `void-last-event-id` | graph studio live-render cursor |
 | `void-layout` | module owning the void directory layout |
 | `void-migration` | name of the void layout migration check |

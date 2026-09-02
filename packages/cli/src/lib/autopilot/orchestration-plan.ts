@@ -13,10 +13,74 @@
 // `workerMayPush` and friends are in the plan on purpose. The prohibition is
 // stated in the artefact the adapter reads, not only in prose a prompt might
 // drop, so an adapter that honours the plan cannot grant what the plan denies.
+//
+// `sharedGitState` is there for the same reason and answers a subtler question:
+// a worktree isolates the working tree, the index and HEAD, and nothing else. It
+// does NOT isolate the repository's refs, so two workers running at once write
+// one `refs/stash` -- which is what happened on 2026-09-01, when one worker
+// popped the other's entry and each ended up holding the other's files. Stating
+// the class rather than the one command is deliberate: `git stash` is what bit,
+// but `git tag`, `git notes` and a repository-scoped `git config` land in the
+// same shared space, and a worker refused only `git stash` reaches for the
+// neighbour.
 
 import { autopilotFailure } from './errors.js';
 
 export type WorkerLane = 'parallel' | 'sequential';
+
+/**
+ * What `git worktree` does not isolate, and therefore what a worker may not write.
+ *
+ * Derived from the installed git documentation rather than from memory: the
+ * whole incident happened because worktree isolation was assumed to be total.
+ * git-worktree(1) REFS says all refs under `refs/` are shared except
+ * `refs/bisect`, `refs/worktree` and `refs/rewritten`, that pseudo refs such as
+ * HEAD are per-worktree, and CONFIGURATION FILE says the repository config is
+ * shared unless `extensions.worktreeConfig` is enabled. `git rev-parse
+ * --git-path` confirms each entry: a shared one resolves under the common
+ * directory, a per-worktree one under `worktrees/<id>/`.
+ */
+export interface SharedGitStateProhibition {
+  /** The class, so a neighbouring command is refused by the same rule. */
+  readonly rule: 'no-write-to-repository-shared-git-state';
+  /** Namespaces and files one repository keeps for every worktree at once. */
+  readonly shared: readonly string[];
+  /** The one shared ref a worker owns, because it is what it was created for. */
+  readonly exception: string;
+  /** Commands that write the above. Illustrative: the rule is the class. */
+  readonly examples: readonly string[];
+  /** What to do instead, since a worker denied a gesture reinvents it. */
+  readonly instead: readonly string[];
+  /** Where the list comes from, so a reader can re-derive it. */
+  readonly source: string;
+}
+
+const SHARED_GIT_STATE: SharedGitStateProhibition = Object.freeze({
+  rule: 'no-write-to-repository-shared-git-state',
+  shared: Object.freeze([
+    'refs/stash',
+    'refs/tags/*',
+    'refs/notes/*',
+    'refs/remotes/*',
+    'refs/heads/*',
+    'the repository config, $GIT_DIR/config',
+  ]),
+  exception: 'the branch named by the worker\'s own assignment, which is the whole point of it',
+  examples: Object.freeze([
+    'git stash, in any form: push, pop, apply, list, create, drop',
+    'git tag',
+    'git notes',
+    'git config at repository scope',
+    'git update-ref on any namespace above',
+  ]),
+  instead: Object.freeze([
+    'to set changes aside: git diff > a file inside your own worktree, then git apply it back',
+    'to split a commit: commit it on your own branch and amend or soft-reset it afterwards',
+  ]),
+  source:
+    'git-worktree(1), sections REFS and CONFIGURATION FILE, confirmed entry by entry with'
+    + ' git rev-parse --git-path',
+}) as SharedGitStateProhibition;
 
 export interface WorkerAssignment {
   readonly ticketId: string;
@@ -43,6 +107,8 @@ export interface OrchestrationPlan {
   readonly workerMayPush: false;
   readonly workerMayOpenPullRequest: false;
   readonly workerMayTransitionTicket: false;
+  readonly workerMayWriteSharedGitState: false;
+  readonly sharedGitState: SharedGitStateProhibition;
 }
 
 export interface OrchestrationInput {
@@ -172,5 +238,7 @@ export function buildOrchestrationPlan(input: OrchestrationInput): Orchestration
     workerMayPush: false,
     workerMayOpenPullRequest: false,
     workerMayTransitionTicket: false,
+    workerMayWriteSharedGitState: false,
+    sharedGitState: SHARED_GIT_STATE,
   };
 }

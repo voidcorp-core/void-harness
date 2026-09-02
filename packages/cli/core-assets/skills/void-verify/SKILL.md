@@ -63,7 +63,7 @@ The 12-item checklist verifies *the build works*. This verifies *you built what 
 - `DONE` / `PARTIAL` / `NOT DONE` / `CHANGED` (deliberately deviated) / `UNVERIFIABLE` (cannot be proven from the diff — cross-repo, external state, runtime-only).
 - **Honesty rule**: code that *handles* a deliverable is not the deliverable. "Added the webhook handler" ≠ "the webhook fires end-to-end."
 - **Per-item confirmation for `UNVERIFIABLE`**: surface each one individually and ask — never a single blanket "all done?" over a list you cannot actually verify.
-- **Scope drift**: did you build exactly what was asked? Flag creep ("while I was in there…") and any missing requirement. Informational, but stated.
+- **Scope drift**: did you build exactly what was asked? Name every piece of creep ("while I was in there…") and every missing requirement. **Creep is removed, or it carries one line in the commit saying why the change would be wrong without it.** This check was informational for its whole life and caught nothing: naming a creep and shipping it anyway satisfied it. Measured on 2026-08-31, in the session that hardened this very skill — a marker scaffold no gate had asked for, defensible, and nothing would have made anyone say so. Stop when the requirement is satisfied; the smallest sufficient change is the deliverable, not the floor.
 
 ---
 

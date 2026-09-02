@@ -451,6 +451,7 @@ edges:
   - { from: hook:no-as-cast-grep, to: skill:void-typescript-strict, kind: enforces, evidence: "no-as-cast-grep blocks `as Foo` casts — enforces typescript-strict (satisfies over as)" }
   - { from: hook:tsc-noemit-precommit, to: skill:void-typescript-strict, kind: enforces, evidence: "tsc-noemit-precommit gates on a clean typecheck — enforces typescript-strict" }
   - { from: hook:no-null-grep, to: skill:void-functional, kind: enforces, evidence: "no-null-grep prefers undefined/Option over null — enforces functional" }
+  - { from: hook:control-character-grep, to: skill:void-testing, kind: enforces, evidence: "control-character-grep refuses an invisible control byte in a source file — enforces testing's rule that a fixture needing one builds it rather than holding it literally" }
   - { from: hook:no-console-log-grep, to: skill:void-observability, kind: enforces, evidence: "no-console-log-grep bans console.log — enforces observability (use the logger)" }
   - { from: hook:no-only-no-skip, to: skill:void-testing, kind: enforces, evidence: "no-only-no-skip bans .only/.skip — enforces testing (no silently disabled tests)" }
   - { from: hook:test-name-lint, to: skill:void-testing, kind: enforces, evidence: "test-name-lint checks behavior-named tests — enforces testing" }
