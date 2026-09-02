@@ -1,38 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import type { OrchestrationPlan } from './orchestration-plan.js';
+import { buildOrchestrationPlan, type OrchestrationPlan } from './orchestration-plan.js';
 import { planWorktreeSetup, planWorktreeTeardown } from './worktree-lifecycle.js';
 
 const SHA = '2b0e24dc054cf4b7bde36d2e346db341f31501a5';
 
+// Built rather than written out: a literal drifts from the plan silently, and
+// what this file asserts is the lifecycle, not the plan's own shape.
 function plan(over: Partial<OrchestrationPlan> = {}): OrchestrationPlan {
   return {
-    schemaVersion: 1,
-    runId: 'run-a',
-    clusterId: 'cluster-1',
-    base: { branch: 'main', sha: SHA },
+    ...buildOrchestrationPlan({
+      runId: 'run-a',
+      clusterId: 'cluster-1',
+      base: { branch: 'main', sha: SHA },
+      parallel: ['DEV-1'],
+      sequential: ['DEV-2'],
+      clusterSize: 2,
+      planPath: 'plans/p.md',
+      specPath: 'docs/specs/s.md',
+    }),
     concurrency: 2,
-    assignments: [
-      {
-        ticketId: 'DEV-1',
-        branch: 'autopilot-worker/cluster-1/DEV-1',
-        worktreePath: '.void/autopilot/run-a/worktrees/DEV-1',
-        lane: 'parallel',
-        order: 0,
-      },
-      {
-        ticketId: 'DEV-2',
-        branch: 'autopilot-worker/cluster-1/DEV-2',
-        worktreePath: '.void/autopilot/run-a/worktrees/DEV-2',
-        lane: 'sequential',
-        order: 1,
-      },
-    ],
-    ticketRunnerSkill: 'implement',
-    planPath: 'plans/p.md',
-    specPath: 'docs/specs/s.md',
-    workerMayPush: false,
-    workerMayOpenPullRequest: false,
-    workerMayTransitionTicket: false,
     ...over,
   };
 }

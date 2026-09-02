@@ -60,6 +60,8 @@ import {
 } from '../lib/autopilot/verification-plan.js';
 import { buildOrchestrationPlan, type OrchestrationPlan } from '../lib/autopilot/orchestration-plan.js';
 import { resolveClusterOutcome, type ClusterOutcome, type WorkerFailure } from '../lib/autopilot/partial-success.js';
+import { normaliseArea } from '../lib/autopilot/footprint-area.js';
+import type { DeclaredFootprint } from '../lib/autopilot/footprint-audit.js';
 import { buildReconcilePlan, type ReconcilePlan, type VerifiedRange } from '../lib/autopilot/reconcile-plan.js';
 import { parseWorkerResult, type WorkerResult } from '../lib/autopilot/worker-result.js';
 import { orderWorkers, type OrderFootprint } from '../lib/autopilot/worker-order.js';
@@ -166,6 +168,71 @@ There is no --auto-merge flag. A machine merge is declared once in the program
 (autopilot.mergeGate: union-reviewed, plus deployBranch), and is granted only for
 a target that does not deploy and a union review that came back clean.
 `.trimStart();
+
+/**
+ * Every subcommand this CLI answers, and whether it reads an observation.
+ *
+ * There used to be two answers to that question. The router knew eighteen
+ * subcommands; the shell that fills stdin knew a hand-kept list of five, and
+ * `reconcile` was not on it. So the footprint audit -- the one gate that decides
+ * whether a worker's range carries a neighbour's files -- was handed an empty
+ * string and replied "the reconcile observation on stdin is not valid JSON" to
+ * valid JSON, for as long as the command has existed. Ten more steps were inert
+ * the same way: `orchestrate`, `verify`, `gate`, `publish`, `progress`,
+ * `grant`, `reserve`, `base`, `observe` and `lifecycle` all parse stdin and all
+ * received nothing. Only `scaffold` and `abort` genuinely read no pipe.
+ *
+ * A second list that has to be remembered is the defect, not the entry that was
+ * forgotten, so there is one list. The router refuses a name this table does not
+ * hold, and the pipe is filled for exactly the names it marks `reads-stdin`.
+ */
+export const SUBCOMMANDS = Object.freeze({
+  scaffold: 'no-stdin',
+  plan: 'reads-stdin',
+  chain: 'reads-stdin',
+  orchestrate: 'reads-stdin',
+  reconcile: 'reads-stdin',
+  verify: 'reads-stdin',
+  gate: 'reads-stdin',
+  publish: 'reads-stdin',
+  progress: 'reads-stdin',
+  grant: 'reads-stdin',
+  reserve: 'reads-stdin',
+  base: 'reads-stdin',
+  observe: 'reads-stdin',
+  lifecycle: 'reads-stdin',
+  start: 'reads-stdin',
+  status: 'reads-stdin',
+  resume: 'reads-stdin',
+  abort: 'no-stdin',
+} as const);
+
+export type AutopilotSubcommand = keyof typeof SUBCOMMANDS;
+
+/**
+ * The first bare word of argv, skipping the value `--run` consumed.
+ *
+ * Filtering on the argument's own index rather than on `indexOf`, which returns
+ * the FIRST occurrence: with the same word twice in argv the old form asked
+ * about the wrong position.
+ */
+function subcommandWord(argv: readonly string[]): string | undefined {
+  return argv.filter((arg, index) => !arg.startsWith('-') && argv[index - 1] !== '--run')[0];
+}
+
+/**
+ * Whether this invocation waits on a pipe.
+ *
+ * Resolved from the subcommand, never from "does any argument look like a step":
+ * `abort --run plan` names a run, and matching anywhere in argv made the shell
+ * wait on a pipe `abort` never reads.
+ */
+export function readsStdin(argv: readonly string[]): boolean {
+  if (argv.includes('--help') || argv.includes('-h')) return false;
+  const word = subcommandWord(argv);
+  if (word === undefined || !Object.hasOwn(SUBCOMMANDS, word)) return false;
+  return SUBCOMMANDS[word as AutopilotSubcommand] === 'reads-stdin';
+}
 
 function ok(stdout: string): AutopilotCommandResult {
   return { stdout, stderr: '', exitCode: 0 };
@@ -551,14 +618,52 @@ interface OrchestrationObservation {
 interface OrchestrationOutcome {
   readonly schemaVersion: 1;
   readonly plan: OrchestrationPlan;
+  /**
+   * What each ticket claimed, in one spelling, on the way out.
+   *
+   * Reconciliation needs these and cannot obtain them: it runs in a fresh
+   * context that never saw the orchestration observation. Asking it to "pass the
+   * footprints as they were given to orchestrate" asked it for something it does
+   * not have, and the most available way to produce a footprint list you lack is
+   * to derive it from the branch diff -- which makes the audit tautologically
+   * green. Emitting them makes the hand-off mechanical.
+   */
+  readonly footprints: readonly DeclaredFootprint[];
   /** Why each sequenced ticket lost its parallel slot. */
   readonly reasons: Readonly<Record<string, readonly string[]>>;
   readonly setup: readonly { readonly ticketId: string; readonly command: readonly string[] }[];
   readonly teardown: readonly { readonly ticketId: string; readonly command: readonly string[] }[];
 }
 
+/**
+ * A footprint for nobody, refused where the two lists are still side by side.
+ *
+ * `orderWorkers` reads footprints through a map keyed by ticket, so an entry
+ * naming no ticket of this run is never looked up and nothing here notices it.
+ * It survived instead all the way to `requireSymmetricDeclaration`, at the end
+ * of the run, whose refusal is strong and whose remedy names `cluster` -- "pass
+ * `cluster` as EVERY ticket the run reserved" -- which is the list that was
+ * right. One late run to point the operator at the wrong file.
+ *
+ * Only this direction is a fault. A ticket with no footprint is ordinary here:
+ * `orderWorkers` gives it `unknown-footprint` and a sequential lane, which is
+ * the conservative reading, not a contract failure.
+ */
+function requireFootprintsOfThisRun(observation: OrchestrationObservation): void {
+  const listed = new Set(observation.tickets);
+  const strays = [...new Set(observation.footprints.map((entry) => entry.id).filter((id) => !listed.has(id)))];
+  if (strays.length === 0) return;
+  throw autopilotFailure(
+    'AUTOPILOT_CONTRACT',
+    'this orchestration declares a footprint for a ticket it never listed',
+    `\`footprints\` names ${strays.join(', ')}, absent from \`tickets\``,
+    'drop the stray entry from `footprints`, or add the ticket to `tickets` if the run really did reserve it',
+  );
+}
+
 function orchestrateCommand(stdin: string, json: boolean): AutopilotCommandResult {
   const observation = parseStdin<OrchestrationObservation>(stdin, 'orchestration observation');
+  requireFootprintsOfThisRun(observation);
   const order = orderWorkers({
     tickets: observation.tickets,
     footprints: observation.footprints,
@@ -578,6 +683,12 @@ function orchestrateCommand(stdin: string, json: boolean): AutopilotCommandResul
   const outcome: OrchestrationOutcome = {
     schemaVersion: 1,
     plan,
+    // Normalised through the one reading, so ordering and the reconciliation
+    // audit cannot disagree about what an area claims.
+    footprints: observation.footprints.map((footprint) => ({
+      id: footprint.id,
+      areas: footprint.areas.map(normaliseArea),
+    })),
     reasons: order.reasons,
     setup: planWorktreeSetup(plan),
     teardown: planWorktreeTeardown(plan),
@@ -621,6 +732,8 @@ interface ReconcileObservation {
   readonly reconcileOnly?: readonly string[];
   readonly rebuildCommand?: readonly string[];
   readonly maxCommits?: number;
+  /** What every ticket of the cluster declared, as `orchestrate` received it. */
+  readonly footprints?: readonly DeclaredFootprint[];
 }
 
 /**
@@ -636,7 +749,7 @@ type ReconcileOutcome =
   | { readonly schemaVersion: 1; readonly outcome: ClusterOutcome };
 
 function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult {
-  const observation = parseStdin<ReconcileObservation>(stdin, 'reconcile observation');
+  const observation = parseStdin<ReconcileObservation>(stdin, 'reconcile observation', 'reconcile');
   // Parsed one by one so a malformed answer names its own ticket. A worker whose
   // result cannot be read is not an integration candidate, and pretending it is
   // one would merge a range nobody described.
@@ -658,6 +771,10 @@ function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult 
     cluster: observation.cluster,
     results: parsed,
     failures,
+    // The third list of this payload. `cluster` and `footprints` can be
+    // shortened together and stay consistent with each other; a range git was
+    // read for names a ticket that was in the run whatever those two say.
+    observed: observation.observations.map((entry) => entry.ticketId),
   });
 
   const observed = new Map(observation.observations.map((entry) => [entry.ticketId, entry]));
@@ -681,6 +798,7 @@ function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult 
       headSha: sighting?.headSha ?? '',
       verdict,
       files: result?.files ?? [],
+      ...(sighting?.observedFiles === undefined ? {} : { observedFiles: sighting.observedFiles }),
     };
   });
 
@@ -698,8 +816,10 @@ function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult 
   const plan = buildReconcilePlan({
     clusterId: observation.clusterId,
     base: observation.base,
+    cluster: observation.cluster,
     ranges,
     reconcileOnly: observation.reconcileOnly ?? [],
+    ...(observation.footprints === undefined ? {} : { footprints: observation.footprints }),
     ...(observation.rebuildCommand === undefined ? {} : { rebuildCommand: observation.rebuildCommand }),
   });
 
@@ -1270,6 +1390,26 @@ function abortCommand(
   return emit(json, release, `${human}\n`);
 }
 
+/**
+ * A name the table holds and nobody routed.
+ *
+ * The parameter is `never`, so the compiler proves the switch below exhaustive:
+ * adding an entry to `SUBCOMMANDS` without a case stops the build. The runtime
+ * half matters just as much. The router used to end in
+ * `default: return abortCommand(...)`, which meant an unrouted name did not
+ * fail -- it RELEASED THE LEASE on the whole cluster and exited 0. Adding
+ * `release: 'no-stdin'` to the table and routing it nowhere left the suite
+ * green and made `void-harness autopilot release` give the run back.
+ */
+function unroutedSubcommand(subcommand: never): never {
+  throw autopilotFailure(
+    'AUTOPILOT_CONTRACT',
+    'a subcommand this CLI declares is routed nowhere',
+    `\`${String(subcommand)}\` is listed in SUBCOMMANDS and has no handler`,
+    'route the subcommand in `runAutopilotCommand`, or drop it from SUBCOMMANDS; a name in the table that falls through is an action nobody asked for',
+  );
+}
+
 export function runAutopilotCommand(
   argv: readonly string[],
   stdin: string,
@@ -1292,8 +1432,8 @@ export function runAutopilotCommand(
     }
     if (argv.includes('--help') || argv.includes('-h')) return ok(USAGE);
 
-    const [subcommand] = argv.filter((arg) => !arg.startsWith('-') && argv[argv.indexOf(arg) - 1] !== '--run');
-    if (subcommand === undefined) {
+    const word = subcommandWord(argv);
+    if (word === undefined) {
       throw autopilotFailure(
         'AUTOPILOT_USAGE',
         'autopilot was invoked without a subcommand',
@@ -1301,6 +1441,15 @@ export function runAutopilotCommand(
         'run `void-harness autopilot plan` with the observation on stdin, or --help',
       );
     }
+    if (!Object.hasOwn(SUBCOMMANDS, word)) {
+      throw autopilotFailure(
+        'AUTOPILOT_USAGE',
+        `autopilot has no '${word}' subcommand`,
+        `known subcommands are ${Object.keys(SUBCOMMANDS).join(', ')}`,
+        'run `void-harness autopilot --help` for the full contract',
+      );
+    }
+    const subcommand: AutopilotSubcommand = word as AutopilotSubcommand;
 
     if (subcommand === 'plan') return planCommand(stdin, json);
     if (subcommand === 'orchestrate') return orchestrateCommand(stdin, json);
@@ -1330,15 +1479,7 @@ export function runAutopilotCommand(
       return scaffoldCommand(rest, json);
     }
 
-    const stateful = ['start', 'status', 'resume', 'abort'];
-    if (!stateful.includes(subcommand)) {
-      throw autopilotFailure(
-        'AUTOPILOT_USAGE',
-        `autopilot has no '${subcommand}' subcommand`,
-        `known subcommands are scaffold, plan, orchestrate, reconcile, verify, gate, publish, progress, grant, base, observe, reserve, lifecycle, chain, ${stateful.join(', ')}`,
-        'run `void-harness autopilot --help` for the full contract',
-      );
-    }
+    // What is left reads the local run cursor, so it needs a root and a clock.
     if (context === undefined) {
       throw autopilotFailure(
         'AUTOPILOT_CONTRACT',
@@ -1355,8 +1496,10 @@ export function runAutopilotCommand(
         return statusCommand(argv, stdin, json, context);
       case 'resume':
         return resumeCommand(argv, stdin, json, context);
-      default:
+      case 'abort':
         return abortCommand(argv, json, context);
+      default:
+        return unroutedSubcommand(subcommand);
     }
   } catch (error) {
     return fail(renderAutopilotFailure(toAutopilotFailure(error), json));
@@ -1371,12 +1514,13 @@ export function runAutopilotCommand(
  * propagates the exit code. Everything decidable stays on the other side of that
  * line, which is why the whole contract is testable without a process.
  *
- * stdin is read only for the subcommands that take it. `plan` without a pipe
- * would otherwise hang on a terminal, waiting for input nobody is going to type.
+ * stdin is read only for the subcommands that take it, and which those are is
+ * `SUBCOMMANDS` -- the same table the router refuses an unknown name from.
+ * `plan` without a pipe would otherwise hang on a terminal, waiting for input
+ * nobody is going to type.
  */
 export async function autopilot(argv: readonly string[]): Promise<void> {
-  const wantsStdin = argv.some((arg) => ['plan', 'chain', 'start', 'status', 'resume'].includes(arg));
-  const stdin = wantsStdin && !process.stdin.isTTY ? await readAllStdin() : '';
+  const stdin = readsStdin(argv) && !process.stdin.isTTY ? await readAllStdin() : '';
 
   const result = runAutopilotCommand(argv, stdin, {
     root: process.cwd(),

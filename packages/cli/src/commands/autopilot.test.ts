@@ -4,7 +4,12 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { RunState } from '../lib/autopilot/run-state.js';
 import { readRun, writeRun } from '../lib/autopilot/state-store.js';
-import { type AutopilotCommandContext, runAutopilotCommand } from './autopilot.js';
+import {
+  type AutopilotCommandContext,
+  readsStdin,
+  runAutopilotCommand,
+  SUBCOMMANDS,
+} from './autopilot.js';
 
 function observation(over: Record<string, unknown> = {}): string {
   return JSON.stringify({
@@ -333,6 +338,9 @@ ${enabled}  clusterSize: 2
       clusterId: 'cluster-1',
       base: { branch: 'develop', sha: SETUP_SHA },
       cluster: ['DEV-1'],
+      // Declared even when empty: the step refuses an observation that omits the
+      // field, so an audit cannot be turned off by leaving it out.
+      footprints: [],
       results: [workerResult()],
       failures: [],
       observations: [
@@ -383,6 +391,144 @@ ${enabled}  clusterSize: 2
     const emitted = JSON.parse(result.stdout);
     expect(emitted.plan.integrate).toEqual([]);
     expect(JSON.stringify(emitted.plan.excluded)).toMatch(/unverified-range|missing-commit|head-mismatch/);
+  });
+
+  // The whole reason this ticket exists: two worktrees share `refs/stash`, so a
+  // range can be perfectly linear and still carry the neighbour's files.
+  it('refuses a range carrying a file another ticket of the cluster declared', () => {
+    const result = runAutopilotCommand(
+      ['reconcile', '--json'],
+      reconciliation({
+        cluster: ['DEV-1', 'DEV-2'],
+        footprints: [
+          { id: 'DEV-1', areas: ['packages/cli/src'] },
+          { id: 'DEV-2', areas: ['packages/core/templates'] },
+        ],
+        observations: [
+          {
+            ticketId: 'DEV-1',
+            baseSha: SETUP_SHA,
+            headSha: `${A}1`,
+            commits: [{ sha: `${A}1`, parents: [SETUP_SHA] }],
+            observedFiles: ['packages/cli/src/x.ts', 'packages/core/templates/stolen.md'],
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    const emitted = JSON.parse(result.stdout);
+    expect(emitted.plan.integrate).toEqual([]);
+    expect(JSON.stringify(emitted.plan.excluded)).toContain('footprint-breach');
+    expect(JSON.stringify(emitted.plan.excluded)).toContain('packages/core/templates/stolen.md');
+    expect(JSON.stringify(emitted.plan.excluded)).toContain('DEV-2');
+  });
+
+  it('integrates a range that only widened into files nobody claimed', () => {
+    const result = runAutopilotCommand(
+      ['reconcile', '--json'],
+      reconciliation({
+        cluster: ['DEV-1', 'DEV-2'],
+        footprints: [
+          { id: 'DEV-1', areas: ['packages/cli/src/x.ts'] },
+          { id: 'DEV-2', areas: ['packages/core/templates'] },
+        ],
+        observations: [
+          {
+            ticketId: 'DEV-1',
+            baseSha: SETUP_SHA,
+            headSha: `${A}1`,
+            commits: [{ sha: `${A}1`, parents: [SETUP_SHA] }],
+            observedFiles: ['packages/cli/src/x.ts', 'packages/cli/src/neighbour.ts'],
+          },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    expect(JSON.parse(result.stdout).plan.integrate).toEqual(['DEV-1']);
+  });
+
+  it('refuses a range whose files git was never read for', () => {
+    const result = runAutopilotCommand(
+      ['reconcile', '--json'],
+      reconciliation({
+        cluster: ['DEV-1', 'DEV-2'],
+        footprints: [
+          { id: 'DEV-1', areas: ['packages/cli/src'] },
+          { id: 'DEV-2', areas: ['packages/core/templates'] },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    expect(JSON.stringify(JSON.parse(result.stdout).plan.excluded)).toContain('footprint-unobserved');
+  });
+
+  // The audit used to be gated on `footprints` being present, and what fed them
+  // in was a sentence in a prompt addressed to a sub-agent that had never seen
+  // them. The most available way to obtain a list you do not have is to derive
+  // it from the branch diff, which makes the audit tautologically green.
+  it('refuses to reconcile a cluster of several that declared no footprint', () => {
+    const result = runAutopilotCommand(
+      ['reconcile', '--json'],
+      reconciliation({ cluster: ['DEV-1', 'DEV-2'] }),
+      ctx(repo()),
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/footprint/i);
+    expect(result.stderr).toContain('DEV-2');
+  });
+
+  it('carries the footprints out of orchestrate, so reconcile is handed them rather than asked for them', () => {
+    const result = runAutopilotCommand(['orchestrate', '--json'], orchestration(), ctx(repo()));
+    const emitted = JSON.parse(result.stdout);
+
+    expect(emitted.footprints).toEqual([
+      { id: 'DEV-1', areas: ['packages/cli'] },
+      { id: 'DEV-2', areas: ['packages/core'] },
+    ]);
+  });
+
+  it('refuses a footprint for a ticket the orchestration never listed, naming the list at fault', () => {
+    // `orderWorkers` reads footprints through a map keyed by ticket, so an
+    // entry for nobody is simply never looked up: the over-long list travelled
+    // to the very end of the run, where `requireSymmetricDeclaration` refused
+    // it and told the operator to pass `cluster` as every ticket the run
+    // reserved -- the one list that was right. Refused here, the cost is the
+    // orchestration call rather than the whole run, and the finger points at
+    // the list that actually holds the stray entry.
+    const result = runAutopilotCommand(
+      ['orchestrate'],
+      orchestration({
+        footprints: [
+          { id: 'DEV-1', areas: ['packages/cli'], highRisk: false, confidence: 0.9, touchesMigration: false },
+          { id: 'DEV-2', areas: ['packages/core'], highRisk: false, confidence: 0.9, touchesMigration: false },
+          { id: 'DEV-9', areas: ['packages/harness-graph'], highRisk: false, confidence: 0.9, touchesMigration: false },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain('DEV-9');
+    expect(result.stderr).toMatch(/footprints/);
+  });
+
+  it('emits one spelling of each area, so ordering and reconciliation read the same list', () => {
+    const result = runAutopilotCommand(
+      ['orchestrate', '--json'],
+      orchestration({
+        footprints: [
+          { id: 'DEV-1', areas: ['./packages/cli/'], highRisk: false, confidence: 0.9, touchesMigration: false },
+          { id: 'DEV-2', areas: ['packages/core'], highRisk: false, confidence: 0.9, touchesMigration: false },
+        ],
+      }),
+      ctx(repo()),
+    );
+
+    expect(JSON.parse(result.stdout).footprints[0].areas).toEqual(['packages/cli']);
   });
 
   it('integrates nothing when every worker came back blocked', () => {
@@ -1094,5 +1240,116 @@ describe('cutover', () => {
   it('routes the canonical surface', () => {
     expect(mainSource).toContain("case 'autopilot':");
     expect(mainSource).toContain("from './commands/autopilot.js'");
+  });
+});
+
+/**
+ * One declaration of what a subcommand is, read by the router and by the pipe.
+ *
+ * The shell decided whether to read stdin from its own hand-kept list of five
+ * names. Eleven subcommands were missing from it, `reconcile` among them, so the
+ * footprint audit answered "not valid JSON" to valid JSON for as long as it has
+ * existed. The list also matched anywhere in argv rather than the subcommand, so
+ * `abort --run plan` read a pipe it never uses.
+ *
+ * The table below is now the single source: the router refuses what it does not
+ * hold, and the pipe reads exactly what it marks. These tests check the table
+ * against the handlers rather than against itself -- a table that agrees only
+ * with its own copy is the bug it replaced.
+ */
+describe('the stdin contract', () => {
+  const ROOT = mkdtempSync(join(tmpdir(), 'vh-autopilot-stdin-'));
+  const context: AutopilotCommandContext = { root: ROOT, now: '2026-07-29T12:00:00.000Z' };
+
+  // `status` and `resume` resolve the local cursor before they look at the pipe,
+  // and a clone with no run refuses for that reason instead. The cursor exists
+  // so the refusal under test is the one about the payload.
+  writeRun(ROOT, {
+    schemaVersion: 1,
+    runId: 'run-stdin',
+    clusterId: 'cluster-stdin',
+    programId: 'void-harness-v3',
+    startedAt: '2026-07-29T10:00:00.000Z',
+    base: { branch: 'main', sha: '2b0e24dc054cf4b7bde36d2e346db341f31501a5' },
+    tickets: [{ id: 'DEV-1', phase: 'pending', branch: null, commits: [], proofs: [], blocker: null }],
+    integration: { branch: null, headSha: null, prUrl: null, prState: 'none' },
+    trackerSynced: false,
+  });
+
+  const readers = Object.entries(SUBCOMMANDS)
+    .filter(([, kind]) => kind === 'reads-stdin')
+    .map(([name]) => name);
+  const silent = Object.entries(SUBCOMMANDS)
+    .filter(([, kind]) => kind !== 'reads-stdin')
+    .map(([name]) => name);
+
+  it.each(readers)('`%s` consumes the observation on stdin', (name) => {
+    // Not JSON on purpose: `status` tolerates an EMPTY pipe, so emptiness would
+    // prove nothing about whether the payload is read at all.
+    const result = runAutopilotCommand([name], 'not json', context);
+
+    expect(result.stderr).toMatch(/not valid JSON/);
+  });
+
+  it.each(silent)('`%s` ignores stdin entirely', (name) => {
+    const result = runAutopilotCommand([name], 'not json', context);
+
+    expect(result.stderr).not.toMatch(/not valid JSON/);
+  });
+
+  it('reads the pipe for every subcommand that consumes it', () => {
+    for (const name of readers) expect(readsStdin([name, '--json'])).toBe(true);
+  });
+
+  it('reads no pipe for a subcommand that never looks at one', () => {
+    for (const name of silent) expect(readsStdin([name])).toBe(false);
+  });
+
+  it('resolves the subcommand rather than scanning every argument', () => {
+    // `--run plan` names a run, not a step. Matching anywhere in argv made the
+    // shell wait on a pipe `abort` does not read.
+    expect(readsStdin(['abort', '--run', 'plan'])).toBe(false);
+    expect(readsStdin(['scaffold', 'reconcile'])).toBe(false);
+  });
+
+  it('reads no pipe for help or for a subcommand nobody routes', () => {
+    expect(readsStdin(['--help'])).toBe(false);
+    expect(readsStdin(['plan', '--help'])).toBe(false);
+    expect(readsStdin(['nonesuch'])).toBe(false);
+    expect(readsStdin([])).toBe(false);
+  });
+
+  it('names every subcommand it holds when one is unknown', () => {
+    const result = runAutopilotCommand(['nonesuch'], '', context);
+
+    for (const name of Object.keys(SUBCOMMANDS)) expect(result.stderr).toContain(name);
+  });
+
+  it('routes no name but `abort` to the lease release', () => {
+    // The router lost its refusal to a catch-all `default:`. A name added to the
+    // table and routed nowhere then fell through to `abortCommand` and RELEASED
+    // A LEASE, exit 0, with nothing red anywhere -- the same family of defect as
+    // an audit switched off by omission, inverted: an action nobody asked for
+    // rather than a check nobody ran. Every entry is routed today, so this
+    // reads the table against the handlers rather than against itself.
+    const others = Object.keys(SUBCOMMANDS).filter((name) => name !== 'abort');
+
+    for (const name of others) {
+      const result = runAutopilotCommand([name], '', context);
+
+      expect(result.stdout).not.toContain('release the lease on');
+    }
+    expect(runAutopilotCommand(['abort'], '', context).stdout).toContain('release the lease on');
+  });
+
+  it('resolves the subcommand at its own position when a word appears twice', () => {
+    // `indexOf` answers about the FIRST occurrence, so `--run reconcile
+    // reconcile` asked whether the run NAME was a subcommand. The filter is on
+    // the argument's own index, and this is the argv that tells the two apart:
+    // both spellings hold the word, only one holds it as the subcommand.
+    expect(readsStdin(['--run', 'reconcile', 'reconcile'])).toBe(true);
+    expect(readsStdin(['--run', 'reconcile', 'abort'])).toBe(false);
+    expect(readsStdin(['--run', 'abort', 'abort'])).toBe(false);
+    expect(readsStdin(['--run', 'abort', 'reconcile'])).toBe(true);
   });
 });

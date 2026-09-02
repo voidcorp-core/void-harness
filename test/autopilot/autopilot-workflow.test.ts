@@ -76,6 +76,10 @@ function answers(over: Record<string, unknown> = {}): Record<string, unknown> {
         planPath: 'plans/p.md',
         specPath: 'docs/specs/s.md',
       },
+      footprints: [
+        { id: 'DEV-1', areas: ['packages/cli/src'] },
+        { id: 'DEV-2', areas: ['packages/core/skills'] },
+      ],
       reasons: {},
       setup: [{ ticketId: 'DEV-1', command: ['git', 'worktree', 'add'] }],
       teardown: [{ ticketId: 'DEV-1', command: ['git', 'worktree', 'remove'] }],
@@ -230,6 +234,70 @@ describe('the autopilot cycle is a script', () => {
     expect(worker).toMatch(/must NOT: push/);
     expect(worker).toMatch(/In Review or Done/);
     expect(worker).toContain('void-implement');
+  });
+
+  // Two workers in two worktrees share one `refs/stash`, and on 2026-09-01 they
+  // popped each other's entries. The brief carries the class, not the command.
+  it('forbids the worker every ref the repository shares, even when the plan omits the record', async () => {
+    const { calls } = await runWorkflow(configuration());
+    const worker = calls.find((call) => call.label.startsWith('ticket:'))?.prompt ?? '';
+
+    expect(worker).toMatch(/shares across its worktrees/);
+    expect(worker).toContain('refs/stash');
+    expect(worker).toMatch(/git diff/);
+  });
+
+  it('renders the prohibition the plan carries, rather than restating one of its own', async () => {
+    const orchestrate = answers().orchestrate as { plan: Record<string, unknown> };
+    const { calls } = await runWorkflow(
+      configuration(),
+      answers({
+        orchestrate: {
+          ...orchestrate,
+          plan: {
+            ...orchestrate.plan,
+            workerMayWriteSharedGitState: false,
+            sharedGitState: {
+              rule: 'no-write-to-repository-shared-git-state',
+              shared: ['refs/stash', 'refs/notes/*'],
+              exception: 'the branch named by the worker own assignment',
+              examples: ['git stash, in any form'],
+              instead: ['git diff > a file inside your own worktree'],
+              source: 'git-worktree(1), sections REFS and CONFIGURATION FILE',
+            },
+          },
+        },
+      }),
+    );
+    const worker = calls.find((call) => call.label.startsWith('ticket:'))?.prompt ?? '';
+
+    expect(worker).toContain('refs/notes/*');
+    expect(worker).toContain('git-worktree(1)');
+    expect(worker).toMatch(/class, not a list of banned commands/);
+  });
+
+  // What gated the audit was a prompt sentence -- "pass the footprints exactly
+  // as they were given to orchestrate" -- addressed to a fresh sub-agent that
+  // had never seen them. The script holds them, so it passes them.
+  it('hands reconcile the footprints and the cluster orchestrate returned', async () => {
+    const { calls } = await runWorkflow(configuration());
+    const reconcile = calls.find((call) => call.label === 'step:reconcile')?.prompt ?? '';
+
+    expect(reconcile).toContain('"id":"DEV-1","areas":["packages/cli/src"]');
+    expect(reconcile).toContain('["DEV-1","DEV-2"]');
+    // Never an instruction to reconstruct them: a list derived from the branch
+    // diff makes the audit green about the diff it was derived from.
+    expect(reconcile).not.toMatch(/as they were given to orchestrate/i);
+  });
+
+  it('passes on an empty declaration rather than inventing one, and the step refuses it', async () => {
+    const orchestrate = answers().orchestrate as Record<string, unknown>;
+    const { footprints: _none, ...withoutFootprints } = orchestrate;
+    const { calls } = await runWorkflow(configuration(), answers({ orchestrate: withoutFootprints }));
+    const reconcile = calls.find((call) => call.label === 'step:reconcile')?.prompt ?? '';
+
+    expect(reconcile).toContain('[]');
+    expect(reconcile).not.toContain('"areas"');
   });
 
   it('stops before claiming anything when the base is not provably protected', async () => {

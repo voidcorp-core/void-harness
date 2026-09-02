@@ -82,17 +82,59 @@ describe('resolveClusterOutcome', () => {
     ]);
   });
 
-  it('never integrates a result for a ticket outside the cluster', () => {
-    // A runtime that hallucinates a ticket id must not smuggle a branch in.
-    const outcome = resolveClusterOutcome(input({ results: [completed('A'), completed('Z')] }));
+  // Dropped in silence until 2026-09-01, with the good intention above: a
+  // runtime that hallucinates a ticket id must not smuggle a branch into the
+  // merge. Read from the other end it is the same contradiction the reconcile
+  // step refuses between `cluster` and `footprints` -- and the direction the
+  // drop hid is the dangerous one. Shorten `cluster` and `footprints` together
+  // to the tickets that came back, consistently, and the footprint audit sees
+  // one ticket where the run reserved two; `results` still holds the second,
+  // and nobody read it. A refusal covers both readings, and the hallucinated id
+  // still never merges: nothing does.
+  it('refuses a result for a ticket the cluster says it never reserved', () => {
+    expect(() => resolveClusterOutcome(input({ results: [completed('A'), completed('Z')] })))
+      .toThrow(/Z/);
+  });
 
-    expect(outcome.integrate).toEqual(['A']);
-    expect(outcome.excluded).toContainEqual({
-      ticketId: 'B',
-      reason: 'no-result',
-      detail: 'the worker returned no result',
-    });
-    expect(outcome.preservedBranches).not.toContain('autopilot-worker/cluster-1/Z');
+  it('refuses an unreadable result for a ticket outside the cluster', () => {
+    expect(() =>
+      resolveClusterOutcome(
+        input({ failures: [{ ticketId: 'Z', detail: 'the answer was not JSON' }] }),
+      ),
+    ).toThrow(/Z/);
+  });
+
+  it('refuses a range git was observed for that the cluster never held', () => {
+    // The third list of the same payload. A run that observed DEV-2's branch
+    // observed it because DEV-2 was in the run.
+    expect(() => resolveClusterOutcome(input({ observed: ['A', 'B', 'Z'] }))).toThrow(/Z/);
+  });
+
+  it('accepts an observation list that covers only part of the cluster', () => {
+    // Fewer observations than tickets is ordinary: a blocked worker has no
+    // range to read. More is the contradiction.
+    const outcome = resolveClusterOutcome(input({ observed: ['A'] }));
+
+    expect(outcome.integrate).toEqual(['A', 'B']);
+  });
+
+  it('names every contradicting ticket, once, whichever list carried it', () => {
+    let message = '';
+    try {
+      resolveClusterOutcome(
+        input({
+          results: [completed('A'), completed('Y')],
+          failures: [{ ticketId: 'Y', detail: 'twice over' }],
+          observed: ['Z'],
+        }),
+      );
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+
+    // `\b` because the fix line says EVERY, and a bare /Y/ counts that too.
+    expect(message.match(/\bY\b/g)).toHaveLength(1);
+    expect(message.match(/\bZ\b/g)).toHaveLength(1);
   });
 
   it('integrates in the cluster order, not in the order results arrived', () => {

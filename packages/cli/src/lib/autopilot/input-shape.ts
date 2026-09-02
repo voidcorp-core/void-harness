@@ -14,7 +14,7 @@
 import { autopilotFailure } from './errors.js';
 import { MARKER_BEGIN, MARKER_END } from './linear-marker.js';
 
-export type AutopilotInputStep = 'plan' | 'start' | 'status' | 'chain';
+export type AutopilotInputStep = 'plan' | 'start' | 'status' | 'chain' | 'reconcile';
 
 type FieldType = 'string' | 'number' | 'boolean' | 'array' | 'object';
 
@@ -64,7 +64,10 @@ export const INPUT_SHAPES: Readonly<Record<AutopilotInputStep, InputShape>> = Ob
       {
         name: 'footprints',
         type: 'array',
-        from: 'the paths each ticket names as its anchors; `confidence` is yours to state',
+        from: 'the paths each ticket names as its anchors, at least one -- a ticket whose'
+          + ' `areas` is empty is excluded as `missing-footprint`, because autopilot routes on'
+          + ' footprints and no later step can protect ground nobody named; `confidence` is'
+          + ' yours to state',
         example: [{
           id: 'DEV-1',
           areas: ['packages/cli/src/lib/example.ts'],
@@ -209,6 +212,63 @@ export const INPUT_SHAPES: Readonly<Record<AutopilotInputStep, InputShape>> = Ob
         from: '`progress.order` filtered to units that are not done, INCLUDING the ones this run'
           + ' already merged -- the step subtracts them itself',
         example: ['DEV-1', 'DEV-2'],
+      },
+    ],
+  },
+  reconcile: {
+    what: 'reconcile observation',
+    fields: [
+      {
+        name: 'clusterId',
+        type: 'string',
+        from: 'the cluster id this run reserved; it names the integration branch',
+        example: 'cluster-example',
+      },
+      {
+        name: 'base',
+        type: 'object',
+        from: '`{ branch, sha }` for the base every worker built on; sha is the full 40 chars',
+        example: { branch: 'develop', sha: SHA },
+      },
+      {
+        name: 'cluster',
+        type: 'array',
+        from: 'EVERY ticket the run reserved, not only those that came back. A blocked ticket'
+          + ' still holds its claim, and it is usually the one whose work got absorbed. Shrinking'
+          + ' this list no longer disarms the audit: a `footprints` entry naming a ticket absent'
+          + ' from here is refused, because the two lists then contradict each other',
+        example: ['DEV-1'],
+      },
+      {
+        name: 'results',
+        type: 'array',
+        from: 'each `WorkerResult` verbatim; an unreadable one is a failure for its ticket,'
+          + ' never a reason to guess what it meant',
+        example: [],
+      },
+      {
+        name: 'observations',
+        type: 'array',
+        from: 'what GIT holds between the base and each head: `git log --format=\'%H %P\''
+          + ' base..head` for `commits`, and `git diff --name-only base..head` for'
+          + ' `observedFiles`. A worker\'s own lists are claims, not observations',
+        example: [{
+          ticketId: 'DEV-1',
+          baseSha: SHA,
+          headSha: SHA,
+          commits: [{ sha: SHA, parents: [SHA] }],
+          observedFiles: ['packages/cli/src/example.ts'],
+        }],
+      },
+      {
+        name: 'footprints',
+        type: 'array',
+        from: 'the `footprints` `orchestrate` returned, verbatim. A cluster of more than one'
+          + ' ticket is refused without them: the audit cannot be skipped by omitting them,'
+          + ' and a list re-derived here would only ever agree with the diff it came from.'
+          + ' Each entry names one ticket of `cluster` and declares at least one area; an'
+          + ' `areas: []` reads as no declaration at all, so it is refused the same way',
+        example: [{ id: 'DEV-1', areas: ['packages/cli/src/lib/example.ts'] }],
       },
     ],
   },

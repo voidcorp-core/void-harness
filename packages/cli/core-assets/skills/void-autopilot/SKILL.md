@@ -93,9 +93,14 @@ learn a shape, stop and run the scaffold instead -- that is the whole reason it 
 **For `plan`.** Read `.void/program.md` once: `progress.order` is the pool, `progress.states`
 tells ready from done. Fetch every unit in that order that is not done. `ready` is its state in
 `states.ready`; `blockedByOpen` is true when any native blocker is not done -- read the relation,
-never the prose. `footprints.areas` are the paths the ticket names as its anchors; `highRisk` is
-a guard, a migration, a lockfile or a published contract; `confidence` is your own statement
-about how well you know the footprint, and a low one is what shrinks the cluster on purpose.
+never the prose. `footprints.areas` are the paths the ticket names as its anchors, **at least
+one**: a ticket whose `areas` is empty is excluded as `missing-footprint`, exactly like one the
+estimator never produced. Autopilot routes on footprints, so a ticket naming no ground gives it
+nothing to route on, and reconciliation cannot protect ground nobody named -- admitting it only
+moved the refusal to the last step of the run, after both workers had finished. Run that ticket
+through `void-implement` directly, or name its areas. `highRisk` is a guard, a migration, a
+lockfile or a published contract; `confidence` is your own statement about how well you know the
+footprint, and a low one is what shrinks the cluster on purpose.
 
 **For `start`.** Render the marker with `scaffold marker`, fill it, and post it as a comment on
 **every** ticket in the cluster before claiming any of them. Then claim each one. Then re-read
@@ -126,8 +131,8 @@ mechanism.
 | `base` | which branch this run integrates into, and whether it is really protected | the protection could not be read — an unauthenticated `gh` and an open branch look identical |
 | `chain` | take another unit, or stop | the budget cannot cover one, the base is red, or nobody verified it |
 | `reserve` | may this run take the cluster | someone else holds it, or the observation is unusable |
-| `orchestrate` | lanes, assignments, and the git commands that make the worktrees | a base sha that is not a commit |
-| `reconcile` | which ranges merge, as commands | a head the worker claims that git does not have |
+| `orchestrate` | lanes, assignments, and the git commands that make the worktrees | a base sha that is not a commit, or a footprint declared for a ticket absent from `tickets` |
+| `reconcile` | which ranges merge, as commands | a head the worker claims that git does not have, a range holding a file another ticket declared, or a payload whose cluster, declarations, results and observed ranges do not describe the same run |
 | `verify` | the suite that decides the merge, bounded | — |
 | `gate` | did the proofs run on THIS tree, did the panel speak first, did the unit stay in its ceilings | any of them unproven; absence of a record is absence of the act |
 | `publish` | one branch, one refspec, one pull request, and the body that carries the account | the proofs are not sealed |
@@ -137,8 +142,13 @@ mechanism.
 | `observe` | what each boundary actually answered | — |
 
 Every step takes its observation on stdin and answers with `--json`. Run
-`void-harness autopilot scaffold <step>` for the exact shape and where each field comes from:
-the scaffold IS the contract, so it cannot drift from the validator.
+`void-harness autopilot scaffold` with no step to list the ones it covers, and
+`void-harness autopilot scaffold <step>` for the exact shape and where each field comes from. For
+those steps the scaffold IS the contract, and cannot drift from it: a test pipes every scaffold
+back through its own validator. Five steps carry one today -- `plan`, `chain`, `start`, `status`
+and `reconcile`. The others are documented by their own refusal, which names the field it wanted
+and where to obtain it; a step whose refusal can stop a run is worth a scaffold, and the ones
+without are a gap rather than a decision.
 
 ### What the order guarantees
 
@@ -155,6 +165,92 @@ tests hold this file to them.
 - **A migration is never parallel**, whatever its estimate says, and neither is a low-confidence
   footprint, a lockfile or a shared-ownership path. `orchestrate` sequences what it cannot prove
   disjoint, and names why each ticket lost its parallel slot.
+
+### What a worktree does not isolate
+
+A worktree isolates the working tree, the index and `HEAD`. It does **not** isolate the
+repository's refs: `refs/stash`, `refs/tags/*`, `refs/notes/*`, `refs/remotes/*`, `refs/heads/*`
+and the repository config are one namespace for every worktree at once. On 2026-09-01 two workers
+each ran `git stash push` to split a commit, and the second `pop` took the first worker's entry:
+each ended up holding the other's files.
+
+So the plan denies the **class** -- writing anything the repository shares -- and not one command.
+A worker refused `git stash` alone reaches for `git tag`, or `git update-ref`, and lands in the
+same shared space. The one exception is the branch its own assignment names, which is what it was
+created to write. `orchestrate` carries the list, the exception, the commands that break it, the
+replacement gesture and the git documentation it was derived from, so the brief renders the
+prohibition from the plan instead of restating it.
+
+**The replacement gesture**, because a worker denied one reinvents it: to set changes aside,
+`git diff > a file inside your own worktree` and `git apply` it back; to split a commit, commit it
+on your own branch and amend or soft-reset afterwards. Both stay inside the worktree.
+
+Any pre-existing stash entry belongs to whoever left it. A run never lists, pops or cleans the
+stack, and never counts what is on it as residue of its own. An overwritten entry is not lost
+either: its commit becomes unreachable rather than collected, so an incident report gives the sha
+and the command that recovers it.
+
+### A range carries only what its ticket claimed
+
+`reconcile` proves ancestry -- the range is linear, descends from the base, matches the declared
+commits. That says nothing about **whose** files are in it, and two disjoint footprints merge
+without a conflict either way, so contamination reaches the pull request unnoticed. The audit
+answers the second question, against `git diff --name-only` and never against the worker's own
+list: a claim cannot clear a range of carrying somebody else's work, and a range git was never
+read for is excluded as `footprint-unobserved`.
+
+What it refuses is narrow on purpose. A file **another ticket of the cluster declared** is a
+breach: nothing legitimate produces it. A file nobody predicted is a widening, and it passes --
+a ticket that enumerates from the manifests finds the packages its author missed, and a guard that
+refuses that discovery is a guard that hides defects. A file **two tickets both reach** passes too,
+and not only when they spelled it the same way: `packages/**/*.test.ts` and `packages/core/b` both
+reach `packages/core/b/x.test.ts`, neither declaration is more specific than the other, so both
+were entitled. A **carve-out** does not: `packages/core` claims `packages/core/b/x.ts` by prefix,
+but a neighbour declaring `packages/core/b` drew a boundary rather than repeated one, so the wider
+ticket writing there is a breach. Owning the file no longer ends the question -- it used to, and
+the carved-out file then came back within-scope with an empty widening, invisible rather than
+merely permitted. Sequencing does not compensate for theft: two sequential workers still hold two
+worktrees on the same base, and it addresses lockfiles and migrations. What it does buy is the tie:
+a pair the audit will read as jointly entitled is a pair **ordering has sequenced**, which is why
+ordering separates two areas only when no file can lie in both, never merely when neither names the
+other. A `reconcileOnly` path is not judged, since the reconciler strips and rebuilds it anyway.
+
+**The audit cannot be off.** A cluster of more than one ticket that reaches `reconcile` without a
+declaration covering every one of them is refused outright, and so is a range whose observed file
+list is missing, empty, or not the list of paths git produces. An audit that could be skipped by
+omitting a field produced an empty `excluded` byte for byte identical to a clean one, so nobody
+could tell audited-and-clean from never-audited. The declaration is not re-derived either:
+`orchestrate` returns the footprints it ordered on, and the script hands them to `reconcile` -- a
+list reconstructed from the branch diff would only ever agree with the diff it came from. A cluster
+of one is not audited, because there is no other ticket to rob.
+
+**And it cannot be off by shrinking a list either.** `cluster`, `footprints`, `results`,
+`failures` and the ranges git was read for must all describe the same run. Shortening `cluster` and
+`footprints` TOGETHER leaves two lists that agree with each other and an audit armed for one ticket
+where the run reserved two, so the neighbour whose file was absorbed is not there to be robbed. The
+check therefore runs in every direction: a cluster ticket nobody declared, a declaration for a
+ticket the cluster says it never reserved, and a result, a failure or an observed range naming a
+ticket absent from `cluster` are each a refusal. Passing the tickets that CAME BACK rather than the
+ones the run reserved is the cheapest way to disarm the guard, and the proof of that
+under-declaration always sits in the same payload as the under-declaration. An `areas: []` entry
+counts as no declaration at all: nothing can be stolen from a ticket that claims nothing, so every
+neighbour walks into its ground reported as a widening. That refusal is a **backstop** for a
+hand-built cluster, not the place the case is meant to be caught -- `plan` excludes such a ticket
+before any worker starts, because a refusal at reconciliation arrives after the whole run is paid
+for and leaves no legal move: inventing the area is the tautology the audit exists to forbid, and
+shrinking `cluster` is refused as soon as the ticket returned a result. If you reach it anyway,
+declare the areas and plan again -- and read the whole diff of every range yourself before any of
+it merges, because an entitlement nobody declared cannot be recovered from the range under
+suspicion. The refusal used to offer instead: reconcile each range as its own cluster of one,
+"exactly the coverage a ticket claiming nothing ever had". It is not. The maximum severity an
+undeclared ticket gets exists only because a neighbour sits in the same cluster to be robbed; a
+cluster of one audits nothing, so that split turns the audit off for every ticket of the cluster,
+the ones that did declare included.
+
+Areas are read in one spelling. `packages/core/templates/`, `./packages/core/templates` and
+`packages/core/templates` are the same area, and an area that claims nothing after that reading --
+empty, absolute, or carrying an empty or dot segment such as `packages//core` or `../x` -- is
+refused rather than silently matching no file.
 
 ### Reading a run while it happens
 
@@ -241,8 +337,11 @@ May: run every `void-implement` pass whose predicate fires, run its own targeted
 migration **in dev/local only**, and commit a bisectable range.
 
 May not: push, open or update a pull request, merge anything, move the ticket to In Review or
-Done, or touch a file the plan marks `reconcileOnly`. These are denied in the orchestration
-plan itself, not only in the prompt, so an adapter that honours the plan cannot grant them.
+Done, touch a file the plan marks `reconcileOnly`, or write anything the repository shares across
+its worktrees — `refs/stash`, tags, notes, remotes, any branch but its own, the repository config.
+These are denied in the orchestration plan itself, not only in the prompt, so an adapter that
+honours the plan cannot grant them; both adapters render them from the plan, and a test holds each
+`workerMay…` field to appearing in both.
 
 ---
 

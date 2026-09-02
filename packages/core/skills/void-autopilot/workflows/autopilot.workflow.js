@@ -147,6 +147,57 @@ const WORKER_RESULT_SCHEMA = {
   },
 }
 
+/**
+ * The refusals, read off the plan rather than written here.
+ *
+ * They used to be a sentence in this function, which made the plan's
+ * `workerMayPush` fields decorative: the prompt would have said the same thing
+ * had they been true. Rendering them means a prohibition the plan carries
+ * reaches the worker, and one it drops disappears from the brief too.
+ */
+function prohibitions(plan) {
+  // Fail closed: only an explicit `true` grants. A plan that lost a field, or
+  // an older one that never had it, must not read as permission -- an absent
+  // refusal is exactly the silence this whole run treats as denial elsewhere.
+  const denied = [
+    plan.workerMayPush !== true && 'push',
+    plan.workerMayOpenPullRequest !== true && 'open or update a pull request',
+    plan.workerMayTransitionTicket !== true && 'merge anything, or move the ticket to In Review or Done',
+  ].filter(Boolean)
+  const lines = [`You must NOT: ${denied.join(', ')}. Stop at a committed branch.`]
+
+  if (plan.workerMayWriteSharedGitState === true) return lines
+
+  const shared = plan.sharedGitState
+  if (!shared) {
+    // The plan carried no record. Still refuse, in one sentence, rather than
+    // hand a worker a brief that says nothing about the shared stack.
+    lines.push(
+      '',
+      'You must NOT write anything the repository shares across its worktrees: refs/stash, tags,',
+      'notes, remotes, any branch other than your own, the repository config. A worktree isolates',
+      'the working tree, the index and HEAD, and nothing else. To set changes aside, write',
+      'git diff > a file inside your own worktree and apply it back.',
+    )
+    return lines
+  }
+
+  lines.push(
+    '',
+    'You must NOT write anything the repository shares across its worktrees. A worktree',
+    'isolates the working tree, the index and HEAD, and nothing else — the entries below are one',
+    'namespace for the whole repository, so a second worker in a second worktree writes the',
+    'same ones you do, and each of you can silently take the other\'s work:',
+    ...shared.shared.map((entry) => `  - ${entry}`),
+    `The only exception is ${shared.exception}.`,
+    `This is a class, not a list of banned commands. Among the commands that break it: ${shared.examples.join('; ')}.`,
+    'Instead:',
+    ...shared.instead.map((entry) => `  - ${entry}`),
+    `Source: ${shared.source}.`,
+  )
+  return lines
+}
+
 function workerPrompt(assignment, plan) {
   return [
     `Work ticket ${assignment.ticketId} to completion by running the ${plan.ticketRunnerSkill} skill, whole and once.`,
@@ -161,8 +212,9 @@ function workerPrompt(assignment, plan) {
     'Run every implement pass whose predicate fires. Run your own targeted gates, not the',
     'whole cluster suite. Apply a migration only against the dev/local database.',
     '',
-    'You must NOT: push, open or update a pull request, merge anything, or move the ticket to',
-    'In Review or Done. Stop at a committed branch. The reconciler owns everything after that.',
+    ...prohibitions(plan),
+    'The reconciler owns everything after that, and it refuses a range that touches a file',
+    'another ticket of this cluster declared. Commit the paths your ticket owns, explicitly.',
     '',
     'Return the WorkerResult object. Commits must be full 40-character ids, in order, and the',
     'head must be the last of them. Every proof carries the argv that ran and a sha256 of its',
@@ -322,7 +374,17 @@ while (true) {
     await step(
       'reconcile',
       'the worker answers and, for each branch, what git actually holds between the base and the head',
-      `Pass results verbatim: ${JSON.stringify(results).slice(0, 200)}… and observe each range with \`git log --format='%H %P' base..head\`. Observe, never trust the worker's own commit list.`,
+      [
+        `Pass results verbatim: ${JSON.stringify(results).slice(0, 200)}…`,
+        `Pass cluster: ${JSON.stringify(orchestration.plan.assignments.map((a) => a.ticketId))}.`,
+        // Handed over, never re-derived. This step runs in a fresh context that
+        // never saw the orchestration observation, and the most available way to
+        // produce a footprint list you do not have is to read it off the branch
+        // diff -- which makes the audit green about the diff it came from.
+        `Pass footprints: ${JSON.stringify(orchestration.footprints ?? [])} — verbatim, and add nothing to them.`,
+        `Observe each range with \`git log --format='%H %P' base..head\` plus \`git diff --name-only base..head\` as \`observedFiles\`.`,
+        `Observe, never trust the worker's own commit list or file list. The audit refuses a range holding a file another ticket of the cluster declared.`,
+      ].join('\n'),
       'Reconcile',
     ),
     'the reconciliation',

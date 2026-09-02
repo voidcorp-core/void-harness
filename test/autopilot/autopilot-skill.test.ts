@@ -90,6 +90,15 @@ describe('remote effects are denied to workers', () => {
     expect(mayNot).toMatch(/In Review/i);
   });
 
+  // The section that added the shared-ref prohibition sat 130 lines above this
+  // list and left it untouched. A canonical list that stops being canonical is
+  // the version a reader trusts.
+  it('carries every prohibition in the one list a reader treats as canonical', () => {
+    const mayNot = flat(/May not:([\s\S]*?)\n\n/.exec(body(SKILL))?.[1] ?? '');
+    expect(mayNot).toMatch(/shares across its worktrees/i);
+    expect(mayNot).toMatch(/refs\/stash/);
+  });
+
   it('keeps the merge a declaration, never a flag', () => {
     expect(body(SKILL)).toMatch(/never merges/i);
     expect(body(SKILL)).toMatch(/mergeGate: human/);

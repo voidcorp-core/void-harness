@@ -74,6 +74,22 @@ describe('a refused payload names the field', () => {
     expect(() => validateAgainstShape({ ...plan, extra: 1 }, 'plan'))
       .not.toThrow();
   });
+  // The skill says the scaffold IS the contract. `reconcile` had none, which is
+  // how a step whose refusal now stops a run stayed undocumented: its footprints
+  // arrived from a prompt sentence rather than from a declared field.
+  it('declares the reconcile observation, since reconcile refuses on its contents', () => {
+    const scaffold = scaffoldFor('reconcile') as Record<string, unknown>;
+
+    expect(Object.keys(scaffold)).toEqual(
+      expect.arrayContaining(['clusterId', 'base', 'cluster', 'results', 'observations', 'footprints']),
+    );
+  });
+
+  it('names the cluster in a reconcile observation that omits it', () => {
+    const { cluster: _missing, ...withoutCluster } = scaffoldFor('reconcile') as Record<string, unknown>;
+
+    expect(() => validateAgainstShape(withoutCluster, 'reconcile')).toThrow(/cluster/);
+  });
 });
 
 describe('the lease marker is obtainable without reading source', () => {
