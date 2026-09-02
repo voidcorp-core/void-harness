@@ -27,7 +27,7 @@ import { type ObservedPathObservation, observedWriteCandidates } from '../lib/ob
 import { type DiscoveredAsset, looksHarnessAuthored, orphanedAssets } from '../lib/orphaned-assets.js';
 import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../lib/packs.js';
 import { cliVersion, findCoreSource } from '../lib/paths.js';
-import { remedyPrefix, resolveProjectRoots } from '../lib/project-roots.js';
+import { installedPath, remedyPrefix, resolveProjectRoots } from '../lib/project-roots.js';
 import { type CheckResult, checkEnforceWorkflow, checkGh } from '../lib/prerequisites.js';
 import { readInstallReceipt } from '../lib/receipts.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
@@ -98,8 +98,11 @@ export async function doctor(args: readonly string[]): Promise<void> {
   // it ran in, doctor read a healthy repository as an absent install (DEV-732).
   const roots = resolveProjectRoots();
   const root = roots.installRoot;
-  // Every remedy below is a command that acts on the directory it is typed in,
-  // so from a worktree it names the installation (see `remedyPrefix`).
+  // One rule, no exception: everything printed below about the installation
+  // names it when the two roots differ. A remedy carries `remedyPrefix`, a path
+  // goes through `installedPath`, and whether the named command would resolve
+  // the root by itself is not part of the test -- that exception is what left
+  // `doctor --fix` with two answers (DEV-768).
   const where = remedyPrefix(roots);
 
   // The source repository is judged where it stands: self-host compares the
@@ -403,7 +406,10 @@ export async function doctor(args: readonly string[]): Promise<void> {
       line(
         conformance.blocked === undefined
           ? c.dim('nothing to repair')
-          : c.yellow(`${glyph.to} ${conformance.blocked}`),
+          // `--fix` judges and repairs `installRoot`, so what blocks it is the
+          // state of THAT tree. Printed bare from a worktree, it told a reader
+          // standing in a clean tree that their tree was dirty.
+          : c.yellow(`${glyph.to} ${where}${conformance.blocked}`),
       );
     } else {
       for (const ruleId of conformance.repairable) {
@@ -413,7 +419,12 @@ export async function doctor(args: readonly string[]): Promise<void> {
         line(
           `${dryRun ? c.dim('would write') : c.green('wrote')}  ${c.dim(rule.id.padEnd(18))} ${String(applied.written.length)} file(s)`,
         );
-        for (const path of applied.written.slice(0, 5)) line(c.dim(`     ${path}`));
+        // Project-relative by contract (`conformance/rule.ts`), and read against
+        // the directory the reader typed the command in: named in full when
+        // that is not the directory being written to.
+        for (const path of applied.written.slice(0, 5)) {
+          line(c.dim(`     ${installedPath(roots, path)}`));
+        }
         if (applied.written.length > 5) {
           line(c.dim(`     ... ${String(applied.written.length - 5)} more`));
         }
