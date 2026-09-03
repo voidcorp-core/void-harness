@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:a21abfba641811ee8f631538cb6a40d2efe38d0307f11c56339a3b08c738f917"
+    "rootHash": "sha256:067121d902710e43f28d8eb47c3aa7b012a6fcdd653fadb4af7ae2d95e797b8a"
   },
   "nodes": [
     {
@@ -5125,7 +5125,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-ticket/SKILL.md",
-          "staticTokens": 3245,
+          "staticTokens": 3276,
           "type": "skill"
         }
       },
