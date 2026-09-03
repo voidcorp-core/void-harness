@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:067121d902710e43f28d8eb47c3aa7b012a6fcdd653fadb4af7ae2d95e797b8a"
+    "rootHash": "sha256:03eed5374e51cf5650764bacbaf6ca5ed1210de5cd22897ea7ddc370020fb1af"
   },
   "nodes": [
     {
@@ -16,7 +16,7 @@
         "legacy": {
           "description": "Reviews applicable WCAG 2.2 AA semantics, keyboard and focus behavior, names, contrast, targets, errors, and assistive evidence.",
           "id": "agent:accessibility-specialist",
-          "lines": 60,
+          "lines": 59,
           "name": "accessibility-specialist",
           "pack": null,
           "source": "packages/core/agents/accessibility-specialist.md",
@@ -44,7 +44,7 @@
         "legacy": {
           "description": "Reviews public API and integration contracts for compatibility, validation, failure semantics, idempotency, and operability.",
           "id": "agent:api-integration-engineer",
-          "lines": 60,
+          "lines": 59,
           "name": "api-integration-engineer",
           "pack": null,
           "source": "packages/core/agents/api-integration-engineer.md",
@@ -72,7 +72,7 @@
         "legacy": {
           "description": "Read-only mapper of an unfamiliar codebase. Returns a compact structured map — entrypoints, main flows, dependencies, where things live. Does not judge or fix. Protects the main context window.",
           "id": "agent:code-explorer",
-          "lines": 95,
+          "lines": 94,
           "name": "code-explorer",
           "pack": null,
           "source": "packages/core/agents/code-explorer.md",
@@ -100,7 +100,7 @@
         "legacy": {
           "description": "Reviews persistent schema changes, compatibility, backfills, locking, rollback, and production migration evidence.",
           "id": "agent:data-migration-engineer",
-          "lines": 60,
+          "lines": 59,
           "name": "data-migration-engineer",
           "pack": null,
           "source": "packages/core/agents/data-migration-engineer.md",
@@ -128,7 +128,7 @@
         "legacy": {
           "description": "Reviews developer-facing APIs, CLI, SDK, docs, onboarding, errors, examples, upgrades, and measured time to first success.",
           "id": "agent:devex-docs-engineer",
-          "lines": 58,
+          "lines": 57,
           "name": "devex-docs-engineer",
           "pack": null,
           "source": "packages/core/agents/devex-docs-engineer.md",
@@ -156,7 +156,7 @@
         "legacy": {
           "description": "Judges a diff against VoidCorp doctrine that hooks/reviewers miss: weak tests, over-abstraction, broken boundaries, anti-bloat. Read-only; routes security to security-audit, bugs to /void-code-review.",
           "id": "agent:doctrine-critic",
-          "lines": 92,
+          "lines": 91,
           "name": "doctrine-critic",
           "pack": null,
           "source": "packages/core/agents/doctrine-critic.md",
@@ -184,7 +184,7 @@
         "legacy": {
           "description": "Reviews domain language, bounded contexts, aggregates, invariants, and translation boundaries without choosing infrastructure.",
           "id": "agent:domain-architect",
-          "lines": 57,
+          "lines": 56,
           "name": "domain-architect",
           "pack": null,
           "source": "packages/core/agents/domain-architect.md",
@@ -212,7 +212,7 @@
         "legacy": {
           "description": "Produces a build-ready UX brief from product intent, states, responsive needs, and accessibility constraints before UI implementation.",
           "id": "agent:experience-designer",
-          "lines": 60,
+          "lines": 59,
           "name": "experience-designer",
           "pack": null,
           "source": "packages/core/agents/experience-designer.md",
@@ -240,7 +240,7 @@
         "legacy": {
           "description": "Reviews frontend implementation structure, state modeling, responsive behavior, rendering boundaries, and design-system composition.",
           "id": "agent:frontend-engineer",
-          "lines": 61,
+          "lines": 60,
           "name": "frontend-engineer",
           "pack": null,
           "source": "packages/core/agents/frontend-engineer.md",
@@ -268,7 +268,7 @@
         "legacy": {
           "description": "Performs an independent diff review for correctness, maintainability, boundary compliance, and evidence-backed release blockers.",
           "id": "agent:independent-code-reviewer",
-          "lines": 58,
+          "lines": 57,
           "name": "independent-code-reviewer",
           "pack": null,
           "source": "packages/core/agents/independent-code-reviewer.md",
@@ -296,7 +296,7 @@
         "legacy": {
           "description": "Read-only planner producing a sequenced, reversible migration plan (expand-contract, two-phase). Planning only, never execution. Complements migrations; routes execution to tdd/plan.",
           "id": "agent:migration-planner",
-          "lines": 98,
+          "lines": 97,
           "name": "migration-planner",
           "pack": null,
           "source": "packages/core/agents/migration-planner.md",
@@ -324,7 +324,7 @@
         "legacy": {
           "description": "Reviews runtime reliability, telemetry, SLOs, failure containment, capacity, recovery, and actionable operational evidence.",
           "id": "agent:observability-sre-engineer",
-          "lines": 60,
+          "lines": 59,
           "name": "observability-sre-engineer",
           "pack": null,
           "source": "packages/core/agents/observability-sre-engineer.md",
@@ -352,7 +352,7 @@
         "legacy": {
           "description": "Reviews PDF inputs or deliverables for safe handling, faithful rendering, pagination, accessibility, and artifact evidence.",
           "id": "agent:pdf-specialist",
-          "lines": 59,
+          "lines": 58,
           "name": "pdf-specialist",
           "pack": null,
           "source": "packages/core/agents/pdf-specialist.md",
@@ -380,7 +380,7 @@
         "legacy": {
           "description": "Reviews measured latency, throughput, memory, bundle, query, and cost budgets against representative workloads.",
           "id": "agent:performance-engineer",
-          "lines": 59,
+          "lines": 58,
           "name": "performance-engineer",
           "pack": null,
           "source": "packages/core/agents/performance-engineer.md",
@@ -408,7 +408,7 @@
         "legacy": {
           "description": "Challenges product value, user outcome, scope, and acceptance criteria before implementation without inventing strategy.",
           "id": "agent:product-challenger",
-          "lines": 56,
+          "lines": 55,
           "name": "product-challenger",
           "pack": null,
           "source": "packages/core/agents/product-challenger.md",
@@ -436,7 +436,7 @@
         "legacy": {
           "description": "Reviews concrete trust boundaries and exploitable security risk without editing or attacking systems.",
           "id": "agent:security-engineer",
-          "lines": 67,
+          "lines": 66,
           "name": "security-engineer",
           "pack": null,
           "source": "packages/core/agents/security-engineer.md",
@@ -464,7 +464,7 @@
         "legacy": {
           "description": "Read-only hunter for silent failures only — empty catches, swallowed errors, un-awaited promises, ignored return codes, .catch(()=>{}). Not a general review. Routes bugs to /void-code-review.",
           "id": "agent:silent-failure-hunter",
-          "lines": 95,
+          "lines": 94,
           "name": "silent-failure-hunter",
           "pack": null,
           "source": "packages/core/agents/silent-failure-hunter.md",
@@ -492,7 +492,7 @@
         "legacy": {
           "description": "Reviews architecture boundaries, trade-offs, and reversibility without editing the project.",
           "id": "agent:solution-architect",
-          "lines": 58,
+          "lines": 57,
           "name": "solution-architect",
           "pack": null,
           "source": "packages/core/agents/solution-architect.md",
@@ -520,7 +520,7 @@
         "legacy": {
           "description": "Reviews behavioral coverage, failure paths, and release evidence without editing the project.",
           "id": "agent:test-qa-engineer",
-          "lines": 61,
+          "lines": 60,
           "name": "test-qa-engineer",
           "pack": null,
           "source": "packages/core/agents/test-qa-engineer.md",
@@ -548,7 +548,7 @@
         "legacy": {
           "description": "Read-only judge of TYPE DESIGN only — illegal states representable, primitive obsession, missing discriminated unions, leaky boundary types. Not a general review. Routes bugs to /void-code-review.",
           "id": "agent:type-design-analyzer",
-          "lines": 94,
+          "lines": 93,
           "name": "type-design-analyzer",
           "pack": null,
           "source": "packages/core/agents/type-design-analyzer.md",
@@ -576,7 +576,7 @@
         "legacy": {
           "description": "Independently reviews rendered UI craft, responsive states, accessibility, and current-diff visual evidence after implementation.",
           "id": "agent:visual-craft-director",
-          "lines": 63,
+          "lines": 62,
           "name": "visual-craft-director",
           "pack": null,
           "source": "packages/core/agents/visual-craft-director.md",
@@ -604,7 +604,7 @@
         "legacy": {
           "description": "",
           "id": "hook:activation-meter",
-          "lines": 14,
+          "lines": 13,
           "name": "activation-meter",
           "pack": null,
           "source": "packages/core/hooks/activation-meter.sh",
@@ -632,7 +632,7 @@
         "legacy": {
           "description": "",
           "id": "hook:anti-ai-slop-grep",
-          "lines": 39,
+          "lines": 38,
           "name": "anti-ai-slop-grep",
           "pack": null,
           "source": "packages/core/hooks/anti-ai-slop-grep.sh",
@@ -660,7 +660,7 @@
         "legacy": {
           "description": "",
           "id": "hook:auto-format",
-          "lines": 10,
+          "lines": 9,
           "name": "auto-format",
           "pack": null,
           "source": "packages/core/hooks/auto-format.sh",
@@ -688,7 +688,7 @@
         "legacy": {
           "description": "",
           "id": "hook:axe-precommit",
-          "lines": 36,
+          "lines": 35,
           "name": "axe-precommit",
           "pack": null,
           "source": "packages/core/hooks/axe-precommit.sh",
@@ -716,7 +716,7 @@
         "legacy": {
           "description": "",
           "id": "hook:block-dangerous-bash",
-          "lines": 11,
+          "lines": 10,
           "name": "block-dangerous-bash",
           "pack": null,
           "source": "packages/core/hooks/block-dangerous-bash.sh",
@@ -744,7 +744,7 @@
         "legacy": {
           "description": "",
           "id": "hook:block-protected-push",
-          "lines": 82,
+          "lines": 81,
           "name": "block-protected-push",
           "pack": null,
           "source": "packages/core/hooks/block-protected-push.sh",
@@ -772,7 +772,7 @@
         "legacy": {
           "description": "",
           "id": "hook:boundary-direction-check",
-          "lines": 11,
+          "lines": 10,
           "name": "boundary-direction-check",
           "pack": null,
           "source": "packages/core/hooks/boundary-direction-check.sh",
@@ -800,7 +800,7 @@
         "legacy": {
           "description": "",
           "id": "hook:control-character-grep",
-          "lines": 11,
+          "lines": 10,
           "name": "control-character-grep",
           "pack": null,
           "source": "packages/core/hooks/control-character-grep.sh",
@@ -828,7 +828,7 @@
         "legacy": {
           "description": "",
           "id": "hook:large-cl-grep",
-          "lines": 10,
+          "lines": 9,
           "name": "large-cl-grep",
           "pack": null,
           "source": "packages/core/hooks/large-cl-grep.sh",
@@ -856,7 +856,7 @@
         "legacy": {
           "description": "",
           "id": "hook:llm-cost-precommit",
-          "lines": 56,
+          "lines": 55,
           "name": "llm-cost-precommit",
           "pack": null,
           "source": "packages/core/hooks/llm-cost-precommit.sh",
@@ -884,7 +884,7 @@
         "legacy": {
           "description": "",
           "id": "hook:migration-lint",
-          "lines": 59,
+          "lines": 58,
           "name": "migration-lint",
           "pack": null,
           "source": "packages/core/hooks/migration-lint.sh",
@@ -912,7 +912,7 @@
         "legacy": {
           "description": "",
           "id": "hook:migration-pr-template",
-          "lines": 56,
+          "lines": 55,
           "name": "migration-pr-template",
           "pack": null,
           "source": "packages/core/hooks/migration-pr-template.sh",
@@ -940,7 +940,7 @@
         "legacy": {
           "description": "",
           "id": "hook:no-ai-design-slop",
-          "lines": 11,
+          "lines": 10,
           "name": "no-ai-design-slop",
           "pack": null,
           "source": "packages/core/hooks/no-ai-design-slop.sh",
@@ -968,7 +968,7 @@
         "legacy": {
           "description": "",
           "id": "hook:no-any-grep",
-          "lines": 11,
+          "lines": 10,
           "name": "no-any-grep",
           "pack": null,
           "source": "packages/core/hooks/no-any-grep.sh",
@@ -996,7 +996,7 @@
         "legacy": {
           "description": "",
           "id": "hook:no-as-cast-grep",
-          "lines": 11,
+          "lines": 10,
           "name": "no-as-cast-grep",
           "pack": null,
           "source": "packages/core/hooks/no-as-cast-grep.sh",
@@ -1024,7 +1024,7 @@
         "legacy": {
           "description": "",
           "id": "hook:no-console-log-grep",
-          "lines": 11,
+          "lines": 10,
           "name": "no-console-log-grep",
           "pack": null,
           "source": "packages/core/hooks/no-console-log-grep.sh",
@@ -1052,7 +1052,7 @@
         "legacy": {
           "description": "",
           "id": "hook:no-null-grep",
-          "lines": 11,
+          "lines": 10,
           "name": "no-null-grep",
           "pack": null,
           "source": "packages/core/hooks/no-null-grep.sh",
@@ -1080,7 +1080,7 @@
         "legacy": {
           "description": "",
           "id": "hook:no-only-no-skip",
-          "lines": 11,
+          "lines": 10,
           "name": "no-only-no-skip",
           "pack": null,
           "source": "packages/core/hooks/no-only-no-skip.sh",
@@ -1108,7 +1108,7 @@
         "legacy": {
           "description": "",
           "id": "hook:outcome-meter",
-          "lines": 14,
+          "lines": 13,
           "name": "outcome-meter",
           "pack": null,
           "source": "packages/core/hooks/outcome-meter.sh",
@@ -1136,7 +1136,7 @@
         "legacy": {
           "description": "",
           "id": "hook:pre-PR-review-evidence",
-          "lines": 48,
+          "lines": 47,
           "name": "pre-PR-review-evidence",
           "pack": null,
           "source": "packages/core/hooks/pre-PR-review-evidence.sh",
@@ -1164,7 +1164,7 @@
         "legacy": {
           "description": "",
           "id": "hook:protect-sensitive-files",
-          "lines": 11,
+          "lines": 10,
           "name": "protect-sensitive-files",
           "pack": null,
           "source": "packages/core/hooks/protect-sensitive-files.sh",
@@ -1192,7 +1192,7 @@
         "legacy": {
           "description": "",
           "id": "hook:refactor-named-grep",
-          "lines": 50,
+          "lines": 49,
           "name": "refactor-named-grep",
           "pack": null,
           "source": "packages/core/hooks/refactor-named-grep.sh",
@@ -1220,7 +1220,7 @@
         "legacy": {
           "description": "",
           "id": "hook:secret-in-content",
-          "lines": 11,
+          "lines": 10,
           "name": "secret-in-content",
           "pack": null,
           "source": "packages/core/hooks/secret-in-content.sh",
@@ -1248,7 +1248,7 @@
         "legacy": {
           "description": "",
           "id": "hook:sessionstart-context",
-          "lines": 10,
+          "lines": 9,
           "name": "sessionstart-context",
           "pack": null,
           "source": "packages/core/hooks/sessionstart-context.sh",
@@ -1276,7 +1276,7 @@
         "legacy": {
           "description": "",
           "id": "hook:stop-typecheck",
-          "lines": 10,
+          "lines": 9,
           "name": "stop-typecheck",
           "pack": null,
           "source": "packages/core/hooks/stop-typecheck.sh",
@@ -1304,7 +1304,7 @@
         "legacy": {
           "description": "",
           "id": "hook:tdd-guard",
-          "lines": 11,
+          "lines": 10,
           "name": "tdd-guard",
           "pack": null,
           "source": "packages/core/hooks/tdd-guard.sh",
@@ -1332,7 +1332,7 @@
         "legacy": {
           "description": "",
           "id": "hook:test-name-lint",
-          "lines": 11,
+          "lines": 10,
           "name": "test-name-lint",
           "pack": null,
           "source": "packages/core/hooks/test-name-lint.sh",
@@ -1360,7 +1360,7 @@
         "legacy": {
           "description": "",
           "id": "hook:tidying-commit-prefix",
-          "lines": 38,
+          "lines": 37,
           "name": "tidying-commit-prefix",
           "pack": null,
           "source": "packages/core/hooks/tidying-commit-prefix.sh",
@@ -1388,7 +1388,7 @@
         "legacy": {
           "description": "",
           "id": "hook:trim-large-output",
-          "lines": 10,
+          "lines": 9,
           "name": "trim-large-output",
           "pack": null,
           "source": "packages/core/hooks/trim-large-output.sh",
@@ -1416,7 +1416,7 @@
         "legacy": {
           "description": "",
           "id": "hook:tsc-noemit-precommit",
-          "lines": 23,
+          "lines": 22,
           "name": "tsc-noemit-precommit",
           "pack": null,
           "source": "packages/core/hooks/tsc-noemit-precommit.sh",
@@ -1444,7 +1444,7 @@
         "legacy": {
           "description": "",
           "id": "hook:ubiquitous-language-lint",
-          "lines": 59,
+          "lines": 58,
           "name": "ubiquitous-language-lint",
           "pack": null,
           "source": "packages/core/hooks/ubiquitous-language-lint.sh",
@@ -1472,7 +1472,7 @@
         "legacy": {
           "description": "",
           "id": "hook:viewport-screenshot-gate",
-          "lines": 49,
+          "lines": 48,
           "name": "viewport-screenshot-gate",
           "pack": null,
           "source": "packages/core/hooks/viewport-screenshot-gate.sh",
@@ -1668,7 +1668,7 @@
         "legacy": {
           "description": "",
           "id": "profile:base",
-          "lines": 30,
+          "lines": 29,
           "name": "base",
           "pack": null,
           "source": "packages/core/profiles/base.yaml",
@@ -1696,7 +1696,7 @@
         "legacy": {
           "description": "",
           "id": "profile:expo",
-          "lines": 46,
+          "lines": 45,
           "name": "expo",
           "pack": null,
           "source": "packages/core/profiles/expo.yaml",
@@ -1724,7 +1724,7 @@
         "legacy": {
           "description": "",
           "id": "profile:monorepo",
-          "lines": 35,
+          "lines": 34,
           "name": "monorepo",
           "pack": null,
           "source": "packages/core/profiles/monorepo.yaml",
@@ -1752,7 +1752,7 @@
         "legacy": {
           "description": "",
           "id": "profile:nextjs",
-          "lines": 41,
+          "lines": 40,
           "name": "nextjs",
           "pack": null,
           "source": "packages/core/profiles/nextjs.yaml",
@@ -1780,7 +1780,7 @@
         "legacy": {
           "description": "",
           "id": "profile:node-server",
-          "lines": 33,
+          "lines": 32,
           "name": "node-server",
           "pack": null,
           "source": "packages/core/profiles/node-server.yaml",
@@ -1808,7 +1808,7 @@
         "legacy": {
           "description": "",
           "id": "profile:pwa",
-          "lines": 35,
+          "lines": 34,
           "name": "pwa",
           "pack": null,
           "source": "packages/core/profiles/pwa.yaml",
@@ -1836,7 +1836,7 @@
         "legacy": {
           "description": "",
           "id": "profile:react",
-          "lines": 41,
+          "lines": 40,
           "name": "react",
           "pack": null,
           "source": "packages/core/profiles/react.yaml",
@@ -1864,7 +1864,7 @@
         "legacy": {
           "description": "",
           "id": "profile:sql",
-          "lines": 43,
+          "lines": 42,
           "name": "sql",
           "pack": null,
           "source": "packages/core/profiles/sql.yaml",
@@ -1892,7 +1892,7 @@
         "legacy": {
           "description": "",
           "id": "profile:typescript",
-          "lines": 41,
+          "lines": 40,
           "name": "typescript",
           "pack": null,
           "source": "packages/core/profiles/typescript.yaml",
@@ -1935,7 +1935,7 @@
             }
           ],
           "id": "skill:pack-mobile/void-eas-build-profile",
-          "lines": 165,
+          "lines": 164,
           "name": "void-eas-build-profile",
           "owner": "folpe",
           "pack": "pack-mobile",
@@ -1983,7 +1983,7 @@
             }
           ],
           "id": "skill:pack-mobile/void-expo-config-plugins",
-          "lines": 179,
+          "lines": 178,
           "name": "void-expo-config-plugins",
           "owner": "folpe",
           "pack": "pack-mobile",
@@ -2031,7 +2031,7 @@
             }
           ],
           "id": "skill:pack-mobile/void-expo-router-pattern",
-          "lines": 210,
+          "lines": 209,
           "name": "void-expo-router-pattern",
           "owner": "folpe",
           "pack": "pack-mobile",
@@ -2079,7 +2079,7 @@
             }
           ],
           "id": "skill:pack-mobile/void-ota-update-strategy",
-          "lines": 195,
+          "lines": 194,
           "name": "void-ota-update-strategy",
           "owner": "folpe",
           "pack": "pack-mobile",
@@ -2127,7 +2127,7 @@
             }
           ],
           "id": "skill:pack-monorepo/void-dependency-direction",
-          "lines": 161,
+          "lines": 160,
           "name": "void-dependency-direction",
           "owner": "folpe",
           "pack": "pack-monorepo",
@@ -2175,7 +2175,7 @@
             }
           ],
           "id": "skill:pack-monorepo/void-package-extraction",
-          "lines": 71,
+          "lines": 70,
           "name": "void-package-extraction",
           "owner": "folpe",
           "pack": "pack-monorepo",
@@ -2223,7 +2223,7 @@
             }
           ],
           "id": "skill:pack-monorepo/void-service-package",
-          "lines": 123,
+          "lines": 122,
           "name": "void-service-package",
           "owner": "folpe",
           "pack": "pack-monorepo",
@@ -2271,7 +2271,7 @@
             }
           ],
           "id": "skill:pack-monorepo/void-turbo-pipeline-tuning",
-          "lines": 117,
+          "lines": 116,
           "name": "void-turbo-pipeline-tuning",
           "owner": "folpe",
           "pack": "pack-monorepo",
@@ -2319,7 +2319,7 @@
             }
           ],
           "id": "skill:pack-nextjs/void-cache-component-pattern",
-          "lines": 163,
+          "lines": 162,
           "name": "void-cache-component-pattern",
           "owner": "folpe",
           "pack": "pack-nextjs",
@@ -2367,7 +2367,7 @@
             }
           ],
           "id": "skill:pack-nextjs/void-instrumentation-setup",
-          "lines": 162,
+          "lines": 161,
           "name": "void-instrumentation-setup",
           "owner": "folpe",
           "pack": "pack-nextjs",
@@ -2415,7 +2415,7 @@
             }
           ],
           "id": "skill:pack-nextjs/void-loading-error-boundaries",
-          "lines": 177,
+          "lines": 176,
           "name": "void-loading-error-boundaries",
           "owner": "folpe",
           "pack": "pack-nextjs",
@@ -2463,7 +2463,7 @@
             }
           ],
           "id": "skill:pack-nextjs/void-parallel-routes-slots",
-          "lines": 130,
+          "lines": 129,
           "name": "void-parallel-routes-slots",
           "owner": "folpe",
           "pack": "pack-nextjs",
@@ -2511,7 +2511,7 @@
             }
           ],
           "id": "skill:pack-nextjs/void-route-group-decision",
-          "lines": 108,
+          "lines": 107,
           "name": "void-route-group-decision",
           "owner": "folpe",
           "pack": "pack-nextjs",
@@ -2559,7 +2559,7 @@
             }
           ],
           "id": "skill:pack-pwa/void-install-prompt-ux",
-          "lines": 154,
+          "lines": 153,
           "name": "void-install-prompt-ux",
           "owner": "folpe",
           "pack": "pack-pwa",
@@ -2607,7 +2607,7 @@
             }
           ],
           "id": "skill:pack-pwa/void-manifest-checklist",
-          "lines": 205,
+          "lines": 204,
           "name": "void-manifest-checklist",
           "owner": "folpe",
           "pack": "pack-pwa",
@@ -2655,7 +2655,7 @@
             }
           ],
           "id": "skill:pack-pwa/void-offline-first-mutation",
-          "lines": 267,
+          "lines": 266,
           "name": "void-offline-first-mutation",
           "owner": "folpe",
           "pack": "pack-pwa",
@@ -2703,7 +2703,7 @@
             }
           ],
           "id": "skill:pack-pwa/void-service-worker-strategy",
-          "lines": 179,
+          "lines": 178,
           "name": "void-service-worker-strategy",
           "owner": "folpe",
           "pack": "pack-pwa",
@@ -2751,7 +2751,7 @@
             }
           ],
           "id": "skill:pack-react/void-accessibility-check",
-          "lines": 137,
+          "lines": 136,
           "name": "void-accessibility-check",
           "owner": "folpe",
           "pack": "pack-react",
@@ -2799,7 +2799,7 @@
             }
           ],
           "id": "skill:pack-react/void-client-vs-server-component",
-          "lines": 117,
+          "lines": 116,
           "name": "void-client-vs-server-component",
           "owner": "folpe",
           "pack": "pack-react",
@@ -2847,7 +2847,7 @@
             }
           ],
           "id": "skill:pack-react/void-form-pattern",
-          "lines": 158,
+          "lines": 157,
           "name": "void-form-pattern",
           "owner": "folpe",
           "pack": "pack-react",
@@ -2895,7 +2895,7 @@
             }
           ],
           "id": "skill:pack-react/void-state-architecture",
-          "lines": 161,
+          "lines": 160,
           "name": "void-state-architecture",
           "owner": "folpe",
           "pack": "pack-react",
@@ -2943,7 +2943,7 @@
             }
           ],
           "id": "skill:pack-server/void-background-job-pattern",
-          "lines": 215,
+          "lines": 214,
           "name": "void-background-job-pattern",
           "owner": "folpe",
           "pack": "pack-server",
@@ -2991,7 +2991,7 @@
             }
           ],
           "id": "skill:pack-server/void-drizzle-migration-safe",
-          "lines": 169,
+          "lines": 168,
           "name": "void-drizzle-migration-safe",
           "owner": "folpe",
           "pack": "pack-server",
@@ -3039,7 +3039,7 @@
             }
           ],
           "id": "skill:pack-server/void-env-validation",
-          "lines": 132,
+          "lines": 131,
           "name": "void-env-validation",
           "owner": "folpe",
           "pack": "pack-server",
@@ -3087,7 +3087,7 @@
             }
           ],
           "id": "skill:pack-server/void-rate-limit-strategy",
-          "lines": 150,
+          "lines": 149,
           "name": "void-rate-limit-strategy",
           "owner": "folpe",
           "pack": "pack-server",
@@ -3135,7 +3135,7 @@
             }
           ],
           "id": "skill:pack-server/void-server-action",
-          "lines": 182,
+          "lines": 181,
           "name": "void-server-action",
           "owner": "folpe",
           "pack": "pack-server",
@@ -3183,7 +3183,7 @@
             }
           ],
           "id": "skill:pack-server/void-testing-server-modules",
-          "lines": 74,
+          "lines": 73,
           "name": "void-testing-server-modules",
           "owner": "folpe",
           "pack": "pack-server",
@@ -3231,7 +3231,7 @@
             }
           ],
           "id": "skill:pack-server/void-webhook-handler-pattern",
-          "lines": 206,
+          "lines": 205,
           "name": "void-webhook-handler-pattern",
           "owner": "folpe",
           "pack": "pack-server",
@@ -3280,7 +3280,7 @@
             }
           ],
           "id": "skill:void-accessibility",
-          "lines": 276,
+          "lines": 275,
           "name": "void-accessibility",
           "owner": "folpe",
           "pack": null,
@@ -3333,7 +3333,7 @@
             }
           ],
           "id": "skill:void-api-and-interface-design",
-          "lines": 232,
+          "lines": 231,
           "name": "void-api-and-interface-design",
           "owner": "folpe",
           "pack": null,
@@ -3389,7 +3389,7 @@
             }
           ],
           "id": "skill:void-async-safety",
-          "lines": 288,
+          "lines": 287,
           "name": "void-async-safety",
           "owner": "folpe",
           "pack": null,
@@ -3447,7 +3447,7 @@
             }
           ],
           "id": "skill:void-audit",
-          "lines": 84,
+          "lines": 83,
           "name": "void-audit",
           "owner": "folpe",
           "pack": null,
@@ -3495,7 +3495,7 @@
             }
           ],
           "id": "skill:void-autopilot",
-          "lines": 400,
+          "lines": 399,
           "name": "void-autopilot",
           "owner": "folpe",
           "pack": null,
@@ -3543,7 +3543,7 @@
             }
           ],
           "id": "skill:void-brainstorm",
-          "lines": 268,
+          "lines": 267,
           "name": "void-brainstorm",
           "owner": "folpe",
           "pack": null,
@@ -3591,7 +3591,7 @@
             }
           ],
           "id": "skill:void-checkpoint",
-          "lines": 226,
+          "lines": 225,
           "name": "void-checkpoint",
           "owner": "folpe",
           "pack": null,
@@ -3639,7 +3639,7 @@
             }
           ],
           "id": "skill:void-claude-md",
-          "lines": 181,
+          "lines": 180,
           "name": "void-claude-md",
           "owner": "folpe",
           "pack": null,
@@ -3688,7 +3688,7 @@
             }
           ],
           "id": "skill:void-code-review",
-          "lines": 219,
+          "lines": 218,
           "name": "void-code-review",
           "owner": "folpe",
           "pack": null,
@@ -3737,7 +3737,7 @@
             }
           ],
           "id": "skill:void-commit-discipline",
-          "lines": 212,
+          "lines": 211,
           "name": "void-commit-discipline",
           "owner": "folpe",
           "pack": null,
@@ -3785,7 +3785,7 @@
             }
           ],
           "id": "skill:void-context",
-          "lines": 168,
+          "lines": 167,
           "name": "void-context",
           "owner": "folpe",
           "pack": null,
@@ -3833,7 +3833,7 @@
             }
           ],
           "id": "skill:void-debug",
-          "lines": 212,
+          "lines": 211,
           "name": "void-debug",
           "owner": "folpe",
           "pack": null,
@@ -3881,7 +3881,7 @@
             }
           ],
           "id": "skill:void-decide",
-          "lines": 148,
+          "lines": 147,
           "name": "void-decide",
           "owner": "folpe",
           "pack": null,
@@ -3930,7 +3930,7 @@
             }
           ],
           "id": "skill:void-devex-audit",
-          "lines": 114,
+          "lines": 113,
           "name": "void-devex-audit",
           "owner": "folpe",
           "pack": null,
@@ -3978,7 +3978,7 @@
             }
           ],
           "id": "skill:void-doctor",
-          "lines": 83,
+          "lines": 82,
           "name": "void-doctor",
           "owner": "folpe",
           "pack": null,
@@ -4027,7 +4027,7 @@
             }
           ],
           "id": "skill:void-domain-driven-design",
-          "lines": 293,
+          "lines": 292,
           "name": "void-domain-driven-design",
           "owner": "folpe",
           "pack": null,
@@ -4076,7 +4076,7 @@
             }
           ],
           "id": "skill:void-frontend-design",
-          "lines": 275,
+          "lines": 274,
           "name": "void-frontend-design",
           "owner": "folpe",
           "pack": null,
@@ -4130,7 +4130,7 @@
             }
           ],
           "id": "skill:void-functional",
-          "lines": 313,
+          "lines": 312,
           "name": "void-functional",
           "owner": "folpe",
           "pack": null,
@@ -4178,7 +4178,7 @@
             }
           ],
           "id": "skill:void-graph",
-          "lines": 81,
+          "lines": 80,
           "name": "void-graph",
           "owner": "folpe",
           "pack": null,
@@ -4227,7 +4227,7 @@
             }
           ],
           "id": "skill:void-hexagonal-architecture",
-          "lines": 277,
+          "lines": 276,
           "name": "void-hexagonal-architecture",
           "owner": "folpe",
           "pack": null,
@@ -4275,7 +4275,7 @@
             }
           ],
           "id": "skill:void-implement",
-          "lines": 169,
+          "lines": 168,
           "name": "void-implement",
           "owner": "folpe",
           "pack": null,
@@ -4323,7 +4323,7 @@
             }
           ],
           "id": "skill:void-learn",
-          "lines": 216,
+          "lines": 215,
           "name": "void-learn",
           "owner": "folpe",
           "pack": null,
@@ -4372,7 +4372,7 @@
             }
           ],
           "id": "skill:void-llm-cost-discipline",
-          "lines": 300,
+          "lines": 299,
           "name": "void-llm-cost-discipline",
           "owner": "folpe",
           "pack": null,
@@ -4421,7 +4421,7 @@
             }
           ],
           "id": "skill:void-make-pdf",
-          "lines": 53,
+          "lines": 52,
           "name": "void-make-pdf",
           "owner": "folpe",
           "pack": null,
@@ -4469,7 +4469,7 @@
             }
           ],
           "id": "skill:void-merge",
-          "lines": 112,
+          "lines": 111,
           "name": "void-merge",
           "owner": "folpe",
           "pack": null,
@@ -4518,7 +4518,7 @@
             }
           ],
           "id": "skill:void-migrations",
-          "lines": 265,
+          "lines": 264,
           "name": "void-migrations",
           "owner": "folpe",
           "pack": null,
@@ -4573,7 +4573,7 @@
             }
           ],
           "id": "skill:void-observability",
-          "lines": 246,
+          "lines": 245,
           "name": "void-observability",
           "owner": "folpe",
           "pack": null,
@@ -4621,7 +4621,7 @@
             }
           ],
           "id": "skill:void-plan",
-          "lines": 240,
+          "lines": 239,
           "name": "void-plan",
           "owner": "folpe",
           "pack": null,
@@ -4670,7 +4670,7 @@
             }
           ],
           "id": "skill:void-plan-review",
-          "lines": 129,
+          "lines": 128,
           "name": "void-plan-review",
           "owner": "folpe",
           "pack": null,
@@ -4719,7 +4719,7 @@
             }
           ],
           "id": "skill:void-qa",
-          "lines": 104,
+          "lines": 103,
           "name": "void-qa",
           "owner": "folpe",
           "pack": null,
@@ -4768,7 +4768,7 @@
             }
           ],
           "id": "skill:void-refactor",
-          "lines": 221,
+          "lines": 220,
           "name": "void-refactor",
           "owner": "folpe",
           "pack": null,
@@ -4817,7 +4817,7 @@
             }
           ],
           "id": "skill:void-retrospective",
-          "lines": 72,
+          "lines": 71,
           "name": "void-retrospective",
           "owner": "folpe",
           "pack": null,
@@ -4866,7 +4866,7 @@
             }
           ],
           "id": "skill:void-security-audit",
-          "lines": 139,
+          "lines": 138,
           "name": "void-security-audit",
           "owner": "folpe",
           "pack": null,
@@ -4915,7 +4915,7 @@
             }
           ],
           "id": "skill:void-security-guidance",
-          "lines": 256,
+          "lines": 255,
           "name": "void-security-guidance",
           "owner": "folpe",
           "pack": null,
@@ -4964,7 +4964,7 @@
             }
           ],
           "id": "skill:void-source-driven-development",
-          "lines": 163,
+          "lines": 162,
           "name": "void-source-driven-development",
           "owner": "folpe",
           "pack": null,
@@ -5013,7 +5013,7 @@
             }
           ],
           "id": "skill:void-tdd",
-          "lines": 388,
+          "lines": 387,
           "name": "void-tdd",
           "owner": "folpe",
           "pack": null,
@@ -5062,7 +5062,7 @@
             }
           ],
           "id": "skill:void-testing",
-          "lines": 284,
+          "lines": 283,
           "name": "void-testing",
           "owner": "folpe",
           "pack": null,
@@ -5116,7 +5116,7 @@
             }
           ],
           "id": "skill:void-ticket",
-          "lines": 240,
+          "lines": 239,
           "name": "void-ticket",
           "owner": "folpe",
           "pack": null,
@@ -5165,7 +5165,7 @@
             }
           ],
           "id": "skill:void-typescript-strict",
-          "lines": 295,
+          "lines": 294,
           "name": "void-typescript-strict",
           "owner": "folpe",
           "pack": null,
@@ -5220,7 +5220,7 @@
             }
           ],
           "id": "skill:void-ui-review",
-          "lines": 98,
+          "lines": 97,
           "name": "void-ui-review",
           "owner": "folpe",
           "pack": null,
@@ -5269,7 +5269,7 @@
             }
           ],
           "id": "skill:void-verify",
-          "lines": 176,
+          "lines": 175,
           "name": "void-verify",
           "owner": "folpe",
           "pack": null,

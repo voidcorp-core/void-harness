@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { countLines, estimateTokens, readFrontmatter } from './read-frontmatter.js';
 
 /**
@@ -237,6 +241,38 @@ describe('readFrontmatter — success_signal', () => {
 describe('countLines', () => {
   it('counts newline-separated lines', () => {
     expect(countLines('a\nb\nc')).toBe(3);
+  });
+
+  // The definition, and the whole point of this function existing once. A text
+  // file ends with a newline, and that trailing newline terminates the last
+  // line rather than opening another. Splitting on it yields an empty final
+  // element and counts one line too many -- which is how a 400-line skill
+  // passed the pre-commit floor (`wc -l`) and failed the suite that same
+  // afternoon, twice in one composition, the second time after the first guard
+  // had explicitly approved the commit.
+  it('does not count the terminator of the last line as a line', () => {
+    expect(countLines('a\nb\nc\n')).toBe(3);
+  });
+
+  it('counts a last line nobody terminated', () => {
+    expect(countLines('a\nb\nc')).toBe(3);
+    expect(countLines('a')).toBe(1);
+  });
+
+  it('has no lines when there is no text', () => {
+    expect(countLines('')).toBe(0);
+  });
+
+  // Both guards judge the same cap, so they must agree at the cap exactly.
+  it('agrees with wc -l on a file of exactly 400 lines', () => {
+    const text = `${Array.from({ length: 400 }, (_, index) => `line ${index + 1}`).join('\n')}\n`;
+    const file = join(mkdtempSync(join(tmpdir(), 'count-lines-')), 'SKILL.md');
+    writeFileSync(file, text);
+
+    const wc = Number(execFileSync('wc', ['-l', file], { encoding: 'utf8' }).trim().split(/\s+/)[0]);
+
+    expect(countLines(text)).toBe(400);
+    expect(countLines(text)).toBe(wc);
   });
 });
 
