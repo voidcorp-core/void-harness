@@ -630,6 +630,64 @@ describe('executeContextContinuity transcript threshold', () => {
     expect(parsed.state.unwatchableNotified).toBe(true);
   });
 
+  /**
+   * The other way the watchdog goes silent, and the one nobody had a message for.
+   *
+   * `thresholdConfig` normalizes a `checkpointThresholdPercent` outside 40-60 to
+   * 0, and the threshold check then refuses 0 — so a project that wrote 70
+   * disarmed its own reminder permanently, and got the same `false` as a project
+   * sitting at 10% of window. Worse than the window case: a window is absent and
+   * can be noticed as absent, while this number is right there in the config and
+   * looks configured.
+   *
+   * The two admissions must not be interchangeable. Telling this project to set
+   * `windowTokens` sends it looking for a misconfiguration it does not have,
+   * which is the detour #193 already charged an operator for.
+   */
+  it('admits a threshold it cannot apply, and names the threshold not the window', () => {
+    const root = project();
+    writeFileSync(checkpoint(root), '## Objective\n\nThreshold out of range.\n');
+    writeFileSync(
+      join(root, '.void', 'config.json'),
+      `${JSON.stringify({ context: { windowTokens: 1_000, checkpointThresholdPercent: 70 } })}\n`,
+    );
+    writeFileSync(transcript(root), `${usageLine(730)}\n`);
+    executeContextContinuity({ hook_event_name: 'PreCompact' }, root, 'codex', 1_000);
+
+    const result = executeContextContinuity({
+      hook_event_name: 'UserPromptSubmit',
+      transcript_path: transcript(root),
+    }, root, 'codex', 2_000);
+
+    const said = result.output?.hookSpecificOutput.additionalContext ?? '';
+    expect(said).toContain('checkpointThresholdPercent');
+    expect(said).toMatch(/40|60/);
+    expect(said).not.toContain('windowTokens');
+  });
+
+  it('falls silent after admitting the threshold once', () => {
+    const root = project();
+    writeFileSync(checkpoint(root), '## Objective\n\nSaid once.\n');
+    writeFileSync(
+      join(root, '.void', 'config.json'),
+      `${JSON.stringify({ context: { windowTokens: 1_000, checkpointThresholdPercent: 70 } })}\n`,
+    );
+    writeFileSync(transcript(root), `${usageLine(730)}\n`);
+    executeContextContinuity({ hook_event_name: 'PreCompact' }, root, 'codex', 1_000);
+    executeContextContinuity({
+      hook_event_name: 'UserPromptSubmit',
+      transcript_path: transcript(root),
+    }, root, 'codex', 2_000);
+
+    appendFileSync(transcript(root), `${usageLine(800)}\n`);
+    const again = executeContextContinuity({
+      hook_event_name: 'UserPromptSubmit',
+      transcript_path: transcript(root),
+    }, root, 'codex', 3_000);
+
+    expect(again.output).toBe(undefined);
+  });
+
   it('records usage but emits no percentage or nudge without a known window', () => {
     const root = project();
     writeFileSync(checkpoint(root), '## Objective\n\nUnknown window.\n');

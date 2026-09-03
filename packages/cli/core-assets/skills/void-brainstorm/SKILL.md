@@ -66,7 +66,7 @@ If `docs/specs/` holds a spec with `source: forge` in its frontmatter (the forge
 
 ## Pressure-testing a raw idea (upstream mode)
 
-Runs ONLY when the input is a raw *product idea* ("I want to build X"), not an already-scoped feature or a `source: forge` spec (that thinking is done). Before designing the right solution, make sure it is the right *problem* — then push its ambition. This is the distilled `gstack:/office-hours` diagnostic, vendored here. Once premises hold, resume the normal design process (Step 1 onward) in the collaborative voice; this adversarial posture is scoped to this mode only.
+Runs ONLY when the input is a raw *product idea* ("I want to build X"), not an already-scoped feature or a `source: forge` spec (that thinking is done). Before designing the right solution, make sure it is the right *problem*. This is the distilled `gstack:/office-hours` diagnostic, vendored here. Ambition is pushed for every subject in Step 4b, not here. Once premises hold, resume the normal design process (Step 1 onward) in the collaborative voice; this adversarial posture is scoped to this mode only.
 
 **Posture: diagnose, don't cheerlead.** Take a position on every answer and say what evidence would change your mind. No "interesting approach", no "that could work", no "you might consider" — say why it works or why it doesn't, and challenge the strongest version of the idea, never a strawman. The first answer is the polished one; push once, then again — the real answer comes on the second or third push. **Pre-empt the easy outs before they're used**: a waitlist signup is not "upset", interest is free, "people would love it" costs nothing. End every turn with one concrete assignment — a thing to go do or find out — not a question left dangling; and when the honest answer is "I haven't watched a real person struggle with this", name *that* as the finding, it is the most valuable output of the session.
 
@@ -80,8 +80,6 @@ Runs ONLY when the input is a raw *product idea* ("I want to build X"), not an a
 6. **Future-fit.** If the world looks meaningfully different in 3 years, does this become more essential or less? Red flag: "the market grows 20%/yr" — every competitor cites the same tailwind.
 
 **Escape hatch.** If the user says "just do it": ask the 2 most critical remaining questions for their stage, then move on. If they push back a second time, respect it and proceed. Only a fully-formed plan with real evidence (named users, revenue) earns a full skip — and even then, still confirm the premises and generate alternatives.
-
-**Then push the ambition — the 10x move.** Pressure-testing keeps you honest about demand; this keeps you from shipping the timid version. Before settling, deliberately drop the self-imposed constraints: what does this look like at 10x — no resource limit, no "we can't because"? What is the *coolest* version the user has not considered? Carry that into the approaches (Step 5): always include one "ideal / most ambitious" path and one "creative-lateral" reframing, not just the safe increment. YAGNI still prunes the *final* scope — but prune down from an ambitious set; do not start timid.
 
 ## Process
 
@@ -125,6 +123,12 @@ Wait for the user's response. If they decline, proceed in text-only.
 - **Quantify.** "Several files" is not an answer — find the exact count. "Improves performance" is not a goal — state the metric and target.
 - **Five "why" questions must be answered without hand-waving** before design: **who** is affected, the **verified current** behavior, the **desired** behavior, **why now**, and the **observable/measurable** done-signal.
 - **Think in failure modes** as a first-class axis: empty / null / enormous / duplicated / wrong-role / called-twice.
+
+### Step 4b — Push the ambition (the 10x move)
+
+Runs on **every brainstorm, whatever the subject** — a product idea, a guard, a contract, a migration. Demand pressure-testing above belongs to a raw product idea, because a merge gate has no market to interrogate; ambition is not scoped that way, since timidity is not a property of product ideas. This pass lived inside the product-idea mode and therefore never fired on a technical subject, which is most of what gets designed here.
+
+Before settling, deliberately drop the self-imposed constraints: what does this look like at 10x — no resource limit, no "we can't because"? What is the *coolest* version the user has not considered? Carry that into Step 5: always include one "ideal / most ambitious" path and one "creative-lateral" reframing, not just the safe increment. YAGNI still prunes the *final* scope — but prune down from an ambitious set; do not start timid.
 
 ### Step 5 — Propose 2–3 approaches
 
@@ -251,7 +255,7 @@ Smaller, well-bounded units are easier to work with — easier for the agent to 
 - MUST NOT skip the hard gate.
 - MUST NOT batch multiple questions in one message.
 - MUST NOT decide implementation details (those go to plans).
-- MUST NOT decide product roadmap / strategy (routes to `void-plan-review` CEO lens). It DOES pressure-test a raw idea's demand and push its ambition (the upstream mode) — that is now in scope, not delegated.
+- MUST NOT decide product roadmap / strategy (routes to `void-plan-review` CEO lens). It DOES pressure-test a raw idea's demand (the upstream mode) and push ambition on any subject (Step 4b) — both in scope, not delegated.
 - MUST NOT skip the spec-write step "because the conversation is clear."
 - MUST NOT transition to any skill other than `void-plan` post-approval.
 

@@ -1713,7 +1713,7 @@
         }
       ],
       "id": "skill:void-brainstorm",
-      "lines": 267,
+      "lines": 271,
       "name": "void-brainstorm",
       "owner": "folpe",
       "pack": null,
@@ -1722,7 +1722,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-brainstorm/SKILL.md",
-      "staticTokens": 4048,
+      "staticTokens": 4143,
       "type": "skill"
     },
     {

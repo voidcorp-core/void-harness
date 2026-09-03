@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:03eed5374e51cf5650764bacbaf6ca5ed1210de5cd22897ea7ddc370020fb1af"
+    "rootHash": "sha256:5e31e534373e920421c35840d37c0fb3123befae22dd21c6d12c3f1f51e63fb3"
   },
   "nodes": [
     {
@@ -3543,7 +3543,7 @@
             }
           ],
           "id": "skill:void-brainstorm",
-          "lines": 267,
+          "lines": 271,
           "name": "void-brainstorm",
           "owner": "folpe",
           "pack": null,
@@ -3552,7 +3552,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-brainstorm/SKILL.md",
-          "staticTokens": 4048,
+          "staticTokens": 4143,
           "type": "skill"
         }
       },
