@@ -518,6 +518,11 @@ function renderPlan(plan: ClusterPlan): string {
 function renderRun(state: RunState, action: NextAction | undefined, recovery?: RecoveryVerdict): string {
   const lines: string[] = [];
   lines.push(`run ${state.runId} — cluster ${state.clusterId} on ${state.base.branch}@${state.base.sha.slice(0, 7)}`);
+  // Dated, because `start` is the only command that writes this file: nothing a
+  // worker, a publication or a merge does afterwards reaches it. Printing these
+  // phases undated reads as the run's current position, and across three real
+  // runs the file was edited by hand at every step to make that reading true.
+  lines.push(`cursor: state at the lease, taken ${state.startedAt}; no command advances it (DEV-798)`);
   for (const ticket of state.tickets) {
     const commits = ticket.commits.length === 0 ? 'no commit' : `${ticket.commits.length} commit(s)`;
     lines.push(`  ${ticket.id}: ${ticket.phase} (${commits})${ticket.blocker === null ? '' : ` — ${ticket.blocker}`}`);
@@ -1483,8 +1488,13 @@ function abortCommand(
   context: AutopilotCommandContext,
 ): AutopilotCommandResult {
   const state = resolveRun(context, flagValue(argv, '--run'));
-  // Abort releases the CLAIM, never the work: branches, commits and the cursor
-  // stay exactly where they are so nothing is lost by giving the cluster back.
+  // Abort releases the CLAIM, never the work: branches and commits stay exactly
+  // where they are, so nothing is lost by giving the cluster back.
+  //
+  // The cursor is listed as reserved rather than preserved. It holds the state
+  // as of `start` and no command advances it, so promising to keep it offered a
+  // resumption it cannot deliver: what comes back is the starting point, not the
+  // progress. The branches are the durable record; git is what survives.
   const release = {
     runId: state.runId,
     clusterId: state.clusterId,
@@ -1492,7 +1502,10 @@ function abortCommand(
     preserved: {
       workerBranches: state.tickets.map((ticket) => ticket.branch).filter((branch): branch is string => branch !== null),
       integrationBranch: state.integration.branch,
-      cursor: '.void/autopilot/<runId>/state.json',
+    },
+    cursor: {
+      path: '.void/autopilot/<runId>/state.json',
+      holds: 'the state as reserved at start; no command advances it',
     },
   };
   const human = [
@@ -1500,7 +1513,8 @@ function abortCommand(
     `preserved: ${release.preserved.workerBranches.join(', ') || 'no worker branch'}${
       release.preserved.integrationBranch === null ? '' : `, ${release.preserved.integrationBranch}`
     }`,
-    'nothing is deleted; the cursor is kept for inspection',
+    'nothing is deleted; the branches hold the work',
+    'cursor: the state as reserved at start — no command advances it, so it replays the start, not the progress',
   ].join('\n');
   return emit(json, release, `${human}\n`);
 }
