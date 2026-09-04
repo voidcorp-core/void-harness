@@ -48,11 +48,36 @@ function boundedUtf8(value, maxBytes) {
   return bytes.subarray(0, boundary).toString('utf8');
 }
 
-export function safeConformanceDiagnostic(value, maxBytes = DEFAULT_OUTPUT_BYTES) {
-  const redacted = value
+function boundedUtf8HeadTail(value, maxBytes) {
+  const bytes = Buffer.from(value);
+  if (bytes.byteLength <= maxBytes) return value;
+  const marker = Buffer.from('\n...[truncated]...\n');
+  if (marker.byteLength >= maxBytes) return boundedUtf8(value, maxBytes);
+
+  const available = maxBytes - marker.byteLength;
+  let headEnd = Math.ceil(available / 2);
+  while (headEnd > 0 && (bytes[headEnd] & 0b1100_0000) === 0b1000_0000) headEnd -= 1;
+
+  let tailStart = bytes.byteLength - Math.floor(available / 2);
+  while (tailStart < bytes.byteLength && (bytes[tailStart] & 0b1100_0000) === 0b1000_0000) {
+    tailStart += 1;
+  }
+
+  return Buffer.concat([
+    bytes.subarray(0, headEnd),
+    marker,
+    bytes.subarray(tailStart),
+  ]).toString('utf8');
+}
+
+function redactDiagnostic(value) {
+  return value
     .replace(/(\bBearer\s+)[^\s]+/gi, '$1[REDACTED]')
     .replace(CREDENTIAL_ASSIGNMENT, '$1[REDACTED]');
-  return boundedUtf8(redacted, maxBytes);
+}
+
+export function safeConformanceDiagnostic(value, maxBytes = DEFAULT_OUTPUT_BYTES) {
+  return boundedUtf8(redactDiagnostic(value), maxBytes);
 }
 
 export function conformanceFailureDiagnostic(
@@ -67,7 +92,7 @@ export function conformanceFailureDiagnostic(
       .flatMap((path) => [path, path.replaceAll('\\', '/')]),
   )].sort((left, right) => right.length - left.length);
   for (const path of aliases) diagnostic = diagnostic.split(path).join('[PATH]');
-  return safeConformanceDiagnostic(diagnostic, maxBytes);
+  return boundedUtf8HeadTail(redactDiagnostic(diagnostic), maxBytes);
 }
 
 export function resolveConformanceTarball(environment = process.env) {
