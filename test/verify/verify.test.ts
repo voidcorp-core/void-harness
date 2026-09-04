@@ -1,136 +1,162 @@
-/**
- * Tests for scripts/verify.mjs — the local mirror of CI's `validate` job.
- *
- * The load-bearing property is parity: a gate added to ci.yml and not to verify
- * turns verify into a comfortable lie, which is worse than not having it. So
- * the step list is checked against the workflow itself, not against a copy.
- */
-
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error — plain ESM script, no types
-import { STEPS, parseArgs, selectSteps } from '../../scripts/verify.mjs';
+// @ts-expect-error plain ESM script, intentionally dependency-free
+import {
+  aggregateGateReports,
+  GATES,
+  parseArgs,
+  selectGates,
+} from '../../scripts/verify.mjs';
 
-const ROOT = resolve(__dirname, '..', '..');
-const CI = readFileSync(resolve(ROOT, '.github/workflows/ci.yml'), 'utf8');
+const SHA = '2b0e24dc054cf4b7bde36d2e346db341f31501a5';
 
-/** The `run:` commands of the validate job, flattened. */
-function validateJobCommands(): string {
-  const job = CI.split('\n  validate:')[1]?.split(/\n {2}[\w-]+:\n/)[0] ?? '';
-  return job;
-}
-
-interface Step {
-  readonly name: string;
+interface Gate {
+  readonly id: string;
+  readonly label: string;
   readonly run: readonly string[];
+  readonly tier: string;
+  readonly resource: string;
+  readonly required: boolean;
   readonly artifact?: boolean;
   readonly fix?: readonly string[];
-  readonly drift?: readonly string[];
 }
 
-const steps = STEPS as readonly Step[];
+interface GateReport {
+  readonly schemaVersion: 1;
+  readonly gateId: string;
+  readonly sha: string;
+  readonly argv: readonly string[];
+  readonly status: 'passed' | 'failed';
+  readonly exitCode: number;
+  readonly startedAt: string;
+  readonly durationMs: number;
+}
 
-describe('parity with the CI validate job', () => {
-  const job = validateJobCommands();
+const gates = GATES as readonly Gate[];
+const requiredIds = gates.filter((gate) => gate.required).map((gate) => gate.id);
+
+function report(gateId: string, over: Partial<GateReport> = {}): GateReport {
+  const gate = gates.find((candidate) => candidate.id === gateId);
+  if (gate === undefined) throw new Error(`unknown fixture gate ${gateId}`);
+  return {
+    schemaVersion: 1,
+    gateId,
+    sha: SHA,
+    argv: gate.run,
+    status: 'passed',
+    exitCode: 0,
+    startedAt: '2026-09-04T18:00:00.000Z',
+    durationMs: 12,
+    ...over,
+  };
+}
+
+describe('gate catalogue', () => {
+  it('defines one stable, shell-free authority for required and observational proof', () => {
+    expect(gates.length).toBeGreaterThan(0);
+    expect(new Set(gates.map((gate) => gate.id)).size).toBe(gates.length);
+    for (const gate of gates) {
+      expect(gate.id).toMatch(/^[a-z][a-z0-9-]*$/);
+      expect(gate.label).not.toBe('');
+      expect(gate.run.length).toBeGreaterThan(0);
+      expect(gate.run.join(' ')).not.toMatch(/[;&|><$`]/);
+      expect(['pure', 'contract', 'consumer', 'system', 'certification']).toContain(gate.tier);
+      expect(['cpu', 'filesystem', 'subprocess', 'network-browser', 'external-state']).toContain(
+        gate.resource,
+      );
+    }
+  });
+
+  it('keeps build before every gate that consumes built package exports', () => {
+    const ids = gates.map((gate) => gate.id);
+    for (const dependent of ['self-host-sync', 'self-host-doctor', 'graph-integrity', 'typecheck']) {
+      expect(ids.indexOf('build')).toBeLessThan(ids.indexOf(dependent));
+    }
+  });
+
+  it('gives every generated-artifact gate one explicit repair command', () => {
+    for (const gate of gates.filter((candidate) => candidate.artifact === true)) {
+      expect(gate.fix, gate.id).toBeDefined();
+      expect(gate.fix?.length, gate.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('keeps shared, dependency, workflow and classifier changes conservative', () => {
+    for (const path of [
+      'packages/core/hooks/secret-in-content.sh',
+      'pnpm-lock.yaml',
+      '.github/workflows/ci.yml',
+      'test/support/test-catalog.ts',
+    ]) {
+      expect(selectGates([{ path, status: 'modified' }]).map((gate: Gate) => gate.id), path)
+        .toEqual(requiredIds);
+    }
+  });
+
+  it('narrows a known leaf while retaining its semantic documentation gates', () => {
+    expect(
+      selectGates([{ path: 'docs/guides/consumer.md', status: 'modified' }]).map(
+        (gate: Gate) => gate.id,
+      ),
+    ).toEqual(['asset-paths', 'skill-references']);
+  });
 
   it.each([
-    ['pnpm version:check'],
-    ['pnpm anti-bloat:check'],
-    ['pnpm decisions:check'],
-    ['pnpm lint'],
-    ['pnpm check:publish'],
-    ['pnpm graph:check'],
-    ['pnpm derive:check'],
-    ['pnpm graph:check-bundle'],
-  ])('runs %s, like CI does', (command) => {
-    expect(job).toContain(command);
-    expect(steps.some((step) => step.run.join(' ') === command)).toBe(true);
-  });
-
-  it('covers every generated artefact CI gates', () => {
-    // These are the ones that bit us: each is a committed file derived from
-    // something else, and each has cost a CI round trip. The freshness of the
-    // generated set is now one gate rather than one per artefact, because the
-    // list is what an eighth artefact would fall off.
-    const artefactGates = steps.filter((step) => step.artifact === true).map((step) => step.name);
-
-    expect(artefactGates).toEqual(
-      expect.arrayContaining([
-        'hook runner current',
-        'core-assets in sync',
-        'graph integrity',
-        'generated artefacts current',
-        'consumer bundle freshness',
-      ]),
-    );
-  });
-
-  it('builds before it typechecks, because packs resolve through dist', () => {
-    const names = steps.map((step) => step.name);
-    expect(names.indexOf('build')).toBeLessThan(names.indexOf('typecheck'));
-  });
-
-  it('benchmarks after the build, for the same reason', () => {
-    const names = steps.map((step) => step.name);
-    expect(names.indexOf('build')).toBeLessThan(names.indexOf('project graph benchmark'));
+    [[{ path: 'docs/old.md', previousPath: 'docs/new.md', status: 'renamed' }], 'rename'],
+    [[{ path: 'packages/cli/src/removed.ts', status: 'deleted' }], 'deletion'],
+    [[{ path: 'unknown-zone/file.xyz', status: 'modified' }], 'unknown path'],
+    [[], 'missing diff'],
+  ])('expands %s (%s) to every required gate', (changes) => {
+    expect(selectGates(changes).map((gate: Gate) => gate.id)).toEqual(requiredIds);
   });
 });
 
-describe('step definitions', () => {
-  it('gives every artefact gate a fix command', () => {
-    for (const step of steps.filter((s) => s.artifact === true)) {
-      expect(step.fix, `${step.name} has no fix`).toBeDefined();
-      expect(step.fix?.length).toBeGreaterThan(0);
-    }
+describe('gate evidence aggregation', () => {
+  const scoped = requiredIds.slice(0, 2);
+  const complete = scoped.map((id) => report(id));
+
+  it('accepts exactly one green report per required gate on the exact SHA and argv', () => {
+    expect(aggregateGateReports(scoped, complete, SHA)).toEqual({
+      ok: true,
+      gateIds: scoped,
+      sha: SHA,
+      errors: [],
+    });
   });
 
-  it('expresses every command as argv, so nothing goes through a shell', () => {
-    for (const step of steps) {
-      expect(Array.isArray(step.run)).toBe(true);
-      expect(step.run.join(' ')).not.toMatch(/[;&|><$`]/);
-    }
-  });
+  it.each([
+    ['missing', complete.slice(0, 1), /missing/i],
+    ['duplicate', [...complete, complete[0]], /duplicate/i],
+    ['stale SHA', [complete[0], report(scoped[1] ?? '', { sha: 'a'.repeat(40) })], /stale/i],
+    ['red result', [complete[0], report(scoped[1] ?? '', { status: 'failed', exitCode: 1 })], /failed/i],
+    ['wrong argv', [complete[0], report(scoped[1] ?? '', { argv: ['pnpm', 'nonesuch'] })], /argv/i],
+  ])('fails closed on a %s report set', (_case, reports, message) => {
+    const result = aggregateGateReports(scoped, reports, SHA);
 
-  it('names every step uniquely', () => {
-    expect(new Set(steps.map((step) => step.name)).size).toBe(steps.length);
+    expect(result.ok).toBe(false);
+    expect(result.errors.join('\n')).toMatch(message);
   });
 });
 
-describe('parseArgs', () => {
-  it('defaults to the full run', () => {
-    const options = parseArgs([]);
-    expect(options).toMatchObject({ artifactsOnly: false, fix: false, list: false, help: false });
-    expect(options.unknown).toEqual([]);
+describe('verify arguments', () => {
+  it('defaults to every required gate', () => {
+    expect(parseArgs([])).toMatchObject({
+      artifactsOnly: false,
+      fix: false,
+      list: false,
+      observations: false,
+      gateId: null,
+      aggregate: false,
+      unknown: [],
+    });
   });
 
-  it('reads each flag', () => {
+  it('reads local, single-gate and aggregation modes without accepting unknown flags', () => {
     expect(parseArgs(['--artifacts']).artifactsOnly).toBe(true);
     expect(parseArgs(['--fix']).fix).toBe(true);
     expect(parseArgs(['--list']).list).toBe(true);
-    expect(parseArgs(['-h']).help).toBe(true);
-  });
-
-  it('reports an unknown flag rather than ignoring it', () => {
-    // Silently ignoring `--artifact` would run the whole suite while the caller
-    // believes they asked for the fast subset.
+    expect(parseArgs(['--observations']).observations).toBe(true);
+    expect(parseArgs(['--gate', 'lint']).gateId).toBe('lint');
+    expect(parseArgs(['--aggregate']).aggregate).toBe(true);
     expect(parseArgs(['--artifact']).unknown).toEqual(['--artifact']);
-  });
-});
-
-describe('selectSteps', () => {
-  it('runs everything by default', () => {
-    expect(selectSteps({ artifactsOnly: false, fix: false })).toHaveLength(steps.length);
-  });
-
-  it('runs only the artefact gates with --artifacts', () => {
-    const selected = selectSteps({ artifactsOnly: true, fix: false }) as readonly Step[];
-    expect(selected.length).toBeGreaterThan(0);
-    expect(selected.every((step) => step.artifact === true)).toBe(true);
-  });
-
-  it('scopes --fix to the artefact gates, because only derived files can be regenerated', () => {
-    const selected = selectSteps({ artifactsOnly: false, fix: true }) as readonly Step[];
-    expect(selected.every((step) => step.artifact === true)).toBe(true);
   });
 });
