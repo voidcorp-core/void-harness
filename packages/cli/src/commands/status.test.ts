@@ -301,4 +301,20 @@ describe('status from a linked worktree', () => {
     expect(fromMain.out).toContain('state written to .void/machine/status.json');
     expect(fromWorktree.out).toContain(`state written to ${join(realpathSync(main), '.void/machine/status.json')}`);
   });
+
+  it('renders the report but refuses to persist a healthy snapshot for an invalid receipt', () => {
+    const { main, cache } = fixture();
+    writeFileSync(
+      join(main, '.void', 'machine', 'receipts', 'install-v1.json'),
+      '{not json}\n',
+    );
+
+    const result = runStatus(main, cache);
+
+    expect(result.code).toBe(1);
+    expect(result.out).toContain('VOID STRUCTURE SCORE');
+    expect(result.out).toContain('INSTALL_RECEIPT_INVALID');
+    expect(result.out).not.toContain('InstallReceiptInvalidError');
+    expect(existsSync(join(main, '.void', 'machine', 'status.json'))).toBe(false);
+  });
 });

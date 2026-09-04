@@ -55,6 +55,23 @@ describe('doctor and a runner older than the project', () => {
   });
 });
 
+describe('doctor with an invalid install receipt', () => {
+  it('completes the diagnostic report and names the corrupt receipt', () => {
+    const root = projectRecording(cliVersion());
+    const receiptDirectory = join(root, '.void', 'machine', 'receipts');
+    mkdirSync(receiptDirectory, { recursive: true });
+    writeFileSync(join(receiptDirectory, 'install-v1.json'), '{not json}\n');
+
+    const { code, out } = runDoctor(root);
+
+    expect(code).toBe(1);
+    expect(out).toContain('void receipt');
+    expect(out).toContain('INSTALL_RECEIPT_INVALID');
+    expect(out).toContain('check');
+    expect(out).not.toContain('InstallReceiptInvalidError');
+  });
+});
+
 describe('doctor from a linked worktree', () => {
   function git(cwd: string, ...args: string[]): void {
     const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
