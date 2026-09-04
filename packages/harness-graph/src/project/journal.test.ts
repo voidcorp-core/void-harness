@@ -115,6 +115,7 @@ async function expectUnavailableJournalBuild(
 			validate: (identity) => nodeRoot.validate(identity),
 		},
 	});
+	expect(result.issues.map((issue) => issue.code)).toEqual(['journal-unavailable']);
 	expect(result.state).toBe('degraded');
 	expect(result.cachePublished).toBe(false);
 	expect(result.graph.nodes.length).toBeGreaterThan(1);
