@@ -28,6 +28,7 @@ describe('scheduled stress proof plan', () => {
 
   it('refuses an unbounded or unsupported campaign', () => {
     expect(() => stressPlan('fast', 21, 1)).toThrow(/attempt/i);
+    expect(() => stressPlan('fast', 2, 2_147_483_647)).toThrow(/seed/i);
     expect(() => stressPlan('unknown', 1, 1)).toThrow(/mode/i);
   });
 });
