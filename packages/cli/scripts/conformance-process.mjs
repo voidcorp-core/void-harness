@@ -6,6 +6,11 @@ const MAX_PATH_ENTRIES = 128;
 const DEFAULT_OUTPUT_BYTES = 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 120_000;
 const TERMINATION_TIMEOUT_MS = 5_000;
+const CREDENTIAL_KEY = '(?:api[-_]?key|authorization|password|secret|auth[-_]?token|token)';
+const CREDENTIAL_ASSIGNMENT = new RegExp(
+  `((?:^|[\\s"'/:])(?:[A-Za-z0-9]+_)*_?${CREDENTIAL_KEY}\\s*[:=]\\s*)[^\\s&,;]+`,
+  'gim',
+);
 const PORTABLE_ENVIRONMENT = [
   'APPDATA',
   'CI',
@@ -40,10 +45,7 @@ function boundedUtf8(value, maxBytes) {
 export function safeConformanceDiagnostic(value, maxBytes = DEFAULT_OUTPUT_BYTES) {
   const redacted = value
     .replace(/(\bBearer\s+)[^\s]+/gi, '$1[REDACTED]')
-    .replace(
-      /(\b(?:api[-_]?key|authorization|password|secret|token)\b\s*[:=]\s*)[^\s&,;]+/gi,
-      '$1[REDACTED]',
-    );
+    .replace(CREDENTIAL_ASSIGNMENT, '$1[REDACTED]');
   return boundedUtf8(redacted, maxBytes);
 }
 
