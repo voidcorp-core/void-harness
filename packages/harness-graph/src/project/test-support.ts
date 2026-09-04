@@ -1,8 +1,6 @@
-import { execFile } from 'node:child_process';
 import { lstat, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { promisify } from 'node:util';
 import {
 	type CompilerLookup,
 	createNodeCompilerLookup,
@@ -14,8 +12,6 @@ import type {
 	ProjectChangeObservation,
 	ProjectChangeValidation,
 } from './journal.js';
-
-const run = promisify(execFile);
 
 interface InspectedProject {
 	readonly signature: string;
@@ -64,60 +60,17 @@ function contentSignature(records: ReadonlyMap<string, string>): string {
 		.join('\0');
 }
 
-function statusPaths(status: string): readonly string[] {
-	const records = status.split('\0').filter(Boolean);
-	const paths: string[] = [];
-	for (let index = 0; index < records.length; index += 1) {
-		const record = records[index];
-		if (record === undefined) continue;
-		const statusCode = record.slice(0, 2);
-		paths.push(record.slice(3));
-		if (statusCode.includes('R') || statusCode.includes('C')) {
-			const origin = records[index + 1];
-			if (origin !== undefined) paths.push(origin);
-			index += 1;
-		}
-	}
-	return Object.freeze(paths.filter((path) => !projectPathIsIgnored(path)).sort());
-}
-
-async function inspectGit(root: string): Promise<{
-	readonly signature: string;
-	readonly paths: readonly string[];
-}> {
-	const [head, status, diff] = await Promise.all([
-		run('git', ['rev-parse', 'HEAD'], { cwd: root }).then((result) => result.stdout.trim()),
-		run('git', ['status', '--porcelain=v1', '-z', '--untracked-files=all'], { cwd: root }).then(
-			(result) => result.stdout,
-		),
-		run('git', ['diff', '--no-ext-diff', '--no-textconv', '--binary', '--', '.'], {
-			cwd: root,
-		}).then((result) => result.stdout),
-	]);
-	return Object.freeze({ signature: `${head}\0${status}\0${diff}`, paths: statusPaths(status) });
-}
-
 async function inspectProject(root: string): Promise<InspectedProject> {
 	const stats = await lstat(root);
 	const records = new Map<string, string>();
 	if (stats.isDirectory() && !stats.isSymbolicLink()) await visitRecords(root, '', records);
 	const files = contentSignature(records);
-	try {
-		const git = await inspectGit(root);
-		return Object.freeze({
-			signature: `${git.signature}\0${files}`,
-			rootSignature: rootSignature(stats),
-			records,
-			paths: git.paths,
-		});
-	} catch {
-		return Object.freeze({
-			signature: files,
-			rootSignature: rootSignature(stats),
-			records,
-			paths: Object.freeze([...records.keys()].sort()),
-		});
-	}
+	return Object.freeze({
+		signature: files,
+		rootSignature: rootSignature(stats),
+		records,
+		paths: Object.freeze([]),
+	});
 }
 
 function changedPaths(state: ExactJournalState, current: InspectedProject): readonly string[] {
