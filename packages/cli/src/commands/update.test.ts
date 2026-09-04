@@ -2,13 +2,14 @@ import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
   existsSync,
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { resolveProjectRoots } from '../lib/project-roots.js';
@@ -282,23 +283,48 @@ describe('update on a marketplace install that predates the receipt', () => {
    * A `gh` that answers `gh api repos/<repo>/contents/<path>` from this
    * checkout, so the marketplace route runs against the real catalog and the
    * real core plugin.json without a network or an account. Nothing else of
-   * `gh` is imitated: the route asks for two files and stops.
+   * `gh` is imitated: the route asks for two files and stops. A hard link to
+   * the current Node executable gives Windows a real `gh.exe`; a preload
+   * intercepts only that argv[0]. This avoids shell and PATHEXT assumptions.
    */
-  function fakeGhOnPath(): string {
+  function fakeGhOnPath(): { path: string; nodeOptions: string } {
     const bin = mkdtempSync(join(tmpdir(), 'update-gh-'));
-    const script = join(bin, 'gh');
+    const preload = join(bin, 'gh-preload.cjs');
     writeFileSync(
-      script,
+      preload,
       [
-        '#!/bin/sh',
-        'for argument in "$@"; do target="$argument"; done',
-        'path=$(printf %s "$target" | sed -e "s|^repos/[^/]*/[^/]*/contents/||" -e "s|?.*$||")',
-        `exec cat "${REPO}/$path"`,
+        "const { readFileSync } = require('node:fs');",
+        "const { basename, join } = require('node:path');",
+        'function respond() {',
+        "  const target = process.argv.at(-1) ?? '';",
+        "  const marker = '/contents/';",
+        "  const offset = target.indexOf(marker);",
+        "  const relative = offset < 0 ? '' : target.slice(offset + marker.length).split('?')[0];",
+        "  const allowed = new Set(['.claude-plugin/marketplace.json', 'packages/core/.claude-plugin/plugin.json']);",
+        "  if (!allowed.has(relative)) {",
+        "    process.stderr.write('unsupported fake gh path: ' + relative + '\\n');",
+        '    process.exit(2);',
+        '  }',
+        `  process.stdout.write(readFileSync(join(${JSON.stringify(REPO)}, ...relative.split('/')), 'utf8'));`,
+        '  process.exit(0);',
+        '}',
+        'module.exports = respond;',
+        "if (/^gh(?:\\.exe)?$/i.test(basename(process.argv0))) respond();",
         '',
       ].join('\n'),
     );
-    chmodSync(script, 0o755);
-    return `${bin}:${process.env.PATH ?? ''}`;
+    const executable = join(bin, process.platform === 'win32' ? 'gh.exe' : 'gh');
+    if (process.platform === 'win32') {
+      linkSync(process.execPath, executable);
+    } else {
+      writeFileSync(executable, "#!/usr/bin/env node\nrequire('./gh-preload.cjs')();\n");
+      chmodSync(executable, 0o755);
+    }
+    const inherited = process.env.NODE_OPTIONS?.trim();
+    return {
+      path: `${bin}${delimiter}${process.env.PATH ?? ''}`,
+      nodeOptions: `${inherited === undefined || inherited === '' ? '' : `${inherited} `}--require=${preload}`,
+    };
   }
 
   function run(command: string, cwd: string, env: NodeJS.ProcessEnv): { code: number; out: string } {
@@ -332,7 +358,8 @@ describe('update on a marketplace install that predates the receipt', () => {
     const linked = join(mkdtempSync(join(tmpdir(), 'update-linked-')), 'DEV-000');
     git(main, 'worktree', 'add', '--quiet', linked, '-b', 'worker/DEV-000');
     installWithoutReceipt(linked);
-    const env = { ...process.env, PATH: fakeGhOnPath() };
+    const fakeGh = fakeGhOnPath();
+    const env = { ...process.env, PATH: fakeGh.path, NODE_OPTIONS: fakeGh.nodeOptions };
 
     const before = run('doctor --no-remote', linked, env);
     expect(before.out).toContain(resolveProjectRoots(linked).installRoot);
