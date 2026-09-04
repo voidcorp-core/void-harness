@@ -1,8 +1,8 @@
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  type ClassificationRule,
   buildTestCatalog,
+  type ClassificationRule,
   classifyExactlyOne,
   createVitestProjects,
 } from './test-catalog.js';
@@ -62,5 +62,19 @@ describe('test proof catalogue', () => {
     expect(
       projects.find((project) => project.test.name === 'system:subprocess')?.test.maxWorkers,
     ).toBe(1);
+    const workersByGroup = new Map<number, number>();
+    for (const project of projects) {
+      const workers = project.test.maxWorkers;
+      const groupOrder = project.test.sequence?.groupOrder;
+      expect(workers).toBeTypeOf('number');
+      expect(groupOrder).toBeTypeOf('number');
+      if (typeof workers !== 'number' || typeof groupOrder !== 'number') continue;
+      expect(workersByGroup.get(groupOrder) ?? workers).toBe(workers);
+      workersByGroup.set(groupOrder, workers);
+    }
+    expect(projects.find((project) => project.test.name === 'pure:cpu')?.test.sequence)
+      .toEqual(projects.find((project) => project.test.name === 'contract:cpu')?.test.sequence);
+    expect(projects.find((project) => project.test.name === 'contract:filesystem')?.test.sequence)
+      .not.toEqual(projects.find((project) => project.test.name === 'contract:subprocess')?.test.sequence);
   });
 });
