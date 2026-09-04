@@ -58,8 +58,8 @@ import {
   type ProjectQueryProblem,
 } from '../lib/project-graph-store.js';
 import { DEFAULT_PROJECT_QUERY_BUDGET } from '@voidcorp/harness-graph/project';
+import { discoverConfiguredProjects } from '../lib/projects/catalog.js';
 import {
-  discoverProjects,
   mergeCanonicalTelemetry,
   mergeTelemetry,
 } from '../lib/rollup.js';
@@ -70,7 +70,7 @@ import {
  */
 function loadTelemetryBody(args: readonly string[], file: string, logPath?: string): string {
   if (args.includes('--all-projects')) {
-    const roots = discoverProjects();
+    const roots = discoverConfiguredProjects().projects.map((project) => project.path);
     return [mergeCanonicalTelemetry(roots), mergeTelemetry(roots, file)]
       .filter((body) => body !== '')
       .join('\n');

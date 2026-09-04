@@ -205,6 +205,15 @@ Rules:
 - **Doc ownership is per-runtime.** Each adapter's `wire` writes only its own doctrine doc — a Claude-only project has just `CLAUDE.md`, a Codex-only project just `AGENTS.md`. `doctor` checks only the docs of *detected* runtimes, so a Codex-only project is never dinged for a missing `CLAUDE.md`. (`add` / `remove` still patch whichever docs exist, keeping active docs current.)
 - **`init` wires each selected runtime's layer via its adapter**, gated by `--runtime <claude|codex|both>` (default: auto-detected footprint, else both). Claude receives native project-local skills, agents, commands and hooks; Codex receives `.agents/skills`, native `.codex/agents` and `.codex/hooks.json`. The package is bundled with all CLI runtime dependencies, so a tarball installs offline. `--source marketplace` is opt-in and is the only path that checks `gh`/marketplace access.
 - **Publication is transactional.** `init` seeds only shared merge targets into an isolated stage, compiles and executes each selected adapter's doctor smoke there, then atomically publishes a finite mutation set. Every target is snapshotted before the first write; a failure restores bytes and modes and removes only transaction-created paths. `.void/machine/receipts/install-v1.json` hashes files the install created, already owned, or found already identical byte-for-byte to what it compiled — a managed asset matching our own output is ours, and letting it fall out of the receipt is what made a later version meet an asset it could not recognise. Unowned native conflicts fail unless `--force` (all of them named in one message, not the first alone), and even force never grants deletion ownership over a pre-existing file.
+- **Consumer conformance has one artifact identity.** A clean exact-SHA checkout packs the npm CLI
+  once and records package identity, source SHA and tarball SHA-256 in a canonical manifest. One
+  orchestrator makes install, hook and Autopilot suites consume that same verified tarball through
+  a minimal environment and fixture-local state. CI fans the immutable pair out to Linux, macOS and
+  Windows; elapsed time is an observation, never a correctness threshold. ProjectGraph stays in a
+  separate path-filtered matrix because it is a distinct published package and portability
+  boundary. Repeated seeded stress runs in the scheduled test-certification workflow on an
+  ephemeral Linux runner and emits exact-SHA reports; it is deliberately outside the laptop edit
+  loop and ordinary pull-request critical path.
 - **Runtimes are added a posteriori without friction**: `void-harness runtime add <runtime>` wires exactly that runtime's layer on an already-`init`-ed project, touching nothing the other runtime owns (verified byte-for-byte in tests). `runtime list` shows which are wired. This is the `void runtime add` command from the multi-runtime spec.
 - **Pack and update lifecycle uses the same transaction.** Local `add`/`remove` compile the exact
   config pack set and prune only unchanged receipt-owned stale assets. Local `update` recompiles
@@ -721,9 +730,9 @@ drift before `core-assets` is mirrored.
 
 Graph behavior, cost, audit, status and Studio consume the canonical journal.
 Legacy `.void/activations.jsonl`, `.void/outcomes.jsonl` and `.void/usage.log`
-remain read-only transition inputs; current hooks never append to them. Each
-project self-registers an opaque pointer under `~/.void/projects/` for opt-in
-cross-project aggregation.
+remain read-only transition inputs; current hooks never append to them. Every
+cross-project reader uses the same bounded scan of configured roots for the
+versioned `.void/config.json` marker. Event capture writes only inside its project.
 
 `graph live` binds loopback only. A random launch token is exchanged once for a
 process-local `HttpOnly; SameSite=Strict` cookie, foreign browser origins are

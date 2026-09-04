@@ -4,11 +4,12 @@ import {
   readdir,
   readFile,
   realpath,
+  rm,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { discoverProjectRoot } from './enforcement/runner.js';
 import {
   recordHookEvent,
@@ -17,13 +18,31 @@ import {
 } from './record.js';
 import { voidMachinePath } from './void-layout.js';
 
+const scratchDirectories: string[] = [];
+
+async function scratch(prefix: string): Promise<string> {
+  const directory = await mkdtemp(join(tmpdir(), prefix));
+  scratchDirectories.push(directory);
+  return directory;
+}
+
+afterEach(async () => {
+  vi.unstubAllEnvs();
+  await Promise.all(
+    scratchDirectories.splice(0).map((directory) =>
+      rm(directory, { recursive: true, force: true }),
+    ),
+  );
+});
+
 describe('recordRuntimeEvent', () => {
-  it('writes one canonical event and never persists raw session or tool content', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'void-record-'));
-    const globalDir = await mkdtemp(join(tmpdir(), 'void-global-'));
+  it('writes only project-local evidence, never a user-global project pointer', async () => {
+    const root = await scratch('void-record-');
+    const home = await scratch('void-record-home-');
+    vi.stubEnv('HOME', home);
+    vi.stubEnv('USERPROFILE', home);
     const recorded = await recordRuntimeEvent({
       root,
-      globalDir,
       runtime: 'codex',
       phase: 'activation',
       rawInput: {
@@ -47,21 +66,15 @@ describe('recordRuntimeEvent', () => {
     );
     expect(body).not.toContain('private-runtime-session');
     expect(body).not.toContain('TOP_SECRET');
-    const pointers = await readdir(join(globalDir, 'projects'));
-    expect(pointers).toHaveLength(1);
-    expect(
-      await readFile(join(globalDir, 'projects', pointers[0] ?? ''), 'utf8'),
-    ).toBe(`${await realpath(root)}\n`);
+    await expect(readdir(join(home, '.void'))).rejects.toMatchObject({ code: 'ENOENT' });
   });
 });
 
 describe('recordHookEvent', () => {
   it('records a redacted canonical hook outcome', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'void-hook-event-'));
-    const globalDir = await mkdtemp(join(tmpdir(), 'void-global-'));
+    const root = await scratch('void-hook-event-');
     const recorded = await recordHookEvent({
       root,
-      globalDir,
       runtime: 'codex',
       hook: 'typecheck',
       status: 'degraded',
@@ -98,12 +111,11 @@ describe('recordHookEvent', () => {
 // close by exporting the root (DEV-738).
 describe('recordRuntimeEventFromCli', () => {
   it('writes where it stands, without walking up to the project root', async () => {
-    const root = await realpath(await mkdtemp(join(tmpdir(), 'void-cwd-')));
+    const root = await realpath(await scratch('void-cwd-'));
     await mkdir(join(root, '.void'), { recursive: true });
     await writeFile(join(root, '.void', 'config.json'), '{}');
     const nested = join(root, 'packages', 'worker');
     await mkdir(nested, { recursive: true });
-    const globalDir = await mkdtemp(join(tmpdir(), 'void-global-'));
     // The fixture is only worth anything if the two answers differ here.
     expect(discoverProjectRoot(nested)).toBe(root);
 
@@ -118,7 +130,7 @@ describe('recordRuntimeEventFromCli', () => {
           tool_input: { file_path: 'README.md' },
         },
         ['node', 'void-hook-runner', 'activation', 'claude'],
-        { VOID_GLOBAL_DIR: globalDir },
+        {},
       );
     } finally {
       process.chdir(previous);

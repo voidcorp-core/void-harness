@@ -170,4 +170,10 @@ describe('activation-meter — robustness', () => {
       subject: 'skill:void-tdd',
     });
   });
+
+  it('stays best-effort when the project root cannot be created', () => {
+    expect(() => runHook(pre('Skill', { skill: 'void-tdd' }), {
+      CLAUDE_PROJECT_DIR: '/dev/null/nonexistent',
+    })).not.toThrow();
+  });
 });

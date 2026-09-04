@@ -97,17 +97,35 @@ function availableGitSnapshot() {
 	};
 }
 
-async function expectUnavailableJournalBuild(
-	root: string,
-	journal: ProjectChangeJournal,
-): Promise<void> {
+async function expectUnavailableJournalBuild(root: string): Promise<void> {
+	const nodeRoot = createNodeProjectRootPort();
+	const unavailable: ProjectChangeJournal = {
+		observe: async () => Object.freeze({
+			authority: 'advisory',
+			generation: 'unavailable',
+			kind: 'uncertain',
+			paths: Object.freeze([]),
+			rootGeneration: 'unavailable',
+		}),
+		validate: async () => 'unavailable',
+		accept: () => false,
+		dispose: () => undefined,
+		close: () => undefined,
+	};
 	const result = await buildProjectGraph({
-			compilerLookup: fixtureCompilerLookup(),
+		compilerLookup: fixtureCompilerLookup(),
 		root,
-		journal,
+		journal: unavailable,
 		cache: createMemoryProjectCachePort(),
 		git: { inspect: async () => availableGitSnapshot() },
+		rootPort: {
+			async open(path) {
+				return Object.freeze({ ...(await nodeRoot.open(path)), caseSensitive: false });
+			},
+			validate: (identity) => nodeRoot.validate(identity),
+		},
 	});
+	expect(result.issues.map((issue) => issue.code)).toEqual(['journal-unavailable']);
 	expect(result.state).toBe('degraded');
 	expect(result.cachePublished).toBe(false);
 	expect(result.graph.nodes.length).toBeGreaterThan(1);
@@ -433,7 +451,7 @@ describe('ProjectChangeJournal native capability', () => {
 			const capability = settled.capability;
 			if (capability === 'unavailable') {
 				expect(['cold', 'uncertain']).toContain(initial.kind);
-				await expectUnavailableJournalBuild(root, journal);
+				await expectUnavailableJournalBuild(root);
 			} else {
 				expect(capability).toBe('valid');
 				expect(journal.accept(identity, initial)).toBe(true);
@@ -457,7 +475,7 @@ describe('ProjectChangeJournal native capability', () => {
 				if (postAbaCapability === 'unavailable') {
 					// A platform that cannot keep watching through the swap is a
 					// legitimate outcome; it degrades and must not claim a clean build.
-					await expectUnavailableJournalBuild(root, journal);
+					await expectUnavailableJournalBuild(root);
 				} else if (observed.satisfied) {
 					// The platform delivered the rename events: the journal saw churn
 					// and is conservative about it. `rootGeneration` counts noticed

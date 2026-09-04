@@ -63,7 +63,7 @@ export function printHelp(): void {
   cmd('list', 'Show active and available packs.');
   cmd('status', 'Project health: the five-state capability lifecycle + a score. Deterministic, offline, no LLM.');
   cmd('doctor [--no-remote] [--fix]', 'Health-check the install (config, doctrine, per-runtime wiring), and report structural drift from the conventions the harness declares. --fix repairs the mechanical ones, refused on a dirty tree, never committed. --dry-run shows the mutations.');
-  cmd('update [--dry-run] [--untrack-derived]', 'Recompile local receipt-owned assets from this CLI; migrate the .void layout. --untrack-derived drops regenerated files from the git index, keeping them on disk.');
+  cmd('update [--dry-run] [--untrack-derived]', 'Recompile local receipt-owned assets from this CLI; migrate the .void layout and retire the obsolete project-pointer registry in bounded batches. --untrack-derived drops regenerated files from the git index, keeping them on disk.');
   cmd('hydrate', 'Restore this project\'s harness assets from .void/install-manifest.json and prove every file against its hash. Refuses to run on a different version.');
   cmd('check [--doctrine]', 'Report local vs remote version drift. --doctrine also diffs PHILOSOPHY.md.');
   cmd('graph <sub>', 'Build / gate / report the skill-agent graph (build, check, audit, live, behavior).');

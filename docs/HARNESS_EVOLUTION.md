@@ -50,9 +50,14 @@ decision-matrix-conflict detection are planned extensions.
 
 ### Cross-project rollup and opt-in push (#72)
 
-A single repo's telemetry is too thin to trust a "never fired" verdict (a skill fires a handful of times in one project). Each project self-registers into a global index at `~/.void/projects/` — the `activation-meter` hook, the first time it runs in a project, drops a pointer file holding that project's root (telemetry-driven, so even projects wired before this feature announce themselves; the index stays on this machine and holds only paths).
+A single repo's telemetry is too thin to trust a "never fired" verdict (a skill fires a handful
+of times in one project). `projects`, `audit` and `graph` therefore share one bounded discovery:
+configured roots are scanned for the versioned `.void/config.json` marker. A project appears
+without a hook having run and disappears without mutable registry bookkeeping. `void-harness
+update` retires at most 10,000 obsolete `~/.void/projects/*.path` files per invocation and never
+recursively removes that directory.
 
-- `void-harness audit --all-projects` and `void-graph cost|behavior --all-projects` aggregate the `.void/*.jsonl` of every registered project before classifying, so the gates actually clear.
+- `void-harness audit --all-projects` and `void-graph cost|behavior --all-projects` aggregate the `.void/*.jsonl` of every discovered project before classifying, so the gates actually clear.
 - `void-harness audit --push` files only evidence-eligible proposals as GitHub issues on `voidcorp-core/void-harness`, labelled `harness-feedback`. It is **dry-run by default** (prints the create/update plan and stops); a real push additionally requires an interactive confirmation, and a re-run **updates the same issue** (deterministic title per `type:component`) instead of duplicating. The issues carry component names and aggregate counts only — never a project path, file content, or session id. A missing or unauthenticated `gh` fails loud. HITL is absolute: no issue is ever filed without the explicit flag and the confirmation.
 
 ## HITL is absolute
