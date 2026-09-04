@@ -195,6 +195,17 @@ describe('conformance diagnostics and environment', () => {
     expect(diagnostic).not.toContain('secret-canary');
     expect(Buffer.byteLength(diagnostic)).toBeLessThanOrEqual(256);
   });
+
+  it('keeps the failure tail when verbose output exceeds the diagnostic budget', () => {
+    const diagnostic = conformanceFailureDiagnostic({
+      stdout: `RUN legacy-collisions\n${'setup noise\n'.repeat(100)}`,
+      stderr: 'AssertionError: receipt ownership differs on win32',
+    }, 256);
+
+    expect(diagnostic).toContain('RUN legacy-collisions');
+    expect(diagnostic).toContain('AssertionError: receipt ownership differs on win32');
+    expect(Buffer.byteLength(diagnostic)).toBeLessThanOrEqual(256);
+  });
 });
 
 describe('resolveConformanceTarball', () => {
