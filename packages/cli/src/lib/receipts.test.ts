@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildInstallReceipt,
   encodeReceipt,
+  fileModesEqual,
   INSTALL_RECEIPT_PATH,
   parseReceipt,
   readInstallReceipt,
@@ -16,6 +17,13 @@ function scratch(): string {
 }
 
 describe('install receipts', () => {
+  it('compares only the permission class Windows can represent', () => {
+    expect(fileModesEqual(0o666, 0o644, 'win32')).toBe(true);
+    expect(fileModesEqual(0o444, 0o644, 'win32')).toBe(false);
+    expect(fileModesEqual(0o666, 0o644, 'darwin')).toBe(false);
+    expect(fileModesEqual(0o755, 0o755, 'linux')).toBe(true);
+  });
+
   it('round-trips a deterministic, sorted ownership manifest', () => {
     const receipt = buildInstallReceipt({
       version: '2.0.2',
