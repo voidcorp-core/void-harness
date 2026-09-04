@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
@@ -10,6 +11,7 @@ import {
   validateCaptureAttestation,
   validateLegacyManifest,
 } from './conformance-legacy-v3-lib.mjs';
+import * as legacyEvidence from './conformance-legacy-v3-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..', '..');
@@ -150,6 +152,7 @@ describe('legacy v3 capture attestation', () => {
         tarballSha256: 'a'.repeat(64),
         sourceSha: 'b'.repeat(40),
         cleanCheckout: true,
+        exercised: false,
       },
       platform: 'linux',
       command: { executable: 'node', argv: ['fixed-runner.mjs'] },
@@ -177,6 +180,31 @@ describe('legacy v3 capture attestation', () => {
       manifestBytes: loaded.manifestBytes,
       attestation: { ...attestation, evidenceOperation: 'legacy-doctor' },
     })).toThrow('LEGACY_ATTESTATION_INVALID');
+    expect(() => validateCaptureAttestation({
+      schema: loaded.attestationSchema,
+      manifest: loaded.manifest,
+      manifestBytes: loaded.manifestBytes,
+      attestation: {
+        ...attestation,
+        artifact: { ...attestation.artifact, exercised: true },
+      },
+    })).toThrow('LEGACY_ATTESTATION_INVALID');
+
+    const packedScenario = loaded.manifest.scenarios.find(
+      ({ id }) => id === 'install.fresh.claude',
+    );
+    expect(packedScenario).toBeDefined();
+    expect(() => validateCaptureAttestation({
+      schema: loaded.attestationSchema,
+      manifest: loaded.manifest,
+      manifestBytes: loaded.manifestBytes,
+      attestation: {
+        ...attestation,
+        scenarioId: packedScenario?.id,
+        evidenceOperation: packedScenario?.evidenceOperation,
+        artifact: { ...attestation.artifact, exercised: true },
+      },
+    })).not.toThrow();
   });
 
   it('rejects machine paths, timestamps, prompts, environments, and credential canaries', () => {
@@ -193,6 +221,59 @@ describe('legacy v3 capture attestation', () => {
     expect(() => assertPersistableCapture({
       command: { executable: 'node', argv: ['packages/cli/scripts/conformance-install.mjs'] },
     })).not.toThrow();
+  });
+});
+
+describe('legacy v3 observed evidence digests', () => {
+  it('normalizes ephemeral output but changes when observed content changes', () => {
+    const digestObservedOutput = Reflect.get(legacyEvidence, 'digestObservedOutput');
+    expect(digestObservedOutput).toBeTypeOf('function');
+    if (typeof digestObservedOutput !== 'function') return;
+
+    const first = digestObservedOutput(
+      { stdout: 'passed /tmp/run-a in 15ms\n', stderr: '' },
+      ['/tmp/run-a'],
+    );
+    const equivalent = digestObservedOutput(
+      { stdout: 'passed /private/tmp/run-b in 92ms\r\n', stderr: '' },
+      ['/private/tmp/run-b'],
+    );
+    const changed = digestObservedOutput(
+      { stdout: 'failed /tmp/run-a in 15ms\n', stderr: '' },
+      ['/tmp/run-a'],
+    );
+
+    expect(first).toBe(equivalent);
+    expect(changed).not.toBe(first);
+  });
+
+  it('hashes the canonical observed tree rather than expected manifest fields', () => {
+    const digestObservedTree = Reflect.get(legacyEvidence, 'digestObservedTree');
+    expect(digestObservedTree).toBeTypeOf('function');
+    if (typeof digestObservedTree !== 'function') return;
+
+    const firstRoot = mkdtempSync(join(tmpdir(), 'vm-observed-a-'));
+    const secondRoot = mkdtempSync(join(tmpdir(), 'vm-observed-b-'));
+    for (const root of [firstRoot, secondRoot]) {
+      const fixture = join(root, 'fixture-ABC123', '.void');
+      mkdirSync(fixture, { recursive: true });
+      writeFileSync(
+        join(fixture, 'state.json'),
+        `${JSON.stringify({ root, recordedAt: '2026-09-04T12:00:00.000Z' })}\n`,
+      );
+    }
+
+    const first = digestObservedTree(firstRoot);
+    const equivalent = digestObservedTree(secondRoot);
+    writeFileSync(
+      join(secondRoot, 'fixture-ABC123', '.void', 'state.json'),
+      '{"state":"changed"}\n',
+    );
+    const changed = digestObservedTree(secondRoot);
+
+    expect(first).toEqual(equivalent);
+    expect(changed.sha256).not.toBe(first.sha256);
+    expect(first.fileCount).toBe(1);
   });
 });
 
