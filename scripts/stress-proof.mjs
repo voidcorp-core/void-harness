@@ -29,6 +29,9 @@ export function stressPlan(mode, attempts, firstSeed) {
   if (!Number.isInteger(firstSeed) || firstSeed < 1 || firstSeed > 2_147_483_647) {
     fail('first seed must be a positive 32-bit integer');
   }
+  if (firstSeed + attempts - 1 > 2_147_483_647) {
+    fail('seed range must stay within positive 32-bit integers');
+  }
   return Array.from({ length: attempts }, (_, index) => {
     const seed = firstSeed + index;
     const scripts = mode === 'fast' ? ['test:fast'] : COMPLETE_LANES;
