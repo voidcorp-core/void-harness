@@ -41,11 +41,14 @@ describe('project root identity', () => {
 describe('project root case sensitivity', () => {
 	it('finds distinct case variants below numeric and uncased Unicode directories', async () => {
 		type Entry = { readonly name: string; readonly directory: boolean; readonly symlink: boolean };
+		const project = join('project');
+		const numeric = join(project, '123');
+		const unicode = join(numeric, '漢字');
 		const entries = new Map<string, readonly Entry[]>([
-			['/project', [{ name: '123', directory: true, symlink: false }]],
-			['/project/123', [{ name: '漢字', directory: true, symlink: false }]],
+			[project, [{ name: '123', directory: true, symlink: false }]],
+			[numeric, [{ name: '漢字', directory: true, symlink: false }]],
 			[
-				'/project/123/漢字',
+				unicode,
 				[
 					{ name: 'Foo.ts', directory: false, symlink: false },
 					{ name: 'foo.ts', directory: false, symlink: false },
@@ -53,13 +56,13 @@ describe('project root case sensitivity', () => {
 			],
 		]);
 		const identities = new Map([
-			['/project/123', { device: 1, inode: 2 }],
-			['/project/123/漢字', { device: 1, inode: 3 }],
-			['/project/123/漢字/Foo.ts', { device: 1, inode: 4 }],
-			['/project/123/漢字/foo.ts', { device: 1, inode: 5 }],
+			[numeric, { device: 1, inode: 2 }],
+			[unicode, { device: 1, inode: 3 }],
+			[join(unicode, 'Foo.ts'), { device: 1, inode: 4 }],
+			[join(unicode, 'foo.ts'), { device: 1, inode: 5 }],
 		]);
 
-		const sensitive = await detectProjectVolumeCaseSensitivity('/project', 1, {
+		const sensitive = await detectProjectVolumeCaseSensitivity(project, 1, {
 			async *entries(path) {
 				for (const entry of entries.get(path) ?? []) yield entry;
 			},
