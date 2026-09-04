@@ -5,12 +5,17 @@ import {
   lstatSync,
   openSync,
   readFileSync,
+  readlinkSync,
+  readdirSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { z } from 'zod';
 
 const MAX_SCHEMA_BYTES = 256 * 1024;
 const MAX_MANIFEST_BYTES = 512 * 1024;
+const MAX_OBSERVED_ENTRIES = 50_000;
+const MAX_OBSERVED_BYTES = 100 * 1024 * 1024;
+const EXCLUDED_OBSERVED_NAMES = new Set(['.git', 'node_modules', 'npm-cache']);
 const EXPECTED_SCENARIOS = new Map([
   ['autopilot.exact-sha', 'legacy-autopilot-recovery'],
   ['autopilot.interrupted-release', 'legacy-autopilot-recovery'],
@@ -56,6 +61,99 @@ function failContract(reason) {
 
 function failAttestation(reason) {
   throw new Error(`LEGACY_ATTESTATION_INVALID: ${reason}`);
+}
+
+function sha256(value) {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function normalizeEphemeralText(value, replacements) {
+  let normalized = value
+    .replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, '')
+    .replace(/\r\n?/g, '\n');
+  for (const replacement of [...replacements].sort((left, right) => right.length - left.length)) {
+    if (replacement !== '') normalized = normalized.split(replacement).join('<ROOT>');
+  }
+  return normalized
+    .replace(/-[A-Za-z0-9]{6}(?=[/\\"']|$)/g, '-<tmp>')
+    .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g, '<TIMESTAMP>')
+    .replace(/\b\d+(?:\.\d+)?(?:ms|s|m)\b/g, '<DURATION>')
+    .trim();
+}
+
+function canonicalObservedPath(root, path) {
+  return relative(root, path)
+    .split(/[\\/]/)
+    .map((segment) => segment.replace(/-[A-Za-z0-9]{6}$/, '-<tmp>'))
+    .join('/');
+}
+
+function canonicalObservedBytes(bytes, root) {
+  const text = bytes.toString('utf8');
+  if (!Buffer.from(text).equals(bytes)) return bytes;
+  return Buffer.from(normalizeEphemeralText(text, [root]));
+}
+
+function appendObservedEntries(root, current, records, tally) {
+  const entries = readdirSync(current, { withFileTypes: true })
+    .filter(({ name }) => !EXCLUDED_OBSERVED_NAMES.has(name))
+    .sort((left, right) => left.name.localeCompare(right.name));
+  for (const entry of entries) {
+    tally.entries += 1;
+    if (tally.entries > MAX_OBSERVED_ENTRIES) {
+      failAttestation('observed filesystem has too many entries');
+    }
+    const path = join(current, entry.name);
+    const metadata = lstatSync(path);
+    const canonicalPath = canonicalObservedPath(root, path);
+    const mode = metadata.mode & 0o777;
+    if (metadata.isDirectory()) {
+      records.push({ path: canonicalPath, type: 'directory', mode });
+      appendObservedEntries(root, path, records, tally);
+      continue;
+    }
+    if (metadata.isSymbolicLink()) {
+      const target = normalizeEphemeralText(readlinkSync(path), [root]);
+      records.push({ path: canonicalPath, type: 'symlink', mode, target });
+      continue;
+    }
+    if (!metadata.isFile()) failAttestation('observed filesystem contains a special file');
+    tally.bytes += metadata.size;
+    tally.files += 1;
+    if (tally.bytes > MAX_OBSERVED_BYTES) {
+      failAttestation('observed filesystem exceeds its byte limit');
+    }
+    records.push({
+      path: canonicalPath,
+      type: 'file',
+      mode,
+      sha256: sha256(canonicalObservedBytes(readFileSync(path), root)),
+    });
+  }
+}
+
+export function digestObservedOutput(result, replacements = []) {
+  const canonical = {
+    stdout: normalizeEphemeralText(result.stdout, replacements),
+    stderr: normalizeEphemeralText(result.stderr, replacements),
+  };
+  return sha256(JSON.stringify(canonical));
+}
+
+export function digestObservedTree(root) {
+  const metadata = lstatSync(root);
+  if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
+    failAttestation('observed filesystem root is not a regular directory');
+  }
+  const records = [];
+  const tally = { entries: 0, files: 0, bytes: 0 };
+  appendObservedEntries(root, root, records, tally);
+  records.sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+  return {
+    sha256: sha256(JSON.stringify(records)),
+    fileCount: tally.files,
+    totalBytes: tally.bytes,
+  };
 }
 
 function readBoundedFile(filePath, label, maxBytes) {
@@ -208,13 +306,17 @@ export function validateCaptureAttestation({
   attestation,
 }) {
   const validated = validateWithJsonSchema(schema, attestation, failAttestation);
-  const manifestSha256 = createHash('sha256').update(manifestBytes).digest('hex');
+  const manifestSha256 = sha256(manifestBytes);
   if (validated.manifestSha256 !== manifestSha256) {
     failAttestation('manifest digest does not match the captured contract');
   }
   const scenario = manifest.scenarios.find(({ id }) => id === validated.scenarioId);
   if (scenario === undefined || scenario.evidenceOperation !== validated.evidenceOperation) {
     failAttestation('scenario and evidence operation are not bound');
+  }
+  const artifactExercised = validated.evidenceOperation.startsWith('packed-');
+  if (validated.artifact.exercised !== artifactExercised) {
+    failAttestation('artifact exercise claim does not match the evidence operation');
   }
   return validated;
 }

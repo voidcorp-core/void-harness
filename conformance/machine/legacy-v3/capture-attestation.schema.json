@@ -33,14 +33,16 @@
         "packageVersion",
         "tarballSha256",
         "sourceSha",
-        "cleanCheckout"
+        "cleanCheckout",
+        "exercised"
       ],
       "properties": {
         "packageName": { "const": "voidharness" },
         "packageVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$" },
         "tarballSha256": { "$ref": "#/$defs/sha256" },
         "sourceSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
-        "cleanCheckout": { "const": true }
+        "cleanCheckout": { "const": true },
+        "exercised": { "type": "boolean" }
       }
     },
     "platform": { "enum": ["darwin", "linux", "win32"] },

@@ -7,6 +7,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   packageManagerCommand,
+  preserveConformanceFixtures,
   resolveConformanceTarball,
   runConformanceProcess,
   safeConformanceDiagnostic,
@@ -117,5 +118,7 @@ try {
     `install conformance passed (${process.platform}): claude, codex, both; p50 ${Math.round(medianMs)}ms; tarball ${tarballName}\n`,
   );
 } finally {
-  await rm(temporary, { recursive: true, force: true });
+  if (!preserveConformanceFixtures()) {
+    await rm(temporary, { recursive: true, force: true });
+  }
 }

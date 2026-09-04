@@ -15,6 +15,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   assertPersistableCapture,
+  digestObservedOutput,
+  digestObservedTree,
   loadLegacyContract,
   validateCaptureAttestation,
   validateLegacyManifest,
@@ -173,10 +175,6 @@ async function packArtifact(temporary) {
   return { path: tarball, bytes: readFileSync(tarball) };
 }
 
-function canonicalDigest(value) {
-  return sha256(JSON.stringify(value));
-}
-
 async function replaceCaptureDirectory(staging, platformRoot) {
   const backup = `${platformRoot}.previous`;
   await rm(backup, { recursive: true, force: true });
@@ -208,15 +206,35 @@ async function capture(loaded, manifest) {
 
     for (const operation of operations) {
       const command = trustedCommand(operation);
+      const operationRoot = join(temporary, 'operations', operation);
+      await mkdir(operationRoot, { recursive: true });
+      const exercisesArtifact = operation.startsWith('packed-');
       const result = await run(
         command.actual.executable,
         command.actual.argv,
-        operation.startsWith('packed-')
-          ? { VOID_CONFORMANCE_TARBALL: tarball.path }
-          : {},
+        {
+          TEMP: operationRoot,
+          TMP: operationRoot,
+          TMPDIR: operationRoot,
+          ...(exercisesArtifact
+            ? {
+                VOID_CONFORMANCE_PRESERVE_FIXTURES: '1',
+                VOID_CONFORMANCE_TARBALL: tarball.path,
+              }
+            : {}),
+        },
       );
       requireSuccess(result, operation);
-      results.set(operation, { command: command.recorded, outcome: result.outcome });
+      results.set(operation, {
+        artifactExercised: exercisesArtifact,
+        command: command.recorded,
+        filesystem: digestObservedTree(operationRoot),
+        outcome: result.outcome,
+        outputSha256: digestObservedOutput(
+          result,
+          [REPO_ROOT, temporary, operationRoot, tarball.path],
+        ),
+      });
     }
 
     if (sha256(readFileSync(tarball.path)) !== artifactDigest) {
@@ -242,23 +260,13 @@ async function capture(loaded, manifest) {
           tarballSha256: artifactDigest,
           sourceSha,
           cleanCheckout: true,
+          exercised: result.artifactExercised,
         },
         platform: process.platform,
         command: result.command,
         outcome: result.outcome,
-        normalizedOutputSha256: canonicalDigest({
-          evidenceOperation: scenario.evidenceOperation,
-          outcome: result.outcome,
-          outputExceeded: false,
-        }),
-        filesystemOutcomeSha256: canonicalDigest({
-          scenarioId: scenario.id,
-          classification: scenario.expected.classification,
-          diagnosticCodes: scenario.expected.diagnosticCodes,
-          effects: scenario.expected.effects,
-          preservePaths: scenario.expected.preservePaths,
-          recovery: scenario.expected.recovery,
-        }),
+        normalizedOutputSha256: result.outputSha256,
+        filesystemOutcomeSha256: result.filesystem.sha256,
       };
       validateCaptureAttestation({
         schema: loaded.attestationSchema,

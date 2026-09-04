@@ -69,6 +69,10 @@ export function resolveConformanceTarball(environment = process.env) {
   return candidate;
 }
 
+export function preserveConformanceFixtures(environment = process.env) {
+  return environment.VOID_CONFORMANCE_PRESERVE_FIXTURES === '1';
+}
+
 function boundedStream(maxBytes) {
   const chunks = [];
   let bytes = 0;

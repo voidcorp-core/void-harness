@@ -23,6 +23,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   packageManagerCommand,
+  preserveConformanceFixtures,
   resolveConformanceTarball,
   runConformanceProcess,
   safeConformanceDiagnostic,
@@ -165,5 +166,7 @@ try {
 
   process.stdout.write(`autopilot conformance passed (${process.platform}) from ${tarballName}.\n`);
 } finally {
-  await rm(temporary, { recursive: true, force: true });
+  if (!preserveConformanceFixtures()) {
+    await rm(temporary, { recursive: true, force: true });
+  }
 }
