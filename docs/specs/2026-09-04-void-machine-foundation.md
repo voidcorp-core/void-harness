@@ -1,7 +1,7 @@
 ---
 title: Void Machine foundation
 date: 2026-09-04
-status: in-design
+status: approved
 author: Folpe + Codex
 ticket:
 related:
@@ -423,6 +423,14 @@ permission mode, limits and settings. Claude Code officially supports subscripti
 for normal `-p` execution. If `ANTHROPIC_API_KEY` is present, it overrides the subscription in
 non-interactive mode, so the adapter must detect and report that fact before a spend-capable run.
 
+The subscription path is a release-blocking product capability, not a best-effort optimization.
+Void Machine invokes the official Claude Code executable and lets that executable own login,
+credential refresh and provider communication. The Machine does not embed the Agent SDK for this
+path, extract or copy OAuth credentials, offer a third-party Claude.ai login, or proxy Anthropic
+requests. If the installed official CLI cannot prove a supported subscription execution path, the
+Claude adapter is incompatible and the run refuses. It never converts that incompatibility into an
+API call.
+
 When subscription mode is selected, the Machine removes API-key variables from the child
 environment and verifies the resulting authentication mode. If it cannot distinguish subscription
 from API billing, it refuses the run instead of consuming an unapproved fallback.
@@ -447,8 +455,9 @@ The policy distinguishes:
 subscription | api | local | unknown
 ```
 
-An API fallback requires both `allowApiFallback = true` and a positive explicit ceiling. A ceiling
-of `0` disables it completely. Unknown billing mode cannot perform a spend-capable fallback.
+An API fallback requires both `allowApiFallback = true` and a positive explicit ceiling. The
+default Claude API ceiling is `0`, which disables fallback completely. Unknown billing mode cannot
+perform a spend-capable fallback.
 Subscription usage records quota metadata when observable and `unknown` otherwise; it is never
 reported as an exact API cost of zero.
 
@@ -939,7 +948,9 @@ before implementation:
 4. SQLite-first authoritative storage with a Postgres/Neon adapter;
 5. supervised assurance levels and the definition of proof-carrying execution;
 6. TUF-rooted two-layer update architecture;
-7. `Void Machine` product naming and `void-machine` command/package cutover.
+7. `Void Machine` product naming and `void-machine` command/package cutover;
+8. official Claude Code process adapter with subscription as a release gate and API disabled by
+   default.
 
 ## Official sources consulted
 
