@@ -68,7 +68,7 @@ async function runSuite(name, script, tarball, temporary) {
 
 async function main() {
   const options = parseArguments(process.argv.slice(2));
-  const temporary = await mkdtemp(join(tmpdir(), 'void-consumer-conformance-'));
+  const temporary = await mkdtemp(join(tmpdir(), 'harness-consumer-conformance-'));
   try {
     const artifact = options.tarball === undefined
       ? await packConformanceArtifact(join(temporary, 'artifact'))

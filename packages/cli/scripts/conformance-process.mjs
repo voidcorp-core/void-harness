@@ -40,7 +40,7 @@ export function conformanceFixtureEnvironment(root, extra = {}) {
     TMP: temporary,
     TMPDIR: temporary,
     USERPROFILE: home,
-    VOID_GLOBAL_DIR: join(root, 'void-global'),
+    VOID_GLOBAL_DIR: join(root, 'harness-global'),
     XDG_CACHE_HOME: join(home, '.cache'),
     npm_config_cache: join(root, 'npm-cache'),
     npm_config_offline: 'true',

@@ -162,7 +162,7 @@ export async function packConformanceArtifact(outputDirectory) {
   await requireCleanTrackedCheckout('before');
   const sourceSha = await gitText(['rev-parse', '--verify', 'HEAD']);
   await mkdir(dirname(destination), { recursive: true });
-  const temporary = await mkdtemp(join(dirname(destination), '.void-conformance-pack-'));
+  const temporary = await mkdtemp(join(dirname(destination), '.harness-conformance-pack-'));
   try {
     const pnpm = packageManagerCommand('pnpm');
     const packed = await runConformanceProcess({
