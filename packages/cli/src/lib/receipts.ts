@@ -60,6 +60,23 @@ function sha256(content: Uint8Array): string {
   return createHash('sha256').update(content).digest('hex');
 }
 
+/**
+ * Compare the permission information the current platform can represent.
+ * Windows does not implement POSIX owner/group/other distinctions, so 0644
+ * and 0666 are the same writable class there. Byte equality remains a separate
+ * mandatory ownership check.
+ */
+export function fileModesEqual(
+  observed: number,
+  expected: number,
+  platform: NodeJS.Platform = process.platform,
+): boolean {
+  const observedMode = observed & 0o777;
+  const expectedMode = expected & 0o777;
+  if (platform !== 'win32') return observedMode === expectedMode;
+  return Boolean(observedMode & 0o222) === Boolean(expectedMode & 0o222);
+}
+
 export function buildInstallReceipt(input: BuildReceiptInput): InstallReceipt {
   const runtimes = [...new Set(input.runtimes)].sort() as Runtime[];
   const files = input.files
@@ -243,7 +260,7 @@ export async function removeReceiptOwnedFiles(
       if (
         !info.isFile()
         || info.isSymbolicLink()
-        || (info.mode & 0o777) !== file.mode
+        || !fileModesEqual(info.mode, file.mode)
         || sha256(await readFile(path)) !== file.sha256
       ) {
         preserved.push(file.path);

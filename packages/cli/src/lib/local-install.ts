@@ -20,6 +20,7 @@ import {
 import {
   buildInstallReceipt,
   encodeReceipt,
+  fileModesEqual,
   INSTALL_RECEIPT_PATH,
   type InstallReceipt,
   type ReceiptFileInput,
@@ -162,7 +163,7 @@ function sameOwnedFile(
   mode: number,
   owned: InstallReceipt['files'][number],
 ): boolean {
-  return digest(content) === owned.sha256 && (mode & 0o777) === owned.mode;
+  return digest(content) === owned.sha256 && fileModesEqual(mode, owned.mode);
 }
 
 export interface PrepareInstallInput {
@@ -252,7 +253,7 @@ export async function prepareInstallCommit(input: PrepareInstallInput): Promise<
       && sameOwnedFile(current, currentMode, priorOwnership);
     const changed = current === undefined
       || !current.equals(Buffer.from(file.content))
-      || (currentMode & 0o777) !== file.mode;
+      || !fileModesEqual(currentMode, file.mode);
 
     if (
       changed
