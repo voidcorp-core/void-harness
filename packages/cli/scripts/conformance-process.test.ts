@@ -151,6 +151,8 @@ describe('conformance diagnostics and environment', () => {
         'OPENAI_API_KEY=openai-canary',
         'ANTHROPIC_API_KEY=anthropic-canary',
         '//registry.npmjs.org/:_authToken=registry-canary',
+        'https://example.test/failure?token=query-canary',
+        'x-api-key=header-canary',
         'Bearer bearer-canary',
         'x'.repeat(4096),
       ].join(' '),
@@ -164,11 +166,20 @@ describe('conformance diagnostics and environment', () => {
       'openai-canary',
       'anthropic-canary',
       'registry-canary',
+      'query-canary',
+      'header-canary',
       'bearer-canary',
     ]) {
       expect(diagnostic).not.toContain(canary);
     }
     expect(Buffer.byteLength(diagnostic)).toBeLessThanOrEqual(256);
+  });
+
+  it('keeps a truncated UTF-8 diagnostic within its byte ceiling', () => {
+    const diagnostic = safeConformanceDiagnostic(`${'a'.repeat(255)}é`, 256);
+
+    expect(Buffer.byteLength(diagnostic)).toBeLessThanOrEqual(256);
+    expect(diagnostic).not.toContain('\uFFFD');
   });
 });
 
