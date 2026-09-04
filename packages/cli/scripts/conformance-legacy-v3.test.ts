@@ -108,6 +108,20 @@ describe('legacy v3 normative contract', () => {
       'LEGACY_CONTRACT_INVALID',
     );
   });
+
+  it('freezes unreadable settings as a preserving refusal', () => {
+    const loaded = contract();
+    const scenario = loaded.manifest.scenarios.find(
+      ({ id }) => id === 'collision.unreadable-settings',
+    );
+
+    expect(scenario?.expected).toMatchObject({
+      classification: 'refused',
+      processOutcome: { kind: 'exited', code: 1 },
+      preservePaths: ['.claude/settings.json'],
+      effects: 'none',
+    });
+  });
 });
 
 describe('legacy v3 capture attestation', () => {
