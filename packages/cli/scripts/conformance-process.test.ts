@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CONFORMANCE_PACK_TIMEOUT_MS,
   conformanceEnvironment,
+  conformanceFailureDiagnostic,
   packageManagerCommand,
   resolveConformanceFixtureRoot,
   resolveConformanceTarball,
@@ -180,6 +181,17 @@ describe('conformance diagnostics and environment', () => {
 
     expect(Buffer.byteLength(diagnostic)).toBeLessThanOrEqual(256);
     expect(diagnostic).not.toContain('\uFFFD');
+  });
+
+  it('surfaces bounded redacted process output when an evidence command fails', () => {
+    const diagnostic = conformanceFailureDiagnostic({
+      stdout: 'FAIL collision assertion\n',
+      stderr: `token=secret-canary ${'x'.repeat(2048)}`,
+    }, 256);
+
+    expect(diagnostic).toContain('FAIL collision assertion');
+    expect(diagnostic).not.toContain('secret-canary');
+    expect(Buffer.byteLength(diagnostic)).toBeLessThanOrEqual(256);
   });
 });
 
