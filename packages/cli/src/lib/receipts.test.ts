@@ -5,7 +5,9 @@ import { describe, expect, it } from 'vitest';
 import {
   buildInstallReceipt,
   encodeReceipt,
+  INSTALL_RECEIPT_PATH,
   parseReceipt,
+  readInstallReceipt,
   removeReceiptOwnedFiles,
 } from './receipts.js';
 
@@ -50,6 +52,44 @@ describe('install receipts', () => {
       expect(parseReceipt(unsafe)).toBeUndefined();
     },
   );
+
+  it('distinguishes an absent receipt from an invalid receipt', async () => {
+    await expect(readInstallReceipt(scratch())).resolves.toBeUndefined();
+
+    const root = scratch();
+    const path = join(root, ...INSTALL_RECEIPT_PATH.split('/'));
+    mkdirSync(join(root, '.void', 'machine', 'receipts'), { recursive: true });
+    writeFileSync(path, '{not json}\n');
+
+    await expect(readInstallReceipt(root)).rejects.toMatchObject({
+      code: 'INSTALL_RECEIPT_INVALID',
+      reason: 'malformed-v1',
+    });
+    expect(readFileSync(path, 'utf8')).toBe('{not json}\n');
+  });
+
+  it('rejects an unsupported receipt version instead of treating it as absent', async () => {
+    const root = scratch();
+    const path = join(root, ...INSTALL_RECEIPT_PATH.split('/'));
+    mkdirSync(join(root, '.void', 'machine', 'receipts'), { recursive: true });
+    writeFileSync(path, JSON.stringify({ schemaVersion: 2 }));
+
+    await expect(readInstallReceipt(root)).rejects.toMatchObject({
+      code: 'INSTALL_RECEIPT_INVALID',
+      reason: 'unsupported-version',
+    });
+  });
+
+  it('rejects a non-regular receipt path instead of treating it as absent', async () => {
+    const root = scratch();
+    const path = join(root, ...INSTALL_RECEIPT_PATH.split('/'));
+    mkdirSync(path, { recursive: true });
+
+    await expect(readInstallReceipt(root)).rejects.toMatchObject({
+      code: 'INSTALL_RECEIPT_INVALID',
+      reason: 'unreadable',
+    });
+  });
 
   it('removes only unchanged receipt-owned files and preserves adjacent or modified files', async () => {
     const root = scratch();

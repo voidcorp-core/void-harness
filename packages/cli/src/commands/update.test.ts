@@ -1,5 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,6 +35,34 @@ describe('update routing', () => {
     expect(updateModeFor(receipt('local'))).toBe('local');
     expect(updateModeFor(receipt('marketplace'))).toBe('marketplace');
     expect(updateModeFor(undefined)).toBe('marketplace');
+  });
+});
+
+describe('update with an invalid legacy receipt', () => {
+  const HERE = dirname(fileURLToPath(import.meta.url));
+  const CLI = resolve(HERE, '..', '..', 'bin', 'void-harness.mjs');
+
+  it('fails before migrating or staging any project bytes', () => {
+    const root = mkdtempSync(join(tmpdir(), 'update-invalid-receipt-'));
+    const legacyPath = join(root, '.void', 'receipts', 'install-v1.json');
+    const migratedPath = join(root, ...INSTALL_RECEIPT_PATH.split('/'));
+    const adjacentPath = join(root, 'project-owned.txt');
+    mkdirSync(dirname(legacyPath), { recursive: true });
+    writeFileSync(legacyPath, '{not json}\n', { mode: 0o640 });
+    writeFileSync(adjacentPath, 'owned by project\n', { mode: 0o600 });
+
+    const result = spawnSync(
+      process.execPath,
+      [CLI, 'update', '--cache-only', '--pins-only'],
+      { cwd: root, encoding: 'utf8', env: { ...process.env, PATH: '' } },
+    );
+    const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+
+    expect(result.status).toBe(1);
+    expect(output).toContain('INSTALL_RECEIPT_INVALID');
+    expect(readFileSync(legacyPath, 'utf8')).toBe('{not json}\n');
+    expect(existsSync(migratedPath)).toBe(false);
+    expect(readFileSync(adjacentPath, 'utf8')).toBe('owned by project\n');
   });
 });
 
