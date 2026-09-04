@@ -22,6 +22,7 @@ import {
   validateLegacyManifest,
 } from './conformance-legacy-v3-lib.mjs';
 import {
+  CONFORMANCE_PACK_TIMEOUT_MS,
   packageManagerCommand,
   runConformanceProcess,
 } from './conformance-process.mjs';
@@ -86,12 +87,13 @@ function sha256(value) {
   return createHash('sha256').update(value).digest('hex');
 }
 
-async function run(command, args, environment = {}) {
+async function run(command, args, environment = {}, timeoutMs) {
   return runConformanceProcess({
     command,
     args,
     cwd: REPO_ROOT,
     environment,
+    timeoutMs,
   });
 }
 
@@ -163,7 +165,7 @@ async function packArtifact(temporary) {
     'pack',
     '--pack-destination',
     temporary,
-  ]);
+  ], {}, CONFORMANCE_PACK_TIMEOUT_MS);
   requireSuccess(result, 'pack-artifact');
   const tarballs = (await readdir(temporary)).filter((name) => name.endsWith('.tgz'));
   if (tarballs.length !== 1) fail('pack did not produce exactly one tarball');

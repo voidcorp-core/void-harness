@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  CONFORMANCE_PACK_TIMEOUT_MS,
   packageManagerCommand,
   preserveConformanceFixtures,
   resolveConformanceFixtureRoot,
@@ -17,8 +18,14 @@ import {
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '..', '..', '..');
 
-async function run(command, args, cwd, env = {}) {
-  const result = await runConformanceProcess({ command, args, cwd, environment: env });
+async function run(command, args, cwd, env = {}, timeoutMs) {
+  const result = await runConformanceProcess({
+    command,
+    args,
+    cwd,
+    environment: env,
+    timeoutMs,
+  });
   if (
     result.outcome.kind === 'exited'
     && result.outcome.code === 0
@@ -56,6 +63,8 @@ try {
         temporary,
       ],
       REPO_ROOT,
+      {},
+      CONFORMANCE_PACK_TIMEOUT_MS,
     );
   }
   const packedName = externalTarball === undefined

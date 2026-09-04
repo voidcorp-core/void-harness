@@ -22,6 +22,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  CONFORMANCE_PACK_TIMEOUT_MS,
   packageManagerCommand,
   preserveConformanceFixtures,
   resolveConformanceFixtureRoot,
@@ -33,13 +34,18 @@ import {
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '..', '..', '..');
 
-async function run(command, args, cwd, { stdin = '', env = {} } = {}) {
+async function run(command, args, cwd, {
+  stdin = '',
+  env = {},
+  timeoutMs,
+} = {}) {
   const result = await runConformanceProcess({
     command,
     args,
     cwd,
     environment: env,
     input: stdin,
+    timeoutMs,
   });
   if (result.outputExceeded) fail('command output exceeded its bounded stream limit');
   if (result.outcome.kind !== 'exited') {
@@ -84,6 +90,7 @@ try {
       pnpm.executable,
       [...pnpm.prefixArguments, '--filter', 'voidharness', 'pack', '--pack-destination', temporary],
       REPO_ROOT,
+      { timeoutMs: CONFORMANCE_PACK_TIMEOUT_MS },
     );
     if (packed.code !== 0) fail(`pack exited ${packed.code}\n${packed.stderr}`);
   }

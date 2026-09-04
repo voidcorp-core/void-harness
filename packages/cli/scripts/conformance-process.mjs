@@ -5,6 +5,7 @@ import { dirname, isAbsolute, win32 } from 'node:path';
 const MAX_PATH_ENTRIES = 128;
 const DEFAULT_OUTPUT_BYTES = 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 120_000;
+export const CONFORMANCE_PACK_TIMEOUT_MS = 5 * 60_000;
 const TERMINATION_TIMEOUT_MS = 5_000;
 const CREDENTIAL_KEY = '(?:api[-_]?key|authorization|password|secret|auth[-_]?token|token)';
 const CREDENTIAL_ASSIGNMENT = new RegExp(
