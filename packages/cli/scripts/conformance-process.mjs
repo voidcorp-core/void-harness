@@ -9,7 +9,7 @@ export const CONFORMANCE_PACK_TIMEOUT_MS = 5 * 60_000;
 const TERMINATION_TIMEOUT_MS = 5_000;
 const CREDENTIAL_KEY = '(?:api[-_]?key|authorization|password|secret|auth[-_]?token|token)';
 const CREDENTIAL_ASSIGNMENT = new RegExp(
-  `((?:^|[\\s"'/:])(?:[A-Za-z0-9]+_)*_?${CREDENTIAL_KEY}\\s*[:=]\\s*)[^\\s&,;]+`,
+  `((?:^|[-\\s"'/:?&])(?:[A-Za-z0-9]+[-_])*_?${CREDENTIAL_KEY}\\s*[:=]\\s*)[^\\s&,;]+`,
   'gim',
 );
 const PORTABLE_ENVIRONMENT = [
@@ -40,7 +40,11 @@ export function conformanceEnvironment(extra = {}, source = process.env) {
 function boundedUtf8(value, maxBytes) {
   const bytes = Buffer.from(value);
   if (bytes.byteLength <= maxBytes) return value;
-  return bytes.subarray(0, maxBytes).toString('utf8');
+  let boundary = Math.max(0, Math.floor(maxBytes));
+  while (boundary > 0 && (bytes[boundary] & 0b1100_0000) === 0b1000_0000) {
+    boundary -= 1;
+  }
+  return bytes.subarray(0, boundary).toString('utf8');
 }
 
 export function safeConformanceDiagnostic(value, maxBytes = DEFAULT_OUTPUT_BYTES) {
