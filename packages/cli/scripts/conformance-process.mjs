@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { dirname, win32 } from 'node:path';
+import { existsSync, lstatSync } from 'node:fs';
+import { dirname, isAbsolute, win32 } from 'node:path';
 
 const MAX_PATH_ENTRIES = 128;
 const DEFAULT_OUTPUT_BYTES = 1024 * 1024;
@@ -45,6 +45,26 @@ export function safeConformanceDiagnostic(value, maxBytes = DEFAULT_OUTPUT_BYTES
       '$1[REDACTED]',
     );
   return boundedUtf8(redacted, maxBytes);
+}
+
+export function resolveConformanceTarball(environment = process.env) {
+  const candidate = environment.VOID_CONFORMANCE_TARBALL;
+  if (candidate === undefined) return undefined;
+  try {
+    const metadata = lstatSync(candidate);
+    if (
+      !isAbsolute(candidate)
+      || !candidate.endsWith('.tgz')
+      || !metadata.isFile()
+      || metadata.isSymbolicLink()
+      || metadata.size === 0
+    ) {
+      throw new Error('invalid');
+    }
+  } catch {
+    throw new Error('conformance tarball must be an existing absolute regular .tgz file');
+  }
+  return candidate;
 }
 
 function boundedStream(maxBytes) {

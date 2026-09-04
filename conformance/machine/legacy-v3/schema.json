@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voidcorp.dev/schemas/void-machine/legacy-v3.json",
+  "title": "Void Machine legacy v3 normative oracle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "contractFamily", "contractVersion", "scenarios", "extensions"],
+  "properties": {
+    "$schema": { "const": "./schema.json" },
+    "contractFamily": { "const": "void-machine-legacy" },
+    "contractVersion": { "const": 3 },
+    "scenarios": {
+      "type": "array",
+      "minItems": 24,
+      "maxItems": 24,
+      "items": { "$ref": "#/$defs/scenario" }
+    },
+    "extensions": { "$ref": "#/$defs/extensions" }
+  },
+  "$defs": {
+    "extensions": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "scenarioId": {
+      "enum": [
+        "autopilot.exact-sha",
+        "autopilot.interrupted-release",
+        "autopilot.offline-plan",
+        "collision.adjacent-skill",
+        "collision.co-owned-config",
+        "collision.co-owned-docs",
+        "collision.managed-refusal",
+        "collision.unreadable-settings",
+        "doctor.linked-worktree",
+        "install.fresh.both",
+        "install.fresh.claude",
+        "install.fresh.codex",
+        "receipt.corrupt-update",
+        "receipt.unreadable-update",
+        "receipt.unsupported-version-update",
+        "rollback.stale-removal",
+        "rollback.transaction-write",
+        "runtime.absent",
+        "runtime.auth-ambiguous",
+        "skill.present.claude",
+        "skill.present.codex",
+        "update.local.both",
+        "update.local.claude",
+        "update.local.codex"
+      ]
+    },
+    "evidenceOperation": {
+      "enum": [
+        "legacy-autopilot-recovery",
+        "legacy-collisions",
+        "legacy-doctor",
+        "legacy-receipts",
+        "legacy-rollback",
+        "legacy-runtime",
+        "packed-autopilot",
+        "packed-install"
+      ]
+    },
+    "fixturePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!//)(?!.*\\\\)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)[^\\u0000]+$"
+    },
+    "processOutcome": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "code"],
+          "properties": {
+            "kind": { "const": "exited" },
+            "code": { "type": "integer", "minimum": 0, "maximum": 255 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "signal"],
+          "properties": {
+            "kind": { "const": "signaled" },
+            "signal": { "type": "string", "minLength": 1, "maxLength": 32 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "timed-out" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "spawn-error" } }
+        }
+      ]
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "operation",
+        "evidenceOperation",
+        "platforms",
+        "runtimeState",
+        "preState",
+        "expected",
+        "extensions"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/scenarioId" },
+        "operation": {
+          "enum": [
+            "autopilot",
+            "collision",
+            "doctor",
+            "install",
+            "receipt",
+            "rollback",
+            "runtime",
+            "skill",
+            "update"
+          ]
+        },
+        "evidenceOperation": { "$ref": "#/$defs/evidenceOperation" },
+        "platforms": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": { "enum": ["darwin", "linux", "win32"] }
+        },
+        "runtimeState": {
+          "enum": ["absent", "auth-ambiguous", "both", "claude", "codex", "not-applicable"]
+        },
+        "preState": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["projectState", "receiptState", "fixturePaths"],
+          "properties": {
+            "projectState": { "enum": ["dirty", "fresh", "installed", "interrupted", "worktree"] },
+            "receiptState": {
+              "enum": [
+                "absent",
+                "malformed-v1",
+                "not-applicable",
+                "unreadable",
+                "unsupported-version",
+                "valid-v1"
+              ]
+            },
+            "fixturePaths": {
+              "type": "array",
+              "maxItems": 32,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/fixturePath" }
+            }
+          }
+        },
+        "expected": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "classification",
+            "diagnosticCodes",
+            "preservePaths",
+            "recovery",
+            "effects",
+            "limitations"
+          ],
+          "properties": {
+            "classification": {
+              "enum": ["observed-absent", "refused", "success", "unobserved", "unsupported"]
+            },
+            "processOutcome": { "$ref": "#/$defs/processOutcome" },
+            "diagnosticCodes": {
+              "type": "array",
+              "maxItems": 8,
+              "uniqueItems": true,
+              "items": {
+                "enum": ["INSTALL_RECEIPT_INVALID", "UNOWNED_ASSET_CONFLICT"]
+              }
+            },
+            "preservePaths": {
+              "type": "array",
+              "maxItems": 32,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/fixturePath" }
+            },
+            "recovery": { "enum": ["none", "safe-rerun", "unsupported"] },
+            "effects": { "enum": ["managed-write", "none", "observation-only"] },
+            "limitations": {
+              "type": "array",
+              "maxItems": 4,
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "legacy-direct-skill-unmanaged",
+                  "no-concurrent-writer-serialization",
+                  "no-durable-crash-recovery",
+                  "subscription-auth-unobserved"
+                ]
+              }
+            }
+          }
+        },
+        "extensions": { "$ref": "#/$defs/extensions" }
+      }
+    }
+  }
+}

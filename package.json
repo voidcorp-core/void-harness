@@ -44,6 +44,8 @@
     "conformance:install": "node packages/cli/scripts/conformance-install.mjs",
     "conformance:hooks": "node packages/cli/scripts/conformance-hooks.mjs",
     "conformance:autopilot": "node packages/cli/scripts/conformance-autopilot.mjs",
+    "conformance:legacy-v3": "node packages/cli/scripts/conformance-legacy-v3.mjs --validate-only",
+    "conformance:legacy-v3:capture": "node packages/cli/scripts/conformance-legacy-v3.mjs --capture",
     "conformance:project-graph": "node scripts/conformance-project-graph.mjs",
     "eval": "pnpm build:cli && pnpm --filter @voidcorp/eval-harness run eval --",
     "verify": "node scripts/verify.mjs",

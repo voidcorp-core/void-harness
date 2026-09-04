@@ -225,10 +225,10 @@ What it refuses is narrow on purpose. A file **another ticket of the cluster dec
 breach: nothing legitimate produces it. A file nobody predicted is a widening, and it passes --
 a ticket that enumerates from the manifests finds the packages its author missed, and a guard that
 refuses that discovery is a guard that hides defects. A file **two tickets both reach** passes too,
-and not only when they spelled it the same way: `packages/**/*.test.ts` and `packages/core/b` both
-reach `packages/core/b/x.test.ts`, neither declaration is more specific than the other, so both
-were entitled. A **carve-out** does not: `packages/core` claims `packages/core/b/x.ts` by prefix,
-but a neighbour declaring `packages/core/b` drew a boundary rather than repeated one, so the wider
+and not only when they spelled it the same way: `src/**/*.test.ts` and `src/modules/b` both
+reach `src/modules/b/x.test.ts`, neither declaration is more specific than the other, so both
+were entitled. A **carve-out** does not: `src/modules` claims `src/modules/b/x.ts` by prefix,
+but a neighbour declaring `src/modules/b` drew a boundary rather than repeated one, so the wider
 ticket writing there is a breach. Owning the file no longer ends the question -- it used to, and
 the carved-out file then came back within-scope with an empty widening, invisible rather than
 merely permitted. Sequencing does not compensate for theft: two sequential workers still hold two
@@ -269,8 +269,8 @@ undeclared ticket gets exists only because a neighbour sits in the same cluster 
 cluster of one audits nothing, so that split turns the audit off for every ticket of the cluster,
 the ones that did declare included.
 
-Areas are read in one spelling. `packages/core/templates/`, `./packages/core/templates` and
-`packages/core/templates` are the same area, and an area that claims nothing after that reading --
+Areas are read in one spelling. `src/templates/`, `./src/templates` and
+`src/templates` are the same area, and an area that claims nothing after that reading --
 empty, absolute, or carrying an empty or dot segment such as `packages//core` or `../x` -- is
 refused rather than silently matching no file.
 

@@ -35,10 +35,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: bash .github/scripts/changed-areas.sh
-      - name: Offline tarball install and hook execution for Claude, Codex and both
+      - name: Legacy v3 packed consumer evidence and hook execution
         run: |
-          pnpm conformance:install
+          pnpm conformance:legacy-v3:capture
           pnpm conformance:hooks
+      - name: Upload exact legacy v3 evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: legacy-v3-${{ matrix.os }}
+          path: .void/machine/conformance/legacy-v3/**/*.json
+          if-no-files-found: error
       - name: ProjectGraph tests and typecheck
         # The kernel's own suite. Nothing it asserts can change while
         # packages/harness-graph and packages/mission-engine are untouched.

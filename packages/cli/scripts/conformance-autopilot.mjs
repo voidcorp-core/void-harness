@@ -19,10 +19,11 @@
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   packageManagerCommand,
+  resolveConformanceTarball,
   runConformanceProcess,
   safeConformanceDiagnostic,
 } from './conformance-process.mjs';
@@ -74,14 +75,21 @@ const npm = packageManagerCommand('npm');
 
 try {
   await mkdir(npmCache, { recursive: true });
-  const packed = await run(
-    pnpm.executable,
-    [...pnpm.prefixArguments, '--filter', 'voidharness', 'pack', '--pack-destination', temporary],
-    REPO_ROOT,
-  );
-  if (packed.code !== 0) fail(`pack exited ${packed.code}\n${packed.stderr}`);
-  const tarballName = (await readdir(temporary)).find((name) => name.endsWith('.tgz'));
-  if (tarballName === undefined) fail('pack produced no tarball');
+  const externalTarball = resolveConformanceTarball();
+  if (externalTarball === undefined) {
+    const packed = await run(
+      pnpm.executable,
+      [...pnpm.prefixArguments, '--filter', 'voidharness', 'pack', '--pack-destination', temporary],
+      REPO_ROOT,
+    );
+    if (packed.code !== 0) fail(`pack exited ${packed.code}\n${packed.stderr}`);
+  }
+  const packedName = externalTarball === undefined
+    ? (await readdir(temporary)).find((name) => name.endsWith('.tgz'))
+    : undefined;
+  if (externalTarball === undefined && packedName === undefined) fail('pack produced no tarball');
+  const tarball = externalTarball ?? join(temporary, packedName);
+  const tarballName = basename(tarball);
 
   for (const runtime of ['claude', 'codex']) {
     const fixture = join(temporary, `consumer-${runtime}`);
@@ -90,7 +98,7 @@ try {
 
     const installed = await run(
       npm.executable,
-      [...npm.prefixArguments, 'install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', join(temporary, tarballName)],
+      [...npm.prefixArguments, 'install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', tarball],
       fixture,
       { env: { npm_config_cache: npmCache } },
     );

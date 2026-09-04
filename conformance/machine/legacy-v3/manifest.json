@@ -1,0 +1,777 @@
+{
+  "$schema": "./schema.json",
+  "contractFamily": "void-machine-legacy",
+  "contractVersion": 3,
+  "scenarios": [
+    {
+      "id": "autopilot.exact-sha",
+      "operation": "autopilot",
+      "evidenceOperation": "legacy-autopilot-recovery",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "both",
+      "preState": {
+        "projectState": "installed",
+        "receiptState": "valid-v1",
+        "fixturePaths": [
+          ".void/autopilot/run/state.json"
+        ]
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [],
+        "recovery": "none",
+        "effects": "observation-only",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "autopilot.interrupted-release",
+      "operation": "autopilot",
+      "evidenceOperation": "legacy-autopilot-recovery",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "both",
+      "preState": {
+        "projectState": "interrupted",
+        "receiptState": "valid-v1",
+        "fixturePaths": [
+          ".void/autopilot/run/state.json"
+        ]
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [],
+        "recovery": "safe-rerun",
+        "effects": "observation-only",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "autopilot.offline-plan",
+      "operation": "autopilot",
+      "evidenceOperation": "packed-autopilot",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "both",
+      "preState": {
+        "projectState": "installed",
+        "receiptState": "valid-v1",
+        "fixturePaths": [
+          ".void/program.md"
+        ]
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [],
+        "recovery": "none",
+        "effects": "none",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "collision.adjacent-skill",
+      "operation": "collision",
+      "evidenceOperation": "legacy-collisions",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "claude",
+      "preState": {
+        "projectState": "dirty",
+        "receiptState": "valid-v1",
+        "fixturePaths": [
+          ".claude/skills/private/SKILL.md"
+        ]
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [
+          ".claude/skills/private/SKILL.md"
+        ],
+        "recovery": "none",
+        "effects": "managed-write",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "collision.co-owned-config",
+      "operation": "collision",
+      "evidenceOperation": "legacy-collisions",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "both",
+      "preState": {
+        "projectState": "dirty",
+        "receiptState": "valid-v1",
+        "fixturePaths": [
+          ".void/config.json"
+        ]
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [
+          ".void/config.json"
+        ],
+        "recovery": "none",
+        "effects": "managed-write",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "collision.co-owned-docs",
+      "operation": "collision",
+      "evidenceOperation": "legacy-collisions",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "both",
+      "preState": {
+        "projectState": "dirty",
+        "receiptState": "valid-v1",
+        "fixturePaths": [
+          "AGENTS.md",
+          "CLAUDE.md"
+        ]
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [
+          "AGENTS.md",
+          "CLAUDE.md"
+        ],
+        "recovery": "none",
+        "effects": "managed-write",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "collision.managed-refusal",
+      "operation": "collision",
+      "evidenceOperation": "legacy-collisions",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "codex",
+      "preState": {
+        "projectState": "dirty",
+        "receiptState": "valid-v1",
+        "fixturePaths": [
+          ".agents/skills/void-tdd/SKILL.md"
+        ]
+      },
+      "expected": {
+        "classification": "refused",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 1
+        },
+        "diagnosticCodes": [
+          "UNOWNED_ASSET_CONFLICT"
+        ],
+        "preservePaths": [
+          ".agents/skills/void-tdd/SKILL.md"
+        ],
+        "recovery": "none",
+        "effects": "none",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "collision.unreadable-settings",
+      "operation": "collision",
+      "evidenceOperation": "legacy-collisions",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "claude",
+      "preState": {
+        "projectState": "dirty",
+        "receiptState": "valid-v1",
+        "fixturePaths": [
+          ".claude/settings.json"
+        ]
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [
+          ".claude/settings.json"
+        ],
+        "recovery": "none",
+        "effects": "managed-write",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "doctor.linked-worktree",
+      "operation": "doctor",
+      "evidenceOperation": "legacy-doctor",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "both",
+      "preState": {
+        "projectState": "worktree",
+        "receiptState": "valid-v1",
+        "fixturePaths": [
+          ".void/machine/receipts/install-v1.json"
+        ]
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [],
+        "recovery": "none",
+        "effects": "observation-only",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "install.fresh.both",
+      "operation": "install",
+      "evidenceOperation": "packed-install",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "both",
+      "preState": {
+        "projectState": "fresh",
+        "receiptState": "absent",
+        "fixturePaths": []
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [],
+        "recovery": "none",
+        "effects": "managed-write",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "install.fresh.claude",
+      "operation": "install",
+      "evidenceOperation": "packed-install",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "claude",
+      "preState": {
+        "projectState": "fresh",
+        "receiptState": "absent",
+        "fixturePaths": []
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [],
+        "recovery": "none",
+        "effects": "managed-write",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "install.fresh.codex",
+      "operation": "install",
+      "evidenceOperation": "packed-install",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "codex",
+      "preState": {
+        "projectState": "fresh",
+        "receiptState": "absent",
+        "fixturePaths": []
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [],
+        "recovery": "none",
+        "effects": "managed-write",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "receipt.corrupt-update",
+      "operation": "receipt",
+      "evidenceOperation": "legacy-receipts",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "not-applicable",
+      "preState": {
+        "projectState": "installed",
+        "receiptState": "malformed-v1",
+        "fixturePaths": [
+          ".void/machine/receipts/install-v1.json"
+        ]
+      },
+      "expected": {
+        "classification": "refused",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 1
+        },
+        "diagnosticCodes": [
+          "INSTALL_RECEIPT_INVALID"
+        ],
+        "preservePaths": [
+          ".void/machine/receipts/install-v1.json"
+        ],
+        "recovery": "none",
+        "effects": "none",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "receipt.unreadable-update",
+      "operation": "receipt",
+      "evidenceOperation": "legacy-receipts",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "not-applicable",
+      "preState": {
+        "projectState": "installed",
+        "receiptState": "unreadable",
+        "fixturePaths": [
+          ".void/machine/receipts/install-v1.json"
+        ]
+      },
+      "expected": {
+        "classification": "refused",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 1
+        },
+        "diagnosticCodes": [
+          "INSTALL_RECEIPT_INVALID"
+        ],
+        "preservePaths": [
+          ".void/machine/receipts/install-v1.json"
+        ],
+        "recovery": "none",
+        "effects": "none",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "receipt.unsupported-version-update",
+      "operation": "receipt",
+      "evidenceOperation": "legacy-receipts",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "not-applicable",
+      "preState": {
+        "projectState": "installed",
+        "receiptState": "unsupported-version",
+        "fixturePaths": [
+          ".void/machine/receipts/install-v1.json"
+        ]
+      },
+      "expected": {
+        "classification": "refused",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 1
+        },
+        "diagnosticCodes": [
+          "INSTALL_RECEIPT_INVALID"
+        ],
+        "preservePaths": [
+          ".void/machine/receipts/install-v1.json"
+        ],
+        "recovery": "none",
+        "effects": "none",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "rollback.stale-removal",
+      "operation": "rollback",
+      "evidenceOperation": "legacy-rollback",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "not-applicable",
+      "preState": {
+        "projectState": "installed",
+        "receiptState": "valid-v1",
+        "fixturePaths": [
+          ".agents/skills/void-retired/SKILL.md"
+        ]
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [],
+        "recovery": "safe-rerun",
+        "effects": "managed-write",
+        "limitations": [
+          "no-concurrent-writer-serialization",
+          "no-durable-crash-recovery"
+        ]
+      },
+      "extensions": {}
+    },
+    {
+      "id": "rollback.transaction-write",
+      "operation": "rollback",
+      "evidenceOperation": "legacy-rollback",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "not-applicable",
+      "preState": {
+        "projectState": "installed",
+        "receiptState": "valid-v1",
+        "fixturePaths": [
+          ".void/hooks/_void-hook.mjs"
+        ]
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [],
+        "recovery": "safe-rerun",
+        "effects": "managed-write",
+        "limitations": [
+          "no-concurrent-writer-serialization",
+          "no-durable-crash-recovery"
+        ]
+      },
+      "extensions": {}
+    },
+    {
+      "id": "runtime.absent",
+      "operation": "runtime",
+      "evidenceOperation": "legacy-runtime",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "absent",
+      "preState": {
+        "projectState": "fresh",
+        "receiptState": "absent",
+        "fixturePaths": []
+      },
+      "expected": {
+        "classification": "observed-absent",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 1
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [],
+        "recovery": "none",
+        "effects": "observation-only",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "runtime.auth-ambiguous",
+      "operation": "runtime",
+      "evidenceOperation": "legacy-runtime",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "auth-ambiguous",
+      "preState": {
+        "projectState": "installed",
+        "receiptState": "valid-v1",
+        "fixturePaths": []
+      },
+      "expected": {
+        "classification": "unobserved",
+        "diagnosticCodes": [],
+        "preservePaths": [],
+        "recovery": "none",
+        "effects": "observation-only",
+        "limitations": [
+          "subscription-auth-unobserved"
+        ]
+      },
+      "extensions": {}
+    },
+    {
+      "id": "skill.present.claude",
+      "operation": "skill",
+      "evidenceOperation": "packed-install",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "claude",
+      "preState": {
+        "projectState": "installed",
+        "receiptState": "valid-v1",
+        "fixturePaths": [
+          ".claude/skills/void-tdd/SKILL.md"
+        ]
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [],
+        "recovery": "none",
+        "effects": "observation-only",
+        "limitations": [
+          "legacy-direct-skill-unmanaged"
+        ]
+      },
+      "extensions": {}
+    },
+    {
+      "id": "skill.present.codex",
+      "operation": "skill",
+      "evidenceOperation": "packed-install",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "codex",
+      "preState": {
+        "projectState": "installed",
+        "receiptState": "valid-v1",
+        "fixturePaths": [
+          ".agents/skills/void-tdd/SKILL.md"
+        ]
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [],
+        "recovery": "none",
+        "effects": "observation-only",
+        "limitations": [
+          "legacy-direct-skill-unmanaged"
+        ]
+      },
+      "extensions": {}
+    },
+    {
+      "id": "update.local.both",
+      "operation": "update",
+      "evidenceOperation": "packed-install",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "both",
+      "preState": {
+        "projectState": "installed",
+        "receiptState": "valid-v1",
+        "fixturePaths": [
+          ".void/machine/receipts/install-v1.json"
+        ]
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [],
+        "recovery": "none",
+        "effects": "managed-write",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "update.local.claude",
+      "operation": "update",
+      "evidenceOperation": "packed-install",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "claude",
+      "preState": {
+        "projectState": "installed",
+        "receiptState": "valid-v1",
+        "fixturePaths": [
+          ".void/machine/receipts/install-v1.json"
+        ]
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [],
+        "recovery": "none",
+        "effects": "managed-write",
+        "limitations": []
+      },
+      "extensions": {}
+    },
+    {
+      "id": "update.local.codex",
+      "operation": "update",
+      "evidenceOperation": "packed-install",
+      "platforms": [
+        "darwin",
+        "linux",
+        "win32"
+      ],
+      "runtimeState": "codex",
+      "preState": {
+        "projectState": "installed",
+        "receiptState": "valid-v1",
+        "fixturePaths": [
+          ".void/machine/receipts/install-v1.json"
+        ]
+      },
+      "expected": {
+        "classification": "success",
+        "processOutcome": {
+          "kind": "exited",
+          "code": 0
+        },
+        "diagnosticCodes": [],
+        "preservePaths": [],
+        "recovery": "none",
+        "effects": "managed-write",
+        "limitations": []
+      },
+      "extensions": {}
+    }
+  ],
+  "extensions": {}
+}
+

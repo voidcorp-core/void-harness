@@ -3,17 +3,17 @@
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   packageManagerCommand,
+  resolveConformanceTarball,
   runConformanceProcess,
   safeConformanceDiagnostic,
 } from './conformance-process.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '..', '..', '..');
-const PACKAGE_ROOT = resolve(HERE, '..');
 
 async function run(command, args, cwd, env = {}) {
   const result = await runConformanceProcess({ command, args, cwd, environment: env });
@@ -40,21 +40,29 @@ const pnpm = packageManagerCommand('pnpm');
 const npm = packageManagerCommand('npm');
 try {
   await mkdir(npmCache, { recursive: true });
-  await run(
-    pnpm.executable,
-    [
-      ...pnpm.prefixArguments,
-      '--filter',
-      'voidharness',
-      'pack',
-      '--pack-destination',
-      temporary,
-    ],
-    REPO_ROOT,
-  );
-  const tarballName = (await readdir(temporary)).find((name) => name.endsWith('.tgz'));
-  if (tarballName === undefined) throw new Error('conformance pack produced no tarball');
-  const tarball = join(temporary, tarballName);
+  const externalTarball = resolveConformanceTarball();
+  if (externalTarball === undefined) {
+    await run(
+      pnpm.executable,
+      [
+        ...pnpm.prefixArguments,
+        '--filter',
+        'voidharness',
+        'pack',
+        '--pack-destination',
+        temporary,
+      ],
+      REPO_ROOT,
+    );
+  }
+  const packedName = externalTarball === undefined
+    ? (await readdir(temporary)).find((name) => name.endsWith('.tgz'))
+    : undefined;
+  if (externalTarball === undefined && packedName === undefined) {
+    throw new Error('conformance pack produced no tarball');
+  }
+  const tarball = externalTarball ?? join(temporary, packedName);
+  const tarballName = basename(tarball);
   const durations = [];
 
   for (const runtime of ['claude', 'codex', 'both']) {

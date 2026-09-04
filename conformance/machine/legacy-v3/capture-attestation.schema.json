@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voidcorp.dev/schemas/void-machine/legacy-v3-capture-attestation.json",
+  "title": "Void Machine legacy v3 capture attestation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "contractFamily",
+    "contractVersion",
+    "manifestSha256",
+    "scenarioId",
+    "evidenceOperation",
+    "artifact",
+    "platform",
+    "command",
+    "outcome",
+    "normalizedOutputSha256",
+    "filesystemOutcomeSha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "contractFamily": { "const": "void-machine-legacy" },
+    "contractVersion": { "const": 3 },
+    "manifestSha256": { "$ref": "#/$defs/sha256" },
+    "scenarioId": { "$ref": "#/$defs/scenarioId" },
+    "evidenceOperation": { "$ref": "#/$defs/evidenceOperation" },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packageName",
+        "packageVersion",
+        "tarballSha256",
+        "sourceSha",
+        "cleanCheckout"
+      ],
+      "properties": {
+        "packageName": { "const": "voidharness" },
+        "packageVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$" },
+        "tarballSha256": { "$ref": "#/$defs/sha256" },
+        "sourceSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "cleanCheckout": { "const": true }
+      }
+    },
+    "platform": { "enum": ["darwin", "linux", "win32"] },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executable", "argv"],
+      "properties": {
+        "executable": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": { "type": "string", "maxLength": 512 }
+        }
+      }
+    },
+    "outcome": { "$ref": "#/$defs/processOutcome" },
+    "normalizedOutputSha256": { "$ref": "#/$defs/sha256" },
+    "filesystemOutcomeSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "scenarioId": {
+      "enum": [
+        "autopilot.exact-sha",
+        "autopilot.interrupted-release",
+        "autopilot.offline-plan",
+        "collision.adjacent-skill",
+        "collision.co-owned-config",
+        "collision.co-owned-docs",
+        "collision.managed-refusal",
+        "collision.unreadable-settings",
+        "doctor.linked-worktree",
+        "install.fresh.both",
+        "install.fresh.claude",
+        "install.fresh.codex",
+        "receipt.corrupt-update",
+        "receipt.unreadable-update",
+        "receipt.unsupported-version-update",
+        "rollback.stale-removal",
+        "rollback.transaction-write",
+        "runtime.absent",
+        "runtime.auth-ambiguous",
+        "skill.present.claude",
+        "skill.present.codex",
+        "update.local.both",
+        "update.local.claude",
+        "update.local.codex"
+      ]
+    },
+    "evidenceOperation": {
+      "enum": [
+        "legacy-autopilot-recovery",
+        "legacy-collisions",
+        "legacy-doctor",
+        "legacy-receipts",
+        "legacy-rollback",
+        "legacy-runtime",
+        "packed-autopilot",
+        "packed-install"
+      ]
+    },
+    "processOutcome": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "code"],
+          "properties": {
+            "kind": { "const": "exited" },
+            "code": { "type": "integer", "minimum": 0, "maximum": 255 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "signal"],
+          "properties": {
+            "kind": { "const": "signaled" },
+            "signal": { "type": "string", "minLength": 1, "maxLength": 32 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "timed-out" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "spawn-error" } }
+        }
+      ]
+    }
+  }
+}

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import {
+  assertPersistableCapture,
   loadLegacyContract,
   validateCaptureAttestation,
   validateLegacyManifest,
@@ -154,6 +155,22 @@ describe('legacy v3 capture attestation', () => {
       attestation: { ...attestation, evidenceOperation: 'legacy-doctor' },
     })).toThrow('LEGACY_ATTESTATION_INVALID');
   });
+
+  it('rejects machine paths, timestamps, prompts, environments, and credential canaries', () => {
+    for (const forbidden of [
+      { command: { argv: ['/private/tmp/artifact.tgz'] } },
+      { recordedAt: '2026-09-04T12:00:00Z' },
+      { prompt: 'private-source-canary' },
+      { environment: { TOKEN: 'secret-canary' } },
+    ]) {
+      expect(() => assertPersistableCapture(forbidden)).toThrow(
+        'LEGACY_ATTESTATION_INVALID',
+      );
+    }
+    expect(() => assertPersistableCapture({
+      command: { executable: 'node', argv: ['packages/cli/scripts/conformance-install.mjs'] },
+    })).not.toThrow();
+  });
 });
 
 describe('legacy v3 native-style loader', () => {
@@ -166,6 +183,8 @@ describe('legacy v3 native-style loader', () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('legacy-v3 contract valid');
     expect(result.stderr).toBe('');
-    expect(readFileSync(RUNNER, 'utf8')).not.toMatch(/\.ts['"]/);
+    expect(readFileSync(RUNNER, 'utf8')).not.toMatch(
+      /(?:from\s+|import\s*\()\s*['"][^'"]+\.ts['"]/,
+    );
   });
 });
