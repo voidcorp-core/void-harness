@@ -4,6 +4,7 @@ import {
   aggregateGateReports,
   GATES,
   parseArgs,
+  parseNameStatus,
   selectGates,
 } from '../../scripts/verify.mjs';
 
@@ -158,5 +159,32 @@ describe('verify arguments', () => {
     expect(parseArgs(['--gate', 'lint']).gateId).toBe('lint');
     expect(parseArgs(['--aggregate']).aggregate).toBe(true);
     expect(parseArgs(['--artifact']).unknown).toEqual(['--artifact']);
+  });
+});
+
+describe('changed-path input', () => {
+  it('parses Git name-status records without losing rename or deletion semantics', () => {
+    expect(
+      parseNameStatus(
+        [
+          'M',
+          'docs/guide.md',
+          'D',
+          'packages/cli/src/old.ts',
+          'R100',
+          'docs/old.md',
+          'docs/new.md',
+          '',
+        ].join('\0'),
+      ),
+    ).toEqual([
+      { path: 'docs/guide.md', status: 'modified' },
+      { path: 'packages/cli/src/old.ts', status: 'deleted' },
+      { path: 'docs/new.md', previousPath: 'docs/old.md', status: 'renamed' },
+    ]);
+  });
+
+  it('fails closed to the conservative set when Git output is incomplete', () => {
+    expect(parseNameStatus(['R100', 'docs/old.md'].join('\0'))).toEqual([]);
   });
 });
