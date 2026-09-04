@@ -70,6 +70,17 @@ describe('workflow files', () => {
 
     expect(offenders.map((offender) => `${name}:${String(offender.number)}`)).toEqual([]);
   });
+
+  it('uploads legacy evidence from its hidden machine-state directory', () => {
+    const ci = readFileSync(join(WORKFLOWS, 'ci.yml'), 'utf8');
+    const upload = ci
+      .split('- name: Upload exact legacy v3 evidence')[1]
+      ?.split(/\n\s+- name:/)[0] ?? '';
+
+    expect(upload).toContain('path: .void/machine/conformance/legacy-v3/**/*.json');
+    expect(upload).toContain('include-hidden-files: true');
+    expect(upload).toContain('if-no-files-found: error');
+  });
 });
 
 // A job holding `id-token: write` can mint the OIDC token npm accepts as proof
