@@ -15,7 +15,7 @@ describe('scheduled stress proof workflow', () => {
     expect(source).toContain('scripts/stress-proof.mjs fast 20 10401');
     expect(source).toContain('scripts/stress-proof.mjs complete 10 20401');
     expect(source).toContain('actions/upload-artifact@');
-    expect(source).toContain('if: ${{ !cancelled() }}');
+    expect(source).toContain(['if: $', '{{ !cancelled() }}'].join(''));
     expect(source).not.toMatch(/retry|rerun/i);
   });
 });
