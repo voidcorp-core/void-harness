@@ -132,12 +132,30 @@ describe('conformance diagnostics and environment', () => {
 
   it('redacts credentials and bounds diagnostics', () => {
     const diagnostic = safeConformanceDiagnostic(
-      `authorization=secret-canary token=another-canary ${'x'.repeat(4096)}`,
+      [
+        'authorization=secret-canary',
+        'token=another-canary',
+        'NPM_TOKEN=npm-canary',
+        'OPENAI_API_KEY=openai-canary',
+        'ANTHROPIC_API_KEY=anthropic-canary',
+        '//registry.npmjs.org/:_authToken=registry-canary',
+        'Bearer bearer-canary',
+        'x'.repeat(4096),
+      ].join(' '),
       256,
     );
 
-    expect(diagnostic).not.toContain('secret-canary');
-    expect(diagnostic).not.toContain('another-canary');
+    for (const canary of [
+      'secret-canary',
+      'another-canary',
+      'npm-canary',
+      'openai-canary',
+      'anthropic-canary',
+      'registry-canary',
+      'bearer-canary',
+    ]) {
+      expect(diagnostic).not.toContain(canary);
+    }
     expect(Buffer.byteLength(diagnostic)).toBeLessThanOrEqual(256);
   });
 });
