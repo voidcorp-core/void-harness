@@ -24,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 import {
   packageManagerCommand,
   preserveConformanceFixtures,
+  resolveConformanceFixtureRoot,
   resolveConformanceTarball,
   runConformanceProcess,
   safeConformanceDiagnostic,
@@ -69,7 +70,8 @@ const OBSERVATION = JSON.stringify({
   ],
 });
 
-const temporary = await mkdtemp(join(tmpdir(), 'void-autopilot-conformance-'));
+const fixtureRoot = resolveConformanceFixtureRoot();
+const temporary = await mkdtemp(join(fixtureRoot ?? tmpdir(), 'void-autopilot-conformance-'));
 const npmCache = join(temporary, 'npm-cache');
 const pnpm = packageManagerCommand('pnpm');
 const npm = packageManagerCommand('npm');

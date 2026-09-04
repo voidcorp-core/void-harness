@@ -16,7 +16,8 @@
     "command",
     "outcome",
     "normalizedOutputSha256",
-    "filesystemOutcomeSha256"
+    "filesystemOutcomeSha256",
+    "filesystemObservationScope"
   ],
   "properties": {
     "schemaVersion": { "const": 1 },
@@ -62,7 +63,10 @@
     },
     "outcome": { "$ref": "#/$defs/processOutcome" },
     "normalizedOutputSha256": { "$ref": "#/$defs/sha256" },
-    "filesystemOutcomeSha256": { "$ref": "#/$defs/sha256" }
+    "filesystemOutcomeSha256": { "$ref": "#/$defs/sha256" },
+    "filesystemObservationScope": {
+      "enum": ["operation-fixtures", "source-checkout"]
+    }
   },
   "$defs": {
     "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },

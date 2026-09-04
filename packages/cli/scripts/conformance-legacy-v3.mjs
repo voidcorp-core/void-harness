@@ -206,18 +206,18 @@ async function capture(loaded, manifest) {
 
     for (const operation of operations) {
       const command = trustedCommand(operation);
-      const operationRoot = join(temporary, 'operations', operation);
-      await mkdir(operationRoot, { recursive: true });
       const exercisesArtifact = operation.startsWith('packed-');
+      const operationRoot = exercisesArtifact
+        ? join(temporary, 'operations', operation)
+        : undefined;
+      if (operationRoot !== undefined) await mkdir(operationRoot, { recursive: true });
       const result = await run(
         command.actual.executable,
         command.actual.argv,
         {
-          TEMP: operationRoot,
-          TMP: operationRoot,
-          TMPDIR: operationRoot,
           ...(exercisesArtifact
             ? {
+                VOID_CONFORMANCE_FIXTURE_ROOT: operationRoot,
                 VOID_CONFORMANCE_PRESERVE_FIXTURES: '1',
                 VOID_CONFORMANCE_TARBALL: tarball.path,
               }
@@ -225,14 +225,32 @@ async function capture(loaded, manifest) {
         },
       );
       requireSuccess(result, operation);
+      const filesystem = operationRoot === undefined
+        ? {
+            scope: 'source-checkout',
+            sha256: digestObservedOutput(
+              {
+                stdout: await gitValue(
+                  ['status', '--porcelain', '--untracked-files=all'],
+                  operation,
+                ),
+                stderr: '',
+              },
+              [REPO_ROOT],
+            ),
+          }
+        : {
+            scope: 'operation-fixtures',
+            ...digestObservedTree(operationRoot),
+          };
       results.set(operation, {
         artifactExercised: exercisesArtifact,
         command: command.recorded,
-        filesystem: digestObservedTree(operationRoot),
+        filesystem,
         outcome: result.outcome,
         outputSha256: digestObservedOutput(
           result,
-          [REPO_ROOT, temporary, operationRoot, tarball.path],
+          [REPO_ROOT, temporary, operationRoot ?? '', tarball.path],
         ),
       });
     }
@@ -267,6 +285,7 @@ async function capture(loaded, manifest) {
         outcome: result.outcome,
         normalizedOutputSha256: result.outputSha256,
         filesystemOutcomeSha256: result.filesystem.sha256,
+        filesystemObservationScope: result.filesystem.scope,
       };
       validateCaptureAttestation({
         schema: loaded.attestationSchema,

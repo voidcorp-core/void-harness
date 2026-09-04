@@ -73,6 +73,20 @@ export function preserveConformanceFixtures(environment = process.env) {
   return environment.VOID_CONFORMANCE_PRESERVE_FIXTURES === '1';
 }
 
+export function resolveConformanceFixtureRoot(environment = process.env) {
+  const candidate = environment.VOID_CONFORMANCE_FIXTURE_ROOT;
+  if (candidate === undefined) return undefined;
+  try {
+    const metadata = lstatSync(candidate);
+    if (!isAbsolute(candidate) || !metadata.isDirectory() || metadata.isSymbolicLink()) {
+      throw new Error('invalid');
+    }
+  } catch {
+    throw new Error('conformance fixture root must be an existing absolute regular directory');
+  }
+  return candidate;
+}
+
 function boundedStream(maxBytes) {
   const chunks = [];
   let bytes = 0;
@@ -173,11 +187,13 @@ export function runConformanceProcess(options) {
       if (termination !== undefined) await termination;
       const outcome = spawnError !== undefined
         ? { kind: 'spawn-error' }
-        : timedOut
-          ? { kind: 'timed-out' }
-          : code !== null
-            ? { kind: 'exited', code }
-            : { kind: 'signaled', signal: signal ?? 'unknown' };
+        : outputExceeded
+          ? { kind: 'output-exceeded' }
+          : timedOut
+            ? { kind: 'timed-out' }
+            : code !== null
+              ? { kind: 'exited', code }
+              : { kind: 'signaled', signal: signal ?? 'unknown' };
       resolveRun({
         outcome,
         outputExceeded,

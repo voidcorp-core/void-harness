@@ -159,6 +159,7 @@ describe('legacy v3 capture attestation', () => {
       outcome: { kind: 'exited', code: 0 },
       normalizedOutputSha256: 'c'.repeat(64),
       filesystemOutcomeSha256: 'd'.repeat(64),
+      filesystemObservationScope: 'source-checkout',
     };
 
     expect(() => validateCaptureAttestation({
@@ -203,6 +204,7 @@ describe('legacy v3 capture attestation', () => {
         scenarioId: packedScenario?.id,
         evidenceOperation: packedScenario?.evidenceOperation,
         artifact: { ...attestation.artifact, exercised: true },
+        filesystemObservationScope: 'operation-fixtures',
       },
     })).not.toThrow();
   });

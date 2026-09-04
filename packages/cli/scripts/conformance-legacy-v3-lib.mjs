@@ -318,6 +318,10 @@ export function validateCaptureAttestation({
   if (validated.artifact.exercised !== artifactExercised) {
     failAttestation('artifact exercise claim does not match the evidence operation');
   }
+  const filesystemScope = artifactExercised ? 'operation-fixtures' : 'source-checkout';
+  if (validated.filesystemObservationScope !== filesystemScope) {
+    failAttestation('filesystem scope does not match the evidence operation');
+  }
   return validated;
 }
 

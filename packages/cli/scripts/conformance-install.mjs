@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import {
   packageManagerCommand,
   preserveConformanceFixtures,
+  resolveConformanceFixtureRoot,
   resolveConformanceTarball,
   runConformanceProcess,
   safeConformanceDiagnostic,
@@ -35,7 +36,8 @@ function requirePath(path, label) {
   if (!existsSync(path)) throw new Error(`conformance missing ${label}: ${path}`);
 }
 
-const temporary = await mkdtemp(join(tmpdir(), 'void-install-conformance-'));
+const fixtureRoot = resolveConformanceFixtureRoot();
+const temporary = await mkdtemp(join(fixtureRoot ?? tmpdir(), 'void-install-conformance-'));
 const npmCache = join(temporary, 'npm-cache');
 const pnpm = packageManagerCommand('pnpm');
 const npm = packageManagerCommand('npm');
