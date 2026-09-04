@@ -186,10 +186,12 @@ describe('conformance diagnostics and environment', () => {
   it('surfaces bounded redacted process output when an evidence command fails', () => {
     const diagnostic = conformanceFailureDiagnostic({
       stdout: 'FAIL collision assertion\n',
-      stderr: `token=secret-canary ${'x'.repeat(2048)}`,
-    }, 256);
+      stderr: `D:\\private\\checkout token=secret-canary ${'x'.repeat(2048)}`,
+    }, 256, ['D:\\private\\checkout']);
 
     expect(diagnostic).toContain('FAIL collision assertion');
+    expect(diagnostic).toContain('[PATH]');
+    expect(diagnostic).not.toContain('D:\\private\\checkout');
     expect(diagnostic).not.toContain('secret-canary');
     expect(Buffer.byteLength(diagnostic)).toBeLessThanOrEqual(256);
   });
