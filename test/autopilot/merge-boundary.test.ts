@@ -40,6 +40,10 @@ const SURFACES = ['packages/cli/src/lib/autopilot', 'packages/cli/src/commands/a
 /** The one source allowed to emit a merge, named so the gate can be exhaustive. */
 const MERGE_SOURCE = 'packages/cli/src/lib/autopilot/merge-plan.ts';
 
+function repositoryRelativePath(root: string, absolute: string): string {
+  return absolute.slice(root.length);
+}
+
 function filesUnder(relative: string): string[] {
   const absolute = join(ROOT, relative);
   if (statSync(absolute).isFile()) return [absolute];
@@ -51,7 +55,7 @@ function filesUnder(relative: string): string[] {
 /** Active source only: a test may legitimately name what it forbids. */
 const ACTIVE = SURFACES.flatMap(filesUnder)
   .filter((path) => path.endsWith('.ts') && !path.endsWith('.test.ts'))
-  .map((path) => ({ path: path.slice(ROOT.length), text: readFileSync(path, 'utf8') }));
+  .map((path) => ({ path: repositoryRelativePath(ROOT, path), text: readFileSync(path, 'utf8') }));
 
 interface Argv {
   readonly file: string;
@@ -91,6 +95,15 @@ function argvLiterals(file: string, text: string): Argv[] {
 }
 
 const COMMANDS = ACTIVE.flatMap((file) => argvLiterals(file.path, file.text));
+
+describe('repository-relative boundary paths', () => {
+  it('normalizes Windows separators before comparing an authority path', () => {
+    expect(repositoryRelativePath(
+      'D:\\a\\void-harness\\',
+      'D:\\a\\void-harness\\packages\\cli\\src\\lib\\autopilot\\merge-plan.ts',
+    )).toBe(MERGE_SOURCE);
+  });
+});
 
 function violating(predicate: (command: Argv) => boolean): string[] {
   return COMMANDS.filter(predicate).map((command) => `${command.file}: ${command.source}`);
