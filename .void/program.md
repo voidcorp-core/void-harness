@@ -9,6 +9,10 @@ progress:
   scope: voidcorp/DEV/void harness
   order:
     - DEV-808
+    - DEV-626
+    - DEV-591
+    - DEV-821
+    - DEV-822
     - DEV-809
     - DEV-810
     - DEV-798

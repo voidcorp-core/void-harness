@@ -852,6 +852,18 @@ Local telemetry is useful without an external account. Export is opt-in through 
 11. an integrated full suite seals the exact tree before publication;
 12. CI proof is accepted only when required checks are green on the exact integration SHA.
 
+Every system-test proof binds three identities independently: the immutable artifact, the declared
+environment schema and the external-adapter set. A local dotenv file, ambient home configuration
+or undeclared credential invalidates an exact-CI claim even when the command line is identical.
+Production startup is preflighted before browser navigation so a missing required capability keeps
+its typed refusal instead of surfacing later as a page timeout.
+
+Ordinary public CI exercises production-optimized artifacts against hermetic effect adapters. The
+adapter is selected through a closed typed profile, and a separate deployment-contract test proves
+that the real production profile cannot select a capture or null adapter. Provider integration uses
+an authorized isolated lane with restricted credentials and provider-designated test identities;
+it is not required merely to prove application behavior.
+
 CI runs a bounded randomized fault matrix on every change. Nightly certification expands the seed
 count and platform matrix. A failing seed is persisted as a deterministic regression test.
 
@@ -871,7 +883,8 @@ For every injected crash point, the certificate must observe:
 
 The implementation plan must preserve working consumer behavior throughout these vertical slices:
 
-1. freeze versioned contracts and build the native skeleton with no production routing;
+1. freeze versioned contracts, harden the legacy proof environment, then build the native skeleton
+   with no production routing;
 2. implement state, event, outbox and proof core with crash certification;
 3. implement SQLite and Git/worktree adapters and prove one local effect path;
 4. implement skill manifests and deterministic routing, then semantic ranking;
@@ -913,9 +926,14 @@ covered issue receives a comment and narrower remaining scope.
 | DEV-621 | resume CLI | durable restart from every certified crash point |
 | DEV-623 | prior local cockpit evidence | already Done; the new Workbench remains outside this programme and has no implementation ticket yet |
 | DEV-666 | backlog rationalization | superseded/absorbed issue audit after each slice |
+| DEV-626 | test writes and project discovery | zero user-home delta plus one justified discovery authority |
+| DEV-591 | `harness-graph` suite contention | isolated and integrated stress proof with no retry or raised timeout |
+| DEV-821 | proof tiers, resource budgets and exact-CI identity | complete fail-closed inventory and ten-run stress evidence |
+| DEV-822 | consumer E2E and fixture discipline | installed core/pack behavior against production artifacts and hermetic effects |
 
-DEV-591 and DEV-791 remain independent reliability defects unless their root cause is eliminated by
-a specific slice. They are not closed by architectural replacement alone.
+DEV-591, DEV-626, DEV-821 and DEV-822 form the pre-native reliability gate after VM-01. DEV-791
+remains independent unless a specific slice eliminates its root cause. None is closed by
+architectural replacement alone.
 
 ## Acceptance criteria
 

@@ -32,6 +32,8 @@ deliberately in **REDUCTION** mode despite its ambition:
 - every cutover names the one authoritative engine before and after it;
 - no slice may add a parallel production path without a removal or quarantine criterion;
 - no unit moves to Done until its exact acceptance evidence exists on `develop`;
+- no native authority is introduced until the legacy test harness has passed the reliability
+  hardening gate after VM-01;
 - tickets with overlapping footprints run sequentially; lockfiles, migrations, release metadata
   and shared contracts always run sequentially;
 - the current `.void/program.md` is not replaced until this plan and its complete ticket pool are
@@ -204,11 +206,36 @@ compatibility range, the content package changes or the source SHA changes.
   - `test(machine): prove corrupted legacy state never passes as healthy`
 - **Authority after**: TypeScript remains authoritative; native code does not exist.
 
+### Reliability hardening gate: make the oracle trustworthy
+
+- **Goal**: remove the demonstrated environmental, resource and fixture-state causes that can make
+  the legacy oracle flaky or falsely green before it becomes the native migration baseline.
+- **Depends on**: VM-01.
+- **Units, in order**:
+  1. DEV-626 contains every test write and reconciles the project registry without touching the
+     user's real machine state;
+  2. DEV-591 removes the reproduced `harness-graph` contention root cause and proves the exact case
+     repeatedly without retry, quarantine or a raised timeout;
+  3. DEV-821 separates proof tiers and resource classes, binds artifact, environment and adapter
+     identities, and makes every missing shard or unmanaged fixture fail closed;
+  4. DEV-822 ships the resulting framework-neutral rules through core and translates them in the
+     Next.js and server packs for consumer projects.
+- **Behavior**: exact-CI evidence starts from a minimal declared environment, preflights production
+  startup before browser navigation, serves the deployment-equivalent immutable artifact, uses
+  hermetic external-effect adapters for ordinary system tests, and proves separately that a real
+  deployment cannot select those adapters. Provider integration remains an authorized isolated
+  contract lane, never a secret requirement of public CI.
+- **Verification gate**: ten representative stress runs contain no false green, missing collection,
+  leaked process, user-home write or external namespace. Any failure remains red and records its
+  seed, proof tier, resource budget, artifact digest, environment-schema digest, adapter identity
+  and exact source SHA.
+- **Authority after**: TypeScript remains authoritative; the native workspace still does not exist.
+
 ### Step VM-02: Ship a native doctor through the compatibility package
 
 - **Goal**: establish the Rust workspace and deliver a real, read-only consumer capability through
   a locally packed npm bridge.
-- **Depends on**: VM-01.
+- **Depends on**: VM-01 and the reliability hardening gate.
 - **TDD mode**: strict for path/config/diagnostic decisions, souple for CLI and packaging wiring.
 - **Files**: add the core, host, adapters and CLI crate roots,
   `contracts/machine/v1/diagnostic.schema.json`, a version-pinned `rust-toolchain.toml`, dependency
@@ -641,6 +668,10 @@ Never close an issue because its wording appears in this plan.
 | Plan unit | Materialized owner | Existing work reconciled without assumed completion |
 |---|---|---|
 | VM-01 | DEV-808 | DEV-452 and DEV-453 remain later migration/release owners |
+| reliability: containment | DEV-626 | user-home pollution and project discovery remain one explicit defect |
+| reliability: contention | DEV-591 | the isolated-fast/full-suite-timeout case requires direct close evidence |
+| reliability: proof topology | DEV-821 | DEV-679 and DEV-526 are precedents, not permanent closure evidence |
+| reliability: consumer guidance | DEV-822 | the measured Next.js/auth incidents become core invariants plus pack translations |
 | VM-02 | DEV-809 | DEV-631 is a completed legacy-layout precedent, not the native doctor |
 | VM-03 | DEV-810 | DEV-458, DEV-647, DEV-648 and DEV-658 retain their broader extension/ownership/collision criteria |
 | VM-04 | DEV-798 | original cursor defect retained as the state-ownership regression; DEV-803 remains in review |
@@ -663,8 +694,8 @@ Never close an issue because its wording appears in this plan.
 | deferred Workbench | none | DEV-623 is already Done for the prior cockpit; a new Workbench ticket is intentionally absent |
 | scoped reconciliation | DEV-666 | remains Backlog because this pass did not audit every open project issue |
 
-DEV-591 and DEV-791 stay independent unless a specific regression test proves that a unit removed
-their root cause.
+DEV-591 is now an explicit pre-native reliability unit. DEV-791 stays independent unless a
+specific regression test proves that a unit removed its root cause.
 
 ## Execution handoff
 
@@ -674,7 +705,11 @@ comments and review evidence after `void-ticket` materializes the approved pool.
 | Key | Linear | Title | Depends on | Estimate | Human gate |
 |---|---|---|---|---:|---|
 | VM-01 | DEV-808 | Freeze current consumer contract | none | 5 | no |
-| VM-02 | DEV-809 | Native doctor through compatibility package | VM-01 | 5 | no |
+| REL-01 | DEV-626 | Contain test state and reconcile project discovery | VM-01 | 2 | no |
+| REL-02 | DEV-591 | Remove the reproduced harness-graph contention root | VM-01, REL-01 | 3 | no |
+| REL-03 | DEV-821 | Tier, isolate and measure every proof class | REL-01, REL-02 | 5 | no |
+| REL-04 | DEV-822 | Ship production-artifact and fixture discipline to consumers | REL-03 | 3 | no |
+| VM-02 | DEV-809 | Native doctor through compatibility package | VM-01, REL-04 | 5 | no |
 | VM-03 | DEV-810 | Portable executable skill package | VM-02 | 5 | no |
 | VM-04 | DEV-798 | Durable no-effect run and proof | VM-03 | 8 | no |
 | VM-05 | DEV-811 | Codex subscription adapter | VM-04 | 5 | no |
