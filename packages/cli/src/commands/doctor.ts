@@ -798,6 +798,16 @@ function observeAutopilot(root: string): Parameters<typeof autopilotPreflight>[0
                 autopilot: {
                   clusterSize: program.autopilot.clusterSize,
                   mergeGate: program.autopilot.mergeGate,
+                  // Carried so the merge check can name where the human gate
+                  // stands. Reporting the gate without the branch it protects
+                  // tells an operator that automation is on and nothing else.
+                  // Spread rather than set: under exactOptionalPropertyTypes an
+                  // explicit `undefined` is not the same as an absent key, and
+                  // absent is what "the program did not say" means here.
+                  ...(program.autopilot.deployBranch === undefined
+                    ? {}
+                    : { deployBranch: program.autopilot.deployBranch }),
+                  base: program.autopilot.base,
                   verifyCommands: program.autopilot.verifyCommands,
                 },
               }),

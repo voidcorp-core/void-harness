@@ -12,6 +12,7 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { countLines } from '../../packages/harness-graph/src/derive/read-frontmatter.js';
 
 const SKILL = readFileSync(
   new URL('../../packages/core/skills/void-checkpoint/SKILL.md', import.meta.url),
@@ -46,7 +47,7 @@ describe('checkpoint frontmatter', () => {
   });
 
   it('stays under the skill size cap', () => {
-    expect(SKILL.split('\n').length).toBeLessThanOrEqual(400);
+    expect(countLines(SKILL)).toBeLessThanOrEqual(400);
   });
 });
 

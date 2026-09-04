@@ -1331,6 +1331,41 @@ ${enabled}  clusterSize: 2
     expect(readRun(root, 'run-a')?.tickets[0]?.commits).toEqual([SHA]);
   });
 
+  /**
+   * The cursor is written by `start` and by no other command, which is right for
+   * its creation and wrong for everything after: no `publish`, `gate`,
+   * `reconcile` or `landed` rewrites it, so the only durable state of a run is
+   * the second the lease was taken.
+   *
+   * Two readers then present it as current. `abort` announces
+   * `preserved.cursor`, which promises to keep something that never moved, and
+   * `status` prints the state with no hint of its age. Measured 2026-09-02:
+   * across three real runs the cursor was advanced BY HAND at every step so
+   * `status` would say something true.
+   *
+   * Whether the other commands should write is a design question — they are pure
+   * by contract and receive no root — and it is DEV-798's. What is not a design
+   * question is that neither reader may imply a freshness it does not have.
+   */
+  it('does not claim to preserve a cursor that no command advances', () => {
+    const root = repo();
+    writeRun(root, runState());
+
+    const result = runAutopilotCommand(['abort'], '', ctx(root));
+
+    expect(result.stdout).not.toMatch(/the cursor is kept for inspection/);
+    expect(result.stdout).toMatch(/reserved|start|not advanced|since the lease/i);
+  });
+
+  it('dates the cursor it prints, so a reader knows it is not live', () => {
+    const root = repo();
+    writeRun(root, runState());
+
+    const result = runAutopilotCommand(['status'], '', ctx(root));
+
+    expect(result.stdout).toMatch(/as reserved|not advanced since|state at the lease/i);
+  });
+
   it('refuses a stateful subcommand invoked without an execution context', () => {
     expect(runAutopilotCommand(['status'], '').exitCode).toBe(2);
   });

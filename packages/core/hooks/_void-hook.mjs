@@ -1957,6 +1957,7 @@ function evaluateContextMeasurement(state, measurement) {
   const thresholdValid = Number.isSafeInteger(measurement.thresholdPercent) && measurement.thresholdPercent >= 40 && measurement.thresholdPercent <= 60;
   const usagePercent = windowKnown ? usedTokens / (measurement.windowTokens ?? 1) * 100 : void 0;
   const revisionAfterTokens = state.workRevision + (tokensChanged ? 1 : 0);
+  const unjudgeable = !windowKnown ? "window-unknown" : thresholdValid ? void 0 : "threshold-unusable";
   const emitNudge = usagePercent !== void 0 && thresholdValid && usagePercent >= measurement.thresholdPercent && !state.nudgeEmitted && state.semanticRevision < revisionAfterTokens;
   const workChanged = tokensChanged || emitNudge;
   const measuredAtMs = Number.isSafeInteger(measurement.measuredAtMs) && measurement.measuredAtMs >= 0 ? measurement.measuredAtMs : state.lastMeasurementAtMs;
@@ -1971,7 +1972,8 @@ function evaluateContextMeasurement(state, measurement) {
   return {
     state: next,
     emitNudge,
-    ...usagePercent === void 0 ? {} : { usagePercent }
+    ...usagePercent === void 0 ? {} : { usagePercent },
+    ...unjudgeable === void 0 ? {} : { unjudgeable }
   };
 }
 function mergeMechanicalContextBlock(raw, state) {
@@ -2915,15 +2917,16 @@ function measureContext(state, input, root, event, runtime3, now) {
     state: decision.state,
     emitNudge: decision.emitNudge,
     ...decision.usagePercent === void 0 ? {} : { usagePercent: decision.usagePercent },
+    ...decision.unjudgeable === void 0 ? {} : { unjudgeable: decision.unjudgeable },
     skippedBytes: observed.skippedBytes,
     skippedLines: observed.skippedLines
   };
 }
-function unwatchableOutput(event) {
+function unwatchableOutput(event, reason) {
   return {
     hookSpecificOutput: {
       hookEventName: event,
-      additionalContext: "Context usage is being recorded but cannot be watched: no `context.windowTokens` is configured in `.void/config.json`, so no percentage and no checkpoint threshold can be computed. Set it to the model context window to enable the reminder."
+      additionalContext: reason === "window-unknown" ? "Context usage is being recorded but cannot be watched: no `context.windowTokens` is configured in `.void/config.json`, so no percentage and no checkpoint threshold can be computed. Set it to the model context window to enable the reminder." : "Context usage is being recorded but the checkpoint threshold cannot be applied: `context.checkpointThresholdPercent` in `.void/config.json` is outside the accepted 40 to 60 range, which disarms the reminder entirely. Set it within that range, or remove it to take the default of 50."
     }
   };
 }
@@ -3010,7 +3013,8 @@ function evolveCheckpoint(root, now, runtime3, observation, input, event) {
     });
     const measurement = input === void 0 || event === void 0 ? { state: advanced, emitNudge: false, skippedBytes: 0, skippedLines: 0 } : measureContext(advanced, input, root, event, runtime3, now);
     const measured = reconcile ? advanceMechanicalContext(measurement.state, { semanticCheckpointWritten: true }) : measurement.state;
-    const unwatchable = thresholdConfig(root).windowTokens === void 0 && !measured.unwatchableNotified && event !== void 0;
+    const unjudgeable = measurement.unjudgeable ?? (thresholdConfig(root).windowTokens === void 0 ? "window-unknown" : void 0);
+    const unwatchable = unjudgeable !== void 0 && !measured.unwatchableNotified && event !== void 0;
     const next = unwatchable ? { ...measured, unwatchableNotified: true } : measured;
     if (next === current && block2.status === "valid") {
       return {
@@ -3030,7 +3034,7 @@ function evolveCheckpoint(root, now, runtime3, observation, input, event) {
           transcriptSkippedBytes: measurement.skippedBytes,
           transcriptSkippedLines: measurement.skippedLines
         },
-        ...measurement.emitNudge && event !== void 0 ? { output: nudgeOutput(event, thresholdConfig(root).thresholdPercent) } : unwatchable && event !== void 0 ? { output: unwatchableOutput(event) } : {}
+        ...measurement.emitNudge && event !== void 0 ? { output: nudgeOutput(event, thresholdConfig(root).thresholdPercent) } : unwatchable && event !== void 0 && unjudgeable !== void 0 ? { output: unwatchableOutput(event, unjudgeable) } : {}
       }
     };
   });

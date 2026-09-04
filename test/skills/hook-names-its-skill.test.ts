@@ -42,6 +42,23 @@ function skillExists(name: string): boolean {
   }
 }
 
+/**
+ * Rules that enforce the safety floor rather than a doctrine skill, and so have
+ * no `enforces` edge to hold them to.
+ *
+ * Measured 2026-09-03: five of the thirteen rules. They refuse on their own
+ * authority — a destructive command, a protected path, a secret, a focused test,
+ * design slop — and none of them points a reader at a skill that would explain
+ * more. That is a defensible state; being invisible was not.
+ */
+const UNDECLARED_BY_DESIGN = [
+  'dangerous-command',
+  'design-slop',
+  'no-focused-test',
+  'protected-file',
+  'secret-content',
+] as const;
+
 describe('every enforcement rule names the doctrine it enforces', () => {
   it.each(RULE_NAMES)('%s resolves to a skill that exists', (rule) => {
     const skill = governingSkill(rule);
@@ -63,9 +80,40 @@ describe('every enforcement rule names the doctrine it enforces', () => {
       const hook = edge.from.slice('hook:'.length);
       return hook === rule || hook.startsWith(`${rule}-`) || rule.startsWith(hook.replace(/-(?:grep|guard|lint)$/, ''));
     });
-    if (match.length === 0) return; // Not every rule has a declared edge yet.
+    if (match.length === 0) {
+      // Not silence. A rule with no declared edge is a rule this test cannot
+      // hold, and it used to `return` — so five of thirteen rules were exempt
+      // and the suite reported thirteen green. A test that passes because it
+      // found nothing to check is the false negative the whole rule forbids.
+      //
+      // The exemption is a written list instead: adding a rule without an edge
+      // now fails until someone either declares the edge or writes down why
+      // there is none.
+      expect(
+        UNDECLARED_BY_DESIGN,
+        `${rule} has no enforces edge and is not in UNDECLARED_BY_DESIGN`,
+      ).toContain(rule);
+      return;
+    }
     const targets = new Set(match.map((edge) => edge.to.slice('skill:'.length)));
     expect(targets.has(governingSkill(rule)), `${rule}: graph says ${[...targets].join(', ')}`).toBe(true);
+  });
+
+  /**
+   * The list shrinks or it lies. Once a rule earns an `enforces` edge, leaving
+   * it exempt here re-creates the hole the list was written to close — quietly,
+   * because an over-broad exemption reads exactly like a satisfied one.
+   */
+  it.each(UNDECLARED_BY_DESIGN)('%s is still genuinely undeclared', (rule) => {
+    const declared = EDGES.filter(
+      (edge) => edge.kind === 'enforces' && edge.from.startsWith('hook:') && edge.to.startsWith('skill:'),
+    );
+    const match = declared.filter((edge) => {
+      const hook = edge.from.slice('hook:'.length);
+      return hook === rule || hook.startsWith(`${rule}-`) || rule.startsWith(hook.replace(/-(?:grep|guard|lint)$/, ''));
+    });
+
+    expect(match, `${rule} now has an enforces edge — remove it from UNDECLARED_BY_DESIGN`).toHaveLength(0);
   });
 
   /**
@@ -75,7 +123,17 @@ describe('every enforcement rule names the doctrine it enforces', () => {
    */
   it('names the doctrine in the refusal a consumer sees', () => {
     const bundle = fileURLToPath(new URL('packages/core/hooks/_void-hook.mjs', ROOT));
-    if (!existsSync(bundle)) return; // built by `pnpm hooks:build`; CI builds before testing.
+    // The same silence, one screen down: this returned green when the bundle was
+    // absent, so the only check that proves the sentence reaches a refused person
+    // was skipped by whoever had not run `pnpm hooks:build` — reported as passing.
+    // CI builds first, so there the absence is a failure and not a condition.
+    if (!existsSync(bundle)) {
+      expect(
+        process.env.CI,
+        'the hook bundle is missing; run `pnpm hooks:build` (in CI this is a failure, not a skip)',
+      ).toBeUndefined();
+      return;
+    }
     const root = fileURLToPath(ROOT).replace(/\/$/, '');
     const payload = JSON.stringify({
       tool_name: 'Write',
