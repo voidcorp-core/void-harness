@@ -15,6 +15,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..', '..');
 const CONTRACT = resolve(REPO, 'conformance', 'machine', 'legacy-v3');
 const RUNNER = resolve(HERE, 'conformance-legacy-v3.mjs');
+const INSTALL_CONFORMANCE = resolve(HERE, 'conformance-install.mjs');
 const EXPECTED_SCENARIOS = [
   'autopilot.exact-sha',
   'autopilot.interrupted-release',
@@ -121,6 +122,14 @@ describe('legacy v3 normative contract', () => {
       preservePaths: ['.claude/settings.json'],
       effects: 'none',
     });
+  });
+
+  it('executes the update command for packed local update evidence', () => {
+    const source = readFileSync(INSTALL_CONFORMANCE, 'utf8');
+
+    expect(source).toMatch(
+      /await run\(process\.execPath, \[bin, 'update'\], fixture\)/,
+    );
   });
 });
 
