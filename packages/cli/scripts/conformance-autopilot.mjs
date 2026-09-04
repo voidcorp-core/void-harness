@@ -21,6 +21,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { conformanceArtifactFromEnvironment } from './conformance-artifact.mjs';
+import { assertPortableConsumerSkill } from './conformance-autopilot-lib.mjs';
 import {
   conformanceFixtureEnvironment,
   packageManagerCommand,
@@ -109,9 +110,7 @@ try {
     }
 
     const skill = await readFile(join(fixture, home, 'skills', 'void-autopilot', 'SKILL.md'), 'utf8');
-    if (/packages\/core|packages\/cli/.test(skill)) {
-      fail(`${runtime} skill references a monorepo path, so it was not written for a consumer`);
-    }
+    assertPortableConsumerSkill(skill);
     if (/in construction/i.test(skill)) fail(`${runtime} skill still announces itself as unfinished`);
 
     // The CLI computes, offline, from the installed package.
