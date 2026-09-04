@@ -3,7 +3,7 @@ title: Void Machine foundation
 date: 2026-09-04
 status: approved
 author: Folpe + Codex
-ticket:
+ticket: DEV-807
 related:
   - docs/specs/2026-08-31-autonomous-until-develop.md
   - docs/specs/2026-07-25-autopilot.md
@@ -911,7 +911,7 @@ covered issue receives a comment and narrower remaining scope.
 | DEV-659 | package and command naming | `void-machine` cutover and compatibility handoff |
 | DEV-458 | extension seam | pack and adapter contract conformance |
 | DEV-621 | resume CLI | durable restart from every certified crash point |
-| DEV-623 | Workbench | name and port reserved; UI remains separately scoped |
+| DEV-623 | prior local cockpit evidence | already Done; the new Workbench remains outside this programme and has no implementation ticket yet |
 | DEV-666 | backlog rationalization | superseded/absorbed issue audit after each slice |
 
 DEV-591 and DEV-791 remain independent reliability defects unless their root cause is eliminated by

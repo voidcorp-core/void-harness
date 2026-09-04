@@ -3,7 +3,7 @@ title: Void Machine foundation
 date: 2026-09-04
 status: in-progress
 spec: docs/specs/2026-09-04-void-machine-foundation.md
-ticket:
+ticket: DEV-807
 author: Folpe + Codex
 high_risk: true
 ---
@@ -26,7 +26,7 @@ temporary compatibility shell, never a second long-lived authority.
 This is a provider-backed programme, not one implementation ticket or one pull request. It is
 deliberately in **REDUCTION** mode despite its ambition:
 
-- each `VM-*` unit below gets one Linear issue, one bounded branch and one reviewable pull request;
+- each `VM-*` unit below gets at least one Linear issue, one bounded branch and one reviewable pull request; VM-12 is deliberately split into its already-scoped panel prerequisite and the final managed cutover;
 - a unit is limited to two focused implementation days; it is split before execution if that bound
   is not credible;
 - every cutover names the one authoritative engine before and after it;
@@ -638,25 +638,30 @@ Use existing issues when their acceptance criteria match a unit. Comment with th
 when only part is absorbed. Create a new issue only for a unit with no faithful existing owner.
 Never close an issue because its wording appears in this plan.
 
-| Plan unit | Existing issue candidates | Required reconciliation evidence |
+| Plan unit | Materialized owner | Existing work reconciled without assumed completion |
 |---|---|---|
-| VM-01 | DEV-452, DEV-453 | packed legacy and self-host consumer oracle on all platforms |
-| VM-02 | DEV-631 | native path/config diagnostics from a packed consumer |
-| VM-03 | DEV-458 | portable skill plus executable manifest conformance |
-| VM-04 | DEV-798, DEV-803 | one state owner, crash resume and proof refusal |
-| VM-05, VM-06 | DEV-450 | real Codex and Claude subscription certificates |
-| VM-07 | DEV-735 | eligibility, semantic ranking and fallback conformance |
-| VM-08 | DEV-609, DEV-611 | versioned knowledge and deterministic index rebuild |
-| VM-09 | DEV-621 | Git-effect resume from every injected crash point |
-| VM-10 | DEV-706 | exact-SHA CI and reconciled remote-effect evidence |
-| VM-11 | new unless a faithful issue exists | durable 15/20-minute, three-strategy recovery matrix |
-| VM-12 | DEV-733, DEV-734, DEV-803 | managed panel and single-ticket end-to-end proof |
-| VM-13, VM-14 | DEV-706 and autopilot descendants | integrated tree proof and develop-only merge |
-| VM-15 | DEV-452, DEV-631, DEV-645 | current-consumer migration and exact pin |
-| VM-16 | DEV-630 | signed update activation and rollback |
-| VM-17 | DEV-453, DEV-659 | released artifact, real-runtime and naming certificate |
-| deferred Workbench | DEV-623 | remains open and explicitly outside this programme |
-| audit after every cutover | DEV-666 | absorbed/superseded issue report with evidence |
+| VM-01 | DEV-808 | DEV-452 and DEV-453 remain later migration/release owners |
+| VM-02 | DEV-809 | DEV-631 is a completed legacy-layout precedent, not the native doctor |
+| VM-03 | DEV-810 | DEV-458, DEV-647, DEV-648 and DEV-658 retain their broader extension/ownership/collision criteria |
+| VM-04 | DEV-798 | original cursor defect retained as the state-ownership regression; DEV-803 remains in review |
+| VM-05 | DEV-811 | child of runtime-certification umbrella DEV-450 |
+| VM-06 | DEV-812 | child of runtime-certification umbrella DEV-450 |
+| CP-A | DEV-813 | explicit human subscription-first decision |
+| VM-07 | DEV-820 | DEV-735 closed from spec/plan evidence, not code |
+| VM-08 | DEV-609 | DEV-611 retains hook/session wiring; DEV-443 retains its measurable context criteria |
+| VM-09 | DEV-814 | DEV-621 is a completed legacy resume precedent |
+| VM-10 | DEV-706 | exact-SHA CI case remains the decisive regression |
+| VM-11 | DEV-815 | no faithful prior owner existed |
+| VM-12A | DEV-733 | fresh-context panel prerequisite |
+| VM-12B | DEV-734 | final managed single-ticket cutover |
+| VM-13 | DEV-816 | completed legacy autopilot issues are regression lineage only |
+| VM-14 | DEV-817 | DEV-612 is a completed policy precedent; DEV-802 remains in review |
+| CP-B | DEV-818 | explicit human unattended-loop decision |
+| VM-15 | DEV-452 | DEV-645 receives close evidence only from byte-preserving consumer migration |
+| VM-16 | DEV-819 | DEV-630 retains proactive update-notice behavior |
+| VM-17 | DEV-453 | DEV-659 closes only from released naming/compatibility evidence |
+| deferred Workbench | none | DEV-623 is already Done for the prior cockpit; a new Workbench ticket is intentionally absent |
+| scoped reconciliation | DEV-666 | remains Backlog because this pass did not audit every open project issue |
 
 DEV-591 and DEV-791 stay independent unless a specific regression test proves that a unit removed
 their root cause.
@@ -666,27 +671,28 @@ their root cause.
 The table is the stable programme order. Linear owns live status, assignees, blocker relations,
 comments and review evidence after `void-ticket` materializes the approved pool.
 
-| Key | Title | Depends on | Estimate | Human gate |
-|---|---|---|---:|---|
-| VM-01 | Freeze current consumer contract | none | 5 | no |
-| VM-02 | Native doctor through compatibility package | VM-01 | 5 | no |
-| VM-03 | Portable executable skill package | VM-02 | 5 | no |
-| VM-04 | Durable no-effect run and proof | VM-03 | 8 | no |
-| VM-05 | Codex subscription adapter | VM-04 | 5 | no |
-| VM-06 | Claude subscription adapter | VM-04 | 5 | no |
-| CP-A | Subscription-first product review | VM-05, VM-06 | 0 | yes |
-| VM-07 | Deterministic and semantic router | VM-04, CP-A | 5 | no |
-| VM-08 | Separated memory and rebuildable indexes | VM-07 | 5 | no |
-| VM-09 | Effectively-once Git effect | VM-04 | 8 | no |
-| VM-10 | Tracker and CI effects | VM-09 | 8 | no |
-| VM-11 | Bounded reversible recovery | VM-07, VM-09, VM-10 | 8 | no |
-| VM-12 | Managed single-ticket implementation | VM-05, VM-06, VM-08, VM-11 | 8 | no |
-| VM-13 | Bounded autopilot cluster | VM-12 | 8 | no |
-| VM-14 | Autonomous develop merge | VM-13 | 5 | no |
-| CP-B | Unattended loop review | VM-14 | 0 | yes |
-| VM-15 | Exact project lock and consumer migration | VM-12, CP-B | 5 | no |
-| VM-16 | TUF-rooted update and rollback | VM-15 | 8 | no |
-| VM-17 | Native release and cutover certificate | VM-14, VM-16 | 8 | yes |
+| Key | Linear | Title | Depends on | Estimate | Human gate |
+|---|---|---|---|---:|---|
+| VM-01 | DEV-808 | Freeze current consumer contract | none | 5 | no |
+| VM-02 | DEV-809 | Native doctor through compatibility package | VM-01 | 5 | no |
+| VM-03 | DEV-810 | Portable executable skill package | VM-02 | 5 | no |
+| VM-04 | DEV-798 | Durable no-effect run and proof | VM-03 | 8 | no |
+| VM-05 | DEV-811 | Codex subscription adapter | VM-04 | 5 | no |
+| VM-06 | DEV-812 | Claude subscription adapter | VM-04 | 5 | no |
+| CP-A | DEV-813 | Subscription-first product review | VM-05, VM-06 | 1 | yes |
+| VM-07 | DEV-820 | Deterministic and semantic router | VM-04, CP-A | 5 | no |
+| VM-08 | DEV-609 | Separated memory and rebuildable indexes | VM-07 | 5 | no |
+| VM-09 | DEV-814 | Effectively-once Git effect | VM-04 | 8 | no |
+| VM-10 | DEV-706 | Progress and CI effects | VM-09 | 8 | no |
+| VM-11 | DEV-815 | Bounded reversible recovery | VM-07, VM-09, VM-10 | 8 | no |
+| VM-12A | DEV-733 | Fresh-context specialist panels | VM-05, VM-06, VM-08, VM-11 | 3 | no |
+| VM-12B | DEV-734 | Managed single-ticket implementation | VM-12A | 8 | no |
+| VM-13 | DEV-816 | Bounded autopilot cluster | VM-12B | 8 | no |
+| VM-14 | DEV-817 | Autonomous develop merge | VM-13 | 5 | no |
+| CP-B | DEV-818 | Unattended loop review | VM-14 | 1 | yes |
+| VM-15 | DEV-452 | Exact project lock and consumer migration | VM-12B, CP-B | 5 | no |
+| VM-16 | DEV-819 | TUF-rooted update and rollback | VM-15 | 8 | no |
+| VM-17 | DEV-453 | Native release and cutover certificate | VM-14, VM-16 | 8 | yes |
 
 Estimates use tracker points, not elapsed hours. Any 8-point unit that cannot credibly finish within
 two focused implementation days must be split along a demonstrable vertical boundary before it is

@@ -1,146 +1,131 @@
 ---
 schemaVersion: 1
 status: executing
-program: autonomous-until-develop
-plan: docs/plans/2026-08-31-autonomous-until-develop-plan.md
-spec: docs/specs/2026-08-31-autonomous-until-develop.md
+program: void-machine-foundation
+plan: docs/plans/2026-09-04-void-machine-foundation-plan.md
+spec: docs/specs/2026-09-04-void-machine-foundation.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
-  order: [DEV-677, DEV-673, DEV-665, DEV-664]
+  order:
+    - DEV-808
+    - DEV-809
+    - DEV-810
+    - DEV-798
+    - DEV-811
+    - DEV-812
+    - DEV-813
+    - DEV-820
+    - DEV-609
+    - DEV-814
+    - DEV-706
+    - DEV-815
+    - DEV-733
+    - DEV-734
+    - DEV-816
+    - DEV-817
+    - DEV-818
+    - DEV-452
+    - DEV-819
+    - DEV-453
   states:
     ready: [Backlog, Todo]
     started: [In Progress]
     review: [In Review]
     done: [Done, Canceled]
-humanGates: []
+humanGates: [DEV-813, DEV-818, DEV-453]
 autopilot:
   schemaVersion: 1
+  enabled: true
   clusterSize: 4
+  chainBudget: 6h
   base: develop
   mergeGate: union-reviewed
   deployBranch: main
   verifyCommands:
-    - [pnpm, build]
-    - [pnpm, test]
+    - [pnpm, verify]
   ownership:
     sequential:
+      - Cargo.lock
       - pnpm-lock.yaml
-      - packages/cli/core-assets/**
+      - Cargo.toml
+      - rust-toolchain.toml
+      - deny.toml
+      - contracts/machine/**
+      - .github/workflows/**
+      - docs/decisions-log/**
+      - packages/cli/package.json
+      - package.json
+      - .void/program.md
+    reconcileOnly:
+      - docs/CHEATSHEET.md
+      - docs/SKILL-REFERENCES.md
+      - packages/core/data/catalog.v3.json
+      - packages/core/graph/void-graph.mjs
       - packages/harness-graph/model.json
-      - packages/harness-graph/catalog.v3.json
-      # DEV-677 and DEV-673 both rewrite the merge grant, so the router must
-      # sequence them rather than fan them out. Declared here rather than left to
-      # footprint inference, because a semantic conflict in the guard that
-      # authorizes a merge is the one no tooling resolves after the fact.
-      - packages/cli/src/lib/autopilot/union-review.ts
-    reconcileOnly: []
+      - packages/cli/core-assets/**
 ---
 
-# Program: autonomous until develop
+# Program: Void Machine foundation
 
-This file is the stable global context for the executing program. It deliberately names neither a
-current nor a next work unit. The provider declared under `progress` owns claims, dependencies,
-review state and the remote resume trail; this file only locates that state.
+This descriptor routes the approved foundation programme. It is durable global context, not a
+cursor: Linear owns status, claims, blocker relations, comments and review evidence. This file
+never names a current or next unit.
 
-The pointer moved on 2026-08-31 to the programme now in flight: `autopilot 6h` runs to the end
-with nobody present, and the only human gate is the promotion to the branch that deploys.
+## Reconciliation with the previous programme
 
-`progress.order` names the four shipped guards rather than this programme's slices, and that is
-the field working as specified rather than a mismatch: it is a **deterministic tie-break among
-simultaneously ready units**, not the programme's decomposition. The guards are ready, they are
-real, and they are the pool the first real run drains. The slices are executed directly from the
-plan and become units only when an autopilot has to drain them unattended.
-
-`humanGates` is empty on purpose. Folpe settled it on 2026-08-31: the only human gate is
-`develop -> main`, which `production-downstream` already refuses to a machine. A gate declared per
-ticket stops a run in front of a person, which is the thing this programme exists to remove. The
-field stays in the contract for consumers who want it.
-
-**Corrections land in the artefact being worked on, never in a successor.** Spec drift is the
-documented failure of this whole family of workflows -- the files stop matching what
-implementation revealed -- and it is caused by deferring. Three corrections went into the spec and
-the plan the day they were found rather than into a "v2": the unconstrained argv, the three causes
-absence conflated, and the six unattended hours nobody could read.
-
-**And a correction names what it touches before it lands.** A correction is local and urgent while
-doctrine is global and quiet, so the cheapest move is to solve the immediate problem and not notice
-that a decision forbade it. Honouring a decision, or touching none, is applied in place and said
-out loud. Contradicting one is not a correction at all: it is a supersession, and it goes through
-the decision file that already exists for that. See the decision on correcting in flight unless it
-supersedes.
+The previous `autonomous-until-develop` order contained DEV-677, DEV-673, DEV-665 and DEV-664;
+all four are Done. Its remaining design loops were not falsely declared completed: DEV-706,
+DEV-733 and DEV-734 were read in full, reconciled into the approved Void Machine plan and now
+appear explicitly in this programme. The pointer changed only after Folpe approved the spec,
+plan and complete provider-native pool.
 
 ## Sources of truth
 
-Read these before selecting or executing work:
+Before selecting or executing work, read in order:
 
-1. the global plan named in frontmatter, including its architecture, checkpoints, verification
-   gates, execution handoff, and resume point;
-2. the approved spec named in frontmatter;
-3. the complete selected work unit from the declared progress provider, including native
-   relations and current state;
-4. `AGENTS.md` or `CLAUDE.md` and the current repository state.
+1. the plan and approved spec named in frontmatter;
+2. the complete selected Linear issue, including current relations and comments;
+3. the accepted ADRs linked by the plan;
+4. `AGENTS.md`, `CLAUDE.md`, project doctrine and the current Git state.
 
-The global plan supplies intent and sequencing. The provider-native record is the executable unit.
-Do not implement from a remembered or summarized record.
+The plan supplies global intent and sequencing. The provider-native issue is the executable unit.
+If any summary conflicts with the issue or repository, stop and reconcile the authoritative
+record rather than filling the gap from memory.
 
-## Automatic session bootstrap
+## Automatic selection and lifecycle
 
-When the user asks to continue, start, resume, or otherwise execute the program without naming a
-work unit:
+On an unscoped continue/start/resume request, query the declared Linear scope. Resume exactly one
+started ordered unit; surface competing started claims; otherwise select the first ready ordered
+unit whose native blockers are done. Fetch it again immediately before claiming, assign it and
+move it to In Progress, then run `void-implement`.
 
-1. Resolve the adapter named by `progress.provider` and query the opaque `progress.scope`.
-2. Fetch full details and relations for every candidate needed to decide readiness.
-3. If exactly one unit is in a `progress.states.started` state, resume it.
-4. If several units are started, report the competing claims instead of guessing ownership.
-5. Otherwise select the first ready unit from `progress.order` whose native blockers are done.
-6. Fetch the selected unit and relations again immediately before claiming it.
-7. Claim it through the provider adapter, then execute it with `void-implement`.
+Keep progress remote and current. A material blocker or scope correction receives a bounded
+Linear comment. Verified work moves to In Review with branch, commits, tests, review and exact-SHA
+evidence. An issue reaches Done only after its pull request is merged into `develop` and the merged
+state is freshly verified. Provider failure stops the action; no local substitute is invented.
 
-If the provider cannot be resolved, stop only the action that needs it; the program and local
-checkpoint remain readable. A specific user request or explicit work unit always overrides
-automatic selection.
+## Autonomy and human gates
 
-## Progress lifecycle
+The autopilot block is explicit consent for bounded in-session execution and for a clean,
+freshly union-reviewed integration pull request to merge to `develop`. It grants nothing beyond
+that branch. `main` is the deploying branch and remains human-only; tags, releases, production
+environments, secrets, irreversible changes and spend outside declared policy are never implied
+by this programme.
 
-The declared provider is part of execution, not an after-the-fact mirror.
+DEV-813 stops the programme until the same read-only skill is proven through real Codex and Claude
+Code subscriptions. DEV-818 stops consumer migration until a real unattended cluster is inspected.
+DEV-453 is the publication gate. Automated checks cannot mark any of these gates Done or infer
+Folpe's decision.
 
-- **Claim**: set the issue to `In Progress` and assign it before the first implementation edit.
-- **Progress**: keep native `blockedBy` relations accurate. Add a concise comment when a material
-  blocker, scope decision, or external dependency changes the execution contract.
-- **Session handoff**: if work remains when a session ends, keep the issue `In Progress` and add one
-  bounded resume comment containing branch/worktree, last verified result, remaining work, blocker,
-  and the exact next action.
-- **Review**: after all ticket gates pass, attach the PR and evidence, summarize verification in a
-  comment, and move the issue to `In Review`.
-- **Completion**: move the issue to `Done` only after the PR is merged and final verification
-  confirms the merged state.
-- **Failure**: if the provider cannot be read or updated, stop. Do not claim another unit or
-  maintain a local substitute for progress state.
+Parallel execution is allowed only for disjoint declared footprints. Native blocker relations
+sequence semantic dependencies; `ownership.sequential` serializes shared authority; only the
+reconciler may rebuild `ownership.reconcileOnly`. A missing footprint, unread union review,
+inconclusive proof or stale SHA refuses integration.
 
-Never place secrets, full prompts, full model responses, or private consumer source in the
-provider.
+## Programme completion
 
-## Human gates and autonomy boundary
-
-Checkpoint A was read on 2026-08-30 and is closed: the panel convened before the writing, refuted
-a stale ticket premise from four independent lenses, and the run closed six production merge
-grants. What it also revealed -- a context pack that was empty at the stage where the panel
-convenes first -- was fixed inside the same unit.
-
-The gate now is the merge of the integration PR into `develop`, and promotion to `main` stays
-human as always. Findings are arbitrated inside the cycle by the forced comparison against the
-unit in progress, so no queue accumulates and no human is a bottleneck on them.
-
-Promotion to `main` remains human, and what a person judges there is the feature. The integration
-PR into `develop` merges itself only once an adversarial reading of the whole integrated diff came
-back clean; unread, inconclusive or stale all refuse. `autopilot` may select independent ready units
-only through its documented attended confirmation flow. The program descriptor does not create a headless backend and
-does not weaken single-writer rules for lockfiles, migrations, generated assets, or shared
-contracts.
-
-## Program completion
-
-When all scoped implementation units are done and both human gates were explicitly approved, the
-final program change sets this file's `status` to `completed`. It does not repoint itself to a
-different plan or progress scope.
+Set `status: completed` only after DEV-453 has passed from released artifacts, all ordered units
+are Done from evidence on `develop`, the migration bridge and rollback window are documented, and
+Folpe explicitly approved publication. Promotion from `develop` to `main` remains a separate human
+act after programme completion.
