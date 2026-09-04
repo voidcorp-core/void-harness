@@ -1,10 +1,11 @@
-import { existsSync, mkdtempSync } from 'node:fs';
+import { existsSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   conformanceEnvironment,
   packageManagerCommand,
+  resolveConformanceTarball,
   runConformanceProcess,
   safeConformanceDiagnostic,
 } from './conformance-process.mjs';
@@ -138,5 +139,30 @@ describe('conformance diagnostics and environment', () => {
     expect(diagnostic).not.toContain('secret-canary');
     expect(diagnostic).not.toContain('another-canary');
     expect(Buffer.byteLength(diagnostic)).toBeLessThanOrEqual(256);
+  });
+});
+
+describe('resolveConformanceTarball', () => {
+  it('accepts only an absolute regular tarball supplied by the trusted runner', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-conformance-tarball-'));
+    const tarball = join(root, 'voidharness.tgz');
+    writeFileSync(tarball, 'packed');
+
+    expect(resolveConformanceTarball({ VOID_CONFORMANCE_TARBALL: tarball })).toBe(tarball);
+    expect(() => resolveConformanceTarball({ VOID_CONFORMANCE_TARBALL: 'relative.tgz' }))
+      .toThrow('absolute regular .tgz');
+  });
+
+  it('rejects symlinks and non-tarball files', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-conformance-tarball-'));
+    const target = join(root, 'artifact.tgz');
+    const alias = join(root, 'alias.tgz');
+    writeFileSync(target, 'packed');
+    symlinkSync(target, alias);
+
+    expect(() => resolveConformanceTarball({ VOID_CONFORMANCE_TARBALL: alias }))
+      .toThrow('absolute regular .tgz');
+    expect(() => resolveConformanceTarball({ VOID_CONFORMANCE_TARBALL: join(root, 'artifact.zip') }))
+      .toThrow('absolute regular .tgz');
   });
 });
