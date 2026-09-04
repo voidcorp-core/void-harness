@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -101,7 +101,10 @@ try {
     const adjacent = join(fixture, runtime === 'codex' ? '.agents' : '.claude', 'skills', 'private', 'SKILL.md');
     await mkdir(dirname(adjacent), { recursive: true });
     await writeFile(adjacent, '# private user skill\n');
-    await run(process.execPath, [bin, 'init', '--runtime', runtime, '--no-interactive'], fixture);
+    const restorable = join(fixture, '.void', 'hooks', '_void-hook.mjs');
+    await unlink(restorable);
+    await run(process.execPath, [bin, 'update'], fixture);
+    requirePath(restorable, `${runtime} restored hook runner`);
     if ((await readFile(adjacent, 'utf8')) !== '# private user skill\n') {
       throw new Error(`${runtime} update changed an adjacent user file`);
     }
