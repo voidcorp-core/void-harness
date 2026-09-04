@@ -61,11 +61,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 // src/rules/verdict.ts
-function allow(code3 = "ALLOW", message = "allowed") {
-  return { allow: true, code: code3, message, evidence: [] };
+function allow(code2 = "ALLOW", message = "allowed") {
+  return { allow: true, code: code2, message, evidence: [] };
 }
-function block(code3, message, evidence) {
-  return { allow: false, code: code3, message, evidence };
+function block(code2, message, evidence) {
+  return { allow: false, code: code2, message, evidence };
 }
 
 // src/rules/source-helpers.ts
@@ -90,8 +90,8 @@ function lineEvidence(edits, applies, violates, allowTag) {
   }
   return evidence;
 }
-function evidenceVerdict(code3, message, evidence) {
-  return evidence.length === 0 ? allow() : block(code3, message, evidence);
+function evidenceVerdict(code2, message, evidence) {
+  return evidence.length === 0 ? allow() : block(code2, message, evidence);
 }
 
 // src/rules/boundary-direction.ts
@@ -262,10 +262,10 @@ function designSlop(edits) {
     }
     edit.addedContent.split(/\r?\n/).forEach((line, index) => {
       if (/allow-design-slop:/.test(line)) return;
-      const code3 = line.replace(/`[^`]*`|\/\*.*?\*\/|\/\/.*$/g, "");
-      if (INTER.test(code3)) evidence.push(`${path}:${index + 1}: default Inter font`);
-      if (GRADIENT.test(code3)) evidence.push(`${path}:${index + 1}: clich\xE9 gradient`);
-      if (GREY_ON_COLOR.test(code3)) evidence.push(`${path}:${index + 1}: grey text on color`);
+      const code2 = line.replace(/`[^`]*`|\/\*.*?\*\/|\/\/.*$/g, "");
+      if (INTER.test(code2)) evidence.push(`${path}:${index + 1}: default Inter font`);
+      if (GRADIENT.test(code2)) evidence.push(`${path}:${index + 1}: clich\xE9 gradient`);
+      if (GREY_ON_COLOR.test(code2)) evidence.push(`${path}:${index + 1}: grey text on color`);
     });
     if (NESTED_CARD.test(edit.addedContent) && !edit.addedContent.includes("allow-design-slop:")) {
       evidence.push(`${path}: card nested directly inside card`);
@@ -477,8 +477,8 @@ function noNull(edits) {
       if (/from\s+['"]drizzle-orm|JSON\.(?:stringify|parse)|typeof.*===\s*['"]null/.test(line)) {
         return false;
       }
-      const code3 = path.endsWith(".tsx") ? codeOnly(line).replace(/\breturn\s+null\b/g, "") : codeOnly(line);
-      return /\bnull\b/.test(code3);
+      const code2 = path.endsWith(".tsx") ? codeOnly(line).replace(/\breturn\s+null\b/g, "") : codeOnly(line);
+      return /\bnull\b/.test(code2);
     },
     "allow-null:"
   );
@@ -2034,19 +2034,19 @@ function prose(lines) {
 }
 function bullets(lines) {
   const items = [];
-  let open3 = false;
+  let open2 = false;
   for (const line of lines) {
     const bullet = /^\s*[-*]\s+(.*)$/.exec(line)?.[1];
     if (bullet !== void 0) {
       items.push(bullet);
-      open3 = true;
+      open2 = true;
       continue;
     }
     if (line.trim() === "") {
-      open3 = false;
+      open2 = false;
       continue;
     }
-    if (open3 && items.length > 0) {
+    if (open2 && items.length > 0) {
       items[items.length - 1] = `${items[items.length - 1] ?? ""} ${line.trim()}`;
     }
   }
@@ -3383,7 +3383,7 @@ function programFrom(raw, legacy) {
   };
 }
 function observeProgram(root) {
-  const present = PROGRAM_PATHS.filter((relative11) => existsSync6(join12(root, relative11)));
+  const present = PROGRAM_PATHS.filter((relative10) => existsSync6(join12(root, relative10)));
   if (present.length === 0) return { program: void 0 };
   if (present.length > 1) {
     return {
@@ -3391,11 +3391,11 @@ function observeProgram(root) {
       programError: `multiple program descriptors: ${present.join(", ")}`
     };
   }
-  const relative10 = present[0];
-  if (relative10 === void 0) return { program: void 0 };
-  const raw = readBounded(join12(root, relative10));
-  const program = raw === void 0 ? void 0 : programFrom(raw, relative10 !== PROGRAM_PATHS[0]);
-  return program === void 0 ? { program: void 0, programError: `invalid program descriptor: ${relative10}` } : { program };
+  const relative9 = present[0];
+  if (relative9 === void 0) return { program: void 0 };
+  const raw = readBounded(join12(root, relative9));
+  const program = raw === void 0 ? void 0 : programFrom(raw, relative9 !== PROGRAM_PATHS[0]);
+  return program === void 0 ? { program: void 0, programError: `invalid program descriptor: ${relative9}` } : { program };
 }
 function git(root, args) {
   try {
@@ -3420,8 +3420,8 @@ function gitObservation(root) {
   };
 }
 function checkpointObservation(root) {
-  for (const relative10 of CHECKPOINT_PATHS) {
-    const path = join12(root, relative10);
+  for (const relative9 of CHECKPOINT_PATHS) {
+    const path = join12(root, relative9);
     const raw = readBounded(path);
     if (raw === void 0) continue;
     try {
@@ -3888,66 +3888,14 @@ Resolve before claiming done. This never blocks.
   };
 }
 
-// src/record.ts
-import { homedir as homedir2 } from "node:os";
-import { resolve as resolve9 } from "node:path";
-
-// src/project-registry.ts
-import { createHash as createHash4 } from "node:crypto";
-import { lstat, mkdir, open, readFile, realpath } from "node:fs/promises";
-import { isAbsolute as isAbsolute6, join as join16, relative as relative7, resolve as resolve6 } from "node:path";
-function code(error) {
-  return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
-}
-function within4(root, target) {
-  const rel = relative7(root, target);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute6(rel);
-}
-async function registerProjectRoot(root, globalDir) {
-  const canonicalRoot = await realpath(resolve6(root));
-  const base = resolve6(globalDir);
-  await mkdir(base, { recursive: true, mode: 448 });
-  const canonicalBase = await realpath(base);
-  const projects = join16(base, "projects");
-  await mkdir(projects, { recursive: true, mode: 448 });
-  const info = await lstat(projects);
-  if (!info.isDirectory() || info.isSymbolicLink()) {
-    throw new Error("HOOK_UNSAFE_REGISTRY: projects must be a real directory");
-  }
-  const canonicalProjects = await realpath(projects);
-  if (!within4(canonicalBase, canonicalProjects)) {
-    throw new Error("HOOK_REGISTRY_ESCAPE: projects resolves outside global dir");
-  }
-  const slug = createHash4("sha256").update(canonicalRoot).digest("hex").slice(0, 32);
-  const pointer = join16(projects, `${slug}.path`);
-  try {
-    const handle = await open(pointer, "wx", 384);
-    try {
-      await handle.writeFile(`${canonicalRoot}
-`, "utf8");
-    } finally {
-      await handle.close();
-    }
-  } catch (error) {
-    if (code(error) !== "EEXIST") throw error;
-    const pointerInfo = await lstat(pointer);
-    if (!pointerInfo.isFile() || pointerInfo.isSymbolicLink()) {
-      throw new Error("HOOK_UNSAFE_REGISTRY: pointer must be a regular file");
-    }
-    if ((await readFile(pointer, "utf8")).trim() !== canonicalRoot) {
-      throw new Error("HOOK_REGISTRY_COLLISION: pointer owns another root");
-    }
-  }
-}
-
 // src/runtime-input.ts
-import { createHash as createHash5 } from "node:crypto";
+import { createHash as createHash4 } from "node:crypto";
 import {
   basename as basename5,
   extname,
-  isAbsolute as isAbsolute7,
-  relative as relative8,
-  resolve as resolve7
+  isAbsolute as isAbsolute6,
+  relative as relative7,
+  resolve as resolve6
 } from "node:path";
 var MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
 function record6(value) {
@@ -3993,7 +3941,7 @@ function nameFor(tool, category, input) {
   return tool || "unknown";
 }
 function safePaths(input, root) {
-  const absoluteRoot = resolve7(root);
+  const absoluteRoot = resolve6(root);
   const candidates = [
     input["file_path"],
     input["path"],
@@ -4002,12 +3950,12 @@ function safePaths(input, root) {
   const paths = [];
   for (const candidate of candidates) {
     if (typeof candidate !== "string" || candidate.length > 2e3) continue;
-    if (!isAbsolute7(candidate)) {
+    if (!isAbsolute6(candidate)) {
       if (!candidate.startsWith("..")) paths.push(candidate.slice(0, 500));
       continue;
     }
-    const rel = relative8(absoluteRoot, resolve7(candidate));
-    if (rel !== "" && !rel.startsWith("..") && !isAbsolute7(rel)) {
+    const rel = relative7(absoluteRoot, resolve6(candidate));
+    if (rel !== "" && !rel.startsWith("..") && !isAbsolute6(rel)) {
       paths.push(rel.slice(0, 500));
     }
   }
@@ -4061,7 +4009,7 @@ function deriveMissionId(explicit, runtime3, runtimeSessionId2, root) {
     }
     return explicit;
   }
-  const opaque = createHash5("sha256").update(`${runtime3}\0${runtimeSessionId2 || "unknown"}\0${resolve7(root)}`).digest("hex").slice(0, 32);
+  const opaque = createHash4("sha256").update(`${runtime3}\0${runtimeSessionId2 || "unknown"}\0${resolve6(root)}`).digest("hex").slice(0, 32);
   return `mis_${opaque}`;
 }
 
@@ -4071,21 +4019,21 @@ import {
   constants as constants3
 } from "node:fs";
 import {
-  lstat as lstat2,
-  mkdir as mkdir2,
-  open as open2,
-  readFile as readFile2,
-  realpath as realpath2,
+  lstat,
+  mkdir,
+  open,
+  readFile,
+  realpath,
   rename,
   stat,
   unlink
 } from "node:fs/promises";
 import {
   dirname as dirname6,
-  isAbsolute as isAbsolute8,
-  join as join17,
-  relative as relative9,
-  resolve as resolve8
+  isAbsolute as isAbsolute7,
+  join as join16,
+  relative as relative8,
+  resolve as resolve7
 } from "node:path";
 
 // ../mission-engine/dist/events/schema.js
@@ -4113,8 +4061,8 @@ var EVENT_KEYS = /* @__PURE__ */ new Set([
 function utf8Bytes(value) {
   let bytes = 0;
   for (const char of value) {
-    const code3 = char.codePointAt(0) ?? 0;
-    bytes += code3 <= 127 ? 1 : code3 <= 2047 ? 2 : code3 <= 65535 ? 3 : 4;
+    const code2 = char.codePointAt(0) ?? 0;
+    bytes += code2 <= 127 ? 1 : code2 <= 2047 ? 2 : code2 <= 65535 ? 3 : 4;
   }
   return bytes;
 }
@@ -4335,19 +4283,19 @@ var EVENT_ID2 = /^evt_[A-Za-z0-9_-]{8,100}$/;
 var DEFAULT_LOCK_STALE_MS = 3e4;
 var DEFAULT_LOCK_ATTEMPTS = 2e3;
 var LOCK_RETRY_MS = 2;
-function code2(error) {
+function code(error) {
   return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
 }
-function within5(root, target) {
-  const rel = relative9(root, target);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute8(rel);
+function within4(root, target) {
+  const rel = relative8(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute7(rel);
 }
 async function exists(path) {
   try {
-    await lstat2(path);
+    await lstat(path);
     return true;
   } catch (error) {
-    if (code2(error) === "ENOENT") return false;
+    if (code(error) === "ENOENT") return false;
     throw error;
   }
 }
@@ -4355,8 +4303,8 @@ async function safeRunDirectory(root, missionId) {
   if (!MISSION_ID3.test(missionId)) {
     throw new Error("HOOK_INVALID_MISSION_ID: expected mis_<opaque-id>");
   }
-  const absoluteRoot = resolve8(root);
-  const canonicalRoot = await realpath2(absoluteRoot);
+  const absoluteRoot = resolve7(root);
+  const canonicalRoot = await realpath(absoluteRoot);
   const run = voidReadPath(absoluteRoot, "runs", missionId);
   let ancestor = run;
   while (!await exists(ancestor)) {
@@ -4364,25 +4312,25 @@ async function safeRunDirectory(root, missionId) {
     if (parent === ancestor) break;
     ancestor = parent;
   }
-  const canonicalAncestor = await realpath2(ancestor);
-  if (!within5(canonicalRoot, canonicalAncestor)) {
+  const canonicalAncestor = await realpath(ancestor);
+  if (!within4(canonicalRoot, canonicalAncestor)) {
     throw new Error("HOOK_PATH_ESCAPE: run directory resolves outside project");
   }
-  await mkdir2(run, { recursive: true, mode: 448 });
-  const canonicalRun = await realpath2(run);
-  if (!within5(canonicalRoot, canonicalRun)) {
+  await mkdir(run, { recursive: true, mode: 448 });
+  const canonicalRun = await realpath(run);
+  if (!within4(canonicalRoot, canonicalRun)) {
     throw new Error("HOOK_PATH_ESCAPE: run directory resolves outside project");
   }
   return run;
 }
 async function rejectSymlink(path) {
   try {
-    const info = await lstat2(path);
+    const info = await lstat(path);
     if (info.isSymbolicLink() || !info.isFile()) {
       throw new Error(`HOOK_UNSAFE_FILE: ${path} must be a regular file`);
     }
   } catch (error) {
-    if (code2(error) !== "ENOENT") throw error;
+    if (code(error) !== "ENOENT") throw error;
   }
 }
 async function wait(ms) {
@@ -4394,7 +4342,7 @@ async function acquireLock2(path, staleMs, attempts) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const token = nodeRandomUUID();
     try {
-      const handle = await open2(path, "wx", 384);
+      const handle = await open(path, "wx", 384);
       try {
         await handle.writeFile(
           JSON.stringify({ token, pid: process.pid, acquiredAt: Date.now() }),
@@ -4405,9 +4353,9 @@ async function acquireLock2(path, staleMs, attempts) {
       }
       return { path, token };
     } catch (error) {
-      if (code2(error) !== "EEXIST") throw error;
-      const info = await lstat2(path).catch((statError) => {
-        if (code2(statError) === "ENOENT") return void 0;
+      if (code(error) !== "EEXIST") throw error;
+      const info = await lstat(path).catch((statError) => {
+        if (code(statError) === "ENOENT") return void 0;
         throw statError;
       });
       if (info === void 0) continue;
@@ -4416,7 +4364,7 @@ async function acquireLock2(path, staleMs, attempts) {
       }
       if (Date.now() - info.mtimeMs > staleMs) {
         await unlink(path).catch((unlinkError) => {
-          if (code2(unlinkError) !== "ENOENT") throw unlinkError;
+          if (code(unlinkError) !== "ENOENT") throw unlinkError;
         });
         continue;
       }
@@ -4427,27 +4375,27 @@ async function acquireLock2(path, staleMs, attempts) {
 }
 async function releaseLock2(lock) {
   try {
-    const raw = await readFile2(lock.path, "utf8");
+    const raw = await readFile(lock.path, "utf8");
     const parsed = JSON.parse(raw);
     if (parsed.token === lock.token) await unlink(lock.path);
   } catch (error) {
-    if (code2(error) !== "ENOENT") throw error;
+    if (code(error) !== "ENOENT") throw error;
   }
 }
 async function readSequenceState(statePath, logPath, logBytes) {
   try {
-    const raw = JSON.parse(await readFile2(statePath, "utf8"));
+    const raw = JSON.parse(await readFile(statePath, "utf8"));
     if (Number.isSafeInteger(raw.seq) && (raw.seq ?? -1) >= 0 && raw.logBytes === logBytes) {
       return raw.seq ?? 0;
     }
   } catch {
   }
   if (logBytes === 0) return 0;
-  return replayEventLog(await readFile2(logPath, "utf8")).lastSeq;
+  return replayEventLog(await readFile(logPath, "utf8")).lastSeq;
 }
 async function ensureLineBoundary(logPath, logBytes) {
   if (logBytes === 0) return 0;
-  const handle = await open2(logPath, "r");
+  const handle = await open(logPath, "r");
   try {
     const finalByte = Buffer.alloc(1);
     await handle.read(finalByte, 0, 1, logBytes - 1);
@@ -4455,7 +4403,7 @@ async function ensureLineBoundary(logPath, logBytes) {
   } finally {
     await handle.close();
   }
-  const append = await open2(
+  const append = await open(
     logPath,
     constants3.O_APPEND | constants3.O_WRONLY | (constants3.O_NOFOLLOW ?? 0)
   );
@@ -4468,7 +4416,7 @@ async function ensureLineBoundary(logPath, logBytes) {
 }
 async function appendLine(logPath, line) {
   const flags = constants3.O_APPEND | constants3.O_CREAT | constants3.O_WRONLY | (constants3.O_NOFOLLOW ?? 0);
-  const handle = await open2(logPath, flags, 384);
+  const handle = await open(logPath, flags, 384);
   try {
     await handle.writeFile(`${line}
 `, "utf8");
@@ -4479,7 +4427,7 @@ async function appendLine(logPath, line) {
 }
 async function writeSequenceState(statePath, state, randomUUID) {
   const temporary = `${statePath}.${randomUUID()}.tmp`;
-  const handle = await open2(temporary, "wx", 384);
+  const handle = await open(temporary, "wx", 384);
   try {
     await handle.writeFile(JSON.stringify(state), "utf8");
   } finally {
@@ -4492,7 +4440,7 @@ function sameDraft(event, options) {
 }
 async function existingIdempotentEvent(logPath, options, currentBytes) {
   if (options.eventId === void 0 || currentBytes === 0) return void 0;
-  const stream = replayEventLog(await readFile2(logPath, "utf8"));
+  const stream = replayEventLog(await readFile(logPath, "utf8"));
   if (stream.continuity === "partial" || stream.duplicateEventIds > 0) {
     throw new Error("HOOK_EVENT_LOG_INTEGRITY: continuity cannot be proved");
   }
@@ -4504,7 +4452,7 @@ async function existingIdempotentEvent(logPath, options, currentBytes) {
 }
 async function currentCanonicalEvents(logPath, currentBytes) {
   if (currentBytes === 0) return [];
-  const stream = replayEventLog(await readFile2(logPath, "utf8"));
+  const stream = replayEventLog(await readFile(logPath, "utf8"));
   if (stream.continuity === "partial" || stream.duplicateEventIds > 0) {
     throw new Error("HOOK_EVENT_LOG_INTEGRITY: continuity cannot be proved");
   }
@@ -4515,9 +4463,9 @@ async function writeSequencedEventInternal(options) {
     throw new Error("HOOK_INVALID_EVENT_ID: expected evt_<opaque-id>");
   }
   const run = await safeRunDirectory(options.root, options.missionId);
-  const logPath = join17(run, "events.jsonl");
-  const statePath = join17(run, ".seq.state");
-  const lockPath = join17(run, ".seq.lock");
+  const logPath = join16(run, "events.jsonl");
+  const statePath = join16(run, ".seq.state");
+  const lockPath = join16(run, ".seq.lock");
   await Promise.all([
     rejectSymlink(logPath),
     rejectSymlink(statePath),
@@ -4532,7 +4480,7 @@ async function writeSequencedEventInternal(options) {
   try {
     await rejectSymlink(logPath);
     const currentBytes = await stat(logPath).then((value) => value.size).catch((error) => {
-      if (code2(error) === "ENOENT") return 0;
+      if (code(error) === "ENOENT") return 0;
       throw error;
     });
     if (currentBytes > MAX_EVENT_LOG_BYTES) {
@@ -4607,11 +4555,6 @@ async function recordRuntimeEvent(options) {
     missionId,
     draft
   });
-  await registerProjectRoot(
-    options.root,
-    options.globalDir ?? resolve9(homedir2(), ".void")
-  ).catch(() => {
-  });
   return event;
 }
 async function recordHookEvent(options) {
@@ -4643,11 +4586,6 @@ async function recordHookEvent(options) {
       }
     }
   });
-  await registerProjectRoot(
-    options.root,
-    options.globalDir ?? resolve9(homedir2(), ".void")
-  ).catch(() => {
-  });
   return event;
 }
 function runtime(value) {
@@ -4663,7 +4601,6 @@ async function recordRuntimeEventFromCli(raw, argv, env) {
     runtime: runtime(argv[3] ?? env["VOID_AGENT_RUNTIME"]),
     phase: phase(argv[2]),
     rawInput: raw,
-    globalDir: env["VOID_GLOBAL_DIR"] ?? resolve9(homedir2(), ".void"),
     ...env["VOID_MISSION_ID"] === void 0 ? {} : { missionId: env["VOID_MISSION_ID"] }
   });
 }
@@ -4724,7 +4661,6 @@ async function observeHook(hook, execution, rawInput, agentRuntime, root) {
     status: execution.status,
     rawInput,
     details: execution.details,
-    ...process.env["VOID_GLOBAL_DIR"] === void 0 ? {} : { globalDir: process.env["VOID_GLOBAL_DIR"] },
     ...process.env["VOID_MISSION_ID"] === void 0 ? {} : { missionId: process.env["VOID_MISSION_ID"] }
   }).catch(() => {
   });

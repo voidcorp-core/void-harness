@@ -3,13 +3,11 @@ import {
   mkdtempSync,
   mkdirSync,
   rmSync,
-  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  discoverProjects,
   mergeCanonicalTelemetry,
   mergeTelemetry,
   dedupeKey,
@@ -21,62 +19,6 @@ import {
 function scratch(): string {
   return mkdtempSync(join(tmpdir(), 'rollup-'));
 }
-
-/** Register `root` in the index dir the way the meter's self-registration does. */
-function register(indexDir: string, slug: string, root: string): void {
-  mkdirSync(indexDir, { recursive: true });
-  writeFileSync(join(indexDir, `${slug}.path`), `${root}\n`);
-}
-
-describe('discoverProjects', () => {
-  it('returns registered roots that still exist, deduped and sorted', () => {
-    const base = scratch();
-    try {
-      const idx = join(base, 'projects');
-      const a = join(base, 'proj-a');
-      const b = join(base, 'proj-b');
-      mkdirSync(a);
-      mkdirSync(b);
-      register(idx, '1', b);
-      register(idx, '2', a);
-      register(idx, '3', a); // duplicate root, different pointer file
-      expect(discoverProjects(idx)).toEqual([a, b]);
-    } finally {
-      rmSync(base, { recursive: true, force: true });
-    }
-  });
-
-  it('drops pointers to directories that no longer exist', () => {
-    const base = scratch();
-    try {
-      const idx = join(base, 'projects');
-      register(idx, '1', join(base, 'gone'));
-      expect(discoverProjects(idx)).toEqual([]);
-    } finally {
-      rmSync(base, { recursive: true, force: true });
-    }
-  });
-
-  it('returns empty when the index does not exist', () => {
-    expect(discoverProjects(join(scratch(), 'nope'))).toEqual([]);
-  });
-
-  it('rejects symlinked pointer files instead of following arbitrary reads', () => {
-    const base = scratch();
-    try {
-      const idx = join(base, 'projects');
-      const root = join(base, 'project');
-      mkdirSync(idx, { recursive: true });
-      mkdirSync(root);
-      const target = join(base, 'target.path');
-      writeFileSync(target, `${root}\n`);
-      symlinkSync(target, join(idx, 'linked.path'));
-      expect(discoverProjects(idx)).toEqual([]);
-    } finally {
-      rmSync(base, { recursive: true, force: true });
-    }
-  });
-});
 
 describe('mergeTelemetry', () => {
   it('concatenates the .void/<file> bodies across projects', () => {
@@ -129,7 +71,7 @@ describe('mergeTelemetry', () => {
     }
   });
 
-  it('merges canonical run logs across registered projects', () => {
+  it('merges canonical run logs across discovered project roots', () => {
     const base = scratch();
     try {
       const a = join(base, 'a');

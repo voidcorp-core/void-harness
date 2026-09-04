@@ -1,5 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -315,5 +323,33 @@ describe('update on a marketplace install that predates the receipt', () => {
     expect(after.out).not.toMatch(/^\s+installed\s+\//m);
     expect(after.out).toMatch(/project config\s+valid JSON \+ schema/);
     expect(after.out).toMatch(/doctrine files\s+PHILOSOPHY\.md \+ PROJECT-DOCTRINE\.md present/);
+  });
+
+  it('previews and then retires the obsolete registry through update', () => {
+    const project = mkdtempSync(join(tmpdir(), 'update-registry-project-'));
+    const globalDir = mkdtempSync(join(tmpdir(), 'update-registry-global-'));
+    const registry = join(globalDir, 'projects');
+    installWithoutReceipt(project);
+    mkdirSync(registry);
+    writeFileSync(join(registry, 'a.path'), '/project/a\n');
+    writeFileSync(join(registry, 'b.path'), '/project/b\n');
+    const env = {
+      ...process.env,
+      PATH: fakeGhOnPath(),
+      VOID_GLOBAL_DIR: globalDir,
+    };
+
+    const preview = run('update --pins-only --dry-run', project, env);
+
+    expect(preview.code).toBe(0);
+    expect(preview.out).toContain('would retire 2 obsolete project pointer(s)');
+    expect(existsSync(join(registry, 'a.path'))).toBe(true);
+
+    const applied = run('update --pins-only', project, env);
+
+    expect(applied.code).toBe(0);
+    expect(applied.out).toContain('retired 2 obsolete project pointer(s)');
+    expect(existsSync(join(registry, 'a.path'))).toBe(false);
+    expect(existsSync(join(registry, 'b.path'))).toBe(false);
   });
 });

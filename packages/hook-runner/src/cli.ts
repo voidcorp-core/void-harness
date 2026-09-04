@@ -120,9 +120,6 @@ async function observeHook(
     status: execution.status,
     rawInput,
     details: execution.details,
-    ...(process.env['VOID_GLOBAL_DIR'] === undefined
-      ? {}
-      : { globalDir: process.env['VOID_GLOBAL_DIR'] }),
     ...(process.env['VOID_MISSION_ID'] === undefined
       ? {}
       : { missionId: process.env['VOID_MISSION_ID'] }),

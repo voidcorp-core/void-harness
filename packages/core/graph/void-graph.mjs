@@ -8983,9 +8983,9 @@ var require_picomatch = __commonJS({
     var utils = require_utils();
     var constants3 = require_constants();
     var isObject = (val) => val && typeof val === "object" && !Array.isArray(val);
-    var picomatch2 = (glob, options, returnState = false) => {
+    var picomatch3 = (glob, options, returnState = false) => {
       if (Array.isArray(glob)) {
-        const fns = glob.map((input) => picomatch2(input, options, returnState));
+        const fns = glob.map((input) => picomatch3(input, options, returnState));
         const arrayMatcher = (str2) => {
           for (const isMatch of fns) {
             const state2 = isMatch(str2);
@@ -9001,16 +9001,16 @@ var require_picomatch = __commonJS({
       }
       const opts = options || {};
       const posix7 = opts.windows;
-      const regex = isState ? picomatch2.compileRe(glob, options) : picomatch2.makeRe(glob, options, false, true);
+      const regex = isState ? picomatch3.compileRe(glob, options) : picomatch3.makeRe(glob, options, false, true);
       const state = regex.state;
       delete regex.state;
       let isIgnored = () => false;
       if (opts.ignore) {
         const ignoreOpts = { ...options, ignore: null, onMatch: null, onResult: null };
-        isIgnored = picomatch2(opts.ignore, ignoreOpts, returnState);
+        isIgnored = picomatch3(opts.ignore, ignoreOpts, returnState);
       }
       const matcher = (input, returnObject = false) => {
-        const { isMatch, match, output } = picomatch2.test(input, regex, options, { glob, posix: posix7 });
+        const { isMatch, match, output } = picomatch3.test(input, regex, options, { glob, posix: posix7 });
         const result = { glob, state, regex, posix: posix7, input, output, match, isMatch };
         if (typeof opts.onResult === "function") {
           opts.onResult(result);
@@ -9036,7 +9036,7 @@ var require_picomatch = __commonJS({
       }
       return matcher;
     };
-    picomatch2.test = (input, regex, options, { glob, posix: posix7 } = {}) => {
+    picomatch3.test = (input, regex, options, { glob, posix: posix7 } = {}) => {
       if (typeof input !== "string") {
         throw new TypeError("Expected input to be a string");
       }
@@ -9053,24 +9053,24 @@ var require_picomatch = __commonJS({
       }
       if (match === false || opts.capture === true) {
         if (opts.matchBase === true || opts.basename === true) {
-          match = picomatch2.matchBase(input, regex, options, posix7);
+          match = picomatch3.matchBase(input, regex, options, posix7);
         } else {
           match = regex.exec(output);
         }
       }
       return { isMatch: Boolean(match), match, output };
     };
-    picomatch2.matchBase = (input, glob, options, posix7 = options && options.windows) => {
-      const regex = glob instanceof RegExp ? glob : picomatch2.makeRe(glob, options);
+    picomatch3.matchBase = (input, glob, options, posix7 = options && options.windows) => {
+      const regex = glob instanceof RegExp ? glob : picomatch3.makeRe(glob, options);
       return regex.test(utils.basename(input, { windows: posix7 }));
     };
-    picomatch2.isMatch = (str2, patterns, options) => picomatch2(patterns, options)(str2);
-    picomatch2.parse = (pattern, options) => {
-      if (Array.isArray(pattern)) return pattern.map((p) => picomatch2.parse(p, options));
+    picomatch3.isMatch = (str2, patterns, options) => picomatch3(patterns, options)(str2);
+    picomatch3.parse = (pattern, options) => {
+      if (Array.isArray(pattern)) return pattern.map((p) => picomatch3.parse(p, options));
       return parse2(pattern, { ...options, fastpaths: false });
     };
-    picomatch2.scan = (input, options) => scan(input, options);
-    picomatch2.compileRe = (state, options, returnOutput = false, returnState = false) => {
+    picomatch3.scan = (input, options) => scan(input, options);
+    picomatch3.compileRe = (state, options, returnOutput = false, returnState = false) => {
       if (returnOutput === true) {
         return state.output;
       }
@@ -9081,13 +9081,13 @@ var require_picomatch = __commonJS({
       if (state && state.negated === true) {
         source2 = `^(?!${source2}).*$`;
       }
-      const regex = picomatch2.toRegex(source2, options);
+      const regex = picomatch3.toRegex(source2, options);
       if (returnState === true) {
         regex.state = state;
       }
       return regex;
     };
-    picomatch2.makeRe = (input, options = {}, returnOutput = false, returnState = false) => {
+    picomatch3.makeRe = (input, options = {}, returnOutput = false, returnState = false) => {
       if (!input || typeof input !== "string") {
         throw new TypeError("Expected a non-empty string");
       }
@@ -9098,9 +9098,9 @@ var require_picomatch = __commonJS({
       if (!parsed.output) {
         parsed = parse2(input, options);
       }
-      return picomatch2.compileRe(parsed, options, returnOutput, returnState);
+      return picomatch3.compileRe(parsed, options, returnOutput, returnState);
     };
-    picomatch2.toRegex = (source2, options) => {
+    picomatch3.toRegex = (source2, options) => {
       try {
         const opts = options || {};
         return new RegExp(source2, opts.flags || (opts.nocase ? "i" : ""));
@@ -9109,8 +9109,8 @@ var require_picomatch = __commonJS({
         return /$^/;
       }
     };
-    picomatch2.constants = constants3;
-    module.exports = picomatch2;
+    picomatch3.constants = constants3;
+    module.exports = picomatch3;
   }
 });
 
@@ -9120,22 +9120,22 @@ var require_picomatch2 = __commonJS({
     "use strict";
     var pico = require_picomatch();
     var utils = require_utils();
-    function picomatch2(glob, options, returnState = false) {
+    function picomatch3(glob, options, returnState = false) {
       if (options && (options.windows === null || options.windows === void 0)) {
         options = { ...options, windows: utils.isWindows() };
       }
       return pico(glob, options, returnState);
     }
-    Object.assign(picomatch2, pico);
-    module.exports = picomatch2;
+    Object.assign(picomatch3, pico);
+    module.exports = picomatch3;
   }
 });
 
 // src/commands/graph.ts
 import { execFileSync } from "node:child_process";
 import { createHash as createHash5, randomBytes as randomBytes2 } from "node:crypto";
-import { existsSync as existsSync8, readFileSync as readFileSync8, writeFileSync } from "node:fs";
-import { dirname as dirname5, join as join9, resolve as resolve5 } from "node:path";
+import { existsSync as existsSync10, readFileSync as readFileSync9, writeFileSync } from "node:fs";
+import { dirname as dirname6, join as join11, resolve as resolve7 } from "node:path";
 
 // ../hook-runner/src/journal.ts
 import { lstatSync, readFileSync, readdirSync, statSync } from "node:fs";
@@ -17756,8 +17756,8 @@ function indexConfigDirectories(configs, byFile, caseKey) {
   for (const config of ordered) {
     const directory = posix22.dirname(config.path);
     const identity = caseKey(directory);
-    const basename2 = caseKey(posix22.basename(config.path));
-    const canonical = basename2 === "tsconfig.json" || basename2 === "jsconfig.json";
+    const basename22 = caseKey(posix22.basename(config.path));
+    const canonical = basename22 === "tsconfig.json" || basename22 === "jsconfig.json";
     if (!byBasePath.has(identity) || canonical) byBasePath.set(identity, config);
   }
   const scoped = /* @__PURE__ */ new Map();
@@ -20176,8 +20176,8 @@ function workspaceExtraction(api, path, content) {
   if (path === "pnpm-workspace.yaml") {
     return { workspace: extractPnpmWorkspace(path, content) };
   }
-  const basename2 = posix5.basename(path);
-  if (/^tsconfig(?:\.[^/]+)?\.json$/.test(basename2) || basename2 === "jsconfig.json") {
+  const basename22 = posix5.basename(path);
+  if (/^tsconfig(?:\.[^/]+)?\.json$/.test(basename22) || basename22 === "jsconfig.json") {
     if (api === void 0) return {};
     return { typeScriptConfig: parseTypeScriptConfig(api, path, content) };
   }
@@ -21577,54 +21577,166 @@ function runProjectQuery(store, request) {
   }
 }
 
-// src/lib/rollup.ts
-import {
-  existsSync as existsSync7,
-  lstatSync as lstatSync4,
-  readFileSync as readFileSync7,
-  readdirSync as readdirSync4,
-  statSync as statSync2
-} from "node:fs";
+// src/lib/projects/catalog.ts
+import { homedir as homedir3 } from "node:os";
+import { join as join10 } from "node:path";
+
+// src/lib/projects/config.ts
+import { existsSync as existsSync7, readFileSync as readFileSync7 } from "node:fs";
 import { homedir as homedir2 } from "node:os";
-import { isAbsolute as isAbsolute4, join as join8 } from "node:path";
-function globalIndexDir() {
-  const base = process.env.VOID_GLOBAL_DIR ?? join8(homedir2(), ".void");
-  return join8(base, "projects");
+import { dirname as dirname5, isAbsolute as isAbsolute4, join as join8, resolve as resolve5 } from "node:path";
+var CONFIG_FILE = "discovery.json";
+var ALWAYS_EXCLUDE = ["**/node_modules/**", "**/.git/**"];
+function expand(path, home) {
+  if (path === "~") return home;
+  return path.startsWith("~/") ? join8(home, path.slice(2)) : path;
 }
-function discoverProjects(indexDir = globalIndexDir()) {
-  if (!existsSync7(indexDir)) return [];
-  const roots = /* @__PURE__ */ new Set();
-  let names;
-  try {
-    names = readdirSync4(indexDir);
-  } catch {
-    return [];
+function enclosingProject(from) {
+  let current = resolve5(from);
+  for (; ; ) {
+    if (existsSync7(join8(current, ".void", "config.json"))) return current;
+    const parent = dirname5(current);
+    if (parent === current) return void 0;
+    current = parent;
   }
-  for (const f of names) {
-    if (!f.endsWith(".path")) continue;
+}
+function derivedRoots(cwd) {
+  const project = enclosingProject(cwd);
+  return [project === void 0 ? resolve5(cwd) : dirname5(project)];
+}
+function declaredRoots(raw, home) {
+  if (typeof raw !== "object" || raw === void 0) return void 0;
+  const roots = raw.roots;
+  if (!Array.isArray(roots)) return void 0;
+  const usable = roots.filter((root) => typeof root === "string" && root.trim() !== "").map((root) => expand(root.trim(), home)).filter((root) => isAbsolute4(root));
+  return usable.length === 0 ? void 0 : usable;
+}
+function declaredExclude(raw) {
+  const exclude = raw?.exclude;
+  if (!Array.isArray(exclude)) return ALWAYS_EXCLUDE;
+  const usable = exclude.filter((glob) => typeof glob === "string");
+  return [...ALWAYS_EXCLUDE, ...usable];
+}
+function readDiscoveryConfig(options) {
+  const home = options.home ?? homedir2();
+  const path = join8(options.globalDir, CONFIG_FILE);
+  let parsed;
+  try {
+    parsed = existsSync7(path) ? JSON.parse(readFileSync7(path, "utf8")) : void 0;
+  } catch {
+    parsed = void 0;
+  }
+  if (Array.isArray(parsed)) parsed = void 0;
+  const roots = declaredRoots(parsed, home);
+  return roots === void 0 ? { roots: derivedRoots(options.cwd), exclude: ALWAYS_EXCLUDE, source: "derived", path } : { roots, exclude: declaredExclude(parsed), source: "declared", path };
+}
+
+// src/lib/projects/discover.ts
+var import_picomatch2 = __toESM(require_picomatch2());
+import { existsSync as existsSync8, readdirSync as readdirSync4, realpathSync as realpathSync3, statSync as statSync2 } from "node:fs";
+import { basename as basename2, join as join9, resolve as resolve6 } from "node:path";
+var DEFAULT_MAX_DEPTH2 = 4;
+var ALWAYS_SKIP = /* @__PURE__ */ new Set([
+  "node_modules",
+  ".git",
+  "dist",
+  "build",
+  ".next",
+  "coverage",
+  ".turbo",
+  "vendor",
+  "Library"
+]);
+function isProjectRoot(dir) {
+  return existsSync8(join9(dir, ".void", "config.json"));
+}
+function isGitWorktree(dir) {
+  const dotGit = join9(dir, ".git");
+  try {
+    return statSync2(dotGit).isFile();
+  } catch {
+    return false;
+  }
+}
+function physical(path) {
+  try {
+    return realpathSync3(resolve6(path));
+  } catch {
+    return void 0;
+  }
+}
+function discoverProjects(config, options = {}) {
+  const maxDepth = options.maxDepth ?? DEFAULT_MAX_DEPTH2;
+  const excluded = config.exclude.length > 0 ? (0, import_picomatch2.default)(config.exclude) : void 0;
+  const found = /* @__PURE__ */ new Map();
+  const unreadable = [];
+  const visited = /* @__PURE__ */ new Set();
+  function walk(dir, depth) {
+    const real = physical(dir);
+    if (real === void 0) {
+      unreadable.push({ path: dir, reason: "not readable" });
+      return;
+    }
+    if (visited.has(real)) return;
+    visited.add(real);
+    if (isProjectRoot(real)) {
+      if (!isGitWorktree(real)) found.set(real, { name: basename2(real), path: real });
+      return;
+    }
+    if (depth >= maxDepth) return;
+    let entries;
     try {
-      const pointer2 = join8(indexDir, f);
-      const pointerInfo = lstatSync4(pointer2);
-      if (!pointerInfo.isFile() || pointerInfo.isSymbolicLink() || pointerInfo.size > 4096) {
+      entries = readdirSync4(real);
+    } catch {
+      unreadable.push({ path: real, reason: "not readable" });
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.startsWith(".") || ALWAYS_SKIP.has(entry)) continue;
+      const child = join9(real, entry);
+      if (excluded?.(child) === true) continue;
+      try {
+        if (!statSync2(child).isDirectory()) continue;
+      } catch {
         continue;
       }
-      const root = readFileSync7(pointer2, "utf8").trim();
-      if (root !== "" && isAbsolute4(root) && existsSync7(root) && statSync2(root).isDirectory()) {
-        roots.add(root);
-      }
-    } catch {
+      walk(child, depth + 1);
     }
   }
-  return [...roots].sort();
+  for (const root of config.roots) walk(root, 0);
+  return {
+    projects: [...found.values()].sort((a, b) => a.path < b.path ? -1 : 1),
+    unreadable
+  };
 }
+
+// src/lib/projects/catalog.ts
+function voidGlobalDir() {
+  return process.env["VOID_GLOBAL_DIR"] ?? join10(homedir3(), ".void");
+}
+function discoverConfiguredProjects(options = {}) {
+  const config = readDiscoveryConfig({
+    globalDir: options.globalDir ?? voidGlobalDir(),
+    cwd: options.cwd ?? process.cwd()
+  });
+  const discovered = discoverProjects({ roots: config.roots, exclude: config.exclude });
+  return {
+    ...discovered,
+    roots: config.roots,
+    rootsSource: config.source
+  };
+}
+
+// src/lib/rollup.ts
+import { existsSync as existsSync9, readFileSync as readFileSync8 } from "node:fs";
 function mergeTelemetry(roots, file) {
   const parts = [];
   for (const root of roots) {
     const candidates = [voidMachinePath(root, file), legacyVoidPath(root, file)].filter((path, index, all) => all.indexOf(path) === index);
     for (const p of candidates) {
-      if (!existsSync7(p)) continue;
+      if (!existsSync9(p)) continue;
       try {
-        parts.push(readFileSync7(p, "utf8"));
+        parts.push(readFileSync8(p, "utf8"));
       } catch {
       }
     }
@@ -21638,11 +21750,11 @@ function mergeCanonicalTelemetry(roots) {
 // src/commands/graph.ts
 function loadTelemetryBody(args, file, logPath) {
   if (args.includes("--all-projects")) {
-    const roots = discoverProjects();
+    const roots = discoverConfiguredProjects().projects.map((project) => project.path);
     return [mergeCanonicalTelemetry(roots), mergeTelemetry(roots, file)].filter((body) => body !== "").join("\n");
   }
   if (logPath !== void 0 && args.includes("--log")) {
-    return existsSync8(logPath) ? readFileSync8(logPath, "utf8") : "";
+    return existsSync10(logPath) ? readFileSync9(logPath, "utf8") : "";
   }
   return loadTelemetryStream(process.cwd(), file);
 }
@@ -21655,18 +21767,18 @@ function numFlag(args, flag, fallback) {
   const n = Number.parseInt(raw, 10);
   return Number.isNaN(n) ? fallback : n;
 }
-var PKGS_ROOT = resolve5(dirname5(fileURLToPath2(import.meta.url)), "..", "..");
+var PKGS_ROOT = resolve7(dirname6(fileURLToPath2(import.meta.url)), "..", "..");
 function packsDirFor(_coreSource) {
-  return join9(PKGS_ROOT, "packs");
+  return join11(PKGS_ROOT, "packs");
 }
 function modelPath(_coreSource) {
-  return join9(PKGS_ROOT, "core", "data", "model.json");
+  return join11(PKGS_ROOT, "core", "data", "model.json");
 }
 function catalogPath(_coreSource) {
-  return join9(PKGS_ROOT, "core", "data", "catalog.v3.json");
+  return join11(PKGS_ROOT, "core", "data", "catalog.v3.json");
 }
 function relationsPath(_coreSource) {
-  return join9(PKGS_ROOT, "harness-graph", "relations.graph.yaml");
+  return join11(PKGS_ROOT, "harness-graph", "relations.graph.yaml");
 }
 function fmtK(n) {
   return n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(Math.round(n));
@@ -21688,10 +21800,10 @@ function renderCostRow(r, nameW, full) {
   return `${base}  ${total.padStart(8)}  ${dollars.padStart(7)}  ${cache.padStart(5)}  ${y.padStart(6)}  ${flags}`;
 }
 function loadPricing(args) {
-  const path = strFlag(args, "--pricing", join9(process.cwd(), ".void", "pricing.json"));
-  if (!existsSync8(path)) return DEFAULT_PRICING;
+  const path = strFlag(args, "--pricing", join11(process.cwd(), ".void", "pricing.json"));
+  if (!existsSync10(path)) return DEFAULT_PRICING;
   try {
-    return mergePricing(DEFAULT_PRICING, JSON.parse(readFileSync8(path, "utf8")));
+    return mergePricing(DEFAULT_PRICING, JSON.parse(readFileSync9(path, "utf8")));
   } catch {
     console.error(`graph cost: ignoring malformed pricing file ${path}`);
     return DEFAULT_PRICING;
@@ -21700,7 +21812,7 @@ function loadPricing(args) {
 async function loadCatalogGraph(coreSource) {
   const tree = scanSourceTree(coreSource, packsDirFor(coreSource));
   const rp = relationsPath(coreSource);
-  const declared = existsSync8(rp) ? readFileSync8(rp, "utf8") : "";
+  const declared = existsSync10(rp) ? readFileSync9(rp, "utf8") : "";
   return adaptCatalogV1(assembleModel(tree, declared));
 }
 async function loadModel(coreSource) {
@@ -21708,12 +21820,12 @@ async function loadModel(coreSource) {
 }
 async function resolveModel(coreSource, bundledJson, paths = {
   packsDir: packsDirFor(coreSource),
-  shippedModel: join9(coreSource, "data", "model.json")
+  shippedModel: join11(coreSource, "data", "model.json")
 }) {
   if (bundledJson !== void 0) return resolveBundledModel(bundledJson, process.cwd());
-  if (existsSync8(paths.packsDir)) return loadModel(coreSource);
-  if (existsSync8(paths.shippedModel)) {
-    return resolveBundledModel(readFileSync8(paths.shippedModel, "utf8"), process.cwd());
+  if (existsSync10(paths.packsDir)) return loadModel(coreSource);
+  if (existsSync10(paths.shippedModel)) {
+    return resolveBundledModel(readFileSync9(paths.shippedModel, "utf8"), process.cwd());
   }
   return loadModel(coreSource);
 }
@@ -21822,24 +21934,24 @@ async function graph(args, opts = {}) {
   if (bundled !== void 0 && (sub === "build" || sub === "check")) {
     throw new Error(`graph ${sub} is a monorepo-only command; not available in the installed bundle.`);
   }
-  const pkgsCoreDir = join9(PKGS_ROOT, "core");
-  const coreSource = bundled !== void 0 ? "" : existsSync8(pkgsCoreDir) ? pkgsCoreDir : await findCoreSource();
+  const pkgsCoreDir = join11(PKGS_ROOT, "core");
+  const coreSource = bundled !== void 0 ? "" : existsSync10(pkgsCoreDir) ? pkgsCoreDir : await findCoreSource();
   if (sub === "model-hash") {
-    const source2 = bundled !== void 0 ? bundled : existsSync8(modelPath(coreSource)) ? readFileSync8(modelPath(coreSource), "utf8") : serializeModel(await loadModel(coreSource));
+    const source2 = bundled !== void 0 ? bundled : existsSync10(modelPath(coreSource)) ? readFileSync9(modelPath(coreSource), "utf8") : serializeModel(await loadModel(coreSource));
     process.stdout.write(`${createHash5("sha256").update(source2).digest("hex")}
 `);
     return;
   }
   if (sub === "check-bundle") {
-    const artifact = join9(PKGS_ROOT, "core", "graph", "void-graph.mjs");
+    const artifact = join11(PKGS_ROOT, "core", "graph", "void-graph.mjs");
     banner("graph check-bundle");
     blank();
-    if (!existsSync8(artifact)) {
+    if (!existsSync10(artifact)) {
       line(`  ${c.red("artifact missing")} -- run \`pnpm -F voidharness build:void-graph\``);
       footer(c.red("graph check-bundle failed."));
       process.exit(1);
     }
-    const committed = createHash5("sha256").update(readFileSync8(modelPath(coreSource), "utf8")).digest("hex");
+    const committed = createHash5("sha256").update(readFileSync9(modelPath(coreSource), "utf8")).digest("hex");
     const embedded = execFileSync("node", [artifact, "model-hash"], { encoding: "utf8" }).trim();
     if (committed !== embedded) {
       line(`  ${c.red("stale bundle")} -- committed model ${c.dim(committed.slice(0, 12))} != artifact embeds ${c.dim(embedded.slice(0, 12))}`);
@@ -21864,8 +21976,8 @@ async function graph(args, opts = {}) {
   if (sub === "check") {
     const catalog = await loadCatalogGraph(coreSource);
     const model = projectCatalogV3ToV1(catalog);
-    const onDisk = existsSync8(modelPath(coreSource)) ? readFileSync8(modelPath(coreSource), "utf8") : "";
-    const catalogOnDisk = existsSync8(catalogPath(coreSource)) ? readFileSync8(catalogPath(coreSource), "utf8") : "";
+    const onDisk = existsSync10(modelPath(coreSource)) ? readFileSync9(modelPath(coreSource), "utf8") : "";
+    const catalogOnDisk = existsSync10(catalogPath(coreSource)) ? readFileSync9(catalogPath(coreSource), "utf8") : "";
     const legacyDrift = onDisk !== serializeModel(model);
     const catalogDrift = catalogOnDisk !== serializeGraphSnapshot(catalog);
     const drift = legacyDrift || catalogDrift;

@@ -35,6 +35,11 @@ know; the list below is what it covers and why each entry exists.
   a change, and a change happens because someone asked for it.
 
 - `pnpm test` — the suite is the gate before "done".
+- Every Vitest entry point imports `test/support/vitest-options.ts`. One global setup creates a
+  run-owned root, and a per-file setup routes `HOME`, OS temporary files, XDG state and
+  `VOID_GLOBAL_DIR` into it before test modules load. Global teardown removes the root after all
+  workers finish. A package-local run and the root run therefore have the same containment and
+  timeout contract; do not duplicate those values in package configs.
 - `pnpm lint` and `pnpm typecheck` — zero errors.
 - `pnpm anti-bloat:check` — the eight anti-bloat rules (skill ≤400 LOC, hook ≤100 LOC, discovery description non-blocking target ≤250 chars and hard cap 500, `.source` + audit note per skill, ...).
 - `pnpm graph:check` / `pnpm graph:check-bundle` — regenerate `catalog.v3.json`, its `model.json` compatibility projection, and the bundle when graph inputs change.

@@ -721,9 +721,9 @@ drift before `core-assets` is mirrored.
 
 Graph behavior, cost, audit, status and Studio consume the canonical journal.
 Legacy `.void/activations.jsonl`, `.void/outcomes.jsonl` and `.void/usage.log`
-remain read-only transition inputs; current hooks never append to them. Each
-project self-registers an opaque pointer under `~/.void/projects/` for opt-in
-cross-project aggregation.
+remain read-only transition inputs; current hooks never append to them. Every
+cross-project reader uses the same bounded scan of configured roots for the
+versioned `.void/config.json` marker. Event capture writes only inside its project.
 
 `graph live` binds loopback only. A random launch token is exchanged once for a
 process-local `HttpOnly; SameSite=Strict` cookie, foreign browser origins are

@@ -24,6 +24,8 @@ import { configPackDirs, CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO } 
 import { cliVersion, findCoreSource } from '../lib/paths.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { banner, blank, c, footer, glyph, line, meta, row, status } from '../lib/render.js';
+import { voidGlobalDir } from '../lib/projects/catalog.js';
+import { retireLegacyProjectRegistry } from '../lib/projects/legacy-registry.js';
 import { readSettings, settingsPathFor } from '../lib/settings.js';
 import { migrateVoidLayout, untrackDerived } from '../lib/void-migration.js';
 import type { InstallManifest } from '../lib/install-manifest.js';
@@ -71,6 +73,7 @@ function parseArgs(args: readonly string[]): UpdateOptions {
 export async function update(args: readonly string[]): Promise<void> {
   const opts = parseArgs(args);
   const projectRoot = process.cwd();
+  const legacyRegistryNotice = await retireLegacyRegistry(opts.dryRun);
   // Layout first, and on every install source: this is not a marketplace concern.
   // It also runs before the receipt is read, since the receipt itself is observed
   // state and moves with the rest.
@@ -103,6 +106,7 @@ export async function update(args: readonly string[]): Promise<void> {
       opts.dryRun,
       opts.force,
       `absent; ownership reclaimed from ${INSTALL_MANIFEST_PATH} (${String(rehydrated.files.length)} files)`,
+      legacyRegistryNotice,
     );
     return;
   }
@@ -120,11 +124,13 @@ export async function update(args: readonly string[]): Promise<void> {
       regained > 0
         ? `incomplete; ${String(regained)} path(s) reclaimed from ${INSTALL_MANIFEST_PATH}`
         : undefined,
+      legacyRegistryNotice,
     );
     return;
   }
 
   banner('update');
+  renderLegacyRegistryNotice(legacyRegistryNotice);
 
   const repo = await resolveMarketplaceRepo(projectRoot);
   meta('marketplace', repo);
@@ -517,6 +523,7 @@ async function updateLocal(
   force: boolean,
   /** Ownership repair to report under the banner, when one happened. */
   ownershipNotice?: string,
+  legacyRegistryNotice?: LegacyRegistryNotice,
 ): Promise<void> {
   let packs: string[] = [];
   try {
@@ -528,6 +535,7 @@ async function updateLocal(
     // init will surface the invalid/missing config and rebuild only when safe.
   }
   banner('update');
+  renderLegacyRegistryNotice(legacyRegistryNotice);
   // Under the banner rather than before it: printed first, it opened a second
   // `update` header above the real one.
   if (ownershipNotice !== undefined) {
@@ -542,6 +550,50 @@ async function updateLocal(
     return;
   }
   await init(localInitArgs(receipt, packs, { force, preserveDoctrine: isHarnessSourceRepo(projectRoot) }));
+}
+
+interface LegacyRegistryNotice {
+  readonly kind: 'retired' | 'skipped';
+  readonly message: string;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function retireLegacyRegistry(dryRun: boolean): Promise<LegacyRegistryNotice | undefined> {
+  try {
+    const result = await retireLegacyProjectRegistry({
+      globalDir: voidGlobalDir(),
+      limit: 10_000,
+      dryRun,
+    });
+    if (result.found === 0) return undefined;
+    if (dryRun) {
+      return {
+        kind: 'retired',
+        message: `would retire ${String(result.found)} obsolete project pointer(s)`,
+      };
+    }
+    const suffix = result.remaining === 0
+      ? ''
+      : `; ${String(result.remaining)} remain, re-run update`;
+    return {
+      kind: 'retired',
+      message: `retired ${String(result.removed)} obsolete project pointer(s)${suffix}`,
+    };
+  } catch (error) {
+    return {
+      kind: 'skipped',
+      message: `legacy project registry left untouched: ${errorMessage(error)}`,
+    };
+  }
+}
+
+function renderLegacyRegistryNotice(notice: LegacyRegistryNotice | undefined): void {
+  if (notice === undefined) return;
+  const mark = notice.kind === 'retired' ? c.green(glyph.check) : c.yellow(glyph.up);
+  line(`${mark}  ${c.dim('registry'.padEnd(12))}${notice.message}`);
 }
 
 /**
