@@ -1,10 +1,17 @@
-import { existsSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   conformanceEnvironment,
   packageManagerCommand,
+  resolveConformanceFixtureRoot,
   resolveConformanceTarball,
   runConformanceProcess,
   safeConformanceDiagnostic,
@@ -95,7 +102,7 @@ describe('runConformanceProcess', () => {
     expect(Buffer.byteLength(result.stdout)).toBeLessThanOrEqual(1024);
     expect(Buffer.byteLength(result.stderr)).toBeLessThanOrEqual(1024);
     expect(result.outputExceeded).toBe(true);
-    expect(result.outcome).not.toEqual({ kind: 'exited', code: 0 });
+    expect(result.outcome).toEqual({ kind: 'output-exceeded' });
   });
 
   it('times out and terminates the complete process tree', async () => {
@@ -182,5 +189,29 @@ describe('resolveConformanceTarball', () => {
       .toThrow('absolute regular .tgz');
     expect(() => resolveConformanceTarball({ VOID_CONFORMANCE_TARBALL: join(root, 'artifact.zip') }))
       .toThrow('absolute regular .tgz');
+  });
+});
+
+describe('resolveConformanceFixtureRoot', () => {
+  it('accepts only an existing absolute regular directory', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-conformance-fixtures-'));
+
+    expect(resolveConformanceFixtureRoot({ VOID_CONFORMANCE_FIXTURE_ROOT: root })).toBe(root);
+    expect(() => resolveConformanceFixtureRoot({ VOID_CONFORMANCE_FIXTURE_ROOT: 'relative' }))
+      .toThrow('existing absolute regular directory');
+    expect(() => resolveConformanceFixtureRoot({
+      VOID_CONFORMANCE_FIXTURE_ROOT: join(root, 'missing'),
+    })).toThrow('existing absolute regular directory');
+  });
+
+  it('rejects symlinked directories', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-conformance-fixtures-'));
+    const target = join(root, 'target');
+    const alias = join(root, 'alias');
+    mkdirSync(target);
+    symlinkSync(target, alias);
+
+    expect(() => resolveConformanceFixtureRoot({ VOID_CONFORMANCE_FIXTURE_ROOT: alias }))
+      .toThrow('existing absolute regular directory');
   });
 });
