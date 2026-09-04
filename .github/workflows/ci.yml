@@ -44,6 +44,7 @@ jobs:
         with:
           name: legacy-v3-${{ matrix.os }}
           path: .void/machine/conformance/legacy-v3/**/*.json
+          include-hidden-files: true
           if-no-files-found: error
       - name: ProjectGraph tests and typecheck
         # The kernel's own suite. Nothing it asserts can change while
