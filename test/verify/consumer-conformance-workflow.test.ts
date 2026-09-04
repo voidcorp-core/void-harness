@@ -8,7 +8,7 @@ const workflow = readFileSync(resolve(ROOT, '.github', 'workflows', 'ci.yml'), '
 function job(id: string): string {
   const start = workflow.indexOf(`  ${id}:\n`);
   if (start < 0) return '';
-  const next = /^  [a-z][a-z0-9-]+:\s*$/gm;
+  const next = /^ {2}[a-z][a-z0-9-]+:\s*$/gm;
   next.lastIndex = start + id.length + 4;
   const match = next.exec(workflow);
   return workflow.slice(start, match?.index ?? workflow.length);

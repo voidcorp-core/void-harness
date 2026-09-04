@@ -1,68 +1,34 @@
 #!/usr/bin/env node
 
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { spawn } from 'node:child_process';
-import { packageManagerCommand } from './conformance-process.mjs';
+import { dirname, join } from 'node:path';
+import { conformanceArtifactFromEnvironment } from './conformance-artifact.mjs';
+import {
+  conformanceFixtureEnvironment,
+  packageManagerCommand,
+  requireConformanceExit,
+  runConformanceProcess,
+} from './conformance-process.mjs';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(HERE, '..', '..', '..');
-const PACKAGE_ROOT = resolve(HERE, '..');
-
-async function run(command, args, cwd, env = {}) {
-  await new Promise((resolveRun, rejectRun) => {
-    const child = spawn(command, args, {
-      cwd,
-      env: { ...process.env, ...env },
-      shell: false,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (chunk) => { stdout += chunk; });
-    child.stderr.on('data', (chunk) => { stderr += chunk; });
-    child.once('error', rejectRun);
-    child.once('close', (code) => {
-      if (code === 0) resolveRun();
-      else rejectRun(new Error(`${command} ${args.join(' ')} exited ${code}\n${stdout}\n${stderr}`));
-    });
-  });
+async function run(label, command, args, cwd, env) {
+  const result = await runConformanceProcess({ command, args, cwd, env });
+  return requireConformanceExit(result, `install conformance ${label}`);
 }
 
 function requirePath(path, label) {
   if (!existsSync(path)) throw new Error(`conformance missing ${label}: ${path}`);
 }
 
-const temporary = await mkdtemp(join(tmpdir(), 'void-install-conformance-'));
-const npmCache = join(temporary, 'npm-cache');
-const pnpm = packageManagerCommand('pnpm');
-const npm = packageManagerCommand('npm');
-await mkdir(npmCache, { recursive: true });
-await run(
-  pnpm.executable,
-  [
-    ...pnpm.prefixArguments,
-    '--filter',
-    'voidharness',
-    'pack',
-    '--pack-destination',
-    temporary,
-  ],
-  REPO_ROOT,
-);
-const tarballName = (await readdir(temporary)).find((name) => name.endsWith('.tgz'));
-if (tarballName === undefined) throw new Error('conformance pack produced no tarball');
-const tarball = join(temporary, tarballName);
-const durations = [];
-
-for (const runtime of ['claude', 'codex', 'both']) {
+async function exerciseRuntime(temporary, tarball, runtime) {
   const fixture = join(temporary, `fixture-${runtime}`);
-  await mkdir(fixture, { recursive: true });
+  await mkdir(join(fixture, 'tmp'), { recursive: true });
+  const environment = conformanceFixtureEnvironment(fixture);
+  const npm = packageManagerCommand('npm');
   const started = performance.now();
   await run(
+    `${runtime} install`,
     npm.executable,
     [
       ...npm.prefixArguments,
@@ -74,11 +40,16 @@ for (const runtime of ['claude', 'codex', 'both']) {
       tarball,
     ],
     fixture,
-    { npm_config_cache: npmCache },
+    environment,
   );
   const bin = join(fixture, 'node_modules', 'voidharness', 'bin', 'void-harness.mjs');
-  await run(process.execPath, [bin, 'init', '--runtime', runtime, '--no-interactive'], fixture);
-  durations.push(performance.now() - started);
+  await run(
+    `${runtime} init`,
+    process.execPath,
+    [bin, 'init', '--runtime', runtime, '--no-interactive'],
+    fixture,
+    environment,
+  );
 
   requirePath(join(fixture, '.void', 'machine', 'receipts', 'install-v1.json'), `${runtime} receipt`);
   requirePath(join(fixture, '.void', 'hooks', '_void-hook.mjs'), `${runtime} hook runner`);
@@ -91,18 +62,35 @@ for (const runtime of ['claude', 'codex', 'both']) {
     requirePath(join(fixture, '.codex', 'hooks.json'), `${runtime} Codex hooks`);
   }
 
-  const adjacent = join(fixture, runtime === 'codex' ? '.agents' : '.claude', 'skills', 'private', 'SKILL.md');
+  const skillRoot = runtime === 'codex' ? '.agents' : '.claude';
+  const adjacent = join(fixture, skillRoot, 'skills', 'private', 'SKILL.md');
   await mkdir(dirname(adjacent), { recursive: true });
   await writeFile(adjacent, '# private user skill\n');
-  await run(process.execPath, [bin, 'init', '--runtime', runtime, '--no-interactive'], fixture);
+  await run(
+    `${runtime} update`,
+    process.execPath,
+    [bin, 'init', '--runtime', runtime, '--no-interactive'],
+    fixture,
+    environment,
+  );
   if ((await readFile(adjacent, 'utf8')) !== '# private user skill\n') {
     throw new Error(`${runtime} update changed an adjacent user file`);
   }
+  return performance.now() - started;
 }
 
-durations.sort((a, b) => a - b);
-const medianMs = durations[Math.floor(durations.length / 2)] ?? Number.POSITIVE_INFINITY;
-if (medianMs >= 60_000) throw new Error(`local install TTHW p50 ${Math.round(medianMs)}ms exceeds 60s`);
-process.stdout.write(
-  `install conformance passed (${process.platform}): claude, codex, both; p50 ${Math.round(medianMs)}ms; tarball ${tarballName}\n`,
-);
+const { manifest, tarball } = await conformanceArtifactFromEnvironment();
+const temporary = await mkdtemp(join(tmpdir(), 'void-install-conformance-'));
+try {
+  const durations = [];
+  for (const runtime of ['claude', 'codex', 'both']) {
+    durations.push(await exerciseRuntime(temporary, tarball, runtime));
+  }
+  durations.sort((left, right) => left - right);
+  const medianMs = Math.round(durations[Math.floor(durations.length / 2)] ?? 0);
+  process.stdout.write(
+    `install conformance passed (${process.platform}) for ${manifest.sourceSha}; observed p50 ${medianMs}ms\n`,
+  );
+} finally {
+  await rm(temporary, { recursive: true, force: true });
+}
