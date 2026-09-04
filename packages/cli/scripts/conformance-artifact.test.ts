@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   createArtifactManifest,
+  requireCleanCheckoutStatus,
   verifyConformanceArtifact,
 } from './conformance-artifact.mjs';
 
@@ -35,6 +36,12 @@ afterEach(() => {
 });
 
 describe('immutable consumer artifact', () => {
+  it('refuses untracked source that the pack could otherwise attribute to HEAD', () => {
+    expect(() =>
+      requireCleanCheckoutStatus('?? packages/core/skills/untracked/SKILL.md', 'before'),
+    ).toThrow(/checkout changed before pack/i);
+  });
+
   it('binds package identity, source SHA and tarball bytes without ambient data', () => {
     const { tarball } = fixture();
 
