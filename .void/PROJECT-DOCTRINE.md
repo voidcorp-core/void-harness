@@ -12,3 +12,15 @@ the wording, waits for your yes, then writes it here. Sections appear as you use
 
 Full format, with the shape of each section:
 https://github.com/voidcorp-core/void-harness/blob/main/docs/PROJECT-DOCTRINE-FORMAT.md
+
+## Trade-offs already decided
+
+- **Portable control-plane invariants**: The void-harness kernel is a local-first,
+  subscription-first, proof-carrying control plane. Executable manifests, deterministic then
+  semantic routing, authority outside the LLM, idempotent effects, complete proofs, separated
+  memory, reversible recovery bounded to three strategies, and crash-injection certification are
+  invariants that no migration or optimization may weaken.
+  - **Why**: Reliability is the primary criterion. Any divergence from the state of the art must
+    constitute a verifiable advance.
+  - **Enforced by**: approved specification and ADR, conformance and fault-injection tests, and
+    architecture review.
