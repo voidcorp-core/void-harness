@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  CONFORMANCE_PACK_TIMEOUT_MS,
   conformanceEnvironment,
   packageManagerCommand,
   resolveConformanceFixtureRoot,
@@ -128,6 +129,10 @@ describe('runConformanceProcess', () => {
 });
 
 describe('conformance diagnostics and environment', () => {
+  it('gives cold packaging a bounded five-minute budget', () => {
+    expect(CONFORMANCE_PACK_TIMEOUT_MS).toBe(5 * 60_000);
+  });
+
   it('forwards only the portable allowlist plus explicit fixture values', () => {
     const environment = conformanceEnvironment(
       { VOID_FIXTURE_ROOT: '/fixture' },
