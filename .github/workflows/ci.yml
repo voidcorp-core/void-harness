@@ -35,10 +35,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: bash .github/scripts/changed-areas.sh
-      - name: Legacy v3 packed consumer evidence and hook execution
-        run: |
-          pnpm conformance:legacy-v3:capture
-          pnpm conformance:hooks
+      - name: Legacy v3 packed consumer evidence
+        run: pnpm conformance:legacy-v3:capture
+      - name: Hook execution conformance
+        run: pnpm conformance:hooks
       - name: Upload exact legacy v3 evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
