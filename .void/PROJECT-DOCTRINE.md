@@ -34,3 +34,9 @@ https://github.com/voidcorp-core/void-harness/blob/main/docs/PROJECT-DOCTRINE-FO
     `adr:4563663a-4b6a-4071-80b1-ceb654074370`,
     `adr:6cea37a0-5fdc-4fea-9be2-4b497d15c3a4`, and
     `adr:89f70334-89a2-47d4-916d-649f09cab0ee`.
+- **Kernel agnosticism**: The Void Machine kernel contains no knowledge of an AI runtime,
+  provider, tracker, forge, language, framework, or database. It manipulates only versioned
+  contracts and capabilities; every specificity lives in an adapter or a pack.
+  - **Why**: Maximal agnosticism prevents accidental dependencies from contaminating the authority
+    boundary and keeps future runtimes, stacks, and providers replaceable.
+  - **Enforced by**: dependency-direction tests, architecture review, and adapter/pack conformance.
