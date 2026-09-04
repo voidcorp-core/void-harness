@@ -4,16 +4,29 @@ import { sharedVitestTestOptions } from '../../test/support/vitest-options.js';
 
 export default defineConfig({
   resolve: {
-    alias: {
-      '@voidcorp/mission-engine/events': resolve(
-        import.meta.dirname,
-        '../mission-engine/src/events/index.ts',
-      ),
-      '@voidcorp/mission-engine': resolve(
-        import.meta.dirname,
-        '../mission-engine/src/index.ts',
-      ),
-    },
+    alias: [
+      {
+        find: '@voidcorp/mission-engine/events',
+        replacement: resolve(
+          import.meta.dirname,
+          '../mission-engine/src/events/index.ts',
+        ),
+      },
+      {
+        find: '@voidcorp/mission-engine/session',
+        replacement: resolve(
+          import.meta.dirname,
+          '../mission-engine/src/session/index.ts',
+        ),
+      },
+      {
+        find: /^@voidcorp\/mission-engine$/,
+        replacement: resolve(
+          import.meta.dirname,
+          '../mission-engine/src/index.ts',
+        ),
+      },
+    ],
   },
   test: {
     ...sharedVitestTestOptions,

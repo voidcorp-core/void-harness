@@ -40,6 +40,11 @@ know; the list below is what it covers and why each entry exists.
   `VOID_GLOBAL_DIR` into it before test modules load. Global teardown removes the root after all
   workers finish. A package-local run and the root run therefore have the same containment and
   timeout contract; do not duplicate those values in package configs.
+- The root Vitest config derives exclusive projects from `test/support/test-catalog.ts`. Proof tier
+  answers what a test proves; resource class controls how it is scheduled. `pnpm test:fast` is the
+  CPU-only edit loop, `pnpm test:component` owns filesystem and subprocess checks, and
+  `pnpm test:network` is explicit because it needs loopback sockets. Use the tier commands when the
+  semantic boundary matters. Loading Vitest fails if a test path has no tier or more than one.
 - `pnpm lint` and `pnpm typecheck` — zero errors.
 - `pnpm anti-bloat:check` — the eight anti-bloat rules (skill ≤400 LOC, hook ≤100 LOC, discovery description non-blocking target ≤250 chars and hard cap 500, `.source` + audit note per skill, ...).
 - `pnpm graph:check` / `pnpm graph:check-bundle` — regenerate `catalog.v3.json`, its `model.json` compatibility projection, and the bundle when graph inputs change.

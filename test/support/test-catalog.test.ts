@@ -42,6 +42,9 @@ describe('test proof catalogue', () => {
       'network-browser',
     );
     expect(byPath.get('test/autopilot/stdin-process.test.ts')?.resource).toBe('subprocess');
+    expect(byPath.get('apps/eval-harness/src/runtime/mission-team.test.ts')?.resource).toBe(
+      'subprocess',
+    );
     expect(byPath.get('packages/cli/src/lib/projects/catalog.test.ts')?.resource).toBe(
       'filesystem',
     );

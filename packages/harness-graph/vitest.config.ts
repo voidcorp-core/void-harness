@@ -4,12 +4,15 @@ import { sharedVitestTestOptions } from '../../test/support/vitest-options.js';
 
 export default defineConfig({
   resolve: {
-    alias: {
-      '@voidcorp/mission-engine': resolve(
-        import.meta.dirname,
-        '../mission-engine/src/index.ts',
-      ),
-    },
+    alias: [
+      {
+        find: /^@voidcorp\/mission-engine$/,
+        replacement: resolve(
+          import.meta.dirname,
+          '../mission-engine/src/index.ts',
+        ),
+      },
+    ],
   },
   test: {
     ...sharedVitestTestOptions,
