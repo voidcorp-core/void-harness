@@ -340,7 +340,7 @@ describe('update on a marketplace install that predates the receipt', () => {
 
     // `--pins-only` keeps the route off the marketplace cache under $HOME.
     const updated = run('update --pins-only', linked, env);
-    expect(updated.code).toBe(0);
+    expect(updated.code, updated.out).toBe(0);
 
     const receipt = JSON.parse(readFileSync(join(linked, INSTALL_RECEIPT_PATH), 'utf8')) as InstallReceipt;
     expect(receipt.source).toBe('marketplace');
