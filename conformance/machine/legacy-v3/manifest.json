@@ -250,17 +250,17 @@
         ]
       },
       "expected": {
-        "classification": "success",
+        "classification": "refused",
         "processOutcome": {
           "kind": "exited",
-          "code": 0
+          "code": 1
         },
         "diagnosticCodes": [],
         "preservePaths": [
           ".claude/settings.json"
         ],
         "recovery": "none",
-        "effects": "managed-write",
+        "effects": "none",
         "limitations": []
       },
       "extensions": {}
@@ -774,4 +774,3 @@
   ],
   "extensions": {}
 }
-
