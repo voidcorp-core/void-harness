@@ -1,7 +1,170 @@
+import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, win32 } from 'node:path';
 
 const MAX_PATH_ENTRIES = 128;
+const DEFAULT_OUTPUT_BYTES = 1024 * 1024;
+const DEFAULT_TIMEOUT_MS = 120_000;
+const TERMINATION_TIMEOUT_MS = 5_000;
+const PORTABLE_ENVIRONMENT = [
+  'APPDATA',
+  'CI',
+  'ComSpec',
+  'LANG',
+  'LC_ALL',
+  'LOCALAPPDATA',
+  'PATH',
+  'PATHEXT',
+  'npm_execpath',
+  'SystemRoot',
+  'TEMP',
+  'TMP',
+  'TMPDIR',
+  'USERPROFILE',
+  'WINDIR',
+];
+
+export function conformanceEnvironment(extra = {}, source = process.env) {
+  const inherited = PORTABLE_ENVIRONMENT
+    .map((name) => [name, source[name]])
+    .filter((entry) => entry[1] !== undefined);
+  return Object.fromEntries([...inherited, ...Object.entries(extra)]);
+}
+
+function boundedUtf8(value, maxBytes) {
+  const bytes = Buffer.from(value);
+  if (bytes.byteLength <= maxBytes) return value;
+  return bytes.subarray(0, maxBytes).toString('utf8');
+}
+
+export function safeConformanceDiagnostic(value, maxBytes = DEFAULT_OUTPUT_BYTES) {
+  const redacted = value
+    .replace(/(\bBearer\s+)[^\s]+/gi, '$1[REDACTED]')
+    .replace(
+      /(\b(?:api[-_]?key|authorization|password|secret|token)\b\s*[:=]\s*)[^\s&,;]+/gi,
+      '$1[REDACTED]',
+    );
+  return boundedUtf8(redacted, maxBytes);
+}
+
+function boundedStream(maxBytes) {
+  const chunks = [];
+  let bytes = 0;
+  return {
+    append(chunk) {
+      const remaining = Math.max(0, maxBytes - bytes);
+      if (remaining > 0) {
+        const captured = chunk.subarray(0, remaining);
+        chunks.push(captured);
+        bytes += captured.byteLength;
+      }
+      return chunk.byteLength > remaining;
+    },
+    value() {
+      return Buffer.concat(chunks).toString('utf8');
+    },
+  };
+}
+
+function waitForExit(child, timeoutMs) {
+  return new Promise((resolveExit) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolveExit();
+    };
+    const timer = setTimeout(finish, timeoutMs);
+    child.once('error', finish);
+    child.once('close', finish);
+  });
+}
+
+async function terminateProcessTree(child, platform, environment) {
+  if (child.pid === undefined) return;
+  if (platform === 'win32') {
+    const windowsRoot = environment.SystemRoot ?? environment.WINDIR;
+    const taskkillExecutable = windowsRoot === undefined
+      ? 'taskkill.exe'
+      : win32.join(windowsRoot, 'System32', 'taskkill.exe');
+    const taskkill = spawn(
+      taskkillExecutable,
+      ['/pid', String(child.pid), '/t', '/f'],
+      { env: environment, shell: false, stdio: 'ignore' },
+    );
+    await waitForExit(taskkill, TERMINATION_TIMEOUT_MS);
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+    return;
+  }
+  try {
+    process.kill(-child.pid, 'SIGKILL');
+  } catch {
+    child.kill('SIGKILL');
+  }
+}
+
+export function runConformanceProcess(options) {
+  const maxOutputBytes = options.maxOutputBytes ?? DEFAULT_OUTPUT_BYTES;
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const environment = conformanceEnvironment(options.environment);
+  return new Promise((resolveRun) => {
+    const child = spawn(options.command, options.args, {
+      cwd: options.cwd,
+      detached: process.platform !== 'win32',
+      env: environment,
+      shell: false,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    const stdout = boundedStream(maxOutputBytes);
+    const stderr = boundedStream(maxOutputBytes);
+    let outputExceeded = false;
+    let timedOut = false;
+    let spawnError;
+    let termination;
+
+    const terminate = () => {
+      termination ??= terminateProcessTree(child, process.platform, environment);
+      return termination;
+    };
+    const capture = (target) => (chunk) => {
+      if (target.append(chunk)) {
+        outputExceeded = true;
+        void terminate();
+      }
+    };
+    child.stdout.on('data', capture(stdout));
+    child.stderr.on('data', capture(stderr));
+    child.once('error', (error) => {
+      spawnError = error;
+    });
+    const timer = setTimeout(() => {
+      timedOut = true;
+      void terminate();
+    }, timeoutMs);
+    child.once('close', async (code, signal) => {
+      clearTimeout(timer);
+      if (termination !== undefined) await termination;
+      const outcome = spawnError !== undefined
+        ? { kind: 'spawn-error' }
+        : timedOut
+          ? { kind: 'timed-out' }
+          : code !== null
+            ? { kind: 'exited', code }
+            : { kind: 'signaled', signal: signal ?? 'unknown' };
+      resolveRun({
+        outcome,
+        outputExceeded,
+        stdout: stdout.value(),
+        stderr: stderr.value(),
+      });
+    });
+    child.stdin.on('error', () => {
+      // The discriminated process outcome remains authoritative.
+    });
+    child.stdin.end(options.input ?? '');
+  });
+}
 
 function windowsNpmCli(options) {
   const pathValue = options.environment.PATH

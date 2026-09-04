@@ -17,36 +17,33 @@
 // what makes a consumer-side proof possible at all without a tracker.
 
 import { existsSync } from 'node:fs';
-import { spawn } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { packageManagerCommand } from './conformance-process.mjs';
+import {
+  packageManagerCommand,
+  runConformanceProcess,
+  safeConformanceDiagnostic,
+} from './conformance-process.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '..', '..', '..');
 
-function run(command, args, cwd, { stdin = '', env = {} } = {}) {
-  return new Promise((resolveRun, rejectRun) => {
-    const child = spawn(command, args, {
-      cwd,
-      env: { ...process.env, ...env },
-      shell: false,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk;
-    });
-    child.once('error', rejectRun);
-    child.once('close', (code) => resolveRun({ code, stdout, stderr }));
-    child.stdin.end(stdin);
+async function run(command, args, cwd, { stdin = '', env = {} } = {}) {
+  const result = await runConformanceProcess({
+    command,
+    args,
+    cwd,
+    environment: env,
+    input: stdin,
   });
+  if (result.outputExceeded) fail('command output exceeded its bounded stream limit');
+  if (result.outcome.kind !== 'exited') {
+    const detail = safeConformanceDiagnostic(`${result.stdout}\n${result.stderr}`.trim());
+    fail(`command ${result.outcome.kind}${detail === '' ? '' : `\n${detail}`}`);
+  }
+  return { code: result.outcome.code, stdout: result.stdout, stderr: result.stderr };
 }
 
 function fail(message) {
