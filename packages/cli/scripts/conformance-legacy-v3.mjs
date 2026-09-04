@@ -23,6 +23,7 @@ import {
 } from './conformance-legacy-v3-lib.mjs';
 import {
   CONFORMANCE_PACK_TIMEOUT_MS,
+  conformanceFailureDiagnostic,
   packageManagerCommand,
   runConformanceProcess,
 } from './conformance-process.mjs';
@@ -98,7 +99,7 @@ async function run(command, args, environment = {}, timeoutMs) {
   });
 }
 
-function requireSuccess(result, operation) {
+function requireSuccess(result, operation, sensitivePaths = []) {
   if (
     result.outcome.kind !== 'exited'
     || result.outcome.code !== 0
@@ -109,13 +110,16 @@ function requireSuccess(result, operation) {
       : result.outcome.kind === 'exited'
         ? `exit-${result.outcome.code}`
         : result.outcome.kind;
-    fail(`${operation} did not complete successfully (${detail})`);
+    const diagnostic = conformanceFailureDiagnostic(result, undefined, sensitivePaths);
+    fail(
+      `${operation} did not complete successfully (${detail})${diagnostic === '' ? '' : `\n${diagnostic}`}`,
+    );
   }
 }
 
 async function gitValue(args, operation) {
   const result = await run('git', args);
-  requireSuccess(result, operation);
+  requireSuccess(result, operation, [REPO_ROOT]);
   return result.stdout.trim();
 }
 
@@ -167,7 +171,7 @@ async function packArtifact(temporary) {
     '--pack-destination',
     temporary,
   ], {}, CONFORMANCE_PACK_TIMEOUT_MS);
-  requireSuccess(result, 'pack-artifact');
+  requireSuccess(result, 'pack-artifact', [REPO_ROOT, temporary]);
   const tarballs = (await readdir(temporary)).filter((name) => name.endsWith('.tgz'));
   if (tarballs.length !== 1) fail('pack did not produce exactly one tarball');
   const tarball = join(temporary, tarballs[0]);
@@ -227,7 +231,11 @@ async function capture(loaded, manifest) {
             : {}),
         },
       );
-      requireSuccess(result, operation);
+      requireSuccess(
+        result,
+        operation,
+        [REPO_ROOT, temporary, operationRoot ?? '', tarball.path],
+      );
       const filesystem = operationRoot === undefined
         ? {
             scope: 'source-checkout',

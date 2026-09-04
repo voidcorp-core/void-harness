@@ -4,6 +4,7 @@ import { dirname, isAbsolute, win32 } from 'node:path';
 
 const MAX_PATH_ENTRIES = 128;
 const DEFAULT_OUTPUT_BYTES = 1024 * 1024;
+const DEFAULT_FAILURE_DIAGNOSTIC_BYTES = 8 * 1024;
 const DEFAULT_TIMEOUT_MS = 120_000;
 export const CONFORMANCE_PACK_TIMEOUT_MS = 5 * 60_000;
 const TERMINATION_TIMEOUT_MS = 5_000;
@@ -52,6 +53,21 @@ export function safeConformanceDiagnostic(value, maxBytes = DEFAULT_OUTPUT_BYTES
     .replace(/(\bBearer\s+)[^\s]+/gi, '$1[REDACTED]')
     .replace(CREDENTIAL_ASSIGNMENT, '$1[REDACTED]');
   return boundedUtf8(redacted, maxBytes);
+}
+
+export function conformanceFailureDiagnostic(
+  result,
+  maxBytes = DEFAULT_FAILURE_DIAGNOSTIC_BYTES,
+  sensitivePaths = [],
+) {
+  let diagnostic = `${result.stdout}\n${result.stderr}`.trim();
+  const aliases = [...new Set(
+    sensitivePaths
+      .filter((path) => typeof path === 'string' && path !== '')
+      .flatMap((path) => [path, path.replaceAll('\\', '/')]),
+  )].sort((left, right) => right.length - left.length);
+  for (const path of aliases) diagnostic = diagnostic.split(path).join('[PATH]');
+  return safeConformanceDiagnostic(diagnostic, maxBytes);
 }
 
 export function resolveConformanceTarball(environment = process.env) {
