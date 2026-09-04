@@ -1,10 +1,11 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { cliVersion } from '../lib/paths.js';
+import { resolveProjectRoots } from '../lib/project-roots.js';
 
 // `doctor` is a command with side effects and a process exit, so it is exercised
 // the way a user meets it: as a binary, in a throwaway project. The behaviour
@@ -85,8 +86,8 @@ describe('doctor from a linked worktree', () => {
   function report(out: string): string {
     return out
       .split('\n')
-      .filter((line) => !/^\s+(work tree|installed)\s+\//.test(line))
-      .map((line) => line.replace(/ in \/\S+: /, ' '))
+      .filter((line) => !/^\s+(work tree|installed)\s+\S+/.test(line))
+      .map((line) => line.replace(/ in \S+: /, ' '))
       .join('\n')
       .replace(/\n{3,}/g, '\n\n');
   }
@@ -111,10 +112,14 @@ describe('doctor from a linked worktree', () => {
 
     const fromMain = runDoctor(main);
     const fromWorktree = runDoctor(linked);
+    const roots = resolveProjectRoots(linked);
 
-    expect(fromWorktree.out).toContain(realpathSync(linked));
-    expect(fromWorktree.out).toContain(realpathSync(main));
-    expect(fromMain.out).not.toMatch(/^\s+installed\s+\//m);
+    // Windows can spell one physical temp directory with either its long name
+    // or an 8.3 alias. Compare with the resolver's displayed contract, not a
+    // second realpath call whose spelling is allowed to differ.
+    expect(fromWorktree.out).toContain(roots.workRoot);
+    expect(fromWorktree.out).toContain(roots.installRoot);
+    expect(fromMain.out).not.toMatch(/^\s+installed\s+\S/m);
     expect(fromWorktree.code).toBe(fromMain.code);
     expect(report(fromWorktree.out)).toBe(report(fromMain.out));
   });
@@ -139,13 +144,14 @@ describe('doctor from a linked worktree', () => {
 
     const fromMain = runDoctor(main);
     const fromWorktree = runDoctor(linked);
+    const roots = resolveProjectRoots(linked);
 
     // The fixture wires no runtime, so at least one remedy is printed.
     expect(fromMain.out).toMatch(/void-harness init/);
-    expect(fromMain.out).not.toMatch(/ in \/\S+: /);
+    expect(fromMain.out).not.toMatch(/ in \S+: /);
     const remedies = fromWorktree.out.split('\n').filter((line) => /^\s+\S+\s+.*void-harness (init|runtime add)/.test(line));
     expect(remedies.length).toBeGreaterThan(0);
-    for (const remedy of remedies) expect(remedy).toContain(`in ${realpathSync(main)}: `);
+    for (const remedy of remedies) expect(remedy).toContain(`in ${roots.installRoot}: `);
   });
 
   // `--fix` is a reader of the installation like any other line above it, and
@@ -180,17 +186,20 @@ describe('doctor from a linked worktree', () => {
     }
 
     it('names the installation in the files it would write', () => {
-      const { main, linked } = repo();
+      const { linked } = repo();
 
       const { out } = runDoctor(linked, '--fix', '--dry-run');
+      const roots = resolveProjectRoots(linked);
 
       expect(out).toMatch(/would write/);
       // The record it would create, not the advisory line naming the directory.
       const written = out
         .split('\n')
+        .map((line) => line.replaceAll('\\', '/'))
         .filter((line) => /docs\/decisions-log\/\S+\.md/.test(line));
       expect(written.length).toBeGreaterThan(0);
-      for (const path of written) expect(path).toContain(`${realpathSync(main)}/docs/decisions-log/`);
+      const root = roots.installRoot.replaceAll('\\', '/');
+      for (const path of written) expect(path).toContain(`${root}/docs/decisions-log/`);
     });
 
     it('names the installation in the notice that no repair is offered', () => {
@@ -199,12 +208,13 @@ describe('doctor from a linked worktree', () => {
       writeFileSync(join(main, 'untracked.md'), 'work in progress\n');
 
       const { out } = runDoctor(linked, '--fix');
+      const roots = resolveProjectRoots(linked);
 
       // Twice: once as the remedy of the check line, once as the reason `--fix`
       // repaired nothing. Both speak of the installation, so both name it.
       const notices = out.split('\n').filter((line) => /uncommitted changes/.test(line));
       expect(notices.length).toBeGreaterThan(1);
-      for (const notice of notices) expect(notice).toContain(`in ${realpathSync(main)}: `);
+      for (const notice of notices) expect(notice).toContain(`in ${roots.installRoot}: `);
     });
   });
 });

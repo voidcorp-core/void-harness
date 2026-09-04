@@ -5,13 +5,13 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  realpathSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { resolveProjectRoots } from '../lib/project-roots.js';
 import { INSTALL_RECEIPT_PATH, type InstallReceipt } from '../lib/receipts.js';
 import { sourceRepoVerdict } from './init.js';
 import {
@@ -335,7 +335,7 @@ describe('update on a marketplace install that predates the receipt', () => {
     const env = { ...process.env, PATH: fakeGhOnPath() };
 
     const before = run('doctor --no-remote', linked, env);
-    expect(before.out).toMatch(new RegExp(`^\\s+installed\\s+${realpathSync(main)}$`, 'm'));
+    expect(before.out).toContain(resolveProjectRoots(linked).installRoot);
     expect(before.out).toContain('.void/config.json missing');
 
     // `--pins-only` keeps the route off the marketplace cache under $HOME.
@@ -348,7 +348,7 @@ describe('update on a marketplace install that predates the receipt', () => {
     expect(receipt.files).toEqual([]);
 
     const after = run('doctor --no-remote', linked, env);
-    expect(after.out).not.toMatch(/^\s+installed\s+\//m);
+    expect(after.out).not.toMatch(/^\s+installed\s+\S/m);
     expect(after.out).toMatch(/project config\s+valid JSON \+ schema/);
     expect(after.out).toMatch(/doctrine files\s+PHILOSOPHY\.md \+ PROJECT-DOCTRINE\.md present/);
   });

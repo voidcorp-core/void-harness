@@ -7,11 +7,11 @@
  * runner exiting. `--no-remote` keeps the run offline (no marketplace fetch).
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { appendFileSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { doctor } from '../../packages/cli/src/commands/doctor.js';
 import { init } from '../../packages/cli/src/commands/init.js';
 
@@ -195,7 +195,7 @@ describe('doctor', () => {
 
     const out = await runDoctor();
 
-    expect(out).toContain('.void/program.md');
+    expect(out).toMatch(/\.void[\\/]program\.md/);
     expect(out).toContain('no active program');
   });
 
