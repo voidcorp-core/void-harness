@@ -23,8 +23,17 @@ tree rather than the last build.
 
 ## The gates (run before you push)
 
-**`pnpm verify` runs all of them**, in CI's own order. It is the one command to
-know; the list below is what it covers and why each entry exists.
+The three daily commands are deliberately few:
+
+- `pnpm test:fast` for the CPU-only edit loop.
+- `pnpm test:component` when filesystem or subprocess behavior changed.
+- `pnpm verify` once before handoff or push; it runs every required gate in the same order as CI.
+
+`scripts/verify.mjs` is the only gate catalogue. The managed block in
+`.github/workflows/ci.yml` is generated from it, and every CI gate writes one report bound to the
+checked-out SHA and exact argv. The final step rejects a missing, duplicate, stale or red report.
+Performance benchmarks remain explicit observations through `pnpm verify --observations`; shared
+PR runners do not authorize correctness from wall-clock thresholds.
 
 - `pnpm verify --artifacts` — only the generated-artefact gates, in seconds.
   Adding a skill moves the graph, `certification.json`, the consumer bundle AND

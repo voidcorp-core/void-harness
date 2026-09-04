@@ -58,6 +58,8 @@
     "conformance:project-graph": "node scripts/conformance-project-graph.mjs",
     "eval": "pnpm build:cli && pnpm --filter @voidcorp/eval-harness run eval --",
     "verify": "node scripts/verify.mjs",
+    "ci:gates:render": "node scripts/render-ci-gates.mjs",
+    "ci:gates:check": "node scripts/render-ci-gates.mjs --check",
     "cheatsheet:build": "node scripts/build-cheatsheet.mjs",
     "cheatsheet:check": "node scripts/build-cheatsheet.mjs --check",
     "derive": "node scripts/derive.mjs",
