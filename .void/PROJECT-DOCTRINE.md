@@ -31,5 +31,6 @@ https://github.com/voidcorp-core/void-harness/blob/main/docs/PROJECT-DOCTRINE-FO
     `adr:67b69dd3-9ed3-4ab7-9bc2-c5202f97da6b`,
     `adr:d8d55093-aae9-4969-b369-651336d6ab81`,
     `adr:170a721b-785a-4130-b3b9-9a103af6e2d9`,
-    `adr:4563663a-4b6a-4071-80b1-ceb654074370`, and
-    `adr:6cea37a0-5fdc-4fea-9be2-4b497d15c3a4`.
+    `adr:4563663a-4b6a-4071-80b1-ceb654074370`,
+    `adr:6cea37a0-5fdc-4fea-9be2-4b497d15c3a4`, and
+    `adr:89f70334-89a2-47d4-916d-649f09cab0ee`.

@@ -243,10 +243,17 @@ supervisor reconciles the durable intent with the observed child process and wor
 
 ## Skill contract
 
-`SKILL.md` remains the human- and runtime-readable source, but its frontmatter gains a validated
-manifest. There is no parallel metadata file that can drift from the instructions.
+`SKILL.md` remains portable and valid against the Agent Skills specification. Its frontmatter uses
+only standard fields. Each Machine-capable skill is paired with a co-located `harness.yaml`, which
+holds the structured executable manifest that the portable standard cannot represent.
 
-The minimum manifest is:
+The source directory and signed content package treat both files as one unit. A release index binds
+the digest of the portable skill directory and the digest of `harness.yaml` into one package
+identity. Void Machine reads the manifest from the exact pinned content package; Claude Code, Codex
+and other runtime materializers receive portable skill files without proprietary frontmatter.
+Installation and certification refuse a missing, stale or incompatible half of the pair.
+
+The minimum `harness.yaml` manifest is:
 
 ```yaml
 schemaVersion: 1
@@ -281,7 +288,7 @@ Rules:
 - a skill cannot grant itself a capability or permission;
 - instructions may explain a rule but cannot replace a required manifest field;
 - manifest compatibility is checked before a run starts, never halfway through it;
-- the proof binds the exact skill content digest and manifest version used.
+- the proof binds the exact portable skill digest, manifest digest and package identity used.
 
 ## Router
 
@@ -937,10 +944,9 @@ The foundation is complete only when all of the following are demonstrated from 
     matrix;
 15. relevant Linear issues are reconciled from delivered evidence, not from matching terminology.
 
-## Decisions that require ADRs after approval
+## Accepted foundation decisions
 
-The following are credible structural alternatives and therefore require immutable decision files
-before implementation:
+The following structural choices each have an immutable decision file:
 
 1. same-history strangler migration versus a new repository;
 2. native Rust kernel versus a Node or mixed production kernel;
@@ -950,12 +956,14 @@ before implementation:
 6. TUF-rooted two-layer update architecture;
 7. `Void Machine` product naming and `void-machine` command/package cutover;
 8. official Claude Code process adapter with subscription as a release gate and API disabled by
-   default.
+   default;
+9. portable `SKILL.md` paired with a Machine-owned executable `harness.yaml` manifest.
 
 ## Official sources consulted
 
 Runtime behavior and tool configuration are grounded in current official documentation:
 
+- [Agent Skills specification](https://github.com/agentskills/agentskills/blob/main/docs/specification.mdx)
 - [OpenAI Codex authentication](https://developers.openai.com/codex/auth)
 - [OpenAI Codex non-interactive mode](https://learn.chatgpt.com/docs/non-interactive-mode)
 - [OpenAI Codex CLI reference](https://developers.openai.com/codex/cli/reference)
