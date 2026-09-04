@@ -30,6 +30,11 @@ export interface InstallReceipt {
   readonly files: readonly OwnedFile[];
 }
 
+export type InstallReceiptObservation =
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'invalid'; readonly reason: InstallReceiptInvalidReason }
+  | { readonly kind: 'present'; readonly receipt: InstallReceipt };
+
 export type InstallReceiptInvalidReason =
   | 'malformed-v1'
   | 'unsupported-version'
@@ -154,6 +159,20 @@ export async function readInstallReceipt(projectRoot: string): Promise<InstallRe
   } catch (error: unknown) {
     if (error instanceof InstallReceiptInvalidError) throw error;
     throw new InstallReceiptInvalidError('unreadable');
+  }
+}
+
+export async function observeInstallReceipt(
+  projectRoot: string,
+): Promise<InstallReceiptObservation> {
+  try {
+    const receipt = await readInstallReceipt(projectRoot);
+    return receipt === undefined ? { kind: 'absent' } : { kind: 'present', receipt };
+  } catch (error: unknown) {
+    if (error instanceof InstallReceiptInvalidError) {
+      return { kind: 'invalid', reason: error.reason };
+    }
+    throw error;
   }
 }
 

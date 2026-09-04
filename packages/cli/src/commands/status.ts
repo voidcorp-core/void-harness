@@ -26,7 +26,7 @@ import { installedPath, remedyPrefix, resolveProjectRoots } from '../lib/project
 import { detectedAdapters } from '../lib/runtime-adapters.js';
 import { banner, blank, c, footer, line } from '../lib/render.js';
 import { freshnessNotice, resolveFreshness } from '@voidcorp/hook-runner';
-import { readInstallReceipt } from '../lib/receipts.js';
+import { observeInstallReceipt } from '../lib/receipts.js';
 
 // dist/main.js -> the package root (packages/cli in the monorepo, node_modules/voidharness once published).
 const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -150,6 +150,7 @@ export async function status(_args: readonly string[]): Promise<void> {
   // `remedyPrefix` and `installedPath`): both are read where the command was typed.
   const roots = resolveProjectRoots();
   const cwd = roots.installRoot;
+  const receiptObservation = await observeInstallReceipt(cwd);
   const certPath = findData('certification.json');
   if (!certPath) {
     footer(c.red('no certification.json found — reinstall the harness, or run `pnpm certification:build` in the monorepo.'));
@@ -231,43 +232,57 @@ export async function status(_args: readonly string[]): Promise<void> {
 
   // Persist first (best-effort), then report the TRUE outcome — never claim a write that failed.
   let persisted = false;
-  try {
-    const generatedAt = new Date().toISOString();
-    const body = `${JSON.stringify({ ...state, generatedAt, score }, null, 2)}\n`;
-    // Observed state: a snapshot of what this machine measured, plus its history.
-    const localDir = voidMachineDir(cwd);
-    const historyDir = join(localDir, 'history');
-    mkdirSync(historyDir, { recursive: true });
-    // `status.json`, not `state.json`: the old name also belonged to an autopilot
-    // run's cursor, and one name for two things is one name too few.
-    writeFileSync(join(localDir, 'status.json'), body);
-    writeFileSync(join(historyDir, `${generatedAt.replace(/[:.]/g, '-')}.json`), body);
-    pruneHistory(historyDir);
-    persisted = true;
-  } catch {
-    // a read-only .void must not fail the render — but we must not claim a write that did not happen
+  if (receiptObservation.kind !== 'invalid') {
+    try {
+      const generatedAt = new Date().toISOString();
+      const body = `${JSON.stringify({ ...state, generatedAt, score }, null, 2)}\n`;
+      // Observed state: a snapshot of what this machine measured, plus its history.
+      const localDir = voidMachineDir(cwd);
+      const historyDir = join(localDir, 'history');
+      mkdirSync(historyDir, { recursive: true });
+      // `status.json`, not `state.json`: the old name also belonged to an autopilot
+      // run's cursor, and one name for two things is one name too few.
+      writeFileSync(join(localDir, 'status.json'), body);
+      writeFileSync(join(historyDir, `${generatedAt.replace(/[:.]/g, '-')}.json`), body);
+      pruneHistory(historyDir);
+      persisted = true;
+    } catch {
+      // A read-only .void must not fail the render, and no write is claimed.
+    }
   }
   blank();
   if (score.capped) line(c.red(`  score capped by ${score.blockers.join(', ')}`));
+  if (receiptObservation.kind === 'invalid') {
+    line(c.red(
+      `  INSTALL_RECEIPT_INVALID: install receipt is ${receiptObservation.reason}`,
+    ));
+  }
 
   // Advisory, and last: an outdated install still works, so this never touches the
   // score. Answered from cache when one is fresh, so `status` normally stays offline.
   // The remedy it carries, `update`, acts on the directory it is typed in.
-  const receipt = await readInstallReceipt(cwd);
-  const notice = freshnessNotice(
-    await resolveFreshness({
-      installed: receipt?.version ?? 'unknown',
-      env: process.env,
-      now: Date.now(),
-    }),
-    receipt?.source,
-    remedyPrefix(roots),
-  );
-  if (notice !== undefined) line(c.yellow(`  ${notice}`));
+  const receipt = receiptObservation.kind === 'present'
+    ? receiptObservation.receipt
+    : undefined;
+  if (receiptObservation.kind !== 'invalid') {
+    const notice = freshnessNotice(
+      await resolveFreshness({
+        installed: receipt?.version ?? 'unknown',
+        env: process.env,
+        now: Date.now(),
+      }),
+      receipt?.source,
+      remedyPrefix(roots),
+    );
+    if (notice !== undefined) line(c.yellow(`  ${notice}`));
+  }
 
   footer(
-    persisted
+    receiptObservation.kind === 'invalid'
+      ? c.red('invalid install receipt; no status snapshot written')
+      : persisted
       ? c.green(`state written to ${installedPath(roots, '.void/machine/status.json')}`)
       : c.dim('.void not writable — render only'),
   );
+  if (receiptObservation.kind === 'invalid') process.exitCode = 1;
 }

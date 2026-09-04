@@ -30,7 +30,7 @@ import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../li
 import { cliVersion, findCoreSource } from '../lib/paths.js';
 import { installedPath, remedyPrefix, resolveProjectRoots } from '../lib/project-roots.js';
 import { type CheckResult, checkEnforceWorkflow, checkGh } from '../lib/prerequisites.js';
-import { readInstallReceipt } from '../lib/receipts.js';
+import { observeInstallReceipt } from '../lib/receipts.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
 import { banner, blank, c, footer, glyph, line, meta } from '../lib/render.js';
 import {
@@ -197,7 +197,10 @@ export async function doctor(args: readonly string[]): Promise<void> {
   // branches on a runtime name — it iterates the detected adapters.
   const detected = detectedAdapters(root);
   const claudeDetected = detected.some((a) => a.id === 'claude');
-  const receipt = await readInstallReceipt(root);
+  const receiptObservation = await observeInstallReceipt(root);
+  const receipt = receiptObservation.kind === 'present'
+    ? receiptObservation.receipt
+    : undefined;
   const marketplaceInstall = receipt?.source === 'marketplace';
   if (detected.length === 0) {
     // No footprint at all ⇒ nothing is wired. Without this, a project that has
@@ -461,7 +464,8 @@ export async function doctor(args: readonly string[]): Promise<void> {
 
 /** Compare the installed harness against the version published on the npm registry. */
 async function checkPublishedVersion(root: string): Promise<CheckResult> {
-  const receipt = await readInstallReceipt(root);
+  const observation = await observeInstallReceipt(root);
+  const receipt = observation.kind === 'present' ? observation.receipt : undefined;
   const installed = receipt?.version ?? 'unknown';
   const freshness = await resolveFreshness({ installed, env: process.env, now: Date.now() });
   return publishedVersionCheck(freshness, receipt?.source);
@@ -567,13 +571,10 @@ function observeManifest(root: string): ManifestObservation {
  * an example, and a hundred paths in a terminal check is noise, not evidence.
  */
 async function observeReceipt(root: string): Promise<ReceiptObservation> {
-  let receipt: Awaited<ReturnType<typeof readInstallReceipt>>;
-  try {
-    receipt = await readInstallReceipt(root);
-  } catch {
-    return { kind: 'unreadable' };
-  }
-  if (receipt === undefined) return { kind: 'absent' };
+  const observation = await observeInstallReceipt(root);
+  if (observation.kind === 'absent') return { kind: 'absent' };
+  if (observation.kind === 'invalid') return { kind: 'unreadable' };
+  const receipt = observation.receipt;
   const missing = receipt.files
     .map((file) => file.path)
     .filter((path) => !existsSync(join(root, ...path.split('/'))));

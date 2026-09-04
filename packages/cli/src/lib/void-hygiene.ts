@@ -228,7 +228,11 @@ function receiptCheck(observation: LayoutObservation): CheckResult {
     };
   }
   if (receipt.kind === 'unreadable') {
-    return unknown(name, 'the install receipt is present but not readable', 'void-harness update rewrites it');
+    return unknown(
+      name,
+      'INSTALL_RECEIPT_INVALID: the install receipt is present but not readable',
+      'restore or remove the corrupt receipt, then run void-harness update',
+    );
   }
   const version = receipt.version ?? 'unknown';
   const missingTotal = receipt.missingTotal ?? 0;
