@@ -119,9 +119,13 @@ async function gitText(args) {
   return requireConformanceExit(result, `git ${args[0]}`).stdout.trim();
 }
 
-async function requireCleanTrackedCheckout(phase) {
-  const status = await gitText(['status', '--porcelain', '--untracked-files=no']);
-  if (status !== '') fail(`tracked checkout changed ${phase} pack:\n${status}`);
+export function requireCleanCheckoutStatus(status, phase) {
+  if (status !== '') fail(`checkout changed ${phase} pack:\n${status}`);
+}
+
+async function requireCleanCheckout(phase) {
+  const status = await gitText(['status', '--porcelain=v1', '--untracked-files=all']);
+  requireCleanCheckoutStatus(status, phase);
 }
 
 export async function conformanceArtifactFromEnvironment() {
@@ -159,7 +163,7 @@ export async function packConformanceArtifact(outputDirectory) {
   if (existsSync(destination)) fail(`output already exists: ${destination}`);
   const tarball = join(destination, 'voidharness.tgz');
   const manifestPath = `${tarball}.json`;
-  await requireCleanTrackedCheckout('before');
+  await requireCleanCheckout('before');
   const sourceSha = await gitText(['rev-parse', '--verify', 'HEAD']);
   await mkdir(dirname(destination), { recursive: true });
   const temporary = await mkdtemp(join(dirname(destination), '.harness-conformance-pack-'));
@@ -178,7 +182,7 @@ export async function packConformanceArtifact(outputDirectory) {
       cwd: REPO_ROOT,
     });
     requireConformanceExit(packed, 'pack consumer artifact');
-    await requireCleanTrackedCheckout('after');
+    await requireCleanCheckout('after');
     if (await gitText(['rev-parse', '--verify', 'HEAD']) !== sourceSha) {
       fail('checked-out source changed while the artifact was packed');
     }
