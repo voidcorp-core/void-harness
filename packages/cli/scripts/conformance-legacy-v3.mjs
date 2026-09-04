@@ -33,6 +33,7 @@ const CONTRACT_ROOT = resolve(REPO_ROOT, 'conformance', 'machine', 'legacy-v3');
 const CAPTURE_ROOT = resolve(REPO_ROOT, '.void', 'machine', 'conformance', 'legacy-v3');
 const PACKAGE_MANIFEST = resolve(REPO_ROOT, 'packages', 'cli', 'package.json');
 const MAX_TARBALL_BYTES = 100 * 1024 * 1024;
+const VITEST_BOUNDS = ['--maxWorkers=1', '--testTimeout=30000'];
 const TEST_ARGUMENTS = new Map([
   ['legacy-autopilot-recovery', [
     'vitest',
@@ -40,7 +41,7 @@ const TEST_ARGUMENTS = new Map([
     'packages/cli/src/lib/autopilot/state-store.fault.test.ts',
     'test/autopilot/verification-process.test.ts',
     'test/autopilot/merge-boundary.test.ts',
-    '--maxWorkers=2',
+    ...VITEST_BOUNDS,
   ]],
   ['legacy-collisions', [
     'vitest',
@@ -48,34 +49,34 @@ const TEST_ARGUMENTS = new Map([
     'packages/cli/src/lib/local-install.test.ts',
     'test/cli/force-preserves-co-owned.test.ts',
     'test/cli/unreadable-settings-is-not-empty.test.ts',
-    '--maxWorkers=2',
+    ...VITEST_BOUNDS,
   ]],
   ['legacy-doctor', [
     'vitest',
     'run',
     'packages/cli/src/commands/doctor.test.ts',
     'test/cli/doctor.test.ts',
-    '--maxWorkers=2',
+    ...VITEST_BOUNDS,
   ]],
   ['legacy-receipts', [
     'vitest',
     'run',
     'packages/cli/src/lib/receipts.test.ts',
     'packages/cli/src/commands/update.test.ts',
-    '--maxWorkers=2',
+    ...VITEST_BOUNDS,
   ]],
   ['legacy-rollback', [
     'vitest',
     'run',
     'packages/cli/src/lib/transaction.test.ts',
-    '--maxWorkers=2',
+    ...VITEST_BOUNDS,
   ]],
   ['legacy-runtime', [
     'vitest',
     'run',
     'packages/cli/src/lib/runtime-adapters.test.ts',
     'packages/cli/src/lib/self-host/doctor.test.ts',
-    '--maxWorkers=2',
+    ...VITEST_BOUNDS,
   ]],
 ]);
 
