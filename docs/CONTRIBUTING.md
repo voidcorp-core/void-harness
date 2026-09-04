@@ -34,6 +34,11 @@ The three daily commands are deliberately few:
 checked-out SHA and exact argv. The final step rejects a missing, duplicate, stale or red report.
 Performance benchmarks remain explicit observations through `pnpm verify --observations`; shared
 PR runners do not authorize correctness from wall-clock thresholds.
+Repeated reliability stress is not a laptop gate. `.github/workflows/test-certification.yml` runs
+twenty seeded fast attempts and ten seeded complete attempts weekly or on explicit dispatch, with
+fixed worker budgets and exact-SHA JSON reports. A failure stops the campaign and remains red; the
+workflow never retries an attempt. A separately triggered GitHub run has a new run identity and
+does not erase the earlier red evidence.
 
 - `pnpm verify --artifacts` — only the generated-artefact gates, in seconds.
   Adding a skill moves the graph, `certification.json`, the consumer bundle AND

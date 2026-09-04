@@ -136,5 +136,8 @@ without recursively deleting an unresolved parent.
 - Vitest reporters and sharding: https://vitest.dev/guide/reporters and
   https://vitest.dev/guide/cli#shard
 - GitHub Actions matrices: https://docs.github.com/en/actions/using-jobs/using-a-matrix-for-your-jobs
+- GitHub Actions scheduled events:
+  https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule
+- GitHub Actions concurrency:
+  https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency
 - Bazel hermetic test contract: https://bazel.build/versions/9.2.0/reference/test-encyclopedia
-
