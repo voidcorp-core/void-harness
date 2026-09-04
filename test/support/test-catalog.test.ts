@@ -48,6 +48,12 @@ describe('test proof catalogue', () => {
     expect(byPath.get('packages/cli/src/lib/projects/catalog.test.ts')?.resource).toBe(
       'filesystem',
     );
+    expect(byPath.get('packages/harness-graph/src/project/build.test.ts')?.resource).toBe(
+      'filesystem',
+    );
+    expect(
+      byPath.get('packages/harness-graph/src/project/build-subprocess.test.ts')?.resource,
+    ).toBe('subprocess');
     expect(byPath.get('packages/mission-engine/src/events/schema.test.ts')?.resource).toBe('cpu');
   });
 
