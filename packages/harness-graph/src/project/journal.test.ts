@@ -101,12 +101,19 @@ async function expectUnavailableJournalBuild(
 	root: string,
 	journal: ProjectChangeJournal,
 ): Promise<void> {
+	const nodeRoot = createNodeProjectRootPort();
 	const result = await buildProjectGraph({
-			compilerLookup: fixtureCompilerLookup(),
+		compilerLookup: fixtureCompilerLookup(),
 		root,
 		journal,
 		cache: createMemoryProjectCachePort(),
 		git: { inspect: async () => availableGitSnapshot() },
+		rootPort: {
+			async open(path) {
+				return Object.freeze({ ...(await nodeRoot.open(path)), caseSensitive: false });
+			},
+			validate: (identity) => nodeRoot.validate(identity),
+		},
 	});
 	expect(result.state).toBe('degraded');
 	expect(result.cachePublished).toBe(false);
