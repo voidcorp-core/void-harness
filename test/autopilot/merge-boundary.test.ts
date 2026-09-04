@@ -41,7 +41,7 @@ const SURFACES = ['packages/cli/src/lib/autopilot', 'packages/cli/src/commands/a
 const MERGE_SOURCE = 'packages/cli/src/lib/autopilot/merge-plan.ts';
 
 function repositoryRelativePath(root: string, absolute: string): string {
-  return absolute.slice(root.length);
+  return absolute.slice(root.length).replaceAll('\\', '/');
 }
 
 function filesUnder(relative: string): string[] {
