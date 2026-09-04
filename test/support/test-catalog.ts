@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { relative, resolve, sep } from 'node:path';
 import type { TestProjectInlineConfiguration } from 'vitest/config';
 
@@ -61,6 +61,14 @@ const WORKERS: Readonly<Record<ResourceClass, number>> = {
   subprocess: 1,
   'network-browser': 1,
   'external-state': 1,
+};
+
+const GROUP_ORDER: Readonly<Record<ResourceClass, number>> = {
+  cpu: 0,
+  filesystem: 1,
+  subprocess: 2,
+  'network-browser': 3,
+  'external-state': 4,
 };
 
 function normalized(path: string): string {
@@ -201,6 +209,7 @@ export function createVitestProjects(
           name,
           include: entries.map((entry) => entry.path),
           maxWorkers: WORKERS[resource],
+          sequence: { groupOrder: GROUP_ORDER[resource] },
         },
       };
     });
