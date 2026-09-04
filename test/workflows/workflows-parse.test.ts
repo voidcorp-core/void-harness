@@ -81,6 +81,21 @@ describe('workflow files', () => {
     expect(upload).toContain('include-hidden-files: true');
     expect(upload).toContain('if-no-files-found: error');
   });
+
+  it('runs legacy capture and hook conformance as separate fail-fast steps', () => {
+    const ci = readFileSync(join(WORKFLOWS, 'ci.yml'), 'utf8');
+    const capture = ci
+      .split('- name: Legacy v3 packed consumer evidence\n')[1]
+      ?.split(/\n\s+- name:/)[0] ?? '';
+    const hooks = ci
+      .split('- name: Hook execution conformance\n')[1]
+      ?.split(/\n\s+- name:/)[0] ?? '';
+
+    expect(capture).toContain('run: pnpm conformance:legacy-v3:capture');
+    expect(capture).not.toContain('conformance:hooks');
+    expect(hooks).toContain('run: pnpm conformance:hooks');
+    expect(hooks).not.toContain('conformance:legacy-v3:capture');
+  });
 });
 
 // A job holding `id-token: write` can mint the OIDC token npm accepts as proof
