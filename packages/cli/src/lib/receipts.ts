@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { lstat, readFile, rmdir, unlink } from 'node:fs/promises';
+import type { Stats } from 'node:fs';
+import { lstat, open, readFile, rmdir, unlink } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
 import { voidReadPath } from '@voidcorp/hook-runner';
 import type { Runtime } from './runtime.js';
@@ -27,6 +28,20 @@ export interface InstallReceipt {
   readonly source: 'local' | 'marketplace';
   readonly runtimes: readonly Runtime[];
   readonly files: readonly OwnedFile[];
+}
+
+export type InstallReceiptInvalidReason =
+  | 'malformed-v1'
+  | 'unsupported-version'
+  | 'unreadable';
+
+export class InstallReceiptInvalidError extends Error {
+  readonly code = 'INSTALL_RECEIPT_INVALID';
+
+  constructor(readonly reason: InstallReceiptInvalidReason) {
+    super(`INSTALL_RECEIPT_INVALID: install receipt is ${reason}`);
+    this.name = 'InstallReceiptInvalidError';
+  }
 }
 
 interface BuildReceiptInput {
@@ -108,11 +123,63 @@ export function parseReceipt(body: string): InstallReceipt | undefined {
 }
 
 export async function readInstallReceipt(projectRoot: string): Promise<InstallReceipt | undefined> {
+  const path = voidReadPath(projectRoot, 'receipts', 'install-v1.json');
+  let initial: Stats;
   try {
-    return parseReceipt(await readFile(voidReadPath(projectRoot, 'receipts', 'install-v1.json'), 'utf8'));
-  } catch {
-    return undefined;
+    initial = await lstat(path);
+  } catch (error: unknown) {
+    if (isMissingPath(error)) return undefined;
+    throw new InstallReceiptInvalidError('unreadable');
   }
+  if (!initial.isFile() || initial.isSymbolicLink()) {
+    throw new InstallReceiptInvalidError('unreadable');
+  }
+
+  try {
+    const handle = await open(path, 'r');
+    try {
+      const opened = await handle.stat();
+      if (!sameFile(initial, opened)) throw new InstallReceiptInvalidError('unreadable');
+      const body = await handle.readFile({ encoding: 'utf8' });
+      const final = await lstat(path);
+      if (!sameFile(opened, final) || final.isSymbolicLink()) {
+        throw new InstallReceiptInvalidError('unreadable');
+      }
+      const receipt = parseReceipt(body);
+      if (receipt !== undefined) return receipt;
+      throw new InstallReceiptInvalidError(receiptReason(body));
+    } finally {
+      await handle.close();
+    }
+  } catch (error: unknown) {
+    if (error instanceof InstallReceiptInvalidError) throw error;
+    throw new InstallReceiptInvalidError('unreadable');
+  }
+}
+
+function isMissingPath(error: unknown): boolean {
+  if (typeof error !== 'object' || !error) return false;
+  return 'code' in error && error.code === 'ENOENT';
+}
+
+function sameFile(source: Stats, target: Stats): boolean {
+  return source.dev === target.dev && source.ino === target.ino;
+}
+
+function receiptReason(body: string): Exclude<InstallReceiptInvalidReason, 'unreadable'> {
+  let value: unknown;
+  try {
+    value = JSON.parse(body);
+  } catch {
+    return 'malformed-v1';
+  }
+  if (typeof value !== 'object' || !value || Array.isArray(value)) {
+    return 'malformed-v1';
+  }
+  if ('schemaVersion' in value && value.schemaVersion !== 1) {
+    return 'unsupported-version';
+  }
+  return 'malformed-v1';
 }
 
 /**

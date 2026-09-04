@@ -71,12 +71,13 @@ function parseArgs(args: readonly string[]): UpdateOptions {
 export async function update(args: readonly string[]): Promise<void> {
   const opts = parseArgs(args);
   const projectRoot = process.cwd();
-  // Layout first, and on every install source: this is not a marketplace concern.
-  // It also runs before the receipt is read, since the receipt itself is observed
-  // state and moves with the rest.
+  // Read through every legacy location before any migration writes. A damaged
+  // ownership record must stop the update before it can move or stage bytes.
+  const receipt = await readInstallReceipt(projectRoot);
+  // Layout migration still applies to every install source. `voidReadPath`
+  // already resolved the receipt across old and current locations above.
   await reportVoidMigration(projectRoot, opts.dryRun);
   if (opts.untrackDerived) await reportUntrackDerived(projectRoot, opts.dryRun);
-  const receipt = await readInstallReceipt(projectRoot);
   const route = updateRouteFor(receipt, existsSync(join(projectRoot, INSTALL_MANIFEST_PATH)));
   if (route === 'local-rehydrate') {
     const rehydrated = rehydrateFromManifest(projectRoot);
