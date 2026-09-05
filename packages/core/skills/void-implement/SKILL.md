@@ -57,12 +57,15 @@ materializes its runtime-neutral specialist envelopes from the current plan.
    `complete` and `stop` close the mission automatically. On interruption or abandonment, call
    `mission close --id <mission> --reason interrupted|abandoned` so lifecycle learning can
    distinguish unfinished work from a still-active dispatch.
-7. Stop after two review rounds. A missing completion, stale proof, timeout, degraded specialist,
-   or persistent blocker ends `blocked`/`degraded`, never green.
+7. Stop after two review rounds. A missing completion, stale proof, timeout, or persistent blocker
+   ends `blocked`/`degraded`. A runtime limitation may finish with a visible degraded note after
+   all ticket, review, and verification evidence is valid; it never becomes an unreported green
+   claim.
 
 Claude and Codex use their installed native agent definitions. A sequential self-review in the
 parent context is not a substitute for a missing subagent primitive. If the runtime cannot provide
-fresh context or the declared read-only boundary, report the limitation and refuse certification.
+the specialist primitive at all, refuse dispatch; if its isolation is only partially enforceable,
+report the limitation and keep the degraded note visible through completion.
 
 ---
 
