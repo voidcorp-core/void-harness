@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { replayEventLog, serializeEvent } from '../events/index.js';
+import { sealEvidence } from '../evidence/schema.js';
 import type { CanonicalEvent, JsonValue } from '../events/types.js';
 import type { MissionPlan } from '../mission/plan.js';
+import type { SpecialistId } from '../specialist/routing.js';
 import { event } from '../test/events.js';
 import { DIFF_A, evidenceDraft } from '../test/evidence.js';
-import { sealEvidence } from '../evidence/schema.js';
 import { orchestrateMissionTeam } from './controller.js';
-import type { SpecialistId } from '../specialist/routing.js';
 
 const HASH = `sha256:${'a'.repeat(64)}`;
 const HASH_B = `sha256:${'b'.repeat(64)}`;
@@ -52,13 +52,21 @@ function started(strictLifecycle = false): CanonicalEvent {
   });
 }
 
-function writer(seq = 5, writerId = 'writer:primary'): CanonicalEvent {
+function writer(
+  seq = 5,
+  writerId = 'writer:primary',
+  actionKind?: 'run-lead-writer' | 'run-correction' | 'run-preparation-correction',
+): CanonicalEvent {
   return event({
     seq,
     eventId: `evt_00000000-0000-4000-8000-${String(seq).padStart(12, '0')}`,
     kind: 'lead-writer.completed',
     subject: writerId,
-    payload: { writerId, planHash: PLAN.planHash },
+    payload: {
+      writerId,
+      planHash: PLAN.planHash,
+      ...(actionKind === undefined ? {} : { actionKind }),
+    },
   });
 }
 
@@ -407,6 +415,31 @@ describe('mission team controller', () => {
       writerId: 'writer:primary',
     });
     expect(decision.review.findings[0]?.summary).toContain('Authorization');
+  });
+
+  it('moves from preparation correction to implementation without replaying the panel', () => {
+    const preFindings = TEST_SPECIALIST_IDS.map((specialistId, index) =>
+      completion(
+        specialistId,
+        index + 2,
+        specialistId === 'core:security-engineer' ? 'changes-requested' : 'pass',
+        'pre-implementation',
+      ));
+    const decision = decide([
+      started(),
+      ...preFindings,
+      writer(6, 'writer:primary', 'run-preparation-correction'),
+    ]);
+
+    expect(decision.phase).toBe('implementation');
+    expect(decision.action).toEqual({
+      kind: 'run-lead-writer',
+      writerId: 'writer:primary',
+    });
+    expect(decision.review.stage).toBe('pre-implementation');
+    expect(decision.reasons).toContain(
+      'preparation correction completed; implementation is pending',
+    );
   });
 
   it('cannot verify when one required specialist completion is absent', () => {
