@@ -417,28 +417,47 @@ describe('parseMissionArgs', () => {
       json: true,
     })).rejects.toThrow('no controller writer request is pending');
 
-    for (const [index, envelope] of first.envelopes.entries()) {
-      const contextId = `ctx_dispatch_${index}_${envelope.agentName}`;
-      await recordSpecialistLifecycle(root, missionId, {
-        status: 'started',
-        envelope,
-        contextId,
-      });
-      await recordSpecialistLifecycle(root, missionId, {
-        status: 'completed',
-        envelope,
-        contextId,
-        completion: {
-          schemaVersion: 1,
-          specialistId: envelope.specialistId,
-          contractVersion: envelope.contractVersion,
-          completionId: `cmp_dispatch_${index}_${envelope.agentName}`,
-          verdict: 'pass',
-          findings: [],
-          evidenceRequests: [],
-          limitations: [],
-        },
-      });
+    let preparation = first;
+    for (const round of [1, 2]) {
+      for (const [index, envelope] of preparation.envelopes.entries()) {
+        const contextId = `ctx_dispatch_${round}_${index}_${envelope.agentName}`;
+        await recordSpecialistLifecycle(root, missionId, {
+          status: 'started',
+          envelope,
+          contextId,
+        });
+        await recordSpecialistLifecycle(root, missionId, {
+          status: 'completed',
+          envelope,
+          contextId,
+          completion: {
+            schemaVersion: 1,
+            specialistId: envelope.specialistId,
+            contractVersion: envelope.contractVersion,
+            completionId: `cmp_dispatch_${round}_${index}_${envelope.agentName}`,
+            verdict: 'pass',
+            findings: [],
+            evidenceRequests: round === 1 && index === 0
+              ? ['Explain how corrected preparation invalidates old reviews.'] : [],
+            limitations: [],
+          },
+        });
+      }
+      if (round === 1) {
+        const correction = await dispatchMissionSpecialists(
+          resolveProjectRoots(root), input, '2026-08-21T12:00:00.000Z', capability,
+        );
+        expect(correction.action.kind).toBe('run-preparation-correction');
+        await recordLeadWriterCompletion(root, { kind: 'writer-event', missionId, json: true });
+        preparation = await dispatchMissionSpecialists(
+          resolveProjectRoots(root), input, '2026-08-21T12:00:00.000Z', capability,
+        );
+        expect(preparation.action).toMatchObject({
+          kind: 'invoke-specialists', stage: 'pre-implementation', reviewRound: 2,
+        });
+        expect(preparation.envelopes.map((envelope) => envelope.specialistId))
+          .toEqual(first.envelopes.map((envelope) => envelope.specialistId));
+      }
     }
     const writerAction = await dispatchMissionSpecialists(
       resolveProjectRoots(root),
@@ -449,7 +468,7 @@ describe('parseMissionArgs', () => {
     expect(writerAction).toMatchObject({
       planHash: plan.planHash,
       action: { kind: 'run-lead-writer', writerId: 'writer:primary' },
-      nextWriterRound: 1,
+      nextWriterRound: 2,
     });
     await recordLeadWriterCompletion(root, {
       kind: 'writer-event',
@@ -464,7 +483,7 @@ describe('parseMissionArgs', () => {
     const writerCompletions = (await inspectMission(root, missionId, {
       dependencies: {},
     })).stream.events.filter((event) => event.kind === 'lead-writer.completed');
-    expect(writerCompletions).toHaveLength(1);
+    expect(writerCompletions).toHaveLength(2);
     await writeFile(join(root, 'package.json'), JSON.stringify({
       packageManager: 'pnpm@10.34.5',
       scripts: { test: 'vitest run' },
