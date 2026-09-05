@@ -783,6 +783,21 @@ context and completion identity, so an upstream approval cannot satisfy downstre
 hashes are keyed by stage: the pre-build snapshot stays frozen while post-build and correction
 hashes follow the implemented diff.
 
+Controller records created with a ticket bind the initial Git commit into their version 2
+integrity envelope. Post-implementation review compares that fixed baseline with the working
+tree, so staging or committing unchanged content preserves review identity. A bounded raw patch
+digest participates in review hashes independently of routing; editing an already changed path
+invalidates its reviews. The same captured patch supplies the specialist context, after redaction.
+Only controller-owned `.void/machine/**` evidence is excluded: tracked project rules and hooks
+remain review inputs. New files must be staged before review, and encoded binary patches are
+refused before dispatch because text redaction cannot protect their payloads. Missing or unrelated
+baselines and unavailable bounded Git output refuse review explicitly. Legacy version 1 records
+remain readable for history and preparation, but cannot pass post-implementation dispatch without
+an anchored subject; preserve that history and start a new mission instead of rebinding old proofs.
+This is a Git reference in the existing execution register, not a second session checkpoint.
+Git semantics: [diff against a commit](https://git-scm.com/docs/git-diff/2.50.0),
+[ancestry validation](https://git-scm.com/docs/git-merge-base/2.50.0).
+
 Interactive runs prefer the runtime's native subagent primitive. Headless certification launches a
 fresh native role session directly when parent-to-child delegation cannot prove an attributable
 completion: Claude selects the installed project agent; Codex compiles the installed TOML role into

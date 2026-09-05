@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { type MissionSpecialistPlan } from '@voidcorp/mission-engine';
+import type { MissionSpecialistPlan } from '@voidcorp/mission-engine';
 import {
   constrainCapabilityByAttestation,
   coordinatorRuntimeIdentity,
@@ -323,6 +323,9 @@ describe('parseMissionArgs', () => {
       'commit', '--quiet', '-m', 'test: seed mission fixture',
     ], { cwd: root });
     const plan = await planMission(root, 'DEV-500.md', '2026-08-21T12:00:00.000Z');
+    const baseCommit = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: root, encoding: 'utf8',
+    }).trim();
     const controllerPlan: MissionSpecialistPlan = {
       planHash: plan.planHash,
       context: plan.context,
@@ -345,12 +348,12 @@ describe('parseMissionArgs', () => {
       mode: 'team',
       teamController: {
         planHash: plan.planHash,
-        routingHash: missionControllerRoutingHash(controllerPlan, ticketBinding),
+        routingHash: missionControllerRoutingHash(controllerPlan, ticketBinding, baseCommit),
         leadWriterId: 'writer:primary',
         runtime: 'codex',
       },
     });
-    await writeMissionControllerPlan(root, missionId, controllerPlan, ticketBinding);
+    await writeMissionControllerPlan(root, missionId, controllerPlan, ticketBinding, baseCommit);
     await writeFile(join(root, 'package.json'), JSON.stringify({
       packageManager: 'pnpm@10.34.5',
       scripts: { lint: 'tsc --noEmit' },
@@ -500,6 +503,93 @@ describe('parseMissionArgs', () => {
       stage: 'post-implementation',
     });
     expect(post.envelopes.length).toBeGreaterThan(0);
+
+    const subject = (dispatch: typeof post) => dispatch.envelopes.map((envelope) => ({
+      specialistId: envelope.specialistId,
+      inputHash: envelope.inputHash,
+      diff: envelope.contextPack.diff,
+      touchedPaths: envelope.contextPack.touchedPaths,
+    }));
+    expect(post.envelopes[0]?.contextPack.diff).toContain('vitest run');
+    // A real content edit on the same path must invalidate the review.
+    await writeFile(join(root, 'package.json'), JSON.stringify({
+      packageManager: 'pnpm@10.34.5',
+      scripts: { test: 'vitest run --changed' },
+    }));
+    const edited = await dispatchMissionSpecialists(
+      resolveProjectRoots(root), input, '2026-08-21T12:01:10.000Z', capability,
+    );
+    expect.soft(edited.envelopes.map((envelope) => envelope.inputHash))
+      .not.toEqual(post.envelopes.map((envelope) => envelope.inputHash));
+    await writeFile(join(root, 'package.json'), JSON.stringify({
+      packageManager: 'pnpm@10.34.5',
+      scripts: { test: 'vitest run' },
+    }));
+    execFileSync('git', ['add', 'package.json'], { cwd: root });
+    const staged = await dispatchMissionSpecialists(
+      resolveProjectRoots(root), input, '2026-08-21T12:01:20.000Z', capability,
+    );
+    expect.soft(subject(staged)).toEqual(subject(post));
+    for (const envelope of post.envelopes) {
+      const contextId = `ctx_post_${envelope.agentName}`;
+      await recordSpecialistLifecycle(root, missionId, { status: 'started', envelope, contextId });
+      await recordSpecialistLifecycle(root, missionId, {
+        status: 'completed', envelope, contextId,
+        completion: {
+          schemaVersion: 1, specialistId: envelope.specialistId,
+          contractVersion: envelope.contractVersion,
+          completionId: `cmp_post_${envelope.agentName}`, verdict: 'pass',
+          findings: [], evidenceRequests: [], limitations: [],
+        },
+      });
+    }
+    execFileSync('git', [
+      '-c', 'user.name=Void Test', '-c', 'user.email=void@example.test',
+      'commit', '--quiet', '-m', 'test: commit reviewed content',
+    ], { cwd: root });
+    const committed = await dispatchMissionSpecialists(
+      resolveProjectRoots(root), input, '2026-08-21T12:01:30.000Z', capability,
+    );
+    expect(committed.action.kind).toBe('run-verification');
+    expect(committed.envelopes).toEqual([]);
+    await writeFile(join(root, 'package.json'), JSON.stringify({
+      packageManager: 'pnpm@10.34.5', scripts: { test: 'vitest run --changed' },
+    }));
+    const stale = await dispatchMissionSpecialists(
+      resolveProjectRoots(root), input, '2026-08-21T12:01:35.000Z', capability,
+    );
+    expect(stale.action).toMatchObject({
+      kind: 'invoke-specialists', stage: 'post-implementation', reviewRound: 2,
+    });
+    expect(stale.envelopes[0]?.inputHash).not.toBe(post.envelopes[0]?.inputHash);
+
+    // A file absent from Git's diff cannot silently receive a review proof.
+    await writeFile(join(root, 'new-module.ts'), 'export const answer = 42;\n');
+    const requestsBeforeUntracked = (await inspectMission(root, missionId, {
+      dependencies: {},
+    })).stream.events.filter((event) => event.kind === 'specialist.requested').length;
+    await expect(dispatchMissionSpecialists(
+      resolveProjectRoots(root), input, '2026-08-21T12:01:40.000Z', capability,
+    )).rejects.toThrow('MISSION_REVIEW_UNTRACKED');
+    expect((await inspectMission(root, missionId, { dependencies: {} })).stream.events
+      .filter((event) => event.kind === 'specialist.requested')).toHaveLength(requestsBeforeUntracked);
+    execFileSync('git', ['add', 'new-module.ts'], { cwd: root });
+
+    await writeFile(join(root, '.void', 'program.md'), 'authorized base: develop\n');
+    execFileSync('git', ['add', '.void/program.md'], { cwd: root });
+    const policy = await dispatchMissionSpecialists(
+      resolveProjectRoots(root), input, '2026-08-21T12:01:45.000Z', capability,
+    );
+    expect.soft(policy.envelopes[0]?.contextPack.touchedPaths).toContain('.void/program.md');
+    expect.soft(policy.envelopes[0]?.contextPack.diff).toContain('authorized base: develop');
+
+    await writeFile(join(root, 'new-module.ts'), Buffer.from([0, 1, 2, 3]));
+    execFileSync('git', ['add', 'new-module.ts'], { cwd: root });
+    await expect(dispatchMissionSpecialists(
+      resolveProjectRoots(root), input, '2026-08-21T12:01:50.000Z', capability,
+    )).rejects.toThrow('MISSION_REVIEW_BINARY_UNSUPPORTED');
+    await writeFile(join(root, 'new-module.ts'), 'export const answer = 42;\n');
+    execFileSync('git', ['add', 'new-module.ts'], { cwd: root });
 
     const requestsBeforeTicketChange = (await inspectMission(root, missionId, {
       dependencies: {},
