@@ -1,11 +1,8 @@
-import { homedir } from 'node:os';
-import { resolve } from 'node:path';
 import type {
   CanonicalEvent,
   EventDraft,
   JsonValue,
 } from '@voidcorp/mission-engine/events';
-import { registerProjectRoot } from './project-registry.js';
 import {
   type AgentRuntime,
   adaptRuntimeInput,
@@ -20,7 +17,6 @@ export interface RecordRuntimeEventOptions {
   readonly phase: HookPhase;
   readonly rawInput: unknown;
   readonly missionId?: string;
-  readonly globalDir?: string;
 }
 
 export interface RecordHookEventOptions {
@@ -31,7 +27,6 @@ export interface RecordHookEventOptions {
   readonly rawInput?: unknown;
   readonly details?: { readonly [key: string]: JsonValue };
   readonly missionId?: string;
-  readonly globalDir?: string;
 }
 
 export async function recordRuntimeEvent(
@@ -56,12 +51,6 @@ export async function recordRuntimeEvent(
     root: options.root,
     missionId,
     draft,
-  });
-  await registerProjectRoot(
-    options.root,
-    options.globalDir ?? resolve(homedir(), '.void'),
-  ).catch(() => {
-    // Global rollup registration is advisory; event capture remains authoritative.
   });
   return event;
 }
@@ -97,12 +86,6 @@ export async function recordHookEvent(
       },
     },
   });
-  await registerProjectRoot(
-    options.root,
-    options.globalDir ?? resolve(homedir(), '.void'),
-  ).catch(() => {
-    // Global rollup registration is advisory; project events remain authoritative.
-  });
   return event;
 }
 
@@ -127,7 +110,6 @@ export async function recordRuntimeEventFromCli(
     runtime: runtime(argv[3] ?? env['VOID_AGENT_RUNTIME']),
     phase: phase(argv[2]),
     rawInput: raw,
-    globalDir: env['VOID_GLOBAL_DIR'] ?? resolve(homedir(), '.void'),
     ...(env['VOID_MISSION_ID'] === undefined
       ? {}
       : { missionId: env['VOID_MISSION_ID'] }),

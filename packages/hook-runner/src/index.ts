@@ -27,6 +27,7 @@ export {
   ownershipOf,
   VOID_DIR,
   VOID_INSTALLED_DIR,
+  VOID_OWNERSHIP,
   VOID_MACHINE_DIR,
   VOID_PREVIOUS_MACHINE_DIR,
   gitignoreBlock,

@@ -13,6 +13,7 @@
 
 import { type ClusterPlan, type ClusterPlanInput, planCluster } from '../lib/autopilot/cluster-plan.js';
 import { type MergedUnit, renderMergeJournal } from '../lib/autopilot/chain.js';
+import { buildMergePlan } from '../lib/autopilot/merge-plan.js';
 import { selectBase, type BaseObservation, type BaseSelection } from '../lib/autopilot/base-selection.js';
 import {
   decideBranchProtection,
@@ -62,8 +63,19 @@ import { buildOrchestrationPlan, type OrchestrationPlan } from '../lib/autopilot
 import { resolveClusterOutcome, type ClusterOutcome, type WorkerFailure } from '../lib/autopilot/partial-success.js';
 import { normaliseArea } from '../lib/autopilot/footprint-area.js';
 import type { DeclaredFootprint } from '../lib/autopilot/footprint-audit.js';
-import { buildReconcilePlan, type ReconcilePlan, type VerifiedRange } from '../lib/autopilot/reconcile-plan.js';
+import {
+  alignOutcomeWithPlan,
+  buildReconcilePlan,
+  type ReconcilePlan,
+  type SettledOutcome,
+  type VerifiedRange,
+} from '../lib/autopilot/reconcile-plan.js';
 import { parseWorkerResult, type WorkerResult } from '../lib/autopilot/worker-result.js';
+import {
+  judgeReviewProvenance,
+  type ReviewOutcome,
+  type UnitReview,
+} from '../lib/autopilot/review-provenance.js';
 import { orderWorkers, type OrderFootprint } from '../lib/autopilot/worker-order.js';
 import { planWorktreeSetup, planWorktreeTeardown } from '../lib/autopilot/worktree-lifecycle.js';
 import {
@@ -85,6 +97,7 @@ import {
 import {
   type PullRequestObservation,
   recoverRemote,
+  type RecoveryExpectation,
   type RecoveryVerdict,
 } from '../lib/autopilot/remote-recovery.js';
 import type { RunState, TicketRunState } from '../lib/autopilot/run-state.js';
@@ -166,7 +179,9 @@ would change nothing is skipped rather than sent.
 
 There is no --auto-merge flag. A machine merge is declared once in the program
 (autopilot.mergeGate: union-reviewed, plus deployBranch), and is granted only for
-a target that does not deploy and a union review that came back clean.
+a target that does not deploy and a union review that came back clean. A granted
+merge is one "gh pr merge" bound to the head the grant read, handed back by grant
+as argv; landed then reads the merge commit back, and only that is a merge.
 `.trimStart();
 
 /**
@@ -197,6 +212,7 @@ export const SUBCOMMANDS = Object.freeze({
   publish: 'reads-stdin',
   progress: 'reads-stdin',
   grant: 'reads-stdin',
+  landed: 'reads-stdin',
   reserve: 'reads-stdin',
   base: 'reads-stdin',
   observe: 'reads-stdin',
@@ -502,6 +518,11 @@ function renderPlan(plan: ClusterPlan): string {
 function renderRun(state: RunState, action: NextAction | undefined, recovery?: RecoveryVerdict): string {
   const lines: string[] = [];
   lines.push(`run ${state.runId} — cluster ${state.clusterId} on ${state.base.branch}@${state.base.sha.slice(0, 7)}`);
+  // Dated, because `start` is the only command that writes this file: nothing a
+  // worker, a publication or a merge does afterwards reaches it. Printing these
+  // phases undated reads as the run's current position, and across three real
+  // runs the file was edited by hand at every step to make that reading true.
+  lines.push(`cursor: state at the lease, taken ${state.startedAt}; no command advances it (DEV-798)`);
   for (const ticket of state.tickets) {
     const commits = ticket.commits.length === 0 ? 'no commit' : `${ticket.commits.length} commit(s)`;
     lines.push(`  ${ticket.id}: ${ticket.phase} (${commits})${ticket.blocker === null ? '' : ` — ${ticket.blocker}`}`);
@@ -743,9 +764,14 @@ interface ReconcileObservation {
  * wrong for a cycle: every worker blocked is an ordinary outcome of a run, not
  * a misuse of the command. The shape says which of the two happened rather than
  * handing back an empty plan that reads like a merge with nothing in it.
+ *
+ * When there IS a plan, the outcome beside it is the settled one: the two used
+ * to be emitted straight out of two steps that answer different questions under
+ * the same word, so one could say `integrate: ["DEV-709"]` while the other
+ * excluded it.
  */
 type ReconcileOutcome =
-  | { readonly schemaVersion: 1; readonly outcome: ClusterOutcome; readonly plan: ReconcilePlan }
+  | { readonly schemaVersion: 1; readonly outcome: SettledOutcome; readonly plan: ReconcilePlan }
   | { readonly schemaVersion: 1; readonly outcome: ClusterOutcome };
 
 function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult {
@@ -823,10 +849,10 @@ function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult 
     ...(observation.rebuildCommand === undefined ? {} : { rebuildCommand: observation.rebuildCommand }),
   });
 
+  const settled = alignOutcomeWithPlan(outcome, plan);
   const human = [
-    `${outcome.kind}: ${plan.integrate.length === 0 ? '(nothing)' : plan.integrate.join(', ')}`,
-    ...outcome.excluded.map((entry) => `  excluded ${entry.ticketId}: ${entry.reason}`),
-    ...plan.excluded.map((entry) => `  excluded ${entry.ticketId}: ${entry.reason}`),
+    `${settled.kind}: ${settled.integrate.length === 0 ? '(nothing)' : settled.integrate.join(', ')}`,
+    ...settled.excluded.map((entry) => `  excluded ${entry.ticketId}: ${entry.reason}`),
     '',
     `integration branch: ${plan.integrationBranch}`,
     ...plan.steps.map((step) => `  ${step.command.join(' ')}`),
@@ -834,7 +860,7 @@ function reconcileCommand(stdin: string, json: boolean): AutopilotCommandResult 
     'Every branch above is preserved. Nothing here deletes a worker branch.',
     '',
   ].join('\n');
-  return emit(json, { schemaVersion: 1, outcome, plan } satisfies ReconcileOutcome, human);
+  return emit(json, { schemaVersion: 1, outcome: settled, plan } satisfies ReconcileOutcome, human);
 }
 
 /**
@@ -887,6 +913,15 @@ interface GateObservation {
   readonly outcomes?: readonly CommandOutcome[];
   readonly plan?: VerificationPlan;
   readonly freshness?: { readonly proofs: readonly VerificationProof[]; readonly context: ProofContext };
+  /**
+   * What reviewed each unit of the range, as the workers reported it.
+   *
+   * The fifth judgement, and the one that used to be unaskable: a worker whose
+   * runtime could convene no panel said so in `decisions`, which nothing here
+   * reads, so a self-reviewed unit merged on the evidence of a panel-briefed
+   * one. `WorkerResult` now carries the record; this is where it is weighed.
+   */
+  readonly reviews?: readonly UnitReview[];
 }
 
 interface GateVerdict {
@@ -896,6 +931,7 @@ interface GateVerdict {
   readonly budget?: UnitBudgetVerdict;
   readonly suite?: VerificationVerdict;
   readonly freshness?: ProofAssessment;
+  readonly reviews?: ReviewOutcome;
 }
 
 function gateCommand(stdin: string, json: boolean): AutopilotCommandResult {
@@ -911,6 +947,9 @@ function gateCommand(stdin: string, json: boolean): AutopilotCommandResult {
   const freshness = observation.freshness === undefined
     ? undefined
     : assessProofs(observation.freshness.proofs, observation.freshness.context);
+  const reviews = observation.reviews === undefined
+    ? undefined
+    : judgeReviewProvenance(observation.reviews);
 
   const verdict: GateVerdict = {
     schemaVersion: 1,
@@ -919,6 +958,7 @@ function gateCommand(stdin: string, json: boolean): AutopilotCommandResult {
     ...(budget === undefined ? {} : { budget }),
     ...(suite === undefined ? {} : { suite }),
     ...(freshness === undefined ? {} : { freshness }),
+    ...(reviews === undefined ? {} : { reviews }),
   };
 
   const lines = [
@@ -929,6 +969,10 @@ function gateCommand(stdin: string, json: boolean): AutopilotCommandResult {
     ...(panel === undefined ? [] : [`panel: ${panel.kind === 'satisfied' ? 'spoke before the writing' : `${panel.reason} — ${panel.detail}`}`]),
     ...(budget === undefined ? [] : [`budget: ${budget.kind === 'within' ? 'within its ceilings' : `exhausted ${budget.ceiling}`}`]),
     ...(suite === undefined ? [] : [`suite: ${suite.green ? 'green' : `red — ${suite.failures.map((failure) => failure.name).join(', ')}`}`]),
+    // Named per unit, not summarised: the reader of a downgraded run has to know
+    // which ticket lost the panel, and a count would hide it.
+    ...(reviews === undefined ? [] : [`reviews: ${reviews.kind} — ${reviews.detail}`]),
+    ...(reviews === undefined ? [] : reviews.units.map((unit) => `  ${unit.ticketId}: ${unit.grade} (${unit.detail})`)),
     '',
   ];
   return emit(json, verdict, lines.join('\n'));
@@ -963,8 +1007,35 @@ interface PublishObservation {
   readonly blockers: readonly string[];
 }
 
+/**
+ * Every merged unit says what reviewed it, or the publication refuses.
+ *
+ * The body is the account someone promotes on, and the grade is the one thing
+ * it could not state until now: a self-reviewed unit and a panel-briefed one
+ * read identically. Refused here rather than rendered, because a missing grade
+ * would otherwise surface as a property read on `undefined` from inside the
+ * renderer, which names neither the field nor where to obtain it.
+ */
+function requireReviewedProvenance(included: readonly TicketProvenance[]): void {
+  const grades: readonly string[] = ['panel-grade', 'self-reviewed', 'unreviewed'];
+  const silent = included.filter((ticket) => {
+    const review: Record<string, unknown> = { ...(ticket.review ?? undefined) };
+    const grade: unknown = review.grade;
+    return typeof grade !== 'string' || !grades.includes(grade);
+  });
+  if (silent.length === 0) return;
+
+  throw autopilotFailure(
+    'AUTOPILOT_CONTRACT',
+    'this publication does not say what reviewed a unit it merges',
+    `${silent.map((ticket) => ticket.ticketId).join(', ')} carries no \`review.grade\``,
+    'pass the review each `WorkerResult` carried, as `gate` graded it: `{ grade: "panel-grade" | "self-reviewed" | "unreviewed", detail }`',
+  );
+}
+
 function publishCommand(stdin: string, json: boolean): AutopilotCommandResult {
   const observation = parseStdin<PublishObservation>(stdin, 'publish observation');
+  requireReviewedProvenance(observation.included);
   const plan: PublishPlan = buildPublishPlan({
     clusterId: observation.clusterId,
     remote: observation.remote,
@@ -1029,6 +1100,8 @@ interface GrantObservation {
   readonly review: UnionReview | null;
   readonly declaredLenses: number;
   readonly capability: Parameters<typeof buildUnionReviewRequest>[0]['capability'];
+  /** The pull request as observed; the merge, when granted, names its number. */
+  readonly pullRequest?: { readonly number: number } | null;
 }
 
 function grantCommand(stdin: string, json: boolean): AutopilotCommandResult {
@@ -1049,6 +1122,13 @@ function grantCommand(stdin: string, json: boolean): AutopilotCommandResult {
     mergeBlocks: observation.mergeBlocks,
   });
   const action = planPostCheckAction({ checks: observation.checks, grant });
+  // The one command a granted merge runs, bound to the head the grant read. It
+  // is argv, not a merge: `landed` reads the merge commit back afterwards.
+  const merge = buildMergePlan({
+    action,
+    pullRequest: observation.pullRequest,
+    integrationSha: observation.integrationSha,
+  });
   const request = review === undefined
     ? buildUnionReviewRequest({
         integrationBranch: observation.integrationBranch,
@@ -1065,6 +1145,7 @@ function grantCommand(stdin: string, json: boolean): AutopilotCommandResult {
       ? `grant: granted${grant.advisories.length === 0 ? '' : ` (${String(grant.advisories.length)} advisory finding(s) filed)`}`
       : `grant: refused (${grant.reason}) — ${grant.detail}`,
     `next: ${action.action} — ${action.detail}`,
+    ...merge.steps.map((step) => `  ${step.command.join(' ')}`),
     ...(request === undefined
       ? []
       : ['', 'the reading nobody ran:', `  ${request.diffCommand.join(' ')}`]),
@@ -1076,10 +1157,49 @@ function grantCommand(stdin: string, json: boolean): AutopilotCommandResult {
       schemaVersion: 1,
       grant,
       action,
+      merge,
+      // What the reading said, carried to the journal entry a merge writes.
+      unionVerdict: review?.verdict ?? null,
       ...(request === undefined ? {} : { request }),
     },
     human,
   );
+}
+
+/**
+ * Whether the merge the grant permitted actually landed.
+ *
+ * The merge command returning is not a merge, and neither is the grant that
+ * permitted it. A merge is the commit GitHub reports for the pull request, read
+ * back after the command ran -- the same reading `status` makes on resume,
+ * without a run cursor, because in the scripted cycle the cursor never learns
+ * the integration head and `status` would answer with no verdict at all.
+ *
+ * The required checks observed green travel with it, because the journal entry
+ * a merge writes names them, and "no checks recorded" next to a merge the grant
+ * only permitted on green checks would be false.
+ */
+interface LandingObservation {
+  readonly expected: RecoveryExpectation;
+  readonly pullRequest: BoundaryReading<PullRequestObservation>;
+}
+
+function landedCommand(stdin: string, json: boolean): AutopilotCommandResult {
+  const observation = parseStdin<LandingObservation>(stdin, 'landing observation');
+  const verdict = recoverRemote({ expected: observation.expected, pullRequest: observation.pullRequest });
+  const reading = observation.pullRequest;
+  const checks = reading.kind === 'value' && isDetailed(reading.value)
+    ? reading.value.checks
+        .filter((check) => check.required && check.conclusion === 'success')
+        .map((check) => check.name)
+    : [];
+
+  const human = [
+    `${verdict.kind}: ${verdict.detail}`,
+    ...(verdict.kind === 'merged' ? [`checks green: ${checks.length === 0 ? 'none recorded' : checks.join(', ')}`] : []),
+    '',
+  ].join('\n');
+  return emit(json, { schemaVersion: 1, verdict, checks }, human);
 }
 
 /**
@@ -1368,8 +1488,13 @@ function abortCommand(
   context: AutopilotCommandContext,
 ): AutopilotCommandResult {
   const state = resolveRun(context, flagValue(argv, '--run'));
-  // Abort releases the CLAIM, never the work: branches, commits and the cursor
-  // stay exactly where they are so nothing is lost by giving the cluster back.
+  // Abort releases the CLAIM, never the work: branches and commits stay exactly
+  // where they are, so nothing is lost by giving the cluster back.
+  //
+  // The cursor is listed as reserved rather than preserved. It holds the state
+  // as of `start` and no command advances it, so promising to keep it offered a
+  // resumption it cannot deliver: what comes back is the starting point, not the
+  // progress. The branches are the durable record; git is what survives.
   const release = {
     runId: state.runId,
     clusterId: state.clusterId,
@@ -1377,7 +1502,10 @@ function abortCommand(
     preserved: {
       workerBranches: state.tickets.map((ticket) => ticket.branch).filter((branch): branch is string => branch !== null),
       integrationBranch: state.integration.branch,
-      cursor: '.void/autopilot/<runId>/state.json',
+    },
+    cursor: {
+      path: '.void/autopilot/<runId>/state.json',
+      holds: 'the state as reserved at start; no command advances it',
     },
   };
   const human = [
@@ -1385,7 +1513,8 @@ function abortCommand(
     `preserved: ${release.preserved.workerBranches.join(', ') || 'no worker branch'}${
       release.preserved.integrationBranch === null ? '' : `, ${release.preserved.integrationBranch}`
     }`,
-    'nothing is deleted; the cursor is kept for inspection',
+    'nothing is deleted; the branches hold the work',
+    'cursor: the state as reserved at start — no command advances it, so it replays the start, not the progress',
   ].join('\n');
   return emit(json, release, `${human}\n`);
 }
@@ -1459,6 +1588,7 @@ export function runAutopilotCommand(
     if (subcommand === 'publish') return publishCommand(stdin, json);
     if (subcommand === 'progress') return progressCommand(stdin, json);
     if (subcommand === 'grant') return grantCommand(stdin, json);
+    if (subcommand === 'landed') return landedCommand(stdin, json);
     if (subcommand === 'reserve') return reserveCommand(stdin, json);
     if (subcommand === 'base') return baseCommand(stdin, json);
     if (subcommand === 'observe') return observeCommand(stdin, json);

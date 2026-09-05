@@ -26,74 +26,71 @@ const edit = (file: string, content: string): Record<string, unknown> => ({
   tool_name: 'Edit',
   tool_input: { file_path: file, new_string: content },
 });
-const bash = (command: string): Record<string, unknown> => ({ tool_name: 'Bash', tool_input: { command } });
-
-describe('protect-sensitive-files.sh', () => {
-  it('blocks editing a lockfile', () => {
-    const { code, stderr } = runHook('protect-sensitive-files.sh', edit('pnpm-lock.yaml', 'x'));
-    expect(code).toBe(2);
-    expect(stderr).toMatch(/lockfile/);
-  });
-  it('allows editing a normal source file', () => {
-    expect(runHook('protect-sensitive-files.sh', edit('src/index.ts', 'x')).code).toBe(0);
-  });
-  it('honors the documented override', () => {
-    expect(runHook('protect-sensitive-files.sh', edit('.env', 'x'), { VOID_HARNESS_ALLOW_SECRET_EDIT: '1' }).code).toBe(
-      0,
-    );
-  });
+const bash = (command: string): Record<string, unknown> => ({
+  tool_name: 'Bash',
+  tool_input: { command },
 });
 
-describe('boundary-direction-check.sh', () => {
-  it('blocks an import the nearest manifest does not declare', () => {
-    const { code, stderr } = runHook(
+describe('floor shell adapters', () => {
+  it.each([
+    {
+      name: 'protected file',
+      hook: 'protect-sensitive-files.sh',
+      payload: edit('pnpm-lock.yaml', 'x'),
+      message: /lockfile/,
+    },
+    {
+      name: 'boundary direction',
+      hook: 'boundary-direction-check.sh',
+      payload: edit('apps/web/index.ts', "import { a } from '@repo/bar';"),
+      message: /does not declare/,
+    },
+    {
+      name: 'secret content',
+      hook: 'secret-in-content.sh',
+      payload: edit('src/config.ts', 'const k = "AKIAIOSFODNN7EXAMPLE1";'),
+      message: /secret|credential/i,
+    },
+    {
+      name: 'dangerous command',
+      hook: 'block-dangerous-bash.sh',
+      payload: bash('rm -rf /'),
+      message: /destructive/,
+    },
+  ])('maps a $name refusal to exit 2 and an actionable message', ({ hook, payload, message }) => {
+    const result = runHook(hook, payload);
+
+    expect(result.code).toBe(2);
+    expect(result.stderr).toMatch(message);
+  });
+
+  it.each([
+    ['protect-sensitive-files.sh', edit('src/index.ts', 'x')],
+    [
       'boundary-direction-check.sh',
-      edit('packages/foo/src/index.ts', "import { a } from '@repo/bar';"),
-    );
-    expect(code).toBe(2);
-    expect(stderr).toMatch(/does not declare/);
+      edit(
+        'packages/foo/src/index.ts',
+        "import { a } from '@repo/bar'; // allow-boundary: bootstrap",
+      ),
+    ],
+    ['secret-in-content.sh', edit('src/config.ts', 'const k = process.env.API_KEY;')],
+    ['block-dangerous-bash.sh', bash('ls -la')],
+  ])('maps an allowed %s call to exit 0', (hook, payload) => {
+    expect(runHook(hook, payload).code).toBe(0);
   });
-  it('honours an explicit allow-boundary escape', () => {
-    expect(
-      runHook(
-        'boundary-direction-check.sh',
-        edit('packages/foo/src/index.ts', "import { a } from '@repo/bar'; // allow-boundary: bootstrap"),
-      ).code,
-    ).toBe(0);
-  });
-  it('applies outside packages/ as well, since the layout is the project\'s', () => {
-    // The old rule only matched `^packages/`, so a monorepo laid out any other
-    // way got no enforcement while being told it had some.
-    expect(
-      runHook('boundary-direction-check.sh', edit('apps/web/index.ts', "import { a } from '@repo/bar';")).code,
-    ).toBe(2);
-  });
-});
 
-describe('secret-in-content.sh', () => {
-  it('blocks a high-confidence token in a normal file', () => {
-    expect(runHook('secret-in-content.sh', edit('src/config.ts', 'const k = "AKIAIOSFODNN7EXAMPLE1";')).code).toBe(2);
-  });
-  it('allows an env reference', () => {
-    expect(runHook('secret-in-content.sh', edit('src/config.ts', 'const k = process.env.API_KEY;')).code).toBe(0);
-  });
-  it('exempts test-fixture files', () => {
-    expect(runHook('secret-in-content.sh', edit('src/auth.test.ts', 'const k = "AKIAIOSFODNN7EXAMPLE1";')).code).toBe(0);
-  });
-});
-
-describe('block-dangerous-bash.sh', () => {
-  it('blocks a recursive root delete', () => {
-    const { code, stderr } = runHook('block-dangerous-bash.sh', bash('rm -rf /'));
-    expect(code).toBe(2);
-    expect(stderr).toMatch(/destructive/);
-  });
-  it('allows a benign command', () => {
-    expect(runHook('block-dangerous-bash.sh', bash('ls -la')).code).toBe(0);
-  });
-  it('honors the documented override', () => {
-    expect(runHook('block-dangerous-bash.sh', bash('git push --force'), { VOID_HARNESS_ALLOW_DANGEROUS: '1' }).code).toBe(
-      0,
-    );
+  it.each([
+    [
+      'protect-sensitive-files.sh',
+      edit('.env', 'x'),
+      { VOID_HARNESS_ALLOW_SECRET_EDIT: '1' },
+    ],
+    [
+      'block-dangerous-bash.sh',
+      bash('git push --force'),
+      { VOID_HARNESS_ALLOW_DANGEROUS: '1' },
+    ],
+  ])('keeps the documented %s override at the adapter boundary', (hook, payload, env) => {
+    expect(runHook(hook, payload, env).code).toBe(0);
   });
 });

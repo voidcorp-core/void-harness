@@ -111,6 +111,41 @@ held more data in one journal and far less in another, so no rule picks
 correctly. It runs only inside `update`: writing to a project nobody asked to
 have written to is the line this repo does not cross.
 
+### Two roots: the work tree and the installation
+
+A command reads and writes code in the **work tree**, the directory it ran in. It also reads what
+`init` installed: `.claude/agents`, `.claude/skills`, `.void/installed`, the hook bundle, the
+manifest. That install is a property of the **repository**, exactly like the `.git/info/exclude`
+file that hides it from git, and it lives in the main checkout. In the main checkout the two roots
+are one directory. In a linked worktree they are not, because `git worktree add` restores tracked
+files only. The CLI used to have one root and look for both there, which is how an autopilot
+worker was told no specialist was installed while twenty-one were (DEV-732).
+
+`resolveProjectRoots` (`packages/cli/src/lib/project-roots.ts`) is computed once per command and
+gives `workRoot` and `installRoot`. It asks git for the trees: `rev-parse --show-toplevel` for
+the tree at hand, `worktree list --porcelain` for the main working tree, listed first by
+contract. That first path is built by git from the common directory, so under a submodule or
+`--separate-git-dir` it is the git directory itself; it is resolved back to a tree by asking
+`rev-parse --show-toplevel` in it, which names a submodule's checkout and refuses where no tree
+exists. One filesystem question then decides between two trees: the install receipt under
+`.void/machine/`, which `init` writes and git never carries, marks the tree that was installed
+into; without it the main working tree is the installation. Outside git, in the main checkout,
+in a submodule or `--separate-git-dir` checkout, in a bare repository or with a git older than
+the listing, `installRoot` is `workRoot`, so nothing changes there. Paths are canonical, so
+macOS's `/var` and `/private/var` never read as two roots. A worktree's `.git` is a file; nothing
+here tests it as a directory.
+
+What follows from it, per the decision on runtime state from a worktree: the installed panel,
+agents and manifest are read from `installRoot`, as are `status`, `check` and `mission`; `doctor`
+judges that root and names both when they differ. Every reader of `installRoot` names that root
+in what it prints about it when the two roots differ, and nothing otherwise: a remedy runs where
+it is typed, so `doctor`, `check` and `status` (its freshness notice) put `remedyPrefix` in front
+of each command; a printed path is read where it is typed, so `status` names its snapshot through
+`installedPath`. Both helpers live in `project-roots.ts`; a new reader uses them rather than
+restating the rule. `.void/machine/` is per-repository state, so the mission journal, controller
+plan, evidence and the status snapshot are written there, while the ticket, the diff and the
+verified command stay in `workRoot`. The session checkpoint stays with its tree.
+
 ## Decision records
 
 ADRs are an append-only data model, not a generated document:
@@ -170,6 +205,18 @@ Rules:
 - **Doc ownership is per-runtime.** Each adapter's `wire` writes only its own doctrine doc — a Claude-only project has just `CLAUDE.md`, a Codex-only project just `AGENTS.md`. `doctor` checks only the docs of *detected* runtimes, so a Codex-only project is never dinged for a missing `CLAUDE.md`. (`add` / `remove` still patch whichever docs exist, keeping active docs current.)
 - **`init` wires each selected runtime's layer via its adapter**, gated by `--runtime <claude|codex|both>` (default: auto-detected footprint, else both). Claude receives native project-local skills, agents, commands and hooks; Codex receives `.agents/skills`, native `.codex/agents` and `.codex/hooks.json`. The package is bundled with all CLI runtime dependencies, so a tarball installs offline. `--source marketplace` is opt-in and is the only path that checks `gh`/marketplace access.
 - **Publication is transactional.** `init` seeds only shared merge targets into an isolated stage, compiles and executes each selected adapter's doctor smoke there, then atomically publishes a finite mutation set. Every target is snapshotted before the first write; a failure restores bytes and modes and removes only transaction-created paths. `.void/machine/receipts/install-v1.json` hashes files the install created, already owned, or found already identical byte-for-byte to what it compiled — a managed asset matching our own output is ours, and letting it fall out of the receipt is what made a later version meet an asset it could not recognise. Unowned native conflicts fail unless `--force` (all of them named in one message, not the first alone), and even force never grants deletion ownership over a pre-existing file.
+- **Failed installs clean before exiting.** The owned compilation stage is removed before the
+  failure exit, as well as after success. A test observes staging paths at the exit boundary:
+  throwing from a mocked `process.exit` would otherwise run `finally` and hide a real-process leak.
+- **Consumer conformance has one artifact identity.** A clean exact-SHA checkout packs the npm CLI
+  once and records package identity, source SHA and tarball SHA-256 in a canonical manifest. One
+  orchestrator makes install, hook and Autopilot suites consume that same verified tarball through
+  a minimal environment and fixture-local state. CI fans the immutable pair out to Linux, macOS and
+  Windows; elapsed time is an observation, never a correctness threshold. ProjectGraph stays in a
+  separate path-filtered matrix because it is a distinct published package and portability
+  boundary. Repeated seeded stress runs in the scheduled test-certification workflow on an
+  ephemeral Linux runner and emits exact-SHA reports; it is deliberately outside the laptop edit
+  loop and ordinary pull-request critical path.
 - **Runtimes are added a posteriori without friction**: `void-harness runtime add <runtime>` wires exactly that runtime's layer on an already-`init`-ed project, touching nothing the other runtime owns (verified byte-for-byte in tests). `runtime list` shows which are wired. This is the `void runtime add` command from the multi-runtime spec.
 - **Pack and update lifecycle uses the same transaction.** Local `add`/`remove` compile the exact
   config pack set and prune only unchanged receipt-owned stale assets. Local `update` recompiles
@@ -237,8 +284,20 @@ checkpoint and Git. A plain continue/start/resume request uses the declared prog
 recover exactly one started scoped unit, or selects the first ready unit from the stable order and
 native blocker relations. More than one started unit is a competing-claim error.
 
+`.void/program.md` is the only location, and `LEGACY_PROGRAM_PATHS` is the only place the names it
+carried before (`.void/active.md`, `plans/ACTIVE.md`) still appear — read on the way in, never
+written, so a project that has not run `update` is not reported as having no programme at all.
+Two things hold that to one path. A test greps the living surface, everything the harness ships or
+tells an agent to read, for a legacy name; `docs/` is out of scope, since the specs that decided
+this are the record of why. And `doctor` **names the paths it looked at** when it finds nothing,
+because the same programme at one name printed eight autopilot lines and at another printed none,
+and a silent report is indistinguishable from not having looked.
+
 The programme is opt-in and project-owned. `init`, `update`, and runtime adapters never create or
-mutate it. `void-ticket` creates it only after a human-approved multi-unit plan has been fully
+mutate it. A declaration never migrates into a directory the harness ignores: one project's
+programme was moved from `plans/ACTIVE.md` to `.void/machine/ACTIVE.md` by an `update`, taking its
+running order, its human gates and the `autopilot` block that IS the consent to autonomous
+execution out of the repository with it, where nobody could audit or revise them in a PR. `void-ticket` creates it only after a human-approved multi-unit plan has been fully
 materialized in a capable progress provider. It stores durable context and routing only: programme,
 plan/spec links, provider scope, ordered unit identifiers, lifecycle-state roles, human gates, and
 the required `autopilot` consent block. Mutable status, assignee, blockers, comments, and review
@@ -273,8 +332,11 @@ payloads, reads at most 1,048,576 transcript bytes, confines project paths, and 
 under a no-wait lock through a same-directory temporary file and rename. Runtime manifests only
 map `UserPromptSubmit`, `PostToolUse`, `PreCompact`, and `SessionStart` to that handler.
 The lock covers the complete read-modify-write decision. Stale takeover is serialized by a
-no-wait claim chain whose generations are created exclusively and never ranked by timestamps, and
-checkpoint mutation stays anchored to an opened, verified machine directory while relative
+no-wait claim chain whose generations are created exclusively and never ranked by timestamps.
+After acquiring the recovery claim, takeover checks the current lock's age again as well as its
+identity: Linux can reuse an unlinked inode immediately for a fresh owner's lock, so matching
+device and inode numbers alone do not authorize removal. Checkpoint mutation stays anchored to
+an opened, verified machine directory while relative
 no-follow files are read and renamed. Transcript reads use no-follow bounded descriptors. Codex
 transcripts remain project-local; Claude may also use its
 project-scoped transcript directory when the file name exactly matches a bounded session ID.
@@ -674,9 +736,9 @@ drift before `core-assets` is mirrored.
 
 Graph behavior, cost, audit, status and Studio consume the canonical journal.
 Legacy `.void/activations.jsonl`, `.void/outcomes.jsonl` and `.void/usage.log`
-remain read-only transition inputs; current hooks never append to them. Each
-project self-registers an opaque pointer under `~/.void/projects/` for opt-in
-cross-project aggregation.
+remain read-only transition inputs; current hooks never append to them. Every
+cross-project reader uses the same bounded scan of configured roots for the
+versioned `.void/config.json` marker. Event capture writes only inside its project.
 
 `graph live` binds loopback only. A random launch token is exchanged once for a
 process-local `HttpOnly; SameSite=Strict` cookie, foreign browser origins are
@@ -723,6 +785,28 @@ specialists must pass before the lead writer starts; post-implementation reviewe
 context and completion identity, so an upstream approval cannot satisfy downstream review. Input
 hashes are keyed by stage: the pre-build snapshot stays frozen while post-build and correction
 hashes follow the implemented diff.
+
+Preparation corrections travel in an existing plan/spec directly cited by a backticked
+repository-relative path in the frozen ticket. Dispatch rereads that artifact for the next
+preparatory round. The writer resolves findings there before recording completion; it neither
+edits the frozen ticket nor starts implementation until `run-lead-writer`. A missing citation
+requires an explicit interrupted mission and corrected start inputs, preserving the old evidence.
+The context pack must contain the correction: a writer receipt alone proves no content change.
+
+Controller records created with a ticket bind the initial Git commit into their version 2
+integrity envelope. Post-implementation review compares that fixed baseline with the working
+tree, so staging or committing unchanged content preserves review identity. A bounded raw patch
+digest participates in review hashes independently of routing; editing an already changed path
+invalidates its reviews. The same captured patch supplies the specialist context, after redaction.
+Only controller-owned `.void/machine/**` evidence is excluded: tracked project rules and hooks
+remain review inputs. New files must be staged before review, and encoded binary patches are
+refused before dispatch because text redaction cannot protect their payloads. Missing or unrelated
+baselines and unavailable bounded Git output refuse review explicitly. Legacy version 1 records
+remain readable for history and preparation, but cannot pass post-implementation dispatch without
+an anchored subject; preserve that history and start a new mission instead of rebinding old proofs.
+This is a Git reference in the existing execution register, not a second session checkpoint.
+Git semantics: [diff against a commit](https://git-scm.com/docs/git-diff/2.50.0),
+[ancestry validation](https://git-scm.com/docs/git-merge-base/2.50.0).
 
 Interactive runs prefer the runtime's native subagent primitive. Headless certification launches a
 fresh native role session directly when parent-to-child delegation cannot prove an attributable
@@ -1029,6 +1113,35 @@ next `hydrate`, nothing broken. So: **what breaks stays, what degrades goes**
 (`DERIVED_LOAD_BEARING`). What makes this safe rather than merely tidy is that
 `hydrate` restores the ignored content from the manifest and **proves** it —
 see "Exact rehydration" below.
+
+Staying tracked is a declaration, and a declaration is not a proof either. The
+`void kept` check is the mirror of `void ignore`: it asks git about each path the
+harness declares a clone cannot start without — the project-owned half of
+`.void/`, the install manifest, `.claude/settings.json`, and
+`DERIVED_LOAD_BEARING` — and names the rule that wins when one is hidden. A
+project carried, years older than the harness and higher in its `.gitignore`,
+
+```
+.void/*
+!.void/PROJECT-DOCTRINE.md
+```
+
+and git does not descend into an excluded directory, so that rule beat everything
+the managed block declared below it. That clone had no `config.json`, no
+`install-manifest.json` and no `.void/hooks/_void-hook.mjs`, while a committed
+`.claude/settings.json` named seven hooks pointing at the last of them: the
+enforcement floor had stopped applying, and the check that should have said so
+was reading the lines of an ignore file rather than asking git whether they won.
+`init` reports the same finding at install time, where the paths have just been
+written; it reports rather than refuses, because `.gitignore` beating
+`info/exclude` is the correct precedence and a project rule is not an error.
+
+Two measured properties hold the check up. `check-ignore -q` answers *ignored*,
+where `-v` answers *a pattern matched* and exits 0 on a **negation** — reading
+`-v`'s exit code would report every rescued path as hidden, so `-v` is asked only
+afterwards, to name the rule. And a **tracked** file is never reported as
+ignored, so "ignored" here already means "ignored and not in the index", which is
+the only harmful state.
 
 An ignore rule has no effect on a path already in the index, so an existing
 project needs an explicit untrack. `void-harness update --untrack-derived` does

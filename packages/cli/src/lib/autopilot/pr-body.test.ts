@@ -17,12 +17,14 @@ function input(over: Partial<PrBodyInput> = {}): PrBodyInput {
         title: 'Refuse a stale proof',
         url: 'https://linear.app/voidcorp/issue/DEV-1',
         range: { baseSha: BASE, headSha: H1, commits: [H1] },
+        review: { grade: 'panel-grade', detail: '4 pass(es) in a fresh context' },
       },
       {
         ticketId: 'DEV-2',
         title: 'Bound the verify output',
         url: 'https://linear.app/voidcorp/issue/DEV-2',
         range: { baseSha: BASE, headSha: H2, commits: [H2] },
+        review: { grade: 'panel-grade', detail: '4 pass(es) in a fresh context' },
       },
     ],
     excluded: [],
@@ -138,6 +140,7 @@ describe('renderPullRequestBody', () => {
           title: 'x'.repeat(300),
           url: `https://linear.app/voidcorp/issue/DEV-${index}`,
           range: { baseSha: BASE, headSha: H1, commits: [H1] },
+        review: { grade: 'panel-grade', detail: '4 pass(es) in a fresh context' },
         })),
       }),
     );
@@ -152,5 +155,35 @@ describe('renderPullRequestBody', () => {
     );
 
     expect(body).toMatch(/pnpm test.*(failed|red)/i);
+  });
+});
+
+/**
+ * A person promotes on this body. Until now it could not tell a unit a panel of
+ * fresh contexts briefed from one its own author reviewed alone, which is the
+ * difference between a signed artefact and a signed-looking one.
+ */
+describe('renderPullRequestBody review provenance', () => {
+  it('names the review grade of every included unit', () => {
+    const body = renderPullRequestBody(input());
+
+    expect(body).toMatch(/panel-grade/);
+  });
+
+  it('says which unit was reviewed by its own author, and why no panel spoke', () => {
+    const body = renderPullRequestBody(
+      input({
+        included: input().included.slice(0, 1).map((ticket) => ({
+          ...ticket,
+          review: {
+            grade: 'self-reviewed' as const,
+            detail: 'this worker runtime exposes no fresh-context subagent primitive',
+          },
+        })),
+      }),
+    );
+
+    expect(body).toContain('self-reviewed');
+    expect(body).toContain('no fresh-context subagent primitive');
   });
 });

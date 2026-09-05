@@ -21,7 +21,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { stripManagedBlock } from '@voidcorp/hook-runner';
 import { PROJECT_DOCTRINE_PATH } from '../lib/co-owned.js';
-import { writeExcludeBlock } from '../lib/git-exclude.js';
+import { observeKeptTracked, writeExcludeBlock } from '../lib/git-exclude.js';
 import { isUntouchedSinceInstall, readInstallManifest } from '../lib/install-manifest.js';
 import * as p from '@clack/prompts';
 import {
@@ -331,19 +331,20 @@ export async function init(args: readonly string[]): Promise<void> {
   // selected runtime proves installed + wired + fired in this stage.
   const stageRoot = await mkdtemp(join(tmpdir(), 'void-init-stage-'));
   const nextSteps: string[] = [];
+  let installFailed = false;
   try {
     await seedInstallStage(projectRoot, stageRoot);
     // 1. Write .void/config.json (runtime-agnostic)
     await writeConfig(stageRoot, packs, opts, { pinVersion, stack });
     // 2. Copy PHILOSOPHY.md + seed or refresh PROJECT-DOCTRINE.md
     await installDoctrineFiles(stageRoot, sourceRoot, {
-      installationRoot: projectRoot,
+      installRoot: projectRoot,
       preserveFrom: preserveDoctrine ? projectRoot : undefined,
     });
     // 3. Wire each selected runtime through its adapter.
     const wireCtx = {
-      projectRoot: stageRoot,
-      installationRoot: projectRoot,
+      stageRoot,
+      installRoot: projectRoot,
       sourceRoot,
       enabledPlugins,
       enabledPacks: packs,
@@ -407,6 +408,7 @@ export async function init(args: readonly string[]): Promise<void> {
     // the receipt rather than the stage: the stage is what we meant to write,
     // the receipt is what is on disk.
     claimOwnedPaths(projectRoot, prepared.receipt.files.map((file) => file.path));
+    reportHiddenByProject(projectRoot);
     // A preserved asset is one the previous install owned and this one refuses
     // to delete, because it was edited by hand. Saying nothing here is how a
     // renamed skill keeps loading beside its replacement under a clean success.
@@ -432,10 +434,12 @@ export async function init(args: readonly string[]): Promise<void> {
   } catch (err) {
     blank();
     p.log.error(`init failed before publication or rolled back byte-for-byte. ${errorMessage(err)}`);
-    process.exit(1);
+    installFailed = true;
   } finally {
     await rm(stageRoot, { recursive: true, force: true });
   }
+  // A real process.exit skips finally; release the owned stage before exiting.
+  if (installFailed) process.exit(1);
 
   blank();
   // "plugins" is what the marketplace channel calls them. On the default path
@@ -647,12 +651,36 @@ function claimOwnedPaths(projectRoot: string, ownedPaths: readonly string[]): vo
   writeExcludeBlock(projectRoot, ownedPaths);
 }
 
+/**
+ * Say when a project rule wins over what this install just wrote.
+ *
+ * Reported, not refused: `.gitignore` beating `info/exclude` is the right
+ * precedence, and a rule the project wrote years before the harness is not an
+ * error to fail an install on. What was an error is doing it silently -- the
+ * project this comes from cloned without `config.json`, without
+ * `install-manifest.json` and without the hook runner, while its committed
+ * `.claude/settings.json` named seven hooks resolving to nothing.
+ *
+ * Asked of git, after the transaction, because only then are the paths on disk
+ * for `check-ignore` to answer about.
+ */
+function reportHiddenByProject(projectRoot: string): void {
+  const hidden = observeKeptTracked(projectRoot).filter((path) => path.ignored === true);
+  if (hidden.length === 0) return;
+  line(`${c.yellow('!')}  ${c.dim('hidden'.padEnd(18))}${hidden.length} installed path(s) hidden from git by a project rule`);
+  for (const entry of hidden.slice(0, 5)) {
+    line(c.dim(`     ${entry.path} — ${entry.rule ?? 'rule unknown'}`));
+  }
+  if (hidden.length > 5) line(c.dim(`     ... ${String(hidden.length - 5)} more`));
+  line(c.dim('     a fresh clone would not get them; narrow that rule, then git add them'));
+}
+
 export interface DoctrineInstallRoots {
   /**
    * The installation being written to, whose committed manifest attests what a
    * previous install wrote. Absent means no attestation, which preserves.
    */
-  readonly installationRoot?: string | undefined;
+  readonly installRoot?: string | undefined;
   /**
    * An installation whose philosophy is canonical rather than derived — the
    * source repo, where `docs/PHILOSOPHY.md` is the original and the packaged
@@ -669,9 +697,9 @@ export interface DoctrineInstallRoots {
  * has written into it — licenses replacing it with the current template. An
  * unreadable or absent manifest answers no: silence is not proof.
  */
-function isUntouchedProjectDoctrine(installationRoot: string | undefined, staged: string): boolean {
-  if (installationRoot === undefined) return false;
-  const manifest = readInstallManifest(installationRoot);
+function isUntouchedProjectDoctrine(installRoot: string | undefined, staged: string): boolean {
+  if (installRoot === undefined) return false;
+  const manifest = readInstallManifest(installRoot);
   if (manifest === undefined) return false;
   try {
     return isUntouchedSinceInstall(manifest, PROJECT_DOCTRINE_PATH, readFileSync(staged));
@@ -690,12 +718,12 @@ function isUntouchedProjectDoctrine(installationRoot: string | undefined, staged
  * session forever. See the decision on refreshing an untouched project doctrine.
  */
 export async function installDoctrineFiles(
-  projectRoot: string,
+  stageRoot: string,
   sourceRoot: string,
   roots: DoctrineInstallRoots = {},
 ): Promise<void> {
-  const { installationRoot, preserveFrom } = roots;
-  const voidDir = join(projectRoot, '.void');
+  const { installRoot, preserveFrom } = roots;
+  const voidDir = join(stageRoot, '.void');
   await mkdir(voidDir, { recursive: true });
   const philosophySrc = join(sourceRoot, 'PHILOSOPHY.md');
   // Under `installed/`: it is regenerated from a pin and not committed, and the
@@ -722,7 +750,7 @@ export async function installDoctrineFiles(
     if (!hasTemplate) return;
     await cp(templateSrc, doctrineDst);
     line(`${c.green(glyph.check)}  ${label}created from template`);
-  } else if (hasTemplate && isUntouchedProjectDoctrine(installationRoot, doctrineDst)) {
+  } else if (hasTemplate && isUntouchedProjectDoctrine(installRoot, doctrineDst)) {
     await cp(templateSrc, doctrineDst);
     line(`${c.green(glyph.check)}  ${label}refreshed (never filled in)`);
   } else {

@@ -91,12 +91,27 @@ jobs:
           fi
 
           audit_file=$(mktemp)
+          trap 'rm -f "$audit_file"' EXIT
+          # Git first-parent identifies where each nested commit entered develop.
+          # https://git-scm.com/docs/git-rev-list#Documentation/git-rev-list.txt---first-parent
+          mapfile -t integration_oids < <(git rev-list --first-parent --reverse origin/main..origin/develop)
           mapfile -t commit_oids < <(git rev-list --reverse origin/main..origin/develop)
           for oid in "${commit_oids[@]}"; do
+            integration_oid=''
+            for entry in "${integration_oids[@]}"; do
+              if git merge-base --is-ancestor "$oid" "$entry"; then
+                integration_oid=$entry
+                break
+              fi
+            done
+            if [ -z "$integration_oid" ]; then
+              echo "unexplained commit $oid: no first-parent integration into develop." >&2
+              exit 1
+            fi
             commit_json=$(gh api graphql \
               -f owner="$EXPECTED_OWNER" \
               -f repo="$EXPECTED_NAME" \
-              -f oid="$oid" \
+              -f oid="$integration_oid" \
               -f query='query($owner:String!,$repo:String!,$oid:GitObjectID!){
                 repository(owner:$owner,name:$repo){
                   object(oid:$oid){
@@ -105,6 +120,7 @@ jobs:
                       associatedPullRequests(first:100){
                         nodes{
                           number baseRefName headRefName isCrossRepository mergedAt
+                          mergeCommit{oid}
                           mergedBy{login}
                           headRepository{nameWithOwner}
                           headRepositoryOwner{login}
@@ -123,7 +139,7 @@ jobs:
                 }
               }')
 
-            jq -e --arg oid "$oid" \
+            jq -e --arg oid "$integration_oid" \
               '.data.repository.object.oid == $oid' <<<"$commit_json" >/dev/null || {
               echo "GitHub did not resolve promotion commit $oid." >&2
               exit 1
@@ -134,9 +150,11 @@ jobs:
               exit 1
             fi
 
-            candidates=$(jq -c \
+            # https://docs.github.com/en/graphql/reference/pulls#pullrequest
+            candidates=$(jq -c --arg integration_oid "$integration_oid" \
               '[.data.repository.object.associatedPullRequests.nodes[] |
-                select(.mergedAt != null and .baseRefName == "develop")]' \
+                select(.mergedAt != null and .baseRefName == "develop" and
+                  .mergeCommit.oid == $integration_oid)]' \
               <<<"$commit_json")
             if [ "$(jq 'length' <<<"$candidates")" -ne 1 ]; then
               echo "unexplained commit $oid: expected exactly one merged PR targeting develop." >&2
@@ -174,8 +192,8 @@ jobs:
               fi
             fi
 
-            printf -- '- `%s` -> PR #%s (`%s` -> `%s`), merged by `%s`, auto-merge events: %s\n' \
-              "${oid:0:12}" "$number" \
+            printf -- '- `%s` -> integration `%s` -> PR #%s (`%s` -> `%s`), merged by `%s`, auto-merge events: %s\n' \
+              "${oid:0:12}" "${integration_oid:0:12}" "$number" \
               "$(jq -r '.headRefName' <<<"$pr")" \
               "$(jq -r '.baseRefName' <<<"$pr")" \
               "$merged_by" "$auto_events" | tee -a "$audit_file"

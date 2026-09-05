@@ -4,6 +4,7 @@ import { type ObservedCommit, type RangeObservation, verifyRange } from './git-o
 const BASE = '0000000000000000000000000000000000000001';
 const C1 = '0000000000000000000000000000000000000011';
 const C2 = '0000000000000000000000000000000000000012';
+const C3 = '0000000000000000000000000000000000000013';
 const FOREIGN = '00000000000000000000000000000000000000ff';
 
 function commit(sha: string, ...parents: string[]): ObservedCommit {
@@ -15,7 +16,8 @@ function observation(over: Partial<RangeObservation> = {}): RangeObservation {
     ticketId: 'DEV-1',
     baseSha: BASE,
     headSha: C2,
-    // What `git rev-list --parents base..head` reported, oldest first.
+    // What `git log --format='%H %P' base..head` reported, in whatever order it
+    // printed: the range is verified as a set against these parent links.
     commits: [commit(C1, BASE), commit(C2, C1)],
     ...over,
   };
@@ -84,10 +86,75 @@ describe('verifyRange', () => {
     expect(verdict).toMatchObject({ kind: 'rejected', reason: 'head-mismatch' });
   });
 
-  it('refuses a range whose order contradicts its parent links', () => {
-    // Reported newest-first, or reordered: either way the chain does not hold.
+  // The defect this whole set-based reading exists for. The step read the range
+  // from its first entry, so it wanted oldest-first, while the observation the
+  // script prescribes -- `git log` -- prints newest-first. Every range of more
+  // than one commit was therefore refused, which selectively destroyed the work
+  // of the tickets that split a test commit from its implementation.
+  it('accepts a linear range reported newest-first, exactly as `git log` prints it', () => {
     const verdict = verifyRange(
-      observation({ commits: [commit(C2, C1), commit(C1, BASE)] }),
+      observation({
+        headSha: C3,
+        commits: [commit(C3, C2), commit(C2, C1), commit(C1, BASE)],
+      }),
+      { declaredCommits: [C1, C2, C3] },
+    );
+
+    expect(verdict).toEqual({ kind: 'usable', commits: [C1, C2, C3] });
+  });
+
+  it('accepts the same three commits oldest-first, and puts both orders in the same order', () => {
+    const oldestFirst = verifyRange(
+      observation({
+        headSha: C3,
+        commits: [commit(C1, BASE), commit(C2, C1), commit(C3, C2)],
+      }),
+      { declaredCommits: [C1, C2, C3] },
+    );
+
+    expect(oldestFirst).toEqual({ kind: 'usable', commits: [C1, C2, C3] });
+  });
+
+  it('accepts a range shuffled into no order at all, because parents are the evidence', () => {
+    const verdict = verifyRange(
+      observation({
+        headSha: C3,
+        commits: [commit(C2, C1), commit(C1, BASE), commit(C3, C2)],
+      }),
+      { declaredCommits: [C1, C2, C3] },
+    );
+
+    expect(verdict).toEqual({ kind: 'usable', commits: [C1, C2, C3] });
+  });
+
+  it('refuses a range holding a commit no parent link joins to the base', () => {
+    // A real gap, in any order: C3 hangs off a commit nobody reported.
+    const verdict = verifyRange(
+      observation({ headSha: C3, commits: [commit(C1, BASE), commit(C3, FOREIGN)] }),
+      { declaredCommits: [C1, C3] },
+    );
+
+    expect(verdict).toMatchObject({ kind: 'rejected', reason: 'broken-chain' });
+    const detail = (verdict as { detail: string }).detail;
+    expect(detail).toContain(C3);
+    // The refusal says what it wanted. A parent mismatch reads like a corrupted
+    // rebase, and that detail sent a whole session looking for one.
+    expect(detail).not.toMatch(/but its parent is/);
+    expect(detail).toMatch(/order/);
+  });
+
+  it('refuses a range that forks, because two commits on one parent are two lines of history', () => {
+    const verdict = verifyRange(
+      observation({ headSha: C3, commits: [commit(C2, C1), commit(C3, C1), commit(C1, BASE)] }),
+      { declaredCommits: [C1, C2, C3] },
+    );
+
+    expect(verdict).toMatchObject({ kind: 'rejected', reason: 'broken-chain' });
+  });
+
+  it('refuses a range that reports the same commit twice', () => {
+    const verdict = verifyRange(
+      observation({ commits: [commit(C1, BASE), commit(C1, BASE), commit(C2, C1)] }),
       { declaredCommits: [C1, C2] },
     );
 

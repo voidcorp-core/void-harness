@@ -21,8 +21,9 @@
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { gitignoreBlock, patchGitignore } from '@voidcorp/hook-runner';
+import { type KeptTrackedObservation, keptTrackedCandidates } from './kept-tracked-paths.js';
 
 /** What a write did, so the caller can report it without re-reading the file. */
 export type ExcludeOutcome = 'written' | 'unchanged' | 'skipped';
@@ -88,3 +89,54 @@ export function writeExcludeBlock(
 
 /** The rules themselves, for a caller that needs to show them. */
 export { gitignoreBlock as harnessIgnoreRules };
+
+/**
+ * Does git ignore this path? `undefined` when the question went unanswered.
+ *
+ * `-q` and not `-v`, measured on git 2.50: `check-ignore -v` exits 0 whenever a
+ * pattern MATCHES, negations included, so it answers 0 on a path the managed
+ * block deliberately rescues. Only `-q` answers the question asked.
+ */
+function gitIgnores(projectRoot: string, path: string): boolean | undefined {
+  const probe = spawnSync('git', ['check-ignore', '-q', path], {
+    cwd: projectRoot,
+    stdio: 'ignore',
+  });
+  if (probe.status === 0) return true;
+  return probe.status === 1 ? false : undefined;
+}
+
+/** Which rule git says wins on a path, as `source:line:pattern`. */
+function ignoreRuleFor(projectRoot: string, path: string): string | undefined {
+  const probe = spawnSync('git', ['check-ignore', '-v', path], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+  });
+  const rule = probe.stdout?.split('\n')[0]?.split('\t')[0] ?? '';
+  return rule === '' ? undefined : rule;
+}
+
+/**
+ * What a fresh clone of this project would be missing, path by path.
+ *
+ * `.gitignore` wins over `info/exclude`, which is the right way round -- a
+ * project rule beats ours -- so the only honest way to know whether our
+ * declarations hold is to ask git about each of them. Only what exists on disk
+ * is probed: a path this project never had is not a defect of this project. And
+ * a TRACKED file is never reported by `check-ignore`, so "ignored" here already
+ * means "ignored and not in the index", which is the harmful state.
+ */
+export function observeKeptTracked(projectRoot: string): readonly KeptTrackedObservation[] {
+  const insideRepo = excludeFilePath(projectRoot) !== undefined;
+  return keptTrackedCandidates().map((path) => {
+    const present = existsSync(join(projectRoot, ...path.split('/')));
+    const ignored = present && insideRepo ? gitIgnores(projectRoot, path) : undefined;
+    return {
+      path,
+      present,
+      ignored,
+      rule: ignored === true ? ignoreRuleFor(projectRoot, path) : undefined,
+    };
+  });
+}

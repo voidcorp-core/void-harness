@@ -186,6 +186,35 @@ describe('executeContextContinuity PreCompact', () => {
     expect(recoveryOpenFault.attempts).toBe(1);
   });
 
+  it('preserves a fresh lock whose identity matches an earlier stale observation', () => {
+    const root = project();
+    const lock = `${checkpoint(root)}.lock`;
+    const recovery = `${lock}.recovery`;
+    writeFileSync(lock, 'stale\n');
+    writeFileSync(recovery, 'abandoned\n');
+    const observed = lstatSync(lock);
+    const orphan = lstatSync(recovery);
+    const now = Math.ceil(Math.max(observed.ctimeMs, orphan.ctimeMs)) + 2_000;
+
+    // Model Linux reusing the old inode for a fresh owner's lock without relying
+    // on the allocator or process scheduling to produce that identity again.
+    writeFileSync(lock, 'current owner\n');
+    utimesSync(lock, new Date(now), new Date(now));
+    const current = lstatSync(lock);
+    expect(current.ino).toBe(observed.ino);
+    expect(current.dev).toBe(observed.dev);
+    expect(now - Math.max(observed.mtimeMs, observed.ctimeMs)).toBeGreaterThan(1_000);
+    expect(current.mtimeMs).toBe(now);
+
+    const claim = claimStaleLock(lock, observed, now);
+    if (claim !== undefined) closeSync(claim.descriptor);
+
+    expect(claim).toBeUndefined();
+    expect(readFileSync(lock, 'utf8')).toBe('current owner\n');
+    expect(lstatSync(lock).ino).toBe(current.ino);
+    expect(existsSync(recovery)).toBe(false);
+  });
+
   it('does not remove an older generation when another contender already owns recovery', () => {
     const root = project();
     const lock = `${checkpoint(root)}.lock`;
@@ -628,6 +657,64 @@ describe('executeContextContinuity transcript threshold', () => {
     if (parsed.status !== 'valid') return;
     expect(parsed.state.nudgeEmitted).toBe(true);
     expect(parsed.state.unwatchableNotified).toBe(true);
+  });
+
+  /**
+   * The other way the watchdog goes silent, and the one nobody had a message for.
+   *
+   * `thresholdConfig` normalizes a `checkpointThresholdPercent` outside 40-60 to
+   * 0, and the threshold check then refuses 0 — so a project that wrote 70
+   * disarmed its own reminder permanently, and got the same `false` as a project
+   * sitting at 10% of window. Worse than the window case: a window is absent and
+   * can be noticed as absent, while this number is right there in the config and
+   * looks configured.
+   *
+   * The two admissions must not be interchangeable. Telling this project to set
+   * `windowTokens` sends it looking for a misconfiguration it does not have,
+   * which is the detour #193 already charged an operator for.
+   */
+  it('admits a threshold it cannot apply, and names the threshold not the window', () => {
+    const root = project();
+    writeFileSync(checkpoint(root), '## Objective\n\nThreshold out of range.\n');
+    writeFileSync(
+      join(root, '.void', 'config.json'),
+      `${JSON.stringify({ context: { windowTokens: 1_000, checkpointThresholdPercent: 70 } })}\n`,
+    );
+    writeFileSync(transcript(root), `${usageLine(730)}\n`);
+    executeContextContinuity({ hook_event_name: 'PreCompact' }, root, 'codex', 1_000);
+
+    const result = executeContextContinuity({
+      hook_event_name: 'UserPromptSubmit',
+      transcript_path: transcript(root),
+    }, root, 'codex', 2_000);
+
+    const said = result.output?.hookSpecificOutput.additionalContext ?? '';
+    expect(said).toContain('checkpointThresholdPercent');
+    expect(said).toMatch(/40|60/);
+    expect(said).not.toContain('windowTokens');
+  });
+
+  it('falls silent after admitting the threshold once', () => {
+    const root = project();
+    writeFileSync(checkpoint(root), '## Objective\n\nSaid once.\n');
+    writeFileSync(
+      join(root, '.void', 'config.json'),
+      `${JSON.stringify({ context: { windowTokens: 1_000, checkpointThresholdPercent: 70 } })}\n`,
+    );
+    writeFileSync(transcript(root), `${usageLine(730)}\n`);
+    executeContextContinuity({ hook_event_name: 'PreCompact' }, root, 'codex', 1_000);
+    executeContextContinuity({
+      hook_event_name: 'UserPromptSubmit',
+      transcript_path: transcript(root),
+    }, root, 'codex', 2_000);
+
+    appendFileSync(transcript(root), `${usageLine(800)}\n`);
+    const again = executeContextContinuity({
+      hook_event_name: 'UserPromptSubmit',
+      transcript_path: transcript(root),
+    }, root, 'codex', 3_000);
+
+    expect(again.output).toBe(undefined);
   });
 
   it('records usage but emits no percentage or nudge without a known window', () => {

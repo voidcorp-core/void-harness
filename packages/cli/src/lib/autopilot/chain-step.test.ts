@@ -19,6 +19,7 @@ function observation(over: Partial<ChainObservation> = {}): ChainObservation {
   return {
     schemaVersion: 1,
     merged: [],
+    taken: [],
     elapsedMs: 0,
     postMerge: undefined,
     pool: ['DEV-1', 'DEV-2'],
@@ -40,6 +41,7 @@ describe('what the chain does next', () => {
     const step = decideChainStep(
       observation({
         merged: [unit(['DEV-1'])],
+        taken: [{ tickets: ['DEV-1'], outcome: 'merged' }],
         postMerge: { kind: 'green', sha: MERGE, suite: '4165 passed' },
         elapsedMs: 20 * MINUTE,
       }),
@@ -53,6 +55,7 @@ describe('what the chain does next', () => {
     const step = decideChainStep(
       observation({
         merged: [unit(['DEV-1']), unit(['DEV-2'])],
+        taken: [{ tickets: ['DEV-1'], outcome: 'merged' }, { tickets: ['DEV-2'], outcome: 'merged' }],
         postMerge: { kind: 'green', sha: MERGE, suite: 'ok' },
         elapsedMs: 20 * MINUTE,
       }),
@@ -68,6 +71,7 @@ describe('what the chain does next', () => {
     const step = decideChainStep(
       observation({
         merged: [unit(['DEV-1'])],
+        taken: [{ tickets: ['DEV-1'], outcome: 'merged' }],
         postMerge: { kind: 'red', sha: MERGE, failing: ['x.test.ts'] },
         elapsedMs: 20 * MINUTE,
       }),
@@ -95,6 +99,7 @@ describe('what the chain does next', () => {
     const step = decideChainStep(
       observation({
         merged: [unit(['DEV-1'])],
+        taken: [{ tickets: ['DEV-1'], outcome: 'merged' }],
         postMerge: { kind: 'green', sha: MERGE, suite: 'ok' },
         elapsedMs: 20 * MINUTE,
       }),
@@ -106,7 +111,11 @@ describe('what the chain does next', () => {
 
   it('stops rather than guessing when the base after a merge was never observed', () => {
     const step = decideChainStep(
-      observation({ merged: [unit(['DEV-1'])], elapsedMs: 20 * MINUTE }),
+      observation({
+        merged: [unit(['DEV-1'])],
+        taken: [{ tickets: ['DEV-1'], outcome: 'merged' }],
+        elapsedMs: 20 * MINUTE,
+      }),
       program,
     );
 
@@ -120,6 +129,7 @@ describe('what a stop tells a person who is not at a terminal', () => {
     const step = decideChainStep(
       observation({
         merged: [unit(['DEV-1'])],
+        taken: [{ tickets: ['DEV-1'], outcome: 'merged' }],
         postMerge: { kind: 'red', sha: MERGE, failing: ['x.test.ts'] },
         elapsedMs: 20 * MINUTE,
       }),
@@ -147,6 +157,7 @@ describe('what a stop tells a person who is not at a terminal', () => {
     const step = decideChainStep(
       observation({
         merged: [unit(['DEV-1'])],
+        taken: [{ tickets: ['DEV-1'], outcome: 'merged' }],
         postMerge: { kind: 'green', sha: MERGE, suite: 'ok' },
         elapsedMs: 20 * MINUTE,
         debts,
@@ -162,5 +173,74 @@ describe('what a stop tells a person who is not at a terminal', () => {
 
     expect(step.decision.kind).toBe('continue');
     expect(step.disposition).toBeTruthy();
+  });
+});
+
+describe('what the run of 2026-09-02 taught the chain', () => {
+  // The observation as it was, replayed. One unit taken, DEV-703, worked for
+  // 59 minutes, reconciled, published and handed to a person with its checks
+  // green. 84 minutes of the 120 spent. `autopilot chain` answered
+  // `continue ... nextUnit: DEV-703`: the unit it had just handed back, into
+  // 36 minutes that could not hold the only unit it had ever measured.
+  const replay = (over: Partial<ChainObservation> = {}): ChainObservation => ({
+    schemaVersion: 1,
+    merged: [],
+    taken: [{ tickets: ['DEV-703'], outcome: 'published-awaiting-human' }],
+    elapsedMs: 84 * MINUTE,
+    postMerge: undefined,
+    pool: ['DEV-703', 'DEV-705', 'DEV-704', 'DEV-683', 'DEV-682', 'DEV-706', 'DEV-612'],
+    ...over,
+  });
+
+  it('answers budget-spent on the real observation, from the unit it measured', () => {
+    const step = decideChainStep(replay(), program);
+
+    expect(step.decision.kind).toBe('stop');
+    if (step.decision.kind === 'stop') {
+      expect(step.decision.reason).toBe('budget-spent');
+      expect(step.decision.detail).toMatch(/1h24m/);
+    }
+    expect(step.nextUnit).toBeUndefined();
+  });
+
+  it('never proposes a unit that is published and waiting for a person', () => {
+    const step = decideChainStep(replay({ elapsedMs: 30 * MINUTE }), program);
+
+    expect(step.nextUnit).not.toBe('DEV-703');
+    expect(step.decision.kind).toBe('stop');
+    if (step.decision.kind === 'stop') expect(step.decision.reason).toBe('awaiting-human');
+  });
+
+  it('never proposes a blocked unit either, and moves on to the next one', () => {
+    const step = decideChainStep(
+      replay({
+        taken: [{ tickets: ['DEV-703'], outcome: 'unit-blocked' }],
+        elapsedMs: 20 * MINUTE,
+      }),
+      program,
+    );
+
+    expect(step.decision.kind).toBe('continue');
+    expect(step.nextUnit).toBe('DEV-705');
+  });
+
+  it('names the unit waiting for a person apart from the ones still ready', () => {
+    const step = decideChainStep(replay(), program);
+
+    expect(step.disposition).toMatch(/waiting[^;.]*DEV-703/i);
+    expect(step.disposition).toMatch(/still ready: DEV-705/);
+    expect(step.disposition).not.toMatch(/still ready:[^.]*DEV-703/);
+  });
+
+  it('refuses an observation whose merged journal and taken list disagree', () => {
+    expect(() => decideChainStep(
+      replay({ merged: [unit(['DEV-1'])], postMerge: { kind: 'green', sha: MERGE, suite: 'ok' } }),
+      program,
+    )).toThrow(/DEV-1/);
+
+    expect(() => decideChainStep(
+      replay({ taken: [{ tickets: ['DEV-703'], outcome: 'merged' }] }),
+      program,
+    )).toThrow(/DEV-703/);
   });
 });

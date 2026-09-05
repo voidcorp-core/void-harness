@@ -32,12 +32,36 @@ export type PostMergeObservation =
   | { readonly kind: 'green'; readonly sha: string; readonly suite: string }
   | { readonly kind: 'red'; readonly sha: string; readonly failing: readonly string[] };
 
+/**
+ * Where a unit this run took ended up.
+ *
+ * Three ends, and none of them is "remaining". Measured on 2026-09-02: the only
+ * state the chain knew was `merged`, so a unit published and handed to a person
+ * counted as still ready, and the next decision proposed it again -- to a caller
+ * that would have started a second worker on a ticket whose pull request was
+ * open. A unit is taken once. What it became is a fact about it, not a reason
+ * to take it again.
+ *
+ * `unit-blocked` rather than `blocked`, because the skill page that documents
+ * this table also documents the `status` verdict of that name, which is about a
+ * pull request -- closed unmerged, on a foreign branch, merged with no commit.
+ * Two reader-facing states cannot share a word on the same page, and this is the
+ * one nothing had ever produced, so it is the one that moves.
+ */
+export type TakenOutcome = 'merged' | 'published-awaiting-human' | 'unit-blocked';
+
+export interface TakenUnit {
+  readonly tickets: readonly string[];
+  readonly outcome: TakenOutcome;
+}
+
 export type ChainStopReason =
   | 'post-merge-red'
   | 'post-merge-unverified'
   | 'post-merge-stale'
   | 'budget-spent'
   | 'budget-unreadable'
+  | 'awaiting-human'
   | 'nothing-ready';
 
 export type ChainDecision =
@@ -68,15 +92,20 @@ export const DEFAULT_CHAIN_BUDGET_MS = 120 * MINUTE_MS;
 const MAX_CHAIN_BUDGET_MS = 24 * 60 * MINUTE_MS;
 
 /**
- * What a first unit is assumed to take, until this run has measured one.
+ * What a unit is assumed to take, until this run has finished one.
  *
- * A cold estimate, and named as one: it is used for exactly as long as there is
- * nothing better, and the first merge replaces it with what this run actually
- * spent. Deliberately below anything observed rather than near it -- the job here
- * is to refuse a run that cannot possibly finish a unit, not to second-guess a
- * run that might. A unit owes a full TDD cycle, a review pass and the whole
- * declared verify suite before it merges, and none of that has ever come in
- * under a quarter of an hour in this repository.
+ * A cold estimate, and named as one: it serves for exactly as long as nothing
+ * in this run has FINISHED -- merged, or published and handed to a person --
+ * and the first finish replaces it outright. A blocked unit is not a finish: it
+ * measured how long failing takes, not how long finishing does, so it neither
+ * replaces the estimate nor dilutes a measurement. On 2026-09-02 a run had
+ * measured 84 minutes for a unit that came back published and unmerged, and
+ * still projected the next one at 15, because only a merge counted; the fix
+ * that widened "merged" to "taken" then averaged a two-minute failure in with an
+ * eighty-minute merge and kept this constant as a floor under the result. Both
+ * are gone. Deliberately below anything observed rather than near it -- the job
+ * here is to refuse a run that cannot possibly finish a unit, not to second-guess
+ * a run that might. See the only-a-finished-unit-measures decision.
  */
 const COLD_START_UNIT_MS = 15 * MINUTE_MS;
 
@@ -169,6 +198,11 @@ function stop(
 export function planChainStep(input: {
   /** Everything merged so far in this run, oldest first. */
   readonly merged: readonly MergedUnit[];
+  /**
+   * Every unit this run took, oldest first, merged ones included. The finished
+   * ones -- merged, or published and waiting -- are what the budget measures by.
+   */
+  readonly taken: readonly TakenUnit[];
   /** How long this run may keep taking new units. */
   readonly budgetMs: number;
   /** How long it has been running. */
@@ -182,40 +216,89 @@ export function planChainStep(input: {
   // base is still a broken base, and reporting "cap" would read as a nominal end
   // and send nobody to look at it.
   const last = input.merged[input.merged.length - 1];
-  if (last !== undefined) {
-    if (input.postMerge === undefined) {
-      return stop(
-        'post-merge-unverified',
-        true,
-        'the merged base was never verified, and an unverified base is not a green one',
-        'run the full suite on the base, then decide whether the chain may continue',
-      );
-    }
-    // A verdict about another tree is not a verdict, exactly as `review-stale`
-    // reads it on the merge grant. A suite that ran before this merge landed, or
-    // on a base someone else has since pushed to, describes a tree the chain is
-    // no longer standing on -- and it is the reading a green result would be
-    // trusted on.
-    if (input.postMerge.sha !== last.mergeCommit) {
-      return stop(
-        'post-merge-stale',
-        true,
-        `the suite was observed on ${short(input.postMerge.sha)}, and the merge produced`
-          + ` ${short(last.mergeCommit)}`,
-        'run the full suite on the commit the merge actually produced, then decide',
-      );
-    }
-    if (input.postMerge.kind === 'red') {
-      const named = input.postMerge.failing.slice(0, 3).join(', ');
-      return stop(
-        'post-merge-red',
-        true,
-        `the suite failed on ${short(input.postMerge.sha)}: ${named}`,
-        'fix the base before anything else merges; the next unit was not started',
-      );
-    }
+  const base = last === undefined ? undefined : judgeBase(last, input.postMerge);
+  if (base !== undefined) return base;
+
+  const budget = judgeBudget(input);
+  if (budget !== undefined) return budget;
+
+  // After the budget, on purpose: on 2026-09-02 both were true at once, and the
+  // budget is the reading that says why this run is over rather than merely
+  // paused on a person. Before `nothing-ready`, also on purpose: a run that
+  // handed a unit to someone did not run out of work, it is waiting on them.
+  //
+  // Another unit would start on the base as it is, without the change the
+  // person has not accepted yet. That stacks a second pull request on a first
+  // one nobody has read, and turns "the human eye is at the merge" into two
+  // merges to reason about at once.
+  const waiting = input.taken.filter((unit) => unit.outcome === 'published-awaiting-human');
+  if (waiting.length > 0) {
+    const named = waiting.flatMap((unit) => unit.tickets).join(', ');
+    return stop(
+      'awaiting-human',
+      false,
+      `${named} is published and waiting for a person; another unit would stack on a base`
+        + ' that person has not accepted yet',
+      'review the pull request; once it is merged or closed, start another run',
+    );
   }
 
+  if (input.nextReady <= 0) {
+    return stop('nothing-ready', false, 'no unit is ready to take', 'nothing to do; the backlog decides when there is');
+  }
+
+  return {
+    kind: 'continue',
+    detail: `base green after ${String(input.merged.length)} merge(s), ${String(input.nextReady)} unit(s) ready,`
+      + ` ${describe(input.budgetMs - input.elapsedMs)} left`,
+  };
+}
+
+/** Whether the base the last merge produced can be stood on; undefined when it can. */
+function judgeBase(
+  last: MergedUnit,
+  postMerge: PostMergeObservation | undefined,
+): ChainDecision | undefined {
+  if (postMerge === undefined) {
+    return stop(
+      'post-merge-unverified',
+      true,
+      'the merged base was never verified, and an unverified base is not a green one',
+      'run the full suite on the base, then decide whether the chain may continue',
+    );
+  }
+  // A verdict about another tree is not a verdict, exactly as `review-stale`
+  // reads it on the merge grant. A suite that ran before this merge landed, or
+  // on a base someone else has since pushed to, describes a tree the chain is
+  // no longer standing on -- and it is the reading a green result would be
+  // trusted on.
+  if (postMerge.sha !== last.mergeCommit) {
+    return stop(
+      'post-merge-stale',
+      true,
+      `the suite was observed on ${short(postMerge.sha)}, and the merge produced`
+        + ` ${short(last.mergeCommit)}`,
+      'run the full suite on the commit the merge actually produced, then decide',
+    );
+  }
+  if (postMerge.kind === 'red') {
+    const named = postMerge.failing.slice(0, 3).join(', ');
+    return stop(
+      'post-merge-red',
+      true,
+      `the suite failed on ${short(postMerge.sha)}: ${named}`,
+      'fix the base before anything else merges; the next unit was not started',
+    );
+  }
+  return undefined;
+}
+
+/** Whether the run may START another unit; undefined when it may. */
+function judgeBudget(input: {
+  readonly taken: readonly TakenUnit[];
+  readonly budgetMs: number;
+  readonly elapsedMs: number;
+}): ChainDecision | undefined {
   // A budget or a clock that is not a number makes every comparison below false,
   // and `NaN <= 0` is false -- so an unreadable budget used to read as "time
   // left" and continue. The one direction this must never fail in.
@@ -245,37 +328,32 @@ export function planChainStep(input: {
   // START another. So the question is not "is there time left" but "is there
   // enough", answered from what this run has actually taken rather than a guess.
   //
-  // The first unit of a run has nothing to answer from, and skipping the question
-  // there let `for 1m` -- a legal shortening -- start work that takes the better
-  // part of an hour, against an ADR that says a run cannot exceed what was
-  // declared for it. So a cold run is projected against COLD_START_UNIT_MS until
-  // it has a measurement of its own, and from the first merge the measurement
-  // replaces it.
-  const perUnit = last === undefined
-    ? COLD_START_UNIT_MS
-    : input.elapsedMs / input.merged.length;
+  // A run in which nothing has finished has nothing to answer from, and skipping
+  // the question there let `for 1m` -- a legal shortening -- start work that
+  // takes the better part of an hour, against an ADR that says a run cannot
+  // exceed what was declared for it. So such a run is projected against
+  // COLD_START_UNIT_MS, and from the first unit that finished the measurement
+  // replaces it: the whole elapsed time, failures included, over the units that
+  // finished. A blocked unit spent the run's time and is in the numerator; it is
+  // not a second unit to divide by. See the only-a-finished-unit-measures
+  // decision.
+  const finished = input.taken.filter((unit) => unit.outcome !== 'unit-blocked').length;
+  const cold = finished === 0;
+  const perUnit = cold ? COLD_START_UNIT_MS : input.elapsedMs / finished;
   if (remaining < perUnit) {
     return stop(
       'budget-spent',
       false,
-      last === undefined
-        ? `${describe(remaining)} left, and no unit here has ever finished in under`
-          + ` ${describe(COLD_START_UNIT_MS)}; the first one would not finish inside the budget`
-        : `${describe(remaining)} left and each unit has taken about ${describe(perUnit)};`
-          + ' the next one would not finish inside the budget',
+      cold
+        ? `${describe(remaining)} left, and nothing this run took has finished yet, so the`
+          + ` next unit is projected against the estimate of ${describe(COLD_START_UNIT_MS)};`
+          + ' it would not finish inside the budget'
+        : `${describe(remaining)} left and each finished unit has taken about`
+          + ` ${describe(perUnit)}; the next one would not finish inside the budget`,
       'read the journal, then start another run if the direction still holds',
     );
   }
-
-  if (input.nextReady <= 0) {
-    return stop('nothing-ready', false, 'no unit is ready to take', 'nothing to do; the backlog decides when there is');
-  }
-
-  return {
-    kind: 'continue',
-    detail: `base green after ${String(input.merged.length)} merge(s), ${String(input.nextReady)} unit(s) ready,`
-      + ` ${describe(input.budgetMs - input.elapsedMs)} left`,
-  };
+  return undefined;
 }
 
 /**

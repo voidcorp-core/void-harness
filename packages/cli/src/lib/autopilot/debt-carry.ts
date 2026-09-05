@@ -63,6 +63,10 @@ export function carryDebt(
 
 export interface Disposition {
   readonly merged: readonly string[];
+  /** Published and handed to a person; not remaining, and not kept either. */
+  readonly awaitingHuman: readonly string[];
+  /** Taken and handed back without a range to integrate. */
+  readonly blocked: readonly string[];
   readonly remaining: readonly string[];
   readonly debts: readonly CarriedDebt[];
 }
@@ -73,6 +77,10 @@ export interface Disposition {
  * Every stop in this chain preserves its work -- leases, branches, commits and
  * the cursor stay exactly where they are. That is true in the code and was said
  * nowhere a reader would meet it.
+ *
+ * A unit waiting for a person is named on its own, never among the ready ones:
+ * "still ready: DEV-703" is the sentence that sent a relaunch back onto an open
+ * pull request on 2026-09-02.
  */
 export function renderDisposition(disposition: Disposition): string {
   const merged = disposition.merged.length;
@@ -81,6 +89,15 @@ export function renderDisposition(disposition: Disposition): string {
   const kept = merged === 0
     ? 'nothing merged yet, so no unit is at risk'
     : `${String(merged)} unit(s) merged and kept: ${disposition.merged.join(', ')}`;
+
+  const waiting = disposition.awaitingHuman.length === 0
+    ? []
+    : [`${String(disposition.awaitingHuman.length)} waiting for a person:`
+      + ` ${disposition.awaitingHuman.join(', ')}`];
+
+  const blocked = disposition.blocked.length === 0
+    ? []
+    : [`${String(disposition.blocked.length)} blocked: ${disposition.blocked.join(', ')}`];
 
   const left = remaining === 0
     ? 'nothing is still ready'
@@ -92,5 +109,6 @@ export function renderDisposition(disposition: Disposition): string {
         .map((debt) => `${debt.proof} (${debt.severity}, ${debt.unit})`)
         .join('; ')}`;
 
-  return `${kept}; ${left}. Relaunching resumes and loses nothing.${owed}`;
+  const account = [kept, ...waiting, ...blocked, left].join('; ');
+  return `${account}. Relaunching resumes and loses nothing.${owed}`;
 }

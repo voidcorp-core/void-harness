@@ -21,8 +21,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -47,6 +49,7 @@ beforeEach(() => {
 afterEach(() => {
   process.chdir(cwd);
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -74,12 +77,26 @@ async function failingSecondInstall(): Promise<void> {
 
 describe('the ignore block never outlives a transaction that failed', () => {
   it('claims no agent path the install did not write', async () => {
+    const temporary = join(dir, 'temporary');
+    mkdirSync(temporary);
+    vi.stubEnv('TMPDIR', temporary);
+    vi.stubEnv('TMP', temporary);
+    vi.stubEnv('TEMP', temporary);
     await init(['--runtime', 'claude', '--no-interactive']);
     // The project cleared them out; whether it was right to is not the question.
     // What matters is that the failed install below does not claim them back.
     rmSync(join(dir, '.claude', 'agents'), { recursive: true, force: true });
 
+    let stageAtExit: string[] | undefined;
+    vi.mocked(process.exit).mockImplementationOnce((code) => {
+      stageAtExit = readdirSync(temporary).filter((name) => name.startsWith('void-init-stage-'));
+      throw new Error(`process.exit(${String(code ?? 0)})`);
+    });
     await failingSecondInstall();
+
+    // Throwing from a mocked exit runs finally; a real process.exit does not.
+    // Observe cleanup at the exit boundary, before the mock can mask a leak.
+    expect(stageAtExit).toEqual([]);
 
     const absent = claimedAgentPaths().filter((path) => !existsSync(join(dir, ...path.split('/'))));
     expect(absent).toEqual([]);
@@ -101,5 +118,39 @@ describe('the ignore block never outlives a transaction that failed', () => {
 
     expect(exclude()).toContain('.claude/agents/doctrine-critic.md');
     expect(claimedAgentPaths().length).toBeGreaterThan(1);
+  });
+});
+
+// `.gitignore` beats `info/exclude`, which is the right way round: a project
+// rule must win over ours. What is not right is winning in silence. The project
+// that prompted this carried `.void/*` from years before the harness, so its
+// clone had no config.json, no install-manifest.json and no hook runner, while
+// `.claude/settings.json` was committed and named seven hooks pointing at them.
+describe('init says so when a project rule hides what it just installed', () => {
+  it('names the path and the rule instead of reporting a clean install', async () => {
+    writeFileSync(join(dir, '.gitignore'), '.void/*\n!.void/PROJECT-DOCTRINE.md\n');
+    const printed: string[] = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk: string | Uint8Array): boolean => {
+      printed.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString());
+      return true;
+    });
+
+    await init(['--runtime', 'claude', '--no-interactive']);
+
+    const out = printed.join('');
+    expect(out).toContain('.void/config.json');
+    expect(out).toContain('.gitignore:1:.void/*');
+  });
+
+  it('says nothing on a project whose rules leave the harness visible', async () => {
+    const printed: string[] = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk: string | Uint8Array): boolean => {
+      printed.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString());
+      return true;
+    });
+
+    await init(['--runtime', 'claude', '--no-interactive']);
+
+    expect(printed.join('')).not.toContain('hidden from git by a project rule');
   });
 });

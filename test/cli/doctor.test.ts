@@ -9,6 +9,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { appendFileSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { doctor } from '../../packages/cli/src/commands/doctor.js';
@@ -151,6 +152,64 @@ describe('doctor', () => {
     const out = await runDoctor();
 
     expect(out).toContain('1 file(s) differ from manifest');
+    // Naming it, because the alternative was rehashing the manifest by hand.
+    expect(out).toContain('.claude/skills/void-tdd/SKILL.md');
+  });
+
+  // A real repository, because the defect is entirely about what git decides:
+  // the project carried `.void/*` above the managed block, git does not descend
+  // into an excluded directory, and install-manifest.json, config.json and the
+  // hook runner were all untracked on a fresh clone while .claude/settings.json
+  // named the hooks. The check read the lines and never asked git whether they won.
+  it('names the project rule that hides a path the harness declares tracked', async () => {
+    execFileSync('git', ['init', '-q'], { cwd: dir });
+    writeFileSync(join(dir, '.gitignore'), '.void/*\n!.void/PROJECT-DOCTRINE.md\n');
+    await init(['--runtime', 'claude', '--no-interactive']);
+    output = '';
+
+    const out = await runDoctor();
+
+    expect(out).toContain('void kept');
+    expect(out).toContain('.void/config.json');
+    expect(out).toContain('.gitignore:1:.void/*');
+  });
+
+  it('stays green on the same install without that rule', async () => {
+    execFileSync('git', ['init', '-q'], { cwd: dir });
+    await init(['--runtime', 'claude', '--no-interactive']);
+    output = '';
+
+    const out = await runDoctor();
+
+    expect(out).toContain('git keeps all');
+    expect(out).not.toContain('cannot start without');
+  });
+
+  // With a programme at one path doctor printed eight autopilot lines; with the
+  // same file at another it printed none, and a silent report reads as "no
+  // active programme". Saying nothing about a thing you looked for is the one
+  // answer a reader cannot tell from not having looked.
+  it('says where it looked for a programme instead of falling silent', async () => {
+    await init(['--runtime', 'claude', '--no-interactive']);
+    output = '';
+
+    const out = await runDoctor();
+
+    expect(out).toContain('.void/program.md');
+    expect(out).toContain('no active program');
+  });
+
+  it('runs the autopilot preconditions once a programme is declared', async () => {
+    await init(['--runtime', 'claude', '--no-interactive']);
+    writeFileSync(
+      join(dir, '.void', 'program.md'),
+      '---\nschemaVersion: 1\nstatus: executing\nprogram: p\nplan: docs/p.md\nspec: docs/s.md\nhumanGates: [merge]\n---\n',
+    );
+    output = '';
+
+    const out = await runDoctor();
+
+    expect(out).not.toContain('no active program');
   });
 
   it('reports the source repository as self-host not-installed instead of skipping green', async () => {

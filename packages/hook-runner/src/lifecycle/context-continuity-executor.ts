@@ -17,6 +17,7 @@ import { homedir } from 'node:os';
 import { basename, isAbsolute, join, relative, resolve } from 'node:path';
 import {
   advanceMechanicalContext,
+  type ContextUnjudgeable,
   evaluateContextMeasurement,
   hashCheckpointObjective,
   type MechanicalContextState,
@@ -264,6 +265,9 @@ export function claimStaleLock(
     try {
       const current = lstatSync(path);
       if (observed === undefined || !sameFile(current, observed)) return undefined;
+      // An unlinked inode can be reused for a fresh owner's lock before this
+      // claimant obtains the recovery fence. Identity alone does not prove age.
+      if (!staleFile(current, now)) return undefined;
       if (!unlinkOwnedPath(path, observed)) return undefined;
     } catch (error) {
       if (observed !== undefined || errorCode(error) !== 'ENOENT') return undefined;
@@ -712,6 +716,8 @@ interface MeasurementEvolution {
   readonly state: MechanicalContextState;
   readonly emitNudge: boolean;
   readonly usagePercent?: number;
+  /** Why the threshold could not be judged, carried from the decision itself. */
+  readonly unjudgeable?: ContextUnjudgeable;
   readonly skippedBytes: number;
   readonly skippedLines: number;
 }
@@ -765,6 +771,7 @@ function measureContext(
     state: decision.state,
     emitNudge: decision.emitNudge,
     ...(decision.usagePercent === undefined ? {} : { usagePercent: decision.usagePercent }),
+    ...(decision.unjudgeable === undefined ? {} : { unjudgeable: decision.unjudgeable }),
     skippedBytes: observed.skippedBytes,
     skippedLines: observed.skippedLines,
   };
@@ -785,14 +792,20 @@ function measureContext(
  */
 function unwatchableOutput(
   event: 'UserPromptSubmit' | 'PostToolUse',
+  reason: ContextUnjudgeable,
 ): NonNullable<ContextContinuityExecution['output']> {
   return {
     hookSpecificOutput: {
       hookEventName: event,
       additionalContext:
-        'Context usage is being recorded but cannot be watched: no `context.windowTokens` is '
-        + 'configured in `.void/config.json`, so no percentage and no checkpoint threshold can '
-        + 'be computed. Set it to the model context window to enable the reminder.',
+        reason === 'window-unknown'
+          ? 'Context usage is being recorded but cannot be watched: no `context.windowTokens` is '
+            + 'configured in `.void/config.json`, so no percentage and no checkpoint threshold can '
+            + 'be computed. Set it to the model context window to enable the reminder.'
+          : 'Context usage is being recorded but the checkpoint threshold cannot be applied: '
+            + '`context.checkpointThresholdPercent` in `.void/config.json` is outside the accepted '
+            + '40 to 60 range, which disarms the reminder entirely. Set it within that range, or '
+            + 'remove it to take the default of 50.',
     },
   };
 }
@@ -926,7 +939,15 @@ function evolveCheckpoint(
     // fired, and setting it here would consume the very reminder this message
     // tells the reader to enable. The two latches re-arm together on clear and
     // compact, which is the only place either claim stops being true.
-    const unwatchable = thresholdConfig(root).windowTokens === undefined
+    // The reason comes from the decision that could not judge, not from re-reading
+    // the config here. Reconstructing it made the check see only the missing
+    // window, so a threshold outside 40-60 disarmed the reminder with no message
+    // at all -- the config was complete, and the one reader who could tell was
+    // looking at a different field. The config fallback stays for the turns where
+    // no measurement ran, so an absent window is still admitted as before.
+    const unjudgeable: ContextUnjudgeable | undefined = measurement.unjudgeable
+      ?? (thresholdConfig(root).windowTokens === undefined ? 'window-unknown' : undefined);
+    const unwatchable = unjudgeable !== undefined
       && !measured.unwatchableNotified
       && event !== undefined;
     const next = unwatchable
@@ -952,8 +973,8 @@ function evolveCheckpoint(
         },
         ...(measurement.emitNudge && event !== undefined
           ? { output: nudgeOutput(event, thresholdConfig(root).thresholdPercent) }
-          : unwatchable && event !== undefined
-            ? { output: unwatchableOutput(event) }
+          : unwatchable && event !== undefined && unjudgeable !== undefined
+            ? { output: unwatchableOutput(event, unjudgeable) }
             : {}),
       },
     };

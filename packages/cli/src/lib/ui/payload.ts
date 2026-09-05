@@ -5,10 +5,11 @@
 // moment either side composes its own version, the two start describing the same
 // project differently and there is no way to tell which is right.
 
-import { homedir } from 'node:os';
-import { join } from 'node:path';
 import { readDiscoveryConfig } from '../projects/config.js';
-import { discoverProjects } from '../projects/discover.js';
+import {
+  discoverConfiguredProjects,
+  voidGlobalDir,
+} from '../projects/catalog.js';
 import { readProjectSummary } from '../projects/read.js';
 import type { ProjectSummary } from '../projects/summary.js';
 import type { UnreadablePath } from '../projects/discover.js';
@@ -22,9 +23,7 @@ export interface ProjectsPayload {
   readonly projects: readonly ProjectSummary[];
 }
 
-export function voidGlobalDir(): string {
-  return process.env.VOID_GLOBAL_DIR ?? join(homedir(), '.void');
-}
+export { voidGlobalDir } from '../projects/catalog.js';
 
 /**
  * Projects needing attention first, then the ones touched most recently.
@@ -48,16 +47,15 @@ export interface PayloadOptions {
 /** Read the park. Never writes, never regenerates, never caches. */
 export function readProjectsPayload(options: PayloadOptions = {}): ProjectsPayload {
   const now = options.now ?? Date.now();
-  const config = readDiscoveryConfig({
+  const discovered = discoverConfiguredProjects({
     globalDir: options.globalDir ?? voidGlobalDir(),
     cwd: options.cwd ?? process.cwd(),
   });
-  const discovered = discoverProjects({ roots: config.roots, exclude: config.exclude });
 
   return {
     readAt: new Date(now).toISOString(),
-    roots: config.roots,
-    rootsSource: config.source,
+    roots: discovered.roots,
+    rootsSource: discovered.rootsSource,
     unreadable: discovered.unreadable,
     projects: discovered.projects
       .map((ref) => readProjectSummary(ref, now))

@@ -55,6 +55,7 @@ function workerResult(over: Record<string, unknown> = {}): Record<string, unknow
     files: ['packages/cli/src/a.ts'],
     proofs: [{ name: 'suite', command: ['pnpm', 'test'], hash: 'd'.repeat(64) }],
     decisions: [],
+    review: { kind: 'panel', passes: [{ name: 'code-review', context: 'fresh-context-subagent' }] },
     blocker: null,
     ...over,
   };
