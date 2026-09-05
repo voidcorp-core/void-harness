@@ -6,15 +6,15 @@ import {
   type MissionVerdict,
   type MissionVerdictStatus,
 } from '../evidence/verdict.js';
-import {
-  reduceReviewLoop,
-  type ReviewLoopState,
-} from './review-loop.js';
 import type {
   SpecialistId,
   SpecialistInvocationStage,
   SpecialistRoutingDecision,
 } from '../specialist/routing.js';
+import {
+  type ReviewLoopState,
+  reduceReviewLoop,
+} from './review-loop.js';
 
 export interface MissionSpecialistPlan {
   readonly planHash: string;
@@ -187,6 +187,20 @@ function writerViolation(input: MissionTeamControllerInput, expected: string): b
 
 function writerCompletions(input: MissionTeamControllerInput): readonly CanonicalEvent[] {
   return input.stream.events.filter((event) => event.kind === 'lead-writer.completed');
+}
+
+type LeadWriterActionKind =
+  | 'run-lead-writer'
+  | 'run-correction'
+  | 'run-preparation-correction';
+
+function leadWriterActionKind(event: CanonicalEvent): LeadWriterActionKind | undefined {
+  const actionKind = lifecycleField(event, 'actionKind');
+  return actionKind === 'run-lead-writer'
+    || actionKind === 'run-correction'
+    || actionKind === 'run-preparation-correction'
+    ? actionKind
+    : undefined;
 }
 
 function lifecycleField(event: CanonicalEvent, key: string): JsonValue | undefined {
@@ -436,6 +450,26 @@ export function orchestrateMissionTeam(
       'lead writer completion is not bound to a controller request',
     ]);
   }
+
+  const firstWriter = firstWriterSeq === undefined
+    ? undefined
+    : completions.find((event) => event.seq === firstWriterSeq);
+  if (
+    preReview.status === 'correction-required'
+    && completions.length === 1
+    && firstWriter !== undefined
+    && leadWriterActionKind(firstWriter) === 'run-preparation-correction'
+  ) {
+    const reasons = ['preparation correction completed; implementation is pending'];
+    return applyRuntimeCertification({
+      phase: 'implementation',
+      action: { kind: 'run-lead-writer', writerId: start.leadWriterId },
+      review: preReview,
+      verdict: overrideVerdict(baseVerdict, 'unverified', reasons),
+      reasons,
+    }, input.specialistRuntime);
+  }
+
   if (!preReview.readyForVerdict) {
     return applyRuntimeCertification(
       decideReviewPhase(start, preReview, baseVerdict, 'pre-implementation'),
