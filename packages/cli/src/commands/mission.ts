@@ -959,7 +959,7 @@ function implementationBaseHead(
   return typeof head === 'string' && /^[0-9a-f]{40}$/.test(head) ? head : undefined;
 }
 
-async function currentHead(root: string): Promise<string | undefined> {
+async function currentHead(root: string): Promise<string> {
   try {
     const result = await execFile('git', ['rev-parse', '--verify', 'HEAD'], {
       cwd: root,
@@ -967,9 +967,13 @@ async function currentHead(root: string): Promise<string | undefined> {
       timeout: 5_000,
     });
     const head = result.stdout.trim();
-    return /^[0-9a-f]{40}$/.test(head) ? head : undefined;
-  } catch {
-    return undefined;
+    if (/^[0-9a-f]{40}$/.test(head)) return head;
+    throw new Error('MISSION_IMPLEMENTATION_BASE_INVALID: git returned an invalid HEAD');
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('MISSION_IMPLEMENTATION_BASE_')) {
+      throw error;
+    }
+    throw new Error('MISSION_IMPLEMENTATION_BASE_UNAVAILABLE: unable to resolve git HEAD');
   }
 }
 
