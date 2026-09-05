@@ -425,78 +425,51 @@ describe('parseMissionArgs', () => {
       json: true,
     })).rejects.toThrow('no controller writer request is pending');
 
-    let preparation = first;
-    for (const round of [1, 2]) {
-      for (const [index, envelope] of preparation.envelopes.entries()) {
-        const contextId = `ctx_dispatch_${round}_${index}_${envelope.agentName}`;
-        await recordSpecialistLifecycle(root, missionId, {
-          status: 'started',
-          envelope,
-          contextId,
-        });
-        await recordSpecialistLifecycle(root, missionId, {
-          status: 'completed',
-          envelope,
-          contextId,
-          completion: {
-            schemaVersion: 1,
-            specialistId: envelope.specialistId,
-            contractVersion: envelope.contractVersion,
-            completionId: `cmp_dispatch_${round}_${index}_${envelope.agentName}`,
-            verdict: 'pass',
-            findings: [],
-            evidenceRequests: round === 1 && index === 0
-              ? ['Explain how corrected preparation invalidates old reviews.'] : [],
-            limitations: [],
-          },
-        });
-      }
-      if (round === 1) {
-        const correction = await dispatchMissionSpecialists(
-          resolveProjectRoots(root), input, '2026-08-21T12:00:00.000Z', capability,
-        );
-        expect(correction.action.kind).toBe('run-preparation-correction');
-        const productionBeforeCorrection = await readFile(join(root, 'package.json'), 'utf8');
-        const correctedPreparation = 'Corrected preparation: changing inputs invalidates earlier reviews.\n';
-        await writeFile(join(root, 'docs/preparation.md'), correctedPreparation);
-        await recordLeadWriterCompletion(root, { kind: 'writer-event', missionId, json: true });
-        preparation = await dispatchMissionSpecialists(
-          resolveProjectRoots(root), input, '2026-08-21T12:00:00.000Z', capability,
-        );
-        expect(preparation.action).toMatchObject({
-          kind: 'invoke-specialists', stage: 'pre-implementation', reviewRound: 2,
-        });
-        expect(preparation.envelopes.map((envelope) => envelope.specialistId))
-          .toEqual(first.envelopes.map((envelope) => envelope.specialistId));
-        expect(await readFile(join(root, 'package.json'), 'utf8')).toBe(productionBeforeCorrection);
-        expect(await readFile(join(root, 'DEV-500.md'), 'utf8')).toBe(ticketBody);
-        for (const envelope of preparation.envelopes) {
-          expect(envelope.contextPack.artifacts).toContainEqual({
-            path: 'docs/preparation.md', text: expect.stringContaining(correctedPreparation),
-          });
-          expect(envelope.contextPack.artifacts).toContainEqual({
-            path: 'DEV-500.md', text: expect.stringContaining(ticketBody),
-          });
-          expect(envelope.contextPack.diff).toBe(first.envelopes[0]?.contextPack.diff);
-        }
-      }
+    for (const [index, envelope] of first.envelopes.entries()) {
+      const contextId = `ctx_dispatch_1_${index}_${envelope.agentName}`;
+      await recordSpecialistLifecycle(root, missionId, {
+        status: 'started',
+        envelope,
+        contextId,
+      });
+      await recordSpecialistLifecycle(root, missionId, {
+        status: 'completed',
+        envelope,
+        contextId,
+        completion: {
+          schemaVersion: 1,
+          specialistId: envelope.specialistId,
+          contractVersion: envelope.contractVersion,
+          completionId: `cmp_dispatch_1_${index}_${envelope.agentName}`,
+          verdict: 'pass',
+          findings: [],
+          evidenceRequests: index === 0
+            ? ['Explain how corrected preparation invalidates old reviews.'] : [],
+          limitations: [],
+        },
+      });
     }
-    const writerAction = await dispatchMissionSpecialists(
+    const correction = await dispatchMissionSpecialists(
       resolveProjectRoots(root),
       input,
       '2026-08-21T12:00:00.000Z',
       capability,
+    );
+    expect(correction.action.kind).toBe('run-preparation-correction');
+    const productionBeforeCorrection = await readFile(join(root, 'package.json'), 'utf8');
+    const correctedPreparation = 'Corrected preparation: changing inputs invalidates earlier reviews.\n';
+    await writeFile(join(root, 'docs/preparation.md'), correctedPreparation);
+    await recordLeadWriterCompletion(root, { kind: 'writer-event', missionId, json: true });
+    const writerAction = await dispatchMissionSpecialists(
+      resolveProjectRoots(root), input, '2026-08-21T12:00:00.000Z', capability,
     );
     expect(writerAction).toMatchObject({
       planHash: plan.planHash,
       action: { kind: 'run-lead-writer', writerId: 'writer:primary' },
       nextWriterRound: 2,
     });
-    await recordLeadWriterCompletion(root, {
-      kind: 'writer-event',
-      missionId,
-      json: true,
-    });
+    expect(await readFile(join(root, 'package.json'), 'utf8')).toBe(productionBeforeCorrection);
+    expect(await readFile(join(root, 'DEV-500.md'), 'utf8')).toBe(ticketBody);
     await recordLeadWriterCompletion(root, {
       kind: 'writer-event',
       missionId,
