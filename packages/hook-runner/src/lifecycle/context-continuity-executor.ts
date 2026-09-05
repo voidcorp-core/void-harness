@@ -265,6 +265,9 @@ export function claimStaleLock(
     try {
       const current = lstatSync(path);
       if (observed === undefined || !sameFile(current, observed)) return undefined;
+      // An unlinked inode can be reused for a fresh owner's lock before this
+      // claimant obtains the recovery fence. Identity alone does not prove age.
+      if (!staleFile(current, now)) return undefined;
       if (!unlinkOwnedPath(path, observed)) return undefined;
     } catch (error) {
       if (observed !== undefined || errorCode(error) !== 'ENOENT') return undefined;

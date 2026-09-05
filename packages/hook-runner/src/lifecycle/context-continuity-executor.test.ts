@@ -186,6 +186,35 @@ describe('executeContextContinuity PreCompact', () => {
     expect(recoveryOpenFault.attempts).toBe(1);
   });
 
+  it('preserves a fresh lock whose identity matches an earlier stale observation', () => {
+    const root = project();
+    const lock = `${checkpoint(root)}.lock`;
+    const recovery = `${lock}.recovery`;
+    writeFileSync(lock, 'stale\n');
+    writeFileSync(recovery, 'abandoned\n');
+    const observed = lstatSync(lock);
+    const orphan = lstatSync(recovery);
+    const now = Math.ceil(Math.max(observed.ctimeMs, orphan.ctimeMs)) + 2_000;
+
+    // Model Linux reusing the old inode for a fresh owner's lock without relying
+    // on the allocator or process scheduling to produce that identity again.
+    writeFileSync(lock, 'current owner\n');
+    utimesSync(lock, new Date(now), new Date(now));
+    const current = lstatSync(lock);
+    expect(current.ino).toBe(observed.ino);
+    expect(current.dev).toBe(observed.dev);
+    expect(now - Math.max(observed.mtimeMs, observed.ctimeMs)).toBeGreaterThan(1_000);
+    expect(current.mtimeMs).toBe(now);
+
+    const claim = claimStaleLock(lock, observed, now);
+    if (claim !== undefined) closeSync(claim.descriptor);
+
+    expect(claim).toBeUndefined();
+    expect(readFileSync(lock, 'utf8')).toBe('current owner\n');
+    expect(lstatSync(lock).ino).toBe(current.ino);
+    expect(existsSync(recovery)).toBe(false);
+  });
+
   it('does not remove an older generation when another contender already owns recovery', () => {
     const root = project();
     const lock = `${checkpoint(root)}.lock`;
