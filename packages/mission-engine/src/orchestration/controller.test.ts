@@ -442,6 +442,29 @@ describe('mission team controller', () => {
     );
   });
 
+  it('starts post-implementation review after preparation correction and implementation', () => {
+    const preFindings = TEST_SPECIALIST_IDS.map((specialistId, index) =>
+      completion(
+        specialistId,
+        index + 2,
+        specialistId === 'core:security-engineer' ? 'changes-requested' : 'pass',
+        'pre-implementation',
+      ));
+    const decision = decide([
+      started(),
+      ...preFindings,
+      writer(6, 'writer:primary', 'run-preparation-correction'),
+      writer(7, 'writer:primary', 'run-lead-writer'),
+    ]);
+
+    expect(decision.phase).toBe('review');
+    expect(decision.action).toMatchObject({
+      kind: 'invoke-specialists',
+      stage: 'post-implementation',
+    });
+    expect(decision.review.stage).toBe('post-implementation');
+  });
+
   it('cannot verify when one required specialist completion is absent', () => {
     const proof = sealEvidence(evidenceDraft());
     const decision = decide([

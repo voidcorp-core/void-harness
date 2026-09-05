@@ -379,6 +379,13 @@ export function orchestrateMissionTeam(
   const firstWriterSeq = completions.length === 0
     ? undefined
     : Math.min(...completions.map((event) => event.seq));
+  const implementationCompletions = completions.filter((event) =>
+    leadWriterActionKind(event) !== 'run-preparation-correction');
+  const firstImplementationSeq = implementationCompletions.length === 0
+    ? undefined
+    : Math.min(...implementationCompletions.map((event) => event.seq));
+  const preparationCorrectionCompleted = completions.some((event) =>
+    leadWriterActionKind(event) === 'run-preparation-correction');
   const lastWriterSeq = completions.length === 0
     ? undefined
     : Math.max(...completions.map((event) => event.seq));
@@ -451,14 +458,10 @@ export function orchestrateMissionTeam(
     ]);
   }
 
-  const firstWriter = firstWriterSeq === undefined
-    ? undefined
-    : completions.find((event) => event.seq === firstWriterSeq);
   if (
     preReview.status === 'correction-required'
-    && completions.length === 1
-    && firstWriter !== undefined
-    && leadWriterActionKind(firstWriter) === 'run-preparation-correction'
+    && preparationCorrectionCompleted
+    && firstImplementationSeq === undefined
   ) {
     const reasons = ['preparation correction completed; implementation is pending'];
     return applyRuntimeCertification({
@@ -470,7 +473,7 @@ export function orchestrateMissionTeam(
     }, input.specialistRuntime);
   }
 
-  if (!preReview.readyForVerdict) {
+  if (!preReview.readyForVerdict && !preparationCorrectionCompleted) {
     return applyRuntimeCertification(
       decideReviewPhase(start, preReview, baseVerdict, 'pre-implementation'),
       input.specialistRuntime,
@@ -486,13 +489,13 @@ export function orchestrateMissionTeam(
       reasons,
     }, input.specialistRuntime);
   }
-  if (firstWriterSeq === undefined || lastWriterSeq === undefined) {
+  if (firstWriterSeq === undefined || firstImplementationSeq === undefined || lastWriterSeq === undefined) {
     throw new Error('MISSION_TEAM_INVARIANT: writer completion boundary is missing');
   }
   const postReview = reduceReviewLoop({
     stage: 'post-implementation',
     expectedSource,
-    stageStartSeqExclusive: firstWriterSeq,
+    stageStartSeqExclusive: firstImplementationSeq,
     afterSeqExclusive: lastWriterSeq,
     events: input.stream.events,
     requiredSpecialists: requiredSpecialists(input.plan, 'post-implementation'),
