@@ -18948,6 +18948,7 @@ var MAX_GIT_TIMEOUT_MS = 6e4;
 var MAX_FILTER_DRIVERS = 256;
 var MAX_GIT_POINTER_BYTES = 4096;
 var FILTER_KEY = /^filter\.([A-Za-z0-9][A-Za-z0-9._-]{0,127})\.(?:clean|process)$/;
+var GIT_NULL_CONFIG = "/dev/null";
 function gitError(message2) {
   throw new Error(`PROJECT_GIT_INVALID: ${message2}`);
 }
@@ -19149,8 +19150,8 @@ async function validateRepositoryBinding(root, expected) {
 function gitEnvironment(executable, root, repository) {
   const systemPaths = process.platform === "win32" ? [dirname3(executable), dirname3(process.execPath)] : [dirname3(executable), "/usr/bin", "/bin"];
   return Object.freeze({
-    GIT_CONFIG_GLOBAL: devNull,
-    GIT_CONFIG_SYSTEM: devNull,
+    GIT_CONFIG_GLOBAL: GIT_NULL_CONFIG,
+    GIT_CONFIG_SYSTEM: GIT_NULL_CONFIG,
     GIT_CONFIG_NOSYSTEM: "1",
     GIT_COMMON_DIR: repository.commonDirectory.path,
     GIT_DIR: repository.gitDirectory.path,

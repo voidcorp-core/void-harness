@@ -329,8 +329,11 @@ payloads, reads at most 1,048,576 transcript bytes, confines project paths, and 
 under a no-wait lock through a same-directory temporary file and rename. Runtime manifests only
 map `UserPromptSubmit`, `PostToolUse`, `PreCompact`, and `SessionStart` to that handler.
 The lock covers the complete read-modify-write decision. Stale takeover is serialized by a
-no-wait claim chain whose generations are created exclusively and never ranked by timestamps, and
-checkpoint mutation stays anchored to an opened, verified machine directory while relative
+no-wait claim chain whose generations are created exclusively and never ranked by timestamps.
+After acquiring the recovery claim, takeover checks the current lock's age again as well as its
+identity: Linux can reuse an unlinked inode immediately for a fresh owner's lock, so matching
+device and inode numbers alone do not authorize removal. Checkpoint mutation stays anchored to
+an opened, verified machine directory while relative
 no-follow files are read and renamed. Transcript reads use no-follow bounded descriptors. Codex
 transcripts remain project-local; Claude may also use its
 project-scoped transcript directory when the file name exactly matches a bounded session ID.
