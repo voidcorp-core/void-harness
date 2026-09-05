@@ -818,10 +818,11 @@ interpreters, and VCS mutations remain prohibited.
 The controller also requires the adapter's effective specialist-runtime capability, independently
 of the declared runtime name. Each CLI `RuntimeInspection` produces that capability from native
 asset health plus the runtime's enforceable isolation limits. `unavailable` blocks before dispatch.
-`degraded` may still run the reviews so their evidence and limitations are observable, but can
-never produce `verified`; the controller stops degraded after the bounded cycle. A runtime can
-therefore reach `verified` only after its actual adapter or probe reports the required fresh-context
-specialist capability as available.
+`degraded` may still run the reviews so their evidence and limitations are observable, and can
+finish a valid ticket after the bounded cycle with an explicit degraded controller verdict. It
+does not claim the missing runtime guarantee, but it does not discard otherwise valid ticket,
+review, and verification evidence. Only `unavailable` is a hard runtime gate; a release or a
+high-risk route may still require an available capability explicitly.
 
 Direct and orchestrated invocation share the mission engine's one strict completion parser; unknown
 fields or malformed nested evidence are rejected identically. The review reducer accepts each
