@@ -32,6 +32,17 @@ function logFile(): string {
   return path;
 }
 
+function fragmentedReader(response: Response, chunkBytes = 7) {
+  if (response.body === null) throw new Error('SSE response has no body');
+  return response.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      for (let offset = 0; offset < chunk.length; offset += chunkBytes) {
+        controller.enqueue(chunk.subarray(offset, offset + chunkBytes));
+      }
+    },
+  })).getReader();
+}
+
 describe('graph live server', () => {
   let server: Server | undefined;
   let cookie = '';
@@ -191,7 +202,7 @@ describe('graph live server', () => {
       headers: { 'Last-Event-ID': 'evt_00000050' },
     });
     expect(res.status).toBe(200);
-    const reader = res.body?.getReader();
+    const reader = fragmentedReader(res);
     const chunk = await reader?.read();
     await reader?.cancel();
     const body = new TextDecoder().decode(chunk?.value);
@@ -209,7 +220,7 @@ describe('graph live server', () => {
     writeFileSync(path, `${canonical(1)}\n`);
     const port = await start({ logPath: path, pollMs: 10 });
     const res = await get(port, '/events');
-    const reader = res.body?.getReader();
+    const reader = fragmentedReader(res);
     await reader?.read();
     appendFileSync(path, `${canonical(2)}\n`);
     const chunk = await reader?.read();
