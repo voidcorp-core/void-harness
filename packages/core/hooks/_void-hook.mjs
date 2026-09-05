@@ -2551,6 +2551,7 @@ function claimStaleLock(path, observed, now) {
     try {
       const current = lstatSync3(path);
       if (observed === void 0 || !sameFile(current, observed)) return void 0;
+      if (!staleFile(current, now)) return void 0;
       if (!unlinkOwnedPath(path, observed)) return void 0;
     } catch (error) {
       if (observed !== void 0 || errorCode(error) !== "ENOENT") return void 0;
