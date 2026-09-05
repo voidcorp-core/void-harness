@@ -1,18 +1,28 @@
-import { existsSync } from 'node:fs';
-import { mkdtemp, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { MissionSpecialistPlan } from '@voidcorp/mission-engine';
 import { describe, expect, it } from 'vitest';
-import { type MissionSpecialistPlan } from '@voidcorp/mission-engine';
+import { writeExcludeBlock } from '../lib/git-exclude.js';
+import { resolveProjectRoots } from '../lib/project-roots.js';
+import { recordSpecialistLifecycle } from '../lib/runs/specialist-lifecycle.js';
+import {
+  createMission,
+  inspectMission,
+  missionControllerRoutingHash,
+  writeMissionControllerPlan,
+} from '../lib/runs/store.js';
+import { adapterFor } from '../lib/runtime-adapters.js';
 import {
   constrainCapabilityByAttestation,
   coordinatorRuntimeIdentity,
   dispatchMissionSpecialists,
-  missionVerdictExitCode,
   missionRecoveryExitCode,
+  missionVerdictExitCode,
   normalizeControllerTicketPath,
   parseMissionArgs,
   planMission,
@@ -20,16 +30,6 @@ import {
   recordMissionClosure,
   renderMissionFailure,
 } from './mission.js';
-import {
-  createMission,
-  inspectMission,
-  missionControllerRoutingHash,
-  writeMissionControllerPlan,
-} from '../lib/runs/store.js';
-import { recordSpecialistLifecycle } from '../lib/runs/specialist-lifecycle.js';
-import { writeExcludeBlock } from '../lib/git-exclude.js';
-import { resolveProjectRoots } from '../lib/project-roots.js';
-import { adapterFor } from '../lib/runtime-adapters.js';
 
 const CORE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'core');
 
@@ -469,6 +469,12 @@ describe('parseMissionArgs', () => {
       packageManager: 'pnpm@10.34.5',
       scripts: { test: 'vitest run' },
     }));
+    execFileSync('git', ['add', 'package.json'], { cwd: root });
+    execFileSync('git', [
+      '-c', 'user.name=Void Test',
+      '-c', 'user.email=void@example.test',
+      'commit', '--quiet', '-m', 'test: commit implementation fixture',
+    ], { cwd: root });
     const post = await dispatchMissionSpecialists(
       resolveProjectRoots(root),
       input,
@@ -481,6 +487,8 @@ describe('parseMissionArgs', () => {
       stage: 'post-implementation',
     });
     expect(post.envelopes.length).toBeGreaterThan(0);
+    expect(post.envelopes[0]?.contextPack.touchedPaths).toContain('package.json');
+    expect(post.envelopes[0]?.contextPack.diff).toContain('vitest run');
 
     const requestsBeforeTicketChange = (await inspectMission(root, missionId, {
       dependencies: {},

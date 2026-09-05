@@ -4,59 +4,59 @@ import { existsSync } from 'node:fs';
 import { realpath } from 'node:fs/promises';
 import { basename, extname, join, relative, resolve } from 'node:path';
 import { promisify } from 'node:util';
+import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
 import {
-  createSpecialistDispatch,
-  planLensExecution,
-  type LensPlan,
-  type OrchestrationCapability,
-  compileMissionPlan,
-  classifyRisk,
-  mergePolicies,
-  orchestrateMissionTeam,
-  selectMissionMode,
-  type MissionTeamAction,
-  type MissionPlan,
-  type MissionSpecialistPlan,
   type CanonicalEvent,
-  type SpecialistRuntimeCapability,
-  type SpecialistDispatchEnvelope,
-  type SpecialistDispatchRuntime,
-  type MissionVerdictStatus,
-  type RecoveryDecision,
-  citedPaths,
   type ContextArtifact,
   type ContextPackInput,
+  citedPaths,
+  classifyRisk,
+  compileMissionPlan,
+  createSpecialistDispatch,
+  type LensPlan,
+  type MissionPlan,
+  type MissionSpecialistPlan,
+  type MissionTeamAction,
+  type MissionVerdictStatus,
+  mergePolicies,
+  type OrchestrationCapability,
+  orchestrateMissionTeam,
+  planLensExecution,
+  type RecoveryDecision,
+  type SpecialistDispatchEnvelope,
+  type SpecialistDispatchRuntime,
   type SpecialistInvocationStage,
+  type SpecialistRuntimeCapability,
+  selectMissionMode,
 } from '@voidcorp/mission-engine';
-import { writeSequencedEventOnce } from '@voidcorp/hook-runner';
-import { findCoreSource } from '../lib/paths.js';
-import { type ProjectRoots, resolveProjectRoots } from '../lib/project-roots.js';
 import { observeOrchestrationCapability } from '../lib/orchestration-capability.js';
-import { specialistCapabilityFor } from '../lib/runtime-adapters.js';
+import { findCoreSource } from '../lib/paths.js';
 import { loadProjectPolicies } from '../lib/policy-loader.js';
 import { loadProfiles } from '../lib/profile-loader.js';
-import { readBoundedProjectFile } from '../lib/safe-read.js';
-import { loadSpecialists } from '../lib/specialists/load.js';
+import { type ProjectRoots, resolveProjectRoots } from '../lib/project-roots.js';
 import { archiveMission, pruneMissions } from '../lib/runs/archive.js';
 import { inspectCurrentMission } from '../lib/runs/inspect-current.js';
 import { collectKnownSecrets, redactText } from '../lib/runs/redact.js';
-import {
-  createMission,
-  inspectMission,
-  loadMissionControllerPlan,
-  missionControllerRoutingHash,
-  resumeMission,
-  writeMissionControllerPlan,
-  type MissionMode,
-  type MissionControllerTicketBinding,
-} from '../lib/runs/store.js';
-import { verifyMissionCommand } from '../lib/runs/verify.js';
 import {
   parseSpecialistLifecycleInput,
   recordSpecialistLifecycle,
   recordSpecialistRequests,
   type SpecialistLifecycleStatus,
 } from '../lib/runs/specialist-lifecycle.js';
+import {
+  createMission,
+  inspectMission,
+  loadMissionControllerPlan,
+  type MissionControllerTicketBinding,
+  type MissionMode,
+  missionControllerRoutingHash,
+  resumeMission,
+  writeMissionControllerPlan,
+} from '../lib/runs/store.js';
+import { verifyMissionCommand } from '../lib/runs/verify.js';
+import { specialistCapabilityFor } from '../lib/runtime-adapters.js';
+import { readBoundedProjectFile } from '../lib/safe-read.js';
+import { loadSpecialists } from '../lib/specialists/load.js';
 import { detectProfileInput, detectStack } from '../lib/stack.js';
 
 const MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
@@ -537,11 +537,12 @@ interface DetectedFiles {
   readonly status: 'known' | 'unknown';
 }
 
-async function gitFiles(root: string): Promise<DetectedFiles> {
+async function gitFiles(root: string, diffBaseHead?: string): Promise<DetectedFiles> {
   try {
     const options = { cwd: root, encoding: 'utf8' as const, maxBuffer: 1_000_000, timeout: 5_000 };
+    const diffBase = diffBaseHead === undefined ? ['HEAD'] : [diffBaseHead];
     const [changed, untracked] = await Promise.all([
-      execFile('git', ['diff', '--name-only', '--relative', 'HEAD'], options),
+      execFile('git', ['diff', '--name-only', '--relative', ...diffBase], options),
       execFile('git', ['ls-files', '--others', '--exclude-standard'], options),
     ]);
     return Object.freeze({
@@ -613,6 +614,7 @@ async function compileDispatchContent(
   files: DetectedFiles,
   stage: SpecialistInvocationStage,
   ticketPath: string,
+  diffBaseHead?: string,
 ): Promise<Omit<ContextPackInput, 'dispatch'>> {
   const options = { cwd: root, encoding: 'utf8' as const, maxBuffer: 4_000_000, timeout: 10_000 };
   const unavailable: string[] = [];
@@ -621,7 +623,8 @@ async function compileDispatchContent(
   let diff = '';
   if (stage === 'post-implementation') {
     try {
-      const result = await execFile('git', ['diff', '--relative', 'HEAD'], options);
+      const diffBase = diffBaseHead === undefined ? ['HEAD'] : [diffBaseHead];
+      const result = await execFile('git', ['diff', '--relative', ...diffBase], options);
       diff = result.stdout;
     } catch {
       unavailable.push('diff (git unavailable)');
@@ -635,7 +638,9 @@ async function compileDispatchContent(
     // most likely to carry new code.
     try {
       const listed = await execFile('git', ['ls-files', '--others', '--exclude-standard'], options);
-      for (const file of listed.stdout.split('\n').filter((entry) => entry !== '')) {
+      for (const file of listed.stdout
+        .split('\n')
+        .filter((entry) => entry !== '' && !entry.startsWith('.void/'))) {
         unavailable.push(`${file} (untracked, not in the diff)`);
       }
     } catch {
@@ -710,10 +715,11 @@ async function compileMission(
   root: string,
   ticket: Awaited<ReturnType<typeof readTicket>>,
   generatedAt: string,
+  diffBaseHead?: string,
 ): Promise<MissionPlan> {
   const [coreRoot, diff] = await Promise.all([
     findCoreSource(),
-    gitFiles(root),
+    gitFiles(root, diffBaseHead),
   ]);
   const [policies, profiles, specialists] = await Promise.all([
     loadProjectPolicies(root, join(coreRoot, 'policies')),
@@ -749,12 +755,13 @@ async function planBoundMission(
   root: string,
   ticketPath: string,
   generatedAt = new Date().toISOString(),
+  diffBaseHead?: string,
 ): Promise<{
   readonly plan: MissionPlan;
   readonly ticket: MissionControllerTicketBinding;
 }> {
   const ticket = await readTicket(root, ticketPath);
-  const plan = await compileMission(root, ticket, generatedAt);
+  const plan = await compileMission(root, ticket, generatedAt, diffBaseHead);
   return Object.freeze({
     plan,
     ticket: controllerTicketBinding(ticket),
@@ -797,7 +804,8 @@ export async function dispatchMissionSpecialists(
   if (inspected.stream.events.some((event) => event.kind === 'mission.closed')) {
     throw new Error('MISSION_CLOSED: specialist dispatch is no longer active');
   }
-  const live = await planBoundMission(workRoot, stored.ticket.path, generatedAt);
+  const baseHead = implementationBaseHead(inspected.stream.events);
+  const live = await planBoundMission(workRoot, stored.ticket.path, generatedAt, baseHead);
   const livePlan = live.plan;
   if (
     live.ticket.path !== stored.ticket.path
@@ -854,9 +862,10 @@ export async function dispatchMissionSpecialists(
           : currentInputHashes,
         contextContent: await compileDispatchContent(
           workRoot,
-          await gitFiles(workRoot),
+          await gitFiles(workRoot, baseHead),
           decision.action.stage,
           stored.ticket.path,
+          baseHead,
         ),
       })
     : Object.freeze([]);
@@ -879,12 +888,16 @@ export async function dispatchMissionSpecialists(
     : undefined;
   const nextWriterRound = writerAction === undefined ? undefined : writerEvents + 1;
   if (nextWriterRound !== undefined && writerAction !== undefined) {
+    const writerBaseHead = writerAction.kind === 'run-lead-writer'
+      ? await currentHead(workRoot)
+      : undefined;
     await recordLeadWriterRequest(
       installRoot,
       input.missionId,
       stored.plan.planHash,
       writerAction,
       nextWriterRound,
+      writerBaseHead,
     );
   }
   if (decision.action.kind === 'complete' || decision.action.kind === 'stop') {
@@ -934,6 +947,30 @@ function missionRuntimeIdentity(
     runtime,
     attested: objectField(started?.payload, 'runtimeAttested') === true,
   });
+}
+
+function implementationBaseHead(
+  events: readonly { readonly kind: string; readonly payload: unknown }[],
+): string | undefined {
+  const request = events.find((event) =>
+    event.kind === 'lead-writer.requested'
+    && objectField(event.payload, 'actionKind') === 'run-lead-writer');
+  const head = objectField(request?.payload, 'implementationBaseHead');
+  return typeof head === 'string' && /^[0-9a-f]{40}$/.test(head) ? head : undefined;
+}
+
+async function currentHead(root: string): Promise<string | undefined> {
+  try {
+    const result = await execFile('git', ['rev-parse', '--verify', 'HEAD'], {
+      cwd: root,
+      encoding: 'utf8',
+      timeout: 5_000,
+    });
+    const head = result.stdout.trim();
+    return /^[0-9a-f]{40}$/.test(head) ? head : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function missionRoutingHash(
@@ -1046,6 +1083,7 @@ async function recordLeadWriterRequest(
   planHash: string,
   action: LeadWriterAction,
   implementationRound: number,
+  implementationBaseHead?: string,
 ): Promise<void> {
   const findingIds = action.kind === 'run-lead-writer' ? [] : [...action.findingIds];
   const eventId = `evt_${createHash('sha256')
@@ -1056,6 +1094,7 @@ async function recordLeadWriterRequest(
       action.kind,
       action.writerId,
       String(implementationRound),
+      implementationBaseHead ?? '',
       ...findingIds,
     ].join('|'))
     .digest('hex')}`;
@@ -1074,6 +1113,7 @@ async function recordLeadWriterRequest(
         writerId: action.writerId,
         implementationRound,
         findingIds,
+        ...(implementationBaseHead === undefined ? {} : { implementationBaseHead }),
       },
     },
     validate: rejectClosedMission,
