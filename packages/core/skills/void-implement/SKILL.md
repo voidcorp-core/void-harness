@@ -20,7 +20,10 @@ before invoking an agent. The pure Mission Engine controller owns state and verd
 materializes its runtime-neutral specialist envelopes from the current plan.
 
 1. Keep one `leadWriterId` for implementation and every correction. Reviewers never edit.
-2. Start the controller-owned run with `mission start --ticket <ticket>`,
+2. Before starting, directly cite the existing preparation plan/spec in the canonical ticket
+   using a backticked repository-relative path such as `docs/plans/example.md` when preparation
+   needs a mutable carrier. Reuse an existing document; do not create one for every ticket.
+   Start the controller-owned run with `mission start --ticket <ticket>`,
    then call `mission dispatch --id <mission> --json` for every next action. The start binds the
    canonical ticket path, ticket content, and frozen routing snapshot; dispatch accepts none of
    them again and refuses a changed ticket. Runtime identity comes from the native session marker,
@@ -43,7 +46,15 @@ materializes its runtime-neutral specialist envelopes from the current plan.
    failed completion and makes certification blocked/degraded.
 5. Treat specialist output as structured findings, evidence requests, and limitations. It is never
    authoritative free-form prose and never grants write ownership.
-6. Send one coherent correction batch to the same lead writer. Recompute review input hashes and
+6. Send one coherent correction batch to the same lead writer. For `run-preparation-correction`,
+   resolve or explain the findings in the cited preparation document, without changing the frozen
+   ticket or beginning implementation. Record completion, then dispatch the new preparatory
+   review; begin TDD implementation only when the controller returns `run-lead-writer`.
+   If no suitable document was cited before start, report the missing input and close the mission
+   as interrupted before starting with corrected inputs; preserve the unfinished evidence.
+   Verify that each new context pack contains the corrected preparation, and report an omitted
+   or missing artifact instead of asking reviewers to approve unseen changes.
+   Recompute review input hashes and
    rerun only specialists whose inputs changed. After `run-lead-writer`, `run-correction`, or
    `run-preparation-correction`, call `mission writer-event --id <mission>`; it consumes the
    controller's pending writer receipt rather than trusting caller-supplied identity or round.

@@ -786,6 +786,13 @@ context and completion identity, so an upstream approval cannot satisfy downstre
 hashes are keyed by stage: the pre-build snapshot stays frozen while post-build and correction
 hashes follow the implemented diff.
 
+Preparation corrections travel in an existing plan/spec directly cited by a backticked
+repository-relative path in the frozen ticket. Dispatch rereads that artifact for the next
+preparatory round. The writer resolves findings there before recording completion; it neither
+edits the frozen ticket nor starts implementation until `run-lead-writer`. A missing citation
+requires an explicit interrupted mission and corrected start inputs, preserving the old evidence.
+The context pack must contain the correction: a writer receipt alone proves no content change.
+
 Controller records created with a ticket bind the initial Git commit into their version 2
 integrity envelope. Post-implementation review compares that fixed baseline with the working
 tree, so staging or committing unchanged content preserves review identity. A bounded raw patch

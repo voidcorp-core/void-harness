@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
@@ -311,12 +311,12 @@ describe('parseMissionArgs', () => {
     await writeFile(join(root, 'package.json'), JSON.stringify({
       packageManager: 'pnpm@10.34.5',
     }));
-    await writeFile(
-      join(root, 'DEV-500.md'),
-      '# Runtime API review\n\nVerify the tested API runtime and observability change.\n',
-    );
+    const ticketBody = '# Runtime API review\n\nVerify the tested API runtime and observability change.\nPreparation: `docs/preparation.md`.\n';
+    await writeFile(join(root, 'DEV-500.md'), ticketBody);
+    await mkdir(join(root, 'docs'));
+    await writeFile(join(root, 'docs/preparation.md'), 'Initial preparation: review freshness needs explanation.\n');
     execFileSync('git', ['init', '--quiet'], { cwd: root });
-    execFileSync('git', ['add', 'package.json', 'DEV-500.md'], { cwd: root });
+    execFileSync('git', ['add', 'package.json', 'DEV-500.md', 'docs/preparation.md'], { cwd: root });
     execFileSync('git', [
       '-c', 'user.name=Void Test',
       '-c', 'user.email=void@example.test',
@@ -337,7 +337,6 @@ describe('parseMissionArgs', () => {
         stages: specialist.stages,
       })),
     };
-    const ticketBody = '# Runtime API review\n\nVerify the tested API runtime and observability change.\n';
     const ticketBinding = {
       path: 'DEV-500.md',
       contentHash: `sha256:${createHash('sha256').update(ticketBody).digest('hex')}`,
@@ -381,6 +380,12 @@ describe('parseMissionArgs', () => {
       event.kind === 'specialist.requested');
 
     expect(first.envelopes.length).toBeGreaterThan(0);
+    for (const envelope of first.envelopes) {
+      expect(envelope.contextPack.artifacts).toContainEqual({
+        path: 'docs/preparation.md',
+        text: expect.stringContaining('Initial preparation: review freshness needs explanation.'),
+      });
+    }
     // The lens width is a concurrency ceiling, never a truncation. The controller
     // requires every applicable completion before it will return `verified`, so
     // dropping an envelope to fit a narrow runtime would not run a smaller pass —
@@ -451,6 +456,9 @@ describe('parseMissionArgs', () => {
           resolveProjectRoots(root), input, '2026-08-21T12:00:00.000Z', capability,
         );
         expect(correction.action.kind).toBe('run-preparation-correction');
+        const productionBeforeCorrection = await readFile(join(root, 'package.json'), 'utf8');
+        const correctedPreparation = 'Corrected preparation: changing inputs invalidates earlier reviews.\n';
+        await writeFile(join(root, 'docs/preparation.md'), correctedPreparation);
         await recordLeadWriterCompletion(root, { kind: 'writer-event', missionId, json: true });
         preparation = await dispatchMissionSpecialists(
           resolveProjectRoots(root), input, '2026-08-21T12:00:00.000Z', capability,
@@ -460,6 +468,17 @@ describe('parseMissionArgs', () => {
         });
         expect(preparation.envelopes.map((envelope) => envelope.specialistId))
           .toEqual(first.envelopes.map((envelope) => envelope.specialistId));
+        expect(await readFile(join(root, 'package.json'), 'utf8')).toBe(productionBeforeCorrection);
+        expect(await readFile(join(root, 'DEV-500.md'), 'utf8')).toBe(ticketBody);
+        for (const envelope of preparation.envelopes) {
+          expect(envelope.contextPack.artifacts).toContainEqual({
+            path: 'docs/preparation.md', text: expect.stringContaining(correctedPreparation),
+          });
+          expect(envelope.contextPack.artifacts).toContainEqual({
+            path: 'DEV-500.md', text: expect.stringContaining(ticketBody),
+          });
+          expect(envelope.contextPack.diff).toBe(first.envelopes[0]?.contextPack.diff);
+        }
       }
     }
     const writerAction = await dispatchMissionSpecialists(
