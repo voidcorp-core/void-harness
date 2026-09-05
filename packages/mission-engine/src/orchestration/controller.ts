@@ -387,8 +387,12 @@ export function orchestrateMissionTeam(
   const firstImplementationSeq = implementationCompletions.length === 0
     ? undefined
     : Math.min(...implementationCompletions.map((event) => event.seq));
-  const preparationCorrectionCompleted = completions.some((event) =>
-    leadWriterActionKind(event) === 'run-preparation-correction');
+  const preparationCorrectionCompleted = preparationCorrections.length > 0;
+  const latePreparationCompletion = lastPreparationSeq !== undefined
+    && input.stream.events.some((event) =>
+      event.seq > lastPreparationSeq
+      && event.kind === 'specialist.completed'
+      && lifecycleField(event, 'stage') === 'pre-implementation');
   const lastWriterSeq = completions.length === 0
     ? undefined
     : Math.max(...completions.map((event) => event.seq));
@@ -461,11 +465,15 @@ export function orchestrateMissionTeam(
     ]);
   }
 
-  if (
-    preReview.status === 'correction-required'
-    && preparationCorrectionCompleted
-    && firstImplementationSeq === undefined
-  ) {
+  if (preparationCorrectionCompleted && latePreparationCompletion) {
+    return applyRuntimeCertification(stopped(
+      'blocked',
+      preReview,
+      baseVerdict,
+      ['pre-implementation review was replayed after preparation correction'],
+    ), input.specialistRuntime);
+  }
+  if (preparationCorrectionCompleted && firstImplementationSeq === undefined) {
     const reasons = ['preparation correction completed; implementation is pending'];
     return applyRuntimeCertification({
       phase: 'implementation',

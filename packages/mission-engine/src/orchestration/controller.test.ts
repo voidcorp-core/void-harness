@@ -213,7 +213,7 @@ function preparationReviews(round: number, firstSeq: number, needsEvidence = fal
 
 describe('mission team controller', () => {
   it.each(['finding', 'evidence'] as const)(
-    'reopens preparation after a %s correction before implementation can start',
+    'starts implementation after a %s preparation correction without replaying the panel',
     (reason) => {
       const initial = reason === 'finding'
         ? [completion(TEST_SPECIALIST_IDS[0], 2, 'changes-requested', 'pre-implementation'),
@@ -223,12 +223,9 @@ describe('mission team controller', () => {
       expect(decide(events).action.kind).toBe('run-preparation-correction');
       const corrected = [...events, ...preparationReceipt()];
       expect(decide(corrected).action).toMatchObject({
-        kind: 'invoke-specialists', stage: 'pre-implementation', reviewRound: 2,
-        specialistIds: TEST_SPECIALIST_IDS,
+        kind: 'run-lead-writer', writerId: 'writer:primary',
       });
-      const reviewed = [...corrected, ...preparationReviews(2, 7)];
-      expect(decide(reviewed).action.kind).toBe('run-lead-writer');
-      expect(decide([...corrected, ...preparationReviews(2, 7, true)]).action.kind)
+      expect(decide([...corrected, ...preparationReviews(2, 7)]).action.kind)
         .toBe('stop');
     },
   );
@@ -245,9 +242,7 @@ describe('mission team controller', () => {
   it('still rejects a late preparation review after a corrected preparation', () => {
     const events = [started(), ...preparationReviews(1, 2, true),
       ...preparationReceipt(), ...preparationReviews(2, 7), writer(10)];
-    expect(decide(events).action).toMatchObject({
-      kind: 'invoke-specialists', stage: 'post-implementation', reviewRound: 1,
-    });
+    expect(decide(events).action.kind).toBe('stop');
     const late = completion(TEST_SPECIALIST_IDS[0], 11, 'pass', 'pre-implementation', HASH, 2, 'late');
     expect(decide([...events, late]).action.kind).toBe('stop');
   });
