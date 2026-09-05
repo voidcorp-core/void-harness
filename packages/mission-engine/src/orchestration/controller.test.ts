@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { replayEventLog, serializeEvent } from '../events/index.js';
-import type { CanonicalEvent } from '../events/types.js';
+import type { CanonicalEvent, JsonValue } from '../events/types.js';
 import type { MissionPlan } from '../mission/plan.js';
 import { event } from '../test/events.js';
 import { DIFF_A, evidenceDraft } from '../test/evidence.js';
@@ -70,6 +70,7 @@ function completion(
   inputHash = HASH,
   reviewRound = 1,
   identitySuffix = String(reviewRound),
+  evidenceRequests: readonly string[] = [],
 ): CanonicalEvent {
   return event({
     seq,
@@ -95,7 +96,7 @@ function completion(
           evidence: [{ path: 'src/auth.ts', line: 8, detail: 'Role comes from input.' }],
           recommendation: 'Derive authorization from the authenticated principal.',
         }],
-        evidenceRequests: [],
+        evidenceRequests,
         limitations: [],
       },
     },
@@ -175,41 +176,31 @@ function decide(
   });
 }
 
-function preparationReceipt(seq = 6): readonly CanonicalEvent[] {
+function preparationReceipt(seq = 6): readonly [CanonicalEvent, CanonicalEvent] {
+  const payload = {
+    writerId: 'writer:primary', planHash: PLAN.planHash,
+    actionKind: 'run-preparation-correction', implementationRound: 1,
+  };
   const request = event({
     seq: seq - 1,
     eventId: `evt_preparation_request_${seq}`,
     source: 'void-harness:mission.dispatch',
     kind: 'lead-writer.requested',
     subject: 'writer:primary',
-    payload: {
-      writerId: 'writer:primary', planHash: PLAN.planHash,
-      actionKind: 'run-preparation-correction', implementationRound: 1,
-    },
+    payload,
   });
   return [request, event({
     ...writer(seq),
     causationId: request.eventId,
-    payload: {
-      ...request.payload as Record<string, string | number>,
-      requestEventId: request.eventId,
-    },
+    payload: { ...payload, requestEventId: request.eventId },
   })];
 }
 
 function preparationReviews(round: number, firstSeq: number, needsEvidence = false) {
-  return TEST_SPECIALIST_IDS.map((id, index) => {
-    const review = completion(id, firstSeq + index, 'pass', 'pre-implementation', HASH, round);
-    if (!needsEvidence || index !== 2) return review;
-    const payload = review.payload as Record<string, import('../events/types.js').JsonValue>;
-    return event({ ...review, payload: {
-      ...payload,
-      completion: {
-        ...(payload.completion as Record<string, import('../events/types.js').JsonValue>),
-        evidenceRequests: ['Explain the preparation correction boundary.'],
-      },
-    } });
-  });
+  return TEST_SPECIALIST_IDS.map((id, index) => completion(
+    id, firstSeq + index, 'pass', 'pre-implementation', HASH, round, String(round),
+    needsEvidence && index === 2 ? ['Explain the preparation correction boundary.'] : [],
+  ));
 }
 
 describe('mission team controller', () => {
@@ -236,7 +227,7 @@ describe('mission team controller', () => {
 
   it('rejects a preparation receipt whose action differs from its request', () => {
     const [request, receipt] = preparationReceipt();
-    const payload = request.payload as Record<string, import('../events/types.js').JsonValue>;
+    const payload = request.payload as Record<string, JsonValue>;
     const decision = decide([started(true), ...preReviews(),
       event({ ...request, payload: { ...payload, actionKind: 'run-lead-writer' } }), receipt]);
     expect(decision.action.kind).toBe('stop');
