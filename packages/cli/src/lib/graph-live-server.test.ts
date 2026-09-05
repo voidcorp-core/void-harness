@@ -43,6 +43,29 @@ function fragmentedReader(response: Response, chunkBytes = 7) {
   })).getReader();
 }
 
+// SSE dispatches on a blank line, not on a Fetch chunk boundary:
+// https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation
+async function readThroughFrame(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  field: string,
+): Promise<string> {
+  const decoder = new TextDecoder();
+  let body = '';
+  let bytes = 0;
+  for (let reads = 0; reads < 65_536; reads += 1) {
+    const chunk = await reader.read();
+    if (chunk.done) throw new Error(`SSE ended before ${field}`);
+    bytes += chunk.value.byteLength;
+    if (bytes > 65_536) break;
+    body += decoder.decode(chunk.value, { stream: true });
+    const complete = body.slice(0, body.lastIndexOf('\n\n') + 2);
+    if (complete.split('\n\n').some((frame) => frame.split('\n').includes(field))) {
+      return complete;
+    }
+  }
+  throw new Error(`SSE read budget exceeded before ${field}`);
+}
+
 describe('graph live server', () => {
   let server: Server | undefined;
   let cookie = '';
@@ -191,7 +214,7 @@ describe('graph live server', () => {
     expect((await res.json())).toHaveLength(2);
   });
 
-  it('backfills exactly events 51..100 after event 50 and emits SSE IDs', async () => {
+  it.each([7, 65_536])('backfills exactly events 51..100 with %i-byte chunks', async (chunkBytes) => {
     const path = logFile();
     writeFileSync(
       path,
@@ -200,32 +223,69 @@ describe('graph live server', () => {
     const port = await start({ logPath: path, pollMs: 10 });
     const res = await get(port, '/events', {
       headers: { 'Last-Event-ID': 'evt_00000050' },
+      signal: AbortSignal.timeout(5_000),
     });
     expect(res.status).toBe(200);
-    const reader = fragmentedReader(res);
-    const chunk = await reader?.read();
-    await reader?.cancel();
-    const body = new TextDecoder().decode(chunk?.value);
-    const ids = [...body.matchAll(/^id: (.+)$/gm)].map((match) => match[1]);
-    expect(ids).toEqual(
-      Array.from(
-        { length: 50 },
-        (_, index) => `evt_${String(index + 51).padStart(8, '0')}`,
-      ),
-    );
+    const reader = fragmentedReader(res, chunkBytes);
+    try {
+      const body = await readThroughFrame(reader, 'id: evt_00000100');
+      const ids = [...body.matchAll(/^id: (.+)$/gm)].map((match) => match[1]);
+      expect(ids).toEqual(
+        Array.from(
+          { length: 50 },
+          (_, index) => `evt_${String(index + 51).padStart(8, '0')}`,
+        ),
+      );
+    } finally {
+      await reader.cancel();
+    }
   });
 
-  it('streams an append that happens after connection', async () => {
+  it.each([7, 65_536])('streams a later append with %i-byte chunks', async (chunkBytes) => {
     const path = logFile();
     writeFileSync(path, `${canonical(1)}\n`);
     const port = await start({ logPath: path, pollMs: 10 });
-    const res = await get(port, '/events');
+    const res = await get(port, '/events', { signal: AbortSignal.timeout(5_000) });
+    const reader = fragmentedReader(res, chunkBytes);
+    try {
+      await readThroughFrame(reader, 'event: stream-status');
+      appendFileSync(path, `${canonical(2)}\n`);
+      expect(await readThroughFrame(reader, 'id: evt_00000002')).toContain('id: evt_00000002');
+    } finally {
+      await reader.cancel();
+    }
+  });
+
+  it('rejects a pending event read when the connected request is aborted', async () => {
+    const port = await start({});
+    const cancellation = new AbortController();
+    const res = await get(port, '/events', { signal: cancellation.signal });
     const reader = fragmentedReader(res);
-    await reader?.read();
-    appendFileSync(path, `${canonical(2)}\n`);
-    const chunk = await reader?.read();
-    await reader?.cancel();
-    expect(new TextDecoder().decode(chunk?.value)).toContain('id: evt_00000002');
+    await readThroughFrame(reader, 'event: stream-status');
+    const pending = readThroughFrame(reader, 'id: never-written');
+    cancellation.abort();
+    await expect(pending).rejects.toThrow(/abort/i);
+    await expect(reader.cancel()).rejects.toThrow(/abort/i);
+  });
+});
+
+describe('SSE test reader', () => {
+  it('rejects an incomplete final frame instead of treating EOF as delivery', async () => {
+    const reader = fragmentedReader(new Response('id: expected\ndata: incomplete\n'));
+    try {
+      await expect(readThroughFrame(reader, 'id: expected')).rejects.toThrow('SSE ended');
+    } finally {
+      await reader.cancel();
+    }
+  });
+
+  it('refuses an oversized stream without the expected frame', async () => {
+    const reader = fragmentedReader(new Response('x'.repeat(65_537)), 65_536);
+    try {
+      await expect(readThroughFrame(reader, 'id: expected')).rejects.toThrow('budget exceeded');
+    } finally {
+      await reader.cancel();
+    }
   });
 });
 
