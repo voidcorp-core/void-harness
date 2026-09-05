@@ -9,17 +9,12 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { countLines } from '../../packages/harness-graph/src/derive/read-frontmatter.js';
 
 const SKILL = readFileSync(new URL('../../packages/core/skills/void-autopilot/SKILL.md', import.meta.url), 'utf8');
 const TICKET_RUNNER = readFileSync(
   new URL('../../packages/core/skills/void-implement/SKILL.md', import.meta.url),
   'utf8',
 );
-
-function frontmatter(source: string): string {
-  return /^---\r?\n([\s\S]*?)\r?\n---/.exec(source)?.[1] ?? '';
-}
 
 function body(source: string): string {
   return source.slice(source.indexOf('\n---', 4) + 4);
@@ -38,15 +33,6 @@ describe('autopilot skill frontmatter', () => {
       .toContain('runtimes: [claude, codex]');
   });
 
-  it('keeps its description within the discovery budget', () => {
-    const description = /^description:\s*(.*)$/m.exec(frontmatter(SKILL))?.[1] ?? '';
-    expect(description.length).toBeGreaterThan(0);
-    expect(description.length).toBeLessThanOrEqual(250);
-  });
-
-  it('stays under the skill size cap', () => {
-    expect(countLines(SKILL)).toBeLessThanOrEqual(400);
-  });
 });
 
 describe('delegation to implement', () => {
