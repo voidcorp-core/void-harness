@@ -279,16 +279,19 @@ function applyRuntimeCertification(
   decision: MissionTeamDecision,
   capability: SpecialistRuntimeCapability,
 ): MissionTeamDecision {
+  // A degraded runtime still ran the declared review. Keep its limitation in
+  // the verdict, but do not turn a valid ticket into a dead end: only an
+  // unavailable runtime is a hard gate (handled before this function).
   if (capability.status === 'available') return decision;
   const runtimeReasons = capability.limitations.map((item) => `specialist runtime: ${item}`);
   const reasons = [...new Set([...decision.reasons, ...runtimeReasons])];
-  if (decision.action.kind === 'complete') {
-    return stopped('degraded', decision.review, decision.verdict, reasons);
-  }
-  const status = decision.verdict.status === 'blocked' ? 'blocked' : 'degraded';
   return {
     ...decision,
-    verdict: overrideVerdict(decision.verdict, status, runtimeReasons),
+    verdict: overrideVerdict(
+      decision.verdict,
+      decision.verdict.status === 'blocked' ? 'blocked' : 'degraded',
+      runtimeReasons,
+    ),
     reasons,
   };
 }

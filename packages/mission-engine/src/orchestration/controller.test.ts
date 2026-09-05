@@ -315,7 +315,7 @@ describe('mission team controller', () => {
     });
   });
 
-  it('dispatches reviews in degraded isolation but never certifies them green', () => {
+  it('finishes a reviewed ticket with an explicit degraded runtime note', () => {
     const limitation = 'parent sandbox can override read-only specialist policy';
     const preparing = decide(
       [started()],
@@ -333,17 +333,18 @@ describe('mission team controller', () => {
     expect(preparing.reasons).toContain(`specialist runtime: ${limitation}`);
 
     const proof = sealEvidence(evidenceDraft());
-    const reviews = TEST_SPECIALIST_IDS.map((specialistId, index) =>
-      completion(specialistId, index + 6)
+    const reviews = TEST_SPECIALIST_IDS.flatMap((specialistId, index) =>
+      lifecycleCompletion(specialistId, 12 + (index * 3), 'post-implementation')
     );
     const finished = decide(
       [
         started(),
-        ...preReviews(),
-        writer(),
+        ...TEST_SPECIALIST_IDS.flatMap((specialistId, index) =>
+          lifecycleCompletion(specialistId, 2 + (index * 3), 'pre-implementation')),
+        writer(11),
         ...reviews,
         event({
-          seq: 9,
+          seq: 21,
           eventId: 'evt_00000000-0000-4000-8000-000000000009',
           kind: 'evidence.recorded',
           subject: proof.evidenceId,
@@ -356,9 +357,10 @@ describe('mission team controller', () => {
       { status: 'degraded', limitations: [limitation] },
     );
 
-    expect(finished.phase).toBe('degraded');
-    expect(finished.action).toMatchObject({ kind: 'stop' });
+    expect(finished.phase).toBe('verified');
+    expect(finished.action).toMatchObject({ kind: 'complete' });
     expect(finished.verdict.status).toBe('degraded');
+    expect(finished.reasons).toContain(`specialist runtime: ${limitation}`);
   });
 
   it('still blocks before dispatch when the specialist runtime is unavailable', () => {
