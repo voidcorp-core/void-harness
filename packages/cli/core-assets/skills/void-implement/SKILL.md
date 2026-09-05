@@ -21,7 +21,7 @@ materializes its runtime-neutral specialist envelopes from the current plan.
 
 1. Keep one `leadWriterId` for implementation and every correction. Reviewers never edit.
 2. Before starting, directly cite the existing preparation plan/spec in the canonical ticket
-   using a backticked repository-relative path such as `docs/plans/example.md` when preparation
+   using a backticked repository-relative path such as `docs/plans/YYYY-MM-DD-<topic>.md` when preparation
    needs a mutable carrier. Reuse an existing document; do not create one for every ticket.
    Start the controller-owned run with `mission start --ticket <ticket>`,
    then call `mission dispatch --id <mission> --json` for every next action. The start binds the

@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:6c3312d87d62c9402e0fe7c0724ab7b9f41f9367528869eb9854c6a4d32392e5"
+    "rootHash": "sha256:6df2c1afa02cefbcffb0138dcbd7de9c8e8726c22275717342ef167f4cc790aa"
   },
   "nodes": [
     {
@@ -4284,7 +4284,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-implement/SKILL.md",
-          "staticTokens": 5291,
+          "staticTokens": 5294,
           "type": "skill"
         }
       },
