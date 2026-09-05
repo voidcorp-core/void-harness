@@ -112,6 +112,7 @@ const DECLARED = [
   { name: 'void-journal-anchor', reason: 'reserved basename of a change-journal sentinel' },
   { name: 'void-last-event-id', reason: 'graph studio live-render cursor' },
   { name: 'void-layout', reason: 'module owning the void directory layout' },
+  { name: 'void-mission-presentation-v1', reason: 'presentation workspace owner metadata' },
   { name: 'void-migration', reason: 'name of the void layout migration check' },
   { name: 'void-probe', reason: 'observed write path written by the hook probe' },
   { name: 'void-project-benchmark', reason: 'project-graph benchmark fixture prefix' },
@@ -120,6 +121,7 @@ const DECLARED = [
   { name: 'void-runtime-stage', reason: 'scratch prefix for the isolated `runtime add` stage' },
   { name: 'void-security', reason: 'scratch prefix of the `security` command' },
   { name: 'void-tx', reason: 'scratch prefix of the file transaction' },
+  { name: 'void-orchestrator', reason: 'cmux presentation status identifier' },
 ];
 
 /**
