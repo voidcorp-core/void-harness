@@ -501,6 +501,41 @@ describe('parseMissionArgs', () => {
     });
     expect(post.envelopes.length).toBeGreaterThan(0);
 
+    const subject = (dispatch: typeof post) => dispatch.envelopes.map((envelope) => ({
+      specialistId: envelope.specialistId,
+      inputHash: envelope.inputHash,
+      diff: envelope.contextPack.diff,
+      touchedPaths: envelope.contextPack.touchedPaths,
+    }));
+    expect(post.envelopes[0]?.contextPack.diff).toContain('vitest run');
+    // A real content edit on the same path must invalidate the review.
+    await writeFile(join(root, 'package.json'), JSON.stringify({
+      packageManager: 'pnpm@10.34.5',
+      scripts: { test: 'vitest run --changed' },
+    }));
+    const edited = await dispatchMissionSpecialists(
+      resolveProjectRoots(root), input, '2026-08-21T12:01:10.000Z', capability,
+    );
+    expect.soft(edited.envelopes.map((envelope) => envelope.inputHash))
+      .not.toEqual(post.envelopes.map((envelope) => envelope.inputHash));
+    await writeFile(join(root, 'package.json'), JSON.stringify({
+      packageManager: 'pnpm@10.34.5',
+      scripts: { test: 'vitest run' },
+    }));
+    execFileSync('git', ['add', 'package.json'], { cwd: root });
+    const staged = await dispatchMissionSpecialists(
+      resolveProjectRoots(root), input, '2026-08-21T12:01:20.000Z', capability,
+    );
+    expect.soft(subject(staged)).toEqual(subject(post));
+    execFileSync('git', [
+      '-c', 'user.name=Void Test', '-c', 'user.email=void@example.test',
+      'commit', '--quiet', '-m', 'test: commit reviewed content',
+    ], { cwd: root });
+    const committed = await dispatchMissionSpecialists(
+      resolveProjectRoots(root), input, '2026-08-21T12:01:30.000Z', capability,
+    );
+    expect.soft(subject(committed)).toEqual(subject(post));
+
     const requestsBeforeTicketChange = (await inspectMission(root, missionId, {
       dependencies: {},
     })).stream.events.filter((event) => event.kind === 'specialist.requested').length;
