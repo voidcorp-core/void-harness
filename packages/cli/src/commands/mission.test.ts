@@ -530,6 +530,19 @@ describe('parseMissionArgs', () => {
       resolveProjectRoots(root), input, '2026-08-21T12:01:20.000Z', capability,
     );
     expect.soft(subject(staged)).toEqual(subject(post));
+    for (const envelope of post.envelopes) {
+      const contextId = `ctx_post_${envelope.agentName}`;
+      await recordSpecialistLifecycle(root, missionId, { status: 'started', envelope, contextId });
+      await recordSpecialistLifecycle(root, missionId, {
+        status: 'completed', envelope, contextId,
+        completion: {
+          schemaVersion: 1, specialistId: envelope.specialistId,
+          contractVersion: envelope.contractVersion,
+          completionId: `cmp_post_${envelope.agentName}`, verdict: 'pass',
+          findings: [], evidenceRequests: [], limitations: [],
+        },
+      });
+    }
     execFileSync('git', [
       '-c', 'user.name=Void Test', '-c', 'user.email=void@example.test',
       'commit', '--quiet', '-m', 'test: commit reviewed content',
@@ -537,7 +550,18 @@ describe('parseMissionArgs', () => {
     const committed = await dispatchMissionSpecialists(
       resolveProjectRoots(root), input, '2026-08-21T12:01:30.000Z', capability,
     );
-    expect.soft(subject(committed)).toEqual(subject(post));
+    expect(committed.action.kind).toBe('run-verification');
+    expect(committed.envelopes).toEqual([]);
+    await writeFile(join(root, 'package.json'), JSON.stringify({
+      packageManager: 'pnpm@10.34.5', scripts: { test: 'vitest run --changed' },
+    }));
+    const stale = await dispatchMissionSpecialists(
+      resolveProjectRoots(root), input, '2026-08-21T12:01:35.000Z', capability,
+    );
+    expect(stale.action).toMatchObject({
+      kind: 'invoke-specialists', stage: 'post-implementation', reviewRound: 2,
+    });
+    expect(stale.envelopes[0]?.inputHash).not.toBe(post.envelopes[0]?.inputHash);
 
     // A file absent from Git's diff cannot silently receive a review proof.
     await writeFile(join(root, 'new-module.ts'), 'export const answer = 42;\n');
