@@ -41,6 +41,12 @@ autopilot:
 
 ## Reliability sequence approved on 2026-09-05
 
+The target direction is [Void Machine](../docs/VOID-MACHINE-VISION.md), supplied
+by Folpe on 2026-09-05. DEV-833 must start by confronting it with the repository
+and applicable decisions, then propose a spec and a migration for approval.
+Recording this vision does not authorize an immediate rewrite or replace the
+executing plan. Historical accepted decisions remain intact.
+
 Folpe places the reliability sequence before expanding the native kernel:
 DEV-831 repairs preparation review progress; DEV-832 proves the real implement,
 autopilot and brainstorm paths, including interruption and cleanup; DEV-822
