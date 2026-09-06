@@ -62,7 +62,7 @@ stats.
 - **Security** (OWASP / STRIDE / secrets / supply-chain) → only *detect*
   trust-boundary code (new input, auth, SQL, LLM I/O, env reads) and recommend
   `void-security-audit`. Do not audit it yourself.
-- **Design audit** → `void-ui-review`. **QA / shipping** → gstack (`/void-qa`, `/ship`).
+- **Design audit** → `void-ui-review`. **QA / shipping** → `void-qa` and `void-implement` + `gh`.
   Never spill here (anti-bloat rule 6).
 
 ## Output format

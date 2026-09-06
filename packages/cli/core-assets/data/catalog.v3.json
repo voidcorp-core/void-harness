@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:927fa1f12019b7b333769d1e2a12054a57595912c075a3e2733aceac6cb921c0"
+    "rootHash": "sha256:95945464e280588ec88ffd760d357bf9320fe34cd3747d74307f64937addb166"
   },
   "nodes": [
     {
@@ -160,7 +160,7 @@
           "name": "doctrine-critic",
           "pack": null,
           "source": "packages/core/agents/doctrine-critic.md",
-          "staticTokens": 1128,
+          "staticTokens": 1130,
           "type": "agent"
         }
       },
@@ -300,7 +300,7 @@
           "name": "migration-planner",
           "pack": null,
           "source": "packages/core/agents/migration-planner.md",
-          "staticTokens": 1153,
+          "staticTokens": 1160,
           "type": "agent"
         }
       },
@@ -468,7 +468,7 @@
           "name": "silent-failure-hunter",
           "pack": null,
           "source": "packages/core/agents/silent-failure-hunter.md",
-          "staticTokens": 1173,
+          "staticTokens": 1175,
           "type": "agent"
         }
       },
@@ -552,7 +552,7 @@
           "name": "type-design-analyzer",
           "pack": null,
           "source": "packages/core/agents/type-design-analyzer.md",
-          "staticTokens": 1187,
+          "staticTokens": 1189,
           "type": "agent"
         }
       },
