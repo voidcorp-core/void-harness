@@ -7,6 +7,9 @@ Sources for `void-testing` skill (see `docs/plans/skill-audits/void-testing.md` 
 - superpowers test patterns — verify-test-fails-for-right-reason, pristine output
 - Vitest docs — https://vitest.dev — tactical specifics in pack-monorepo
 - Playwright docs — https://playwright.dev — tactical specifics in pack-nextjs-pwa
+- Next.js CLI — https://nextjs.org/docs/app/api-reference/cli/next — build and serve the deployment-equivalent artifact
+- Playwright fixtures, parallelism and auth — https://playwright.dev/docs/test-fixtures, https://playwright.dev/docs/test-parallel, https://playwright.dev/docs/auth — isolated worker state and authentication setup
+- Better Auth rate limits — https://better-auth.com/docs/concepts/rate-limit — preserve production defaults and prove client-facing denial
 - MSW (Mock Service Worker) — https://mswjs.io — HTTP boundary mocking
 - pglite — https://pglite.dev — in-memory Postgres for fast integration tests
 

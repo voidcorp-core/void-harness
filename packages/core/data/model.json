@@ -2674,7 +2674,7 @@
         }
       ],
       "id": "skill:void-testing",
-      "lines": 283,
+      "lines": 301,
       "name": "void-testing",
       "owner": "folpe",
       "pack": null,
@@ -2683,7 +2683,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-testing/SKILL.md",
-      "staticTokens": 2798,
+      "staticTokens": 3073,
       "triggers": {
         "globs": [
           "**/*.test.ts",
