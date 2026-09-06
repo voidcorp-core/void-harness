@@ -58,7 +58,7 @@
       "name": "doctrine-critic",
       "pack": null,
       "source": "packages/core/agents/doctrine-critic.md",
-      "staticTokens": 1128,
+      "staticTokens": 1130,
       "type": "agent"
     },
     {
@@ -108,7 +108,7 @@
       "name": "migration-planner",
       "pack": null,
       "source": "packages/core/agents/migration-planner.md",
-      "staticTokens": 1153,
+      "staticTokens": 1160,
       "type": "agent"
     },
     {
@@ -168,7 +168,7 @@
       "name": "silent-failure-hunter",
       "pack": null,
       "source": "packages/core/agents/silent-failure-hunter.md",
-      "staticTokens": 1173,
+      "staticTokens": 1175,
       "type": "agent"
     },
     {
@@ -198,7 +198,7 @@
       "name": "type-design-analyzer",
       "pack": null,
       "source": "packages/core/agents/type-design-analyzer.md",
-      "staticTokens": 1187,
+      "staticTokens": 1189,
       "type": "agent"
     },
     {

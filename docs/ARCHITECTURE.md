@@ -493,7 +493,7 @@ The CLI does **not** edit the consumer's source code. The consumer's CLAUDE.md i
 
 ## Inter-plugin contracts (the core-hub model)
 
-The core plugin is **always installed** and acts as the hub between plugins. A sibling plugin (today: `forge`, the ideation pipeline) routes into the core's execution capabilities (`void-brainstorm`, `void-plan`, `void-ticket`, `void-tdd`, ...) rather than reimplementing them or dangling a pointer at a gstack skill. The nominal routing assumes the core is present; the coupling is nonetheless a **versioned artifact contract**, not a hard plugin dependency, so each plugin still makes sense alone — forge degrades to producing a standalone spec, core works with a hand-written spec.
+The core plugin is **always installed** and acts as the hub between plugins. A sibling plugin (today: `forge`, the ideation pipeline) routes into the core's execution capabilities (`void-brainstorm`, `void-plan`, `void-ticket`, `void-tdd`, ...) rather than reimplementing them or dangling a pointer at an external runtime skill. The nominal routing assumes the core is present; the coupling is nonetheless a **versioned artifact contract**, not a hard plugin dependency, so each plugin still makes sense alone — forge degrades to producing a standalone spec, core works with a hand-written spec.
 
 Re-splitting core into `core` + `dev` (execution) sub-plugins is explicitly **deferred (YAGNI)**: one core-hub is enough until a second consumer of the "execution" half exists.
 
