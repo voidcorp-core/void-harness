@@ -998,6 +998,33 @@ function missionRuntimeIdentity(
   });
 }
 
+function implementationBaseHead(
+  events: readonly { readonly kind: string; readonly payload: unknown }[],
+): string | undefined {
+  const request = events.find((event) =>
+    event.kind === 'lead-writer.requested'
+    && objectField(event.payload, 'actionKind') === 'run-lead-writer');
+  const head = objectField(request?.payload, 'implementationBaseHead');
+  return typeof head === 'string' && /^[0-9a-f]{40}$/.test(head) ? head : undefined;
+}
+
+async function currentHead(root: string): Promise<string> {
+  try {
+    const result = await execFile('git', ['rev-parse', '--verify', 'HEAD'], {
+      cwd: root,
+      encoding: 'utf8',
+      timeout: 5_000,
+    });
+    const head = result.stdout.trim();
+    if (/^[0-9a-f]{40}$/.test(head)) return head;
+    throw new Error('MISSION_IMPLEMENTATION_BASE_INVALID: git returned an invalid HEAD');
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('MISSION_IMPLEMENTATION_BASE_')) {
+      throw error;
+    }
+    throw new Error('MISSION_IMPLEMENTATION_BASE_UNAVAILABLE: unable to resolve git HEAD');
+  }
+}
 function missionRoutingHash(
   events: readonly { readonly kind: string; readonly payload: unknown }[],
 ): string | undefined {

@@ -65,6 +65,16 @@ next unit. If no provider is declared, require a specific unit; if a required ca
 unavailable, stop that action rather than infer remote progress. A specific user request overrides
 automatic selection. Human gates and merges remain human.
 
+## Visible mission workspace
+
+For a request to code on a named project, use the optional presentation adapter
+as described in `docs/NATIVE-SUPERVISION.md`: resolve the project and mission,
+reuse their workspace, keep the coordinator left and native terminal workers
+stacked right. Use `scripts/mission-presentation.mjs` from this harness checkout;
+never assume cmux exists in the target project. Runtime-native delegation remains
+the executor. Do not duplicate an agent to give it a pane, and do not turn a
+presentation failure into a changed permission, proof or merge policy.
+
 ## Anti-bloat discipline
 
 Eight hard rules. **Any PR violating these is blocked.**

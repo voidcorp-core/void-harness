@@ -7,13 +7,13 @@ spec: docs/specs/2026-08-31-autonomous-until-develop.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
-  order: [DEV-677, DEV-673, DEV-665, DEV-664]
+  order: [DEV-831, DEV-832, DEV-822, DEV-395, DEV-833]
   states:
     ready: [Backlog, Todo]
     started: [In Progress]
     review: [In Review]
     done: [Done, Canceled]
-humanGates: []
+humanGates: [DEV-833]
 autopilot:
   schemaVersion: 1
   clusterSize: 4
@@ -39,6 +39,35 @@ autopilot:
 
 # Program: autonomous until develop
 
+## Reliability sequence approved on 2026-09-05
+
+The target direction is [Void Machine](../docs/VOID-MACHINE-VISION.md), supplied
+by Folpe on 2026-09-05. DEV-833 must start by confronting it with the repository
+and applicable decisions, then propose a spec and a migration for approval.
+Recording this vision does not authorize an immediate rewrite or replace the
+executing plan. Historical accepted decisions remain intact.
+
+Folpe places the reliability sequence before expanding the native kernel:
+DEV-831 repairs preparation review progress; DEV-832 proves the real implement,
+autopilot and brainstorm paths, including interruption and cleanup; DEV-822
+carries reliable test guidance into consumers; DEV-395 finishes the GStack
+teardown; DEV-833 is a brainstorm with Folpe about measured product value.
+Notify Folpe when DEV-833 becomes ready and conduct it together. Do not infer
+approval from green CI or complete this discussion autonomously.
+
+The complete ordered chain is visible on the open epic
+[DEV-807](https://linear.app/voidcorp/issue/DEV-807), not only in the completed
+DEV-666 audit. Native Linear dependencies own readiness and mutable progress.
+After this sequence and the discussion, activate the approved Void Machine
+programme context before selecting VM-01 (DEV-808); this descriptor does not
+silently authorize the native cutover under the legacy plan.
+
+Implement owns one ticket's risk-appropriate quality cycle. Autopilot owns
+dependency selection, isolation, recovery, resource limits, cleanup and exact
+integration. The DEV-833 discussion compares their added value under controlled
+conditions before choosing further mechanisms; it is not a claim that the
+existing layers have already earned their cost.
+
 This file is the stable global context for the executing program. It deliberately names neither a
 current nor a next work unit. The provider declared under `progress` owns claims, dependencies,
 review state and the remote resume trail; this file only locates that state.
@@ -46,16 +75,13 @@ review state and the remote resume trail; this file only locates that state.
 The pointer moved on 2026-08-31 to the programme now in flight: `autopilot 6h` runs to the end
 with nobody present, and the only human gate is the promotion to the branch that deploys.
 
-`progress.order` names the four shipped guards rather than this programme's slices, and that is
-the field working as specified rather than a mismatch: it is a **deterministic tie-break among
-simultaneously ready units**, not the programme's decomposition. The guards are ready, they are
-real, and they are the pool the first real run drains. The slices are executed directly from the
-plan and become units only when an autopilot has to drain them unattended.
+`progress.order` is a deterministic tie-break among ready units, not mutable
+execution state. The sequence above replaces the initial four shipped guards
+following Folpe's explicit ordering on 2026-09-05.
 
-`humanGates` is empty on purpose. Folpe settled it on 2026-08-31: the only human gate is
-`develop -> main`, which `production-downstream` already refuses to a machine. A gate declared per
-ticket stops a run in front of a person, which is the thing this programme exists to remove. The
-field stays in the contract for consumers who want it.
+The initial programme had no per-ticket human gate. Folpe explicitly requested
+the DEV-833 discussion on 2026-09-05, so it is now declared in `humanGates`.
+This bounded discussion does not remove the deploying-branch promotion guard.
 
 **Corrections land in the artefact being worked on, never in a successor.** Spec drift is the
 documented failure of this whole family of workflows -- the files stop matching what

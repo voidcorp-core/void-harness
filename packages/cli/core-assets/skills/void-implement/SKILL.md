@@ -20,10 +20,7 @@ before invoking an agent. The pure Mission Engine controller owns state and verd
 materializes its runtime-neutral specialist envelopes from the current plan.
 
 1. Keep one `leadWriterId` for implementation and every correction. Reviewers never edit.
-2. Before starting, directly cite the existing preparation plan/spec in the canonical ticket
-   using a backticked repository-relative path such as `docs/plans/YYYY-MM-DD-<topic>.md` when preparation
-   needs a mutable carrier. Reuse an existing document; do not create one for every ticket.
-   Start the controller-owned run with `mission start --ticket <ticket>`,
+2. Start the controller-owned run with `mission start --ticket <ticket>`,
    then call `mission dispatch --id <mission> --json` for every next action. The start binds the
    canonical ticket path, ticket content, and frozen routing snapshot; dispatch accepts none of
    them again and refuses a changed ticket. Runtime identity comes from the native session marker,
@@ -46,28 +43,29 @@ materializes its runtime-neutral specialist envelopes from the current plan.
    failed completion and makes certification blocked/degraded.
 5. Treat specialist output as structured findings, evidence requests, and limitations. It is never
    authoritative free-form prose and never grants write ownership.
-6. Send one coherent correction batch to the same lead writer. For `run-preparation-correction`,
-   resolve or explain the findings in the cited preparation document, without changing the frozen
-   ticket or beginning implementation. Record completion, then dispatch the new preparatory
-   review; begin TDD implementation only when the controller returns `run-lead-writer`.
-   If no suitable document was cited before start, report the missing input and close the mission
-   as interrupted before starting with corrected inputs; preserve the unfinished evidence.
-   Verify that each new context pack contains the corrected preparation, and report an omitted
-   or missing artifact instead of asking reviewers to approve unseen changes.
-   Recompute review input hashes and
-   rerun only specialists whose inputs changed. After `run-lead-writer`, `run-correction`, or
-   `run-preparation-correction`, call `mission writer-event --id <mission>`; it consumes the
-   controller's pending writer receipt rather than trusting caller-supplied identity or round.
-   Then request the next controller action. For `run-verification`, use `mission verify`.
+6. Send one coherent correction batch to the same lead writer. The pre-implementation panel is
+   a one-time preparation gate: after `run-preparation-correction`, record the writer event and
+   request the next action, which is implementation. Do not reopen the preparation panel. Once
+   implementation has started, a finding stays in the post-implementation stage: correct it with
+   the same writer, recompute review input hashes, rerun only post-implementation specialists
+   whose inputs changed, and let that next post-implementation pass inspect the complete current
+   diff. A correction never rewinds the mission to the beginning. After `run-lead-writer`,
+   `run-correction`, or `run-preparation-correction`, call `mission writer-event --id <mission>`;
+   it consumes the controller's pending writer receipt rather than trusting caller-supplied
+   identity or round. Then request the next controller action. For `run-verification`, use
+   `mission verify`.
    `complete` and `stop` close the mission automatically. On interruption or abandonment, call
    `mission close --id <mission> --reason interrupted|abandoned` so lifecycle learning can
    distinguish unfinished work from a still-active dispatch.
-7. Stop after two review rounds. A missing completion, stale proof, timeout, degraded specialist,
-   or persistent blocker ends `blocked`/`degraded`, never green.
+7. Stop after two review rounds. A missing completion, stale proof, timeout, or persistent blocker
+   ends `blocked`/`degraded`. A runtime limitation may finish with a visible degraded note after
+   all ticket, review, and verification evidence is valid; it never becomes an unreported green
+   claim.
 
 Claude and Codex use their installed native agent definitions. A sequential self-review in the
 parent context is not a substitute for a missing subagent primitive. If the runtime cannot provide
-fresh context or the declared read-only boundary, report the limitation and refuse certification.
+the specialist primitive at all, refuse dispatch; if its isolation is only partially enforceable,
+report the limitation and keep the degraded note visible through completion.
 
 ---
 
@@ -89,7 +87,7 @@ Run in order. Each pass names the skill it composes and the predicate that fires
 2. **Architecture pass** (IF it touches structure, a module boundary, the data model, or public types). Compose `void-hexagonal-architecture`, `void-domain-driven-design`, agents `type-design-analyzer` + `doctrine-critic`. Confirm the applicable ADR is honored.
 3. **Source grounding** (IF it writes or changes the configuration, schema, or call signature of a third-party dependency). Compose `void-source-driven-development`: read the official documentation **of the installed version** before the first line, and cite the reference where the config lives. Assumed semantics produce bugs that cost hours to find, and the assumption is invisible in the diff — which is why this runs before the writing rather than at review. A purely internal change has no official documentation to read: the predicate is false, and the pass does not run. A pass that fires on everything becomes a box to tick.
 4. **Migration safety** (IF it changes a DB schema or ships a migration). Compose `void-migrations` (and `void-drizzle-migration-safe` on a Drizzle/Postgres stack): zero-downtime, two-phase, batched backfill, locking analysis. **Once the migration is generated and safety-reviewed, apply it to the dev/local database before the TDD and E2E passes run** — otherwise those tests execute against a stale schema and prove nothing about the new shape. **This cycle only ever applies to dev/local; production migrations run through CI / GitHub Actions on merge, never from a worker or this session** (see the `void-migrations` anti-rule). A schema change must never reach the rest of the cycle without this pass.
-5. **Convene the panel** (ALWAYS, in `team` mode). Call `mission dispatch --json` and act on what it returns. In `team` mode its first action is `invoke-specialists` at `stage: 'pre-implementation'`: the panel speaks **before** the first line is written, which is the whole reason it exists. Invoke each returned envelope's exact `agentName` in a fresh context and paste that envelope's `contextPack` into the prompt verbatim -- the diff, the touched paths, the artifacts, and `omitted` naming what the budget refused. Do not point a specialist at a file to read and do not send it exploring: its turns are few, and a specialist that spends them looking returns nothing. Record `started`, then `completed` or `failed`, for every envelope. Findings from this pass are the brief the writer implements against; a `blocked` verdict stops the cycle here rather than after the code exists.
+5. **Convene the panel** (ALWAYS once, in `team` mode). Call `mission dispatch --json` and act on what it returns. In `team` mode its first action is `invoke-specialists` at `stage: 'pre-implementation'`: the panel speaks **before** the first line is written, which is the whole reason it exists. Invoke each returned envelope's exact `agentName` in a fresh context and paste that envelope's `contextPack` into the prompt verbatim -- the diff, the touched paths, the artifacts, and `omitted` naming what the budget refused. Do not point a specialist at a file to read and do not send it exploring: its turns are few, and a specialist that spends them looking returns nothing. Record `started`, then `completed` or `failed`, for every envelope. Findings from this pass are the brief the writer implements against; a `blocked` verdict stops the cycle here rather than after the code exists. Later dispatches follow the controller's current stage and never replay this preparation pass.
 6. **TDD implementation** (ALWAYS). The single lead writer composes `void-tdd` + `void-testing`. Red, green, refactor. Unit tests for the behavior, green before moving on. Review specialists remain read-only.
 7. **Async + idempotency** (IF it sends email, calls an external side-effecting API, enqueues a job, or mints a single-use token). Compose `void-async-safety`: idempotency keys, replay/dedup window, bounded retries, single-use enforcement.
 8. **End-to-end tests** (IF it touches a user-facing flow). Write/extend the E2E suite (Playwright). The path a user actually walks, not just the unit.
