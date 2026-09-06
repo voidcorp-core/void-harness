@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:927fa1f12019b7b333769d1e2a12054a57595912c075a3e2733aceac6cb921c0"
+    "rootHash": "sha256:a6b2707cee22500f0bfcfb2c6b6460aac94843a3fa0a16431fa2e76f438694c1"
   },
   "nodes": [
     {
@@ -5062,7 +5062,7 @@
             }
           ],
           "id": "skill:void-testing",
-          "lines": 283,
+          "lines": 301,
           "name": "void-testing",
           "owner": "folpe",
           "pack": null,
@@ -5071,7 +5071,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-testing/SKILL.md",
-          "staticTokens": 2798,
+          "staticTokens": 3073,
           "triggers": {
             "globs": [
               "**/*.test.ts",

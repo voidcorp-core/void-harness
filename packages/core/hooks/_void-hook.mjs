@@ -1707,7 +1707,7 @@ import {
 import { homedir } from "node:os";
 import { basename as basename3, isAbsolute as isAbsolute3, join as join10, relative as relative3, resolve as resolve3 } from "node:path";
 
-// ../mission-engine/dist/session/checkpoint.js
+// ../../../../../Users/folpe/Developer/void-harness/packages/mission-engine/dist/session/checkpoint.js
 import { createHash } from "node:crypto";
 var PROSE_SECTIONS = {
   objective: "objective",
@@ -2102,7 +2102,7 @@ function parseCheckpoint(raw) {
   };
 }
 
-// ../mission-engine/dist/session/resume.js
+// ../../../../../Users/folpe/Developer/void-harness/packages/mission-engine/dist/session/resume.js
 var DAY_MS2 = 864e5;
 var STALE_DAYS2 = 7;
 var CONTEXT_CHARS_MAX = 4e3;
@@ -4037,7 +4037,7 @@ import {
   resolve as resolve7
 } from "node:path";
 
-// ../mission-engine/dist/events/schema.js
+// ../../../../../Users/folpe/Developer/void-harness/packages/mission-engine/dist/events/schema.js
 var MAX_EVENT_PAYLOAD_BYTES = 16 * 1024;
 var MAX_EVENT_LINE_BYTES = 32 * 1024;
 var MAX_EVENT_PAYLOAD_DEPTH = 8;
@@ -4207,7 +4207,7 @@ function serializeEvent(event) {
   return line;
 }
 
-// ../mission-engine/dist/events/reducer.js
+// ../../../../../Users/folpe/Developer/void-harness/packages/mission-engine/dist/events/reducer.js
 function replayEventLog(text2) {
   const events = [];
   const eventIds = /* @__PURE__ */ new Set();

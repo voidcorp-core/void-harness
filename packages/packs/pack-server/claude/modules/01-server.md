@@ -42,6 +42,20 @@ No wrapper required — the pattern is short enough to inline. If your project r
 | Public read-only API | Route handler (`api/`) |
 | Internal cron / queue job | Route handler + auth via secret — see `void-background-job-pattern` |
 
+## E2E authentication and security proof
+
+- Scenarios that do not test authentication acquire their session through a server/API fixture
+  boundary. Keep the authentication UI path for the scenario whose behavior is authentication.
+- Functional E2E does not disable rate limiting. Prove the production-default threshold and the
+  denial response (`429`) in an independent test lane; fixture setup through `auth.api` is valid
+  preparation but is not evidence for the client-facing rate-limit contract.
+- A test-only security override is a typed, bounded profile. Malformed or out-of-range values fall
+  back to safe production defaults; a production deployment manifest must reject the hermetic test
+  adapter.
+- Accounts and mutable state are unique to the run and worker. Register idempotent, bounded cleanup
+  for every resource, including partial setup and interrupted runs. Never commit or attach browser
+  storage state or credentials.
+
 ## Composition (informational)
 
 - `harness-react` — components call Server Actions, not the DB.
