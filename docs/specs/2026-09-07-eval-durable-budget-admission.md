@@ -1,7 +1,7 @@
 ---
 title: Admission budgetaire durable des evaluations
 date: 2026-09-07
-status: in-design
+status: approved
 author: Folpe + Codex
 ticket:
 related:
@@ -21,7 +21,7 @@ Le journal de `durable.ts` fournit deja verrou exclusif, identite immuable,
 ecriture synchronisee avant effet et refus de rejouer une admission incertaine.
 Il ne contient pas de politique monetaire.
 
-Cette spec propose cette politique. Elle n'est pas encore approuvee, ne change
+Folpe a approuve cette politique le 2026-09-08. Cette approbation ne change
 aucun comportement et n'autorise aucune depense ni aucun envoi de source privee.
 
 ## Alternatives
@@ -108,5 +108,7 @@ autorisation historique n'est reutilisee. Il ne promet pas une capacite runtime
 absente. La premiere livraison serait le controle local avec refus reel tant
 que cette capacite manque, pas une campagne executable de bout en bout.
 
-La decision a approuver est l'alternative 1 et ses refus conservateurs.
-Apres approbation de cette spec : decision durable, plan borne, puis implementation.
+L'alternative 1 et ses refus conservateurs sont approuves. La decision est
+`adr:f91fa744-be1d-485a-bbe1-935f410de8c4`. Le plan d'implementation est
+[le plan budgetaire](../plans/2026-09-08-eval-durable-budget-admission-plan.md),
+soumis a validation avant execution.
