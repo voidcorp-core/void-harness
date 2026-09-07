@@ -280,6 +280,14 @@ the source checkout has not been used for a paid pilot run, and the quality
 analyzer, artifact identity approval and budget gate remain required before
 creating pilot observations.
 
+The authorization boundary is now also explicit in commits `5265ed42`,
+`b79c16d6` and `aa3d9c23`. `parsePilotApproval` accepts only a durable record
+whose campaign, runtime, model, version, effort, resource profile and human
+intervention match the manifest; it requires exactly 27 pilot executions, a
+bounded positive budget, an artifact digest, supported analysis parameters and
+blind human review. No approval record is authored by this change, so DEV-838
+remains open and no paid execution is implied.
+
 ## Plan self-review
 
 - No placeholders or unbounded language remain in the steps.
