@@ -7,8 +7,8 @@ import {
 } from './reviewer.js';
 
 const base = {
-  left: { content: 'result from the first cell' },
-  right: { content: 'result from the second cell' },
+  left: { content: 'result from agent-alone cell' },
+  right: { content: 'result from autopilot cell' },
   criteria: ['correctness', 'evidence'],
   reviewerContext: 'reviewer-2026-09-07',
 };
@@ -19,8 +19,8 @@ describe('blind autonomous value review', () => {
     expect(blindOrder(1)).toBe('B-first');
     expect(blindOrder(2)).toBe('A-first');
     expect(buildBlindReviewInput({ ...base, reviewIndex: 1 })).toEqual({
-      a: base.right.content,
-      b: base.left.content,
+      a: 'result from [CONDITION] cell',
+      b: 'result from [CONDITION] cell',
       criteria: base.criteria,
     });
   });
@@ -37,7 +37,7 @@ describe('blind autonomous value review', () => {
 
   it('marks missing reviewer context as unknown without spending a judge call', async () => {
     const judge = vi.fn<BlindReviewJudge>(async () => ({ winner: 'A', reason: 'pass' }));
-    const result = await runBlindReview({ ...base, reviewerContext: '' }, judge);
+    const result = await runBlindReview({ ...base, reviewIndex: 0, reviewerContext: '' }, judge);
     expect(result).toEqual({ kind: 'unknown', reason: 'reviewer context is missing' });
     expect(judge).not.toHaveBeenCalled();
   });
