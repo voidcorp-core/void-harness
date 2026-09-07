@@ -1,18 +1,18 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import {
-  createConformanceCellExecutor,
-  createCellWorkspaceFactory,
-  runAutonomousValueCell,
-  type CellWorkspace,
-  type CellWorkspaceFactory,
-} from './runner.js';
+import type { RuntimeInvocation } from '../runtime/types.js';
 import type { AutonomousValueCell } from '../types.js';
 import type { ExecutorEvidenceInput } from './evidence.js';
-import type { RuntimeInvocation } from '../runtime/types.js';
+import {
+  type CellWorkspace,
+  type CellWorkspaceFactory,
+  createCellWorkspaceFactory,
+  createConformanceCellExecutor,
+  runAutonomousValueCell,
+} from './runner.js';
 
 const INVOCATION: RuntimeInvocation = {
   command: 'codex',
@@ -24,12 +24,15 @@ const FIXTURE_DIGEST = `sha256:${createHash('sha256').update(
   'utf8',
 ).digest('hex')}`;
 
-function cell(id: AutonomousValueCell['id'] = 'implement-agent-alone'): AutonomousValueCell {
+function cell(
+  id: AutonomousValueCell['id'] = 'implement-agent-alone',
+  startCommit = 'a'.repeat(40),
+): AutonomousValueCell {
   return {
     id,
     path: 'implement',
     condition: 'agent-alone',
-    startCommit: 'a'.repeat(40),
+    startCommit,
     objective: 'exercise the isolated cell',
     defectOracle: ['proof'],
     fixture: { path: 'autonomous-value/implement', digest: FIXTURE_DIGEST },
@@ -61,7 +64,7 @@ function observation(overrides: Partial<ExecutorEvidenceInput> = {}): ExecutorEv
     source: 'executor',
     cellId: 'implement-agent-alone',
     startCommit: 'a'.repeat(40),
-    workspaceStartCommit: 'c'.repeat(40),
+    workspaceStartCommit: 'a'.repeat(40),
     fixtureDigest: FIXTURE_DIGEST,
     artifactDigest: `sha256:${'d'.repeat(64)}`,
     argv: INVOCATION,
@@ -88,12 +91,12 @@ describe('autonomous value cell runner', () => {
   it('gives equivalent cells distinct isolated workspaces and seals executor evidence', async () => {
     const first = workspace(
       '/tmp/cell-one',
-      'c'.repeat(40),
+      'a'.repeat(40),
       () => ({ kind: 'complete', attempts: 1 }),
     );
     const second = workspace(
       '/tmp/cell-two',
-      'c'.repeat(40),
+      'a'.repeat(40),
       () => ({ kind: 'complete', attempts: 1 }),
     );
     const seen: string[] = [];
@@ -136,6 +139,35 @@ describe('autonomous value cell runner', () => {
     expect(new Set(seen).size).toBe(2);
   });
 
+  it('refuses a workspace whose starting commit differs from the frozen cell', async () => {
+    let executed = false;
+    const result = await runAutonomousValueCell({
+      cell: cell(),
+      fixture: FIXTURE,
+      runtime: {
+        argv: INVOCATION,
+        model: 'model',
+        modelVersion: 'version',
+        effort: 'high',
+        artifactDigest: `sha256:${'d'.repeat(64)}`,
+      },
+      workspaceFactory: factory([
+        workspace('/tmp/cell-stale-base', 'c'.repeat(40), () => ({ kind: 'complete', attempts: 1 })),
+      ]),
+      executor: async () => {
+        executed = true;
+        return observation();
+      },
+    });
+
+    expect(executed).toBe(false);
+    expect(result).toEqual({
+      kind: 'unproducible',
+      reason: 'workspace start commit mismatch',
+      cleanup: { kind: 'complete', attempts: 1 },
+    });
+  });
+
   it('does not retry an executor failure and records the failed outcome', async () => {
     let calls = 0;
     const result = await runAutonomousValueCell({
@@ -149,7 +181,7 @@ describe('autonomous value cell runner', () => {
         artifactDigest: `sha256:${'d'.repeat(64)}`,
       },
       workspaceFactory: factory([
-        workspace('/tmp/cell-failed', 'c'.repeat(40), () => ({ kind: 'complete', attempts: 1 })),
+        workspace('/tmp/cell-failed', 'a'.repeat(40), () => ({ kind: 'complete', attempts: 1 })),
       ]),
       executor: async () => {
         calls += 1;
@@ -182,7 +214,7 @@ describe('autonomous value cell runner', () => {
         artifactDigest: `sha256:${'d'.repeat(64)}`,
       },
       workspaceFactory: factory([
-        workspace('/tmp/cell-unknown', 'c'.repeat(40), () => ({ kind: 'complete', attempts: 1 })),
+        workspace('/tmp/cell-unknown', 'a'.repeat(40), () => ({ kind: 'complete', attempts: 1 })),
       ]),
       executor: async () => {
         throw new Error('runtime unavailable: token=private');
@@ -209,7 +241,7 @@ describe('autonomous value cell runner', () => {
         artifactDigest: `sha256:${'d'.repeat(64)}`,
       },
       workspaceFactory: factory([
-        workspace('/tmp/cell-leaked', 'c'.repeat(40), () => {
+        workspace('/tmp/cell-leaked', 'a'.repeat(40), () => {
           cleanupAttempts += 1;
           return {
             kind: 'incomplete',
@@ -240,7 +272,7 @@ describe('autonomous value cell runner', () => {
         artifactDigest: `sha256:${'d'.repeat(64)}`,
       },
       workspaceFactory: factory([
-        workspace('/tmp/cell-throws', 'c'.repeat(40), () => {
+        workspace('/tmp/cell-throws', 'a'.repeat(40), () => {
           cleanupAttempts += 1;
           throw new Error(`cleanup token=secret-${cleanupAttempts}`);
         }),
@@ -270,7 +302,7 @@ describe('autonomous value cell runner', () => {
         artifactDigest: `sha256:${'d'.repeat(64)}`,
       },
       workspaceFactory: factory([
-        workspace('/tmp/cell-live', 'c'.repeat(40), () => ({ kind: 'complete', attempts: 1 })),
+        workspace('/tmp/cell-live', 'a'.repeat(40), () => ({ kind: 'complete', attempts: 1 })),
       ]),
       executor: async () => observation({
         outcome: {
@@ -292,8 +324,9 @@ describe('autonomous value cell runner', () => {
   });
 
   it('captures an untracked file in the real workspace diff', async () => {
+    const realWorkspace = createCellWorkspaceFactory().create(FIXTURE);
     const result = await runAutonomousValueCell({
-      cell: cell(),
+      cell: cell('implement-agent-alone', realWorkspace.baseSha),
       fixture: FIXTURE,
       runtime: {
         argv: INVOCATION,
@@ -302,7 +335,7 @@ describe('autonomous value cell runner', () => {
         effort: 'high',
         artifactDigest: `sha256:${'d'.repeat(64)}`,
       },
-      workspaceFactory: createCellWorkspaceFactory(),
+      workspaceFactory: { create: () => realWorkspace },
       executor: async (input) => {
         writeFileSync(join(input.cwd, 'created.txt'), 'created by the cell');
         return observation();
@@ -325,7 +358,7 @@ describe('autonomous value cell runner', () => {
         artifactDigest: `sha256:${'d'.repeat(64)}`,
       },
       workspaceFactory: factory([
-        workspace('/tmp/cell-tampered', 'c'.repeat(40), () => ({ kind: 'complete', attempts: 1 })),
+        workspace('/tmp/cell-tampered', 'a'.repeat(40), () => ({ kind: 'complete', attempts: 1 })),
       ]),
       executor: async () => {
         throw new Error('executor must not run');
@@ -339,8 +372,21 @@ describe('autonomous value cell runner', () => {
     });
   });
 
-  it('runs equivalent real cells in separate workspaces with identical initial files', async () => {
-    const workspaces = createCellWorkspaceFactory();
+  it('runs equivalent cells in separate workspaces with identical initial files', async () => {
+    const firstDir = mkdtempSync(join(tmpdir(), 'void-eval-cell-one-'));
+    const secondDir = mkdtempSync(join(tmpdir(), 'void-eval-cell-two-'));
+    writeFileSync(join(firstDir, 'task.md'), 'same');
+    writeFileSync(join(secondDir, 'task.md'), 'same');
+    const workspaces = factory([
+      workspace(firstDir, 'a'.repeat(40), () => {
+        rmSync(firstDir, { recursive: true, force: true });
+        return { kind: 'complete', attempts: 1 };
+      }),
+      workspace(secondDir, 'a'.repeat(40), () => {
+        rmSync(secondDir, { recursive: true, force: true });
+        return { kind: 'complete', attempts: 1 };
+      }),
+    ]);
     const initial: string[] = [];
     const seen: string[] = [];
     const execute = async (input: { cwd: string }) => {

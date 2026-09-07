@@ -1,21 +1,21 @@
-import { collectFiles, git, setupSandbox } from '../sandbox.js';
-import { rmSync, existsSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import type { AutonomousValueCell } from '../types.js';
-import type { RuntimeInvocation } from '../runtime/types.js';
-import {
-  sealCellEvidence,
-  validateCellInvocation,
-  type CellExecutionOutcome,
-  type CleanupEvidence,
-  type ExecutorEvidenceInput,
-  type EvidenceResult,
-  type SealedCellEvidence,
-} from './evidence.js';
-
 // @ts-expect-error -- shared JS conformance helper, no type declarations.
 import { runConformanceProcess } from '../../../../packages/cli/scripts/conformance-process.mjs';
+
+import type { RuntimeInvocation } from '../runtime/types.js';
+import { collectFiles, git, setupSandbox } from '../sandbox.js';
+import type { AutonomousValueCell } from '../types.js';
+import {
+  type CellExecutionOutcome,
+  type CleanupEvidence,
+  type EvidenceResult,
+  type ExecutorEvidenceInput,
+  type SealedCellEvidence,
+  sealCellEvidence,
+  validateCellInvocation,
+} from './evidence.js';
 
 const MAX_PROCESS_OUTPUT_BYTES = 1024 * 1024;
 const MAX_TIMEOUT_MS = 15 * 60 * 1_000;
@@ -459,6 +459,10 @@ export async function runAutonomousValueCell(input: {
   if (observedFixtureDigest !== input.cell.fixture.digest) {
     const cleanup = cleanupWorkspace(workspace);
     return { kind: 'unproducible', reason: 'fixture digest mismatch', cleanup };
+  }
+  if (workspace.baseSha !== input.cell.startCommit) {
+    const cleanup = cleanupWorkspace(workspace);
+    return { kind: 'unproducible', reason: 'workspace start commit mismatch', cleanup };
   }
   let observation: CellExecutorObservation;
   try {

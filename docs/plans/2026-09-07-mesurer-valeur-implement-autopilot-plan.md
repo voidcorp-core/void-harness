@@ -315,6 +315,15 @@ first run one canary with the corrected adapter, then use a fresh approval and
 the bounded scheduler. A canary failure stops the campaign before the remaining
 cells are admitted.
 
+The versioned campaign boundary is now end-to-end: it creates the frozen
+schedule, invokes the bounded cell adapter, persists each observation through a
+progress callback, and materializes the report with every non-run cell explicit
+as `unknown`. The cell runner also refuses to execute when the workspace base
+commit differs from the manifest's frozen `startCommit`; this prevents a result
+from a stale or unrelated checkout from entering the report. These guarantees
+are covered by the eval-harness campaign and runner tests. This is a local
+orchestration proof only; it does not authorize or simulate paid model calls.
+
 ## Plan self-review
 
 - No placeholders or unbounded language remain in the steps.
