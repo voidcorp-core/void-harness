@@ -32,6 +32,65 @@ The design follows the load-bearing patterns in these public codebases:
 The adaptation here is deliberately smaller: one deterministic TypeScript
 control plane, one runtime adapter per model, and no retry-based recovery.
 
+## Context policy for long-running agents
+
+The context itself is a finite runtime resource. The official guidance from
+OpenAI and Anthropic converges on the same operational rule: do not keep feeding
+the model the entire history. Keep a small high-signal state, retrieve details
+just in time, and compact before the context limit becomes an emergency.
+
+- OpenAI describes context-window management as part of the agent loop: when a
+  threshold is reached, replace the old input with a compact representation that
+  preserves the useful state. Configuration changes are appended as new state,
+  rather than silently rewriting earlier history. See
+  [Unrolling the Codex agent loop](https://openai.com/index/unrolling-the-codex-agent-loop/)
+  and [Responses API context compaction](https://openai.com/index/equip-responses-api-computer-environment/).
+- Anthropic recommends minimal high-signal context, just-in-time retrieval,
+  compaction, structured note-taking and clear artifacts between sessions. Its
+  long-running harness uses an initializer followed by incremental coding
+  sessions; compaction alone is not considered sufficient. See
+  [Effective context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents),
+  [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)
+  and [Building effective agents](https://www.anthropic.com/engineering/building-effective-agents).
+
+For this repository that becomes five explicit context layers:
+
+1. Stable doctrine: `AGENTS.md`, `CLAUDE.md` and the installed philosophy.
+2. Programme slice: `.void/program.md`, the linked spec and the linked plan,
+   only when selecting or executing programme work.
+3. Current task: the exact ticket, relevant files and the smallest necessary
+   reference material.
+4. Runtime state: bounded tool output, test failures and durable artifacts,
+   referenced by path and commit rather than pasted in full.
+5. Handoff state: `.void/machine/checkpoint.md`, containing only dead ends,
+   assumptions, freshness and one exact next action.
+
+The transcript is not a durable state store. Do not paste old campaign logs,
+full prompts or repeated test output into a new context. Store a redacted
+artifact, record its commit and digest, and retrieve only the lines needed for
+the next decision. When the context approaches its measured budget, compact at
+the next safe boundary: after a cell, after a test lane or before a new
+implementation slice. Never compact in the middle of an unrecorded mutation.
+
+## Clear and resume protocol
+
+Use this protocol whenever the context is long, continuity is degraded, or a
+session changes direction:
+
+1. Stop admitting new paid or external work.
+2. Commit or explicitly explain every working-tree change.
+3. Run the relevant local lanes and record the exact commit they tested.
+4. Write the checkpoint, preserving the mechanical continuity block and keeping
+   one exact next action.
+5. Clear the conversation.
+6. Resume by reading the doctrine, programme descriptor, runbook and checkpoint;
+   do not reconstruct the history from the transcript.
+7. Execute only the checkpoint's next action until fresh evidence changes it.
+
+A clear is therefore a controlled handoff, not a loss of work. It reduces the
+amount of context while preserving the decisions, evidence freshness and one
+safe continuation point.
+
 ## Invariants
 
 These are release-blocking properties, not suggestions.
