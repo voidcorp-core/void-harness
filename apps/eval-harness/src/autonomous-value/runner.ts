@@ -16,8 +16,6 @@ import {
 
 // @ts-expect-error -- shared JS conformance helper, no type declarations.
 import { runConformanceProcess } from '../../../../packages/cli/scripts/conformance-process.mjs';
-// @ts-expect-error -- shared JS conformance helper, no type declarations.
-import { safeConformanceDiagnostic } from '../../../../packages/cli/scripts/conformance-process.mjs';
 
 const MAX_PROCESS_OUTPUT_BYTES = 1024 * 1024;
 const MAX_TIMEOUT_MS = 15 * 60 * 1_000;
@@ -147,6 +145,11 @@ function digestText(value: string): string {
   return `sha256:${createHash('sha256').update(value, 'utf8').digest('hex')}`;
 }
 
+function diagnosticSummary(value: unknown): string {
+  const detail = value instanceof Error ? value.message : String(value);
+  return `runtime diagnostics withheld: ${Buffer.byteLength(detail, 'utf8')} bytes ${digestText(detail)}`;
+}
+
 function runtimeEvents(output: string): readonly string[] {
   const lines = output.split('\n').filter((line) => line !== '');
   const summarized = lines.map((line) => Buffer.byteLength(line, 'utf8') <= MAX_EVENT_BYTES
@@ -200,9 +203,6 @@ function unavailableObservation(
   runtime: CellRuntimeConfiguration,
   error: unknown,
 ): CellExecutorObservation {
-  const detail = safeConformanceDiagnostic(
-    error instanceof Error ? error.message : 'runtime unavailable',
-  );
   return {
     source: 'executor',
     argv: runtime.argv,
@@ -211,7 +211,7 @@ function unavailableObservation(
     effort: runtime.effort,
     events: [],
     output: '',
-    diagnostics: detail,
+    diagnostics: diagnosticSummary(error instanceof Error ? error.message : 'runtime unavailable'),
     outcome: {
       kind: 'unknown',
       exitCode: undefined,
@@ -349,7 +349,7 @@ export function createConformanceCellExecutor(
       effort: runtime.effort,
       events,
       output: result.stdout,
-      diagnostics: safeConformanceDiagnostic(result.stderr),
+      diagnostics: diagnosticSummary(result.stderr),
       outcome: outcomeFromConformance(result),
     };
   };
