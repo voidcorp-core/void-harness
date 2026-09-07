@@ -313,6 +313,32 @@ describe('autonomous value cell runner', () => {
     if (result.kind === 'sealed') expect(result.evidence.diff).toContain('created.txt');
   });
 
+  it('refuses a fixture whose materialized contents differ from the frozen digest', async () => {
+    const result = await runAutonomousValueCell({
+      cell: cell(),
+      fixture: { 'task.md': 'tampered' },
+      runtime: {
+        argv: INVOCATION,
+        model: 'model',
+        modelVersion: 'version',
+        effort: 'high',
+        artifactDigest: `sha256:${'d'.repeat(64)}`,
+      },
+      workspaceFactory: factory([
+        workspace('/tmp/cell-tampered', 'c'.repeat(40), () => ({ kind: 'complete', attempts: 1 })),
+      ]),
+      executor: async () => {
+        throw new Error('executor must not run');
+      },
+    });
+
+    expect(result).toEqual({
+      kind: 'unproducible',
+      reason: 'fixture digest mismatch',
+      cleanup: { kind: 'complete', attempts: 1 },
+    });
+  });
+
   it('runs equivalent real cells in separate workspaces with identical initial files', async () => {
     const workspaces = createCellWorkspaceFactory();
     const initial: string[] = [];

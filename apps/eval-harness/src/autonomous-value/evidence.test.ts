@@ -152,6 +152,38 @@ describe('autonomous value evidence', () => {
     });
   });
 
+  it('rejects timeout and interruption records with incompatible process facts', () => {
+    const contradictoryTimeout = executorEvidence({
+      outcome: {
+        kind: 'timed-out',
+        exitCode: 0,
+        timedOut: true,
+        interrupted: false,
+        childProcessAlive: false,
+        reason: 'timed out',
+      },
+    });
+    const contradictoryUnknown = executorEvidence({
+      outcome: {
+        kind: 'unknown',
+        exitCode: 0,
+        timedOut: false,
+        interrupted: false,
+        childProcessAlive: false,
+        reason: 'not observed',
+      },
+    });
+
+    expect(sealCellEvidence(contradictoryTimeout, expectation())).toEqual({
+      ok: false,
+      error: { kind: 'contradictory', field: 'outcome' },
+    });
+    expect(sealCellEvidence(contradictoryUnknown, expectation())).toEqual({
+      ok: false,
+      error: { kind: 'contradictory', field: 'outcome' },
+    });
+  });
+
   it('keeps interruption and incomplete cleanup explicit without turning them green', () => {
     const interrupted = executorEvidence({
       outcome: {
