@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parseAutonomousValueManifest } from '../cases/autonomous-value.js';
 import { parsePilotApproval, type PilotApprovalInput } from './approval.js';
@@ -50,6 +53,22 @@ function approval(overrides: Readonly<Record<string, unknown>> = {}): PilotAppro
 }
 
 describe('pilot approval contract', () => {
+  it('accepts the versioned approval for the committed cohort', () => {
+    const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
+    const cohort = JSON.parse(readFileSync(
+      resolve(repositoryRoot, 'benchmarks/engineering/cohort.json'),
+      'utf8',
+    )) as unknown;
+    const cohortManifest = parseAutonomousValueManifest(cohort);
+    if (!cohortManifest.ok) throw new Error(`cohort was not parsed: ${cohortManifest.error.kind}`);
+    const approved = JSON.parse(readFileSync(
+      resolve(repositoryRoot, 'benchmarks/engineering/pilot-approval.json'),
+      'utf8',
+    )) as unknown;
+
+    expect(parsePilotApproval(approved, cohortManifest.value).ok).toBe(true);
+  });
+
   it('accepts an explicit approval matching the frozen campaign', () => {
     const result = parsePilotApproval(approval(), manifest());
 
