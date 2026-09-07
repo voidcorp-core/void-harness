@@ -37,6 +37,7 @@ describe('autonomous value consumer adapter', () => {
     expect(codex.command).toBe('codex');
     expect(codex.args).toContain('--ephemeral');
     expect(codex.args).toContain('--ignore-user-config');
+    expect(codex.args).not.toContain('--json');
     expect(codex.args).toContain('task');
 
     const claude = buildConsumerRuntimeInvocation({

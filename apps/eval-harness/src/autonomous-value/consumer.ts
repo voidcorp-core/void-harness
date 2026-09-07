@@ -73,7 +73,6 @@ export function buildConsumerRuntimeInvocation(
         '--ephemeral',
         '--sandbox',
         'workspace-write',
-        '--json',
         '--ignore-user-config',
         '--model',
         model,
