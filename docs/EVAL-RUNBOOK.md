@@ -265,6 +265,8 @@ Codex accepts a bounded model-advertised effort identifier; Claude validation
 uses the five values advertised by the installed version. No Codex dollar cap
 was established. Claude's print-mode `--max-budget-usd` exists, but is not wired
 or claimed here as a campaign reservation ledger or an invoice-level guarantee.
+An assembled condition prompt exceeding 64 KiB is refused, never truncated:
+silently dropping the active skill would change the experimental condition.
 
 ## Test lanes
 

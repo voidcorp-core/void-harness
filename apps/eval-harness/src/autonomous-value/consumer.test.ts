@@ -24,9 +24,19 @@ describe('autonomous value consumer adapter', () => {
     });
     expect(prompt).toContain('verify the isolated correction');
     expect(prompt).toContain('IMPLEMENT_SKILL');
+    expect(prompt.endsWith('IMPLEMENT_SKILL\n</active-skill>')).toBe(true);
     expect(prompt).toContain('Do not modify lockfiles');
     expect(prompt).toContain('Do not run the full release verification suite');
     expect(prompt).not.toContain('void-autopilot');
+  });
+
+  it('refuses a combined prompt that would truncate individually bounded task and skill', () => {
+    expect(() => buildConsumerPrompt({
+      objective: 'verify the isolated correction',
+      task: 't'.repeat(32 * 1024),
+      condition: 'implement',
+      skillBody: 's'.repeat(32 * 1024),
+    })).toThrow('combined prompt exceeds the limit');
   });
 
   it('uses a shell-free invocation and disables persistence for each runtime', () => {

@@ -67,7 +67,9 @@ export function buildConsumerPrompt(input: ConsumerPromptInput): string {
   if (skill !== undefined) {
     sections.push('', '<active-skill>', skill, '</active-skill>');
   }
-  return sections.join('\n').slice(0, MAX_PROMPT_LENGTH);
+  const prompt = sections.join('\n');
+  if (prompt.length > MAX_PROMPT_LENGTH) throw new Error('combined prompt exceeds the limit');
+  return prompt;
 }
 
 function effortArguments(input: ConsumerRuntimeInvocationInput): readonly string[] {
