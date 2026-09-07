@@ -23,6 +23,8 @@ const MAX_PROCESS_OUTPUT_BYTES = 1024 * 1024;
 const MAX_TIMEOUT_MS = 15 * 60 * 1_000;
 const MAX_FIXTURE_FILES = 256;
 const MAX_FIXTURE_BYTES = 4 * 1024 * 1024;
+const MAX_EVENT_BYTES = 64 * 1024;
+const MAX_EVENTS = 1_024;
 
 export interface CellRuntimeConfiguration {
   readonly argv: RuntimeInvocation;
@@ -139,6 +141,23 @@ function fixtureDigest(fixture: Readonly<Record<string, string>>): string {
     Object.entries(fixture).sort(([left], [right]) => left.localeCompare(right)),
   );
   return `sha256:${createHash('sha256').update(canonical, 'utf8').digest('hex')}`;
+}
+
+function digestText(value: string): string {
+  return `sha256:${createHash('sha256').update(value, 'utf8').digest('hex')}`;
+}
+
+function runtimeEvents(output: string): readonly string[] {
+  const lines = output.split('\n').filter((line) => line !== '');
+  const summarized = lines.map((line) => Buffer.byteLength(line, 'utf8') <= MAX_EVENT_BYTES
+    ? line
+    : `event.oversized:${digestText(line)}`);
+  if (summarized.length <= MAX_EVENTS) return summarized;
+  const prefix = summarized.slice(0, MAX_EVENTS - 1);
+  return [
+    ...prefix,
+    `events.truncated:${summarized.length}:${digestText(output)}`,
+  ];
 }
 
 function cleanupWorkspace(workspace: CellWorkspace): CleanupEvidence {
@@ -321,7 +340,7 @@ export function createConformanceCellExecutor(
             : { CODEX_HOME: join(process.env['HOME'], '.codex') }),
       },
     });
-    const events = result.stdout.split('\n').filter((line) => line !== '');
+    const events = runtimeEvents(result.stdout);
     return {
       source: 'executor',
       argv: runtime.argv,

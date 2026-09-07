@@ -415,6 +415,34 @@ describe('autonomous value cell runner', () => {
     }
   });
 
+  it('summarizes oversized runtime events while retaining complete output', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-eval-events-'));
+    try {
+      const execute = createConformanceCellExecutor(async () => ({
+        outcome: { kind: 'exited', code: 0 },
+        stdout: 'x'.repeat(64 * 1024 + 1),
+        stderr: '',
+      }));
+      const result = await execute({
+        cell: cell(),
+        cwd: root,
+        runtime: {
+          argv: INVOCATION,
+          model: 'model',
+          modelVersion: 'version',
+          effort: 'high',
+          artifactDigest: `sha256:${'d'.repeat(64)}`,
+        },
+      });
+
+      expect(result.output).toHaveLength(64 * 1024 + 1);
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0]).toMatch(/^event\.oversized:sha256:[0-9a-f]{64}$/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it('blocks an unapproved executable before the process boundary', async () => {
     const execute = createConformanceCellExecutor(async () => {
       throw new Error('the process boundary was reached');
