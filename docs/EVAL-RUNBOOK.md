@@ -421,14 +421,27 @@ Operational hardening on the same date:
   (quoted credentials and blocking FIFO reads) were reproduced and corrected;
   the correction review reports no remaining blocker.
 
+Full verification on `c681086bf337833cb40425e8cf7b5edb08ca8236` passed all
+23 required gates on 2026-09-07 in the local environment permitting loopback:
+CPU 2,273; filesystem 1,544; subprocess 968; network 25. All 4,810 tests passed,
+with no skipped tests. The first integrated run caught a package-relative cwd
+in the FIFO regression; `c681086b` corrected that cause before this green run.
+There was no retry of unchanged failing code. Builds, typechecks, generated
+artifact checks and commit hooks passed. Lint passed with 34 warnings and 884
+informational notices; a zero-warning or measured coverage claim is not made.
+There is no UI change requiring viewport QA. The scoped independent reviews
+covered the network boundary and durable archive; they do not certify paid
+runtime behavior or external promotion. Later documentation-only changes use
+the affected documentation gates, not a relabelled full-suite proof.
+
 Still required before calling the real campaign or public release reliable:
 
 - wire the approved real adapter to the durable launcher and validate the
   canary's actual environment and cleanup; local fake runs do not prove this;
 - run a fresh canary only after the corrected lane is green and a new approval is
   obtained;
-- run a fresh full verification on the final commit and obtain the human
-  promotion decision.
+- preserve verification freshness for the actual promotion candidate and obtain
+  the human promotion decision; the recorded local proof grants no promotion.
 
 No historical `rerun-*` archive is admissible evidence, and no paid campaign is
 authorized by this document.
