@@ -2,9 +2,27 @@ import { readFileSync, writeFileSync, lstatSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { git, setupSandbox } from '../sandbox.js';
-import { createConsumerCellWorkspaceFactory } from './consumer-workspace.js';
+import {
+  buildConsumerArtifactInstallInvocation,
+  createConsumerCellWorkspaceFactory,
+} from './consumer-workspace.js';
 
 describe('consumer cell workspace', () => {
+  it('builds a local tarball installation without package-manager mutation', () => {
+    const invocation = buildConsumerArtifactInstallInvocation('/tmp/pilot-package');
+
+    expect(invocation.command).toBe('node');
+    expect(invocation.args).toEqual([
+      '/tmp/pilot-package/package/bin/void-harness.mjs',
+      'init',
+      '--runtime',
+      'codex',
+      '--no-interactive',
+      '--preserve-doctrine',
+      '--force',
+    ]);
+  });
+
   it('copies dependencies into a disposable checkout and keeps the source untouched', () => {
     const source = setupSandbox({
       'package.json': '{}\n',
