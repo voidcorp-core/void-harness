@@ -25,6 +25,7 @@ describe('autonomous value consumer adapter', () => {
     expect(prompt).toContain('verify the isolated correction');
     expect(prompt).toContain('IMPLEMENT_SKILL');
     expect(prompt).toContain('Do not modify lockfiles');
+    expect(prompt).toContain('Do not run the full release verification suite');
     expect(prompt).not.toContain('void-autopilot');
   });
 
@@ -64,6 +65,57 @@ describe('autonomous value consumer adapter', () => {
     expect(results).toEqual([
       { executionId: execution.executionId, result: { status: 'unknown', reason: 'quality not assessed' } },
       { executionId: 'implement-agent-alone-pilot-2', result: { status: 'unknown', reason: 'pilot execution failed' } },
+    ]);
+  });
+
+  it('runs with bounded concurrency while preserving schedule order', async () => {
+    const schedule = Array.from({ length: 4 }, (_, index) => ({
+      ...execution,
+      executionId: `implement-agent-alone-pilot-${index + 1}`,
+      repetition: index + 1,
+      sequence: index,
+    }));
+    let active = 0;
+    let peak = 0;
+    const runner = vi.fn<PilotCellRun>(async ({ execution: item }) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setTimeout(resolve, item.repetition === 1 ? 20 : 5));
+      active -= 1;
+      return {
+        executionId: item.executionId,
+        result: { status: 'unknown', reason: 'quality not assessed' },
+      };
+    });
+
+    const results = await runPilotSchedule(schedule, runner, { concurrency: 2 });
+
+    expect(peak).toBe(2);
+    expect(runner).toHaveBeenCalledTimes(4);
+    expect(results.map((item) => item.executionId)).toEqual(schedule.map((item) => item.executionId));
+  });
+
+  it('stops admitting new work after an infrastructure unknown', async () => {
+    const schedule = Array.from({ length: 3 }, (_, index) => ({
+      ...execution,
+      executionId: `implement-agent-alone-pilot-${index + 1}`,
+      repetition: index + 1,
+      sequence: index,
+    }));
+    const runner = vi.fn<PilotCellRun>(async ({ execution: item }) => ({
+      executionId: item.executionId,
+      result: item.repetition === 1
+        ? { status: 'unknown', reason: 'runtime unavailable' }
+        : { status: 'completed', score: 1, criticalDefect: false, sourceCommit: 'a'.repeat(40), artifactDigest: `sha256:${'b'.repeat(64)}`, configurationKey: 'test', durationMs: { kind: 'known', value: 1 }, costUsd: { kind: 'known', value: 0 } },
+    }));
+
+    const results = await runPilotSchedule(schedule, runner, { concurrency: 1, stopOnUnknown: true });
+
+    expect(runner).toHaveBeenCalledTimes(1);
+    expect(results).toEqual([
+      { executionId: schedule[0]?.executionId, result: { status: 'unknown', reason: 'runtime unavailable' } },
+      { executionId: schedule[1]?.executionId, result: { status: 'unknown', reason: 'not run after infrastructure failure' } },
+      { executionId: schedule[2]?.executionId, result: { status: 'unknown', reason: 'not run after infrastructure failure' } },
     ]);
   });
 });
