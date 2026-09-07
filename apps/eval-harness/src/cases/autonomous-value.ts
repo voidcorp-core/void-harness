@@ -25,6 +25,11 @@ export type AutonomousValueManifestError =
   | { readonly kind: 'invalid-comparability' }
   | { readonly kind: 'unsupported-schema'; readonly schemaVersion: number }
   | { readonly kind: 'invalid-cell'; readonly cellId: string }
+  | {
+      readonly kind: 'incomparable-cell';
+      readonly cellId: string;
+      readonly field: 'startCommit' | 'objective' | 'fixture';
+    }
   | { readonly kind: 'duplicate-cell-id'; readonly cellId: string }
   | { readonly kind: 'incomplete-matrix'; readonly missingCellId: string };
 
@@ -161,6 +166,60 @@ function requiredCellIds(): readonly string[] {
   return PATHS.flatMap((path) => CONDITIONS.map((condition) => `${path}-${condition}`));
 }
 
+function validateCellComparability(
+  cells: readonly AutonomousValueCell[],
+): AutonomousValueManifestError | undefined {
+  const first = cells[0];
+  if (first === undefined) return { kind: 'invalid-manifest' };
+
+  for (const cell of cells) {
+    if (cell.startCommit !== first.startCommit) {
+      return { kind: 'incomparable-cell', cellId: cell.id, field: 'startCommit' };
+    }
+  }
+
+  const firstByPath = new Map<AutonomousValuePath, AutonomousValueCell>();
+  for (const cell of cells) {
+    const firstForPath = firstByPath.get(cell.path);
+    if (firstForPath === undefined) {
+      firstByPath.set(cell.path, cell);
+      continue;
+    }
+    if (cell.objective !== firstForPath.objective) {
+      return { kind: 'incomparable-cell', cellId: cell.id, field: 'objective' };
+    }
+    if (
+      cell.fixture.path !== firstForPath.fixture.path
+      || cell.fixture.digest !== firstForPath.fixture.digest
+    ) {
+      return { kind: 'incomparable-cell', cellId: cell.id, field: 'fixture' };
+    }
+  }
+  return undefined;
+}
+
+function normalizeCells(
+  cells: readonly AutonomousValueCell[],
+): Readonly<Record<AutonomousValueCellId, AutonomousValueCell>> {
+  const byId = new Map(cells.map((cell) => [cell.id, Object.freeze(cell)]));
+  const cellAt = (id: AutonomousValueCellId): AutonomousValueCell => {
+    const cell = byId.get(id);
+    if (cell === undefined) throw new Error(`AUTONOMOUS_VALUE_INVARIANT: missing ${id}`);
+    return cell;
+  };
+  return Object.freeze({
+    'implement-agent-alone': cellAt('implement-agent-alone'),
+    'implement-implement': cellAt('implement-implement'),
+    'implement-autopilot': cellAt('implement-autopilot'),
+    'autopilot-agent-alone': cellAt('autopilot-agent-alone'),
+    'autopilot-implement': cellAt('autopilot-implement'),
+    'autopilot-autopilot': cellAt('autopilot-autopilot'),
+    'brainstorm-agent-alone': cellAt('brainstorm-agent-alone'),
+    'brainstorm-implement': cellAt('brainstorm-implement'),
+    'brainstorm-autopilot': cellAt('brainstorm-autopilot'),
+  });
+}
+
 export function parseAutonomousValueManifest(input: unknown): AutonomousValueManifestResult {
   if (!isRecord(input) || !hasOnlyKeys(input, [
     'schemaVersion', 'campaignId', 'comparability', 'cells',
@@ -214,13 +273,16 @@ export function parseAutonomousValueManifest(input: unknown): AutonomousValueMan
     return { ok: false, error: { kind: 'invalid-manifest' } };
   }
 
+  const comparabilityError = validateCellComparability(cells);
+  if (comparabilityError !== undefined) return { ok: false, error: comparabilityError };
+
   return {
     ok: true,
     value: Object.freeze({
       schemaVersion: 1,
       campaignId: input['campaignId'],
       comparability: Object.freeze(comparability),
-      cells: Object.freeze(cells.map((cell) => Object.freeze(cell))),
+      cells: normalizeCells(cells),
     }),
   };
 }

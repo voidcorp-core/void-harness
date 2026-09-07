@@ -73,7 +73,7 @@ export interface AutonomousValueManifest {
   readonly schemaVersion: 1;
   readonly campaignId: string;
   readonly comparability: AutonomousValueComparability;
-  readonly cells: readonly AutonomousValueCell[];
+  readonly cells: Readonly<Record<AutonomousValueCellId, AutonomousValueCell>>;
 }
 
 /** A scorer's verdict on one outcome: an overall [0,1] plus the named sub-checks. */

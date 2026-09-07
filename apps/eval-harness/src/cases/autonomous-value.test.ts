@@ -40,7 +40,7 @@ function makeManifest(): RawManifest {
       path,
       condition,
       startCommit: 'a'.repeat(40),
-      objective: `exercise ${path} through ${condition}`,
+      objective: `exercise ${path}`,
       defectOracle: ['tests', 'blind-review'],
       fixture: `autonomous-value/${path}`,
       fixtureDigest: `sha256:${'b'.repeat(64)}`,
@@ -72,9 +72,12 @@ describe('autonomous value manifest', () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.cells).toHaveLength(9);
+      expect(Object.values(result.value.cells)).toHaveLength(9);
+      expect(Object.keys(result.value.cells).sort()).toEqual(
+        paths.flatMap((path) => conditions.map((condition) => `${path}-${condition}`)).sort(),
+      );
       expect(Object.isFrozen(result.value.cells)).toBe(true);
-      expect(Object.isFrozen(result.value.cells[0])).toBe(true);
+      expect(Object.isFrozen(result.value.cells['implement-agent-alone'])).toBe(true);
     }
   });
 
@@ -151,6 +154,24 @@ describe('autonomous value manifest', () => {
     });
   });
 
+  it('rejects a cell that starts from a different commit', () => {
+    const manifest = makeManifest();
+    const cells = manifest.cells.map((cell, index) => (
+      index === 1 ? { ...cell, startCommit: 'c'.repeat(40) } : cell
+    ));
+
+    const result = parseAutonomousValueManifest({ ...manifest, cells });
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        kind: 'incomparable-cell',
+        cellId: 'implement-implement',
+        field: 'startCommit',
+      },
+    });
+  });
+
   it('rejects a fixture reference that can leave the fixture root', () => {
     const manifest = makeManifest();
     const cells = manifest.cells.map((cell, index) => (
@@ -172,8 +193,8 @@ describe('autonomous value manifest', () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.cells).toHaveLength(9);
-      for (const cell of result.value.cells) {
+      expect(Object.values(result.value.cells)).toHaveLength(9);
+      for (const cell of Object.values(result.value.cells)) {
         expect(cell.fixture.digest).toBe(digestFixture(cell.fixture.path));
       }
     }
