@@ -24,6 +24,15 @@ export type PilotCellRun = (
   input: PilotCellRunInput,
 ) => Promise<PilotObservation>;
 
+export interface PilotScheduleOptions {
+  /** Maximum number of isolated cells allowed to run at once. */
+  readonly concurrency?: number;
+  /** Stop admitting new cells after the first unknown or blocked result. */
+  readonly stopOnUnknown?: boolean;
+  /** Observe each result as soon as it is available for durable progress. */
+  readonly onObservation?: (observation: PilotObservation) => void | Promise<void>;
+}
+
 function bounded(value: string, label: string): string {
   const trimmed = value.trim();
   if (trimmed === '' || trimmed.length > MAX_PROMPT_LENGTH || /\0/.test(trimmed)) {
@@ -52,6 +61,7 @@ export function buildConsumerPrompt(input: ConsumerPromptInput): string {
     '- Do not modify lockfiles, secrets, keys, or files outside the checkout.',
     '- Do not claim success without observable evidence.',
     '- Leave the checkout ready for the harness to capture and verify.',
+    '- Do not run the full release verification suite; use only targeted checks for this task.',
   ];
   if (skill !== undefined) {
     sections.push('', '<active-skill>', skill, '</active-skill>');
@@ -96,29 +106,69 @@ export function buildConsumerRuntimeInvocation(
   };
 }
 
-/** Execute sequentially, once per schedule entry, and preserve failures as unknown. */
+const MAX_SCHEDULE_CONCURRENCY = 4;
+
+function scheduleConcurrency(requested: number | undefined, scheduleLength: number): number {
+  if (scheduleLength === 0) return 0;
+  if (requested === undefined || !Number.isFinite(requested)) return 1;
+  return Math.max(1, Math.min(MAX_SCHEDULE_CONCURRENCY, Math.trunc(requested), scheduleLength));
+}
+
+function isUnknownObservation(observation: PilotObservation): boolean {
+  return observation.result === undefined
+    || observation.result.status === 'unknown'
+    || observation.result.status === 'blocked';
+}
+
+/** Execute isolated cells with bounded parallelism and deterministic output order. */
 export async function runPilotSchedule(
   schedule: readonly PilotExecution[],
   runCell: PilotCellRun,
+  options: PilotScheduleOptions = {},
 ): Promise<readonly PilotObservation[]> {
-  const observations: PilotObservation[] = [];
-  for (const execution of schedule) {
+  const results = new Map<string, PilotObservation>();
+  let nextIndex = 0;
+  let stopAdmitting = false;
+
+  const runOne = async (execution: PilotExecution): Promise<void> => {
+    let observation: PilotObservation;
     try {
-      const observation = await runCell({ execution });
+      observation = await runCell({ execution });
       if (observation.executionId !== execution.executionId) {
-        observations.push({
+        observation = {
           executionId: execution.executionId,
           result: { status: 'unknown', reason: 'adapter returned mismatched execution' },
-        });
-        continue;
+        };
       }
-      observations.push(observation);
     } catch {
-      observations.push({
+      observation = {
         executionId: execution.executionId,
         result: { status: 'unknown', reason: 'pilot execution failed' },
-      });
+      };
     }
-  }
-  return Object.freeze(observations);
+    results.set(execution.executionId, observation);
+    if (options.stopOnUnknown === true && isUnknownObservation(observation)) {
+      stopAdmitting = true;
+    }
+    await options.onObservation?.(observation);
+  };
+
+  const worker = async (): Promise<void> => {
+    while (true) {
+      if (stopAdmitting) return;
+      const execution = schedule[nextIndex];
+      nextIndex += 1;
+      if (execution === undefined) return;
+      await runOne(execution);
+    }
+  };
+
+  await Promise.all(
+    Array.from({ length: scheduleConcurrency(options.concurrency, schedule.length) }, () => worker()),
+  );
+
+  return Object.freeze(schedule.map((execution): PilotObservation => results.get(execution.executionId) ?? {
+    executionId: execution.executionId,
+    result: { status: 'unknown', reason: 'not run after infrastructure failure' },
+  }));
 }
