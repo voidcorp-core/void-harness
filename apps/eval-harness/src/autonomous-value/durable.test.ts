@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import { parseAutonomousValueManifest } from '../cases/autonomous-value.js';
@@ -178,6 +178,7 @@ describe('durable pilot archive', () => {
     `;
     await expect(promisify(execFile)(process.execPath,
       ['--import', 'tsx', '--input-type=module', '-e', script, JSON.stringify(options)],
-      { timeout: 2000 })).resolves.toMatchObject({ stdout: '', stderr: '' });
+      { cwd: resolve(import.meta.dirname, '../..'), timeout: 2000 }))
+      .resolves.toMatchObject({ stdout: '', stderr: '' });
   });
 });
