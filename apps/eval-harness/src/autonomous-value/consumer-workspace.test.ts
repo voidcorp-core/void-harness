@@ -20,6 +20,7 @@ describe('consumer cell workspace', () => {
     expect(lstatSync(join(workspace.dir, 'node_modules/example/index.js')).isSymbolicLink())
       .toBe(false);
     expect(git(workspace.dir, 'rev-parse', 'HEAD').trim()).toBe(workspace.baseSha);
+    expect(git(workspace.dir, 'status', '--porcelain')).toBe('');
     writeFileSync(join(workspace.dir, 'node_modules/example/index.js'), 'changed\n');
     expect(readFileSync(join(source.dir, 'node_modules/example/index.js'), 'utf8'))
       .toBe('module.exports = 1;\n');
