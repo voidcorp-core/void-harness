@@ -95,6 +95,7 @@ interface ConformanceProcessRunner {
     readonly input: string;
     readonly timeoutMs: number;
     readonly maxOutputBytes: number;
+    readonly captureStderr?: boolean;
     readonly env?: Readonly<Record<string, string>>;
   }): Promise<ConformanceProcessResult>;
 }
@@ -330,6 +331,7 @@ export function createConformanceCellExecutor(
         MAX_PROCESS_OUTPUT_BYTES,
         MAX_PROCESS_OUTPUT_BYTES,
       ),
+      captureStderr: false,
       env: {
         HOME: home,
         TMPDIR: temporary,

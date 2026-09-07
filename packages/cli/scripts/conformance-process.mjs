@@ -103,13 +103,14 @@ function processOutcome(state, code, signal) {
 export function runConformanceProcess(options) {
   const maxOutputBytes = options.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const captureStderr = options.captureStderr ?? true;
   return new Promise((resolveRun) => {
     const child = spawn(options.command, options.args, {
       cwd: options.cwd,
       detached: process.platform !== 'win32',
       env: conformanceEnvironment(options.env),
       shell: false,
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['pipe', 'pipe', captureStderr ? 'pipe' : 'ignore'],
       windowsHide: true,
     });
     const stdout = [];
@@ -143,9 +144,11 @@ export function runConformanceProcess(options) {
     child.stdout.on('data', (chunk) => {
       captureBounded(state, stdout, chunk, maxOutputBytes, stop);
     });
-    child.stderr.on('data', (chunk) => {
-      captureBounded(state, stderr, chunk, maxOutputBytes, stop);
-    });
+    if (captureStderr) {
+      child.stderr.on('data', (chunk) => {
+        captureBounded(state, stderr, chunk, maxOutputBytes, stop);
+      });
+    }
     child.once('error', (error) => {
       state.spawnError = error;
       if (child.pid === undefined) finish(processOutcome(state, null, null));
