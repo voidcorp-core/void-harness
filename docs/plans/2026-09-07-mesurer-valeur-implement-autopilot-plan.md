@@ -212,14 +212,14 @@ the cleanup/recovery evidence before the final comparison and follow-up tickets.
 
 ## Execution handoff
 
-| Key | Step | Depends on | Human gate | Output |
-|---|---|---|---|---|
-| AV-01 | Contract and fixtures | none | no | versioned campaign manifest |
-| AV-02 | Isolated cell and evidence | AV-01 | no | authoritative cell proof |
-| AV-03 | Gates and blind report | AV-02 | no | executable scoring/reporting |
-| AV-04 | Pilot and sample calculation | AV-03 | yes | approved frozen protocol |
-| AV-05 | Main campaign | AV-04 | no | immutable campaign corpus |
-| AV-06 | Final report and decision | AV-05 | yes | approved decision and follow-up tickets |
+| Key | Tracker | Step | Depends on | Human gate | Output |
+|---|---|---|---|---|---|
+| AV-01 | DEV-835 | Contract and fixtures | none | no | versioned campaign manifest |
+| AV-02 | DEV-836 | Isolated cell and evidence | AV-01 | no | authoritative cell proof |
+| AV-03 | DEV-837 | Gates and blind report | AV-02 | no | executable scoring/reporting |
+| AV-04 | DEV-838 | Pilot and sample calculation | AV-03 | yes | approved frozen protocol |
+| AV-05 | DEV-839 | Main campaign | AV-04 | no | immutable campaign corpus |
+| AV-06 | DEV-840 | Final report and decision | AV-05 | yes | approved decision and follow-up tickets |
 
 This is the execution handoff for DEV-833. If implementation becomes several
 provider-native tickets, `void-ticket` must create them from these keys and keep
