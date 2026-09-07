@@ -269,6 +269,17 @@ strict typecheck pass. The real consumer checkout is available at
 execution adapter still has to preserve dependencies and seal each cell before
 any paid runtime call; no main protocol has been frozen.
 
+The consumer adapter boundary is now implemented in commits `78d86f1c`,
+`24d4827d` and `46ba2128`. It bounds the selected prompt, builds shell-free
+Codex/Claude argv, runs each schedule entry once, and turns a runtime failure
+into `unknown`. Its workspace factory copies a clean consumer checkout with
+local dependencies, excludes `.git`, injects only bounded non-lockfile
+fixtures, creates a cell base commit, captures tracked and untracked changes
+(including dependency changes), and cleans the copy. This is preparation only:
+the source checkout has not been used for a paid pilot run, and the quality
+analyzer, artifact identity approval and budget gate remain required before
+creating pilot observations.
+
 ## Plan self-review
 
 - No placeholders or unbounded language remain in the steps.
