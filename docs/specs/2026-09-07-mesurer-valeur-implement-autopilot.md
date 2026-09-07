@@ -1,7 +1,7 @@
 ---
 title: Mesurer la valeur de Implement et Autopilot
 date: 2026-09-07
-status: in-design
+status: approved
 author: Folpe + Codex
 ticket: DEV-833
 related:
@@ -196,6 +196,6 @@ comportement du harness.
 
 ## Statut
 
-Cette spec est en conception. Elle doit passer la relecture interne, puis être
-explicitement approuvée par Folpe avant toute transition vers un plan ou une
-implémentation.
+Cette spec a été relue et approuvée explicitement par Folpe le 2026-09-07. Elle
+peut maintenant être transmise à `void-plan`. Aucune implémentation n'est
+autorisée avant l'approbation du plan qui en découlera.
