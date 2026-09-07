@@ -263,9 +263,11 @@ creates the deterministic 27-entry schedule, materializes missing results as
 `unknown`, validates source/artifact/configuration identity, exposes per-cell
 variance, preserves critical-defect failures, and calculates conservative main
 campaign sizing only from an admissible pilot. Its 140-test package suite and
-strict typecheck pass. The actual pilot remains pending: no paid execution has
-been launched and no main protocol has been frozen because the budget is not
-yet recorded as an explicit durable approval.
+strict typecheck pass. The real consumer checkout is available at
+`/private/tmp/void-cortex-dev832`, clean on `aa748e8` and aligned with
+`origin/develop`. The actual pilot remains pending: the isolated consumer
+execution adapter still has to preserve dependencies and seal each cell before
+any paid runtime call; no main protocol has been frozen.
 
 ## Plan self-review
 
