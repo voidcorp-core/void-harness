@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "campaignId": "autonomous-value-2026-09-07",
+  "campaignId": "autonomous-value-2026-09-07-rerun-1",
   "comparability": {
     "runtime": "codex",
     "model": "gpt-5.6-luna",
