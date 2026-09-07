@@ -9,9 +9,11 @@
  * crossed the boundary where stdin exists.
  *
  * So this spawns a process, writes the payload into its pipe, and reads what
- * comes back. It runs the SOURCE through `tsx` rather than `dist/`: a built
- * artefact can be older than the diff under review, and a guard proven against
- * a stale build is the same false green one notch along.
+ * comes back. It runs the SOURCE through Node with tsx's loader rather than
+ * `dist/`: a built artefact can be older than the diff under review, and a
+ * guard proven against a stale build is the same false green one notch along.
+ * The loader avoids tsx's optional IPC socket, which is unavailable in some
+ * restricted test environments.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -20,7 +22,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const TSX = join(ROOT, 'packages', 'cli', 'node_modules', '.bin', process.platform === 'win32' ? 'tsx.cmd' : 'tsx');
+const TSX_LOADER = join(ROOT, 'packages', 'cli', 'node_modules', 'tsx', 'dist', 'loader.mjs');
 const ENTRY = pathToFileURL(join(ROOT, 'packages', 'cli', 'src', 'commands', 'autopilot.ts')).href;
 
 interface CliRun {
@@ -32,8 +34,8 @@ interface CliRun {
 /** Run `void-harness autopilot <argv>` the way a shell pipeline runs it. */
 function pipeInto(argv: readonly string[], stdin: string): CliRun {
   const result = spawnSync(
-    TSX,
-    ['-e', `import(${JSON.stringify(ENTRY)}).then((module) => module.autopilot(${JSON.stringify(argv)}))`],
+    process.execPath,
+    ['--import', TSX_LOADER, '-e', `import(${JSON.stringify(ENTRY)}).then((module) => module.autopilot(${JSON.stringify(argv)}))`],
     { cwd: ROOT, input: stdin, encoding: 'utf8', shell: false, timeout: 60_000 },
   );
   if (result.error !== undefined) throw result.error;
