@@ -183,6 +183,70 @@ must not hold the fast lane hostage. A test that spends its whole timeout
 without accepting a connection is an environment failure to diagnose, not a
 reason to add retries or increase every timeout.
 
+## Test management policy
+
+Anthropic's evaluation guidance separates five objects: a task with unambiguous
+success criteria, a trial of that task, graders, the complete transcript, and
+the final environment outcome. OpenAI's evaluation API similarly separates the
+versioned eval definition, its testing criteria, each run, and each output item.
+That separation is the key to avoiding the current failure mode where one large
+command hides which layer is broken.
+
+Apply the following rules:
+
+1. A task is small, concrete and independently passable by a domain expert. If
+   two experts can interpret its acceptance criteria differently, fix the task
+   before measuring a model.
+2. A trial is one clean attempt. Repetitions are declared in the manifest to
+   measure variance; they are not retries of a failed attempt.
+3. A grader has one responsibility. Use deterministic code graders first:
+   tests, static analysis, typechecking, security checks and final-state
+   assertions. Use a model grader only for qualities code cannot observe, and
+   calibrate it against human judgments. Keep human review for calibration and
+   the final promotion decision.
+4. The transcript is diagnostic evidence, not the score. Store it separately,
+   redacted and bounded. Score the resulting environment state whenever the
+   task changes files or data.
+5. Every run records per-item status and counters: scheduled, admitted, running,
+   completed, failed, blocked, unknown and canceled. A partial run is readable
+   without opening a terminal and is never silently treated as complete.
+6. The evaluated harness must be the production harness or an explicitly
+   justified equivalent. A test-only shortcut can validate a pure component but
+   cannot establish agent quality.
+7. Resource configuration is part of the experimental identity: CPU, memory,
+   disk, process count, timeout, model parameters, network policy and cache
+   policy are pinned and reported. If a shared resource can affect multiple
+   trials, isolate it or mark the observations non-independent.
+8. Clean state is mandatory. Each trial gets a fresh workspace, exact source
+   commit, fresh fixture state and bounded cleanup. No trial may inspect another
+   trial's git history, files, caches or processes.
+9. CI runs the smallest deterministic regression set on every code or model
+   change. Targeted integration runs only when its boundary changes. The full
+   campaign is a deliberate measurement, not a default development loop.
+10. Infrastructure failures are diagnosed separately from agent failures. A
+    socket refusal, dependency/bootstrap failure, resource exhaustion or
+    harness exception produces `unknown`/`unproducible`; it never lowers the
+    agent score and never gets fixed with a retry.
+
+This gives the project a three-speed operating rhythm:
+
+```text
+edit -> fast deterministic contracts -> targeted boundary lane
+                                      |
+                                      v
+                             local fake end-to-end
+                                      |
+                                      v
+                         one real canary -> bounded campaign
+                                      |
+                                      v
+                         final release verification once
+```
+
+The expensive path is therefore gated by cheap evidence. It is not removed; it
+is prevented from consuming hours when the environment or contract is already
+known to be broken.
+
 ## Failure and recovery policy
 
 - `unproducible`: the cell could not produce trustworthy evidence (wrong base,
