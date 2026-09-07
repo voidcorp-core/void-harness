@@ -45,9 +45,13 @@ function validateFixture(fixture: Readonly<Record<string, string>>): void {
   }
 }
 
-function copyCheckout(sourceCheckout: string, target: string): void {
+function copyCheckout(sourceCheckout: string, target: string): string {
   const sourceStatus = git(sourceCheckout, 'status', '--porcelain').trim();
   if (sourceStatus !== '') throw new Error('consumer checkout must be clean');
+  const sourceBaseSha = git(sourceCheckout, 'rev-parse', 'HEAD').trim();
+  execFileSync('git', ['clone', '--no-local', '--no-hardlinks', sourceCheckout, target], {
+    encoding: 'utf8',
+  });
   cpSync(sourceCheckout, target, {
     recursive: true,
     dereference: true,
@@ -56,6 +60,10 @@ function copyCheckout(sourceCheckout: string, target: string): void {
       return local === '' || !local.split('/').includes('.git');
     },
   });
+  if (git(target, 'rev-parse', 'HEAD').trim() !== sourceBaseSha) {
+    throw new Error('consumer checkout clone changed its source commit');
+  }
+  return sourceBaseSha;
 }
 
 function writeFixture(target: string, fixture: Readonly<Record<string, string>>): void {
@@ -64,7 +72,6 @@ function writeFixture(target: string, fixture: Readonly<Record<string, string>>)
     mkdirSync(dirname(fullPath), { recursive: true });
     writeFileSync(fullPath, content, 'utf8');
   }
-  git(target, 'init', '-q', '-b', 'main');
   git(target, 'add', '-A');
   const paths = Object.keys(fixture);
   git(target, 'add', '-f', '--', ...paths);
@@ -151,16 +158,16 @@ export function createConsumerCellWorkspaceFactory(
       validateFixture(fixture);
       const target = mkdtempSync(join(parentDirectory, 'void-consumer-'));
       try {
-        copyCheckout(input.sourceCheckout, target);
+        const sourceBaseSha = copyCheckout(input.sourceCheckout, target);
         if (input.artifactTarballPath !== undefined) {
           installArtifact(target, input.artifactTarballPath, parentDirectory);
         }
         writeFixture(target, fixture);
-        const baseSha = git(target, 'rev-parse', 'HEAD').trim();
+        const preparationSha = git(target, 'rev-parse', 'HEAD').trim();
         return {
           dir: target,
-          baseSha,
-          diff: () => workspaceDiff(target, baseSha),
+          baseSha: sourceBaseSha,
+          diff: () => workspaceDiff(target, preparationSha),
           cleanup: () => cleanup(target),
         };
       } catch (error) {
