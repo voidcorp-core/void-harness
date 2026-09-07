@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "campaignId": "autonomous-value-2026-09-07-rerun-2",
+  "campaignId": "autonomous-value-2026-09-07-rerun-3",
   "approvedBy": "Folpe",
-  "approvedAt": "2026-09-07T16:17:57.000Z",
+  "approvedAt": "2026-09-07T16:40:56.000Z",
   "runtime": "codex",
   "model": "gpt-5.6-luna",
   "modelVersion": "codex-cli-0.145.0",
