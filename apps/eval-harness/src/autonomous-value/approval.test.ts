@@ -27,7 +27,7 @@ function manifest() {
   return result.value;
 }
 
-function approval(overrides: Partial<PilotApprovalInput> = {}): PilotApprovalInput {
+function approval(overrides: Readonly<Record<string, unknown>> = {}): PilotApprovalInput {
   return {
     schemaVersion: 1,
     campaignId: 'pilot-approval-test',
@@ -46,7 +46,7 @@ function approval(overrides: Partial<PilotApprovalInput> = {}): PilotApprovalInp
     qualityReview: 'blind-human',
     humanIntervention: 'none',
     ...overrides,
-  };
+  } as PilotApprovalInput;
 }
 
 describe('pilot approval contract', () => {
