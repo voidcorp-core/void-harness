@@ -1,5 +1,5 @@
-import type { PilotExecution, PilotObservation } from './pilot.js';
 import type { RuntimeInvocation } from '../runtime/types.js';
+import type { PilotExecution, PilotObservation } from './pilot.js';
 
 const MAX_PROMPT_LENGTH = 64 * 1024;
 

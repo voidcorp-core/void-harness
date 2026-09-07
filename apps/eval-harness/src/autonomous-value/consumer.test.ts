@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildConsumerPrompt,
   buildConsumerRuntimeInvocation,
-  runPilotSchedule,
   type PilotCellRun,
+  runPilotSchedule,
 } from './consumer.js';
 import type { PilotExecution } from './pilot.js';
 
