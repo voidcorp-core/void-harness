@@ -8,7 +8,7 @@
   "modelVersion": "codex-cli-0.145.0",
   "effort": "high",
   "resourceProfile": "isolated-local-v1",
-  "artifactDigest": "sha256:a1a7444338d7a90a97cb2db07fb2a4700219f5b6e8c4780a950f954e0d4e7204",
+  "artifactDigest": "sha256:a0fe715478a7165ca48a7e84f24388a3a3b61627de8853ca867a38c62980361c",
   "maxExecutions": 27,
   "budgetUsd": 100,
   "confidence": 0.95,
