@@ -288,6 +288,16 @@ bounded positive budget, an artifact digest, supported analysis parameters and
 blind human review. No approval record is authored by this change, so DEV-838
 remains open and no paid execution is implied.
 
+Folpe approved the pilot in-session on 2026-09-07. The approval is recorded in
+`benchmarks/engineering/pilot-approval.json` with a 100 USD ceiling and the
+exact tarball digest
+`sha256:a0fe715478a7165ca48a7e84f24388a3a3b61627de8853ca867a38c62980361c`.
+The first runtime launch was still refused by the execution safety boundary:
+the consumer checkout is private and the Codex model would receive its source
+contents. No cell ran and no data was exported. A separate explicit
+authorization for sending that private checkout to the selected model is
+required before the pilot can start.
+
 ## Plan self-review
 
 - No placeholders or unbounded language remain in the steps.
