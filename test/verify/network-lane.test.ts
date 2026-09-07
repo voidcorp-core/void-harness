@@ -29,6 +29,7 @@ describe('network lane admission', () => {
     expect(calls.map(({ options }) => options.timeout)).toEqual([2_000, 120_000]);
     expect(calls.every(({ options }) => options.shell === false)).toBe(true);
     expect(calls[1]?.args).toContain('--project=*:network-browser');
+    expect(calls[1]?.args).toContain('--pool=threads');
   });
 
   it('reports a killed lane as unknown rather than successful', () => {

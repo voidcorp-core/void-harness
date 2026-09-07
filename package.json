@@ -32,7 +32,7 @@
     "test:consumer": "vitest run --project=consumer:* --maxWorkers=1",
     "test:system": "vitest run --project=system:* --maxWorkers=1",
     "test:certification": "vitest run --project=certification:* --maxWorkers=1",
-    "test:network": "vitest run --project=*:network-browser --maxWorkers=1",
+    "test:network": "node scripts/test-network.mjs",
     "test:watch": "vitest",
     "lint": "biome lint --max-diagnostics=none",
     "typecheck": "pnpm -r --filter '!void-harness' typecheck",

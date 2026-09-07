@@ -79,17 +79,42 @@ session changes direction:
 
 1. Stop admitting new paid or external work.
 2. Commit or explicitly explain every working-tree change.
-3. Run the relevant local lanes and record the exact commit they tested.
+3. Run the relevant local lanes and record the exact commit they tested. For
+   uncommitted changes, also record the diff digest and untracked paths; a HEAD
+   alone does not identify a dirty tree. Never label that evidence a release
+   proof for the unchanged HEAD.
 4. Write the checkpoint, preserving the mechanical continuity block and keeping
    one exact next action.
 5. Clear the conversation.
 6. Resume by reading the doctrine, programme descriptor, runbook and checkpoint;
    do not reconstruct the history from the transcript.
-7. Execute only the checkpoint's next action until fresh evidence changes it.
+7. Reconcile its next action with Git, the provider and the latest explicit user
+   instruction. Execute that bounded action until fresh evidence changes it.
+   A checkpoint cannot override a new instruction or authorize a paid run.
 
 A clear is therefore a controlled handoff, not a loss of work. It reduces the
 amount of context while preserving the decisions, evidence freshness and one
 safe continuation point.
+
+### Working context during implementation
+
+Keep the active brief to the objective, acceptance criteria, authorized actions,
+relevant source paths and unresolved evidence. Read by question: identify the
+owning file, then retrieve the bounded section that answers it. Independent
+exploration returns findings and source pointers from a fresh context. It must
+not return complete file dumps. Do not reload an already-read skill or repeat a
+passed lane unless changed inputs or a concrete uncertainty invalidate it.
+
+Send long command output to a local diagnostic artifact and inspect its summary
+and first causal failure. Record the command, source identity, environment,
+outcome and artifact path. A summary must preserve failures, skipped cases and
+unknowns. It must never turn truncated output into a complete proof.
+
+At each verified boundary, remove resolved questions from the active brief and
+record only the remaining residue in the checkpoint when a handoff is needed.
+An unavailable context-window denominator is `unknown`: no invented percentage,
+and no claim that a hook performs semantic compaction. Never reconstruct paid
+admission or completion from conversation memory; read the durable archive.
 
 ## Invariants
 
@@ -171,10 +196,10 @@ The default feedback loop is intentionally layered:
 
 | Lane | Command | Allowed dependencies | Gate |
 | --- | --- | --- | --- |
-| Fast | `pnpm test:fast` | pure CPU and contracts | every edit |
+| Fast | `pnpm test:fast` | pure CPU and contracts | changed behavior; target its regression first |
 | Filesystem | `pnpm test:filesystem` | temp dirs, git, local fixtures | runner/workspace changes |
 | Subprocess | `pnpm test:subprocess` | child processes, bounded I/O | process/adapter changes |
-| Network/browser | explicit integration command | real network or browser service | release/integration only |
+| Network/browser | `pnpm test:network` | local loopback server/client | release or changed network boundary |
 | Release | `pnpm verify` on the final tree | all required gates | before promotion |
 
 The network/browser lane must have one top-level timeout, an explicit service
@@ -182,6 +207,30 @@ health check, and an observable `unknown` outcome when the service is absent. It
 must not hold the fast lane hostage. A test that spends its whole timeout
 without accepting a connection is an environment failure to diagnose, not a
 reason to add retries or increase every timeout.
+
+`pnpm test:network` now runs `scripts/test-network.mjs`: one loopback
+server/client exchange with a two-second ceiling, followed by one Vitest lane
+with a 120-second ceiling. A failed capability probe or killed test process
+prints `status: unknown` and exits 2; failed assertions exit 1; only the complete
+passing lane exits 0. The release gate continues to refuse either nonzero
+outcome. The current lane contains HTTP/SSE server tests, not a browser journey.
+Adding a browser service requires its own observed health and cleanup contract.
+
+The lane uses the [Vitest 4 threads pool](https://vitest.dev/config/pool.html)
+so its test workers terminate with the bounded parent. It runs once, without
+retry, and never widens sandbox permissions itself. If the probe reports
+`EPERM`, execute the same command in an explicitly available environment that
+permits local sockets. Do not change assertions or report the unavailable lane
+as passed. On 2026-09-07 the same checkout passed all 25 network tests outside
+the restricted sandbox in 1.17 seconds, while the sandbox probe refused
+immediately.
+
+The CLI's two TypeScript builders and the studio data preparation use
+`node --import tsx` with installed tsx 4.22.4, following its
+[Node registration API](https://tsx.is/dev-api/).
+This avoids the CLI's IPC server; it grants no network capability to tests.
+The certification builder's `--check` path and the complete graph builder are
+verified inside the sandbox.
 
 ## Test management policy
 
