@@ -386,7 +386,7 @@ describe('autonomous value cell runner', () => {
         return {
           outcome: { kind: 'exited', code: 1 },
           stdout: '{"type":"turn.failed"}',
-          stderr: 'Authorization: Bearer process-secret',
+          stderr: 'Authorization: Bearer process-secret\nprivate prompt data',
         };
       });
       const result = await execute({
@@ -410,6 +410,8 @@ describe('autonomous value cell runner', () => {
       expect(received?.env?.['CODEX_HOME']).toBe(expectedCodexHome);
       expect(result.outcome.kind).toBe('failed');
       expect(result.diagnostics).not.toContain('process-secret');
+      expect(result.diagnostics).not.toContain('private prompt data');
+      expect(result.diagnostics).toMatch(/^runtime diagnostics withheld:/);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
