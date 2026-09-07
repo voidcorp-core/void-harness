@@ -58,7 +58,10 @@ does not erase the earlier red evidence.
   answers what a test proves; resource class controls how it is scheduled. `pnpm test:fast` is the
   CPU-only edit loop, `pnpm test:component` owns filesystem and subprocess checks, and
   `pnpm test:network` is explicit because it needs loopback sockets. Use the tier commands when the
-  semantic boundary matters. Loading Vitest fails if a test path has no tier or more than one.
+  semantic boundary matters. Contract subprocess tests use two bounded workers; consumer and
+  system subprocess tests stay sequential in separate groups. Loading Vitest fails if a test path
+  has no tier or more than one. Any increase to a worker budget requires the complete stress proof,
+  not a retry-until-green run.
 - `pnpm lint` and `pnpm typecheck` — zero errors.
 - `pnpm anti-bloat:check` — the eight anti-bloat rules (skill ≤400 LOC, hook ≤100 LOC, discovery description non-blocking target ≤250 chars and hard cap 500, `.source` + audit note per skill, ...).
 - `pnpm graph:check` / `pnpm graph:check-bundle` — regenerate `catalog.v3.json`, its `model.json` compatibility projection, and the bundle when graph inputs change.
