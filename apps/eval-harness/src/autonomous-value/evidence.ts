@@ -154,7 +154,7 @@ function isDigest(value: unknown): value is string {
 function isArgument(value: unknown): value is string {
   return typeof value === 'string'
     && value.length <= 64 * 1024
-    && !/[\0\r\n]/.test(value);
+    && !/\0/.test(value);
 }
 
 function invocationEqual(left: RuntimeInvocation, right: RuntimeInvocation): boolean {

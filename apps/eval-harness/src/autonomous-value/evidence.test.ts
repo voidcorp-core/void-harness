@@ -230,7 +230,14 @@ describe('autonomous value evidence', () => {
   it('accepts only the installed runtime executables for shell-free argv', () => {
     expect(validateCellInvocation(INVOCATION)).toBe(true);
     expect(validateCellInvocation({ command: 'sh', args: ['-c', 'echo unsafe'] })).toBe(false);
-    expect(validateCellInvocation({ command: 'codex', args: ['--bad\narg'] })).toBe(false);
+    expect(validateCellInvocation({ command: 'codex', args: ['--bad\0arg'] })).toBe(false);
+  });
+
+  it('accepts a multiline prompt as one shell-free runtime argument', () => {
+    expect(validateCellInvocation({
+      command: 'codex',
+      args: ['exec', '--model', 'gpt-test', 'Objective: fix it\n\n<task>\nRead task.md\n</task>'],
+    })).toBe(true);
   });
 
   it('detects tampering when replay material changes after sealing', () => {
