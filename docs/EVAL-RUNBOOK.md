@@ -265,7 +265,7 @@ Codex accepts a bounded model-advertised effort identifier; Claude validation
 uses the five values advertised by the installed version. No Codex dollar cap
 was established. Claude's print-mode `--max-budget-usd` exists, but is not wired
 or claimed here as a campaign reservation ledger or an invoice-level guarantee.
-An assembled condition prompt exceeding 64 KiB is refused, never truncated:
+An assembled condition prompt exceeding 65,536 UTF-16 code units is refused, never truncated:
 silently dropping the active skill would change the experimental condition.
 
 ## Test lanes
@@ -483,6 +483,17 @@ There is no UI change requiring viewport QA. The scoped independent reviews
 covered the network boundary and durable archive; they do not certify paid
 runtime behavior or external promotion. Later documentation-only changes use
 the affected documentation gates, not a relabelled full-suite proof.
+
+The runtime composition is committed in `6d73a4e5`; `9292bcb3` adds the
+regression and refusal for oversized assembled prompts. Fresh full verification
+on `9292bcb3a7189523221c51fe86f12f859149e090` passed all 23 gates:
+CPU 2,294; filesystem 1,549; subprocess 968; network 25. All 4,836 tests passed,
+with no skips. Lint retains 34 warnings and 884 informational notices.
+The independent review found the task-content replay gap; its RED regression
+preceded the content-binding fix, and the final review found no blocker.
+The five runtime-composition tests use real workspace/cleanup/sealing code with
+a substituted process transport. They prove local composition, fail-closed
+admission and review, and no replay, not paid-runtime or grading quality.
 
 Still required before calling the real campaign or public release reliable:
 
