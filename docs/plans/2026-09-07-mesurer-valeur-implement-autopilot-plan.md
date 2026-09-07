@@ -244,6 +244,20 @@ Biome lint remains unobservable because the local Biome binary is absent; no
 lockfile was changed. Continuation remains governed by the tracker relations;
 this note does not select or claim the next unit.
 
+Step 3 is complete in DEV-837. The RED contracts are in `8de2054d`; the GREEN
+implementation is in `8bf7d4e8`. The scorer now applies evidence, execution,
+cleanup, defect, false-green, invented-proof, correction-ceiling and
+comparability gates before secondary metrics. The reviewer alternates A/B
+deterministically, strips condition labels and secret-shaped text from the
+judge payload, and turns missing context or invalid verdicts into `unknown`.
+The report keeps absolute gates separate from defects, corrections, human
+interventions, duration, resources, cost, resume, cleanup and unknowns; an
+unknown cost is never rendered as zero. The eval-harness suite passed with 136
+tests and the strict typecheck passed. Repository Biome lint remains
+unobservable because the local Biome binary is absent; no lockfile was changed.
+Checkpoint A is now open: DEV-838 is the human gate for pilot execution and
+protocol/budget approval, so no paid run is authorized by this continuation.
+
 ## Plan self-review
 
 - No placeholders or unbounded language remain in the steps.
