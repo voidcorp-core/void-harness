@@ -3,10 +3,10 @@
   "campaignId": "autonomous-value-2026-09-07",
   "comparability": {
     "runtime": "codex",
-    "model": "pending-human-freeze",
-    "modelVersion": "pending-human-freeze",
-    "effort": "pending-human-freeze",
-    "resourceProfile": "pending-human-freeze",
+    "model": "gpt-5.6-luna",
+    "modelVersion": "codex-cli-0.145.0",
+    "effort": "high",
+    "resourceProfile": "isolated-local-v1",
     "orderSeed": "autonomous-value-v1",
     "humanIntervention": "none"
   },
