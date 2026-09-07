@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, lstatSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, lstatSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { git, setupSandbox } from '../sandbox.js';
@@ -40,9 +40,15 @@ describe('consumer cell workspace', () => {
     expect(git(workspace.dir, 'rev-parse', 'HEAD').trim()).toBe(workspace.baseSha);
     expect(git(workspace.dir, 'status', '--porcelain')).toBe('');
     writeFileSync(join(workspace.dir, 'node_modules/example/index.js'), 'changed\n');
+    mkdirSync(join(workspace.dir, '.cell-home'));
+    mkdirSync(join(workspace.dir, '.cell-tmp'));
+    writeFileSync(join(workspace.dir, '.cell-home/runtime-cache.json'), 'runtime-only\n');
+    writeFileSync(join(workspace.dir, '.cell-tmp/runtime-scratch'), 'runtime-only\n');
     expect(readFileSync(join(source.dir, 'node_modules/example/index.js'), 'utf8'))
       .toBe('module.exports = 1;\n');
     expect(workspace.diff()).toContain('node_modules/example/index.js');
+    expect(workspace.diff()).not.toContain('runtime-cache.json');
+    expect(workspace.diff()).not.toContain('runtime-scratch');
     expect(workspace.cleanup().kind).toBe('complete');
     expect(workspace.cleanup().kind).toBe('complete');
   });

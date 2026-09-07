@@ -11,6 +11,7 @@ const MAX_FIXTURE_BYTES = 4 * 1024 * 1024;
 const MAX_UNTRACKED_FILES = 256;
 const MAX_UNTRACKED_BYTES = 4 * 1024 * 1024;
 const LOCKFILE = /(?:^|\/)(?:package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb?|\.env(?:\.[^/]*)?)$/;
+const HARNESS_RUNTIME_PATHS = new Set(['.cell-home', '.cell-tmp']);
 
 export interface ConsumerCellWorkspaceFactoryInput {
   readonly sourceCheckout: string;
@@ -108,7 +109,7 @@ function workspaceDiff(target: string, baseSha: string): string {
   const tracked = git(target, 'diff', '--binary', baseSha);
   const untracked = git(target, 'ls-files', '--others', '--exclude-standard', '-z')
     .split('\0')
-    .filter((path) => path !== '')
+    .filter((path) => path !== '' && !HARNESS_RUNTIME_PATHS.has(path.split('/')[0] ?? ''))
     .sort();
   if (untracked.length > MAX_UNTRACKED_FILES) throw new Error('untracked file count is not bounded');
   if (untracked.length === 0) return tracked;

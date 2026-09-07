@@ -420,7 +420,7 @@ function sealResult(
     ? { kind: 'sealed', evidence: result.value }
     : {
         kind: 'unproducible',
-        reason: `evidence refused: ${result.error.kind}`,
+        reason: `evidence refused: ${result.error.kind}${'field' in result.error ? ` (${result.error.field})` : ''}`,
         cleanup,
         outcome: observation.outcome,
       };
