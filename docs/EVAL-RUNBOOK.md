@@ -143,8 +143,11 @@ These are release-blocking properties, not suggestions.
    schedule order in the report, persists progress after each observation, and
    stops admitting new work after an infrastructure `unknown` when configured
    fail-closed.
-9. Unknown is not zero. An absent result, unknown metric, failed cleanup or
-   unavailable reviewer remains visible and makes the report inadmissible.
+9. Unknown is not zero. An absent result, failed cleanup or unavailable reviewer
+   remains visible and makes the quality evidence inadmissible. An unknown
+   secondary metric stays unknown and cannot support a comparison of that
+   metric. `PilotReport.valid` checks the pilot's result identities and critical
+   defects; it does not certify known cost, authorize spending or replace review.
 10. Scoring is downstream from execution. The runner produces observations; the
     pure scorer validates identity and computes aggregates only from admissible
     observations.
@@ -189,6 +192,31 @@ adapter, observation stream and report. `runAutonomousValueCell()` in
 `runner.ts` owns workspace identity, bounded execution and evidence sealing.
 The `onObservation` callback is the persistence seam; a production launcher must
 write one durable, redacted record per callback before admitting more work.
+
+`runDurableAutonomousValuePilot()` in `durable.ts` now owns that local archive
+boundary. It calls the versioned composition directly with concurrency one and
+fail-closed admission. Its input names an archive directory, validated manifest
+and configuration key; its caller supplies the existing cell adapter. It does
+not invoke a model by itself and does not implement or bypass budget approval.
+
+Each archive contains a manifest/configuration identity digest, one record per
+admitted execution and the report. Before invoking the adapter, the launcher
+syncs an `admitted` record. Afterward it syncs the validated observation, renames
+the pending file atomically and syncs the directory. The next cell starts only
+after this succeeds. Records contain whitelisted metrics and fixed diagnostic
+reasons, never arbitrary adapter prose, a prompt or transcript. The local
+archive uses POSIX no-follow/nonblocking opens and directory sync; it is not a
+portable remote-storage adapter. Reads reject special files and records larger
+than 8 KiB before parsing.
+
+On resume, a completed observation is reused without invoking the adapter. An
+admission without its observation becomes `unknown`: the effect may already
+have happened and is never replayed. A changed identity or malformed archive
+refuses execution. An exclusive `launch.claim` prevents overlapping launches;
+a claim left by a hard crash is never broken automatically. Inspect the owning
+process and archive before any manual recovery. A pending write or ambiguous
+state is a stop, not permission to delete evidence and try again. These local
+files are not authenticated against a malicious archive owner.
 
 ## Test lanes
 
@@ -323,14 +351,11 @@ retry layer or multi-agent coordinator.
 The two genuine complexity problems are operational, not conceptual:
 
 - The global verification command includes a network/browser lane that cannot
-  bind in the current environment and then produces timeout cascades. It must
-  be a separately runnable integration gate with a service health check, not a
-  prerequisite for every local evaluation edit.
-- The durable real-campaign launcher is not yet the versioned composition's
-  persistence owner. Adding more wrappers would make this worse. The next
-  implementation should be one small launcher that calls
-  `runAutonomousValuePilot`, atomically persists each observation, and resumes
-  by execution identity.
+  bind in a restricted environment. The separately runnable integration gate
+  now checks this capability before testing and fails promptly when absent.
+- Durable persistence is now owned by the small launcher above. Real campaign
+  wiring and new spending authorization still belong to the caller; the
+  historical launcher and archives must not be reused as evidence.
 
 The simplicity rule from this audit is therefore strict: keep the five seams,
 finish those two boundaries, and stop. Do not introduce a queue, database,
@@ -370,7 +395,7 @@ campaign archive and do not infer a score from partial data.
 
 ## Current implementation status
 
-Implemented and locally proven on 2026-09-07:
+Historical baseline at `6e02103f`, locally proven on 2026-09-07:
 
 - deterministic 27-entry schedule and explicit unknown materialization;
 - bounded scheduler with ordered observations, progress callbacks and
@@ -381,13 +406,25 @@ Implemented and locally proven on 2026-09-07:
 - eval-harness: 163 tests passed; fast: 2,242 passed; filesystem: 1,544
   passed; subprocess: 955 passed and 2 skipped.
 
+Operational hardening on the same date:
+
+- `ccf2c1b2` records the failing network-admission contracts; `5b0bf6fe`
+  implements the bounded lane, direct Node builders and context handoff policy.
+- The real network lane passes 25/25; the restricted probe refuses immediately
+  with `unknown`/`EPERM`. A separate bounded Node diagnostic confirms that
+  killing the parent terminates its worker-thread loopback listener. This is
+  evidence for the cleanup mechanism, not a full Vitest timeout experiment.
+- The durable launcher has 11 focused regressions covering completed-result
+  reuse, identity drift, overlapping claims, pre-effect admission, interrupted
+  admission, failed persistence, malformed/oversized/symlinked/FIFO records and
+  omission of private adapter diagnostics. Two independent-review blockers
+  (quoted credentials and blocking FIFO reads) were reproduced and corrected;
+  the correction review reports no remaining blocker.
+
 Still required before calling the real campaign or public release reliable:
 
-- make the durable launcher use `runAutonomousValuePilot()` directly and write
-  atomic per-cell records with resume/deduplication;
-- repair or explicitly isolate the network/browser integration lane: the
-  2026-09-07 full verify hit ten 10-second server-test timeouts after the
-  `tsx` IPC health check failed with `EPERM`;
+- wire the approved real adapter to the durable launcher and validate the
+  canary's actual environment and cleanup; local fake runs do not prove this;
 - run a fresh canary only after the corrected lane is green and a new approval is
   obtained;
 - run a fresh full verification on the final commit and obtain the human
