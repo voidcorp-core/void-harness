@@ -298,6 +298,23 @@ contents. No cell ran and no data was exported. A separate explicit
 authorization for sending that private checkout to the selected model is
 required before the pilot can start.
 
+## Efficiency hardening - 2026-09-07
+
+The pilot relaunches exposed an orchestration defect rather than a product
+quality result: provider stderr was counted as evidence output, cells were
+admitted sequentially, and a cell could waste its budget on the full release
+suite. The versioned consumer adapter now supports bounded concurrency (maximum
+four), per-result progress callbacks, deterministic result ordering, and
+fail-closed admission after an unknown or blocked result. Every cell prompt
+also limits verification to targeted checks; release verification remains a
+single post-integration gate.
+
+`rerun-1`, `rerun-2`, and `rerun-3` remain invalid and are never aggregated.
+No new paid campaign may start from those archives. The next execution must
+first run one canary with the corrected adapter, then use a fresh approval and
+the bounded scheduler. A canary failure stops the campaign before the remaining
+cells are admitted.
+
 ## Plan self-review
 
 - No placeholders or unbounded language remain in the steps.
