@@ -35,6 +35,47 @@ export interface CommitInfo {
   readonly body: string;
 }
 
+/** The fixed matrix dimensions used by the autonomous-value engineering campaign. */
+export type AutonomousValuePath = 'implement' | 'autopilot' | 'brainstorm';
+export type AutonomousValueCondition = 'agent-alone' | 'implement' | 'autopilot';
+export type AutonomousValueCellId = `${AutonomousValuePath}-${AutonomousValueCondition}`;
+
+/** Metadata that must remain identical across every cell in one campaign. */
+export interface AutonomousValueComparability {
+  readonly runtime: string;
+  readonly model: string;
+  readonly modelVersion: string;
+  readonly effort: string;
+  readonly resourceProfile: string;
+  readonly orderSeed: string;
+  readonly humanIntervention: 'none';
+}
+
+/** A bounded, committed fixture directory identified independently of its files. */
+export interface AutonomousValueFixtureRef {
+  readonly path: string;
+  readonly digest: string;
+}
+
+/** One frozen comparison cell in the autonomous-value campaign. */
+export interface AutonomousValueCell {
+  readonly id: AutonomousValueCellId;
+  readonly path: AutonomousValuePath;
+  readonly condition: AutonomousValueCondition;
+  readonly startCommit: string;
+  readonly objective: string;
+  readonly defectOracle: readonly string[];
+  readonly fixture: AutonomousValueFixtureRef;
+}
+
+/** Versioned protocol input for the nine-cell autonomous-value campaign. */
+export interface AutonomousValueManifest {
+  readonly schemaVersion: 1;
+  readonly campaignId: string;
+  readonly comparability: AutonomousValueComparability;
+  readonly cells: readonly AutonomousValueCell[];
+}
+
 /** A scorer's verdict on one outcome: an overall [0,1] plus the named sub-checks. */
 export interface ScoreResult {
   readonly score: number;

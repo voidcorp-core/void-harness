@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "campaignId": "autonomous-value-2026-09-07",
+  "comparability": {
+    "runtime": "codex",
+    "model": "pending-human-freeze",
+    "modelVersion": "pending-human-freeze",
+    "effort": "pending-human-freeze",
+    "resourceProfile": "pending-human-freeze",
+    "orderSeed": "autonomous-value-v1",
+    "humanIntervention": "none"
+  },
+  "cells": [
+    {
+      "id": "implement-agent-alone",
+      "path": "implement",
+      "condition": "agent-alone",
+      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "objective": "Replay the DEV-832 ticket journey with a correction and fresh review evidence.",
+      "defectOracle": ["delivered diff and tests prove the correction", "stale or empty review evidence is rejected"],
+      "fixture": "autonomous-value/implement",
+      "fixtureDigest": "sha256:b913ec390c196403849d6968da2e2d543ca070a7c104f7c7761394d75978be26"
+    },
+    {
+      "id": "implement-implement",
+      "path": "implement",
+      "condition": "implement",
+      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "objective": "Replay the DEV-832 ticket journey with a correction and fresh review evidence.",
+      "defectOracle": ["delivered diff and tests prove the correction", "stale or empty review evidence is rejected"],
+      "fixture": "autonomous-value/implement",
+      "fixtureDigest": "sha256:b913ec390c196403849d6968da2e2d543ca070a7c104f7c7761394d75978be26"
+    },
+    {
+      "id": "implement-autopilot",
+      "path": "implement",
+      "condition": "autopilot",
+      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "objective": "Replay the DEV-832 ticket journey with a correction and fresh review evidence.",
+      "defectOracle": ["delivered diff and tests prove the correction", "stale or empty review evidence is rejected"],
+      "fixture": "autonomous-value/implement",
+      "fixtureDigest": "sha256:b913ec390c196403849d6968da2e2d543ca070a7c104f7c7761394d75978be26"
+    },
+    {
+      "id": "autopilot-agent-alone",
+      "path": "autopilot",
+      "condition": "agent-alone",
+      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "objective": "Replay the DEV-832 cluster journey through isolated workers and an authorized integration.",
+      "defectOracle": ["only verified worker commits enter the integration", "the deploying branch remains untouched"],
+      "fixture": "autonomous-value/autopilot",
+      "fixtureDigest": "sha256:93151c5fb1a81b2ebb4de1904a3d3732498e7d45e3180127310d0dc95ada69fd"
+    },
+    {
+      "id": "autopilot-implement",
+      "path": "autopilot",
+      "condition": "implement",
+      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "objective": "Replay the DEV-832 cluster journey through isolated workers and an authorized integration.",
+      "defectOracle": ["only verified worker commits enter the integration", "the deploying branch remains untouched"],
+      "fixture": "autonomous-value/autopilot",
+      "fixtureDigest": "sha256:93151c5fb1a81b2ebb4de1904a3d3732498e7d45e3180127310d0dc95ada69fd"
+    },
+    {
+      "id": "autopilot-autopilot",
+      "path": "autopilot",
+      "condition": "autopilot",
+      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "objective": "Replay the DEV-832 cluster journey through isolated workers and an authorized integration.",
+      "defectOracle": ["only verified worker commits enter the integration", "the deploying branch remains untouched"],
+      "fixture": "autonomous-value/autopilot",
+      "fixtureDigest": "sha256:93151c5fb1a81b2ebb4de1904a3d3732498e7d45e3180127310d0dc95ada69fd"
+    },
+    {
+      "id": "brainstorm-agent-alone",
+      "path": "brainstorm",
+      "condition": "agent-alone",
+      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "objective": "Repeat the DEV-832 brainstorm journey ten times and detect the missing x10 proof.",
+      "defectOracle": ["the useful x10 move is traced", "removing its proof makes the journey uncertifiable"],
+      "fixture": "autonomous-value/brainstorm",
+      "fixtureDigest": "sha256:204b5600a255bd9f2affd38b0e35b8e93535d28293c52d9f9bdf2e963b98057e"
+    },
+    {
+      "id": "brainstorm-implement",
+      "path": "brainstorm",
+      "condition": "implement",
+      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "objective": "Repeat the DEV-832 brainstorm journey ten times and detect the missing x10 proof.",
+      "defectOracle": ["the useful x10 move is traced", "removing its proof makes the journey uncertifiable"],
+      "fixture": "autonomous-value/brainstorm",
+      "fixtureDigest": "sha256:204b5600a255bd9f2affd38b0e35b8e93535d28293c52d9f9bdf2e963b98057e"
+    },
+    {
+      "id": "brainstorm-autopilot",
+      "path": "brainstorm",
+      "condition": "autopilot",
+      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "objective": "Repeat the DEV-832 brainstorm journey ten times and detect the missing x10 proof.",
+      "defectOracle": ["the useful x10 move is traced", "removing its proof makes the journey uncertifiable"],
+      "fixture": "autonomous-value/brainstorm",
+      "fixtureDigest": "sha256:204b5600a255bd9f2affd38b0e35b8e93535d28293c52d9f9bdf2e963b98057e"
+    }
+  ]
+}
