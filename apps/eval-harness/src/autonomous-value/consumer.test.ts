@@ -38,7 +38,8 @@ describe('autonomous value consumer adapter', () => {
     expect(codex.command).toBe('codex');
     expect(codex.args).toContain('--ephemeral');
     expect(codex.args).toContain('--ignore-user-config');
-    expect(codex.args).not.toContain('--json');
+    expect(codex.args).toContain('--json');
+    expect(codex.args).not.toContain('-c');
     expect(codex.args).toContain('task');
 
     const claude = buildConsumerRuntimeInvocation({
@@ -49,6 +50,31 @@ describe('autonomous value consumer adapter', () => {
     expect(claude.command).toBe('claude');
     expect(claude.args).toContain('--no-session-persistence');
     expect(claude.args).toContain('task');
+    expect(claude.args).not.toContain('--effort');
+  });
+
+  it.each(['minimal', 'high', 'xhigh', 'max', 'ultra'])('passes Codex effort %s as a TOML string', (effort) => {
+    const invocation = buildConsumerRuntimeInvocation({ runtime: 'codex', model: 'model', prompt: 'task', effort });
+    const index = invocation.args.indexOf('-c');
+    expect(index).toBeGreaterThan(-1);
+    expect(invocation.args[index + 1]).toBe(`model_reasoning_effort="${effort}"`);
+  });
+
+  it.each(['low', 'medium', 'high', 'xhigh', 'max'])('passes Claude effort %s explicitly', (effort) => {
+    const invocation = buildConsumerRuntimeInvocation({ runtime: 'claude', model: 'model', prompt: 'task', effort });
+    const index = invocation.args.indexOf('--effort');
+    expect(index).toBeGreaterThan(-1);
+    expect(invocation.args[index + 1]).toBe(effort);
+  });
+
+  it.each(['', ' high ', 'high\nother=true', 'high"', 'x'.repeat(65)])('refuses malformed Codex effort %j', (effort) => {
+    expect(() => buildConsumerRuntimeInvocation({ runtime: 'codex', model: 'model', prompt: 'task', effort }))
+      .toThrow('invalid codex effort');
+  });
+
+  it.each(['', 'minimal', 'ultra', 'ultracode', ' high '])('refuses unsupported Claude effort %j', (effort) => {
+    expect(() => buildConsumerRuntimeInvocation({ runtime: 'claude', model: 'model', prompt: 'task', effort }))
+      .toThrow('invalid claude effort');
   });
 
   it('runs every scheduled execution once and materializes adapter failures as unknown', async () => {

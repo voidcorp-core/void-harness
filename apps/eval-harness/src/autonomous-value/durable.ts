@@ -12,6 +12,7 @@ export interface DurablePilotInput {
   readonly archiveDirectory: string;
   readonly manifest: AutonomousValueManifest;
   readonly configurationKey: string;
+  readonly adapterIdentity?: string;
 }
 
 export async function runDurableAutonomousValuePilot(
@@ -22,8 +23,11 @@ export async function runDurableAutonomousValuePilot(
   if (!/^[a-zA-Z0-9._/:-]{1,512}$/.test(input.configurationKey)) {
     throw new Error('invalid configuration identity');
   }
+  if (input.adapterIdentity !== undefined && !/^[a-f0-9]{64}$/.test(input.adapterIdentity)) {
+    throw new Error('invalid adapter identity');
+  }
   const identity = createHash('sha256').update(JSON.stringify({
-    manifest, configurationKey: input.configurationKey,
+    manifest, configurationKey: input.configurationKey, adapterIdentity: input.adapterIdentity,
   })).digest('hex');
   const directory = input.archiveDirectory;
   await mkdir(directory, { recursive: true, mode: 0o700 });

@@ -14,6 +14,7 @@ export interface ConsumerRuntimeInvocationInput {
   readonly runtime: 'codex' | 'claude';
   readonly model: string;
   readonly prompt: string;
+  readonly effort?: string;
 }
 
 export interface PilotCellRunInput {
@@ -69,23 +70,42 @@ export function buildConsumerPrompt(input: ConsumerPromptInput): string {
   return sections.join('\n').slice(0, MAX_PROMPT_LENGTH);
 }
 
+function effortArguments(input: ConsumerRuntimeInvocationInput): readonly string[] {
+  if (input.effort === undefined) return [];
+  if (input.runtime === 'codex') {
+    // Codex 0.145.0 models advertise effort strings; -c values use TOML parsing.
+    // https://github.com/openai/codex/blob/rust-v0.145.0/codex-rs/core/config.schema.json
+    if (!/^[a-z][a-z0-9_-]{0,63}$/.test(input.effort)) throw new Error('invalid codex effort');
+    return ['-c', `model_reasoning_effort=${JSON.stringify(input.effort)}`];
+  }
+  // Matches Claude Code 2.1.263 --help; model-specific availability remains runtime-owned.
+  // https://code.claude.com/docs/en/cli-reference#cli-flags
+  if (!['low', 'medium', 'high', 'xhigh', 'max'].includes(input.effort)) {
+    throw new Error('invalid claude effort');
+  }
+  return ['--effort', input.effort];
+}
+
 /** Build argv directly so runtime prompts cannot be interpreted by a shell. */
 export function buildConsumerRuntimeInvocation(
   input: ConsumerRuntimeInvocationInput,
 ): RuntimeInvocation {
   const model = bounded(input.model, 'model');
   const prompt = bounded(input.prompt, 'prompt');
+  const effort = effortArguments(input);
   if (input.runtime === 'codex') {
     return {
       command: 'codex',
       args: [
         'exec',
+        '--json',
         '--ephemeral',
         '--sandbox',
         'workspace-write',
         '--ignore-user-config',
         '--model',
         model,
+        ...effort,
         prompt,
       ],
     };
@@ -101,6 +121,7 @@ export function buildConsumerRuntimeInvocation(
       'json',
       '--model',
       model,
+      ...effort,
       '--no-session-persistence',
     ],
   };

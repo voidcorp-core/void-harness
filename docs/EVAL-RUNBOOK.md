@@ -218,6 +218,54 @@ process and archive before any manual recovery. A pending write or ambiguous
 state is a stop, not permission to delete evidence and try again. These local
 files are not authenticated against a malicious archive owner.
 
+### Runtime composition boundary
+
+`runDurableRuntimePilot()` in `runtime-pilot.ts` connects the durable launcher
+to condition prompts, the bounded conformance executor, workspace cleanup,
+sealed-evidence verification and the existing absolute quality gates. Production
+defaults select the real executor; tests replace only its process transport and
+use real disposable Git checkouts. No CLI entry point or paid launch is enabled
+by this library composition.
+
+The trusted caller supplies a workspace factory, deterministic task loader,
+independent assessor and optional admission authority. Missing admission refuses
+before workspace creation. The authority must durably reserve the approved
+execution and budget before granting its exact execution/configuration identity.
+It is an integration port, **not an implemented monetary ledger**. A permissive
+test callback is not a production admission policy. The existing approval parser
+alone is insufficient; no concrete spending authority is wired here.
+
+Tasks are loaded before archive binding. Their task, fixture and skill contents,
+the artifact digest, and versioned admission/assessor policy identities join the
+archive identity. Changed instructions cannot reuse a previous score. Loaders
+must be read-only and deterministic; policy keys must change when their trusted
+implementation or approval scope changes. No task content is written to the
+archive: only its digest contributes to the binding.
+
+The assessor receives verified sealed evidence after cleanup, not a live
+workspace. A held-out check requiring the live checkout belongs before cleanup
+in the executor boundary. Exit zero alone is never a quality score. Missing or
+thrown assessment stays unknown; an absolute quality failure blocks. The
+reported score comes from the independent assessor, not the scorer's secondary
+correction-efficiency metric. Cost remains unknown without a trusted meter.
+Only the normalized result is durably archived; this is not a retained full
+sealed-evidence bundle or a blind-human review system.
+
+The caller still owns actual artifact installation/attestation, runtime-version
+attestation, resource isolation and a validated grading implementation. These
+trusted capabilities are not certified by dependency injection or local tests.
+The current consumer artifact installer is Codex-specific; merely selecting a
+Claude invocation does not make that installation path Claude-ready.
+
+Runtime arguments now carry the declared effort and Codex JSONL output. They
+were checked against local Codex 0.145.0 and Claude 2.1.263 help, the
+[versioned Codex configuration schema](https://github.com/openai/codex/blob/rust-v0.145.0/codex-rs/core/config.schema.json)
+and the [official Claude CLI reference](https://code.claude.com/docs/en/cli-reference#cli-flags).
+Codex accepts a bounded model-advertised effort identifier; Claude validation
+uses the five values advertised by the installed version. No Codex dollar cap
+was established. Claude's print-mode `--max-budget-usd` exists, but is not wired
+or claimed here as a campaign reservation ledger or an invoice-level guarantee.
+
 ## Test lanes
 
 The default feedback loop is intentionally layered:
@@ -436,7 +484,8 @@ the affected documentation gates, not a relabelled full-suite proof.
 
 Still required before calling the real campaign or public release reliable:
 
-- wire the approved real adapter to the durable launcher and validate the
+- supply a concrete durable spending authority and validated assessor to the
+  runtime composition, attest the installed artifact/runtime, and validate the
   canary's actual environment and cleanup; local fake runs do not prove this;
 - run a fresh canary only after the corrected lane is green and a new approval is
   obtained;
