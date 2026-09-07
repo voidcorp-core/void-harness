@@ -76,8 +76,11 @@ describe('autonomous value pilot', () => {
     const schedule = createPilotSchedule(manifest());
     const input = observations(schedule);
     const first = input[0];
-    if (first === undefined || first.result.status !== 'completed') throw new Error('test observation missing');
-    input[0] = { ...first, result: { ...first.result, criticalDefect: true, score: 1 } };
+    const firstResult = first?.result;
+    if (first === undefined || firstResult === undefined || firstResult.status !== 'completed') {
+      throw new Error('test observation missing');
+    }
+    input[0] = { ...first, result: { ...firstResult, criticalDefect: true, score: 1 } };
     const report = createPilotReport(schedule, input);
     expect(report.valid).toBe(false);
     expect(report.criticalDefectCount).toBe(1);
@@ -90,8 +93,8 @@ describe('autonomous value pilot', () => {
     const report = createPilotReport(schedule, observations(schedule).slice(0, 1));
     const sizing = deriveMainCampaignSizing(report, { minDetectableEffect: 0.1, confidence: 0.95 });
     expect(sizing.variance).toEqual({ kind: 'unknown', reason: 'one or more cell variances are unknown' });
-    expect(sizing.sampleSizePerCell).toEqual({ kind: 'unknown', reason: 'variance is unknown' });
-    expect(renderPilotReport(report, sizing)).toContain('unknown: provider omitted cost');
+    expect(sizing.sampleSizePerCell).toEqual({ kind: 'unknown', reason: 'pilot report is not admissible' });
+    expect(renderPilotReport(report, sizing)).toContain('unknown: one or more execution costs are unknown');
     expect(renderPilotReport(report, sizing)).toContain('unknown: one or more cell variances are unknown');
   });
 });
