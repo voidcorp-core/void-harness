@@ -1,4 +1,5 @@
 import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { dirname, isAbsolute, join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { git } from '../sandbox.js';
@@ -14,6 +15,7 @@ const LOCKFILE = /(?:^|\/)(?:package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.
 export interface ConsumerCellWorkspaceFactoryInput {
   readonly sourceCheckout: string;
   readonly parentDirectory?: string;
+  readonly artifactTarballPath?: string;
 }
 
 function validateFixture(fixture: Readonly<Record<string, string>>): void {
@@ -68,6 +70,40 @@ function writeFixture(target: string, fixture: Readonly<Record<string, string>>)
   git(target, 'commit', '-q', '-m', 'fixture: initial state');
 }
 
+/** Build the local package install command with a fixed, shell-free argv. */
+export function buildConsumerArtifactInstallInvocation(packageDirectory: string): {
+  readonly command: 'node';
+  readonly args: readonly string[];
+} {
+  return {
+    command: 'node',
+    args: [
+      join(packageDirectory, 'package', 'bin', 'void-harness.mjs'),
+      'init',
+      '--runtime',
+      'codex',
+      '--no-interactive',
+      '--preserve-doctrine',
+      '--force',
+    ],
+  };
+}
+
+function installArtifact(target: string, tarballPath: string, parentDirectory: string): void {
+  const packageDirectory = mkdtempSync(join(parentDirectory, 'void-package-'));
+  try {
+    execFileSync('tar', ['-xzf', tarballPath, '-C', packageDirectory], { encoding: 'utf8' });
+    const invocation = buildConsumerArtifactInstallInvocation(packageDirectory);
+    execFileSync(invocation.command, invocation.args, {
+      cwd: target,
+      encoding: 'utf8',
+      env: { PATH: process.env['PATH'], CI: '1' },
+    });
+  } finally {
+    rmSync(packageDirectory, { recursive: true, force: true });
+  }
+}
+
 function workspaceDiff(target: string, baseSha: string): string {
   const tracked = git(target, 'diff', '--binary', baseSha);
   const untracked = git(target, 'ls-files', '--others', '--exclude-standard', '-z')
@@ -115,6 +151,9 @@ export function createConsumerCellWorkspaceFactory(
       const target = mkdtempSync(join(parentDirectory, 'void-consumer-'));
       try {
         copyCheckout(input.sourceCheckout, target);
+        if (input.artifactTarballPath !== undefined) {
+          installArtifact(target, input.artifactTarballPath, parentDirectory);
+        }
         writeFixture(target, fixture);
         const baseSha = git(target, 'rev-parse', 'HEAD').trim();
         return {
