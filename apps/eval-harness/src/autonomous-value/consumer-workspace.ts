@@ -62,6 +62,7 @@ function writeFixture(target: string, fixture: Readonly<Record<string, string>>)
     writeFileSync(fullPath, content, 'utf8');
   }
   git(target, 'init', '-q', '-b', 'main');
+  git(target, 'add', '-A');
   const paths = Object.keys(fixture);
   git(target, 'add', '-f', '--', ...paths);
   git(target, 'commit', '-q', '-m', 'fixture: initial state');
