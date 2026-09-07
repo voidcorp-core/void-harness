@@ -28,6 +28,7 @@ describe('consumer cell workspace', () => {
       'package.json': '{}\n',
       'node_modules/example/index.js': 'module.exports = 1;\n',
     });
+    const sourceBaseSha = source.baseSha;
     const workspace = createConsumerCellWorkspaceFactory({
       sourceCheckout: source.dir,
       parentDirectory: join(source.dir, '..'),
@@ -37,7 +38,9 @@ describe('consumer cell workspace', () => {
       .toBe('module.exports = 1;\n');
     expect(lstatSync(join(workspace.dir, 'node_modules/example/index.js')).isSymbolicLink())
       .toBe(false);
-    expect(git(workspace.dir, 'rev-parse', 'HEAD').trim()).toBe(workspace.baseSha);
+    expect(workspace.baseSha).toBe(sourceBaseSha);
+    expect(() => git(workspace.dir, 'merge-base', '--is-ancestor', sourceBaseSha, 'HEAD'))
+      .not.toThrow();
     expect(git(workspace.dir, 'status', '--porcelain')).toBe('');
     writeFileSync(join(workspace.dir, 'node_modules/example/index.js'), 'changed\n');
     mkdirSync(join(workspace.dir, '.cell-home'));
