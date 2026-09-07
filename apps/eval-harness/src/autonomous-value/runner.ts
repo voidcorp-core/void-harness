@@ -311,7 +311,15 @@ export function createConformanceCellExecutor(
         MAX_PROCESS_OUTPUT_BYTES,
         MAX_PROCESS_OUTPUT_BYTES,
       ),
-      env: { HOME: home, TMPDIR: temporary },
+      env: {
+        HOME: home,
+        TMPDIR: temporary,
+        ...(process.env['CODEX_HOME'] !== undefined
+          ? { CODEX_HOME: process.env['CODEX_HOME'] }
+          : process.env['HOME'] === undefined
+            ? {}
+            : { CODEX_HOME: join(process.env['HOME'], '.codex') }),
+      },
     });
     const events = result.stdout.split('\n').filter((line) => line !== '');
     return {
