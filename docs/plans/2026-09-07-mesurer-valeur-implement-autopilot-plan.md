@@ -231,9 +231,18 @@ plan does not add a current-step pointer.
 Step 1 is complete in DEV-835. The observed evidence is the RED test commit
 `f322b580`, followed by the contract and fixture commit `09fa1de4`, the pinned
 runtime metadata commit `ed21ebd2`, and the comparable-cell hardening commit
-`e8b7683b`. The eval-harness test suite and strict typecheck were rerun on the
-last commit. Continuation remains governed by the tracker relations; this note
-does not select or claim the next unit.
+`e8b7683b`.
+
+Step 2 is complete in DEV-836. The RED tests are in `ed9f15f0`; the GREEN
+implementation and strengthened tests are in `8db4df8f`. The cell runner now
+binds source, workspace and fixture identity, captures tracked and untracked
+changes, uses the shell-free conformance process with bounded output and a
+disposable HOME, refuses live children and contradictory or worker-only proof,
+and exposes replay digest verification. The eval-harness suite passed with 121
+tests and the strict typecheck passed after the last code change. Repository
+Biome lint remains unobservable because the local Biome binary is absent; no
+lockfile was changed. Continuation remains governed by the tracker relations;
+this note does not select or claim the next unit.
 
 ## Plan self-review
 
