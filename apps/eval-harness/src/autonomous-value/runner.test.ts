@@ -405,6 +405,9 @@ describe('autonomous value cell runner', () => {
       expect(received?.args).toEqual(INVOCATION.args);
       expect(received?.env?.['HOME']).toBe(join(root, '.cell-home'));
       expect(received?.env?.['TMPDIR']).toBe(join(root, '.cell-tmp'));
+      const expectedCodexHome = process.env['CODEX_HOME']
+        ?? (process.env['HOME'] === undefined ? undefined : join(process.env['HOME'], '.codex'));
+      expect(received?.env?.['CODEX_HOME']).toBe(expectedCodexHome);
       expect(result.outcome.kind).toBe('failed');
       expect(result.diagnostics).not.toContain('process-secret');
     } finally {
