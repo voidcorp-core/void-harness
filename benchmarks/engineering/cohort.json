@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "campaignId": "autonomous-value-2026-09-07-rerun-1",
+  "campaignId": "autonomous-value-2026-09-07-rerun-2",
   "comparability": {
     "runtime": "codex",
     "model": "gpt-5.6-luna",
@@ -15,7 +15,7 @@
       "id": "implement-agent-alone",
       "path": "implement",
       "condition": "agent-alone",
-      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "startCommit": "aa748e8038c79199ce9bc311828cd4f95587a66f",
       "objective": "Replay the DEV-832 ticket journey with a correction and fresh review evidence.",
       "defectOracle": [
         "delivered diff and tests prove the correction",
@@ -28,7 +28,7 @@
       "id": "implement-implement",
       "path": "implement",
       "condition": "implement",
-      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "startCommit": "aa748e8038c79199ce9bc311828cd4f95587a66f",
       "objective": "Replay the DEV-832 ticket journey with a correction and fresh review evidence.",
       "defectOracle": [
         "delivered diff and tests prove the correction",
@@ -41,7 +41,7 @@
       "id": "implement-autopilot",
       "path": "implement",
       "condition": "autopilot",
-      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "startCommit": "aa748e8038c79199ce9bc311828cd4f95587a66f",
       "objective": "Replay the DEV-832 ticket journey with a correction and fresh review evidence.",
       "defectOracle": [
         "delivered diff and tests prove the correction",
@@ -54,7 +54,7 @@
       "id": "autopilot-agent-alone",
       "path": "autopilot",
       "condition": "agent-alone",
-      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "startCommit": "aa748e8038c79199ce9bc311828cd4f95587a66f",
       "objective": "Replay the DEV-832 cluster journey with isolated workers and an authorized integration.",
       "defectOracle": [
         "only verified worker commits enter the integration",
@@ -67,7 +67,7 @@
       "id": "autopilot-implement",
       "path": "autopilot",
       "condition": "implement",
-      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "startCommit": "aa748e8038c79199ce9bc311828cd4f95587a66f",
       "objective": "Replay the DEV-832 cluster journey with isolated workers and an authorized integration.",
       "defectOracle": [
         "only verified worker commits enter the integration",
@@ -80,7 +80,7 @@
       "id": "autopilot-autopilot",
       "path": "autopilot",
       "condition": "autopilot",
-      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "startCommit": "aa748e8038c79199ce9bc311828cd4f95587a66f",
       "objective": "Replay the DEV-832 cluster journey with isolated workers and an authorized integration.",
       "defectOracle": [
         "only verified worker commits enter the integration",
@@ -93,7 +93,7 @@
       "id": "brainstorm-agent-alone",
       "path": "brainstorm",
       "condition": "agent-alone",
-      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "startCommit": "aa748e8038c79199ce9bc311828cd4f95587a66f",
       "objective": "Repeat DEV-832 brainstorm ten times and detect the missing x10 proof.",
       "defectOracle": [
         "the useful x10 move is traced",
@@ -106,7 +106,7 @@
       "id": "brainstorm-implement",
       "path": "brainstorm",
       "condition": "implement",
-      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "startCommit": "aa748e8038c79199ce9bc311828cd4f95587a66f",
       "objective": "Repeat DEV-832 brainstorm ten times and detect the missing x10 proof.",
       "defectOracle": [
         "the useful x10 move is traced",
@@ -119,7 +119,7 @@
       "id": "brainstorm-autopilot",
       "path": "brainstorm",
       "condition": "autopilot",
-      "startCommit": "ab4a77d81cef5057f5c5211d58917288fc3da023",
+      "startCommit": "aa748e8038c79199ce9bc311828cd4f95587a66f",
       "objective": "Repeat DEV-832 brainstorm ten times and detect the missing x10 proof.",
       "defectOracle": [
         "the useful x10 move is traced",
