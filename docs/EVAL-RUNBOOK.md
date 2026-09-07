@@ -202,8 +202,10 @@ Apply the following rules:
 3. A grader has one responsibility. Use deterministic code graders first:
    tests, static analysis, typechecking, security checks and final-state
    assertions. Use a model grader only for qualities code cannot observe, and
-   calibrate it against human judgments. Keep human review for calibration and
-   the final promotion decision.
+   calibrate it against human judgments. The human judge is specifically for
+   subjective quality that code cannot decide reliably, and for the final
+   promotion decision; it is not a replacement for automated correctness
+   proofs.
 4. The transcript is diagnostic evidence, not the score. Store it separately,
    redacted and bounded. Score the resulting environment state whenever the
    task changes files or data.
@@ -246,6 +248,45 @@ edit -> fast deterministic contracts -> targeted boundary lane
 The expensive path is therefore gated by cheap evidence. It is not removed; it
 is prevented from consuming hours when the environment or contract is already
 known to be broken.
+
+## Proportionality audit
+
+Audit date: 2026-09-07. Decision: **freeze the current core; do not add another
+framework layer**.
+
+The current seams are proportionate to the risks they control:
+
+| Seam | Responsibility | Decision |
+| --- | --- | --- |
+| `pilot.ts` | deterministic schedule and pure report | keep |
+| `consumer.ts` | bounded admission and runtime prompt/adapter contract | keep |
+| `runner.ts` | one isolated cell and its process boundary | keep |
+| `evidence.ts` | validate and seal untrusted execution facts | keep |
+| `campaign.ts` | one end-to-end composition from schedule to report | keep |
+
+The graph audit found 138 nodes, 196 edges and zero broken routes. Its cost
+report does flag many unused skills and specialists, but that is a context-
+specific observation window, not evidence that they belong in this evaluation
+path. They should not be loaded or invoked per cell. The evaluation code itself
+has no case for a second scheduler, queue, agent team, persistence service,
+retry layer or multi-agent coordinator.
+
+The two genuine complexity problems are operational, not conceptual:
+
+- The global verification command includes a network/browser lane that cannot
+  bind in the current environment and then produces timeout cascades. It must
+  be a separately runnable integration gate with a service health check, not a
+  prerequisite for every local evaluation edit.
+- The durable real-campaign launcher is not yet the versioned composition's
+  persistence owner. Adding more wrappers would make this worse. The next
+  implementation should be one small launcher that calls
+  `runAutonomousValuePilot`, atomically persists each observation, and resumes
+  by execution identity.
+
+The simplicity rule from this audit is therefore strict: keep the five seams,
+finish those two boundaries, and stop. Do not introduce a queue, database,
+workflow engine, automatic retry, extra judge layer or another abstraction
+unless a measured failure proves one of them necessary.
 
 ## Failure and recovery policy
 
