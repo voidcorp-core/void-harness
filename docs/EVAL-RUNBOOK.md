@@ -197,7 +197,9 @@ write one durable, redacted record per callback before admitting more work.
 boundary. It calls the versioned composition directly with concurrency one and
 fail-closed admission. Its input names an archive directory, validated manifest
 and configuration key; its caller supplies the existing cell adapter. It does
-not invoke a model by itself and does not implement or bypass budget approval.
+not invoke a model by itself. The optional budget authority extends this same
+journal; the unbudgeted archive remains a local adapter/testing facility, not
+an alternative paid runtime admission path.
 
 Each archive contains a manifest/configuration identity digest, one record per
 admitted execution and the report. Before invoking the adapter, the launcher
@@ -223,17 +225,51 @@ files are not authenticated against a malicious archive owner.
 `runDurableRuntimePilot()` in `runtime-pilot.ts` connects the durable launcher
 to condition prompts, the bounded conformance executor, workspace cleanup,
 sealed-evidence verification and the existing absolute quality gates. Production
-defaults select the real executor; tests replace only its process transport and
-use real disposable Git checkouts. No CLI entry point or paid launch is enabled
+defaults refuse both Codex and Claude; tests supply a controlled, zero-cost
+bounded adapter around the real executor and use disposable Git checkouts.
+No CLI entry point or paid launch is enabled
 by this library composition.
 
 The trusted caller supplies a workspace factory, deterministic task loader,
-independent assessor and optional admission authority. Missing admission refuses
-before workspace creation. The authority must durably reserve the approved
-execution and budget before granting its exact execution/configuration identity.
-It is an integration port, **not an implemented monetary ledger**. A permissive
-test callback is not a production admission policy. The existing approval parser
-alone is insufficient; no concrete spending authority is wired here.
+independent assessor, budget authority and bounded runtime adapter. Missing or
+incompatible authority refuses before reservation or workspace creation. The
+former permissive `admit` callback no longer exists. Approval provenance is an
+explicit trusted attestation of the canonical approval digest; parsing an
+approval does not establish human consent.
+
+The bounded adapter owns actual enforcement of the supplied microdollar cap,
+including simultaneous calls, in-flight calls and descendants. Its runtime,
+model, version, effort, coverage and proof digest are bound into the archive
+identity. A digest is a reference to reviewed enforcement evidence, not proof
+by itself. This code-only trusted port is not accepted from evaluated-worker
+JSON or a CLI switch. No provider enforcement implementation ships here.
+
+### Durable budget authority
+
+The operator supplies one preexisting canonical POSIX authority root shared by
+all launchers. The child directory is derived from the canonical approval digest
+alone. An export path, changed configuration or policy cannot open a new budget.
+`archiveDirectory` does not select authority for budgeted runs; reports currently
+remain in the authority directory and no export writer is provided. Neither the
+root nor claims are recreated or reclaimed automatically. The parent directory
+is synchronized after child creation and on reopening an existing child.
+
+`budget.ts` converts canonical decimal USD spellings exactly: the approved
+budget rounds down and each execution cap rounds up to safe integer microdollars.
+The 27 distinct schedule reservations are frozen before execution. Each funded
+admission checks remaining credit, then synchronizes its reservation before the
+callback. Reopening validates all bounded records and their total before effects.
+Reservations survive completed, failed and unknown results; measured cost never
+refunds them. A zero reservation is allowed only for an observed blocked result.
+Interrupted admissions are never replayed. Missing legacy monetary fields,
+invalid amounts, identity conflicts and ambiguous pending writes refuse.
+
+The approved design is
+[durable budget admission](specs/2026-09-07-eval-durable-budget-admission.md).
+Its 27-execution approval is not a canary approval. The trusted-root assumption
+excludes a malicious operator deleting or forging their own authority archive.
+
+### Runtime task and quality identity
 
 Tasks are loaded before archive binding. Their task, fixture and skill contents,
 the artifact digest, and versioned admission/assessor policy identities join the
@@ -495,9 +531,23 @@ The five runtime-composition tests use real workspace/cleanup/sealing code with
 a substituted process transport. They prove local composition, fail-closed
 admission and review, and no replay, not paid-runtime or grading quality.
 
+Budget implementation evidence on 2026-09-08 (local, not a release certificate):
+
+- monetary and journal RED commits `d5cbe134` and `5977d5d8`, GREEN `fb8994fd`;
+- runtime RED `4e285ce8`, GREEN `008c96e3`: seven runtime tests pass using the
+  real workspace and seal path, with no provider transport;
+- corruption regression `c13e1fae` exposed acceptance of a zero reservation for
+  an unknown observation; the correction requires an observed blocked result;
+- the targeted autonomous-value suite passes 129 tests after that correction;
+  file and directory admission-sync failures prove zero new effects;
+- instrumented coverage is not measured: `@vitest/coverage-v8` is unavailable.
+  No mutation command is declared. No coverage percentage or mutation score is
+  inferred from passing tests. Integrated verification and final review remain
+  required for this candidate.
+
 Still required before calling the real campaign or public release reliable:
 
-- supply a concrete durable spending authority and validated assessor to the
+- supply verified provider cap enforcement and a validated assessor to the
   runtime composition, attest the installed artifact/runtime, and validate the
   canary's actual environment and cleanup; local fake runs do not prove this;
 - run a fresh canary only after the corrected lane is green and a new approval is
