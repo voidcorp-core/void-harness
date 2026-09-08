@@ -67,25 +67,9 @@ export async function runDurableAutonomousValuePilot(
   }
   try {
     await bindArchive(directory, identity, sync);
-    const saved = new Map<string, PilotResult>();
-    const reservations = new Map<string, number>();
-    let reservedMicroUsd = 0;
-    for (const execution of createPilotSchedule(manifest)) {
-      const raw = await readBounded(join(directory, `${execution.executionId}.json`));
-      if (raw !== undefined) {
-        const result = readRecord(raw, identity, execution.executionId, input.configurationKey,
-          manifest.cells[execution.cellId].startCommit);
-        if (budget !== undefined) {
-          const amount = readReservation(raw, budget.plan, execution.executionId, result);
-          reservedMicroUsd += amount;
-          reservations.set(execution.executionId, amount);
-        }
-        saved.set(execution.executionId, result);
-      }
-    }
-    if (budget !== undefined && reservedMicroUsd > budget.plan.budgetMicroUsd) {
-      throw new Error('archive reservations exceed budget');
-    }
+    const recovered = await recoverArchive(directory, identity, { ...input, manifest }, budget);
+    const { saved, reservations } = recovered;
+    let reservedMicroUsd = recovered.reservedMicroUsd;
     const result = await runAutonomousValuePilot(manifest, async (cellInput) => {
       const executionId = cellInput.execution.executionId;
       const previous = saved.get(executionId);
@@ -114,6 +98,30 @@ export async function runDurableAutonomousValuePilot(
     await atomicWrite(directory, 'report.json', result.report, sync);
     return result;
   } finally { await rmdir(claim); }
+}
+
+async function recoverArchive(
+  directory: string, identity: string, input: DurablePilotInput, budget: PreparedBudget | undefined,
+) {
+  const saved = new Map<string, PilotResult>();
+  const reservations = new Map<string, number>();
+  let reservedMicroUsd = 0;
+  for (const execution of createPilotSchedule(input.manifest)) {
+    const raw = await readBounded(join(directory, `${execution.executionId}.json`));
+    if (raw === undefined) continue;
+    const result = readRecord(raw, identity, execution.executionId, input.configurationKey,
+      input.manifest.cells[execution.cellId].startCommit);
+    if (budget !== undefined) {
+      const amount = readReservation(raw, budget.plan, execution.executionId, result);
+      reservedMicroUsd += amount;
+      reservations.set(execution.executionId, amount);
+    }
+    saved.set(execution.executionId, result);
+  }
+  if (budget !== undefined && reservedMicroUsd > budget.plan.budgetMicroUsd) {
+    throw new Error('archive reservations exceed budget');
+  }
+  return { saved, reservations, reservedMicroUsd };
 }
 
 function prepareBudget(input: BudgetAuthorityInput | undefined, manifest: AutonomousValueManifest): PreparedBudget | undefined {

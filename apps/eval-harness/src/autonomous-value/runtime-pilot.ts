@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { parsePilotApproval } from './approval.js';
-import { type MicroUsd, parseBudgetPlan } from './budget.js';
+import { type BudgetPlan, type MicroUsd, parseBudgetPlan } from './budget.js';
 import { type PilotCampaignCellRunInput, type PilotCampaignResult, runAutonomousValuePilot } from './campaign.js';
 import { buildConsumerPrompt, buildConsumerRuntimeInvocation } from './consumer.js';
 import { type DurablePilotInput, runDurableAutonomousValuePilot } from './durable.js';
@@ -89,7 +89,17 @@ export async function runDurableRuntimePilot(
     capability, reviewerKey: input.reviewerKey,
     tasks: [...tasks],
   })).digest('hex');
-  return runDurableAutonomousValuePilot({ ...input, budget, adapterIdentity }, async (cellInput) => {
+  return runDurableAutonomousValuePilot({ ...input, budget, adapterIdentity },
+    createBudgetedCell(input, runtimeName, tasks, plan.value, execute));
+}
+
+function createBudgetedCell(
+  input: RuntimePilotInput, runtimeName: 'codex' | 'claude',
+  tasks: ReadonlyMap<string, ReturnType<RuntimePilotInput['loadTask']>>,
+  plan: BudgetPlan, execute: BoundedRuntimeAdapter['execute'],
+) {
+  const configuration = input.manifest.comparability;
+  return async (cellInput: PilotCampaignCellRunInput): Promise<PilotResult> => {
     const task = tasks.get(cellInput.execution.executionId);
     if (task === undefined) return { status: 'blocked', reason: 'task unavailable' };
     if (cellInput.cell.condition !== 'agent-alone' && task.skillBody === undefined) {
@@ -104,7 +114,7 @@ export async function runDurableRuntimePilot(
       model: configuration.model, modelVersion: configuration.modelVersion,
       effort: configuration.effort, artifactDigest: input.artifactDigest,
     };
-    const reservation = plan.value.reservations.find(({ executionId }) => executionId === cellInput.execution.executionId);
+    const reservation = plan.reservations.find(({ executionId }) => executionId === cellInput.execution.executionId);
     if (reservation === undefined) return { status: 'blocked', reason: 'reservation unavailable' };
     const started = performance.now();
     const result = await runAutonomousValueCell({ cell: cellInput.cell, fixture: task.fixture,
@@ -126,5 +136,5 @@ export async function runDurableRuntimePilot(
       sourceCommit: result.evidence.startCommit, artifactDigest: result.evidence.artifactDigest,
       configurationKey: input.configurationKey, durationMs: { kind: 'known', value: durationMs },
       costUsd: { kind: 'unknown', reason: 'trusted cost meter unavailable' } } satisfies PilotResult;
-  });
+  };
 }
