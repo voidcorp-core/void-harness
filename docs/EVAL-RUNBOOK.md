@@ -576,6 +576,15 @@ the full-suite proof remains attached to the exact code candidate above.
 
 Still required before calling the real campaign or public release reliable:
 
+Coverage follow-up: the missing instrument was supplied in an isolated temporary
+environment without repository dependency or lockfile changes. The
+[coverage and runtime-attestation report](reports/2026-09-08-eval-budget-coverage.md)
+records 47 passing tests, 96.65% lines, 90.98% branches and 100% functions for
+`budget.ts`, `durable.ts` and `runtime-pilot.ts`. Measurement is now available;
+the strict 100% gate remains unmet. No exclusion or threshold waiver was added.
+The report also confirms the Codex parent-permission limitation against official
+documentation; this session cannot attest a per-agent enforced read-only surface.
+
 - supply verified provider cap enforcement and a validated assessor to the
   runtime composition, attest the installed artifact/runtime, and validate the
   canary's actual environment and cleanup; local fake runs do not prove this;

@@ -1,0 +1,100 @@
+# Durable budget coverage and runtime attestation
+
+Status: measurement completed; certification remains partial.
+
+## Observed coverage
+
+Source: `6ccd429509e08830a7e9570d7e220fa03c1ae5e5`, clean before measurement.
+The three implementation files are unchanged from the fully verified `d6aeef47`.
+No production code, test, dependency manifest or lockfile changed for this run.
+
+The actual Vitest V8 provider measured the three implementation files using
+their three existing test files. All 47 tests passed, with no skips. No new
+coverage exclusion or ignore annotation was introduced.
+
+| File | Statements | Branches | Functions | Lines |
+| --- | ---: | ---: | ---: | ---: |
+| budget.ts | 97.61% | 96.36% | 100% | 100% |
+| durable.ts | 91.44% | 89.60% | 100% | 96.06% |
+| runtime-pilot.ts | 88.88% | 88.67% | 100% | 95.55% |
+| Total | 228/248 (91.93%) | 212/233 (90.98%) | 36/36 (100%) | 202/209 (96.65%) |
+
+This lifts the missing-measurement limitation, not the strict 100% threshold.
+Examples of genuinely missing tests include invalid configuration/adapter
+identities, malformed recovered metrics, invalid archive states and missing
+condition skills. They must not be relabelled unreachable.
+
+Two defensive branches in `budget.ts` are structurally unreachable for valid
+ordinary inputs: the failed safe-integer check after bounded exact conversion
+(line 32), and a missing reservation after validating 27 unique matching entries
+(line 58). Do not fake their execution by mocking pure collaborators or hide
+them with an exclusion. Their disposition needs an explicit structural choice
+or an approved coverage exception; neither is granted by this report.
+
+## Instrument and reproduction
+
+The repository does not install the coverage provider. The diagnostic instrument
+was installed outside the repository in `/private/tmp/void-eval-coverage.KZIY6f`,
+with no lockfile, install scripts or audit submission:
+
+```sh
+npm install --prefix /private/tmp/void-eval-coverage.KZIY6f \
+  --cache /private/tmp/void-eval-coverage.KZIY6f/npm-cache \
+  --no-save --package-lock=false --ignore-scripts --no-audit --no-fund \
+  --fetch-retries=0 --fetch-timeout=20000 \
+  vitest@4.1.9 @vitest/coverage-v8@4.1.9
+```
+
+Observed instrument: Vitest 4.1.9, coverage-v8 4.1.9, resolved Vite 8.2.2.
+The repository's Vite is 8.1.3. This is a separately identified diagnostic
+environment, not a replacement for the repository's release verification.
+Its transient dependency tree is not a committed CI installation contract.
+The restricted environment could not resolve npm; only the public tool download
+used explicit network approval. No model endpoint or credential was involved.
+
+From the repository root:
+
+```sh
+node /private/tmp/void-eval-coverage.KZIY6f/node_modules/vitest/vitest.mjs run \
+  apps/eval-harness/src/autonomous-value/budget.test.ts \
+  apps/eval-harness/src/autonomous-value/durable.test.ts \
+  apps/eval-harness/src/autonomous-value/runtime-pilot.test.ts \
+  --coverage.enabled --coverage.provider=v8 \
+  '--coverage.include=apps/eval-harness/src/autonomous-value/{budget,durable,runtime-pilot}.ts' \
+  --coverage.reportsDirectory=/private/tmp/void-eval-coverage.KZIY6f/report \
+  --coverage.reporter=text --coverage.reporter=json --coverage.reporter=json-summary
+```
+
+Local artifacts:
+
+- log: `/private/tmp/void-eval-coverage-run.log`;
+- summary: `report/coverage-summary.json` under the instrument directory,
+  SHA-256 `799d651550f5602492cdd2b3e0d02f35409f0009e67146e2ef20c77282169b73`;
+- statements and branch locations: `report/coverage-final.json`,
+  SHA-256 `b34aea5cea5e0f9931720c5530f5cae2e67d3185cdd04f80b521324ab13c0bc0`.
+
+The version-matched [Vitest 4 coverage guide](https://v4.vitest.dev/guide/coverage)
+documents the optional V8 provider and explicit source inclusion. The
+[npm 11 install reference](https://docs.npmjs.com/cli/v11/commands/npm-install/)
+documents disabled lockfile writes and install scripts. Temporary artifacts can
+expire; this versioned summary preserves the observed outcome, not their bytes.
+
+## Runtime boundary
+
+The installed CLI probe reports Codex 0.145.0. The current official
+[Codex subagent documentation](https://developers.openai.com/codex/multi-agent)
+confirms that children inherit the parent sandbox and that live parent runtime
+overrides are reapplied even when agent configuration declares other defaults.
+The native delegation tool exposed in this session has no per-agent tool/process
+allowlist or attested read-only permission parameter.
+
+Consequently, the existing degraded result is not a constant to flip. A new
+review environment must enforce the allowed tool surface and effective read-only
+permissions independently of reviewer instructions. The required enforcement
+and runtime probes must be observed there before its certification can change.
+PDF/browser probes remain unproven; neither is required to measure these three
+TypeScript files. No new mission was opened to bypass the closed verdict.
+
+Next: cover the reachable refusal paths, explicitly dispose of defensive
+unreachable branches, and obtain an enforceable review environment. No paid
+provider, canary, production activation, publication or merge is authorized here.

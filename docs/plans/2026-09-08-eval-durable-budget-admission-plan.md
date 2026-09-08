@@ -149,8 +149,11 @@ par le NODE_PATH du lanceur global. Aucun appel payant ni merge.
 La certification globale reste partielle : le controleur ferme la mission
 `mis_8356c419-7b79-416a-bda1-f422d8bcb711` en degraded pour des limites
 d'attestation runtime (sandbox/process allowlist et probes PDF/browser).
-La couverture instrumentee stricte reste non mesuree, fournisseur indisponible;
-aucun score ni derogation n'est suppose. Ne pas recreer une mission pour
+La mesure est desormais disponible via un instrument temporaire isole :
+47 tests passent, 96.65% des lignes et 90.98% des branches sont couvertes sur
+les trois fichiers d'implementation. Le seuil strict reste non atteint; voir
+`docs/reports/2026-09-08-eval-budget-coverage.md`. Aucune exclusion ni derogation.
+Ne pas recreer une mission pour
 contourner ces limites. Le prochain travail necessite de disposer ces limites
 de preuve; le plafonnement fournisseur et un canary restent des gates separes.
 
