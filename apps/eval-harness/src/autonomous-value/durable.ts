@@ -154,7 +154,7 @@ function readReservation(raw: unknown, plan: BudgetPlan, executionId: string, re
   if (!record(raw) || typeof raw['reservationMicroUsd'] !== 'number'
     || !Number.isSafeInteger(raw['reservationMicroUsd']) || expected === undefined
     || (raw['reservationMicroUsd'] !== expected && raw['reservationMicroUsd'] !== 0)
-    || (raw['reservationMicroUsd'] === 0 && (raw['state'] === 'admitted' || result.status === 'completed'))) {
+    || (raw['reservationMicroUsd'] === 0 && (raw['state'] !== 'observed' || result.status !== 'blocked'))) {
     throw new Error('invalid archive reservation');
   }
   return raw['reservationMicroUsd'];
