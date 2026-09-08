@@ -5,7 +5,7 @@ import { type PilotCampaignCellRunInput, type PilotCampaignResult, runAutonomous
 import { buildConsumerPrompt, buildConsumerRuntimeInvocation } from './consumer.js';
 import { type DurablePilotInput, runDurableAutonomousValuePilot } from './durable.js';
 import { type SealedCellEvidence, verifySealedCellEvidence } from './evidence.js';
-import { createPilotSchedule, type PilotResult } from './pilot.js';
+import { createPilotSchedule, PILOT_EXECUTION_COUNT, type PilotResult } from './pilot.js';
 import { type CellExecutorInput, type CellExecutorObservation, type CellRuntimeConfiguration,
   type CellWorkspaceFactory, runAutonomousValueCell } from './runner.js';
 import { type QualityObservation, scoreAutonomousValueCell } from './scorer.js';
@@ -73,13 +73,19 @@ export async function runDurableRuntimePilot(
       { concurrency: 1, stopOnUnknown: true });
   }
   if (approval.value.artifactDigest !== input.artifactDigest) throw new Error('artifact identity mismatch');
+  if (!Array.isArray(authority.reservations) || authority.reservations.length !== PILOT_EXECUTION_COUNT) {
+    throw new Error('invalid runtime reservation count');
+  }
   const reservations = authority.reservations.map((entry) => Object.freeze({ ...entry }));
   const budget = { ...authority, approval: approval.value,
     provenance: { ...authority.provenance }, reservations: Object.freeze(reservations) };
   const plan = parseBudgetPlan({ budgetUsd: approval.value.budgetUsd, reservations },
     createPilotSchedule(input.manifest).map(({ executionId }) => executionId));
   if (!plan.ok) throw new Error('invalid runtime reservation plan');
-  const { execute, ...capability } = adapter;
+  const execute = adapter.execute;
+  const capability = { runtime: adapter.runtime, model: adapter.model,
+    modelVersion: adapter.modelVersion, effort: adapter.effort,
+    proofDigest: adapter.proofDigest, coverage: adapter.coverage };
   const tasks = new Map(createPilotSchedule(input.manifest).map((execution) => [
     execution.executionId,
     input.loadTask({ execution, cell: input.manifest.cells[execution.cellId] }),
