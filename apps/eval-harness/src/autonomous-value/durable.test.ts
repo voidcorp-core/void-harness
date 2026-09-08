@@ -8,8 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { parseAutonomousValueManifest } from '../cases/autonomous-value.js';
 import { parsePilotApproval } from './approval.js';
 import { runDurableAutonomousValuePilot } from './durable.js';
-import { createPilotSchedule } from './pilot.js';
-import type { PilotResult } from './pilot.js';
+import { createPilotSchedule, type PilotResult } from './pilot.js';
 
 function manifest() {
   const parsed = parseAutonomousValueManifest({

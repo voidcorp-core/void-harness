@@ -1,9 +1,11 @@
 import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
-import { type FileHandle, mkdir, open, rename, rmdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { type FileHandle, lstat, mkdir, open, realpath, rename, rmdir } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import { parseAutonomousValueManifest } from '../cases/autonomous-value.js';
 import type { AutonomousValueManifest } from '../types.js';
+import { parsePilotApproval } from './approval.js';
+import { type BudgetPlan, parseBudgetPlan, reserveBudget } from './budget.js';
 import { type PilotCampaignCellRun, type PilotCampaignResult, runAutonomousValuePilot } from './campaign.js';
 import { createPilotSchedule, type PilotResult } from './pilot.js';
 import type { Metric } from './scorer.js';
@@ -13,13 +15,39 @@ export interface DurablePilotInput {
   readonly manifest: AutonomousValueManifest;
   readonly configurationKey: string;
   readonly adapterIdentity?: string;
+  readonly budget?: BudgetAuthorityInput | undefined;
+}
+
+export interface BudgetAuthorityInput {
+  readonly authorityRoot: string;
+  readonly approval: unknown;
+  readonly provenance: { readonly kind: 'unavailable' }
+    | { readonly kind: 'verified'; readonly approvalDigest: string };
+  readonly policyKey: string;
+  readonly reservations: readonly { readonly executionId: string; readonly maxCostUsd: number }[];
+}
+
+interface PreparedBudget {
+  readonly approvalDigest: string;
+  readonly artifactDigest: string;
+  readonly policyKey: string;
+  readonly authorityRoot: string;
+  readonly plan: BudgetPlan;
+}
+
+type StorageSync = (handle: FileHandle, target: 'file' | 'directory' | 'authority-root') => Promise<void>;
+export interface DurableStorage {
+  readonly sync?: StorageSync;
 }
 
 export async function runDurableAutonomousValuePilot(
   input: DurablePilotInput,
   runCell: PilotCampaignCellRun,
+  storage: DurableStorage = {},
 ): Promise<PilotCampaignResult> {
   const manifest = validatedManifest(input.manifest);
+  const budget = prepareBudget(input.budget, manifest);
+  const sync: StorageSync = storage.sync ?? ((handle) => handle.sync());
   if (!/^[a-zA-Z0-9._/:-]{1,512}$/.test(input.configurationKey)) {
     throw new Error('invalid configuration identity');
   }
@@ -28,39 +56,108 @@ export async function runDurableAutonomousValuePilot(
   }
   const identity = createHash('sha256').update(JSON.stringify({
     manifest, configurationKey: input.configurationKey, adapterIdentity: input.adapterIdentity,
+    budget: budget === undefined ? undefined : { version: 1, approvalDigest: budget.approvalDigest,
+      policyKey: budget.policyKey, plan: budget.plan },
   })).digest('hex');
-  const directory = input.archiveDirectory;
-  await mkdir(directory, { recursive: true, mode: 0o700 });
+  const directory = budget === undefined ? input.archiveDirectory : await authorityDirectory(budget, sync);
+  if (budget === undefined) await mkdir(directory, { recursive: true, mode: 0o700 });
   const claim = join(directory, 'launch.claim');
   try { await mkdir(claim, { mode: 0o700 }); } catch {
     throw new Error('archive already claimed or unavailable; inspect before recovery');
   }
   try {
-    await bindArchive(directory, identity);
+    await bindArchive(directory, identity, sync);
     const saved = new Map<string, PilotResult>();
+    const reservations = new Map<string, number>();
+    let reservedMicroUsd = 0;
     for (const execution of createPilotSchedule(manifest)) {
       const raw = await readBounded(join(directory, `${execution.executionId}.json`));
-      if (raw !== undefined) saved.set(execution.executionId,
-        readRecord(raw, identity, execution.executionId, input.configurationKey,
-          manifest.cells[execution.cellId].startCommit));
+      if (raw !== undefined) {
+        const result = readRecord(raw, identity, execution.executionId, input.configurationKey,
+          manifest.cells[execution.cellId].startCommit);
+        if (budget !== undefined) {
+          const amount = readReservation(raw, budget.plan, execution.executionId, result);
+          reservedMicroUsd += amount;
+          reservations.set(execution.executionId, amount);
+        }
+        saved.set(execution.executionId, result);
+      }
+    }
+    if (budget !== undefined && reservedMicroUsd > budget.plan.budgetMicroUsd) {
+      throw new Error('archive reservations exceed budget');
     }
     const result = await runAutonomousValuePilot(manifest, async (cellInput) => {
       const executionId = cellInput.execution.executionId;
       const previous = saved.get(executionId);
       if (previous !== undefined) return previous;
-      await atomicWrite(directory, `${executionId}.json`, { identity, executionId, state: 'admitted' });
+      if (budget !== undefined) {
+        const reservation = reserveBudget(budget.plan, reservedMicroUsd, executionId);
+        if (!reservation.ok) {
+          reservations.set(executionId, 0);
+          return { status: 'blocked', reason: 'budget admission refused' };
+        }
+        reservations.set(executionId, reservation.value);
+        reservedMicroUsd += reservation.value;
+      }
+      await atomicWrite(directory, `${executionId}.json`, { identity, executionId, state: 'admitted',
+        reservationMicroUsd: reservations.get(executionId) }, sync);
       return normalizeResult(await runCell(cellInput), input.configurationKey, cellInput.cell.startCommit);
     }, {
       concurrency: 1, stopOnUnknown: true,
       onObservation: async ({ executionId, result }) => {
         await atomicWrite(directory, `${executionId}.json`, {
           identity, executionId, state: 'observed', result,
-        });
+          reservationMicroUsd: reservations.get(executionId),
+        }, sync);
       },
     });
-    await atomicWrite(directory, 'report.json', result.report);
+    await atomicWrite(directory, 'report.json', result.report, sync);
     return result;
   } finally { await rmdir(claim); }
+}
+
+function prepareBudget(input: BudgetAuthorityInput | undefined, manifest: AutonomousValueManifest): PreparedBudget | undefined {
+  if (input === undefined) return undefined;
+  const approval = parsePilotApproval(input.approval, manifest);
+  if (!approval.ok || !/^[a-zA-Z0-9._/:-]{1,512}$/.test(input.policyKey)) {
+    throw new Error('invalid budget approval or policy');
+  }
+  const approvalDigest = `sha256:${createHash('sha256').update(JSON.stringify(approval.value)).digest('hex')}`;
+  if (input.provenance.kind !== 'verified' || input.provenance.approvalDigest !== approvalDigest) {
+    throw new Error('budget approval provenance unavailable');
+  }
+  const plan = parseBudgetPlan({ budgetUsd: approval.value.budgetUsd, reservations: input.reservations },
+    createPilotSchedule(manifest).map((execution) => execution.executionId));
+  if (!plan.ok) throw new Error('invalid budget reservations');
+  return { approvalDigest, artifactDigest: approval.value.artifactDigest, policyKey: input.policyKey,
+    authorityRoot: input.authorityRoot, plan: plan.value };
+}
+
+async function authorityDirectory(budget: PreparedBudget, sync: StorageSync): Promise<string> {
+  const root = await realpath(budget.authorityRoot);
+  if (root !== resolve(budget.authorityRoot) || !(await lstat(root)).isDirectory()) {
+    throw new Error('budget authority root must be canonical and preexisting');
+  }
+  const directory = join(root, budget.approvalDigest.slice(7));
+  try { await mkdir(directory, { mode: 0o700 }); } catch (error) {
+    if (!record(error) || error['code'] !== 'EEXIST') throw new Error('budget authority creation failed');
+  }
+  if (!(await lstat(directory)).isDirectory()) throw new Error('budget authority is not a directory');
+  // Also sync on reopening: a prior creation may have stopped before its parent sync.
+  const parent = await open(root, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try { await sync(parent, 'authority-root'); } finally { await parent.close(); }
+  return directory;
+}
+
+function readReservation(raw: unknown, plan: BudgetPlan, executionId: string, result: PilotResult): number {
+  const expected = plan.reservations.find((entry) => entry.executionId === executionId)?.microUsd;
+  if (!record(raw) || typeof raw['reservationMicroUsd'] !== 'number'
+    || !Number.isSafeInteger(raw['reservationMicroUsd']) || expected === undefined
+    || (raw['reservationMicroUsd'] !== expected && raw['reservationMicroUsd'] !== 0)
+    || (raw['reservationMicroUsd'] === 0 && (raw['state'] === 'admitted' || result.status === 'completed'))) {
+    throw new Error('invalid archive reservation');
+  }
+  return raw['reservationMicroUsd'];
 }
 
 function validatedManifest(manifest: AutonomousValueManifest): AutonomousValueManifest {
@@ -144,21 +241,21 @@ async function readBounded(path: string): Promise<unknown> {
   } finally { await handle.close(); }
 }
 
-async function bindArchive(directory: string, identity: string): Promise<void> {
+async function bindArchive(directory: string, identity: string, sync: StorageSync): Promise<void> {
   const existing = await readBounded(join(directory, 'identity.json'));
   if (existing === undefined) {
-    await atomicWrite(directory, 'identity.json', { schemaVersion: 1, identity });
+    await atomicWrite(directory, 'identity.json', { schemaVersion: 1, identity }, sync);
   } else if (!record(existing) || existing['schemaVersion'] !== 1 || existing['identity'] !== identity) {
     throw new Error('archive identity mismatch');
   }
 }
 
-async function atomicWrite(directory: string, name: string, value: object): Promise<void> {
+async function atomicWrite(directory: string, name: string, value: object, sync: StorageSync): Promise<void> {
   const temporary = join(directory, `${name}.pending`);
   const handle = await open(temporary, 'wx', 0o600);
-  try { await handle.writeFile(JSON.stringify(value)); await handle.sync(); }
+  try { await handle.writeFile(JSON.stringify(value)); await sync(handle, 'file'); }
   finally { await handle.close(); }
   await rename(temporary, join(directory, name));
   const directoryHandle = await open(directory, constants.O_RDONLY);
-  try { await directoryHandle.sync(); } finally { await directoryHandle.close(); }
+  try { await sync(directoryHandle, 'directory'); } finally { await directoryHandle.close(); }
 }
