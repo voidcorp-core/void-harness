@@ -12,13 +12,13 @@ import { createPilotSchedule } from './pilot.js';
 import { createConformanceCellExecutor } from './runner.js';
 import { type BoundedRuntimeAdapter, type RuntimePilotInput, runDurableRuntimePilot } from './runtime-pilot.js';
 
-async function scenario() {
+async function scenario(runtime: 'codex' | 'claude' = 'codex') {
   const source = setupSandbox({ 'result.txt': 'before\n' });
   const fixture = { 'task.txt': 'Produce the requested result.\n' };
   const digest = `sha256:${createHash('sha256').update(JSON.stringify(Object.entries(fixture).sort(([a], [b]) => a.localeCompare(b)))).digest('hex')}`;
   const parsed = parseAutonomousValueManifest({
     schemaVersion: 1, campaignId: 'runtime-pilot-test',
-    comparability: { runtime: 'codex', model: 'model', modelVersion: '1', effort: 'low',
+    comparability: { runtime, model: 'model', modelVersion: '1', effort: 'low',
       resourceProfile: 'isolated', orderSeed: 'seed', humanIntervention: 'none' },
     cells: ['implement', 'autopilot', 'brainstorm'].flatMap((path) =>
       ['agent-alone', 'implement', 'autopilot'].map((condition) => ({
@@ -31,7 +31,7 @@ async function scenario() {
   const authorityRoot = await realpath(await mkdtemp(join(tmpdir(), 'runtime-pilot-test-')));
   const approval = parsePilotApproval({ schemaVersion: 1, campaignId: parsed.value.campaignId,
     approvedBy: 'Local fixture, not spending consent', approvedAt: '2026-09-08T00:00:00.000Z',
-    runtime: 'codex', model: 'model', modelVersion: '1', effort: 'low',
+    runtime, model: 'model', modelVersion: '1', effort: 'low',
     resourceProfile: 'isolated', humanIntervention: 'none',
     artifactDigest: `sha256:${'c'.repeat(64)}`, maxExecutions: 27, budgetUsd: 27,
     confidence: 0.95, minDetectableEffect: 0.1, qualityReview: 'blind-human',
@@ -61,7 +61,7 @@ async function scenario() {
     writeFileSync(join(cwd, 'result.txt'), 'after\n');
     return { outcome: { kind: 'exited', code: 0 }, stdout: '', stderr: '' };
   });
-  const adapter: BoundedRuntimeAdapter = { kind: 'bounded', runtime: 'codex', model: 'model',
+  const adapter: BoundedRuntimeAdapter = { kind: 'bounded', runtime, model: 'model',
     modelVersion: '1', effort: 'low', proofDigest: `sha256:${'e'.repeat(64)}`,
     coverage: 'all-in-flight-and-descendants', execute: async (request) => {
       expect(request.maxCostMicroUsd).toBe(1000000);
@@ -94,12 +94,49 @@ describe('durable runtime composition', () => {
     expect(readFileSync(join(source.dir, 'result.txt'), 'utf8')).toBe('before\n');
   });
 
-  it.each(['codex', 'claude'])('refuses production %s without creating workspaces or reservations', async (runtime) => {
-    const { input, workspaces } = await scenario();
+  it.each(['codex', 'claude'] as const)('refuses production %s without creating workspaces or reservations', async (runtime) => {
+    const { input, workspaces } = await scenario(runtime);
     const result = await runDurableRuntimePilot({ ...input,
-      manifest: { ...input.manifest, comparability: { ...input.manifest.comparability, runtime } },
       workspaceFactory: { create: () => { throw new Error('must not create'); } } });
     expect(result.observations[0]?.result?.status).toBe('blocked');
+    expect(workspaces).toHaveLength(0);
+    expect(existsSync(input.archiveDirectory)).toBe(false);
+  });
+
+  it('binds getter-backed capability proof and accepts equivalent reordered metadata', async () => {
+    const { input, adapter, workspaces } = await scenario();
+    const options = { ...input, assess: async () => ({ kind: 'unavailable' as const }) };
+    let proofDigest = adapter.proofDigest;
+    class GetterAdapter implements BoundedRuntimeAdapter {
+      get kind() { return adapter.kind; }
+      get runtime() { return adapter.runtime; }
+      get model() { return adapter.model; }
+      get modelVersion() { return adapter.modelVersion; }
+      get effort() { return adapter.effort; }
+      get coverage() { return adapter.coverage; }
+      get proofDigest() { return proofDigest; }
+      get execute() { return adapter.execute; }
+    }
+    await runDurableRuntimePilot(options, new GetterAdapter());
+    proofDigest = `sha256:${'f'.repeat(64)}`;
+    await expect(runDurableRuntimePilot(options, new GetterAdapter())).rejects.toThrow('identity');
+    const reordered: BoundedRuntimeAdapter = { execute: adapter.execute, proofDigest: adapter.proofDigest,
+      coverage: adapter.coverage, effort: adapter.effort, modelVersion: adapter.modelVersion,
+      model: adapter.model, runtime: adapter.runtime, kind: adapter.kind };
+    await runDurableRuntimePilot(options, reordered);
+    expect(workspaces).toHaveLength(1);
+  });
+
+  it('rejects oversized reservation arrays before reading any entry', async () => {
+    const { input, adapter, workspaces } = await scenario();
+    if (input.budget === undefined) throw new Error('missing fixture budget');
+    let read = false;
+    const reservations = Array.from({ length: 28 }, () => ({
+      get executionId() { read = true; return 'invalid'; }, maxCostUsd: 1,
+    }));
+    await expect(runDurableRuntimePilot({ ...input, budget: { ...input.budget, reservations } }, adapter))
+      .rejects.toThrow('reservation');
+    expect(read).toBe(false);
     expect(workspaces).toHaveLength(0);
     expect(existsSync(input.archiveDirectory)).toBe(false);
   });

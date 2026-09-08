@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, realpath, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, realpath, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
@@ -184,7 +184,7 @@ describe('durable pilot archive', () => {
   });
 
   it('refuses changed policy, legacy reservations, corrupted amounts and unverified provenance', async () => {
-    for (const kind of ['policy', 'legacy', 'amount', 'provenance', 'unknown-refund']) {
+    for (const kind of ['policy', 'legacy', 'amount', 'provenance', 'unknown-refund', 'cap']) {
       const options = await input(true);
       if (options.budget === undefined) throw new Error('missing budget fixture');
       await runDurableAutonomousValuePilot(options, async () => completed());
@@ -198,6 +198,8 @@ describe('durable pilot archive', () => {
         await writeFile(path, JSON.stringify(saved));
       }
       const budget = { ...options.budget,
+        reservations: options.budget.reservations.map((entry, index) =>
+          kind === 'cap' && index === 0 ? { ...entry, maxCostUsd: 2 } : entry),
         policyKey: kind === 'policy' ? 'changed' : options.budget.policyKey,
         provenance: { ...options.budget.provenance,
           approvalDigest: kind === 'provenance' ? `sha256:${'0'.repeat(64)}` : options.budget.provenance.approvalDigest } };
@@ -206,7 +208,25 @@ describe('durable pilot archive', () => {
         effects += 1; return completed();
       })).rejects.toThrow();
       expect(effects).toBe(0);
+      expect(await readdir(budget.authorityRoot)).toEqual([options.budget.provenance.approvalDigest.slice(7)]);
     }
+  });
+
+  it('refuses an excessive recovered total even when each reservation equals its cap', async () => {
+    const options = await input(true, 1);
+    if (options.budget === undefined) throw new Error('missing fixture budget');
+    await runDurableAutonomousValuePilot(options, async () => completed());
+    const [first, second] = createPilotSchedule(options.manifest);
+    if (first === undefined || second === undefined) throw new Error('missing fixture execution');
+    const saved = JSON.parse(await readFile(join(options.archiveDirectory, `${first.executionId}.json`), 'utf8'));
+    await writeFile(join(options.archiveDirectory, `${second.executionId}.json`),
+      JSON.stringify({ ...saved, executionId: second.executionId }));
+    let effects = 0;
+    await expect(runDurableAutonomousValuePilot(options, async () => {
+      effects += 1; return completed();
+    })).rejects.toThrow('reservations exceed budget');
+    expect(effects).toBe(0);
+    expect(await readdir(options.budget.authorityRoot)).toEqual([options.budget.provenance.approvalDigest.slice(7)]);
   });
 
   it.each(['file', 'directory'] as const)('retains an uncertain admission after its %s sync fails', async (failAt) => {
