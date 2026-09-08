@@ -184,7 +184,7 @@ describe('durable pilot archive', () => {
   });
 
   it('refuses changed policy, legacy reservations, corrupted amounts and unverified provenance', async () => {
-    for (const kind of ['policy', 'legacy', 'amount', 'provenance']) {
+    for (const kind of ['policy', 'legacy', 'amount', 'provenance', 'unknown-refund']) {
       const options = await input(true);
       if (options.budget === undefined) throw new Error('missing budget fixture');
       await runDurableAutonomousValuePilot(options, async () => completed());
@@ -192,6 +192,11 @@ describe('durable pilot archive', () => {
       const saved = JSON.parse(await readFile(path, 'utf8'));
       if (kind === 'legacy') { delete saved.reservationMicroUsd; await writeFile(path, JSON.stringify(saved)); }
       if (kind === 'amount') { saved.reservationMicroUsd = -1; await writeFile(path, JSON.stringify(saved)); }
+      if (kind === 'unknown-refund') {
+        saved.reservationMicroUsd = 0;
+        saved.result = { status: 'unknown', reason: 'interrupted' };
+        await writeFile(path, JSON.stringify(saved));
+      }
       const budget = { ...options.budget,
         policyKey: kind === 'policy' ? 'changed' : options.budget.policyKey,
         provenance: { ...options.budget.provenance,
@@ -202,6 +207,26 @@ describe('durable pilot archive', () => {
       })).rejects.toThrow();
       expect(effects).toBe(0);
     }
+  });
+
+  it.each(['file', 'directory'] as const)('retains an uncertain admission after its %s sync fails', async (failAt) => {
+    const options = await input(true);
+    let effects = 0;
+    let writes = 0;
+    const adapter = async () => { effects += 1; return completed(); };
+    const storage = { sync: async (handle: import('node:fs/promises').FileHandle, target: string) => {
+      if (target === failAt && ++writes === 2) throw new Error('admission sync failed');
+      await handle.sync();
+    } };
+    if (failAt === 'file') {
+      await expect(runDurableAutonomousValuePilot(options, adapter, storage)).rejects.toThrow();
+      await expect(runDurableAutonomousValuePilot(options, adapter)).rejects.toThrow();
+    } else {
+      const interrupted = await runDurableAutonomousValuePilot(options, adapter, storage);
+      expect(interrupted.report.valid).toBe(false);
+      await runDurableAutonomousValuePilot(options, adapter);
+    }
+    expect(effects).toBe(0);
   });
 
   it('refuses effects when root or record synchronization fails, including root reopening', async () => {
