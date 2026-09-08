@@ -1,11 +1,14 @@
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdir, mkdtemp, readFile, realpath, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import { parseAutonomousValueManifest } from '../cases/autonomous-value.js';
+import { parsePilotApproval } from './approval.js';
 import { runDurableAutonomousValuePilot } from './durable.js';
+import { createPilotSchedule } from './pilot.js';
 import type { PilotResult } from './pilot.js';
 
 function manifest() {
@@ -31,9 +34,22 @@ function completed(): PilotResult {
     costUsd: { kind: 'known', value: 0 } };
 }
 
-async function input() {
-  return { archiveDirectory: await mkdtemp(join(tmpdir(), 'durable-pilot-')),
-    manifest: manifest(), configurationKey: 'configuration-v1' };
+async function input(budgeted = false, budgetUsd = 27) {
+  const campaign = manifest();
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'durable-pilot-')));
+  const approvalInput = { schemaVersion: 1, campaignId: campaign.campaignId,
+    approvedBy: 'Local test fixture, not spending consent', approvedAt: '2026-09-08T00:00:00.000Z',
+    runtime: campaign.comparability.runtime, model: 'model', modelVersion: '1', effort: 'low',
+    resourceProfile: 'isolated', humanIntervention: 'none', artifactDigest: `sha256:${'c'.repeat(64)}`,
+    maxExecutions: 27, budgetUsd, confidence: 0.95, minDetectableEffect: 0.1, qualityReview: 'blind-human' };
+  const approved = parsePilotApproval(approvalInput, campaign);
+  if (!approved.ok) throw new Error('invalid approval fixture');
+  const digest = `sha256:${createHash('sha256').update(JSON.stringify(approved.value)).digest('hex')}`;
+  const budget = budgeted ? { authorityRoot: root, approval: approved.value,
+    provenance: { kind: 'verified' as const, approvalDigest: digest }, policyKey: 'budget-v1',
+    reservations: createPilotSchedule(campaign).map(({ executionId }) => ({ executionId, maxCostUsd: 1 })) } : undefined;
+  return { archiveDirectory: budgeted ? join(root, digest.slice(7)) : root,
+    manifest: campaign, configurationKey: 'configuration-v1', budget };
 }
 
 function deferred() {
@@ -43,13 +59,21 @@ function deferred() {
 }
 
 describe('durable pilot archive', () => {
-  it('persists 27 observations and resumes without repeating effects', async () => {
-    const options = await input();
+  it.each([false, true])('persists 27 observations and resumes without repeating effects (budget=%s)', async (budgeted) => {
+    const options = await input(budgeted);
     let effects = 0;
     const adapter = async () => { effects += 1; return completed(); };
     expect((await runDurableAutonomousValuePilot(options, adapter)).report.valid).toBe(true);
     expect((await runDurableAutonomousValuePilot(options, adapter)).report.valid).toBe(true);
     expect(effects).toBe(27);
+    if (budgeted) {
+      for (const { executionId } of createPilotSchedule(options.manifest)) {
+        expect(JSON.parse(await readFile(join(options.archiveDirectory, `${executionId}.json`), 'utf8')))
+          .toMatchObject({ reservationMicroUsd: 1000000 });
+      }
+      await runDurableAutonomousValuePilot({ ...options, archiveDirectory: join(options.archiveDirectory, 'other-export') }, adapter);
+      expect(effects).toBe(27);
+    }
   });
 
   it('refuses changed manifest or configuration before any new effect', async () => {
@@ -63,8 +87,8 @@ describe('durable pilot archive', () => {
       .rejects.toThrow('identity');
   });
 
-  it('refuses overlapping launches while the first effect is pending', async () => {
-    const options = await input();
+  it.each([false, true])('refuses overlapping launches while the first effect is pending (budget=%s)', async (budgeted) => {
+    const options = await input(budgeted);
     const admitted = deferred();
     const release = deferred();
     const running = runDurableAutonomousValuePilot(options, async () => {
@@ -77,14 +101,17 @@ describe('durable pilot archive', () => {
     expect((await running).report.valid).toBe(true);
   });
 
-  it('records admission before effects and never replays an uncertain admission', async () => {
-    const options = await input();
+  it.each([false, true])('records admission before effects and never replays an uncertain admission (budget=%s)', async (budgeted) => {
+    const options = await input(budgeted);
     let admission = '';
     await runDurableAutonomousValuePilot(options, async ({ execution }) => {
       admission = await readFile(join(options.archiveDirectory, `${execution.executionId}.json`), 'utf8');
       expect(JSON.parse(admission)).toMatchObject({ state: 'admitted' });
+      if (budgeted) expect(JSON.parse(admission)).toMatchObject({ reservationMicroUsd: 1000000 });
       return { status: 'unknown', reason: 'interrupted' };
     });
+    expect(JSON.parse(admission)).toMatchObject({ state: 'admitted' });
+    if (budgeted) expect(JSON.parse(admission)).toMatchObject({ reservationMicroUsd: 1000000 });
     await writeFile(join(options.archiveDirectory, 'autopilot-agent-alone-pilot-1.json'), admission);
     let effects = 0;
     const resumed = await runDurableAutonomousValuePilot(options, async () => {
@@ -130,8 +157,8 @@ describe('durable pilot archive', () => {
     }
   });
 
-  it('stops after a failed durable observation and refuses replay on resume', async () => {
-    const options = await input();
+  it.each([false, true])('stops after a failed durable observation and refuses replay on resume (budget=%s)', async (budgeted) => {
+    const options = await input(budgeted);
     let effects = 0;
     const adapter = async ({ execution }: { execution: { executionId: string } }) => {
       effects += 1;
@@ -142,6 +169,64 @@ describe('durable pilot archive', () => {
     expect(effects).toBe(1);
     await expect(runDurableAutonomousValuePilot(options, adapter)).rejects.toThrow();
     expect(effects).toBe(1);
+  });
+
+  it('stops at the exact budget and never refunds cheaper or unknown outcomes', async () => {
+    for (const costUsd of [{ kind: 'known' as const, value: 0 }, { kind: 'unknown' as const, reason: 'unavailable' }]) {
+      const options = await input(true, 1);
+      let effects = 0;
+      const adapter = async () => { effects += 1; return { ...completed(), costUsd }; };
+      const result = await runDurableAutonomousValuePilot(options, adapter);
+      expect(result.report.valid).toBe(false);
+      expect(result.observations[1]?.result?.status).toBe('blocked');
+      await runDurableAutonomousValuePilot(options, adapter);
+      expect(effects).toBe(1);
+    }
+  });
+
+  it('refuses changed policy, legacy reservations, corrupted amounts and unverified provenance', async () => {
+    for (const kind of ['policy', 'legacy', 'amount', 'provenance']) {
+      const options = await input(true);
+      if (options.budget === undefined) throw new Error('missing budget fixture');
+      await runDurableAutonomousValuePilot(options, async () => completed());
+      const path = join(options.archiveDirectory, 'autopilot-agent-alone-pilot-1.json');
+      const saved = JSON.parse(await readFile(path, 'utf8'));
+      if (kind === 'legacy') { delete saved.reservationMicroUsd; await writeFile(path, JSON.stringify(saved)); }
+      if (kind === 'amount') { saved.reservationMicroUsd = -1; await writeFile(path, JSON.stringify(saved)); }
+      const budget = { ...options.budget,
+        policyKey: kind === 'policy' ? 'changed' : options.budget.policyKey,
+        provenance: { ...options.budget.provenance,
+          approvalDigest: kind === 'provenance' ? `sha256:${'0'.repeat(64)}` : options.budget.provenance.approvalDigest } };
+      let effects = 0;
+      await expect(runDurableAutonomousValuePilot({ ...options, budget }, async () => {
+        effects += 1; return completed();
+      })).rejects.toThrow();
+      expect(effects).toBe(0);
+    }
+  });
+
+  it('refuses effects when root or record synchronization fails, including root reopening', async () => {
+    for (const failAt of ['authority-root', 'file', 'directory'] as const) {
+      const options = await input(true);
+      let effects = 0;
+      let syncs = 0;
+      const adapter = async () => { effects += 1; return completed(); };
+      await expect(runDurableAutonomousValuePilot(options, adapter, {
+        sync: async (handle, target) => {
+          syncs += 1;
+          if (target === failAt) throw new Error('injected sync failure');
+          await handle.sync();
+        },
+      })).rejects.toThrow();
+      expect(syncs).toBeGreaterThan(0);
+      expect(effects).toBe(0);
+      if (failAt === 'authority-root') {
+        await expect(runDurableAutonomousValuePilot(options, adapter, {
+          sync: async () => { throw new Error('root reopen sync failure'); },
+        })).rejects.toThrow();
+        expect(effects).toBe(0);
+      }
+    }
   });
 
   it('does not echo invalid JSON archive contents in diagnostic errors', async () => {
