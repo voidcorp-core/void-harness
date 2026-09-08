@@ -1,23 +1,31 @@
 import { createHash } from 'node:crypto';
-import type { PilotCampaignCellRunInput, PilotCampaignResult } from './campaign.js';
+import { parsePilotApproval } from './approval.js';
+import { type MicroUsd, parseBudgetPlan } from './budget.js';
+import { type PilotCampaignCellRunInput, type PilotCampaignResult, runAutonomousValuePilot } from './campaign.js';
 import { buildConsumerPrompt, buildConsumerRuntimeInvocation } from './consumer.js';
 import { type DurablePilotInput, runDurableAutonomousValuePilot } from './durable.js';
 import { type SealedCellEvidence, verifySealedCellEvidence } from './evidence.js';
 import { createPilotSchedule, type PilotResult } from './pilot.js';
-import { type CellExecutor, type CellRuntimeConfiguration, type CellWorkspaceFactory,
-  createConformanceCellExecutor, runAutonomousValueCell } from './runner.js';
+import { type CellExecutorInput, type CellExecutorObservation, type CellRuntimeConfiguration,
+  type CellWorkspaceFactory, runAutonomousValueCell } from './runner.js';
 import { type QualityObservation, scoreAutonomousValueCell } from './scorer.js';
 
-interface AdmissionRequest extends PilotCampaignCellRunInput {
-  readonly configurationKey: string;
-  readonly runtime: CellRuntimeConfiguration;
+/** Trusted infrastructure port, never parsed from worker JSON or a CLI flag.
+ * Its implementation must enforce the supplied cap across all covered effects.
+ * No production implementation is supplied: tests use a zero-cost transport. */
+export interface BoundedRuntimeAdapter {
+  readonly kind: 'bounded';
+  readonly runtime: 'codex' | 'claude';
+  readonly model: string;
+  readonly modelVersion: string;
+  readonly effort: string;
+  readonly proofDigest: string;
+  readonly coverage: 'all-in-flight-and-descendants';
+  readonly execute: (input: CellExecutorInput & {
+    readonly executionId: string;
+    readonly maxCostMicroUsd: MicroUsd;
+  }) => Promise<CellExecutorObservation>;
 }
-
-type Admission = { readonly kind: 'refused' } | {
-  readonly kind: 'admitted';
-  readonly executionId: string;
-  readonly configurationKey: string;
-};
 
 type Review = { readonly kind: 'unavailable' } | {
   readonly kind: 'reviewed';
@@ -28,7 +36,6 @@ type Review = { readonly kind: 'unavailable' } | {
 export interface RuntimePilotInput extends DurablePilotInput {
   readonly artifactDigest: string;
   /** Versioned identities, changed whenever the corresponding trusted policy changes. */
-  readonly admissionPolicyKey: string;
   readonly reviewerKey: string;
   readonly workspaceFactory: CellWorkspaceFactory;
   readonly loadTask: (input: PilotCampaignCellRunInput) => {
@@ -36,9 +43,6 @@ export interface RuntimePilotInput extends DurablePilotInput {
     readonly task: string;
     readonly skillBody: string | undefined;
   };
-  /** Trusted external authority: reserve durable budget before returning admitted.
-   * This module does not implement a financial ledger. Absence refuses all effects. */
-  readonly admit?: ((input: AdmissionRequest) => Promise<Admission>) | undefined;
   /** Independent grader of sealed evidence, never an interpretation of worker success prose. */
   readonly assess: (input: PilotCampaignCellRunInput & {
     readonly evidence: SealedCellEvidence;
@@ -48,26 +52,44 @@ export interface RuntimePilotInput extends DurablePilotInput {
 /** Connect the real bounded executor to the existing durable campaign, with no paid default. */
 export async function runDurableRuntimePilot(
   input: RuntimePilotInput,
-  executor: CellExecutor = createConformanceCellExecutor(),
+  adapter: BoundedRuntimeAdapter | { readonly kind: 'unavailable' } = { kind: 'unavailable' },
 ): Promise<PilotCampaignResult> {
   const configuration = input.manifest.comparability;
   const runtimeName = configuration.runtime;
   if (runtimeName !== 'codex' && runtimeName !== 'claude') throw new Error('unsupported runtime');
   if (!/^sha256:[a-f0-9]{64}$/.test(input.artifactDigest)
-    || ![input.admissionPolicyKey, input.reviewerKey].every((key) => /^[a-zA-Z0-9._/:-]{1,512}$/.test(key))) {
+    || !/^[a-zA-Z0-9._/:-]{1,512}$/.test(input.reviewerKey)) {
     throw new Error('invalid runtime adapter identity');
   }
+  const authority = input.budget;
+  const approval = parsePilotApproval(authority?.approval, input.manifest);
+  if (adapter.kind !== 'bounded' || adapter.runtime !== runtimeName
+    || adapter.model !== configuration.model || adapter.modelVersion !== configuration.modelVersion
+    || adapter.effort !== configuration.effort || !/^sha256:[a-f0-9]{64}$/.test(adapter.proofDigest)
+    || adapter.coverage !== 'all-in-flight-and-descendants'
+    || authority === undefined || authority.provenance.kind !== 'verified' || !approval.ok) {
+    return runAutonomousValuePilot(input.manifest,
+      async () => ({ status: 'blocked', reason: 'verified spending authority unavailable' }),
+      { concurrency: 1, stopOnUnknown: true });
+  }
+  if (approval.value.artifactDigest !== input.artifactDigest) throw new Error('artifact identity mismatch');
+  const reservations = authority.reservations.map((entry) => Object.freeze({ ...entry }));
+  const budget = { ...authority, approval: approval.value,
+    provenance: { ...authority.provenance }, reservations: Object.freeze(reservations) };
+  const plan = parseBudgetPlan({ budgetUsd: approval.value.budgetUsd, reservations },
+    createPilotSchedule(input.manifest).map(({ executionId }) => executionId));
+  if (!plan.ok) throw new Error('invalid runtime reservation plan');
+  const { execute, ...capability } = adapter;
   const tasks = new Map(createPilotSchedule(input.manifest).map((execution) => [
     execution.executionId,
     input.loadTask({ execution, cell: input.manifest.cells[execution.cellId] }),
   ]));
   const adapterIdentity = createHash('sha256').update(JSON.stringify({
     version: 1, artifactDigest: input.artifactDigest,
-    admissionPolicyKey: input.admissionPolicyKey, reviewerKey: input.reviewerKey,
+    capability, reviewerKey: input.reviewerKey,
     tasks: [...tasks],
   })).digest('hex');
-  return runDurableAutonomousValuePilot({ ...input, adapterIdentity }, async (cellInput) => {
-    if (input.admit === undefined) return { status: 'blocked', reason: 'paid admission unavailable' };
+  return runDurableAutonomousValuePilot({ ...input, budget, adapterIdentity }, async (cellInput) => {
     const task = tasks.get(cellInput.execution.executionId);
     if (task === undefined) return { status: 'blocked', reason: 'task unavailable' };
     if (cellInput.cell.condition !== 'agent-alone' && task.skillBody === undefined) {
@@ -82,14 +104,12 @@ export async function runDurableRuntimePilot(
       model: configuration.model, modelVersion: configuration.modelVersion,
       effort: configuration.effort, artifactDigest: input.artifactDigest,
     };
-    const admission = await input.admit({ ...cellInput, runtime, configurationKey: input.configurationKey });
-    if (admission.kind !== 'admitted' || admission.executionId !== cellInput.execution.executionId
-      || admission.configurationKey !== input.configurationKey) {
-      return { status: 'blocked', reason: 'paid admission refused or mismatched' };
-    }
+    const reservation = plan.value.reservations.find(({ executionId }) => executionId === cellInput.execution.executionId);
+    if (reservation === undefined) return { status: 'blocked', reason: 'reservation unavailable' };
     const started = performance.now();
     const result = await runAutonomousValueCell({ cell: cellInput.cell, fixture: task.fixture,
-      runtime, executor, workspaceFactory: input.workspaceFactory });
+      runtime, executor: (request) => execute({ ...request, executionId: reservation.executionId,
+        maxCostMicroUsd: reservation.microUsd }), workspaceFactory: input.workspaceFactory });
     const durationMs = performance.now() - started;
     if (result.kind !== 'sealed' || !verifySealedCellEvidence(result.evidence).ok
       || result.evidence.outcome.kind !== 'succeeded' || result.evidence.cleanup.kind !== 'complete') {
