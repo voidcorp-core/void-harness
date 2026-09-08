@@ -531,19 +531,48 @@ The five runtime-composition tests use real workspace/cleanup/sealing code with
 a substituted process transport. They prove local composition, fail-closed
 admission and review, and no replay, not paid-runtime or grading quality.
 
-Budget implementation evidence on 2026-09-08 (local, not a release certificate):
+Budget implementation evidence on 2026-09-08 (local, not a runtime certificate):
 
 - monetary and journal RED commits `d5cbe134` and `5977d5d8`, GREEN `fb8994fd`;
 - runtime RED `4e285ce8`, GREEN `008c96e3`: seven runtime tests pass using the
   real workspace and seal path, with no provider transport;
 - corruption regression `c13e1fae` exposed acceptance of a zero reservation for
   an unknown observation; the correction requires an observed blocked result;
-- the targeted autonomous-value suite passes 129 tests after that correction;
+- the targeted autonomous-value suite passes 132 tests after review corrections;
   file and directory admission-sync failures prove zero new effects;
 - instrumented coverage is not measured: `@vitest/coverage-v8` is unavailable.
   No mutation command is declared. No coverage percentage or mutation score is
-  inferred from passing tests. Integrated verification and final review remain
-  required for this candidate.
+  inferred from passing tests. The strict 100% coverage target remains unverified.
+
+Final integrated verification on `d6aeef4705fed628c77117a061aceb2b1870401a`
+passes all 23 gates: CPU 2,311; filesystem 1,553; subprocess 978; network 25.
+All 4,867 tests pass, with no skips. Typechecks, builds and commit hooks pass.
+Lint passes with 34 warnings and 903 informational notices, not zero warnings.
+Local evidence is `evd_b396f07c-1a4f-4350-bd10-09967a7143de`, with diagnostic
+log `/private/tmp/eval-budget-verify-clean-env.log`.
+
+The first integrated attempt remains a failed evidence record. Its global pnpm
+CLI shim injected `NODE_PATH`, causing two TypeScript-absence fixtures to resolve
+the CLI's global compiler. A bounded resolution probe reproduced that difference.
+Running the same CLI through its direct Node entry restored the repository's
+normal environment; no assertion, timeout or source changed between attempts.
+For mission-wrapped verification, inspect the executable shim and avoid injected
+global module lookup paths. Retain the failing log and diagnosis rather than
+relabelling that first attempt green.
+
+Seven fresh-context final reviews report pass with no remaining findings. The
+API getter-identity and oversized-reservation findings were reproduced in
+`95fe8c25`, then corrected in `d6aeef47`; recovery and compatible-Claude refusal
+coverage were strengthened in the same test change. Reviewers inspected the
+explicit Git range because clean-tree envelopes supplied an empty diff.
+
+Mission `mis_8356c419-7b79-416a-bda1-f422d8bcb711` closed **degraded**, not
+certified: the controller cannot establish specialist sandbox/process allowlists
+under Codex parent overrides, nor its conditional PDF/browser runtime probes.
+These platform limitations are not fixed or waived by the passing tests and
+reviews. No UI was changed, no paid call ran, and no publication or merge occurred.
+Later evidence-only documentation edits use the affected documentation gates;
+the full-suite proof remains attached to the exact code candidate above.
 
 Still required before calling the real campaign or public release reliable:
 

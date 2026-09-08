@@ -140,8 +140,19 @@ autonome de programme; aucune modification de l'etat Linear dans ce plan.
 
 ## Resume point
 
-Aucune implementation commencee. Le premier travail apres validation du plan
-est le test RED de Step 1. Les Steps 2 et 3 dependent de sa preuve GREEN.
+Les trois tranches de code sont implementees sur `d6aeef47` et leurs gates
+locaux passent : 132 tests cibles, typecheck, lint, sept avis finaux pass et
+verification integree de 23 gates, 4867 tests sans skip. Le runbook porte les
+commits RED/GREEN, les preuves exactes et le diagnostic du premier run contamine
+par le NODE_PATH du lanceur global. Aucun appel payant ni merge.
+
+La certification globale reste partielle : le controleur ferme la mission
+`mis_8356c419-7b79-416a-bda1-f422d8bcb711` en degraded pour des limites
+d'attestation runtime (sandbox/process allowlist et probes PDF/browser).
+La couverture instrumentee stricte reste non mesuree, fournisseur indisponible;
+aucun score ni derogation n'est suppose. Ne pas recreer une mission pour
+contourner ces limites. Le prochain travail necessite de disposer ces limites
+de preuve; le plafonnement fournisseur et un canary restent des gates separes.
 
 ## Plan self-review
 
