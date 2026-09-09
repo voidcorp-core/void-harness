@@ -97,4 +97,37 @@ describe('autonomous value pilot', () => {
     expect(renderPilotReport(report, sizing)).toContain('unknown: one or more execution costs are unknown');
     expect(renderPilotReport(report, sizing)).toContain('unknown: one or more cell variances are unknown');
   });
+
+  it.each(['missing', 'interrupted', 'blocked'] as const)(
+    'does not report a known subtotal when an execution is %s', (kind) => {
+      const schedule = createPilotSchedule(manifest());
+      const input = observations(schedule).map((observation): PilotObservation => {
+        if (observation.result?.status !== 'completed') throw new Error('missing fixture result');
+        return { ...observation, result: { ...observation.result, costUsd: { kind: 'known', value: 1 } } };
+      });
+      const first = input.shift();
+      if (first === undefined) throw new Error('missing fixture observation');
+      if (kind !== 'missing') input.unshift({ executionId: first.executionId,
+        result: { status: kind === 'blocked' ? 'blocked' : 'unknown', reason: 'outcome uncertain' } });
+      const report = createPilotReport(schedule, input);
+      const sizing = deriveMainCampaignSizing(report, { minDetectableEffect: 0.1, confidence: 0.95 });
+      expect(renderPilotReport(report, sizing)).toContain('## Cost\n- unknown: one or more execution costs are unknown');
+    });
+
+  it('reports unknown cost for a campaign with no observations, not zero', () => {
+    const report = createPilotReport(createPilotSchedule(manifest()), []);
+    const sizing = deriveMainCampaignSizing(report, { minDetectableEffect: 0.1, confidence: 0.95 });
+    expect(renderPilotReport(report, sizing)).toContain('## Cost\n- unknown: one or more execution costs are unknown');
+  });
+
+  it('reports the total when every execution has a known cost', () => {
+    const schedule = createPilotSchedule(manifest());
+    const input = observations(schedule).map((observation): PilotObservation => {
+      if (observation.result?.status !== 'completed') throw new Error('missing fixture result');
+      return { ...observation, result: { ...observation.result, costUsd: { kind: 'known', value: 1 } } };
+    });
+    const report = createPilotReport(schedule, input);
+    const sizing = deriveMainCampaignSizing(report, { minDetectableEffect: 0.1, confidence: 0.95 });
+    expect(renderPilotReport(report, sizing)).toContain('## Cost\n- $27.0000');
+  });
 });
