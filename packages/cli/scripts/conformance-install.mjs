@@ -71,7 +71,7 @@ async function exerciseRuntime(temporary, tarball, runtime) {
   await run(
     `${runtime} update`,
     process.execPath,
-    [bin, 'init', '--runtime', runtime, '--no-interactive'],
+    [bin, 'update'],
     fixture,
     environment,
   );
@@ -84,7 +84,7 @@ async function exerciseRuntime(temporary, tarball, runtime) {
   await run(
     `${runtime} update without machine receipt`,
     process.execPath,
-    [bin, 'init', '--runtime', runtime, '--no-interactive'],
+    [bin, 'update'],
     fixture,
     environment,
   );
