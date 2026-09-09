@@ -194,7 +194,8 @@ describe('executeContextContinuity PreCompact', () => {
     writeFileSync(recovery, 'abandoned\n');
     const observed = lstatSync(lock);
     const orphan = lstatSync(recovery);
-    const now = Math.ceil(Math.max(observed.ctimeMs, orphan.ctimeMs)) + 2_000;
+    // Whole-second fixture times survive platform-specific stat precision exactly.
+    const now = Math.ceil(Math.max(observed.ctimeMs, orphan.ctimeMs) / 1_000) * 1_000 + 2_000;
 
     // Model Linux reusing the old inode for a fresh owner's lock without relying
     // on the allocator or process scheduling to produce that identity again.

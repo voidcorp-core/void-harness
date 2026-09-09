@@ -63,3 +63,19 @@ those guarantees; no doctrine exception is silently granted here.
 Promotion, release-please merge and public publication verification remain
 required before calling the version released. No publication or merge to a
 remote base has been performed by this work.
+
+## Integrated gate failure: filesystem timestamp precision
+
+The full run on `a2edd05b` failed its filesystem lane, not production lock
+recovery: a fixture expected `1788940746836` milliseconds exactly but macOS
+returned `1788940746835.999`. A separate real-file probe reproduced the same
+delta (`-0.0009765625` ms) using that exact timestamp. Node documents
+[platform-specific stat timestamp precision](https://nodejs.org/api/fs.html#stat-time-values).
+
+The fixture now chooses whole-second timestamps, keeping the exact equality,
+stale-old-observation assertion, fresh-lock refusal, ownership preservation and
+recovery-fence cleanup assertions unchanged. No tolerance, timeout, retry or
+production change is introduced. All 36 context-continuity executor tests pass:
+`/private/tmp/release-context-lock-fixed.log`. Failed full-run evidence remains
+`/private/tmp/release-readiness-a2edd05b-verify.log`; a new full candidate proof
+is still required.
