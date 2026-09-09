@@ -21,19 +21,14 @@ import { INSTALL_MANIFEST_PATH, parseInstallManifest } from './install-manifest.
 import { readInstallReceipt } from './receipts.js';
 import { writeExcludeBlock } from './git-exclude.js';
 import {
-  derivedIgnoreEntries,
   isOwnedDerived,
   legacyVoidPath,
   migratedName,
-  VOID_DIR,
-  VOID_INSTALLED_DIR,
-  VOID_MACHINE_DIR,
   ownershipOf,
   stripManagedBlock,
   pendingMigrations,
   previousMachinePath,
   voidInstalledDir,
-  voidInstalledPath,
   voidMachineDir,
   voidMachinePath,
 } from '@voidcorp/hook-runner';
@@ -155,12 +150,6 @@ export async function ownedDerivedPaths(root: string): Promise<Set<string> | und
   const receipt = await readInstallReceipt(root);
   if (receipt === undefined) return undefined;
   return new Set(receipt.files.map((file) => file.path).filter((path) => isOwnedDerived(path)));
-}
-
-/** The ignore entries for this project, scoped to what the receipt owns. */
-export async function projectDerivedIgnoreEntries(root: string): Promise<string[]> {
-  const owned = await ownedDerivedPaths(root);
-  return owned === undefined ? [] : derivedIgnoreEntries([...owned]);
 }
 
 export interface UntrackResult {

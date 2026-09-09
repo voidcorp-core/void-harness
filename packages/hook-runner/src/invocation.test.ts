@@ -309,7 +309,7 @@ describe('livenessVerdict', () => {
   });
 
   it('counts tool calls, never hooks, which belong to enforcement', () => {
-    const hooks = Array.from({ length: 500 }, (_, i) =>
+    const hooks = Array.from({ length: 500 }, () =>
       JSON.stringify({ kind: 'hook.completed', missionId: 'mis_1', ts: `2026-08-01T10:00:00.000Z`, payload: { status: 'ok' } }),
     ).join('\n');
     const verdict = livenessVerdict(`${hooks}\n${mission('mis_1', 2, 0, '01')}`);

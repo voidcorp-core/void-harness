@@ -24,7 +24,6 @@ import { verifyRange, type RangeObservation } from '../lib/autopilot/git-observa
 import { judgeLiveness, renderRunProgress, type RunBeat } from '../lib/autopilot/run-progress.js';
 import {
   buildUnionReviewRequest,
-  inconclusiveReview,
   judgeMergeGrant,
   planPostCheckAction,
   type CheckStand,

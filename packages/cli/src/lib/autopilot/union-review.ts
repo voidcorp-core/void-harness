@@ -910,16 +910,6 @@ export function parseUnionReview(raw: unknown, observedSha: string): UnionReview
   };
 }
 
-/**
- * The verdict of a reading that never returned -- a timeout, an adapter failure,
- * an interrupted run. Not clean and not contradicted: it cleared nothing, and it
- * says so rather than falling back to a default someone would read as approval.
- */
-export function inconclusiveReview(observedSha: string): UnionReview {
-  return { schemaVersion: 1, integrationSha: observedSha, verdict: 'inconclusive', contradictions: [] };
-}
-
-
 /** Where the checks stand, as `planCheckResponse` reports it. */
 export type CheckStand = 'ready' | 'fix' | 'escalate' | 'wait';
 

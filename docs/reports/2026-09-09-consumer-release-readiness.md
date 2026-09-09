@@ -157,3 +157,59 @@ runtime-attestation limits.
 Ubuntu and Windows consumer results must come from this candidate's new CI,
 not the old merged PR. Promotion to main, the release-please merge and checks
 of the published npm artifact remain human-gated release work.
+
+## Pre-release dead-code pass (September 9)
+
+Folpe approved removal of the unused lease and requested a broader cleanup.
+The pass combined TypeScript `--noUnusedLocals --noUnusedParameters` diagnostics
+with bounded native source reviews, repository reference searches, package
+exports, npm entrypoints, dynamic loaders and the current runbook. This is not
+a proof that every possible dead path has been eliminated.
+
+Removed, as **Remove Dead Code**, without changing active behavior:
+
+- The private PID lease and its two self-tests, as described above.
+- Private mission helpers `implementationBaseHead` and `currentHead`, obsolete
+  since the stored review baseline became authoritative.
+- CLI-internal `projectDerivedIgnoreEntries`, with no repository caller or
+  public package export. The used ownership/migration functions remain.
+- Unused `inconclusiveReview` factory; the refusal test still calls the real
+  `judgeMergeGrant` with an inconclusive fixture and expects refusal.
+- Graph-studio's abandoned `summarizeUsage` parser and its three self-tests.
+  The active preparation script uses `summarizeActivations`, whose test remains.
+- Compiler-confirmed unused imports and test bindings. The local-install
+  fixture's awaited setup call remains; only its unused result binding is gone.
+
+Retained deliberately: public `inferredProvenance`, active canonical journal
+readers and governing-skill functions, consumer conformance scripts, and the
+approved but unarmed evaluation composition (runtime pilot, consumer adapters,
+sizing, blind review and report contracts). Tests-only reachability does not
+make an explicitly owned capability abandoned. No dependency, lockfile,
+configuration, immutable decision or permission was changed.
+
+One candidate remains: graph-studio's `render/camera.ts` has no discovered
+runtime caller and current camera ownership lives in `graph.ts`, but the
+installed TDD hook refused deletion because it has no sibling test. It remains
+unchanged; no dummy test or alternate deletion mechanism bypassed that refusal.
+Historical plan examples are not live entrypoints. No active UI path changed.
+
+Before the lease removal, the exact previous HEAD `fd8a2d29` had nine green CI
+checks including the same packed artifact on all three operating systems.
+After lease removal, the 158 remaining autonomous-value tests pass. The stricter
+unused-symbol diagnostic initially found 15 CLI/hook-runner diagnostics, not
+failures of the repository's normal typecheck gate. After the cleanup, the
+workspace-wide diagnostic passes without changing TypeScript configuration.
+Fresh post-cleanup full-suite and packed consumer evidence must replace the
+earlier candidate proof before this branch is considered verified again.
+
+Scoped post-cleanup evidence: 158 evaluation tests, 229 CLI/hook tests and
+76 additional union-review/summary tests pass. The final unused-symbol command
+passes across all workspaces; `pnpm derive` reports artifacts already current.
+Scoped lint passes with one warning and nine infos, not pristine output.
+Independent cleanup review found no active behavior or public API loss; its
+remaining evidence request is the fresh full and packed proof.
+
+Logs under `/private/tmp/`: `release-dead-code-eval.log`,
+`release-dead-code-cli-tests.log`, `release-dead-code-additional-tests.log`,
+`release-dead-code-unused-workspaces-final.log`, `release-dead-code-derive.log`
+and `release-dead-code-lint.log`.
