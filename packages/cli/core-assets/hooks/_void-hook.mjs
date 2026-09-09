@@ -1,4 +1,3 @@
-// src/enforcement/governing-skill.ts
 var GOVERNING_SKILL = {
   "boundary-direction": "void-hexagonal-architecture",
   // The remedy the refusal teaches -- build the byte rather than type it -- is a
@@ -38,7 +37,6 @@ function withGoverningSkill(rule, message) {
   return `${message} (doctrine: the ${governingSkill(rule)} skill)`;
 }
 
-// src/enforcement/runner.ts
 import {
   closeSync,
   existsSync as existsSync3,
@@ -56,11 +54,9 @@ import {
   resolve as resolve2
 } from "node:path";
 
-// src/rules/boundary-direction.ts
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
-// src/rules/verdict.ts
 function allow(code2 = "ALLOW", message = "allowed") {
   return { allow: true, code: code2, message, evidence: [] };
 }
@@ -68,7 +64,6 @@ function block(code2, message, evidence) {
   return { allow: false, code: code2, message, evidence };
 }
 
-// src/rules/source-helpers.ts
 function normalizedPath(path) {
   return path.replaceAll("\\", "/");
 }
@@ -94,7 +89,6 @@ function evidenceVerdict(code2, message, evidence) {
   return evidence.length === 0 ? allow() : block(code2, message, evidence);
 }
 
-// src/rules/boundary-direction.ts
 var IMPORT = /\bfrom\s+['"](@[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+)/;
 function nearestManifest(projectRoot2, filePath) {
   const root = resolve(projectRoot2);
@@ -149,7 +143,6 @@ function boundaryDirection(edits, projectRoot2) {
   );
 }
 
-// src/rules/control-character.ts
 var SOURCE_EXTENSIONS = /\.(?:ts|tsx|js|mjs|json|md|yaml|sh)$/;
 var ALLOWED = /* @__PURE__ */ new Set([9, 10, 13]);
 function isControl(point) {
@@ -180,7 +173,6 @@ function controlCharacter(edits) {
   );
 }
 
-// src/rules/dangerous-command.ts
 var BRACED_HOME = `$${"{"}HOME}`;
 var ROOT_TARGETS = /* @__PURE__ */ new Set([
   "/",
@@ -248,7 +240,6 @@ function dangerousCommand(command) {
   );
 }
 
-// src/rules/design-slop.ts
 var INTER = /font-family[^;]*\bInter\b|font-\[.?Inter|fontFamily[^,]*\bInter\b/i;
 var GRADIENT = /(?:from|to)-(?:purple|indigo|violet|fuchsia)-\d+[^"' ]*[^"']*(?:from|to)-(?:blue|cyan|teal|sky|indigo)-\d+|linear-gradient\([^)]*(?:purple|indigo|violet)[^)]*(?:blue|cyan|teal)/i;
 var GREY_ON_COLOR = /\btext-(?:gray|grey|slate|zinc|neutral)-\d+\b[^"']*\bbg-(?:indigo|purple|blue|violet|fuchsia|emerald|rose|pink)-\d+\b/i;
@@ -278,7 +269,6 @@ function designSlop(edits) {
   );
 }
 
-// src/rules/no-any.ts
 var ANY = /:\s*any\b|<any>|\bas\s+any\b/;
 function noAny(edits) {
   const evidence = lineEvidence(
@@ -294,7 +284,6 @@ function noAny(edits) {
   );
 }
 
-// src/rules/no-as-cast.ts
 var ASSERTION_CAST = /\bas\s+[A-Z][A-Za-z0-9_]*/;
 function noAsCast(edits) {
   const evidence = lineEvidence(
@@ -310,7 +299,6 @@ function noAsCast(edits) {
   );
 }
 
-// src/rules/project-config.ts
 import { existsSync as existsSync2, readFileSync as readFileSync2 } from "node:fs";
 import { join as join2 } from "node:path";
 var CONFIGS = ["biome.json", "biome.jsonc"];
@@ -439,7 +427,6 @@ function isRuleSuppressed(projectRoot2, rule, path) {
   return severityOf(config.linter?.rules, rule) === "off";
 }
 
-// src/rules/no-console.ts
 var CONSOLE = /\bconsole\.(?:log|error|warn|info|debug)\b/;
 function noConsole(edits, projectRoot2) {
   const evidence = lineEvidence(
@@ -455,7 +442,6 @@ function noConsole(edits, projectRoot2) {
   );
 }
 
-// src/rules/no-focused-test.ts
 var FOCUSED = /\b(?:it|test|describe)\.only\b|\b(?:it|test)\.skip\b|\b(?:xit|xdescribe)\b/;
 function noFocusedTest(edits) {
   return evidenceVerdict(
@@ -465,7 +451,6 @@ function noFocusedTest(edits) {
   );
 }
 
-// src/rules/no-null.ts
 function codeOnly(line) {
   return line.replace(/"(?:[^"\\]|\\.)*"/g, "").replace(/'(?:[^'\\]|\\.)*'/g, "").replace(/`[^`]*`/g, "").replace(/\/\*.*?\*\//g, "").replace(/\/\/.*$/, "");
 }
@@ -489,7 +474,6 @@ function noNull(edits) {
   );
 }
 
-// src/rules/protected-file.ts
 import { basename } from "node:path";
 function protectedReason(path) {
   const normalized = path.replaceAll("\\", "/").toLowerCase();
@@ -526,7 +510,6 @@ function protectedFile(paths) {
   return allow();
 }
 
-// src/rules/secret-content.ts
 var HIGH_CONFIDENCE = [
   /\b(?:AKIA|ASIA)[0-9A-Z]{16}/,
   /\bgh[posru]_[A-Za-z0-9]{36}/,
@@ -563,7 +546,6 @@ function secretContent(edits) {
   return evidence.length === 0 ? allow() : block("SECRET_IN_CONTENT", "secret-in-content: likely secret detected in edited content", evidence);
 }
 
-// src/rules/tdd-order.ts
 function globRegExp(glob) {
   let pattern = "^";
   for (let index = 0; index < glob.length; index += 1) {
@@ -686,7 +668,6 @@ function tddOrder(input) {
   };
 }
 
-// src/rules/test-name.ts
 var GENERIC_NAME = /\b(?:it|test)\(\s*['"]should\s|\b(?:it|test)\(\s*['"]works?\b|\b(?:it|test)\(\s*['"]test['"]/;
 function testName(edits) {
   return evidenceVerdict(
@@ -696,7 +677,6 @@ function testName(edits) {
   );
 }
 
-// src/enforcement/shell-writes.ts
 var REDIRECTION = /(?:^|\s)(?:\d*|&)>{1,2}\s*("[^"]*"|'[^']*'|[^\s;|&<>]+)/g;
 var TEE = /(?:^|[\s|])tee\s+(?:-a\s+)?("[^"]*"|'[^']*'|[^\s;|&<>-][^\s;|&<>]*)/g;
 function unquote2(target) {
@@ -716,7 +696,6 @@ function shellWriteTargets(command) {
   return [...targets].sort();
 }
 
-// src/enforcement/normalize.ts
 var MAX_FIELD_BYTES = 1024 * 1024;
 function record(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
@@ -784,7 +763,6 @@ function normalizeToolCall(value) {
   return { tool, command, edits: [...edits, ...shellTargets] };
 }
 
-// src/enforcement/runner.ts
 var MAX_HOOK_INPUT_BYTES = 1024 * 1024;
 var BINARY_INPUT_MESSAGE = "HOOK_INPUT_BINARY: a NUL byte in the tool payload. A source file holding one is dropped from the project graph, and no diff shows it. A fixture that needs the byte builds it (String.fromCharCode(0), Buffer.concat) instead of holding it literally.";
 function containsNul(value) {
@@ -949,7 +927,6 @@ function evaluateRule(rule, rawInput, options) {
   throw new Error("UNKNOWN_ENFORCEMENT_RULE");
 }
 
-// src/freshness/cache.ts
 import { mkdirSync, readFileSync as readFileSync4, renameSync, writeFileSync } from "node:fs";
 import { dirname as dirname3, join as join4 } from "node:path";
 var CACHE_TTL_MS = 24 * 60 * 60 * 1e3;
@@ -1000,7 +977,6 @@ async function writeFreshnessCache(env, entry) {
   return void 0;
 }
 
-// src/freshness/compare.ts
 var SEMVER_TRIPLE = /^(\d{1,10})\.(\d{1,10})\.(\d{1,10})$/;
 function clean(raw) {
   return raw.trim().replace(/^v/, "");
@@ -1049,7 +1025,6 @@ function compareFreshness(installed, latest) {
   return { verdict: "up-to-date", installed, latest };
 }
 
-// src/freshness/registry.ts
 var DEFAULT_REGISTRY = "https://registry.npmjs.org";
 var NPM_PACKAGE = "voidharness";
 var DEFAULT_TIMEOUT_MS = 1500;
@@ -1132,7 +1107,6 @@ async function fetchLatestVersion(options = {}) {
   }
 }
 
-// src/freshness/npmrc.ts
 import { readFileSync as readFileSync5, statSync } from "node:fs";
 import { join as join5 } from "node:path";
 var MAX_NPMRC_BYTES = 64 * 1024;
@@ -1151,7 +1125,6 @@ function readNpmrc(cwd, env) {
   return home === void 0 || home === "" ? void 0 : readIfSmall(join5(home, ".npmrc"));
 }
 
-// src/freshness/notice.ts
 async function resolveFreshness(options) {
   const { installed, env, now, fetchImpl, npmrc, cwd, allowNetwork = true, timeoutMs } = options;
   const cached = readFreshnessCache(env, now);
@@ -1177,15 +1150,12 @@ function freshnessRelay(freshness, source) {
   return `A newer harness is published: ${installed} is installed, ${latest ?? "a newer version"} is available. Tell the user this once, near the start of your first reply, and name the command that installs it: \`void-harness update\`. Do not repeat it later in the session.`;
 }
 
-// src/invocation.ts
 import { existsSync as existsSync5, mkdirSync as mkdirSync2, readFileSync as readFileSync7, readdirSync as readdirSync2, renameSync as renameSync2, writeFileSync as writeFileSync2 } from "node:fs";
 import { dirname as dirname4, join as join8 } from "node:path";
 
-// src/journal.ts
 import { lstatSync, readFileSync as readFileSync6, readdirSync, statSync as statSync2 } from "node:fs";
 import { join as join7 } from "node:path";
 
-// src/void-layout.ts
 import { existsSync as existsSync4 } from "node:fs";
 import { join as join6 } from "node:path";
 var VOID_DIR = ".void";
@@ -1320,7 +1290,6 @@ function voidReadPath(root, ...segments) {
   return candidates.find((candidate) => existsSync4(candidate)) ?? candidates[0];
 }
 
-// src/journal.ts
 var MISSION_DIRECTORY = /^mis_[A-Za-z0-9_-]{8,100}$/;
 var MAX_MISSION_LOGS = 1e4;
 var MAX_JOURNAL_BYTES = 64 * 1024 * 1024;
@@ -1385,7 +1354,6 @@ function journalFingerprint(root) {
   return `${Math.round(newest)}:${bytes}`;
 }
 
-// src/retired-skills.ts
 var RETIRED_SKILLS = {
   "accessibility-first": "void-accessibility",
   "adr-workflow": "void-decide",
@@ -1483,7 +1451,6 @@ function wasEverOurs(name) {
   return Object.hasOwn(RETIRED_SKILLS, name);
 }
 
-// src/invocation.ts
 var SKILL_RUNTIME_DIRS = [".claude", ".agents"];
 function bareName(raw) {
   const colon = raw.lastIndexOf(":");
@@ -1652,7 +1619,6 @@ function refreshInvocationVerdict(root) {
   }
 }
 
-// src/lifecycle/checkpoint-audit.ts
 var DAY_MS = 864e5;
 var STALE_DAYS = 7;
 function auditCheckpoint(input) {
@@ -1671,7 +1637,6 @@ function auditCheckpoint(input) {
   return reasons.length === 0 ? { status: "ok", reasons } : { status: "degraded", reasons };
 }
 
-// src/lifecycle/context.ts
 function sessionStartOutput(version, notice, invocationAlert2, resumeContext) {
   const installed = version.trim() === "" ? "unknown" : version.trim();
   const base = `void-harness ${installed} is active. Non-negotiable floor: never edit secrets, keys or lockfiles; never run destructive shell commands; tests and fresh evidence gate "done". Capture durable project rules explicitly. Run \`void-harness doctor\` if runtime health is uncertain.`;
@@ -1688,7 +1653,6 @@ ${resumeContext.trimEnd()}`;
   };
 }
 
-// src/lifecycle/context-continuity-executor.ts
 import { createHash as createHash2 } from "node:crypto";
 import {
   closeSync as closeSync2,
@@ -1707,7 +1671,6 @@ import {
 import { homedir } from "node:os";
 import { basename as basename3, isAbsolute as isAbsolute3, join as join10, relative as relative3, resolve as resolve3 } from "node:path";
 
-// ../mission-engine/dist/session/checkpoint.js
 import { createHash } from "node:crypto";
 var PROSE_SECTIONS = {
   objective: "objective",
@@ -2102,7 +2065,6 @@ function parseCheckpoint(raw) {
   };
 }
 
-// ../mission-engine/dist/session/resume.js
 var DAY_MS2 = 864e5;
 var STALE_DAYS2 = 7;
 var CONTEXT_CHARS_MAX = 4e3;
@@ -2311,7 +2273,6 @@ function renderResumeContext(bundle) {
   return boundedResumeLines(required, optional);
 }
 
-// src/lifecycle/executor-shared.ts
 import {
   accessSync,
   constants,
@@ -2377,7 +2338,6 @@ function readJson(path) {
   }
 }
 
-// src/lifecycle/context-continuity-executor.ts
 var CHECKPOINT = join10(".void", "machine", "checkpoint.md");
 var MAX_CHECKPOINT_BYTES = 5e5;
 var LOCK_STALE_MS = 1e3;
@@ -2551,6 +2511,7 @@ function claimStaleLock(path, observed, now) {
     try {
       const current = lstatSync3(path);
       if (observed === void 0 || !sameFile(current, observed)) return void 0;
+      if (!staleFile(current, now)) return void 0;
       if (!unlinkOwnedPath(path, observed)) return void 0;
     } catch (error) {
       if (observed !== void 0 || errorCode(error) !== "ENOENT") return void 0;
@@ -3079,7 +3040,6 @@ function executeContextContinuity(rawInput, root, runtime3, now) {
   return { status: "skipped", details: { reason: "event-not-actionable" } };
 }
 
-// src/lifecycle/context-executor.ts
 import { join as join11 } from "node:path";
 var VERSION_SHAPE = /^[0-9A-Za-z.+-]{1,64}$/;
 function readVersion(path) {
@@ -3106,10 +3066,8 @@ function resolveInstall(root, env) {
   return { version: "unknown", source: void 0 };
 }
 
-// src/lifecycle/format-executor.ts
 import { spawnSync } from "node:child_process";
 
-// src/lifecycle/format.ts
 import {
   isAbsolute as isAbsolute4,
   relative as relative4,
@@ -3132,7 +3090,6 @@ function formatCandidates(touchedPaths, projectRoot2) {
   return [...found];
 }
 
-// src/lifecycle/format-executor.ts
 function executeFormat(rawInput, root, env) {
   const call = normalizeToolCall(rawInput);
   if (call.tool !== "Edit" && call.tool !== "Write" && call.tool !== "apply_patch") {
@@ -3180,10 +3137,8 @@ function executeFormat(rawInput, root, env) {
   return { status: "ok", details: { formatted } };
 }
 
-// src/lifecycle/large-change-executor.ts
 import { spawnSync as spawnSync2 } from "node:child_process";
 
-// src/lifecycle/large-change.ts
 function parseAddedLines(numstat) {
   return numstat.split(/\r?\n/).reduce((total, line) => {
     const [added] = line.split("	", 1);
@@ -3207,7 +3162,6 @@ function assessLargeChange(assessment) {
   };
 }
 
-// src/lifecycle/large-change-executor.ts
 function runGit(git2, root, args, env) {
   const result = spawnSync2(git2, args, {
     cwd: root,
@@ -3307,7 +3261,6 @@ function executeLargeChange(root, env) {
   };
 }
 
-// src/lifecycle/resume-observer.ts
 import { execFileSync } from "node:child_process";
 import {
   existsSync as existsSync6,
@@ -3450,7 +3403,6 @@ function observeResume(root, now, options = {}) {
   };
 }
 
-// src/lifecycle/session-close-intent.ts
 var MAX_PROMPT_CHARS = 8e3;
 function searchablePrompt(prompt) {
   return prompt.slice(0, MAX_PROMPT_CHARS).normalize("NFD").replace(new RegExp("\\p{Diacritic}", "gu"), "").toLowerCase().replace(/[’'_-]/g, " ").replace(/\s+/g, " ").trim();
@@ -3485,7 +3437,6 @@ function checkpointReminderOutput(prompt) {
   };
 }
 
-// src/lifecycle/trim-executor.ts
 import { createHash as createHash3 } from "node:crypto";
 import {
   lstatSync as lstatSync5,
@@ -3495,7 +3446,6 @@ import {
 } from "node:fs";
 import { join as join13, relative as relative5 } from "node:path";
 
-// src/lifecycle/trim.ts
 function record4(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
 }
@@ -3559,7 +3509,6 @@ ${errors}
   };
 }
 
-// src/lifecycle/trim-executor.ts
 function safeOutputDirectory(root) {
   try {
     const canonicalRoot = realpathSync4(root);
@@ -3636,12 +3585,10 @@ function executeTrim(rawInput, root, env) {
   };
 }
 
-// src/lifecycle/typecheck-executor.ts
 import { existsSync as existsSync7 } from "node:fs";
 import { join as join15 } from "node:path";
 import { spawnSync as spawnSync3 } from "node:child_process";
 
-// src/lifecycle/typecheck.ts
 import {
   dirname as dirname5,
   isAbsolute as isAbsolute5,
@@ -3759,7 +3706,6 @@ function nearestTsconfigs(changedPaths, projectRoot2, hasFile) {
   return [...found];
 }
 
-// src/lifecycle/typecheck-executor.ts
 function runGit2(root, args, env) {
   const git2 = findExecutable("git", root, env);
   if (git2 === void 0) return { ok: false, output: "" };
@@ -3888,7 +3834,6 @@ Resolve before claiming done. This never blocks.
   };
 }
 
-// src/runtime-input.ts
 import { createHash as createHash4 } from "node:crypto";
 import {
   basename as basename5,
@@ -4013,7 +3958,6 @@ function deriveMissionId(explicit, runtime3, runtimeSessionId2, root) {
   return `mis_${opaque}`;
 }
 
-// src/sequenced-writer.ts
 import { randomUUID as nodeRandomUUID } from "node:crypto";
 import {
   constants as constants3
@@ -4036,7 +3980,6 @@ import {
   resolve as resolve7
 } from "node:path";
 
-// ../mission-engine/dist/events/schema.js
 var MAX_EVENT_PAYLOAD_BYTES = 16 * 1024;
 var MAX_EVENT_LINE_BYTES = 32 * 1024;
 var MAX_EVENT_PAYLOAD_DEPTH = 8;
@@ -4206,7 +4149,6 @@ function serializeEvent(event) {
   return line;
 }
 
-// ../mission-engine/dist/events/reducer.js
 function replayEventLog(text2) {
   const events = [];
   const eventIds = /* @__PURE__ */ new Set();
@@ -4276,7 +4218,6 @@ function replayEventLog(text2) {
   };
 }
 
-// src/sequenced-writer.ts
 var MAX_EVENT_LOG_BYTES = 8 * 1024 * 1024;
 var MISSION_ID3 = /^mis_[A-Za-z0-9_-]{8,100}$/;
 var EVENT_ID2 = /^evt_[A-Za-z0-9_-]{8,100}$/;
@@ -4533,7 +4474,6 @@ async function writeSequencedEvent(options) {
   return (await writeSequencedEventInternal(options)).event;
 }
 
-// src/record.ts
 async function recordRuntimeEvent(options) {
   const adapted = adaptRuntimeInput(options.rawInput, options);
   if (adapted === void 0) return void 0;
@@ -4605,7 +4545,6 @@ async function recordRuntimeEventFromCli(raw, argv, env) {
   });
 }
 
-// src/cli.ts
 var RULES = new Set(RULE_NAMES);
 function isRuleName(value) {
   return value !== void 0 && RULES.has(value);

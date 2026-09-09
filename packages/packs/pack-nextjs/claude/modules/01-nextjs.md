@@ -31,6 +31,21 @@ apps/<app>/src/
 - Cache keys include user / org scope where appropriate. Never cache user-specific content under a shared key (composes with `void-security-guidance` PII).
 - Use `revalidatePath('/specific-path')` after mutations — never broad `revalidatePath('/')` which kills cache hit rate.
 
+## E2E artifact proof
+
+- `next dev` is for local feedback only. It is never release proof because it compiles routes on
+  demand and changes the timing being measured.
+- CI and release proof build once with `next build`, then serve the deployment-equivalent artifact.
+  `next start` is prescribed only for a Node-server deployment; a Vercel preview, standalone image,
+  static export, or other adapter must prove its own real artifact instead of being represented by
+  `next start`.
+- Playwright waits for observable process readiness before application assertions. Keep build
+  readiness and assertion budgets separate; do not hide compilation in a larger assertion timeout.
+- Parallel workers derive unique run/worker identities for external state. Authentication storage
+  is sensitive ephemeral output and is written under the test output directory, never committed.
+- Preserve the no-retry rule. A failed artifact proof is evidence to diagnose, not a reason to retry
+  until green.
+
 ## instrumentation.ts
 
 - Initialize Sentry here (server + edge runtimes), pino logger, OpenTelemetry exporter.

@@ -152,7 +152,8 @@ function writerLifecycleViolation(
       || completion.causationId !== request.eventId
       || lifecycleField(request, 'writerId') !== start.leadWriterId
       || lifecycleField(request, 'planHash') !== start.planHash
-      || lifecycleField(request, 'implementationRound') !== implementationRound;
+      || lifecycleField(request, 'implementationRound') !== implementationRound
+      || lifecycleField(request, 'actionKind') !== lifecycleField(completion, 'actionKind');
   });
 }
 
@@ -370,7 +371,14 @@ export function orchestrateMissionTeam(
   input: MissionTeamControllerInput,
 ): MissionTeamDecision {
   const start = missionStart(input);
-  const completions = writerCompletions(input);
+  const writerEvents = writerCompletions(input);
+  const preparationCorrections = writerEvents.filter((event) =>
+    lifecycleField(event, 'actionKind') === 'run-preparation-correction');
+  const completions = writerEvents.filter((event) =>
+    lifecycleField(event, 'actionKind') !== 'run-preparation-correction');
+  const lastPreparationSeq = preparationCorrections.length === 0
+    ? undefined
+    : Math.max(...preparationCorrections.map((event) => event.seq));
   const firstWriterSeq = completions.length === 0
     ? undefined
     : Math.min(...completions.map((event) => event.seq));
@@ -379,15 +387,24 @@ export function orchestrateMissionTeam(
   const firstImplementationSeq = implementationCompletions.length === 0
     ? undefined
     : Math.min(...implementationCompletions.map((event) => event.seq));
-  const preparationCorrectionCompleted = completions.some((event) =>
-    leadWriterActionKind(event) === 'run-preparation-correction');
+  const preparationCorrectionCompleted = preparationCorrections.length > 0;
+  const latePreparationCompletion = lastPreparationSeq !== undefined
+    && input.stream.events.some((event) =>
+      event.seq > lastPreparationSeq
+      && event.kind === 'specialist.completed'
+      && lifecycleField(event, 'stage') === 'pre-implementation');
   const lastWriterSeq = completions.length === 0
     ? undefined
     : Math.max(...completions.map((event) => event.seq));
+  const missionStartSeq = input.stream.events.find((event) => event.kind === 'mission.started')?.seq;
   const expectedSource = start.runtime === 'claude' ? 'runtime:claude' : 'runtime:codex';
   const preReview = reduceReviewLoop({
     stage: 'pre-implementation',
     expectedSource,
+    ...(lastPreparationSeq === undefined || missionStartSeq === undefined ? {} : {
+      stageStartSeqExclusive: missionStartSeq,
+      afterSeqExclusive: lastPreparationSeq,
+    }),
     ...(firstWriterSeq === undefined ? {} : { beforeSeqExclusive: firstWriterSeq }),
     events: input.stream.events,
     requiredSpecialists: requiredSpecialists(input.plan, 'pre-implementation'),
@@ -448,11 +465,15 @@ export function orchestrateMissionTeam(
     ]);
   }
 
-  if (
-    preReview.status === 'correction-required'
-    && preparationCorrectionCompleted
-    && firstImplementationSeq === undefined
-  ) {
+  if (preparationCorrectionCompleted && latePreparationCompletion) {
+    return applyRuntimeCertification(stopped(
+      'blocked',
+      preReview,
+      baseVerdict,
+      ['pre-implementation review was replayed after preparation correction'],
+    ), input.specialistRuntime);
+  }
+  if (preparationCorrectionCompleted && firstImplementationSeq === undefined) {
     const reasons = ['preparation correction completed; implementation is pending'];
     return applyRuntimeCertification({
       phase: 'implementation',

@@ -150,7 +150,7 @@ Before this, the floor ran in every consumer project and in none of ours — whi
 
 ## On gstack and superpowers (Codex perspective)
 
-- **gstack** stays installed globally pending the Vague 6 teardown (DEV-395). QA, design, browser, and ship are now harness-native (`void-qa`, `void-ui-review`/`void-frontend-design`, claude-in-chrome, `void-implement`+gh); what remains gstack-provided until teardown is tracked in the gstack-coverage-matrix.
+- The gstack runtime was removed by DEV-395. QA, design, browser, and shipping use the harness-native paths (`void-qa`, `void-ui-review`/`void-frontend-design`, claude-in-chrome, `void-implement` + `gh`). Historical provenance remains in the coverage matrix and decision log; no shipped path depends on gstack.
 - **superpowers** is a Claude Code-specific skill bundle. Codex consumers don't interact with it directly; the harness's adapted equivalents (`void-brainstorm`, `void-plan`, `void-tdd`, `void-debug`, `void-verify`, plus `void-implement`/`void-ticket`) target both runtimes and are preferred over the superpowers originals (see the routing table). Document the adaptation in `docs/plans/skill-audits/`.
 
 ## Self-evolution principle

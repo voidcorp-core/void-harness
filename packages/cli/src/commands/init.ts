@@ -331,6 +331,7 @@ export async function init(args: readonly string[]): Promise<void> {
   // selected runtime proves installed + wired + fired in this stage.
   const stageRoot = await mkdtemp(join(tmpdir(), 'void-init-stage-'));
   const nextSteps: string[] = [];
+  let installFailed = false;
   try {
     await seedInstallStage(projectRoot, stageRoot);
     // 1. Write .void/config.json (runtime-agnostic)
@@ -433,10 +434,12 @@ export async function init(args: readonly string[]): Promise<void> {
   } catch (err) {
     blank();
     p.log.error(`init failed before publication or rolled back byte-for-byte. ${errorMessage(err)}`);
-    process.exit(1);
+    installFailed = true;
   } finally {
     await rm(stageRoot, { recursive: true, force: true });
   }
+  // A real process.exit skips finally; release the owned stage before exiting.
+  if (installFailed) process.exit(1);
 
   blank();
   // "plugins" is what the marketplace channel calls them. On the default path

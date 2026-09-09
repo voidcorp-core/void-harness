@@ -141,7 +141,10 @@ enforced here. No one edits a version, dispatches a workflow or approves a job i
 Actions on the routine path.
 
 1. `promotion.yml` maintains one `develop -> main` PR and records every promoted
-   commit, its merged source PR, merge actor and auto-merge history. **Release
+   commit, its first entry on develop's first-parent history, and the merged PR
+   whose `mergeCommit` exactly matches that entry, including nested branch PRs.
+   A later containing merge cannot authorize an earlier direct commit. The audit
+   retains the merge actor, auto-merge history and fail-closed pagination checks. **Release
    action 1:** merge that promotion PR after its five current checks pass and the
    complete accounting is explainable.
 2. On `main`, release-please maintains one version/changelog PR. It changes every

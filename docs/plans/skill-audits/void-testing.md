@@ -34,7 +34,9 @@ Without `testing`, TDD's RED step lacks technique. An LLM agent writes tests tha
 | citypaul testing notes | citypaul/.dotfiles | reviewed | partially kept (pyramid ratios, fixture externalization) |
 | superpowers test patterns | superpowers/skills | reviewed | partially kept (verify-test-fails-for-right-reason, pristine output) |
 | Vitest docs | https://vitest.dev | reference | tactical specifics live in `pack-monorepo` |
-| Playwright docs | https://playwright.dev | reference | tactical specifics live in `pack-nextjs-pwa` (E2E patterns, web-first assertions) |
+| Playwright docs | https://playwright.dev/docs/test-fixtures, https://playwright.dev/docs/test-parallel, https://playwright.dev/docs/auth | reviewed | kept (isolated fixtures, worker identities, authentication state); tactical specifics live in packs |
+| Next.js CLI | https://nextjs.org/docs/app/api-reference/cli/next | reviewed | kept (build once, then start the production artifact; deployment adapters must prove their own artifact) |
+| Better Auth rate limit | https://better-auth.com/docs/concepts/rate-limit | reviewed | kept (production defaults, client/server distinction, 429 proof; test setup must not disable the control) |
 | MSW (Mock Service Worker) | https://mswjs.io | reviewed | kept as the recommended HTTP boundary mocking layer (not the default for unit tests — only for integration tests that cross HTTP) |
 | pglite | https://pglite.dev | reviewed | kept as the in-memory Postgres for fast integration tests against Drizzle |
 

@@ -21,8 +21,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -47,6 +49,7 @@ beforeEach(() => {
 afterEach(() => {
   process.chdir(cwd);
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -74,12 +77,26 @@ async function failingSecondInstall(): Promise<void> {
 
 describe('the ignore block never outlives a transaction that failed', () => {
   it('claims no agent path the install did not write', async () => {
+    const temporary = join(dir, 'temporary');
+    mkdirSync(temporary);
+    vi.stubEnv('TMPDIR', temporary);
+    vi.stubEnv('TMP', temporary);
+    vi.stubEnv('TEMP', temporary);
     await init(['--runtime', 'claude', '--no-interactive']);
     // The project cleared them out; whether it was right to is not the question.
     // What matters is that the failed install below does not claim them back.
     rmSync(join(dir, '.claude', 'agents'), { recursive: true, force: true });
 
+    let stageAtExit: string[] | undefined;
+    vi.mocked(process.exit).mockImplementationOnce((code) => {
+      stageAtExit = readdirSync(temporary).filter((name) => name.startsWith('void-init-stage-'));
+      throw new Error(`process.exit(${String(code ?? 0)})`);
+    });
     await failingSecondInstall();
+
+    // Throwing from a mocked exit runs finally; a real process.exit does not.
+    // Observe cleanup at the exit boundary, before the mock can mask a leak.
+    expect(stageAtExit).toEqual([]);
 
     const absent = claimedAgentPaths().filter((path) => !existsSync(join(dir, ...path.split('/'))));
     expect(absent).toEqual([]);

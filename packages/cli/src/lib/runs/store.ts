@@ -254,16 +254,18 @@ export async function writeMissionControllerPlan(
   missionId: string,
   plan: MissionSpecialistPlan,
   ticket: MissionControllerTicketBinding,
+  baseCommit?: string,
 ): Promise<string> {
   const run = await existingRunDirectory(root, missionId);
-  const routingHash = missionControllerRoutingHash(plan, ticket);
+  const routingHash = missionControllerRoutingHash(plan, ticket, baseCommit);
   const handle = await open(join(run, 'controller-plan.json'), 'wx', 0o600);
   try {
     await handle.writeFile(`${JSON.stringify({
-      schemaVersion: 1,
+      schemaVersion: baseCommit === undefined ? 1 : 2,
       routingHash,
       plan,
       ticket,
+      ...(baseCommit === undefined ? {} : { baseCommit }),
     })}\n`, 'utf8');
   } finally {
     await handle.close();
@@ -278,6 +280,7 @@ export async function loadMissionControllerPlan(
   readonly plan: MissionSpecialistPlan;
   readonly ticket: MissionControllerTicketBinding;
   readonly routingHash: string;
+  readonly baseCommit?: string;
 }> {
   const run = await existingRunDirectory(root, missionId);
   const path = join(run, 'controller-plan.json');
@@ -299,27 +302,39 @@ export async function loadMissionControllerPlan(
     'routingHash',
     'plan',
     'ticket',
+    ...(parsed.schemaVersion === 2 ? ['baseCommit'] : []),
   ])) {
     throw new Error('MISSION_CONTROLLER_PLAN_INVALID: plan envelope is malformed');
   }
   const plan = parseMissionSpecialistPlan(parsed.plan);
   const ticket = parseMissionControllerTicket(parsed.ticket);
   const routingHash = typeof parsed.routingHash === 'string' ? parsed.routingHash : '';
+  const baseCommit = parsed.schemaVersion === 2 ? parsed.baseCommit : undefined;
   if (
-    parsed.schemaVersion !== 1
+    (parsed.schemaVersion !== 1 && parsed.schemaVersion !== 2)
+    || (parsed.schemaVersion === 2 && (
+      typeof baseCommit !== 'string' || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(baseCommit)
+    ))
     || !/^sha256:[a-f0-9]{64}$/.test(routingHash)
-    || missionControllerRoutingHash(plan, ticket) !== routingHash
   ) {
     throw new Error('MISSION_CONTROLLER_PLAN_INVALID: plan integrity check failed');
   }
-  return Object.freeze({ plan, ticket, routingHash });
+  const base = typeof baseCommit === 'string' ? { baseCommit } : {};
+  if (missionControllerRoutingHash(plan, ticket, base.baseCommit) !== routingHash) {
+    throw new Error('MISSION_CONTROLLER_PLAN_INVALID: plan integrity check failed');
+  }
+  return Object.freeze({ plan, ticket, routingHash, ...base });
 }
 
 export function missionControllerRoutingHash(
   plan: MissionSpecialistPlan,
   ticket: MissionControllerTicketBinding,
+  baseCommit?: string,
 ): string {
-  return canonicalJsonHash({ plan, ticket });
+  if (baseCommit !== undefined && !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(baseCommit)) {
+    throw new Error('MISSION_REVIEW_BASE_INVALID: expected a full commit object ID');
+  }
+  return canonicalJsonHash({ plan, ticket, ...(baseCommit === undefined ? {} : { baseCommit }) });
 }
 
 function unknownRecord(value: unknown): value is Readonly<Record<string, unknown>> {

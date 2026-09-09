@@ -91,6 +91,24 @@ After a test passes, the output is clean:
 
 Pristine output is a passing condition, not a nice-to-have. Vitest config: `onConsoleLog: 'fail'`.
 
+### 5. Release E2E proves the shipped artifact
+
+Release proof exercises the immutable deployable artifact, not a development compiler. Keep build
+readiness (the process started and became healthy) separate from application assertions, so a slow
+compile cannot consume the assertion budget or hide a failed startup.
+
+Fixtures use the lowest faithful boundary that preserves the behavior under test. Establishing an
+authenticated precondition may use a server/API boundary; the authentication UI remains an E2E
+subject when authentication itself is the behavior being proved.
+
+External state is namespaced per run/worker and cleanup is idempotent and bounded, including after
+interruption. Browser storage state is sensitive ephemeral output and belongs under the test output
+directory, never in source control.
+
+Test-only security overrides are typed, bounded, and paired with independent proof of production
+defaults and denial behavior. A malformed or out-of-range override falls back to safe production
+defaults. No retry-on-failure, quarantine, skip, or assertion-timeout inflation is a flake fix.
+
 ---
 
 ## Naming

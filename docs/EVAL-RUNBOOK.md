@@ -574,14 +574,16 @@ reviews. No UI was changed, no paid call ran, and no publication or merge occurr
 Later evidence-only documentation edits use the affected documentation gates;
 the full-suite proof remains attached to the exact code candidate above.
 
-Still required before calling the real campaign or public release reliable:
+### Historical coverage measurement and subsequent local proofs
 
 Coverage follow-up: the missing instrument was supplied in an isolated temporary
 environment without repository dependency or lockfile changes. The
 [coverage and runtime-attestation report](reports/2026-09-08-eval-budget-coverage.md)
 records 47 passing tests, 96.65% lines, 90.98% branches and 100% functions for
 `budget.ts`, `durable.ts` and `runtime-pilot.ts`. Measurement is now available;
-the strict 100% gate remains unmet. No exclusion or threshold waiver was added.
+the installed strict skill's 100% default remains unmet. It is not a configured
+Vitest release gate and cannot establish runtime safety. No exclusion or
+doctrine waiver was added.
 The report also confirms the Codex parent-permission limitation against official
 documentation; this session cannot attest a per-agent enforced read-only surface.
 
@@ -603,6 +605,14 @@ existing files. The autonomous-value suite passes 155 tests in 14 files, with
 typecheck and targeted lint green; the report above records the exact command
 and log. These are characterization proofs with no production or runtime change.
 
+### Paid campaign activation gates
+
+These gates authorize a real evaluation campaign, not installation of the
+published harness. The evaluation app is private maintainer tooling and is not
+the npm CLI. Shipping the CLI must not enable a paid adapter or claim that an
+unmeasured capability is effective. The closed mission's degraded verdict stays
+part of the evidence; it is not converted into verified by packaging or CI.
+
 - supply verified provider cap enforcement and a validated assessor to the
   runtime composition, attest the installed artifact/runtime, and validate the
   canary's actual environment and cleanup; local fake runs do not prove this;
@@ -613,3 +623,23 @@ and log. These are characterization proofs with no production or runtime change.
 
 No historical `rerun-*` archive is admissible evidence, and no paid campaign is
 authorized by this document.
+
+### Consumer release gates
+
+Follow [RELEASING.md](RELEASING.md) for the protected publication chain. A
+consumer-ready candidate must include the current integration base and carry
+fresh full verification, generated-artifact checks and packed consumer
+conformance. The same source-identified tarball is exercised on Ubuntu, macOS
+and Windows for installation, hooks and Autopilot contracts. Local macOS success
+alone is not three-platform evidence or a live-agent attestation.
+
+Keep the distinction visible to consumers: installed and wired is not effective;
+degraded runtime restrictions stay reported as degraded; no tested local budget
+journal substitutes for provider cap enforcement. The existing skill coverage
+policy is a separate doctrine matter, not a reason to fake unreachable branches
+or to claim campaign readiness from a percentage.
+
+Promotion and the release-please merge remain human decisions. Validate the
+exact release tarball and its public signatures/provenance before calling the
+publication complete. A historical PR's green checks do not certify later
+commits that reused its branch name.

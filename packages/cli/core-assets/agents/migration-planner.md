@@ -64,7 +64,7 @@ depends on who reads and writes the old shape.
   step and recommend `void-security-audit`; do not audit it.
 - **Doctrine / type design / silent failures** → `doctrine-critic`,
   `type-design-analyzer`, `silent-failure-hunter`. Do not spill into them.
-- **QA / design / shipping** → gstack (`/void-qa`, `/ship`).
+- **QA / design / shipping** → `void-qa`, `void-ui-review`, and `void-implement` + `gh`.
 
 ## Output format
 

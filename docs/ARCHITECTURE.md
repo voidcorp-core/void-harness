@@ -205,6 +205,9 @@ Rules:
 - **Doc ownership is per-runtime.** Each adapter's `wire` writes only its own doctrine doc — a Claude-only project has just `CLAUDE.md`, a Codex-only project just `AGENTS.md`. `doctor` checks only the docs of *detected* runtimes, so a Codex-only project is never dinged for a missing `CLAUDE.md`. (`add` / `remove` still patch whichever docs exist, keeping active docs current.)
 - **`init` wires each selected runtime's layer via its adapter**, gated by `--runtime <claude|codex|both>` (default: auto-detected footprint, else both). Claude receives native project-local skills, agents, commands and hooks; Codex receives `.agents/skills`, native `.codex/agents` and `.codex/hooks.json`. The package is bundled with all CLI runtime dependencies, so a tarball installs offline. `--source marketplace` is opt-in and is the only path that checks `gh`/marketplace access.
 - **Publication is transactional.** `init` seeds only shared merge targets into an isolated stage, compiles and executes each selected adapter's doctor smoke there, then atomically publishes a finite mutation set. Every target is snapshotted before the first write; a failure restores bytes and modes and removes only transaction-created paths. `.void/machine/receipts/install-v1.json` hashes files the install created, already owned, or found already identical byte-for-byte to what it compiled — a managed asset matching our own output is ours, and letting it fall out of the receipt is what made a later version meet an asset it could not recognise. Unowned native conflicts fail unless `--force` (all of them named in one message, not the first alone), and even force never grants deletion ownership over a pre-existing file.
+- **Failed installs clean before exiting.** The owned compilation stage is removed before the
+  failure exit, as well as after success. A test observes staging paths at the exit boundary:
+  throwing from a mocked `process.exit` would otherwise run `finally` and hide a real-process leak.
 - **Consumer conformance has one artifact identity.** A clean exact-SHA checkout packs the npm CLI
   once and records package identity, source SHA and tarball SHA-256 in a canonical manifest. One
   orchestrator makes install, hook and Autopilot suites consume that same verified tarball through
@@ -329,8 +332,11 @@ payloads, reads at most 1,048,576 transcript bytes, confines project paths, and 
 under a no-wait lock through a same-directory temporary file and rename. Runtime manifests only
 map `UserPromptSubmit`, `PostToolUse`, `PreCompact`, and `SessionStart` to that handler.
 The lock covers the complete read-modify-write decision. Stale takeover is serialized by a
-no-wait claim chain whose generations are created exclusively and never ranked by timestamps, and
-checkpoint mutation stays anchored to an opened, verified machine directory while relative
+no-wait claim chain whose generations are created exclusively and never ranked by timestamps.
+After acquiring the recovery claim, takeover checks the current lock's age again as well as its
+identity: Linux can reuse an unlinked inode immediately for a fresh owner's lock, so matching
+device and inode numbers alone do not authorize removal. Checkpoint mutation stays anchored to
+an opened, verified machine directory while relative
 no-follow files are read and renamed. Transcript reads use no-follow bounded descriptors. Codex
 transcripts remain project-local; Claude may also use its
 project-scoped transcript directory when the file name exactly matches a bounded session ID.
@@ -487,7 +493,7 @@ The CLI does **not** edit the consumer's source code. The consumer's CLAUDE.md i
 
 ## Inter-plugin contracts (the core-hub model)
 
-The core plugin is **always installed** and acts as the hub between plugins. A sibling plugin (today: `forge`, the ideation pipeline) routes into the core's execution capabilities (`void-brainstorm`, `void-plan`, `void-ticket`, `void-tdd`, ...) rather than reimplementing them or dangling a pointer at a gstack skill. The nominal routing assumes the core is present; the coupling is nonetheless a **versioned artifact contract**, not a hard plugin dependency, so each plugin still makes sense alone — forge degrades to producing a standalone spec, core works with a hand-written spec.
+The core plugin is **always installed** and acts as the hub between plugins. A sibling plugin (today: `forge`, the ideation pipeline) routes into the core's execution capabilities (`void-brainstorm`, `void-plan`, `void-ticket`, `void-tdd`, ...) rather than reimplementing them or dangling a pointer at an external runtime skill. The nominal routing assumes the core is present; the coupling is nonetheless a **versioned artifact contract**, not a hard plugin dependency, so each plugin still makes sense alone — forge degrades to producing a standalone spec, core works with a hand-written spec.
 
 Re-splitting core into `core` + `dev` (execution) sub-plugins is explicitly **deferred (YAGNI)**: one core-hub is enough until a second consumer of the "execution" half exists.
 
@@ -779,6 +785,28 @@ specialists must pass before the lead writer starts; post-implementation reviewe
 context and completion identity, so an upstream approval cannot satisfy downstream review. Input
 hashes are keyed by stage: the pre-build snapshot stays frozen while post-build and correction
 hashes follow the implemented diff.
+
+Preparation corrections travel in an existing plan/spec directly cited by a backticked
+repository-relative path in the frozen ticket. Dispatch rereads that artifact for the next
+preparatory round. The writer resolves findings there before recording completion; it neither
+edits the frozen ticket nor starts implementation until `run-lead-writer`. A missing citation
+requires an explicit interrupted mission and corrected start inputs, preserving the old evidence.
+The context pack must contain the correction: a writer receipt alone proves no content change.
+
+Controller records created with a ticket bind the initial Git commit into their version 2
+integrity envelope. Post-implementation review compares that fixed baseline with the working
+tree, so staging or committing unchanged content preserves review identity. A bounded raw patch
+digest participates in review hashes independently of routing; editing an already changed path
+invalidates its reviews. The same captured patch supplies the specialist context, after redaction.
+Only controller-owned `.void/machine/**` evidence is excluded: tracked project rules and hooks
+remain review inputs. New files must be staged before review, and encoded binary patches are
+refused before dispatch because text redaction cannot protect their payloads. Missing or unrelated
+baselines and unavailable bounded Git output refuse review explicitly. Legacy version 1 records
+remain readable for history and preparation, but cannot pass post-implementation dispatch without
+an anchored subject; preserve that history and start a new mission instead of rebinding old proofs.
+This is a Git reference in the existing execution register, not a second session checkpoint.
+Git semantics: [diff against a commit](https://git-scm.com/docs/git-diff/2.50.0),
+[ancestry validation](https://git-scm.com/docs/git-merge-base/2.50.0).
 
 Interactive runs prefer the runtime's native subagent primitive. Headless certification launches a
 fresh native role session directly when parent-to-child delegation cannot prove an attributable
