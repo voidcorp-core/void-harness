@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { conformanceArtifactFromEnvironment } from './conformance-artifact.mjs';
@@ -63,6 +63,8 @@ async function exerciseRuntime(temporary, tarball, runtime) {
   }
 
   const skillRoot = runtime === 'codex' ? '.agents' : '.claude';
+  const receiptPath = join(fixture, '.void', 'machine', 'receipts', 'install-v1.json');
+  const installed = JSON.parse(await readFile(receiptPath, 'utf8'));
   const adjacent = join(fixture, skillRoot, 'skills', 'private', 'SKILL.md');
   await mkdir(dirname(adjacent), { recursive: true });
   await writeFile(adjacent, '# private user skill\n');
@@ -75,6 +77,28 @@ async function exerciseRuntime(temporary, tarball, runtime) {
   );
   if ((await readFile(adjacent, 'utf8')) !== '# private user skill\n') {
     throw new Error(`${runtime} update changed an adjacent user file`);
+  }
+  // A fresh clone has the versioned manifest, but no machine-local receipt.
+  // Preserve the original fixture evidence rather than manufacturing ownership.
+  await rename(receiptPath, join(fixture, 'original-install-receipt.json'));
+  await run(
+    `${runtime} update without machine receipt`,
+    process.execPath,
+    [bin, 'init', '--runtime', runtime, '--no-interactive'],
+    fixture,
+    environment,
+  );
+  const recovered = JSON.parse(await readFile(receiptPath, 'utf8'));
+  const identity = (receipt) => JSON.stringify({
+    source: receipt.source,
+    runtimes: [...receipt.runtimes].sort(),
+    files: receipt.files.map((file) => file.path).sort(),
+  });
+  if (identity(recovered) !== identity(installed)) {
+    throw new Error(`${runtime} update failed to recover installed ownership from the manifest`);
+  }
+  if ((await readFile(adjacent, 'utf8')) !== '# private user skill\n') {
+    throw new Error(`${runtime} receipt recovery changed an adjacent user file`);
   }
   return performance.now() - started;
 }
