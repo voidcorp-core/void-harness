@@ -273,7 +273,8 @@ function metricText<T>(value: Metric<T>, format: (known: T) => string): string {
 
 function reportCost(report: PilotReport): Metric<number> {
   const completed = report.entries.map((entry) => entry.result).filter(isCompletedResult);
-  if (completed.some((result) => result.costUsd.kind === 'unknown')) {
+  if (completed.length !== report.entries.length
+    || completed.some((result) => result.costUsd.kind === 'unknown')) {
     return { kind: 'unknown', reason: 'one or more execution costs are unknown' };
   }
   return {

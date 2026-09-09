@@ -79,3 +79,22 @@ production change is introduced. All 36 context-continuity executor tests pass:
 `/private/tmp/release-context-lock-fixed.log`. Failed full-run evidence remains
 `/private/tmp/release-readiness-a2edd05b-verify.log`; a new full candidate proof
 is still required.
+
+## Review correction: uncertain total cost
+
+Independent review found that rendering only completed execution costs could
+label zero or a subtotal as the campaign's known total. RED commit `d7a0eb12`
+reproduces four cases: missing, interrupted, blocked and entirely unobserved
+executions; the fully known campaign is a positive control. The correction
+keeps total cost unknown if an entry is not completed or has unknown cost.
+This affects reporting only, not retained budget reservations or admission.
+All 160 autonomous-value tests pass after correction, with eval typecheck:
+`/private/tmp/release-cost-green.log`. Reproducing failures remain in
+`/private/tmp/release-cost-red-contract.log`. An earlier draft used the wrong
+rendered heading and is not the accepted RED evidence.
+
+The reviewer also identified an unused competing PID lease with unsafe recovery
+of incomplete records. Repository search finds no production caller of
+`acquireCampaignLease`; the real journal uses its own directory claim. Removal
+of that unused module was proposed to Folpe and is awaiting disposition. It is
+not a demonstrated defect in the journal currently called by evaluations.
