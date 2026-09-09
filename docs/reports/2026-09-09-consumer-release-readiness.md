@@ -1,6 +1,7 @@
 # Consumer release readiness
 
-Status: integration prepared; final candidate and consumer verification pending.
+Status: local candidate and packed consumer verification passed; cross-platform
+CI, the unused-lease disposition and human release gates remain open.
 
 ## Candidate scope
 
@@ -98,3 +99,59 @@ of incomplete records. Repository search finds no production caller of
 `acquireCampaignLease`; the real journal uses its own directory claim. Removal
 of that unused module was proposed to Folpe and is awaiting disposition. It is
 not a demonstrated defect in the journal currently called by evaluations.
+
+## Final local candidate evidence
+
+On exact `f2d3be5b442a280ebde2589132750412b23e403c`, with a clean working tree:
+
+- `pnpm verify` passed all 23 gates. The four lanes passed 4,915 tests without
+  skips: CPU 2,320, filesystem 1,564, subprocess 1,001, network/browser 30.
+  Typechecks, builds, generated-artifact checks and lint passed. Lint reported
+  36 warnings and 903 infos; a passing gate is not pristine output.
+- `pnpm conformance:consumer` packed that checkout and passed install, hooks
+  and autopilot against the same artifact on macOS. Hook coverage included
+  Claude, Codex and both; autopilot covered Claude and Codex. The install
+  suite observed a 1,325 ms p50, not a cross-platform performance guarantee.
+- These isolated consumer fixtures make no paid model calls. They establish
+  packaged contracts, not live provider permission enforcement.
+
+Logs: `/private/tmp/release-readiness-corrected-verify.log` and
+`/private/tmp/release-consumer-f2d3be5b.log`. Earlier failed logs remain failed;
+this result follows the documented root-cause corrections, not a blind retry.
+
+Native independent reviewers covered the cumulative production/documentation
+diff and evaluation tests, including the cost correction. Their scoped reviews
+are not one fresh-context whole-union certification. The previously closed
+degraded mission remains degraded; it has not been recreated to override its
+runtime-attestation limits.
+
+## Pre-flight disposition
+
+1. Typecheck: passed in the full candidate run.
+2. Tests: passed after the last code change, plus packed consumer conformance.
+3. Lint: passed with the diagnostics above.
+4. Coverage: the earlier measurement remains below the installed strict default;
+   no new coverage measurement or doctrine exception is claimed. Behavioral
+   regression evidence and consumer conformance are recorded independently.
+5. Hooks: passed on the correction commits; the documentation commit must pass
+   its own hooks and affected verification gates.
+6. Mobile/desktop screenshots: not applicable to this release-readiness delta;
+   no rendered UI changed. CLI consumer flows were exercised instead.
+7. Observability: no new side-effecting production path in the correction; the
+   pure report now preserves unknown costs rather than understating them.
+8. Security: independent cumulative boundary review found no additional live
+   defect; the unused lease advisory remains explicitly pending. Remote branch
+   protections were read, not altered. No full administrative audit is claimed.
+9. Documentation: runbook separates consumer release from paid activation;
+   this report owns integration and failure adjudication evidence.
+10. Commits: correction commits include conventional subjects, rationale and
+    AI co-author trailers; versions and lockfiles were not hand-edited.
+11. Review: scoped native review evidence will accompany the draft PR; pending
+    disposition and runtime-isolation limitations prohibit a blanket approval.
+12. Scope: existing evaluation plan/spec links remain in `docs/EVAL-RUNBOOK.md`;
+    this report covers the explicit consumer-readiness request, not a new
+    provider-backed work-unit selection or an approved paid campaign.
+
+Ubuntu and Windows consumer results must come from this candidate's new CI,
+not the old merged PR. Promotion to main, the release-please merge and checks
+of the published npm artifact remain human-gated release work.
