@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readdir, readFile, realpath, symlink, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readdir, readFile, readlink, realpath, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
@@ -115,6 +115,59 @@ describe('durable pilot archive', () => {
       expect(effects).toBe(0);
       expect(await readdir(budget.authorityRoot)).toEqual([]);
     });
+
+  it.each(['missing', 'file', 'symlink'] as const)(
+    'refuses a %s authority root before creating a journal', async (kind) => {
+      const options = await input(true);
+      if (options.budget === undefined) throw new Error('missing budget fixture');
+      const parent = options.budget.authorityRoot;
+      const candidate = join(parent, 'candidate');
+      if (kind === 'file') await writeFile(candidate, 'preserve existing file');
+      if (kind === 'symlink') await symlink(parent, candidate);
+      let effects = 0;
+      await expect(runDurableAutonomousValuePilot({ ...options,
+        budget: { ...options.budget, authorityRoot: candidate },
+      }, async () => { effects += 1; return completed(); }))
+        .rejects.toThrow(kind === 'missing' ? 'ENOENT' : 'canonical and preexisting');
+      expect(effects).toBe(0);
+      expect(await readdir(parent)).toEqual(kind === 'missing' ? [] : ['candidate']);
+      if (kind === 'file') expect(await readFile(candidate, 'utf8')).toBe('preserve existing file');
+      if (kind === 'symlink') expect(await readlink(candidate)).toBe(parent);
+    });
+
+  it.each(['file', 'symlink'] as const)(
+    'preserves a %s occupying the approval archive and refuses all effects', async (kind) => {
+      const options = await input(true);
+      if (options.budget === undefined) throw new Error('missing budget fixture');
+      const root = options.budget.authorityRoot;
+      const target = join(root, 'target');
+      if (kind === 'file') await writeFile(options.archiveDirectory, 'preserve existing file');
+      else { await mkdir(target); await symlink(target, options.archiveDirectory); }
+      const entries = await readdir(root);
+      let effects = 0;
+      await expect(runDurableAutonomousValuePilot(options, async () => {
+        effects += 1; return completed();
+      })).rejects.toThrow('budget authority is not a directory');
+      expect(effects).toBe(0);
+      expect(await readdir(root)).toEqual(entries);
+      if (kind === 'file') expect(await readFile(options.archiveDirectory, 'utf8')).toBe('preserve existing file');
+      else {
+        expect((await lstat(options.archiveDirectory)).isSymbolicLink()).toBe(true);
+        expect(await readlink(options.archiveDirectory)).toBe(target);
+        expect(await readdir(target)).toEqual([]);
+      }
+    });
+
+  it('refuses an invalid manifest before creating budget authority', async () => {
+    const options = await input(true);
+    if (options.budget === undefined) throw new Error('missing budget fixture');
+    let effects = 0;
+    await expect(runDurableAutonomousValuePilot({ ...options,
+      manifest: { ...options.manifest, campaignId: '' },
+    }, async () => { effects += 1; return completed(); })).rejects.toThrow('invalid manifest identity');
+    expect(effects).toBe(0);
+    expect(await readdir(options.budget.authorityRoot)).toEqual([]);
+  });
 
   it.each([
     { durationMs: false }, { costUsd: { kind: 'known', value: -1 } },

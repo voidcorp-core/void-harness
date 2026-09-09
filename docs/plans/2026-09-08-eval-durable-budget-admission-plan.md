@@ -164,9 +164,11 @@ lint cibles passent. Le rapport de couverture ci-dessus porte le diagnostic des
 deux attentes de test corrigees et les limites restantes. La voie Claude a outils
 restreints existe deja et ses contrats locaux sont verifies; leur enforcement
 reel n'est pas atteste. Aucun nouvel environnement n'est demande a Folpe et aucun
-appel payant n'a ete lance. Le travail suivant porte sur les refus de chemins
-d'autorite et d'identite de manifeste encore non testes, puis une sonde runtime
-autorisee distincte; pas sur la fabrication d'un score de couverture de 100%.
+appel payant n'a ete lance. Le suivi suivant du 2026-09-09 ferme les refus de
+chemins d'autorite et d'identite de manifeste avec six cas supplementaires :
+155 tests autonomous-value passent, ainsi que typecheck et lint cible. Aucun
+changement de production. Les preuves locales nommees sont completees; une
+sonde runtime autorisee reste distincte, pas remplacee par un score de 100%.
 
 ## Plan self-review
 

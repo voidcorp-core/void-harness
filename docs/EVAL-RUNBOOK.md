@@ -596,6 +596,13 @@ also verify the existing restricted Claude invocation contract, not live tool
 enforcement. The earlier coverage percentages are not a fresh measurement of
 these tests, and 100% alone would not establish the separate runtime guarantees.
 
+The subsequent authority-path increment closes six further cases in the same
+journal suite: missing/noncanonical roots, occupied or symlinked authority
+archives, and invalid manifest identity. All refuse before effects and preserve
+existing files. The autonomous-value suite passes 155 tests in 14 files, with
+typecheck and targeted lint green; the report above records the exact command
+and log. These are characterization proofs with no production or runtime change.
+
 - supply verified provider cap enforcement and a validated assessor to the
   runtime composition, attest the installed artifact/runtime, and validate the
   canary's actual environment and cleanup; local fake runs do not prove this;

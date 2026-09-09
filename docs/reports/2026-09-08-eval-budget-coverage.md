@@ -168,3 +168,34 @@ logging and changed security boundaries because none changed. No new production
 build, full-suite release proof, coverage measurement or PR publication is
 claimed; the earlier full-suite proof remains bound to `d6aeef47`. The plan and
 runbook are updated alongside the tests.
+
+## Authority-path follow-up, 2026-09-09
+
+Six additional characterization cases close the authority-path and invalid
+manifest gaps named above, in the existing `durable.test.ts` suite:
+
+- a missing root is not created automatically;
+- a file or symlink cannot serve as the canonical authority root;
+- a file or symlink occupying the approval-derived archive is refused, not
+  overwritten or followed; the symlink target stays empty;
+- an invalid manifest is refused before creating budget authority.
+
+Each case observes zero execution callbacks and unchanged preexisting filesystem
+content. Real temporary files and symlinks exercise the production journal;
+there are no permission-bit tests whose result depends on running as root,
+business mocks, coverage exclusions or production changes.
+
+`pnpm exec vitest run apps/eval-harness/src/autonomous-value` passes 155 tests
+across 14 files, no skips, on the test increment based on `e30488ee`.
+Log: `/private/tmp/eval-authority-paths-2026-09-09.log`.
+`pnpm --filter @voidcorp/eval-harness typecheck`, targeted Biome check and
+`git diff --check` also pass. No failed attempt preceded this result.
+Independent native review `refusal_test_review` inspected this increment and its
+completed test log: pass, no findings or duplicate proof ownership identified.
+
+This closes the two named local test gaps, not every possible storage failure
+or a live-runtime certificate. Existing concurrency and sync-failure tests still
+own those responsibilities. Hostile modification by the trusted archive owner,
+physical power loss and provider/tool enforcement remain outside these proofs.
+The earlier coverage values and full-suite evidence are not reissued for this
+increment. No new runtime, paid call, publication or merge is authorized.
