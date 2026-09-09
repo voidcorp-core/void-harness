@@ -41,7 +41,7 @@ file you edited is preserved, and a rollback restores the previous bytes.
 What the doctrine covers: test-first discipline, hexagonal and DDD boundaries,
 TypeScript strictness, security review, migration safety, frontend craft. Hooks
 enforce the parts a machine can check, such as TDD ordering, no edits to
-secrets or lockfiles, no forbidden cross-package imports.
+secrets or manual edits to lockfiles, no forbidden cross-package imports.
 
 Stack packs add conventions for what you actually use:
 

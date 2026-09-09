@@ -43,20 +43,6 @@ git merge-base "${BASE}" HEAD >/dev/null 2>&1 \
 
 FAIL=0
 
-# A lockfile change is legitimate ONLY when a package manifest changed in the same
-# diff — the signature of a real `pnpm add` / dependency update, which a reviewer
-# sees in package.json. A lockfile changed ALONE (no manifest) is the hand-edit /
-# tamper case the floor exists to block. Detect the manifest presence once, up
-# front, so the per-file loop can allow a lockfile only when one is present.
-# (The local PreToolUse hook still blocks a direct Edit/Write to a lockfile;
-# `pnpm add` runs via Bash, so the manifest+lockfile pair is how deps legitimately
-# land.) A `git diff` failure here fails CLOSED (manifest treated as absent).
-MANIFEST_CHANGED=0
-if git diff --name-only "${BASE}"...HEAD 2>/dev/null \
-  | grep -qiE '(^|/)(package\.json|cargo\.toml|pyproject\.toml|go\.mod|gemfile|composer\.json|pubspec\.yaml)$'; then
-  MANIFEST_CHANGED=1
-fi
-
 # Committed, reviewable exemptions: `.github/void-enforce-allow` lists path globs
 # (one per line, # comments) skipped entirely. This is the Action equivalent of
 # the local VOID_HARNESS_ALLOW_SECRET_EDIT override — e.g. a file legitimately
@@ -87,7 +73,7 @@ esc_prop() { printf '%s' "$1" | sed -e 's/%/%25/g' -e 's/:/%3A/g' -e 's/,/%2C/g'
 
 annotate() { # <level> <file> <line> <message>
   printf '::%s file=%s,line=%s::%s\n' "$1" "$(esc_prop "$2")" "$3" "$(esc_msg "$4")"
-  FAIL=1
+  if [[ "$1" == error ]]; then FAIL=1; fi
 }
 
 # Added lines of <file> in base...HEAD as `<new-line-number>\t<text>`, one per
@@ -134,15 +120,15 @@ while IFS= read -r -d '' status; do
 
   # 1) Never-edit file (path only): lockfile / key / secret filename / .git.
   if protected=$("$NODE_BIN" "$RUNNER" enforce-ci protected-file "$path" </dev/null 2>&1); then :; else
-    # A lockfile is allowed when a manifest changed in the same diff (legitimate
-    # dependency op, reviewer-visible in the manifest). Alone, it stays blocked.
-    if [[ "$protected" == *lockfile* && "$MANIFEST_CHANGED" -eq 1 ]]; then
-      printf 'void-enforce: %s allowed (lockfile change accompanied by a package manifest change)\n' "$path"
+    # A committed diff cannot prove whether the package manager generated it.
+    # Dependency refreshes may leave manifests unchanged; keep content scanning.
+    if [[ "$protected" == *": lockfile (regenerate via the package manager, do not hand-edit)" ]]; then
+      annotate warning "$path" 1 "lockfile diff requires dependency validation: frozen install, vulnerability audit, tests and review; generation is not verified by this check"
+    else
+      protected_reason="${protected##*: }"
+      annotate error "$path" 1 "protected file: ${protected_reason//$'\n'/ }"
       continue
     fi
-    protected_reason="${protected##*: }"
-    annotate error "$path" 1 "protected file: ${protected_reason//$'\n'/ }"
-    continue    # no point content-scanning a file that must not be edited at all
   fi
 
   # 2+3) Content checks over the ADDED lines, with real line numbers.

@@ -37,7 +37,7 @@ checks_sensitive_path() {
   if [[ ! "$base" =~ \.md$ ]] && [[ "$base" =~ (secret|credential) ]]; then
     printf 'credential file\n'; return 1; fi
   case "$base" in
-    package-lock.json|pnpm-lock.yaml|yarn.lock|bun.lockb|cargo.lock|poetry.lock|composer.lock)
+    package-lock.json|pnpm-lock.yaml|yarn.lock|bun.lock|bun.lockb|cargo.lock|poetry.lock|composer.lock)
       printf 'lockfile (regenerate via the package manager, do not hand-edit)\n'; return 1 ;;
   esac
   [[ "$lpath" =~ (^|/)\.git/ ]] && { printf 'internal git metadata\n'; return 1; }

@@ -22,7 +22,8 @@ export function sessionStartOutput(
 ): SessionStartOutput {
   const installed = version.trim() === '' ? 'unknown' : version.trim();
   const base =
-    `void-harness ${installed} is active. Non-negotiable floor: never edit secrets, keys or lockfiles; ` +
+    `void-harness ${installed} is active. Non-negotiable floor: never edit secrets or keys; ` +
+    'never hand-edit lockfiles; regenerate them via the package manager for requested dependency changes; ' +
     'never run destructive shell commands; tests and fresh evidence gate "done". ' +
     'Capture durable project rules explicitly. Run `void-harness doctor` if runtime health is uncertain.';
   const suffix = notice === undefined || notice.trim() === '' ? '' : ` ${notice.trim()}`;
