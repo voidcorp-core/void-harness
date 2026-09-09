@@ -585,6 +585,17 @@ the strict 100% gate remains unmet. No exclusion or threshold waiver was added.
 The report also confirms the Codex parent-permission limitation against official
 documentation; this session cannot attest a per-agent enforced read-only surface.
 
+Behavioral follow-up on 2026-09-09 adds 17 refusal/recovery cases without changing
+production code or doctrine. The existing suites now prove malformed recovered
+metrics retain their reservation without scoring or replay, invalid identities
+refuse before effects, and missing condition skills stop execution while keeping
+the report's unexecuted slots explicit. 210 targeted tests pass (149 evaluation,
+61 runtime/compiler/controller), with typecheck and targeted lint green. See the
+same report for commands, failed-test diagnoses and remaining gaps. These tests
+also verify the existing restricted Claude invocation contract, not live tool
+enforcement. The earlier coverage percentages are not a fresh measurement of
+these tests, and 100% alone would not establish the separate runtime guarantees.
+
 - supply verified provider cap enforcement and a validated assessor to the
   runtime composition, attest the installed artifact/runtime, and validate the
   canary's actual environment and cleanup; local fake runs do not prove this;

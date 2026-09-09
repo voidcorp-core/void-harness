@@ -86,6 +86,74 @@ describe('durable pilot archive', () => {
       .rejects.toThrow('identity');
   });
 
+  it.each([
+    { configurationKey: '' }, { configurationKey: 'x'.repeat(513) },
+    { adapterIdentity: 'unverified' },
+  ])('refuses invalid archive identity %j before creating authority', async (change) => {
+    const options = await input(true);
+    if (options.budget === undefined) throw new Error('missing budget fixture');
+    let effects = 0;
+    await expect(runDurableAutonomousValuePilot({ ...options, ...change }, async () => {
+      effects += 1; return completed();
+    })).rejects.toThrow('identity');
+    expect(effects).toBe(0);
+    expect(await readdir(options.budget.authorityRoot)).toEqual([]);
+  });
+
+  it.each(['approval', 'policy', 'reservations'] as const)(
+    'refuses invalid budget %s before creating authority', async (kind) => {
+      const options = await input(true);
+      if (options.budget === undefined) throw new Error('missing budget fixture');
+      const budget = { ...options.budget,
+        approval: kind === 'approval' ? {} : options.budget.approval,
+        policyKey: kind === 'policy' ? '' : options.budget.policyKey,
+        reservations: kind === 'reservations' ? [] : options.budget.reservations };
+      let effects = 0;
+      await expect(runDurableAutonomousValuePilot({ ...options, budget }, async () => {
+        effects += 1; return completed();
+      })).rejects.toThrow('invalid budget');
+      expect(effects).toBe(0);
+      expect(await readdir(budget.authorityRoot)).toEqual([]);
+    });
+
+  it.each([
+    { durationMs: false }, { costUsd: { kind: 'known', value: -1 } },
+    { costUsd: { kind: 'known', value: '0' } },
+    { costUsd: { kind: 'unknown', reason: '' } },
+    { costUsd: { kind: 'unknown', reason: '   ' } },
+  ])('never scores or replays a recovered result with invalid metrics %j', async (change) => {
+    const options = await input(true, 1);
+    await runDurableAutonomousValuePilot(options, async () => completed());
+    const path = join(options.archiveDirectory, 'autopilot-agent-alone-pilot-1.json');
+    const saved: unknown = JSON.parse(await readFile(path, 'utf8'));
+    if (!(saved instanceof Object) || Array.isArray(saved)) throw new Error('missing record fixture');
+    await writeFile(path, JSON.stringify({ ...saved, result: { ...completed(), ...change } }));
+    let effects = 0;
+    const resumed = await runDurableAutonomousValuePilot(options, async () => {
+      effects += 1; return completed();
+    });
+    expect(resumed.report.valid).toBe(false);
+    expect(resumed.observations[0]?.result).toMatchObject({ status: 'unknown' });
+    expect(effects).toBe(0);
+    expect(JSON.parse(await readFile(path, 'utf8'))).toMatchObject({ reservationMicroUsd: 1000000 });
+  });
+
+  it('rejects an unrecognized archive state without erasing its reservation', async () => {
+    const options = await input(true, 1);
+    await runDurableAutonomousValuePilot(options, async () => completed());
+    const path = join(options.archiveDirectory, 'autopilot-agent-alone-pilot-1.json');
+    const saved: unknown = JSON.parse(await readFile(path, 'utf8'));
+    if (!(saved instanceof Object) || Array.isArray(saved)) throw new Error('missing record fixture');
+    const corrupted = JSON.stringify({ ...saved, state: 'refunded' });
+    await writeFile(path, corrupted);
+    let effects = 0;
+    await expect(runDurableAutonomousValuePilot(options, async () => {
+      effects += 1; return completed();
+    })).rejects.toThrow('invalid archive state');
+    expect(effects).toBe(0);
+    expect(await readFile(path, 'utf8')).toBe(corrupted);
+  });
+
   it.each([false, true])('refuses overlapping launches while the first effect is pending (budget=%s)', async (budgeted) => {
     const options = await input(budgeted);
     const admitted = deferred();

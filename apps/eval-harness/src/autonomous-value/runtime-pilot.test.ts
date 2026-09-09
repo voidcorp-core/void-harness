@@ -141,6 +141,57 @@ describe('durable runtime composition', () => {
     expect(existsSync(input.archiveDirectory)).toBe(false);
   });
 
+  it.each([{ artifactDigest: 'unverified' }, { reviewerKey: '' },
+    { reviewerKey: 'x'.repeat(513) }])('refuses invalid runtime identity %j before loading tasks', async (change) => {
+    const { input, adapter, workspaces } = await scenario();
+    let loaded = false;
+    await expect(runDurableRuntimePilot({ ...input, ...change, loadTask: (request) => {
+      loaded = true; return input.loadTask(request);
+    } }, adapter)).rejects.toThrow('invalid runtime adapter identity');
+    expect(loaded).toBe(false);
+    expect(workspaces).toHaveLength(0);
+    expect(existsSync(input.archiveDirectory)).toBe(false);
+  });
+
+  it('refuses duplicate reservations before loading tasks or creating authority', async () => {
+    const { input, adapter, workspaces } = await scenario();
+    if (input.budget === undefined) throw new Error('missing fixture budget');
+    const first = input.budget.reservations[0];
+    if (first === undefined) throw new Error('missing fixture reservation');
+    let loaded = false;
+    await expect(runDurableRuntimePilot({ ...input,
+      budget: { ...input.budget, reservations: input.budget.reservations.map(() => first) },
+      loadTask: (request) => { loaded = true; return input.loadTask(request); },
+    }, adapter)).rejects.toThrow('invalid runtime reservation plan');
+    expect(loaded).toBe(false);
+    expect(workspaces).toHaveLength(0);
+    expect(existsSync(input.archiveDirectory)).toBe(false);
+  });
+
+  it('blocks missing condition skills without executing those cells or refunding their reservations', async () => {
+    const { input, adapter, workspaces } = await scenario();
+    const options = { ...input, loadTask: (request: Parameters<RuntimePilotInput['loadTask']>[0]) => ({
+      ...input.loadTask(request), skillBody: undefined,
+    }) };
+    const result = await runDurableRuntimePilot(options, adapter);
+    expect(result.report.valid).toBe(false);
+    const schedule = createPilotSchedule(input.manifest);
+    const stoppedAt = schedule.findIndex((execution) => input.manifest.cells[execution.cellId].condition !== 'agent-alone');
+    expect(stoppedAt).toBe(3);
+    expect(result.observations).toHaveLength(27);
+    expect(result.observations.slice(stoppedAt + 1).every((observation) => observation.result?.status === 'unknown')).toBe(true);
+    for (const execution of schedule.slice(0, stoppedAt + 1)) {
+      const record: unknown = JSON.parse(readFileSync(join(input.archiveDirectory, `${execution.executionId}.json`), 'utf8'));
+      expect(record).toMatchObject({ state: 'observed', reservationMicroUsd: 1000000,
+        result: { status: input.manifest.cells[execution.cellId].condition === 'agent-alone' ? 'completed' : 'blocked' } });
+    }
+    for (const execution of schedule.slice(stoppedAt + 1)) {
+      expect(existsSync(join(input.archiveDirectory, `${execution.executionId}.json`))).toBe(false);
+    }
+    await runDurableRuntimePilot(options, adapter);
+    expect(workspaces).toHaveLength(stoppedAt);
+  });
+
   it('refuses absent or incompatible authority before reserving or executing', async () => {
     const { input, adapter, workspaces } = await scenario();
     if (input.budget === undefined) throw new Error('missing fixture budget');

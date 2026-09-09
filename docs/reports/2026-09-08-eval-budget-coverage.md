@@ -98,3 +98,73 @@ TypeScript files. No new mission was opened to bypass the closed verdict.
 Next: cover the reachable refusal paths, explicitly dispose of defensive
 unreachable branches, and obtain an enforceable review environment. No paid
 provider, canary, production activation, publication or merge is authorized here.
+
+## Behavioral follow-up, 2026-09-09
+
+The next increment adds 17 cases to the existing durable/runtime test owners;
+production code, dependencies, coverage exclusions and doctrine are unchanged.
+These are characterization tests, not a newly claimed production RED/GREEN cycle.
+The user challenged treating 100% as a universal release requirement. This work
+uses the measurement to locate consequential gaps, not to remove defensive code
+or manufacture execution of unreachable branches. The installed strict skill's
+default is unchanged; this report does not silently grant a doctrine exception.
+
+New observable proofs:
+
+- invalid configuration, adapter, approval, policy and reservation identities
+  refuse before authority creation or effects;
+- malformed recovered duration/cost metrics never become a score, never replay
+  the recorded execution and retain its reservation;
+- an unknown archive state refuses without replacing the corrupted record;
+- invalid runtime identities and duplicate reservations refuse before task
+  loading, authority creation or execution;
+- a missing condition skill stops at the first blocked cell: three preceding
+  agent-alone cells execute, the blocked reservation stays consumed, later cells
+  have no archive, and resuming executes nothing new. The report still has all
+  27 slots, with synthetic unknown observations after the stop.
+
+Verification: 210 tests pass across 20 files (149 autonomous-value tests and 61
+runtime/compiler/controller tests), no skips; eval-harness typecheck, targeted
+Biome check and `git diff --check` pass. The test log is
+`/private/tmp/eval-refusals-2026-09-09-verified.log`. Command:
+
+```sh
+pnpm exec vitest run apps/eval-harness/src/autonomous-value \
+  packages/cli/src/lib/specialists/compile-claude.test.ts \
+  packages/cli/src/lib/specialists/compile-codex.test.ts \
+  apps/eval-harness/src/runtime/claude.test.ts \
+  apps/eval-harness/src/runtime/codex.test.ts \
+  packages/cli/src/lib/runtime-adapters.test.ts \
+  packages/mission-engine/src/orchestration/controller.test.ts
+```
+
+Two preceding runs each failed one new test because its expectations confused
+stopping execution with completing the schedule, then persisted records with
+synthetic report slots. The test was corrected against `consumer.ts`; production
+was not changed. Failed logs remain `eval-refusals-2026-09-09.log` and
+`eval-refusals-2026-09-09-final.log` under `/private/tmp/`. This is not a retry
+that turned unchanged failing assertions green. Coverage was not remeasured;
+the percentages above describe the earlier 47-test instrument only.
+
+The isolation investigation found an existing restricted Claude route:
+`compile-claude.ts` emits a Read/Grep/Glob allowlist, and the eval runtime adapter
+builds an invocation with explicit tools and noninteractive permission policy.
+The passing local tests prove those emitted contracts and honest degradation,
+not their enforcement by a live model process. No new wrapper or user-provisioned
+environment is required to test these existing contracts. Live enforcement still
+needs a separately authorized runtime probe; no paid process was started here.
+The closed Codex mission remains degraded, and no runtime marker was changed.
+
+Remaining gaps include canonical authority-path refusals and invalid manifest
+identity. This increment does not claim exhaustive refusal coverage. Provider
+cap enforcement, independent quality assessment and live tool enforcement remain
+distinct from these local tests and from an arbitrary coverage percentage.
+
+Review: native `refusal_test_review` inspected the test diff independently and
+the final test log, then returned pass with no remaining findings. Its earlier
+observation-count finding is resolved. This is a scoped WIP test-quality review,
+not a new controller certification. Verification scope excludes UI, new business
+logging and changed security boundaries because none changed. No new production
+build, full-suite release proof, coverage measurement or PR publication is
+claimed; the earlier full-suite proof remains bound to `d6aeef47`. The plan and
+runbook are updated alongside the tests.

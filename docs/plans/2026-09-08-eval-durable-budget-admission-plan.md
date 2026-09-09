@@ -157,6 +157,17 @@ Ne pas recreer une mission pour
 contourner ces limites. Le prochain travail necessite de disposer ces limites
 de preuve; le plafonnement fournisseur et un canary restent des gates separes.
 
+Suivi du 2026-09-09 : 17 cas de refus/reprise ajoutes aux suites existantes,
+sans changement de production ni de doctrine. 210 tests cibles passent, dont
+149 autonomous-value et 61 contrats runtime/compilateurs/controleur; typecheck et
+lint cibles passent. Le rapport de couverture ci-dessus porte le diagnostic des
+deux attentes de test corrigees et les limites restantes. La voie Claude a outils
+restreints existe deja et ses contrats locaux sont verifies; leur enforcement
+reel n'est pas atteste. Aucun nouvel environnement n'est demande a Folpe et aucun
+appel payant n'a ete lance. Le travail suivant porte sur les refus de chemins
+d'autorite et d'identite de manifeste encore non testes, puis une sonde runtime
+autorisee distincte; pas sur la fabrication d'un score de couverture de 100%.
+
 ## Plan self-review
 
 Chaque tranche nomme fichiers, contrat, mode TDD, tests observables et dependencies.
