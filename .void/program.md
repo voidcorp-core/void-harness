@@ -7,13 +7,13 @@ spec: docs/specs/2026-08-31-autonomous-until-develop.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
-  order: [DEV-831, DEV-832, DEV-822, DEV-395, DEV-833]
+  order: [DEV-835, DEV-836, DEV-837, DEV-838, DEV-839, DEV-840]
   states:
     ready: [Backlog, Todo]
     started: [In Progress]
     review: [In Review]
     done: [Done, Canceled]
-humanGates: [DEV-833]
+humanGates: [DEV-838, DEV-840]
 autopilot:
   schemaVersion: 1
   clusterSize: 4
@@ -71,6 +71,12 @@ existing layers have already earned their cost.
 This file is the stable global context for the executing program. It deliberately names neither a
 current nor a next work unit. The provider declared under `progress` owns claims, dependencies,
 review state and the remote resume trail; this file only locates that state.
+
+On 2026-09-07, the approved DEV-833 protocol and plan were decomposed into the
+provider-native child units DEV-835 through DEV-840. The parent remains the
+discussion umbrella; the ordered children now own execution state and the two
+declared human checkpoints are DEV-838 (pilot freeze) and DEV-840 (final
+decision). The execution handoff in the plan is the durable mapping.
 
 The pointer moved on 2026-08-31 to the programme now in flight: `autopilot 6h` runs to the end
 with nobody present, and the only human gate is the promotion to the branch that deploys.

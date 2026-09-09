@@ -39,6 +39,20 @@ describe('contained conformance process', () => {
     expect(Buffer.byteLength(result.stdout)).toBeLessThanOrEqual(32);
   });
 
+  it('can discard verbose stderr without consuming the stdout budget', async () => {
+    const result = await runConformanceProcess({
+      command: process.execPath,
+      args: ['-e', "process.stderr.write('x'.repeat(1024 * 1024)); process.stdout.write('ok')"],
+      cwd: process.cwd(),
+      maxOutputBytes: 32,
+      captureStderr: false,
+    });
+
+    expect(result.outcome.kind).toBe('exited');
+    expect(result.stdout).toBe('ok');
+    expect(result.stderr).toBe('');
+  });
+
   it('returns timed-out after terminating a process that does not exit', async () => {
     const result = await runConformanceProcess({
       command: process.execPath,

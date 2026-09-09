@@ -5,7 +5,7 @@
   "description": "void-harness graph studio — interactive 3D view of the skill/agent/hook/pack/workflow graph (renders harness-graph model.json). Repo-internal, not published.",
   "type": "module",
   "scripts": {
-    "prepare-data": "tsx scripts/prepare-data.ts",
+    "prepare-data": "node --import tsx scripts/prepare-data.ts",
     "predev": "pnpm run prepare-data",
     "dev": "vite",
     "prebuild": "pnpm run prepare-data",

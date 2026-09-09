@@ -138,6 +138,7 @@ function siblingFor(path: string): string {
 export function tddOrder(input: TddOrderInput): RuleVerdict {
   const warnings: string[] = [];
   for (const edit of input.edits) {
+    if (edit.operation === 'delete' && edit.addedContent === '') continue;
     const path = edit.path.replaceAll('\\', '/');
     if (bypass(path, input.spikeGlobs) || !matches(path, input.businessGlobs)) continue;
     if (carriesNoBehaviour(input.existingHeaders[path] ?? '', edit.addedContent)) continue;

@@ -39,8 +39,8 @@
   "scripts": {
     "build": "tsup",
     "build:assets": "node scripts/copy-core-assets.mjs",
-    "build:void-graph": "tsx scripts/build-void-graph.ts",
-    "build:certification": "tsx scripts/build-certification.ts",
+    "build:void-graph": "node --import tsx scripts/build-void-graph.ts",
+    "build:certification": "node --import tsx scripts/build-certification.ts",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",

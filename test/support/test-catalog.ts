@@ -71,6 +71,18 @@ const GROUP_ORDER: Readonly<Record<ResourceClass, number>> = {
   'external-state': 4,
 };
 
+function workerBudget(tier: ProofTier, resource: ResourceClass): number {
+  if (resource !== 'subprocess') return WORKERS[resource];
+  return tier === 'contract' ? 2 : 1;
+}
+
+function groupOrder(tier: ProofTier, resource: ResourceClass): number {
+  if (resource !== 'subprocess') return GROUP_ORDER[resource];
+  if (tier === 'contract') return GROUP_ORDER[resource];
+  if (tier === 'consumer') return GROUP_ORDER[resource] + 1;
+  return GROUP_ORDER[resource] + 2;
+}
+
 function normalized(path: string): string {
   return path.split(sep).join('/');
 }
@@ -202,14 +214,17 @@ export function createVitestProjects(
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([name, entries]) => {
       const resource = entries[0]?.resource;
-      if (resource === undefined) throw new Error('TEST_CLASSIFICATION_INTERNAL');
+      const tier = entries[0]?.tier;
+      if (resource === undefined || tier === undefined) {
+        throw new Error('TEST_CLASSIFICATION_INTERNAL');
+      }
       return {
         extends: true,
         test: {
           name,
           include: entries.map((entry) => entry.path),
-          maxWorkers: WORKERS[resource],
-          sequence: { groupOrder: GROUP_ORDER[resource] },
+          maxWorkers: workerBudget(tier, resource),
+          sequence: { groupOrder: groupOrder(tier, resource) },
         },
       };
     });

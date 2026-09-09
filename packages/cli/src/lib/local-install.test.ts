@@ -277,7 +277,7 @@ describe('a first install onto a project that already has skills', () => {
 
   it('names what it did not install, so nobody wonders where it went', async () => {
     const root = scratch('void-project-');
-    const prepared = await withExistingSkill(root, scratch('void-stage-'));
+    await withExistingSkill(root, scratch('void-stage-'));
 
     expect(withheld).toEqual(['.claude/skills/frontend-design/SKILL.md']);
   });

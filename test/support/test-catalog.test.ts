@@ -68,6 +68,15 @@ describe('test proof catalogue', () => {
     expect(
       projects.find((project) => project.test.name === 'system:subprocess')?.test.maxWorkers,
     ).toBe(1);
+    expect(
+      projects.find((project) => project.test.name === 'contract:subprocess')?.test.maxWorkers,
+    ).toBe(2);
+    expect(
+      projects.find((project) => project.test.name === 'contract:subprocess')?.test.sequence?.groupOrder,
+    ).toBeLessThan(
+      projects.find((project) => project.test.name === 'system:subprocess')?.test.sequence?.groupOrder
+        ?? Number.POSITIVE_INFINITY,
+    );
     const workersByGroup = new Map<number, number>();
     for (const project of projects) {
       const workers = project.test.maxWorkers;

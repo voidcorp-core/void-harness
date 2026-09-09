@@ -29,6 +29,14 @@ The three daily commands are deliberately few:
 - `pnpm test:component` when filesystem or subprocess behavior changed.
 - `pnpm verify` once before handoff or push; it runs every required gate in the same order as CI.
 
+Agent campaigns are a separate measurement lane. A campaign cell runs only
+targeted checks for its fixture; it must not invoke `pnpm verify`, certification
+stress, or network checks as an inner loop. The campaign scheduler uses bounded
+parallelism and persists each cell result as it completes. A failed or
+unavailable runtime stops admission when configured and leaves the remaining
+cells as `unknown`; it never turns an incomplete campaign into a green report.
+The release lane still runs `pnpm verify` once on the integrated result.
+
 `scripts/verify.mjs` is the only gate catalogue. The managed block in
 `.github/workflows/ci.yml` is generated from it, and every CI gate writes one report bound to the
 checked-out SHA and exact argv. The final step rejects a missing, duplicate, stale or red report.
@@ -58,7 +66,10 @@ does not erase the earlier red evidence.
   answers what a test proves; resource class controls how it is scheduled. `pnpm test:fast` is the
   CPU-only edit loop, `pnpm test:component` owns filesystem and subprocess checks, and
   `pnpm test:network` is explicit because it needs loopback sockets. Use the tier commands when the
-  semantic boundary matters. Loading Vitest fails if a test path has no tier or more than one.
+  semantic boundary matters. Contract subprocess tests use two bounded workers; consumer and
+  system subprocess tests stay sequential in separate groups. Loading Vitest fails if a test path
+  has no tier or more than one. Any increase to a worker budget requires the complete stress proof,
+  not a retry-until-green run.
 - `pnpm lint` and `pnpm typecheck` — zero errors.
 - `pnpm anti-bloat:check` — the eight anti-bloat rules (skill ≤400 LOC, hook ≤100 LOC, discovery description non-blocking target ≤250 chars and hard cap 500, `.source` + audit note per skill, ...).
 - `pnpm graph:check` / `pnpm graph:check-bundle` — regenerate `catalog.v3.json`, its `model.json` compatibility projection, and the bundle when graph inputs change.

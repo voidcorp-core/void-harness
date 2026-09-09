@@ -1,4 +1,4 @@
-import { governingSkill, RULE_NAMES, withGoverningSkill } from './enforcement/governing-skill.js';
+import { RULE_NAMES, withGoverningSkill } from './enforcement/governing-skill.js';
 import {
   discoverProjectRoot,
   evaluateRule,
