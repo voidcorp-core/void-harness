@@ -8,6 +8,9 @@ describe('protectedFile', () => {
     'certs/server.pem',
     '/home/u/.ssh/id_rsa',
     'pnpm-lock.yaml',
+    'bun.lock',
+    'apps/web/BUN.LOCK',
+    'bun.lockb',
     '.git/config',
     'src/Credentials.ts',
   ])('blocks %s', (path) => {

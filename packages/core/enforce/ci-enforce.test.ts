@@ -62,16 +62,6 @@ beforeEach(() => {
 });
 
 describe('ci-enforce — violations become red annotations', () => {
-  it('flags a modified lockfile at file level', () => {
-    write(repo, 'pnpm-lock.yaml', 'lockfileVersion: 9\nchanged: true\n');
-    git(repo, 'add', '-A');
-    git(repo, 'commit', '-q', '-m', 'touch lockfile');
-    const { code, stdout } = run(repo, base);
-    expect(code).not.toBe(0);
-    expect(stdout).toMatch(/::error file=pnpm-lock\.yaml/);
-    expect(stdout).toMatch(/lockfile/);
-  });
-
   it('flags an undeclared @repo import at the added line', () => {
     write(repo, 'packages/foo/package.json', JSON.stringify({ name: '@repo/foo' }) + '\n');
     write(repo, 'packages/foo/src/index.ts', "export const x = 1;\nimport { a } from '@repo/bar';\n");
@@ -167,16 +157,38 @@ describe('ci-enforce — clean diff is green', () => {
     const { code, stdout } = run(repo, base);
     expect(code).toBe(0);
     expect(stdout).not.toMatch(/::error/);
-    expect(stdout).toMatch(/lockfile change accompanied by a package manifest change/);
+    expect(stdout).toMatch(/lockfile diff requires dependency validation/);
   });
 
-  it('still blocks a lockfile changed ALONE, with no manifest (the tamper case)', () => {
-    write(repo, 'pnpm-lock.yaml', 'lockfileVersion: 9\ntampered: true\n');
+  it.each(['pnpm-lock.yaml', 'bun.lock', 'bun.lockb', 'apps/web/bun.lock'])(
+    'allows a dependency refresh of %s without a manifest change', (path) => {
+      write(repo, path, 'generated dependency resolution update\n');
+      git(repo, 'add', '-A');
+      git(repo, 'commit', '-q', '-m', 'refresh dependencies');
+      const { code, stdout } = run(repo, base);
+      expect(code).toBe(0);
+      expect(stdout).not.toMatch(/::error/);
+      expect(stdout).toContain('lockfile diff requires dependency validation');
+    },
+  );
+
+  it('still scans text lockfiles for leaked secrets', () => {
+    write(repo, 'bun.lock', `registry: "${AWS_KEY}"\n`);
     git(repo, 'add', '-A');
-    git(repo, 'commit', '-q', '-m', 'lockfile only');
+    git(repo, 'commit', '-q', '-m', 'leak in lockfile');
     const { code, stdout } = run(repo, base);
-    expect(code).toBe(1);
-    expect(stdout).toMatch(/protected file: lockfile/);
+    expect(code).not.toBe(0);
+    expect(stdout).toMatch(/::error file=bun.lock/);
+  });
+
+  it('keeps credential files protected alongside a dependency refresh', () => {
+    write(repo, 'bun.lock', 'generated dependency resolution update\n');
+    write(repo, '.npmrc', 'registry=https://example.org\n');
+    git(repo, 'add', '-A');
+    git(repo, 'commit', '-q', '-m', 'dependency refresh and credential file');
+    const { code, stdout } = run(repo, base);
+    expect(code).not.toBe(0);
+    expect(stdout).toMatch(/protected file: credential file/);
   });
 
   it('skips a path listed in .github/void-enforce-allow (the committed override) and logs it', () => {
