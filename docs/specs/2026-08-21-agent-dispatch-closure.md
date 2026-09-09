@@ -42,8 +42,10 @@ Cette tranche ferme la boucle sans transformer les hooks en orchestrateur :
   ne les provoquent pas.
 - Un résultat de spécialiste est validé avant d'être journalisé. Un résultat absent, invalide,
   obsolète ou provenant d'un autre spécialiste échoue fermé.
-- Une capacité `unavailable` bloque le dispatch. Une capacité `degraded` autorise les revues mais
-  interdit un verdict `verified`; ses limitations restent dans le verdict.
+- Une capacité `unavailable` bloque le dispatch. Une capacité `degraded` autorise les revues et
+  permet de terminer un ticket dont les preuves métier et techniques sont valides, avec ses
+  limitations conservées dans le verdict du contrôleur. Elle ne prétend pas fournir la garantie
+  manquante ; les releases et routes à haut risque peuvent exiger `available`.
 - Aucune mission synthétique `mis_selfhost_*` ou smoke interne ne compte comme preuve d'usage
   humain dans `graph behavior`.
 - Un événement d'agent étranger au catalogue ne suffit pas à effacer un `telemetry-gap` pour les

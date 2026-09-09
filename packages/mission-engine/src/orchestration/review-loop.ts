@@ -236,7 +236,8 @@ function collectCompletions(
       continue;
     }
     if (!inStageWindow(event)) {
-      if (stageStartSeqExclusive !== undefined) {
+      if (stageStartSeqExclusive !== undefined
+        && (beforeSeqExclusive === undefined || event.seq < beforeSeqExclusive)) {
         historicalHighestRound = Math.max(historicalHighestRound, envelope.reviewRound);
         continue;
       }

@@ -20,6 +20,9 @@ const MAX_GIT_TIMEOUT_MS = 60_000;
 const MAX_FILTER_DRIVERS = 256;
 const MAX_GIT_POINTER_BYTES = 4_096;
 const FILTER_KEY = /^filter\.([A-Za-z0-9][A-Za-z0-9._-]{0,127})\.(?:clean|process)$/;
+// Git for Windows translates Git-style paths itself. Its documented null config
+// path is `/dev/null`; Node's Win32 device spelling (`\\.\nul`) is not a Git path.
+const GIT_NULL_CONFIG = '/dev/null';
 
 export interface ProjectGitCommand {
 	readonly executable: string;
@@ -296,8 +299,8 @@ function gitEnvironment(
 			? [dirname(executable), dirname(process.execPath)]
 			: [dirname(executable), '/usr/bin', '/bin'];
 	return Object.freeze({
-		GIT_CONFIG_GLOBAL: devNull,
-		GIT_CONFIG_SYSTEM: devNull,
+		GIT_CONFIG_GLOBAL: GIT_NULL_CONFIG,
+		GIT_CONFIG_SYSTEM: GIT_NULL_CONFIG,
 		GIT_CONFIG_NOSYSTEM: '1',
 		GIT_COMMON_DIR: repository.commonDirectory.path,
 		GIT_DIR: repository.gitDirectory.path,

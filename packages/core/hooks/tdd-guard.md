@@ -38,6 +38,14 @@ If `.void/config.json` is absent, sensible defaults are used (see hook source).
 9. The test file itself (`*.test.ts`, `*.test.tsx`, `*.spec.ts`, `*.spec.tsx`)
 10. Per-file exploratory marker (`// tdd-mode: exploratory` in the first 5 lines)
 
+## Content bypass: a module that only re-exports
+
+The ten bypasses above are properties of the **path**. One is a property of the **content**: a module whose every top-level statement is a re-export (`export … from`, `export *`, `export {}`) carries no behaviour, so the test one would write for it would assert that an export exists, which the compiler already proves. A comment, a `'use client'` directive and a type-only import do not break the detection; anything else does.
+
+Both the file as it stands and the fragment being written must hold, so a barrel that gains one line of logic is covered again on that same edit. Malformed content (an unterminated string or block comment) is undecidable and stays covered.
+
+Without it the hook blocked a one-line barrel in a consumer where 51 barrels out of 51 have no sibling test by convention, and the edit went out through `sed`, outside the traced tools: the guard did not protect, and it pushed the work out of its own field of vision.
+
 ## Pure-deletion bypass
 
 If the staged diff for the file contains only deletions (no `+` non-marker lines), the hook allows. Pure deletion does not require a new failing test.

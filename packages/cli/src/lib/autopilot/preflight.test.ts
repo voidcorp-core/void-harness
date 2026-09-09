@@ -95,7 +95,45 @@ describe('the provider-agnostic program boundary', () => {
 });
 
 describe('the merge gate', () => {
-  it('accepts only a human gate', () => {
+  // `union-reviewed` is the form the consent to a machine merge takes, decided in
+  // the union-is-read-before-it-merges and autopilot-block-is-the-consent records.
+  // This check told a consumer who declared it that "human" was the only accepted
+  // value, and to set it back -- with the authority of a red doctor, while
+  // `program.ts` accepted it and two machine merges had already landed on develop.
+  // A consumer cannot see the disagreement: the only repository whose doctor would
+  // have shown it is this one, and here doctor runs the self-host gate instead.
+  it('accepts the reviewed-union gate a program may declare', () => {
+    const results = autopilotPreflight(
+      observation({
+        program: {
+          status: 'executing',
+          autopilot: { mergeGate: 'union-reviewed', deployBranch: 'main', base: 'develop' },
+        },
+      }),
+    );
+
+    const check = named(results, 'autopilot merge');
+    expect(check?.ok).toBe(true);
+  });
+
+  // Passing is not enough: a gate that hands merges to a machine must say so, or
+  // the operator reading a green doctor learns nothing about what they enabled.
+  it('says what the reviewed-union gate authorizes, and where the human still stands', () => {
+    const results = autopilotPreflight(
+      observation({
+        program: {
+          status: 'executing',
+          autopilot: { mergeGate: 'union-reviewed', deployBranch: 'main', base: 'develop' },
+        },
+      }),
+    );
+
+    const message = named(results, 'autopilot merge')?.message ?? '';
+    expect(message).toContain('union-reviewed');
+    expect(message).toContain('main');
+  });
+
+  it('rejects a gate no version of the contract has ever had', () => {
     const results = autopilotPreflight(
       observation({
         program: { status: 'executing', autopilot: { mergeGate: 'auto' } },
@@ -104,7 +142,22 @@ describe('the merge gate', () => {
 
     const check = named(results, 'autopilot merge');
     expect(check?.status).toBe('fail');
-    expect(check?.fix).toMatch(/never merges/);
+  });
+
+  // The specific sentence this file exists to make impossible. It was true of an
+  // earlier contract and stayed in the code after the decision moved, which is
+  // why the refusal must name the gates that exist rather than assert a single one.
+  it('never claims one gate is the only value another reader accepts', () => {
+    const results = autopilotPreflight(
+      observation({
+        program: { status: 'executing', autopilot: { mergeGate: 'auto' } },
+      }),
+    );
+
+    const check = named(results, 'autopilot merge');
+    expect(`${check?.message} ${check?.fix}`).not.toMatch(/only accepted value/i);
+    expect(`${check?.message} ${check?.fix}`).not.toMatch(/autopilot never merges/i);
+    expect(check?.fix).toContain('union-reviewed');
   });
 
   it('treats an absent gate as human rather than as a missing value', () => {

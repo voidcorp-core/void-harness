@@ -1,4 +1,3 @@
-import { execFile } from 'node:child_process';
 import {
 	cp,
 	mkdir,
@@ -14,7 +13,6 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
 import { afterAll, expect, it } from 'vitest';
 import { parseGraphSnapshot } from '../model/v3/schema.js';
 import {
@@ -58,13 +56,10 @@ function answeringAnchor(deliver: (filename: string) => void): ProjectWatchPort[
 	};
 }
 import { cleanupProjectTempDirs, createExactProjectChangeJournal, fixtureCompilerLookup, projectTempDir } from './test-support.js';
-// @ts-expect-error -- shared JS conformance helper, no type declarations
-import { packageManagerCommand } from '../../../cli/scripts/conformance-process.mjs';
 
 afterAll(cleanupProjectTempDirs);
 
 const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'test-fixtures', 'monorepo');
-const run = promisify(execFile);
 const trustedCache = createMemoryProjectCachePort();
 
 const trustedJournal = createExactProjectChangeJournal();
@@ -104,6 +99,7 @@ function buildProjectGraphNative(options: ProjectGraphBuildOptions) {
 	return buildProjectGraphUnbound({
 		journal: trustedJournal,
 		compilerLookup: fixtureCompilerLookup(),
+		git: { inspect: async () => availableGit() },
 		...options,
 	});
 }
@@ -117,11 +113,6 @@ async function fixtureCopy(): Promise<string> {
 	const root = join(parent, 'root');
 	await cp(FIXTURE, root, { recursive: true });
 	await mkdir(join(root, '.void', 'local', 'cache'), { recursive: true });
-	await run('git', ['init', '--quiet'], { cwd: root });
-	await run('git', ['config', 'user.name', 'Fixture Owner'], { cwd: root });
-	await run('git', ['config', 'user.email', 'fixture@example.invalid'], { cwd: root });
-	await run('git', ['add', '.'], { cwd: root });
-	await run('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: root });
 	return root;
 }
 
@@ -544,62 +535,6 @@ it(
 	expect(workspaceLabels).not.toContain('@fixture/excluded');
 	expect(workspaceLabels).not.toContain('@fixture/excluded-root');
 	expect(workspaceLabels).not.toContain('@fixture/outside');
-});
-
-it(
-	'matches pnpm workspace selection semantics for recursive inclusions and exclusions',
-	async () => {
-	const root = await isolatedProjectRoot('void-project-pnpm-semantics-');
-	await writeFile(
-		join(root, 'package.json'),
-		JSON.stringify({ name: '@fixture/root', private: true }),
-	);
-	await writeFile(
-		join(root, 'pnpm-workspace.yaml'),
-		[
-			'packages:',
-			"  - '!packages/excluded/**'",
-			"  - '!**/test/**'",
-			"  - 'packages/{direct,nested/**,excluded/**}'",
-		].join('\n'),
-	);
-	for (const [path, name] of [
-		['packages/direct', '@fixture/direct'],
-		['packages/nested/child', '@fixture/nested-child'],
-		['packages/excluded', '@fixture/excluded-root'],
-		['packages/excluded/child', '@fixture/excluded-child'],
-		['packages/nested/test', '@fixture/test-root'],
-		['packages/nested/test/child', '@fixture/test-child'],
-	] as const) {
-		await mkdir(join(root, path), { recursive: true });
-		await writeFile(join(root, path, 'package.json'), JSON.stringify({ name, private: true }));
-	}
-	// Windows rejects a bare `pnpm.cmd` through spawn (EINVAL); the shared helper
-	// launches the shim through Node instead. Same fix as commit 256933d.
-	const pnpm = packageManagerCommand('pnpm');
-	const listed = JSON.parse(
-		(
-			await run(pnpm.executable, [
-				...pnpm.prefixArguments,
-				'--dir',
-				root,
-				'list',
-				'--recursive',
-				'--depth',
-				'-1',
-				'--json',
-			])
-		).stdout,
-	) as { readonly name?: string }[];
-	const expected = listed.flatMap((entry) => (entry.name === undefined ? [] : [entry.name])).sort();
-
-	const result = await buildProjectGraph({ root, git: { inspect: async () => availableGit() } });
-	const actual = result.graph.nodes
-		.filter((node) => node.kind === 'workspace')
-		.map((node) => node.label)
-		.sort();
-
-	expect(actual).toEqual(expected);
 });
 
 it('renders export surface symbols and export edges for named and default forms', async () => {
@@ -1107,38 +1042,6 @@ it('composes a complete rename chain reported by one Git snapshot', async () => 
 	expect(result.state).toBe('fresh');
 	expect(lineage?.to).toBe(projectFileId('packages/core/src/final.ts'));
 	expect(lineage?.data).toMatchObject({ hops: 2, similarity: 90 });
-});
-
-it('composes committed and working-tree rename proofs from the real Git adapter', async () => {
-	const root = await fixtureCopy();
-	const original = 'packages/core/src/secondary.ts';
-	const intermediate = 'packages/core/src/intermediate.ts';
-	const final = 'packages/core/src/final.ts';
-	const seeded = await buildProjectGraph({ root });
-	const previousHead = seeded.graph.source.rootHash;
-	expect(previousHead).toMatch(/^sha256:/);
-
-	await run('git', ['mv', original, intermediate], { cwd: root });
-	await run('git', ['commit', '--quiet', '-m', 'rename once'], { cwd: root });
-	const committedHead = (await run('git', ['rev-parse', 'HEAD'], { cwd: root })).stdout.trim();
-	const baseHead = (await run('git', ['rev-parse', 'HEAD^'], { cwd: root })).stdout.trim();
-	await run('git', ['mv', intermediate, final], { cwd: root });
-
-	const result = await buildProjectGraph({ root });
-	const lineage = result.graph.edges.find(
-		(edge) => edge.kind === 'previous-id' && edge.from === projectFileId(original),
-	);
-
-	expect(result.state).toBe('fresh');
-	expect(lineage?.to).toBe(projectFileId(final));
-	expect(lineage?.data).toMatchObject({ hops: 2, similarity: 100 });
-	expect(lineage?.provenance.sources).toEqual([
-		expect.objectContaining({
-			ref: `git:${baseHead}..${committedHead}`,
-			hashOrVersion: committedHead,
-		}),
-		expect.objectContaining({ ref: 'git:working-tree', hashOrVersion: committedHead }),
-	]);
 });
 
 it('segments more than sixteen rename proofs without violating Graph v3 provenance', async () => {

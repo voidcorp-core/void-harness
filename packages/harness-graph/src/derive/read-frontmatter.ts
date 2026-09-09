@@ -198,9 +198,24 @@ export function readFrontmatter(text: string, harnessMeta = ''): {
   };
 }
 
+/**
+ * Lines in a text, counted the way `wc -l` counts them.
+ *
+ * A trailing newline TERMINATES the last line; it does not open another. The
+ * previous reading split on newlines and counted the empty final element, so
+ * this function and the pre-commit floor disagreed by one on every file in the
+ * repository — and a 400-line skill passed the guard that refuses commits while
+ * failing the suite. Two measures of one rule mean neither is the rule, and the
+ * more visible guard was the more permissive of the two.
+ *
+ * A final line nobody terminated still counts: that is a line, just an unended
+ * one. This is the single definition; the shell floor reads it through `wc -l`,
+ * and the tests that hold a skill to the cap read it through here.
+ */
 export function countLines(text: string): number {
   if (text === '') return 0;
-  return text.split('\n').length;
+  const newlines = text.split('\n').length - 1;
+  return text.endsWith('\n') ? newlines : newlines + 1;
 }
 
 /** Rough source-token weight (~chars/4). A deterministic proxy for a component's

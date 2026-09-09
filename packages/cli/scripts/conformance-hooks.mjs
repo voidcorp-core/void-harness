@@ -1,66 +1,30 @@
 #!/usr/bin/env node
 
-import { spawn } from 'node:child_process';
 import {
   lstat,
   mkdir,
   mkdtemp,
   readFile,
-  readdir,
   rename,
   rm,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { conformanceArtifactFromEnvironment } from './conformance-artifact.mjs';
 import {
   assertCanonicalHookReplay,
   runtimesForMode,
 } from './conformance-hooks-lib.mjs';
-import { packageManagerCommand } from './conformance-process.mjs';
+import {
+  conformanceFixtureEnvironment,
+  packageManagerCommand,
+  requireConformanceExit,
+  runConformanceProcess,
+} from './conformance-process.mjs';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(HERE, '..', '..', '..');
-const MAX_OUTPUT_BYTES = 64 * 1024;
 const MAX_HOOK_INPUT_BYTES = 1024 * 1024;
-const COMMAND_TIMEOUT_MS = 120_000;
 const HOOK_TIMEOUT_MS = 5_000;
-
-function childEnvironment(extra = {}) {
-  const allowed = [
-    'APPDATA',
-    'CI',
-    'ComSpec',
-    'LANG',
-    'LC_ALL',
-    'LOCALAPPDATA',
-    'PATH',
-    'PATHEXT',
-    'SystemRoot',
-    'TEMP',
-    'TMP',
-    'TMPDIR',
-    'USERPROFILE',
-    'WINDIR',
-  ];
-  return Object.fromEntries([
-    ...allowed
-      .map((name) => [name, process.env[name]])
-      .filter((entry) => entry[1] !== undefined),
-    ...Object.entries(extra),
-  ]);
-}
-
-function safeDiagnostic(value) {
-  return value
-    .replace(/(\bBearer\s+)[^\s]+/gi, '$1[REDACTED]')
-    .replace(
-      /(\b(?:api[-_]?key|authorization|password|secret|token)\b\s*[:=]\s*)[^\s&,;]+/gi,
-      '$1[REDACTED]',
-    )
-    .slice(0, MAX_OUTPUT_BYTES);
-}
 
 function requireDiagnostic(result, pattern, label) {
   const output = `${result.stdout}\n${result.stderr}`;
@@ -71,75 +35,15 @@ function requireDiagnostic(result, pattern, label) {
 
 async function run(command, args, options) {
   const expectedCodes = options.expectedCodes ?? [0];
-  return await new Promise((resolveRun, rejectRun) => {
-    const child = spawn(command, args, {
-      cwd: options.cwd,
-      env: options.env,
-      shell: false,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    const stdout = [];
-    const stderr = [];
-    let outputBytes = 0;
-    let timedOut = false;
-    let outputExceeded = false;
-    let spawnError;
-
-    const timer = setTimeout(() => {
-      timedOut = true;
-      child.kill('SIGKILL');
-    }, options.timeoutMs ?? COMMAND_TIMEOUT_MS);
-
-    const capture = (target) => (chunk) => {
-      outputBytes += chunk.byteLength;
-      if (outputBytes > MAX_OUTPUT_BYTES) {
-        outputExceeded = true;
-        child.kill('SIGKILL');
-        return;
-      }
-      target.push(chunk);
-    };
-    child.stdout.on('data', capture(stdout));
-    child.stderr.on('data', capture(stderr));
-    child.once('error', (error) => {
-      spawnError = error;
-    });
-    child.once('close', (code) => {
-      clearTimeout(timer);
-      const result = {
-        code,
-        stdout: Buffer.concat(stdout).toString('utf8'),
-        stderr: Buffer.concat(stderr).toString('utf8'),
-      };
-      if (
-        spawnError === undefined
-        && !timedOut
-        && !outputExceeded
-        && code !== null
-        && expectedCodes.includes(code)
-      ) {
-        resolveRun(result);
-        return;
-      }
-      const detail = safeDiagnostic(
-        `${result.stdout}\n${result.stderr}`.trim(),
-      );
-      rejectRun(new Error(
-        [
-          `hook conformance command failed: ${command} ${args.join(' ')}`,
-          spawnError === undefined ? undefined : `spawn: ${spawnError.message}`,
-          timedOut ? 'timed out' : undefined,
-          outputExceeded ? `output exceeded ${MAX_OUTPUT_BYTES} bytes` : undefined,
-          `exit: ${String(code)}`,
-          detail === '' ? undefined : detail,
-        ].filter(Boolean).join('\n'),
-      ));
-    });
-    child.stdin.on('error', () => {
-      // Exit status and replay postconditions remain authoritative.
-    });
-    child.stdin.end(options.input);
+  const result = await runConformanceProcess({
+    command,
+    args,
+    cwd: options.cwd,
+    env: options.env,
+    input: options.input,
+    timeoutMs: options.timeoutMs,
   });
+  return requireConformanceExit(result, 'hook conformance command', expectedCodes);
 }
 
 async function requireRegularFile(path, label) {
@@ -179,7 +83,7 @@ function payloadFor(runtime, fixture) {
 }
 
 function hookEnvironment(fixture, missionId, runtime) {
-  return childEnvironment({
+  return conformanceFixtureEnvironment(fixture, {
     CLAUDE_PROJECT_DIR: fixture,
     VOID_AGENT_RUNTIME: runtime,
     VOID_GLOBAL_DIR: join(fixture, '.void', 'global'),
@@ -274,10 +178,9 @@ async function assertBrokenWiring(bin, fixture, mode, env) {
 
 async function exerciseFixture(temporary, tarball, npmCache, mode) {
   const fixture = join(temporary, `fixture ${mode}`);
-  await mkdir(fixture, { recursive: true });
-  const env = childEnvironment({
+  await mkdir(join(fixture, 'tmp'), { recursive: true });
+  const env = conformanceFixtureEnvironment(fixture, {
     npm_config_cache: npmCache,
-    npm_config_offline: 'true',
   });
   await run(
     npm.executable,
@@ -335,35 +238,17 @@ async function exerciseFixture(temporary, tarball, npmCache, mode) {
   });
 }
 
-const pnpm = packageManagerCommand('pnpm');
 const npm = packageManagerCommand('npm');
 const temporary = await mkdtemp(join(tmpdir(), 'void hook conformance-'));
 try {
+  const { manifest, tarball } = await conformanceArtifactFromEnvironment();
   const npmCache = join(temporary, 'npm-cache');
   await mkdir(npmCache, { recursive: true });
-  await run(
-    pnpm.executable,
-    [
-      ...pnpm.prefixArguments,
-      '--filter',
-      'voidharness',
-      'pack',
-      '--pack-destination',
-      temporary,
-    ],
-    { cwd: REPO_ROOT, env: childEnvironment() },
-  );
-  const tarballName = (await readdir(temporary))
-    .find((name) => name.endsWith('.tgz'));
-  if (tarballName === undefined) {
-    throw new Error('hook conformance pack produced no tarball');
-  }
-  const tarball = join(temporary, tarballName);
   for (const mode of ['claude', 'codex', 'both']) {
     await exerciseFixture(temporary, tarball, npmCache, mode);
   }
   process.stdout.write(
-    `hook conformance passed (${process.platform}): claude, codex, both; installed tarball ${tarballName}\n`,
+    `hook conformance passed (${process.platform}) for ${manifest.sourceSha}: claude, codex, both\n`,
   );
 } finally {
   await rm(temporary, { recursive: true, force: true });

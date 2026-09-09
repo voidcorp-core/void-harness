@@ -1,5 +1,7 @@
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Certification, ProjectState, Score } from '@voidcorp/harness-graph';
 import { capabilityPackDir } from '@voidcorp/harness-graph';
@@ -176,5 +178,127 @@ describe('statusLines', () => {
   it('marks a capped score with its blockers in the header', () => {
     const capped: Score = { ...score, capped: true, blockers: ['governance'], global: 69 };
     expect(statusLines(state, capped)[0]).toContain('(capped: governance)');
+  });
+});
+
+describe('status from a linked worktree', () => {
+  const CLI = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'bin', 'void-harness.mjs');
+  const INSTALLED_VERSION = '1.0.0';
+  const PUBLISHED_VERSION = '9.9.9';
+
+  function git(cwd: string, ...args: string[]): void {
+    const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
+    if (result.status !== 0) throw new Error(`git ${args.join(' ')}: ${result.stderr}`);
+  }
+
+  /**
+   * A published version the CLI answers from cache, so the freshness check
+   * never reaches the network and the verdict is `behind` for the receipt below.
+   */
+  function freshnessCache(): string {
+    const cache = mkdtempSync(join(tmpdir(), 'status-cache-'));
+    mkdirSync(join(cache, 'void-harness'), { recursive: true });
+    writeFileSync(
+      join(cache, 'void-harness', 'freshness.json'),
+      JSON.stringify({ latest: PUBLISHED_VERSION, checkedAt: Date.now() }),
+    );
+    return cache;
+  }
+
+  /** What `init` leaves behind and hides from git: the receipt of an npm install, one release behind. */
+  function installReceipt(root: string): void {
+    const dir = join(root, '.void', 'machine', 'receipts');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, 'install-v1.json'),
+      JSON.stringify({ schemaVersion: 1, version: INSTALLED_VERSION, source: 'local', runtimes: [], files: [] }),
+    );
+  }
+
+  function fixture(): { main: string; linked: string; cache: string } {
+    const main = mkdtempSync(join(tmpdir(), 'status-main-'));
+    mkdirSync(join(main, '.void'), { recursive: true });
+    writeFileSync(join(main, '.void', 'config.json'), '{}\n');
+    git(main, 'init', '--quiet');
+    git(main, 'add', '.void/config.json');
+    git(
+      main,
+      '-c', 'user.name=Void Test',
+      '-c', 'user.email=void@example.test',
+      'commit', '--quiet', '-m', 'test: seed',
+    );
+    installReceipt(main);
+    const linked = join(mkdtempSync(join(tmpdir(), 'status-linked-')), 'DEV-000');
+    git(main, 'worktree', 'add', '--quiet', linked, '-b', 'worker/DEV-000');
+    return { main, linked, cache: freshnessCache() };
+  }
+
+  function runStatus(root: string, cache: string): { code: number; out: string } {
+    const result = spawnSync(process.execPath, [CLI, 'status'], {
+      cwd: root,
+      encoding: 'utf8',
+      env: { ...process.env, XDG_CACHE_HOME: cache },
+    });
+    return { code: result.status ?? 0, out: `${result.stdout ?? ''}${result.stderr ?? ''}` };
+  }
+
+  /** The lines that prescribe a command. */
+  function remedies(out: string): readonly string[] {
+    return out.split('\n').filter((line) => /void-harness (update|init)/.test(line));
+  }
+
+  /** Strip the directory each remedy and the footer name, so two reports of one install compare equal. */
+  function report(out: string): string {
+    return out.replace(/ in \/\S+: /g, ' ').replace(/written to \/\S+\/\.void\//g, 'written to .void/');
+  }
+
+  // `.void/machine/` is per-repository state (decision of 2026-09-02): what
+  // `status` measures is the installation, and where it persists the snapshot
+  // must be where the installation is. Read from the tree it ran in, it
+  // reported a worktree as an uninstalled project and left a `status.json`
+  // there for the reconciler to delete.
+  it('measures the installation and persists the snapshot in the main checkout', () => {
+    const { main, linked, cache } = fixture();
+
+    const fromMain = runStatus(main, cache);
+    const fromWorktree = runStatus(linked, cache);
+
+    expect(fromMain.code).toBe(0);
+    expect(fromWorktree.code).toBe(0);
+    expect(existsSync(join(main, '.void', 'machine', 'status.json'))).toBe(true);
+    expect(existsSync(join(linked, '.void', 'machine'))).toBe(false);
+    expect(fromMain.out).toContain(`${INSTALLED_VERSION} is installed; ${PUBLISHED_VERSION} is published`);
+    expect(report(fromWorktree.out)).toBe(report(fromMain.out));
+  });
+
+  // The freshness notice prescribes `void-harness update`, which acts on the
+  // directory it is typed in: from the worktree it finds no receipt and, the
+  // manifest being tracked, installs a second copy there, upgrading nothing of
+  // the install `status` just described. So from a worktree the remedy names
+  // the installation, and in the main checkout it names nothing.
+  it('names the installation directory in every remedy it prints from a worktree', () => {
+    const { main, linked, cache } = fixture();
+
+    const fromMain = runStatus(main, cache);
+    const fromWorktree = runStatus(linked, cache);
+
+    expect(remedies(fromMain.out).length).toBeGreaterThan(0);
+    expect(fromMain.out).not.toMatch(/ in \/\S+: /);
+    const named = remedies(fromWorktree.out);
+    expect(named.length).toBe(remedies(fromMain.out).length);
+    for (const remedy of named) expect(remedy).toContain(`in ${realpathSync(main)}: `);
+  });
+
+  // The footer names the file it wrote. Relative, that path is read against the
+  // worktree, where the file was deliberately not written; from a worktree it
+  // is named in full, and in the main checkout it stays relative.
+  it('names the snapshot under the installation when written from a worktree', () => {
+    const { main, linked, cache } = fixture();
+
+    const fromMain = runStatus(main, cache);
+    const fromWorktree = runStatus(linked, cache);
+
+    expect(fromMain.out).toContain('state written to .void/machine/status.json');
+    expect(fromWorktree.out).toContain(`state written to ${join(realpathSync(main), '.void/machine/status.json')}`);
   });
 });

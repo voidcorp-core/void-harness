@@ -12,7 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { execSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -103,7 +103,4 @@ describe('no-console-log-grep.sh', () => {
     }
   });
 
-  it('hook script exists', () => {
-    expect(existsSync(HOOK)).toBe(true);
-  });
 });

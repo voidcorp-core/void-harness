@@ -116,11 +116,14 @@ describe('mission run store', () => {
     })).resolves.toMatchObject({ kind: 'mission.archived' });
   });
 
-  it('round-trips an integrity-bound controller plan and rejects tampering', async () => {
+  it.each([undefined, 'a'.repeat(40)])(
+    'round-trips an integrity-bound controller plan and rejects tampering (base=%s)',
+    async (baseCommit) => {
     const root = await fixture();
     const routingHash = missionControllerRoutingHash(
       CONTROLLER_PLAN,
       CONTROLLER_TICKET,
+      baseCommit,
     );
     await createMission(root, {
       missionId: ID,
@@ -133,21 +136,23 @@ describe('mission run store', () => {
         runtime: 'codex',
       },
     });
-    await writeMissionControllerPlan(root, ID, CONTROLLER_PLAN, CONTROLLER_TICKET);
+    await writeMissionControllerPlan(root, ID, CONTROLLER_PLAN, CONTROLLER_TICKET, baseCommit);
 
     await expect(loadMissionControllerPlan(root, ID)).resolves.toEqual({
       plan: CONTROLLER_PLAN,
       ticket: CONTROLLER_TICKET,
       routingHash,
+      ...(baseCommit === undefined ? {} : { baseCommit }),
     });
 
     await writeFile(
       join(root, '.void', 'machine', 'runs', ID, 'controller-plan.json'),
       `${JSON.stringify({
-        schemaVersion: 1,
+        schemaVersion: baseCommit === undefined ? 1 : 2,
         routingHash,
-        plan: { ...CONTROLLER_PLAN, specialists: [] },
+        plan: baseCommit === undefined ? { ...CONTROLLER_PLAN, specialists: [] } : CONTROLLER_PLAN,
         ticket: CONTROLLER_TICKET,
+        ...(baseCommit === undefined ? {} : { baseCommit: 'b'.repeat(40) }),
       })}\n`,
     );
     await expect(loadMissionControllerPlan(root, ID)).rejects.toThrow(

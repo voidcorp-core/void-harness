@@ -158,7 +158,7 @@ The harness does **not** govern:
 
 - Product strategy or roadmap decisions (a written plan's premise/ambition is reviewed by `void-plan-review`'s CEO lens; a raw idea's demand pressure-test lives in `void-brainstorm`)
 - Visual design system choices (the `DESIGN.md` contract; build via `void-frontend-design`, audit via `void-ui-review`)
-- Live QA of running apps (use `gstack:/void-qa`)
-- Ship/deploy mechanics (use `gstack:/ship`, `/land-and-deploy`)
+- Live QA of running apps (use `void-qa` through claude-in-chrome)
+- Ship/deploy mechanics (use `void-implement` and `gh`; release-please owns versions)
 
 These live elsewhere on purpose. The harness focuses on **how code is conceived, written, tested, and reviewed**.

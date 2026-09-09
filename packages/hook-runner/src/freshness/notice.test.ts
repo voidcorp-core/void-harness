@@ -116,6 +116,15 @@ describe('freshnessNotice', () => {
     const notice = freshnessNotice({ verdict: 'behind', installed: '0.17.0', latest: '2.1.0' }, 'local') ?? '';
     expect(notice).not.toContain('\n');
   });
+
+  // `update` acts on the directory it is typed in. A caller that measured an
+  // install elsewhere (a linked worktree reading the main checkout) says where,
+  // and the notice puts that in front of the command; without one it names nothing.
+  it('puts the directory the caller names in front of the command', () => {
+    const behind = { verdict: 'behind', installed: '0.17.0', latest: '2.1.0' } as const;
+    expect(freshnessNotice(behind, 'local', 'in /srv/main: ')).toContain('Run in /srv/main: `void-harness update`');
+    expect(freshnessNotice(behind, 'local')).toContain('Run `void-harness update`');
+  });
 });
 
 // A SessionStart hook cannot write to the user: `additionalContext` is model-only,

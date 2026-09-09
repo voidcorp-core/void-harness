@@ -1,10 +1,21 @@
 /**
- * Autopilot publishes; it does not merge.
+ * Autopilot merges in exactly one place, one way, and nowhere else.
  *
- * That boundary is the safety argument of the whole design: a human reads one
- * reconciled pull request and decides. It is also the boundary most likely to be
- * crossed by a helpful edit — arming `--auto` "just for low-risk clusters" is a
- * two-word change that reads as a convenience and removes the gate.
+ * It used to merge nowhere, and "publishes; it does not merge" was the safety
+ * argument of the whole design. The union-is-read-before-it-merges decision
+ * moved that line rather than removing it: under `mergeGate: union-reviewed` an
+ * integration pull request may merge itself into a branch that does not deploy,
+ * once a fresh-context adversarial reading of the whole diff came back clean.
+ * A boundary nobody could cross was replaced by one file allowed to cross it.
+ *
+ * So the gate got narrower, not weaker. `merge-plan.ts` is the only source that
+ * may emit `gh pr merge`; it must bind the merge to the head the grant read, and
+ * it may not arm one for later, bypass the protection, or rewrite the range the
+ * chain observes afterwards. Everywhere else, merging is still absent.
+ *
+ * It remains the boundary most likely to be crossed by a helpful edit — arming
+ * `--auto` "just for low-risk clusters" is a two-word change that reads as a
+ * convenience and removes the reading.
  *
  * So it is a gate. What it inspects is the argv the code can actually emit, not
  * the words the code uses: a comment saying "never merge" and a guard rejecting
@@ -25,6 +36,9 @@ import { describe, expect, it } from 'vitest';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
 const SURFACES = ['packages/cli/src/lib/autopilot', 'packages/cli/src/commands/autopilot.ts'];
+
+/** The one source allowed to emit a merge, named so the gate can be exhaustive. */
+const MERGE_SOURCE = 'packages/cli/src/lib/autopilot/merge-plan.ts';
 
 function filesUnder(relative: string): string[] {
   const absolute = join(ROOT, relative);
@@ -90,10 +104,25 @@ describe('the argv the autopilot surface can emit', () => {
     expect(COMMANDS.some((command) => command.tokens[0] === 'git' && command.tokens[1] === 'push')).toBe(true);
   });
 
-  it('never asks gh to merge a pull request', () => {
-    expect(
-      violating((command) => command.tokens[0] === 'gh' && command.tokens.includes('merge')),
-    ).toEqual([]);
+  const MERGES = (command: Argv): boolean => command.tokens[0] === 'gh' && command.tokens.includes('merge');
+
+  it('asks gh to merge a pull request from one file only', () => {
+    expect(violating((command) => MERGES(command) && command.file !== MERGE_SOURCE)).toEqual([]);
+    // And that file still does it, so a rename cannot empty this gate silently.
+    expect(COMMANDS.filter(MERGES).map((command) => command.file)).toEqual([MERGE_SOURCE]);
+  });
+
+  // What the one permitted merge may not do. `--auto` merges a tree nobody
+  // re-read, `--admin` bypasses the protection the run proved, and both rewrite
+  // flags destroy the range the chain observes on the base afterwards.
+  it('binds that merge to the head the grant read, and neither arms nor rewrites it', () => {
+    const merge = COMMANDS.find(MERGES);
+
+    expect(merge?.tokens).toContain('--match-head-commit');
+    expect(merge?.tokens).toContain('--merge');
+    for (const forbidden of ['--auto', '--admin', '--squash', '--rebase', '--delete-branch']) {
+      expect(merge?.tokens, forbidden).not.toContain(forbidden);
+    }
   });
 
   it('never arms an auto-merge flag', () => {

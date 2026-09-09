@@ -17,6 +17,7 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { countLines } from '../../packages/harness-graph/src/derive/read-frontmatter.js';
 
 const SKILL = readFileSync(
   new URL('../../packages/core/skills/void-ticket/SKILL.md', import.meta.url),
@@ -57,6 +58,6 @@ describe('void-ticket searches the tracker before it creates', () => {
   });
 
   it('stays under the 400-line skill cap', () => {
-    expect(SKILL.split('\n').length).toBeLessThanOrEqual(400);
+    expect(countLines(SKILL)).toBeLessThanOrEqual(400);
   });
 });

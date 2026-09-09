@@ -43,6 +43,29 @@ describe('migrateVoidLayout', () => {
     expect(existsSync(join(root, '.void/PROJECT-DOCTRINE.md'))).toBe(true);
   });
 
+  // A programme carries the running order, the human gates and the `autopilot`
+  // block that IS the consent to autonomous execution. One project's went from
+  // `plans/ACTIVE.md` to `.void/machine/ACTIVE.md` under an `update`, and
+  // `.void/machine/` is ignored by the harness itself: thirteen tickets and a
+  // consent nobody could audit or revise in a PR left the repository in silence.
+  // A declaration never migrates into a directory the harness hides.
+  it('never moves a programme declaration under .void/machine/', async () => {
+    const root = project({
+      '.void/program.md': '---\nstatus: executing\n---\n',
+      '.void/active.md': '# the name it carried before\n',
+      '.void/cache/x.json': 'a\n',
+    });
+
+    const result = await migrateVoidLayout(root);
+
+    expect(result.moved).toEqual(['cache']);
+    expect(existsSync(join(root, '.void/program.md'))).toBe(true);
+    expect(existsSync(join(root, '.void/active.md'))).toBe(true);
+    expect(existsSync(join(root, '.void/machine/program.md'))).toBe(false);
+    expect(existsSync(join(root, '.void/machine/active.md'))).toBe(false);
+    expect(existsSync(join(root, '.void/installed/program.md'))).toBe(false);
+  });
+
   it('is idempotent — a second run has nothing left to do', async () => {
     const root = project({ '.void/cache/x.json': 'a\n' });
     await migrateVoidLayout(root);

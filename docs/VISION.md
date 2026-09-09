@@ -1,4 +1,10 @@
-# La cible
+# La cible historique du harnais
+
+> La direction cible de référence depuis le 2026-09-05 est
+> [Void Machine](VOID-MACHINE-VISION.md). Le texte ci-dessous conserve le cadrage
+> antérieur et son relevé daté ; il ne constitue pas une seconde vision à maintenir.
+> Ses écarts doivent être réconciliés avec le dépôt et les décisions applicables
+> avant approbation d’une spec et d’une migration.
 
 Ce document dit **où va le harnais**, pas ce qu'il fait aujourd'hui. `README.md` décrit le
 produit tel qu'il est, `ARCHITECTURE.md` comment il est construit ; celui-ci existe pour qu'une

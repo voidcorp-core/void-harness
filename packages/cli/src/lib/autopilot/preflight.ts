@@ -33,6 +33,13 @@ export interface ParsedProgram {
   readonly autopilot?: {
     readonly clusterSize?: number;
     readonly mergeGate?: string;
+    /**
+     * The branch that deploys, which `union-reviewed` requires and `human`
+     * forbids. Observed rather than inferred: the gate cannot be reported
+     * without saying where the human still stands.
+     */
+    readonly deployBranch?: string;
+    readonly base?: string;
     readonly verifyCommands?: readonly (readonly string[])[];
   };
 }
@@ -154,20 +161,50 @@ function programCheck(observation: AutopilotObservation): CheckResult {
 const UNPARSED = 'not judged: .void/program.md could not be parsed';
 const UNPARSED_FIX = 'fix the frontmatter reported by the program check above, then run doctor again';
 
+/**
+ * The gates a program may declare, in the order the contract lists them.
+ *
+ * Named here rather than asserted as a single value. This check spent releases
+ * telling a consumer who declared `union-reviewed` that "human" was the only
+ * accepted value and to set it back — while `program.ts` accepted it, the
+ * autopilot skill documented it, and machine merges had already landed. A red
+ * doctor ordering an operator to undo the consent they just declared is worse
+ * than no check: the consent is a durable declaration in the program, never a
+ * switch, so nothing about this reading could be right.
+ *
+ * Consumers could not see the disagreement either. This repository is the one
+ * place whose doctor would have surfaced it, and here doctor runs the self-host
+ * release gate instead of the consumer preflight.
+ */
+const DECLARABLE_GATES = ['human', 'union-reviewed'] as const;
+
 function mergeGateCheck(observation: AutopilotObservation): CheckResult {
   const name = 'autopilot merge';
   if (malformedProgram(observation) !== undefined) return unknown(name, UNPARSED, UNPARSED_FIX);
-  const gate = parsedProgram(observation)?.autopilot?.mergeGate;
-  // The only accepted value. A project cannot opt into automation here: the
-  // human merge is the contract the whole design rests on.
-  if (gate !== undefined && gate !== 'human') {
+  const block = parsedProgram(observation)?.autopilot;
+  const gate = block?.mergeGate;
+
+  if (gate !== undefined && !DECLARABLE_GATES.includes(gate as (typeof DECLARABLE_GATES)[number])) {
     return fail(
       name,
-      `mergeGate is ${JSON.stringify(gate)}; the only accepted value is "human"`,
-      'set mergeGate: human — autopilot never merges, and no flag changes that',
+      `mergeGate is ${JSON.stringify(gate)}, and only ${DECLARABLE_GATES.join(' and ')} exist`,
+      'set `mergeGate: human`, or `union-reviewed` with a `deployBranch` naming the branch that ships',
     );
   }
-  return pass(name, 'human merge gate');
+
+  // Absent means human: a program that says nothing has consented to nothing.
+  if (gate === undefined || gate === 'human') return pass(name, 'human merge gate');
+
+  // `union-reviewed` without a `deployBranch`, or with one equal to the base,
+  // is refused by the descriptor parser itself, so it reaches here as malformed
+  // and never as a gate. What is left to report is what the operator enabled.
+  const deployBranch = block?.deployBranch;
+  return pass(
+    name,
+    deployBranch === undefined
+      ? 'union-reviewed merge gate'
+      : `union-reviewed merge gate; the human gate is the promotion to ${deployBranch}`,
+  );
 }
 
 function verifyCommandsCheck(observation: AutopilotObservation): CheckResult {

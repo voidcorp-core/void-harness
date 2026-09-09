@@ -14,12 +14,24 @@ import {
   type ChainDecision,
   type MergedUnit,
   type PostMergeObservation,
+  type TakenOutcome,
+  type TakenUnit,
 } from './chain.js';
+import { autopilotFailure } from './errors.js';
 
 export interface ChainObservation {
   readonly schemaVersion: 1;
   /** Everything merged so far in this run, oldest first. */
   readonly merged: readonly MergedUnit[];
+  /**
+   * Every unit this run took, oldest first, with where it ended up.
+   *
+   * `merged` above is the evidence a merge rested on; this is the account of
+   * what was taken, and the two are cross-checked rather than trusted: a merged
+   * unit missing here, or a unit claimed merged here without its evidence
+   * there, is a contradiction in the description and refuses the step.
+   */
+  readonly taken: readonly TakenUnit[];
   /** How long the run has been going. */
   readonly elapsedMs: number;
   /** The base after the most recent merge; absent is not "fine". */
@@ -65,11 +77,17 @@ export function decideChainStep(
     requested: observation.requested,
   });
 
-  const taken = new Set(observation.merged.flatMap((unit) => unit.tickets));
+  refuseDisagreement(observation.merged, observation.taken);
+
+  // Taken is taken, whatever became of it. `pool - merged` was the reading that
+  // proposed DEV-703 again on 2026-09-02, published and waiting for a person,
+  // to a caller that would have started a second worker on it.
+  const taken = new Set(observation.taken.flatMap((unit) => unit.tickets));
   const remaining = observation.pool.filter((id) => !taken.has(id));
 
   const decision = planChainStep({
     merged: observation.merged,
+    taken: observation.taken,
     budgetMs,
     elapsedMs: observation.elapsedMs,
     postMerge: observation.postMerge,
@@ -90,9 +108,43 @@ export function decideChainStep(
     journal: renderMergeJournal(observation.merged),
     disposition: renderDisposition({
       merged: observation.merged.flatMap((merged) => merged.tickets),
+      awaitingHuman: ticketsWith(observation.taken, 'published-awaiting-human'),
+      blocked: ticketsWith(observation.taken, 'unit-blocked'),
       remaining,
       debts,
     }),
     carriedDebts: debts,
   };
+}
+
+function ticketsWith(taken: readonly TakenUnit[], outcome: TakenOutcome): readonly string[] {
+  return taken.filter((unit) => unit.outcome === outcome).flatMap((unit) => unit.tickets);
+}
+
+/**
+ * The merge journal and the taken list must name the same merged tickets.
+ *
+ * The same rule `reconcile` applies to `cluster` and `footprints`: two lists in
+ * one description that disagree are not "one of them is right", they are a
+ * description nobody checked. Trusting `taken` alone would let a caller drop a
+ * merged unit from it and have it proposed again; trusting `merged` alone is
+ * the defect this replaces.
+ */
+function refuseDisagreement(
+  merged: readonly MergedUnit[],
+  taken: readonly TakenUnit[],
+): void {
+  const journal = new Set(merged.flatMap((unit) => unit.tickets));
+  const claimed = new Set(ticketsWith(taken, 'merged'));
+  const missing = [...journal].filter((id) => !claimed.has(id));
+  const unbacked = [...claimed].filter((id) => !journal.has(id));
+  if (missing.length === 0 && unbacked.length === 0) return;
+  throw autopilotFailure(
+    'AUTOPILOT_INPUT',
+    'the chain observation disagrees with itself about what merged',
+    missing.length > 0
+      ? `\`merged\` names ${missing.join(', ')} and \`taken\` does not list it as merged`
+      : `\`taken\` claims ${unbacked.join(', ')} merged and \`merged\` carries no evidence for it`,
+    'list every unit this run took in `taken`, with `merged` for exactly the ones in `merged`',
+  );
 }

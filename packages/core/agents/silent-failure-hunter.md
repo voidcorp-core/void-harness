@@ -66,7 +66,7 @@ For each finding, say what error is lost and what the caller can no longer obser
   location and recommend `void-security-audit`. Do not audit it.
 - **Doctrine taste** (test meaning, over-abstraction, anti-bloat) → that is
   `doctrine-critic`. Do not spill into it (anti-bloat rule 6).
-- **Design audit** → `void-ui-review`. **QA / shipping** → gstack (`/void-qa`, `/ship`).
+- **Design audit** → `void-ui-review`. **QA / shipping** → `void-qa` and `void-implement` + `gh`.
 
 ## Output format
 

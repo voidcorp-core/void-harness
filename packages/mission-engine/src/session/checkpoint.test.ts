@@ -354,6 +354,55 @@ describe('evaluateContextMeasurement', () => {
     expect(result.usagePercent).toBe(usedTokens / 10);
   });
 
+  /**
+   * The mechanism was silent at 73% of window with `nudge_emitted: false`, and
+   * the reason was configuration: `thresholdConfig` turns a threshold outside
+   * 40-60 into 0, `thresholdValid` then refuses 0, and the reminder is disarmed
+   * for the life of the project. Nothing said so — a project that wrote
+   * `checkpointThresholdPercent: 70` got exactly the same silence as a project
+   * comfortably under its threshold.
+   *
+   * The window-unknown case already admits itself once. This is its twin, and
+   * the two must be distinguishable: one is fixed by configuring a window, the
+   * other by correcting a number that IS configured.
+   */
+  it.each([0, 39, 61, 70, 100] as const)(
+    'reports a threshold of %i as unusable instead of as nothing to report',
+    (thresholdPercent) => {
+      const result = evaluateContextMeasurement(behind, {
+        usedTokens: 730,
+        measuredAtMs: 1_000,
+        windowTokens: 1_000,
+        thresholdPercent,
+      });
+
+      expect(result.emitNudge).toBe(false);
+      expect(result.unjudgeable).toBe('threshold-unusable');
+    },
+  );
+
+  it('says which of the two silences it is, so the fix is not a guess', () => {
+    const noWindow = evaluateContextMeasurement(behind, {
+      usedTokens: 900,
+      measuredAtMs: 1_000,
+      thresholdPercent: 50,
+    });
+
+    expect(noWindow.unjudgeable).toBe('window-unknown');
+  });
+
+  it('stays silent about a threshold it can actually apply', () => {
+    const judged = evaluateContextMeasurement(behind, {
+      usedTokens: 100,
+      measuredAtMs: 1_000,
+      windowTokens: 1_000,
+      thresholdPercent: 50,
+    });
+
+    expect(judged.emitNudge).toBe(false);
+    expect(judged.unjudgeable).toBe(undefined);
+  });
+
   it('records tokens without inventing a percentage when the window is unknown', () => {
     const result = evaluateContextMeasurement(behind, {
       usedTokens: 900,

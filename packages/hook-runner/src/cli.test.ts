@@ -460,3 +460,78 @@ describe('the upgrade prompt the session banner carries', () => {
     expect(banner(root, cache).toLowerCase()).not.toContain('tell the user');
   });
 });
+
+// The mechanism the Codex adapter relies on, proven against a real linked
+// worktree rather than asserted in a reference page. Measured on 2026-09-02: a
+// worker whose runtime sets neither variable writes the run's telemetry into the
+// worktree, and the reconciler deletes that worktree before anyone reads the
+// pull request -- one run, two halves, one gone.
+describe('a hook fired from a worktree', () => {
+  function repositoryWithWorktree(): { readonly main: string; readonly worktree: string } {
+    const main = mkdtempSync(join(tmpdir(), 'void-hook-worktree-'));
+    const git = (...argv: readonly string[]): void => {
+      const done = spawnSync('git', argv, { cwd: main, encoding: 'utf8' });
+      if (done.status !== 0) throw new Error(`git ${argv.join(' ')}: ${done.stderr ?? ''}`);
+    };
+    git('init', '--initial-branch', 'main');
+    git('config', 'user.email', 'test@example.com');
+    git('config', 'user.name', 'Test');
+    writeFileSync(join(main, 'README.md'), '# root\n');
+    git('add', 'README.md');
+    git('commit', '--no-gpg-sign', '-m', 'root');
+    const worktree = join(main, 'wt');
+    git('worktree', 'add', '-b', 'worker', worktree);
+    return { main, worktree };
+  }
+
+  function runsIn(root: string): readonly string[] {
+    const runs = join(root, '.void', 'machine', 'runs');
+    return existsSync(runs) ? readdirSync(runs) : [];
+  }
+
+  it('writes its event under the installation root, never under the worktree it ran in', () => {
+    const { main, worktree } = repositoryWithWorktree();
+    try {
+      const done = spawnSync(process.execPath, [hook, 'activation', 'codex'], {
+        input: '{}',
+        encoding: 'utf8',
+        // Exactly what the Codex adapter does at spawn: the worker's working
+        // directory is the worktree, and the root it writes to is the install.
+        cwd: worktree,
+        env: { ...process.env, VOID_PROJECT_ROOT: main, VOID_MISSION_ID: 'mis_aaaaaaaaaaaaaaaa' },
+      });
+
+      expect(done.status ?? 0).toBe(0);
+      expect(runsIn(main)).toContain('mis_aaaaaaaaaaaaaaaa');
+      expect(readFileSync(join(main, '.void', 'machine', 'runs', 'mis_aaaaaaaaaaaaaaaa', 'events.jsonl'), 'utf8')).toContain('runtime.');
+      expect(runsIn(worktree)).toEqual([]);
+    } finally {
+      rmSync(main, { recursive: true, force: true });
+    }
+  });
+
+  // And without it, the same hook writes into the tree that gets deleted. The
+  // refusal to set it is what costs the evidence, so the cost is measured here.
+  it('falls back to the worktree it discovered when no root is exported', () => {
+    const { main, worktree } = repositoryWithWorktree();
+    try {
+      // Annotated and indexed: a spread of `process.env` narrows to the keys it
+      // happens to carry, and this package forbids property access on an index
+      // signature, so both roots are removed by their names.
+      const env: NodeJS.ProcessEnv = { ...process.env, VOID_MISSION_ID: 'mis_bbbbbbbbbbbbbbbb' };
+      delete env['VOID_PROJECT_ROOT'];
+      delete env['CLAUDE_PROJECT_DIR'];
+      spawnSync(process.execPath, [hook, 'activation', 'codex'], {
+        input: '{}',
+        encoding: 'utf8',
+        cwd: worktree,
+        env,
+      });
+
+      expect(runsIn(worktree)).toContain('mis_bbbbbbbbbbbbbbbb');
+      expect(runsIn(main)).not.toContain('mis_bbbbbbbbbbbbbbbb');
+    } finally {
+      rmSync(main, { recursive: true, force: true });
+    }
+  });
+});

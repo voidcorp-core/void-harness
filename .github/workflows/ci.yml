@@ -14,50 +14,117 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  install-conformance:
-    name: install conformance (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+  consumer-artifact:
+    name: packed consumer artifact
+    runs-on: ubuntu-latest
+    env:
+      GATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ env.GATE_SHA }}
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Pack the exact checked-out consumer artifact once
+        env:
+          VOID_CONFORMANCE_ARTIFACT_DIR: ${{ runner.temp }}/void-consumer-artifact
+        run: pnpm conformance:pack
+      - name: Upload the immutable tarball and its source manifest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: voidharness-consumer-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/void-consumer-artifact/voidharness.tgz
+            ${{ runner.temp }}/void-consumer-artifact/voidharness.tgz.json
+          if-no-files-found: error
+          include-hidden-files: true
+          compression-level: 0
+          retention-days: 1
+
+  install-conformance:
+    name: install conformance (${{ matrix.os }})
+    needs: consumer-artifact
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      GATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ env.GATE_SHA }}
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - name: Download the exact packed consumer artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: voidharness-consumer-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/void-consumer-artifact
+      - name: Exercise install, hooks and Autopilot from the same tarball
+        run: pnpm conformance:consumer --tarball "${{ runner.temp }}/void-consumer-artifact/voidharness.tgz"
+
+  project-graph-conformance:
+    name: project graph conformance (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      GATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ env.GATE_SHA }}
       - name: Which areas the diff touches
         id: areas
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: bash .github/scripts/changed-areas.sh
-      - name: Offline tarball install and hook execution for Claude, Codex and both
-        run: |
-          pnpm conformance:install
-          pnpm conformance:hooks
-      - name: ProjectGraph tests and typecheck
-        # The kernel's own suite. Nothing it asserts can change while
-        # packages/harness-graph and packages/mission-engine are untouched.
+      - if: steps.areas.outputs.graph == 'true'
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+      - if: steps.areas.outputs.graph == 'true'
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - if: steps.areas.outputs.graph == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Build ProjectGraph workspace dependencies
         if: steps.areas.outputs.graph == 'true'
-        run: |
-          pnpm --filter @voidcorp/harness-graph test
-          pnpm --filter @voidcorp/harness-graph typecheck
+        run: pnpm --filter "@voidcorp/harness-graph^..." build
+      - name: ProjectGraph tests
+        if: steps.areas.outputs.graph == 'true'
+        run: pnpm --filter @voidcorp/harness-graph test
+      - name: ProjectGraph typecheck
+        if: steps.areas.outputs.graph == 'true'
+        run: pnpm --filter @voidcorp/harness-graph typecheck
       - name: Deterministic packed ProjectGraph subpath conformance
         if: steps.areas.outputs.graph == 'true'
         run: pnpm conformance:project-graph
 
   validate:
     runs-on: ubuntu-latest
+    env:
+      # On pull requests, prove the reviewed branch commit rather than GitHub's
+      # synthetic merge ref. Pushes and manual runs prove their triggering SHA.
+      GATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           # decisions:check compares accepted records with the PR base SHA.
           # checkout fetches one commit by default, so retain the base history.
           fetch-depth: 0
+          ref: ${{ env.GATE_SHA }}
 
       - name: Setup pnpm
         # No `version:` here: action-setup reads it from packageManager in
@@ -73,157 +140,173 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Which areas the diff touches
-        id: areas
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: bash .github/scripts/changed-areas.sh
+      # verify-gates:begin
+      - name: "[sister-docs] Sister-doc parity"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate sister-docs
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/sister-docs.json"
 
-      - name: Sister-doc parity (CLAUDE.md <-> AGENTS.md)
-        # Section-heading parity after terminology normalization. Catches a
-        # section added to one doc but not the other. The pre-commit hook
-        # (.githooks/pre-commit) enforces the stricter both-or-neither rule
-        # locally; CI enforces structural parity statelessly.
-        run: pnpm sync:docs
+      - name: "[philosophy] Doctrine parity"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate philosophy
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/philosophy.json"
 
-      - name: Doctrine parity (docs/ <-> packages/core/ PHILOSOPHY.md)
-        # The doctrine exists three times: docs/ (what we read), packages/core/
-        # (what install writes into a consumer), and the core-assets npm mirror.
-        # The mirror is generated and already gated by the core-assets step
-        # below, so this one covers the leg nothing else did: docs <-> core.
-        # They drifted on six sentences for two months, every heading intact,
-        # which shipped consumers a doctrine older than the one we were reading.
-        run: pnpm sync:philosophy
+      - name: "[version-lockstep] Version lockstep"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate version-lockstep
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/version-lockstep.json"
 
-      - name: Version lockstep
-        # Every version-carrying manifest (marketplace, 7 plugin.json, the
-        # core-assets mirror, the 3 npm package.json) must equal the canonical
-        # marketplace version. Catches any miss by the release automation, the
-        # manual bumper, or a hand-edit before it ships a skewed install.
-        run: pnpm version:check
+      - name: "[anti-bloat] Anti-bloat"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate anti-bloat
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/anti-bloat.json"
 
-      - name: Anti-bloat checks
-        # Single source of truth: scripts/anti-bloat-check.sh enforces the size
-        # caps (skills ≤400, hooks ≤100), hook shell syntax, AND the frontmatter
-        # discovery description target ≤250 and hard cap 500 across core skills,
-        # pack skills, agents, and canonical specialists. Inlining a subset here
-        # let the agent description cap go unenforced in CI (it only ran locally).
-        run: pnpm anti-bloat:check
-
-      - name: Decision records valid and accepted records immutable
-        # Each decision owns one file. The optional PR base also proves that an
-        # accepted record was superseded, never rewritten or deleted in place.
+      - name: "[decisions] Decision records"
+        continue-on-error: true
         env:
           DECISIONS_BASE: ${{ github.event.pull_request.base.sha }}
-        run: pnpm decisions:check
+        run: >-
+          node scripts/verify.mjs --gate decisions
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/decisions.json"
 
-      - name: Generated hook runner is current
-        # Runtime hooks execute a checked-in, dependency-free bundle. Rebuild it
-        # before mirroring core so source and shipped hot paths cannot diverge.
-        run: |
-          pnpm hooks:build
-          if [ -n "$(git status --porcelain -- packages/core/hooks/_void-hook.mjs)" ]; then
-            echo "FAIL: generated hook runner is stale." >&2
-            echo "Run: pnpm hooks:build && commit the artifact." >&2
-            exit 1
-          fi
+      - name: "[hook-runner-current] Generated hook runner"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate hook-runner-current
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/hook-runner-current.json"
 
-      - name: core-assets in sync with core
-        # The CLI bundles packages/core as packages/cli/core-assets via
-        # copy-core-assets.mjs. Regenerate and fail if the committed mirror
-        # drifted, so the published CLI never ships a stale manifest or hooks.
-        # Use `git status --porcelain`, not `git diff --quiet`: the latter only
-        # sees modifications to TRACKED files, so a NEW core file whose mirror is
-        # untracked would pass silently (#66). Porcelain catches modified,
-        # untracked (??) and deleted paths alike.
-        run: |
-          pnpm --filter voidharness build:assets
-          if [ -n "$(git status --porcelain -- packages/cli/core-assets)" ]; then
-            echo "FAIL: core-assets is out of sync with packages/core." >&2
-            echo "Run: pnpm --filter voidharness build:assets && commit the result." >&2
-            git --no-pager status --porcelain -- packages/cli/core-assets >&2
-            exit 1
-          fi
+      - name: "[core-assets] Core assets mirror"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate core-assets
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/core-assets.json"
 
-      - name: Lint — Biome
-        run: pnpm lint
+      - name: "[lint] Lint"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate lint
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/lint.json"
 
-      - name: Publish safety (no workspace protocol in npm packages)
-        run: pnpm check:publish
+      - name: "[publish-safety] Publish safety"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate publish-safety
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/publish-safety.json"
 
-      - name: Package size ceilings
-        # Packs the same tarballs as the gate above and bounds what consumers
-        # download. Prints every size on every run, so growth is a trajectory
-        # rather than a one-day surprise.
-        run: pnpm check:size
+      - name: "[package-size] Package size report"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate package-size
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/package-size.json"
 
-      - name: Build packages
-        # Build before typecheck: packs resolve cross-package imports
-        # (e.g. @voidcorp/pack-monorepo/result) through their dist exports,
-        # so the type declarations must exist first.
-        run: pnpm build
+      - name: "[build] Build packages"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate build
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/build.json"
 
-      - name: ProjectGraph performance and native capability report
-        # Must run AFTER the build: it bundles harness-graph, whose sources import
-        # @voidcorp/mission-engine through that package's dist exports. Placed
-        # earlier it fails to resolve them, exactly as the comment above warns.
-        if: steps.areas.outputs.graph == 'true'
-        run: pnpm benchmark:project
+      - name: "[self-host-sync] Self-host compile"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate self-host-sync
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/self-host-sync.json"
 
-      - name: ProjectGraph query performance report
-        # Separate from the extraction benchmark above: these gates cover the
-        # seven queries over a seeded corpus, where extraction cost is excluded
-        # by construction so a query regression cannot hide behind it.
-        if: steps.areas.outputs.graph == 'true'
-        run: pnpm benchmark:query
+      - name: "[self-host-doctor] Self-host doctor"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate self-host-doctor
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/self-host-doctor.json"
 
-      - name: Self-host release gate
-        # Compile current sources into an isolated, gitignored Claude+Codex
-        # artifact. The strict doctor rejects source-hash or owned-file drift;
-        # unavailable native CLIs stay degraded until their certification lane.
-        run: |
-          node packages/cli/bin/void-harness.mjs self-host sync --mode release-gate
-          node packages/cli/bin/void-harness.mjs self-host doctor --mode release-gate
+      - name: "[graph-integrity] Graph integrity"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate graph-integrity
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/graph-integrity.json"
 
-      - name: Graph integrity (model drift + broken routes)
-        run: pnpm graph:check
+      - name: "[generated-artifacts] Generated artifacts"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate generated-artifacts
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/generated-artifacts.json"
 
-      - name: Generated artefacts are current (one gate for all of them)
-        # Seven artefacts derive from the skills, agents, hooks, commands and
-        # packs. Each used to have its own build command and its own freshness
-        # gate, and nothing declared the set: renaming thirteen skills found them
-        # one at a time, in series, a push apart, and the seventh was found here
-        # rather than by the commit that caused it. This derives and asserts the
-        # tree is unchanged, so an eighth artefact is covered the day it is added
-        # without anyone remembering to add a step. Stale? `pnpm derive`.
-        run: pnpm derive:check
+      - name: "[consumer-bundle] Consumer bundle freshness"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate consumer-bundle
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/consumer-bundle.json"
 
-      - name: Consumer bundle freshness (void-graph.mjs embeds the current model)
-        # The one artefact `derive:check` does not byte-compare, because the vite
-        # and esbuild output is not guaranteed byte-identical across environments.
-        # This gates the model it bakes against the committed one, which is the
-        # fact that matters and does not depend on the bundler.
-        run: pnpm graph:check-bundle
+      - name: "[asset-paths] Asset paths"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate asset-paths
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/asset-paths.json"
 
-      - name: Asset paths resolve (no route into a moved directory)
-        # Skills are prose an agent reads, and they name paths in it. When the
-        # layout moves, those sentences are wrong and nothing says so: moving the
-        # programme pointer left four assets routing to an obsolete path, found by
-        # reading rather than by the build, and this found four more on its first
-        # run. A generated bindings file was the alternative and was rejected: a
-        # skill's value is that it reads as prose, and a placeholder costs that.
-        run: pnpm skills:check-paths
+      - name: "[skill-references] Skill references"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate skill-references
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/skill-references.json"
 
-      - name: Skill references resolve (no link into a renamed skill)
-        # A skill's identity is its directory name, copied by hand into routing
-        # tables, commands and sourcing notes. Renaming session-handoff to
-        # checkpoint left four references pointing at nothing, and an audit found
-        # them weeks later rather than the build. This makes a rename mechanical.
-        run: pnpm skills:check-references
+      - name: "[test-cpu] CPU tests"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate test-cpu
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/test-cpu.json"
 
-      - name: Skill tests
-        run: pnpm vitest run
+      - name: "[test-filesystem] Filesystem tests"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate test-filesystem
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/test-filesystem.json"
 
-      - name: TypeScript — typecheck packages
-        run: pnpm -r typecheck
+      - name: "[test-subprocess] Subprocess tests"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate test-subprocess
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/test-subprocess.json"
+
+      - name: "[test-network] Network and browser tests"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate test-network
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/test-network.json"
+
+      - name: "[typecheck] Typecheck"
+        continue-on-error: true
+        run: >-
+          node scripts/verify.mjs --gate typecheck
+          --sha "$GATE_SHA"
+          --report ".void/machine/gate-reports/typecheck.json"
+
+      - name: Aggregate exact-SHA gate reports
+        if: ${{ !cancelled() }}
+        run: >-
+          node scripts/verify.mjs --aggregate --sha "$GATE_SHA"
+          --reports ".void/machine/gate-reports"
+      # verify-gates:end

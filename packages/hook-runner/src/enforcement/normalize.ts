@@ -42,8 +42,13 @@ export function parsePatchEdits(patch: string): NormalizedEdit[] {
   const edits: NormalizedEdit[] = [];
   let path = '';
   let added = '';
+  let deleting = false;
   const emit = (): void => {
-    if (path !== '') edits.push({ path, addedContent: added });
+    if (path !== '') edits.push({
+      path,
+      addedContent: added,
+      ...(deleting ? { operation: 'delete' as const } : {}),
+    });
   };
   for (const line of patch.split(/\r?\n/)) {
     const section = line.match(/^\*\*\* (Add|Update|Delete) File: (.+)$/);
@@ -51,6 +56,7 @@ export function parsePatchEdits(patch: string): NormalizedEdit[] {
       emit();
       path = safeString(section[2] ?? '', 'patch path');
       added = '';
+      deleting = section[1] === 'Delete';
       continue;
     }
     if (

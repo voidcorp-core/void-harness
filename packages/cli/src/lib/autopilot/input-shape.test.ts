@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AutopilotError } from './errors.js';
 import { MARKER_BEGIN, MARKER_END } from './linear-marker.js';
 import {
   INPUT_SHAPES,
@@ -89,6 +90,84 @@ describe('a refused payload names the field', () => {
     const { cluster: _missing, ...withoutCluster } = scaffoldFor('reconcile') as Record<string, unknown>;
 
     expect(() => validateAgainstShape(withoutCluster, 'reconcile')).toThrow(/cluster/);
+  });
+});
+
+describe('the taken list is validated entry by entry, against the merge journal', () => {
+  // Four payloads the shape accepted on 2026-09-02, each contradicting `merged`
+  // or itself in a way the set comparison downstream could not see. The chain
+  // divides its budget by what `taken` holds, names its entries in the
+  // disposition and subtracts their tickets from the pool, so an entry that is
+  // wrong here is wrong three times later, silently.
+  const SHA = 'a'.repeat(40);
+  const journal = (tickets: readonly string[]) => ({
+    tickets, integrationSha: SHA, mergeCommit: SHA, unionVerdict: 'clean', checks: [],
+  });
+  const chain = (over: Record<string, unknown>) => ({
+    ...(scaffoldFor('chain') as Record<string, unknown>),
+    ...over,
+  });
+  const refusal = (payload: unknown): { code: string; text: string } => {
+    try {
+      validateAgainstShape(payload, 'chain');
+    } catch (error) {
+      if (error instanceof AutopilotError) return { code: error.failure.code, text: error.message };
+      throw error;
+    }
+    throw new Error('the payload was accepted');
+  };
+
+  it('refuses one merge journal entry split across two taken entries', () => {
+    const refused = refusal(chain({
+      merged: [journal(['DEV-1', 'DEV-2'])],
+      taken: [
+        { tickets: ['DEV-1'], outcome: 'merged' },
+        { tickets: ['DEV-2'], outcome: 'merged' },
+      ],
+    }));
+
+    expect(refused.code).toBe('AUTOPILOT_INPUT');
+    expect(refused.text).toMatch(/merged\[0\]/);
+    expect(refused.text).toMatch(/taken/);
+  });
+
+  it('refuses a taken entry with no ticket, which would count as a unit of nothing', () => {
+    const refused = refusal(chain({ taken: [{ tickets: [], outcome: 'merged' }] }));
+
+    expect(refused.code).toBe('AUTOPILOT_INPUT');
+    expect(refused.text).toMatch(/taken\[0\]\.tickets/);
+  });
+
+  it('refuses a ticket listed in two taken entries, whatever their outcomes', () => {
+    const refused = refusal(chain({
+      merged: [journal(['DEV-1'])],
+      taken: [
+        { tickets: ['DEV-1'], outcome: 'merged' },
+        { tickets: ['DEV-1'], outcome: 'published-awaiting-human' },
+      ],
+    }));
+
+    expect(refused.code).toBe('AUTOPILOT_INPUT');
+    expect(refused.text).toMatch(/taken\[1\]\.tickets/);
+    expect(refused.text).toContain('DEV-1');
+  });
+
+  it('refuses an outcome that is none of the three, rather than reading it as a fourth', () => {
+    const refused = refusal(chain({ taken: [{ tickets: ['DEV-1'], outcome: 'published' }] }));
+
+    expect(refused.code).toBe('AUTOPILOT_INPUT');
+    expect(refused.text).toMatch(/taken\[0\]\.outcome/);
+    expect(refused.text).toMatch(/published-awaiting-human/);
+  });
+
+  it('accepts the nominal case: one taken entry per journal entry, same tickets', () => {
+    expect(() => validateAgainstShape(chain({
+      merged: [journal(['DEV-1', 'DEV-2'])],
+      taken: [
+        { tickets: ['DEV-2', 'DEV-1'], outcome: 'merged' },
+        { tickets: ['DEV-3'], outcome: 'unit-blocked' },
+      ],
+    }), 'chain')).not.toThrow();
   });
 });
 

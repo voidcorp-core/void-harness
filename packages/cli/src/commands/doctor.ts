@@ -15,7 +15,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { isMachineEntry, pendingMigrations, resolveFreshness, VOID_MACHINE_DIR } from '@voidcorp/hook-runner';
 import { autopilotPreflight } from '../lib/autopilot/preflight.js';
-import { programPath, readProgramDescriptor } from '../lib/autopilot/program.js';
+import { LEGACY_PROGRAM_PATHS, PROGRAM_PATH, programPath, readProgramDescriptor } from '../lib/autopilot/program.js';
 import { packsCoherenceIssues, validateConfig } from '../lib/config-schema.js';
 import { applyRepair, conformanceRules, inspectConformance } from '../lib/conformance/run.js';
 import { checkGlyph, checkShowsFix } from '../lib/doctor-render.js';
@@ -23,14 +23,16 @@ import { publishedVersionCheck } from '../lib/freshness-check.js';
 import { INSTALL_MANIFEST_PATH, parseInstallManifest, verifyInstallManifest } from '../lib/install-manifest.js';
 import { judgeInvocation, observeInvocation } from '../lib/invocation-health.js';
 import { inspectHarnessLintExclusion } from '../lib/lint-exclusion.js';
+import { observeKeptTracked } from '../lib/git-exclude.js';
 import { type ObservedPathObservation, observedWriteCandidates } from '../lib/observed-write-paths.js';
 import { type DiscoveredAsset, looksHarnessAuthored, orphanedAssets } from '../lib/orphaned-assets.js';
 import { CORE_PLUGIN_NAME, MARKETPLACE_REPO, PACKS, packDirForName } from '../lib/packs.js';
 import { cliVersion, findCoreSource } from '../lib/paths.js';
+import { installedPath, remedyPrefix, resolveProjectRoots } from '../lib/project-roots.js';
 import { type CheckResult, checkEnforceWorkflow, checkGh } from '../lib/prerequisites.js';
 import { readInstallReceipt } from '../lib/receipts.js';
 import { fetchPinnedPluginVersion, fetchRemoteMarketplace } from '../lib/remote.js';
-import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
+import { banner, blank, c, footer, glyph, line, meta } from '../lib/render.js';
 import {
   judgeRunnerStaleness,
   runnerStalenessCheck,
@@ -91,11 +93,25 @@ export async function doctor(args: readonly string[]): Promise<void> {
   const wantsFix = args.includes('--fix');
   const dryRun = args.includes('--dry-run');
   const checks: CheckResult[] = [];
-  const root = process.cwd();
+  // What doctor judges is the installation, and the installation belongs to
+  // the repository: from a linked worktree that is the main checkout, where
+  // `init` put the assets git was told not to carry. Judged against the tree
+  // it ran in, doctor read a healthy repository as an absent install (DEV-732).
+  const roots = resolveProjectRoots();
+  const root = roots.installRoot;
+  // One rule, no exception: everything printed below about the installation
+  // names it when the two roots differ. A remedy carries `remedyPrefix`, a path
+  // goes through `installedPath`, and whether the named command would resolve
+  // the root by itself is not part of the test -- that exception is what left
+  // `doctor --fix` with two answers (DEV-768).
+  const where = remedyPrefix(roots);
 
-  const target = selfRepoDoctorTarget(root);
+  // The source repository is judged where it stands: self-host compares the
+  // current sources with what they last compiled into, and those sources are
+  // the tree at hand.
+  const target = selfRepoDoctorTarget(roots.workRoot);
   if (target.kind === 'self-host') {
-    await runSelfHostDoctor(root, args);
+    await runSelfHostDoctor(roots.workRoot, args);
     return;
   }
 
@@ -117,7 +133,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
     banner('doctor');
     blank();
     line(`${c.red('x')}  ${c.dim(stale.name.padEnd(18))} ${stale.message}`);
-    if (stale.fix !== undefined) line(c.dim(`     ${glyph.to} ${stale.fix}`));
+    if (stale.fix !== undefined) line(c.dim(`     ${glyph.to} ${where}${stale.fix}`));
     line(`${c.dim('-')}  ${c.dim(suspended.name.padEnd(18))} ${suspended.message}`);
     footer(c.red('1 check failed, this project\'s structure was not judged'));
     process.exit(1);
@@ -320,6 +336,17 @@ export async function doctor(args: readonly string[]): Promise<void> {
   // or a git ref, and what it cannot read reports as unknown rather than false.
   if (declaresProgram(root)) {
     checks.push(...autopilotPreflight(observeAutopilot(root)));
+  } else {
+    // Naming the path, because silence is the one answer a reader cannot tell
+    // from not having looked. A project whose programme sat at another name got
+    // eight autopilot lines at one path and none at the other, and the empty
+    // report read as "no active programme" rather than "I looked over there".
+    checks.push({
+      name: 'program',
+      ok: true,
+      status: 'pass',
+      message: `no active program at ${[PROGRAM_PATH, ...LEGACY_PROGRAM_PATHS].join(' nor ')}, so autopilot's preconditions do not apply`,
+    });
   }
 
   // Structural conformance: conventions the harness DECLARES and can repair
@@ -344,6 +371,14 @@ export async function doctor(args: readonly string[]): Promise<void> {
 
   banner('doctor');
   blank();
+  if (roots.workRoot !== roots.installRoot) {
+    // Named only when they differ: in the main checkout there is one root and
+    // nothing to explain. From a worktree, the reader must know which install
+    // the checks below describe.
+    meta('work tree', roots.workRoot);
+    meta('installed', roots.installRoot);
+    blank();
+  }
   for (const check of checks) {
     const marks: Record<ReturnType<typeof checkGlyph>, string> = {
       unknown: c.yellow('?'),
@@ -357,7 +392,7 @@ export async function doctor(args: readonly string[]): Promise<void> {
     // the width, which is how `autopilot worktrees` printed as
     // `worktreesworktrees usable`.
     line(`${marks[checkGlyph(check)]}  ${c.dim(check.name.padEnd(18))} ${check.message}`);
-    if (checkShowsFix(check) && check.fix) line(c.dim(`     ${glyph.to} ${check.fix}`));
+    if (checkShowsFix(check) && check.fix) line(c.dim(`     ${glyph.to} ${where}${check.fix}`));
   }
 
   // Unknown is not failure. A check that could not reach a tracker has not
@@ -383,7 +418,10 @@ export async function doctor(args: readonly string[]): Promise<void> {
       line(
         conformance.blocked === undefined
           ? c.dim('nothing to repair')
-          : c.yellow(`${glyph.to} ${conformance.blocked}`),
+          // `--fix` judges and repairs `installRoot`, so what blocks it is the
+          // state of THAT tree. Printed bare from a worktree, it told a reader
+          // standing in a clean tree that their tree was dirty.
+          : c.yellow(`${glyph.to} ${where}${conformance.blocked}`),
       );
     } else {
       for (const ruleId of conformance.repairable) {
@@ -393,7 +431,12 @@ export async function doctor(args: readonly string[]): Promise<void> {
         line(
           `${dryRun ? c.dim('would write') : c.green('wrote')}  ${c.dim(rule.id.padEnd(18))} ${String(applied.written.length)} file(s)`,
         );
-        for (const path of applied.written.slice(0, 5)) line(c.dim(`     ${path}`));
+        // Project-relative by contract (`conformance/rule.ts`), and read against
+        // the directory the reader typed the command in: named in full when
+        // that is not the directory being written to.
+        for (const path of applied.written.slice(0, 5)) {
+          line(c.dim(`     ${installedPath(roots, path)}`));
+        }
         if (applied.written.length > 5) {
           line(c.dim(`     ... ${String(applied.written.length - 5)} more`));
         }
@@ -505,6 +548,9 @@ function observeManifest(root: string): ManifestObservation {
     kind: 'present',
     version: manifest.version,
     drifted: report.missingTotal + report.mismatchedTotal,
+    // Both halves, already capped by the verification. Naming them is the whole
+    // difference between "something moved" and a path to open.
+    driftedPaths: [...report.missing, ...report.mismatched],
     coEdited: report.coEditedTotal,
   };
 }
@@ -564,6 +610,7 @@ async function observeLayout(root: string): Promise<LayoutObservation> {
       pending: pendingMigrations(root),
       localIgnored: null,
       observedPaths,
+      keptTracked: observeKeptTracked(root),
       trackedObserved: [],
       trackedDerivedCount: 0,
       orphanedAssets: observeOrphanedAssets(root),
@@ -600,6 +647,7 @@ async function observeLayout(root: string): Promise<LayoutObservation> {
     pending: pendingMigrations(root),
     localIgnored,
     observedPaths,
+    keptTracked: observeKeptTracked(root),
     trackedObserved,
     trackedDerivedCount,
     orphanedAssets: observeOrphanedAssets(root),
@@ -750,6 +798,16 @@ function observeAutopilot(root: string): Parameters<typeof autopilotPreflight>[0
                 autopilot: {
                   clusterSize: program.autopilot.clusterSize,
                   mergeGate: program.autopilot.mergeGate,
+                  // Carried so the merge check can name where the human gate
+                  // stands. Reporting the gate without the branch it protects
+                  // tells an operator that automation is on and nothing else.
+                  // Spread rather than set: under exactOptionalPropertyTypes an
+                  // explicit `undefined` is not the same as an absent key, and
+                  // absent is what "the program did not say" means here.
+                  ...(program.autopilot.deployBranch === undefined
+                    ? {}
+                    : { deployBranch: program.autopilot.deployBranch }),
+                  base: program.autopilot.base,
                   verifyCommands: program.autopilot.verifyCommands,
                 },
               }),

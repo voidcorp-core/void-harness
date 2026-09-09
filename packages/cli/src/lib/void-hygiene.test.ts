@@ -12,6 +12,7 @@ function observation(over: Partial<LayoutObservation> = {}): LayoutObservation {
     orphanedAssets: [],
     manifest: { kind: 'present', version: '2.5.1', drifted: 0 },
     receipt: { kind: 'present', version: '2.5.1', missing: [], missingTotal: 0 },
+    keptTracked: [],
     ...over,
   };
 }
@@ -63,6 +64,47 @@ describe('judgeLayout', () => {
     expect(check?.status).toBe('fail');
     expect(check?.message).toContain('3 file(s)');
     expect(check?.fix).toBe('npx voidharness@2.5.1 hydrate — it restores and proves every file');
+  });
+
+  // A count sends the reader to rehash eighty files by hand to find the one that
+  // moved. The verification already knows which; the observation was throwing
+  // the names away.
+  it('names the files that differ, not just how many', () => {
+    const check = named(
+      judgeLayout(
+        observation({
+          manifest: {
+            kind: 'present',
+            version: '3.6.0',
+            drifted: 2,
+            driftedPaths: ['.claude/skills/void-tdd/SKILL.md', '.void/hooks/_void-hook.mjs'],
+          },
+        }),
+      ),
+      'void manifest',
+    );
+
+    expect(check?.message).toContain('.claude/skills/void-tdd/SKILL.md');
+    expect(check?.message).toContain('.void/hooks/_void-hook.mjs');
+  });
+
+  // The mirror of `void ignore`: the block declares these tracked, and a project
+  // rule higher in the file can win over it with nothing to show for it.
+  it('reports a declared-tracked path that git hides, naming the rule', () => {
+    const check = named(
+      judgeLayout(
+        observation({
+          keptTracked: [
+            { path: '.void/config.json', present: true, ignored: true, rule: '.gitignore:1:.void/*' },
+          ],
+        }),
+      ),
+      'void kept',
+    );
+
+    expect(check?.status).toBe('fail');
+    expect(check?.message).toContain('.void/config.json');
+    expect(check?.message).toContain('.gitignore:1:.void/*');
   });
 
   // `.void/PROJECT-DOCTRINE.md` is created once from a template and the project

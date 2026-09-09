@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { CORE_PLUGIN_NAME, MARKETPLACE_NAME, MARKETPLACE_REPO, PACKS } from '../lib/packs.js';
+import { remedyPrefix, resolveProjectRoots } from '../lib/project-roots.js';
 import { readSettings, settingsPathFor } from '../lib/settings.js';
 import {
   fetchRemoteMarketplace,
@@ -21,34 +22,62 @@ interface LocalConfig {
   readonly packs?: Record<string, string>;
 }
 
-export async function check(args: readonly string[]): Promise<void> {
-  const doctrine = args.includes('--doctrine');
-  const projectRoot = process.cwd();
+/** The three reads `check` makes of the marketplace, `gh` by default. */
+export interface CheckRemote {
+  readonly fetchRemoteMarketplace: typeof fetchRemoteMarketplace;
+  readonly fetchPinnedPluginVersion: typeof fetchPinnedPluginVersion;
+  readonly fetchRemotePhilosophy: typeof fetchRemotePhilosophy;
+}
 
-  const repo = await resolveMarketplaceRepo(projectRoot);
-  const local = await readLocalConfig(projectRoot);
+export interface CheckOptions {
+  /** The directory the command ran in. The installation is resolved from it. */
+  readonly cwd?: string;
+  /** What the marketplace answers. A test hands in a remote that needs no network. */
+  readonly remote?: CheckRemote;
+}
+
+const GH_REMOTE: CheckRemote = {
+  fetchRemoteMarketplace,
+  fetchPinnedPluginVersion,
+  fetchRemotePhilosophy,
+};
+
+export async function check(args: readonly string[], options: CheckOptions = {}): Promise<void> {
+  const doctrine = args.includes('--doctrine');
+  const remote = options.remote ?? GH_REMOTE;
+  // The pins, the settings and the installed doctrine belong to the
+  // installation, which from a linked worktree is the main checkout.
+  const roots = resolveProjectRoots(options.cwd);
+  const installRoot = roots.installRoot;
+  // `update` and `init` act on the directory they are typed in. A remedy
+  // followed from a worktree as printed would install a second copy there,
+  // bumping none of the pins this check measures, so it names the installation.
+  const where = remedyPrefix(roots);
+
+  const repo = await resolveMarketplaceRepo(installRoot);
+  const local = await readLocalConfig(installRoot);
 
   banner('check');
   meta('marketplace', repo);
   blank();
 
-  const remote = fetchRemoteMarketplace(repo);
-  if (!remote.ok) {
-    status(`could not fetch remote marketplace: ${remote.error}`, 'err');
+  const marketplace = remote.fetchRemoteMarketplace(repo);
+  if (!marketplace.ok) {
+    status(`could not fetch remote marketplace: ${marketplace.error}`, 'err');
     line(c.dim('verify `gh auth status` and that you have access to the repo.'));
     process.exit(1);
   }
 
-  const drift = reportVersionDrift(local, remote.value, repo);
+  const drift = reportVersionDrift(local, marketplace.value, repo, remote);
 
   if (doctrine) {
     blank();
-    await reportDoctrineDrift(projectRoot, remote.value, repo);
+    await reportDoctrineDrift(installRoot, where, marketplace.value, repo, remote);
   }
 
   if (drift > 0) {
     footer(
-      `${c.yellow(`${drift} plugin${drift > 1 ? 's' : ''} behind`)} ${glyph.emdash} run ${c.bold(
+      `${c.yellow(`${drift} plugin${drift > 1 ? 's' : ''} behind`)} ${glyph.emdash} run ${where}${c.bold(
         'void-harness update',
       )} ${c.dim('(refreshes the plugin cache + bumps the pins this check measures), then restart Claude Code')}`,
     );
@@ -57,8 +86,8 @@ export async function check(args: readonly string[]): Promise<void> {
   }
 }
 
-async function resolveMarketplaceRepo(projectRoot: string): Promise<string> {
-  const settings = await readSettings(settingsPathFor(projectRoot));
+async function resolveMarketplaceRepo(installRoot: string): Promise<string> {
+  const settings = await readSettings(settingsPathFor(installRoot));
   const entry = (settings.extraKnownMarketplaces as Record<string, unknown> | undefined)?.[MARKETPLACE_NAME];
   if (entry && typeof entry === 'object') {
     const source = (entry as { source?: { repo?: string } }).source;
@@ -67,8 +96,8 @@ async function resolveMarketplaceRepo(projectRoot: string): Promise<string> {
   return MARKETPLACE_REPO;
 }
 
-async function readLocalConfig(projectRoot: string): Promise<LocalConfig> {
-  const configPath = join(projectRoot, '.void', 'config.json');
+async function readLocalConfig(installRoot: string): Promise<LocalConfig> {
+  const configPath = join(installRoot, '.void', 'config.json');
   if (!existsSync(configPath)) return {};
   try {
     return JSON.parse(await readFile(configPath, 'utf8')) as LocalConfig;
@@ -77,7 +106,12 @@ async function readLocalConfig(projectRoot: string): Promise<LocalConfig> {
   }
 }
 
-function reportVersionDrift(local: LocalConfig, remote: RemoteMarketplace, marketplaceRepo: string): number {
+function reportVersionDrift(
+  local: LocalConfig,
+  marketplace: RemoteMarketplace,
+  marketplaceRepo: string,
+  remote: CheckRemote,
+): number {
   const localVersions: Record<string, string | undefined> = {
     [CORE_PLUGIN_NAME]: local.core,
   };
@@ -87,10 +121,10 @@ function reportVersionDrift(local: LocalConfig, remote: RemoteMarketplace, marke
 
   let drift = 0;
 
-  for (const plugin of remote.plugins) {
+  for (const plugin of marketplace.plugins) {
     const declaredRaw = localVersions[plugin.name];
     const localStr = declaredRaw ? normalizeVersion(declaredRaw) : glyph.emdash;
-    const remoteFetch = fetchPinnedPluginVersion(plugin, marketplaceRepo);
+    const remoteFetch = remote.fetchPinnedPluginVersion(plugin, marketplaceRepo);
     if (!remoteFetch.ok) {
       row({ mark: 'info', label: plugin.name, versions: [localStr, glyph.emdash], suffix: c.dim(remoteFetch.error) });
       continue;
@@ -125,30 +159,36 @@ function reportVersionDrift(local: LocalConfig, remote: RemoteMarketplace, marke
   return drift;
 }
 
-async function reportDoctrineDrift(projectRoot: string, market: RemoteMarketplace, marketplaceRepo: string): Promise<void> {
+async function reportDoctrineDrift(
+  installRoot: string,
+  where: string,
+  marketplace: RemoteMarketplace,
+  marketplaceRepo: string,
+  remote: CheckRemote,
+): Promise<void> {
   // New home first, previous one until the project runs `update`.
-  const migrated = join(projectRoot, '.void', 'installed', 'PHILOSOPHY.md');
+  const migrated = join(installRoot, '.void', 'installed', 'PHILOSOPHY.md');
   const localPath = existsSync(migrated)
     ? migrated
-    : join(projectRoot, '.void', 'PHILOSOPHY.md');
+    : join(installRoot, '.void', 'PHILOSOPHY.md');
   if (!existsSync(localPath)) {
-    status('PHILOSOPHY.md missing locally — run `void-harness init` to install.', 'warn');
+    status(`PHILOSOPHY.md missing locally — run ${where}\`void-harness init\` to install.`, 'warn');
     return;
   }
   const localText = await readFile(localPath, 'utf8');
-  const remote = fetchRemotePhilosophy(market, CORE_PLUGIN_NAME, marketplaceRepo);
-  if (!remote.ok) {
-    status(`could not fetch remote PHILOSOPHY.md: ${remote.error}`, 'warn');
+  const fetched = remote.fetchRemotePhilosophy(marketplace, CORE_PLUGIN_NAME, marketplaceRepo);
+  if (!fetched.ok) {
+    status(`could not fetch remote PHILOSOPHY.md: ${fetched.error}`, 'warn');
     return;
   }
-  if (normalizeNewlines(localText) === normalizeNewlines(remote.value)) {
+  if (normalizeNewlines(localText) === normalizeNewlines(fetched.value)) {
     status(`PHILOSOPHY.md ${c.dim('in sync')}`);
     return;
   }
   const localLines = localText.split('\n').length;
-  const remoteLines = remote.value.split('\n').length;
+  const remoteLines = fetched.value.split('\n').length;
   status(
-    `PHILOSOPHY.md drift (local ${localLines}L, remote ${remoteLines}L) — run \`void-harness init\` to overwrite`,
+    `PHILOSOPHY.md drift (local ${localLines}L, remote ${remoteLines}L) — run ${where}\`void-harness init\` to overwrite`,
     'warn',
   );
 }

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildUnionReviewRequest,
-  inconclusiveReview,
   judgeMergeGrant,
   parseUnionReview,
   planPostCheckAction,
@@ -421,10 +420,10 @@ describe('where the reader\'s prose stops', () => {
     expect(parsed.contradictions.map((entry) => entry.severity)).toEqual(['blocking', 'advisory']);
   });
 
-  it('builds an inconclusive verdict for a reading that never returned', () => {
+  it('refuses an inconclusive verdict for a reading that never returned', () => {
     // A timeout or an adapter failure is not a clean union and not a
     // contradicted one. It gets its own verdict rather than a default.
-    const review = inconclusiveReview(SHA);
+    const review = clean({ verdict: 'inconclusive' });
 
     expect(review.verdict).toBe('inconclusive');
     expect(judgeMergeGrant({

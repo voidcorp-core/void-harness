@@ -17,6 +17,7 @@ function completed(ticketId: string): WorkerResult {
     files: [`src/${ticketId}.ts`],
     proofs: [{ name: 'test', command: ['pnpm', 'test'], hash: 'a'.repeat(64) }],
     decisions: [],
+    review: { kind: 'panel', passes: [{ name: 'code-review', context: 'fresh-context-subagent' }] },
     blocker: null,
   };
 }

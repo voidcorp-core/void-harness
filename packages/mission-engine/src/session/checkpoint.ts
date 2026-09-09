@@ -70,10 +70,26 @@ export interface ContextMeasurement {
   readonly thresholdPercent: number;
 }
 
+/**
+ * Why a measurement could not be judged, when it could not be.
+ *
+ * Absent means judged. The reminder was silent at 73% of window with
+ * `nudge_emitted: false`, and the cause was a threshold outside 40-60 being
+ * normalized to 0 and then refused — so the mechanism was disarmed for the life
+ * of that project and reported the same `false` as a project sitting at 10%.
+ *
+ * The two reasons stay separate because they have different fixes: one asks for
+ * a window to be configured, the other for a number that IS configured to be
+ * corrected. Telling someone to set what they already set is how the earlier
+ * version of this admission wasted an operator's afternoon (#193).
+ */
+export type ContextUnjudgeable = 'window-unknown' | 'threshold-unusable';
+
 export interface ContextMeasurementDecision {
   readonly state: MechanicalContextState;
   readonly emitNudge: boolean;
   readonly usagePercent?: number;
+  readonly unjudgeable?: ContextUnjudgeable;
 }
 
 export type MechanicalContextBlock =
@@ -474,6 +490,16 @@ export function evaluateContextMeasurement(
     ? (usedTokens / (measurement.windowTokens ?? 1)) * 100
     : undefined;
   const revisionAfterTokens = state.workRevision + (tokensChanged ? 1 : 0);
+  // Named before it is used, so the silence carries its reason out of here
+  // instead of being reconstructed by each caller from the inputs it happens to
+  // still hold. The window is checked first: with no window there is no
+  // percentage to compare a threshold against, so reporting the threshold would
+  // point at the wrong knob.
+  const unjudgeable: ContextUnjudgeable | undefined = !windowKnown
+    ? 'window-unknown'
+    : thresholdValid
+      ? undefined
+      : 'threshold-unusable';
   const emitNudge = usagePercent !== undefined
     && thresholdValid
     && usagePercent >= measurement.thresholdPercent
@@ -498,6 +524,7 @@ export function evaluateContextMeasurement(
     state: next,
     emitNudge,
     ...(usagePercent === undefined ? {} : { usagePercent }),
+    ...(unjudgeable === undefined ? {} : { unjudgeable }),
   };
 }
 

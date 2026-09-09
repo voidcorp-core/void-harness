@@ -75,10 +75,14 @@ import { CODEX_SPECIALIST_SAFETY } from './specialists/compile-codex.js';
 
 /** Everything an adapter's `wire` may need. Runtime-agnostic inputs the command computed. */
 export interface RuntimeWireContext {
-  /** Isolated directory receiving bytes before publication. */
-  readonly projectRoot: string;
-  /** Final project root used when compiling absolute runtime references. */
-  readonly installationRoot: string;
+  /**
+   * Isolated directory receiving bytes before publication. Never the
+   * installation: a transaction that rolls back byte-for-byte can only do so
+   * on a directory it owns entirely.
+   */
+  readonly stageRoot: string;
+  /** Where the harness is installed, and what absolute runtime references name. */
+  readonly installRoot: string;
   readonly sourceRoot: string;
   readonly enabledPlugins: readonly string[];
   readonly enabledPacks: readonly PackDescriptor[];
@@ -124,19 +128,27 @@ export interface RuntimeInspectOptions {
   readonly claudeCacheRoot?: string;
 }
 
+/**
+ * One runtime's wiring and its health.
+ *
+ * `root` is the directory being read, which `init` and `runtime add` answer
+ * with their stage: a transaction proves the runtime wired and fired there
+ * before publishing a byte. It is never called `projectRoot`, which in this
+ * package always means the directory a command was run in.
+ */
 export interface RuntimeAdapter {
   readonly id: Runtime;
   readonly label: string;
   /** Does this runtime already show a footprint in the project? */
-  detect(projectRoot: string): boolean;
+  detect(root: string): boolean;
   /** Runtime-specific prerequisites (empty for local, self-contained adapters). */
   prerequisites(marketplaceRepo: string, source?: InstallSource): readonly CheckResult[];
   /** Materialize this runtime's active layer + its own doctrine doc. Idempotent. */
   wire(ctx: RuntimeWireContext): Promise<RuntimeWireOutcome>;
   /** Health checks for this runtime's wiring + doc, for `doctor`. Never throws. */
-  doctorChecks(projectRoot: string): Promise<readonly CheckResult[]>;
+  doctorChecks(root: string): Promise<readonly CheckResult[]>;
   /** Executable lifecycle postconditions. Missing proof stays false/null, never green. */
-  inspect(projectRoot: string, options?: RuntimeInspectOptions): Promise<RuntimeInspection>;
+  inspect(root: string, options?: RuntimeInspectOptions): Promise<RuntimeInspection>;
 }
 
 async function safeRegularFile(path: string): Promise<boolean> {
@@ -187,9 +199,9 @@ function effectiveSpecialistCapability(
   };
 }
 
-function observedRuntime(projectRoot: string, runtime: Runtime): boolean | null {
-  const body = loadCanonicalEventBody(projectRoot);
-  if (body === '') return existsSync(voidReadPath(projectRoot, 'runs')) ? null : false;
+function observedRuntime(root: string, runtime: Runtime): boolean | null {
+  const body = loadCanonicalEventBody(root);
+  if (body === '') return existsSync(voidReadPath(root, 'runs')) ? null : false;
   let malformed = false;
   for (const line of body.split(/\r?\n/)) {
     if (line === '') continue;
@@ -213,9 +225,9 @@ function smokeCheck(runtime: Runtime, fired: boolean | null, detail: string): Ch
   };
 }
 
-async function docBlockCheck(projectRoot: string, runtime: Runtime): Promise<CheckResult> {
+async function docBlockCheck(root: string, runtime: Runtime): Promise<CheckResult> {
   const file = docFileFor(runtime);
-  const path = join(projectRoot, file);
+  const path = join(root, file);
   if (!existsSync(path)) {
     return { name: file, ok: false, message: 'missing', fix: `void-harness runtime add ${runtime}` };
   }
@@ -283,7 +295,7 @@ const claudeAdapter: RuntimeAdapter = {
   prerequisites: (repo, source = 'local') =>
     source === 'marketplace' ? [checkGh(), checkMarketplaceAccess(repo)] : [],
   async wire(ctx) {
-    const settingsPath = settingsPathFor(ctx.projectRoot);
+    const settingsPath = settingsPathFor(ctx.stageRoot);
     // Inspected rather than read: a settings file the project cannot parse is
     // not an empty one, and merging into `{}` is how its hooks and permissions
     // used to disappear.
@@ -297,7 +309,7 @@ const claudeAdapter: RuntimeAdapter = {
       .filter((directory): directory is string => directory !== undefined);
     let merged: ClaudeSettings;
     if (ctx.source === 'local') {
-      const assets = await wireClaudeLocalAssets(ctx.projectRoot, ctx.sourceRoot, packDirs);
+      const assets = await wireClaudeLocalAssets(ctx.stageRoot, ctx.sourceRoot, packDirs);
       merged = mergeLocalSettings(existing, assets.hookConfiguration);
       status = `settings.json + ${assets.skills} skills + ${assets.agents} agents + ${assets.hooks} hooks wired locally`;
       nextSteps = ['restart Claude Code (project-local skills and agents load on session start)'];
@@ -335,7 +347,7 @@ const claudeAdapter: RuntimeAdapter = {
     await writeSettings(settingsPath, merged);
     const docResult = ctx.preserveDoctrineDoc === true
       ? 'preserved' as const
-      : await patchRuntimeDoc(ctx.projectRoot, 'claude', {
+      : await patchRuntimeDoc(ctx.stageRoot, 'claude', {
           enabledPlugins: ctx.enabledPlugins,
           enabledPacks: ctx.enabledPacks,
           channel: ctx.source,
@@ -343,7 +355,7 @@ const claudeAdapter: RuntimeAdapter = {
     // `.claude/` holds engine-format files this repo wrote. Left inside the
     // project's lint glob they fail on code the project does not own.
     //
-    // Read against `installationRoot`, never `projectRoot`: the latter is the
+    // Read against `installRoot`, never `stageRoot`: the latter is the
     // isolated stage this transaction writes into, which holds none of the
     // project's own files — looking for a linter config there finds nothing,
     // always.
@@ -351,7 +363,7 @@ const claudeAdapter: RuntimeAdapter = {
     // Reported, not written. The config belongs to the project, and a
     // transaction that rolls back byte-for-byte cannot roll back an edit to a
     // file it does not own. Telling the truth beats leaving a surprise behind.
-    const lint = await inspectHarnessLintExclusion(ctx.installationRoot);
+    const lint = await inspectHarnessLintExclusion(ctx.installRoot);
     const lintLine =
       lint.kind === 'excluded'
         ? `${lint.file}: .claude excluded from lint`
@@ -368,12 +380,12 @@ const claudeAdapter: RuntimeAdapter = {
       nextSteps,
     };
   },
-  async doctorChecks(projectRoot) {
-    return (await this.inspect(projectRoot)).checks;
+  async doctorChecks(root) {
+    return (await this.inspect(root)).checks;
   },
-  async inspect(projectRoot, options) {
+  async inspect(root, options) {
     const checks: CheckResult[] = [];
-    const settingsPath = settingsPathFor(projectRoot);
+    const settingsPath = settingsPathFor(root);
     let localSettings = false;
     if (!existsSync(settingsPath)) {
       checks.push({ name: 'settings.json', ok: false, message: '.claude/settings.json missing', fix: 'void-harness runtime add claude' });
@@ -397,22 +409,22 @@ const claudeAdapter: RuntimeAdapter = {
         checks.push({ name: 'settings.json', ok: false, message: `missing: ${missing}`, fix: 'void-harness runtime add claude' });
       }
     }
-    checks.push(await docBlockCheck(projectRoot, 'claude'));
+    checks.push(await docBlockCheck(root, 'claude'));
 
     let installed = false;
     let activationHook: string | undefined;
     let agentsRoot: string | undefined;
-    const localRunner = join(projectRoot, '.void', 'hooks', '_void-hook.mjs');
-    const localAgent = join(projectRoot, '.claude', 'agents', 'doctrine-critic.md');
+    const localRunner = join(root, '.void', 'hooks', '_void-hook.mjs');
+    const localAgent = join(root, '.claude', 'agents', 'doctrine-critic.md');
     if (
       localSettings
       && await safeRegularFile(localRunner)
-      && await anyStagedSkill(join(projectRoot, '.claude', 'skills'))
+      && await anyStagedSkill(join(root, '.claude', 'skills'))
       && await safeRegularFile(localAgent)
     ) {
       installed = true;
       activationHook = localRunner;
-      agentsRoot = join(projectRoot, '.claude', 'agents');
+      agentsRoot = join(root, '.claude', 'agents');
       checks.push({
         name: 'local assets',
         ok: true,
@@ -479,7 +491,7 @@ const claudeAdapter: RuntimeAdapter = {
         installed,
         wired,
         fired: smoke.fired,
-        observed: observedRuntime(projectRoot, 'claude'),
+        observed: observedRuntime(root, 'claude'),
       },
       checks,
     };
@@ -493,9 +505,9 @@ const codexAdapter: RuntimeAdapter = {
   prerequisites: () => [],
   async wire(ctx) {
     const staged = await wireCodexFloor(
-      ctx.projectRoot,
+      ctx.stageRoot,
       ctx.sourceRoot,
-      ctx.installationRoot,
+      ctx.installRoot,
     );
     // For Codex we materialize the skills into .agents/skills (its directory-
     // convention discovery) rather than a marketplace fetch — core skills plus the
@@ -504,14 +516,14 @@ const codexAdapter: RuntimeAdapter = {
     // declined (decision log, `codex-plugin-channel-declined`): one surface per
     // runtime, and no marketplace dependency to install.
     const packDirs = ctx.enabledPacks.map((p) => packDirForName(p.name)).filter((d): d is string => d !== undefined);
-    const skills = await wireCodexSkills(ctx.projectRoot, ctx.sourceRoot, packDirs);
+    const skills = await wireCodexSkills(ctx.stageRoot, ctx.sourceRoot, packDirs);
     // Both the five authored critics and the canonical v3 specialists compile
     // into native project-agent TOML. Skills remain a separate inline teaching
     // surface and never impersonate fresh-context agents.
-    const agents = await wireCodexAgents(ctx.projectRoot, ctx.sourceRoot);
+    const agents = await wireCodexAgents(ctx.stageRoot, ctx.sourceRoot);
     const docResult = ctx.preserveDoctrineDoc === true
       ? 'preserved' as const
-      : await patchRuntimeDoc(ctx.projectRoot, 'codex', {
+      : await patchRuntimeDoc(ctx.stageRoot, 'codex', {
           enabledPlugins: ctx.enabledPlugins,
           enabledPacks: ctx.enabledPacks,
           channel: ctx.source,
@@ -525,14 +537,14 @@ const codexAdapter: RuntimeAdapter = {
       nextSteps: ['trust the project .codex/ layer per your Codex config (the safety floor is wired)'],
     };
   },
-  async doctorChecks(projectRoot) {
-    return (await this.inspect(projectRoot)).checks;
+  async doctorChecks(root) {
+    return (await this.inspect(root)).checks;
   },
-  async inspect(projectRoot) {
-    const floor = await codexFloorHealth(projectRoot);
-    const skills = await codexSkillsHealth(projectRoot);
-    const specialists = await codexSpecialistsHealth(projectRoot);
-    const doc = await docBlockCheck(projectRoot, 'codex');
+  async inspect(root) {
+    const floor = await codexFloorHealth(root);
+    const skills = await codexSkillsHealth(root);
+    const specialists = await codexSpecialistsHealth(root);
+    const doc = await docBlockCheck(root, 'codex');
     const checks: CheckResult[] = [
       {
         name: 'codex floor',
@@ -557,7 +569,7 @@ const codexAdapter: RuntimeAdapter = {
       },
       doc,
     ];
-    const runner = join(projectRoot, CODEX_HOOKS_DIR, '_void-hook.mjs');
+    const runner = join(root, CODEX_HOOKS_DIR, '_void-hook.mjs');
     const installed = await safeRegularFile(runner);
     const wired = installed && floor.ok && skills.ok && specialists.ok && doc.ok;
     const smoke = wired
@@ -575,7 +587,7 @@ const codexAdapter: RuntimeAdapter = {
         installed,
         wired,
         fired: smoke.fired,
-        observed: observedRuntime(projectRoot, 'codex'),
+        observed: observedRuntime(root, 'codex'),
       },
       checks,
     };
@@ -588,19 +600,19 @@ export const ADAPTERS: readonly RuntimeAdapter[] = [claudeAdapter, codexAdapter]
 /** Lightweight specialist readiness for mission dispatch. Unlike a full runtime
  * inspection this does not execute a hook smoke test on every controller step. */
 export async function specialistCapabilityFor(
-  projectRoot: string,
+  root: string,
   runtime: Runtime,
   options: RuntimeInspectOptions = {},
 ): Promise<SpecialistRuntimeCapability> {
   if (runtime === 'codex') {
-    const specialists = await codexSpecialistsHealth(projectRoot);
+    const specialists = await codexSpecialistsHealth(root);
     return effectiveSpecialistCapability(
       specialists.ok,
       specialists.detail,
       CODEX_SPECIALIST_SAFETY,
     );
   }
-  const localAgents = join(projectRoot, '.claude', 'agents');
+  const localAgents = join(root, '.claude', 'agents');
   const localSpecialist = join(localAgents, 'security-engineer.md');
   const agentsRoot = await safeRegularFile(localSpecialist)
     ? localAgents
@@ -630,7 +642,7 @@ export function adaptersFor(runtimes: readonly Runtime[]): readonly RuntimeAdapt
 }
 
 /** Adapters whose runtime shows a footprint in the project, in registry order. */
-export function detectedAdapters(projectRoot: string): readonly RuntimeAdapter[] {
-  const detected = detectRuntimes(projectRoot);
+export function detectedAdapters(root: string): readonly RuntimeAdapter[] {
+  const detected = detectRuntimes(root);
   return ADAPTERS.filter((a) => detected.has(a.id));
 }

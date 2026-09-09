@@ -1,5 +1,18 @@
+import { spawnSync } from 'node:child_process';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import type { InstallReceipt } from '../lib/receipts.js';
+import { INSTALL_RECEIPT_PATH, type InstallReceipt } from '../lib/receipts.js';
 import { sourceRepoVerdict } from './init.js';
 import {
   completeOwnership,
@@ -218,5 +231,125 @@ describe('completeOwnership, against content the project changed', () => {
     );
 
     expect(owned.map((file) => file.path)).toEqual(['.void/install-manifest.json']);
+  });
+});
+
+// The receipt is machine-local and dates from 2026-07-24. A marketplace install
+// made before it carries none, and until now this was the one route of `update`
+// that never wrote one: the two local routes rebuild it from the manifest, the
+// marketplace route has no manifest to rebuild from and left the tree unmarked.
+// From a linked worktree that IS the install, an unmarked tree makes `doctor`
+// prefer the main checkout, which holds nothing (DEV-732, DEV-740).
+describe('update on a marketplace install that predates the receipt', () => {
+  const HERE = dirname(fileURLToPath(import.meta.url));
+  const REPO = resolve(HERE, '..', '..', '..', '..');
+  const CLI = resolve(HERE, '..', '..', 'bin', 'void-harness.mjs');
+
+  function git(cwd: string, ...args: string[]): void {
+    const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
+    if (result.status !== 0) throw new Error(`git ${args.join(' ')}: ${result.stderr}`);
+  }
+
+  /**
+   * A `gh` that answers `gh api repos/<repo>/contents/<path>` from this
+   * checkout, so the marketplace route runs against the real catalog and the
+   * real core plugin.json without a network or an account. Nothing else of
+   * `gh` is imitated: the route asks for two files and stops.
+   */
+  function fakeGhOnPath(): string {
+    const bin = mkdtempSync(join(tmpdir(), 'update-gh-'));
+    const script = join(bin, 'gh');
+    writeFileSync(
+      script,
+      [
+        '#!/bin/sh',
+        'for argument in "$@"; do target="$argument"; done',
+        'path=$(printf %s "$target" | sed -e "s|^repos/[^/]*/[^/]*/contents/||" -e "s|?.*$||")',
+        `exec cat "${REPO}/$path"`,
+        '',
+      ].join('\n'),
+    );
+    chmodSync(script, 0o755);
+    return `${bin}:${process.env.PATH ?? ''}`;
+  }
+
+  function run(command: string, cwd: string, env: NodeJS.ProcessEnv): { code: number; out: string } {
+    const result = spawnSync(process.execPath, [CLI, ...command.split(' ')], { cwd, encoding: 'utf8', env });
+    return { code: result.status ?? 0, out: `${result.stdout ?? ''}${result.stderr ?? ''}` };
+  }
+
+  /** What `init` left in a tree before receipts existed: config, doctrine, wiring, no manifest. */
+  function installWithoutReceipt(root: string): void {
+    mkdirSync(join(root, '.void', 'installed'), { recursive: true });
+    mkdirSync(join(root, '.claude'), { recursive: true });
+    writeFileSync(join(root, '.void', 'config.json'), '{}\n');
+    writeFileSync(join(root, '.void', 'installed', 'PHILOSOPHY.md'), '# Philosophy\n');
+    writeFileSync(join(root, '.void', 'PROJECT-DOCTRINE.md'), '# Doctrine\n');
+    writeFileSync(
+      join(root, '.claude', 'settings.json'),
+      JSON.stringify({
+        extraKnownMarketplaces: { voidcorp: { source: { source: 'github', repo: 'voidcorp-core/void-harness' } } },
+        enabledPlugins: { 'harness@voidcorp': true },
+      }),
+    );
+    writeFileSync(join(root, 'CLAUDE.md'), '# Project\n');
+  }
+
+  it('writes the receipt, so doctor from that worktree judges the install it holds', () => {
+    const main = mkdtempSync(join(tmpdir(), 'update-main-'));
+    git(main, 'init', '--quiet');
+    writeFileSync(join(main, 'README.md'), '# fixture\n');
+    git(main, 'add', 'README.md');
+    git(main, '-c', 'user.name=Void Test', '-c', 'user.email=void@example.test', 'commit', '--quiet', '-m', 'test: seed');
+    const linked = join(mkdtempSync(join(tmpdir(), 'update-linked-')), 'DEV-000');
+    git(main, 'worktree', 'add', '--quiet', linked, '-b', 'worker/DEV-000');
+    installWithoutReceipt(linked);
+    const env = { ...process.env, PATH: fakeGhOnPath() };
+
+    const before = run('doctor --no-remote', linked, env);
+    expect(before.out).toMatch(new RegExp(`^\\s+installed\\s+${realpathSync(main)}$`, 'm'));
+    expect(before.out).toContain('.void/config.json missing');
+
+    // `--pins-only` keeps the route off the marketplace cache under $HOME.
+    const updated = run('update --pins-only', linked, env);
+    expect(updated.code).toBe(0);
+
+    const receipt = JSON.parse(readFileSync(join(linked, INSTALL_RECEIPT_PATH), 'utf8')) as InstallReceipt;
+    expect(receipt.source).toBe('marketplace');
+    expect(receipt.runtimes).toEqual(['claude']);
+    expect(receipt.files).toEqual([]);
+
+    const after = run('doctor --no-remote', linked, env);
+    expect(after.out).not.toMatch(/^\s+installed\s+\//m);
+    expect(after.out).toMatch(/project config\s+valid JSON \+ schema/);
+    expect(after.out).toMatch(/doctrine files\s+PHILOSOPHY\.md \+ PROJECT-DOCTRINE\.md present/);
+  });
+
+  it('previews and then retires the obsolete registry through update', () => {
+    const project = mkdtempSync(join(tmpdir(), 'update-registry-project-'));
+    const globalDir = mkdtempSync(join(tmpdir(), 'update-registry-global-'));
+    const registry = join(globalDir, 'projects');
+    installWithoutReceipt(project);
+    mkdirSync(registry);
+    writeFileSync(join(registry, 'a.path'), '/project/a\n');
+    writeFileSync(join(registry, 'b.path'), '/project/b\n');
+    const env = {
+      ...process.env,
+      PATH: fakeGhOnPath(),
+      VOID_GLOBAL_DIR: globalDir,
+    };
+
+    const preview = run('update --pins-only --dry-run', project, env);
+
+    expect(preview.code).toBe(0);
+    expect(preview.out).toContain('would retire 2 obsolete project pointer(s)');
+    expect(existsSync(join(registry, 'a.path'))).toBe(true);
+
+    const applied = run('update --pins-only', project, env);
+
+    expect(applied.code).toBe(0);
+    expect(applied.out).toContain('retired 2 obsolete project pointer(s)');
+    expect(existsSync(join(registry, 'a.path'))).toBe(false);
+    expect(existsSync(join(registry, 'b.path'))).toBe(false);
   });
 });

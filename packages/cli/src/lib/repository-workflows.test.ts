@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { parseDocument } from 'yaml';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
+const GITHUB = join(ROOT, '.github');
 const WORKFLOWS = join(ROOT, '.github', 'workflows');
 const files = readdirSync(WORKFLOWS).filter(
   (name) => name.endsWith('.yml') || name.endsWith('.yaml'),
@@ -14,16 +15,38 @@ const files = readdirSync(WORKFLOWS).filter(
 type Permissions = Record<string, unknown> | 'read-all' | 'write-all';
 
 type Workflow = {
+  on?: Record<string, unknown>;
   permissions?: Permissions;
   jobs?: Record<
     string,
     {
       environment?: unknown;
+      if?: unknown;
+      needs?: string | readonly string[];
       permissions?: Permissions;
-      steps?: Array<{ run?: unknown }>;
+      'runs-on'?: unknown;
+      uses?: unknown;
+      steps?: Array<{ run?: unknown; uses?: unknown }>;
     }
   >;
 };
+
+function listYamlFiles(root: string): string[] {
+  return readdirSync(root, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) return listYamlFiles(path);
+    return entry.name.endsWith('.yml') || entry.name.endsWith('.yaml') ? [path] : [];
+  });
+}
+
+function parseYaml(path: string): unknown {
+  const document = parseDocument(readFileSync(path, 'utf8'), {
+    strict: true,
+    uniqueKeys: true,
+  });
+  expect(document.errors.map((error) => error.message), path).toEqual([]);
+  return document.toJS();
+}
 
 function grantsOidcWrite(permissions: Permissions | undefined): boolean {
   return (
@@ -33,16 +56,38 @@ function grantsOidcWrite(permissions: Permissions | undefined): boolean {
 }
 
 function parseWorkflow(name: string): Workflow {
-  const document = parseDocument(readFileSync(join(WORKFLOWS, name), 'utf8'), {
-    strict: true,
-    uniqueKeys: true,
-  });
-  expect(document.errors.map((error) => error.message), name).toEqual([]);
-  return document.toJS() as Workflow;
+  return parseYaml(join(WORKFLOWS, name)) as Workflow;
+}
+
+function needsOf(job: NonNullable<Workflow['jobs']>[string]): readonly string[] {
+  if (typeof job.needs === 'string') return [job.needs];
+  return job.needs ?? [];
+}
+
+function isMainGuarded(
+  name: string,
+  jobs: NonNullable<Workflow['jobs']>,
+  visited = new Set<string>(),
+): boolean {
+  if (visited.has(name)) return false;
+  visited.add(name);
+  const job = jobs[name];
+  if (job === undefined) return false;
+  const condition = typeof job.if === 'string' ? job.if : '';
+  if (/github\.ref\s*==\s*'refs\/heads\/main'/.test(condition)) return true;
+  return needsOf(job).some(
+    (dependency) =>
+      condition.includes(`needs.${dependency}.result == 'success'`)
+      && isMainGuarded(dependency, jobs, visited),
+  );
 }
 
 describe('repository workflow execution contracts', () => {
-  it.each(files)('%s parses as strict YAML and every run block parses as Bash', (name) => {
+  it.each(listYamlFiles(GITHUB))('%s parses as strict YAML', (path) => {
+    expect(parseYaml(path)).toBeDefined();
+  });
+
+  it.each(files)('%s parses every run block as Bash', (name) => {
     const workflow = parseWorkflow(name);
     for (const [jobName, job] of Object.entries(workflow.jobs ?? {})) {
       for (const [stepIndex, step] of (job.steps ?? []).entries()) {
@@ -68,6 +113,45 @@ describe('repository workflow execution contracts', () => {
     }
   });
 
+  it('pins every external action and reusable workflow to a full commit', () => {
+    const references = files.flatMap((name) => {
+      const workflow = parseWorkflow(name);
+      return Object.values(workflow.jobs ?? {}).flatMap((job) => [
+        job.uses,
+        ...(job.steps ?? []).map((step) => step.uses),
+      ]);
+    });
+    const floating = references.filter(
+      (reference): reference is string =>
+        typeof reference === 'string'
+        && !reference.startsWith('./')
+        && !/@[0-9a-f]{40}$/.test(reference),
+    );
+
+    expect(floating).toEqual([]);
+  });
+
+  it('uses the runner context only inside steps that run on an allocated runner', () => {
+    const offenders = files.flatMap((name) => {
+      const workflow = parseWorkflow(name);
+      const { jobs = {}, ...workflowBeforeJobs } = workflow;
+      const workflowOffenders = JSON.stringify(workflowBeforeJobs).includes('${{ runner.')
+        ? [`${name}:workflow`]
+        : [];
+      return [
+        ...workflowOffenders,
+        ...Object.entries(jobs).flatMap(([jobName, job]) => {
+          const { steps: _steps, ...beforeSteps } = job;
+          return JSON.stringify(beforeSteps).includes('${{ runner.')
+            ? [`${name}:${jobName}`]
+            : [];
+        }),
+      ];
+    });
+
+    expect(offenders).toEqual([]);
+  });
+
   it('grants OIDC to exactly release.yml/publish with the bounded job contract', () => {
     const workflows = files.map((name) => ({ name, workflow: parseWorkflow(name) }));
     expect(workflows.filter(({ workflow }) => grantsOidcWrite(workflow.permissions))).toEqual([]);
@@ -87,6 +171,8 @@ describe('repository workflow execution contracts', () => {
       'id-token': 'write',
     });
     expect(oidcJobs[0]?.job.environment).toBe('npm-publish');
+    const publishingWorkflow = workflows.find(({ name }) => name === oidcJobs[0]?.name)?.workflow;
+    expect(isMainGuarded(oidcJobs[0]?.jobName ?? '', publishingWorkflow?.jobs ?? {})).toBe(true);
   });
 
   it('treats workflow-level and job-level write-all as effective OIDC write authority', () => {

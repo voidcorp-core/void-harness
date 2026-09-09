@@ -14,6 +14,8 @@
 //   - No empty section. A header with nothing under it reads as "nothing to
 //     report" and hides the difference between checked and absent.
 
+import type { ReviewGrade } from './review-provenance.js';
+
 export interface TicketProvenance {
   readonly ticketId: string;
   readonly title: string;
@@ -23,6 +25,15 @@ export interface TicketProvenance {
     readonly headSha: string;
     readonly commits: readonly string[];
   };
+  /**
+   * What reviewed this unit, and why no panel did when none could.
+   *
+   * Required, because the body is the account a person promotes on and the
+   * difference between a panel-briefed unit and a self-reviewed one is exactly
+   * what it could not say. A run where that record is missing is a run where
+   * nobody can tell the two apart, which is where this ticket started.
+   */
+  readonly review: { readonly grade: ReviewGrade; readonly detail: string };
 }
 
 export interface ExcludedTicket {
@@ -97,12 +108,21 @@ export function renderPullRequestBody(input: PrBodyInput): string {
   if (input.included.length === 0) {
     lines.push('_No ticket range was integrable. This branch should not have been published._', '');
   } else {
-    lines.push('| Ticket | Commit range | Commits |', '| --- | --- | --- |');
+    lines.push('| Ticket | Commit range | Commits | Review |', '| --- | --- | --- | --- |');
     for (const ticket of input.included) {
       const range = `\`${short(ticket.range.baseSha)}..${short(ticket.range.headSha)}\``;
-      lines.push(`| ${ticketLabel(ticket)} | ${range} | ${ticket.range.commits.length} |`);
+      lines.push(
+        `| ${ticketLabel(ticket)} | ${range} | ${ticket.range.commits.length} | ${ticket.review.grade} |`,
+      );
     }
     lines.push('');
+    // Out of the table on purpose: a reason is a sentence, and a person who
+    // reads "self-reviewed" needs the why on the same screen as the claim.
+    const degraded = input.included.filter((ticket) => ticket.review.grade !== 'panel-grade');
+    for (const ticket of degraded) {
+      lines.push(`- **${ticket.ticketId}** was ${ticket.review.grade}: ${ticket.review.detail}`);
+    }
+    if (degraded.length > 0) lines.push('');
   }
 
   if (input.excluded.length > 0) {

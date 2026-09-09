@@ -39,7 +39,7 @@ export const CODEX_FLOOR_SCRIPTS = [
 ] as const;
 
 // Project-relative directory the scripts are staged into on disk (mkdir/cp/chmod
-// target). Kept relative so it composes with any projectRoot.
+// target). Kept relative so it composes with any root.
 export const CODEX_HOOKS_DIR = '.void/hooks';
 
 // Pure-compilation default. Production wiring passes the final project's
@@ -140,12 +140,12 @@ export function referencedScripts(manifest: string): string[] {
  * half-written .codex/hooks.json.
  */
 export async function wireCodexFloor(
-  projectRoot: string,
+  stageRoot: string,
   sourceRoot: string,
-  installationRoot: string = projectRoot,
+  installRoot: string = stageRoot,
 ): Promise<number> {
   const hooksSrc = join(sourceRoot, 'hooks');
-  const hooksDst = join(projectRoot, CODEX_HOOKS_DIR);
+  const hooksDst = join(stageRoot, CODEX_HOOKS_DIR);
   await mkdir(hooksDst, { recursive: true });
   for (const script of CODEX_FLOOR_SCRIPTS) {
     await cp(join(hooksSrc, script), join(hooksDst, script));
@@ -160,9 +160,9 @@ export async function wireCodexFloor(
 
   const manifest = compileCodexHooksManifest(
     template,
-    join(resolve(installationRoot), CODEX_HOOKS_DIR),
+    join(resolve(installRoot), CODEX_HOOKS_DIR),
   );
-  const codexDir = join(projectRoot, '.codex');
+  const codexDir = join(stageRoot, '.codex');
   await mkdir(codexDir, { recursive: true });
   const manifestPath = join(codexDir, 'hooks.json');
   const tmpPath = `${manifestPath}.tmp`;

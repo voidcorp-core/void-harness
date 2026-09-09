@@ -1,18 +1,16 @@
 #!/usr/bin/env node
 // Regenerate everything this repository derives from its own assets.
 //
-// Seven artefacts are generated from the skills, agents, hooks, commands and
-// packs: the catalogue and its compatibility projection, the frozen capability
-// manifest, the consumer bundle that bakes the model, the cheat sheet, and the
-// npm mirror that carries the first three. Each had its own build command in one
-// of two package.json files and its own freshness gate in CI, and nothing
-// anywhere declared the set.
+// Repository projections are generated from skills, agents, hooks, commands,
+// packs and the verification catalogue. They include the graph catalogue and
+// compatibility model, certification manifest, consumer bundle, cheat sheet,
+// npm mirror, skill-reference register and CI gate block. Each once had its own
+// build command or hand-maintained copy, and nothing declared the complete set.
 //
 // The cost of that showed up the day thirteen skills were renamed: the gates
-// fired one at a time, in series, each after a push, and the seventh artefact
-// was found by CI rather than by the commit that caused it. Enumerating paths
-// does not fix this, it only moves the omission: the eighth artefact would be
-// missing from the list exactly as the seventh was missing from the hook.
+// fired one at a time, in series, each after a push, and a late artefact was
+// found by CI rather than by the commit that caused it. Enumerating output paths
+// does not fix this: the next projection would still be omitted.
 //
 // So the check here is not a list. It derives, then asserts the working tree is
 // unchanged. Anything generated is covered the day it is added, without anyone
@@ -32,6 +30,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
  * copies whatever the four before it produced.
  */
 const STEPS = [
+  { label: 'CI gates', argv: ['node', 'scripts/render-ci-gates.mjs'] },
   { label: 'graph kernel', argv: ['pnpm', '--filter', '@voidcorp/harness-graph', 'build'] },
   { label: 'cli', argv: ['pnpm', 'build:cli'] },
   { label: 'catalogue', argv: ['node', 'packages/cli/bin/void-harness.mjs', 'graph'] },
@@ -51,7 +50,7 @@ const STEPS = [
  * that actually matters and does not depend on the bundler.
  *
  * This is an exception, not a list of what to check. Everything else is covered
- * by being generated, with nothing to add when an eighth artefact appears.
+ * by being generated, with nothing to add when another artefact appears.
  */
 const NOT_BYTE_COMPARED = new Set(['packages/core/graph/void-graph.mjs']);
 

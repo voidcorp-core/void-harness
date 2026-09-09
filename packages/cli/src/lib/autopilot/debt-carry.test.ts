@@ -52,7 +52,13 @@ describe('renderDisposition', () => {
   // six does not know whether relaunching redoes four merged tickets or resumes
   // past them. That unstated sentence decides whether he relaunches or hand-drives.
   it('says what was kept and what remains, so relaunching is an informed choice', () => {
-    const line = renderDisposition({ merged: ['DEV-1', 'DEV-2'], remaining: ['DEV-3'], debts: [] });
+    const line = renderDisposition({
+      merged: ['DEV-1', 'DEV-2'],
+      awaitingHuman: [],
+      blocked: [],
+      remaining: ['DEV-3'],
+      debts: [],
+    });
 
     expect(line).toContain('2');
     expect(line).toContain('1');
@@ -60,13 +66,20 @@ describe('renderDisposition', () => {
   });
 
   it('states that relaunching loses nothing, because the code is true and nobody says it', () => {
-    expect(renderDisposition({ merged: ['DEV-1'], remaining: ['DEV-2'], debts: [] }))
-      .toMatch(/loses nothing|resumes/i);
+    expect(renderDisposition({
+      merged: ['DEV-1'],
+      awaitingHuman: [],
+      blocked: [],
+      remaining: ['DEV-2'],
+      debts: [],
+    })).toMatch(/loses nothing|resumes/i);
   });
 
   it('names the debts a person is about to inherit', () => {
     const line = renderDisposition({
       merged: ['DEV-1'],
+      awaitingHuman: [],
+      blocked: [],
       remaining: [],
       debts: [debt('surface-run', 'high', 'DEV-1')],
     });
@@ -76,8 +89,44 @@ describe('renderDisposition', () => {
   });
 
   it('reads correctly when nothing merged at all, rather than claiming progress', () => {
-    const line = renderDisposition({ merged: [], remaining: ['DEV-1'], debts: [] });
+    const line = renderDisposition({
+      merged: [],
+      awaitingHuman: [],
+      blocked: [],
+      remaining: ['DEV-1'],
+      debts: [],
+    });
 
     expect(line).toMatch(/nothing merged|no unit/i);
+  });
+});
+
+describe('renderDisposition, for a unit that is not merged and not remaining', () => {
+  // The 2026-09-02 run handed one unit to a person and the disposition listed
+  // it as "still ready", which is the sentence that sends a relaunch back onto
+  // an open pull request.
+  it('names a unit waiting for a person apart from the ones still ready', () => {
+    const line = renderDisposition({
+      merged: [],
+      awaitingHuman: ['DEV-703'],
+      blocked: [],
+      remaining: ['DEV-705'],
+      debts: [],
+    });
+
+    expect(line).toMatch(/waiting[^;.]*DEV-703/i);
+    expect(line).toMatch(/still ready: DEV-705/);
+  });
+
+  it('names a blocked unit too, so nobody wonders where it went', () => {
+    const line = renderDisposition({
+      merged: [],
+      awaitingHuman: [],
+      blocked: ['DEV-704'],
+      remaining: [],
+      debts: [],
+    });
+
+    expect(line).toMatch(/blocked[^;.]*DEV-704/i);
   });
 });

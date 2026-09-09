@@ -23,9 +23,9 @@ import { type SkillAudit, auditSkills } from '../lib/audit.js';
 import { loadCanonicalEventBody, loadSkillUsage } from '../lib/graph-io.js';
 import { findCoreSource } from '../lib/paths.js';
 import { checkGh } from '../lib/prerequisites.js';
+import { discoverConfiguredProjects } from '../lib/projects/catalog.js';
 import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
 import {
-  discoverProjects,
   findingToIssue,
   mergeCanonicalTelemetry,
   reconcileIssues,
@@ -74,7 +74,7 @@ export async function audit(args: readonly string[]): Promise<void> {
   const root = process.cwd();
   const staleDays = Number.parseInt(flag(args, 'stale-days') ?? '', 10) || DEFAULT_STALE_DAYS;
   const push = args.includes('--push');
-  // A push aggregates across every registered project (a single repo's telemetry
+  // A push aggregates across every discovered project (a single repo's telemetry
   // is too thin to trust a "never fired" verdict); --all-projects opts in without pushing.
   const aggregate = push || args.includes('--all-projects');
 
@@ -84,7 +84,8 @@ export async function audit(args: readonly string[]): Promise<void> {
   const skillSurface = auditableHarnessSkills(allSkills, model);
 
   // Canonical mission events are authoritative; legacy logs preserve history.
-  const projects = aggregate ? discoverProjects() : [root];
+  const discovery = aggregate ? discoverConfiguredProjects() : undefined;
+  const projects = discovery?.projects.map((project) => project.path) ?? [root];
   const usage = (projects.length > 0 ? projects : [root]).flatMap((r) => loadSkillUsage(r));
 
   const report = auditSkills({
@@ -106,7 +107,10 @@ export async function audit(args: readonly string[]): Promise<void> {
   banner('audit');
   blank();
   if (aggregate) {
-    line(`${c.dim('scope')} ${projects.length} registered project(s) ${c.dim(glyph.dot)} ${c.dim('~/.void index')}`);
+    line(
+      `${c.dim('scope')} ${projects.length} discovered project(s) `
+      + `${c.dim(glyph.dot)} ${c.dim(`${discovery?.rootsSource ?? 'derived'} marker roots`)}`,
+    );
   } else if (
     loadCanonicalEventBody(root) === ''
     && !existsSync(join(root, '.void', 'activations.jsonl'))

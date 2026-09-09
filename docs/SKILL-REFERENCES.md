@@ -60,14 +60,18 @@ says which it is.
 | `void-journal-anchor` | reserved basename of a change-journal sentinel |
 | `void-last-event-id` | graph studio live-render cursor |
 | `void-layout` | module owning the void directory layout |
+| `void-mission-presentation-v1` | presentation workspace owner metadata |
 | `void-migration` | name of the void layout migration check |
 | `void-probe` | observed write path written by the hook probe |
 | `void-project-benchmark` | project-graph benchmark fixture prefix |
 | `void-project-graph-conformance` | conformance run label, `scripts/` |
 | `void-project-graph-orphan` | conformance run label, `scripts/` |
+| `void-consumer` | scratch prefix for isolated consumer workspaces |
+| `void-package` | scratch prefix for extracted package artifacts |
 | `void-runtime-stage` | scratch prefix for the isolated `runtime add` stage |
 | `void-security` | scratch prefix of the `security` command |
 | `void-tx` | scratch prefix of the file transaction |
+| `void-orchestrator` | cmux presentation status identifier |
 
 ## Unprefixed skill directories
 

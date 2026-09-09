@@ -12,12 +12,17 @@
 //     "It works" with no gate behind it is the exact failure this prevents.
 //   - A blocked worker must say why. A stop with no reason cannot be triaged,
 //     and the next session would just re-run it into the same wall.
+//   - Every worker states what reviewed it. A worker whose runtime could convene
+//     no panel used to report that in `decisions`, which nothing downstream
+//     reads, so a self-reviewed unit and a panel-briefed one produced the same
+//     green run. See `review-provenance`.
 //
 // The worker never pushes, opens a PR, merges, or moves the ticket to review.
 // That is not expressible as a type — it lives in the skill contract and its
 // tests — but nothing here lets a result claim it did any of those either.
 
 import { autopilotFailure } from './errors.js';
+import { parseReviewProvenance, type ReviewProvenance } from './review-provenance.js';
 
 export type WorkerStatus = 'completed' | 'blocked';
 
@@ -50,6 +55,8 @@ export interface WorkerResult {
   readonly files: readonly string[];
   readonly proofs: readonly WorkerProof[];
   readonly decisions: readonly WorkerDecision[];
+  /** Which review passes ran, in which context, or why none did. */
+  readonly review: ReviewProvenance;
   readonly blocker: string | null;
 }
 
@@ -260,6 +267,7 @@ export function parseWorkerResult(raw: unknown): WorkerResult {
     files: files as string[],
     proofs,
     decisions: parseDecisions(result.decisions),
+    review: parseReviewProvenance(result.review),
     blocker,
   };
 }

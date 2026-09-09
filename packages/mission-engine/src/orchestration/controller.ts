@@ -6,15 +6,15 @@ import {
   type MissionVerdict,
   type MissionVerdictStatus,
 } from '../evidence/verdict.js';
-import {
-  reduceReviewLoop,
-  type ReviewLoopState,
-} from './review-loop.js';
 import type {
   SpecialistId,
   SpecialistInvocationStage,
   SpecialistRoutingDecision,
 } from '../specialist/routing.js';
+import {
+  type ReviewLoopState,
+  reduceReviewLoop,
+} from './review-loop.js';
 
 export interface MissionSpecialistPlan {
   readonly planHash: string;
@@ -152,7 +152,8 @@ function writerLifecycleViolation(
       || completion.causationId !== request.eventId
       || lifecycleField(request, 'writerId') !== start.leadWriterId
       || lifecycleField(request, 'planHash') !== start.planHash
-      || lifecycleField(request, 'implementationRound') !== implementationRound;
+      || lifecycleField(request, 'implementationRound') !== implementationRound
+      || lifecycleField(request, 'actionKind') !== lifecycleField(completion, 'actionKind');
   });
 }
 
@@ -186,6 +187,20 @@ function writerViolation(input: MissionTeamControllerInput, expected: string): b
 
 function writerCompletions(input: MissionTeamControllerInput): readonly CanonicalEvent[] {
   return input.stream.events.filter((event) => event.kind === 'lead-writer.completed');
+}
+
+type LeadWriterActionKind =
+  | 'run-lead-writer'
+  | 'run-correction'
+  | 'run-preparation-correction';
+
+function leadWriterActionKind(event: CanonicalEvent): LeadWriterActionKind | undefined {
+  const actionKind = lifecycleField(event, 'actionKind');
+  return actionKind === 'run-lead-writer'
+    || actionKind === 'run-correction'
+    || actionKind === 'run-preparation-correction'
+    ? actionKind
+    : undefined;
 }
 
 function lifecycleField(event: CanonicalEvent, key: string): JsonValue | undefined {
@@ -264,16 +279,19 @@ function applyRuntimeCertification(
   decision: MissionTeamDecision,
   capability: SpecialistRuntimeCapability,
 ): MissionTeamDecision {
+  // A degraded runtime still ran the declared review. Keep its limitation in
+  // the verdict, but do not turn a valid ticket into a dead end: only an
+  // unavailable runtime is a hard gate (handled before this function).
   if (capability.status === 'available') return decision;
   const runtimeReasons = capability.limitations.map((item) => `specialist runtime: ${item}`);
   const reasons = [...new Set([...decision.reasons, ...runtimeReasons])];
-  if (decision.action.kind === 'complete') {
-    return stopped('degraded', decision.review, decision.verdict, reasons);
-  }
-  const status = decision.verdict.status === 'blocked' ? 'blocked' : 'degraded';
   return {
     ...decision,
-    verdict: overrideVerdict(decision.verdict, status, runtimeReasons),
+    verdict: overrideVerdict(
+      decision.verdict,
+      decision.verdict.status === 'blocked' ? 'blocked' : 'degraded',
+      runtimeReasons,
+    ),
     reasons,
   };
 }
@@ -353,17 +371,40 @@ export function orchestrateMissionTeam(
   input: MissionTeamControllerInput,
 ): MissionTeamDecision {
   const start = missionStart(input);
-  const completions = writerCompletions(input);
+  const writerEvents = writerCompletions(input);
+  const preparationCorrections = writerEvents.filter((event) =>
+    lifecycleField(event, 'actionKind') === 'run-preparation-correction');
+  const completions = writerEvents.filter((event) =>
+    lifecycleField(event, 'actionKind') !== 'run-preparation-correction');
+  const lastPreparationSeq = preparationCorrections.length === 0
+    ? undefined
+    : Math.max(...preparationCorrections.map((event) => event.seq));
   const firstWriterSeq = completions.length === 0
     ? undefined
     : Math.min(...completions.map((event) => event.seq));
+  const implementationCompletions = completions.filter((event) =>
+    leadWriterActionKind(event) !== 'run-preparation-correction');
+  const firstImplementationSeq = implementationCompletions.length === 0
+    ? undefined
+    : Math.min(...implementationCompletions.map((event) => event.seq));
+  const preparationCorrectionCompleted = preparationCorrections.length > 0;
+  const latePreparationCompletion = lastPreparationSeq !== undefined
+    && input.stream.events.some((event) =>
+      event.seq > lastPreparationSeq
+      && event.kind === 'specialist.completed'
+      && lifecycleField(event, 'stage') === 'pre-implementation');
   const lastWriterSeq = completions.length === 0
     ? undefined
     : Math.max(...completions.map((event) => event.seq));
+  const missionStartSeq = input.stream.events.find((event) => event.kind === 'mission.started')?.seq;
   const expectedSource = start.runtime === 'claude' ? 'runtime:claude' : 'runtime:codex';
   const preReview = reduceReviewLoop({
     stage: 'pre-implementation',
     expectedSource,
+    ...(lastPreparationSeq === undefined || missionStartSeq === undefined ? {} : {
+      stageStartSeqExclusive: missionStartSeq,
+      afterSeqExclusive: lastPreparationSeq,
+    }),
     ...(firstWriterSeq === undefined ? {} : { beforeSeqExclusive: firstWriterSeq }),
     events: input.stream.events,
     requiredSpecialists: requiredSpecialists(input.plan, 'pre-implementation'),
@@ -423,7 +464,27 @@ export function orchestrateMissionTeam(
       'lead writer completion is not bound to a controller request',
     ]);
   }
-  if (!preReview.readyForVerdict) {
+
+  if (preparationCorrectionCompleted && latePreparationCompletion) {
+    return applyRuntimeCertification(stopped(
+      'blocked',
+      preReview,
+      baseVerdict,
+      ['pre-implementation review was replayed after preparation correction'],
+    ), input.specialistRuntime);
+  }
+  if (preparationCorrectionCompleted && firstImplementationSeq === undefined) {
+    const reasons = ['preparation correction completed; implementation is pending'];
+    return applyRuntimeCertification({
+      phase: 'implementation',
+      action: { kind: 'run-lead-writer', writerId: start.leadWriterId },
+      review: preReview,
+      verdict: overrideVerdict(baseVerdict, 'unverified', reasons),
+      reasons,
+    }, input.specialistRuntime);
+  }
+
+  if (!preReview.readyForVerdict && !preparationCorrectionCompleted) {
     return applyRuntimeCertification(
       decideReviewPhase(start, preReview, baseVerdict, 'pre-implementation'),
       input.specialistRuntime,
@@ -439,13 +500,13 @@ export function orchestrateMissionTeam(
       reasons,
     }, input.specialistRuntime);
   }
-  if (firstWriterSeq === undefined || lastWriterSeq === undefined) {
+  if (firstWriterSeq === undefined || firstImplementationSeq === undefined || lastWriterSeq === undefined) {
     throw new Error('MISSION_TEAM_INVARIANT: writer completion boundary is missing');
   }
   const postReview = reduceReviewLoop({
     stage: 'post-implementation',
     expectedSource,
-    stageStartSeqExclusive: firstWriterSeq,
+    stageStartSeqExclusive: firstImplementationSeq,
     afterSeqExclusive: lastWriterSeq,
     events: input.stream.events,
     requiredSpecialists: requiredSpecialists(input.plan, 'post-implementation'),

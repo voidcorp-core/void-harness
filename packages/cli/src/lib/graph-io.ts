@@ -1,12 +1,10 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { readMissionJournals } from '@voidcorp/hook-runner';
 import {
   activationName,
   isSyntheticBehaviorSession,
   parseActivations,
 } from '@voidcorp/harness-graph';
-import { type UsageEntry, parseUsageLog } from './audit.js';
+import type { UsageEntry } from './audit.js';
 
 /**
  * Read canonical mission logs in stable order.
@@ -20,7 +18,6 @@ export function loadCanonicalEventBody(root: string): string {
   return readMissionJournals(root);
 }
 
-/** Canonical stream plus one legacy transition stream during the v2 -> v3 migration. */
 /**
  * The canonical mission journal, and only that.
  *

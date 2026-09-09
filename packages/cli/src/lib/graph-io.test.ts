@@ -3,7 +3,6 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  loadCanonicalEventBody,
   loadSkillUsage,
   loadTelemetryStream,
   skillActivationsToUsage,

@@ -1,4 +1,3 @@
-// src/enforcement/governing-skill.ts
 var GOVERNING_SKILL = {
   "boundary-direction": "void-hexagonal-architecture",
   // The remedy the refusal teaches -- build the byte rather than type it -- is a
@@ -38,7 +37,6 @@ function withGoverningSkill(rule, message) {
   return `${message} (doctrine: the ${governingSkill(rule)} skill)`;
 }
 
-// src/enforcement/runner.ts
 import {
   closeSync,
   existsSync as existsSync3,
@@ -56,19 +54,16 @@ import {
   resolve as resolve2
 } from "node:path";
 
-// src/rules/boundary-direction.ts
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
-// src/rules/verdict.ts
-function allow(code3 = "ALLOW", message = "allowed") {
-  return { allow: true, code: code3, message, evidence: [] };
+function allow(code2 = "ALLOW", message = "allowed") {
+  return { allow: true, code: code2, message, evidence: [] };
 }
-function block(code3, message, evidence) {
-  return { allow: false, code: code3, message, evidence };
+function block(code2, message, evidence) {
+  return { allow: false, code: code2, message, evidence };
 }
 
-// src/rules/source-helpers.ts
 function normalizedPath(path) {
   return path.replaceAll("\\", "/");
 }
@@ -90,11 +85,10 @@ function lineEvidence(edits, applies, violates, allowTag) {
   }
   return evidence;
 }
-function evidenceVerdict(code3, message, evidence) {
-  return evidence.length === 0 ? allow() : block(code3, message, evidence);
+function evidenceVerdict(code2, message, evidence) {
+  return evidence.length === 0 ? allow() : block(code2, message, evidence);
 }
 
-// src/rules/boundary-direction.ts
 var IMPORT = /\bfrom\s+['"](@[A-Za-z0-9_-]+\/[A-Za-z0-9._-]+)/;
 function nearestManifest(projectRoot2, filePath) {
   const root = resolve(projectRoot2);
@@ -149,7 +143,6 @@ function boundaryDirection(edits, projectRoot2) {
   );
 }
 
-// src/rules/control-character.ts
 var SOURCE_EXTENSIONS = /\.(?:ts|tsx|js|mjs|json|md|yaml|sh)$/;
 var ALLOWED = /* @__PURE__ */ new Set([9, 10, 13]);
 function isControl(point) {
@@ -180,7 +173,6 @@ function controlCharacter(edits) {
   );
 }
 
-// src/rules/dangerous-command.ts
 var BRACED_HOME = `$${"{"}HOME}`;
 var ROOT_TARGETS = /* @__PURE__ */ new Set([
   "/",
@@ -248,7 +240,6 @@ function dangerousCommand(command) {
   );
 }
 
-// src/rules/design-slop.ts
 var INTER = /font-family[^;]*\bInter\b|font-\[.?Inter|fontFamily[^,]*\bInter\b/i;
 var GRADIENT = /(?:from|to)-(?:purple|indigo|violet|fuchsia)-\d+[^"' ]*[^"']*(?:from|to)-(?:blue|cyan|teal|sky|indigo)-\d+|linear-gradient\([^)]*(?:purple|indigo|violet)[^)]*(?:blue|cyan|teal)/i;
 var GREY_ON_COLOR = /\btext-(?:gray|grey|slate|zinc|neutral)-\d+\b[^"']*\bbg-(?:indigo|purple|blue|violet|fuchsia|emerald|rose|pink)-\d+\b/i;
@@ -262,10 +253,10 @@ function designSlop(edits) {
     }
     edit.addedContent.split(/\r?\n/).forEach((line, index) => {
       if (/allow-design-slop:/.test(line)) return;
-      const code3 = line.replace(/`[^`]*`|\/\*.*?\*\/|\/\/.*$/g, "");
-      if (INTER.test(code3)) evidence.push(`${path}:${index + 1}: default Inter font`);
-      if (GRADIENT.test(code3)) evidence.push(`${path}:${index + 1}: clich\xE9 gradient`);
-      if (GREY_ON_COLOR.test(code3)) evidence.push(`${path}:${index + 1}: grey text on color`);
+      const code2 = line.replace(/`[^`]*`|\/\*.*?\*\/|\/\/.*$/g, "");
+      if (INTER.test(code2)) evidence.push(`${path}:${index + 1}: default Inter font`);
+      if (GRADIENT.test(code2)) evidence.push(`${path}:${index + 1}: clich\xE9 gradient`);
+      if (GREY_ON_COLOR.test(code2)) evidence.push(`${path}:${index + 1}: grey text on color`);
     });
     if (NESTED_CARD.test(edit.addedContent) && !edit.addedContent.includes("allow-design-slop:")) {
       evidence.push(`${path}: card nested directly inside card`);
@@ -278,7 +269,6 @@ function designSlop(edits) {
   );
 }
 
-// src/rules/no-any.ts
 var ANY = /:\s*any\b|<any>|\bas\s+any\b/;
 function noAny(edits) {
   const evidence = lineEvidence(
@@ -294,7 +284,6 @@ function noAny(edits) {
   );
 }
 
-// src/rules/no-as-cast.ts
 var ASSERTION_CAST = /\bas\s+[A-Z][A-Za-z0-9_]*/;
 function noAsCast(edits) {
   const evidence = lineEvidence(
@@ -310,7 +299,6 @@ function noAsCast(edits) {
   );
 }
 
-// src/rules/project-config.ts
 import { existsSync as existsSync2, readFileSync as readFileSync2 } from "node:fs";
 import { join as join2 } from "node:path";
 var CONFIGS = ["biome.json", "biome.jsonc"];
@@ -439,7 +427,6 @@ function isRuleSuppressed(projectRoot2, rule, path) {
   return severityOf(config.linter?.rules, rule) === "off";
 }
 
-// src/rules/no-console.ts
 var CONSOLE = /\bconsole\.(?:log|error|warn|info|debug)\b/;
 function noConsole(edits, projectRoot2) {
   const evidence = lineEvidence(
@@ -455,7 +442,6 @@ function noConsole(edits, projectRoot2) {
   );
 }
 
-// src/rules/no-focused-test.ts
 var FOCUSED = /\b(?:it|test|describe)\.only\b|\b(?:it|test)\.skip\b|\b(?:xit|xdescribe)\b/;
 function noFocusedTest(edits) {
   return evidenceVerdict(
@@ -465,7 +451,6 @@ function noFocusedTest(edits) {
   );
 }
 
-// src/rules/no-null.ts
 function codeOnly(line) {
   return line.replace(/"(?:[^"\\]|\\.)*"/g, "").replace(/'(?:[^'\\]|\\.)*'/g, "").replace(/`[^`]*`/g, "").replace(/\/\*.*?\*\//g, "").replace(/\/\/.*$/, "");
 }
@@ -477,8 +462,8 @@ function noNull(edits) {
       if (/from\s+['"]drizzle-orm|JSON\.(?:stringify|parse)|typeof.*===\s*['"]null/.test(line)) {
         return false;
       }
-      const code3 = path.endsWith(".tsx") ? codeOnly(line).replace(/\breturn\s+null\b/g, "") : codeOnly(line);
-      return /\bnull\b/.test(code3);
+      const code2 = path.endsWith(".tsx") ? codeOnly(line).replace(/\breturn\s+null\b/g, "") : codeOnly(line);
+      return /\bnull\b/.test(code2);
     },
     "allow-null:"
   );
@@ -489,7 +474,6 @@ function noNull(edits) {
   );
 }
 
-// src/rules/protected-file.ts
 import { basename } from "node:path";
 function protectedReason(path) {
   const normalized = path.replaceAll("\\", "/").toLowerCase();
@@ -526,7 +510,6 @@ function protectedFile(paths) {
   return allow();
 }
 
-// src/rules/secret-content.ts
 var HIGH_CONFIDENCE = [
   /\b(?:AKIA|ASIA)[0-9A-Z]{16}/,
   /\bgh[posru]_[A-Za-z0-9]{36}/,
@@ -563,7 +546,6 @@ function secretContent(edits) {
   return evidence.length === 0 ? allow() : block("SECRET_IN_CONTENT", "secret-in-content: likely secret detected in edited content", evidence);
 }
 
-// src/rules/tdd-order.ts
 function globRegExp(glob) {
   let pattern = "^";
   for (let index = 0; index < glob.length; index += 1) {
@@ -585,6 +567,66 @@ function matches(path, globs) {
 function bypass(path, spikeGlobs) {
   return !/\.(?:ts|tsx|js|jsx)$/.test(path) || /(^|\/)docs\//.test(path) || /\.(?:test|spec)\.(?:ts|tsx|js|jsx)$/.test(path) || /\.d\.ts$/.test(path) || /\/(?:tests?|__tests__)\/fixtures\/|\/seed\/|\/migrations\/|\/drizzle\/meta\/|\/codemods?\//.test(path) || /\/__generated__\//.test(path) || matches(path, spikeGlobs);
 }
+var MAX_TOP_LEVEL_STATEMENTS = 512;
+var DIRECTIVE = /^(['"])use [a-z][a-z ]*\1\s*;?/;
+var TYPE_IMPORT = /^import\s+type\s+[^;'"]*from\s*(['"])[^'"]*\1\s*;?/;
+var RE_EXPORT = /^export\s+(?:type\s+)?(?:\*(?:\s+as\s+[A-Za-z_$][\w$]*)?|\{[^}]*\})\s*(?:from\s*(['"])[^'"]*\1)?\s*;?/;
+function endOfLiteral(source, start) {
+  const quote = source[start] ?? "";
+  for (let index = start + 1; index < source.length; index += 1) {
+    const char = source[index] ?? "";
+    if (char === "\\") {
+      index += 1;
+      continue;
+    }
+    if (char === quote) return index;
+  }
+  return void 0;
+}
+function withoutComments(source) {
+  let output = "";
+  let index = 0;
+  while (index < source.length) {
+    const char = source[index] ?? "";
+    const next = source[index + 1] ?? "";
+    if (char === "/" && next === "/") {
+      const end = source.indexOf("\n", index);
+      if (end === -1) return output;
+      index = end;
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      const end = source.indexOf("*/", index + 2);
+      if (end === -1) return void 0;
+      index = end + 2;
+      continue;
+    }
+    if (char === '"' || char === "'" || char === "`") {
+      const end = endOfLiteral(source, index);
+      if (end === void 0) return void 0;
+      output += source.slice(index, end + 1);
+      index = end + 1;
+      continue;
+    }
+    output += char;
+    index += 1;
+  }
+  return output;
+}
+function isPureReExport(source) {
+  const stripped = withoutComments(source);
+  if (stripped === void 0) return false;
+  let rest = stripped.replace(/\s+/g, " ").trim();
+  for (let count = 0; rest !== "" && count < MAX_TOP_LEVEL_STATEMENTS; count += 1) {
+    const statement = DIRECTIVE.exec(rest) ?? TYPE_IMPORT.exec(rest) ?? RE_EXPORT.exec(rest) ?? void 0;
+    if (statement === void 0) return false;
+    rest = rest.slice(statement[0].length).trim();
+  }
+  return rest === "";
+}
+function carriesNoBehaviour(existing, added) {
+  return isPureReExport(existing) && isPureReExport(added);
+}
 function fileMode(path, input) {
   const header = (input.existingHeaders[path] ?? "").split(/\r?\n/).slice(0, 5).join("\n");
   const marker = header.match(/\/\/\s*tdd-mode:\s*(strict|souple|exploratory)/)?.[1];
@@ -600,8 +642,10 @@ function siblingFor(path) {
 function tddOrder(input) {
   const warnings = [];
   for (const edit of input.edits) {
+    if (edit.operation === "delete" && edit.addedContent === "") continue;
     const path = edit.path.replaceAll("\\", "/");
     if (bypass(path, input.spikeGlobs) || !matches(path, input.businessGlobs)) continue;
+    if (carriesNoBehaviour(input.existingHeaders[path] ?? "", edit.addedContent)) continue;
     const mode = fileMode(path, input);
     if (mode === "exploratory") continue;
     const sibling = siblingFor(path);
@@ -625,7 +669,6 @@ function tddOrder(input) {
   };
 }
 
-// src/rules/test-name.ts
 var GENERIC_NAME = /\b(?:it|test)\(\s*['"]should\s|\b(?:it|test)\(\s*['"]works?\b|\b(?:it|test)\(\s*['"]test['"]/;
 function testName(edits) {
   return evidenceVerdict(
@@ -635,7 +678,6 @@ function testName(edits) {
   );
 }
 
-// src/enforcement/shell-writes.ts
 var REDIRECTION = /(?:^|\s)(?:\d*|&)>{1,2}\s*("[^"]*"|'[^']*'|[^\s;|&<>]+)/g;
 var TEE = /(?:^|[\s|])tee\s+(?:-a\s+)?("[^"]*"|'[^']*'|[^\s;|&<>-][^\s;|&<>]*)/g;
 function unquote2(target) {
@@ -655,7 +697,6 @@ function shellWriteTargets(command) {
   return [...targets].sort();
 }
 
-// src/enforcement/normalize.ts
 var MAX_FIELD_BYTES = 1024 * 1024;
 function record(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
@@ -684,8 +725,13 @@ function parsePatchEdits(patch) {
   const edits = [];
   let path = "";
   let added = "";
+  let deleting = false;
   const emit = () => {
-    if (path !== "") edits.push({ path, addedContent: added });
+    if (path !== "") edits.push({
+      path,
+      addedContent: added,
+      ...deleting ? { operation: "delete" } : {}
+    });
   };
   for (const line of patch.split(/\r?\n/)) {
     const section = line.match(/^\*\*\* (Add|Update|Delete) File: (.+)$/);
@@ -693,6 +739,7 @@ function parsePatchEdits(patch) {
       emit();
       path = safeString(section[2] ?? "", "patch path");
       added = "";
+      deleting = section[1] === "Delete";
       continue;
     }
     if (path !== "" && line.startsWith("+") && !line.startsWith("+++")) {
@@ -723,7 +770,6 @@ function normalizeToolCall(value) {
   return { tool, command, edits: [...edits, ...shellTargets] };
 }
 
-// src/enforcement/runner.ts
 var MAX_HOOK_INPUT_BYTES = 1024 * 1024;
 var BINARY_INPUT_MESSAGE = "HOOK_INPUT_BINARY: a NUL byte in the tool payload. A source file holding one is dropped from the project graph, and no diff shows it. A fixture that needs the byte builds it (String.fromCharCode(0), Buffer.concat) instead of holding it literally.";
 function containsNul(value) {
@@ -888,7 +934,6 @@ function evaluateRule(rule, rawInput, options) {
   throw new Error("UNKNOWN_ENFORCEMENT_RULE");
 }
 
-// src/freshness/cache.ts
 import { mkdirSync, readFileSync as readFileSync4, renameSync, writeFileSync } from "node:fs";
 import { dirname as dirname3, join as join4 } from "node:path";
 var CACHE_TTL_MS = 24 * 60 * 60 * 1e3;
@@ -939,7 +984,6 @@ async function writeFreshnessCache(env, entry) {
   return void 0;
 }
 
-// src/freshness/compare.ts
 var SEMVER_TRIPLE = /^(\d{1,10})\.(\d{1,10})\.(\d{1,10})$/;
 function clean(raw) {
   return raw.trim().replace(/^v/, "");
@@ -988,7 +1032,6 @@ function compareFreshness(installed, latest) {
   return { verdict: "up-to-date", installed, latest };
 }
 
-// src/freshness/registry.ts
 var DEFAULT_REGISTRY = "https://registry.npmjs.org";
 var NPM_PACKAGE = "voidharness";
 var DEFAULT_TIMEOUT_MS = 1500;
@@ -1071,7 +1114,6 @@ async function fetchLatestVersion(options = {}) {
   }
 }
 
-// src/freshness/npmrc.ts
 import { readFileSync as readFileSync5, statSync } from "node:fs";
 import { join as join5 } from "node:path";
 var MAX_NPMRC_BYTES = 64 * 1024;
@@ -1090,7 +1132,6 @@ function readNpmrc(cwd, env) {
   return home === void 0 || home === "" ? void 0 : readIfSmall(join5(home, ".npmrc"));
 }
 
-// src/freshness/notice.ts
 async function resolveFreshness(options) {
   const { installed, env, now, fetchImpl, npmrc, cwd, allowNetwork = true, timeoutMs } = options;
   const cached = readFreshnessCache(env, now);
@@ -1116,15 +1157,12 @@ function freshnessRelay(freshness, source) {
   return `A newer harness is published: ${installed} is installed, ${latest ?? "a newer version"} is available. Tell the user this once, near the start of your first reply, and name the command that installs it: \`void-harness update\`. Do not repeat it later in the session.`;
 }
 
-// src/invocation.ts
 import { existsSync as existsSync5, mkdirSync as mkdirSync2, readFileSync as readFileSync7, readdirSync as readdirSync2, renameSync as renameSync2, writeFileSync as writeFileSync2 } from "node:fs";
 import { dirname as dirname4, join as join8 } from "node:path";
 
-// src/journal.ts
 import { lstatSync, readFileSync as readFileSync6, readdirSync, statSync as statSync2 } from "node:fs";
 import { join as join7 } from "node:path";
 
-// src/void-layout.ts
 import { existsSync as existsSync4 } from "node:fs";
 import { join as join6 } from "node:path";
 var VOID_DIR = ".void";
@@ -1259,7 +1297,6 @@ function voidReadPath(root, ...segments) {
   return candidates.find((candidate) => existsSync4(candidate)) ?? candidates[0];
 }
 
-// src/journal.ts
 var MISSION_DIRECTORY = /^mis_[A-Za-z0-9_-]{8,100}$/;
 var MAX_MISSION_LOGS = 1e4;
 var MAX_JOURNAL_BYTES = 64 * 1024 * 1024;
@@ -1324,7 +1361,6 @@ function journalFingerprint(root) {
   return `${Math.round(newest)}:${bytes}`;
 }
 
-// src/retired-skills.ts
 var RETIRED_SKILLS = {
   "accessibility-first": "void-accessibility",
   "adr-workflow": "void-decide",
@@ -1422,7 +1458,6 @@ function wasEverOurs(name) {
   return Object.hasOwn(RETIRED_SKILLS, name);
 }
 
-// src/invocation.ts
 var SKILL_RUNTIME_DIRS = [".claude", ".agents"];
 function bareName(raw) {
   const colon = raw.lastIndexOf(":");
@@ -1591,7 +1626,6 @@ function refreshInvocationVerdict(root) {
   }
 }
 
-// src/lifecycle/checkpoint-audit.ts
 var DAY_MS = 864e5;
 var STALE_DAYS = 7;
 function auditCheckpoint(input) {
@@ -1610,7 +1644,6 @@ function auditCheckpoint(input) {
   return reasons.length === 0 ? { status: "ok", reasons } : { status: "degraded", reasons };
 }
 
-// src/lifecycle/context.ts
 function sessionStartOutput(version, notice, invocationAlert2, resumeContext) {
   const installed = version.trim() === "" ? "unknown" : version.trim();
   const base = `void-harness ${installed} is active. Non-negotiable floor: never edit secrets, keys or lockfiles; never run destructive shell commands; tests and fresh evidence gate "done". Capture durable project rules explicitly. Run \`void-harness doctor\` if runtime health is uncertain.`;
@@ -1627,7 +1660,6 @@ ${resumeContext.trimEnd()}`;
   };
 }
 
-// src/lifecycle/context-continuity-executor.ts
 import { createHash as createHash2 } from "node:crypto";
 import {
   closeSync as closeSync2,
@@ -1646,7 +1678,6 @@ import {
 import { homedir } from "node:os";
 import { basename as basename3, isAbsolute as isAbsolute3, join as join10, relative as relative3, resolve as resolve3 } from "node:path";
 
-// ../mission-engine/dist/session/checkpoint.js
 import { createHash } from "node:crypto";
 var PROSE_SECTIONS = {
   objective: "objective",
@@ -1896,6 +1927,7 @@ function evaluateContextMeasurement(state, measurement) {
   const thresholdValid = Number.isSafeInteger(measurement.thresholdPercent) && measurement.thresholdPercent >= 40 && measurement.thresholdPercent <= 60;
   const usagePercent = windowKnown ? usedTokens / (measurement.windowTokens ?? 1) * 100 : void 0;
   const revisionAfterTokens = state.workRevision + (tokensChanged ? 1 : 0);
+  const unjudgeable = !windowKnown ? "window-unknown" : thresholdValid ? void 0 : "threshold-unusable";
   const emitNudge = usagePercent !== void 0 && thresholdValid && usagePercent >= measurement.thresholdPercent && !state.nudgeEmitted && state.semanticRevision < revisionAfterTokens;
   const workChanged = tokensChanged || emitNudge;
   const measuredAtMs = Number.isSafeInteger(measurement.measuredAtMs) && measurement.measuredAtMs >= 0 ? measurement.measuredAtMs : state.lastMeasurementAtMs;
@@ -1910,7 +1942,8 @@ function evaluateContextMeasurement(state, measurement) {
   return {
     state: next,
     emitNudge,
-    ...usagePercent === void 0 ? {} : { usagePercent }
+    ...usagePercent === void 0 ? {} : { usagePercent },
+    ...unjudgeable === void 0 ? {} : { unjudgeable }
   };
 }
 function mergeMechanicalContextBlock(raw, state) {
@@ -1971,19 +2004,19 @@ function prose(lines) {
 }
 function bullets(lines) {
   const items = [];
-  let open3 = false;
+  let open2 = false;
   for (const line of lines) {
     const bullet = /^\s*[-*]\s+(.*)$/.exec(line)?.[1];
     if (bullet !== void 0) {
       items.push(bullet);
-      open3 = true;
+      open2 = true;
       continue;
     }
     if (line.trim() === "") {
-      open3 = false;
+      open2 = false;
       continue;
     }
-    if (open3 && items.length > 0) {
+    if (open2 && items.length > 0) {
       items[items.length - 1] = `${items[items.length - 1] ?? ""} ${line.trim()}`;
     }
   }
@@ -2039,7 +2072,6 @@ function parseCheckpoint(raw) {
   };
 }
 
-// ../mission-engine/dist/session/resume.js
 var DAY_MS2 = 864e5;
 var STALE_DAYS2 = 7;
 var CONTEXT_CHARS_MAX = 4e3;
@@ -2248,7 +2280,6 @@ function renderResumeContext(bundle) {
   return boundedResumeLines(required, optional);
 }
 
-// src/lifecycle/executor-shared.ts
 import {
   accessSync,
   constants,
@@ -2314,7 +2345,6 @@ function readJson(path) {
   }
 }
 
-// src/lifecycle/context-continuity-executor.ts
 var CHECKPOINT = join10(".void", "machine", "checkpoint.md");
 var MAX_CHECKPOINT_BYTES = 5e5;
 var LOCK_STALE_MS = 1e3;
@@ -2488,6 +2518,7 @@ function claimStaleLock(path, observed, now) {
     try {
       const current = lstatSync3(path);
       if (observed === void 0 || !sameFile(current, observed)) return void 0;
+      if (!staleFile(current, now)) return void 0;
       if (!unlinkOwnedPath(path, observed)) return void 0;
     } catch (error) {
       if (observed !== void 0 || errorCode(error) !== "ENOENT") return void 0;
@@ -2854,15 +2885,16 @@ function measureContext(state, input, root, event, runtime3, now) {
     state: decision.state,
     emitNudge: decision.emitNudge,
     ...decision.usagePercent === void 0 ? {} : { usagePercent: decision.usagePercent },
+    ...decision.unjudgeable === void 0 ? {} : { unjudgeable: decision.unjudgeable },
     skippedBytes: observed.skippedBytes,
     skippedLines: observed.skippedLines
   };
 }
-function unwatchableOutput(event) {
+function unwatchableOutput(event, reason) {
   return {
     hookSpecificOutput: {
       hookEventName: event,
-      additionalContext: "Context usage is being recorded but cannot be watched: no `context.windowTokens` is configured in `.void/config.json`, so no percentage and no checkpoint threshold can be computed. Set it to the model context window to enable the reminder."
+      additionalContext: reason === "window-unknown" ? "Context usage is being recorded but cannot be watched: no `context.windowTokens` is configured in `.void/config.json`, so no percentage and no checkpoint threshold can be computed. Set it to the model context window to enable the reminder." : "Context usage is being recorded but the checkpoint threshold cannot be applied: `context.checkpointThresholdPercent` in `.void/config.json` is outside the accepted 40 to 60 range, which disarms the reminder entirely. Set it within that range, or remove it to take the default of 50."
     }
   };
 }
@@ -2949,7 +2981,8 @@ function evolveCheckpoint(root, now, runtime3, observation, input, event) {
     });
     const measurement = input === void 0 || event === void 0 ? { state: advanced, emitNudge: false, skippedBytes: 0, skippedLines: 0 } : measureContext(advanced, input, root, event, runtime3, now);
     const measured = reconcile ? advanceMechanicalContext(measurement.state, { semanticCheckpointWritten: true }) : measurement.state;
-    const unwatchable = thresholdConfig(root).windowTokens === void 0 && !measured.unwatchableNotified && event !== void 0;
+    const unjudgeable = measurement.unjudgeable ?? (thresholdConfig(root).windowTokens === void 0 ? "window-unknown" : void 0);
+    const unwatchable = unjudgeable !== void 0 && !measured.unwatchableNotified && event !== void 0;
     const next = unwatchable ? { ...measured, unwatchableNotified: true } : measured;
     if (next === current && block2.status === "valid") {
       return {
@@ -2969,7 +3002,7 @@ function evolveCheckpoint(root, now, runtime3, observation, input, event) {
           transcriptSkippedBytes: measurement.skippedBytes,
           transcriptSkippedLines: measurement.skippedLines
         },
-        ...measurement.emitNudge && event !== void 0 ? { output: nudgeOutput(event, thresholdConfig(root).thresholdPercent) } : unwatchable && event !== void 0 ? { output: unwatchableOutput(event) } : {}
+        ...measurement.emitNudge && event !== void 0 ? { output: nudgeOutput(event, thresholdConfig(root).thresholdPercent) } : unwatchable && event !== void 0 && unjudgeable !== void 0 ? { output: unwatchableOutput(event, unjudgeable) } : {}
       }
     };
   });
@@ -3014,7 +3047,6 @@ function executeContextContinuity(rawInput, root, runtime3, now) {
   return { status: "skipped", details: { reason: "event-not-actionable" } };
 }
 
-// src/lifecycle/context-executor.ts
 import { join as join11 } from "node:path";
 var VERSION_SHAPE = /^[0-9A-Za-z.+-]{1,64}$/;
 function readVersion(path) {
@@ -3041,10 +3073,8 @@ function resolveInstall(root, env) {
   return { version: "unknown", source: void 0 };
 }
 
-// src/lifecycle/format-executor.ts
 import { spawnSync } from "node:child_process";
 
-// src/lifecycle/format.ts
 import {
   isAbsolute as isAbsolute4,
   relative as relative4,
@@ -3067,7 +3097,6 @@ function formatCandidates(touchedPaths, projectRoot2) {
   return [...found];
 }
 
-// src/lifecycle/format-executor.ts
 function executeFormat(rawInput, root, env) {
   const call = normalizeToolCall(rawInput);
   if (call.tool !== "Edit" && call.tool !== "Write" && call.tool !== "apply_patch") {
@@ -3115,10 +3144,8 @@ function executeFormat(rawInput, root, env) {
   return { status: "ok", details: { formatted } };
 }
 
-// src/lifecycle/large-change-executor.ts
 import { spawnSync as spawnSync2 } from "node:child_process";
 
-// src/lifecycle/large-change.ts
 function parseAddedLines(numstat) {
   return numstat.split(/\r?\n/).reduce((total, line) => {
     const [added] = line.split("	", 1);
@@ -3142,7 +3169,6 @@ function assessLargeChange(assessment) {
   };
 }
 
-// src/lifecycle/large-change-executor.ts
 function runGit(git2, root, args, env) {
   const result = spawnSync2(git2, args, {
     cwd: root,
@@ -3242,7 +3268,6 @@ function executeLargeChange(root, env) {
   };
 }
 
-// src/lifecycle/resume-observer.ts
 import { execFileSync } from "node:child_process";
 import {
   existsSync as existsSync6,
@@ -3318,7 +3343,7 @@ function programFrom(raw, legacy) {
   };
 }
 function observeProgram(root) {
-  const present = PROGRAM_PATHS.filter((relative11) => existsSync6(join12(root, relative11)));
+  const present = PROGRAM_PATHS.filter((relative10) => existsSync6(join12(root, relative10)));
   if (present.length === 0) return { program: void 0 };
   if (present.length > 1) {
     return {
@@ -3326,11 +3351,11 @@ function observeProgram(root) {
       programError: `multiple program descriptors: ${present.join(", ")}`
     };
   }
-  const relative10 = present[0];
-  if (relative10 === void 0) return { program: void 0 };
-  const raw = readBounded(join12(root, relative10));
-  const program = raw === void 0 ? void 0 : programFrom(raw, relative10 !== PROGRAM_PATHS[0]);
-  return program === void 0 ? { program: void 0, programError: `invalid program descriptor: ${relative10}` } : { program };
+  const relative9 = present[0];
+  if (relative9 === void 0) return { program: void 0 };
+  const raw = readBounded(join12(root, relative9));
+  const program = raw === void 0 ? void 0 : programFrom(raw, relative9 !== PROGRAM_PATHS[0]);
+  return program === void 0 ? { program: void 0, programError: `invalid program descriptor: ${relative9}` } : { program };
 }
 function git(root, args) {
   try {
@@ -3355,8 +3380,8 @@ function gitObservation(root) {
   };
 }
 function checkpointObservation(root) {
-  for (const relative10 of CHECKPOINT_PATHS) {
-    const path = join12(root, relative10);
+  for (const relative9 of CHECKPOINT_PATHS) {
+    const path = join12(root, relative9);
     const raw = readBounded(path);
     if (raw === void 0) continue;
     try {
@@ -3385,7 +3410,6 @@ function observeResume(root, now, options = {}) {
   };
 }
 
-// src/lifecycle/session-close-intent.ts
 var MAX_PROMPT_CHARS = 8e3;
 function searchablePrompt(prompt) {
   return prompt.slice(0, MAX_PROMPT_CHARS).normalize("NFD").replace(new RegExp("\\p{Diacritic}", "gu"), "").toLowerCase().replace(/[’'_-]/g, " ").replace(/\s+/g, " ").trim();
@@ -3420,7 +3444,6 @@ function checkpointReminderOutput(prompt) {
   };
 }
 
-// src/lifecycle/trim-executor.ts
 import { createHash as createHash3 } from "node:crypto";
 import {
   lstatSync as lstatSync5,
@@ -3430,7 +3453,6 @@ import {
 } from "node:fs";
 import { join as join13, relative as relative5 } from "node:path";
 
-// src/lifecycle/trim.ts
 function record4(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
 }
@@ -3494,7 +3516,6 @@ ${errors}
   };
 }
 
-// src/lifecycle/trim-executor.ts
 function safeOutputDirectory(root) {
   try {
     const canonicalRoot = realpathSync4(root);
@@ -3571,12 +3592,10 @@ function executeTrim(rawInput, root, env) {
   };
 }
 
-// src/lifecycle/typecheck-executor.ts
 import { existsSync as existsSync7 } from "node:fs";
 import { join as join15 } from "node:path";
 import { spawnSync as spawnSync3 } from "node:child_process";
 
-// src/lifecycle/typecheck.ts
 import {
   dirname as dirname5,
   isAbsolute as isAbsolute5,
@@ -3694,7 +3713,6 @@ function nearestTsconfigs(changedPaths, projectRoot2, hasFile) {
   return [...found];
 }
 
-// src/lifecycle/typecheck-executor.ts
 function runGit2(root, args, env) {
   const git2 = findExecutable("git", root, env);
   if (git2 === void 0) return { ok: false, output: "" };
@@ -3823,66 +3841,13 @@ Resolve before claiming done. This never blocks.
   };
 }
 
-// src/record.ts
-import { homedir as homedir2 } from "node:os";
-import { resolve as resolve9 } from "node:path";
-
-// src/project-registry.ts
 import { createHash as createHash4 } from "node:crypto";
-import { lstat, mkdir, open, readFile, realpath } from "node:fs/promises";
-import { isAbsolute as isAbsolute6, join as join16, relative as relative7, resolve as resolve6 } from "node:path";
-function code(error) {
-  return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
-}
-function within4(root, target) {
-  const rel = relative7(root, target);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute6(rel);
-}
-async function registerProjectRoot(root, globalDir) {
-  const canonicalRoot = await realpath(resolve6(root));
-  const base = resolve6(globalDir);
-  await mkdir(base, { recursive: true, mode: 448 });
-  const canonicalBase = await realpath(base);
-  const projects = join16(base, "projects");
-  await mkdir(projects, { recursive: true, mode: 448 });
-  const info = await lstat(projects);
-  if (!info.isDirectory() || info.isSymbolicLink()) {
-    throw new Error("HOOK_UNSAFE_REGISTRY: projects must be a real directory");
-  }
-  const canonicalProjects = await realpath(projects);
-  if (!within4(canonicalBase, canonicalProjects)) {
-    throw new Error("HOOK_REGISTRY_ESCAPE: projects resolves outside global dir");
-  }
-  const slug = createHash4("sha256").update(canonicalRoot).digest("hex").slice(0, 32);
-  const pointer = join16(projects, `${slug}.path`);
-  try {
-    const handle = await open(pointer, "wx", 384);
-    try {
-      await handle.writeFile(`${canonicalRoot}
-`, "utf8");
-    } finally {
-      await handle.close();
-    }
-  } catch (error) {
-    if (code(error) !== "EEXIST") throw error;
-    const pointerInfo = await lstat(pointer);
-    if (!pointerInfo.isFile() || pointerInfo.isSymbolicLink()) {
-      throw new Error("HOOK_UNSAFE_REGISTRY: pointer must be a regular file");
-    }
-    if ((await readFile(pointer, "utf8")).trim() !== canonicalRoot) {
-      throw new Error("HOOK_REGISTRY_COLLISION: pointer owns another root");
-    }
-  }
-}
-
-// src/runtime-input.ts
-import { createHash as createHash5 } from "node:crypto";
 import {
   basename as basename5,
   extname,
-  isAbsolute as isAbsolute7,
-  relative as relative8,
-  resolve as resolve7
+  isAbsolute as isAbsolute6,
+  relative as relative7,
+  resolve as resolve6
 } from "node:path";
 var MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
 function record6(value) {
@@ -3928,7 +3893,7 @@ function nameFor(tool, category, input) {
   return tool || "unknown";
 }
 function safePaths(input, root) {
-  const absoluteRoot = resolve7(root);
+  const absoluteRoot = resolve6(root);
   const candidates = [
     input["file_path"],
     input["path"],
@@ -3937,12 +3902,12 @@ function safePaths(input, root) {
   const paths = [];
   for (const candidate of candidates) {
     if (typeof candidate !== "string" || candidate.length > 2e3) continue;
-    if (!isAbsolute7(candidate)) {
+    if (!isAbsolute6(candidate)) {
       if (!candidate.startsWith("..")) paths.push(candidate.slice(0, 500));
       continue;
     }
-    const rel = relative8(absoluteRoot, resolve7(candidate));
-    if (rel !== "" && !rel.startsWith("..") && !isAbsolute7(rel)) {
+    const rel = relative7(absoluteRoot, resolve6(candidate));
+    if (rel !== "" && !rel.startsWith("..") && !isAbsolute6(rel)) {
       paths.push(rel.slice(0, 500));
     }
   }
@@ -3996,34 +3961,32 @@ function deriveMissionId(explicit, runtime3, runtimeSessionId2, root) {
     }
     return explicit;
   }
-  const opaque = createHash5("sha256").update(`${runtime3}\0${runtimeSessionId2 || "unknown"}\0${resolve7(root)}`).digest("hex").slice(0, 32);
+  const opaque = createHash4("sha256").update(`${runtime3}\0${runtimeSessionId2 || "unknown"}\0${resolve6(root)}`).digest("hex").slice(0, 32);
   return `mis_${opaque}`;
 }
 
-// src/sequenced-writer.ts
 import { randomUUID as nodeRandomUUID } from "node:crypto";
 import {
   constants as constants3
 } from "node:fs";
 import {
-  lstat as lstat2,
-  mkdir as mkdir2,
-  open as open2,
-  readFile as readFile2,
-  realpath as realpath2,
+  lstat,
+  mkdir,
+  open,
+  readFile,
+  realpath,
   rename,
   stat,
   unlink
 } from "node:fs/promises";
 import {
   dirname as dirname6,
-  isAbsolute as isAbsolute8,
-  join as join17,
-  relative as relative9,
-  resolve as resolve8
+  isAbsolute as isAbsolute7,
+  join as join16,
+  relative as relative8,
+  resolve as resolve7
 } from "node:path";
 
-// ../mission-engine/dist/events/schema.js
 var MAX_EVENT_PAYLOAD_BYTES = 16 * 1024;
 var MAX_EVENT_LINE_BYTES = 32 * 1024;
 var MAX_EVENT_PAYLOAD_DEPTH = 8;
@@ -4048,8 +4011,8 @@ var EVENT_KEYS = /* @__PURE__ */ new Set([
 function utf8Bytes(value) {
   let bytes = 0;
   for (const char of value) {
-    const code3 = char.codePointAt(0) ?? 0;
-    bytes += code3 <= 127 ? 1 : code3 <= 2047 ? 2 : code3 <= 65535 ? 3 : 4;
+    const code2 = char.codePointAt(0) ?? 0;
+    bytes += code2 <= 127 ? 1 : code2 <= 2047 ? 2 : code2 <= 65535 ? 3 : 4;
   }
   return bytes;
 }
@@ -4193,7 +4156,6 @@ function serializeEvent(event) {
   return line;
 }
 
-// ../mission-engine/dist/events/reducer.js
 function replayEventLog(text2) {
   const events = [];
   const eventIds = /* @__PURE__ */ new Set();
@@ -4263,26 +4225,25 @@ function replayEventLog(text2) {
   };
 }
 
-// src/sequenced-writer.ts
 var MAX_EVENT_LOG_BYTES = 8 * 1024 * 1024;
 var MISSION_ID3 = /^mis_[A-Za-z0-9_-]{8,100}$/;
 var EVENT_ID2 = /^evt_[A-Za-z0-9_-]{8,100}$/;
 var DEFAULT_LOCK_STALE_MS = 3e4;
 var DEFAULT_LOCK_ATTEMPTS = 2e3;
 var LOCK_RETRY_MS = 2;
-function code2(error) {
+function code(error) {
   return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
 }
-function within5(root, target) {
-  const rel = relative9(root, target);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute8(rel);
+function within4(root, target) {
+  const rel = relative8(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute7(rel);
 }
 async function exists(path) {
   try {
-    await lstat2(path);
+    await lstat(path);
     return true;
   } catch (error) {
-    if (code2(error) === "ENOENT") return false;
+    if (code(error) === "ENOENT") return false;
     throw error;
   }
 }
@@ -4290,8 +4251,8 @@ async function safeRunDirectory(root, missionId) {
   if (!MISSION_ID3.test(missionId)) {
     throw new Error("HOOK_INVALID_MISSION_ID: expected mis_<opaque-id>");
   }
-  const absoluteRoot = resolve8(root);
-  const canonicalRoot = await realpath2(absoluteRoot);
+  const absoluteRoot = resolve7(root);
+  const canonicalRoot = await realpath(absoluteRoot);
   const run = voidReadPath(absoluteRoot, "runs", missionId);
   let ancestor = run;
   while (!await exists(ancestor)) {
@@ -4299,25 +4260,25 @@ async function safeRunDirectory(root, missionId) {
     if (parent === ancestor) break;
     ancestor = parent;
   }
-  const canonicalAncestor = await realpath2(ancestor);
-  if (!within5(canonicalRoot, canonicalAncestor)) {
+  const canonicalAncestor = await realpath(ancestor);
+  if (!within4(canonicalRoot, canonicalAncestor)) {
     throw new Error("HOOK_PATH_ESCAPE: run directory resolves outside project");
   }
-  await mkdir2(run, { recursive: true, mode: 448 });
-  const canonicalRun = await realpath2(run);
-  if (!within5(canonicalRoot, canonicalRun)) {
+  await mkdir(run, { recursive: true, mode: 448 });
+  const canonicalRun = await realpath(run);
+  if (!within4(canonicalRoot, canonicalRun)) {
     throw new Error("HOOK_PATH_ESCAPE: run directory resolves outside project");
   }
   return run;
 }
 async function rejectSymlink(path) {
   try {
-    const info = await lstat2(path);
+    const info = await lstat(path);
     if (info.isSymbolicLink() || !info.isFile()) {
       throw new Error(`HOOK_UNSAFE_FILE: ${path} must be a regular file`);
     }
   } catch (error) {
-    if (code2(error) !== "ENOENT") throw error;
+    if (code(error) !== "ENOENT") throw error;
   }
 }
 async function wait(ms) {
@@ -4329,7 +4290,7 @@ async function acquireLock2(path, staleMs, attempts) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const token = nodeRandomUUID();
     try {
-      const handle = await open2(path, "wx", 384);
+      const handle = await open(path, "wx", 384);
       try {
         await handle.writeFile(
           JSON.stringify({ token, pid: process.pid, acquiredAt: Date.now() }),
@@ -4340,9 +4301,9 @@ async function acquireLock2(path, staleMs, attempts) {
       }
       return { path, token };
     } catch (error) {
-      if (code2(error) !== "EEXIST") throw error;
-      const info = await lstat2(path).catch((statError) => {
-        if (code2(statError) === "ENOENT") return void 0;
+      if (code(error) !== "EEXIST") throw error;
+      const info = await lstat(path).catch((statError) => {
+        if (code(statError) === "ENOENT") return void 0;
         throw statError;
       });
       if (info === void 0) continue;
@@ -4351,7 +4312,7 @@ async function acquireLock2(path, staleMs, attempts) {
       }
       if (Date.now() - info.mtimeMs > staleMs) {
         await unlink(path).catch((unlinkError) => {
-          if (code2(unlinkError) !== "ENOENT") throw unlinkError;
+          if (code(unlinkError) !== "ENOENT") throw unlinkError;
         });
         continue;
       }
@@ -4362,27 +4323,27 @@ async function acquireLock2(path, staleMs, attempts) {
 }
 async function releaseLock2(lock) {
   try {
-    const raw = await readFile2(lock.path, "utf8");
+    const raw = await readFile(lock.path, "utf8");
     const parsed = JSON.parse(raw);
     if (parsed.token === lock.token) await unlink(lock.path);
   } catch (error) {
-    if (code2(error) !== "ENOENT") throw error;
+    if (code(error) !== "ENOENT") throw error;
   }
 }
 async function readSequenceState(statePath, logPath, logBytes) {
   try {
-    const raw = JSON.parse(await readFile2(statePath, "utf8"));
+    const raw = JSON.parse(await readFile(statePath, "utf8"));
     if (Number.isSafeInteger(raw.seq) && (raw.seq ?? -1) >= 0 && raw.logBytes === logBytes) {
       return raw.seq ?? 0;
     }
   } catch {
   }
   if (logBytes === 0) return 0;
-  return replayEventLog(await readFile2(logPath, "utf8")).lastSeq;
+  return replayEventLog(await readFile(logPath, "utf8")).lastSeq;
 }
 async function ensureLineBoundary(logPath, logBytes) {
   if (logBytes === 0) return 0;
-  const handle = await open2(logPath, "r");
+  const handle = await open(logPath, "r");
   try {
     const finalByte = Buffer.alloc(1);
     await handle.read(finalByte, 0, 1, logBytes - 1);
@@ -4390,7 +4351,7 @@ async function ensureLineBoundary(logPath, logBytes) {
   } finally {
     await handle.close();
   }
-  const append = await open2(
+  const append = await open(
     logPath,
     constants3.O_APPEND | constants3.O_WRONLY | (constants3.O_NOFOLLOW ?? 0)
   );
@@ -4403,7 +4364,7 @@ async function ensureLineBoundary(logPath, logBytes) {
 }
 async function appendLine(logPath, line) {
   const flags = constants3.O_APPEND | constants3.O_CREAT | constants3.O_WRONLY | (constants3.O_NOFOLLOW ?? 0);
-  const handle = await open2(logPath, flags, 384);
+  const handle = await open(logPath, flags, 384);
   try {
     await handle.writeFile(`${line}
 `, "utf8");
@@ -4414,7 +4375,7 @@ async function appendLine(logPath, line) {
 }
 async function writeSequenceState(statePath, state, randomUUID) {
   const temporary = `${statePath}.${randomUUID()}.tmp`;
-  const handle = await open2(temporary, "wx", 384);
+  const handle = await open(temporary, "wx", 384);
   try {
     await handle.writeFile(JSON.stringify(state), "utf8");
   } finally {
@@ -4427,7 +4388,7 @@ function sameDraft(event, options) {
 }
 async function existingIdempotentEvent(logPath, options, currentBytes) {
   if (options.eventId === void 0 || currentBytes === 0) return void 0;
-  const stream = replayEventLog(await readFile2(logPath, "utf8"));
+  const stream = replayEventLog(await readFile(logPath, "utf8"));
   if (stream.continuity === "partial" || stream.duplicateEventIds > 0) {
     throw new Error("HOOK_EVENT_LOG_INTEGRITY: continuity cannot be proved");
   }
@@ -4439,7 +4400,7 @@ async function existingIdempotentEvent(logPath, options, currentBytes) {
 }
 async function currentCanonicalEvents(logPath, currentBytes) {
   if (currentBytes === 0) return [];
-  const stream = replayEventLog(await readFile2(logPath, "utf8"));
+  const stream = replayEventLog(await readFile(logPath, "utf8"));
   if (stream.continuity === "partial" || stream.duplicateEventIds > 0) {
     throw new Error("HOOK_EVENT_LOG_INTEGRITY: continuity cannot be proved");
   }
@@ -4450,9 +4411,9 @@ async function writeSequencedEventInternal(options) {
     throw new Error("HOOK_INVALID_EVENT_ID: expected evt_<opaque-id>");
   }
   const run = await safeRunDirectory(options.root, options.missionId);
-  const logPath = join17(run, "events.jsonl");
-  const statePath = join17(run, ".seq.state");
-  const lockPath = join17(run, ".seq.lock");
+  const logPath = join16(run, "events.jsonl");
+  const statePath = join16(run, ".seq.state");
+  const lockPath = join16(run, ".seq.lock");
   await Promise.all([
     rejectSymlink(logPath),
     rejectSymlink(statePath),
@@ -4467,7 +4428,7 @@ async function writeSequencedEventInternal(options) {
   try {
     await rejectSymlink(logPath);
     const currentBytes = await stat(logPath).then((value) => value.size).catch((error) => {
-      if (code2(error) === "ENOENT") return 0;
+      if (code(error) === "ENOENT") return 0;
       throw error;
     });
     if (currentBytes > MAX_EVENT_LOG_BYTES) {
@@ -4520,7 +4481,6 @@ async function writeSequencedEvent(options) {
   return (await writeSequencedEventInternal(options)).event;
 }
 
-// src/record.ts
 async function recordRuntimeEvent(options) {
   const adapted = adaptRuntimeInput(options.rawInput, options);
   if (adapted === void 0) return void 0;
@@ -4541,11 +4501,6 @@ async function recordRuntimeEvent(options) {
     root: options.root,
     missionId,
     draft
-  });
-  await registerProjectRoot(
-    options.root,
-    options.globalDir ?? resolve9(homedir2(), ".void")
-  ).catch(() => {
   });
   return event;
 }
@@ -4578,11 +4533,6 @@ async function recordHookEvent(options) {
       }
     }
   });
-  await registerProjectRoot(
-    options.root,
-    options.globalDir ?? resolve9(homedir2(), ".void")
-  ).catch(() => {
-  });
   return event;
 }
 function runtime(value) {
@@ -4598,12 +4548,10 @@ async function recordRuntimeEventFromCli(raw, argv, env) {
     runtime: runtime(argv[3] ?? env["VOID_AGENT_RUNTIME"]),
     phase: phase(argv[2]),
     rawInput: raw,
-    globalDir: env["VOID_GLOBAL_DIR"] ?? resolve9(homedir2(), ".void"),
     ...env["VOID_MISSION_ID"] === void 0 ? {} : { missionId: env["VOID_MISSION_ID"] }
   });
 }
 
-// src/cli.ts
 var RULES = new Set(RULE_NAMES);
 function isRuleName(value) {
   return value !== void 0 && RULES.has(value);
@@ -4659,7 +4607,6 @@ async function observeHook(hook, execution, rawInput, agentRuntime, root) {
     status: execution.status,
     rawInput,
     details: execution.details,
-    ...process.env["VOID_GLOBAL_DIR"] === void 0 ? {} : { globalDir: process.env["VOID_GLOBAL_DIR"] },
     ...process.env["VOID_MISSION_ID"] === void 0 ? {} : { missionId: process.env["VOID_MISSION_ID"] }
   }).catch(() => {
   });

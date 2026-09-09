@@ -13,6 +13,7 @@ import {
   redactArgv,
   redactOutput,
 } from './redact.js';
+import type { ProjectRoots } from '../project-roots.js';
 import { inspectCurrentMission } from './inspect-current.js';
 import { computeProjectState } from './project-state.js';
 import { inspectMission, recordMissionEvidence } from './store.js';
@@ -30,7 +31,8 @@ interface CommandResult {
 }
 
 export interface VerifyMissionOptions {
-  readonly root: string;
+  /** The command runs and the tree is hashed in `workRoot`; evidence lands in `installRoot`. */
+  readonly roots: ProjectRoots;
   readonly missionId: string;
   readonly command: readonly string[];
   readonly shell: boolean;
@@ -68,13 +70,13 @@ async function runCommand(
   const stderrState = { bytes: 0, truncated: false };
   const child = options.shell
     ? spawn(options.command[0] ?? '', {
-        cwd: options.root,
+        cwd: options.roots.workRoot,
         env: { ...process.env, VOID_MISSION_ID: options.missionId },
         shell: true,
         stdio: ['inherit', 'pipe', 'pipe'],
       })
     : spawn(options.command[0] ?? '', options.command.slice(1), {
-        cwd: options.root,
+        cwd: options.roots.workRoot,
         env: { ...process.env, VOID_MISSION_ID: options.missionId },
         shell: false,
         stdio: ['inherit', 'pipe', 'pipe'],
@@ -115,16 +117,16 @@ export async function verifyMissionCommand(
   options: VerifyMissionOptions,
 ): Promise<VerifyMissionResult> {
   const secrets = collectKnownSecrets();
-  const before = await computeProjectState(options.root);
+  const before = await computeProjectState(options.roots.workRoot);
   await inspectMission(
-    options.root,
+    options.roots.installRoot,
     options.missionId,
     { dependencies: { 'git:working-tree': before.diffHash } },
     { secrets },
   );
   const safeCommand = redactArgv(options.command, secrets);
   const result = await runCommand(options);
-  const after = await computeProjectState(options.root);
+  const after = await computeProjectState(options.roots.workRoot);
   const output = redactOutput(result.stdout, result.stderr, secrets);
   const boundedOutput: EvidenceOutput = result.captureTruncated
     ? { ...output, truncated: true }
@@ -167,9 +169,9 @@ export async function verifyMissionCommand(
       },
     ],
   });
-  await recordMissionEvidence(options.root, evidence);
+  await recordMissionEvidence(options.roots.installRoot, evidence);
   const { inspected } = await inspectCurrentMission(
-    options.root,
+    options.roots,
     options.missionId,
     secrets,
   );

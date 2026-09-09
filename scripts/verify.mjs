@@ -1,243 +1,550 @@
 #!/usr/bin/env node
-// One command that runs locally what CI's `validate` job runs remotely.
-//
-// The gates all existed; what did not was a single entry point. A contributor
-// had to KNOW that adding a skill moves three generated artefacts — the graph,
-// the consumer bundle, and certification.json — plus the core-assets mirror,
-// and had to know the order to regenerate them in. The alternative to knowing
-// was learning it from CI, one round trip at a time.
-//
-// So each step names the command that fixes it, and `--fix` runs those commands
-// for the derived artefacts instead of only reporting them. `--fix` is never
-// implicit: regenerating a committed artefact is a change, and a change happens
-// because someone asked for it.
-//
-// Usage:
-//   node scripts/verify.mjs              full parity with CI's validate job
-//   node scripts/verify.mjs --artifacts  only the generated-artefact gates
-//   node scripts/verify.mjs --fix        regenerate derived artefacts, then verify
-//   node scripts/verify.mjs --list       print the steps without running them
-//
-// Exported: STEPS, selectSteps, parseArgs — pure, unit-tested.
+// One catalogue for local verification, CI steps and exact-SHA evidence.
 
 import { spawnSync } from 'node:child_process';
-import { dirname, resolve } from 'node:path';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  writeFileSync,
+} from 'node:fs';
+import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const TIERS = new Set(['pure', 'contract', 'consumer', 'system', 'certification']);
+const RESOURCES = new Set([
+  'cpu',
+  'filesystem',
+  'subprocess',
+  'network-browser',
+  'external-state',
+]);
+
 /**
- * The validate job, in its order. `artifact: true` marks a gate over a
- * committed generated file — the class `--artifacts` runs and `--fix` repairs.
- *
- * @type {{name: string, run: string[], artifact?: boolean, fix?: string[], slow?: boolean}[]}
+ * @typedef {{
+ *   id: string,
+ *   label: string,
+ *   run: readonly string[],
+ *   tier: 'pure'|'contract'|'consumer'|'system'|'certification',
+ *   resource: 'cpu'|'filesystem'|'subprocess'|'network-browser'|'external-state',
+ *   required: boolean,
+ *   impacts: readonly ('docs'|'decisions'|'source'|'tests')[],
+ *   artifact?: boolean,
+ *   fix?: readonly string[],
+ *   drift?: readonly string[],
+ *   ciEnv?: Readonly<Record<string, string>>,
+ * }} Gate
  */
-export const STEPS = [
-  { name: 'sister-doc parity', run: ['pnpm', 'sync:docs'] },
-  { name: 'version lockstep', run: ['pnpm', 'version:check'] },
-  { name: 'anti-bloat', run: ['pnpm', 'anti-bloat:check'] },
-  { name: 'decision records', run: ['pnpm', 'decisions:check'] },
-  {
-    name: 'hook runner current',
-    run: ['pnpm', 'hooks:build'],
-    artifact: true,
-    fix: ['pnpm', 'hooks:build'],
-    drift: ['packages/core/hooks/_void-hook.mjs'],
-  },
-  {
-    name: 'core-assets in sync',
-    run: ['pnpm', '--filter', 'voidharness', 'build:assets'],
-    artifact: true,
-    fix: ['pnpm', '--filter', 'voidharness', 'build:assets'],
-    drift: ['packages/cli/core-assets'],
-  },
-  { name: 'lint', run: ['pnpm', 'lint'] },
-  { name: 'publish safety', run: ['pnpm', 'check:publish'] },
-  // CI has this gate and this loop did not, so `verify` came back green on a
-  // tree CI then refused. A local proof that does not cover what the remote
-  // checks is not the proof it claims to be.
-  { name: 'package size', run: ['pnpm', 'check:size'] },
-  { name: 'build', run: ['pnpm', 'build'], slow: true },
-  { name: 'project graph benchmark', run: ['pnpm', 'benchmark:project'], slow: true },
-  { name: 'context continuity benchmark', run: ['pnpm', 'benchmark:hooks'], slow: true },
-  {
-    name: 'self-host release gate',
-    run: ['node', 'packages/cli/bin/void-harness.mjs', 'self-host', 'sync', '--mode', 'release-gate'],
-    slow: true,
-  },
-  {
-    name: 'self-host doctor',
-    run: ['node', 'packages/cli/bin/void-harness.mjs', 'self-host', 'doctor', '--mode', 'release-gate'],
-    slow: true,
-  },
-  {
-    name: 'graph integrity',
-    run: ['pnpm', 'graph:check'],
-    artifact: true,
-    fix: ['node', 'packages/cli/bin/void-harness.mjs', 'graph', 'build'],
-  },
-  {
-    // One gate for every generated artefact. They used to have one each, and
-    // nothing declared the set, so a seventh and then an eighth kept falling off
-    // whichever list was updated last. This derives and asserts the tree did not
-    // move, which covers what gets added later without naming anything.
-    name: 'generated artefacts current',
-    run: ['pnpm', 'derive:check'],
-    artifact: true,
-    fix: ['pnpm', 'derive'],
-  },
-  {
-    // The one artefact `derive:check` does not byte-compare, because the bundler
-    // output is not guaranteed identical across environments. Gated on the model
-    // it bakes instead, which does not depend on the bundler.
-    name: 'consumer bundle freshness',
-    run: ['pnpm', 'graph:check-bundle'],
-    artifact: true,
-    fix: ['pnpm', '--filter', 'voidharness', 'build:void-graph'],
-  },
-  { name: 'tests', run: ['pnpm', 'vitest', 'run'], slow: true },
-  { name: 'typecheck', run: ['pnpm', '-r', 'typecheck'], slow: true },
-];
+
+/** @type {readonly Gate[]} */
+export const GATES = Object.freeze([
+  gate('sister-docs', 'Sister-doc parity', ['pnpm', 'sync:docs'], 'contract', 'filesystem', ['source']),
+  gate('philosophy', 'Doctrine parity', ['pnpm', 'sync:philosophy'], 'contract', 'filesystem', ['source']),
+  gate('version-lockstep', 'Version lockstep', ['pnpm', 'version:check'], 'contract', 'filesystem', ['source']),
+  gate('anti-bloat', 'Anti-bloat', ['pnpm', 'anti-bloat:check'], 'contract', 'subprocess', ['source']),
+  gate(
+    'decisions',
+    'Decision records',
+    ['pnpm', 'decisions:check'],
+    'contract',
+    'subprocess',
+    ['decisions', 'source'],
+    { ciEnv: { DECISIONS_BASE: '${{ github.event.pull_request.base.sha }}' } },
+  ),
+  gate(
+    'hook-runner-current',
+    'Generated hook runner',
+    ['pnpm', 'hooks:build'],
+    'consumer',
+    'subprocess',
+    ['source'],
+    {
+      artifact: true,
+      fix: ['pnpm', 'hooks:build'],
+      drift: ['packages/core/hooks/_void-hook.mjs'],
+    },
+  ),
+  gate(
+    'core-assets',
+    'Core assets mirror',
+    ['pnpm', '--filter', 'voidharness', 'build:assets'],
+    'consumer',
+    'filesystem',
+    ['source'],
+    {
+      artifact: true,
+      fix: ['pnpm', '--filter', 'voidharness', 'build:assets'],
+      drift: ['packages/cli/core-assets'],
+    },
+  ),
+  gate('lint', 'Lint', ['pnpm', 'lint'], 'contract', 'cpu', ['source', 'tests']),
+  gate('publish-safety', 'Publish safety', ['pnpm', 'check:publish'], 'consumer', 'filesystem', ['source']),
+  gate('package-size', 'Package size report', ['pnpm', 'check:size'], 'consumer', 'filesystem', ['source']),
+  gate('build', 'Build packages', ['pnpm', 'build'], 'contract', 'subprocess', ['source']),
+  gate(
+    'self-host-sync',
+    'Self-host compile',
+    ['node', 'packages/cli/bin/void-harness.mjs', 'self-host', 'sync', '--mode', 'release-gate'],
+    'consumer',
+    'subprocess',
+    ['source'],
+  ),
+  gate(
+    'self-host-doctor',
+    'Self-host doctor',
+    ['node', 'packages/cli/bin/void-harness.mjs', 'self-host', 'doctor', '--mode', 'release-gate'],
+    'consumer',
+    'subprocess',
+    ['source'],
+  ),
+  gate(
+    'graph-integrity',
+    'Graph integrity',
+    ['pnpm', 'graph:check'],
+    'contract',
+    'subprocess',
+    ['source'],
+    {
+      artifact: true,
+      fix: ['node', 'packages/cli/bin/void-harness.mjs', 'graph', 'build'],
+    },
+  ),
+  gate(
+    'generated-artifacts',
+    'Generated artifacts',
+    ['pnpm', 'derive:check'],
+    'consumer',
+    'subprocess',
+    ['source'],
+    { artifact: true, fix: ['pnpm', 'derive'] },
+  ),
+  gate(
+    'consumer-bundle',
+    'Consumer bundle freshness',
+    ['pnpm', 'graph:check-bundle'],
+    'consumer',
+    'subprocess',
+    ['source'],
+    {
+      artifact: true,
+      fix: ['pnpm', '--filter', 'voidharness', 'build:void-graph'],
+    },
+  ),
+  gate('asset-paths', 'Asset paths', ['pnpm', 'skills:check-paths'], 'contract', 'filesystem', ['docs', 'source']),
+  gate(
+    'skill-references',
+    'Skill references',
+    ['pnpm', 'skills:check-references'],
+    'contract',
+    'filesystem',
+    ['docs', 'source'],
+  ),
+  gate('test-cpu', 'CPU tests', ['pnpm', 'test:cpu'], 'contract', 'cpu', ['source', 'tests']),
+  gate(
+    'test-filesystem',
+    'Filesystem tests',
+    ['pnpm', 'test:filesystem'],
+    'contract',
+    'filesystem',
+    ['source', 'tests'],
+  ),
+  gate(
+    'test-subprocess',
+    'Subprocess tests',
+    ['pnpm', 'test:subprocess'],
+    'system',
+    'subprocess',
+    ['source', 'tests'],
+  ),
+  gate(
+    'test-network',
+    'Network and browser tests',
+    ['pnpm', 'test:network'],
+    'system',
+    'network-browser',
+    ['source', 'tests'],
+  ),
+  gate('typecheck', 'Typecheck', ['pnpm', 'typecheck'], 'contract', 'subprocess', ['source', 'tests']),
+  gate(
+    'benchmark-project',
+    'ProjectGraph performance observation',
+    ['pnpm', 'benchmark:project'],
+    'certification',
+    'subprocess',
+    ['source'],
+    { required: false },
+  ),
+  gate(
+    'benchmark-query',
+    'ProjectGraph query performance observation',
+    ['pnpm', 'benchmark:query'],
+    'certification',
+    'subprocess',
+    ['source'],
+    { required: false },
+  ),
+  gate(
+    'benchmark-hooks',
+    'Hook performance observation',
+    ['pnpm', 'benchmark:hooks'],
+    'certification',
+    'subprocess',
+    ['source'],
+    { required: false },
+  ),
+]);
+
+/** @returns {Gate} */
+function gate(id, label, run, tier, resource, impacts, options = {}) {
+  return Object.freeze({ id, label, run, tier, resource, required: true, impacts, ...options });
+}
+
+const REQUIRED = GATES.filter((candidate) => candidate.required);
+const CONSERVATIVE_PATHS = new Set([
+  'package.json',
+  'pnpm-lock.yaml',
+  'pnpm-workspace.yaml',
+  'tsconfig.json',
+  'vitest.config.ts',
+  'scripts/verify.mjs',
+]);
+const KNOWN_PREFIXES = ['apps/', 'docs/', 'packages/', 'scripts/', 'test/', '.github/'];
+
+/**
+ * @param {readonly {path: string, previousPath?: string, status?: string}[]} changes
+ * @returns {readonly Gate[]}
+ */
+export function selectGates(changes) {
+  if (changes.length === 0) return REQUIRED;
+  const paths = changes.flatMap((change) => [change.path, change.previousPath].filter(Boolean)).map(normalizePath);
+  const conservative = changes.some((change) => change.status === 'deleted' || change.status === 'renamed')
+    || paths.some((path) =>
+      CONSERVATIVE_PATHS.has(path)
+      || path.startsWith('test/support/test-catalog.')
+      || path.startsWith('.github/workflows/')
+      || path.startsWith('packages/core/')
+      || !KNOWN_PREFIXES.some((prefix) => path.startsWith(prefix)),
+    );
+  if (conservative) return REQUIRED;
+
+  const impacts = new Set();
+  for (const path of paths) {
+    if (path.startsWith('docs/')) impacts.add('docs');
+    if (path.startsWith('docs/decisions-log/')) impacts.add('decisions');
+    if (path.startsWith('test/') || path.endsWith('.test.ts')) impacts.add('tests');
+    if (path.startsWith('apps/') || path.startsWith('packages/') || path.startsWith('scripts/')) {
+      impacts.add('source');
+    }
+  }
+  const selected = REQUIRED.filter((candidate) => candidate.impacts.some((impact) => impacts.has(impact)));
+  return selected.length === 0 ? REQUIRED : selected;
+}
+
+function normalizePath(path) {
+  return String(path).replaceAll('\\', '/').replace(/^\.\//, '');
+}
+
+/**
+ * @param {string} output
+ * @returns {{path: string, previousPath?: string, status: string}[]}
+ */
+export function parseNameStatus(output) {
+  const fields = output.split('\0');
+  if (fields.at(-1) === '') fields.pop();
+  const changes = [];
+  for (let index = 0; index < fields.length; ) {
+    const code = fields[index];
+    const kind = code?.at(0);
+    if (kind === undefined || !/^[A-Z]$/.test(kind)) return [];
+    if (kind === 'R' || kind === 'C') {
+      const previousPath = fields[index + 1];
+      const path = fields[index + 2];
+      if (previousPath === undefined || path === undefined) return [];
+      changes.push({ path, previousPath, status: 'renamed' });
+      index += 3;
+      continue;
+    }
+    const path = fields[index + 1];
+    if (path === undefined) return [];
+    changes.push({ path, status: kind === 'D' ? 'deleted' : 'modified' });
+    index += 2;
+  }
+  return changes;
+}
+
+/**
+ * @param {readonly string[]} requiredGateIds
+ * @param {readonly unknown[]} reports
+ * @param {string} sha
+ */
+export function aggregateGateReports(requiredGateIds, reports, sha) {
+  const errors = [];
+  const byId = new Map();
+  for (const value of reports) {
+    if (!isReport(value)) {
+      errors.push('invalid gate report');
+      continue;
+    }
+    const entries = byId.get(value.gateId) ?? [];
+    entries.push(value);
+    byId.set(value.gateId, entries);
+  }
+
+  for (const id of requiredGateIds) {
+    const gateDefinition = GATES.find((candidate) => candidate.id === id);
+    if (gateDefinition === undefined) {
+      errors.push(`unknown required gate ${id}`);
+      continue;
+    }
+    const entries = byId.get(id) ?? [];
+    if (entries.length === 0) {
+      errors.push(`missing report for ${id}`);
+      continue;
+    }
+    if (entries.length > 1) errors.push(`duplicate reports for ${id}`);
+    for (const entry of entries) {
+      if (entry.sha !== sha) errors.push(`stale SHA for ${id}: ${entry.sha}`);
+      if (JSON.stringify(entry.argv) !== JSON.stringify(gateDefinition.run)) {
+        errors.push(`argv mismatch for ${id}`);
+      }
+      if (entry.status !== 'passed' || entry.exitCode !== 0) errors.push(`failed gate ${id}`);
+    }
+    byId.delete(id);
+  }
+  for (const id of byId.keys()) errors.push(`unexpected report for ${id}`);
+  return { ok: errors.length === 0, gateIds: [...requiredGateIds], sha, errors };
+}
+
+function isReport(value) {
+  return value !== null
+    && typeof value === 'object'
+    && value.schemaVersion === 1
+    && typeof value.gateId === 'string'
+    && /^[0-9a-f]{40}$/.test(value.sha)
+    && Array.isArray(value.argv)
+    && value.argv.every((part) => typeof part === 'string')
+    && (value.status === 'passed' || value.status === 'failed')
+    && Number.isInteger(value.exitCode)
+    && typeof value.startedAt === 'string'
+    && Number.isFinite(value.durationMs)
+    && value.durationMs >= 0;
+}
 
 /** @param {readonly string[]} argv */
 export function parseArgs(argv) {
-  const known = new Set(['--artifacts', '--fix', '--list', '--help', '-h']);
-  const unknown = argv.filter((arg) => arg.startsWith('-') && !known.has(arg));
+  const valueAfter = (flag) => {
+    const index = argv.indexOf(flag);
+    const value = index < 0 ? null : argv[index + 1];
+    return value === null || value === undefined || value.startsWith('-') ? null : value;
+  };
+  const valueFlags = new Set(['--gate', '--sha', '--report', '--reports', '--changed-from']);
+  const switches = new Set(['--artifacts', '--fix', '--list', '--observations', '--aggregate', '--help', '-h']);
+  const unknown = [];
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (!arg.startsWith('-')) continue;
+    if (switches.has(arg)) continue;
+    if (valueFlags.has(arg)) {
+      const value = argv[index + 1];
+      if (value === undefined || value.startsWith('-')) unknown.push(arg);
+      else index += 1;
+      continue;
+    }
+    unknown.push(arg);
+  }
   return {
     artifactsOnly: argv.includes('--artifacts'),
     fix: argv.includes('--fix'),
     list: argv.includes('--list'),
+    observations: argv.includes('--observations'),
+    aggregate: argv.includes('--aggregate'),
     help: argv.includes('--help') || argv.includes('-h'),
+    gateId: valueAfter('--gate'),
+    sha: valueAfter('--sha'),
+    report: valueAfter('--report'),
+    reports: valueAfter('--reports'),
+    changedFrom: valueAfter('--changed-from'),
     unknown,
   };
 }
 
-/**
- * Steps to run for these options.
- *
- * `--fix` implies the artefact subset: regenerating is only defined for derived
- * files, and quietly running the whole suite after a fix would bury the result.
- *
- * @param {{artifactsOnly: boolean, fix: boolean}} options
- */
-export function selectSteps(options) {
-  if (options.artifactsOnly || options.fix) return STEPS.filter((step) => step.artifact === true);
-  return STEPS;
-}
-
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-
-function run(command, { quiet = false } = {}) {
+function run(command, options = {}) {
   const [bin, ...args] = command;
   const result = spawnSync(bin, args, {
     cwd: ROOT,
-    stdio: quiet ? 'pipe' : 'inherit',
+    stdio: options.quiet ? 'pipe' : 'inherit',
     encoding: 'utf8',
     shell: false,
+    env: { ...process.env, ...(options.env ?? {}) },
   });
-  return { ok: result.status === 0, output: `${result.stdout ?? ''}${result.stderr ?? ''}` };
+  return {
+    exitCode: result.status ?? 1,
+    output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
+  };
 }
 
-/**
- * Snapshot of the working-tree state of some paths.
- *
- * Compared BEFORE and AFTER a regeneration step rather than against HEAD.
- * Against HEAD is right in CI, where the tree starts clean, and wrong locally,
- * where the contributor already has uncommitted work — including the artefacts
- * `--fix` just regenerated. What the gate actually asks is "did regenerating
- * change anything", and that is a before/after question.
- */
 function snapshot(paths) {
   if (paths === undefined) return null;
   return run(['git', 'status', '--porcelain', '--', ...paths], { quiet: true }).output;
 }
 
-function newlyDrifted(before, after) {
-  if (before === null || after === null || before === after) return [];
-  const previous = new Set(before.split('\n').filter((line) => line.trim() !== ''));
-  return after.split('\n').filter((line) => line.trim() !== '' && !previous.has(line));
+function runOne(gateDefinition, sha) {
+  const before = snapshot(gateDefinition.drift);
+  const startedAt = new Date().toISOString();
+  const started = performance.now();
+  const outcome = run(gateDefinition.run);
+  const after = snapshot(gateDefinition.drift);
+  const drifted = before !== null && after !== null && before !== after;
+  const exitCode = outcome.exitCode === 0 && !drifted ? 0 : 1;
+  return {
+    schemaVersion: 1,
+    gateId: gateDefinition.id,
+    sha,
+    argv: gateDefinition.run,
+    status: exitCode === 0 ? 'passed' : 'failed',
+    exitCode,
+    startedAt,
+    durationMs: Math.round(performance.now() - started),
+    ...(drifted ? { detail: 'generated artifact drifted' } : {}),
+  };
+}
+
+function checkedPath(path, kind) {
+  if (path === null) throw new Error(`verify: --${kind} needs a path`);
+  const absolute = resolve(ROOT, path);
+  const rel = relative(ROOT, absolute);
+  if (rel === '' || rel === '..' || rel.startsWith(`..${sep}`) || resolve(absolute) !== absolute) {
+    throw new Error(`verify: --${kind} must stay inside the repository`);
+  }
+  return absolute;
+}
+
+function writeReport(path, report) {
+  const absolute = checkedPath(path, 'report');
+  if (existsSync(absolute)) throw new Error(`verify: report already exists: ${path}`);
+  mkdirSync(dirname(absolute), { recursive: true });
+  const temporary = `${absolute}.${String(process.pid)}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify(report, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+  renameSync(temporary, absolute);
+}
+
+function readReports(path) {
+  const absolute = checkedPath(path, 'reports');
+  if (!existsSync(absolute)) return [];
+  return readdirSync(absolute)
+    .filter((name) => name.endsWith('.json'))
+    .sort()
+    .map((name) => {
+      try {
+        return JSON.parse(readFileSync(resolve(absolute, name), 'utf8'));
+      } catch {
+        return { invalidReport: name };
+      }
+    });
+}
+
+function currentSha(explicit) {
+  if (explicit !== null && !/^[0-9a-f]{40}$/.test(explicit)) {
+    throw new Error('verify: --sha must be a full lowercase commit SHA');
+  }
+  const observed = run(['git', 'rev-parse', 'HEAD'], { quiet: true }).output.trim();
+  if (!/^[0-9a-f]{40}$/.test(observed)) throw new Error('verify: could not resolve HEAD');
+  if (explicit !== null && explicit !== observed) {
+    throw new Error(`verify: claimed SHA ${explicit} is not checked-out HEAD ${observed}`);
+  }
+  return observed;
+}
+
+function changesSince(reference) {
+  const outcome = run(['git', 'diff', '--name-status', '-z', `${reference}...HEAD`], {
+    quiet: true,
+  });
+  return outcome.exitCode === 0 ? parseNameStatus(outcome.output) : [];
+}
+
+function selectedFor(options) {
+  if (options.artifactsOnly || options.fix) return REQUIRED.filter((candidate) => candidate.artifact === true);
+  if (options.observations) return GATES.filter((candidate) => !candidate.required);
+  if (options.changedFrom !== null) return selectGates(changesSince(options.changedFrom));
+  return REQUIRED;
 }
 
 function usage() {
   return [
-    'void-harness verify — run locally what CI runs on your pull request.',
+    'void-harness verify - run the canonical proof gates.',
     '',
-    'Usage:',
-    '  pnpm verify              every gate of the validate job, in its order',
-    '  pnpm verify --artifacts  only the generated-artefact gates (fast)',
-    '  pnpm verify --fix        regenerate derived artefacts, then verify them',
-    '  pnpm verify --list       print the steps without running them',
-    '',
-    'Generated artefacts a change can move: the hook runner, the core-assets',
-    'mirror, the graph, certification.json and the consumer bundle. `--fix`',
-    'regenerates those; it never touches anything else.',
+    '  pnpm verify                 required gates',
+    '  pnpm verify --artifacts     generated-artifact gates',
+    '  pnpm verify --fix           regenerate, then check artifacts',
+    '  pnpm verify --observations  non-gating performance observations',
+    '  pnpm verify --changed-from <ref>  gates affected since a merge base',
+    '  pnpm verify --list          stable gate IDs and argv',
   ].join('\n');
 }
 
 function main() {
-  const options = parseArgs(process.argv.slice(2));
+  try {
+    validateCatalogue();
+    const options = parseArgs(process.argv.slice(2));
+    if (options.unknown.length > 0) throw new Error(`verify: unknown or incomplete option ${options.unknown.join(', ')}`);
+    if (options.help) {
+      process.stdout.write(`${usage()}\n`);
+      return;
+    }
+    const sha = currentSha(options.sha);
 
-  if (options.unknown.length > 0) {
-    process.stderr.write(`verify: unknown option ${options.unknown.join(', ')}\n\n${usage()}\n`);
-    process.exitCode = 2;
-    return;
-  }
-  if (options.help) {
-    process.stdout.write(`${usage()}\n`);
-    return;
-  }
+    if (options.aggregate) {
+      const result = aggregateGateReports(REQUIRED.map((candidate) => candidate.id), readReports(options.reports), sha);
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      if (!result.ok) process.exitCode = 1;
+      return;
+    }
 
-  const steps = selectSteps(options);
-  if (options.list) {
-    for (const step of steps) process.stdout.write(`${step.name}: ${step.run.join(' ')}\n`);
-    return;
-  }
+    if (options.gateId !== null) {
+      const gateDefinition = GATES.find((candidate) => candidate.id === options.gateId);
+      if (gateDefinition === undefined) throw new Error(`verify: unknown gate ${options.gateId}`);
+      const report = runOne(gateDefinition, sha);
+      if (options.report !== null) writeReport(options.report, report);
+      process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+      if (report.status !== 'passed') process.exitCode = 1;
+      return;
+    }
 
-  if (options.fix) {
-    process.stdout.write('verify --fix: regenerating derived artefacts\n');
-    for (const step of steps) {
-      if (step.fix === undefined) continue;
-      process.stdout.write(`  ${step.name}: ${step.fix.join(' ')}\n`);
-      const result = run(step.fix);
-      if (!result.ok) {
-        process.stderr.write(`verify: could not regenerate ${step.name}.\n`);
-        process.exitCode = 1;
-        return;
+    const selected = selectedFor(options);
+    if (options.list) {
+      for (const item of selected) process.stdout.write(`${item.id}: ${item.run.join(' ')}\n`);
+      return;
+    }
+    if (options.fix) {
+      for (const item of selected) {
+        if (item.fix === undefined) continue;
+        if (run(item.fix).exitCode !== 0) throw new Error(`verify: could not regenerate ${item.id}`);
       }
     }
-    process.stdout.write('\n');
-  }
-
-  const failures = [];
-  for (const step of steps) {
-    process.stdout.write(`\n── ${step.name} ${'─'.repeat(Math.max(0, 60 - step.name.length))}\n`);
-    const before = snapshot(step.drift);
-    const result = run(step.run);
-
-    // A regeneration step passes only if it changed nothing: its exit code says
-    // the generator worked, the before/after says the committed artefact matched.
-    const dirty = result.ok ? newlyDrifted(before, snapshot(step.drift)) : [];
-    if (result.ok && dirty.length === 0) continue;
-
-    failures.push({
-      step,
-      reason: dirty.length > 0 ? `left ${dirty.length} path(s) modified` : 'exited non-zero',
-      dirty,
-    });
-  }
-
-  if (failures.length === 0) {
-    process.stdout.write(`\nverify: ${steps.length} gate(s) passed.\n`);
-    return;
-  }
-
-  process.stderr.write(`\nverify: ${failures.length} gate(s) failed.\n`);
-  for (const failure of failures) {
-    process.stderr.write(`\n  ${failure.step.name} — ${failure.reason}\n`);
-    for (const path of failure.dirty) process.stderr.write(`    ${path}\n`);
-    if (failure.step.fix !== undefined) {
-      process.stderr.write(`    fix: ${failure.step.fix.join(' ')}   (or run: pnpm verify --fix)\n`);
+    const failed = selected.map((item) => runOne(item, sha)).filter((report) => report.status === 'failed');
+    if (failed.length === 0) {
+      process.stdout.write(`verify: ${String(selected.length)} gate(s) passed on ${sha}.\n`);
+      return;
     }
+    for (const report of failed) process.stderr.write(`verify: ${report.gateId} failed\n`);
+    process.exitCode = 1;
+  } catch (error) {
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    process.exitCode = 2;
   }
-  process.exitCode = 1;
+}
+
+function validateCatalogue() {
+  const ids = new Set();
+  for (const item of GATES) {
+    if (ids.has(item.id)) throw new Error(`verify: duplicate gate ${item.id}`);
+    ids.add(item.id);
+    if (!/^[a-z][a-z0-9-]*$/.test(item.id) || item.run.length === 0) throw new Error(`verify: invalid gate ${item.id}`);
+    if (!TIERS.has(item.tier) || !RESOURCES.has(item.resource)) throw new Error(`verify: invalid classification for ${item.id}`);
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();

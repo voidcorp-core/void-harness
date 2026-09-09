@@ -53,11 +53,15 @@ describe('Git extractor commands', () => {
 		const port = createNodeGitPort();
 		const identity = await createNodeProjectRootPort().open(root);
 
-		expect(await port.inspect(identity.path, identity, ['src/old.ts'])).toMatchObject({
+		const committed = await port.inspect(identity.path, identity, ['src/old.ts']);
+		expect(committed.issues).toEqual([]);
+		expect(committed).toMatchObject({
 			owners: { 'src/old.ts': 'Fixture Owner' },
 		});
 		await run('git', ['mv', 'src/old.ts', 'src/new.ts'], { cwd: root });
-		expect(await port.inspect(identity.path, identity, ['src/new.ts'])).toMatchObject({
+		const renamed = await port.inspect(identity.path, identity, ['src/new.ts']);
+		expect(renamed.issues).toEqual([]);
+		expect(renamed).toMatchObject({
 			renames: [{ from: 'src/old.ts', to: 'src/new.ts', similarity: 100 }],
 		});
 	});
@@ -131,6 +135,7 @@ describe('Git extractor repository binding', () => {
 
 		const snapshot = await createNodeGitPort().inspect(identity.path, identity, ['value.ts']);
 
+		expect(snapshot.issues).toEqual([]);
 		expect(snapshot.availability.head).toBe('available');
 		expect(snapshot.head).toMatch(/^[a-f0-9]{40}$/);
 	});
@@ -341,6 +346,7 @@ describe('Git extractor history', () => {
 			['src/new.ts', 'src/untracked.ts'],
 			previousHead,
 		);
+		expect(snapshot.issues).toEqual([]);
 		expect(snapshot.changed).toContain('src/untracked.ts');
 		expect(snapshot.renames).toContainEqual(
 			expect.objectContaining({
@@ -381,6 +387,7 @@ describe('Git extractor filters', () => {
 		const identity = await createNodeProjectRootPort().open(root);
 		const snapshot = await createNodeGitPort().inspect(identity.path, identity, ['value.ts']);
 
+		expect(snapshot.issues).toEqual([]);
 		expect(snapshot.availability.changes).toBe('available');
 		expect(snapshot.changed).toContain('value.ts');
 		await expect(readFile(marker, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' });

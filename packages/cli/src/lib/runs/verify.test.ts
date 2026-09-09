@@ -8,6 +8,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { resolveProjectRoots } from '../project-roots.js';
 import { createMission } from './store.js';
 import { verifyMissionCommand } from './verify.js';
 
@@ -41,7 +42,7 @@ describe('mission command verification', () => {
     process.env.VERIFY_TEST_TOKEN = 'verify-top-secret-value';
 
     const result = await verifyMissionCommand({
-      root,
+      roots: resolveProjectRoots(root),
       missionId: ID,
       command: [
         process.execPath,
@@ -65,7 +66,7 @@ describe('mission command verification', () => {
     const root = await repository();
 
     const result = await verifyMissionCommand({
-      root,
+      roots: resolveProjectRoots(root),
       missionId: ID,
       command: ['void-command-that-does-not-exist'],
       shell: false,

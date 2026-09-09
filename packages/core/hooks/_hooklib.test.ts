@@ -1,7 +1,9 @@
 import { spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 // _hooklib.sh is the SOURCED library every PreToolUse hook uses to parse the
 // agent's tool-call JSON. These tests cover `hooklib_edits`, the runtime-agnostic
@@ -23,6 +25,24 @@ interface Edit {
   readonly path: string;
   readonly content: string;
 }
+
+const NO_JQ_TOOLS = ['awk', 'cat', 'git', 'grep', 'sed', 'head', 'basename', 'tr', 'dirname', 'env'];
+let noJqPath: string;
+
+beforeAll(() => {
+  noJqPath = mkdtempSync(join(tmpdir(), 'vh-hooklib-no-jq-'));
+  const locations = spawnSync('/bin/sh', ['-c', NO_JQ_TOOLS.map((tool) => `command -v ${tool}`).join('\n')], {
+    encoding: 'utf8',
+  }).stdout.trim().split('\n');
+  for (const location of locations) {
+    if (!location.startsWith('/')) continue;
+    symlinkSync(location, join(noJqPath, location.split('/').pop() ?? ''));
+  }
+});
+
+afterAll(() => {
+  rmSync(noJqPath, { recursive: true, force: true });
+});
 
 /** Feed a tool-call JSON to hooklib_edits and decode the record stream. */
 function runEdits(input: string): Edit[] {
@@ -119,18 +139,12 @@ describe('hooklib_edits — Codex apply_patch shape', () => {
 });
 
 describe('hooklib_edits — without jq', () => {
-  const BARE_PATH = '/usr/bin:/bin';
-  const jqHidden = spawnSync('/bin/sh', ['-c', 'command -v jq'], {
-    encoding: 'utf8',
-    env: { ...process.env, PATH: BARE_PATH },
-  }).status !== 0;
-
   /** Same call, but with jq unresolvable. */
   function runEditsNoJq(input: string): Edit[] {
     const res = spawnSync(BASH, ['-c', `source "${lib}"; hooklib_read; hooklib_edits`], {
       input,
       encoding: 'utf8',
-      env: { ...process.env, PATH: BARE_PATH },
+      env: { ...process.env, PATH: noJqPath },
     });
     return (res.stdout ?? '')
       .split(RS)
@@ -145,11 +159,80 @@ describe('hooklib_edits — without jq', () => {
   // jq-less machine exactly as they did before this stream existed. The
   // content-scanning hooks are unaffected: they fail closed via
   // hooklib_require_jq before ever reading a record (#63).
-  it.runIf(jqHidden)('still yields the Claude file_path, with no content', () => {
+  it('still yields the Claude file_path, with no content', () => {
     const edits = runEditsNoJq(
       JSON.stringify({ tool_name: 'Write', tool_input: { file_path: 'src/a.ts', content: 'x' } }),
     );
     expect(edits).toEqual([{ path: 'src/a.ts', content: '' }]);
+  });
+});
+
+describe('hooklib scalar and content extraction', () => {
+  const call = JSON.stringify({
+    tool_name: 'Write',
+    tool_input: { file_path: 'apps/web/src/x.ts', content: 'const value = 1;' },
+  });
+
+  function run(body: string, path = process.env.PATH): { code: number; stdout: string; stderr: string } {
+    const result = spawnSync(BASH, ['-c', `set -euo pipefail; source "${lib}"; ${body}`], {
+      input: call,
+      encoding: 'utf8',
+      env: { ...process.env, ...(path === undefined ? {} : { PATH: path }) },
+    });
+    return {
+      code: result.status ?? 1,
+      stdout: result.stdout ?? '',
+      stderr: result.stderr ?? '',
+    };
+  }
+
+  it.each([
+    ['with jq', process.env.PATH],
+    ['without jq', noJqPath],
+  ])('reads scalar fields %s', (_case, path) => {
+    const result = run(
+      'hooklib_read; printf "%s|%s" "$(hooklib_tool)" "$(hooklib_file)"',
+      path,
+    );
+
+    expect(result).toMatchObject({ code: 0, stdout: 'Write|apps/web/src/x.ts' });
+  });
+
+  it('returns exact content when jq is present', () => {
+    expect(run('hooklib_read; hooklib_content').stdout.trimEnd()).toBe('const value = 1;');
+  });
+
+  it('fails closed with an actionable error when exact content cannot be read', () => {
+    const result = run('hooklib_read; hooklib_require_jq test-hook', noJqPath);
+
+    expect(result.code).toBe(2);
+    expect(result.stderr).toMatch(/jq is required[\s\S]*Blocking[\s\S]*void-harness doctor/);
+  });
+});
+
+describe('hooklib path normalization', () => {
+  function runRelpath(path: string, projectRoot?: string): string {
+    return spawnSync(
+      BASH,
+      ['-c', `source "${lib}"; hooklib_relpath "$1"`, '_', path],
+      {
+        encoding: 'utf8',
+        env: { ...process.env, ...(projectRoot === undefined ? {} : { CLAUDE_PROJECT_DIR: projectRoot }) },
+      },
+    ).stdout;
+  }
+
+  it('passes a relative path through unchanged', () => {
+    expect(runRelpath('apps/web/src/x.ts')).toBe('apps/web/src/x.ts');
+  });
+
+  it('strips the physical project root from an absolute path', () => {
+    const projectRoot = mkdtempSync(join(tmpdir(), 'vh-hooklib-root-'));
+    mkdirSync(join(projectRoot, 'apps', 'web', 'src'), { recursive: true });
+
+    expect(runRelpath(join(projectRoot, 'apps/web/src/x.ts'), projectRoot)).toBe(
+      'apps/web/src/x.ts',
+    );
   });
 });
 

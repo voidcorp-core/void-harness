@@ -108,6 +108,16 @@ export interface OrchestrationPlan {
   readonly workerMayOpenPullRequest: false;
   readonly workerMayTransitionTicket: false;
   readonly workerMayWriteSharedGitState: false;
+  /**
+   * `void-harness mission prune`, which is not git state and is shared anyway.
+   *
+   * `.void/machine/` is per-repository: a worktree writes its mission journal,
+   * its controller plan and its proofs into the main checkout (the decision that
+   * runtime state from a worktree belongs to the repository). So `mission prune
+   * --apply` from a worker deletes the journals of the REPOSITORY, its
+   * neighbours' runs included, while reading like housekeeping.
+   */
+  readonly workerMayPruneMissions: false;
   readonly sharedGitState: SharedGitStateProhibition;
 }
 
@@ -239,6 +249,7 @@ export function buildOrchestrationPlan(input: OrchestrationInput): Orchestration
     workerMayOpenPullRequest: false,
     workerMayTransitionTicket: false,
     workerMayWriteSharedGitState: false,
+    workerMayPruneMissions: false,
     sharedGitState: SHARED_GIT_STATE,
   };
 }
