@@ -1,7 +1,7 @@
 # Consumer release readiness
 
 Status: local candidate and packed consumer verification passed; cross-platform
-CI, the unused-lease disposition and human release gates remain open.
+CI follow-up and human release gates remain open after cleanup.
 
 ## Candidate scope
 
@@ -97,8 +97,10 @@ rendered heading and is not the accepted RED evidence.
 The reviewer also identified an unused competing PID lease with unsafe recovery
 of incomplete records. Repository search finds no production caller of
 `acquireCampaignLease`; the real journal uses its own directory claim. Removal
-of that unused module was proposed to Folpe and is awaiting disposition. It is
-not a demonstrated defect in the journal currently called by evaluations.
+of that unused module and its two dedicated tests was approved by Folpe on
+September 9 and executed as Remove Dead Code. The real journal and its exclusion
+tests are preserved. This was not a demonstrated defect in the journal currently
+called by evaluations. The removal is recoverable from Git history.
 
 ## Final local candidate evidence
 
@@ -140,7 +142,7 @@ runtime-attestation limits.
 7. Observability: no new side-effecting production path in the correction; the
    pure report now preserves unknown costs rather than understating them.
 8. Security: independent cumulative boundary review found no additional live
-   defect; the unused lease advisory remains explicitly pending. Remote branch
+   defect; the unused lease advisory is resolved by approved removal. Remote branch
    protections were read, not altered. No full administrative audit is claimed.
 9. Documentation: runbook separates consumer release from paid activation;
    this report owns integration and failure adjudication evidence.
