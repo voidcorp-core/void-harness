@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { tddOrder, type TddOrderInput } from './tdd-order.js';
+import { normalizeToolCall } from '../enforcement/normalize.js';
+import { protectedFile } from './protected-file.js';
 
 const input = (path: string, patch: Partial<TddOrderInput> = {}): TddOrderInput => ({
   edits: [{ path, addedContent: 'export const feature = true;' }],
@@ -12,6 +14,47 @@ const input = (path: string, patch: Partial<TddOrderInput> = {}): TddOrderInput 
 });
 
 describe('tddOrder', () => {
+  const deletedPath = 'apps/web/src/obsolete.ts';
+  const fromPatch = (sections: readonly string[]): TddOrderInput => input(deletedPath, {
+    mode: 'strict',
+    existingHeaders: { [deletedPath]: 'export const obsolete = 1;' },
+    edits: normalizeToolCall({
+      tool_name: 'apply_patch',
+      tool_input: { patch: ['*** Begin Patch', ...sections, '*** End Patch'].join('\n') },
+    }).edits,
+  });
+
+  it('allows explicit file deletion without inventing a sibling test', () => {
+    expect(tddOrder(fromPatch([`*** Delete File: ${deletedPath}`])).allow).toBe(true);
+  });
+
+  it.each(['Add', 'Update'])('still blocks an untested %s beside a deletion', (operation) => {
+    const verdict = tddOrder(fromPatch([
+      `*** Delete File: ${deletedPath}`,
+      `*** ${operation} File: apps/web/src/active.ts`,
+      '+export const active = 1;',
+    ]));
+    expect(verdict.allow).toBe(false);
+    expect(verdict.evidence).toEqual(['apps/web/src/active.ts -> apps/web/src/active.test.ts']);
+  });
+
+  it('does not mistake a removal-only update for file deletion', () => {
+    expect(tddOrder(fromPatch([
+      `*** Update File: ${deletedPath}`, '-export const obsolete = 1;',
+    ])).allow).toBe(false);
+  });
+
+  it('does not exempt added content inside a malformed deletion section', () => {
+    expect(tddOrder(fromPatch([
+      `*** Delete File: ${deletedPath}`, '+export const replacement = 1;',
+    ])).allow).toBe(false);
+  });
+
+  it('keeps deleted protected paths visible to the protected-file rule', () => {
+    const edits = fromPatch(['*** Delete File: .env']).edits;
+    expect(protectedFile(edits.map((edit) => edit.path)).allow).toBe(false);
+  });
+
   it.each([
     'apps/api/src/feature.ts',
     'apps/web/src/components/Card.tsx',
