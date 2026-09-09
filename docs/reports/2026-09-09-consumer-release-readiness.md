@@ -238,3 +238,47 @@ artifacts does not update `.void/hooks/` or install those artifacts as root
 enforcement. Therefore `camera.ts` remains intact until a released fixed hook
 is installed through the normal update path. No dummy camera test, environment
 override or alternate deletion tool bypasses the installed refusal.
+
+## Release exit: real update and published-artifact transition
+
+The exit pass found a concrete proof gap: the packed scenario labelled `update`
+actually reran `init`. It omitted update's receipt-based routing and manifest
+rehydration. RED `58f1e36d` moves the real fixture receipt aside, then checks
+that installed ownership, runtimes and adjacent private content survive. The
+old scenario failed ownership recovery, recorded in
+`/private/tmp/release-update-red.log`.
+
+`8dd9fe31` calls the actual `update` command both normally and without its
+machine-local receipt. All three runtime variants pass from the packed candidate:
+`/private/tmp/release-update-green.log`. No update production code changed;
+the correction makes the release proof exercise the promised entrypoint.
+
+A separate isolated macOS probe then installed the authentic npm `3.6.0`
+tarball, initialized each runtime with the monorepo pack, installed candidate
+`8dd9fe3118859241e76de4ce8bcefe46bfa53ce6`, and ran real `update`. Claude,
+Codex and both passed. Each preserved runtime selection, monorepo configuration,
+custom project doctrine and a private user skill. The new installed hook bytes
+equal the candidate's packaged hook and differ from the historical hook.
+
+Historical npm SHA-512 integrity:
+`sha512-3umjCGtolNq98sHH84g3sEfBRRH9awOgrsBccF31ZCQGBWnHMGWrxZqI6jPwYLxlAqmRU0sOsfgFMFgtkgPysw==`.
+Candidate installed hook SHA-256:
+`09f0c6969fbc77a0df12c3073ff0e436597b77212d1056e7a40d8e3875e5be7f`.
+Evidence: `/private/tmp/release-historical-update.log`; disposable fixtures and
+authenticated tarball: `/private/tmp/release-historical-artifact.8M3JmB`.
+The replay script is `.void/machine/release-historical-update.mjs` (local only).
+Two pre-existing temporary tarballs did not match published integrity and were
+not used. Their filenames alone were not treated as publication identity.
+
+This is an actual artifact transition, not a simulated version-field edit.
+Release-please has not bumped the candidate's version yet, so it is not proof
+of a future numbered publication. The historical transition was exercised on
+macOS; the permanent same-candidate update/recovery scenarios run on all three
+CI platforms. All operations were scoped to isolated consumers. The meta-repo's
+installed floor, doctrine and credentials were untouched.
+
+One external publication audit remains inaccessible to this session: GitHub
+`GET /user/installations` returned HTTP 403 for the current credential type.
+No stronger credential was requested or installed. Release App scope, npm
+Trusted Publisher and maintainer/organization 2FA remain operator-attested
+publication controls, not evidence supplied by the passing consumer fixtures.
