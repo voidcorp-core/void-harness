@@ -213,3 +213,28 @@ Logs under `/private/tmp/`: `release-dead-code-eval.log`,
 `release-dead-code-cli-tests.log`, `release-dead-code-additional-tests.log`,
 `release-dead-code-unused-workspaces-final.log`, `release-dead-code-derive.log`
 and `release-dead-code-lint.log`.
+
+## Explicit deletion and the TDD hook
+
+Folpe authorized fixing the source of the camera-deletion refusal. The patch
+normalizer discarded the `Delete File` operation, leaving TDD an existing source
+file with no added content, indistinguishable from a removal-only update.
+
+RED `f5d6f93e` reproduces four failures, with 32 passing controls. RED `22555aac`
+specifies the optional delete-only metadata contract and fails TypeScript
+checking before implementation. The normalizer now retains explicit deletion;
+only TDD skips that edit, and only when no content is added. Protected-file
+rules still receive the path. Add/Update sections do not inherit deletion state;
+removal-only updates and malformed deletions with added content stay controlled.
+The four targeted suites pass 57 tests and the typecheck passes after correction.
+
+Logs: `/private/tmp/tdd-delete-red.log`, `/private/tmp/tdd-delete-type-red.log`
+and `/private/tmp/tdd-delete-green.log`. This is a consumer-harness behavior fix,
+not a meta-project exemption or an authorization to delete arbitrary files.
+Existing tests, review and ownership checks still establish deletion safety.
+
+The root consumes a published harness by design. Regenerating working-tree
+artifacts does not update `.void/hooks/` or install those artifacts as root
+enforcement. Therefore `camera.ts` remains intact until a released fixed hook
+is installed through the normal update path. No dummy camera test, environment
+override or alternate deletion tool bypasses the installed refusal.

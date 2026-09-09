@@ -642,6 +642,7 @@ function siblingFor(path) {
 function tddOrder(input) {
   const warnings = [];
   for (const edit of input.edits) {
+    if (edit.operation === "delete" && edit.addedContent === "") continue;
     const path = edit.path.replaceAll("\\", "/");
     if (bypass(path, input.spikeGlobs) || !matches(path, input.businessGlobs)) continue;
     if (carriesNoBehaviour(input.existingHeaders[path] ?? "", edit.addedContent)) continue;
@@ -724,8 +725,13 @@ function parsePatchEdits(patch) {
   const edits = [];
   let path = "";
   let added = "";
+  let deleting = false;
   const emit = () => {
-    if (path !== "") edits.push({ path, addedContent: added });
+    if (path !== "") edits.push({
+      path,
+      addedContent: added,
+      ...deleting ? { operation: "delete" } : {}
+    });
   };
   for (const line of patch.split(/\r?\n/)) {
     const section = line.match(/^\*\*\* (Add|Update|Delete) File: (.+)$/);
@@ -733,6 +739,7 @@ function parsePatchEdits(patch) {
       emit();
       path = safeString(section[2] ?? "", "patch path");
       added = "";
+      deleting = section[1] === "Delete";
       continue;
     }
     if (path !== "" && line.startsWith("+") && !line.startsWith("+++")) {

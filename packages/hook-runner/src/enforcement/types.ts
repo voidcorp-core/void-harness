@@ -1,6 +1,8 @@
 export interface NormalizedEdit {
   readonly path: string;
   readonly addedContent: string;
+  /** Present only when the patch explicitly removes the entire file. */
+  readonly operation?: 'delete';
 }
 
 export interface NormalizedToolCall {
