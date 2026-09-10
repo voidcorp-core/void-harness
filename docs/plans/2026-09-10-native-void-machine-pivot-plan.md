@@ -1,7 +1,7 @@
 ---
 title: Native Void Machine pivot
 date: 2026-09-10
-status: in-progress
+status: executing
 spec: docs/specs/2026-09-10-native-void-machine-pivot.md
 ticket: DEV-833
 author: Folpe + Codex

@@ -1,7 +1,7 @@
 ---
 title: Native Void Machine pivot
 date: 2026-09-10
-status: in-design
+status: approved
 author: Folpe + Codex
 ticket: DEV-833
 related:
