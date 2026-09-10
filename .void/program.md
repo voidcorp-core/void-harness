@@ -4,7 +4,6 @@ status: executing
 program: autonomous-until-develop
 plan: docs/plans/2026-09-10-native-void-machine-pivot-plan.md
 spec: docs/specs/2026-09-10-native-void-machine-pivot.md
-spec: docs/specs/2026-08-31-autonomous-until-develop.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
