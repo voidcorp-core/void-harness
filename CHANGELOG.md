@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.7.1](https://github.com/voidcorp-core/void-harness/compare/v3.7.0...v3.7.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **enforcement:** allow generated dependency lockfile updates ([53d644f](https://github.com/voidcorp-core/void-harness/commit/53d644ffc33ea29484ccebc8463c9adc1ce8f706))
+* **enforcement:** allow generated dependency lockfile updates ([c07e2cd](https://github.com/voidcorp-core/void-harness/commit/c07e2cde5bbefeedcdc7867bdb20093f633ed8e4))
+* **profiles:** separate consumer versions from general guidance ([2c1e63b](https://github.com/voidcorp-core/void-harness/commit/2c1e63b9245962b998a501ed611a2a3f62872566))
+* **profiles:** separate consumer versions from general guidance ([c667c3d](https://github.com/voidcorp-core/void-harness/commit/c667c3de40c9bd72f251e7327465af86e74e7701))
+
 ## [3.7.0](https://github.com/voidcorp-core/void-harness/compare/v3.6.0...v3.7.0) (2026-09-09)
 
 
