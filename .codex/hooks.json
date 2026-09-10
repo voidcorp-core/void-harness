@@ -79,6 +79,15 @@
         "hooks": [
           {
             "type": "command",
+            "command": "node \"/Users/folpe/Developer/void-harness/.void/hooks/_void-hook.mjs\" enforce control-character codex"
+          }
+        ]
+      },
+      {
+        "matcher": "apply_patch|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
             "command": "node \"/Users/folpe/Developer/void-harness/.void/hooks/_void-hook.mjs\" enforce no-focused-test codex"
           }
         ]
