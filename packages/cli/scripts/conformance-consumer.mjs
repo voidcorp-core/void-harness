@@ -13,6 +13,7 @@ import {
   safeConformanceDiagnostic,
   runConformanceProcess,
 } from './conformance-process.mjs';
+import { loadLegacyOracle } from './conformance-legacy-oracle.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '..', '..', '..');
@@ -67,6 +68,8 @@ async function runSuite(name, script, tarball, temporary) {
 }
 
 async function main() {
+  const oracle = loadLegacyOracle();
+  if (!oracle.ok) fail(`legacy oracle: ${oracle.reason}`);
   const options = parseArguments(process.argv.slice(2));
   const temporary = await mkdtemp(join(tmpdir(), 'harness-consumer-conformance-'));
   try {
