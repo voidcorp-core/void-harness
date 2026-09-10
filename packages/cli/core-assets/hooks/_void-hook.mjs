@@ -490,6 +490,7 @@ function protectedReason(path) {
     "package-lock.json",
     "pnpm-lock.yaml",
     "yarn.lock",
+    "bun.lock",
     "bun.lockb",
     "cargo.lock",
     "poetry.lock",
@@ -1646,7 +1647,7 @@ function auditCheckpoint(input) {
 
 function sessionStartOutput(version, notice, invocationAlert2, resumeContext) {
   const installed = version.trim() === "" ? "unknown" : version.trim();
-  const base = `void-harness ${installed} is active. Non-negotiable floor: never edit secrets, keys or lockfiles; never run destructive shell commands; tests and fresh evidence gate "done". Capture durable project rules explicitly. Run \`void-harness doctor\` if runtime health is uncertain.`;
+  const base = `void-harness ${installed} is active. Non-negotiable floor: never edit secrets or keys; never hand-edit lockfiles; regenerate them via the package manager for requested dependency changes; never run destructive shell commands; tests and fresh evidence gate "done". Capture durable project rules explicitly. Run \`void-harness doctor\` if runtime health is uncertain.`;
   const suffix = notice === void 0 || notice.trim() === "" ? "" : ` ${notice.trim()}`;
   const alert = invocationAlert2 === void 0 || invocationAlert2.trim() === "" ? "" : `
 ${invocationAlert2.trim()}`;

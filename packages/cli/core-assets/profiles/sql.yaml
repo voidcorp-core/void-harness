@@ -1,17 +1,14 @@
 schemaVersion: 1
 id: core:sql
-version: 1
+version: 2
 name: sql
 technologies:
   - id: drizzle
-    minimumVersion: 0.30.0
-    maximumVersionExclusive: 2.0.0
+    versionIndependent: true
   - id: prisma
-    minimumVersion: 6.0.0
-    maximumVersionExclusive: 9.0.0
+    versionIndependent: true
   - id: postgres
-    minimumVersion: 8.0.0
-    maximumVersionExclusive: 11.0.0
+    versionIndependent: true
 detectors:
   always: false
   technologies: [drizzle, prisma, postgres]

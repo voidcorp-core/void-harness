@@ -16,6 +16,23 @@ describe('profile schema', () => {
     });
   });
 
+  it('accepts explicitly version-independent guidance', () => {
+    expect(parseProfile(profileValue({
+      technologies: [{ id: 'typescript', versionIndependent: true }],
+    }))).toMatchObject({ ok: true });
+  });
+
+  it.each([
+    { versionIndependent: true, minimumVersion: '5.0.0' },
+    { versionIndependent: true, maximumVersionExclusive: '7.0.0' },
+    { versionIndependent: false },
+    { versionIndependent: 'true' },
+  ])('rejects ambiguous version-independent declarations %j', (declaration) => {
+    expect(parseProfile(profileValue({
+      technologies: [{ id: 'typescript', ...declaration }],
+    }))).toMatchObject({ ok: false });
+  });
+
   it.each([
     ['executable detector', profileValue({ detectors: { command: 'node detect.js' } })],
     ['unsafe file selector', profileValue({

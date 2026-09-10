@@ -181,13 +181,19 @@ export function routeProfiles(
           .map((pattern) => pattern.id)
           .sort();
       if (matching.length === 0 && !profile.detectors.always) {
+        const detected = input.projects.flatMap((project) => project.technologies);
+        const present = detected.some((technology) =>
+          profile.technologies.some((range) => range.id === technology.id));
+        const unavailable = present
+          ? assessProfileFreshness(profile, detected, options.now).reasons : [];
+
         return Object.freeze({
           profileId: profile.id,
           profileVersion: profile.version,
           state: 'not-applicable' as const,
           activePatternIds: Object.freeze([]),
-          reasons: Object.freeze(['detectors-not-matched']),
-          sourceReviewRequired: false,
+          reasons: Object.freeze(['detectors-not-matched', ...unavailable]),
+          sourceReviewRequired: unavailable.length > 0,
           proof: proof(profile, input),
         });
       }

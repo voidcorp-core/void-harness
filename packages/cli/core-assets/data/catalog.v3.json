@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:e77075c1d4a179ed729259b4326db47fe7f2a2d19a17e02480f5b332a4e4ad98"
+    "rootHash": "sha256:b767a6dc91364bac02b523c440d4c37b766b23d539b8e99eb866678f1db045be"
   },
   "nodes": [
     {
@@ -1696,11 +1696,11 @@
         "legacy": {
           "description": "",
           "id": "profile:expo",
-          "lines": 45,
+          "lines": 35,
           "name": "expo",
           "pack": null,
           "source": "packages/core/profiles/expo.yaml",
-          "staticTokens": 369,
+          "staticTokens": 274,
           "type": "profile"
         }
       },
@@ -1717,6 +1717,34 @@
       }
     },
     {
+      "id": "catalog:profile:profile:expo-config",
+      "kind": "profile",
+      "label": "expo-config",
+      "data": {
+        "legacy": {
+          "description": "",
+          "id": "profile:expo-config",
+          "lines": 36,
+          "name": "expo-config",
+          "pack": null,
+          "source": "packages/core/profiles/expo-config.yaml",
+          "staticTokens": 260,
+          "type": "profile"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/profiles/expo-config.yaml",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:profile:profile:monorepo",
       "kind": "profile",
       "label": "monorepo",
@@ -1724,11 +1752,11 @@
         "legacy": {
           "description": "",
           "id": "profile:monorepo",
-          "lines": 34,
+          "lines": 33,
           "name": "monorepo",
           "pack": null,
           "source": "packages/core/profiles/monorepo.yaml",
-          "staticTokens": 273,
+          "staticTokens": 265,
           "type": "profile"
         }
       },
@@ -1752,11 +1780,11 @@
         "legacy": {
           "description": "",
           "id": "profile:nextjs",
-          "lines": 40,
+          "lines": 31,
           "name": "nextjs",
           "pack": null,
           "source": "packages/core/profiles/nextjs.yaml",
-          "staticTokens": 300,
+          "staticTokens": 227,
           "type": "profile"
         }
       },
@@ -1773,6 +1801,34 @@
       }
     },
     {
+      "id": "catalog:profile:profile:nextjs-config",
+      "kind": "profile",
+      "label": "nextjs-config",
+      "data": {
+        "legacy": {
+          "description": "",
+          "id": "profile:nextjs-config",
+          "lines": 31,
+          "name": "nextjs-config",
+          "pack": null,
+          "source": "packages/core/profiles/nextjs-config.yaml",
+          "staticTokens": 213,
+          "type": "profile"
+        }
+      },
+      "provenance": {
+        "origin": "extracted",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "path",
+            "ref": "packages/core/profiles/nextjs-config.yaml",
+            "hashOrVersion": "catalog-v1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:profile:profile:node-server",
       "kind": "profile",
       "label": "node-server",
@@ -1780,11 +1836,11 @@
         "legacy": {
           "description": "",
           "id": "profile:node-server",
-          "lines": 32,
+          "lines": 31,
           "name": "node-server",
           "pack": null,
           "source": "packages/core/profiles/node-server.yaml",
-          "staticTokens": 256,
+          "staticTokens": 247,
           "type": "profile"
         }
       },
@@ -1808,11 +1864,11 @@
         "legacy": {
           "description": "",
           "id": "profile:pwa",
-          "lines": 34,
+          "lines": 33,
           "name": "pwa",
           "pack": null,
           "source": "packages/core/profiles/pwa.yaml",
-          "staticTokens": 285,
+          "staticTokens": 277,
           "type": "profile"
         }
       },
@@ -1836,11 +1892,11 @@
         "legacy": {
           "description": "",
           "id": "profile:react",
-          "lines": 40,
+          "lines": 39,
           "name": "react",
           "pack": null,
           "source": "packages/core/profiles/react.yaml",
-          "staticTokens": 264,
+          "staticTokens": 256,
           "type": "profile"
         }
       },
@@ -1864,11 +1920,11 @@
         "legacy": {
           "description": "",
           "id": "profile:sql",
-          "lines": 42,
+          "lines": 39,
           "name": "sql",
           "pack": null,
           "source": "packages/core/profiles/sql.yaml",
-          "staticTokens": 324,
+          "staticTokens": 299,
           "type": "profile"
         }
       },
@@ -1892,11 +1948,11 @@
         "legacy": {
           "description": "",
           "id": "profile:typescript",
-          "lines": 40,
+          "lines": 39,
           "name": "typescript",
           "pack": null,
           "source": "packages/core/profiles/typescript.yaml",
-          "staticTokens": 285,
+          "staticTokens": 277,
           "type": "profile"
         }
       },
@@ -7171,6 +7227,32 @@
       }
     },
     {
+      "id": "catalog:edge:composes:6642035f6fbb6f744292b2dd458ce58d",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:profile:profile:expo-config",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "profile:expo-config"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
       "id": "catalog:edge:composes:6990bd481ca0d31377faa962b30506a7",
       "from": "catalog:skill:skill:pack-react/void-accessibility-check",
       "to": "catalog:skill:skill:void-accessibility",
@@ -7988,6 +8070,32 @@
           "kind": "composes",
           "origin": "declared",
           "to": "skill:void-domain-driven-design"
+        }
+      },
+      "provenance": {
+        "origin": "declared",
+        "confidence": 1,
+        "sources": [
+          {
+            "kind": "contract",
+            "ref": "relations:v1",
+            "hashOrVersion": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog:edge:composes:a1eb5efef3a95dc4584d549092fad81f",
+      "from": "catalog:skill:skill:void-implement",
+      "to": "catalog:profile:profile:nextjs-config",
+      "kind": "composes",
+      "data": {
+        "legacy": {
+          "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation",
+          "from": "skill:void-implement",
+          "kind": "composes",
+          "origin": "declared",
+          "to": "profile:nextjs-config"
         }
       },
       "provenance": {

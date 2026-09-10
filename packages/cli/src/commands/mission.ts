@@ -678,9 +678,11 @@ async function compileDispatchContent(
   files: DetectedFiles,
   stage: SpecialistInvocationStage,
   ticketPath: string,
-  reviewSubject?: MissionReviewSubject,
+  reviewSubject: MissionReviewSubject | undefined,
+  profiles: MissionPlan['profiles'],
 ): Promise<Omit<ContextPackInput, 'dispatch'>> {
-  const unavailable: string[] = [];
+  const unavailable = profiles.filter((profile) => profile.sourceReviewRequired)
+    .map((profile) => `guidance ${profile.profileId} requires source review: ${profile.reasons.join(', ')}`);
   const secrets = collectKnownSecrets();
 
   let diff = '';
@@ -919,6 +921,7 @@ export async function dispatchMissionSpecialists(
           decision.action.stage,
           stored.ticket.path,
           reviewSubject,
+          livePlan.profiles,
         ),
       })
     : Object.freeze([]);

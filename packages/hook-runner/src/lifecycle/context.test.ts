@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { sessionStartOutput } from './context.js';
 
 describe('sessionStartOutput', () => {
+  it('permits package-manager regeneration while forbidding manual lockfile edits', () => {
+    const context = sessionStartOutput('3.7.0').hookSpecificOutput.additionalContext;
+    expect(context).toContain('never hand-edit lockfiles');
+    expect(context).toContain('regenerate them via the package manager');
+    expect(context).not.toContain('never edit secrets, keys or lockfiles');
+  });
+
   it('emits valid compact runtime context without depending on jq', () => {
     expect(sessionStartOutput('3.0.0')).toEqual({
       hookSpecificOutput: {

@@ -377,8 +377,10 @@ edges:
   # The same canonical plan carries every stack profile; no profile maintains its own conductor.
   - { from: skill:void-implement, to: profile:base, kind: composes, evidence: "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation" }
   - { from: skill:void-implement, to: profile:expo, kind: composes, evidence: "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation" }
+  - { from: skill:void-implement, to: profile:expo-config, kind: composes, evidence: "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation" }
   - { from: skill:void-implement, to: profile:monorepo, kind: composes, evidence: "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation" }
   - { from: skill:void-implement, to: profile:nextjs, kind: composes, evidence: "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation" }
+  - { from: skill:void-implement, to: profile:nextjs-config, kind: composes, evidence: "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation" }
   - { from: skill:void-implement, to: profile:node-server, kind: composes, evidence: "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation" }
   - { from: skill:void-implement, to: profile:pwa, kind: composes, evidence: "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation" }
   - { from: skill:void-implement, to: profile:react, kind: composes, evidence: "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation" }
