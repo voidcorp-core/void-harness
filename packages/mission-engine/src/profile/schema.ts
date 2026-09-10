@@ -1,8 +1,11 @@
-export interface ProfileTechnologyRange {
-  readonly id: string;
-  readonly minimumVersion: string;
-  readonly maximumVersionExclusive: string;
-}
+export type ProfileTechnologyRange =
+  | { readonly id: string; readonly versionIndependent: true }
+  | {
+      readonly id: string;
+      readonly versionIndependent?: never;
+      readonly minimumVersion: string;
+      readonly maximumVersionExclusive: string;
+    };
 
 export interface ProfileFileSelectors {
   readonly extensions: readonly string[];
@@ -158,8 +161,15 @@ function parse(value: unknown): ProfileDocument {
   const profileId = id(input['id'], '$.id');
   const profileName = text(input['name'], '$.name', 80);
   if (!NAME.test(profileName)) fail('$.name', 'must be a lower-case slug');
-  const technologies = list(input['technologies'], '$.technologies', 32, (item, path) => {
-    const technology = record(item, path, ['id', 'minimumVersion', 'maximumVersionExclusive']);
+  const technologies = list<ProfileTechnologyRange>(input['technologies'], '$.technologies', 32, (item, path) => {
+    const technology = record(item, path, ['id', 'minimumVersion', 'maximumVersionExclusive', 'versionIndependent']);
+    if ('versionIndependent' in technology) {
+      if (technology['versionIndependent'] !== true
+        || 'minimumVersion' in technology || 'maximumVersionExclusive' in technology) {
+        fail(path, 'versionIndependent must be true and cannot coexist with version bounds');
+      }
+      return Object.freeze({ id: id(technology['id'], `${path}.id`), versionIndependent: true });
+    }
     const minimumVersion = semver(technology['minimumVersion'], `${path}.minimumVersion`);
     const maximumVersionExclusive = semver(
       technology['maximumVersionExclusive'],

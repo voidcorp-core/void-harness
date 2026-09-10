@@ -305,11 +305,12 @@ describe('parseMissionArgs', () => {
     expect(first.specialists.every((item) => item.proof.inputHash === first.inputHash)).toBe(true);
   });
 
-  it('records every dispatch request once before the runtime launches agents', async () => {
+  it('dispatches a TypeScript 7 mission and records each request once', async () => {
     const root = await mkdtemp(join(tmpdir(), 'void-mission-dispatch-'));
     const missionId = 'mis_0123456789abcdef0123456789abcdef';
     await writeFile(join(root, 'package.json'), JSON.stringify({
       packageManager: 'pnpm@10.34.5',
+      devDependencies: { typescript: '7.0.2', next: '99.0.0' },
     }));
     const ticketBody = '# Runtime API review\n\nVerify the tested API runtime and observability change.\nPreparation: `docs/preparation.md`.\n';
     await writeFile(join(root, 'DEV-500.md'), ticketBody);
@@ -322,7 +323,13 @@ describe('parseMissionArgs', () => {
       '-c', 'user.email=void@example.test',
       'commit', '--quiet', '-m', 'test: seed mission fixture',
     ], { cwd: root });
+    await writeFile(join(root, 'runtime.ts'), 'export const ready = true;\n');
+    execFileSync('git', ['add', 'runtime.ts'], { cwd: root });
     const plan = await planMission(root, 'DEV-500.md', '2026-08-21T12:00:00.000Z');
+    expect(plan.profiles).toContainEqual(expect.objectContaining({
+      profileId: 'core:typescript', state: 'applicable', sourceReviewRequired: false,
+    }));
+    expect(plan.context).toEqual({ status: 'complete', issues: [] });
     const baseCommit = execFileSync('git', ['rev-parse', 'HEAD'], {
       cwd: root, encoding: 'utf8',
     }).trim();
@@ -355,6 +362,7 @@ describe('parseMissionArgs', () => {
     await writeMissionControllerPlan(root, missionId, controllerPlan, ticketBinding, baseCommit);
     await writeFile(join(root, 'package.json'), JSON.stringify({
       packageManager: 'pnpm@10.34.5',
+      devDependencies: { typescript: '7.0.2', next: '99.0.0' },
       scripts: { lint: 'tsc --noEmit' },
     }));
     const changedPlan = await planMission(
@@ -381,6 +389,8 @@ describe('parseMissionArgs', () => {
 
     expect(first.envelopes.length).toBeGreaterThan(0);
     for (const envelope of first.envelopes) {
+      expect(envelope.contextPack.omitted.join(' ')).toContain('core:nextjs-config');
+      expect(envelope.contextPack.omitted.join(' ')).toContain('version-uncovered:nextjs@99.0.0');
       expect(envelope.contextPack.artifacts).toContainEqual({
         path: 'docs/preparation.md',
         text: expect.stringContaining('Initial preparation: review freshness needs explanation.'),
@@ -482,6 +492,7 @@ describe('parseMissionArgs', () => {
     expect(writerCompletions).toHaveLength(2);
     await writeFile(join(root, 'package.json'), JSON.stringify({
       packageManager: 'pnpm@10.34.5',
+      devDependencies: { typescript: '7.0.2', next: '99.0.0' },
       scripts: { test: 'vitest run' },
     }));
     execFileSync('git', ['add', 'package.json'], { cwd: root });
@@ -515,6 +526,7 @@ describe('parseMissionArgs', () => {
     // A real content edit on the same path must invalidate the review.
     await writeFile(join(root, 'package.json'), JSON.stringify({
       packageManager: 'pnpm@10.34.5',
+      devDependencies: { typescript: '7.0.2', next: '99.0.0' },
       scripts: { test: 'vitest run --changed' },
     }));
     const edited = await dispatchMissionSpecialists(
@@ -524,6 +536,7 @@ describe('parseMissionArgs', () => {
       .not.toEqual(post.envelopes.map((envelope) => envelope.inputHash));
     await writeFile(join(root, 'package.json'), JSON.stringify({
       packageManager: 'pnpm@10.34.5',
+      devDependencies: { typescript: '7.0.2', next: '99.0.0' },
       scripts: { test: 'vitest run' },
     }));
     execFileSync('git', ['add', 'package.json', 'docs/preparation.md'], { cwd: root });
@@ -554,7 +567,8 @@ describe('parseMissionArgs', () => {
     expect(committed.action.kind).toBe('run-verification');
     expect(committed.envelopes).toEqual([]);
     await writeFile(join(root, 'package.json'), JSON.stringify({
-      packageManager: 'pnpm@10.34.5', scripts: { test: 'vitest run --changed' },
+      packageManager: 'pnpm@10.34.5',
+      devDependencies: { typescript: '7.0.2', next: '99.0.0' }, scripts: { test: 'vitest run --changed' },
     }));
     const stale = await dispatchMissionSpecialists(
       resolveProjectRoots(root), input, '2026-08-21T12:01:35.000Z', capability,

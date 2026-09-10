@@ -87,6 +87,23 @@ function stateById(files: readonly string[]) {
 }
 
 describe('profile routing', () => {
+  it('reports unavailable unrelated advice without activating it', () => {
+    const config = profile('next-config', ['nextjs'], [], {
+      technologies: [{ id: 'nextjs', minimumVersion: '15.0.0', maximumVersionExclusive: '16.0.0' }],
+      detectors: { always: false, technologies: ['nextjs'],
+        files: { extensions: [], names: ['next.config.ts'], pathSegments: [] } },
+    });
+    expect(routeProfiles([config], input(['apps/web/styles.css']), {
+      now: '2026-08-01T00:00:00Z',
+    })[0]).toMatchObject({
+      state: 'not-applicable', activePatternIds: [], sourceReviewRequired: true,
+      reasons: ['detectors-not-matched', 'version-uncovered:nextjs@16.1.0'],
+    });
+    expect(routeProfiles([config], input(['apps/web/next.config.ts']), {
+      now: '2026-08-01T00:00:00Z',
+    })[0]).toMatchObject({ state: 'degraded', sourceReviewRequired: true });
+  });
+
   it('routes a web TSX change to base, TypeScript, React, and Next.js only', () => {
     const decisions = stateById(['apps/web/app/page.tsx']);
 

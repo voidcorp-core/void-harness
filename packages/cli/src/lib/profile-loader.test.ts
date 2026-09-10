@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { assessProfileFreshness } from '@voidcorp/mission-engine';
 import {
   loadProfiles,
   MAX_PROFILE_FILE_BYTES,
@@ -52,21 +53,38 @@ patterns:
 `;
 
 describe('profile YAML loader', () => {
-  it('loads the nine bundled core profiles in deterministic order', async () => {
+  it('loads the eleven bundled core profiles in deterministic order', async () => {
     const root = await mkdtemp(join(tmpdir(), 'void-profiles-'));
     const profiles = await loadProfiles(root, CORE_PROFILES);
 
     expect(profiles.map((profile) => profile.name)).toEqual([
       'base',
       'expo',
+      'expo-config',
       'monorepo',
       'nextjs',
+      'nextjs-config',
       'node-server',
       'pwa',
       'react',
       'sql',
       'typescript',
     ]);
+  });
+
+  it.each([
+    ['5.9.3', 'current'],
+    ['6.0.2', 'current'],
+    ['7.0.2', 'current'],
+    ['99.0.0', 'current'],
+  ])('assesses the shipped TypeScript profile for %s as %s', async (version, status) => {
+    const root = await mkdtemp(join(tmpdir(), 'void-profiles-'));
+    const profiles = await loadProfiles(root, CORE_PROFILES);
+    const profile = profiles.find((item) => item.id === 'core:typescript');
+    if (profile === undefined) throw new Error('Missing shipped TypeScript profile');
+    expect(assessProfileFreshness(profile, [{
+      id: 'typescript', version, sources: ['apps/web/package.json:typescript'],
+    }], '2026-09-10T12:00:00.000Z').status).toBe(status);
   });
 
   it('loads only explicit project profile files and refuses identity collisions', async () => {

@@ -1,11 +1,10 @@
 schemaVersion: 1
 id: core:monorepo
-version: 1
+version: 2
 name: monorepo
 technologies:
   - id: monorepo
-    minimumVersion: 1.0.0
-    maximumVersionExclusive: 2.0.0
+    versionIndependent: true
 detectors:
   always: false
   technologies: [monorepo]
