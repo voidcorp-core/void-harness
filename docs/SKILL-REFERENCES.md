@@ -61,6 +61,7 @@ says which it is.
 | `void-last-event-id` | graph studio live-render cursor |
 | `void-layout` | module owning the void directory layout |
 | `void-machine-legacy` | portable legacy conformance contract family |
+| `void-machine` | native doctor compatibility binary |
 | `void-mission-presentation-v1` | presentation workspace owner metadata |
 | `void-migration` | name of the void layout migration check |
 | `void-probe` | observed write path written by the hook probe |

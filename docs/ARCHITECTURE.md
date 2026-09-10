@@ -175,7 +175,12 @@ storage dependency.
 
 The harness assumes **TypeScript + web**. The core is not framework-agnostic across language families. See `docs/PHILOSOPHY.md` § "Stack assumption".
 
-A future Rust/Go/Python flavor lives in a sibling repo, reusing mechanics not skills.
+The Void Machine native track is the bounded exception: `native/void-machine/`
+contains a Rust workspace for the read-only doctor kernel and host adapter. It
+shares no TypeScript runtime code and is exposed through a thin compatibility
+launcher; platform binaries are built by their native lane rather than bundled
+into the universal npm tarball. A future independent Rust/Go/Python product
+could still live in a sibling repo, reusing mechanics not skills.
 
 ## Stack profile compilation
 
