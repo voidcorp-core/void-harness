@@ -1,11 +1,10 @@
 schemaVersion: 1
 id: core:node-server
-version: 1
+version: 2
 name: node-server
 technologies:
   - id: node
-    minimumVersion: 22.0.0
-    maximumVersionExclusive: 27.0.0
+    versionIndependent: true
 detectors:
   always: false
   technologies: [node]

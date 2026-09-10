@@ -323,6 +323,8 @@ describe('parseMissionArgs', () => {
       '-c', 'user.email=void@example.test',
       'commit', '--quiet', '-m', 'test: seed mission fixture',
     ], { cwd: root });
+    await writeFile(join(root, 'runtime.ts'), 'export const ready = true;\n');
+    execFileSync('git', ['add', 'runtime.ts'], { cwd: root });
     const plan = await planMission(root, 'DEV-500.md', '2026-08-21T12:00:00.000Z');
     expect(plan.profiles).toContainEqual(expect.objectContaining({
       profileId: 'core:typescript', state: 'applicable', sourceReviewRequired: false,

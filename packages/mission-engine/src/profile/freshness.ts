@@ -28,6 +28,7 @@ export function assessProfileFreshness(
   if (current > expires) reasons.push('profile-expired');
 
   for (const range of profile.technologies) {
+    if (range.versionIndependent === true) continue;
     for (const technology of detected.filter((item) => item.id === range.id)) {
       if (technology.version === null) {
         reasons.push(`version-unknown:${range.id}`);

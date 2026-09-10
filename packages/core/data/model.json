@@ -604,81 +604,101 @@
     {
       "description": "",
       "id": "profile:expo",
-      "lines": 45,
+      "lines": 35,
       "name": "expo",
       "pack": null,
       "source": "packages/core/profiles/expo.yaml",
-      "staticTokens": 369,
+      "staticTokens": 274,
+      "type": "profile"
+    },
+    {
+      "description": "",
+      "id": "profile:expo-config",
+      "lines": 36,
+      "name": "expo-config",
+      "pack": null,
+      "source": "packages/core/profiles/expo-config.yaml",
+      "staticTokens": 260,
       "type": "profile"
     },
     {
       "description": "",
       "id": "profile:monorepo",
-      "lines": 34,
+      "lines": 33,
       "name": "monorepo",
       "pack": null,
       "source": "packages/core/profiles/monorepo.yaml",
-      "staticTokens": 273,
+      "staticTokens": 265,
       "type": "profile"
     },
     {
       "description": "",
       "id": "profile:nextjs",
-      "lines": 40,
+      "lines": 31,
       "name": "nextjs",
       "pack": null,
       "source": "packages/core/profiles/nextjs.yaml",
-      "staticTokens": 300,
+      "staticTokens": 227,
+      "type": "profile"
+    },
+    {
+      "description": "",
+      "id": "profile:nextjs-config",
+      "lines": 31,
+      "name": "nextjs-config",
+      "pack": null,
+      "source": "packages/core/profiles/nextjs-config.yaml",
+      "staticTokens": 213,
       "type": "profile"
     },
     {
       "description": "",
       "id": "profile:node-server",
-      "lines": 32,
+      "lines": 31,
       "name": "node-server",
       "pack": null,
       "source": "packages/core/profiles/node-server.yaml",
-      "staticTokens": 256,
+      "staticTokens": 247,
       "type": "profile"
     },
     {
       "description": "",
       "id": "profile:pwa",
-      "lines": 34,
+      "lines": 33,
       "name": "pwa",
       "pack": null,
       "source": "packages/core/profiles/pwa.yaml",
-      "staticTokens": 285,
+      "staticTokens": 277,
       "type": "profile"
     },
     {
       "description": "",
       "id": "profile:react",
-      "lines": 40,
+      "lines": 39,
       "name": "react",
       "pack": null,
       "source": "packages/core/profiles/react.yaml",
-      "staticTokens": 264,
+      "staticTokens": 256,
       "type": "profile"
     },
     {
       "description": "",
       "id": "profile:sql",
-      "lines": 42,
+      "lines": 39,
       "name": "sql",
       "pack": null,
       "source": "packages/core/profiles/sql.yaml",
-      "staticTokens": 324,
+      "staticTokens": 299,
       "type": "profile"
     },
     {
       "description": "",
       "id": "profile:typescript",
-      "lines": 40,
+      "lines": 39,
       "name": "typescript",
       "pack": null,
       "source": "packages/core/profiles/typescript.yaml",
-      "staticTokens": 285,
+      "staticTokens": 277,
       "type": "profile"
     },
     {
@@ -3829,6 +3849,13 @@
     },
     {
       "from": "skill:void-implement",
+      "to": "profile:expo-config",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation"
+    },
+    {
+      "from": "skill:void-implement",
       "to": "profile:monorepo",
       "kind": "composes",
       "origin": "declared",
@@ -3837,6 +3864,13 @@
     {
       "from": "skill:void-implement",
       "to": "profile:nextjs",
+      "kind": "composes",
+      "origin": "declared",
+      "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation"
+    },
+    {
+      "from": "skill:void-implement",
+      "to": "profile:nextjs-config",
       "kind": "composes",
       "origin": "declared",
       "evidence": "implement SKILL.md: load or compile the canonical mission plan before any specialist invocation"
