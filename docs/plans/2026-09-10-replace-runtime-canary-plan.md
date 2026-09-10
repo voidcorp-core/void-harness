@@ -1,7 +1,7 @@
 ---
 title: Remplacer le canary runtime par un preflight déterministe
 date: 2026-09-10
-status: in-progress
+status: executing
 spec: docs/specs/2026-09-10-replace-runtime-canary.md
 ticket: DEV-838
 author: Folpe + Codex
@@ -76,13 +76,15 @@ chemin canary runtime.
 
 ## Resume point
 
-**Next step**: Step 1 (Établir le contrat fail-fast du preflight)
+**Next step**: Step 4 (Vérifier et préparer la reprise du pilote)
 
 **Completed**:
 
 - Spec approuvée et commitée dans `cac53c2f`.
-- Aucun nouveau code de preflight commencé.
+- Steps 1 à 3 implémentés dans `23a27580` et vérifiés par le preflight réel.
+- Preflight 3.7.1 observé : diff contrôlé de 287 octets, nettoyage complet,
+  aucune invocation runtime.
 
 **Pending**:
 
-- Steps 1 à 4.
+- Step 4 : vérification finale et handoff humain du pilote 3.7.1.

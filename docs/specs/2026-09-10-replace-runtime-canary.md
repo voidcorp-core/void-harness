@@ -1,7 +1,7 @@
 ---
 title: Remplacer le canary runtime par un preflight déterministe
 date: 2026-09-10
-status: in-design
+status: approved
 author: Folpe + Codex
 ticket: DEV-838
 related:
