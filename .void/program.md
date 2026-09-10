@@ -2,18 +2,19 @@
 schemaVersion: 1
 status: executing
 program: autonomous-until-develop
-plan: docs/plans/2026-08-31-autonomous-until-develop-plan.md
+plan: docs/plans/2026-09-10-native-void-machine-pivot-plan.md
+spec: docs/specs/2026-09-10-native-void-machine-pivot.md
 spec: docs/specs/2026-08-31-autonomous-until-develop.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
-  order: [DEV-835, DEV-836, DEV-837, DEV-838, DEV-839, DEV-840]
+  order: [DEV-808]
   states:
     ready: [Backlog, Todo]
     started: [In Progress]
     review: [In Review]
     done: [Done, Canceled]
-humanGates: [DEV-838, DEV-840]
+humanGates: []
 autopilot:
   schemaVersion: 1
   clusterSize: 4
@@ -58,9 +59,10 @@ approval from green CI or complete this discussion autonomously.
 The complete ordered chain is visible on the open epic
 [DEV-807](https://linear.app/voidcorp/issue/DEV-807), not only in the completed
 DEV-666 audit. Native Linear dependencies own readiness and mutable progress.
-After this sequence and the discussion, activate the approved Void Machine
-programme context before selecting VM-01 (DEV-808); this descriptor does not
-silently authorize the native cutover under the legacy plan.
+The measurement discussion is now closed as a direction decision. The active
+programme uses the native Void Machine pivot spec and plan, and starts with
+VM-01 (DEV-808). The descriptor does not authorize a native cutover beyond the
+bounded unit currently in progress.
 
 Implement owns one ticket's risk-appropriate quality cycle. Autopilot owns
 dependency selection, isolation, recovery, resource limits, cleanup and exact
@@ -72,22 +74,20 @@ This file is the stable global context for the executing program. It deliberatel
 current nor a next work unit. The provider declared under `progress` owns claims, dependencies,
 review state and the remote resume trail; this file only locates that state.
 
-On 2026-09-07, the approved DEV-833 protocol and plan were decomposed into the
-provider-native child units DEV-835 through DEV-840. The parent remains the
-discussion umbrella; the ordered children now own execution state and the two
-declared human checkpoints are DEV-838 (pilot freeze) and DEV-840 (final
-decision). The execution handoff in the plan is the durable mapping.
+On 2026-09-10, the approved native pivot replaced the unadmitted measurement
+chain as the active delivery path. The campaign artefacts remain versioned
+research history; the execution handoff in the pivot plan owns DEV-808.
 
-The pointer moved on 2026-08-31 to the programme now in flight: `autopilot 6h` runs to the end
-with nobody present, and the only human gate is the promotion to the branch that deploys.
+The pointer now follows the native Void Machine foundation. The only human
+promotion gate remains the branch that deploys.
 
 `progress.order` is a deterministic tie-break among ready units, not mutable
-execution state. The sequence above replaces the initial four shipped guards
-following Folpe's explicit ordering on 2026-09-05.
+execution state. The current order starts with VM-01 and expands only through a
+new approved handoff.
 
-The initial programme had no per-ticket human gate. Folpe explicitly requested
-the DEV-833 discussion on 2026-09-05, so it is now declared in `humanGates`.
-This bounded discussion does not remove the deploying-branch promotion guard.
+The measurement discussion was explicitly concluded on 2026-09-10. No
+per-ticket human gate is declared for the native pivot; promotion to the
+deploying branch remains human.
 
 **Corrections land in the artefact being worked on, never in a successor.** Spec drift is the
 documented failure of this whole family of workflows -- the files stop matching what
