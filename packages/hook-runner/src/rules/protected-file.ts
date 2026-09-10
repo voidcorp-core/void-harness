@@ -17,6 +17,7 @@ function protectedReason(path: string): string | undefined {
     'package-lock.json',
     'pnpm-lock.yaml',
     'yarn.lock',
+    'bun.lock',
     'bun.lockb',
     'cargo.lock',
     'poetry.lock',

@@ -21,6 +21,9 @@ function runCheck(fn: string, args: readonly string[] = [], input = ''): { code:
 describe('checks_sensitive_path — never-edit files (path only)', () => {
   it.each([
     ['pnpm-lock.yaml', /lockfile/],
+    ['bun.lock', /lockfile/],
+    ['apps/web/BUN.LOCK', /lockfile/],
+    ['bun.lockb', /lockfile/],
     ['package-lock.json', /lockfile/],
     ['a/b/yarn.lock', /lockfile/],
     ['.env', /environment file/],
