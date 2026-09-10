@@ -48,6 +48,24 @@ describe('profile freshness', () => {
     expect(result.sourceReviewRequired).toBe(true);
   });
 
+  it.each(['7.0.2', '99.0.0', undefined])(
+    'keeps independent advice applicable without claiming compiler support for %s', (version) => {
+      const result = assessProfileFreshness(profile({
+        technologies: [{ id: 'typescript', versionIndependent: true }],
+      }), [{ id: 'typescript', version: version ?? null, sources: ['package.json'] }],
+      '2026-09-10T12:00:00Z');
+      expect(result).toEqual({ status: 'current', reasons: [], sourceReviewRequired: false });
+    },
+  );
+
+  it('still expires independent guidance', () => {
+    expect(assessProfileFreshness(profile({
+      technologies: [{ id: 'typescript', versionIndependent: true }],
+    }), [], '2027-09-10T12:00:00Z')).toMatchObject({
+      status: 'degraded', reasons: ['profile-expired'], sourceReviewRequired: true,
+    });
+  });
+
   it('checks every applicable project version instead of hiding one behind another', () => {
     const result = assessProfileFreshness(
       profile(),
