@@ -22,7 +22,7 @@
         "stale or empty review evidence is rejected"
       ],
       "fixture": "autonomous-value/implement",
-      "fixtureDigest": "sha256:b913ec390c196403849d6968da2e2d543ca070a7c104f7c7761394d75978be26"
+      "fixtureDigest": "sha256:a8fd1ea7fe2eab355eeabfa1bc00af0c6069cac4135d5381a217cdb295300234"
     },
     {
       "id": "implement-implement",
@@ -35,7 +35,7 @@
         "stale or empty review evidence is rejected"
       ],
       "fixture": "autonomous-value/implement",
-      "fixtureDigest": "sha256:b913ec390c196403849d6968da2e2d543ca070a7c104f7c7761394d75978be26"
+      "fixtureDigest": "sha256:a8fd1ea7fe2eab355eeabfa1bc00af0c6069cac4135d5381a217cdb295300234"
     },
     {
       "id": "implement-autopilot",
@@ -48,7 +48,7 @@
         "stale or empty review evidence is rejected"
       ],
       "fixture": "autonomous-value/implement",
-      "fixtureDigest": "sha256:b913ec390c196403849d6968da2e2d543ca070a7c104f7c7761394d75978be26"
+      "fixtureDigest": "sha256:a8fd1ea7fe2eab355eeabfa1bc00af0c6069cac4135d5381a217cdb295300234"
     },
     {
       "id": "autopilot-agent-alone",
@@ -61,7 +61,7 @@
         "the deploying branch remains untouched"
       ],
       "fixture": "autonomous-value/autopilot",
-      "fixtureDigest": "sha256:93151c5fb1a81b2ebb4de1904a3d3732498e7d45e3180127310d0dc95ada69fd"
+      "fixtureDigest": "sha256:8f829e39132000fdcb1de06f5d441d27ac7f1095afa41ab9fa9d789fca77fcd1"
     },
     {
       "id": "autopilot-implement",
@@ -74,7 +74,7 @@
         "the deploying branch remains untouched"
       ],
       "fixture": "autonomous-value/autopilot",
-      "fixtureDigest": "sha256:93151c5fb1a81b2ebb4de1904a3d3732498e7d45e3180127310d0dc95ada69fd"
+      "fixtureDigest": "sha256:8f829e39132000fdcb1de06f5d441d27ac7f1095afa41ab9fa9d789fca77fcd1"
     },
     {
       "id": "autopilot-autopilot",
@@ -87,7 +87,7 @@
         "the deploying branch remains untouched"
       ],
       "fixture": "autonomous-value/autopilot",
-      "fixtureDigest": "sha256:93151c5fb1a81b2ebb4de1904a3d3732498e7d45e3180127310d0dc95ada69fd"
+      "fixtureDigest": "sha256:8f829e39132000fdcb1de06f5d441d27ac7f1095afa41ab9fa9d789fca77fcd1"
     },
     {
       "id": "brainstorm-agent-alone",
@@ -100,7 +100,7 @@
         "removing its proof makes the journey uncertifiable"
       ],
       "fixture": "autonomous-value/brainstorm",
-      "fixtureDigest": "sha256:204b5600a255bd9f2affd38b0e35b8e93535d28293c52d9f9bdf2e963b98057e"
+      "fixtureDigest": "sha256:ab3a8b9a1a183637b13ca44aa77a4b9d559dc2977b77bcd6f2c25eaf83822e94"
     },
     {
       "id": "brainstorm-implement",
@@ -113,7 +113,7 @@
         "removing its proof makes the journey uncertifiable"
       ],
       "fixture": "autonomous-value/brainstorm",
-      "fixtureDigest": "sha256:204b5600a255bd9f2affd38b0e35b8e93535d28293c52d9f9bdf2e963b98057e"
+      "fixtureDigest": "sha256:ab3a8b9a1a183637b13ca44aa77a4b9d559dc2977b77bcd6f2c25eaf83822e94"
     },
     {
       "id": "brainstorm-autopilot",
@@ -126,7 +126,7 @@
         "removing its proof makes the journey uncertifiable"
       ],
       "fixture": "autonomous-value/brainstorm",
-      "fixtureDigest": "sha256:204b5600a255bd9f2affd38b0e35b8e93535d28293c52d9f9bdf2e963b98057e"
+      "fixtureDigest": "sha256:ab3a8b9a1a183637b13ca44aa77a4b9d559dc2977b77bcd6f2c25eaf83822e94"
     }
   ]
 }
