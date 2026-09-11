@@ -34,15 +34,16 @@ import {
   impactOf,
   normalizeProjectPath,
   ownersOf,
-  projectFileId,
-  stalenessOf,
-  subgraphOf,
-  testsFor,
   type ProjectBuildIssue,
   type ProjectGraphObservation,
   type ProjectQueryAnswer,
   type ProjectQueryBudget,
+  projectFileId,
+  stalenessOf,
+  subgraphOf,
+  testsFor,
 } from '@voidcorp/harness-graph/project';
+import { loadProjectKnowledge } from './project-knowledge.js';
 
 const FILE_ID_PREFIX = 'project:file:';
 
@@ -137,6 +138,19 @@ export async function openProjectGraphStore(
   root: string,
   options: ProjectGraphStoreOptions = {},
 ): Promise<ProjectGraphStore> {
+  const persisted = await loadProjectKnowledge(root);
+  if (persisted.kind === 'valid') {
+    return Object.freeze({
+      root: resolve(root),
+      graph: persisted.artifact.graph,
+      state: persisted.artifact.state,
+      observation: Object.freeze({
+        rootHash: persisted.artifact.rootHash,
+        complete: persisted.artifact.state === 'fresh',
+      }),
+      issues: [],
+    });
+  }
   const build = options.build ?? ((at: string) => buildProjectGraph({ root: at }));
   const built = await build(root).catch((cause: unknown) => {
     throw new ProjectGraphStoreError(
