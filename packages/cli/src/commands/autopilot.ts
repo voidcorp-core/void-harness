@@ -11,6 +11,7 @@
 // and it is written at exactly one moment: after a reservation has been proven
 // converged by re-observation.
 
+import { join } from 'node:path';
 import { type ClusterPlan, type ClusterPlanInput, planCluster } from '../lib/autopilot/cluster-plan.js';
 import { type MergedUnit, renderMergeJournal } from '../lib/autopilot/chain.js';
 import { buildMergePlan } from '../lib/autopilot/merge-plan.js';
@@ -101,6 +102,7 @@ import {
 } from '../lib/autopilot/remote-recovery.js';
 import type { RunState, TicketRunState } from '../lib/autopilot/run-state.js';
 import { listRunIds, readRun, writeRun } from '../lib/autopilot/state-store.js';
+import { createDurableRun, openDurableRunStore } from '../lib/autopilot/durable-run.js';
 import {
   type ActionReceipt,
   type LifecycleInput,
@@ -1426,7 +1428,18 @@ function startCommand(stdin: string, json: boolean, context: AutopilotCommandCon
 
   // The cursor is written here and nowhere else: a run only exists locally once
   // the tracker has been re-observed and every ticket converged on our lease.
-  if (outcome.kind === 'active') writeRun(context.root, receipt.state);
+  if (outcome.kind === 'active') {
+    const durable = openDurableRunStore(
+      join(context.root, '.void', 'autopilot', receipt.state.runId, 'run.sqlite'),
+      createDurableRun(receipt.state.runId, receipt.state.clusterId, receipt.state.tickets.length),
+    );
+    try {
+      durable.append(receipt.state.runId, { kind: 'start', leaseToken: receipt.state.clusterId });
+      writeRun(context.root, receipt.state);
+    } finally {
+      durable.close();
+    }
+  }
   return emit(json, outcome, `${outcome.kind}: ${'detail' in outcome ? outcome.detail : outcome.issues.join(', ')}\n`);
 }
 

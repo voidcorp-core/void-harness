@@ -27,8 +27,10 @@ and existing repository capabilities. VM-01 froze the observable consumer
 contract in a portable, redacted legacy oracle. VM-02 shipped one read-only
 native doctor through a thin compatibility boundary. The current implementation
 unit is VM-03: validate one executable skill package through a versioned native
-contract. It preserves current consumer behavior, does not perform the native
-cutover, change permissions, or publish an artifact.
+contract. VM-04 is now the current slice: execute one validated read-only skill
+through a kernel-owned state machine and seal a durable no-effect proof. The
+work preserves current consumer behavior, does not perform the native cutover,
+change permissions, or publish an artifact.
 
 ## Boundaries
 
@@ -51,6 +53,9 @@ cutover, change permissions, or publish an artifact.
 - `void-machine skill check <path> --json` validates an inseparable `SKILL.md`
   and `harness.yaml` package, rejects unsafe or ambiguous inputs before
   execution, and derives identity from exact bytes in path order.
+- A no-effect run persists state, append-only events, outbox intents, leases,
+  budgets and proof atomically through a bounded SQLite adapter, fences stale
+  supervisors, and resumes deterministically after seeded crash injection.
 - Corrupt, unsupported, unreadable, or ambiguous evidence fails fast and
   preserves the prior state.
 - Existing native mission and autopilot behavior remains unchanged outside the

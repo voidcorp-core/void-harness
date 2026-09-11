@@ -13,8 +13,8 @@ high_risk: true
 Make the existing native execution path the executable project direction and
 deliver VM-01 as a small, portable legacy consumer oracle. The work removes the
 missing programme context before implementation and keeps the private value
-campaign out of the delivery path. VM-01 and VM-02 are merged; the current
-bounded slice is VM-03 / DEV-810.
+campaign out of the delivery path. VM-01, VM-02, and VM-03 are merged; the
+current bounded slice is VM-04 / DEV-798.
 
 ## What already exists
 
@@ -102,6 +102,17 @@ VM-01 contract around those surfaces; it does not replace them.
   - `feat(machine): validate executable skill packages`
 - **Notes**: exact bytes determine identity, unknown fields and unsafe capabilities fail fast, symlinks and path escapes are refused, and no package binaries or lockfiles are added to npm.
 
+### Step 7 — Complete a durable no-effect run and proof (VM-04 / DEV-798)
+
+- **Goal**: execute one validated read-only skill through a kernel-owned state machine and persist a canonical, crash-safe proof without an authoritative effect.
+- **Depends on**: DEV-810 merged
+- **TDD mode**: strict for transitions, persistence and crash recovery; exploratory only for the bounded adapter seam.
+- **Verification gate**: versioned contracts, model tests, transaction-boundary crash injection, at least 1,000 seeded sequences, Rust checks, package tests and full repository verification.
+- **Expected commits**:
+  - `test(machine): define durable run transitions`
+  - `feat(machine): persist no-effect run proofs`
+- **Notes**: SQLite is an adapter behind a native port; the kernel stays free of runtime, provider, tracker, forge, language, framework and database specifics. A worker string never completes a run.
+
 ## Review checkpoints
 
 ### Checkpoint A — after Step 1
@@ -116,7 +127,8 @@ Void Machine plan is restored and the campaign is explicitly outside delivery.
 | VM-01 | DEV-808 consumer contract oracle | DEV-833 decision, DEV-395, DEV-824 | L | no |
 | VM-02 | DEV-809 native doctor compatibility slice | DEV-808 merged | L | no |
 | VM-03 | DEV-810 portable executable skill package | DEV-809 merged | L | no |
+| VM-04 | DEV-798 durable no-effect run and proof | DEV-810 merged | XL | no |
 
 DEV-833 and DEV-838 remain tracker decisions/history around the abandoned
 measurement path. DEV-839 and DEV-840 are not admitted by this plan. VM-01 and
-VM-02 are merged; DEV-810 is the current implementation handoff.
+VM-02 and VM-03 are merged; DEV-798 is the current implementation handoff.
