@@ -13,8 +13,8 @@ high_risk: true
 Make the existing native execution path the executable project direction and
 deliver VM-01 as a small, portable legacy consumer oracle. The work removes the
 missing programme context before implementation and keeps the private value
-campaign out of the delivery path. VM-01 through VM-05 are merged; the current
-bounded slice is VM-06 / DEV-812.
+campaign out of the delivery path. VM-01 through VM-06 are merged; the current
+bounded slice is VM-07 / DEV-820.
 
 ## What already exists
 
@@ -126,6 +126,17 @@ VM-01 contract around those surfaces; it does not replace them.
 
 ## Review checkpoints
 
+### Step 9 — Route deterministically, then rank semantically (VM-07 / DEV-820)
+
+- **Goal**: implement the approved routing boundary where deterministic eligibility owns admission and semantic judgment may only rank eligible candidates.
+- **Depends on**: DEV-813 and DEV-798 merged
+- **TDD mode**: strict for eligibility, typed refusals, fallback and proof; souple for semantic process wiring.
+- **Verification gate**: property tests, stable cross-platform fallback, immutable bounded ranking context, both certified runtime adapters, Rust and legacy compatibility gates, and full repository verification.
+- **Expected commits**:
+  - `test(routing): define deterministic eligibility refusals`
+  - `feat(routing): rank only eligible routes`
+- **Notes**: runtime and model details stay in adapters; invalid, absent or timed out semantic output falls back to deterministic order.
+
 ### Checkpoint A — after Step 1
 
 Review the reconciled programme context before writing the oracle. The missing
@@ -141,7 +152,8 @@ Void Machine plan is restored and the campaign is explicitly outside delivery.
 | VM-04 | DEV-798 durable no-effect run and proof | DEV-810 merged | XL | no |
 | VM-05 | DEV-811 Codex subscription execution | DEV-798 merged | L | no |
 | VM-06 | DEV-812 Claude subscription execution | DEV-811 merged | L | no |
+| VM-07 | DEV-820 deterministic eligibility and semantic ranking | DEV-813 and DEV-798 merged | L | no |
 
 DEV-833 and DEV-838 remain tracker decisions/history around the abandoned
 measurement path. DEV-839 and DEV-840 are not admitted by this plan. VM-01
-through VM-05 are merged; DEV-812 is the current implementation handoff.
+through VM-06 are merged; DEV-820 is the current implementation handoff.

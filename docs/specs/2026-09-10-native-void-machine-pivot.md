@@ -28,10 +28,11 @@ contract in a portable, redacted legacy oracle. VM-02 shipped one read-only
 native doctor through a thin compatibility boundary. VM-03 validated one
 executable skill package through a versioned native contract. VM-04 established
 durable no-effect proof and VM-05 certified the Codex subscription adapter.
-VM-06 is now the current slice: certify the same generic runtime-process port
-through the official Claude Code subscription CLI. The work preserves current
-consumer behavior, does not perform the native cutover, change permissions, or
-publish an artifact.
+VM-06 certified the same generic runtime-process port through the official
+Claude Code subscription CLI. VM-07 is now the current slice: implement
+deterministic eligibility before optional semantic ranking. The work preserves
+current consumer behavior, does not perform the native cutover, change
+permissions, or publish an artifact.
 
 ## Boundaries
 

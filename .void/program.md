@@ -7,7 +7,7 @@ spec: docs/specs/2026-09-10-native-void-machine-pivot.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
-  order: [DEV-812]
+  order: [DEV-820]
   states:
     ready: [Backlog, Todo]
     started: [In Progress]
@@ -59,8 +59,8 @@ The complete ordered chain is visible on the open epic
 [DEV-807](https://linear.app/voidcorp/issue/DEV-807), not only in the completed
 DEV-666 audit. Native Linear dependencies own readiness and mutable progress.
 The measurement discussion is now closed as a direction decision. The active
-programme uses the native Void Machine pivot spec and plan. VM-01 through VM-05
-are merged; VM-06 (DEV-812) is the current descriptor and does not authorize a
+programme uses the native Void Machine pivot spec and plan. VM-01 through VM-06
+are merged; VM-07 (DEV-820) is the current descriptor and does not authorize a
 native cutover beyond the bounded unit currently in progress.
 
 Implement owns one ticket's risk-appropriate quality cycle. Autopilot owns
@@ -75,15 +75,16 @@ review state and the remote resume trail; this file only locates that state.
 
 On 2026-09-10, the approved native pivot replaced the unadmitted measurement
 chain as the active delivery path. The campaign artefacts remain versioned
-research history; the execution handoff in the pivot plan owns DEV-812.
+research history; the execution handoff in the pivot plan owns DEV-820.
 
 The pointer now follows the native Void Machine foundation. VM-03 established
 the portable skill package boundary, VM-04 established durable no-effect proof,
-and VM-05 certified the Codex subscription adapter. The only human
+and VM-05 certified the Codex subscription adapter, while VM-06 certified the
+Claude subscription adapter. The only human
 promotion gate remains the branch that deploys.
 
 `progress.order` is a deterministic tie-break among ready units, not mutable
-execution state. The current order starts with VM-06 after VM-05's merged
+execution state. The current order starts with VM-07 after VM-06's merged
 handoff.
 
 The measurement discussion was explicitly concluded on 2026-09-10. No
