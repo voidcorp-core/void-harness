@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "project-knowledge",
-  "rootHash": "sha256:7de295985a830a34be99dadf5fc260d09979c94a56b552532d454197d4f22443",
+  "rootHash": "sha256:2fd1f9f58847cc4adb2e4cb268869ed9a365cad2af0b0d39ef301ba7fe4c0102",
   "state": "partial",
   "generatedFrom": {
     "kind": "project-graph",
@@ -14,7 +14,7 @@
     "source": {
       "kind": "native",
       "version": "3.0.0-alpha.1+project.1+typescript.5.9.3",
-      "rootHash": "sha256:7de295985a830a34be99dadf5fc260d09979c94a56b552532d454197d4f22443"
+      "rootHash": "sha256:2fd1f9f58847cc4adb2e4cb268869ed9a365cad2af0b0d39ef301ba7fe4c0102"
     },
     "nodes": [
       {
@@ -42757,7 +42757,7 @@
         "label": "build.test.ts",
         "data": {
           "diagnostics": 0,
-          "hash": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28",
+          "hash": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e",
           "path": "packages/harness-graph/src/project/build.test.ts",
           "size": 45960,
           "state": "active"
@@ -42769,7 +42769,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -42849,7 +42849,7 @@
         "label": "cache-publication.ts",
         "data": {
           "diagnostics": 0,
-          "hash": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8",
+          "hash": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a",
           "path": "packages/harness-graph/src/project/cache-publication.ts",
           "size": 8763,
           "state": "active"
@@ -42861,7 +42861,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -43332,7 +43332,7 @@
         "label": "graph-assembly.test.ts",
         "data": {
           "diagnostics": 0,
-          "hash": "sha256:2944cdc0bfbbca58205ebb52ac28dbd244fe0c6f1fb1eca49ad198f6f85e0b1f",
+          "hash": "sha256:0659b42a5802f08a23d0b995bedf7a90145dec3318c421ec4bc275047ff81036",
           "path": "packages/harness-graph/src/project/graph-assembly.test.ts",
           "size": 908,
           "state": "active"
@@ -43344,7 +43344,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.test.ts",
-              "hashOrVersion": "sha256:2944cdc0bfbbca58205ebb52ac28dbd244fe0c6f1fb1eca49ad198f6f85e0b1f"
+              "hashOrVersion": "sha256:0659b42a5802f08a23d0b995bedf7a90145dec3318c421ec4bc275047ff81036"
             }
           ]
         }
@@ -43355,7 +43355,7 @@
         "label": "graph-assembly.ts",
         "data": {
           "diagnostics": 0,
-          "hash": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97",
+          "hash": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c",
           "path": "packages/harness-graph/src/project/graph-assembly.ts",
           "size": 20369,
           "state": "active"
@@ -43367,7 +43367,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -51566,9 +51566,9 @@
         "label": "conformance-project-graph.mjs",
         "data": {
           "diagnostics": 0,
-          "hash": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c",
+          "hash": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317",
           "path": "scripts/conformance-project-graph.mjs",
-          "size": 5551,
+          "size": 5534,
           "state": "active"
         },
         "provenance": {
@@ -51578,7 +51578,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -54604,7 +54604,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -147112,7 +147112,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -147132,7 +147132,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -147152,7 +147152,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -147172,7 +147172,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -147192,7 +147192,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -147212,7 +147212,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -147232,7 +147232,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -147252,7 +147252,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -147272,7 +147272,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -147292,7 +147292,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -147312,7 +147312,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -147332,7 +147332,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -147352,7 +147352,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -147372,7 +147372,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -147392,7 +147392,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -148172,7 +148172,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -148192,7 +148192,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -148212,7 +148212,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -148232,7 +148232,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -148252,7 +148252,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -148272,7 +148272,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -148292,7 +148292,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -148312,7 +148312,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -148332,7 +148332,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -148352,7 +148352,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -148372,7 +148372,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -148392,7 +148392,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -148412,7 +148412,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -148432,7 +148432,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -154432,7 +154432,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.test.ts",
-              "hashOrVersion": "sha256:2944cdc0bfbbca58205ebb52ac28dbd244fe0c6f1fb1eca49ad198f6f85e0b1f"
+              "hashOrVersion": "sha256:0659b42a5802f08a23d0b995bedf7a90145dec3318c421ec4bc275047ff81036"
             }
           ]
         }
@@ -154452,7 +154452,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154472,7 +154472,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154492,7 +154492,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154512,7 +154512,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154532,7 +154532,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154552,7 +154552,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154572,7 +154572,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154592,7 +154592,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154612,7 +154612,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154632,7 +154632,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154652,7 +154652,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154672,7 +154672,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154692,7 +154692,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154712,7 +154712,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154732,7 +154732,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154752,7 +154752,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154772,7 +154772,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154792,7 +154792,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154812,7 +154812,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154832,7 +154832,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154852,7 +154852,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154872,7 +154872,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154892,7 +154892,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154912,7 +154912,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154932,7 +154932,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154952,7 +154952,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154972,7 +154972,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -154992,7 +154992,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -155012,7 +155012,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -155032,7 +155032,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -155052,7 +155052,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -155072,7 +155072,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -155092,7 +155092,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -155112,7 +155112,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -191372,7 +191372,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -191392,7 +191392,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -191412,7 +191412,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -191432,7 +191432,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -191452,7 +191452,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -211219,7 +211219,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -213091,7 +213091,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -215773,7 +215773,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -222361,7 +222361,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.test.ts",
-              "hashOrVersion": "sha256:2944cdc0bfbbca58205ebb52ac28dbd244fe0c6f1fb1eca49ad198f6f85e0b1f"
+              "hashOrVersion": "sha256:0659b42a5802f08a23d0b995bedf7a90145dec3318c421ec4bc275047ff81036"
             }
           ]
         }
@@ -233233,7 +233233,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -248461,7 +248461,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -248767,7 +248767,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -249451,7 +249451,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -256831,7 +256831,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -263365,7 +263365,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -263419,7 +263419,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -263509,7 +263509,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -264679,7 +264679,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -265723,7 +265723,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -266929,7 +266929,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -268189,7 +268189,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -268315,7 +268315,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -271987,7 +271987,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -273121,7 +273121,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -273373,7 +273373,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -274633,7 +274633,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -275155,7 +275155,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -275677,7 +275677,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -280339,7 +280339,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -280609,7 +280609,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -289861,7 +289861,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -290275,7 +290275,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -291175,7 +291175,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -297241,7 +297241,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -297997,7 +297997,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -298357,7 +298357,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -299923,7 +299923,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -300337,7 +300337,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -302047,7 +302047,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -310813,7 +310813,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -312487,7 +312487,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -312829,7 +312829,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -314683,7 +314683,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -314899,7 +314899,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -315907,7 +315907,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -320911,7 +320911,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -320929,7 +320929,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -322513,7 +322513,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -324115,7 +324115,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -325933,7 +325933,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -325969,7 +325969,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -327877,7 +327877,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -328957,7 +328957,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -329695,7 +329695,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -332107,7 +332107,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -332773,7 +332773,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -334537,7 +334537,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -336607,7 +336607,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -338389,7 +338389,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -340189,7 +340189,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -340477,7 +340477,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -344041,7 +344041,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -345085,7 +345085,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -349585,7 +349585,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -349765,7 +349765,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -350305,7 +350305,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -351007,7 +351007,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -352015,7 +352015,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -355795,7 +355795,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.test.ts",
-              "hashOrVersion": "sha256:2944cdc0bfbbca58205ebb52ac28dbd244fe0c6f1fb1eca49ad198f6f85e0b1f"
+              "hashOrVersion": "sha256:0659b42a5802f08a23d0b995bedf7a90145dec3318c421ec4bc275047ff81036"
             }
           ]
         }
@@ -356893,7 +356893,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -357721,7 +357721,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -362437,7 +362437,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -362959,7 +362959,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -363409,7 +363409,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -365839,7 +365839,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -369439,7 +369439,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -372121,7 +372121,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -373615,7 +373615,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -374533,7 +374533,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -376678,7 +376678,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -381646,7 +381646,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -384112,7 +384112,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -394462,7 +394462,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -395146,7 +395146,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -396298,7 +396298,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -406774,7 +406774,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -409312,7 +409312,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -419902,7 +419902,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -420385,7 +420385,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -422401,7 +422401,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -428407,7 +428407,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -429877,7 +429877,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.test.ts",
-              "hashOrVersion": "sha256:2944cdc0bfbbca58205ebb52ac28dbd244fe0c6f1fb1eca49ad198f6f85e0b1f"
+              "hashOrVersion": "sha256:0659b42a5802f08a23d0b995bedf7a90145dec3318c421ec4bc275047ff81036"
             }
           ]
         }
@@ -430045,7 +430045,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -430675,7 +430675,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -433363,7 +433363,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -434098,7 +434098,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -437374,7 +437374,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.test.ts",
-              "hashOrVersion": "sha256:2944cdc0bfbbca58205ebb52ac28dbd244fe0c6f1fb1eca49ad198f6f85e0b1f"
+              "hashOrVersion": "sha256:0659b42a5802f08a23d0b995bedf7a90145dec3318c421ec4bc275047ff81036"
             }
           ]
         }
@@ -440335,7 +440335,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -442225,7 +442225,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -450415,7 +450415,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -453292,7 +453292,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -454132,7 +454132,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -454258,7 +454258,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -458185,7 +458185,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -462343,7 +462343,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -462742,7 +462742,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.test.ts",
-              "hashOrVersion": "sha256:2944cdc0bfbbca58205ebb52ac28dbd244fe0c6f1fb1eca49ad198f6f85e0b1f"
+              "hashOrVersion": "sha256:0659b42a5802f08a23d0b995bedf7a90145dec3318c421ec4bc275047ff81036"
             }
           ]
         }
@@ -463393,7 +463393,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -464149,7 +464149,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -464695,7 +464695,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -466144,7 +466144,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -470911,7 +470911,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -471037,7 +471037,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -471835,7 +471835,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -472087,7 +472087,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -472360,7 +472360,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -472675,7 +472675,7 @@
             {
               "kind": "path",
               "ref": "scripts/conformance-project-graph.mjs",
-              "hashOrVersion": "sha256:10f95363fb58a9b00e9e1a943be435df7434b0f2d1b13d10102e8815599d364c"
+              "hashOrVersion": "sha256:c9144ddf0b551ec8c81005b2f39f9b4633693a27576392819d43b9fad9bff317"
             }
           ]
         }
@@ -472885,7 +472885,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -474544,7 +474544,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -475657,7 +475657,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -476266,7 +476266,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -479290,7 +479290,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -483133,7 +483133,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -486871,7 +486871,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.ts",
-              "hashOrVersion": "sha256:5bc4b10190cca7b1307acbc5f092c8bb753a91d035b684d71e00bd661c80fc97"
+              "hashOrVersion": "sha256:6029197a4611bb91df4d2aa4e218b3d16f7aa23434cb791b747f22e442e4c84c"
             }
           ]
         }
@@ -487543,7 +487543,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -488026,7 +488026,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -488236,7 +488236,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -488404,7 +488404,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -492982,7 +492982,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/cache-publication.ts",
-              "hashOrVersion": "sha256:69b88067c2af886a48c82cfd94bc91d605b4a32633b9c28233cf7290c14902e8"
+              "hashOrVersion": "sha256:dabbcaf5b7018527f1fcb472a7d3e123858e56db184adfcd7f09ec5de04dac0a"
             }
           ]
         }
@@ -512977,6 +512977,24 @@
         }
       },
       {
+        "id": "project:edge:owned-by:84ca98fd5e0ead8a3faaa9ba7a099577",
+        "from": "project:file:packages/harness-graph/src/project/graph-assembly.test.ts",
+        "to": "project:owner:h-29e4ada527e07c115972dac23b8ee1a6",
+        "kind": "owned-by",
+        "data": {},
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "adapter",
+              "ref": "git",
+              "hashOrVersion": "git-observation-v1"
+            }
+          ]
+        }
+      },
+      {
         "id": "project:edge:owned-by:84f4fc59922ac08b37295fd8ba8dc576",
         "from": "project:file:docs/plans/skill-audits/void-verify.md",
         "to": "project:owner:h-29e4ada527e07c115972dac23b8ee1a6",
@@ -523381,6 +523399,24 @@
         }
       },
       {
+        "id": "project:edge:owned-by:c9bf28d30aea6e84fc5093c7636a5446",
+        "from": "project:file:packages/harness-graph/src/project/cache-publication.test.ts",
+        "to": "project:owner:h-29e4ada527e07c115972dac23b8ee1a6",
+        "kind": "owned-by",
+        "data": {},
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "adapter",
+              "ref": "git",
+              "hashOrVersion": "git-observation-v1"
+            }
+          ]
+        }
+      },
+      {
         "id": "project:edge:owned-by:c9dbd6247ab636bd1a0dcb4b877a2b89",
         "from": "project:file:packages/core/profiles/react.yaml",
         "to": "project:owner:h-29e4ada527e07c115972dac23b8ee1a6",
@@ -531871,7 +531907,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -532735,7 +532771,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.test.ts",
-              "hashOrVersion": "sha256:2944cdc0bfbbca58205ebb52ac28dbd244fe0c6f1fb1eca49ad198f6f85e0b1f"
+              "hashOrVersion": "sha256:0659b42a5802f08a23d0b995bedf7a90145dec3318c421ec4bc275047ff81036"
             }
           ]
         }
@@ -532879,7 +532915,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -533491,7 +533527,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -534391,7 +534427,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -535219,7 +535255,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -535273,7 +535309,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -539899,7 +539935,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -540133,7 +540169,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
@@ -541375,7 +541411,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/graph-assembly.test.ts",
-              "hashOrVersion": "sha256:2944cdc0bfbbca58205ebb52ac28dbd244fe0c6f1fb1eca49ad198f6f85e0b1f"
+              "hashOrVersion": "sha256:0659b42a5802f08a23d0b995bedf7a90145dec3318c421ec4bc275047ff81036"
             }
           ]
         }
@@ -542221,7 +542257,7 @@
             {
               "kind": "path",
               "ref": "packages/harness-graph/src/project/build.test.ts",
-              "hashOrVersion": "sha256:f21b1b3ea6371bf9db9999f5ab3956cd1c3651a3ab1e85a3627e1d51b6465a28"
+              "hashOrVersion": "sha256:8c95f5a6be9d1afadb879a478b41b433ace676046d88e1b5bb8e1ef55cfd857e"
             }
           ]
         }
