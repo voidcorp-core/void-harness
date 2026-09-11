@@ -13,8 +13,8 @@ high_risk: true
 Make the existing native execution path the executable project direction and
 deliver VM-01 as a small, portable legacy consumer oracle. The work removes the
 missing programme context before implementation and keeps the private value
-campaign out of the delivery path. VM-01 is merged; the next bounded slice is
-VM-02 / DEV-809.
+campaign out of the delivery path. VM-01 and VM-02 are merged; the current
+bounded slice is VM-03 / DEV-810.
 
 ## What already exists
 
@@ -91,6 +91,17 @@ VM-01 contract around those surfaces; it does not replace them.
   - `test(machine): exercise compatibility launcher`
 - **Notes**: no writes, runtime/provider/tracker specificity in the kernel, no platform binaries bundled into the universal npm tarball, and no lockfile added.
 
+### Step 6 — Validate one portable executable skill package (VM-03 / DEV-810)
+
+- **Goal**: validate an inseparable `SKILL.md` plus `harness.yaml` package through a versioned native contract and expose `void-machine skill check <path> --json`.
+- **Depends on**: DEV-809 merged
+- **TDD mode**: strict for package parsing, canonical identity and refusal behavior; souple for CLI dispatch.
+- **Verification gate**: schema and fixture tests, Rust format/tests/clippy, native skill check smoke, package typecheck/build and consumer conformance.
+- **Expected commits**:
+  - `test(machine): define portable skill package refusals`
+  - `feat(machine): validate executable skill packages`
+- **Notes**: exact bytes determine identity, unknown fields and unsafe capabilities fail fast, symlinks and path escapes are refused, and no package binaries or lockfiles are added to npm.
+
 ## Review checkpoints
 
 ### Checkpoint A — after Step 1
@@ -104,7 +115,8 @@ Void Machine plan is restored and the campaign is explicitly outside delivery.
 |---|---|---|---:|---|
 | VM-01 | DEV-808 consumer contract oracle | DEV-833 decision, DEV-395, DEV-824 | L | no |
 | VM-02 | DEV-809 native doctor compatibility slice | DEV-808 merged | L | no |
+| VM-03 | DEV-810 portable executable skill package | DEV-809 merged | L | no |
 
 DEV-833 and DEV-838 remain tracker decisions/history around the abandoned
-measurement path. DEV-839 and DEV-840 are not admitted by this plan. VM-01 is
-merged; DEV-809 is the current implementation handoff.
+measurement path. DEV-839 and DEV-840 are not admitted by this plan. VM-01 and
+VM-02 are merged; DEV-810 is the current implementation handoff.

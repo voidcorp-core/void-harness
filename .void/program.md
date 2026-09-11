@@ -7,7 +7,7 @@ spec: docs/specs/2026-09-10-native-void-machine-pivot.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
-  order: [DEV-809]
+  order: [DEV-810]
   states:
     ready: [Backlog, Todo]
     started: [In Progress]
@@ -59,9 +59,10 @@ The complete ordered chain is visible on the open epic
 [DEV-807](https://linear.app/voidcorp/issue/DEV-807), not only in the completed
 DEV-666 audit. Native Linear dependencies own readiness and mutable progress.
 The measurement discussion is now closed as a direction decision. The active
-programme uses the native Void Machine pivot spec and plan. VM-01 (DEV-808) is
-merged; VM-02 (DEV-809) is the next bounded unit. The descriptor does not
-authorize a native cutover beyond the bounded unit currently in progress.
+programme uses the native Void Machine pivot spec and plan. VM-01 (DEV-808) and
+VM-02 (DEV-809) are merged; VM-03 (DEV-810) is the current bounded unit. The
+descriptor does not authorize a native cutover beyond the bounded unit currently
+in progress.
 
 Implement owns one ticket's risk-appropriate quality cycle. Autopilot owns
 dependency selection, isolation, recovery, resource limits, cleanup and exact
@@ -75,13 +76,14 @@ review state and the remote resume trail; this file only locates that state.
 
 On 2026-09-10, the approved native pivot replaced the unadmitted measurement
 chain as the active delivery path. The campaign artefacts remain versioned
-research history; the execution handoff in the pivot plan owns DEV-809.
+research history; the execution handoff in the pivot plan owns DEV-810.
 
-The pointer now follows the native Void Machine foundation. The only human
+The pointer now follows the native Void Machine foundation. VM-02 established
+the read-only native doctor boundary. The only human
 promotion gate remains the branch that deploys.
 
 `progress.order` is a deterministic tie-break among ready units, not mutable
-execution state. The current order starts with VM-02 after VM-01's merged
+execution state. The current order starts with VM-03 after VM-02's merged
 handoff.
 
 The measurement discussion was explicitly concluded on 2026-09-10. No
