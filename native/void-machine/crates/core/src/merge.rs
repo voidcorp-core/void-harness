@@ -58,17 +58,9 @@ pub enum MergeRefusal {
     AlreadyMerged,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct MergeLedger {
     merged_pull_requests: BTreeSet<u64>,
-}
-
-impl Default for MergeLedger {
-    fn default() -> Self {
-        Self {
-            merged_pull_requests: BTreeSet::new(),
-        }
-    }
 }
 
 impl MergeLedger {
