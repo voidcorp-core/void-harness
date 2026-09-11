@@ -1,7 +1,22 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
+import { createRequire as createNodeRequire } from 'node:module';
 import { dirname } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+
+interface SqliteStatement {
+  readonly get: (...parameters: readonly unknown[]) => unknown;
+  readonly run: (...parameters: readonly unknown[]) => unknown;
+}
+
+interface SqliteDatabase {
+  readonly exec: (sql: string) => void;
+  readonly prepare: (sql: string) => SqliteStatement;
+  readonly close: () => void;
+}
+
+interface SqliteModule {
+  readonly DatabaseSync: new (path: string, options?: { readonly timeout?: number }) => SqliteDatabase;
+}
 
 export type RunPhase = 'reserved' | 'running' | 'completed' | 'aborted';
 export type RunEventKind = 'start' | 'heartbeat' | 'complete' | 'abort';
@@ -40,6 +55,12 @@ export interface DurableRunStore {
 const digest = (input: string): string => `sha256:${createHash('sha256').update(input, 'utf8').digest('hex')}`;
 const encode = (value: unknown): string => JSON.stringify(value);
 const property = (value: object, name: string): unknown => Reflect.get(value, name);
+const isSqliteModule = (value: unknown): value is SqliteModule => typeof value === 'object' && !!value && typeof Reflect.get(value, 'DatabaseSync') === 'function';
+const sqliteModule = (): SqliteModule => {
+  const loaded: unknown = createNodeRequire(import.meta.url)('node:sqlite');
+  if (!isSqliteModule(loaded)) throw new Error('node:sqlite is unavailable');
+  return loaded;
+};
 
 const isState = (value: unknown): value is DurableRunState => {
   if (typeof value !== 'object' || !value) return false;
@@ -84,7 +105,7 @@ export const applyDurableEvent = (state: DurableRunState, event: DurableRunEvent
 
 export const openDurableRunStore = (databasePath: string, initial?: DurableRunState): DurableRunStore => {
   mkdirSync(dirname(databasePath), { recursive: true, mode: 0o700 });
-  const database = new DatabaseSync(databasePath, { timeout: 5000 });
+  const database = new (sqliteModule().DatabaseSync)(databasePath, { timeout: 5000 });
   database.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA synchronous = FULL;
