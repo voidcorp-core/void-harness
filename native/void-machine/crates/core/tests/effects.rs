@@ -1,7 +1,109 @@
+use void_machine_core::cluster::{
+    reconcile_cluster, ClusterError, ClusterLane, ClusterTicket, ReconciliationLedger,
+    ReviewProvenance, WorkerOutcome, WorkerReport,
+};
 use void_machine_core::{
     apply_git_effect, claim_git_effect, effect_id, GitEffectRequest, GitEffectState,
     ObservedCommit, SharedMutation,
 };
+
+fn ticket(id: &str, file: &str) -> ClusterTicket {
+    ClusterTicket {
+        id: id.into(),
+        declared_files: vec![file.into()],
+        lane: ClusterLane::Parallel,
+    }
+}
+
+fn report(id: &str, file: &str) -> WorkerReport {
+    WorkerReport {
+        ticket_id: id.into(),
+        outcome: WorkerOutcome::Completed,
+        observed_files: vec![file.into()],
+        review: ReviewProvenance::Panel,
+    }
+}
+
+#[test]
+fn cluster_reconciliation_integrates_disjoint_completed_workers() {
+    let result = reconcile_cluster(
+        &[ticket("DEV-1", "a"), ticket("DEV-2", "b")],
+        &[report("DEV-1", "a"), report("DEV-2", "b")],
+    )
+    .unwrap();
+    assert_eq!(result.tickets, vec!["DEV-1", "DEV-2"]);
+    assert_eq!(result.files, vec!["a", "b"]);
+}
+
+#[test]
+fn cluster_reconciliation_rejects_undeclared_widening() {
+    let result = reconcile_cluster(
+        &[ticket("DEV-1", "a"), ticket("DEV-2", "b")],
+        &[report("DEV-1", "b"), report("DEV-2", "b")],
+    );
+    assert!(matches!(
+        result,
+        Err(ClusterError::UndeclaredWidening { .. })
+    ));
+}
+
+#[test]
+fn cluster_reconciliation_keeps_partial_failure_out_of_the_integrated_set() {
+    let blocked = WorkerReport {
+        ticket_id: "DEV-2".into(),
+        outcome: WorkerOutcome::Blocked,
+        observed_files: vec![],
+        review: ReviewProvenance::None,
+    };
+    let result = reconcile_cluster(
+        &[ticket("DEV-1", "a"), ticket("DEV-2", "b")],
+        &[report("DEV-1", "a"), blocked],
+    )
+    .unwrap();
+    assert_eq!(result.tickets, vec!["DEV-1"]);
+}
+
+#[test]
+fn cluster_reconciliation_rejects_an_unreviewed_completed_worker() {
+    let unreviewed = WorkerReport {
+        review: ReviewProvenance::None,
+        ..report("DEV-1", "a")
+    };
+    assert!(matches!(
+        reconcile_cluster(&[ticket("DEV-1", "a")], &[unreviewed]),
+        Err(ClusterError::MissingReview(_))
+    ));
+}
+
+#[test]
+fn cluster_reconciliation_allows_a_declared_sequential_collision() {
+    let tickets = [
+        ClusterTicket {
+            lane: ClusterLane::Sequential,
+            ..ticket("DEV-1", "shared")
+        },
+        ClusterTicket {
+            lane: ClusterLane::Sequential,
+            ..ticket("DEV-2", "shared")
+        },
+    ];
+    let result = reconcile_cluster(
+        &tickets,
+        &[report("DEV-1", "shared"), report("DEV-2", "shared")],
+    );
+    assert!(result.is_ok());
+}
+
+#[test]
+fn reconciliation_ledger_rejects_accepting_a_ticket_twice_after_resume() {
+    let mut ledger = ReconciliationLedger::default();
+    assert!(ledger.accept("DEV-1").is_ok());
+    assert!(ledger.contains("DEV-1"));
+    assert_eq!(
+        ledger.accept("DEV-1"),
+        Err(ClusterError::AlreadyAccepted("DEV-1".into()))
+    );
+}
 
 fn request() -> GitEffectRequest {
     GitEffectRequest {
