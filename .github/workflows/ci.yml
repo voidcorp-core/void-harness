@@ -29,6 +29,8 @@ jobs:
         run: cargo test --manifest-path native/void-machine/Cargo.toml --workspace
       - name: Rust clippy
         run: cargo clippy --manifest-path native/void-machine/Cargo.toml --workspace --all-targets -- -D warnings
+      - name: Native skill check
+        run: cargo run --quiet --manifest-path native/void-machine/crates/cli/Cargo.toml -- skill check native/void-machine/fixtures/read-only-skill --json
 
   consumer-artifact:
     name: packed consumer artifact
