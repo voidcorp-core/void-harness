@@ -182,6 +182,13 @@ launcher; platform binaries are built by their native lane rather than bundled
 into the universal npm tarball. A future independent Rust/Go/Python product
 could still live in a sibling repo, reusing mechanics not skills.
 
+The native machine's external Git boundary is split the same way: the Rust core
+defines a provider-neutral effect identity, fencing state machine, and immutable
+commit proof, while the host adapter observes commit ranges and hashes shared
+repository state without retaining its contents. The CLI's SQLite ledger is the
+durable outbox for those effects; a claimed effect cannot be replayed under a
+different fence, and an ambiguous command is closed until a human resolves it.
+
 ## Stack profile compilation
 
 `packages/core/profiles/*.yaml` is the certified stack-knowledge catalog. Consumer extensions use
