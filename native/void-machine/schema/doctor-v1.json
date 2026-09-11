@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voidcorp.io/void-machine/doctor-v1.json",
+  "title": "Void Machine doctor report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "health", "repository", "gitCommonDirectory", "stateDirectory", "cacheDirectory", "findings"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "health": { "enum": ["healthy", "degraded", "blocked"] },
+    "repository": { "type": ["string", "null"] },
+    "gitCommonDirectory": { "type": ["string", "null"] },
+    "stateDirectory": { "type": ["string", "null"] },
+    "cacheDirectory": { "type": ["string", "null"] },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "severity", "problem", "cause", "repair"],
+        "properties": {
+          "code": { "type": "string", "minLength": 1 },
+          "severity": { "enum": ["healthy", "degraded", "blocked"] },
+          "problem": { "type": "string", "minLength": 1 },
+          "cause": { "type": "string", "minLength": 1 },
+          "repair": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

@@ -50,6 +50,17 @@ Health-check: `.void/config.json` validity, marketplace + plugins registered in 
 npx voidharness doctor [--no-remote]
 ```
 
+### `void-machine doctor`
+
+The package also exposes the read-only native doctor compatibility launcher.
+It delegates to a platform binary supplied by the native distribution layer;
+set `VOID_MACHINE_BIN` when running a locally built binary. It never mutates
+the project and supports the stable JSON report contract.
+
+```bash
+VOID_MACHINE_BIN=/path/to/void-machine npx void-machine doctor --json
+```
+
 ### `list` / `check` / `update`
 
 `list` shows packs and their detection status; `check` reports version drift; `update` refreshes pinned versions.

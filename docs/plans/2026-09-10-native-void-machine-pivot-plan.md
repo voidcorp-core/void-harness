@@ -13,7 +13,8 @@ high_risk: true
 Make the existing native execution path the executable project direction and
 deliver VM-01 as a small, portable legacy consumer oracle. The work removes the
 missing programme context before implementation and keeps the private value
-campaign out of the delivery path.
+campaign out of the delivery path. VM-01 is merged; the next bounded slice is
+VM-02 / DEV-809.
 
 ## What already exists
 
@@ -78,6 +79,18 @@ VM-01 contract around those surfaces; it does not replace them.
   - `docs(machine): record VM-01 verification`
 - **Notes**: promotion and merge remain human gates.
 
+### Step 5 — Ship the native doctor compatibility slice (VM-02 / DEV-809)
+
+- **Goal**: add the Rust workspace, versioned doctor report schema, read-only host inspection, and thin npm compatibility launcher.
+- **Depends on**: DEV-808 merged
+- **TDD mode**: strict for path/config/diagnostic decisions; souple for launcher wiring.
+- **Verification gate**: Rust format, tests and clippy; packed launcher smoke; schema validation; package-size, typecheck, build and consumer conformance checks.
+- **Expected commits**:
+  - `test(machine): define native doctor contract`
+  - `feat(machine): ship read-only native doctor`
+  - `test(machine): exercise compatibility launcher`
+- **Notes**: no writes, runtime/provider/tracker specificity in the kernel, no platform binaries bundled into the universal npm tarball, and no lockfile added.
+
 ## Review checkpoints
 
 ### Checkpoint A — after Step 1
@@ -90,6 +103,8 @@ Void Machine plan is restored and the campaign is explicitly outside delivery.
 | Order | Unit | Dependency | Estimate | Human gate |
 |---|---|---|---:|---|
 | VM-01 | DEV-808 consumer contract oracle | DEV-833 decision, DEV-395, DEV-824 | L | no |
+| VM-02 | DEV-809 native doctor compatibility slice | DEV-808 merged | L | no |
 
 DEV-833 and DEV-838 remain tracker decisions/history around the abandoned
-measurement path. DEV-839 and DEV-840 are not admitted by this plan.
+measurement path. DEV-839 and DEV-840 are not admitted by this plan. VM-01 is
+merged; DEV-809 is the current implementation handoff.

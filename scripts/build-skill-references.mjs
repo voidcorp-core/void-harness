@@ -113,6 +113,7 @@ const DECLARED = [
   { name: 'void-last-event-id', reason: 'graph studio live-render cursor' },
   { name: 'void-layout', reason: 'module owning the void directory layout' },
   { name: 'void-machine-legacy', reason: 'portable legacy conformance contract family' },
+  { name: 'void-machine', reason: 'native doctor compatibility binary' },
   { name: 'void-mission-presentation-v1', reason: 'presentation workspace owner metadata' },
   { name: 'void-migration', reason: 'name of the void layout migration check' },
   { name: 'void-probe', reason: 'observed write path written by the hook probe' },

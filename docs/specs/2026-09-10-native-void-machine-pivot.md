@@ -23,11 +23,12 @@ added to make the campaign appear executable.
 ## First slice
 
 Restore an executable Void Machine programme context from the versioned vision
-and existing repository capabilities. The first implementation unit is VM-01:
-freeze the observable consumer contract in a portable, redacted legacy oracle.
-The slice must preserve current consumer behavior and provide deterministic
-inputs for later native migration. It does not perform the native cutover, add
-Rust, change permissions, or publish an artifact.
+and existing repository capabilities. VM-01 froze the observable consumer
+contract in a portable, redacted legacy oracle. The next implementation unit is
+VM-02: ship one read-only native doctor through a thin compatibility boundary.
+The slice adds the smallest Rust workspace needed for typed diagnostics and
+preserves current consumer behavior. It does not perform the native cutover,
+change permissions, or publish an artifact.
 
 ## Boundaries
 
@@ -46,10 +47,11 @@ Rust, change permissions, or publish an artifact.
   secrets, private source, machine paths, or lockfiles.
 - A packed artifact can be checked against the oracle without importing
   production TypeScript into the oracle.
+- The native doctor reports a schema-valid result without writing project state.
 - Corrupt, unsupported, unreadable, or ambiguous evidence fails fast and
   preserves the prior state.
 - Existing native mission and autopilot behavior remains unchanged outside the
-  bounded VM-01 contract.
+  bounded compatibility slices.
 - Targeted tests, typecheck, build, and the relevant full verification gates
   pass on the exact candidate commit.
 
