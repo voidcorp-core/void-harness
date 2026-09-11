@@ -20,8 +20,8 @@ const digest = (value: string): string => createHash('sha256').update(value, 'ut
 const canonical = (input: GitEffectRequestInput): string => [input.runId, input.unitId, input.revision, input.ordinal, [...input.declaredFiles].sort(), input.payload].map((part) => `${JSON.stringify(part).length}:${JSON.stringify(part)}`).join('|');
 const validSha = (value: string): boolean => /^[0-9a-f]{40}$/.test(value);
 const sortedFiles = (files: readonly string[]): string[] => [...files].sort();
-const row = (value: unknown, key: string): unknown => typeof value === 'object' && value ? Reflect.get(value, key) : undefined;
-const isProof = (value: unknown): value is GitEffectProof => typeof value === 'object' && value && typeof row(value, 'effectId') === 'string' && typeof row(value, 'baseSha') === 'string';
+const row = (value: unknown, key: string): unknown => typeof value === 'object' ? Reflect.get(Object(value), key) : undefined;
+const isProof = (value: unknown): value is GitEffectProof => typeof value === 'object' && typeof row(value, 'effectId') === 'string' && typeof row(value, 'baseSha') === 'string';
 const parseProof = (value: string): GitEffectProof => { const parsed: unknown = JSON.parse(value); if (!isProof(parsed)) throw new Error('effect proof is invalid'); return parsed; };
 const readRecord = (value: unknown): GitEffectRecord | undefined => {
   const effectId = row(value, 'effect_id'); const state = row(value, 'state'); const fence = row(value, 'fence');
