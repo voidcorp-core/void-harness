@@ -2,6 +2,9 @@ use void_machine_core::cluster::{
     reconcile_cluster, ClusterError, ClusterLane, ClusterTicket, ReconciliationLedger,
     ReviewProvenance, WorkerOutcome, WorkerReport,
 };
+use void_machine_core::merge::{
+    decide_merge, CheckState, MergeLedger, MergeObservation, MergeRefusal, Protection, ReviewState,
+};
 use void_machine_core::{
     apply_git_effect, claim_git_effect, effect_id, GitEffectRequest, GitEffectState,
     ObservedCommit, SharedMutation,
@@ -102,6 +105,104 @@ fn reconciliation_ledger_rejects_accepting_a_ticket_twice_after_resume() {
     assert_eq!(
         ledger.accept("DEV-1"),
         Err(ClusterError::AlreadyAccepted("DEV-1".into()))
+    );
+}
+
+fn merge_observation() -> MergeObservation {
+    MergeObservation {
+        target: "develop".into(),
+        deploy_branch: "main".into(),
+        integration_sha: "a".repeat(40),
+        pull_request: Some(17),
+        protection: Protection::Protected {
+            required_checks: vec!["validate".into()],
+        },
+        checks: CheckState::Green {
+            sha: "a".repeat(40),
+        },
+        review: ReviewState::Clean {
+            sha: "a".repeat(40),
+        },
+        changed_paths: vec!["packages/cli/src/lib.ts".into()],
+        human_gate: false,
+        forced_push_attempt: false,
+    }
+}
+
+#[test]
+fn merge_grant_is_bound_to_the_exact_head_and_one_merge_command() {
+    let grant = decide_merge(&merge_observation(), &MergeLedger::default()).unwrap();
+    assert_eq!(
+        grant.command[0..6],
+        ["gh", "pr", "merge", "17", "--merge", "--match-head-commit"]
+    );
+    assert_eq!(grant.command[6], "a".repeat(40));
+}
+
+#[test]
+fn merge_grant_rejects_stale_ci_and_review() {
+    let mut observation = merge_observation();
+    observation.checks = CheckState::Green {
+        sha: "b".repeat(40),
+    };
+    assert_eq!(
+        decide_merge(&observation, &MergeLedger::default()),
+        Err(MergeRefusal::ChecksNotGreen)
+    );
+    observation.checks = CheckState::Green {
+        sha: "a".repeat(40),
+    };
+    observation.review = ReviewState::Inconclusive;
+    assert_eq!(
+        decide_merge(&observation, &MergeLedger::default()),
+        Err(MergeRefusal::ReviewUnavailable)
+    );
+}
+
+#[test]
+fn merge_grant_rejects_production_aliases_missing_protection_and_forced_push() {
+    let mut observation = merge_observation();
+    observation.deploy_branch = "refs/heads/develop".into();
+    assert_eq!(
+        decide_merge(&observation, &MergeLedger::default()),
+        Err(MergeRefusal::ProductionDownstream)
+    );
+    observation.deploy_branch = "main".into();
+    observation.protection = Protection::Unknown;
+    assert_eq!(
+        decide_merge(&observation, &MergeLedger::default()),
+        Err(MergeRefusal::BaseUnprotected)
+    );
+    observation.protection = Protection::Protected {
+        required_checks: vec!["validate".into()],
+    };
+    observation.forced_push_attempt = true;
+    assert_eq!(
+        decide_merge(&observation, &MergeLedger::default()),
+        Err(MergeRefusal::ForcedPush)
+    );
+}
+
+#[test]
+fn merge_ledger_allows_exactly_one_merge() {
+    let mut ledger = MergeLedger::default();
+    assert!(ledger.record_merge(17).is_ok());
+    assert_eq!(ledger.record_merge(17), Err(MergeRefusal::AlreadyMerged));
+}
+
+#[test]
+fn merge_grant_refuses_human_gates_and_sensitive_paths() {
+    let mut observation = merge_observation();
+    observation.human_gate = true;
+    assert_eq!(
+        decide_merge(&observation, &MergeLedger::default()),
+        Err(MergeRefusal::HumanGate)
+    );
+    observation.human_gate = false;
+    observation.changed_paths = vec![".github/workflows/release.yml".into()];
+    assert_eq!(
+        decide_merge(&observation, &MergeLedger::default()),
+        Err(MergeRefusal::SensitivePath)
     );
 }
 

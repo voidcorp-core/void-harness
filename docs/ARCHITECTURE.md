@@ -193,6 +193,12 @@ the declared ticket set, completed work must carry review provenance and observe
 files must stay within declared footprints. Parallel collisions are rejected,
 declared sequential collisions are accepted, and the reconciliation ledger makes
 resume idempotent by refusing a ticket that was already accepted.
+The merge boundary follows the same fail-closed rule: the native policy requires
+positive branch protection, green checks and a fresh clean review on the exact
+head, emits one non-forced `gh pr merge --match-head-commit` command, and records
+the merge once. A target that is missing, protected without required checks, equal
+to or indistinguishable from the deploying branch, or subject to a human gate is
+refused before any remote mutation.
 
 ## Stack profile compilation
 
