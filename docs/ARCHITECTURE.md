@@ -188,6 +188,11 @@ commit proof, while the host adapter observes commit ranges and hashes shared
 repository state without retaining its contents. The CLI's SQLite ledger is the
 durable outbox for those effects; a claimed effect cannot be replayed under a
 different fence, and an ambiguous command is closed until a human resolves it.
+The Rust core also owns bounded cluster reconciliation: worker reports must cover
+the declared ticket set, completed work must carry review provenance and observed
+files must stay within declared footprints. Parallel collisions are rejected,
+declared sequential collisions are accepted, and the reconciliation ledger makes
+resume idempotent by refusing a ticket that was already accepted.
 
 ## Stack profile compilation
 
