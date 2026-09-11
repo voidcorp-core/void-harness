@@ -632,6 +632,13 @@ so a query regression cannot hide behind extraction cost.
 
 ProjectGraph is exposed from `@voidcorp/harness-graph/project`, keeping its
 TypeScript runtime adapter out of the legacy single-file CatalogGraph bundle.
+The project snapshot can also be materialized as the versioned `.void/knowledge.json` artifact
+with `void-harness graph project-build` and checked against a fresh build with
+`void-harness graph project-check`. The artifact is a validated projection carrying the snapshot
+root hash and build state; project graph queries read it when valid, while missing, corrupt, or
+unknown artifacts trigger a rebuild. It is distinct from `.void/machine/`, whose observation cache
+is disposable and never becomes an authority. The freshness check measures the generated file so
+CI can reject a hand-edited or stale projection.
 The extractor resolves bounded root-confined string or ordered-array `tsconfig` inheritance with
 official Compiler API option origins, treats `pnpm-workspace.yaml` as authoritative over the package
 workspace fallback, applies pnpm-compatible positive and `!`-excluded patterns before indexing child
