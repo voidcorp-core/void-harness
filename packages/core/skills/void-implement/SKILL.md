@@ -15,6 +15,11 @@ One ticket, taken from ready to shipped, with the coverage a senior expert team 
 
 ## Canonical team orchestration
 
+When the caller supplies `panel.provider: orchestrator`, the orchestrator owns specialist
+dispatch. The worker consumes the supplied verdicts, corrects in its own context, and returns the
+panel record; it does not start `mode team`, spawn specialists, or report a missing primitive as
+`DEGRADED`. Interactive work may use the native provider when the runtime exposes fresh contexts.
+
 For `team` missions, the prose below is not the routing authority. Load the canonical mission plan
 before invoking an agent. The pure Mission Engine controller owns state and verdict; the CLI
 materializes its runtime-neutral specialist envelopes from the current plan.
