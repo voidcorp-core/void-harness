@@ -37,15 +37,43 @@ function history(direct = false) {
   mkdirSync(bin);
   writeFileSync(join(bin, 'gh'), `#!/usr/bin/env bash
 set -eu
+query=''
 for arg in "$@"; do
-  case "$arg" in oid=*) cat "$FIXTURES/\${arg#oid=}.json"; exit 0;; esac
+  case "$arg" in query=*) query=\${arg#query=};; esac
 done
-exit 1
+count_file="$FIXTURES/query-count"
+count=0
+if [ -f "$count_file" ]; then count=$(cat "$count_file"); fi
+printf '%s\n' "$((count + 1))" > "$count_file"
+if [ "\${FAIL_ALWAYS:-0}" = 1 ] ||
+  { [ "\${FAIL_ONCE:-0}" = 1 ] && [ "$count" = 0 ]; }; then
+  printf '{"errors":[{"message":"transient GraphQL failure"}]}\n'
+  exit 1
+fi
+mapfile -t oids < <(printf '%s\n' "$query" |
+  grep -oE 'object\\(oid:"[0-9a-f]+"' |
+  sed -E 's/.*oid:"([0-9a-f]+)".*/\\1/')
+printf '{"data":{"repository":{'
+first=true
+for index in "\${!oids[@]}"; do
+  oid="\${oids[$index]}"
+  if [ "$first" = false ]; then printf ','; fi
+  first=false
+  printf '"c%s":' "$index"
+  jq -c '.data.repository.object' "$FIXTURES/$oid.json"
+done
+printf '}}}\n'
 `, { mode: 0o755 });
   return { root, bin, commits, inner, integration, directOid };
 }
 
-function runAudit(options: { direct?: boolean; mismatched?: boolean; paginated?: boolean } = {}) {
+function runAudit(options: {
+  direct?: boolean;
+  mismatched?: boolean;
+  paginated?: boolean;
+  failOnce?: boolean;
+  failAlways?: boolean;
+} = {}) {
   const fixture = history(options.direct);
   for (const oid of fixture.commits) {
     const pr = {
@@ -68,9 +96,11 @@ function runAudit(options: { direct?: boolean; mismatched?: boolean; paginated?:
   const result = spawnSync('bash', ['-c', `set -euo pipefail\n${audit}`], {
     cwd: fixture.root, encoding: 'utf8', timeout: 10_000,
     env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}`, FIXTURES: fixture.root,
+      FAIL_ONCE: options.failOnce ? '1' : '0', FAIL_ALWAYS: options.failAlways ? '1' : '0',
       EXPECTED_OWNER: 'voidcorp-core', EXPECTED_NAME: 'void-harness',
       EXPECTED_REPOSITORY: 'voidcorp-core/void-harness', EXPECTED_HUMAN: 'folpe',
-      MAX_PROMOTION_COMMITS: '500' },
+      MAX_PROMOTION_COMMITS: '500', PROMOTION_BATCH_SIZE: '40',
+      PROMOTION_API_RETRIES: '3', PROMOTION_RETRY_DELAY_SECONDS: '0' },
   });
   return { ...result, ...fixture };
 }
@@ -90,5 +120,24 @@ describe('promotion integration authority', () => {
 
   it.each([{ mismatched: true }, { paginated: true }])('refuses incomplete or mismatched authority %j', (options) => {
     expect(runAudit(options).status).not.toBe(0);
+  });
+
+  it('audits the complete fixture through one GraphQL batch', () => {
+    const result = runAudit();
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFileSync(join(result.root, 'query-count'), 'utf8').trim()).toBe('1');
+  });
+
+  it('retries a transient API failure without changing the audit result', () => {
+    const result = runAudit({ failOnce: true });
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFileSync(join(result.root, 'query-count'), 'utf8').trim()).toBe('2');
+  });
+
+  it('reports a persistent API failure separately from an unexplained commit', () => {
+    const result = runAudit({ failAlways: true });
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('GitHub GraphQL API error for batch');
+    expect(result.stderr).not.toContain('unexplained commit');
   });
 });
