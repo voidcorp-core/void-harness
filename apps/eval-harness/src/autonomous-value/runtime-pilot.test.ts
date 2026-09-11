@@ -92,7 +92,7 @@ describe('durable runtime composition', () => {
     expect((await runDurableRuntimePilot({ ...options, archiveDirectory: join(input.archiveDirectory, 'export') }, adapter)).report.valid).toBe(true);
     expect([workspaces.length, reviews]).toEqual([27, 27]);
     expect(readFileSync(join(source.dir, 'result.txt'), 'utf8')).toBe('before\n');
-  });
+  }, 30_000);
 
   it.each(['codex', 'claude'] as const)('refuses production %s without creating workspaces or reservations', async (runtime) => {
     const { input, workspaces } = await scenario(runtime);

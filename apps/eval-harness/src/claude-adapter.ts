@@ -31,7 +31,10 @@ export interface AdapterConfig {
   readonly settingSources?: '' | 'project';
 }
 
-export const DEFAULT_ADAPTER: AdapterConfig = { model: 'haiku', timeoutMs: 180_000, retries: 1 };
+// Subscription certification must fail fast: retrying a paid run creates a
+// second execution without adding independent evidence. Callers may opt in to
+// bounded retries for an explicitly budgeted campaign.
+export const DEFAULT_ADAPTER: AdapterConfig = { model: 'haiku', timeoutMs: 180_000, retries: 0 };
 
 // The spawned agent needs to edit files and run the task's tools inside the
 // sandbox — but NOT arbitrary shell (no curl/ssh/etc.). acceptEdits auto-approves
@@ -46,7 +49,7 @@ const ALLOWED_TOOLS =
 // not be able to read API keys / tokens / cloud creds out of process.env. HOME is
 // kept so claude resolves its auth (keychain / ~/.claude); nothing secret-bearing.
 const SAFE_ENV_KEYS = ['PATH', 'HOME', 'USER', 'LOGNAME', 'SHELL', 'LANG', 'LC_ALL', 'LC_CTYPE', 'TERM', 'TMPDIR', 'TZ'];
-function scrubbedEnv(): NodeJS.ProcessEnv {
+export function buildClaudeSafeEnvironment(): NodeJS.ProcessEnv {
   const out: NodeJS.ProcessEnv = {};
   for (const k of SAFE_ENV_KEYS) {
     const v = process.env[k];
@@ -91,7 +94,7 @@ function invokeClaude(
   ];
   if (skillBody !== undefined) args.push('--append-system-prompt', skillBody);
   try {
-    const raw = execFileSync('claude', args, { cwd: dir, encoding: 'utf8', timeout: cfg.timeoutMs, maxBuffer: 64 * 1024 * 1024, env: scrubbedEnv() });
+    const raw = execFileSync('claude', args, { cwd: dir, encoding: 'utf8', timeout: cfg.timeoutMs, maxBuffer: 64 * 1024 * 1024, env: buildClaudeSafeEnvironment() });
     const json = JSON.parse(raw) as { is_error?: boolean; total_cost_usd?: number; result?: string };
     const ok = json.is_error !== true;
     const transcript = String(json.result ?? '');
@@ -131,7 +134,7 @@ function extractJson(text: string): unknown {
 /** Run a judge prompt through a tool-less, sandbox-less `claude -p`; return its text reply. */
 function invokeJudge(prompt: string, cfg: JudgeConfig): string {
   const args = ['-p', prompt, '--model', cfg.model, '--output-format', 'json', '--setting-sources', '', '--allowedTools', ''];
-  const raw = execFileSync('claude', args, { encoding: 'utf8', timeout: cfg.timeoutMs, maxBuffer: 16 * 1024 * 1024, env: scrubbedEnv() });
+  const raw = execFileSync('claude', args, { encoding: 'utf8', timeout: cfg.timeoutMs, maxBuffer: 16 * 1024 * 1024, env: buildClaudeSafeEnvironment() });
   return String((JSON.parse(raw) as { result?: string }).result ?? '');
 }
 
