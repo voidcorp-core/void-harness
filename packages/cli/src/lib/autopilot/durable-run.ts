@@ -36,6 +36,7 @@ export interface DurableRunEvent {
   readonly kind: RunEventKind;
   readonly leaseToken: string;
   readonly proofInput?: string;
+  readonly workerSuccess?: boolean;
 }
 
 export interface DurableRunResult {
@@ -48,8 +49,15 @@ export type CrashPoint = 'before-transaction' | 'after-transaction';
 
 export interface DurableRunStore {
   readonly read: (runId: string) => DurableRunState | undefined;
+  readonly evidence: (runId: string) => DurableRunEvidence | undefined;
   readonly append: (runId: string, event: DurableRunEvent, crash?: CrashPoint) => DurableRunResult;
   readonly close: () => void;
+}
+
+export interface DurableRunEvidence {
+  readonly state: DurableRunState;
+  readonly eventCount: number;
+  readonly outboxCount: number;
 }
 
 const digest = (input: string): string => `sha256:${createHash('sha256').update(input, 'utf8').digest('hex')}`;
@@ -85,11 +93,18 @@ const rowText = (value: unknown): string | undefined => {
   return typeof state === 'string' ? state : undefined;
 };
 
+const rowNumber = (value: unknown): number | undefined => {
+  if (typeof value !== 'object' || !value) return undefined;
+  const count = property(value, 'count');
+  return typeof count === 'number' ? count : undefined;
+};
+
 const transition = (state: DurableRunState, event: DurableRunEvent): DurableRunState => {
   if (state.leaseToken !== event.leaseToken) throw new Error('stale supervisor lease');
   if (event.kind === 'start' && state.phase !== 'reserved') throw new Error('run is not reserved');
   if (event.kind === 'heartbeat' && state.phase !== 'running') throw new Error('run is not running');
   if (event.kind === 'complete' && (state.phase !== 'running' || event.proofInput === undefined)) throw new Error('run completion requires a running run and proof input');
+  if (event.kind === 'complete' && event.workerSuccess === true) throw new Error('worker success is not authoritative proof');
   if (event.kind === 'abort' && !['reserved', 'running'].includes(state.phase)) throw new Error('run cannot be aborted from its terminal phase');
   const phase: RunPhase = event.kind === 'start' ? 'running' : event.kind === 'complete' ? 'completed' : event.kind === 'abort' ? 'aborted' : state.phase;
   return { ...state, phase, revision: state.revision + 1, ...(event.kind === 'complete' ? { proofDigest: digest(event.proofInput ?? '') } : {}) };
@@ -119,6 +134,14 @@ export const openDurableRunStore = (databasePath: string, initial?: DurableRunSt
     read: (runId) => {
       const state = rowText(database.prepare('SELECT state_json FROM run_state WHERE run_id = ?').get(runId));
       return state === undefined ? undefined : parseState(state);
+    },
+    evidence: (runId) => {
+      const state = rowText(database.prepare('SELECT state_json FROM run_state WHERE run_id = ?').get(runId));
+      if (state === undefined) return undefined;
+      const eventCount = rowNumber(database.prepare('SELECT COUNT(*) AS count FROM run_events WHERE run_id = ?').get(runId));
+      const outboxCount = rowNumber(database.prepare('SELECT COUNT(*) AS count FROM run_outbox WHERE run_id = ?').get(runId));
+      if (eventCount === undefined || outboxCount === undefined) throw new Error('durable run evidence is invalid');
+      return { state: parseState(state), eventCount, outboxCount };
     },
     append: (runId, event, crash) => {
       const current = rowText(database.prepare('SELECT state_json FROM run_state WHERE run_id = ?').get(runId));

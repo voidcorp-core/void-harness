@@ -41,6 +41,15 @@ describe('durable run state machine', () => {
     expect(() => store.append('run-1', { kind: 'complete', leaseToken: leases, proofInput: 'requirements-v1' }, 'after-transaction')).toThrow('after transaction');
     expect(store.read('run-1')).toMatchObject({ phase: 'completed', revision: 2 });
     expect(store.append('run-1', { kind: 'complete', leaseToken: leases, proofInput: 'requirements-v1' }).state).toMatchObject({ phase: 'completed', revision: 2 });
+    expect(store.evidence('run-1')).toMatchObject({ eventCount: 2, outboxCount: 2 });
+  });
+
+  it('refuses a worker success string as authoritative proof', () => {
+    const initial = createDurableRun('run-1', leases, 3);
+    const started = applyDurableEvent(initial, { kind: 'start', leaseToken: leases });
+    expect(() => applyDurableEvent(started.state, {
+      kind: 'complete', leaseToken: leases, proofInput: 'worker says success', workerSuccess: true,
+    })).toThrow('worker success');
   });
 
   it('keeps the transition deterministic across 1,000 seeded resumes', () => {
