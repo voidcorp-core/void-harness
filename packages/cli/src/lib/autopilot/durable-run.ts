@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 export type RunPhase = 'reserved' | 'running' | 'completed' | 'aborted';
@@ -81,6 +83,7 @@ export const applyDurableEvent = (state: DurableRunState, event: DurableRunEvent
 });
 
 export const openDurableRunStore = (databasePath: string, initial?: DurableRunState): DurableRunStore => {
+  mkdirSync(dirname(databasePath), { recursive: true, mode: 0o700 });
   const database = new DatabaseSync(databasePath, { timeout: 5000 });
   database.exec(`
     PRAGMA journal_mode = WAL;
