@@ -86,6 +86,22 @@ if ! printf "%s\n" "$DESC_FILES" \
   FAILED=1
 fi
 
+# Agent isolation: every shipped agent must declare an explicit, non-empty
+# Claude tool allowlist. Without this field the runtime can inherit tools from
+# its parent context, so a missing declaration is a fail-closed packaging bug.
+echo "  agent frontmatter: every agent declares a non-empty tools allowlist"
+for f in packages/core/agents/*.md; do
+  [[ -e "$f" ]] || continue
+  TOOLS=$(awk '
+    /^---[[:space:]]*$/ { frontmatter = !frontmatter; next }
+    frontmatter && /^tools:[[:space:]]*/ { sub(/^tools:[[:space:]]*/, ""); print; exit }
+  ' "$f")
+  if [[ -z "${TOOLS//[[:space:]]/}" ]]; then
+    echo "    FAIL: $f must declare a non-empty frontmatter 'tools:' allowlist" >&2
+    FAILED=1
+  fi
+done
+
 # Skill name convention (Anthropic Agent Skills spec): the frontmatter `name`
 # must equal the parent directory name and match ^[a-z0-9]+(-[a-z0-9]+)*$
 # (lowercase, hyphen-separated, no leading/trailing/double hyphen). A mismatch

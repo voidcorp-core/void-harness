@@ -60,6 +60,11 @@ describe('compileClaudeSpecialist', () => {
     });
   });
 
+  it('always emits a non-empty tools allowlist for every compiled specialist', () => {
+    const compiled = compileClaudeSpecialist(ARCHITECT_CONTRACT);
+    expect(compiled.content).toMatch(/^tools: [A-Za-z][A-Za-z, ]*$/m);
+  });
+
   it('keeps marketplace-native agent files generated from the canonical YAML', async () => {
     for (const contract of await loadSpecialists(CORE_ROOT)) {
       const compiled = compileClaudeSpecialist(contract);
