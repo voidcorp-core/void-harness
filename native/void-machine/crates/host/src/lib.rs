@@ -3,6 +3,8 @@ use std::process::Command;
 
 use void_machine_core::{DoctorReport, Finding, Health};
 
+pub mod git_effect;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RepositoryPaths {
     pub root: PathBuf,

@@ -52,6 +52,308 @@ pub struct SkillReport {
     pub findings: Vec<SkillFinding>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GitEffectRequest {
+    pub run_id: String,
+    pub unit_id: String,
+    pub revision: u64,
+    pub ordinal: u32,
+    pub declared_files: Vec<String>,
+    pub payload: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ObservedCommit {
+    pub sha: String,
+    pub parent: String,
+    pub merge: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SharedMutation {
+    Stash,
+    Tag,
+    Note,
+    Remote,
+    RepositoryConfig,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GitEffectObservation {
+    pub base_sha: String,
+    pub head_sha: String,
+    pub tree_sha: String,
+    pub source_sha: String,
+    pub commits: Vec<ObservedCommit>,
+    pub files: Vec<String>,
+    pub shared_mutations: Vec<SharedMutation>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GitEffectProof {
+    pub effect_id: String,
+    pub base_sha: String,
+    pub head_sha: String,
+    pub tree_sha: String,
+    pub source_sha: String,
+    pub files: Vec<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum GitEffectState {
+    Pending {
+        request: GitEffectRequest,
+    },
+    Claimed {
+        request: GitEffectRequest,
+        fence: u64,
+    },
+    Applied {
+        request: GitEffectRequest,
+        fence: u64,
+        proof: GitEffectProof,
+    },
+    Ambiguous {
+        request: GitEffectRequest,
+        fence: u64,
+        detail: String,
+    },
+}
+
+impl GitEffectState {
+    pub fn pending(request: GitEffectRequest) -> Self {
+        Self::Pending { request }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum GitEffectError {
+    InvalidRequest(String),
+    InvalidObservation(String),
+    InvalidFence,
+    StaleFence,
+    NotClaimed,
+    Ambiguous(String),
+}
+
+fn non_empty(value: &str, field: &str) -> Result<(), GitEffectError> {
+    if value.is_empty() {
+        return Err(GitEffectError::InvalidRequest(format!(
+            "{field} is required"
+        )));
+    }
+    Ok(())
+}
+
+fn valid_sha(value: &str) -> bool {
+    value.len() == 40 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn canonical_part(value: &str) -> String {
+    format!("{}:{value}", value.len())
+}
+
+fn validate_request(request: &GitEffectRequest) -> Result<(), GitEffectError> {
+    non_empty(&request.run_id, "run_id")?;
+    non_empty(&request.unit_id, "unit_id")?;
+    non_empty(&request.payload, "payload")?;
+    if request.declared_files.iter().any(String::is_empty) {
+        return Err(GitEffectError::InvalidRequest(
+            "declared_files cannot contain an empty path".into(),
+        ));
+    }
+    Ok(())
+}
+
+pub fn effect_id(request: &GitEffectRequest) -> String {
+    let mut files = request.declared_files.clone();
+    files.sort();
+    let files = files
+        .iter()
+        .map(|file| canonical_part(file))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let canonical = [
+        canonical_part(&request.run_id),
+        canonical_part(&request.unit_id),
+        request.revision.to_string(),
+        request.ordinal.to_string(),
+        canonical_part(&request.payload),
+        files,
+    ]
+    .join("\n");
+    format!("effect-v1:sha256:{}", sha256_hex(canonical.as_bytes()))
+}
+
+pub fn claim_git_effect(state: &mut GitEffectState, fence: u64) -> Result<(), GitEffectError> {
+    if fence == 0 {
+        return Err(GitEffectError::InvalidFence);
+    }
+    match state {
+        GitEffectState::Pending { request } => {
+            validate_request(request)?;
+            let request = request.clone();
+            *state = GitEffectState::Claimed { request, fence };
+            Ok(())
+        }
+        GitEffectState::Claimed { fence: current, .. }
+        | GitEffectState::Applied { fence: current, .. }
+            if *current == fence =>
+        {
+            Ok(())
+        }
+        GitEffectState::Claimed { .. } | GitEffectState::Applied { .. } => {
+            Err(GitEffectError::StaleFence)
+        }
+        GitEffectState::Ambiguous { detail, .. } => Err(GitEffectError::Ambiguous(detail.clone())),
+    }
+}
+
+fn validate_observation(
+    request: &GitEffectRequest,
+    observation: &GitEffectObservation,
+) -> Result<(), GitEffectError> {
+    for (field, value) in [
+        ("base_sha", &observation.base_sha),
+        ("head_sha", &observation.head_sha),
+        ("tree_sha", &observation.tree_sha),
+        ("source_sha", &observation.source_sha),
+    ] {
+        if !valid_sha(value) {
+            return Err(GitEffectError::InvalidObservation(format!(
+                "{field} must be a full commit id"
+            )));
+        }
+    }
+    if observation.commits.is_empty() || observation.base_sha == observation.head_sha {
+        return Err(GitEffectError::InvalidObservation(
+            "commit range is empty".into(),
+        ));
+    }
+    let mut previous = observation.base_sha.clone();
+    let mut seen = std::collections::HashSet::new();
+    for commit in &observation.commits {
+        if commit.merge {
+            return Err(GitEffectError::InvalidObservation(
+                "commit range contains a merge".into(),
+            ));
+        }
+        if !valid_sha(&commit.sha) || !valid_sha(&commit.parent) {
+            return Err(GitEffectError::InvalidObservation(
+                "commit range contains an invalid commit id".into(),
+            ));
+        }
+        if !seen.insert(commit.sha.as_str()) {
+            return Err(GitEffectError::InvalidObservation(
+                "commit range contains a duplicate commit".into(),
+            ));
+        }
+        if commit.parent != previous {
+            return Err(GitEffectError::InvalidObservation(
+                "commit range is not a single chain from base to head".into(),
+            ));
+        }
+        previous = commit.sha.clone();
+    }
+    if previous != observation.head_sha {
+        return Err(GitEffectError::InvalidObservation(
+            "commit range does not end at head".into(),
+        ));
+    }
+    let mut expected = request.declared_files.clone();
+    let mut observed = observation.files.clone();
+    expected.sort();
+    observed.sort();
+    if expected != observed {
+        return Err(GitEffectError::InvalidObservation(
+            "observed files differ from the declared footprint".into(),
+        ));
+    }
+    if let Some(mutation) = observation.shared_mutations.first() {
+        return Err(GitEffectError::InvalidObservation(format!(
+            "shared repository mutation is forbidden: {mutation:?}"
+        )));
+    }
+    Ok(())
+}
+
+pub fn apply_git_effect(
+    state: &mut GitEffectState,
+    fence: u64,
+    observation: GitEffectObservation,
+) -> Result<GitEffectProof, GitEffectError> {
+    if fence == 0 {
+        return Err(GitEffectError::InvalidFence);
+    }
+    match state {
+        GitEffectState::Applied {
+            fence: current,
+            proof,
+            ..
+        } if *current == fence => Ok(proof.clone()),
+        GitEffectState::Applied { .. } => Err(GitEffectError::StaleFence),
+        GitEffectState::Claimed {
+            request,
+            fence: current,
+        } if *current == fence => {
+            validate_observation(request, &observation)?;
+            let proof = GitEffectProof {
+                effect_id: effect_id(request),
+                base_sha: observation.base_sha,
+                head_sha: observation.head_sha,
+                tree_sha: observation.tree_sha,
+                source_sha: observation.source_sha,
+                files: observation.files,
+            };
+            let request = request.clone();
+            *state = GitEffectState::Applied {
+                request,
+                fence,
+                proof: proof.clone(),
+            };
+            Ok(proof)
+        }
+        GitEffectState::Claimed { .. } => Err(GitEffectError::StaleFence),
+        GitEffectState::Pending { .. } => Err(GitEffectError::NotClaimed),
+        GitEffectState::Ambiguous { detail, .. } => Err(GitEffectError::Ambiguous(detail.clone())),
+    }
+}
+
+pub fn mark_git_effect_ambiguous(
+    state: &mut GitEffectState,
+    fence: u64,
+    detail: &str,
+) -> Result<(), GitEffectError> {
+    if fence == 0 {
+        return Err(GitEffectError::InvalidFence);
+    }
+    if detail.is_empty() {
+        return Err(GitEffectError::InvalidObservation(
+            "ambiguous effect requires a detail".into(),
+        ));
+    }
+    match state {
+        GitEffectState::Claimed {
+            request,
+            fence: current,
+        } if *current == fence => {
+            let request = request.clone();
+            *state = GitEffectState::Ambiguous {
+                request,
+                fence,
+                detail: detail.into(),
+            };
+            Ok(())
+        }
+        GitEffectState::Claimed { .. } => Err(GitEffectError::StaleFence),
+        GitEffectState::Ambiguous { detail, .. } => Err(GitEffectError::Ambiguous(detail.clone())),
+        GitEffectState::Pending { .. } => Err(GitEffectError::NotClaimed),
+        GitEffectState::Applied { .. } => Err(GitEffectError::InvalidObservation(
+            "an applied effect cannot become ambiguous".into(),
+        )),
+    }
+}
+
 pub fn sha256_hex(input: &[u8]) -> String {
     let mut state = [
         0x6a09e667u32,
