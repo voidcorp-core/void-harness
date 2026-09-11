@@ -13,8 +13,8 @@ high_risk: true
 Make the existing native execution path the executable project direction and
 deliver VM-01 as a small, portable legacy consumer oracle. The work removes the
 missing programme context before implementation and keeps the private value
-campaign out of the delivery path. VM-01, VM-02, and VM-03 are merged; the
-current bounded slice is VM-04 / DEV-798.
+campaign out of the delivery path. VM-01 through VM-05 are merged; the current
+bounded slice is VM-06 / DEV-812.
 
 ## What already exists
 
@@ -113,6 +113,17 @@ VM-01 contract around those surfaces; it does not replace them.
   - `feat(machine): persist no-effect run proofs`
 - **Notes**: SQLite is an adapter behind a native port; the kernel stays free of runtime, provider, tracker, forge, language, framework and database specifics. A worker string never completes a run.
 
+### Step 8 — Certify Claude Code subscription execution (VM-06 / DEV-812)
+
+- **Goal**: certify the generic runtime-process port through the official non-bare `claude -p` path while preserving subscription billing and fail-closed policy.
+- **Depends on**: DEV-798 and DEV-811 merged
+- **TDD mode**: souple for process wiring; strict for auth, policy, parsing, timeout and cancellation.
+- **Verification gate**: current official CLI documentation, refusal tests, a fresh authorized subscription run, redacted certificate, relevant Rust and Node gates, and full repository verification.
+- **Expected commits**:
+  - `test(runtime): define Claude subscription refusals`
+  - `feat(runtime): certify Claude subscription execution`
+- **Notes**: no token, raw environment, prompt or response is persisted; API and provider overrides are removed before launch; an adversarial sandbox escape degrades the platform to assisted-only.
+
 ## Review checkpoints
 
 ### Checkpoint A — after Step 1
@@ -128,7 +139,9 @@ Void Machine plan is restored and the campaign is explicitly outside delivery.
 | VM-02 | DEV-809 native doctor compatibility slice | DEV-808 merged | L | no |
 | VM-03 | DEV-810 portable executable skill package | DEV-809 merged | L | no |
 | VM-04 | DEV-798 durable no-effect run and proof | DEV-810 merged | XL | no |
+| VM-05 | DEV-811 Codex subscription execution | DEV-798 merged | L | no |
+| VM-06 | DEV-812 Claude subscription execution | DEV-811 merged | L | no |
 
 DEV-833 and DEV-838 remain tracker decisions/history around the abandoned
-measurement path. DEV-839 and DEV-840 are not admitted by this plan. VM-01 and
-VM-02 and VM-03 are merged; DEV-798 is the current implementation handoff.
+measurement path. DEV-839 and DEV-840 are not admitted by this plan. VM-01
+through VM-05 are merged; DEV-812 is the current implementation handoff.
