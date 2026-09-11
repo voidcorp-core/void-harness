@@ -220,15 +220,17 @@ const WORKER_RESULT_SCHEMA = {
       },
     },
     panel: {
-      type: 'array', maxItems: 3,
-      items: {
-        type: 'object', required: ['reviewRound', 'verdicts'],
-        properties: {
-          reviewRound: { type: 'integer', minimum: 1, maximum: 3 },
-          verdicts: { type: 'array', items: { type: 'object', required: ['specialistId', 'inputHash', 'verdict', 'detail'], properties: {
-            specialistId: { type: 'string' }, inputHash: { type: 'string' }, verdict: { enum: ['pass', 'changes-requested', 'blocked'] }, detail: { type: 'string' },
-          } } },
-        },
+      type: 'object', required: ['provider', 'rounds'],
+      properties: {
+        provider: { const: 'orchestrator' },
+        rounds: { type: 'array', maxItems: 3, items: {
+          type: 'object', required: ['reviewRound', 'verdicts'], properties: {
+            reviewRound: { type: 'integer', minimum: 1, maximum: 3 },
+            verdicts: { type: 'array', items: { type: 'object', required: ['specialistId', 'inputHash', 'verdict', 'detail'], properties: {
+              specialistId: { type: 'string' }, inputHash: { type: 'string' }, verdict: { enum: ['pass', 'changes-requested', 'blocked'] }, detail: { type: 'string' },
+            } } },
+          },
+        } },
       },
     },
     blocker: { type: ['string', 'null'] },
@@ -328,7 +330,7 @@ function workerPrompt(assignment, plan, panel) {
 async function runPanel(assignment, plan) {
   phase('Panel')
   const envelopes = assignment.panelEnvelopes ?? plan.panelEnvelopes ?? []
-  if (envelopes.length === 0) return { reviewRound: 1, verdicts: [] }
+  if (envelopes.length === 0) return { provider: 'orchestrator', rounds: [{ reviewRound: 1, verdicts: [] }] }
   const answers = await parallel(envelopes.map((envelope) => () => agent(
     [
       `Review ticket ${assignment.ticketId} as specialist ${envelope.agentName}.`,
@@ -339,7 +341,7 @@ async function runPanel(assignment, plan) {
     ].join('\n'),
     { label: `panel:${assignment.ticketId}:${envelope.specialistId}`, phase: 'Panel', schema: { type: 'object', required: ['specialistId', 'inputHash', 'verdict', 'detail'] } },
   )))
-  return { reviewRound: envelopes[0].reviewRound, verdicts: answers.filter(Boolean) }
+  return { provider: 'orchestrator', rounds: [{ reviewRound: envelopes[0].reviewRound, verdicts: answers.filter(Boolean) }] }
 }
 
 /**
