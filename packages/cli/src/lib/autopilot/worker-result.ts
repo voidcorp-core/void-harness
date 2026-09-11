@@ -57,6 +57,8 @@ export interface WorkerResult {
   readonly decisions: readonly WorkerDecision[];
   /** Which review passes ran, in which context, or why none did. */
   readonly review: ReviewProvenance;
+  /** Specialist verdict rounds produced by the orchestrator, when present. */
+  readonly panel?: readonly unknown[];
   readonly blocker: string | null;
 }
 
@@ -268,6 +270,7 @@ export function parseWorkerResult(raw: unknown): WorkerResult {
     proofs,
     decisions: parseDecisions(result.decisions),
     review: parseReviewProvenance(result.review),
+    ...(Array.isArray(result.panel) ? { panel: result.panel } : {}),
     blocker,
   };
 }

@@ -942,6 +942,13 @@ Unanswered human waits use a persisted virtual-time policy. The recovery reducer
 rollback evidence mandatory for completion. Clock rollback, unsafe permissions, repeated
 hypotheses, and failed rollback are terminal blocked states.
 
+Autopilot specialist panels belong to the orchestrator. The CLI plan marks
+`panelProvider: "orchestrator"` and supplies the selected envelopes; the runtime fans them out in
+fresh contexts before the ticket writer starts. Verdicts retain their `inputHash`, correction
+rounds are bounded at three, and a worker must return the panel record without dispatching one from
+its worktree. Claude's Workflow adapter and Codex's native-subagent adapter consume this same
+contract.
+
 `mission resume` reports `active`, `complete`, `waiting`, `blocked`, or `degraded`. `active` and
 `complete` exit 0; all other recovery states exit 1 because no safe forward action completed.
 Invalid arguments exit 2. Filesystem, schema, and journal failures use the existing structured

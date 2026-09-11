@@ -102,6 +102,8 @@ export interface OrchestrationPlan {
   readonly assignments: readonly WorkerAssignment[];
   /** The one skill a worker runs. Autopilot owns no ticket cycle of its own. */
   readonly ticketRunnerSkill: 'implement';
+  /** The worker cannot convene its own panel; the orchestrator owns that phase. */
+  readonly panelProvider: 'orchestrator';
   readonly planPath: string;
   readonly specPath: string;
   readonly workerMayPush: false;
@@ -243,6 +245,7 @@ export function buildOrchestrationPlan(input: OrchestrationInput): Orchestration
     concurrency: Math.max(1, parallel.length),
     assignments,
     ticketRunnerSkill: 'implement',
+    panelProvider: 'orchestrator',
     planPath: confinedPath(input.planPath, 'planPath'),
     specPath: confinedPath(input.specPath, 'specPath'),
     workerMayPush: false,
