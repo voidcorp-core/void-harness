@@ -146,7 +146,7 @@ export const openDurableRunStore = (databasePath: string, initial?: DurableRunSt
     append: (runId, event, crash) => {
       const current = rowText(database.prepare('SELECT state_json FROM run_state WHERE run_id = ?').get(runId));
       if (current === undefined) throw new Error('run does not exist');
-      const eventDigest = digest(encode(event));
+      const eventDigest = digest(`${runId}\n${encode(event)}`);
       const recorded = database.prepare('SELECT event_digest FROM run_events WHERE event_digest = ?').get(eventDigest);
       if (recorded !== undefined) return { state: parseState(current), event, eventDigest };
       const result = applyDurableEvent(parseState(current), event);

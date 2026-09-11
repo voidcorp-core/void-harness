@@ -52,12 +52,18 @@ describe('durable run state machine', () => {
     })).toThrow('worker success');
   });
 
-  it('keeps the transition deterministic across 1,000 seeded resumes', () => {
+  it('proves 1,000 seeded crash resumes keep one durable completion', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-durable-sequences-'));
+    roots.push(root);
     for (let seed = 0; seed < 1000; seed += 1) {
-      const initial = createDurableRun(`run-${seed}`, leases, 3);
-      const result = applyDurableEvent(initial, { kind: 'start', leaseToken: leases });
-      expect(result.state.revision).toBe(1);
-      expect(result.eventDigest).toMatch(/^sha256:[0-9a-f]{64}$/);
+      const runId = `run-${seed}`;
+      const store = openDurableRunStore(join(root, 'runs.sqlite'), createDurableRun(runId, leases, 3));
+      expect(() => store.append(runId, { kind: 'start', leaseToken: leases }, 'before-transaction')).toThrow('before transaction');
+      store.append(runId, { kind: 'start', leaseToken: leases });
+      expect(() => store.append(runId, { kind: 'complete', leaseToken: leases, proofInput: `requirements-${seed}` }, 'after-transaction')).toThrow('after transaction');
+      store.append(runId, { kind: 'complete', leaseToken: leases, proofInput: `requirements-${seed}` });
+      expect(store.evidence(runId)).toMatchObject({ eventCount: 2, outboxCount: 2, state: { phase: 'completed', revision: 2 } });
+      store.close();
     }
   });
 });
