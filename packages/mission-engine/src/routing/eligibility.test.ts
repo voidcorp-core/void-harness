@@ -80,6 +80,22 @@ describe('deterministic route eligibility', () => {
     expect(fallback.proof.fallback).toBe('invalid-semantic-output');
   });
 
+  it('passes an immutable no-effect context to the semantic ranker', () => {
+    let received: readonly RouteCandidate[] | undefined;
+    let receivedRequest: RouteRequest | undefined;
+    const result = routeCandidates([candidate('safe')], request(), (items, input) => {
+      received = items;
+      receivedRequest = input;
+      return { safe: 1 };
+    });
+
+    expect(result.orderedIds).toEqual(['safe']);
+    expect(received !== undefined && Object.isFrozen(received)).toBe(true);
+    expect(received !== undefined && received[0] !== undefined && Object.isFrozen(received[0])).toBe(true);
+    expect(received !== undefined && received[0] !== undefined && Object.isFrozen(received[0].capabilities)).toBe(true);
+    expect(receivedRequest !== undefined && Object.isFrozen(receivedRequest)).toBe(true);
+  });
+
   it('refuses malformed and ambiguous inputs before execution', () => {
     expect(() => routeCandidates([candidate('duplicate'), candidate('duplicate')], request()))
       .toThrow('ROUTING_INVALID: duplicate candidate id');

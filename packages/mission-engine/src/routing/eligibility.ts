@@ -168,6 +168,32 @@ function reasonsFor(candidate: RouteCandidate, request: RouteRequest): readonly 
   return Object.freeze([...reasons].sort());
 }
 
+function immutableCandidate(candidate: RouteCandidate): RouteCandidate {
+  return Object.freeze({
+    ...candidate,
+    capabilities: Object.freeze([...candidate.capabilities]),
+    schemas: Object.freeze([...candidate.schemas]),
+    projectFacts: Object.freeze([...candidate.projectFacts]),
+    packs: Object.freeze([...candidate.packs]),
+    runtimeFeatures: Object.freeze([...candidate.runtimeFeatures]),
+    permissions: Object.freeze([...candidate.permissions]),
+  });
+}
+
+function immutableRequest(request: RouteRequest): RouteRequest {
+  return Object.freeze({
+    ...request,
+    requiredCapabilities: Object.freeze([...request.requiredCapabilities]),
+    requiredSchemas: Object.freeze([...request.requiredSchemas]),
+    requiredProjectFacts: Object.freeze([...request.requiredProjectFacts]),
+    requiredPacks: Object.freeze([...request.requiredPacks]),
+    requiredRuntimeFeatures: Object.freeze([...request.requiredRuntimeFeatures]),
+    requiredPermissions: Object.freeze([...request.requiredPermissions]),
+    ...(request.allowIds === undefined ? {} : { allowIds: Object.freeze([...request.allowIds]) }),
+    ...(request.denyIds === undefined ? {} : { denyIds: Object.freeze([...request.denyIds]) }),
+  });
+}
+
 function validScores(scores: Readonly<Record<string, number>>, eligibleIds: readonly string[]): boolean {
   const eligible = new Set(eligibleIds);
   const keys = Object.keys(scores);
@@ -197,7 +223,10 @@ export function routeCandidates(
   let fallback: RouteProof['fallback'] = ranker === undefined ? 'no-ranker' : 'invalid-semantic-output';
   if (ranker !== undefined && eligible.length > 0) {
     try {
-      const result = ranker(Object.freeze(eligible), request);
+      const result = ranker(
+        Object.freeze(eligible.map(immutableCandidate)),
+        immutableRequest(request),
+      );
       if (validScores(result, eligibleIds)) {
         scores = Object.freeze(eligibleIds.map((candidateId) => ({ candidateId, score: result[candidateId] ?? 0 }))
           .sort((left, right) => right.score - left.score || left.candidateId.localeCompare(right.candidateId)));
