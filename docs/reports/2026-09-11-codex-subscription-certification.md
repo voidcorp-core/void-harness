@@ -15,14 +15,14 @@ native contract and returned the expected certification marker.
 | --- | --- |
 | CLI | `codex-cli 0.145.0` |
 | package | `@voidcorp/eval-harness@0.0.0` |
-| source SHA | `4a32b85c4dce92d6230f82e7de581009469a0126` |
+| source SHA | `c9fef7a87d1eda4fcfef46c8c29cb12021f71050` |
 | execution | `codex exec --ephemeral --sandbox read-only` |
 | MCP | disabled |
 | web search | disabled |
 | API environment | removed before launch |
 | result | `SUBSCRIPTION_READONLY_CERTIFIED` |
-| run | `01a08f94-6c8e-73d0-94c2-58196096acfe` |
-| evidence digest | `sha256:9b25bacf4d441bedf1f2fc0d54eb5c439c1d4391f3bf68d837ed7ddba9cf7787` |
+| run | `01a08f98-ef91-7440-af60-602f0a94b945` |
+| evidence digest | `sha256:d2e54a5a22d297a7affc9f633aa0869035e9194f76a431e6dc927681cfc85def` |
 
 The raw prompt, response and environment were not persisted. The CLI emitted a
 local model-cache warning before the run, but the run completed successfully;
