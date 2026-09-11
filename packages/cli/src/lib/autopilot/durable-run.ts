@@ -5,7 +5,11 @@ import { dirname } from 'node:path';
 
 interface SqliteStatement {
   readonly get: (...parameters: readonly unknown[]) => unknown;
-  readonly run: (...parameters: readonly unknown[]) => unknown;
+  readonly run: (...parameters: readonly unknown[]) => SqliteRunResult;
+}
+
+interface SqliteRunResult {
+  readonly changes?: number;
 }
 
 interface SqliteDatabase {
@@ -74,10 +78,15 @@ const isState = (value: unknown): value is DurableRunState => {
   if (typeof value !== 'object' || !value) return false;
   const phase = property(value, 'phase');
   const proofDigest = property(value, 'proofDigest');
-  return property(value, 'schemaVersion') === 1 && typeof property(value, 'runId') === 'string' &&
+  const runId = property(value, 'runId');
+  const revision = property(value, 'revision');
+  const leaseToken = property(value, 'leaseToken');
+  const budgetRemaining = property(value, 'budgetRemaining');
+  return property(value, 'schemaVersion') === 1 && typeof runId === 'string' && runId.length > 0 &&
     ['reserved', 'running', 'completed', 'aborted'].includes(String(phase)) &&
-    typeof property(value, 'revision') === 'number' && typeof property(value, 'leaseToken') === 'string' &&
-    typeof property(value, 'budgetRemaining') === 'number' &&
+    typeof revision === 'number' && Number.isSafeInteger(revision) && revision >= 0 &&
+    typeof leaseToken === 'string' && leaseToken.length > 0 &&
+    typeof budgetRemaining === 'number' && Number.isSafeInteger(budgetRemaining) && budgetRemaining >= 0 &&
     (proofDigest === undefined || typeof proofDigest === 'string') && property(value, 'authoritativeEffects') === 0;
 };
 
@@ -111,8 +120,24 @@ const transition = (state: DurableRunState, event: DurableRunEvent): DurableRunS
 };
 
 export const createDurableRun = (runId: string, leaseToken: string, budgetRemaining: number): DurableRunState => ({
-  schemaVersion: 1, runId, phase: 'reserved', revision: 0, leaseToken, budgetRemaining, authoritativeEffects: 0,
+  schemaVersion: 1,
+  runId: requiredIdentifier(runId, 'run id'),
+  phase: 'reserved',
+  revision: 0,
+  leaseToken: requiredIdentifier(leaseToken, 'lease token'),
+  budgetRemaining: boundedBudget(budgetRemaining),
+  authoritativeEffects: 0,
 });
+
+const requiredIdentifier = (value: string, name: string): string => {
+  if (value.length === 0) throw new Error(`${name} is required`);
+  return value;
+};
+
+const boundedBudget = (value: number): number => {
+  if (!Number.isSafeInteger(value) || value < 0) throw new Error('budget must be a non-negative safe integer');
+  return value;
+};
 
 export const applyDurableEvent = (state: DurableRunState, event: DurableRunEvent): DurableRunResult => ({
   state: transition(state, event), event, eventDigest: digest(encode(event)),
@@ -120,6 +145,7 @@ export const applyDurableEvent = (state: DurableRunState, event: DurableRunEvent
 
 export const openDurableRunStore = (databasePath: string, initial?: DurableRunState): DurableRunStore => {
   mkdirSync(dirname(databasePath), { recursive: true, mode: 0o700 });
+  if (initial !== undefined && !isState(initial)) throw new Error('initial durable run state is invalid');
   const database = new (sqliteModule().DatabaseSync)(databasePath, { timeout: 5000 });
   database.exec(`
     PRAGMA journal_mode = WAL;
@@ -129,7 +155,9 @@ export const openDurableRunStore = (databasePath: string, initial?: DurableRunSt
     CREATE TABLE IF NOT EXISTS run_outbox (intent_key TEXT PRIMARY KEY, run_id TEXT NOT NULL, intent_json TEXT NOT NULL) STRICT;
   `);
   const existing = initial === undefined ? undefined : rowText(database.prepare('SELECT state_json FROM run_state WHERE run_id = ?').get(initial.runId));
-  if (initial !== undefined && existing === undefined) database.prepare('INSERT INTO run_state (run_id, state_json, revision) VALUES (?, ?, ?)').run(initial.runId, encode(initial), initial.revision);
+  if (initial !== undefined && existing === undefined) {
+    database.prepare('INSERT INTO run_state (run_id, state_json, revision) VALUES (?, ?, ?)').run(initial.runId, encode(initial), initial.revision);
+  }
   return {
     read: (runId) => {
       const state = rowText(database.prepare('SELECT state_json FROM run_state WHERE run_id = ?').get(runId));
@@ -153,7 +181,8 @@ export const openDurableRunStore = (databasePath: string, initial?: DurableRunSt
       if (crash === 'before-transaction') throw new Error('injected crash before transaction');
       database.exec('BEGIN IMMEDIATE');
       try {
-        database.prepare('UPDATE run_state SET state_json = ?, revision = ? WHERE run_id = ? AND revision = ?').run(encode(result.state), result.state.revision, runId, result.state.revision - 1);
+        const update = database.prepare('UPDATE run_state SET state_json = ?, revision = ? WHERE run_id = ? AND revision = ?').run(encode(result.state), result.state.revision, runId, result.state.revision - 1);
+        if (update.changes !== 1) throw new Error('durable run revision conflict');
         database.prepare('INSERT INTO run_events (event_digest, run_id, revision, event_json) VALUES (?, ?, ?, ?)').run(eventDigest, runId, result.state.revision, encode(event));
         database.prepare('INSERT OR IGNORE INTO run_outbox (intent_key, run_id, intent_json) VALUES (?, ?, ?)').run(eventDigest, runId, encode({ kind: 'no-effect', revision: result.state.revision }));
         database.exec('COMMIT');

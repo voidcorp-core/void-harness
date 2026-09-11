@@ -1,8 +1,10 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { applyDurableEvent, createDurableRun, openDurableRunStore } from './durable-run.js';
+
+const schemaPath = join(process.cwd(), 'native/void-machine/schema/durable-run-v1.json');
 
 const leases = 'lease-1';
 const stores: Array<ReturnType<typeof openDurableRunStore>> = [];
@@ -14,6 +16,15 @@ afterEach(() => {
 });
 
 describe('durable run state machine', () => {
+  it('keeps the durable state contract versioned and closed', () => {
+    const schema = JSON.parse(readFileSync(schemaPath, 'utf8')) as {
+      additionalProperties?: boolean;
+      properties?: { schemaVersion?: { const?: number } };
+    };
+    expect(schema.additionalProperties).toBe(false);
+    expect(schema.properties?.schemaVersion?.const).toBe(1);
+  });
+
   it('requires proof input and records a no-effect completion', () => {
     const initial = createDurableRun('run-1', leases, 3);
     const started = applyDurableEvent(initial, { kind: 'start', leaseToken: leases });
@@ -27,6 +38,13 @@ describe('durable run state machine', () => {
     expect(() => applyDurableEvent(initial, { kind: 'start', leaseToken: 'old-lease' })).toThrow('stale supervisor');
     const aborted = applyDurableEvent(initial, { kind: 'abort', leaseToken: leases }).state;
     expect(() => applyDurableEvent(aborted, { kind: 'start', leaseToken: leases })).toThrow('reserved');
+  });
+
+  it('refuses invalid identifiers and budgets at the persistence boundary', () => {
+    expect(() => createDurableRun('', leases, 3)).toThrow('run id is required');
+    expect(() => createDurableRun('run-1', '', 3)).toThrow('lease token is required');
+    expect(() => createDurableRun('run-1', leases, -1)).toThrow('budget');
+    expect(() => createDurableRun('run-1', leases, 1.5)).toThrow('budget');
   });
 
   it('commits state, event and outbox together', () => {
