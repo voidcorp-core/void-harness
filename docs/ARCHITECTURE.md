@@ -931,6 +931,12 @@ receipts and partial event streams fail closed. The
 mission engine remains I/O-free, while `mission resume` is the filesystem adapter that appends at
 most one `mission.resumed` event for the current non-resume checkpoint.
 
+Autopilot progress and CI effects use the same boundary. The core classifies an effect as provider
+deduplicated, machine-reconciled, or non-idempotent; adapters report observations without exposing
+provider vocabulary to the core. An exact integration SHA is required for every required check,
+while missing, stale, pending, or failed observations stop the proof rather than becoming green by
+default.
+
 `mission resume` reports `active`, `complete`, `waiting`, `blocked`, or `degraded`. `active` and
 `complete` exit 0; all other recovery states exit 1 because no safe forward action completed.
 Invalid arguments exit 2. Filesystem, schema, and journal failures use the existing structured
