@@ -61,6 +61,14 @@ the project and supports the stable JSON report contract.
 VOID_MACHINE_BIN=/path/to/void-machine npx void-machine doctor --json
 ```
 
+The same launcher exposes the fail-fast skill package contract. A package must
+contain exactly `SKILL.md` and `harness.yaml` and is checked without executing
+the skill.
+
+```bash
+VOID_MACHINE_BIN=/path/to/void-machine npx void-machine skill check ./skill --json
+```
+
 ### `list` / `check` / `update`
 
 `list` shows packs and their detection status; `check` reports version drift; `update` refreshes pinned versions.

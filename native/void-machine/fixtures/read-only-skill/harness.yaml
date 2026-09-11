@@ -1,0 +1,9 @@
+schemaVersion: 1
+kind: standard
+name: read-only-skill
+version: 1.0.0
+capabilities: [read]
+inputs: []
+outputs: [report]
+permissions: [none]
+successCriteria: [returns a report]
