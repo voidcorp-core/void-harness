@@ -275,7 +275,7 @@ export function evaluateRule(
   }
   if (rule === 'protected-file') {
     if (env['VOID_HARNESS_ALLOW_SECRET_EDIT'] === '1') return allow('OVERRIDE', 'one-shot override');
-    return protectedFile(call.edits.map((edit) => edit.path));
+    return protectedFile(call.edits.map((edit) => edit.path), { root: options.root });
   }
   if (rule === 'secret-content') return secretContent(call.edits);
   // Judged on the raw edits, like secrets and protected files: a NUL byte is

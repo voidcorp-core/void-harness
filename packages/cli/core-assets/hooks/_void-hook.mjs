@@ -41,17 +41,17 @@ import {
   closeSync,
   existsSync as existsSync3,
   openSync,
-  readFileSync as readFileSync3,
+  readFileSync as readFileSync4,
   readSync,
   realpathSync
 } from "node:fs";
 import {
   basename as basename2,
   dirname as dirname2,
-  isAbsolute,
+  isAbsolute as isAbsolute2,
   join as join3,
-  relative,
-  resolve as resolve2
+  relative as relative2,
+  resolve as resolve3
 } from "node:path";
 
 import { existsSync, readFileSync } from "node:fs";
@@ -474,8 +474,35 @@ function noNull(edits) {
   );
 }
 
-import { basename } from "node:path";
-function protectedReason(path) {
+import { readFileSync as readFileSync3 } from "node:fs";
+import { basename, isAbsolute, relative, resolve as resolve2 } from "node:path";
+function manifestOwnedPaths(root) {
+  try {
+    const parsed = JSON.parse(readFileSync3(resolve2(root, ".void/install-manifest.json"), "utf8"));
+    if (typeof parsed !== "object" || parsed === void 0 || Array.isArray(parsed)) return /* @__PURE__ */ new Set();
+    const files = parsed.files;
+    if (!Array.isArray(files)) return /* @__PURE__ */ new Set();
+    return new Set(files.flatMap((file) => {
+      if (typeof file !== "object" || file === void 0 || Array.isArray(file)) return [];
+      const path = file.path;
+      return typeof path === "string" && path.length > 0 ? [path.replaceAll("\\", "/")] : [];
+    }));
+  } catch {
+    return /* @__PURE__ */ new Set();
+  }
+}
+function projectPath(root, path) {
+  const absolute = resolve2(root, path);
+  const relativePath = relative(resolve2(root), absolute).replaceAll("\\", "/");
+  return relativePath === ".." || relativePath.startsWith("../") || isAbsolute(relativePath) ? void 0 : relativePath;
+}
+function protectedReason(path, root) {
+  if (root !== void 0) {
+    const relativePath = projectPath(root, path);
+    if (relativePath !== void 0 && manifestOwnedPaths(root).has(relativePath)) {
+      return "delivered harness asset; change the harness through void-learn";
+    }
+  }
   const normalized = path.replaceAll("\\", "/").toLowerCase();
   const base = basename(normalized);
   if (/^\.env(?:\..+)?$/.test(base) && !/\.(?:example|sample|template|dist)$/.test(base)) {
@@ -501,11 +528,12 @@ function protectedReason(path) {
   if (/(^|\/)\.git\//.test(normalized)) return "internal git metadata";
   return void 0;
 }
-function protectedFile(paths) {
+function protectedFile(paths, options = {}) {
   for (const path of paths) {
-    const reason = protectedReason(path);
+    const reason = protectedReason(path, options.root);
     if (reason !== void 0) {
-      return block("PROTECTED_FILE", `refusing to edit ${path}`, [`${path}: ${reason}`]);
+      const learn = reason.includes("void-learn") ? " Use void-learn to capture the missing harness capability." : "";
+      return block("PROTECTED_FILE", `refusing to edit ${path}.${learn}`, [`${path}: ${reason}`]);
     }
   }
   return allow();
@@ -794,7 +822,7 @@ function parseHookPayload(input) {
   return parsed;
 }
 function physicalPath(path) {
-  const absolute = resolve2(path);
+  const absolute = resolve3(path);
   let existing = absolute;
   const suffix = [];
   while (true) {
@@ -821,9 +849,9 @@ function discoverProjectRoot(start) {
 }
 function projectRelativePath(root, path) {
   const physicalRoot = physicalPath(root);
-  const absolute = physicalPath(isAbsolute(path) ? path : resolve2(physicalRoot, path));
-  const projectPath = relative(physicalRoot, absolute).replaceAll("\\", "/");
-  return projectPath === ".." || projectPath.startsWith("../") || isAbsolute(projectPath) ? void 0 : projectPath;
+  const absolute = physicalPath(isAbsolute2(path) ? path : resolve3(physicalRoot, path));
+  const projectPath2 = relative2(physicalRoot, absolute).replaceAll("\\", "/");
+  return projectPath2 === ".." || projectPath2.startsWith("../") || isAbsolute2(projectPath2) ? void 0 : projectPath2;
 }
 function projectEdits(root, edits) {
   return edits.flatMap((edit) => {
@@ -850,7 +878,7 @@ function configuredStrings(parent, key, fallback) {
 function readTddConfig(root) {
   let config = {};
   try {
-    config = record2(JSON.parse(readFileSync3(join3(root, ".void/config.json"), "utf8"))) ?? {};
+    config = record2(JSON.parse(readFileSync4(join3(root, ".void/config.json"), "utf8"))) ?? {};
   } catch {
   }
   const modes = record2(config["modes"]);
@@ -917,7 +945,7 @@ function evaluateRule(rule, rawInput, options) {
   }
   if (rule === "protected-file") {
     if (env["VOID_HARNESS_ALLOW_SECRET_EDIT"] === "1") return allow("OVERRIDE", "one-shot override");
-    return protectedFile(call.edits.map((edit) => edit.path));
+    return protectedFile(call.edits.map((edit) => edit.path), { root: options.root });
   }
   if (rule === "secret-content") return secretContent(call.edits);
   if (rule === "control-character") return controlCharacter(call.edits);
@@ -935,7 +963,7 @@ function evaluateRule(rule, rawInput, options) {
   throw new Error("UNKNOWN_ENFORCEMENT_RULE");
 }
 
-import { mkdirSync, readFileSync as readFileSync4, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync as readFileSync5, renameSync, writeFileSync } from "node:fs";
 import { dirname as dirname3, join as join4 } from "node:path";
 var CACHE_TTL_MS = 24 * 60 * 60 * 1e3;
 var isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -963,7 +991,7 @@ function readFreshnessCache(env, now) {
   if (path === void 0) return void 0;
   let raw;
   try {
-    raw = readFileSync4(path, "utf8");
+    raw = readFileSync5(path, "utf8");
   } catch {
     return void 0;
   }
@@ -1115,13 +1143,13 @@ async function fetchLatestVersion(options = {}) {
   }
 }
 
-import { readFileSync as readFileSync5, statSync } from "node:fs";
+import { readFileSync as readFileSync6, statSync } from "node:fs";
 import { join as join5 } from "node:path";
 var MAX_NPMRC_BYTES = 64 * 1024;
 function readIfSmall(path) {
   try {
     if (statSync(path).size > MAX_NPMRC_BYTES) return void 0;
-    return readFileSync5(path, "utf8");
+    return readFileSync6(path, "utf8");
   } catch {
     return void 0;
   }
@@ -1158,10 +1186,10 @@ function freshnessRelay(freshness, source) {
   return `A newer harness is published: ${installed} is installed, ${latest ?? "a newer version"} is available. Tell the user this once, near the start of your first reply, and name the command that installs it: \`void-harness update\`. Do not repeat it later in the session.`;
 }
 
-import { existsSync as existsSync5, mkdirSync as mkdirSync2, readFileSync as readFileSync7, readdirSync as readdirSync2, renameSync as renameSync2, writeFileSync as writeFileSync2 } from "node:fs";
+import { existsSync as existsSync5, mkdirSync as mkdirSync2, readFileSync as readFileSync8, readdirSync as readdirSync2, renameSync as renameSync2, writeFileSync as writeFileSync2 } from "node:fs";
 import { dirname as dirname4, join as join8 } from "node:path";
 
-import { lstatSync, readFileSync as readFileSync6, readdirSync, statSync as statSync2 } from "node:fs";
+import { lstatSync, readFileSync as readFileSync7, readdirSync, statSync as statSync2 } from "node:fs";
 import { join as join7 } from "node:path";
 
 import { existsSync as existsSync4 } from "node:fs";
@@ -1345,7 +1373,7 @@ function readMissionJournals(root, options = {}) {
   for (const file of [...files].sort((a, b) => a.modifiedMs - b.modifiedMs)) {
     if (file.bytes > ceiling || bytes + file.bytes > ceiling) break;
     try {
-      parts.push(readFileSync6(file.path, "utf8"));
+      parts.push(readFileSync7(file.path, "utf8"));
       bytes += file.bytes;
     } catch {
     }
@@ -1595,7 +1623,7 @@ function cachePath(root) {
 }
 function cachedInvocationAlert(root) {
   try {
-    const parsed = JSON.parse(readFileSync7(cachePath(root), "utf8"));
+    const parsed = JSON.parse(readFileSync8(cachePath(root), "utf8"));
     if (typeof parsed !== "object" || parsed === null) return void 0;
     const alert = parsed["alert"];
     return typeof alert === "string" && alert !== "" ? alert : void 0;
@@ -1608,7 +1636,7 @@ function refreshInvocationVerdict(root) {
     const fingerprint = journalFingerprint(root);
     const path = cachePath(root);
     try {
-      const previous = JSON.parse(readFileSync7(path, "utf8"));
+      const previous = JSON.parse(readFileSync8(path, "utf8"));
       if (typeof previous === "object" && previous !== null && previous["fingerprint"] === fingerprint) return;
     } catch {
     }
@@ -1677,7 +1705,7 @@ import {
   writeSync
 } from "node:fs";
 import { homedir } from "node:os";
-import { basename as basename3, isAbsolute as isAbsolute3, join as join10, relative as relative3, resolve as resolve3 } from "node:path";
+import { basename as basename3, isAbsolute as isAbsolute4, join as join10, relative as relative4, resolve as resolve4 } from "node:path";
 
 import { createHash } from "node:crypto";
 var PROSE_SECTIONS = {
@@ -2285,10 +2313,10 @@ import {
   accessSync,
   constants,
   lstatSync as lstatSync2,
-  readFileSync as readFileSync8,
+  readFileSync as readFileSync9,
   realpathSync as realpathSync2
 } from "node:fs";
-import { delimiter, isAbsolute as isAbsolute2, join as join9, relative as relative2 } from "node:path";
+import { delimiter, isAbsolute as isAbsolute3, join as join9, relative as relative3 } from "node:path";
 function record3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
 }
@@ -2297,8 +2325,8 @@ function boundedInteger(value, fallback, min, max) {
   return Number.isSafeInteger(parsed) && parsed >= min && parsed <= max ? parsed : fallback;
 }
 function within(root, target) {
-  const rel = relative2(root, target);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute2(rel);
+  const rel = relative3(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute3(rel);
 }
 function executable(path) {
   try {
@@ -2309,7 +2337,7 @@ function executable(path) {
   }
 }
 function findExecutable(name, root, env) {
-  if ((isAbsolute2(name) || name.includes("/") || name.includes("\\")) && executable(name)) {
+  if ((isAbsolute3(name) || name.includes("/") || name.includes("\\")) && executable(name)) {
     return name;
   }
   const suffixes = process.platform === "win32" ? ["", ".cmd", ".exe", ".bat"] : [""];
@@ -2340,7 +2368,7 @@ function safeExistingFiles(paths, root) {
 }
 function readJson(path) {
   try {
-    return JSON.parse(readFileSync8(path, "utf8"));
+    return JSON.parse(readFileSync9(path, "utf8"));
   } catch {
     return void 0;
   }
@@ -2531,7 +2559,7 @@ function claimStaleLock(path, observed, now) {
 }
 function safeMachineDirectory(root) {
   try {
-    const canonicalRoot = realpathSync3(resolve3(root));
+    const canonicalRoot = realpathSync3(resolve4(root));
     let cursor = canonicalRoot;
     for (const segment of [".void", "machine"]) {
       cursor = join10(cursor, segment);
@@ -2666,7 +2694,7 @@ function canonicalDirectory(path) {
     const info = lstatSync3(path);
     if (!info.isDirectory() || info.isSymbolicLink()) return void 0;
     const canonical = realpathSync3(path);
-    return canonical === resolve3(path) ? canonical : void 0;
+    return canonical === resolve4(path) ? canonical : void 0;
   } catch {
     return void 0;
   }
@@ -2675,7 +2703,7 @@ function encodedClaudeProject(root) {
   return root.replace(/[^a-zA-Z0-9]/g, "-");
 }
 function transcriptRoots(root, runtime3) {
-  const canonicalRoot = realpathSync3(resolve3(root));
+  const canonicalRoot = realpathSync3(resolve4(root));
   const candidates = [canonicalRoot];
   if (runtime3 === "claude") {
     candidates.push(
@@ -2744,7 +2772,7 @@ function usageFromLine(line) {
   }
 }
 function observeTranscript(path, state, input, root, runtime3) {
-  if (path === "" || path.length > 4096 || path.includes("\0") || !isAbsolute3(path)) {
+  if (path === "" || path.length > 4096 || path.includes("\0") || !isAbsolute4(path)) {
     return void 0;
   }
   let descriptor;
@@ -2753,7 +2781,7 @@ function observeTranscript(path, state, input, root, runtime3) {
     const opened = openBoundedRegularFile(path, Number.MAX_SAFE_INTEGER, roots);
     if (opened === void 0) return void 0;
     descriptor = opened.descriptor;
-    const canonicalRoot = realpathSync3(resolve3(root));
+    const canonicalRoot = realpathSync3(resolve4(root));
     if (!within(canonicalRoot, opened.canonicalPath)) {
       const sessionId = runtimeSessionId(input);
       if (sessionId === void 0 || !isExternalTranscriptBound(opened.canonicalPath, runtime3, sessionId)) {
@@ -2822,7 +2850,7 @@ function observeTranscript(path, state, input, root, runtime3) {
 function contextConfig(root) {
   let descriptor;
   try {
-    const canonicalRoot = realpathSync3(resolve3(root));
+    const canonicalRoot = realpathSync3(resolve4(root));
     const opened = openBoundedRegularFile(
       join10(canonicalRoot, ".void", "config.json"),
       MAX_CONFIG_BYTES,
@@ -2950,9 +2978,9 @@ function successfulToolUse(input) {
 }
 function boundedProjectPath(root, candidate) {
   if (candidate === "" || candidate.length > 500 || candidate.includes(MECHANICAL_BEGIN2) || candidate.includes(MECHANICAL_END2) || [...candidate].some((character) => character.charCodeAt(0) < 32)) return void 0;
-  const target = isAbsolute3(candidate) ? resolve3(candidate) : resolve3(root, candidate);
-  const local = relative3(resolve3(root), target);
-  if (local === "" || local.startsWith("..") || isAbsolute3(local)) return void 0;
+  const target = isAbsolute4(candidate) ? resolve4(candidate) : resolve4(root, candidate);
+  const local = relative4(resolve4(root), target);
+  if (local === "" || local.startsWith("..") || isAbsolute4(local)) return void 0;
   return local.split("\\").join("/");
 }
 function toolPaths(call, root) {
@@ -3028,7 +3056,7 @@ function observePostToolUse(input, root, runtime3, now) {
   }
 }
 function executeContextContinuity(rawInput, root, runtime3, now) {
-  const projectRoot2 = resolve3(root);
+  const projectRoot2 = resolve4(root);
   const input = record3(rawInput);
   if (input === void 0) {
     return { status: "degraded", details: { reason: "invalid-hook-input" } };
@@ -3077,20 +3105,20 @@ function resolveInstall(root, env) {
 import { spawnSync } from "node:child_process";
 
 import {
-  isAbsolute as isAbsolute4,
-  relative as relative4,
-  resolve as resolve4
+  isAbsolute as isAbsolute5,
+  relative as relative5,
+  resolve as resolve5
 } from "node:path";
 var FORMATTABLE = /\.(?:ts|tsx|js|jsx|mjs|cjs|json|jsonc|css)$/;
 function within2(root, target) {
-  const rel = relative4(root, target);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute4(rel);
+  const rel = relative5(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute5(rel);
 }
 function formatCandidates(touchedPaths, projectRoot2) {
-  const root = resolve4(projectRoot2);
+  const root = resolve5(projectRoot2);
   const found = /* @__PURE__ */ new Set();
   for (const touchedPath of touchedPaths) {
-    const target = resolve4(root, touchedPath);
+    const target = resolve5(root, touchedPath);
     if (touchedPath.trim() !== "" && FORMATTABLE.test(touchedPath.replaceAll("\\", "/")) && within2(root, target)) {
       found.add(target);
     }
@@ -3273,7 +3301,7 @@ import { execFileSync } from "node:child_process";
 import {
   existsSync as existsSync6,
   lstatSync as lstatSync4,
-  readFileSync as readFileSync9,
+  readFileSync as readFileSync10,
   statSync as statSync4
 } from "node:fs";
 import { basename as basename4, join as join12 } from "node:path";
@@ -3293,7 +3321,7 @@ function readBounded(path) {
   try {
     const info = lstatSync4(path);
     if (!info.isFile() || info.isSymbolicLink() || info.size > MAX_READ_BYTES) return void 0;
-    return readFileSync9(path, "utf8");
+    return readFileSync10(path, "utf8");
   } catch {
     return void 0;
   }
@@ -3344,7 +3372,7 @@ function programFrom(raw, legacy) {
   };
 }
 function observeProgram(root) {
-  const present = PROGRAM_PATHS.filter((relative10) => existsSync6(join12(root, relative10)));
+  const present = PROGRAM_PATHS.filter((relative11) => existsSync6(join12(root, relative11)));
   if (present.length === 0) return { program: void 0 };
   if (present.length > 1) {
     return {
@@ -3352,11 +3380,11 @@ function observeProgram(root) {
       programError: `multiple program descriptors: ${present.join(", ")}`
     };
   }
-  const relative9 = present[0];
-  if (relative9 === void 0) return { program: void 0 };
-  const raw = readBounded(join12(root, relative9));
-  const program = raw === void 0 ? void 0 : programFrom(raw, relative9 !== PROGRAM_PATHS[0]);
-  return program === void 0 ? { program: void 0, programError: `invalid program descriptor: ${relative9}` } : { program };
+  const relative10 = present[0];
+  if (relative10 === void 0) return { program: void 0 };
+  const raw = readBounded(join12(root, relative10));
+  const program = raw === void 0 ? void 0 : programFrom(raw, relative10 !== PROGRAM_PATHS[0]);
+  return program === void 0 ? { program: void 0, programError: `invalid program descriptor: ${relative10}` } : { program };
 }
 function git(root, args) {
   try {
@@ -3381,8 +3409,8 @@ function gitObservation(root) {
   };
 }
 function checkpointObservation(root) {
-  for (const relative9 of CHECKPOINT_PATHS) {
-    const path = join12(root, relative9);
+  for (const relative10 of CHECKPOINT_PATHS) {
+    const path = join12(root, relative10);
     const raw = readBounded(path);
     if (raw === void 0) continue;
     try {
@@ -3452,7 +3480,7 @@ import {
   realpathSync as realpathSync4,
   writeFileSync as writeFileSync3
 } from "node:fs";
-import { join as join13, relative as relative5 } from "node:path";
+import { join as join13, relative as relative6 } from "node:path";
 
 function record4(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
@@ -3559,7 +3587,7 @@ function executeTrim(rawInput, root, env) {
   const hash = createHash3("sha256").update(extracted.text).digest("hex").slice(0, 12);
   const tool = extracted.tool.replaceAll(/[^A-Za-z0-9_]/g, "_").slice(0, 80);
   const file = join13(directory, `${tool}-${process.pid}-${Date.now()}-${hash}.log`);
-  const spillPath = relative5(realpathSync4(root), file).replaceAll("\\", "/");
+  const spillPath = relative6(realpathSync4(root), file).replaceAll("\\", "/");
   const plan = planOutputTrim(extracted.text, {
     tool: extracted.tool,
     thresholdBytes,
@@ -3599,10 +3627,10 @@ import { spawnSync as spawnSync3 } from "node:child_process";
 
 import {
   dirname as dirname5,
-  isAbsolute as isAbsolute5,
+  isAbsolute as isAbsolute6,
   join as join14,
-  relative as relative6,
-  resolve as resolve5
+  relative as relative7,
+  resolve as resolve6
 } from "node:path";
 function record5(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
@@ -3690,15 +3718,15 @@ function configuredTypecheck(value) {
   return {};
 }
 function within3(root, target) {
-  const rel = relative6(root, target);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute5(rel);
+  const rel = relative7(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute6(rel);
 }
 function nearestTsconfigs(changedPaths, projectRoot2, hasFile) {
-  const root = resolve5(projectRoot2);
+  const root = resolve6(projectRoot2);
   const found = /* @__PURE__ */ new Set();
   for (const changedPath of changedPaths) {
     if (!/\.(?:ts|tsx)$/.test(changedPath) || changedPath.endsWith(".d.ts")) continue;
-    const target = resolve5(root, changedPath);
+    const target = resolve6(root, changedPath);
     if (!within3(root, target)) continue;
     let current = dirname5(target);
     while (within3(root, current)) {
@@ -3846,9 +3874,9 @@ import { createHash as createHash4 } from "node:crypto";
 import {
   basename as basename5,
   extname,
-  isAbsolute as isAbsolute6,
-  relative as relative7,
-  resolve as resolve6
+  isAbsolute as isAbsolute7,
+  relative as relative8,
+  resolve as resolve7
 } from "node:path";
 var MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
 function record6(value) {
@@ -3894,7 +3922,7 @@ function nameFor(tool, category, input) {
   return tool || "unknown";
 }
 function safePaths(input, root) {
-  const absoluteRoot = resolve6(root);
+  const absoluteRoot = resolve7(root);
   const candidates = [
     input["file_path"],
     input["path"],
@@ -3903,12 +3931,12 @@ function safePaths(input, root) {
   const paths = [];
   for (const candidate of candidates) {
     if (typeof candidate !== "string" || candidate.length > 2e3) continue;
-    if (!isAbsolute6(candidate)) {
+    if (!isAbsolute7(candidate)) {
       if (!candidate.startsWith("..")) paths.push(candidate.slice(0, 500));
       continue;
     }
-    const rel = relative7(absoluteRoot, resolve6(candidate));
-    if (rel !== "" && !rel.startsWith("..") && !isAbsolute6(rel)) {
+    const rel = relative8(absoluteRoot, resolve7(candidate));
+    if (rel !== "" && !rel.startsWith("..") && !isAbsolute7(rel)) {
       paths.push(rel.slice(0, 500));
     }
   }
@@ -3962,7 +3990,7 @@ function deriveMissionId(explicit, runtime3, runtimeSessionId2, root) {
     }
     return explicit;
   }
-  const opaque = createHash4("sha256").update(`${runtime3}\0${runtimeSessionId2 || "unknown"}\0${resolve6(root)}`).digest("hex").slice(0, 32);
+  const opaque = createHash4("sha256").update(`${runtime3}\0${runtimeSessionId2 || "unknown"}\0${resolve7(root)}`).digest("hex").slice(0, 32);
   return `mis_${opaque}`;
 }
 
@@ -3982,10 +4010,10 @@ import {
 } from "node:fs/promises";
 import {
   dirname as dirname6,
-  isAbsolute as isAbsolute7,
+  isAbsolute as isAbsolute8,
   join as join16,
-  relative as relative8,
-  resolve as resolve7
+  relative as relative9,
+  resolve as resolve8
 } from "node:path";
 
 var MAX_EVENT_PAYLOAD_BYTES = 16 * 1024;
@@ -4236,8 +4264,8 @@ function code(error) {
   return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
 }
 function within4(root, target) {
-  const rel = relative8(root, target);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute7(rel);
+  const rel = relative9(root, target);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute8(rel);
 }
 async function exists(path) {
   try {
@@ -4252,7 +4280,7 @@ async function safeRunDirectory(root, missionId) {
   if (!MISSION_ID3.test(missionId)) {
     throw new Error("HOOK_INVALID_MISSION_ID: expected mis_<opaque-id>");
   }
-  const absoluteRoot = resolve7(root);
+  const absoluteRoot = resolve8(root);
   const canonicalRoot = await realpath(absoluteRoot);
   const run = voidReadPath(absoluteRoot, "runs", missionId);
   let ancestor = run;
