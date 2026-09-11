@@ -95,6 +95,14 @@ describe('the Codex adapter executes rather than plans', () => {
     expect(WORKFLOW).toMatch(/a\.order - b\.order/);
   });
 
+  it('keeps the specialist panel in the orchestrator and fans envelopes out in parallel', () => {
+    expect(planFor(FIXTURES['a lone migration'])).toMatchObject({ panelProvider: 'orchestrator' });
+    expect(WORKFLOW).toMatch(/runPanel/);
+    expect(WORKFLOW).toMatch(/parallel\(envelopes\.map/);
+    expect(CODEX).toMatch(/panelProvider.*orchestrator/s);
+    expect(CODEX).toMatch(/worker never dispatches/i);
+  });
+
   it('requires the pre-created worktree and refuses the main checkout, like the workflow', () => {
     const flatCodex = CODEX.replace(/\s+/g, ' ');
     expect(flatCodex).toMatch(/worktrees already exist/i);

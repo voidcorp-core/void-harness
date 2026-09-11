@@ -25,6 +25,7 @@ export const meta = {
     { title: 'Preflight', detail: 'programme, base, tracker — before anything is claimed' },
     { title: 'Reserve', detail: 'take the lease, or stop on a competing claim' },
     { title: 'Parallel', detail: 'disjoint tickets, one worktree subagent each' },
+    { title: 'Panel', detail: 'specialist envelopes, fresh orchestrator contexts, bounded rounds' },
     { title: 'Sequential', detail: 'overlapping, risky or migration tickets, one at a time' },
     { title: 'Reconcile', detail: 'verify every range against git, then merge' },
     { title: 'Verify', detail: 'the declared suite on the merged tree' },
@@ -162,7 +163,7 @@ function required(answer, what) {
 
 const WORKER_RESULT_SCHEMA = {
   type: 'object',
-  required: ['schemaVersion', 'ticketId', 'status', 'branch', 'baseSha', 'headSha', 'commits', 'files', 'proofs', 'decisions', 'review', 'blocker'],
+  required: ['schemaVersion', 'ticketId', 'status', 'branch', 'baseSha', 'headSha', 'commits', 'files', 'proofs', 'decisions', 'review', 'panel', 'blocker'],
   additionalProperties: true,
   properties: {
     schemaVersion: { const: 1 },
@@ -216,6 +217,18 @@ const WORKER_RESULT_SCHEMA = {
           },
         },
         because: { type: 'string' },
+      },
+    },
+    panel: {
+      type: 'array', maxItems: 3,
+      items: {
+        type: 'object', required: ['reviewRound', 'verdicts'],
+        properties: {
+          reviewRound: { type: 'integer', minimum: 1, maximum: 3 },
+          verdicts: { type: 'array', items: { type: 'object', required: ['specialistId', 'inputHash', 'verdict', 'detail'], properties: {
+            specialistId: { type: 'string' }, inputHash: { type: 'string' }, verdict: { enum: ['pass', 'changes-requested', 'blocked'] }, detail: { type: 'string' },
+          } } },
+        },
       },
     },
     blocker: { type: ['string', 'null'] },
@@ -277,7 +290,7 @@ function prohibitions(plan) {
   return lines
 }
 
-function workerPrompt(assignment, plan) {
+function workerPrompt(assignment, plan, panel) {
   return [
     `Work ticket ${assignment.ticketId} to completion by running the ${plan.ticketRunnerSkill} skill, whole and once.`,
     '',
@@ -290,6 +303,10 @@ function workerPrompt(assignment, plan) {
     'Re-fetch the complete ticket from the tracker before starting. Never work from a summary.',
     'Run every implement pass whose predicate fires. Run your own targeted gates, not the',
     'whole cluster suite. Apply a migration only against the dev/local database.',
+    '',
+    'The orchestrator has already convened the specialist panel in fresh contexts. Do not',
+    'dispatch a panel yourself. Use this panel record as the correction brief and return it',
+    `unchanged in WorkerResult.panel: ${JSON.stringify(panel)}`,
     '',
     ...prohibitions(plan),
     'The reconciler owns everything after that, and it refuses a range that touches a file',
@@ -306,6 +323,23 @@ function workerPrompt(assignment, plan) {
     'when no pass ran at all. Report the degradation rather than working around it: a panel claimed',
     'over passes you ran yourself is refused, and the run is judged on this field, not on prose.',
   ].join('\n')
+}
+
+async function runPanel(assignment, plan) {
+  phase('Panel')
+  const envelopes = assignment.panelEnvelopes ?? plan.panelEnvelopes ?? []
+  if (envelopes.length === 0) return { reviewRound: 1, verdicts: [] }
+  const answers = await parallel(envelopes.map((envelope) => () => agent(
+    [
+      `Review ticket ${assignment.ticketId} as specialist ${envelope.agentName}.`,
+      'You are the orchestrator-owned panel, in a fresh context. Do not write files.',
+      `Review round: ${envelope.reviewRound}. Input hash: ${envelope.inputHash}.`,
+      `Context pack: ${JSON.stringify(envelope.contextPack)}`,
+      'Return { specialistId, inputHash, verdict, detail } with verdict pass, changes-requested or blocked.',
+    ].join('\n'),
+    { label: `panel:${assignment.ticketId}:${envelope.specialistId}`, phase: 'Panel', schema: { type: 'object', required: ['specialistId', 'inputHash', 'verdict', 'detail'] } },
+  )))
+  return { reviewRound: envelopes[0].reviewRound, verdicts: answers.filter(Boolean) }
 }
 
 /**
@@ -342,8 +376,8 @@ async function runWorkers(plan) {
     phase('Parallel')
     log(`${disjoint.length} disjoint ticket(s), width ${plan.concurrency}`)
     const answers = await parallel(
-      disjoint.map((assignment) => () =>
-        agent(workerPrompt(assignment, plan), {
+      disjoint.map((assignment) => async () =>
+        agent(workerPrompt(assignment, plan, await runPanel(assignment, plan)), {
           label: `ticket:${assignment.ticketId}`,
           phase: 'Parallel',
           schema: WORKER_RESULT_SCHEMA,
@@ -362,7 +396,7 @@ async function runWorkers(plan) {
   for (const assignment of colliding) {
     phase('Sequential')
     log(`sequential: ${assignment.ticketId} (${assignment.order})`)
-    const answer = await agent(workerPrompt(assignment, plan), {
+    const answer = await agent(workerPrompt(assignment, plan, await runPanel(assignment, plan)), {
       label: `ticket:${assignment.ticketId}`,
       phase: 'Sequential',
       schema: WORKER_RESULT_SCHEMA,

@@ -50,6 +50,18 @@ checkout — in `CLAUDE_PROJECT_DIR`, which every subagent inherits.
 3. Each subagent gets exactly one assignment: `worktreePath` as its working
    directory, `branch` as its already-checked-out branch, and the ticket id.
 
+## Orchestrator-owned panel
+
+`OrchestrationPlan.panelProvider` is `orchestrator`. The worker never dispatches
+its own specialists. Before each ticket writer starts, the orchestrator fans out
+the CLI-selected specialist envelopes with `parallel`, one fresh context per
+envelope, and preserves each `inputHash` in the returned verdict. The writer
+receives those verdicts as its correction brief and returns the bounded panel
+rounds in `WorkerResult.panel`. A later round contains only envelopes whose
+input hash changed; after three rounds the unit is blocked with the unresolved
+verdicts. A missing panel envelope is an empty panel result, never an invitation
+for the worker to invent a specialist or a review mode.
+
 ## The worker instruction
 
 Every subagent receives the same instruction as its Claude counterpart:
