@@ -937,6 +937,11 @@ provider vocabulary to the core. An exact integration SHA is required for every 
 while missing, stale, pending, or failed observations stop the proof rather than becoming green by
 default.
 
+Unanswered human waits use a persisted virtual-time policy. The recovery reducer fixes a 15- or
+20-minute deadline before waiting, accepts at most three distinct reversible hypotheses, and makes
+rollback evidence mandatory for completion. Clock rollback, unsafe permissions, repeated
+hypotheses, and failed rollback are terminal blocked states.
+
 `mission resume` reports `active`, `complete`, `waiting`, `blocked`, or `degraded`. `active` and
 `complete` exit 0; all other recovery states exit 1 because no safe forward action completed.
 Invalid arguments exit 2. Filesystem, schema, and journal failures use the existing structured
