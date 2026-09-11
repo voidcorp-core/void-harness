@@ -28,6 +28,7 @@ export * from './profile/routing.js';
 export * from './specialist/completion.js';
 export * from './specialist/context-pack.js';
 export * from './specialist/routing.js';
+export * from './routing/eligibility.js';
 export * from './security/scope.js';
 export * from './security/severity.js';
 export * from './session/index.js';
