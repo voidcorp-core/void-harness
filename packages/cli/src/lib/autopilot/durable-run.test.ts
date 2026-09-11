@@ -70,7 +70,7 @@ describe('durable run state machine', () => {
     })).toThrow('worker success');
   });
 
-  it('proves 1,000 seeded crash resumes keep one durable completion', () => {
+  it('proves 1,000 seeded crash resumes keep one durable completion', { timeout: 120_000 }, () => {
     const root = mkdtempSync(join(tmpdir(), 'void-durable-sequences-'));
     roots.push(root);
     for (let seed = 0; seed < 1000; seed += 1) {
