@@ -31,7 +31,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, realpathSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { voidReadPath } from './void-layout.js';
 import { discoverProjectRoot } from './enforcement/runner.js';
 
@@ -135,9 +135,18 @@ export type TelemetryRoot =
 
 /** Advisory events need a proven durable destination; rules still use their work root. */
 export function resolveTelemetryRoot(cwd: string): TelemetryRoot {
-  const tree = canonical(discoverProjectRoot(cwd));
   const refused: TelemetryRoot = { kind: 'unavailable', code: 'TELEMETRY_ROOT_UNRESOLVED' };
   try {
+    // A policy file scopes enforcement, not repository ownership. Walk through
+    // nested configurations until Git or an independent install owns the root.
+    let tree = canonical(cwd);
+    while (!existsSync(join(tree, '.git')) && !holdsInstallReceipt(tree)) {
+      const parent = dirname(tree);
+      if (parent === tree) {
+        return { kind: 'resolved', root: canonical(discoverProjectRoot(cwd)) };
+      }
+      tree = parent;
+    }
     const marker = join(tree, '.git');
     const markerStat = lstatSync(marker, { throwIfNoEntry: false });
     if (markerStat?.isSymbolicLink()) return refused;

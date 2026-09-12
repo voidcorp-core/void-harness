@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import { replayEventLog } from '@voidcorp/mission-engine';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 // The entrypoint runs on import, so it is exercised the way a hook actually runs
@@ -490,6 +491,55 @@ describe('a hook fired from a worktree', () => {
     return existsSync(runs) ? readdirSync(runs) : [];
   }
 
+  it.each([false, true])('sequences concurrent worker streams with explicit mission: %s', async (explicit) => {
+    const { main, worktree } = repositoryWithWorktree();
+    const second = join(main, 'second');
+    const created = spawnSync('git', ['worktree', 'add', '-b', 'second', second], { cwd: main });
+    expect(created.status).toBe(0);
+    const nested = join(worktree, 'app');
+    mkdirSync(join(nested, '.void'), { recursive: true });
+    writeFileSync(join(nested, '.void/config.json'), '{}');
+    const env: NodeJS.ProcessEnv = { ...process.env };
+    delete env['VOID_PROJECT_ROOT'];
+    delete env['CLAUDE_PROJECT_DIR'];
+    delete env['VOID_MISSION_ID'];
+    if (explicit) env['VOID_MISSION_ID'] = 'mis_ffffffffffffffff';
+    const jobs = [worktree, nested, second].flatMap((cwd) => [
+      { cwd, args: ['activation', 'codex'] },
+      { cwd, args: ['enforce', 'tdd-order', 'codex'] },
+      { cwd, args: ['lifecycle', 'checkpoint-reminder', 'codex'] },
+    ]);
+    await Promise.all(jobs.map(({ cwd, args }) => new Promise<void>((resolveJob, rejectJob) => {
+      const child = spawn(process.execPath, [hook, ...args], { cwd, env });
+      let stderr = '';
+      child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+      child.on('error', rejectJob);
+      child.on('close', (code) => {
+        if (code === 0 && stderr === '') resolveJob();
+        else rejectJob(new Error(`hook failed: ${String(code)} ${stderr}`));
+      });
+      child.stdin.end(JSON.stringify({ session_id: 'same-native-session', prompt: 'continue' }));
+    })));
+    expect(runsIn(worktree)).toEqual([]);
+    expect(runsIn(nested)).toEqual([]);
+    expect(runsIn(second)).toEqual([]);
+    const missions = runsIn(main);
+    expect(missions).toHaveLength(1);
+    const mission = missions[0] ?? '';
+    if (explicit) expect(mission).toBe('mis_ffffffffffffffff');
+    renameSync(worktree, join(main, 'retired-first'));
+    renameSync(second, join(main, 'retired-second'));
+    const replay = replayEventLog(readFileSync(join(main, '.void/machine/runs', mission, 'events.jsonl'), 'utf8'));
+    expect(replay.continuity).toBe('complete');
+    expect(replay.events).toHaveLength(9);
+    expect(replay.events.map((event) => event.seq)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(replay.events.every((event) => event.missionId === mission && event.correlationId === mission)).toBe(true);
+    expect(replay.events.filter((event) => event.kind.startsWith('runtime.'))).toHaveLength(3);
+    const outcomes = replay.events.filter((event) => event.kind === 'hook.completed');
+    expect(outcomes).toHaveLength(6);
+    expect(outcomes.every((event) => ['ok', 'skipped'].includes(String(event.payload['status'])))).toBe(true);
+  });
+
   it('writes its event under the installation root, never under the worktree it ran in', () => {
     const { main, worktree } = repositoryWithWorktree();
     try {
@@ -569,23 +619,26 @@ describe('a hook fired from a worktree', () => {
     }
   });
 
-  it('reports unresolved identity without changing the enforcement verdict', () => {
+  it.each([false, true])('reports unresolved identity with nested configuration: %s', (nested) => {
     const { main, worktree } = repositoryWithWorktree();
+    const workingDirectory = nested ? join(worktree, 'app') : worktree;
     try {
-      mkdirSync(join(worktree, '.void'));
-      writeFileSync(join(worktree, '.void/config.json'), '{"modes":{"tdd":"strict"},"paths":{"business":["**"]}}');
+      mkdirSync(join(workingDirectory, '.void'), { recursive: true });
+      writeFileSync(join(workingDirectory, '.void/config.json'), '{"modes":{"tdd":"strict"},"paths":{"business":["**"]}}');
       const env: NodeJS.ProcessEnv = { ...process.env, PATH: '', VOID_MISSION_ID: 'mis_dddddddddddddddd' };
       delete env['VOID_PROJECT_ROOT'];
       delete env['CLAUDE_PROJECT_DIR'];
       const done = spawnSync(process.execPath, [hook, 'enforce', 'tdd-order'], {
-        cwd: worktree, env, encoding: 'utf8',
-        input: JSON.stringify(write(join(worktree, 'sample.ts'), 'export const answer = 42;')),
+        cwd: workingDirectory, env, encoding: 'utf8',
+        input: JSON.stringify(write(join(workingDirectory, 'sample.ts'), 'export const answer = 42;')),
       });
       expect(done.status).toBe(2);
       expect(done.stderr).toContain('TELEMETRY_ROOT_UNRESOLVED');
       expect(done.stderr).toContain('void-tdd');
+      expect(done.stdout).toBe('');
       expect(runsIn(main)).toEqual([]);
       expect(runsIn(worktree)).toEqual([]);
+      expect(runsIn(workingDirectory)).toEqual([]);
     } finally {
       rmSync(main, { recursive: true, force: true });
     }
