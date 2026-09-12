@@ -32,6 +32,11 @@ metadata identity path removes the source of contention without raising timeouts
 Nested policy configurations do not change repository identity; only an
 independent installation receipt establishes a distinct telemetry root.
 
+The packed CLI measured 901.1 kB after this correction, exceeding the former
+900 kB ceiling by 1.1 kB. The declared ceiling is 920 kB to accommodate the
+verified identity and journal behavior with bounded headroom. No package
+content, test gate, timeout, or consumer guarantee is removed to meet the budget.
+
 Both unresolved destination and write failure emit one bounded diagnostic to
 stderr, naming distinct stable codes and corrective actions, without payload,
 environment, raw exception, or private path. Advisory telemetry failures preserve
