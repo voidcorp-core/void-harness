@@ -85,6 +85,34 @@ describe('telemetry destination evidence', () => {
     });
   });
 
+  it('keeps exceptional Git layouts distinct from the administrative directory', () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'void-event-layout-')));
+    const seed = join(root, 'seed');
+    const parent = join(root, 'parent');
+    mkdirSync(seed);
+    mkdirSync(parent);
+    for (const directory of [seed, parent]) {
+      git(directory, 'init', '--quiet');
+      git(directory, '-c', 'user.name=Test', '-c', 'user.email=test@example.test',
+        'commit', '--allow-empty', '-qm', 'seed');
+    }
+    git(parent, '-c', 'protocol.file.allow=always', 'submodule', 'add', seed, 'child');
+    const child = join(parent, 'child');
+    const worker = join(root, 'child-worker');
+    git(child, 'worktree', 'add', '-b', 'worker', worker);
+    expect(resolveTelemetryRoot(child)).toEqual({ kind: 'resolved', root: child });
+    expect(resolveTelemetryRoot(worker)).toEqual({ kind: 'resolved', root: child });
+    const separated = join(root, 'separated');
+    mkdirSync(separated);
+    git(separated, 'init', '--quiet', '--separate-git-dir', join(root, 'separate.git'));
+    git(separated, '-c', 'user.name=Test', '-c', 'user.email=test@example.test',
+      'commit', '--allow-empty', '-qm', 'seed');
+    const separateWorker = join(root, 'separate-worker');
+    git(separated, 'worktree', 'add', '-b', 'worker', separateWorker);
+    expect(resolveTelemetryRoot(separated)).toEqual({ kind: 'resolved', root: separated });
+    expect(resolveTelemetryRoot(separateWorker)).toMatchObject({ kind: 'unavailable' });
+  });
+
   it.each(['gitdir: ', 'gitdir: bad\npath', `gitdir: ${'x'.repeat(4097)}`])(
     'refuses malformed or oversized identity metadata: %s', (pointer) => {
       const root = realpathSync(mkdtempSync(join(tmpdir(), 'void-event-pointer-')));

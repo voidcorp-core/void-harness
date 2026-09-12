@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { installedPath, remedyPrefix, resolveProjectRoots } from './project-roots.js';
-import { resolveTelemetryRoot } from '../../../hook-runner/src/project-roots.js';
 
 // Measured on 2026-09-02 (run-2026-09-02-chain-b): an autopilot worker in a
 // linked worktree asked `mission dispatch` for its panel and was told "no
@@ -183,7 +182,6 @@ describe('resolveProjectRoots', () => {
 
     expect(roots.installRoot).toBe(realpathSync(child));
     expect(roots.installRoot).not.toContain(join(superproject, '.git'));
-    expect(resolveTelemetryRoot(linked)).toEqual({ kind: 'resolved', root: realpathSync(child) });
   });
 
   it('gives one root in the main checkout of a --separate-git-dir repository', () => {
@@ -193,7 +191,6 @@ describe('resolveProjectRoots', () => {
 
     expect(roots.workRoot).toBe(realpathSync(root));
     expect(roots.installRoot).toBe(roots.workRoot);
-    expect(resolveTelemetryRoot(root)).toEqual({ kind: 'resolved', root: realpathSync(root) });
   });
 
   it('keeps one root from a worktree of a --separate-git-dir repository, where git names no main tree', () => {
@@ -208,7 +205,6 @@ describe('resolveProjectRoots', () => {
     expect(roots.workRoot).toBe(realpathSync(linked));
     expect(roots.installRoot).toBe(roots.workRoot);
     expect(roots.installRoot).not.toMatch(/repo\.git$/);
-    expect(resolveTelemetryRoot(linked)).toMatchObject({ kind: 'unavailable' });
   });
 
   // `init` installs wherever it is run, a linked worktree included. The receipt

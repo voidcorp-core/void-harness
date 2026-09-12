@@ -38,8 +38,8 @@ function withGoverningSkill(rule, message) {
 }
 
 import { spawnSync } from "node:child_process";
-import { existsSync as existsSync5, lstatSync, realpathSync as realpathSync2 } from "node:fs";
-import { join as join5, resolve as resolve4 } from "node:path";
+import { closeSync as closeSync2, existsSync as existsSync5, lstatSync, openSync as openSync2, readSync as readSync2, realpathSync as realpathSync2 } from "node:fs";
+import { dirname as dirname3, isAbsolute as isAbsolute3, join as join5, resolve as resolve4 } from "node:path";
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -1144,16 +1144,58 @@ function mainWorkingTree(cwd, deadline, expectedCommon) {
 function holdsInstallReceipt(root) {
   return existsSync5(voidReadPath(root, "receipts", "install-v1.json"));
 }
+function gitPointer(path) {
+  if (!lstatSync(path).isFile()) throw new Error("INVALID_GIT_POINTER");
+  const file = openSync2(path, "r");
+  try {
+    const bytes = Buffer.alloc(4097);
+    const size = readSync2(file, bytes, 0, bytes.length, 0);
+    if (size > 4096) throw new Error("INVALID_GIT_POINTER");
+    const content = bytes.subarray(0, size);
+    const value = content.toString("utf8").replace(/\r?\n$/, "");
+    if (content.includes(0) || value === "" || /[\r\n]/.test(value)) {
+      throw new Error("INVALID_GIT_POINTER");
+    }
+    return value;
+  } finally {
+    closeSync2(file);
+  }
+}
+function ordinaryLinkedMain(tree) {
+  const marker = join5(tree, ".git");
+  const pointer = gitPointer(marker);
+  if (!pointer.startsWith("gitdir: ")) throw new Error("INVALID_GIT_POINTER");
+  const directory = canonical(resolve4(tree, pointer.slice(8)));
+  if (!existsSync5(join5(directory, "commondir"))) return void 0;
+  const common = canonical(resolve4(directory, gitPointer(join5(directory, "commondir"))));
+  const backlink = gitPointer(join5(directory, "gitdir"));
+  if (!isAbsolute3(backlink) || canonical(backlink) !== canonical(marker) || canonical(dirname3(directory)) !== canonical(join5(common, "worktrees"))) {
+    throw new Error("INVALID_GIT_POINTER");
+  }
+  const candidate = dirname3(common);
+  const candidateMarker = join5(candidate, ".git");
+  if (!lstatSync(candidateMarker, { throwIfNoEntry: false })?.isDirectory() || canonical(candidateMarker) !== common) return void 0;
+  return candidate;
+}
 function resolveTelemetryRoot(cwd) {
-  const tree = canonical(discoverProjectRoot(cwd));
   const refused = { kind: "unavailable", code: "TELEMETRY_ROOT_UNRESOLVED" };
   try {
+    let tree = canonical(cwd);
+    while (lstatSync(join5(tree, ".git"), { throwIfNoEntry: false }) === void 0 && !holdsInstallReceipt(tree)) {
+      const parent = dirname3(tree);
+      if (parent === tree) {
+        return { kind: "resolved", root: canonical(discoverProjectRoot(cwd)) };
+      }
+      tree = parent;
+    }
     const marker = join5(tree, ".git");
     const markerStat = lstatSync(marker, { throwIfNoEntry: false });
     if (markerStat?.isSymbolicLink()) return refused;
     if (markerStat === void 0 || markerStat.isDirectory() || holdsInstallReceipt(tree)) {
       return { kind: "resolved", root: tree };
     }
+    const ordinary = ordinaryLinkedMain(tree);
+    if (ordinary !== void 0) return { kind: "resolved", root: ordinary };
     const deadline = performance.now() + 100;
     const [toplevel, directory, common] = git(tree, [
       "rev-parse",
@@ -1174,7 +1216,7 @@ function resolveTelemetryRoot(cwd) {
 }
 
 import { mkdirSync, readFileSync as readFileSync5, renameSync, writeFileSync } from "node:fs";
-import { dirname as dirname3, join as join6 } from "node:path";
+import { dirname as dirname4, join as join6 } from "node:path";
 var CACHE_TTL_MS = 24 * 60 * 60 * 1e3;
 var isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 function cacheFilePath(env) {
@@ -1215,7 +1257,7 @@ async function writeFreshnessCache(env, entry) {
   if (path === void 0) return void 0;
   const tmp = `${path}.${process.pid}.tmp`;
   try {
-    mkdirSync(dirname3(path), { recursive: true });
+    mkdirSync(dirname4(path), { recursive: true });
     writeFileSync(tmp, JSON.stringify({ latest: entry.latest, checkedAt: entry.checkedAt }), "utf8");
     renameSync(tmp, path);
   } catch {
@@ -1397,7 +1439,7 @@ function freshnessRelay(freshness, source) {
 }
 
 import { existsSync as existsSync6, mkdirSync as mkdirSync2, readFileSync as readFileSync8, readdirSync as readdirSync2, renameSync as renameSync2, writeFileSync as writeFileSync2 } from "node:fs";
-import { dirname as dirname4, join as join9 } from "node:path";
+import { dirname as dirname5, join as join9 } from "node:path";
 
 import { lstatSync as lstatSync2, readFileSync as readFileSync7, readdirSync, statSync as statSync2 } from "node:fs";
 import { join as join8 } from "node:path";
@@ -1721,7 +1763,7 @@ function refreshInvocationVerdict(root) {
       livenessVerdict(journals)
     );
     const entry = alert === void 0 ? { fingerprint } : { fingerprint, alert };
-    mkdirSync2(dirname4(path), { recursive: true });
+    mkdirSync2(dirname5(path), { recursive: true });
     const temporary = `${path}.${process.pid}.tmp`;
     writeFileSync2(temporary, `${JSON.stringify(entry)}
 `);
@@ -1766,13 +1808,13 @@ ${resumeContext.trimEnd()}`;
 
 import { createHash as createHash2 } from "node:crypto";
 import {
-  closeSync as closeSync2,
+  closeSync as closeSync3,
   constants as constants2,
   fstatSync,
   lstatSync as lstatSync4,
   mkdirSync as mkdirSync3,
-  openSync as openSync2,
-  readSync as readSync2,
+  openSync as openSync3,
+  readSync as readSync3,
   realpathSync as realpathSync4,
   renameSync as renameSync3,
   statSync as statSync3,
@@ -1780,7 +1822,7 @@ import {
   writeSync
 } from "node:fs";
 import { homedir } from "node:os";
-import { basename as basename3, isAbsolute as isAbsolute4, join as join11, relative as relative4, resolve as resolve5 } from "node:path";
+import { basename as basename3, isAbsolute as isAbsolute5, join as join11, relative as relative4, resolve as resolve5 } from "node:path";
 
 import { createHash } from "node:crypto";
 var PROSE_SECTIONS = {
@@ -2391,7 +2433,7 @@ import {
   readFileSync as readFileSync9,
   realpathSync as realpathSync3
 } from "node:fs";
-import { delimiter, isAbsolute as isAbsolute3, join as join10, relative as relative3 } from "node:path";
+import { delimiter, isAbsolute as isAbsolute4, join as join10, relative as relative3 } from "node:path";
 function record3(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
 }
@@ -2401,7 +2443,7 @@ function boundedInteger(value, fallback, min, max) {
 }
 function within(root, target) {
   const rel = relative3(root, target);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute3(rel);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute4(rel);
 }
 function executable(path) {
   try {
@@ -2412,7 +2454,7 @@ function executable(path) {
   }
 }
 function findExecutable(name, root, env) {
-  if ((isAbsolute3(name) || name.includes("/") || name.includes("\\")) && executable(name)) {
+  if ((isAbsolute4(name) || name.includes("/") || name.includes("\\")) && executable(name)) {
     return name;
   }
   const suffixes = process.platform === "win32" ? ["", ".cmd", ".exe", ".bat"] : [""];
@@ -2467,7 +2509,7 @@ function rawCheckpoint(path) {
   try {
     const info = lstatSync4(path);
     if (!info.isFile() || info.isSymbolicLink() || info.size > MAX_CHECKPOINT_BYTES) return void 0;
-    descriptor = openSync2(
+    descriptor = openSync3(
       path,
       constants2.O_RDONLY | constants2.O_NONBLOCK | (constants2.O_NOFOLLOW ?? 0)
     );
@@ -2477,7 +2519,7 @@ function rawCheckpoint(path) {
   } catch (error) {
     return errorCode(error) === "ENOENT" ? "" : void 0;
   } finally {
-    if (descriptor !== void 0) closeSync2(descriptor);
+    if (descriptor !== void 0) closeSync3(descriptor);
   }
 }
 function initialState(raw) {
@@ -2521,7 +2563,7 @@ function staleFile(info, now) {
 }
 function openExclusive(path) {
   try {
-    const descriptor = openSync2(
+    const descriptor = openSync3(
       path,
       constants2.O_WRONLY | constants2.O_CREAT | constants2.O_EXCL | (constants2.O_NOFOLLOW ?? 0),
       384
@@ -2534,7 +2576,7 @@ function openExclusive(path) {
 }
 function releaseLock(path, lock) {
   try {
-    closeSync2(lock.descriptor);
+    closeSync3(lock.descriptor);
   } finally {
     unlinkOwnedPath(path, lock);
   }
@@ -2612,7 +2654,7 @@ function acquireRecoveryFence(path, now) {
   return void 0;
 }
 function releaseRecoveryFence(fence) {
-  closeSync2(fence.tip.descriptor);
+  closeSync3(fence.tip.descriptor);
   for (const claim of [...fence.claims].reverse()) unlinkOwnedPath(claim.path, claim);
 }
 function claimStaleLock(path, observed, now) {
@@ -2667,7 +2709,7 @@ function anchorMachineDirectory(root) {
   let changedDirectory = false;
   let anchorEstablished = false;
   try {
-    descriptor = openSync2(
+    descriptor = openSync3(
       directory,
       constants2.O_RDONLY | (constants2.O_DIRECTORY ?? 0) | (constants2.O_NOFOLLOW ?? 0)
     );
@@ -2684,7 +2726,7 @@ function anchorMachineDirectory(root) {
   } finally {
     if (descriptor !== void 0 && !anchorEstablished) {
       if (changedDirectory) process.chdir(previousCwd);
-      closeSync2(descriptor);
+      closeSync3(descriptor);
     }
   }
 }
@@ -2692,7 +2734,7 @@ function releaseMachineDirectory(anchor) {
   try {
     process.chdir(anchor.previousCwd);
   } finally {
-    closeSync2(anchor.descriptor);
+    closeSync3(anchor.descriptor);
   }
 }
 function atomicCheckpointWrite(content, now) {
@@ -2701,7 +2743,7 @@ function atomicCheckpointWrite(content, now) {
   let owned;
   let renamed = false;
   try {
-    descriptor = openSync2(
+    descriptor = openSync3(
       temporary,
       constants2.O_WRONLY | constants2.O_CREAT | constants2.O_EXCL | (constants2.O_NOFOLLOW ?? 0),
       384
@@ -2715,7 +2757,7 @@ function atomicCheckpointWrite(content, now) {
       if (written <= 0) return false;
       offset += written;
     }
-    closeSync2(descriptor);
+    closeSync3(descriptor);
     descriptor = void 0;
     renameSync3(temporary, "checkpoint.md");
     renamed = true;
@@ -2723,7 +2765,7 @@ function atomicCheckpointWrite(content, now) {
   } catch {
     return false;
   } finally {
-    if (descriptor !== void 0) closeSync2(descriptor);
+    if (descriptor !== void 0) closeSync3(descriptor);
     if (!renamed && owned !== void 0) {
       try {
         const current = lstatSync4(temporary);
@@ -2801,7 +2843,7 @@ function openBoundedRegularFile(path, maxBytes, allowedRoots) {
     if (!before.isFile() || before.isSymbolicLink() || before.size > maxBytes) return void 0;
     const canonicalPath = realpathSync4(path);
     if (!allowedRoots.some((root) => within(root, canonicalPath))) return void 0;
-    descriptor = openSync2(
+    descriptor = openSync3(
       path,
       constants2.O_RDONLY | constants2.O_NONBLOCK | (constants2.O_NOFOLLOW ?? 0)
     );
@@ -2809,12 +2851,12 @@ function openBoundedRegularFile(path, maxBytes, allowedRoots) {
     const currentPath = realpathSync4(path);
     const current = statSync3(currentPath);
     if (!opened.isFile() || opened.size > maxBytes || currentPath !== canonicalPath || opened.dev !== current.dev || opened.ino !== current.ino || !allowedRoots.some((root) => within(root, currentPath))) {
-      closeSync2(descriptor);
+      closeSync3(descriptor);
       return void 0;
     }
     return { descriptor, canonicalPath, size: opened.size };
   } catch {
-    if (descriptor !== void 0) closeSync2(descriptor);
+    if (descriptor !== void 0) closeSync3(descriptor);
     return void 0;
   }
 }
@@ -2822,7 +2864,7 @@ function readBoundedDescriptor(descriptor, maxBytes) {
   const bytes = Buffer.alloc(maxBytes + 1);
   let offset = 0;
   while (offset < bytes.length) {
-    const count = readSync2(descriptor, bytes, offset, bytes.length - offset, offset);
+    const count = readSync3(descriptor, bytes, offset, bytes.length - offset, offset);
     if (count === 0) break;
     offset += count;
   }
@@ -2847,7 +2889,7 @@ function usageFromLine(line) {
   }
 }
 function observeTranscript(path, state, input, root, runtime3) {
-  if (path === "" || path.length > 4096 || path.includes("\0") || !isAbsolute4(path)) {
+  if (path === "" || path.length > 4096 || path.includes("\0") || !isAbsolute5(path)) {
     return void 0;
   }
   let descriptor;
@@ -2871,7 +2913,7 @@ function observeTranscript(path, state, input, root, runtime3) {
     const readStart = available > MAX_TRANSCRIPT_BYTES ? opened.size - MAX_TRANSCRIPT_BYTES : previousCursor;
     const requested = Math.min(MAX_TRANSCRIPT_BYTES, opened.size - readStart);
     const bytes = Buffer.alloc(requested);
-    const bytesRead = readSync2(descriptor, bytes, 0, requested, readStart);
+    const bytesRead = readSync3(descriptor, bytes, 0, requested, readStart);
     const bounded = bytes.subarray(0, bytesRead);
     let contentStart = 0;
     let skippedBytes = Math.max(0, readStart - previousCursor);
@@ -2919,7 +2961,7 @@ function observeTranscript(path, state, input, root, runtime3) {
   } catch {
     return void 0;
   } finally {
-    if (descriptor !== void 0) closeSync2(descriptor);
+    if (descriptor !== void 0) closeSync3(descriptor);
   }
 }
 function contextConfig(root) {
@@ -2938,7 +2980,7 @@ function contextConfig(root) {
   } catch {
     return void 0;
   } finally {
-    if (descriptor !== void 0) closeSync2(descriptor);
+    if (descriptor !== void 0) closeSync3(descriptor);
   }
 }
 function thresholdConfig(root) {
@@ -3053,9 +3095,9 @@ function successfulToolUse(input) {
 }
 function boundedProjectPath(root, candidate) {
   if (candidate === "" || candidate.length > 500 || candidate.includes(MECHANICAL_BEGIN2) || candidate.includes(MECHANICAL_END2) || [...candidate].some((character) => character.charCodeAt(0) < 32)) return void 0;
-  const target = isAbsolute4(candidate) ? resolve5(candidate) : resolve5(root, candidate);
+  const target = isAbsolute5(candidate) ? resolve5(candidate) : resolve5(root, candidate);
   const local = relative4(resolve5(root), target);
-  if (local === "" || local.startsWith("..") || isAbsolute4(local)) return void 0;
+  if (local === "" || local.startsWith("..") || isAbsolute5(local)) return void 0;
   return local.split("\\").join("/");
 }
 function toolPaths(call, root) {
@@ -3180,14 +3222,14 @@ function resolveInstall(root, env) {
 import { spawnSync as spawnSync2 } from "node:child_process";
 
 import {
-  isAbsolute as isAbsolute5,
+  isAbsolute as isAbsolute6,
   relative as relative5,
   resolve as resolve6
 } from "node:path";
 var FORMATTABLE = /\.(?:ts|tsx|js|jsx|mjs|cjs|json|jsonc|css)$/;
 function within2(root, target) {
   const rel = relative5(root, target);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute5(rel);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute6(rel);
 }
 function formatCandidates(touchedPaths, projectRoot2) {
   const root = resolve6(projectRoot2);
@@ -3701,8 +3743,8 @@ import { join as join16 } from "node:path";
 import { spawnSync as spawnSync4 } from "node:child_process";
 
 import {
-  dirname as dirname5,
-  isAbsolute as isAbsolute6,
+  dirname as dirname6,
+  isAbsolute as isAbsolute7,
   join as join15,
   relative as relative7,
   resolve as resolve7
@@ -3794,7 +3836,7 @@ function configuredTypecheck(value) {
 }
 function within3(root, target) {
   const rel = relative7(root, target);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute6(rel);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute7(rel);
 }
 function nearestTsconfigs(changedPaths, projectRoot2, hasFile) {
   const root = resolve7(projectRoot2);
@@ -3803,7 +3845,7 @@ function nearestTsconfigs(changedPaths, projectRoot2, hasFile) {
     if (!/\.(?:ts|tsx)$/.test(changedPath) || changedPath.endsWith(".d.ts")) continue;
     const target = resolve7(root, changedPath);
     if (!within3(root, target)) continue;
-    let current = dirname5(target);
+    let current = dirname6(target);
     while (within3(root, current)) {
       const config = join15(current, "tsconfig.json");
       if (hasFile(config)) {
@@ -3811,7 +3853,7 @@ function nearestTsconfigs(changedPaths, projectRoot2, hasFile) {
         break;
       }
       if (current === root) break;
-      current = dirname5(current);
+      current = dirname6(current);
     }
   }
   return [...found];
@@ -3949,7 +3991,7 @@ import { createHash as createHash4 } from "node:crypto";
 import {
   basename as basename5,
   extname,
-  isAbsolute as isAbsolute7,
+  isAbsolute as isAbsolute8,
   relative as relative8,
   resolve as resolve8
 } from "node:path";
@@ -4006,12 +4048,12 @@ function safePaths(input, root) {
   const paths = [];
   for (const candidate of candidates) {
     if (typeof candidate !== "string" || candidate.length > 2e3) continue;
-    if (!isAbsolute7(candidate)) {
+    if (!isAbsolute8(candidate)) {
       if (!candidate.startsWith("..")) paths.push(candidate.slice(0, 500));
       continue;
     }
     const rel = relative8(absoluteRoot, resolve8(candidate));
-    if (rel !== "" && !rel.startsWith("..") && !isAbsolute7(rel)) {
+    if (rel !== "" && !rel.startsWith("..") && !isAbsolute8(rel)) {
       paths.push(rel.slice(0, 500));
     }
   }
@@ -4084,8 +4126,8 @@ import {
   unlink
 } from "node:fs/promises";
 import {
-  dirname as dirname6,
-  isAbsolute as isAbsolute8,
+  dirname as dirname7,
+  isAbsolute as isAbsolute9,
   join as join17,
   relative as relative9,
   resolve as resolve9
@@ -4340,7 +4382,7 @@ function code(error) {
 }
 function within4(root, target) {
   const rel = relative9(root, target);
-  return rel === "" || !rel.startsWith("..") && !isAbsolute8(rel);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute9(rel);
 }
 async function exists(path) {
   try {
@@ -4360,7 +4402,7 @@ async function safeRunDirectory(root, missionId) {
   const run = voidReadPath(absoluteRoot, "runs", missionId);
   let ancestor = run;
   while (!await exists(ancestor)) {
-    const parent = dirname6(ancestor);
+    const parent = dirname7(ancestor);
     if (parent === ancestor) break;
     ancestor = parent;
   }
