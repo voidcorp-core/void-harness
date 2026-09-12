@@ -510,9 +510,7 @@ describe('a hook fired from a worktree', () => {
     }
   });
 
-  // And without it, the same hook writes into the tree that gets deleted. The
-  // refusal to set it is what costs the evidence, so the cost is measured here.
-  it('falls back to the worktree it discovered when no root is exported', () => {
+  it('keeps native worker events in the main repository without exported roots', () => {
     const { main, worktree } = repositoryWithWorktree();
     try {
       // Annotated and indexed: a spread of `process.env` narrows to the keys it
@@ -521,15 +519,17 @@ describe('a hook fired from a worktree', () => {
       const env: NodeJS.ProcessEnv = { ...process.env, VOID_MISSION_ID: 'mis_bbbbbbbbbbbbbbbb' };
       delete env['VOID_PROJECT_ROOT'];
       delete env['CLAUDE_PROJECT_DIR'];
-      spawnSync(process.execPath, [hook, 'activation', 'codex'], {
+      const done = spawnSync(process.execPath, [hook, 'activation', 'codex'], {
         input: '{}',
         encoding: 'utf8',
         cwd: worktree,
         env,
       });
 
-      expect(runsIn(worktree)).toContain('mis_bbbbbbbbbbbbbbbb');
-      expect(runsIn(main)).not.toContain('mis_bbbbbbbbbbbbbbbb');
+      expect(done.status).toBe(0);
+      expect(done.stderr).toBe('');
+      expect(runsIn(main)).toContain('mis_bbbbbbbbbbbbbbbb');
+      expect(runsIn(worktree)).toEqual([]);
     } finally {
       rmSync(main, { recursive: true, force: true });
     }
