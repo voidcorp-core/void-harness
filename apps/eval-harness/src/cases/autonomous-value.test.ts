@@ -3,8 +3,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { parseAutonomousValueManifest } from './autonomous-value.js';
 import { loadFixture } from '../fixture-loader.js';
+import { parseAutonomousValueManifest } from './autonomous-value.js';
 
 type RawCell = Record<string, unknown>;
 type RawManifest = {
@@ -49,7 +49,8 @@ function makeManifest(): RawManifest {
 }
 
 function digestFixture(path: string): string {
-  const files = loadFixture(path, ['task.md']);
+  const directory = resolve(AUTONOMOUS_FIXTURE_ROOT, path.replace(/^autonomous-value\//, ''));
+  const files = loadFixture(path, readdirSync(directory).sort());
   const canonical = JSON.stringify(
     Object.entries(files).sort(([left], [right]) => left.localeCompare(right)),
   );
@@ -202,8 +203,11 @@ describe('autonomous value manifest', () => {
 
   it('keeps the committed fixture inventory bounded and free of secret-shaped content', () => {
     expect(fixtureFiles()).toEqual([
+      'autopilot/integration-target.md',
       'autopilot/task.md',
+      'brainstorm/brainstorm-target.md',
       'brainstorm/task.md',
+      'implement/correction-target.md',
       'implement/task.md',
     ]);
 

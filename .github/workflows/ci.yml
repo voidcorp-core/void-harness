@@ -14,6 +14,24 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  native-doctor:
+    name: native doctor (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Rust format
+        run: cargo fmt --manifest-path native/void-machine/Cargo.toml --all -- --check
+      - name: Rust tests
+        run: cargo test --manifest-path native/void-machine/Cargo.toml --workspace
+      - name: Rust clippy
+        run: cargo clippy --manifest-path native/void-machine/Cargo.toml --workspace --all-targets -- -D warnings
+      - name: Native skill check
+        run: cargo run --quiet --manifest-path native/void-machine/crates/cli/Cargo.toml -- skill check native/void-machine/fixtures/read-only-skill --json
+
   consumer-artifact:
     name: packed consumer artifact
     runs-on: ubuntu-latest

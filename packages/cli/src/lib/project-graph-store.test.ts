@@ -1,10 +1,14 @@
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { type GraphSnapshotV3, sealGraphSnapshot } from '@voidcorp/harness-graph';
 import { describe, expect, it } from 'vitest';
-import type { GraphSnapshotV3 } from '@voidcorp/harness-graph';
 import {
   openProjectGraphStore,
-  runProjectQuery,
   type ProjectGraphStore,
+  runProjectQuery,
 } from './project-graph-store.js';
+import { writeProjectKnowledge } from './project-knowledge.js';
 
 const PROVENANCE = {
   origin: 'extracted' as const,
@@ -344,6 +348,29 @@ describe('runProjectQuery — budget and fallback', () => {
 });
 
 describe('openProjectGraphStore', () => {
+  it('answers from a valid knowledge artifact without rebuilding the graph', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'project-graph-store-'));
+    const snapshot = sealGraphSnapshot({
+      schemaVersion: 3,
+      graphId: 'project:current',
+      graphType: 'project',
+      source: { kind: 'native', version: 'project-extraction-v1' },
+      nodes: [], edges: [], hyperedges: [],
+    });
+    await writeProjectKnowledge(root, { graph: snapshot, state: 'fresh' });
+    let rebuilt = false;
+
+    const opened = await openProjectGraphStore(root, {
+      build: async () => {
+        rebuilt = true;
+        throw new Error('the fresh artifact should be sufficient');
+      },
+    });
+
+    expect(rebuilt).toBe(false);
+    expect(opened.graph.source.rootHash).toBe(snapshot.source.rootHash);
+  });
+
   it('carries the build state and observation the queries need', async () => {
     const opened = await openProjectGraphStore('/repo', {
       build: async () => ({ graph: graph(), state: 'fresh' as const, issues: [] }),

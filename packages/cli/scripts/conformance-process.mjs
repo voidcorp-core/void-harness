@@ -179,6 +179,26 @@ export function requireConformanceExit(result, label, expectedCodes = [0]) {
   ].filter(Boolean).join('\n'));
 }
 
+function reportConformanceStep(event) {
+  process.stdout.write(`${JSON.stringify(event)}\n`);
+}
+
+export async function runConformanceStep(label, options, report = reportConformanceStep) {
+  const started = performance.now();
+  report({ phase: 'started', label });
+  const result = await runConformanceProcess(options);
+  report({ phase: 'finished', label, outcome: result.outcome.kind,
+    code: result.outcome.code, durationMs: Math.round(performance.now() - started) });
+  return requireConformanceExit(result, label);
+}
+
+export async function runConformanceSuites(suites, run) {
+  for (const suite of suites) {
+    const failure = await run(suite);
+    if (failure !== undefined) throw new Error(`consumer conformance: ${failure}`);
+  }
+}
+
 function windowsNpmCli(options) {
   const pathValue = options.environment.PATH
     ?? options.environment.Path

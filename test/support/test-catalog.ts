@@ -38,6 +38,7 @@ const SKIPPED_DIRECTORIES = new Set([
   'dist',
   'dist-singlefile',
   'node_modules',
+  'target',
 ]);
 
 const SYSTEM_PREFIXES = ['test/autopilot/', 'test/cli/'];

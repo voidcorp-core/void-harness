@@ -1,0 +1,9 @@
+[package]
+name = "void-machine-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+void-machine-core = { path = "../core" }
+

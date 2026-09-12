@@ -1,4 +1,5 @@
 import { RULE_NAMES, withGoverningSkill } from './enforcement/governing-skill.js';
+import { resolveTelemetryRoot, type TelemetryRoot } from './project-roots.js';
 import {
   discoverProjectRoot,
   evaluateRule,
@@ -104,6 +105,15 @@ async function refreshFreshnessInBackground(installed: string): Promise<void> {
   }
 }
 
+let telemetryDestination: TelemetryRoot | undefined;
+
+function reportTelemetryFailure(error: unknown): void {
+  const unresolved = error instanceof Error && error.message === 'TELEMETRY_ROOT_UNRESOLVED';
+  process.stderr.write(unresolved
+    ? 'TELEMETRY_ROOT_UNRESOLVED: cannot verify journal destination; check Git worktree metadata and Git availability.\n'
+    : 'TELEMETRY_WRITE_FAILED: journal was not recorded; check journal access and storage.\n');
+}
+
 async function observeHook(
   hook: string,
   execution: Omit<LifecycleExecution, 'status'> & {
@@ -113,19 +123,27 @@ async function observeHook(
   agentRuntime: AgentRuntime,
   root: string,
 ): Promise<void> {
-  await recordHookEvent({
-    root,
-    runtime: agentRuntime,
-    hook,
-    status: execution.status,
-    rawInput,
-    details: execution.details,
-    ...(process.env['VOID_MISSION_ID'] === undefined
-      ? {}
-      : { missionId: process.env['VOID_MISSION_ID'] }),
-  }).catch(() => {
-    // Observability is advisory and must never alter hook behavior.
-  });
+  try {
+    const explicitRoot = process.env['VOID_PROJECT_ROOT'] ?? process.env['CLAUDE_PROJECT_DIR'];
+    telemetryDestination ??= explicitRoot === undefined
+      ? resolveTelemetryRoot(root)
+      : { kind: 'resolved', root: explicitRoot };
+    if (telemetryDestination.kind === 'unavailable') throw new Error(telemetryDestination.code);
+    await recordHookEvent({
+      root: telemetryDestination.root,
+      runtime: agentRuntime,
+      hook,
+      status: execution.status,
+      rawInput,
+      details: execution.details,
+      ...(process.env['VOID_MISSION_ID'] === undefined
+        ? {}
+        : { missionId: process.env['VOID_MISSION_ID'] }),
+    });
+  } catch (error) {
+    // Report loss without changing the enforcement verdict or stdout protocol.
+    reportTelemetryFailure(error);
+  }
 }
 
 async function runLifecycle(input: Uint8Array): Promise<void> {
@@ -256,8 +274,8 @@ async function main(): Promise<void> {
         process.argv,
         process.env,
       );
-    } catch {
-      // Telemetry is advisory and must never block a runtime tool call.
+    } catch (error) {
+      reportTelemetryFailure(error);
     }
     return;
   }

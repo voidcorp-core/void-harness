@@ -19,25 +19,27 @@ checkout.
 Subagents share filesystem access. The isolation is the pre-created worktree and
 the explicit working directory you pass, never an assumed sandbox.
 
-### `VOID_PROJECT_ROOT` in every subagent's environment
+### Durable journal destination without spawn environment injection
 
-Set `VOID_PROJECT_ROOT` to the installation root — the directory this adapter is
-running in, which is where the controller created the worktrees from — in the
-process environment of every subagent you spawn.
+The native spawn interface exposes no environment parameter. Do not invent one
+or ask a worker to export a variable in a shell: that cannot configure runtime
+hooks. `VOID_PROJECT_ROOT` and `CLAUDE_PROJECT_DIR` remain optional compatible
+inputs for runtimes that already provide them, not prerequisites for spawning.
 
-The hooks resolve where to write their telemetry from `VOID_PROJECT_ROOT`, else
-`CLAUDE_PROJECT_DIR`, else the git toplevel they discover. A Codex subagent has
-neither variable, so it discovers the toplevel of the worktree it is working in,
-and the reconciler deletes that worktree at the end of the run: the run's hook
-telemetry is gone before anyone reads the pull request, while the same run's
-mission journal sits in the main checkout. One run, two halves, one deleted.
+The hook runner resolves the telemetry destination from verified Git repository
+identity. A linked worker without an independent installation writes canonical
+events under the main installation; enforcement still reads the worker tree.
+Unknown identity and a failed journal write emit separate bounded diagnostics.
+No successful tool call is proof that its telemetry was recorded.
 
-It has to be the environment you spawn with, not a line in the brief. An `export`
-the agent runs in a shell call does not reach the process the runtime launches
-hooks in, which is the one that writes. The Claude adapter sets nothing here
-because it cannot and does not need to: the Workflow `agent()` primitive takes no
-environment option, and the runtime already puts the session's project — the main
-checkout — in `CLAUDE_PROJECT_DIR`, which every subagent inherits.
+Before admitting workers, observe the actual installed hook without root
+overrides from a separate worktree and verify the event at the installation.
+If it cannot establish centralized telemetry, report `unsupported-runtime`
+before claiming tickets. Do not replace the active released safety floor with
+working-tree output to make this check pass.
+
+See [official native subagents](https://developers.openai.com/codex/subagents).
+The available tool schema is the authority for launch parameters.
 
 ## Execution
 
@@ -49,6 +51,18 @@ checkout — in `CLAUDE_PROJECT_DIR`, which every subagent inherits.
    the point.
 3. Each subagent gets exactly one assignment: `worktreePath` as its working
    directory, `branch` as its already-checked-out branch, and the ticket id.
+
+## Orchestrator-owned panel
+
+`OrchestrationPlan.panelProvider` is `orchestrator`. The worker never dispatches
+its own specialists. Before each ticket writer starts, the orchestrator fans out
+the CLI-selected specialist envelopes with `parallel`, one fresh context per
+envelope, and preserves each `inputHash` in the returned verdict. The writer
+receives those verdicts as its correction brief and returns
+`{ provider: "orchestrator", rounds: [...] }` in `WorkerResult.panel`. A later round contains only envelopes whose
+input hash changed; after three rounds the unit is blocked with the unresolved
+verdicts. A missing panel envelope is an empty panel result, never an invitation
+for the worker to invent a specialist or a review mode.
 
 ## The worker instruction
 

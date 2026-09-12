@@ -17,13 +17,13 @@ import { execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { voidReadPath } from '@voidcorp/hook-runner';
 import { fileURLToPath } from 'node:url';
+import type { CostRow, GraphModel, GraphSnapshotV3 } from '@voidcorp/harness-graph';
 import {
+  adaptCatalogV1,
   analyze,
   analyzeBehavior,
   analyzeCost,
-  adaptCatalogV1,
   assembleModel,
   blockingFindings,
   DEFAULT_PRICING,
@@ -35,34 +35,38 @@ import {
   serializeGraphSnapshot,
   serializeModel,
 } from '@voidcorp/harness-graph';
-import type { CostRow, GraphModel, GraphSnapshotV3 } from '@voidcorp/harness-graph';
+import { buildProjectGraph, DEFAULT_PROJECT_QUERY_BUDGET } from '@voidcorp/harness-graph/project';
+import { voidReadPath } from '@voidcorp/hook-runner';
 import { BUNDLED_MODEL_JSON, resolveBundledModel } from '../lib/bundled-model.js';
 import { BUNDLED_STUDIO_HTML } from '../lib/bundled-studio.js';
-import { readSessionCosts } from '../lib/transcript-cost.js';
-import { startLiveServer } from '../lib/graph-live-server.js';
-import { findCoreSource } from '../lib/paths.js';
-import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
 import {
   loadSkillUsage,
   loadTelemetryStream,
   usedSkillNames,
 } from '../lib/graph-io.js';
+import { startLiveServer } from '../lib/graph-live-server.js';
+import { findCoreSource } from '../lib/paths.js';
 import {
   openProjectGraphStore,
-  ProjectGraphStoreError,
   PROJECT_QUERY_NAMES,
-  projectQueryArity,
-  runProjectQuery,
   type ProjectGraphStore,
+  ProjectGraphStoreError,
   type ProjectQueryName,
   type ProjectQueryProblem,
+  projectQueryArity,
+  runProjectQuery,
 } from '../lib/project-graph-store.js';
-import { DEFAULT_PROJECT_QUERY_BUDGET } from '@voidcorp/harness-graph/project';
+import {
+	checkProjectKnowledge,
+	writeProjectKnowledge,
+} from '../lib/project-knowledge.js';
 import { discoverConfiguredProjects } from '../lib/projects/catalog.js';
+import { banner, blank, c, footer, glyph, line } from '../lib/render.js';
 import {
   mergeCanonicalTelemetry,
   mergeTelemetry,
 } from '../lib/rollup.js';
+import { readSessionCosts } from '../lib/transcript-cost.js';
 
 /**
  * Load a telemetry stream body: the cross-project merge when `--all-projects` is
@@ -319,6 +323,32 @@ export async function graph(
   } = {},
 ): Promise<void> {
   const sub = args[0] ?? 'build';
+
+  if (sub === 'project-build' || sub === 'knowledge-build') {
+    const built = await buildProjectGraph({ root: process.cwd() });
+    const written = await writeProjectKnowledge(process.cwd(), built);
+    banner('graph project-build');
+    blank();
+    line(`  ${c.green('knowledge artifact written')} ${c.dim(glyph.dot)} ${written.artifact.state} ${c.dim(glyph.dot)} ${fmtK(written.bytes)}B`);
+    line(`  ${c.dim('root hash')} ${written.artifact.rootHash}`);
+    footer(c.dim('generated from the project graph; the observation cache remains disposable.'));
+    return;
+  }
+
+  if (sub === 'project-check' || sub === 'knowledge-check') {
+    const result = await checkProjectKnowledge(process.cwd());
+    banner('graph project-check');
+    blank();
+    if (!result.ok) {
+      line(`  ${c.red(result.reason ?? 'knowledge artifact is stale')}`);
+      line(`  ${c.dim('-> void-harness graph project-build')}`);
+      footer(c.red('graph project-check failed.'));
+      process.exit(1);
+    }
+    line(`  ${c.green('knowledge artifact is current')} ${c.dim(glyph.dot)} ${fmtK(result.bytes ?? 0)}B`);
+    footer(c.green('project knowledge freshness check passed.'));
+    return;
+  }
 
   // Project queries are answered from the project's own graph, so they need
   // neither the harness source tree nor the bundled model, and are dispatched

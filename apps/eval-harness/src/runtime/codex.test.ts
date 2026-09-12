@@ -3,12 +3,17 @@ import {
   buildCodexSpecialistInvocation,
   codexAgentInstructions,
   parseCodexSpecialistRun,
+  DEFAULT_CODEX_ADAPTER,
 } from './codex.js';
 import { specialistCompletion } from './test-fixtures.js';
 
 const HASH = `sha256:${'b'.repeat(64)}`;
 
 describe('Codex specialist runtime adapter', () => {
+  it('fails fast by default instead of silently repeating a subscription run', () => {
+    expect(DEFAULT_CODEX_ADAPTER.retries).toBe(0);
+  });
+
   it('runs the installed agent contract in its own read-only ephemeral session', () => {
     const invocation = buildCodexSpecialistInvocation({
       specialistName: 'solution-architect',

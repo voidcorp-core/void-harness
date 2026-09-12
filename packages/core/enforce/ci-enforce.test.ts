@@ -217,6 +217,11 @@ describe('ci-enforce — clean diff is green', () => {
     );
     write(
       repo,
+      '.void/knowledge.json',
+      `{"kind":"project-knowledge","snapshot":"${'x'.repeat(1_100_000)}"}\n`,
+    );
+    write(
+      repo,
       'packages/hook-runner/src/rules/secret-content.ts',
       'export const detector = true;\n',
     );
@@ -230,7 +235,7 @@ describe('ci-enforce — clean diff is green', () => {
 
     const { code, stdout } = run(repo, base);
     expect(code).toBe(0);
-    expect(stdout.match(/skipped/g)).toHaveLength(3);
+    expect(stdout.match(/skipped/g)).toHaveLength(4);
   });
 });
 

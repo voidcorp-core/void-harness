@@ -30,7 +30,7 @@ target of a redirection, and a sibling test already asserts each one still ships
 | `void-graph` | `apps/graph-studio/scripts/prepare-data.ts`<br>`apps/graph-studio/vite.config.ts`<br>`packages/cli/scripts/build-void-graph.ts`<br>`packages/cli/scripts/copy-core-assets.mjs`<br>`packages/cli/src/commands/graph.ts`<br>`packages/cli/src/lib/build-bundle.ts`<br>`packages/cli/src/lib/bundled-model.ts`<br>`packages/cli/src/lib/self-host/compile.ts`<br>`packages/cli/src/void-graph.ts`<br>`scripts/build-skill-references.mjs`<br>`scripts/derive.mjs`<br>`scripts/verify.mjs` |
 | `void-hexagonal-architecture` | `packages/hook-runner/src/enforcement/governing-skill.ts` |
 | `void-implement` | `packages/cli/src/lib/autopilot/panel-proof.ts`<br>`packages/cli/src/lib/claude-md.ts` |
-| `void-learn` | `packages/cli/src/lib/claude-md.ts` |
+| `void-learn` | `packages/cli/src/lib/claude-md.ts`<br>`packages/hook-runner/src/rules/protected-file.ts` |
 | `void-observability` | `packages/hook-runner/src/enforcement/governing-skill.ts` |
 | `void-security-guidance` | `packages/hook-runner/src/enforcement/governing-skill.ts` |
 | `void-tdd` | `packages/cli/scripts/conformance-install.mjs`<br>`packages/cli/src/commands/init.ts`<br>`packages/cli/src/lib/claude-md.ts`<br>`packages/cli/src/lib/self-host/doctor.ts`<br>`packages/harness-graph/src/behavior/index.ts`<br>`packages/hook-runner/src/enforcement/governing-skill.ts`<br>`packages/hook-runner/src/invocation.ts` |
@@ -60,6 +60,8 @@ says which it is.
 | `void-journal-anchor` | reserved basename of a change-journal sentinel |
 | `void-last-event-id` | graph studio live-render cursor |
 | `void-layout` | module owning the void directory layout |
+| `void-machine-legacy` | portable legacy conformance contract family |
+| `void-machine` | native doctor compatibility binary |
 | `void-mission-presentation-v1` | presentation workspace owner metadata |
 | `void-migration` | name of the void layout migration check |
 | `void-probe` | observed write path written by the hook probe |

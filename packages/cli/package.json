@@ -27,7 +27,8 @@
   "type": "module",
   "bin": {
     "void-harness": "./bin/void-harness.mjs",
-    "vh": "./bin/void-harness.mjs"
+    "vh": "./bin/void-harness.mjs",
+    "void-machine": "./bin/void-machine.mjs"
   },
   "files": [
     "bin",

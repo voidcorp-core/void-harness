@@ -1,4 +1,4 @@
-import { verifySealedCellEvidence, type SealedCellEvidence } from './evidence.js';
+import { type SealedCellEvidence, verifySealedCellEvidence } from './evidence.js';
 
 export const MAX_CORRECTION_CYCLES = 3;
 
@@ -23,6 +23,7 @@ export type AbsoluteGateKind =
   | 'evidence'
   | 'execution'
   | 'cleanup'
+  | 'delivery'
   | 'critical-defect'
   | 'false-green'
   | 'invented-proof'
@@ -92,6 +93,7 @@ export function scoreAutonomousValueCell(input: AutonomousValueScoreInput): Auto
   const evidencePasses = evidenceResult?.ok === true;
   const executionPasses = evidencePasses && input.evidence?.outcome.kind === 'succeeded';
   const cleanupPasses = evidencePasses && input.evidence?.cleanup.kind === 'complete';
+  const deliveryPasses = evidencePasses && input.evidence?.diff.trim() !== '';
   const correctionPasses = qualityIsValid
     && input.quality.correctionCycles <= MAX_CORRECTION_CYCLES
     && (input.quality.correctionCycles < MAX_CORRECTION_CYCLES || input.quality.correctionResolved);
@@ -105,6 +107,9 @@ export function scoreAutonomousValueCell(input: AutonomousValueScoreInput): Auto
     cleanupPasses
       ? passed('cleanup', 'workspace cleanup completed')
       : failed('cleanup', 'workspace cleanup is incomplete or unverified'),
+    deliveryPasses
+      ? passed('delivery', 'observable delivery diff captured')
+      : failed('delivery', 'no observable delivery diff was captured'),
     input.quality.criticalDefect
       ? failed('critical-defect', 'critical defect disqualifies the cell')
       : passed('critical-defect', 'no critical defect observed'),
