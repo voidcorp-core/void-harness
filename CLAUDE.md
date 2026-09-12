@@ -130,15 +130,6 @@ Before this, the floor ran in every consumer project and in none of ours — whi
 - Tests run via `pnpm test`; do not skip TDD when adding logic
 - Versions are never hand-edited: release-please bumps every manifest in lockstep from Conventional Commits, and `pnpm version:check` fails CI on any drift (see `docs/RELEASING.md`)
 
-## Source-only Linear index
-
-Before revisiting backlog ideas, consult `docs/LINEAR-INDEX.md` and the local
-index it links. Read Linear again before acting on mutable state. After a
-successful Linear issue or comment write in this source project, follow that
-document's incremental refresh procedure. An indexing failure never retries the
-Linear write. This maintenance procedure and its data are source-only: never
-copy them into shipped skills, templates, modules or consumer installations.
-
 ## Skill routing inside this repo
 
 | Task                                     | Skill / Tool                                                                         |

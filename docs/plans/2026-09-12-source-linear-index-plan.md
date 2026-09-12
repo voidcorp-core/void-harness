@@ -22,7 +22,7 @@ L'approbation explicite de la spec autorise cette unité autonome d'implémentat
    TDD strict. Gate : ancien état conservé après erreur, concurrence refusée,
    fraîcheur globale inchangée et aucune suppression incrémentale.
 3. Procédure connecteur source-only dans `docs/LINEAR-INDEX.md` et lien dans
-   les deux documents AGENTS/CLAUDE locaux. Dépend de 2. TDD souple pour câblage.
+   le README source. Dépend de 2. TDD souple pour câblage.
    Gate : exclusion des artefacts consommateurs, génération sur les 196 tickets,
    tests concernés, lint et vérification documentaire.
 
@@ -50,3 +50,8 @@ une plateforme qui ne les fournit pas est refusée, jamais annoncée compatible.
 
 Prochaine action administrative : PR de la branche dédiée après commit.
 Ne jamais committer les données Linear locales.
+
+Correction de câblage après le premier passage CI : les trois fichiers installés
+AGENTS.md, CLAUDE.md et .gitignore sont protégés intégralement par le floor.
+Le lien mainteneur passe donc par README.md et les exclusions par `.void/.gitignore`,
+deux fichiers appartenant au dépôt source. Aucun garde-fou n'est modifié.

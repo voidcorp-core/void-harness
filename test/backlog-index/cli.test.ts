@@ -47,6 +47,8 @@ it('runs only from the private source workspace and publishes offline from an ex
 it('ignores the source index and exchange files in a fresh clone without private excludes', () => {
   const root = mkdtempSync(join(realpathSync(tmpdir()), 'backlog-ignore-'));
   cpSync(join(source, '.gitignore'), join(root, '.gitignore'));
+  mkdirSync(join(root, '.void'));
+  cpSync(join(source, '.void/.gitignore'), join(root, '.void/.gitignore'));
   expect(spawnSync('git', ['init', '-q', root]).status).toBe(0);
   for (const file of ['.void/machine/linear-index/INDEX.md', '.void/machine/linear-export.json']) {
     const result = spawnSync('git', ['-c', 'core.excludesFile=/dev/null', 'check-ignore', file], { cwd: root, encoding: 'utf8' });

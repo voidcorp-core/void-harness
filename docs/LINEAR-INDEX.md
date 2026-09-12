@@ -54,9 +54,13 @@ Après toute création, modification ou commentaire réussi dans ce projet sourc
 - exporter en mode `incremental` avec le `baseDigest` lu avant ces lectures ;
 - exécuter le rendu. Il conserve les autres fiches et leur date d’observation.
 
-C’est une étape du parcours mainteneur lié depuis AGENTS.md et CLAUDE.md,
+C’est une étape du parcours mainteneur lié depuis le README du dépôt source,
 pas un hook installé chez les consommateurs. Une écriture faite dans une autre
 session ou dans l’interface Linear sera vue au prochain relevé complet.
+
+Les fichiers gérés AGENTS.md, CLAUDE.md et .gitignore restent ceux du harnais
+installé. Le point d’entrée README et le fichier `.void/.gitignore` appartiennent
+au dépôt source ; cette séparation conserve la protection des assets livrés.
 
 **Si l’écriture réussit et le rendu échoue : ne jamais rejouer l’écriture.**
 Rapporter « ticket enregistré, index à rafraîchir », l’identifiant et la cause.

@@ -237,6 +237,13 @@ doctrine floor only; keep your own lint and test CI.
 
 ## Contributing
 
+Source maintainers: consult the [Linear idea index](docs/LINEAR-INDEX.md) before
+revisiting backlog decisions. After a confirmed Linear issue or comment write,
+follow its incremental-refresh procedure; a local failure never replays the
+remote write. The index and `pnpm backlog:index` are private-workspace tooling,
+excluded from consumer installations. Export data stays under the source-only
+ignore rules in `.void/.gitignore`.
+
 ```bash
 pnpm install
 pnpm verify     # every gate CI runs, in its order
