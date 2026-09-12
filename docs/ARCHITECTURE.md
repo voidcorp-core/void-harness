@@ -669,6 +669,12 @@ content. Observation state remains part of the graph and artifact. A state
 difference is explicitly refused before content comparison; this does not turn
 degraded observation into a fresh proof or relax cache publication. Existing
 artifacts containing the former root diagnostic count require one regeneration.
+Native file identities use an additive `identity: { device, inode }` pair of
+canonical uint64 decimal strings read through Node's BigInt stats API. Existing
+optional numeric device/inode fields keep their types and are emitted only when
+exact. Valid numeric v1 cache entries remain readable without rewriting their
+checksum. Both representations must agree when present; malformed exact pairs
+cannot fall back to legacy evidence. Snapshot identity includes the exact pair.
 The extractor resolves bounded root-confined string or ordered-array `tsconfig` inheritance with
 official Compiler API option origins, treats `pnpm-workspace.yaml` as authoritative over the package
 workspace fallback, applies pnpm-compatible positive and `!`-excluded patterns before indexing child

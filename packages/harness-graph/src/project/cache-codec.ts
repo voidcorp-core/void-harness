@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { isProjectFileIdentifier, readFileIdentity } from './file-identifier.js';
 import { normalizeProjectPath } from './extractors/filesystem.js';
 import type {
 	ProjectGraphCache,
@@ -243,6 +244,7 @@ function payloadHash(cache: ProjectGraphCacheDraft): string {
 function parseCacheEntry(value: unknown, path: string): ProjectGraphCacheEntry {
 	const entry = record(value, path);
 	const kind = entry['kind'];
+	const identity = readFileIdentity(entry);
 	if (
 		typeof entry['size'] !== 'number' ||
 		!Number.isSafeInteger(entry['size']) ||
@@ -251,14 +253,9 @@ function parseCacheEntry(value: unknown, path: string): ProjectGraphCacheEntry {
 		!Number.isFinite(entry['mtimeMs']) ||
 		(entry['ctimeMs'] !== undefined &&
 			(typeof entry['ctimeMs'] !== 'number' || !Number.isFinite(entry['ctimeMs']))) ||
-		(entry['device'] !== undefined &&
-			(typeof entry['device'] !== 'number' ||
-				!Number.isSafeInteger(entry['device']) ||
-				entry['device'] < 0)) ||
-		(entry['inode'] !== undefined &&
-			(typeof entry['inode'] !== 'number' ||
-				!Number.isSafeInteger(entry['inode']) ||
-				entry['inode'] < 0)) ||
+		(entry['device'] !== undefined && (typeof entry['device'] !== 'number' || !isProjectFileIdentifier(entry['device']))) ||
+		(entry['inode'] !== undefined && (typeof entry['inode'] !== 'number' || !isProjectFileIdentifier(entry['inode']))) ||
+		(entry['identity'] !== undefined && identity === undefined) ||
 		typeof entry['hash'] !== 'string' ||
 		!HASH.test(entry['hash']) ||
 		typeof kind !== 'string' ||
@@ -270,6 +267,7 @@ function parseCacheEntry(value: unknown, path: string): ProjectGraphCacheEntry {
 		path: normalizeProjectPath(entry['path']),
 		...(typeof entry['device'] === 'number' ? { device: entry['device'] } : {}),
 		...(typeof entry['inode'] === 'number' ? { inode: entry['inode'] } : {}),
+		...(entry['identity'] === undefined || identity === undefined ? {} : { identity }),
 		size: entry['size'],
 		mtimeMs: entry['mtimeMs'],
 		...(typeof entry['ctimeMs'] === 'number' ? { ctimeMs: entry['ctimeMs'] } : {}),
