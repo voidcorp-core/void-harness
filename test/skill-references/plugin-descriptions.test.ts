@@ -1,11 +1,11 @@
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function fixture(files: Readonly<Record<string, string>>) {
-  const root = mkdtempSync(join(tmpdir(), 'void-plugin-references-'));
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'void-plugin-references-')));
   mkdirSync(join(root, 'scripts'));
   for (const name of ['check-skill-references.mjs', 'build-skill-references.mjs']) {
     copyFileSync(new URL(`../../scripts/${name}`, import.meta.url), join(root, 'scripts', name));
