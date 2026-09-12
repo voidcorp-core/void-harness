@@ -111,6 +111,12 @@ held more data in one journal and far less in another, so no rule picks
 correctly. It runs only inside `update`: writing to a project nobody asked to
 have written to is the line this repo does not cross.
 
+The managed ignore block retains both historical journal locations, `.void/runs/`
+and `.void/local/`, alongside `.void/machine/`. Refreshing an installation keeps
+old observed data out of future staging without hiding declared project files.
+Ignore rules do not remove already-tracked journals; history and tracked-file
+cleanup remain explicit project decisions.
+
 ### Two roots: the work tree and the installation
 
 A command reads and writes code in the **work tree**, the directory it ran in. It also reads what
