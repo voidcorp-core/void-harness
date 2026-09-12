@@ -17,6 +17,14 @@ function built(state: 'fresh' | 'partial' | 'degraded' = 'fresh') {
 }
 
 describe('project knowledge filesystem adapter', () => {
+	it('reports observation state changes separately from stale content', async () => {
+		const root = mkdtempSync(join(tmpdir(), 'project-knowledge-'));
+		await writeProjectKnowledge(root, built());
+		const result = await checkProjectKnowledge(root, async () => built('degraded'));
+		expect(result.ok).toBe(false);
+		expect(result.reason).toBe('project observation state changed from fresh to degraded; inspect graph diagnostics before regenerating knowledge');
+	});
+
 	it('writes the generated artifact and loads it back', async () => {
 		const root = mkdtempSync(join(tmpdir(), 'project-knowledge-'));
 		const result = await writeProjectKnowledge(root, built());
