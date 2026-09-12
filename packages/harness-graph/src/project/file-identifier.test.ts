@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { isProjectFileIdentifier, sameProjectFileIdentifier } from './file-identifier.js';
+import { isProjectFileIdentifier, sameProjectFileIdentifier, nativeFileIdentity, readFileIdentity } from './file-identifier.js';
 
 describe('lossless native file identifiers', () => {
+	it('preserves optional numeric fields only when exact and always emits the portable pair', () => {
+		expect(nativeFileIdentity(7n, 42n)).toEqual({ device: 7, inode: 42, identity: { device: '7', inode: '42' } });
+		expect(nativeFileIdentity(7n, 9007199254740993n)).toEqual({ device: 7, identity: { device: '7', inode: '9007199254740993' } });
+	});
+	it('refuses contradictory or incomplete pairs instead of trusting a legacy fallback', () => {
+		expect(readFileIdentity({ identity: { device: '7', inode: '42' }, inode: 43 })).toBeUndefined();
+		expect(readFileIdentity({ identity: { inode: '42' }, device: 7, inode: 42 })).toBeUndefined();
+		expect(readFileIdentity({ device: 7 })).toBeUndefined();
+		expect(readFileIdentity({ device: 7, inode: 42 })).toEqual({ device: '7', inode: '42' });
+	});
 	it.each(['0', '9007199254740992', '9007199254740993', '18446744073709551615', 0, 42])(
 		'accepts exact identifiers and safe legacy numbers: %s', (value) => {
 			expect(isProjectFileIdentifier(value)).toBe(true);

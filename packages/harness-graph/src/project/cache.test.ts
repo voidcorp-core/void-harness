@@ -90,10 +90,13 @@ describe('ProjectGraph cache adapter', () => {
 		const identity = await rootIdentity(root);
 		const port = createMemoryProjectCachePort();
 		const base = cacheWithNestedConfig(projectCacheRootKey(root), {});
+		const { payloadHash: _previousHash, ...draft } = base;
+		const original = base.entries[0];
+		if (original === undefined) throw new Error('expected fixture entry');
 		const cache = sealProjectGraphCache({
-			...base,
+			...draft,
 			entries: ['9007199254740992', '9007199254740993', '18446744073709551615'].map((inode, index) => ({
-				...base.entries[0]!, path: `file-${index}.json`, device: '18446744073709551615', inode,
+				...original, path: `file-${index}.json`, identity: { device: '18446744073709551615', inode },
 			})),
 		});
 		const publication = await port.prepare(identity, 'cache.json', cache);
@@ -102,7 +105,7 @@ describe('ProjectGraph cache adapter', () => {
 		const loaded = await port.load(identity, 'cache.json');
 		expect(loaded.status).toBe('ready');
 		if (loaded.status !== 'ready') throw new Error('expected a validated cache');
-		expect(loaded.cache.entries.map((entry) => entry.inode)).toEqual([
+		expect(loaded.cache.entries.map((entry) => entry.identity?.inode)).toEqual([
 			'9007199254740992', '9007199254740993', '18446744073709551615',
 		]);
 	});

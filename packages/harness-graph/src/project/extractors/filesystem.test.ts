@@ -122,7 +122,7 @@ describe('ProjectGraph filesystem reads', () => {
 		const port = createNodeFileSystemPort();
 		const scan = await port.scan(root, scanLimits());
 		const file = scan.files[0];
-		expect(file).toMatchObject({ device: native.dev.toString(), inode: native.ino.toString() });
+		expect(file).toMatchObject({ identity: { device: native.dev.toString(), inode: native.ino.toString() } });
 		if (file === undefined) throw new Error('expected indexed file');
 		expect(await port.inspect?.(root, 'file.ts', 1024)).toMatchObject({ status: 'file', file });
 		expect(await port.read(root, file, 1024)).toMatchObject({ ok: true });

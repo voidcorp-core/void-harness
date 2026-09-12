@@ -8,7 +8,8 @@ function fixture(inode: string | number) {
 		snapshotId: `sha256:${'b'.repeat(64)}`, graphRootHash: `sha256:${'c'.repeat(64)}`,
 		gitHead: null, tombstones: [],
 		entries: [{
-			path: 'file.ts', size: 0, mtimeMs: 0, inode, device: 1,
+			path: 'file.ts', size: 0, mtimeMs: 0, device: 1,
+			...(typeof inode === 'number' ? { inode } : { identity: { device: '1', inode } }),
 			hash: `sha256:${'d'.repeat(64)}`, kind: 'source',
 			extraction: { imports: [], exports: [], symbols: [], tests: [], diagnostics: [], unresolved: [] },
 		}],
@@ -16,7 +17,7 @@ function fixture(inode: string | number) {
 }
 
 describe('file identity cache wire compatibility', () => {
-	it('reads a safe numeric v1 entry without rewriting its signed payload', () => {
+	it('reads a safe numeric v1 entry without rewriting its checksummed payload', () => {
 		const original = fixture(42);
 		expect(parseProjectGraphCache(original)).toEqual(original);
 	});
