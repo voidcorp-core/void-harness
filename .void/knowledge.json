@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "project-knowledge",
-  "rootHash": "sha256:af70788dd161c761b689c9bd52b260679c01d2ddaf4234c0583fa2013b74498f",
+  "rootHash": "sha256:1c90ee9218dfd1de9caec76a53b3c26a717bf919c3e4cb5cc915152b93cbda1b",
   "state": "partial",
   "generatedFrom": {
     "kind": "project-graph",
@@ -14,7 +14,7 @@
     "source": {
       "kind": "native",
       "version": "3.0.0-alpha.1+project.1+typescript.5.9.3",
-      "rootHash": "sha256:af70788dd161c761b689c9bd52b260679c01d2ddaf4234c0583fa2013b74498f"
+      "rootHash": "sha256:1c90ee9218dfd1de9caec76a53b3c26a717bf919c3e4cb5cc915152b93cbda1b"
     },
     "nodes": [
       {
@@ -541637,6 +541637,24 @@
       {
         "id": "project:edge:owned-by:ec9d1a5986109048369fada9bcf220dc",
         "from": "project:file:native/void-machine/crates/cli/src/main.rs",
+        "to": "project:owner:h-29e4ada527e07c115972dac23b8ee1a6",
+        "kind": "owned-by",
+        "data": {},
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "adapter",
+              "ref": "git",
+              "hashOrVersion": "git-observation-v1"
+            }
+          ]
+        }
+      },
+      {
+        "id": "project:edge:owned-by:ecb432ea605f6d39b7f9b2090a0147a5",
+        "from": "project:file:docs/decisions-log/2026-09-12-project-graph-diagnostic-count--01f1124b-0981-4dba-be79-31fa7c276a2d.md",
         "to": "project:owner:h-29e4ada527e07c115972dac23b8ee1a6",
         "kind": "owned-by",
         "data": {},

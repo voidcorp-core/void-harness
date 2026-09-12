@@ -14952,15 +14952,14 @@ function createAssemblyContext(entries, tombstones, git, caseSensitive, configsB
     compilerVersion: compiler.kind === "resolved" ? compiler.version : "absent"
   };
 }
-function addRootNode(context, state, issueCount) {
+function addRootNode(context, state) {
   context.writer.addNode(
     Object.freeze({
       id: context.rootId,
       kind: "root",
       label: "current project",
       data: Object.freeze({
-        state,
-        issueCount
+        state
       }),
       provenance: declaredProvenance({
         kind: "contract",
@@ -15201,7 +15200,7 @@ function sealProjectGraph(context) {
     hyperedges: []
   });
 }
-function assembleProjectGraph(entries, tombstones, git, state, issueCount, caseSensitive, configsByPath, compiler) {
+function assembleProjectGraph(entries, tombstones, git, state, caseSensitive, configsByPath, compiler) {
   const context = createAssemblyContext(
     entries,
     tombstones,
@@ -15210,7 +15209,7 @@ function assembleProjectGraph(entries, tombstones, git, state, issueCount, caseS
     configsByPath,
     compiler
   );
-  addRootNode(context, state, issueCount);
+  addRootNode(context, state);
   addWorkspaceNodes(context);
   addEntryNodes(context);
   addImportEdges(context);
@@ -15256,7 +15255,6 @@ function assembleRendering(context, evidence, state, renderRootOnly) {
     renderRootOnly ? [] : evidence.tombstones,
     evidence.git,
     state,
-    distinctProjectIssues(context.ledger.issues).length,
     context.projectRoot.caseSensitive,
     evidence.configsByPath,
     context.compiler
@@ -21459,6 +21457,12 @@ async function checkProjectKnowledge(root, build = () => buildProjectGraph({ roo
   const persisted = await loadProjectKnowledge(root);
   if (persisted.kind !== "valid") {
     return { ok: false, reason: persisted.kind === "missing" ? "knowledge artifact is missing" : persisted.reason };
+  }
+  if (current.state !== persisted.artifact.state) {
+    return {
+      ok: false,
+      reason: `project observation state changed from ${persisted.artifact.state} to ${current.state}; inspect graph diagnostics before regenerating knowledge`
+    };
   }
   const expected = serializeProjectKnowledge(current);
   const actual = serializeProjectKnowledge(persisted.artifact);
