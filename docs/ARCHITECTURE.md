@@ -1321,7 +1321,14 @@ Implemented today in `.github/workflows/ci.yml` (all block the PR on failure):
 | Certification freshness | `pnpm certification:check` — committed `certification.json` matches the model + eval reports |
 | Consumer bundle freshness | `pnpm graph:check-bundle` — the shipped `void-graph.mjs` embeds the current `model.json` |
 | Skill tests | `pnpm vitest run` |
+| Live skill references | `pnpm skills:check-references`, including plugin descriptions |
 | Typecheck | `pnpm -r typecheck` |
+
+Maintainer reference checks also inspect descriptions in core, mirrored and pack
+`plugin.json` manifests. Explicit `void-` skill names resolve against the live
+catalogue; ordinary English prose, pack names and the exact product name
+`void-harness` are not skill references. Historical decisions and plans remain
+outside this live-description check.
 
 Roadmap (documented intent, not yet wired): skill front-matter schema check,
 per-hook smoke tests on a sample repo, CLI integration tests on a fresh fixture.
