@@ -71,6 +71,12 @@ export async function checkProjectKnowledge(
 	if (persisted.kind !== 'valid') {
 		return { ok: false, reason: persisted.kind === 'missing' ? 'knowledge artifact is missing' : persisted.reason };
 	}
+	if (current.state !== persisted.artifact.state) {
+		return {
+			ok: false,
+			reason: `project observation state changed from ${persisted.artifact.state} to ${current.state}; inspect graph diagnostics before regenerating knowledge`,
+		};
+	}
 	const expected = serializeProjectKnowledge(current);
 	const actual = serializeProjectKnowledge(persisted.artifact);
 	return expected === actual

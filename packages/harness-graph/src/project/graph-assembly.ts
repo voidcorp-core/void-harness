@@ -279,7 +279,6 @@ function createAssemblyContext(
 function addRootNode(
 	context: AssemblyContext,
 	state: ProjectGraphState,
-	issueCount: number,
 ): void {
 	context.writer.addNode(
 		Object.freeze({
@@ -288,7 +287,6 @@ function addRootNode(
 			label: 'current project',
 			data: Object.freeze({
 				state,
-				issueCount,
 			}),
 			provenance: declaredProvenance({
 				kind: 'contract',
@@ -579,7 +577,6 @@ export function assembleProjectGraph(
 	tombstones: readonly ProjectGraphTombstone[],
 	git: ProjectGitSnapshot,
 	state: ProjectGraphState,
-	issueCount: number,
 	caseSensitive: boolean | 'unknown',
 	configsByPath: ReadonlyMap<string, TypeScriptConfig>,
 	compiler: CompilerResolution,
@@ -592,7 +589,7 @@ export function assembleProjectGraph(
 		configsByPath,
 		compiler,
 	);
-	addRootNode(context, state, issueCount);
+	addRootNode(context, state);
 	addWorkspaceNodes(context);
 	addEntryNodes(context);
 	addImportEdges(context);
