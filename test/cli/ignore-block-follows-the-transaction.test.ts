@@ -11,8 +11,8 @@
  * failure path (DEV-665).
  *
  * The failure below is a real one, and it is the one that actually happens: a
- * managed file the first install owned, edited by hand, which the second
- * install refuses to overwrite. Nothing about the transaction is stubbed. Only
+ * managed file replaced by a directory, which the second install refuses
+ * to overwrite. Nothing about the transaction is stubbed. Only
  * `process.exit` is, so the runner survives to read the repository afterwards --
  * the same treatment `doctor.test.ts` gives it.
  */
@@ -69,13 +69,32 @@ function claimedAgentPaths(): readonly string[] {
     .filter((rule) => rule.startsWith('.claude/agents/') && rule.endsWith('.md'));
 }
 
-/** A second install that cannot commit: an owned file was edited by hand. */
+/** A second install that cannot commit: a directory occupies an owned file. */
 async function failingSecondInstall(): Promise<void> {
-  writeFileSync(join(dir, '.void', 'installed', 'PHILOSOPHY.md'), '# mine now\n');
+  const target = join(dir, '.void', 'installed', 'PHILOSOPHY.md');
+  rmSync(target);
+  mkdirSync(target);
   await expect(init(['--runtime', 'claude', '--no-interactive'])).rejects.toThrow(/process\.exit\(1\)/);
 }
 
 describe('the ignore block never outlives a transaction that failed', () => {
+  it('restores edited delivered files and names every restored path', async () => {
+    await init(['--runtime', 'claude', '--no-interactive']);
+    const paths = ['.claude/skills/void-tdd/SKILL.md', '.void/installed/PHILOSOPHY.md'];
+    const originals = paths.map((path) => readFileSync(join(dir, path), 'utf8'));
+    for (const path of paths) writeFileSync(join(dir, path), '# locally changed\n');
+    const printed: string[] = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk: string | Uint8Array): boolean => {
+      printed.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString());
+      return true;
+    });
+    await init(['--runtime', 'claude', '--no-interactive']);
+    expect(printed.join('')).toContain('restored');
+    paths.forEach((path, index) => {
+      expect(printed.join('')).toContain(path);
+      expect(readFileSync(join(dir, path), 'utf8')).toBe(originals[index]);
+    });
+  });
   it('claims no agent path the install did not write', async () => {
     const temporary = join(dir, 'temporary');
     mkdirSync(temporary);

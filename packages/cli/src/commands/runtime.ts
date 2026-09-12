@@ -125,6 +125,9 @@ async function runtimeAdd(rest: readonly string[]): Promise<void> {
       retainPreviousOwned: true,
     });
     await commitFileTransaction(projectRoot, prepared.mutations);
+    for (const path of prepared.restored) {
+      line(`${c.yellow('!')}  restored ${path} from the delivered harness`);
+    }
   } finally {
     await rm(stageRoot, { recursive: true, force: true });
   }
