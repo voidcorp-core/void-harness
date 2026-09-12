@@ -11093,6 +11093,38 @@ import { watch as watchNode } from "fs";
 import { basename, dirname as dirname4, join as join32 } from "path";
 import { posix as posix6 } from "path";
 import { createHash as createHash4 } from "crypto";
+function isProjectFileIdentifier(value) {
+  if (typeof value === "number") return Number.isSafeInteger(value) && value >= 0;
+  return typeof value === "string" && /^(0|[1-9][0-9]{0,19})$/.test(value) && BigInt(value) <= 18446744073709551615n;
+}
+function sameProjectFileIdentifier(left, right) {
+  return isProjectFileIdentifier(left) && isProjectFileIdentifier(right) && String(left) === String(right);
+}
+function readFileIdentity(value) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return void 0;
+  const fields = value;
+  for (const name of ["device", "inode"]) {
+    if (fields[name] !== void 0 && (typeof fields[name] !== "number" || !isProjectFileIdentifier(fields[name]))) return void 0;
+  }
+  const exact = fields["identity"];
+  if (exact === void 0) {
+    return fields["device"] === void 0 || fields["inode"] === void 0 ? void 0 : Object.freeze({ device: String(fields["device"]), inode: String(fields["inode"]) });
+  }
+  if (typeof exact !== "object" || exact === null || Array.isArray(exact)) return void 0;
+  const pair = exact;
+  if (Object.keys(pair).some((key) => key !== "device" && key !== "inode")) return void 0;
+  if (typeof pair["device"] !== "string" || !isProjectFileIdentifier(pair["device"]) || typeof pair["inode"] !== "string" || !isProjectFileIdentifier(pair["inode"])) return void 0;
+  if (fields["device"] !== void 0 && String(fields["device"]) !== pair["device"] || fields["inode"] !== void 0 && String(fields["inode"]) !== pair["inode"]) return void 0;
+  return Object.freeze({ device: pair["device"], inode: pair["inode"] });
+}
+function nativeFileIdentity(device, inode) {
+  const maximum = BigInt(Number.MAX_SAFE_INTEGER);
+  return Object.freeze({
+    identity: Object.freeze({ device: device.toString(), inode: inode.toString() }),
+    ...device >= 0n && device <= maximum ? { device: Number(device) } : {},
+    ...inode >= 0n && inode <= maximum ? { inode: Number(inode) } : {}
+  });
+}
 async function readBoundedHandle(handle2, expectedSize, maximumBytes) {
   if (!Number.isSafeInteger(expectedSize) || expectedSize < 0 || !Number.isSafeInteger(maximumBytes) || maximumBytes < 1 || expectedSize > maximumBytes) {
     throw new Error("PROJECT_READ_INVALID: descriptor size is outside its bounded envelope");
@@ -11201,7 +11233,7 @@ function projectPathIsIgnored(path) {
 }
 async function confinedRoot(root) {
   const canonical = await realpath(root);
-  const stats = await lstat(canonical);
+  const stats = await lstat(canonical, { bigint: true });
   if (!stats.isDirectory()) throw new Error("PROJECT_ROOT_INVALID: root must be a directory");
   return Object.freeze({ path: canonical, stats });
 }
@@ -11220,7 +11252,7 @@ async function safeParent(root, path) {
   const relativeParent = relative2(root, parent);
   if (relativeParent === ".." || relativeParent.startsWith(`..${sep}`)) return false;
   if (!await canonicalPathEquals(parent)) return false;
-  const stats = await lstat(parent);
+  const stats = await lstat(parent, { bigint: true });
   return stats.isDirectory() && !stats.isSymbolicLink();
 }
 function boundedFileLimit(value) {
@@ -11270,11 +11302,16 @@ function confinedPath(root, path) {
 function readFailure(code, path, message2) {
   return { ok: false, issue: issue(code, path, message2) };
 }
+function milliseconds(nanoseconds) {
+  return Number(nanoseconds / 1000000000n) * 1e3 + Number(nanoseconds % 1000000000n) / 1e6;
+}
 function matchesScannedFile(file, stats) {
-  return stats.size === file.size && stats.mtimeMs === file.mtimeMs && (file.ctimeMs === void 0 || stats.ctimeMs === file.ctimeMs) && (file.device === void 0 || stats.dev === file.device) && (file.inode === void 0 || stats.ino === file.inode);
+  const exact = readFileIdentity(file);
+  if (file.identity !== void 0 && (exact === void 0 || exact.device !== stats.dev.toString() || exact.inode !== stats.ino.toString())) return false;
+  return stats.size === BigInt(file.size) && milliseconds(stats.mtimeNs) === file.mtimeMs && (file.ctimeMs === void 0 || milliseconds(stats.ctimeNs) === file.ctimeMs) && (file.device === void 0 || sameProjectFileIdentifier(stats.dev.toString(), file.device)) && (file.inode === void 0 || sameProjectFileIdentifier(stats.ino.toString(), file.inode));
 }
 function readIdentityIsStable(before, opened, after, visible) {
-  return sameIdentity(opened, after) && sameIdentity(after, visible) && before.size === after.size && before.mtimeMs === after.mtimeMs && before.ctimeMs === after.ctimeMs;
+  return sameIdentity(opened, after) && sameIdentity(after, visible) && before.size === after.size && before.mtimeNs === after.mtimeNs && before.ctimeNs === after.ctimeNs;
 }
 async function readProjectFile(root, file, maxFileBytes) {
   normalizeProjectPath(file.path);
@@ -11287,7 +11324,7 @@ async function readProjectFile(root, file, maxFileBytes) {
     if (!await safeParent(canonical, absolute) || !await canonicalPathEquals(absolute)) {
       return readFailure("symlink-skipped", file.path, "file parent or target is not canonical");
     }
-    const before = await lstat(absolute);
+    const before = await lstat(absolute, { bigint: true });
     if (before.isSymbolicLink() || !before.isFile()) {
       return readFailure("symlink-skipped", file.path, "file is not a regular root-confined file");
     }
@@ -11298,7 +11335,7 @@ async function readProjectFile(root, file, maxFileBytes) {
       return readFailure("oversized-file", file.path, `file exceeds ${boundedMax} bytes`);
     }
     handle2 = await open(absolute, constants.O_RDONLY | constants.O_NOFOLLOW);
-    const opened = await handle2.stat();
+    const opened = await handle2.stat({ bigint: true });
     if (!opened.isFile() || !sameIdentity(before, opened)) {
       return readFailure(
         "concurrent-change",
@@ -11306,9 +11343,9 @@ async function readProjectFile(root, file, maxFileBytes) {
         "file identity changed before it was opened"
       );
     }
-    const bytes = await readBoundedHandle(handle2, opened.size, boundedMax);
-    const after = await handle2.stat();
-    const visible = await lstat(absolute);
+    const bytes = await readBoundedHandle(handle2, Number(opened.size), boundedMax);
+    const after = await handle2.stat({ bigint: true });
+    const visible = await lstat(absolute, { bigint: true });
     if (!await safeParent(canonical, absolute) || !await canonicalPathEquals(absolute) || !readIdentityIsStable(before, opened, after, visible)) {
       return readFailure("concurrent-change", file.path, "file changed while it was read");
     }
@@ -11346,7 +11383,7 @@ async function inspectProjectPath(root, path, maxFileBytes) {
   try {
     const canonical = confined.path;
     const absolute = confinedPath(canonical, normalized);
-    const stats = await lstat(absolute);
+    const stats = await lstat(absolute, { bigint: true });
     if (!await safeParent(canonical, absolute) || !await canonicalPathEquals(absolute)) {
       return {
         status: "issue",
@@ -11371,11 +11408,10 @@ async function inspectProjectPath(root, path, maxFileBytes) {
       status: "file",
       file: Object.freeze({
         path: normalized,
-        size: stats.size,
-        mtimeMs: stats.mtimeMs,
-        ctimeMs: stats.ctimeMs,
-        device: stats.dev,
-        inode: stats.ino
+        size: Number(stats.size),
+        mtimeMs: milliseconds(stats.mtimeNs),
+        ctimeMs: milliseconds(stats.ctimeNs),
+        ...nativeFileIdentity(stats.dev, stats.ino)
       })
     });
   } catch (error) {
@@ -11424,7 +11460,7 @@ function createProjectScanContext(root, limits) {
 }
 async function inspectScannedFile(context, absolute, path) {
   try {
-    const stats = await lstat(absolute);
+    const stats = await lstat(absolute, { bigint: true });
     if (stats.isSymbolicLink() || !stats.isFile() || !await safeParent(context.canonicalRoot, absolute) || !await canonicalPathEquals(absolute)) {
       context.issues.push(issue("symlink-skipped", path, "file parent or target is not canonical"));
       return;
@@ -11435,22 +11471,21 @@ async function inspectScannedFile(context, absolute, path) {
       );
       return;
     }
-    if (context.totalBytes + stats.size > context.limits.maxTotalBytes) {
+    if (context.totalBytes + Number(stats.size) > context.limits.maxTotalBytes) {
       context.issues.push(
         issue("byte-limit", path, `scan exceeds ${context.limits.maxTotalBytes} aggregate bytes`)
       );
       context.stopped = true;
       return;
     }
-    context.totalBytes += stats.size;
+    context.totalBytes += Number(stats.size);
     context.files.push(
       Object.freeze({
         path,
-        size: stats.size,
-        mtimeMs: stats.mtimeMs,
-        ctimeMs: stats.ctimeMs,
-        device: stats.dev,
-        inode: stats.ino
+        size: Number(stats.size),
+        mtimeMs: milliseconds(stats.mtimeNs),
+        ctimeMs: milliseconds(stats.ctimeNs),
+        ...nativeFileIdentity(stats.dev, stats.ino)
       })
     );
   } catch (error) {
@@ -11510,7 +11545,7 @@ async function visitProjectDirectory(context, directory, prefix, depth) {
   if (context.stopped) return;
   let before;
   try {
-    before = await lstat(directory);
+    before = await lstat(directory, { bigint: true });
   } catch (error) {
     addDirectoryFailure(context, prefix, error, "stat");
     return;
@@ -11543,7 +11578,7 @@ async function visitProjectDirectory(context, directory, prefix, depth) {
   if (!completed) return;
   let afterRead;
   try {
-    afterRead = await lstat(directory);
+    afterRead = await lstat(directory, { bigint: true });
   } catch (error) {
     addDirectoryFailure(context, prefix, error, "validation");
     return;
@@ -12738,12 +12773,14 @@ function payloadHash(cache) {
 function parseCacheEntry(value, path) {
   const entry = record23(value, path);
   const kind2 = entry["kind"];
-  if (typeof entry["size"] !== "number" || !Number.isSafeInteger(entry["size"]) || entry["size"] < 0 || typeof entry["mtimeMs"] !== "number" || !Number.isFinite(entry["mtimeMs"]) || entry["ctimeMs"] !== void 0 && (typeof entry["ctimeMs"] !== "number" || !Number.isFinite(entry["ctimeMs"])) || entry["device"] !== void 0 && (typeof entry["device"] !== "number" || !Number.isSafeInteger(entry["device"]) || entry["device"] < 0) || entry["inode"] !== void 0 && (typeof entry["inode"] !== "number" || !Number.isSafeInteger(entry["inode"]) || entry["inode"] < 0) || typeof entry["hash"] !== "string" || !HASH2.test(entry["hash"]) || typeof kind2 !== "string" || !FILE_KINDS.has(kind2) || typeof entry["path"] !== "string")
+  const identity = readFileIdentity(entry);
+  if (typeof entry["size"] !== "number" || !Number.isSafeInteger(entry["size"]) || entry["size"] < 0 || typeof entry["mtimeMs"] !== "number" || !Number.isFinite(entry["mtimeMs"]) || entry["ctimeMs"] !== void 0 && (typeof entry["ctimeMs"] !== "number" || !Number.isFinite(entry["ctimeMs"])) || entry["device"] !== void 0 && (typeof entry["device"] !== "number" || !isProjectFileIdentifier(entry["device"])) || entry["inode"] !== void 0 && (typeof entry["inode"] !== "number" || !isProjectFileIdentifier(entry["inode"])) || entry["identity"] !== void 0 && identity === void 0 || typeof entry["hash"] !== "string" || !HASH2.test(entry["hash"]) || typeof kind2 !== "string" || !FILE_KINDS.has(kind2) || typeof entry["path"] !== "string")
     return cacheError(`${path} is invalid`);
   return Object.freeze({
     path: normalizeProjectPath(entry["path"]),
     ...typeof entry["device"] === "number" ? { device: entry["device"] } : {},
     ...typeof entry["inode"] === "number" ? { inode: entry["inode"] } : {},
+    ...entry["identity"] === void 0 || identity === void 0 ? {} : { identity },
     size: entry["size"],
     mtimeMs: entry["mtimeMs"],
     ...typeof entry["ctimeMs"] === "number" ? { ctimeMs: entry["ctimeMs"] } : {},
@@ -14450,8 +14487,10 @@ function extractFile(context, path, content, hash2, kind2) {
   });
 }
 function refreshedEntry(previous, file) {
+  const { identity: _oldIdentity, device: _oldDevice, inode: _oldInode, ...content } = previous;
   return Object.freeze({
-    ...previous,
+    ...content,
+    ...file.identity === void 0 ? {} : { identity: file.identity },
     ...file.device === void 0 ? {} : { device: file.device },
     ...file.inode === void 0 ? {} : { inode: file.inode },
     size: file.size,
@@ -14462,6 +14501,7 @@ function refreshedEntry(previous, file) {
 function extractedEntry(file, hash2, extraction) {
   return Object.freeze({
     path: file.path,
+    ...file.identity === void 0 ? {} : { identity: file.identity },
     ...file.device === void 0 ? {} : { device: file.device },
     ...file.inode === void 0 ? {} : { inode: file.inode },
     size: file.size,
@@ -14543,7 +14583,9 @@ function pathRequiresFullIndex(context, path) {
   return path.split("/").length - 1 > context.scanLimits.maxDepth || hasSortedPathBelow(context.previousPaths, path);
 }
 function sameFileIdentity(previous, current) {
-  return previous.device !== void 0 && previous.inode !== void 0 && current.device !== void 0 && current.inode !== void 0 && previous.device === current.device && previous.inode === current.inode;
+  const left = readFileIdentity(previous);
+  const right = readFileIdentity(current);
+  return left !== void 0 && right !== void 0 && left.device === right.device && left.inode === right.inode;
 }
 async function inspectChangedPath(context, entriesByPath, path) {
   if (!await validateProjectRoot(context, "before inspecting changed paths")) return "break";
@@ -15474,6 +15516,7 @@ function snapshotManifest(entries) {
   return entries.map(
     (entry) => Object.freeze({
       path: entry.path,
+      identity: readFileIdentity(entry) ?? null,
       device: entry.device ?? null,
       inode: entry.inode ?? null,
       size: entry.size,
