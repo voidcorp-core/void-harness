@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "project-knowledge",
-  "rootHash": "sha256:ab1062c70039451e9ad1aa14828a2ae4d0977ff6ef82a7c17e6013ad787ad098",
+  "rootHash": "sha256:0e96928bfd754cbdecaf87d560787ee6068df8bf2dc5bd1aafe39aef49d8e3c8",
   "state": "partial",
   "generatedFrom": {
     "kind": "project-graph",
@@ -14,7 +14,7 @@
     "source": {
       "kind": "native",
       "version": "3.0.0-alpha.1+project.1+typescript.5.9.3",
-      "rootHash": "sha256:ab1062c70039451e9ad1aa14828a2ae4d0977ff6ef82a7c17e6013ad787ad098"
+      "rootHash": "sha256:0e96928bfd754cbdecaf87d560787ee6068df8bf2dc5bd1aafe39aef49d8e3c8"
     },
     "nodes": [
       {
@@ -17089,9 +17089,9 @@
         "label": "RELEASING.md",
         "data": {
           "diagnostics": 0,
-          "hash": "sha256:de51582503c6907549725189852b6b87044af575c1e230c1f290adf0670517d3",
+          "hash": "sha256:a89fbb9be2a8dafb6564dfa81dde827d1eeb1690da1b10474ab4cc89e0709c2b",
           "path": "docs/RELEASING.md",
-          "size": 24635,
+          "size": 24976,
           "state": "active"
         },
         "provenance": {
@@ -17101,7 +17101,7 @@
             {
               "kind": "path",
               "ref": "docs/RELEASING.md",
-              "hashOrVersion": "sha256:de51582503c6907549725189852b6b87044af575c1e230c1f290adf0670517d3"
+              "hashOrVersion": "sha256:a89fbb9be2a8dafb6564dfa81dde827d1eeb1690da1b10474ab4cc89e0709c2b"
             }
           ]
         }
@@ -29900,9 +29900,9 @@
         "label": "conformance-consumer.mjs",
         "data": {
           "diagnostics": 0,
-          "hash": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37",
+          "hash": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b",
           "path": "packages/cli/scripts/conformance-consumer.mjs",
-          "size": 3607,
+          "size": 3458,
           "state": "active"
         },
         "provenance": {
@@ -29912,7 +29912,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -29992,9 +29992,9 @@
         "label": "conformance-install.mjs",
         "data": {
           "diagnostics": 0,
-          "hash": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df",
+          "hash": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549",
           "path": "packages/cli/scripts/conformance-install.mjs",
-          "size": 4565,
+          "size": 4478,
           "state": "active"
         },
         "provenance": {
@@ -30004,7 +30004,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -30061,9 +30061,9 @@
         "label": "conformance-process.mjs",
         "data": {
           "diagnostics": 0,
-          "hash": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f",
+          "hash": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e",
           "path": "packages/cli/scripts/conformance-process.mjs",
-          "size": 7257,
+          "size": 8000,
           "state": "active"
         },
         "provenance": {
@@ -30073,7 +30073,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -30084,9 +30084,9 @@
         "label": "conformance-process.test.ts",
         "data": {
           "diagnostics": 0,
-          "hash": "sha256:5f62a828d823304626fbd8a89623db74495ab2e3be3b9598678a5753ec3f4f05",
+          "hash": "sha256:e252441f56b6a0161ccde3b951a8057bbf68e291a323419890076f61e7fb5c05",
           "path": "packages/cli/scripts/conformance-process.test.ts",
-          "size": 3894,
+          "size": 4973,
           "state": "active"
         },
         "provenance": {
@@ -30096,7 +30096,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.test.ts",
-              "hashOrVersion": "sha256:5f62a828d823304626fbd8a89623db74495ab2e3be3b9598678a5753ec3f4f05"
+              "hashOrVersion": "sha256:e252441f56b6a0161ccde3b951a8057bbf68e291a323419890076f61e7fb5c05"
             }
           ]
         }
@@ -83083,7 +83083,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -83103,7 +83103,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -83123,7 +83123,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -83143,7 +83143,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -83163,7 +83163,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -83183,7 +83183,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -83203,7 +83203,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -83563,7 +83563,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -83583,7 +83583,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -83603,7 +83603,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -83623,7 +83623,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -83643,7 +83643,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -83663,7 +83663,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -83943,7 +83943,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -83963,7 +83963,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -83983,7 +83983,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -84003,7 +84003,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -84023,7 +84023,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -84043,7 +84043,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -84063,7 +84063,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -84083,7 +84083,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -84103,7 +84103,27 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
+            }
+          ]
+        }
+      },
+      {
+        "id": "project:symbol:packages/cli/scripts/conformance-process.mjs:reportConformanceStep",
+        "kind": "symbol",
+        "label": "reportConformanceStep",
+        "data": {
+          "exported": false,
+          "symbolKind": "function"
+        },
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-process.mjs",
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -84123,7 +84143,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -84143,7 +84163,47 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
+            }
+          ]
+        }
+      },
+      {
+        "id": "project:symbol:packages/cli/scripts/conformance-process.mjs:runConformanceStep",
+        "kind": "symbol",
+        "label": "runConformanceStep",
+        "data": {
+          "exported": true,
+          "symbolKind": "function"
+        },
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-process.mjs",
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
+            }
+          ]
+        }
+      },
+      {
+        "id": "project:symbol:packages/cli/scripts/conformance-process.mjs:runConformanceSuites",
+        "kind": "symbol",
+        "label": "runConformanceSuites",
+        "data": {
+          "exported": true,
+          "symbolKind": "function"
+        },
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-process.mjs",
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -84163,7 +84223,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -84183,7 +84243,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -84203,7 +84263,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -84223,7 +84283,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -84243,7 +84303,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -211677,7 +211737,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -211695,7 +211755,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.test.ts",
-              "hashOrVersion": "sha256:5f62a828d823304626fbd8a89623db74495ab2e3be3b9598678a5753ec3f4f05"
+              "hashOrVersion": "sha256:e252441f56b6a0161ccde3b951a8057bbf68e291a323419890076f61e7fb5c05"
             }
           ]
         }
@@ -226874,7 +226934,7 @@
             {
               "kind": "path",
               "ref": "docs/RELEASING.md",
-              "hashOrVersion": "sha256:de51582503c6907549725189852b6b87044af575c1e230c1f290adf0670517d3"
+              "hashOrVersion": "sha256:a89fbb9be2a8dafb6564dfa81dde827d1eeb1690da1b10474ab4cc89e0709c2b"
             }
           ]
         }
@@ -228062,7 +228122,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -251066,7 +251126,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -253694,7 +253754,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -258176,7 +258236,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -273026,7 +273086,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -284498,6 +284558,24 @@
         }
       },
       {
+        "id": "project:edge:declares:3f39fe8917a5749c7171a1f4e9280bba",
+        "from": "project:file:packages/cli/scripts/conformance-process.mjs",
+        "to": "project:symbol:packages/cli/scripts/conformance-process.mjs:reportConformanceStep",
+        "kind": "declares",
+        "data": {},
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-process.mjs",
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
+            }
+          ]
+        }
+      },
+      {
         "id": "project:edge:declares:3f3d70fce17341f5165a545a3c499851",
         "from": "project:file:packages/mission-engine/src/orchestration/recovery.ts",
         "to": "project:symbol:packages/mission-engine/src/orchestration/recovery.ts:MAX_RECOVERY_NODES",
@@ -286580,7 +286658,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -286652,7 +286730,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -288092,7 +288170,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -289946,7 +290024,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -292790,7 +292868,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -300728,7 +300806,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -307496,7 +307574,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -307640,7 +307718,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -313886,7 +313964,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -317324,7 +317402,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -318945,6 +319023,24 @@
               "kind": "path",
               "ref": "apps/eval-harness/src/autonomous-value/runner.ts",
               "hashOrVersion": "sha256:fd209725a2fa1dc880f29c4f7818a559cad181e3a125deca08fe50d6f676d6c3"
+            }
+          ]
+        }
+      },
+      {
+        "id": "project:edge:declares:80327766c3236fe5d5c8a5f7d2e10d22",
+        "from": "project:file:packages/cli/scripts/conformance-process.mjs",
+        "to": "project:symbol:packages/cli/scripts/conformance-process.mjs:runConformanceSuites",
+        "kind": "declares",
+        "data": {},
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-process.mjs",
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -322940,7 +323036,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -325496,7 +325592,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -330374,7 +330470,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -342776,7 +342872,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -344702,7 +344798,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -345404,7 +345500,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -347942,7 +348038,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -356402,7 +356498,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -358328,7 +358424,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -370190,7 +370286,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -370910,7 +371006,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -372674,7 +372770,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -375464,7 +375560,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -379298,7 +379394,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -382598,6 +382694,24 @@
         }
       },
       {
+        "id": "project:edge:declares:fa6495c7067a4a7f54375f6bdaeaa15c",
+        "from": "project:file:packages/cli/scripts/conformance-process.mjs",
+        "to": "project:symbol:packages/cli/scripts/conformance-process.mjs:runConformanceStep",
+        "kind": "declares",
+        "data": {},
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-process.mjs",
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
+            }
+          ]
+        }
+      },
+      {
         "id": "project:edge:declares:fa76a947ec02b20fc1c2212a54584447",
         "from": "project:file:test/verify/verify.test.ts",
         "to": "project:symbol:test/verify/verify.test.ts:Gate",
@@ -383258,7 +383372,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -384824,7 +384938,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -394769,6 +394883,24 @@
         }
       },
       {
+        "id": "project:edge:exports:320beeecbe7903d2f5d120f81a3d13f1",
+        "from": "project:file:packages/cli/scripts/conformance-process.mjs",
+        "to": "project:symbol:packages/cli/scripts/conformance-process.mjs:runConformanceStep",
+        "kind": "exports",
+        "data": {},
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-process.mjs",
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
+            }
+          ]
+        }
+      },
+      {
         "id": "project:edge:exports:32546520231d19d00bbbd4e1e560a92c",
         "from": "project:file:packages/hook-runner/src/sequenced-writer.ts",
         "to": "project:symbol:packages/hook-runner/src/sequenced-writer.ts:SequencedWriteOptions",
@@ -404057,6 +404189,24 @@
         }
       },
       {
+        "id": "project:edge:exports:6b500edd893ec2ebb2fb9737d33cb65a",
+        "from": "project:file:packages/cli/scripts/conformance-process.mjs",
+        "to": "project:symbol:packages/cli/scripts/conformance-process.mjs:runConformanceSuites",
+        "kind": "exports",
+        "data": {},
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-process.mjs",
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
+            }
+          ]
+        }
+      },
+      {
         "id": "project:edge:exports:6b792e17d895dd46dfe0e7821d9e9462",
         "from": "project:file:packages/harness-graph/src/project/index.ts",
         "to": "project:symbol:packages/harness-graph/src/project/index.ts:ProjectBuildIssueCode",
@@ -406301,7 +406451,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -410891,7 +411041,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -411935,7 +412085,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -412583,7 +412733,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -419495,7 +419645,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -426443,7 +426593,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -436130,7 +436280,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -443312,7 +443462,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.test.ts",
-              "hashOrVersion": "sha256:5f62a828d823304626fbd8a89623db74495ab2e3be3b9598678a5753ec3f4f05"
+              "hashOrVersion": "sha256:e252441f56b6a0161ccde3b951a8057bbf68e291a323419890076f61e7fb5c05"
             }
           ]
         }
@@ -443354,7 +443504,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -466034,7 +466184,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -466517,7 +466667,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -469184,7 +469334,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -471200,7 +471350,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -472229,7 +472379,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -474161,7 +474311,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -477248,7 +477398,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -481406,7 +481556,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -481658,7 +481808,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -485396,7 +485546,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -485480,7 +485630,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -486194,7 +486344,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.test.ts",
-              "hashOrVersion": "sha256:5f62a828d823304626fbd8a89623db74495ab2e3be3b9598678a5753ec3f4f05"
+              "hashOrVersion": "sha256:e252441f56b6a0161ccde3b951a8057bbf68e291a323419890076f61e7fb5c05"
             }
           ]
         }
@@ -498059,7 +498209,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:5234ede8bd3a768705ed59289493025a3b00ed1f086349c55eb6bba2a76d17df"
+              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -501734,7 +501884,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.mjs",
-              "hashOrVersion": "sha256:761bd9179a62de20bed7c5bed0b20c3e7819a8b4fe930900f7d3d0667e951a9f"
+              "hashOrVersion": "sha256:f412082d3c3dff68241f0bbde10ebdbae64e02543c8c0a6b1f8efa7ef47f5f2e"
             }
           ]
         }
@@ -503561,7 +503711,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-consumer.mjs",
-              "hashOrVersion": "sha256:fc81dc047bb7b508c772aad55320f19613c086f4886d3b8e0f3f7d7df44d9f37"
+              "hashOrVersion": "sha256:c45ace0d1dd096768902ebb0182c3919ced35488827d22b7fc2dd420f535919b"
             }
           ]
         }
@@ -548528,7 +548678,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-process.test.ts",
-              "hashOrVersion": "sha256:5f62a828d823304626fbd8a89623db74495ab2e3be3b9598678a5753ec3f4f05"
+              "hashOrVersion": "sha256:e252441f56b6a0161ccde3b951a8057bbf68e291a323419890076f61e7fb5c05"
             }
           ]
         }

@@ -8,13 +8,11 @@ import { conformanceArtifactFromEnvironment } from './conformance-artifact.mjs';
 import {
   conformanceFixtureEnvironment,
   packageManagerCommand,
-  requireConformanceExit,
-  runConformanceProcess,
+  runConformanceStep,
 } from './conformance-process.mjs';
 
 async function run(label, command, args, cwd, env) {
-  const result = await runConformanceProcess({ command, args, cwd, env });
-  return requireConformanceExit(result, `install conformance ${label}`);
+  return runConformanceStep(`install conformance ${label}`, { command, args, cwd, env });
 }
 
 function requirePath(path, label) {
