@@ -101,16 +101,9 @@ describe('recordHookEvent', () => {
   });
 });
 
-// The runtime-event writer takes the directory it was told to write in, and
-// discovers nothing. The enforcement path does walk up to the tree
-// (`discoverProjectRoot`), and the two coincide wherever a hook is started at
-// the root, which is where Claude and Codex start them. They part company in a
-// subdirectory, and the ADR of 2026-09-02 says why the writer stays as it is:
-// it runs on every tool call of every runtime, and paying a walk up the tree
-// there would be paid by every project for the one case an adapter should
-// close by exporting the root (DEV-738).
+// Runtime hooks discover the durable project, including from nested directories.
 describe('recordRuntimeEventFromCli', () => {
-  it('writes where it stands, without walking up to the project root', async () => {
+  it('uses the project identity when started from a nested directory', async () => {
     const root = await realpath(await scratch('void-cwd-'));
     await mkdir(join(root, '.void'), { recursive: true });
     await writeFile(join(root, '.void', 'config.json'), '{}');
@@ -136,7 +129,7 @@ describe('recordRuntimeEventFromCli', () => {
       process.chdir(previous);
     }
 
-    expect(await readdir(voidMachinePath(nested, 'runs'))).toHaveLength(1);
-    await expect(readdir(voidMachinePath(root, 'runs'))).rejects.toThrow();
+    expect(await readdir(voidMachinePath(root, 'runs'))).toHaveLength(1);
+    await expect(readdir(voidMachinePath(nested, 'runs'))).rejects.toThrow();
   });
 });

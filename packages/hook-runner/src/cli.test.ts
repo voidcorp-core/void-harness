@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   utimesSync,
   writeFileSync,
@@ -529,6 +530,75 @@ describe('a hook fired from a worktree', () => {
       expect(done.status).toBe(0);
       expect(done.stderr).toBe('');
       expect(runsIn(main)).toContain('mis_bbbbbbbbbbbbbbbb');
+      expect(runsIn(worktree)).toEqual([]);
+      renameSync(worktree, join(main, 'retired-worker'));
+      expect(readFileSync(join(main, '.void/machine/runs/mis_bbbbbbbbbbbbbbbb/events.jsonl'), 'utf8'))
+        .toContain('runtime.');
+    } finally {
+      rmSync(main, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps enforcement local while recording its verdict centrally', () => {
+    const { main, worktree } = repositoryWithWorktree();
+    try {
+      mkdirSync(join(worktree, '.void'));
+      writeFileSync(join(worktree, '.void/config.json'), '{"modes":{"tdd":"strict"},"paths":{"business":["**"]}}');
+      writeFileSync(join(main, 'sample.test.ts'), 'export {};');
+      const env: NodeJS.ProcessEnv = { ...process.env, VOID_MISSION_ID: 'mis_cccccccccccccccc' };
+      delete env['VOID_PROJECT_ROOT'];
+      delete env['CLAUDE_PROJECT_DIR'];
+      const done = spawnSync(process.execPath, [hook, 'enforce', 'tdd-order'], {
+        cwd: worktree, env, encoding: 'utf8',
+        input: JSON.stringify(write(join(worktree, 'sample.ts'), 'export const answer = 42;')),
+      });
+      expect(done.status).toBe(2);
+      expect(done.stderr).toContain('void-tdd');
+      expect(runsIn(main)).toContain('mis_cccccccccccccccc');
+      expect(runsIn(worktree)).toEqual([]);
+    } finally {
+      rmSync(main, { recursive: true, force: true });
+    }
+  });
+
+  it('reports unresolved identity without changing the enforcement verdict', () => {
+    const { main, worktree } = repositoryWithWorktree();
+    try {
+      mkdirSync(join(worktree, '.void'));
+      writeFileSync(join(worktree, '.void/config.json'), '{"modes":{"tdd":"strict"},"paths":{"business":["**"]}}');
+      const env: NodeJS.ProcessEnv = { ...process.env, PATH: '', VOID_MISSION_ID: 'mis_dddddddddddddddd' };
+      delete env['VOID_PROJECT_ROOT'];
+      delete env['CLAUDE_PROJECT_DIR'];
+      const done = spawnSync(process.execPath, [hook, 'enforce', 'tdd-order'], {
+        cwd: worktree, env, encoding: 'utf8',
+        input: JSON.stringify(write(join(worktree, 'sample.ts'), 'export const answer = 42;')),
+      });
+      expect(done.status).toBe(2);
+      expect(done.stderr).toContain('TELEMETRY_ROOT_UNRESOLVED');
+      expect(done.stderr).toContain('void-tdd');
+      expect(runsIn(main)).toEqual([]);
+      expect(runsIn(worktree)).toEqual([]);
+    } finally {
+      rmSync(main, { recursive: true, force: true });
+    }
+  });
+
+  it('reports a failed central write without exposing its payload or claiming success', () => {
+    const { main, worktree } = repositoryWithWorktree();
+    try {
+      mkdirSync(join(main, '.void/machine'), { recursive: true });
+      writeFileSync(join(main, '.void/machine/runs'), 'occupied');
+      const env: NodeJS.ProcessEnv = { ...process.env, VOID_MISSION_ID: 'mis_eeeeeeeeeeeeeeee' };
+      delete env['VOID_PROJECT_ROOT'];
+      delete env['CLAUDE_PROJECT_DIR'];
+      const done = spawnSync(process.execPath, [hook, 'activation', 'codex'], {
+        cwd: worktree, env, encoding: 'utf8', input: '{"session_id":"private-marker"}',
+      });
+      expect(done.status).toBe(0);
+      expect(done.stdout).toBe('');
+      expect(done.stderr).toContain('TELEMETRY_WRITE_FAILED');
+      expect(done.stderr).not.toContain('private-marker');
+      expect(done.stderr).not.toContain(main);
       expect(runsIn(worktree)).toEqual([]);
     } finally {
       rmSync(main, { recursive: true, force: true });
