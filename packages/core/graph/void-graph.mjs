@@ -11076,7 +11076,7 @@ import { posix as posix4 } from "path";
 import { posix as posix32 } from "path";
 import { createRequire as nodeCreateRequire } from "module";
 import { pathToFileURL } from "url";
-import { performance } from "perf_hooks";
+import { performance as performance2 } from "perf_hooks";
 import { createHash as createHash32 } from "crypto";
 import { realpathSync as realpathSync2 } from "fs";
 import { createHash as createHash22 } from "crypto";
@@ -14238,7 +14238,7 @@ async function prepareEnvironment(options) {
   const compilerApi = compiler.kind === "resolved" ? compiler.api : void 0;
   const extractor = options.extractor ?? (compilerApi === void 0 ? unavailableExtractor() : createTypeScriptExtractor(compilerApi));
   const extractionKey = `${PROJECT_EXTRACTION_VERSION}:${extractor.id}@${extractor.version}`;
-  const now = options.now ?? (() => performance.now());
+  const now = options.now ?? (() => performance2.now());
   const heapUsed = options.heapUsed ?? (() => process.memoryUsage().heapUsed);
   const cachePath = options.cachePath ?? DEFAULT_CACHE_PATH;
   const startedAt = now();
@@ -16132,6 +16132,32 @@ function readMissionJournals(root, options = {}) {
   return parts.join("\n");
 }
 
+// ../hook-runner/src/rules/dangerous-command.ts
+var BRACED_HOME = `$${"{"}HOME}`;
+var ROOT_TARGETS = /* @__PURE__ */ new Set([
+  "/",
+  "/*",
+  "~",
+  "~/",
+  "~/*",
+  "$HOME",
+  "$HOME/",
+  "$HOME/*",
+  BRACED_HOME,
+  `${BRACED_HOME}/`,
+  `${BRACED_HOME}/*`,
+  ".",
+  "./",
+  "./*",
+  "*"
+]);
+
+// ../hook-runner/src/enforcement/normalize.ts
+var MAX_FIELD_BYTES = 1024 * 1024;
+
+// ../hook-runner/src/enforcement/runner.ts
+var MAX_HOOK_INPUT_BYTES = 1024 * 1024;
+
 // ../hook-runner/src/invocation.ts
 var LIVE_WINDOW_MS = 30 * 24 * 60 * 60 * 1e3;
 
@@ -16367,32 +16393,6 @@ function replayEventLog(text) {
 
 // ../hook-runner/src/sequenced-writer.ts
 var MAX_EVENT_LOG_BYTES = 8 * 1024 * 1024;
-
-// ../hook-runner/src/rules/dangerous-command.ts
-var BRACED_HOME = `$${"{"}HOME}`;
-var ROOT_TARGETS = /* @__PURE__ */ new Set([
-  "/",
-  "/*",
-  "~",
-  "~/",
-  "~/*",
-  "$HOME",
-  "$HOME/",
-  "$HOME/*",
-  BRACED_HOME,
-  `${BRACED_HOME}/`,
-  `${BRACED_HOME}/*`,
-  ".",
-  "./",
-  "./*",
-  "*"
-]);
-
-// ../hook-runner/src/enforcement/normalize.ts
-var MAX_FIELD_BYTES = 1024 * 1024;
-
-// ../hook-runner/src/enforcement/runner.ts
-var MAX_HOOK_INPUT_BYTES = 1024 * 1024;
 
 // ../hook-runner/src/freshness/cache.ts
 var CACHE_TTL_MS = 24 * 60 * 60 * 1e3;

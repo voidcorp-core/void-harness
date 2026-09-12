@@ -1,4 +1,5 @@
 export { journalFingerprint, readMissionJournals, type JournalReadOptions } from './journal.js';
+export { type ProjectRoots, resolveProjectRoots } from './project-roots.js';
 export {
   cachedInvocationAlert,
   installedSkillNames,
