@@ -4,10 +4,33 @@ import {
   conformanceEnvironment,
   packageManagerCommand,
   runConformanceProcess,
+  runConformanceStep,
+  runConformanceSuites,
   safeConformanceDiagnostic,
 } from './conformance-process.mjs';
 
 describe('contained conformance process', () => {
+  it('reports the active installation step before completion and retains its failed outcome', async () => {
+    const events: Array<{ phase: string; label: string; outcome?: string }> = [];
+    const pending = runConformanceStep('codex update', {
+      command: process.execPath,
+      args: ['-e', 'process.exit(3)'],
+      cwd: process.cwd(),
+    }, (event) => events.push(event));
+    expect(events).toEqual([{ phase: 'started', label: 'codex update' }]);
+    await expect(pending).rejects.toThrow('codex update: exited');
+    expect(events[1]).toMatchObject({ phase: 'finished', label: 'codex update', outcome: 'exited', code: 3 });
+  });
+
+  it('stops the suite chain after the first failed proof without launching later suites', async () => {
+    const launched: string[] = [];
+    await expect(runConformanceSuites(['install', 'hooks', 'autopilot'], async (name) => {
+      launched.push(name);
+      return 'install: timed-out';
+    })).rejects.toThrow('install: timed-out');
+    expect(launched).toEqual(['install']);
+  });
+
   it('inherits only execution essentials and explicit fixture-local state', () => {
     expect(
       conformanceEnvironment(

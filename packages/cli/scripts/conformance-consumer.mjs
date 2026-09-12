@@ -12,6 +12,7 @@ import {
   conformanceFixtureEnvironment,
   safeConformanceDiagnostic,
   runConformanceProcess,
+  runConformanceSuites,
 } from './conformance-process.mjs';
 import { loadLegacyOracle } from './conformance-legacy-oracle.mjs';
 
@@ -79,12 +80,8 @@ async function main() {
     const selected = options.suite === undefined
       ? Object.entries(SUITES)
       : [[options.suite, SUITES[options.suite]]];
-    const failures = [];
-    for (const [name, script] of selected) {
-      const failure = await runSuite(name, script, artifact.tarball, temporary);
-      if (failure !== undefined) failures.push(failure);
-    }
-    if (failures.length > 0) fail(`suite failures:\n${failures.join('\n\n')}`);
+    await runConformanceSuites(selected, ([name, script]) =>
+      runSuite(name, script, artifact.tarball, temporary));
     process.stdout.write(
       `consumer conformance passed for ${artifact.manifest.sourceSha}: ${selected.map(([name]) => name).join(', ')}\n`,
     );

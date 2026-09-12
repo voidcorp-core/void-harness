@@ -43,7 +43,6 @@ function assembleRendering(
 		renderRootOnly ? [] : evidence.tombstones,
 		evidence.git,
 		state,
-		distinctProjectIssues(context.ledger.issues).length,
 		context.projectRoot.caseSensitive,
 		evidence.configsByPath,
 		context.compiler,

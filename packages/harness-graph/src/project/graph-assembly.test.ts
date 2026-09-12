@@ -17,8 +17,8 @@ function git(head: string): ProjectGitSnapshot {
 describe('project graph semantic assembly', () => {
 	it('does not make semantic graph content depend on the current Git HEAD', () => {
 		const compiler = { kind: 'absent' as const, detail: 'test', lost: [] as const };
-		const first = assembleProjectGraph([], [], git('a'.repeat(40)), 'fresh', 0, true, new Map(), compiler);
-		const second = assembleProjectGraph([], [], git('b'.repeat(40)), 'fresh', 0, true, new Map(), compiler);
+		const first = assembleProjectGraph([], [], git('a'.repeat(40)), 'fresh', true, new Map(), compiler);
+		const second = assembleProjectGraph([], [], git('b'.repeat(40)), 'fresh', true, new Map(), compiler);
 
 		expect(second.source.rootHash).toBe(first.source.rootHash);
 	});
