@@ -92,16 +92,26 @@ function controlledChangeJournal() {
 	});
 }
 
-function buildProjectGraphNative(options: ProjectGraphBuildOptions) {
+async function buildProjectGraphNative(options: ProjectGraphBuildOptions) {
 	// Fixtures carry no node_modules, so they resolve no compiler of their own
 	// and would every one of them build a partial snapshot. Production never
 	// falls back like this; see `fixtureCompilerLookup`.
-	return buildProjectGraphUnbound({
+	const result = await buildProjectGraphUnbound({
 		journal: trustedJournal,
 		compilerLookup: fixtureCompilerLookup(),
 		git: { inspect: async () => availableGit() },
 		...options,
 	});
+ if (result.state !== 'fresh' || !result.cachePublished) {
+  process.stdout.write(JSON.stringify({
+   diagnostic: 'graph-build', test: expect.getState().currentTestName,
+   state: result.state, cacheStatus: result.cacheStatus,
+   cachePublished: result.cachePublished, issues: result.issues,
+   metrics: result.metrics,
+  }) + '\n');
+ }
+ return result;
+
 }
 
 function buildProjectGraph(options: ProjectGraphBuildOptions) {
