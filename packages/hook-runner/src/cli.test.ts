@@ -511,8 +511,13 @@ describe('a hook fired from a worktree', () => {
     }
   });
 
-  it('keeps native worker events in the main repository without exported roots', () => {
+  it.each([false, true])('keeps native worker events central with nested configuration: %s', (nested) => {
     const { main, worktree } = repositoryWithWorktree();
+    const workingDirectory = nested ? join(worktree, 'app') : worktree;
+    if (nested) {
+      mkdirSync(join(workingDirectory, '.void'), { recursive: true });
+      writeFileSync(join(workingDirectory, '.void/config.json'), '{}');
+    }
     try {
       // Annotated and indexed: a spread of `process.env` narrows to the keys it
       // happens to carry, and this package forbids property access on an index
@@ -523,7 +528,7 @@ describe('a hook fired from a worktree', () => {
       const done = spawnSync(process.execPath, [hook, 'activation', 'codex'], {
         input: '{}',
         encoding: 'utf8',
-        cwd: worktree,
+        cwd: workingDirectory,
         env,
       });
 
@@ -531,6 +536,7 @@ describe('a hook fired from a worktree', () => {
       expect(done.stderr).toBe('');
       expect(runsIn(main)).toContain('mis_bbbbbbbbbbbbbbbb');
       expect(runsIn(worktree)).toEqual([]);
+      expect(runsIn(workingDirectory)).toEqual([]);
       renameSync(worktree, join(main, 'retired-worker'));
       expect(readFileSync(join(main, '.void/machine/runs/mis_bbbbbbbbbbbbbbbb/events.jsonl'), 'utf8'))
         .toContain('runtime.');
@@ -539,23 +545,25 @@ describe('a hook fired from a worktree', () => {
     }
   });
 
-  it('keeps enforcement local while recording its verdict centrally', () => {
+  it.each([false, true])('keeps enforcement local with nested configuration: %s', (nested) => {
     const { main, worktree } = repositoryWithWorktree();
+    const workingDirectory = nested ? join(worktree, 'app') : worktree;
     try {
-      mkdirSync(join(worktree, '.void'));
-      writeFileSync(join(worktree, '.void/config.json'), '{"modes":{"tdd":"strict"},"paths":{"business":["**"]}}');
+      mkdirSync(join(workingDirectory, '.void'), { recursive: true });
+      writeFileSync(join(workingDirectory, '.void/config.json'), '{"modes":{"tdd":"strict"},"paths":{"business":["**"]}}');
       writeFileSync(join(main, 'sample.test.ts'), 'export {};');
       const env: NodeJS.ProcessEnv = { ...process.env, VOID_MISSION_ID: 'mis_cccccccccccccccc' };
       delete env['VOID_PROJECT_ROOT'];
       delete env['CLAUDE_PROJECT_DIR'];
       const done = spawnSync(process.execPath, [hook, 'enforce', 'tdd-order'], {
-        cwd: worktree, env, encoding: 'utf8',
-        input: JSON.stringify(write(join(worktree, 'sample.ts'), 'export const answer = 42;')),
+        cwd: workingDirectory, env, encoding: 'utf8',
+        input: JSON.stringify(write(join(workingDirectory, 'sample.ts'), 'export const answer = 42;')),
       });
       expect(done.status).toBe(2);
       expect(done.stderr).toContain('void-tdd');
       expect(runsIn(main)).toContain('mis_cccccccccccccccc');
       expect(runsIn(worktree)).toEqual([]);
+      expect(runsIn(workingDirectory)).toEqual([]);
     } finally {
       rmSync(main, { recursive: true, force: true });
     }
