@@ -265,7 +265,7 @@ function parseCacheEntry(value: unknown, path: string): ProjectGraphCacheEntry {
 		!FILE_KINDS.has(kind as ProjectFileKind) ||
 		typeof entry['path'] !== 'string'
 	)
-		return cacheError(`${path} is invalid`);
+		return cacheError(`${path} is invalid: ${JSON.stringify({ size: entry['size'], mtimeMs: entry['mtimeMs'], ctimeMs: entry['ctimeMs'], device: entry['device'], inode: entry['inode'] })}`);
 	return Object.freeze({
 		path: normalizeProjectPath(entry['path']),
 		...(typeof entry['device'] === 'number' ? { device: entry['device'] } : {}),
