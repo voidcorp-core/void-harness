@@ -953,12 +953,13 @@ it('composes bounded rename chains without losing either Git proof', async () =>
 	const first = join(root, 'packages/core/src/secondary.ts');
 	const second = join(root, 'packages/core/src/renamed.ts');
 	const final = join(root, 'packages/core/src/final.ts');
-	await buildProjectGraph({
+	const initial = await buildProjectGraph({
 		root,
 		git: { inspect: async () => availableGit({ head: 'a'.repeat(40) }) },
 	});
+	expect(initial.cachePublished, JSON.stringify(initial.issues)).toBe(true);
 	await rename(first, second);
-	await buildProjectGraph({
+	const intermediate = await buildProjectGraph({
 		root,
 		git: {
 			inspect: async () =>
@@ -974,6 +975,8 @@ it('composes bounded rename chains without losing either Git proof', async () =>
 				}),
 		},
 	});
+	expect(intermediate.cacheStatus, JSON.stringify(intermediate.issues)).toBe('ready');
+	expect(intermediate.cachePublished, JSON.stringify(intermediate.issues)).toBe(true);
 	await rename(second, final);
 	const result = await buildProjectGraph({
 		root,
@@ -996,7 +999,9 @@ it('composes bounded rename chains without losing either Git proof', async () =>
 		(edge) =>
 			edge.kind === 'previous-id' && edge.from === projectFileId('packages/core/src/secondary.ts'),
 	);
-	expect(lineage?.to).toBe(projectFileId('packages/core/src/final.ts'));
+	expect(lineage?.to, JSON.stringify({
+		state: result.state, cacheStatus: result.cacheStatus, issues: result.issues,
+	})).toBe(projectFileId('packages/core/src/final.ts'));
 	expect(lineage?.data).toMatchObject({ hops: 2, similarity: 90 });
 	expect(lineage?.provenance.sources.map((source) => source.hashOrVersion)).toEqual([
 		'b'.repeat(40),
