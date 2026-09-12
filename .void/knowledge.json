@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "project-knowledge",
-  "rootHash": "sha256:0e96928bfd754cbdecaf87d560787ee6068df8bf2dc5bd1aafe39aef49d8e3c8",
+  "rootHash": "sha256:9c1610f4ad552d0e4b3e5259103d6d8f70cb4d178e17f9ada01793b24b21f2c1",
   "state": "partial",
   "generatedFrom": {
     "kind": "project-graph",
@@ -14,7 +14,7 @@
     "source": {
       "kind": "native",
       "version": "3.0.0-alpha.1+project.1+typescript.5.9.3",
-      "rootHash": "sha256:0e96928bfd754cbdecaf87d560787ee6068df8bf2dc5bd1aafe39aef49d8e3c8"
+      "rootHash": "sha256:9c1610f4ad552d0e4b3e5259103d6d8f70cb4d178e17f9ada01793b24b21f2c1"
     },
     "nodes": [
       {
@@ -17089,9 +17089,9 @@
         "label": "RELEASING.md",
         "data": {
           "diagnostics": 0,
-          "hash": "sha256:a89fbb9be2a8dafb6564dfa81dde827d1eeb1690da1b10474ab4cc89e0709c2b",
+          "hash": "sha256:0b6a55d4e9d8c05422f3e821c4776d5b9ac20ec7d945c517a5feb263b2ec604c",
           "path": "docs/RELEASING.md",
-          "size": 24976,
+          "size": 25446,
           "state": "active"
         },
         "provenance": {
@@ -17101,7 +17101,7 @@
             {
               "kind": "path",
               "ref": "docs/RELEASING.md",
-              "hashOrVersion": "sha256:a89fbb9be2a8dafb6564dfa81dde827d1eeb1690da1b10474ab4cc89e0709c2b"
+              "hashOrVersion": "sha256:0b6a55d4e9d8c05422f3e821c4776d5b9ac20ec7d945c517a5feb263b2ec604c"
             }
           ]
         }
@@ -29992,9 +29992,9 @@
         "label": "conformance-install.mjs",
         "data": {
           "diagnostics": 0,
-          "hash": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549",
+          "hash": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7",
           "path": "packages/cli/scripts/conformance-install.mjs",
-          "size": 4478,
+          "size": 5317,
           "state": "active"
         },
         "provenance": {
@@ -30004,7 +30004,30 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
+            }
+          ]
+        }
+      },
+      {
+        "id": "project:file:packages/cli/scripts/conformance-install.test.ts",
+        "kind": "test",
+        "label": "conformance-install.test.ts",
+        "data": {
+          "diagnostics": 0,
+          "hash": "sha256:08c3328e691e40593cdded5a587a1793e0a14b8cf5476421d3378662afc1ff2d",
+          "path": "packages/cli/scripts/conformance-install.test.ts",
+          "size": 1521,
+          "state": "active"
+        },
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-install.test.ts",
+              "hashOrVersion": "sha256:08c3328e691e40593cdded5a587a1793e0a14b8cf5476421d3378662afc1ff2d"
             }
           ]
         }
@@ -57913,7 +57936,7 @@
         "kind": "root",
         "label": "current project",
         "data": {
-          "issueCount": 4601,
+          "issueCount": 4600,
           "state": "partial"
         },
         "provenance": {
@@ -83549,6 +83572,26 @@
         }
       },
       {
+        "id": "project:symbol:packages/cli/scripts/conformance-install.mjs:exerciseInstalledRuntimes",
+        "kind": "symbol",
+        "label": "exerciseInstalledRuntimes",
+        "data": {
+          "exported": true,
+          "symbolKind": "function"
+        },
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-install.mjs",
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
+            }
+          ]
+        }
+      },
+      {
         "id": "project:symbol:packages/cli/scripts/conformance-install.mjs:exerciseRuntime",
         "kind": "symbol",
         "label": "exerciseRuntime",
@@ -83563,18 +83606,18 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
       },
       {
-        "id": "project:symbol:packages/cli/scripts/conformance-install.mjs:manifest",
+        "id": "project:symbol:packages/cli/scripts/conformance-install.mjs:installPackage",
         "kind": "symbol",
-        "label": "manifest",
+        "label": "installPackage",
         "data": {
           "exported": false,
-          "symbolKind": "variable"
+          "symbolKind": "function"
         },
         "provenance": {
           "origin": "extracted",
@@ -83583,7 +83626,27 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
+            }
+          ]
+        }
+      },
+      {
+        "id": "project:symbol:packages/cli/scripts/conformance-install.mjs:main",
+        "kind": "symbol",
+        "label": "main",
+        "data": {
+          "exported": false,
+          "symbolKind": "function"
+        },
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-install.mjs",
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
@@ -83603,7 +83666,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
@@ -83623,47 +83686,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
-            }
-          ]
-        }
-      },
-      {
-        "id": "project:symbol:packages/cli/scripts/conformance-install.mjs:tarball",
-        "kind": "symbol",
-        "label": "tarball",
-        "data": {
-          "exported": false,
-          "symbolKind": "variable"
-        },
-        "provenance": {
-          "origin": "extracted",
-          "confidence": 1,
-          "sources": [
-            {
-              "kind": "path",
-              "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
-            }
-          ]
-        }
-      },
-      {
-        "id": "project:symbol:packages/cli/scripts/conformance-install.mjs:temporary",
-        "kind": "symbol",
-        "label": "temporary",
-        "data": {
-          "exported": false,
-          "symbolKind": "variable"
-        },
-        "provenance": {
-          "origin": "extracted",
-          "confidence": 1,
-          "sources": [
-            {
-              "kind": "path",
-              "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
@@ -212301,6 +212324,24 @@
         }
       },
       {
+        "id": "project:edge:contains:1f731241bd92478bd1676a211f0a8c60",
+        "from": "project:workspace:packages/cli",
+        "to": "project:file:packages/cli/scripts/conformance-install.test.ts",
+        "kind": "contains",
+        "data": {},
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-install.test.ts",
+              "hashOrVersion": "sha256:08c3328e691e40593cdded5a587a1793e0a14b8cf5476421d3378662afc1ff2d"
+            }
+          ]
+        }
+      },
+      {
         "id": "project:edge:contains:1f7b820b801911ad0ed008d1ae7631ce",
         "from": "project:workspace:root",
         "to": "project:file:benchmarks/engineering/cohort.json",
@@ -226934,7 +226975,7 @@
             {
               "kind": "path",
               "ref": "docs/RELEASING.md",
-              "hashOrVersion": "sha256:a89fbb9be2a8dafb6564dfa81dde827d1eeb1690da1b10474ab4cc89e0709c2b"
+              "hashOrVersion": "sha256:0b6a55d4e9d8c05422f3e821c4776d5b9ac20ec7d945c517a5feb263b2ec604c"
             }
           ]
         }
@@ -251126,7 +251167,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
@@ -253754,7 +253795,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
@@ -292868,7 +292909,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
@@ -322124,6 +322165,24 @@
         }
       },
       {
+        "id": "project:edge:declares:865bc1960447e6b6bc5527ff974e7258",
+        "from": "project:file:packages/cli/scripts/conformance-install.mjs",
+        "to": "project:symbol:packages/cli/scripts/conformance-install.mjs:main",
+        "kind": "declares",
+        "data": {},
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-install.mjs",
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
+            }
+          ]
+        }
+      },
+      {
         "id": "project:edge:declares:8669159da3f4bb869902940e236e784f",
         "from": "project:file:packages/cli/src/lib/autopilot/union-review.ts",
         "to": "project:symbol:packages/cli/src/lib/autopilot/union-review.ts:judgeMergeGrant",
@@ -322281,6 +322340,24 @@
               "kind": "path",
               "ref": "packages/harness-graph/src/index.ts",
               "hashOrVersion": "sha256:bd75264d80b050d5dfa99d0fc682b9cc12e786130a4103b075c2c3ce192c3994"
+            }
+          ]
+        }
+      },
+      {
+        "id": "project:edge:declares:86a863477dee58fff6341db6284d3f9a",
+        "from": "project:file:packages/cli/scripts/conformance-install.mjs",
+        "to": "project:symbol:packages/cli/scripts/conformance-install.mjs:exerciseInstalledRuntimes",
+        "kind": "declares",
+        "data": {},
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-install.mjs",
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
@@ -329805,6 +329882,24 @@
               "kind": "path",
               "ref": "packages/harness-graph/src/project/index.ts",
               "hashOrVersion": "sha256:557cd9493b835ac1b39c7df717fb4fc7c45a9ebf86573668b20d6d86bc664390"
+            }
+          ]
+        }
+      },
+      {
+        "id": "project:edge:declares:9428e133e8b81151a956cb3fbb720206",
+        "from": "project:file:packages/cli/scripts/conformance-install.mjs",
+        "to": "project:symbol:packages/cli/scripts/conformance-install.mjs:installPackage",
+        "kind": "declares",
+        "data": {},
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-install.mjs",
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
@@ -342855,24 +342950,6 @@
               "kind": "path",
               "ref": "packages/harness-graph/src/catalog/build.ts",
               "hashOrVersion": "sha256:19362a7bc2cf3048191c6fface950cceaf4b4cd8520c37cc0e5ea9bdd1b4c8f8"
-            }
-          ]
-        }
-      },
-      {
-        "id": "project:edge:declares:add7934d0610e71be1e8d04525c0c3a2",
-        "from": "project:file:packages/cli/scripts/conformance-install.mjs",
-        "to": "project:symbol:packages/cli/scripts/conformance-install.mjs:tarball",
-        "kind": "declares",
-        "data": {},
-        "provenance": {
-          "origin": "extracted",
-          "confidence": 1,
-          "sources": [
-            {
-              "kind": "path",
-              "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -370274,24 +370351,6 @@
         }
       },
       {
-        "id": "project:edge:declares:e33876f83dea8fe89815a4e9f143f2a2",
-        "from": "project:file:packages/cli/scripts/conformance-install.mjs",
-        "to": "project:symbol:packages/cli/scripts/conformance-install.mjs:temporary",
-        "kind": "declares",
-        "data": {},
-        "provenance": {
-          "origin": "extracted",
-          "confidence": 1,
-          "sources": [
-            {
-              "kind": "path",
-              "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
-            }
-          ]
-        }
-      },
-      {
         "id": "project:edge:declares:e351812988d58365d40b95435313c3c1",
         "from": "project:file:packages/cli/core-assets/hooks/_void-hook.mjs",
         "to": "project:symbol:packages/cli/core-assets/hooks/_void-hook.mjs:TYPE_IMPORT",
@@ -372753,24 +372812,6 @@
               "kind": "path",
               "ref": "packages/cli/src/lib/runs/specialist-lifecycle.test.ts",
               "hashOrVersion": "sha256:0801bde7fe918bb4628bbe0b6976548d7f96afb57d05a4e96a03af3e5bb3db85"
-            }
-          ]
-        }
-      },
-      {
-        "id": "project:edge:declares:e7d6cb0aeddf0690691ad94f591fb058",
-        "from": "project:file:packages/cli/scripts/conformance-install.mjs",
-        "to": "project:symbol:packages/cli/scripts/conformance-install.mjs:manifest",
-        "kind": "declares",
-        "data": {},
-        "provenance": {
-          "origin": "extracted",
-          "confidence": 1,
-          "sources": [
-            {
-              "kind": "path",
-              "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
             }
           ]
         }
@@ -384938,7 +384979,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
@@ -386229,6 +386270,27 @@
               "kind": "path",
               "ref": "packages/hook-runner/src/freshness/cache.test.ts",
               "hashOrVersion": "sha256:90fd2636a639e58df7ece26b10a2793557c9468573df68ccacffdd8d17372c22"
+            }
+          ]
+        }
+      },
+      {
+        "id": "project:edge:dynamic-imports:bf2223158e134c82d294c1b7f5ae6bf6",
+        "from": "project:file:packages/cli/scripts/conformance-install.test.ts",
+        "to": "project:file:packages/cli/scripts/conformance-install.mjs",
+        "kind": "dynamic-imports",
+        "data": {
+          "resolved": true,
+          "specifier": "./conformance-install.mjs"
+        },
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-install.test.ts",
+              "hashOrVersion": "sha256:08c3328e691e40593cdded5a587a1793e0a14b8cf5476421d3378662afc1ff2d"
             }
           ]
         }
@@ -409584,6 +409646,24 @@
               "kind": "path",
               "ref": "packages/harness-graph/src/behavior/types.ts",
               "hashOrVersion": "sha256:5b392ee4e641287d86352214c313099939955a5450f5e9b943b481478076b7be"
+            }
+          ]
+        }
+      },
+      {
+        "id": "project:edge:exports:8ae3fae556ab97cd48613e671df4dc7b",
+        "from": "project:file:packages/cli/scripts/conformance-install.mjs",
+        "to": "project:symbol:packages/cli/scripts/conformance-install.mjs:exerciseInstalledRuntimes",
+        "kind": "exports",
+        "data": {},
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-install.mjs",
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
@@ -443504,7 +443584,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
@@ -446382,6 +446462,27 @@
               "kind": "path",
               "ref": "packages/cli/src/lib/codex-agents.test.ts",
               "hashOrVersion": "sha256:417c7664902ef1beaa0c476537e7cf2971a7321d4c0c882b53d01a692ebf6378"
+            }
+          ]
+        }
+      },
+      {
+        "id": "project:edge:imports:34f4f8291b6fe386eefb8b5a5cb5cb59",
+        "from": "project:file:packages/cli/scripts/conformance-install.mjs",
+        "to": "project:module:node:url",
+        "kind": "imports",
+        "data": {
+          "resolved": false,
+          "specifier": "node:url"
+        },
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-install.mjs",
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
@@ -466667,7 +466768,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
@@ -471350,7 +471451,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
@@ -481808,7 +481909,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
@@ -485546,7 +485647,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
@@ -494078,6 +494179,27 @@
         }
       },
       {
+        "id": "project:edge:imports:d7e37668bc2e83535d06d82adc4326ab",
+        "from": "project:file:packages/cli/scripts/conformance-install.test.ts",
+        "to": "project:module:vitest",
+        "kind": "imports",
+        "data": {
+          "resolved": false,
+          "specifier": "vitest"
+        },
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-install.test.ts",
+              "hashOrVersion": "sha256:08c3328e691e40593cdded5a587a1793e0a14b8cf5476421d3378662afc1ff2d"
+            }
+          ]
+        }
+      },
+      {
         "id": "project:edge:imports:d7e6bded7b9096b92c0f8e3458b87a54",
         "from": "project:file:packages/harness-graph/src/project/test-fixtures/monorepo/packages/app/src/index.specimen.ts",
         "to": "project:module:vitest",
@@ -498209,7 +498331,7 @@
             {
               "kind": "path",
               "ref": "packages/cli/scripts/conformance-install.mjs",
-              "hashOrVersion": "sha256:46009571a8c33433e9c86b79f2b2773aa37327c16cf6974a86971cfd50d26549"
+              "hashOrVersion": "sha256:efc7cb3071e1ea9dd3c8185c1e2edd23ee55333641d8dde269c35489f9035fd7"
             }
           ]
         }
@@ -513748,6 +513870,24 @@
       {
         "id": "project:edge:owned-by:36b4bcabb7dd0fb70523e1660a345608",
         "from": "project:file:packages/cli/src/lib/ui/payload.ts",
+        "to": "project:owner:h-29e4ada527e07c115972dac23b8ee1a6",
+        "kind": "owned-by",
+        "data": {},
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "adapter",
+              "ref": "git",
+              "hashOrVersion": "git-observation-v1"
+            }
+          ]
+        }
+      },
+      {
+        "id": "project:edge:owned-by:36bb7e7aff0569e222391d577ad52ff7",
+        "from": "project:file:packages/cli/scripts/conformance-install.test.ts",
         "to": "project:owner:h-29e4ada527e07c115972dac23b8ee1a6",
         "kind": "owned-by",
         "data": {},
@@ -548481,6 +548621,24 @@
               "kind": "path",
               "ref": "packages/cli/src/lib/remote.test.ts",
               "hashOrVersion": "sha256:6d72461452edd220dedba67c4bdbf0b210965b00db423ec98fe2a441294c7cad"
+            }
+          ]
+        }
+      },
+      {
+        "id": "project:edge:tests:60723d956e61e10538ae60eb9d05cf21",
+        "from": "project:file:packages/cli/scripts/conformance-install.test.ts",
+        "to": "project:file:packages/cli/scripts/conformance-install.mjs",
+        "kind": "tests",
+        "data": {},
+        "provenance": {
+          "origin": "extracted",
+          "confidence": 1,
+          "sources": [
+            {
+              "kind": "path",
+              "ref": "packages/cli/scripts/conformance-install.test.ts",
+              "hashOrVersion": "sha256:08c3328e691e40593cdded5a587a1793e0a14b8cf5476421d3378662afc1ff2d"
             }
           ]
         }

@@ -345,6 +345,12 @@ structured start/finish events with their runtime, operation and duration, so an
 outer timeout retains the last active step. Consumer suites stop at the first
 failed proof; later suites are not launched after that failure. These diagnostics
 do not change the 120-second execution limit or authorize a retry.
+The install suite performs one offline npm installation of the verified tarball
+in a suite-local package directory. Its CLI then exercises three independent
+consumer roots (Claude, Codex and both), each with its own environment, receipts
+and user files. Package installation is measured separately; runtime p50 covers
+init and both update paths only. The package directory is never reused across
+runs or operating systems, and all three runtime proofs remain mandatory.
 Install conformance and later
 runtime-invocation certification remain separate gates.
 
