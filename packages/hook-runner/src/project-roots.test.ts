@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -36,7 +36,12 @@ describe('telemetry destination evidence', () => {
     const nested = join(worker, 'app');
     mkdirSync(join(nested, '.void'), { recursive: true });
     writeFileSync(join(nested, '.void/config.json'), '{}');
-    expect(resolveTelemetryRoot(nested)).toEqual({ kind: 'resolved', root });
+    vi.stubEnv('PATH', '');
+    try {
+      expect(resolveTelemetryRoot(nested)).toEqual({ kind: 'resolved', root });
+    } finally {
+      vi.unstubAllEnvs();
+    }
     mkdirSync(join(root, 'app/.void'), { recursive: true });
     writeFileSync(join(root, 'app/.void/config.json'), '{}');
     expect(resolveTelemetryRoot(join(root, 'app'))).toEqual({ kind: 'resolved', root });
@@ -51,19 +56,40 @@ describe('telemetry destination evidence', () => {
 
   it('refuses an exhausted discovery deadline without a successful local fallback', () => {
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'void-event-deadline-')));
-    git(root, 'init', '--quiet');
+    git(root, 'init', '--quiet', '--separate-git-dir', join(root, 'metadata'));
     git(root, '-c', 'user.name=Test', '-c', 'user.email=test@example.test',
       'commit', '--allow-empty', '-qm', 'seed');
-    const worker = join(root, 'worker');
-    git(root, 'worktree', 'add', '-b', 'worker', worker);
-    expect(resolveTelemetryRoot(worker)).toEqual({ kind: 'resolved', root });
+    expect(resolveTelemetryRoot(root)).toEqual({ kind: 'resolved', root });
     const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(0).mockReturnValue(101);
     try {
-      expect(resolveTelemetryRoot(worker)).toEqual({
+      expect(resolveTelemetryRoot(root)).toEqual({
         kind: 'unavailable', code: 'TELEMETRY_ROOT_UNRESOLVED',
       });
     } finally {
       clock.mockRestore();
     }
   });
+
+  it('refuses a pointer borrowed from another worker despite a shared common directory', () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'void-event-backlink-')));
+    git(root, 'init', '--quiet');
+    git(root, '-c', 'user.name=Test', '-c', 'user.email=test@example.test',
+      'commit', '--allow-empty', '-qm', 'seed');
+    const first = join(root, 'first');
+    const second = join(root, 'second');
+    git(root, 'worktree', 'add', '-b', 'first', first);
+    git(root, 'worktree', 'add', '-b', 'second', second);
+    writeFileSync(join(first, '.git'), readFileSync(join(second, '.git')));
+    expect(resolveTelemetryRoot(first)).toEqual({
+      kind: 'unavailable', code: 'TELEMETRY_ROOT_UNRESOLVED',
+    });
+  });
+
+  it.each(['gitdir: ', 'gitdir: bad\npath', `gitdir: ${'x'.repeat(4097)}`])(
+    'refuses malformed or oversized identity metadata: %s', (pointer) => {
+      const root = realpathSync(mkdtempSync(join(tmpdir(), 'void-event-pointer-')));
+      writeFileSync(join(root, '.git'), pointer);
+      expect(resolveTelemetryRoot(root)).toMatchObject({ kind: 'unavailable' });
+    },
+  );
 });

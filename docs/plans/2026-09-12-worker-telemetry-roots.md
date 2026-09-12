@@ -19,12 +19,18 @@ no environment parameter. A prompt export does not configure runtime hooks.
 
 ## Preparation review corrections
 
-Root discovery is resolved at most once per hook invocation. Linked-worktree Git
-inspection has a 100 ms aggregate deadline; each subprocess receives only the
-remaining time. Main checkouts avoid subprocesses. The existing CLI keeps its
+Root discovery is resolved at most once per hook invocation. Ordinary linked
+worktrees verify Git's bounded gitfile, commondir and reciprocal gitdir chain
+without subprocesses. Exceptional-layout Git inspection has a 100 ms aggregate
+deadline; each subprocess receives only the remaining time. The existing CLI keeps its
 current bounded behavior. Timeout/unavailable Git yields a typed unresolved-root
 result. Measure the exact hook path, including the linked-worktree case; this
 deadline is a bound, not a claim of meeting performance budgets.
+
+Concurrent regression exposed process startup exceeding that budget. The
+metadata identity path removes the source of contention without raising timeouts.
+Nested policy configurations do not change repository identity; only an
+independent installation receipt establishes a distinct telemetry root.
 
 Both unresolved destination and write failure emit one bounded diagnostic to
 stderr, naming distinct stable codes and corrective actions, without payload,

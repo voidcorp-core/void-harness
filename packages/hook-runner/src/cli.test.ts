@@ -537,7 +537,9 @@ describe('a hook fired from a worktree', () => {
     expect(replay.events.filter((event) => event.kind.startsWith('runtime.'))).toHaveLength(3);
     const outcomes = replay.events.filter((event) => event.kind === 'hook.completed');
     expect(outcomes).toHaveLength(6);
-    expect(outcomes.every((event) => ['ok', 'skipped'].includes(String(event.payload['status'])))).toBe(true);
+    for (const event of outcomes) {
+      expect(event.payload).toEqual(expect.objectContaining({ status: expect.stringMatching(/^(ok|skipped)$/) }));
+    }
   });
 
   it('writes its event under the installation root, never under the worktree it ran in', () => {
@@ -621,6 +623,7 @@ describe('a hook fired from a worktree', () => {
 
   it.each([false, true])('reports unresolved identity with nested configuration: %s', (nested) => {
     const { main, worktree } = repositoryWithWorktree();
+    writeFileSync(join(worktree, '.git'), 'gitdir: missing\n');
     const workingDirectory = nested ? join(worktree, 'app') : worktree;
     try {
       mkdirSync(join(workingDirectory, '.void'), { recursive: true });

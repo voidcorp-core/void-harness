@@ -30,8 +30,8 @@
 // the default layout, the same trap as the listing without the toplevel ask.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, lstatSync, realpathSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { closeSync, existsSync, lstatSync, openSync, readSync, realpathSync } from 'node:fs';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { voidReadPath } from './void-layout.js';
 import { discoverProjectRoot } from './enforcement/runner.js';
 
@@ -133,6 +133,44 @@ export type TelemetryRoot =
   | { readonly kind: 'resolved'; readonly root: string }
   | { readonly kind: 'unavailable'; readonly code: 'TELEMETRY_ROOT_UNRESOLVED' };
 
+function gitPointer(path: string): string {
+  if (!lstatSync(path).isFile()) throw new Error('INVALID_GIT_POINTER');
+  const file = openSync(path, 'r');
+  try {
+    const bytes = Buffer.alloc(4097);
+    const size = readSync(file, bytes, 0, bytes.length, 0);
+    if (size > 4096) throw new Error('INVALID_GIT_POINTER');
+    const content = bytes.subarray(0, size);
+    const value = content.toString('utf8').replace(/\r?\n$/, '');
+    if (content.includes(0) || value === '' || /[\r\n]/.test(value)) {
+      throw new Error('INVALID_GIT_POINTER');
+    }
+    return value;
+  } finally {
+    closeSync(file);
+  }
+}
+
+/** Git's documented gitfile / commondir / backlink chain, without process startup. */
+function ordinaryLinkedMain(tree: string): string | undefined {
+  const marker = join(tree, '.git');
+  const pointer = gitPointer(marker);
+  if (!pointer.startsWith('gitdir: ')) throw new Error('INVALID_GIT_POINTER');
+  const directory = canonical(resolve(tree, pointer.slice(8)));
+  if (!existsSync(join(directory, 'commondir'))) return undefined;
+  const common = canonical(resolve(directory, gitPointer(join(directory, 'commondir'))));
+  const backlink = gitPointer(join(directory, 'gitdir'));
+  if (!isAbsolute(backlink) || canonical(backlink) !== canonical(marker)
+    || canonical(dirname(directory)) !== canonical(join(common, 'worktrees'))) {
+    throw new Error('INVALID_GIT_POINTER');
+  }
+  const candidate = dirname(common);
+  const candidateMarker = join(candidate, '.git');
+  if (!lstatSync(candidateMarker, { throwIfNoEntry: false })?.isDirectory()
+    || canonical(candidateMarker) !== common) return undefined;
+  return candidate;
+}
+
 /** Advisory events need a proven durable destination; rules still use their work root. */
 export function resolveTelemetryRoot(cwd: string): TelemetryRoot {
   const refused: TelemetryRoot = { kind: 'unavailable', code: 'TELEMETRY_ROOT_UNRESOLVED' };
@@ -140,7 +178,8 @@ export function resolveTelemetryRoot(cwd: string): TelemetryRoot {
     // A policy file scopes enforcement, not repository ownership. Walk through
     // nested configurations until Git or an independent install owns the root.
     let tree = canonical(cwd);
-    while (!existsSync(join(tree, '.git')) && !holdsInstallReceipt(tree)) {
+    while (lstatSync(join(tree, '.git'), { throwIfNoEntry: false }) === undefined
+      && !holdsInstallReceipt(tree)) {
       const parent = dirname(tree);
       if (parent === tree) {
         return { kind: 'resolved', root: canonical(discoverProjectRoot(cwd)) };
@@ -153,6 +192,8 @@ export function resolveTelemetryRoot(cwd: string): TelemetryRoot {
     if (markerStat === undefined || markerStat.isDirectory() || holdsInstallReceipt(tree)) {
       return { kind: 'resolved', root: tree };
     }
+    const ordinary = ordinaryLinkedMain(tree);
+    if (ordinary !== undefined) return { kind: 'resolved', root: ordinary };
     const deadline = performance.now() + 100;
     const [toplevel, directory, common] = git(tree, [
       'rev-parse', '--show-toplevel', '--absolute-git-dir', '--git-common-dir',
