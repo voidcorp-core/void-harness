@@ -1,3 +1,5 @@
+// @test-resource subprocess
+// The consumer workspace adapter clones Git repositories for each execution.
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { mkdtemp, realpath } from 'node:fs/promises';
@@ -251,7 +253,10 @@ describe('durable runtime composition', () => {
 
   it('refuses changed artifact, admission policy or reviewer on resume', async () => {
     const { input, adapter, workspaces } = await scenario();
-    await runDurableRuntimePilot(input, adapter);
+    // Identity is sealed after the first real execution; full 27-cell success
+    // belongs to the composition test above, not this admission-boundary test.
+    const options = { ...input, assess: async () => ({ kind: 'unavailable' as const }) };
+    await runDurableRuntimePilot(options, adapter);
     if (input.budget === undefined) throw new Error('missing fixture budget');
     for (const change of [
       { artifactDigest: `sha256:${'d'.repeat(64)}` },
@@ -260,8 +265,8 @@ describe('durable runtime composition', () => {
         ...input.loadTask(request), task: 'Different task',
       }) },
     ]) {
-      await expect(runDurableRuntimePilot({ ...input, ...change }, adapter)).rejects.toThrow('identity');
+      await expect(runDurableRuntimePilot({ ...options, ...change }, adapter)).rejects.toThrow('identity');
     }
-    expect(workspaces).toHaveLength(27);
+    expect(workspaces).toHaveLength(1);
   });
 });

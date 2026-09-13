@@ -59,7 +59,9 @@ function runHook(
 ): { code: number; stdout: string; stderr: string } {
   const input = JSON.stringify({
     tool_name: call.tool,
-    tool_input: { file_path: call.file, content: call.content ?? '' },
+    tool_input: call.tool === 'Edit'
+      ? { file_path: call.file, old_string: call.content ?? '', new_string: `${call.content ?? ''}\n` }
+      : { file_path: call.file, content: call.content ?? '' },
   });
   // spawnSync (not execSync) so stderr is captured even on a 0 exit: the
   // souple-mode warning is written to stderr while the hook still allows.

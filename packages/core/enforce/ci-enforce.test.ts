@@ -92,6 +92,23 @@ describe('ci-enforce — violations become red annotations', () => {
     expect(stdout).toMatch(/::error file=src\/config\.ts/);
   });
 
+  it.each([false, true])('checks removal-only declarations with sibling=%s', (sibling) => {
+    const path = 'apps/web/src/page.ts';
+    const body = 'export const page = 1;\n';
+    write(repo, path, '// tdd-cover: e2e tests/page.spec.ts\n' + body);
+    write(repo, 'tests/page.spec.ts', 'test("page", () => {});\n');
+    if (sibling) write(repo, 'apps/web/src/page.test.ts', 'test("page", () => {});\n');
+    git(repo, 'add', '-A');
+    git(repo, 'commit', '-q', '-m', 'covered baseline');
+    const covered = git(repo, 'rev-parse', 'HEAD').trim();
+    write(repo, path, body);
+    git(repo, 'add', '-A');
+    git(repo, 'commit', '-q', '-m', 'remove declaration only');
+    const result = run(repo, covered);
+    expect(result.code).toBe(sibling ? 0 : 1);
+    if (!sibling) expect(result.stdout).toContain('TDD_SIBLING_TEST_MISSING');
+  });
+
   it('flags frontend production code with no sibling test', () => {
     write(repo, 'apps/web/src/Card.tsx', 'export const Card = () => null;\n');
     git(repo, 'add', '-A');

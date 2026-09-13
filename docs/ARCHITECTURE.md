@@ -485,6 +485,16 @@ receipts and health checks do not depend on them. `_hooklib.sh` and `_checks.sh`
 remain characterization inputs only and are not part of the active runtime.
 The local runtime therefore requires Node only, not `jq` or a POSIX shell.
 
+Context-sensitive focused-test checks reconstruct the complete proposed file
+before inspecting syntax. They use the project's TypeScript 5 compiler in a
+bounded child process; no compiler is bundled or downloaded. Ordinary tests
+without suspicious tokens and an unambiguous prohibited call at the start of a
+file retain their dependency-free paths. Missing context or compiler capability
+is `TEST_SYNTAX_UNVERIFIED`, a refusal rather than an assertion that code was
+checked. This is a quality check over trusted project tooling, not a sandbox for
+hostile compiler packages. See [hook test evidence](HOOK-TEST-EVIDENCE.md) for
+limits, supported edits and the structural E2E declaration contract.
+
 Every active hook records a bounded, redacted `hook.completed` event. Lifecycle
 states distinguish `ok`, `skipped` and `degraded`; enforcement additionally
 records `blocked`. Formatting touches only files named by the tool call. Output

@@ -11,8 +11,11 @@ export interface TddOrderInput {
   readonly mode: TddMode;
   readonly businessGlobs: readonly string[];
   readonly spikeGlobs: readonly string[];
-  readonly existingHeaders: Readonly<Record<string, string>>;
+  readonly existingHeaders: Readonly<Record<string, string | undefined>>;
+  readonly originalSources: Readonly<Record<string, string | undefined>>;
+  readonly proposedSources: Readonly<Record<string, string | undefined>>;
   readonly siblingTests: ReadonlySet<string>;
+  readonly declaredTests?: Readonly<Record<string, string>>;
 }
 
 function globRegExp(glob: string): RegExp {
@@ -45,11 +48,16 @@ function bypass(path: string, spikeGlobs: readonly string[]): boolean {
     || matches(path, spikeGlobs);
 }
 
+/** The adapter must not resolve evidence for paths the rule does not govern. */
+export function tddApplies(path: string, businessGlobs: readonly string[], spikeGlobs: readonly string[]): boolean {
+  return !bypass(path, spikeGlobs) && matches(path, businessGlobs);
+}
+
 // A module that only re-exports carries no behaviour: the test one would write
 // for it asserts that an export exists, which the compiler already proves. The
 // property is one of the CONTENT, not of the path, so it lives beside `bypass()`
 // rather than inside it, and a barrel that gains one line of logic stops being
-// exempt. Both the file as it stands and the fragment being written must hold,
+// exempt. Both the original file and complete proposed file must hold,
 // so an edit that introduces logic is covered again.
 const MAX_TOP_LEVEL_STATEMENTS = 512;
 const DIRECTIVE = /^(['"])use [a-z][a-z ]*\1\s*;?/;
@@ -115,8 +123,8 @@ function isPureReExport(source: string): boolean {
   return rest === '';
 }
 
-function carriesNoBehaviour(existing: string, added: string): boolean {
-  return isPureReExport(existing) && isPureReExport(added);
+function carriesNoBehaviour(original: string, proposed: string): boolean {
+  return isPureReExport(original) && isPureReExport(proposed);
 }
 
 function fileMode(path: string, input: TddOrderInput): TddMode {
@@ -137,11 +145,19 @@ function siblingFor(path: string): string {
 
 export function tddOrder(input: TddOrderInput): RuleVerdict {
   const warnings: string[] = [];
+  const declared: string[] = [];
   for (const edit of input.edits) {
     if (edit.operation === 'delete' && edit.addedContent === '') continue;
     const path = edit.path.replaceAll('\\', '/');
-    if (bypass(path, input.spikeGlobs) || !matches(path, input.businessGlobs)) continue;
-    if (carriesNoBehaviour(input.existingHeaders[path] ?? '', edit.addedContent)) continue;
+    if (!tddApplies(path, input.businessGlobs, input.spikeGlobs)) continue;
+    const original = input.originalSources[path];
+    const proposed = input.proposedSources[path];
+    if (original !== undefined && proposed !== undefined && carriesNoBehaviour(original, proposed)) continue;
+    const declaredTest = input.declaredTests?.[path];
+    if (declaredTest !== undefined) {
+      declared.push(`${path} -> ${declaredTest}`);
+      continue;
+    }
     const mode = fileMode(path, input);
     if (mode === 'exploratory') continue;
     const sibling = siblingFor(path);
@@ -153,10 +169,13 @@ export function tddOrder(input: TddOrderInput): RuleVerdict {
     }
     return block(
       'TDD_SIBLING_TEST_MISSING',
-      'missing sibling test: production edit requires one in strict/auto mode',
+      'missing sibling test: add one or declare // tdd-cover: e2e <project-relative spec> on the first line',
       [evidence],
     );
   }
+  if (warnings.length === 0 && declared.length > 0) return {
+    allow: true, code: 'TDD_DECLARED_TEST', message: 'declared test file exists; suite not executed', evidence: declared,
+  };
   return warnings.length === 0
     ? allow()
     : {

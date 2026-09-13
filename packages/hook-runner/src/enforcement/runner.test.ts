@@ -6,7 +6,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   configuredStrings,
   evaluateRule,
@@ -20,6 +20,152 @@ function write(root: string, path: string, content: string): void {
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, content);
 }
+
+describe('complete TDD evidence and operation bounds', () => {
+  it.each([
+    ['strict', 'exploratory', 'TDD_SIBLING_TEST_MISSING'],
+    ['exploratory', 'strict', 'ALLOW'],
+    ['souple', 'strict', 'TDD_SIBLING_TEST_WARNING'],
+  ])('preserves oversized original mode %s over configured %s', (mode, configured, code) => {
+    const root = mkdtempSync(join(tmpdir(), 'void-tdd-header-'));
+    write(root, '.void/config.json', JSON.stringify({ modes: { tdd: configured } }));
+    write(root, 'apps/web/src/page.ts', `// tdd-mode: ${mode}\nexport const page = 1;\n${' '.repeat(65_536)}`);
+    const input = { tool_name: 'Write', tool_input: {
+      file_path: 'apps/web/src/page.ts', content: 'export const page = 2;',
+    } };
+    expect(evaluateRule('tdd-order', input, { root }).code).toBe(code);
+    write(root, 'apps/web/src/page.test.ts', 'test("page", () => {});');
+    expect(evaluateRule('tdd-order', input, { root }).allow).toBe(true);
+  });
+
+  it.each(['alias/page.ts', 'absolute-root-alias'])('reconstructs exact patches through %s', (name) => {
+    const root = mkdtempSync(join(tmpdir(), 'void-tdd-alias-'));
+    write(root, 'apps/web/src/page.ts', 'export const page = 1;\n');
+    write(root, 'apps/web/src/page.test.ts', 'test("page", () => {});');
+    symlinkSync(join(root, 'apps/web/src'), join(root, 'alias'), 'junction');
+    const rootAlias = `${root}-alias`;
+    symlinkSync(root, rootAlias, 'junction');
+    const path = name === 'absolute-root-alias' ? join(rootAlias, 'apps/web/src/page.ts') : name;
+    expect(evaluateRule('tdd-order', { tool_name: 'apply_patch', tool_input: {
+      patch: `*** Begin Patch\n*** Update File: ${path}\n@@\n-export const page = 1;\n+export const page = 2;\n*** End Patch`,
+    } }, { root }).code).toBe('ALLOW');
+  });
+
+  it.each(['before', 'after'])('bounds marker-free focused-test work %s reconstruction', (point) => {
+    const root = mkdtempSync(join(tmpdir(), 'void-focused-clock-'));
+    const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(0);
+    if (point === 'after') clock.mockReturnValueOnce(0);
+    clock.mockReturnValue(1_000);
+    try {
+      const verdict = evaluateRule('no-focused-test', { tool_name: 'Write', tool_input: {
+        file_path: 'page.test.ts', content: 'test("page", () => {});',
+      } }, { root });
+      expect(verdict.code).toBe('TEST_SYNTAX_UNVERIFIED');
+      expect(verdict.message).toContain('split');
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it.each(['tdd-order', 'no-focused-test'] as const)('refuses multiple aliases of one physical file for %s', (rule) => {
+    const root = mkdtempSync(join(tmpdir(), 'void-hook-duplicate-'));
+    const name = rule === 'tdd-order' ? 'page.ts' : 'page.test.ts';
+    write(root, `apps/web/src/${name}`, 'export const page = 1;\n');
+    symlinkSync(join(root, 'apps/web/src'), join(root, 'alias'), 'junction');
+    const patch = ['*** Begin Patch', ...[`apps/web/src/${name}`, `alias/${name}`].flatMap((path) =>
+      [`*** Update File: ${path}`, '@@', '-export const page = 1;', '+export const page = 2;']),
+    '*** End Patch'].join('\n');
+    const verdict = evaluateRule(rule, { tool_name: 'apply_patch', tool_input: { patch } }, { root });
+    expect(verdict.allow).toBe(false);
+    expect(verdict.message).toContain('physical file exactly once');
+  });
+
+  it('reconstructs focused-test patches through an internal alias', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-focused-alias-'));
+    write(root, 'tests/page.test.ts', 'test("before", () => {});\n');
+    symlinkSync(join(root, 'tests'), join(root, 'alias'), 'junction');
+    const patch = '*** Begin Patch\n*** Update File: alias/page.test.ts\n@@\n-test("before", () => {});\n+test("after", () => {});\n*** End Patch';
+    expect(evaluateRule('no-focused-test', { tool_name: 'apply_patch', tool_input: { patch } }, { root }).code)
+      .toBe('ALLOW');
+  });
+
+  it('still exempts an exact edit whose complete original and result only re-export', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-tdd-barrel-'));
+    write(root, 'apps/web/src/page.ts', "export { page } from './before';\n");
+    expect(evaluateRule('tdd-order', { tool_name: 'Edit', tool_input: {
+      file_path: 'apps/web/src/page.ts', old_string: './before', new_string: './after',
+    } }, { root }).code).toBe('ALLOW');
+  });
+
+  it.each(['', '\nexport {};'])('requires coverage when an edit activates commented behavior: %s', (suffix) => {
+    const root = mkdtempSync(join(tmpdir(), 'void-tdd-complete-'));
+    write(root, 'apps/web/src/page.ts', `// export const page = 1;${suffix}\n`);
+    const result = evaluateRule('tdd-order', { tool_name: 'Edit', tool_input: {
+      file_path: 'apps/web/src/page.ts', old_string: '// ', new_string: '',
+    } }, { root });
+    expect(result.code).toBe('TDD_SIBLING_TEST_MISSING');
+    expect(result.message).toContain('// tdd-cover: e2e');
+  });
+
+  it.each([32, 33])('bounds %s governed files before reconstructing a marker-free patch', (count) => {
+    const root = mkdtempSync(join(tmpdir(), 'void-tdd-budget-'));
+    const sections: string[] = [];
+    for (let index = 0; index < count; index += 1) {
+      write(root, `apps/web/src/file${index}.test.ts`, 'test("file", () => {});');
+      sections.push(`*** Add File: apps/web/src/file${index}.ts`, '+export const value = 1;');
+      sections.push(`*** Add File: docs/example${index}.ts`, '+// tdd-cover: invalid example');
+    }
+    const result = evaluateRule('tdd-order', { tool_name: 'apply_patch', tool_input: {
+      patch: ['*** Begin Patch', ...sections, '*** End Patch'].join('\n'),
+    } }, { root });
+    expect(result.code).toBe(count === 32 ? 'ALLOW' : 'TDD_DECLARATION_UNVERIFIED');
+    if (count === 33) expect(result.message).toContain('32');
+  });
+
+  it('refuses excessive governed files before trying unavailable original sources', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-tdd-unread-'));
+    const sections = Array.from({ length: 33 }, (_, index) =>
+      `*** Update File: apps/web/src/file${index}.ts\n@@\n-old\n+new`);
+    const result = evaluateRule('tdd-order', { tool_name: 'apply_patch', tool_input: {
+      patch: ['*** Begin Patch', ...sections, '*** End Patch'].join('\n'),
+    } }, { root });
+    expect(result.code).toBe('TDD_DECLARATION_UNVERIFIED');
+    expect(result.message).toContain('32');
+    expect(result.message).toContain('split');
+  });
+
+  it.each(['before', 'after'])('refuses at the exact aggregate deadline %s reconstruction', (point) => {
+    const root = mkdtempSync(join(tmpdir(), 'void-tdd-clock-'));
+    write(root, 'apps/web/src/page.test.ts', 'test("page", () => {});');
+    const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(0);
+    if (point === 'after') clock.mockReturnValueOnce(0);
+    clock.mockReturnValue(1_000);
+    try {
+      const result = evaluateRule('tdd-order', { tool_name: 'Write', tool_input: {
+        file_path: 'apps/web/src/page.ts', content: 'export const page = 1;',
+      } }, { root });
+      expect(result.code).toBe('TDD_DECLARATION_UNVERIFIED');
+      expect(result.message).toContain('split');
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it('shares the deadline across marker-free files rather than resetting it per file', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-tdd-shared-clock-'));
+    for (const name of ['first', 'second']) write(root, `apps/web/src/${name}.test.ts`, 'test("page", () => {});');
+    const clock = vi.spyOn(performance, 'now')
+      .mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(1_000);
+    try {
+      const result = evaluateRule('tdd-order', { tool_name: 'apply_patch', tool_input: {
+        patch: '*** Begin Patch\n*** Add File: apps/web/src/first.ts\n+export const first = 1;\n*** Add File: apps/web/src/second.ts\n+export const second = 2;\n*** End Patch',
+      } }, { root });
+      expect(result.code).toBe('TDD_DECLARATION_UNVERIFIED');
+    } finally {
+      clock.mockRestore();
+    }
+  });
+});
 
 describe('parseHookPayload', () => {
   it('accepts bounded UTF-8 JSON', () => {
@@ -139,14 +285,14 @@ describe('evaluateRule', () => {
 
     const warning = evaluateRule('tdd-order', {
       tool_name: 'Edit',
-      tool_input: { file_path: 'src/Card.tsx', new_string: 'export const Card = 2;' },
+      tool_input: { file_path: 'src/Card.tsx', old_string: 'export const Card = 1;', new_string: 'export const Card = 2;' },
     }, { root });
     expect(warning.code).toBe('TDD_SIBLING_TEST_WARNING');
 
     write(root, 'src/Card.test.tsx', 'test("Card", () => {});\n');
     expect(evaluateRule('tdd-order', {
       tool_name: 'Edit',
-      tool_input: { file_path: 'src/Card.tsx', new_string: 'export const Card = 3;' },
+      tool_input: { file_path: 'src/Card.tsx', old_string: 'export const Card = 1;', new_string: 'export const Card = 3;' },
     }, { root }).allow).toBe(true);
   });
 

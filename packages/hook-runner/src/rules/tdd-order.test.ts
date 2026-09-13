@@ -9,6 +9,8 @@ const input = (path: string, patch: Partial<TddOrderInput> = {}): TddOrderInput 
   businessGlobs: ['apps/*/src/**'],
   spikeGlobs: ['apps/*/scripts/spike-*'],
   existingHeaders: {},
+  originalSources: {},
+  proposedSources: { [path]: 'export const feature = true;' },
   siblingTests: new Set(),
   ...patch,
 });
@@ -103,11 +105,18 @@ const barrel = (path: string, existing: string, added = existing): TddOrderInput
   businessGlobs: ['apps/*/src/**'],
   spikeGlobs: [],
   existingHeaders: { [path]: existing },
+  originalSources: { [path]: existing },
+  proposedSources: { [path]: added },
   siblingTests: new Set(),
 });
 
 describe('tddOrder and a module that only re-exports', () => {
   const path = 'apps/web/src/components/AttentionBanner/index.ts';
+
+  it('cannot infer a barrel exemption without complete proposed-source evidence', () => {
+    const candidate = barrel(path, 'export {};');
+    expect(tddOrder({ ...candidate, proposedSources: {} }).code).toBe('TDD_SIBLING_TEST_MISSING');
+  });
 
   it.each([
     ["export { AttentionBanner } from './AttentionBanner';\n"],
