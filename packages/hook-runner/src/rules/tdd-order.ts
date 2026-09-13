@@ -12,6 +12,7 @@ export interface TddOrderInput {
   readonly businessGlobs: readonly string[];
   readonly spikeGlobs: readonly string[];
   readonly existingHeaders: Readonly<Record<string, string | undefined>>;
+  readonly proposedSources: Readonly<Record<string, string | undefined>>;
   readonly siblingTests: ReadonlySet<string>;
   readonly declaredTests?: Readonly<Record<string, string>>;
 }
@@ -55,7 +56,7 @@ export function tddApplies(path: string, businessGlobs: readonly string[], spike
 // for it asserts that an export exists, which the compiler already proves. The
 // property is one of the CONTENT, not of the path, so it lives beside `bypass()`
 // rather than inside it, and a barrel that gains one line of logic stops being
-// exempt. Both the file as it stands and the fragment being written must hold,
+// exempt. Both the original file and complete proposed file must hold,
 // so an edit that introduces logic is covered again.
 const MAX_TOP_LEVEL_STATEMENTS = 512;
 const DIRECTIVE = /^(['"])use [a-z][a-z ]*\1\s*;?/;
@@ -121,8 +122,8 @@ function isPureReExport(source: string): boolean {
   return rest === '';
 }
 
-function carriesNoBehaviour(existing: string, added: string): boolean {
-  return isPureReExport(existing) && isPureReExport(added);
+function carriesNoBehaviour(original: string, proposed: string): boolean {
+  return isPureReExport(original) && isPureReExport(proposed);
 }
 
 function fileMode(path: string, input: TddOrderInput): TddMode {
@@ -149,7 +150,8 @@ export function tddOrder(input: TddOrderInput): RuleVerdict {
     const path = edit.path.replaceAll('\\', '/');
     if (!tddApplies(path, input.businessGlobs, input.spikeGlobs)) continue;
     const original = input.existingHeaders[path];
-    if (original !== undefined && carriesNoBehaviour(original, edit.addedContent)) continue;
+    const proposed = input.proposedSources[path];
+    if (original !== undefined && proposed !== undefined && carriesNoBehaviour(original, proposed)) continue;
     const declaredTest = input.declaredTests?.[path];
     if (declaredTest !== undefined) {
       declared.push(`${path} -> ${declaredTest}`);
@@ -166,7 +168,7 @@ export function tddOrder(input: TddOrderInput): RuleVerdict {
     }
     return block(
       'TDD_SIBLING_TEST_MISSING',
-      'missing sibling test: production edit requires one in strict/auto mode',
+      'missing sibling test: add one or declare // tdd-cover: e2e <project-relative spec> on the first line',
       [evidence],
     );
   }

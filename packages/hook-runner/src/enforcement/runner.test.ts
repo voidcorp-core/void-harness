@@ -22,6 +22,14 @@ function write(root: string, path: string, content: string): void {
 }
 
 describe('complete TDD evidence and operation bounds', () => {
+  it('still exempts an exact edit whose complete original and result only re-export', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-tdd-barrel-'));
+    write(root, 'apps/web/src/page.ts', "export { page } from './before';\n");
+    expect(evaluateRule('tdd-order', { tool_name: 'Edit', tool_input: {
+      file_path: 'apps/web/src/page.ts', old_string: './before', new_string: './after',
+    } }, { root }).code).toBe('ALLOW');
+  });
+
   it.each(['', '\nexport {};'])('requires coverage when an edit activates commented behavior: %s', (suffix) => {
     const root = mkdtempSync(join(tmpdir(), 'void-tdd-complete-'));
     write(root, 'apps/web/src/page.ts', `// export const page = 1;${suffix}\n`);
@@ -71,6 +79,21 @@ describe('complete TDD evidence and operation bounds', () => {
       } }, { root });
       expect(result.code).toBe('TDD_DECLARATION_UNVERIFIED');
       expect(result.message).toContain('split');
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it('shares the deadline across marker-free files rather than resetting it per file', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-tdd-shared-clock-'));
+    for (const name of ['first', 'second']) write(root, `apps/web/src/${name}.test.ts`, 'test("page", () => {});');
+    const clock = vi.spyOn(performance, 'now')
+      .mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(1_000);
+    try {
+      const result = evaluateRule('tdd-order', { tool_name: 'apply_patch', tool_input: {
+        patch: '*** Begin Patch\n*** Add File: apps/web/src/first.ts\n+export const first = 1;\n*** Add File: apps/web/src/second.ts\n+export const second = 2;\n*** End Patch',
+      } }, { root });
+      expect(result.code).toBe('TDD_DECLARATION_UNVERIFIED');
     } finally {
       clock.mockRestore();
     }

@@ -66,7 +66,18 @@ identify actual comments. Template/JSX text and block-comment examples are not
 declarations; actual misplaced or duplicate line comments still refuse. Missing
 syntax capability is TDD_DECLARATION_UNVERIFIED. A sole first-line declaration
 needs no compiler. Original source remains separate from proposed declarations:
-removing behavior through an update does not acquire the barrel-file exemption.
+the barrel-file exemption requires both known complete original and complete
+proposed source to contain only re-exports. Normalized additions never establish
+this property; neither uncommenting behavior nor removing behavior bypasses the floor.
+
+Before source reads or reconstruction, an operation admits at most 32 governed
+production edits. Content-based barrel exemptions count; path-exempt files and
+explicit deletions do not. A shared one-second budget is checked before and after
+each reconstruction, after syntax inspection, and before returning the rule result.
+Exhaustion refuses with TDD_DECLARATION_UNVERIFIED and asks to split the operation.
+This is a cooperative deadline, not interruption of synchronous filesystem work;
+the byte, file, hunk and comparison limits bound work between checks. The syntax
+child retains its separately enforced remaining-time process limit.
 
 One declaration on the first line is permitted. A malformed, conflicting or
 misplaced declaration refuses; it cannot silently fall back to an existing

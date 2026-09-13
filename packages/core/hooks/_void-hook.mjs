@@ -797,8 +797,8 @@ function isPureReExport(source2) {
   }
   return rest === "";
 }
-function carriesNoBehaviour(existing, added) {
-  return isPureReExport(existing) && isPureReExport(added);
+function carriesNoBehaviour(original, proposed) {
+  return isPureReExport(original) && isPureReExport(proposed);
 }
 function fileMode(path, input) {
   const header = (input.existingHeaders[path] ?? "").split(/\r?\n/).slice(0, 5).join("\n");
@@ -820,7 +820,8 @@ function tddOrder(input) {
     const path = edit.path.replaceAll("\\", "/");
     if (!tddApplies(path, input.businessGlobs, input.spikeGlobs)) continue;
     const original = input.existingHeaders[path];
-    if (original !== void 0 && carriesNoBehaviour(original, edit.addedContent)) continue;
+    const proposed = input.proposedSources[path];
+    if (original !== void 0 && proposed !== void 0 && carriesNoBehaviour(original, proposed)) continue;
     const declaredTest2 = input.declaredTests?.[path];
     if (declaredTest2 !== void 0) {
       declared.push(`${path} -> ${declaredTest2}`);
@@ -837,7 +838,7 @@ function tddOrder(input) {
     }
     return block(
       "TDD_SIBLING_TEST_MISSING",
-      "missing sibling test: production edit requires one in strict/auto mode",
+      "missing sibling test: add one or declare // tdd-cover: e2e <project-relative spec> on the first line",
       [evidence]
     );
   }
@@ -1358,6 +1359,14 @@ function declaredTest(root, content) {
   }
   return path;
 }
+function tddOperationLimit(reason) {
+  return {
+    allow: false,
+    code: "TDD_DECLARATION_UNVERIFIED",
+    message: `cannot verify TDD evidence: ${reason}; split the operation into smaller edits`,
+    evidence: []
+  };
+}
 function tddVerdict(root, edits, raw) {
   const physicalRoot = physicalPath(root);
   const projectChanges = projectEdits(physicalRoot, edits);
@@ -1365,12 +1374,15 @@ function tddVerdict(root, edits, raw) {
   const existingHeaders = {};
   const siblingTests = /* @__PURE__ */ new Set();
   const declaredTests = {};
+  const proposedSources = {};
   const deadline = performance.now() + 1e3;
-  for (const edit of projectChanges) {
-    if (edit.operation === "delete" && edit.addedContent === "") continue;
-    if (!tddApplies(edit.path, config.businessGlobs, [config.spikesGlob])) continue;
+  const governed = projectChanges.filter((edit) => !(edit.operation === "delete" && edit.addedContent === "") && tddApplies(edit.path, config.businessGlobs, [config.spikesGlob]));
+  if (governed.length > 32) return tddOperationLimit("operation exceeds 32 governed production files");
+  for (const edit of governed) {
+    if (performance.now() >= deadline) return tddOperationLimit("operation exhausted its one-second work budget");
     const existing = readSource(join4(physicalRoot, edit.path));
     const proposed = proposedSource(raw, physicalRoot, edit.path, existing);
+    if (performance.now() >= deadline) return tddOperationLimit("operation exhausted its one-second work budget");
     if (proposed.kind === "unresolved") return {
       allow: false,
       code: "TDD_DECLARATION_UNVERIFIED",
@@ -1385,9 +1397,11 @@ function tddVerdict(root, edits, raw) {
         deadline - performance.now(),
         "declarations"
       );
+      if (performance.now() >= deadline) return tddOperationLimit("operation exhausted its one-second work budget");
       if (!syntax.allow) return { ...syntax, code: syntax.code === "TDD_DECLARATION_INVALID" ? syntax.code : "TDD_DECLARATION_UNVERIFIED" };
     }
     try {
+      proposedSources[edit.path] = proposed.content;
       const test = declaredTest(physicalRoot, proposed.content);
       if (test !== void 0) declaredTests[edit.path] = test;
       existingHeaders[edit.path] = existing ?? (existsSync4(join4(physicalRoot, edit.path)) ? void 0 : "");
@@ -1410,15 +1424,17 @@ function tddVerdict(root, edits, raw) {
       }
     }
   }
-  return tddOrder({
+  const verdict = tddOrder({
     edits: projectChanges,
     mode: config.mode,
     businessGlobs: config.businessGlobs,
     spikeGlobs: [config.spikesGlob],
     existingHeaders,
     siblingTests,
-    declaredTests
+    declaredTests,
+    proposedSources
   });
+  return governed.length > 0 && performance.now() >= deadline ? tddOperationLimit("operation exhausted its one-second work budget") : verdict;
 }
 function evaluateRule(rule, rawInput, options) {
   const call = normalizeToolCall(rawInput);

@@ -280,6 +280,11 @@ function declaredTest(root: string, content: string): string | undefined {
   return path;
 }
 
+function tddOperationLimit(reason: string): RuleVerdict {
+  return { allow: false, code: 'TDD_DECLARATION_UNVERIFIED',
+    message: `cannot verify TDD evidence: ${reason}; split the operation into smaller edits`, evidence: [] };
+}
+
 function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown): RuleVerdict {
   const physicalRoot = physicalPath(root);
   const projectChanges = projectEdits(physicalRoot, edits);
@@ -287,21 +292,27 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown
   const existingHeaders: Record<string, string | undefined> = {};
   const siblingTests = new Set<string>();
   const declaredTests: Record<string, string> = {};
+  const proposedSources: Record<string, string> = {};
   const deadline = performance.now() + 1_000;
-  for (const edit of projectChanges) {
-    if (edit.operation === 'delete' && edit.addedContent === '') continue;
-    if (!tddApplies(edit.path, config.businessGlobs, [config.spikesGlob])) continue;
+  const governed = projectChanges.filter((edit) => !(edit.operation === 'delete' && edit.addedContent === '')
+    && tddApplies(edit.path, config.businessGlobs, [config.spikesGlob]));
+  if (governed.length > 32) return tddOperationLimit('operation exceeds 32 governed production files');
+  for (const edit of governed) {
+    if (performance.now() >= deadline) return tddOperationLimit('operation exhausted its one-second work budget');
     const existing = readSource(join(physicalRoot, edit.path));
     const proposed = proposedSource(raw, physicalRoot, edit.path, existing);
+    if (performance.now() >= deadline) return tddOperationLimit('operation exhausted its one-second work budget');
     if (proposed.kind === 'unresolved') return { allow: false, code: 'TDD_DECLARATION_UNVERIFIED',
       message: `cannot verify E2E declaration: ${proposed.reason}; provide exact context, or a complete Write within 64 KiB (oversized originals require replacement or restructuring)`, evidence: [edit.path] };
     if (proposed.content.split(/\r?\n/).slice(1).some((line) => /^\s*\/\/\s*tdd-cover:/.test(line))) {
       const syntax = inspectSourceSyntax(physicalRoot, edit.path, proposed.content,
         deadline - performance.now(), 'declarations');
+      if (performance.now() >= deadline) return tddOperationLimit('operation exhausted its one-second work budget');
       if (!syntax.allow) return { ...syntax, code: syntax.code === 'TDD_DECLARATION_INVALID'
         ? syntax.code : 'TDD_DECLARATION_UNVERIFIED' };
     }
     try {
+      proposedSources[edit.path] = proposed.content;
       const test = declaredTest(physicalRoot, proposed.content);
       if (test !== undefined) declaredTests[edit.path] = test;
       existingHeaders[edit.path] = existing ?? (existsSync(join(physicalRoot, edit.path)) ? undefined : '');
@@ -321,7 +332,7 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown
       }
     }
   }
-  return tddOrder({
+  const verdict = tddOrder({
     edits: projectChanges,
     mode: config.mode,
     businessGlobs: config.businessGlobs,
@@ -329,7 +340,10 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown
     existingHeaders,
     siblingTests,
     declaredTests,
+    proposedSources,
   });
+  return governed.length > 0 && performance.now() >= deadline
+    ? tddOperationLimit('operation exhausted its one-second work budget') : verdict;
 }
 
 export function evaluateRule(

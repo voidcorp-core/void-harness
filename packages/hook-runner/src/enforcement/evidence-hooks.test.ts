@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, symlinkSync, realpathSync, exist
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { evaluateRule } from './runner.js';
 
 function project() {
@@ -19,6 +19,23 @@ function project() {
 }
 
 describe('evidence-aware hooks', () => {
+  it('does not grant TDD evidence after the aggregate deadline expires during syntax inspection', () => {
+    const root = project();
+    writeFileSync(join(root, 'apps/web/src/page.test.tsx'), 'test("page", () => {});');
+    const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(0)
+      .mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(1_000);
+    try {
+      const verdict = evaluateRule('tdd-order', { tool_name: 'Write', tool_input: {
+        file_path: join(root, 'apps/web/src/page.tsx'),
+        content: 'export const prose = `\n// tdd-cover: invalid example\n`;',
+      } }, { root });
+      expect(verdict.code).toBe('TDD_DECLARATION_UNVERIFIED');
+      expect(verdict.message).toContain('split');
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
   it.each([false, true])('ignores declaration prose in a template with header=%s', (header) => {
     const root = project();
     const marker = '// tdd-cover: e2e tests/e2e/page.spec.ts';
