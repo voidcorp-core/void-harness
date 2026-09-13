@@ -52,6 +52,23 @@ function enforce(rule: string, payload: unknown): { code: number; stderr: string
   return { code: result.status ?? 0, stderr: result.stderr ?? '' };
 }
 
+describe('CI TDD source evidence', () => {
+  it.each([true, false])('judges the checked-out declaration instead of diff fragments: %s', (declared) => {
+    const root = mkdtempSync(join(tmpdir(), 'void-ci-tdd-'));
+    mkdirSync(join(root, 'apps/web/src'), { recursive: true });
+    mkdirSync(join(root, 'tests'));
+    writeFileSync(join(root, 'tests/page.spec.ts'), 'test("page", () => {});');
+    const header = '// tdd-cover: e2e tests/page.spec.ts\n';
+    writeFileSync(join(root, 'apps/web/src/page.ts'), `${declared ? header : ''}export const value = 1;`);
+    const result = spawnSync(process.execPath, [hook, 'enforce-ci', 'tdd-order', 'apps/web/src/page.ts'], {
+      input: `${declared ? '' : header}export const added = 2;`, encoding: 'utf8', cwd: root,
+      env: { ...process.env, VOID_PROJECT_ROOT: root },
+    });
+    expect(result.status).toBe(declared ? 0 : 2);
+    expect(result.stderr).toContain(declared ? 'TDD_DECLARED_TEST' : 'TDD_SIBLING_TEST_MISSING');
+  });
+});
+
 const write = (file: string, content: string): unknown => ({
   tool_name: 'Write',
   tool_input: { file_path: file, content },
