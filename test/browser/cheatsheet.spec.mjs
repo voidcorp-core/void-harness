@@ -12,7 +12,11 @@ test('renders the complete installed catalogue accessibly at the target viewport
   const violations = (await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze()).violations;
   expect(violations).toEqual([]);
+  await expect(page.locator('#count')).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole('article').first().getByRole('heading')).toBeInViewport({ ratio: 1 });
   await capture(page, info, 'catalogue');
+  await page.locator('.summary').evaluate(element => element.scrollIntoView({ block: 'start' }));
+  await capture(page, info, 'catalogue-results');
 });
 
 test('combines filters, explains no matches, and resets the complete catalogue', async ({ page }, info) => {
@@ -32,6 +36,8 @@ test('combines filters, explains no matches, and resets the complete catalogue',
   await page.getByLabel('Search', { exact: true }).fill('unmatchable-qa-532');
   await expect(visible).toHaveCount(0);
   await expect(page.getByText('No matches. Try a shorter phrase or reset the filters.')).toBeVisible();
+  await page.locator('#empty').scrollIntoViewIfNeeded();
+  await expect(page.locator('#empty')).toBeInViewport({ ratio: 1 });
   await capture(page, info, 'empty-state');
   await page.getByRole('button', { name: 'Reset filters' }).click();
   await expect(visible).toHaveCount(documents.installed.entries.length);
@@ -48,6 +54,8 @@ test('distinguishes installed availability from an absent consumer installation'
   await expect(page.getByRole('article')).toHaveCount(installedCount);
   await expect(page.getByText('Showing confirmed installed assets. Runtime execution remains unverified.')).toBeVisible();
   await capture(page, info, 'availability-here');
+  await page.locator('.summary').evaluate(element => element.scrollIntoView({ block: 'start' }));
+  await capture(page, info, 'availability-results');
   await page.goto(urls.absent);
   await expect(page.getByText('No local installation was found.', { exact: false })).toBeVisible();
   await expect(page.getByRole('article')).toHaveCount(documents.absent.entries.length);
@@ -57,7 +65,7 @@ test('distinguishes installed availability from an absent consumer installation'
   await expect(page.getByRole('article')).toHaveCount(absentCount);
 });
 
-test('finds capabilities from realistic task phrases', async ({ page }) => {
+test('finds capabilities from realistic task phrases', async ({ page }, info) => {
   await page.goto(urls.installed);
   await page.getByRole('combobox', { name: 'View', exact: true }).selectOption('intent');
   await expect(page.getByText('Describe your task in a few words.', { exact: false })).toBeVisible();
@@ -70,6 +78,9 @@ test('finds capabilities from realistic task phrases', async ({ page }) => {
     expect(await matches.count()).toBeGreaterThan(0);
     for (const match of await matches.all()) await expect(match).toBeVisible();
   }
+  await capture(page, info, 'intention-controls');
+  await page.locator('.summary').evaluate(element => element.scrollIntoView({ block: 'start' }));
+  await capture(page, info, 'intention-results');
 });
 
 test('distinguishes a disabled skill from a pack that was not installed', async ({ page }) => {
@@ -130,6 +141,33 @@ test('selects the command and announces failure when clipboard permission is den
   expect(await page.evaluate(() => window.getSelection()?.toString())).toBe(command);
   await expect(copy).toBeFocused();
   await capture(page, info, 'clipboard-denied');
+});
+
+test('announces copy success only after the expected command is written', async ({ page }, info) => {
+  const writes = [];
+  let finishCopy;
+  // Explicit boundary double: never access an operating-system clipboard in CI.
+  // https://playwright.dev/docs/api/class-page#page-expose-function
+  await page.exposeFunction('testWriteClipboard', text => {
+    writes.push(text);
+    return new Promise(resolve => { finishCopy = resolve; });
+  });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', { value: {
+      writeText: text => globalThis.testWriteClipboard(text),
+    } });
+  });
+  await page.goto(urls.installed);
+  await page.getByLabel('Search', { exact: true }).fill('void-tdd');
+  const copy = page.getByRole('button', { name: 'Copy void-tdd for codex', exact: true });
+  await copy.click();
+  await expect.poll(() => writes).toEqual(['$void-tdd']);
+  await expect(page.locator('#copy-status')).toHaveText('Copying…');
+  finishCopy();
+  await expect(page.locator('#copy-status')).toHaveText('Copied to clipboard.');
+  await expect(copy).toBeFocused();
+  await page.locator('#copy-status').scrollIntoViewIfNeeded();
+  await capture(page, info, 'clipboard-success');
 });
 
 test('reflows at 320 pixels and retains controls with doubled text', async ({ page }, info) => {
