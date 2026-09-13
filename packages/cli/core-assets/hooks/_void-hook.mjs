@@ -972,7 +972,13 @@ function replace(existing, input) {
   }
   const first = existing.indexOf(before);
   if (first < 0) return unresolved("old_string no longer matches the file");
-  if (input["replace_all"] === true) return source(existing.split(before).join(after));
+  if (input["replace_all"] === true) {
+    let count = 0;
+    for (let index = first; index >= 0; index = existing.indexOf(before, index + before.length)) count += 1;
+    const length = existing.length + count * (after.length - before.length);
+    if (length > MAX_SOURCE_BYTES) return unresolved("replacement exceeds the 64 KiB source limit");
+    return source(existing.split(before).join(after));
+  }
   if (existing.indexOf(before, first + 1) >= 0) return unresolved("old_string matches more than once");
   return source(existing.slice(0, first) + after + existing.slice(first + before.length));
 }

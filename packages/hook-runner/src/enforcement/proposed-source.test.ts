@@ -16,6 +16,14 @@ describe('proposed file reconstruction', () => {
     expect(proposedSource(raw, '/repo', 'file.test.ts', existing).kind).toBe('unresolved');
   });
 
+  it.each([['é', 'source'], ['€', 'unresolved']] as const)(
+    'enforces the final UTF-8 byte ceiling after bounded allocation for %s', (after, kind) => {
+      expect(proposedSource({ tool_name: 'Edit', tool_input: {
+        old_string: 'x', new_string: after, replace_all: true,
+      } }, '/repo', 'file.test.ts', 'x'.repeat(30_000)).kind).toBe(kind);
+    },
+  );
+
   it('retains unchanged lines between separate patch hunks', () => {
     const result = proposedSource(patch('*** Update File: file.test.ts\n@@\n /*\n-old\n+test.skip prose\n */\n@@\n-const x = 1;\n+const x = 2;'),
       '/repo', 'file.test.ts', '/*\nold\n*/\n\nconst x = 1;\n');
