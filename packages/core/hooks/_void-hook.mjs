@@ -1378,7 +1378,7 @@ function tddOperationLimit(reason) {
     evidence: []
   };
 }
-function tddVerdict(root, edits, raw) {
+function tddVerdict(root, edits, raw, checkedOut = false) {
   const physicalRoot = physicalPath(root);
   const projectChanges = projectEdits(physicalRoot, edits);
   const config = readTddConfig(physicalRoot);
@@ -1403,7 +1403,7 @@ function tddVerdict(root, edits, raw) {
       evidence: [edit.path]
     };
     const existing = original.kind === "read" ? original.source : void 0;
-    const proposed = proposedSource(raw, physicalRoot, edit.originalPath, existing);
+    const proposed = checkedOut ? existing === void 0 ? { kind: "unresolved", reason: "checked-out source is absent or exceeds 64 KiB" } : { kind: "source", content: existing } : proposedSource(raw, physicalRoot, edit.originalPath, existing);
     if (performance.now() >= deadline) return tddOperationLimit("operation exhausted its one-second work budget");
     if (proposed.kind === "unresolved") return {
       allow: false,
@@ -1487,7 +1487,7 @@ function evaluateRule(rule, rawInput, options) {
   }
   if (rule === "secret-content") return secretContent(call.edits);
   if (rule === "control-character") return controlCharacter(call.edits);
-  if (rule === "tdd-order") return tddVerdict(options.root, call.edits, rawInput);
+  if (rule === "tdd-order") return tddVerdict(options.root, call.edits, rawInput, options.source === "checked-out");
   if (rule === "no-focused-test") return focusedVerdict(options.root, call.edits, rawInput);
   const edits = projectEdits(options.root, call.edits);
   if (rule === "no-any") return noAny(edits);
@@ -5294,6 +5294,7 @@ async function main() {
       rawInput,
       {
         root: projectRoot(),
+        source: process.argv[2] === "enforce-ci" ? "checked-out" : "tool-input",
         env: process.env
       }
     );

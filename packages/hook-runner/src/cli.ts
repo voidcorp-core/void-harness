@@ -298,6 +298,7 @@ async function main(): Promise<void> {
       rawInput,
       {
         root: projectRoot(),
+        source: process.argv[2] === 'enforce-ci' ? 'checked-out' : 'tool-input',
         env: process.env,
       },
     );

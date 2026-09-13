@@ -59,6 +59,8 @@ export type RuleName =
 
 export interface EvaluateRuleOptions {
   readonly root: string;
+  /** CI judges the checked-out final file; pre-write hooks reconstruct tool intent. */
+  readonly source?: 'tool-input' | 'checked-out';
   readonly env?: Readonly<Record<string, string | undefined>>;
 }
 
@@ -268,7 +270,7 @@ function tddOperationLimit(reason: string): RuleVerdict {
     message: `cannot verify TDD evidence: ${reason}; split the operation into smaller edits`, evidence: [] };
 }
 
-function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown): RuleVerdict {
+function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown, checkedOut = false): RuleVerdict {
   const physicalRoot = physicalPath(root);
   const projectChanges = projectEdits(physicalRoot, edits);
   const config = readTddConfig(physicalRoot);
@@ -290,7 +292,11 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown
     if (original.kind === 'unavailable') return { allow: false, code: 'TDD_DECLARATION_UNVERIFIED',
       message: 'cannot read original TDD mode; restore readable regular source before editing', evidence: [edit.path] };
     const existing = original.kind === 'read' ? original.source : undefined;
-    const proposed = proposedSource(raw, physicalRoot, edit.originalPath, existing);
+    const proposed = checkedOut
+      ? existing === undefined
+        ? { kind: 'unresolved' as const, reason: 'checked-out source is absent or exceeds 64 KiB' }
+        : { kind: 'source' as const, content: existing }
+      : proposedSource(raw, physicalRoot, edit.originalPath, existing);
     if (performance.now() >= deadline) return tddOperationLimit('operation exhausted its one-second work budget');
     if (proposed.kind === 'unresolved') return { allow: false, code: 'TDD_DECLARATION_UNVERIFIED',
       message: `cannot verify E2E declaration: ${proposed.reason}; provide exact context, or a complete Write within 64 KiB (oversized originals require replacement or restructuring)`, evidence: [edit.path] };
@@ -375,7 +381,7 @@ export function evaluateRule(
   // damage wherever it lands, and narrowing to the project's business paths
   // would have missed both of the two that reached committed source.
   if (rule === 'control-character') return controlCharacter(call.edits);
-  if (rule === 'tdd-order') return tddVerdict(options.root, call.edits, rawInput);
+  if (rule === 'tdd-order') return tddVerdict(options.root, call.edits, rawInput, options.source === 'checked-out');
   if (rule === 'no-focused-test') return focusedVerdict(options.root, call.edits, rawInput);
   const edits = projectEdits(options.root, call.edits);
   if (rule === 'no-any') return noAny(edits);

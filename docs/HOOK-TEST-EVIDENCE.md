@@ -101,6 +101,20 @@ mode behavior remains. A valid declaration satisfies the same structural floor
 as a sibling test and reports TDD_DECLARED_TEST: the file exists, suite not executed.
 The engineer still owns real coverage and the red/green test evidence.
 
+## CI adapter
+
+CI sends added lines for content guards, but TDD reads the complete checked-out
+file after selecting governed paths. A diff fragment cannot establish a current
+coverage declaration. The source choice is an adapter option, never a tool-payload
+override. Missing or oversized final source refuses; path exemptions are unchanged.
+
+Compiler-backed inspection requires the project's dependencies in the CI workspace.
+The composite does not install consumer tooling. Run it after your normal frozen
+dependency install when source needs syntax inspection; the source repository's
+own enforcement job provisions its existing dependencies with lifecycle scripts
+disabled. A reusable workflow with no dependency provisioning refuses ambiguous
+syntax rather than claiming it was verified.
+
 ## Sources
 
 - [TypeScript Compiler API](https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API),
