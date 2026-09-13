@@ -104,7 +104,9 @@ The engineer still owns real coverage and the red/green test evidence.
 ## CI adapter
 
 CI sends added lines for content guards, but TDD reads the complete checked-out
-file after selecting governed paths. A diff fragment cannot establish a current
+file after selecting governed paths, including changes that only remove lines.
+Whole-file deletions remain exempt; removing a declaration from surviving code
+does not skip the TDD check. A diff fragment cannot establish a current
 coverage declaration. The source choice is an adapter option, never a tool-payload
 override. Missing or oversized final source refuses; path exemptions are unchanged.
 
