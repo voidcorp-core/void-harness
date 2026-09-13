@@ -51,6 +51,18 @@ describe('evidence-aware hooks', () => {
     }
   });
 
+  it.each([
+    'export const page = 1; // tdd-cover: e2e missing.spec.ts',
+    '// tdd-cover: e2e tests/e2e/page.spec.ts\nexport const page = 1; // tdd-cover: e2e missing.spec.ts',
+    'export const page = 1;\nexport const extra = 2; // tdd-cover: e2e missing.spec.ts',
+  ])('refuses trailing declaration comments despite existing coverage: %s', (content) => {
+    const root = project();
+    writeFileSync(join(root, 'apps/web/src/page.test.ts'), 'test("page", () => {});');
+    expect(evaluateRule('tdd-order', { tool_name: 'Write', tool_input: {
+      file_path: 'apps/web/src/page.ts', content,
+    } }, { root }).code).toBe('TDD_DECLARATION_INVALID');
+  });
+
   it.each([false, true])('ignores declaration prose in a template with header=%s', (header) => {
     const root = project();
     const marker = '// tdd-cover: e2e tests/e2e/page.spec.ts';
