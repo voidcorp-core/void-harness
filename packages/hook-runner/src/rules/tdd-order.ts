@@ -11,7 +11,7 @@ export interface TddOrderInput {
   readonly mode: TddMode;
   readonly businessGlobs: readonly string[];
   readonly spikeGlobs: readonly string[];
-  readonly existingHeaders: Readonly<Record<string, string>>;
+  readonly existingHeaders: Readonly<Record<string, string | undefined>>;
   readonly siblingTests: ReadonlySet<string>;
   readonly declaredTests?: Readonly<Record<string, string>>;
 }
@@ -148,7 +148,8 @@ export function tddOrder(input: TddOrderInput): RuleVerdict {
     if (edit.operation === 'delete' && edit.addedContent === '') continue;
     const path = edit.path.replaceAll('\\', '/');
     if (!tddApplies(path, input.businessGlobs, input.spikeGlobs)) continue;
-    if (carriesNoBehaviour(input.existingHeaders[path] ?? '', edit.addedContent)) continue;
+    const original = input.existingHeaders[path];
+    if (original !== undefined && carriesNoBehaviour(original, edit.addedContent)) continue;
     const declaredTest = input.declaredTests?.[path];
     if (declaredTest !== undefined) {
       declared.push(`${path} -> ${declaredTest}`);

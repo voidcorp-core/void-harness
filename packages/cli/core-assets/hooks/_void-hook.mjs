@@ -819,7 +819,8 @@ function tddOrder(input) {
     if (edit.operation === "delete" && edit.addedContent === "") continue;
     const path = edit.path.replaceAll("\\", "/");
     if (!tddApplies(path, input.businessGlobs, input.spikeGlobs)) continue;
-    if (carriesNoBehaviour(input.existingHeaders[path] ?? "", edit.addedContent)) continue;
+    const original = input.existingHeaders[path];
+    if (original !== void 0 && carriesNoBehaviour(original, edit.addedContent)) continue;
     const declaredTest2 = input.declaredTests?.[path];
     if (declaredTest2 !== void 0) {
       declared.push(`${path} -> ${declaredTest2}`);
@@ -1079,7 +1080,9 @@ function syntaxWorker() {
       "forEachChild",
       "isIdentifier",
       "isPropertyAccessExpression",
-      "isCallExpression"
+      "isCallExpression",
+      "getLeadingCommentRanges",
+      "getTrailingCommentRanges"
     ];
     reason = "project TypeScript compiler API is unsupported (requires version 5)";
     if (typeof members["version"] !== "string" || !/^5\./.test(members["version"]) || methods.some((name) => typeof members[name] !== "function")) throw new Error();
@@ -1102,11 +1105,31 @@ function syntaxWorker() {
     if (program.getSyntacticDiagnostics(file).length > 0) throw new Error();
     const pending = [file];
     const lines = /* @__PURE__ */ new Set();
+    const commentPositions = /* @__PURE__ */ new Set();
+    const jsxTextRanges = [];
     let visited = 0;
     while (pending.length > 0) {
       if (++visited > 2e4) throw new Error();
       const node = pending.pop();
       if (node === void 0) break;
+      if (input.purpose === "declarations") {
+        if (node.kind === ts.SyntaxKind.JsxText) {
+          jsxTextRanges.push({ start: node.pos, end: node.end });
+          continue;
+        }
+        const comments = [
+          ...ts.getLeadingCommentRanges(input.source, node.pos) ?? [],
+          ...ts.getTrailingCommentRanges(input.source, node.end) ?? []
+        ];
+        for (const comment of comments) {
+          if (!/^\/\/\s*tdd-cover:/.test(input.source.slice(comment.pos, comment.end))) continue;
+          const line = file.getLineAndCharacterOfPosition(comment.pos).line;
+          const start = file.getPositionOfLineAndCharacter(line, 0);
+          if (/^[ \t]*$/.test(input.source.slice(start, comment.pos))) commentPositions.add(comment.pos);
+        }
+        pending.push(...node.getChildren(file));
+        continue;
+      }
       if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)) {
         const owner = node.expression.text;
         if (["it", "test", "describe"].includes(owner) && node.name.text === "only" || ["it", "test"].includes(owner) && node.name.text === "skip") {
@@ -1120,6 +1143,11 @@ function syntaxWorker() {
         pending.push(child);
       });
     }
+    for (const position of commentPositions) {
+      if (!jsxTextRanges.some((range) => position >= range.start && position < range.end)) {
+        lines.add(file.getLineAndCharacterOfPosition(position).line + 1);
+      }
+    }
     process.stdout.write(JSON.stringify({ lines: [...lines].sort((a, b) => a - b) }));
   } catch {
     process.stdout.write(JSON.stringify({ unavailable: reason }));
@@ -1129,11 +1157,11 @@ function unavailableSyntax(reason, path, correction = "restore TypeScript 5 reso
   return {
     allow: false,
     code: "TEST_SYNTAX_UNVERIFIED",
-    message: `focused-test verification unavailable: ${reason}; ${correction}`,
+    message: `source syntax verification unavailable: ${reason}; ${correction}`,
     evidence: [path]
   };
 }
-function inspectTestSyntax(root, path, source2, remainingMs = 1e3) {
+function inspectSourceSyntax(root, path, source2, remainingMs = 1e3, purpose = "focused-tests") {
   if (Buffer.byteLength(source2) > MAX_SOURCE_BYTES) return unavailableSyntax("file exceeds 64 KiB", path);
   if (remainingMs < 1) return unavailableSyntax("operation exhausted its one-second parsing budget", path, "split the operation into smaller edits");
   const child = spawnSync(process.execPath, ["--max-old-space-size=128", "--eval", `(${syntaxWorker.toString()})()`], {
@@ -1143,7 +1171,7 @@ function inspectTestSyntax(root, path, source2, remainingMs = 1e3) {
     timeout: Math.min(1e3, Math.ceil(remainingMs)),
     killSignal: "SIGKILL",
     maxBuffer: 65536,
-    input: JSON.stringify({ root, path, source: source2 }),
+    input: JSON.stringify({ root, path, source: source2, purpose }),
     windowsHide: true
   });
   if (child.error !== void 0 || child.status !== 0) return unavailableSyntax("parser process failed or exceeded its resource limit", path);
@@ -1161,6 +1189,17 @@ function inspectTestSyntax(root, path, source2, remainingMs = 1e3) {
     }
     const lines = record8["lines"];
     if (!Array.isArray(lines) || lines.length > 2e4 || !lines.every((line) => Number.isSafeInteger(line) && line > 0)) throw new Error();
+    if (purpose === "declarations") return lines.length === 0 || lines.length === 1 && lines[0] === 1 ? {
+      allow: true,
+      code: lines.length === 0 ? "TDD_DECLARATION_NONE" : "TDD_DECLARATION_HEADER",
+      message: "declaration comment syntax checked",
+      evidence: []
+    } : {
+      allow: false,
+      code: "TDD_DECLARATION_INVALID",
+      message: "put exactly one E2E declaration comment on the first line",
+      evidence: [path]
+    };
     return lines.length === 0 ? { allow: true, code: "OK", message: "focused-test syntax checked", evidence: [] } : {
       allow: false,
       code: "FOCUSED_OR_SKIPPED_TEST",
@@ -1301,18 +1340,17 @@ function focusedVerdict(root, edits, raw) {
     if (/^[ \t]*(?:(?:it|test|describe)\.only|(?:it|test)\.skip|xit|xdescribe)[ \t]*\(/.test(proposed.content)) {
       return noFocusedTest([{ path: edit.path, addedContent: proposed.content.split("\n")[0] ?? "" }]);
     }
-    const verdict = inspectTestSyntax(root, edit.path, proposed.content, deadline - performance.now());
+    const verdict = inspectSourceSyntax(root, edit.path, proposed.content, deadline - performance.now());
     if (!verdict.allow) return verdict;
   }
   return allow();
 }
 function declaredTest(root, content) {
   const lines = content.split(/\r?\n/);
-  const markers = lines.filter((line) => /^\s*\/\/\s*tdd-cover:/.test(line));
-  if (markers.length === 0) return void 0;
+  if (!/^\s*\/\/\s*tdd-cover:/.test(lines[0] ?? "")) return void 0;
   const match = /^\/\/ tdd-cover: e2e (.+)$/.exec(lines[0] ?? "");
   const path = match?.[1];
-  if (markers.length !== 1 || path === void 0 || path !== path.trim() || isAbsolute2(path) || /^[A-Za-z]:|\\/.test(path) || path.split("/").some((part) => part === ".." || part === ".") || !isTestPath(path)) throw new Error("declare exactly one project-relative E2E spec on the first line");
+  if (path === void 0 || path !== path.trim() || isAbsolute2(path) || /^[A-Za-z]:|\\/.test(path) || path.split("/").some((part) => part === ".." || part === ".") || !isTestPath(path)) throw new Error("declare exactly one project-relative E2E spec on the first line");
   const target = realpathSync(join4(root, path));
   const location = relative2(root, target);
   if (location.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) || location === ".." || isAbsolute2(location) || !statSync(target).isFile()) {
@@ -1327,20 +1365,32 @@ function tddVerdict(root, edits, raw) {
   const existingHeaders = {};
   const siblingTests = /* @__PURE__ */ new Set();
   const declaredTests = {};
+  const deadline = performance.now() + 1e3;
   for (const edit of projectChanges) {
     if (edit.operation === "delete" && edit.addedContent === "") continue;
     if (!tddApplies(edit.path, config.businessGlobs, [config.spikesGlob])) continue;
-    const proposed = proposedSource(raw, physicalRoot, edit.path, readSource(join4(physicalRoot, edit.path)));
+    const existing = readSource(join4(physicalRoot, edit.path));
+    const proposed = proposedSource(raw, physicalRoot, edit.path, existing);
     if (proposed.kind === "unresolved") return {
       allow: false,
       code: "TDD_DECLARATION_UNVERIFIED",
-      message: `cannot verify E2E declaration: ${proposed.reason}; provide an exact complete edit`,
+      message: `cannot verify E2E declaration: ${proposed.reason}; provide exact context, or a complete Write within 64 KiB (oversized originals require replacement or restructuring)`,
       evidence: [edit.path]
     };
+    if (proposed.content.split(/\r?\n/).slice(1).some((line) => /^\s*\/\/\s*tdd-cover:/.test(line))) {
+      const syntax = inspectSourceSyntax(
+        physicalRoot,
+        edit.path,
+        proposed.content,
+        deadline - performance.now(),
+        "declarations"
+      );
+      if (!syntax.allow) return { ...syntax, code: syntax.code === "TDD_DECLARATION_INVALID" ? syntax.code : "TDD_DECLARATION_UNVERIFIED" };
+    }
     try {
       const test = declaredTest(physicalRoot, proposed.content);
       if (test !== void 0) declaredTests[edit.path] = test;
-      existingHeaders[edit.path] = proposed.content;
+      existingHeaders[edit.path] = existing ?? (existsSync4(join4(physicalRoot, edit.path)) ? void 0 : "");
     } catch {
       return {
         allow: false,

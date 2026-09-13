@@ -51,11 +51,11 @@ describe('evidence-aware hooks', () => {
   });
 
   it.each([
-    ['export const prose = `before\n// tdd-cover: invalid example\n${1}\nafter`;', 'ALLOW'],
+    [`export const prose = \`before\n// tdd-cover: invalid example\n\${1}\nafter\`;`, 'ALLOW'],
     ['export const prose = <div>\n// tdd-cover: invalid example\n</div>;', 'ALLOW'],
     ['/*\n// tdd-cover: invalid example\n*/\nexport const page = 1;', 'ALLOW'],
     ['export const page = 1;\n// tdd-cover: e2e tests/e2e/page.spec.ts', 'TDD_DECLARATION_INVALID'],
-    ['export const page = `${(() => {\n// tdd-cover: e2e tests/e2e/page.spec.ts\nreturn 1; })()}`;', 'TDD_DECLARATION_INVALID'],
+    [`export const page = \`\${(() => {\n// tdd-cover: e2e tests/e2e/page.spec.ts\nreturn 1; })()}\`;`, 'TDD_DECLARATION_INVALID'],
   ])('uses comment syntax for declaration-shaped prose: %s', (content, code) => {
     const root = project();
     writeFileSync(join(root, 'apps/web/src/page.test.tsx'), 'test("page", () => {});');

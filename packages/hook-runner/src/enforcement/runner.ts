@@ -37,7 +37,7 @@ import { testName } from '../rules/test-name.js';
 import { allow } from '../rules/verdict.js';
 import { normalizeToolCall } from './normalize.js';
 import { MAX_SOURCE_BYTES, proposedSource } from './proposed-source.js';
-import { inspectTestSyntax, unavailableSyntax } from './syntax-inspection.js';
+import { inspectSourceSyntax, unavailableSyntax } from './syntax-inspection.js';
 import { isTestPath } from '../rules/source-helpers.js';
 import type {
   NormalizedEdit,
@@ -257,7 +257,7 @@ function focusedVerdict(root: string, edits: readonly NormalizedEdit[], raw: unk
     if (/^[ \t]*(?:(?:it|test|describe)\.only|(?:it|test)\.skip|xit|xdescribe)[ \t]*\(/.test(proposed.content)) {
       return noFocusedTest([{ path: edit.path, addedContent: proposed.content.split('\n')[0] ?? '' }]);
     }
-    const verdict = inspectTestSyntax(root, edit.path, proposed.content, deadline - performance.now());
+    const verdict = inspectSourceSyntax(root, edit.path, proposed.content, deadline - performance.now());
     if (!verdict.allow) return verdict;
   }
   return allow();
@@ -265,11 +265,10 @@ function focusedVerdict(root: string, edits: readonly NormalizedEdit[], raw: unk
 
 function declaredTest(root: string, content: string): string | undefined {
   const lines = content.split(/\r?\n/);
-  const markers = lines.filter((line) => /^\s*\/\/\s*tdd-cover:/.test(line));
-  if (markers.length === 0) return undefined;
+  if (!/^\s*\/\/\s*tdd-cover:/.test(lines[0] ?? '')) return undefined;
   const match = /^\/\/ tdd-cover: e2e (.+)$/.exec(lines[0] ?? '');
   const path = match?.[1];
-  if (markers.length !== 1 || path === undefined || path !== path.trim() || isAbsolute(path)
+  if (path === undefined || path !== path.trim() || isAbsolute(path)
     || /^[A-Za-z]:|\\/.test(path) || path.split('/').some((part) => part === '..' || part === '.')
     || !isTestPath(path)) throw new Error('declare exactly one project-relative E2E spec on the first line');
   const target = realpathSync(join(root, path));
@@ -285,19 +284,27 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown
   const physicalRoot = physicalPath(root);
   const projectChanges = projectEdits(physicalRoot, edits);
   const config = readTddConfig(physicalRoot);
-  const existingHeaders: Record<string, string> = {};
+  const existingHeaders: Record<string, string | undefined> = {};
   const siblingTests = new Set<string>();
   const declaredTests: Record<string, string> = {};
+  const deadline = performance.now() + 1_000;
   for (const edit of projectChanges) {
     if (edit.operation === 'delete' && edit.addedContent === '') continue;
     if (!tddApplies(edit.path, config.businessGlobs, [config.spikesGlob])) continue;
-    const proposed = proposedSource(raw, physicalRoot, edit.path, readSource(join(physicalRoot, edit.path)));
+    const existing = readSource(join(physicalRoot, edit.path));
+    const proposed = proposedSource(raw, physicalRoot, edit.path, existing);
     if (proposed.kind === 'unresolved') return { allow: false, code: 'TDD_DECLARATION_UNVERIFIED',
-      message: `cannot verify E2E declaration: ${proposed.reason}; provide an exact complete edit`, evidence: [edit.path] };
+      message: `cannot verify E2E declaration: ${proposed.reason}; provide exact context, or a complete Write within 64 KiB (oversized originals require replacement or restructuring)`, evidence: [edit.path] };
+    if (proposed.content.split(/\r?\n/).slice(1).some((line) => /^\s*\/\/\s*tdd-cover:/.test(line))) {
+      const syntax = inspectSourceSyntax(physicalRoot, edit.path, proposed.content,
+        deadline - performance.now(), 'declarations');
+      if (!syntax.allow) return { ...syntax, code: syntax.code === 'TDD_DECLARATION_INVALID'
+        ? syntax.code : 'TDD_DECLARATION_UNVERIFIED' };
+    }
     try {
       const test = declaredTest(physicalRoot, proposed.content);
       if (test !== undefined) declaredTests[edit.path] = test;
-      existingHeaders[edit.path] = proposed.content;
+      existingHeaders[edit.path] = existing ?? (existsSync(join(physicalRoot, edit.path)) ? undefined : '');
     } catch {
       return { allow: false, code: 'TDD_DECLARATION_INVALID',
         message: 'put one // tdd-cover: e2e <project-relative spec> on the first line, pointing to an existing regular test file inside the project',

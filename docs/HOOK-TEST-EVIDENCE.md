@@ -53,10 +53,20 @@ The path is literal and relative to the project root; spaces inside filenames
 are supported. It must identify an existing regular .test/.spec file with a
 ts, tsx, js or jsx extension. Absolute paths, parent traversal, backslashes and
 links outside the physical project root refuse. The target is inspected only
-for existence and kind, not read or executed. Every governed production edit is reconstructed before declaration discovery,
+for existence and kind, not read or executed. Every governed production edit is
+reconstructed before declaration discovery,
 including edits to only part of the marker and declaration removal. Missing or
 ambiguous context and files over 64 KiB refuse with TDD_DECLARATION_UNVERIFIED;
-provide a complete supported Write or exact bounded edit. Exempt paths stay exempt.
+supply exact context for bounded edits. An oversized original cannot be recovered
+by a smaller Edit: provide a complete replacement within 64 KiB or restructure
+into supported files. Exempt paths stay exempt.
+
+Declaration-shaped lines elsewhere require the same bounded project compiler to
+identify actual comments. Template/JSX text and block-comment examples are not
+declarations; actual misplaced or duplicate line comments still refuse. Missing
+syntax capability is TDD_DECLARATION_UNVERIFIED. A sole first-line declaration
+needs no compiler. Original source remains separate from proposed declarations:
+removing behavior through an update does not acquire the barrel-file exemption.
 
 One declaration on the first line is permitted. A malformed, conflicting or
 misplaced declaration refuses; it cannot silently fall back to an existing
