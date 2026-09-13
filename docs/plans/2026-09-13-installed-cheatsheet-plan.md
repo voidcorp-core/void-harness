@@ -213,12 +213,16 @@ before claiming those proofs. Native screen-reader interaction remains a named
 manual evidence gap. The clipboard-denial test is an explicit browser API double,
 not a claim about an operating-system permission dialog.
 
-All eight fresh-context preparation reviews of this increment found no substantive
-blocker. Four native roles returned contract v2 while the controller expected v1;
-those events were recorded failed, not coerced to passes. SHA-verified file packs
-were an explicit transport deviation. Canonical team certification remains
-unverified until compatible contracts can certify the candidate. Do not conflate
-that tooling limitation with green tests or with a completed merge gate.
+The initial CI follow-up panel did not certify the candidate. Four completions
+were incorrectly recorded as failed by the coordinator: their dispatched
+contracts were already v2, but the coordinator manually requested v1 and then
+misreported a controller mismatch. No completion was rejected by the CLI for
+that mismatch. The interrupted mission history is preserved; new reviews must
+read each envelope's own contract version and cannot reuse those failed events
+as successful evidence. SHA-verified file packs were also an explicit transport
+deviation. A subsequent review is a review of the implemented candidate, not
+retroactive pre-implementation evidence. Native screen-reader use remains an
+explicit manual evidence gap, distinct from the observed automated browser QA.
 
 | Order | Unit | Dependencies | Estimate | Human gate |
 |---|---|---|---|---|
