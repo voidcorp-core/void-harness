@@ -41,6 +41,29 @@ describe('evidence-aware hooks', () => {
       .toBe('TDD_SIBLING_TEST_MISSING');
   });
 
+  it('does not infer a barrel exemption from an unread oversized original', () => {
+    const root = project();
+    const path = join(root, 'apps/web/src/page.tsx');
+    writeFileSync(path, `export const page = 1;\n${' '.repeat(65_536)}`);
+    expect(evaluateRule('tdd-order', { tool_name: 'Write', tool_input: {
+      file_path: path, content: '',
+    } }, { root }).code).toBe('TDD_SIBLING_TEST_MISSING');
+  });
+
+  it.each([
+    ['export const prose = `before\n// tdd-cover: invalid example\n${1}\nafter`;', 'ALLOW'],
+    ['export const prose = <div>\n// tdd-cover: invalid example\n</div>;', 'ALLOW'],
+    ['/*\n// tdd-cover: invalid example\n*/\nexport const page = 1;', 'ALLOW'],
+    ['export const page = 1;\n// tdd-cover: e2e tests/e2e/page.spec.ts', 'TDD_DECLARATION_INVALID'],
+    ['export const page = `${(() => {\n// tdd-cover: e2e tests/e2e/page.spec.ts\nreturn 1; })()}`;', 'TDD_DECLARATION_INVALID'],
+  ])('uses comment syntax for declaration-shaped prose: %s', (content, code) => {
+    const root = project();
+    writeFileSync(join(root, 'apps/web/src/page.test.tsx'), 'test("page", () => {});');
+    expect(evaluateRule('tdd-order', { tool_name: 'Write', tool_input: {
+      file_path: join(root, 'apps/web/src/page.tsx'), content,
+    } }, { root }).code).toBe(code);
+  });
+
   it.each(['page.spec.ts', 'missing.spec.ts'])('discovers partial declaration edits for %s', (spec) => {
     const root = project();
     const path = join(root, 'apps/web/src/page.tsx');
