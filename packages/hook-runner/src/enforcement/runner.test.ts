@@ -22,6 +22,51 @@ function write(root: string, path: string, content: string): void {
 }
 
 describe('complete TDD evidence and operation bounds', () => {
+  it.each([
+    ['strict', 'exploratory', 'TDD_SIBLING_TEST_MISSING'],
+    ['exploratory', 'strict', 'ALLOW'],
+    ['souple', 'strict', 'TDD_SIBLING_TEST_WARNING'],
+  ])('preserves oversized original mode %s over configured %s', (mode, configured, code) => {
+    const root = mkdtempSync(join(tmpdir(), 'void-tdd-header-'));
+    write(root, '.void/config.json', JSON.stringify({ modes: { tdd: configured } }));
+    write(root, 'apps/web/src/page.ts', `// tdd-mode: ${mode}\nexport const page = 1;\n${' '.repeat(65_536)}`);
+    const input = { tool_name: 'Write', tool_input: {
+      file_path: 'apps/web/src/page.ts', content: 'export const page = 2;',
+    } };
+    expect(evaluateRule('tdd-order', input, { root }).code).toBe(code);
+    write(root, 'apps/web/src/page.test.ts', 'test("page", () => {});');
+    expect(evaluateRule('tdd-order', input, { root }).allow).toBe(true);
+  });
+
+  it.each(['alias/page.ts', 'absolute-root-alias'])('reconstructs exact patches through %s', (name) => {
+    const root = mkdtempSync(join(tmpdir(), 'void-tdd-alias-'));
+    write(root, 'apps/web/src/page.ts', 'export const page = 1;\n');
+    write(root, 'apps/web/src/page.test.ts', 'test("page", () => {});');
+    symlinkSync(join(root, 'apps/web/src'), join(root, 'alias'), 'junction');
+    const rootAlias = `${root}-alias`;
+    symlinkSync(root, rootAlias, 'junction');
+    const path = name === 'absolute-root-alias' ? join(rootAlias, 'apps/web/src/page.ts') : name;
+    expect(evaluateRule('tdd-order', { tool_name: 'apply_patch', tool_input: {
+      patch: `*** Begin Patch\n*** Update File: ${path}\n@@\n-export const page = 1;\n+export const page = 2;\n*** End Patch`,
+    } }, { root }).code).toBe('ALLOW');
+  });
+
+  it.each(['before', 'after'])('bounds marker-free focused-test work %s reconstruction', (point) => {
+    const root = mkdtempSync(join(tmpdir(), 'void-focused-clock-'));
+    const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(0);
+    if (point === 'after') clock.mockReturnValueOnce(0);
+    clock.mockReturnValue(1_000);
+    try {
+      const verdict = evaluateRule('no-focused-test', { tool_name: 'Write', tool_input: {
+        file_path: 'page.test.ts', content: 'test("page", () => {});',
+      } }, { root });
+      expect(verdict.code).toBe('TEST_SYNTAX_UNVERIFIED');
+      expect(verdict.message).toContain('split');
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
   it('still exempts an exact edit whose complete original and result only re-export', () => {
     const root = mkdtempSync(join(tmpdir(), 'void-tdd-barrel-'));
     write(root, 'apps/web/src/page.ts', "export { page } from './before';\n");
