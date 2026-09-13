@@ -63,6 +63,57 @@ jobs:
           compression-level: 0
           retention-days: 1
 
+  browser-conformance:
+    name: browser conformance
+    needs: consumer-artifact
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      GATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ env.GATE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - name: Download the exact packed consumer artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: voidharness-consumer-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/void-consumer-artifact
+      - name: Generate synthetic documents from the verified offline installation
+        env:
+          VOID_CONFORMANCE_TARBALL: ${{ runner.temp }}/void-consumer-artifact/voidharness.tgz
+        run: node test/browser/prepare.mjs
+      - name: Install source-only browser QA tooling in runner temporary storage
+        # Sources: test/browser/README.md; no dependency or lockfile in the consumer package.
+        run: |
+          mkdir "$RUNNER_TEMP/browser-qa"
+          cp test/browser/package.json test/browser/*.mjs "$RUNNER_TEMP/browser-qa/"
+          cd "$RUNNER_TEMP/browser-qa"
+          npm install --ignore-scripts --no-audit --no-fund --package-lock=false --omit=optional
+          npm ls --all --json > tooling-tree.json
+          node node_modules/@playwright/test/cli.js install --with-deps chromium
+      - name: Exercise the regenerated offline documents
+        working-directory: ${{ runner.temp }}/browser-qa
+        run: node node_modules/@playwright/test/cli.js test
+      - name: Preserve browser evidence for the tested source SHA
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: browser-evidence-${{ env.GATE_SHA }}
+          path: |
+            ${{ runner.temp }}/browser-qa/playwright-report/
+            ${{ runner.temp }}/browser-qa/test-results/
+            ${{ runner.temp }}/browser-qa/tooling-tree.json
+            ${{ runner.temp }}/cheatsheet-fixture/evidence.json
+          if-no-files-found: error
+          retention-days: 14
+
   install-conformance:
     name: install conformance (${{ matrix.os }})
     needs: consumer-artifact

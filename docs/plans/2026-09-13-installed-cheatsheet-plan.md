@@ -194,12 +194,31 @@ Whole-inventory tests compare canonical identities in all three formats and
 exercise bidirectional specialist/agent links. Real linked-worktree tests compare
 tree bytes before and after inspection.
 
-Browser verification is pending: the session's browser URL policy explicitly
-refused the local HTML file. No alternate browser or transport was used to
-circumvent that refusal. Mobile/desktop, keyboard, no-JavaScript, print,
-clipboard denial, contrast/zoom and assistive evidence remain unverified.
-Post-implementation team certification, current CI and merge are still required;
-the ticket is not delivered.
+Folpe approved isolated Playwright CI on 2026-09-13. The follow-up replaces
+personal-browser inspection with regenerated synthetic consumer documents on a
+GitHub-hosted runner, consuming the same SHA/digest-verified archive as install
+conformance. No developer HTML, home directory or browser profile is transferred,
+and the connected browser's local-file refusal remains intact.
+
+The new `browser conformance` job owns behavioral browser checks and attaches
+mobile/desktop, keyboard, empty, clipboard-denial, 320 px reflow, doubled-text,
+print PDF and no-JavaScript evidence. axe checks automatically detectable WCAG
+violations. One worker and zero retries preserve failure evidence. The source-only
+QA tooling and its complete dependency graph are version-pinned separately from
+the consumer package. See `test/browser/README.md` for the reproducible run and
+review contract, and the isolated consumer browser CI ADR.
+
+Browser execution and visual review of the candidate artifacts remain required
+before claiming those proofs. Native screen-reader interaction remains a named
+manual evidence gap. The clipboard-denial test is an explicit browser API double,
+not a claim about an operating-system permission dialog.
+
+All eight fresh-context preparation reviews of this increment found no substantive
+blocker. Four native roles returned contract v2 while the controller expected v1;
+those events were recorded failed, not coerced to passes. SHA-verified file packs
+were an explicit transport deviation. Canonical team certification remains
+unverified until compatible contracts can certify the candidate. Do not conflate
+that tooling limitation with green tests or with a completed merge gate.
 
 | Order | Unit | Dependencies | Estimate | Human gate |
 |---|---|---|---|---|

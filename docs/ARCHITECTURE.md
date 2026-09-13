@@ -1422,3 +1422,19 @@ committed pattern self-matches the detector/docs/fixtures, a net-negative false
 positive for a floor check (see DECISIONS). The project test gate stays the
 consumer's own CI (this Action enforces the doctrine floor, not general quality —
 it must not double the existing CI).
+
+## Isolated consumer browser verification
+
+The source-only `test/browser/` suite tests regenerated synthetic cheatsheets on
+a GitHub-hosted runner. It consumes the same immutable archive as install
+conformance, verified against the checkout SHA and tarball digest. Playwright
+and axe are pinned QA tooling outside the shipped CLI and pnpm workspace; they
+do not add a consumer runtime dependency. The runner installs the archive
+offline, and browser contexts disable network access. No personal browser,
+developer export or home directory is an input.
+
+`browser conformance` retains SHA-bound reports, document digests, screenshots,
+print output and failure traces for fourteen days. Zero retries and finite
+execution limits keep a failure red. Visual review and real assistive testing
+remain separate from automated assertions; see [the suite contract](../test/browser/README.md)
+and [the decision](decisions-log/2026-09-13-isolated-consumer-browser-ci--392e4254-fb63-4743-af1f-4c99a035170d.md).

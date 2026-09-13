@@ -37,4 +37,23 @@ describe('packed consumer CI topology', () => {
     expect(graph).toContain('name: ProjectGraph typecheck');
     expect(graph).not.toContain('name: ProjectGraph tests and typecheck');
   });
+
+  it('tests the packed document on a disposable runner and retains its review evidence', () => {
+    const browser = job('browser-conformance');
+    expect(browser).toContain('needs: consumer-artifact');
+    expect(browser).toContain('runs-on: ubuntu-24.04');
+    expect(browser).toContain('contents: read');
+    expect(browser).toContain('persist-credentials: false');
+    expect(browser).toContain('actions/download-artifact@');
+    expect(browser).toContain('node test/browser/prepare.mjs');
+    expect(browser).toContain('npm install --ignore-scripts --no-audit --no-fund --package-lock=false');
+    expect(browser).toContain('node node_modules/@playwright/test/cli.js test');
+    expect(browser).toContain('if: ${{ !cancelled() }}');
+    expect(browser).toContain('actions/upload-artifact@');
+    expect(browser).toContain('if-no-files-found: error');
+    expect(browser).toContain('browser-evidence-${{ env.GATE_SHA }}');
+    expect(browser).not.toContain('continue-on-error');
+    expect(browser).not.toContain('pnpm conformance:pack');
+    expect(browser).not.toContain('self-hosted');
+  });
 });
