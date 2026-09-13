@@ -1,0 +1,144 @@
+---
+title: Discover the installed harness through an offline cheat sheet
+date: 2026-09-13
+status: approved
+author: Folpe + Codex
+ticket: DEV-532
+related:
+  - docs/plans/2026-07-25-autopilot-plan.md
+  - docs/LINEAR-INDEX.md
+---
+
+# Installed cheat sheet
+
+## Problem and observed starting point
+
+An engineer using the harness needs to know what exists, what is installed in
+this repository and how to invoke the relevant capability. DEV-532 explicitly
+distinguishes this question from the public README's product introduction.
+
+`scripts/build-cheatsheet.mjs` already generates the source repository's Markdown
+reference. It does not provide the requested consumer CLI or inspect an install.
+The catalogue observed on develop plus PR 374 contains 69 skills, 32 hooks and
+21 agents. These are observations, never constants for the implementation.
+Its legacy model has no command or specialist node type. Those entries must come
+from their actual owners, not from a new handwritten list in the renderer.
+
+`status.ts` already joins certification and local runtime evidence, but also
+writes status history. The cheat sheet must reuse the relevant read-only
+projection without invoking the state-writing command.
+
+## Chosen direction proposed for approval
+
+Add `void-harness cheatsheet [--format html|markdown|json]`. HTML is the default.
+The command writes the requested document to stdout; diagnostics go to stderr.
+For example, `void-harness cheatsheet > cheatsheet.html` creates a document that
+opens by double-click, without a server or network. No browser is launched and
+no file is created merely by inspecting the catalogue.
+
+One typed, serializable projection feeds all three formats. Its entries join
+the shipped catalogue, canonical specialist contracts and CLI command metadata.
+CLI help and the cheat sheet share the same command metadata; command dispatch
+or a parity check must prevent an implemented command from being absent there.
+The projection preserves canonical identities and represents specialist roles
+and their runtime agent implementations as linked entries, not duplicate claims
+that there are two independent capabilities.
+
+The command belongs to the distributed CLI. The source-only Linear index,
+tracker exports and source maintenance scripts remain strictly separate and
+must never be included in this document or in a consumer installation.
+
+## Alternatives considered
+
+1. A shared typed projection with authoritative command metadata, recommended.
+   It makes format parity explicit and can describe the current installation.
+2. Generate a second static catalogue at build time by extracting command help
+   and dispatch syntax. It avoids moving metadata, but couples correctness to
+   the source code's textual shape and still needs a local installation join.
+3. Extend the existing documentation generator to accept an installation
+   snapshot. This reuses its presentation, but would move a source maintenance
+   entry point into the consumer boundary. Shared pure rendering is acceptable;
+   importing the source script into the shipped CLI is not.
+
+## Catalogue and local evidence
+
+Each entry has its stable identity, type, description, pack where applicable,
+supported runtimes, invocation or automatic trigger, and local availability.
+Do not invent a trigger when metadata is absent: say it is not declared.
+Hook triggers come from their wiring contract; specialist activation comes from
+the canonical routing contract. Descriptions explain how to use the entry.
+
+Use the existing project-root and installation-root resolution from linked
+worktrees. Read only receipt-owned installation metadata, configuration and
+existing runtime evidence needed for availability. Do not refresh status
+history, initialize the project, install tools or contact a service.
+
+Distinguish an absent installation, an installed capability, a disabled skill,
+an inactive pack, an unsupported runtime and unavailable evidence. Preserve
+the existing distinction between configuration and observed runtime capability:
+a configured entry is not described as runtime-verified without that evidence.
+Display the reason alongside each availability state.
+
+The snapshot is bounded and stable for equal inputs. JSON includes a schema
+version and every entry exactly once in deterministic order. It contains no
+absolute machine path, project file contents, journal payload, credentials or
+Linear data. Invalid shipped catalogue data fails with a corrective diagnostic;
+an uninstalled project still gets a complete global catalogue with an explicit
+local empty state. Corrupt local evidence remains unknown, never active.
+
+## User experience
+
+The HTML provides three views: the complete catalogue, availability here, and
+finding a capability from an intended action. The intent view searches the same
+descriptions and trigger metadata; it is not a separate editorial capability
+list or a recommendation generated by an LLM.
+
+Search is immediate on the in-memory document. Runtime, pack and type filters
+compose, retain visible selection state and expose a clear reset action.
+Show the result count and an actionable no-results state. Commands are ordinary
+selectable text with a copy action. Clipboard denial keeps selection available
+and reports failure without claiming the copy succeeded.
+
+Use semantic HTML and native controls. The catalogue remains readable with
+JavaScript disabled. Enhancement adds filtering and copying without fetching
+resources. All labels, focus states, keyboard navigation and live feedback
+must work at 390 px and desktop widths. Touch targets are at least 44 px.
+Print styling removes interactive chrome and preserves entry content and
+invocations. No custom widget or frontend framework is needed.
+
+Untrusted descriptions and metadata are escaped in HTML and Markdown. They
+must never become executable script, CSS, event handlers or unchecked links.
+All assets are inline and offline, with system fonts and no external imports.
+
+## Verification and delivery
+
+Use strict TDD for the projection, local evidence join and CLI contract.
+Rendering tests check observable content and safe escaping, not large snapshots.
+
+- The full authoritative inventory appears in JSON, Markdown and HTML with
+  matching identities, descriptions, triggers and local availability.
+- Adding an entry to a fixture catalogue changes every format without an edit
+  to the renderer. Missing or duplicate identities are explicitly handled.
+- Real CLI tests cover default HTML, each explicit format, invalid arguments,
+  absent/corrupt installs, disabled skills, inactive packs and linked worktrees.
+- The command leaves the project tree and machine state unchanged. Exports
+  contain no absolute paths or consumer file contents.
+- Test hostile descriptions, closing script tags, markup and malformed metadata.
+- Run the packed CLI offline; its self-contained dependency gate stays green.
+- Inspect the actual file in a browser at mobile and desktop sizes, keyboard
+  only, JavaScript disabled and print rendering. Exercise clipboard denial.
+- Run the repository verification catalogue and require green CI before merge.
+
+Link the CLI from consumer-facing documentation where discovery is discussed.
+The HTML output is an optional user-created project document: removing Void
+Machine does not prevent it from being read and does not affect the project.
+No tracked consumer scaffold, service, watcher or new runtime dependency is
+introduced. Release Please owns version changes.
+
+## Review of this draft
+
+Scope matches DEV-532's three views and formats. Source-only Linear indexing is
+explicitly excluded from the consumer boundary. Installation facts stay distinct
+from verified capabilities. Failure states, offline operation and accessibility
+have observable acceptance criteria. Folpe explicitly approved this written spec on 2026-09-13.
+Implementation follows the dedicated installed-cheatsheet plan.
