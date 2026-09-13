@@ -9,6 +9,7 @@ const input = (path: string, patch: Partial<TddOrderInput> = {}): TddOrderInput 
   businessGlobs: ['apps/*/src/**'],
   spikeGlobs: ['apps/*/scripts/spike-*'],
   existingHeaders: {},
+  originalSources: {},
   proposedSources: { [path]: 'export const feature = true;' },
   siblingTests: new Set(),
   ...patch,
@@ -104,6 +105,7 @@ const barrel = (path: string, existing: string, added = existing): TddOrderInput
   businessGlobs: ['apps/*/src/**'],
   spikeGlobs: [],
   existingHeaders: { [path]: existing },
+  originalSources: { [path]: existing },
   proposedSources: { [path]: added },
   siblingTests: new Set(),
 });

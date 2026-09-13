@@ -1,11 +1,6 @@
 import {
-  closeSync,
-  constants,
   existsSync,
-  fstatSync,
-  openSync,
   readFileSync,
-  readSync,
   realpathSync,
   statSync,
 } from 'node:fs';
@@ -36,7 +31,8 @@ import {
 import { testName } from '../rules/test-name.js';
 import { allow } from '../rules/verdict.js';
 import { normalizeToolCall } from './normalize.js';
-import { MAX_SOURCE_BYTES, proposedSource } from './proposed-source.js';
+import { proposedSource } from './proposed-source.js';
+import { readOriginalSource } from './original-source.js';
 import { inspectSourceSyntax, unavailableSyntax } from './syntax-inspection.js';
 import { isTestPath } from '../rules/source-helpers.js';
 import type {
@@ -144,10 +140,12 @@ function projectRelativePath(root: string, path: string): string | undefined {
     : projectPath;
 }
 
-function projectEdits(root: string, edits: readonly NormalizedEdit[]): NormalizedEdit[] {
+type ProjectEdit = NormalizedEdit & { readonly originalPath: string };
+
+function projectEdits(root: string, edits: readonly NormalizedEdit[]): ProjectEdit[] {
   return edits.flatMap((edit) => {
     const path = projectRelativePath(root, edit.path);
-    return path === undefined ? [] : [{ ...edit, path }];
+    return path === undefined ? [] : [{ ...edit, path, originalPath: edit.path }];
   });
 }
 
@@ -216,37 +214,21 @@ function readTddConfig(root: string): TddConfig {
   };
 }
 
-function readSource(path: string): string | undefined {
-  let descriptor: number | undefined;
-  try {
-    descriptor = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK);
-    const before = fstatSync(descriptor);
-    if (!before.isFile() || before.size > MAX_SOURCE_BYTES) return undefined;
-    const buffer = Buffer.alloc(MAX_SOURCE_BYTES + 1);
-    let size = 0;
-    while (size < buffer.length) {
-      const count = readSync(descriptor, buffer, size, buffer.length - size, size);
-      if (count === 0) break;
-      size += count;
-    }
-    const after = fstatSync(descriptor);
-    return size <= MAX_SOURCE_BYTES && size === before.size
-      && after.size === before.size && after.mtimeMs === before.mtimeMs
-      ? buffer.subarray(0, size).toString('utf8') : undefined;
-  } catch {
-    return undefined;
-  } finally {
-    if (descriptor !== undefined) closeSync(descriptor);
-  }
-}
 
 function focusedVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown): RuleVerdict {
   const deadline = performance.now() + 1_000;
-  let inspected = 0;
-  for (const edit of projectEdits(root, edits)) {
-    if (!isTestPath(edit.path) || edit.operation === 'delete') continue;
-    if (++inspected > 32) return unavailableSyntax('operation exceeds 32 test files', edit.path, 'split the operation into smaller edits');
-    const proposed = proposedSource(raw, root, edit.path, readSource(join(root, edit.path)));
+  const governed = projectEdits(root, edits).filter((edit) => isTestPath(edit.path) && edit.operation !== 'delete');
+  const limit = () => unavailableSyntax('operation exceeds its file or one-second work budget', '',
+    'split the operation into smaller edits');
+  if (governed.length > 32) return limit();
+  if (new Set(governed.map((edit) => edit.path)).size !== governed.length) {
+    return unavailableSyntax('patch must name each physical file exactly once', '', 'combine edits to the same file');
+  }
+  for (const edit of governed) {
+    if (performance.now() >= deadline) return limit();
+    const original = readOriginalSource(join(root, edit.path));
+    const proposed = proposedSource(raw, root, edit.originalPath, original.kind === 'read' ? original.source : undefined);
+    if (performance.now() >= deadline) return limit();
     if (proposed.kind === 'unresolved') return unavailableSyntax(proposed.reason, edit.path,
       'provide an exact supported Edit/patch or a complete Write within 64 KiB');
     // Absence can be proven cheaply; whitespace/comments may separate property
@@ -258,9 +240,10 @@ function focusedVerdict(root: string, edits: readonly NormalizedEdit[], raw: unk
       return noFocusedTest([{ path: edit.path, addedContent: proposed.content.split('\n')[0] ?? '' }]);
     }
     const verdict = inspectSourceSyntax(root, edit.path, proposed.content, deadline - performance.now());
+    if (performance.now() >= deadline) return limit();
     if (!verdict.allow) return verdict;
   }
-  return allow();
+  return governed.length > 0 && performance.now() >= deadline ? limit() : allow();
 }
 
 function declaredTest(root: string, content: string): string | undefined {
@@ -290,6 +273,7 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown
   const projectChanges = projectEdits(physicalRoot, edits);
   const config = readTddConfig(physicalRoot);
   const existingHeaders: Record<string, string | undefined> = {};
+  const originalSources: Record<string, string | undefined> = {};
   const siblingTests = new Set<string>();
   const declaredTests: Record<string, string> = {};
   const proposedSources: Record<string, string> = {};
@@ -297,10 +281,16 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown
   const governed = projectChanges.filter((edit) => !(edit.operation === 'delete' && edit.addedContent === '')
     && tddApplies(edit.path, config.businessGlobs, [config.spikesGlob]));
   if (governed.length > 32) return tddOperationLimit('operation exceeds 32 governed production files');
+  if (new Set(governed.map((edit) => edit.path)).size !== governed.length) {
+    return tddOperationLimit('patch must name each physical file exactly once');
+  }
   for (const edit of governed) {
     if (performance.now() >= deadline) return tddOperationLimit('operation exhausted its one-second work budget');
-    const existing = readSource(join(physicalRoot, edit.path));
-    const proposed = proposedSource(raw, physicalRoot, edit.path, existing);
+    const original = readOriginalSource(join(physicalRoot, edit.path));
+    if (original.kind === 'unavailable') return { allow: false, code: 'TDD_DECLARATION_UNVERIFIED',
+      message: 'cannot read original TDD mode; restore readable regular source before editing', evidence: [edit.path] };
+    const existing = original.kind === 'read' ? original.source : undefined;
+    const proposed = proposedSource(raw, physicalRoot, edit.originalPath, existing);
     if (performance.now() >= deadline) return tddOperationLimit('operation exhausted its one-second work budget');
     if (proposed.kind === 'unresolved') return { allow: false, code: 'TDD_DECLARATION_UNVERIFIED',
       message: `cannot verify E2E declaration: ${proposed.reason}; provide exact context, or a complete Write within 64 KiB (oversized originals require replacement or restructuring)`, evidence: [edit.path] };
@@ -315,7 +305,8 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown
       proposedSources[edit.path] = proposed.content;
       const test = declaredTest(physicalRoot, proposed.content);
       if (test !== undefined) declaredTests[edit.path] = test;
-      existingHeaders[edit.path] = existing ?? (existsSync(join(physicalRoot, edit.path)) ? undefined : '');
+      existingHeaders[edit.path] = original.kind === 'read' ? original.header : '';
+      originalSources[edit.path] = original.kind === 'read' ? original.source : '';
     } catch {
       return { allow: false, code: 'TDD_DECLARATION_INVALID',
         message: 'put one // tdd-cover: e2e <project-relative spec> on the first line, pointing to an existing regular test file inside the project',
@@ -338,6 +329,7 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown
     businessGlobs: config.businessGlobs,
     spikeGlobs: [config.spikesGlob],
     existingHeaders,
+    originalSources,
     siblingTests,
     declaredTests,
     proposedSources,

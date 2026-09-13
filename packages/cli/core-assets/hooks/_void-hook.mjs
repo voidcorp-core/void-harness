@@ -176,13 +176,8 @@ function voidReadPath(root, ...segments) {
 }
 
 import {
-  closeSync,
-  constants,
   existsSync as existsSync4,
-  fstatSync,
-  openSync,
   readFileSync as readFileSync4,
-  readSync,
   realpathSync,
   statSync
 } from "node:fs";
@@ -819,7 +814,7 @@ function tddOrder(input) {
     if (edit.operation === "delete" && edit.addedContent === "") continue;
     const path = edit.path.replaceAll("\\", "/");
     if (!tddApplies(path, input.businessGlobs, input.spikeGlobs)) continue;
-    const original = input.existingHeaders[path];
+    const original = input.originalSources[path];
     const proposed = input.proposedSources[path];
     if (original !== void 0 && proposed !== void 0 && carriesNoBehaviour(original, proposed)) continue;
     const declaredTest2 = input.declaredTests?.[path];
@@ -1064,6 +1059,34 @@ function proposedSource(raw, root, path, existing) {
   return unresolved("tool input does not describe a reconstructable file");
 }
 
+import { closeSync, constants, fstatSync, openSync, readSync } from "node:fs";
+function readOriginalSource(path) {
+  let descriptor;
+  try {
+    descriptor = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK);
+    const before = fstatSync(descriptor);
+    if (!before.isFile()) return { kind: "unavailable" };
+    const buffer = Buffer.alloc(MAX_SOURCE_BYTES + 1);
+    let size = 0;
+    while (size < buffer.length) {
+      const count = readSync(descriptor, buffer, size, buffer.length - size, size);
+      if (count === 0) break;
+      size += count;
+    }
+    const after = fstatSync(descriptor);
+    if (after.size !== before.size || after.mtimeMs !== before.mtimeMs || size !== Math.min(before.size, buffer.length)) return { kind: "unavailable" };
+    return {
+      kind: "read",
+      header: buffer.subarray(0, Math.min(size, 8192)).toString("utf8"),
+      source: size <= MAX_SOURCE_BYTES ? buffer.subarray(0, size).toString("utf8") : void 0
+    };
+  } catch (error) {
+    return error instanceof Error && "code" in error && error.code === "ENOENT" ? { kind: "absent" } : { kind: "unavailable" };
+  } finally {
+    if (descriptor !== void 0) closeSync(descriptor);
+  }
+}
+
 import { spawnSync } from "node:child_process";
 function syntaxWorker() {
   const { readFileSync: readFileSync11 } = process.getBuiltinModule("node:fs");
@@ -1269,7 +1292,7 @@ function projectRelativePath(root, path) {
 function projectEdits(root, edits) {
   return edits.flatMap((edit) => {
     const path = projectRelativePath(root, edit.path);
-    return path === void 0 ? [] : [{ ...edit, path }];
+    return path === void 0 ? [] : [{ ...edit, path, originalPath: edit.path }];
   });
 }
 function record2(value) {
@@ -1304,34 +1327,23 @@ function readTddConfig(root) {
     spikesGlob: configuredString(paths, "spikes", "apps/*/scripts/spike-*")
   };
 }
-function readSource(path) {
-  let descriptor;
-  try {
-    descriptor = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK);
-    const before = fstatSync(descriptor);
-    if (!before.isFile() || before.size > MAX_SOURCE_BYTES) return void 0;
-    const buffer = Buffer.alloc(MAX_SOURCE_BYTES + 1);
-    let size = 0;
-    while (size < buffer.length) {
-      const count = readSync(descriptor, buffer, size, buffer.length - size, size);
-      if (count === 0) break;
-      size += count;
-    }
-    const after = fstatSync(descriptor);
-    return size <= MAX_SOURCE_BYTES && size === before.size && after.size === before.size && after.mtimeMs === before.mtimeMs ? buffer.subarray(0, size).toString("utf8") : void 0;
-  } catch {
-    return void 0;
-  } finally {
-    if (descriptor !== void 0) closeSync(descriptor);
-  }
-}
 function focusedVerdict(root, edits, raw) {
   const deadline = performance.now() + 1e3;
-  let inspected = 0;
-  for (const edit of projectEdits(root, edits)) {
-    if (!isTestPath(edit.path) || edit.operation === "delete") continue;
-    if (++inspected > 32) return unavailableSyntax("operation exceeds 32 test files", edit.path, "split the operation into smaller edits");
-    const proposed = proposedSource(raw, root, edit.path, readSource(join4(root, edit.path)));
+  const governed = projectEdits(root, edits).filter((edit) => isTestPath(edit.path) && edit.operation !== "delete");
+  const limit = () => unavailableSyntax(
+    "operation exceeds its file or one-second work budget",
+    "",
+    "split the operation into smaller edits"
+  );
+  if (governed.length > 32) return limit();
+  if (new Set(governed.map((edit) => edit.path)).size !== governed.length) {
+    return unavailableSyntax("patch must name each physical file exactly once", "", "combine edits to the same file");
+  }
+  for (const edit of governed) {
+    if (performance.now() >= deadline) return limit();
+    const original = readOriginalSource(join4(root, edit.path));
+    const proposed = proposedSource(raw, root, edit.originalPath, original.kind === "read" ? original.source : void 0);
+    if (performance.now() >= deadline) return limit();
     if (proposed.kind === "unresolved") return unavailableSyntax(
       proposed.reason,
       edit.path,
@@ -1342,9 +1354,10 @@ function focusedVerdict(root, edits, raw) {
       return noFocusedTest([{ path: edit.path, addedContent: proposed.content.split("\n")[0] ?? "" }]);
     }
     const verdict = inspectSourceSyntax(root, edit.path, proposed.content, deadline - performance.now());
+    if (performance.now() >= deadline) return limit();
     if (!verdict.allow) return verdict;
   }
-  return allow();
+  return governed.length > 0 && performance.now() >= deadline ? limit() : allow();
 }
 function declaredTest(root, content) {
   const lines = content.split(/\r?\n/);
@@ -1372,16 +1385,27 @@ function tddVerdict(root, edits, raw) {
   const projectChanges = projectEdits(physicalRoot, edits);
   const config = readTddConfig(physicalRoot);
   const existingHeaders = {};
+  const originalSources = {};
   const siblingTests = /* @__PURE__ */ new Set();
   const declaredTests = {};
   const proposedSources = {};
   const deadline = performance.now() + 1e3;
   const governed = projectChanges.filter((edit) => !(edit.operation === "delete" && edit.addedContent === "") && tddApplies(edit.path, config.businessGlobs, [config.spikesGlob]));
   if (governed.length > 32) return tddOperationLimit("operation exceeds 32 governed production files");
+  if (new Set(governed.map((edit) => edit.path)).size !== governed.length) {
+    return tddOperationLimit("patch must name each physical file exactly once");
+  }
   for (const edit of governed) {
     if (performance.now() >= deadline) return tddOperationLimit("operation exhausted its one-second work budget");
-    const existing = readSource(join4(physicalRoot, edit.path));
-    const proposed = proposedSource(raw, physicalRoot, edit.path, existing);
+    const original = readOriginalSource(join4(physicalRoot, edit.path));
+    if (original.kind === "unavailable") return {
+      allow: false,
+      code: "TDD_DECLARATION_UNVERIFIED",
+      message: "cannot read original TDD mode; restore readable regular source before editing",
+      evidence: [edit.path]
+    };
+    const existing = original.kind === "read" ? original.source : void 0;
+    const proposed = proposedSource(raw, physicalRoot, edit.originalPath, existing);
     if (performance.now() >= deadline) return tddOperationLimit("operation exhausted its one-second work budget");
     if (proposed.kind === "unresolved") return {
       allow: false,
@@ -1404,7 +1428,8 @@ function tddVerdict(root, edits, raw) {
       proposedSources[edit.path] = proposed.content;
       const test = declaredTest(physicalRoot, proposed.content);
       if (test !== void 0) declaredTests[edit.path] = test;
-      existingHeaders[edit.path] = existing ?? (existsSync4(join4(physicalRoot, edit.path)) ? void 0 : "");
+      existingHeaders[edit.path] = original.kind === "read" ? original.header : "";
+      originalSources[edit.path] = original.kind === "read" ? original.source : "";
     } catch {
       return {
         allow: false,
@@ -1430,6 +1455,7 @@ function tddVerdict(root, edits, raw) {
     businessGlobs: config.businessGlobs,
     spikeGlobs: [config.spikesGlob],
     existingHeaders,
+    originalSources,
     siblingTests,
     declaredTests,
     proposedSources

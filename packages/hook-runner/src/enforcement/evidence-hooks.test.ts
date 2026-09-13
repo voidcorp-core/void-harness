@@ -36,6 +36,21 @@ describe('evidence-aware hooks', () => {
     }
   });
 
+  it('refuses focused-test success after syntax inspection exhausts the shared budget', () => {
+    const root = project();
+    const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(0)
+      .mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(1_000);
+    try {
+      const verdict = evaluateRule('no-focused-test', { tool_name: 'Write', tool_input: {
+        file_path: 'page.test.ts', content: '// test.only is prose\ntest("page", () => {});',
+      } }, { root });
+      expect(verdict.code).toBe('TEST_SYNTAX_UNVERIFIED');
+      expect(verdict.message).toContain('split');
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
   it.each([false, true])('ignores declaration prose in a template with header=%s', (header) => {
     const root = project();
     const marker = '// tdd-cover: e2e tests/e2e/page.spec.ts';

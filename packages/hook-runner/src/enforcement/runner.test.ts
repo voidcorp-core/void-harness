@@ -67,6 +67,28 @@ describe('complete TDD evidence and operation bounds', () => {
     }
   });
 
+  it.each(['tdd-order', 'no-focused-test'] as const)('refuses multiple aliases of one physical file for %s', (rule) => {
+    const root = mkdtempSync(join(tmpdir(), 'void-hook-duplicate-'));
+    const name = rule === 'tdd-order' ? 'page.ts' : 'page.test.ts';
+    write(root, `apps/web/src/${name}`, 'export const page = 1;\n');
+    symlinkSync(join(root, 'apps/web/src'), join(root, 'alias'), 'junction');
+    const patch = ['*** Begin Patch', ...[`apps/web/src/${name}`, `alias/${name}`].flatMap((path) =>
+      [`*** Update File: ${path}`, '@@', '-export const page = 1;', '+export const page = 2;']),
+    '*** End Patch'].join('\n');
+    const verdict = evaluateRule(rule, { tool_name: 'apply_patch', tool_input: { patch } }, { root });
+    expect(verdict.allow).toBe(false);
+    expect(verdict.message).toContain('physical file exactly once');
+  });
+
+  it('reconstructs focused-test patches through an internal alias', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-focused-alias-'));
+    write(root, 'tests/page.test.ts', 'test("before", () => {});\n');
+    symlinkSync(join(root, 'tests'), join(root, 'alias'), 'junction');
+    const patch = '*** Begin Patch\n*** Update File: alias/page.test.ts\n@@\n-test("before", () => {});\n+test("after", () => {});\n*** End Patch';
+    expect(evaluateRule('no-focused-test', { tool_name: 'apply_patch', tool_input: { patch } }, { root }).code)
+      .toBe('ALLOW');
+  });
+
   it('still exempts an exact edit whose complete original and result only re-export', () => {
     const root = mkdtempSync(join(tmpdir(), 'void-tdd-barrel-'));
     write(root, 'apps/web/src/page.ts', "export { page } from './before';\n");

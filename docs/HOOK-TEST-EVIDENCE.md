@@ -8,6 +8,9 @@ multiple matches require replace_all. Native apply_patch supports Add File and
 exact context-bearing Update File hunks. Stale or ambiguous context, moves,
 unanchored insertions and unsupported inputs refuse with TEST_SYNTAX_UNVERIFIED.
 Submit a supported exact edit or complete Write to resolve that refusal.
+Internal symbolic paths retain the tool's original spelling for reconstruction;
+physical paths own containment and evidence. Multiple sections naming the same
+physical file refuse, including sections using different internal aliases.
 
 When syntax is needed, Node resolves TypeScript from the edited file's location.
 Workspace-local node_modules takes precedence over an ancestor's hoisted dependency.
@@ -31,7 +34,7 @@ project tooling, like the compiler used by the project graph; process isolation
 here bounds resources, not that package's filesystem or network authority.
 
 Limits: 64 KiB per proposed file, 128 patch hunks, one million context comparisons,
-32 inspected test files per operation, one second aggregate parsing budget,
+32 inspected test files per operation, one second cooperative operation budget,
 128 MiB child V8 old-space limit, 64 KiB child output and 20,000 syntax nodes. The child
 inherits no environment variables. Timeout uses SIGKILL; a compiler trapping
 SIGTERM cannot keep the synchronous hook waiting. Errors are fixed diagnostics,
@@ -78,6 +81,16 @@ Exhaustion refuses with TDD_DECLARATION_UNVERIFIED and asks to split the operati
 This is a cooperative deadline, not interruption of synchronous filesystem work;
 the byte, file, hunk and comparison limits bound work between checks. The syntax
 child retains its separately enforced remaining-time process limit.
+
+Original mode headers and complete original source are separate evidence. A bounded
+8 KiB header read preserves the original first-five-line TDD mode even when the
+original exceeds the complete-source limit. Unreadable or nonregular originals
+refuse rather than silently falling back to the configured mode. Oversized
+originals cannot establish the barrel exemption from their header alone.
+
+Focused-test operations check the same cooperative deadline before and after
+reconstruction, after parsing, and before success, including marker-free files.
+Budget exhaustion reports TEST_SYNTAX_UNVERIFIED with an instruction to split.
 
 One declaration on the first line is permitted. A malformed, conflicting or
 misplaced declaration refuses; it cannot silently fall back to an existing
