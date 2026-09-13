@@ -45,7 +45,10 @@ export function parseSpecialistYaml(body: string, path: string): SpecialistContr
   }
 }
 
-export async function loadSpecialists(sourceRoot: string): Promise<readonly SpecialistContract[]> {
+export async function loadSpecialists(
+  sourceRoot: string,
+  readText: (path: string) => Promise<string> = path => readFile(path, 'utf8'),
+): Promise<readonly SpecialistContract[]> {
   const directory = join(sourceRoot, 'specialists');
   let entries: Dirent[];
   try {
@@ -74,7 +77,7 @@ export async function loadSpecialists(sourceRoot: string): Promise<readonly Spec
     if (metadata.size > MAX_SPECIALIST_FILE_BYTES) {
       throw yamlError(path, `file exceeds ${MAX_SPECIALIST_FILE_BYTES} bytes`);
     }
-    const contract = parseSpecialistYaml(await readFile(path, 'utf8'), path);
+    const contract = parseSpecialistYaml(await readText(path), path);
     if (ids.has(contract.id)) throw yamlError(path, `duplicate specialist id '${contract.id}'`);
     if (names.has(contract.name)) throw yamlError(path, `duplicate specialist name '${contract.name}'`);
     ids.add(contract.id);
