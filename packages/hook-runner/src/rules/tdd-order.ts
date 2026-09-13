@@ -13,6 +13,7 @@ export interface TddOrderInput {
   readonly spikeGlobs: readonly string[];
   readonly existingHeaders: Readonly<Record<string, string>>;
   readonly siblingTests: ReadonlySet<string>;
+  readonly declaredTests?: Readonly<Record<string, string>>;
 }
 
 function globRegExp(glob: string): RegExp {
@@ -43,6 +44,11 @@ function bypass(path: string, spikeGlobs: readonly string[]): boolean {
     || /\/(?:tests?|__tests__)\/fixtures\/|\/seed\/|\/migrations\/|\/drizzle\/meta\/|\/codemods?\//.test(path)
     || /\/__generated__\//.test(path)
     || matches(path, spikeGlobs);
+}
+
+/** The adapter must not resolve evidence for paths the rule does not govern. */
+export function tddApplies(path: string, businessGlobs: readonly string[], spikeGlobs: readonly string[]): boolean {
+  return !bypass(path, spikeGlobs) && matches(path, businessGlobs);
 }
 
 // A module that only re-exports carries no behaviour: the test one would write
@@ -137,11 +143,17 @@ function siblingFor(path: string): string {
 
 export function tddOrder(input: TddOrderInput): RuleVerdict {
   const warnings: string[] = [];
+  const declared: string[] = [];
   for (const edit of input.edits) {
     if (edit.operation === 'delete' && edit.addedContent === '') continue;
     const path = edit.path.replaceAll('\\', '/');
-    if (bypass(path, input.spikeGlobs) || !matches(path, input.businessGlobs)) continue;
+    if (!tddApplies(path, input.businessGlobs, input.spikeGlobs)) continue;
     if (carriesNoBehaviour(input.existingHeaders[path] ?? '', edit.addedContent)) continue;
+    const declaredTest = input.declaredTests?.[path];
+    if (declaredTest !== undefined) {
+      declared.push(`${path} -> ${declaredTest}`);
+      continue;
+    }
     const mode = fileMode(path, input);
     if (mode === 'exploratory') continue;
     const sibling = siblingFor(path);
@@ -157,6 +169,9 @@ export function tddOrder(input: TddOrderInput): RuleVerdict {
       [evidence],
     );
   }
+  if (warnings.length === 0 && declared.length > 0) return {
+    allow: true, code: 'TDD_DECLARED_TEST', message: 'declared test file exists; suite not executed', evidence: declared,
+  };
   return warnings.length === 0
     ? allow()
     : {

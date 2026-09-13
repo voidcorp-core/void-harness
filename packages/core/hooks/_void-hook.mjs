@@ -37,9 +37,9 @@ function withGoverningSkill(rule, message) {
   return `${message} (doctrine: the ${governingSkill(rule)} skill)`;
 }
 
-import { spawnSync } from "node:child_process";
+import { spawnSync as spawnSync2 } from "node:child_process";
 import { closeSync as closeSync2, existsSync as existsSync5, lstatSync, openSync as openSync2, readSync as readSync2, realpathSync as realpathSync2 } from "node:fs";
-import { dirname as dirname3, isAbsolute as isAbsolute3, join as join5, resolve as resolve4 } from "node:path";
+import { dirname as dirname3, isAbsolute as isAbsolute3, join as join5, resolve as resolve5 } from "node:path";
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -177,11 +177,14 @@ function voidReadPath(root, ...segments) {
 
 import {
   closeSync,
+  constants,
   existsSync as existsSync4,
+  fstatSync,
   openSync,
   readFileSync as readFileSync4,
   readSync,
-  realpathSync
+  realpathSync,
+  statSync
 } from "node:fs";
 import {
   basename as basename2,
@@ -189,7 +192,7 @@ import {
   isAbsolute as isAbsolute2,
   join as join4,
   relative as relative2,
-  resolve as resolve3
+  resolve as resolve4
 } from "node:path";
 
 import { existsSync as existsSync2, readFileSync } from "node:fs";
@@ -444,14 +447,14 @@ function normalize(path) {
   return path.replaceAll("\\", "/").replace(/^\.\//, "");
 }
 function globMatches(pattern, path) {
-  const source = normalize(pattern);
+  const source2 = normalize(pattern);
   const target = normalize(path);
   let regex = "";
-  for (let index = 0; index < source.length; index += 1) {
-    const character = source[index];
+  for (let index = 0; index < source2.length; index += 1) {
+    const character = source2[index];
     if (character === "*") {
-      const doubled = source[index + 1] === "*";
-      if (doubled && source[index + 2] === "/") {
+      const doubled = source2[index + 1] === "*";
+      if (doubled && source2[index + 2] === "/") {
         regex += "(?:[^/]*/)*";
         index += 2;
         continue;
@@ -734,14 +737,17 @@ function matches(path, globs) {
 function bypass(path, spikeGlobs) {
   return !/\.(?:ts|tsx|js|jsx)$/.test(path) || /(^|\/)docs\//.test(path) || /\.(?:test|spec)\.(?:ts|tsx|js|jsx)$/.test(path) || /\.d\.ts$/.test(path) || /\/(?:tests?|__tests__)\/fixtures\/|\/seed\/|\/migrations\/|\/drizzle\/meta\/|\/codemods?\//.test(path) || /\/__generated__\//.test(path) || matches(path, spikeGlobs);
 }
+function tddApplies(path, businessGlobs, spikeGlobs) {
+  return !bypass(path, spikeGlobs) && matches(path, businessGlobs);
+}
 var MAX_TOP_LEVEL_STATEMENTS = 512;
 var DIRECTIVE = /^(['"])use [a-z][a-z ]*\1\s*;?/;
 var TYPE_IMPORT = /^import\s+type\s+[^;'"]*from\s*(['"])[^'"]*\1\s*;?/;
 var RE_EXPORT = /^export\s+(?:type\s+)?(?:\*(?:\s+as\s+[A-Za-z_$][\w$]*)?|\{[^}]*\})\s*(?:from\s*(['"])[^'"]*\1)?\s*;?/;
-function endOfLiteral(source, start) {
-  const quote = source[start] ?? "";
-  for (let index = start + 1; index < source.length; index += 1) {
-    const char = source[index] ?? "";
+function endOfLiteral(source2, start) {
+  const quote = source2[start] ?? "";
+  for (let index = start + 1; index < source2.length; index += 1) {
+    const char = source2[index] ?? "";
     if (char === "\\") {
       index += 1;
       continue;
@@ -750,28 +756,28 @@ function endOfLiteral(source, start) {
   }
   return void 0;
 }
-function withoutComments(source) {
+function withoutComments(source2) {
   let output = "";
   let index = 0;
-  while (index < source.length) {
-    const char = source[index] ?? "";
-    const next = source[index + 1] ?? "";
+  while (index < source2.length) {
+    const char = source2[index] ?? "";
+    const next = source2[index + 1] ?? "";
     if (char === "/" && next === "/") {
-      const end = source.indexOf("\n", index);
+      const end = source2.indexOf("\n", index);
       if (end === -1) return output;
       index = end;
       continue;
     }
     if (char === "/" && next === "*") {
-      const end = source.indexOf("*/", index + 2);
+      const end = source2.indexOf("*/", index + 2);
       if (end === -1) return void 0;
       index = end + 2;
       continue;
     }
     if (char === '"' || char === "'" || char === "`") {
-      const end = endOfLiteral(source, index);
+      const end = endOfLiteral(source2, index);
       if (end === void 0) return void 0;
-      output += source.slice(index, end + 1);
+      output += source2.slice(index, end + 1);
       index = end + 1;
       continue;
     }
@@ -780,8 +786,8 @@ function withoutComments(source) {
   }
   return output;
 }
-function isPureReExport(source) {
-  const stripped = withoutComments(source);
+function isPureReExport(source2) {
+  const stripped = withoutComments(source2);
   if (stripped === void 0) return false;
   let rest = stripped.replace(/\s+/g, " ").trim();
   for (let count = 0; rest !== "" && count < MAX_TOP_LEVEL_STATEMENTS; count += 1) {
@@ -808,11 +814,17 @@ function siblingFor(path) {
 }
 function tddOrder(input) {
   const warnings = [];
+  const declared = [];
   for (const edit of input.edits) {
     if (edit.operation === "delete" && edit.addedContent === "") continue;
     const path = edit.path.replaceAll("\\", "/");
-    if (bypass(path, input.spikeGlobs) || !matches(path, input.businessGlobs)) continue;
+    if (!tddApplies(path, input.businessGlobs, input.spikeGlobs)) continue;
     if (carriesNoBehaviour(input.existingHeaders[path] ?? "", edit.addedContent)) continue;
+    const declaredTest2 = input.declaredTests?.[path];
+    if (declaredTest2 !== void 0) {
+      declared.push(`${path} -> ${declaredTest2}`);
+      continue;
+    }
     const mode = fileMode(path, input);
     if (mode === "exploratory") continue;
     const sibling = siblingFor(path);
@@ -828,6 +840,12 @@ function tddOrder(input) {
       [evidence]
     );
   }
+  if (warnings.length === 0 && declared.length > 0) return {
+    allow: true,
+    code: "TDD_DECLARED_TEST",
+    message: "declared test file exists; suite not executed",
+    evidence: declared
+  };
   return warnings.length === 0 ? allow() : {
     allow: true,
     code: "TDD_SIBLING_TEST_WARNING",
@@ -937,6 +955,217 @@ function normalizeToolCall(value) {
   return { tool, command, edits: [...edits, ...shellTargets] };
 }
 
+import { resolve as resolve3 } from "node:path";
+var MAX_SOURCE_BYTES = 65536;
+var unresolved = (reason) => ({ kind: "unresolved", reason });
+function object(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : {};
+}
+function source(content) {
+  return Buffer.byteLength(content) <= MAX_SOURCE_BYTES ? { kind: "source", content } : unresolved("proposed file exceeds 64 KiB");
+}
+function replace(existing, input) {
+  const before = input["old_string"];
+  const after = input["new_string"];
+  if (existing === void 0 || typeof before !== "string" || before === "" || typeof after !== "string") {
+    return unresolved("Edit requires an existing file and a nonempty old_string");
+  }
+  const first = existing.indexOf(before);
+  if (first < 0) return unresolved("old_string no longer matches the file");
+  if (input["replace_all"] === true) return source(existing.split(before).join(after));
+  if (existing.indexOf(before, first + 1) >= 0) return unresolved("old_string matches more than once");
+  return source(existing.slice(0, first) + after + existing.slice(first + before.length));
+}
+function update(existing, patch) {
+  let lines = existing.replaceAll("\r\n", "\n").split("\n");
+  let cursor = 0;
+  let index = 0;
+  let hunks = 0;
+  let comparisons = 0;
+  while (index < patch.length) {
+    if (++hunks > 128 || !patch[index]?.startsWith("@@")) return unresolved("unsupported patch hunk");
+    index += 1;
+    const before = [];
+    const after = [];
+    while (index < patch.length && !patch[index]?.startsWith("@@")) {
+      const line = patch[index++] ?? "";
+      if (line === "*** End of File") {
+        if (index !== patch.length) return unresolved("misplaced end-of-file marker");
+        break;
+      }
+      if (![" ", "+", "-"].includes(line[0] ?? "")) return unresolved("unsupported patch line");
+      if (!line.startsWith("+")) before.push(line.slice(1));
+      if (!line.startsWith("-")) after.push(line.slice(1));
+    }
+    if (before.length === 0) return unresolved("patch insertion has no exact context");
+    const matches2 = [];
+    for (let start2 = cursor; start2 + before.length <= lines.length; start2 += 1) {
+      comparisons += before.length;
+      if (comparisons > 1e6) return unresolved("patch matching exceeds its comparison limit");
+      if (before.every((line, offset) => lines[start2 + offset] === line)) matches2.push(start2);
+      if (matches2.length > 1) break;
+    }
+    const start = matches2[0];
+    if (matches2.length !== 1 || start === void 0) return unresolved("patch context is stale or ambiguous");
+    lines = [...lines.slice(0, start), ...after, ...lines.slice(start + before.length)];
+    cursor = start + after.length;
+    if (Buffer.byteLength(lines.join("\n")) > MAX_SOURCE_BYTES) return unresolved("proposed file exceeds 64 KiB");
+  }
+  return source(lines.join("\n"));
+}
+function fromPatch(patch, root, target, existing) {
+  if (Buffer.byteLength(patch) > 1024 * 1024) return unresolved("patch exceeds input limit");
+  const lines = patch.replaceAll("\r\n", "\n").split("\n");
+  if (lines[0] !== "*** Begin Patch" || !patch.trimEnd().endsWith("*** End Patch")) {
+    return unresolved("patch requires complete begin and end markers");
+  }
+  const sections = [];
+  let active;
+  for (const line of lines) {
+    const header = /^\*\*\* (Add|Update|Delete) File: (.+)$/.exec(line);
+    if (header !== null) {
+      active = resolve3(root, header[2] ?? "") === target ? { kind: header[1] ?? "", lines: [] } : void 0;
+      if (active !== void 0) sections.push(active);
+    } else if (line === "*** End Patch") {
+      active = void 0;
+    } else if (active !== void 0) active.lines.push(line);
+  }
+  const section = sections[0];
+  if (sections.length !== 1 || section === void 0) return unresolved("patch must name the file exactly once");
+  if (section.kind === "Add") {
+    if (existing !== void 0 || section.lines.some((line) => !line.startsWith("+"))) {
+      return unresolved("Add File requires a new file and literal added lines");
+    }
+    return source(`${section.lines.map((line) => line.slice(1)).join("\n")}
+`);
+  }
+  if (section.kind !== "Update" || existing === void 0) return unresolved("patch requires an existing file");
+  return update(existing, section.lines);
+}
+function proposedSource(raw, root, path, existing) {
+  const call = object(raw);
+  const input = object(call["tool_input"]);
+  if (call["tool_name"] === "Write" && typeof input["content"] === "string") return source(input["content"]);
+  if (call["tool_name"] === "Edit") return replace(existing, input);
+  for (const key of ["patch", "input", "content", "command"]) {
+    const value = input[key];
+    if (typeof value === "string" && value.includes("*** Begin Patch")) {
+      return fromPatch(value, root, resolve3(root, path), existing);
+    }
+  }
+  return unresolved("tool input does not describe a reconstructable file");
+}
+
+import { spawnSync } from "node:child_process";
+function syntaxWorker() {
+  const { readFileSync: readFileSync11 } = process.getBuiltinModule("node:fs");
+  const { createRequire } = process.getBuiltinModule("node:module");
+  const { join: join18 } = process.getBuiltinModule("node:path");
+  let reason = "project TypeScript compiler is missing or unloadable";
+  try {
+    const input = JSON.parse(readFileSync11(0, "utf8"));
+    const loaded = createRequire(join18(input.root, "package.json"))("typescript");
+    if (typeof loaded !== "object" || loaded === null) throw new Error();
+    const members = loaded;
+    const methods = [
+      "createSourceFile",
+      "createProgram",
+      "forEachChild",
+      "isIdentifier",
+      "isPropertyAccessExpression",
+      "isCallExpression"
+    ];
+    reason = "project TypeScript compiler API is unsupported (requires version 5)";
+    if (typeof members["version"] !== "string" || !/^5\./.test(members["version"]) || methods.some((name) => typeof members[name] !== "function")) throw new Error();
+    const ts = loaded;
+    reason = "source could not be parsed within the supported limits";
+    const file = ts.createSourceFile(input.path, input.source, 99, true);
+    const host = {
+      getSourceFile: (name) => name === input.path ? file : void 0,
+      getDefaultLibFileName: () => "",
+      writeFile: () => {
+      },
+      getCurrentDirectory: () => "",
+      getCanonicalFileName: (name) => name,
+      useCaseSensitiveFileNames: () => true,
+      getNewLine: () => "\n",
+      fileExists: (name) => name === input.path,
+      readFile: (name) => name === input.path ? input.source : void 0
+    };
+    const program = ts.createProgram([input.path], { noResolve: true, noLib: true }, host);
+    if (program.getSyntacticDiagnostics(file).length > 0) throw new Error();
+    const pending = [file];
+    const lines = /* @__PURE__ */ new Set();
+    let visited = 0;
+    while (pending.length > 0) {
+      if (++visited > 2e4) throw new Error();
+      const node = pending.pop();
+      if (node === void 0) break;
+      if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)) {
+        const owner = node.expression.text;
+        if (["it", "test", "describe"].includes(owner) && node.name.text === "only" || ["it", "test"].includes(owner) && node.name.text === "skip") {
+          lines.add(file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1);
+        }
+      }
+      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && ["xit", "xdescribe"].includes(node.expression.text)) {
+        lines.add(file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1);
+      }
+      ts.forEachChild(node, (child) => {
+        pending.push(child);
+      });
+    }
+    process.stdout.write(JSON.stringify({ lines: [...lines].sort((a, b) => a - b) }));
+  } catch {
+    process.stdout.write(JSON.stringify({ unavailable: reason }));
+  }
+}
+function unavailableSyntax(reason, path, correction = "restore a supported project compiler and valid complete source, then retry") {
+  return {
+    allow: false,
+    code: "TEST_SYNTAX_UNVERIFIED",
+    message: `focused-test verification unavailable: ${reason}; ${correction}`,
+    evidence: [path]
+  };
+}
+function inspectTestSyntax(root, path, source2, remainingMs = 1e3) {
+  if (Buffer.byteLength(source2) > MAX_SOURCE_BYTES) return unavailableSyntax("file exceeds 64 KiB", path);
+  if (remainingMs < 1) return unavailableSyntax("operation exhausted its one-second parsing budget", path, "split the operation into smaller edits");
+  const child = spawnSync(process.execPath, ["--max-old-space-size=128", "--eval", `(${syntaxWorker.toString()})()`], {
+    cwd: root,
+    env: {},
+    encoding: "utf8",
+    timeout: Math.min(1e3, Math.ceil(remainingMs)),
+    killSignal: "SIGKILL",
+    maxBuffer: 65536,
+    input: JSON.stringify({ root, path, source: source2 }),
+    windowsHide: true
+  });
+  if (child.error !== void 0 || child.status !== 0) return unavailableSyntax("parser process failed or exceeded its resource limit", path);
+  try {
+    const result = JSON.parse(child.stdout);
+    if (typeof result !== "object" || result === null) throw new Error();
+    const record8 = result;
+    if (typeof record8["unavailable"] === "string") {
+      const permitted = [
+        "project TypeScript compiler is missing or unloadable",
+        "project TypeScript compiler API is unsupported (requires version 5)",
+        "source could not be parsed within the supported limits"
+      ];
+      return unavailableSyntax(permitted.includes(record8["unavailable"]) ? record8["unavailable"] : "parser returned an invalid result", path);
+    }
+    const lines = record8["lines"];
+    if (!Array.isArray(lines) || lines.length > 2e4 || !lines.every((line) => Number.isSafeInteger(line) && line > 0)) throw new Error();
+    return lines.length === 0 ? { allow: true, code: "OK", message: "focused-test syntax checked", evidence: [] } : {
+      allow: false,
+      code: "FOCUSED_OR_SKIPPED_TEST",
+      message: "focused or skipped test detected; use todo only for explicitly pending coverage",
+      evidence: lines.map((line) => `${path}:${line}`)
+    };
+  } catch {
+    return unavailableSyntax("parser returned an invalid result", path);
+  }
+}
+
 var MAX_HOOK_INPUT_BYTES = 1024 * 1024;
 var BINARY_INPUT_MESSAGE = "HOOK_INPUT_BINARY: a NUL byte in the tool payload. A source file holding one is dropped from the project graph, and no diff shows it. A fixture that needs the byte builds it (String.fromCharCode(0), Buffer.concat) instead of holding it literally.";
 function containsNul(value) {
@@ -960,7 +1189,7 @@ function parseHookPayload(input) {
   return parsed;
 }
 function physicalPath(path) {
-  const absolute = resolve3(path);
+  const absolute = resolve4(path);
   let existing = absolute;
   const suffix = [];
   while (true) {
@@ -987,7 +1216,7 @@ function discoverProjectRoot(start) {
 }
 function projectRelativePath(root, path) {
   const physicalRoot = physicalPath(root);
-  const absolute = physicalPath(isAbsolute2(path) ? path : resolve3(physicalRoot, path));
+  const absolute = physicalPath(isAbsolute2(path) ? path : resolve4(physicalRoot, path));
   const projectPath2 = relative2(physicalRoot, absolute).replaceAll("\\", "/");
   return projectPath2 === ".." || projectPath2.startsWith("../") || isAbsolute2(projectPath2) ? void 0 : projectPath2;
 }
@@ -1042,14 +1271,94 @@ function readHeader(path) {
     if (descriptor !== void 0) closeSync(descriptor);
   }
 }
-function tddVerdict(root, edits) {
+function readSource(path) {
+  let descriptor;
+  try {
+    descriptor = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK);
+    const before = fstatSync(descriptor);
+    if (!before.isFile() || before.size > MAX_SOURCE_BYTES) return void 0;
+    const buffer = Buffer.alloc(MAX_SOURCE_BYTES + 1);
+    let size = 0;
+    while (size < buffer.length) {
+      const count = readSync(descriptor, buffer, size, buffer.length - size, size);
+      if (count === 0) break;
+      size += count;
+    }
+    const after = fstatSync(descriptor);
+    return size <= MAX_SOURCE_BYTES && size === before.size && after.size === before.size && after.mtimeMs === before.mtimeMs ? buffer.subarray(0, size).toString("utf8") : void 0;
+  } catch {
+    return void 0;
+  } finally {
+    if (descriptor !== void 0) closeSync(descriptor);
+  }
+}
+function focusedVerdict(root, edits, raw) {
+  const deadline = performance.now() + 1e3;
+  let inspected = 0;
+  for (const edit of projectEdits(root, edits)) {
+    if (!isTestPath(edit.path) || edit.operation === "delete") continue;
+    if (++inspected > 32) return unavailableSyntax("operation exceeds 32 test files", edit.path, "split the operation into smaller edits");
+    const proposed = proposedSource(raw, root, edit.path, readSource(join4(root, edit.path)));
+    if (proposed.kind === "unresolved") return unavailableSyntax(
+      proposed.reason,
+      edit.path,
+      "provide an exact supported Edit/patch or a complete Write within 64 KiB"
+    );
+    if (!/\b(?:only|skip|xit|xdescribe)\b|\\u/.test(proposed.content)) continue;
+    if (/^[ \t]*(?:(?:it|test|describe)\.only|(?:it|test)\.skip|xit|xdescribe)[ \t]*\(/.test(proposed.content)) {
+      return noFocusedTest([{ path: edit.path, addedContent: proposed.content.split("\n")[0] ?? "" }]);
+    }
+    const verdict = inspectTestSyntax(root, edit.path, proposed.content, deadline - performance.now());
+    if (!verdict.allow) return verdict;
+  }
+  return allow();
+}
+function declaredTest(root, content) {
+  const lines = content.split(/\r?\n/);
+  const markers = lines.filter((line) => /^\s*\/\/\s*tdd-cover:/.test(line));
+  if (markers.length === 0) return void 0;
+  const match = /^\/\/ tdd-cover: e2e (.+)$/.exec(lines[0] ?? "");
+  const path = match?.[1];
+  if (markers.length !== 1 || path === void 0 || path !== path.trim() || isAbsolute2(path) || /^[A-Za-z]:|\\/.test(path) || path.split("/").some((part) => part === ".." || part === ".") || !isTestPath(path)) throw new Error("declare exactly one project-relative E2E spec on the first line");
+  const target = realpathSync(join4(root, path));
+  const location = relative2(root, target);
+  if (location.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) || location === ".." || isAbsolute2(location) || !statSync(target).isFile()) {
+    throw new Error("E2E spec must be a regular file inside the physical project root");
+  }
+  return path;
+}
+function tddVerdict(root, edits, raw) {
   const physicalRoot = physicalPath(root);
   const projectChanges = projectEdits(physicalRoot, edits);
   const config = readTddConfig(physicalRoot);
   const existingHeaders = {};
   const siblingTests = /* @__PURE__ */ new Set();
+  const declaredTests = {};
   for (const edit of projectChanges) {
+    if (edit.operation === "delete" && edit.addedContent === "") continue;
+    if (!tddApplies(edit.path, config.businessGlobs, [config.spikesGlob])) continue;
     existingHeaders[edit.path] = readHeader(join4(physicalRoot, edit.path));
+    if ((existingHeaders[edit.path] ?? "").includes("tdd-cover:") || edit.addedContent.includes("tdd-cover:")) {
+      const proposed = proposedSource(raw, physicalRoot, edit.path, readSource(join4(physicalRoot, edit.path)));
+      if (proposed.kind === "unresolved") return {
+        allow: false,
+        code: "TDD_DECLARATION_UNVERIFIED",
+        message: `cannot verify E2E declaration: ${proposed.reason}; provide an exact complete edit`,
+        evidence: [edit.path]
+      };
+      try {
+        const test = declaredTest(physicalRoot, proposed.content);
+        if (test !== void 0) declaredTests[edit.path] = test;
+        existingHeaders[edit.path] = proposed.content;
+      } catch {
+        return {
+          allow: false,
+          code: "TDD_DECLARATION_INVALID",
+          message: "put one // tdd-cover: e2e <project-relative spec> on the first line, pointing to an existing regular test file inside the project",
+          evidence: [edit.path]
+        };
+      }
+    }
     for (const sibling of [
       edit.path.replace(/\.tsx$/, ".test.tsx"),
       edit.path.replace(/\.ts$/, ".test.ts"),
@@ -1067,7 +1376,8 @@ function tddVerdict(root, edits) {
     businessGlobs: config.businessGlobs,
     spikeGlobs: [config.spikesGlob],
     existingHeaders,
-    siblingTests
+    siblingTests,
+    declaredTests
   });
 }
 function evaluateRule(rule, rawInput, options) {
@@ -1087,13 +1397,13 @@ function evaluateRule(rule, rawInput, options) {
   }
   if (rule === "secret-content") return secretContent(call.edits);
   if (rule === "control-character") return controlCharacter(call.edits);
-  if (rule === "tdd-order") return tddVerdict(options.root, call.edits);
+  if (rule === "tdd-order") return tddVerdict(options.root, call.edits, rawInput);
+  if (rule === "no-focused-test") return focusedVerdict(options.root, call.edits, rawInput);
   const edits = projectEdits(options.root, call.edits);
   if (rule === "no-any") return noAny(edits);
   if (rule === "no-as-cast") return noAsCast(edits);
   if (rule === "no-console") return noConsole(edits, options.root);
   if (rule === "no-null") return noNull(edits);
-  if (rule === "no-focused-test") return noFocusedTest(edits);
   if (rule === "boundary-direction") return boundaryDirection(edits, options.root);
   if (rule === "test-name") return testName(edits);
   if (rule === "design-slop") return designSlop(edits);
@@ -1105,15 +1415,15 @@ var GIT_TIMEOUT_MS = 5e3;
 var GIT_MAX_OUTPUT_BYTES = 1e6;
 function canonical(path) {
   try {
-    return realpathSync2(resolve4(path));
+    return realpathSync2(resolve5(path));
   } catch {
-    return resolve4(path);
+    return resolve5(path);
   }
 }
 function git(cwd, args, deadline) {
   const remaining = deadline === void 0 ? GIT_TIMEOUT_MS : Math.ceil(deadline - performance.now());
   if (remaining <= 0) return void 0;
-  const result = spawnSync("git", args, {
+  const result = spawnSync2("git", args, {
     cwd,
     ...deadline === void 0 ? {} : {
       env: Object.fromEntries(Object.entries(process.env).filter(([name]) => !/^GIT_(DIR|WORK_TREE|COMMON_DIR|CONFIG|INDEX_FILE)/.test(name)))
@@ -1138,7 +1448,7 @@ function mainWorkingTree(cwd, deadline, expectedCommon) {
   const args = ["rev-parse", "--show-toplevel", ...expectedCommon === void 0 ? [] : ["--git-common-dir"]];
   const [toplevel, common] = git(listed, args, deadline)?.trim().split(/\r?\n/) ?? [];
   if (toplevel === void 0 || toplevel === "") return void 0;
-  if (expectedCommon !== void 0 && (common === void 0 || canonical(resolve4(listed, common)) !== expectedCommon)) return void 0;
+  if (expectedCommon !== void 0 && (common === void 0 || canonical(resolve5(listed, common)) !== expectedCommon)) return void 0;
   return canonical(toplevel);
 }
 function holdsInstallReceipt(root) {
@@ -1165,9 +1475,9 @@ function ordinaryLinkedMain(tree) {
   const marker = join5(tree, ".git");
   const pointer = gitPointer(marker);
   if (!pointer.startsWith("gitdir: ")) throw new Error("INVALID_GIT_POINTER");
-  const directory = canonical(resolve4(tree, pointer.slice(8)));
+  const directory = canonical(resolve5(tree, pointer.slice(8)));
   if (!existsSync5(join5(directory, "commondir"))) return void 0;
-  const common = canonical(resolve4(directory, gitPointer(join5(directory, "commondir"))));
+  const common = canonical(resolve5(directory, gitPointer(join5(directory, "commondir"))));
   const backlink = gitPointer(join5(directory, "gitdir"));
   if (!isAbsolute3(backlink) || canonical(backlink) !== canonical(marker) || canonical(dirname3(directory)) !== canonical(join5(common, "worktrees"))) {
     throw new Error("INVALID_GIT_POINTER");
@@ -1205,7 +1515,7 @@ function resolveTelemetryRoot(cwd) {
     ], deadline)?.trim().split(/\r?\n/) ?? [];
     if (toplevel === void 0 || canonical(toplevel) !== tree) return refused;
     if (directory === void 0 || common === void 0) return refused;
-    const commonDirectory = canonical(resolve4(tree, common));
+    const commonDirectory = canonical(resolve5(tree, common));
     if (canonical(directory) === commonDirectory) return { kind: "resolved", root: tree };
     const main2 = mainWorkingTree(tree, deadline, commonDirectory);
     if (main2 === void 0) return refused;
@@ -1395,12 +1705,12 @@ async function fetchLatestVersion(options = {}) {
   }
 }
 
-import { readFileSync as readFileSync6, statSync } from "node:fs";
+import { readFileSync as readFileSync6, statSync as statSync2 } from "node:fs";
 import { join as join7 } from "node:path";
 var MAX_NPMRC_BYTES = 64 * 1024;
 function readIfSmall(path) {
   try {
-    if (statSync(path).size > MAX_NPMRC_BYTES) return void 0;
+    if (statSync2(path).size > MAX_NPMRC_BYTES) return void 0;
     return readFileSync6(path, "utf8");
   } catch {
     return void 0;
@@ -1432,8 +1742,8 @@ async function resolveFreshness(options) {
   await writeFreshnessCache(env, { latest, checkedAt: now });
   return compareFreshness(installed, latest);
 }
-function freshnessRelay(freshness, source) {
-  if (freshness.verdict !== "behind" || source !== "local") return void 0;
+function freshnessRelay(freshness, source2) {
+  if (freshness.verdict !== "behind" || source2 !== "local") return void 0;
   const { installed, latest } = freshness;
   return `A newer harness is published: ${installed} is installed, ${latest ?? "a newer version"} is available. Tell the user this once, near the start of your first reply, and name the command that installs it: \`void-harness update\`. Do not repeat it later in the session.`;
 }
@@ -1441,7 +1751,7 @@ function freshnessRelay(freshness, source) {
 import { existsSync as existsSync6, mkdirSync as mkdirSync2, readFileSync as readFileSync8, readdirSync as readdirSync2, renameSync as renameSync2, writeFileSync as writeFileSync2 } from "node:fs";
 import { dirname as dirname5, join as join9 } from "node:path";
 
-import { lstatSync as lstatSync2, readFileSync as readFileSync7, readdirSync, statSync as statSync2 } from "node:fs";
+import { lstatSync as lstatSync2, readFileSync as readFileSync7, readdirSync, statSync as statSync3 } from "node:fs";
 import { join as join8 } from "node:path";
 var MISSION_DIRECTORY = /^mis_[A-Za-z0-9_-]{8,100}$/;
 var MAX_MISSION_LOGS = 1e4;
@@ -1471,7 +1781,7 @@ function journalFiles(root) {
       const path = join8(runs, entry.name, "events.jsonl");
       if (!regularFile(path)) continue;
       try {
-        const info = statSync2(path);
+        const info = statSync3(path);
         files.push({ path, modifiedMs: info.mtimeMs, bytes: info.size });
       } catch {
       }
@@ -1687,10 +1997,10 @@ function resolutionVerdict(body, installed, options = {}) {
   const ours = (entry) => !installed.has(entry.name) && wasEverOurs(entry.name);
   const retired = [...new Set(recorded.filter(ours).map((entry) => entry.name))].sort();
   const newest = newestMission(body, options.nowMs);
-  const unresolved = [
+  const unresolved2 = [
     ...new Set(recorded.filter((entry) => ours(entry) && entry.missionId === newest).map((entry) => entry.name))
   ].sort();
-  return { ok: unresolved.length === 0, unresolved, retired };
+  return { ok: unresolved2.length === 0, unresolved: unresolved2, retired };
 }
 function withSuccessor(name) {
   const replacement = replacementFor(name);
@@ -1809,20 +2119,20 @@ ${resumeContext.trimEnd()}`;
 import { createHash as createHash2 } from "node:crypto";
 import {
   closeSync as closeSync3,
-  constants as constants2,
-  fstatSync,
+  constants as constants3,
+  fstatSync as fstatSync2,
   lstatSync as lstatSync4,
   mkdirSync as mkdirSync3,
   openSync as openSync3,
   readSync as readSync3,
   realpathSync as realpathSync4,
   renameSync as renameSync3,
-  statSync as statSync3,
+  statSync as statSync4,
   unlinkSync,
   writeSync
 } from "node:fs";
 import { homedir } from "node:os";
-import { basename as basename3, isAbsolute as isAbsolute5, join as join11, relative as relative4, resolve as resolve5 } from "node:path";
+import { basename as basename3, isAbsolute as isAbsolute5, join as join11, relative as relative4, resolve as resolve6 } from "node:path";
 
 import { createHash } from "node:crypto";
 var PROSE_SECTIONS = {
@@ -2428,7 +2738,7 @@ function renderResumeContext(bundle) {
 
 import {
   accessSync,
-  constants,
+  constants as constants2,
   lstatSync as lstatSync3,
   readFileSync as readFileSync9,
   realpathSync as realpathSync3
@@ -2447,7 +2757,7 @@ function within(root, target) {
 }
 function executable(path) {
   try {
-    accessSync(path, process.platform === "win32" ? constants.F_OK : constants.X_OK);
+    accessSync(path, process.platform === "win32" ? constants2.F_OK : constants2.X_OK);
     return true;
   } catch {
     return false;
@@ -2511,9 +2821,9 @@ function rawCheckpoint(path) {
     if (!info.isFile() || info.isSymbolicLink() || info.size > MAX_CHECKPOINT_BYTES) return void 0;
     descriptor = openSync3(
       path,
-      constants2.O_RDONLY | constants2.O_NONBLOCK | (constants2.O_NOFOLLOW ?? 0)
+      constants3.O_RDONLY | constants3.O_NONBLOCK | (constants3.O_NOFOLLOW ?? 0)
     );
-    const opened = fstatSync(descriptor);
+    const opened = fstatSync2(descriptor);
     if (!opened.isFile() || opened.size > MAX_CHECKPOINT_BYTES) return void 0;
     return readBoundedDescriptor(descriptor, MAX_CHECKPOINT_BYTES);
   } catch (error) {
@@ -2565,10 +2875,10 @@ function openExclusive(path) {
   try {
     const descriptor = openSync3(
       path,
-      constants2.O_WRONLY | constants2.O_CREAT | constants2.O_EXCL | (constants2.O_NOFOLLOW ?? 0),
+      constants3.O_WRONLY | constants3.O_CREAT | constants3.O_EXCL | (constants3.O_NOFOLLOW ?? 0),
       384
     );
-    const info = fstatSync(descriptor);
+    const info = fstatSync2(descriptor);
     return { descriptor, dev: info.dev, ino: info.ino };
   } catch {
     return void 0;
@@ -2676,7 +2986,7 @@ function claimStaleLock(path, observed, now) {
 }
 function safeMachineDirectory(root) {
   try {
-    const canonicalRoot = realpathSync4(resolve5(root));
+    const canonicalRoot = realpathSync4(resolve6(root));
     let cursor = canonicalRoot;
     for (const segment of [".void", "machine"]) {
       cursor = join11(cursor, segment);
@@ -2711,13 +3021,13 @@ function anchorMachineDirectory(root) {
   try {
     descriptor = openSync3(
       directory,
-      constants2.O_RDONLY | (constants2.O_DIRECTORY ?? 0) | (constants2.O_NOFOLLOW ?? 0)
+      constants3.O_RDONLY | (constants3.O_DIRECTORY ?? 0) | (constants3.O_NOFOLLOW ?? 0)
     );
-    const opened = fstatSync(descriptor);
+    const opened = fstatSync2(descriptor);
     if (!opened.isDirectory()) return void 0;
     process.chdir(directory);
     changedDirectory = true;
-    const current = statSync3(".");
+    const current = statSync4(".");
     if (current.dev !== opened.dev || current.ino !== opened.ino || realpathSync4(".") !== directory) return void 0;
     anchorEstablished = true;
     return { descriptor, previousCwd };
@@ -2745,10 +3055,10 @@ function atomicCheckpointWrite(content, now) {
   try {
     descriptor = openSync3(
       temporary,
-      constants2.O_WRONLY | constants2.O_CREAT | constants2.O_EXCL | (constants2.O_NOFOLLOW ?? 0),
+      constants3.O_WRONLY | constants3.O_CREAT | constants3.O_EXCL | (constants3.O_NOFOLLOW ?? 0),
       384
     );
-    const opened = fstatSync(descriptor);
+    const opened = fstatSync2(descriptor);
     owned = { dev: opened.dev, ino: opened.ino };
     const bytes = Buffer.from(content, "utf8");
     let offset = 0;
@@ -2811,7 +3121,7 @@ function canonicalDirectory(path) {
     const info = lstatSync4(path);
     if (!info.isDirectory() || info.isSymbolicLink()) return void 0;
     const canonical2 = realpathSync4(path);
-    return canonical2 === resolve5(path) ? canonical2 : void 0;
+    return canonical2 === resolve6(path) ? canonical2 : void 0;
   } catch {
     return void 0;
   }
@@ -2820,7 +3130,7 @@ function encodedClaudeProject(root) {
   return root.replace(/[^a-zA-Z0-9]/g, "-");
 }
 function transcriptRoots(root, runtime3) {
-  const canonicalRoot = realpathSync4(resolve5(root));
+  const canonicalRoot = realpathSync4(resolve6(root));
   const candidates = [canonicalRoot];
   if (runtime3 === "claude") {
     candidates.push(
@@ -2845,11 +3155,11 @@ function openBoundedRegularFile(path, maxBytes, allowedRoots) {
     if (!allowedRoots.some((root) => within(root, canonicalPath))) return void 0;
     descriptor = openSync3(
       path,
-      constants2.O_RDONLY | constants2.O_NONBLOCK | (constants2.O_NOFOLLOW ?? 0)
+      constants3.O_RDONLY | constants3.O_NONBLOCK | (constants3.O_NOFOLLOW ?? 0)
     );
-    const opened = fstatSync(descriptor);
+    const opened = fstatSync2(descriptor);
     const currentPath = realpathSync4(path);
-    const current = statSync3(currentPath);
+    const current = statSync4(currentPath);
     if (!opened.isFile() || opened.size > maxBytes || currentPath !== canonicalPath || opened.dev !== current.dev || opened.ino !== current.ino || !allowedRoots.some((root) => within(root, currentPath))) {
       closeSync3(descriptor);
       return void 0;
@@ -2898,7 +3208,7 @@ function observeTranscript(path, state, input, root, runtime3) {
     const opened = openBoundedRegularFile(path, Number.MAX_SAFE_INTEGER, roots);
     if (opened === void 0) return void 0;
     descriptor = opened.descriptor;
-    const canonicalRoot = realpathSync4(resolve5(root));
+    const canonicalRoot = realpathSync4(resolve6(root));
     if (!within(canonicalRoot, opened.canonicalPath)) {
       const sessionId = runtimeSessionId(input);
       if (sessionId === void 0 || !isExternalTranscriptBound(opened.canonicalPath, runtime3, sessionId)) {
@@ -2967,7 +3277,7 @@ function observeTranscript(path, state, input, root, runtime3) {
 function contextConfig(root) {
   let descriptor;
   try {
-    const canonicalRoot = realpathSync4(resolve5(root));
+    const canonicalRoot = realpathSync4(resolve6(root));
     const opened = openBoundedRegularFile(
       join11(canonicalRoot, ".void", "config.json"),
       MAX_CONFIG_BYTES,
@@ -3095,8 +3405,8 @@ function successfulToolUse(input) {
 }
 function boundedProjectPath(root, candidate) {
   if (candidate === "" || candidate.length > 500 || candidate.includes(MECHANICAL_BEGIN2) || candidate.includes(MECHANICAL_END2) || [...candidate].some((character) => character.charCodeAt(0) < 32)) return void 0;
-  const target = isAbsolute5(candidate) ? resolve5(candidate) : resolve5(root, candidate);
-  const local = relative4(resolve5(root), target);
+  const target = isAbsolute5(candidate) ? resolve6(candidate) : resolve6(root, candidate);
+  const local = relative4(resolve6(root), target);
   if (local === "" || local.startsWith("..") || isAbsolute5(local)) return void 0;
   return local.split("\\").join("/");
 }
@@ -3173,7 +3483,7 @@ function observePostToolUse(input, root, runtime3, now) {
   }
 }
 function executeContextContinuity(rawInput, root, runtime3, now) {
-  const projectRoot2 = resolve5(root);
+  const projectRoot2 = resolve6(root);
   const input = record3(rawInput);
   if (input === void 0) {
     return { status: "degraded", details: { reason: "invalid-hook-input" } };
@@ -3185,9 +3495,9 @@ function executeContextContinuity(rawInput, root, runtime3, now) {
     return evolveCheckpoint(projectRoot2, now, runtime3, {}, input, "UserPromptSubmit");
   }
   if (event === "SessionStart") {
-    const source = input["source"];
-    if (source === "startup" || source === "resume" || source === "clear" || source === "compact" || source === "fork") {
-      return evolveCheckpoint(projectRoot2, now, runtime3, { resumeSource: source });
+    const source2 = input["source"];
+    if (source2 === "startup" || source2 === "resume" || source2 === "clear" || source2 === "compact" || source2 === "fork") {
+      return evolveCheckpoint(projectRoot2, now, runtime3, { resumeSource: source2 });
     }
   }
   return { status: "skipped", details: { reason: "event-not-actionable" } };
@@ -3213,18 +3523,18 @@ function resolveInstall(root, env) {
   const version = receipt?.["version"];
   if (typeof version === "string" && VERSION_SHAPE.test(version)) {
     const declared = receipt?.["source"];
-    const source = declared === "local" || declared === "marketplace" ? declared : void 0;
-    return { version, source };
+    const source2 = declared === "local" || declared === "marketplace" ? declared : void 0;
+    return { version, source: source2 };
   }
   return { version: "unknown", source: void 0 };
 }
 
-import { spawnSync as spawnSync2 } from "node:child_process";
+import { spawnSync as spawnSync3 } from "node:child_process";
 
 import {
   isAbsolute as isAbsolute6,
   relative as relative5,
-  resolve as resolve6
+  resolve as resolve7
 } from "node:path";
 var FORMATTABLE = /\.(?:ts|tsx|js|jsx|mjs|cjs|json|jsonc|css)$/;
 function within2(root, target) {
@@ -3232,10 +3542,10 @@ function within2(root, target) {
   return rel === "" || !rel.startsWith("..") && !isAbsolute6(rel);
 }
 function formatCandidates(touchedPaths, projectRoot2) {
-  const root = resolve6(projectRoot2);
+  const root = resolve7(projectRoot2);
   const found = /* @__PURE__ */ new Set();
   for (const touchedPath of touchedPaths) {
-    const target = resolve6(root, touchedPath);
+    const target = resolve7(root, touchedPath);
     if (touchedPath.trim() !== "" && FORMATTABLE.test(touchedPath.replaceAll("\\", "/")) && within2(root, target)) {
       found.add(target);
     }
@@ -3267,7 +3577,7 @@ function executeFormat(rawInput, root, env) {
   );
   let formatted = 0;
   for (const file of files) {
-    const result = spawnSync2(biome, ["format", "--write", file], {
+    const result = spawnSync3(biome, ["format", "--write", file], {
       cwd: root,
       env: { ...process.env, ...env },
       shell: false,
@@ -3290,7 +3600,7 @@ function executeFormat(rawInput, root, env) {
   return { status: "ok", details: { formatted } };
 }
 
-import { spawnSync as spawnSync3 } from "node:child_process";
+import { spawnSync as spawnSync4 } from "node:child_process";
 
 function parseAddedLines(numstat) {
   return numstat.split(/\r?\n/).reduce((total, line) => {
@@ -3316,7 +3626,7 @@ function assessLargeChange(assessment) {
 }
 
 function runGit(git3, root, args, env) {
-  const result = spawnSync3(git3, args, {
+  const result = spawnSync4(git3, args, {
     cwd: root,
     env: { ...process.env, ...env },
     encoding: "utf8",
@@ -3419,7 +3729,7 @@ import {
   existsSync as existsSync7,
   lstatSync as lstatSync5,
   readFileSync as readFileSync10,
-  statSync as statSync4
+  statSync as statSync5
 } from "node:fs";
 import { basename as basename4, join as join13 } from "node:path";
 var PROGRAM_PATHS = [
@@ -3531,7 +3841,7 @@ function checkpointObservation(root) {
     const raw = readBounded(path);
     if (raw === void 0) continue;
     try {
-      return { checkpoint: parseCheckpoint(raw), checkpointWrittenAt: statSync4(path).mtimeMs };
+      return { checkpoint: parseCheckpoint(raw), checkpointWrittenAt: statSync5(path).mtimeMs };
     } catch {
       return { checkpoint: parseCheckpoint(raw) };
     }
@@ -3740,14 +4050,14 @@ function executeTrim(rawInput, root, env) {
 
 import { existsSync as existsSync8 } from "node:fs";
 import { join as join16 } from "node:path";
-import { spawnSync as spawnSync4 } from "node:child_process";
+import { spawnSync as spawnSync5 } from "node:child_process";
 
 import {
   dirname as dirname6,
   isAbsolute as isAbsolute7,
   join as join15,
   relative as relative7,
-  resolve as resolve7
+  resolve as resolve8
 } from "node:path";
 function record5(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value : void 0;
@@ -3839,11 +4149,11 @@ function within3(root, target) {
   return rel === "" || !rel.startsWith("..") && !isAbsolute7(rel);
 }
 function nearestTsconfigs(changedPaths, projectRoot2, hasFile) {
-  const root = resolve7(projectRoot2);
+  const root = resolve8(projectRoot2);
   const found = /* @__PURE__ */ new Set();
   for (const changedPath of changedPaths) {
     if (!/\.(?:ts|tsx)$/.test(changedPath) || changedPath.endsWith(".d.ts")) continue;
-    const target = resolve7(root, changedPath);
+    const target = resolve8(root, changedPath);
     if (!within3(root, target)) continue;
     let current = dirname6(target);
     while (within3(root, current)) {
@@ -3862,7 +4172,7 @@ function nearestTsconfigs(changedPaths, projectRoot2, hasFile) {
 function runGit2(root, args, env) {
   const git3 = findExecutable("git", root, env);
   if (git3 === void 0) return { ok: false, output: "" };
-  const result = spawnSync4(git3, args, {
+  const result = spawnSync5(git3, args, {
     cwd: root,
     env: { ...process.env, ...env },
     encoding: "utf8",
@@ -3939,7 +4249,7 @@ function executeTypecheck(root, env) {
   const invocations = isTsc && configs.length > 0 ? configs.map((config) => [...args, "-p", config]) : [args];
   let errors = "";
   for (const invocation of invocations) {
-    const result = spawnSync4(executablePath, invocation, {
+    const result = spawnSync5(executablePath, invocation, {
       cwd: root,
       env: minimalEnvironment(process.env, env),
       encoding: "utf8",
@@ -3993,7 +4303,7 @@ import {
   extname,
   isAbsolute as isAbsolute8,
   relative as relative8,
-  resolve as resolve8
+  resolve as resolve9
 } from "node:path";
 var MISSION_ID = /^mis_[A-Za-z0-9_-]{8,100}$/;
 function record6(value) {
@@ -4039,7 +4349,7 @@ function nameFor(tool, category, input) {
   return tool || "unknown";
 }
 function safePaths(input, root) {
-  const absoluteRoot = resolve8(root);
+  const absoluteRoot = resolve9(root);
   const candidates = [
     input["file_path"],
     input["path"],
@@ -4052,7 +4362,7 @@ function safePaths(input, root) {
       if (!candidate.startsWith("..")) paths.push(candidate.slice(0, 500));
       continue;
     }
-    const rel = relative8(absoluteRoot, resolve8(candidate));
+    const rel = relative8(absoluteRoot, resolve9(candidate));
     if (rel !== "" && !rel.startsWith("..") && !isAbsolute8(rel)) {
       paths.push(rel.slice(0, 500));
     }
@@ -4107,13 +4417,13 @@ function deriveMissionId(explicit, runtime3, runtimeSessionId2, root) {
     }
     return explicit;
   }
-  const opaque = createHash4("sha256").update(`${runtime3}\0${runtimeSessionId2 || "unknown"}\0${resolve8(root)}`).digest("hex").slice(0, 32);
+  const opaque = createHash4("sha256").update(`${runtime3}\0${runtimeSessionId2 || "unknown"}\0${resolve9(root)}`).digest("hex").slice(0, 32);
   return `mis_${opaque}`;
 }
 
 import { randomUUID as nodeRandomUUID } from "node:crypto";
 import {
-  constants as constants3
+  constants as constants4
 } from "node:fs";
 import {
   lstat,
@@ -4130,7 +4440,7 @@ import {
   isAbsolute as isAbsolute9,
   join as join17,
   relative as relative9,
-  resolve as resolve9
+  resolve as resolve10
 } from "node:path";
 
 var MAX_EVENT_PAYLOAD_BYTES = 16 * 1024;
@@ -4190,10 +4500,10 @@ function isJsonValue(value, depth, budget) {
   if (Array.isArray(value)) {
     return value.every((entry) => isJsonValue(entry, depth + 1, budget));
   }
-  const object = record7(value);
-  if (object === void 0)
+  const object2 = record7(value);
+  if (object2 === void 0)
     return false;
-  return Object.entries(object).every(([key, entry]) => key.length <= 100 && isPrintable(key) && isJsonValue(entry, depth + 1, budget));
+  return Object.entries(object2).every(([key, entry]) => key.length <= 100 && isPrintable(key) && isJsonValue(entry, depth + 1, budget));
 }
 function boundedLabel(value, min, max, pattern) {
   return typeof value === "string" && value.length >= min && value.length <= max && isPrintable(value) && (pattern === void 0 || pattern.test(value));
@@ -4397,7 +4707,7 @@ async function safeRunDirectory(root, missionId) {
   if (!MISSION_ID3.test(missionId)) {
     throw new Error("HOOK_INVALID_MISSION_ID: expected mis_<opaque-id>");
   }
-  const absoluteRoot = resolve9(root);
+  const absoluteRoot = resolve10(root);
   const canonicalRoot = await realpath(absoluteRoot);
   const run = voidReadPath(absoluteRoot, "runs", missionId);
   let ancestor = run;
@@ -4499,7 +4809,7 @@ async function ensureLineBoundary(logPath, logBytes) {
   }
   const append = await open(
     logPath,
-    constants3.O_APPEND | constants3.O_WRONLY | (constants3.O_NOFOLLOW ?? 0)
+    constants4.O_APPEND | constants4.O_WRONLY | (constants4.O_NOFOLLOW ?? 0)
   );
   try {
     await append.writeFile("\n", "utf8");
@@ -4509,7 +4819,7 @@ async function ensureLineBoundary(logPath, logBytes) {
   return logBytes + 1;
 }
 async function appendLine(logPath, line) {
-  const flags = constants3.O_APPEND | constants3.O_CREAT | constants3.O_WRONLY | (constants3.O_NOFOLLOW ?? 0);
+  const flags = constants4.O_APPEND | constants4.O_CREAT | constants4.O_WRONLY | (constants4.O_NOFOLLOW ?? 0);
   const handle = await open(logPath, flags, 384);
   try {
     await handle.writeFile(`${line}
@@ -4750,8 +5060,8 @@ async function refreshFreshnessInBackground(installed) {
 }
 var telemetryDestination;
 function reportTelemetryFailure(error) {
-  const unresolved = error instanceof Error && error.message === "TELEMETRY_ROOT_UNRESOLVED";
-  process.stderr.write(unresolved ? "TELEMETRY_ROOT_UNRESOLVED: cannot verify journal destination; check Git worktree metadata and Git availability.\n" : "TELEMETRY_WRITE_FAILED: journal was not recorded; check journal access and storage.\n");
+  const unresolved2 = error instanceof Error && error.message === "TELEMETRY_ROOT_UNRESOLVED";
+  process.stderr.write(unresolved2 ? "TELEMETRY_ROOT_UNRESOLVED: cannot verify journal destination; check Git worktree metadata and Git availability.\n" : "TELEMETRY_WRITE_FAILED: journal was not recorded; check journal access and storage.\n");
 }
 async function observeHook(hook, execution, rawInput, agentRuntime, root) {
   try {
@@ -4793,9 +5103,9 @@ async function runLifecycle(input) {
     const notice = cached === void 0 ? void 0 : freshnessRelay(compareFreshness(install.version, cached.latest), install.source);
     const alert = cachedInvocationAlert(root);
     if (event === "SessionStart" || hook === "context") {
-      const source = inputRecord?.["source"];
+      const source2 = inputRecord?.["source"];
       const resume = observeResume(root, Date.now(), {
-        ...source === "startup" || source === "resume" || source === "clear" || source === "compact" || source === "fork" ? { source } : {}
+        ...source2 === "startup" || source2 === "resume" || source2 === "clear" || source2 === "compact" || source2 === "fork" ? { source: source2 } : {}
       });
       process.stdout.write(
         `${JSON.stringify(sessionStartOutput(install.version, notice, alert, resume.context))}

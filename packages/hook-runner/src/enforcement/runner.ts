@@ -1,10 +1,13 @@
 import {
   closeSync,
+  constants,
   existsSync,
+  fstatSync,
   openSync,
   readFileSync,
   readSync,
   realpathSync,
+  statSync,
 } from 'node:fs';
 import {
   basename,
@@ -27,11 +30,15 @@ import { protectedFile } from '../rules/protected-file.js';
 import { secretContent } from '../rules/secret-content.js';
 import {
   type TddMode,
+  tddApplies,
   tddOrder,
 } from '../rules/tdd-order.js';
 import { testName } from '../rules/test-name.js';
 import { allow } from '../rules/verdict.js';
 import { normalizeToolCall } from './normalize.js';
+import { MAX_SOURCE_BYTES, proposedSource } from './proposed-source.js';
+import { inspectTestSyntax, unavailableSyntax } from './syntax-inspection.js';
+import { isTestPath } from '../rules/source-helpers.js';
 import type {
   NormalizedEdit,
   RuleVerdict,
@@ -223,14 +230,96 @@ function readHeader(path: string): string {
   }
 }
 
-function tddVerdict(root: string, edits: readonly NormalizedEdit[]): RuleVerdict {
+function readSource(path: string): string | undefined {
+  let descriptor: number | undefined;
+  try {
+    descriptor = openSync(path, constants.O_RDONLY | constants.O_NONBLOCK);
+    const before = fstatSync(descriptor);
+    if (!before.isFile() || before.size > MAX_SOURCE_BYTES) return undefined;
+    const buffer = Buffer.alloc(MAX_SOURCE_BYTES + 1);
+    let size = 0;
+    while (size < buffer.length) {
+      const count = readSync(descriptor, buffer, size, buffer.length - size, size);
+      if (count === 0) break;
+      size += count;
+    }
+    const after = fstatSync(descriptor);
+    return size <= MAX_SOURCE_BYTES && size === before.size
+      && after.size === before.size && after.mtimeMs === before.mtimeMs
+      ? buffer.subarray(0, size).toString('utf8') : undefined;
+  } catch {
+    return undefined;
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+  }
+}
+
+function focusedVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown): RuleVerdict {
+  const deadline = performance.now() + 1_000;
+  let inspected = 0;
+  for (const edit of projectEdits(root, edits)) {
+    if (!isTestPath(edit.path) || edit.operation === 'delete') continue;
+    if (++inspected > 32) return unavailableSyntax('operation exceeds 32 test files', edit.path, 'split the operation into smaller edits');
+    const proposed = proposedSource(raw, root, edit.path, readSource(join(root, edit.path)));
+    if (proposed.kind === 'unresolved') return unavailableSyntax(proposed.reason, edit.path,
+      'provide an exact supported Edit/patch or a complete Write within 64 KiB');
+    // Absence can be proven cheaply; whitespace/comments may separate property
+    // tokens, so looking only for the old contiguous test.only string is unsafe.
+    if (!/\b(?:only|skip|xit|xdescribe)\b|\\u/.test(proposed.content)) continue;
+    // A call at the start of the complete file is certainly code. Preserve the
+    // dependency-free refusal for this common case; uncertainty needs the parser.
+    if (/^[ \t]*(?:(?:it|test|describe)\.only|(?:it|test)\.skip|xit|xdescribe)[ \t]*\(/.test(proposed.content)) {
+      return noFocusedTest([{ path: edit.path, addedContent: proposed.content.split('\n')[0] ?? '' }]);
+    }
+    const verdict = inspectTestSyntax(root, edit.path, proposed.content, deadline - performance.now());
+    if (!verdict.allow) return verdict;
+  }
+  return allow();
+}
+
+function declaredTest(root: string, content: string): string | undefined {
+  const lines = content.split(/\r?\n/);
+  const markers = lines.filter((line) => /^\s*\/\/\s*tdd-cover:/.test(line));
+  if (markers.length === 0) return undefined;
+  const match = /^\/\/ tdd-cover: e2e (.+)$/.exec(lines[0] ?? '');
+  const path = match?.[1];
+  if (markers.length !== 1 || path === undefined || path !== path.trim() || isAbsolute(path)
+    || /^[A-Za-z]:|\\/.test(path) || path.split('/').some((part) => part === '..' || part === '.')
+    || !isTestPath(path)) throw new Error('declare exactly one project-relative E2E spec on the first line');
+  const target = realpathSync(join(root, path));
+  const location = relative(root, target);
+  if (location.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`)
+    || location === '..' || isAbsolute(location) || !statSync(target).isFile()) {
+    throw new Error('E2E spec must be a regular file inside the physical project root');
+  }
+  return path;
+}
+
+function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown): RuleVerdict {
   const physicalRoot = physicalPath(root);
   const projectChanges = projectEdits(physicalRoot, edits);
   const config = readTddConfig(physicalRoot);
   const existingHeaders: Record<string, string> = {};
   const siblingTests = new Set<string>();
+  const declaredTests: Record<string, string> = {};
   for (const edit of projectChanges) {
+    if (edit.operation === 'delete' && edit.addedContent === '') continue;
+    if (!tddApplies(edit.path, config.businessGlobs, [config.spikesGlob])) continue;
     existingHeaders[edit.path] = readHeader(join(physicalRoot, edit.path));
+    if ((existingHeaders[edit.path] ?? '').includes('tdd-cover:') || edit.addedContent.includes('tdd-cover:')) {
+      const proposed = proposedSource(raw, physicalRoot, edit.path, readSource(join(physicalRoot, edit.path)));
+      if (proposed.kind === 'unresolved') return { allow: false, code: 'TDD_DECLARATION_UNVERIFIED',
+        message: `cannot verify E2E declaration: ${proposed.reason}; provide an exact complete edit`, evidence: [edit.path] };
+      try {
+        const test = declaredTest(physicalRoot, proposed.content);
+        if (test !== undefined) declaredTests[edit.path] = test;
+        existingHeaders[edit.path] = proposed.content;
+      } catch {
+        return { allow: false, code: 'TDD_DECLARATION_INVALID',
+          message: 'put one // tdd-cover: e2e <project-relative spec> on the first line, pointing to an existing regular test file inside the project',
+          evidence: [edit.path] };
+      }
+    }
     for (const sibling of [
       edit.path.replace(/\.tsx$/, '.test.tsx'),
       edit.path.replace(/\.ts$/, '.test.ts'),
@@ -249,6 +338,7 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[]): RuleVerdict
     spikeGlobs: [config.spikesGlob],
     existingHeaders,
     siblingTests,
+    declaredTests,
   });
 }
 
@@ -282,13 +372,13 @@ export function evaluateRule(
   // damage wherever it lands, and narrowing to the project's business paths
   // would have missed both of the two that reached committed source.
   if (rule === 'control-character') return controlCharacter(call.edits);
-  if (rule === 'tdd-order') return tddVerdict(options.root, call.edits);
+  if (rule === 'tdd-order') return tddVerdict(options.root, call.edits, rawInput);
+  if (rule === 'no-focused-test') return focusedVerdict(options.root, call.edits, rawInput);
   const edits = projectEdits(options.root, call.edits);
   if (rule === 'no-any') return noAny(edits);
   if (rule === 'no-as-cast') return noAsCast(edits);
   if (rule === 'no-console') return noConsole(edits, options.root);
   if (rule === 'no-null') return noNull(edits);
-  if (rule === 'no-focused-test') return noFocusedTest(edits);
   if (rule === 'boundary-direction') return boundaryDirection(edits, options.root);
   if (rule === 'test-name') return testName(edits);
   if (rule === 'design-slop') return designSlop(edits);

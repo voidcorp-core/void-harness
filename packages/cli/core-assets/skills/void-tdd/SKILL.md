@@ -9,7 +9,14 @@ Curated aggregate of the best TDD practices for the TypeScript/web stack 2026. P
 
 **Attribution**: see `.source` in this directory. Primary sources: DECLIK port (which itself distills superpowers/test-driven-development + citypaul/tdd + nizos/tdd-guard). This skill **does not reinvent**; it composes at the right level for void-harness consumers.
 
-The companion hook `tdd-guard` (see `../../hooks/tdd-guard.sh`) materializes the structural floor of this discipline at the Edit/Write level: a sibling test file MUST exist before production code is edited. It does not run the suite, so the failing-first (RED) step in strict mode stays the engineer's discipline, not something the hook can verify.
+The companion hook `tdd-guard` (see `../../hooks/tdd-guard.sh`) materializes the structural floor at the Edit/Write level: a sibling test file or an explicitly declared E2E test file MUST exist before governed production code is edited. It does not run the suite, so the failing-first (RED) step stays the engineer's discipline.
+
+For E2E coverage, put `// tdd-cover: e2e tests/e2e/route.spec.ts` on the production
+file's first line. The literal project-relative path must name an existing regular
+`.test`/`.spec` JS/TS file inside the physical project root. One valid declaration
+satisfies the structural floor; malformed, misplaced or conflicting declarations
+refuse. It does not prove the route is covered or the suite passed. Keep real
+test evidence, and never use exploratory mode to mean "tested elsewhere".
 
 ---
 
