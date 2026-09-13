@@ -216,20 +216,6 @@ function readTddConfig(root: string): TddConfig {
   };
 }
 
-function readHeader(path: string): string {
-  let descriptor: number | undefined;
-  try {
-    descriptor = openSync(path, 'r');
-    const buffer = Buffer.alloc(8192);
-    const bytes = readSync(descriptor, buffer, 0, buffer.byteLength, 0);
-    return buffer.subarray(0, bytes).toString('utf8');
-  } catch {
-    return '';
-  } finally {
-    if (descriptor !== undefined) closeSync(descriptor);
-  }
-}
-
 function readSource(path: string): string | undefined {
   let descriptor: number | undefined;
   try {
@@ -305,20 +291,17 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown
   for (const edit of projectChanges) {
     if (edit.operation === 'delete' && edit.addedContent === '') continue;
     if (!tddApplies(edit.path, config.businessGlobs, [config.spikesGlob])) continue;
-    existingHeaders[edit.path] = readHeader(join(physicalRoot, edit.path));
-    if ((existingHeaders[edit.path] ?? '').includes('tdd-cover:') || edit.addedContent.includes('tdd-cover:')) {
-      const proposed = proposedSource(raw, physicalRoot, edit.path, readSource(join(physicalRoot, edit.path)));
-      if (proposed.kind === 'unresolved') return { allow: false, code: 'TDD_DECLARATION_UNVERIFIED',
-        message: `cannot verify E2E declaration: ${proposed.reason}; provide an exact complete edit`, evidence: [edit.path] };
-      try {
-        const test = declaredTest(physicalRoot, proposed.content);
-        if (test !== undefined) declaredTests[edit.path] = test;
-        existingHeaders[edit.path] = proposed.content;
-      } catch {
-        return { allow: false, code: 'TDD_DECLARATION_INVALID',
-          message: 'put one // tdd-cover: e2e <project-relative spec> on the first line, pointing to an existing regular test file inside the project',
-          evidence: [edit.path] };
-      }
+    const proposed = proposedSource(raw, physicalRoot, edit.path, readSource(join(physicalRoot, edit.path)));
+    if (proposed.kind === 'unresolved') return { allow: false, code: 'TDD_DECLARATION_UNVERIFIED',
+      message: `cannot verify E2E declaration: ${proposed.reason}; provide an exact complete edit`, evidence: [edit.path] };
+    try {
+      const test = declaredTest(physicalRoot, proposed.content);
+      if (test !== undefined) declaredTests[edit.path] = test;
+      existingHeaders[edit.path] = proposed.content;
+    } catch {
+      return { allow: false, code: 'TDD_DECLARATION_INVALID',
+        message: 'put one // tdd-cover: e2e <project-relative spec> on the first line, pointing to an existing regular test file inside the project',
+        evidence: [edit.path] };
     }
     for (const sibling of [
       edit.path.replace(/\.tsx$/, '.test.tsx'),

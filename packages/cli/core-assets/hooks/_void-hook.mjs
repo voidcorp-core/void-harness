@@ -1067,10 +1067,10 @@ function syntaxWorker() {
   const { readFileSync: readFileSync11 } = process.getBuiltinModule("node:fs");
   const { createRequire } = process.getBuiltinModule("node:module");
   const { join: join18 } = process.getBuiltinModule("node:path");
-  let reason = "project TypeScript compiler is missing or unloadable";
+  let reason = "TypeScript compiler resolved from the edited file is missing or unloadable";
   try {
     const input = JSON.parse(readFileSync11(0, "utf8"));
-    const loaded = createRequire(join18(input.root, "package.json"))("typescript");
+    const loaded = createRequire(join18(input.root, input.path))("typescript");
     if (typeof loaded !== "object" || loaded === null) throw new Error();
     const members = loaded;
     const methods = [
@@ -1125,7 +1125,7 @@ function syntaxWorker() {
     process.stdout.write(JSON.stringify({ unavailable: reason }));
   }
 }
-function unavailableSyntax(reason, path, correction = "restore a supported project compiler and valid complete source, then retry") {
+function unavailableSyntax(reason, path, correction = "restore TypeScript 5 resolvable from the edited file and valid complete source, then retry") {
   return {
     allow: false,
     code: "TEST_SYNTAX_UNVERIFIED",
@@ -1153,7 +1153,7 @@ function inspectTestSyntax(root, path, source2, remainingMs = 1e3) {
     const record8 = result;
     if (typeof record8["unavailable"] === "string") {
       const permitted = [
-        "project TypeScript compiler is missing or unloadable",
+        "TypeScript compiler resolved from the edited file is missing or unloadable",
         "project TypeScript compiler API is unsupported (requires version 5)",
         "source could not be parsed within the supported limits"
       ];
@@ -1264,19 +1264,6 @@ function readTddConfig(root) {
     spikesGlob: configuredString(paths, "spikes", "apps/*/scripts/spike-*")
   };
 }
-function readHeader(path) {
-  let descriptor;
-  try {
-    descriptor = openSync(path, "r");
-    const buffer = Buffer.alloc(8192);
-    const bytes = readSync(descriptor, buffer, 0, buffer.byteLength, 0);
-    return buffer.subarray(0, bytes).toString("utf8");
-  } catch {
-    return "";
-  } finally {
-    if (descriptor !== void 0) closeSync(descriptor);
-  }
-}
 function readSource(path) {
   let descriptor;
   try {
@@ -1343,27 +1330,24 @@ function tddVerdict(root, edits, raw) {
   for (const edit of projectChanges) {
     if (edit.operation === "delete" && edit.addedContent === "") continue;
     if (!tddApplies(edit.path, config.businessGlobs, [config.spikesGlob])) continue;
-    existingHeaders[edit.path] = readHeader(join4(physicalRoot, edit.path));
-    if ((existingHeaders[edit.path] ?? "").includes("tdd-cover:") || edit.addedContent.includes("tdd-cover:")) {
-      const proposed = proposedSource(raw, physicalRoot, edit.path, readSource(join4(physicalRoot, edit.path)));
-      if (proposed.kind === "unresolved") return {
+    const proposed = proposedSource(raw, physicalRoot, edit.path, readSource(join4(physicalRoot, edit.path)));
+    if (proposed.kind === "unresolved") return {
+      allow: false,
+      code: "TDD_DECLARATION_UNVERIFIED",
+      message: `cannot verify E2E declaration: ${proposed.reason}; provide an exact complete edit`,
+      evidence: [edit.path]
+    };
+    try {
+      const test = declaredTest(physicalRoot, proposed.content);
+      if (test !== void 0) declaredTests[edit.path] = test;
+      existingHeaders[edit.path] = proposed.content;
+    } catch {
+      return {
         allow: false,
-        code: "TDD_DECLARATION_UNVERIFIED",
-        message: `cannot verify E2E declaration: ${proposed.reason}; provide an exact complete edit`,
+        code: "TDD_DECLARATION_INVALID",
+        message: "put one // tdd-cover: e2e <project-relative spec> on the first line, pointing to an existing regular test file inside the project",
         evidence: [edit.path]
       };
-      try {
-        const test = declaredTest(physicalRoot, proposed.content);
-        if (test !== void 0) declaredTests[edit.path] = test;
-        existingHeaders[edit.path] = proposed.content;
-      } catch {
-        return {
-          allow: false,
-          code: "TDD_DECLARATION_INVALID",
-          message: "put one // tdd-cover: e2e <project-relative spec> on the first line, pointing to an existing regular test file inside the project",
-          evidence: [edit.path]
-        };
-      }
     }
     for (const sibling of [
       edit.path.replace(/\.tsx$/, ".test.tsx"),

@@ -9,10 +9,10 @@ function syntaxWorker(): void {
   const { readFileSync } = process.getBuiltinModule('node:fs');
   const { createRequire } = process.getBuiltinModule('node:module');
   const { join } = process.getBuiltinModule('node:path');
-  let reason = 'project TypeScript compiler is missing or unloadable';
+  let reason = 'TypeScript compiler resolved from the edited file is missing or unloadable';
   try {
     const input = JSON.parse(readFileSync(0, 'utf8')) as { root: string; path: string; source: string };
-    const loaded: unknown = createRequire(join(input.root, 'package.json'))('typescript');
+    const loaded: unknown = createRequire(join(input.root, input.path))('typescript');
     if (typeof loaded !== 'object' || loaded === null) throw new Error();
     const members = loaded as Record<string, unknown>;
     const methods = ['createSourceFile', 'createProgram', 'forEachChild', 'isIdentifier',
@@ -63,7 +63,7 @@ function syntaxWorker(): void {
 }
 
 export function unavailableSyntax(reason: string, path: string,
-  correction = 'restore a supported project compiler and valid complete source, then retry'): RuleVerdict {
+  correction = 'restore TypeScript 5 resolvable from the edited file and valid complete source, then retry'): RuleVerdict {
   return { allow: false, code: 'TEST_SYNTAX_UNVERIFIED',
     message: `focused-test verification unavailable: ${reason}; ${correction}`,
     evidence: [path] };
@@ -82,7 +82,7 @@ export function inspectTestSyntax(root: string, path: string, source: string, re
     if (typeof result !== 'object' || result === null) throw new Error();
     const record = result as Record<string, unknown>;
     if (typeof record['unavailable'] === 'string') {
-      const permitted = ['project TypeScript compiler is missing or unloadable',
+      const permitted = ['TypeScript compiler resolved from the edited file is missing or unloadable',
         'project TypeScript compiler API is unsupported (requires version 5)',
         'source could not be parsed within the supported limits'];
       return unavailableSyntax(permitted.includes(record['unavailable'])

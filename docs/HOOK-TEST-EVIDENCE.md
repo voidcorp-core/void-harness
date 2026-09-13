@@ -9,12 +9,18 @@ exact context-bearing Update File hunks. Stale or ambiguous context, moves,
 unanchored insertions and unsupported inputs refuse with TEST_SYNTAX_UNVERIFIED.
 Submit a supported exact edit or complete Write to resolve that refusal.
 
-When syntax is needed, the compiler resolves from the project's package context,
-following its package manager's installed dependency graph. It never falls back
-to a compiler bundled with the harness. Supported API: TypeScript 5, checked
-against 5.9.3. An absent, broken or incompatible compiler is named as unavailable;
-restore the project's supported compiler to enable this capability. A plain test
-with no suspicious tokens and a prohibited call at the start of the complete
+When syntax is needed, Node resolves TypeScript from the edited file's location.
+Workspace-local node_modules takes precedence over an ancestor's hoisted dependency.
+The hook never falls back to a harness compiler, nor retries another compiler when
+the nearest one is broken or unsupported. Supported API: TypeScript 5, checked
+against 5.9.3. To recover, restore TypeScript 5 in the owning workspace or its
+ancestor dependency installation, then retry the same edit. Each invocation loads
+it afresh, so failure is not cached across edits.
+
+This uses Node's native node_modules resolution, including package-manager symlinks
+and junctions. Custom-loader layouts such as loader-dependent PnP are not verified:
+the child receives neither loader arguments nor the parent's environment. A plain
+test with no suspicious tokens and a prohibited call at the start of the complete
 file do not need a compiler. This preserves the inexpensive common paths.
 
 The parser traverses syntax, including template substitutions and JSX expressions.
@@ -47,8 +53,10 @@ The path is literal and relative to the project root; spaces inside filenames
 are supported. It must identify an existing regular .test/.spec file with a
 ts, tsx, js or jsx extension. Absolute paths, parent traversal, backslashes and
 links outside the physical project root refuse. The target is inspected only
-for existence and kind, not read or executed. A declaration is checked against
-the proposed source for Write, Edit and supported patches, including removal.
+for existence and kind, not read or executed. Every governed production edit is reconstructed before declaration discovery,
+including edits to only part of the marker and declaration removal. Missing or
+ambiguous context and files over 64 KiB refuse with TDD_DECLARATION_UNVERIFIED;
+provide a complete supported Write or exact bounded edit. Exempt paths stay exempt.
 
 One declaration on the first line is permitted. A malformed, conflicting or
 misplaced declaration refuses; it cannot silently fall back to an existing
@@ -64,3 +72,6 @@ The engineer still owns real coverage and the red/green test evidence.
   and getSyntacticDiagnostics.
 - [Node 22 builtin module access](https://nodejs.org/docs/latest-v22.x/api/process.html#processgetbuiltinmoduleid),
   available since 22.3 and within the package's Node 22.12 minimum.
+
+- [Node createRequire](https://nodejs.org/api/module.html#modulecreaterequirefilename)
+  and [native node_modules resolution](https://nodejs.org/docs/latest-v22.x/api/modules.html#loading-from-node_modules-folders).

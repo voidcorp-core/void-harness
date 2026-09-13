@@ -44,7 +44,7 @@ describe('evidence-aware hooks', () => {
     expect(check().code).toBe('TEST_SYNTAX_UNVERIFIED');
     const compiler = createRequire(import.meta.url).resolve('typescript/package.json');
     symlinkSync(compiler.slice(0, -'/package.json'.length), join(directory, 'typescript'), 'junction');
-    expect(check().code).toBe('OK');
+    expect(check().code).toBe('ALLOW');
   });
 
   it.each(['module.exports = { version: "6.0.0" };', 'throw new Error("PRIVATE_ERROR");'])(

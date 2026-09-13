@@ -139,14 +139,14 @@ describe('evaluateRule', () => {
 
     const warning = evaluateRule('tdd-order', {
       tool_name: 'Edit',
-      tool_input: { file_path: 'src/Card.tsx', new_string: 'export const Card = 2;' },
+      tool_input: { file_path: 'src/Card.tsx', old_string: 'export const Card = 1;', new_string: 'export const Card = 2;' },
     }, { root });
     expect(warning.code).toBe('TDD_SIBLING_TEST_WARNING');
 
     write(root, 'src/Card.test.tsx', 'test("Card", () => {});\n');
     expect(evaluateRule('tdd-order', {
       tool_name: 'Edit',
-      tool_input: { file_path: 'src/Card.tsx', new_string: 'export const Card = 3;' },
+      tool_input: { file_path: 'src/Card.tsx', old_string: 'export const Card = 1;', new_string: 'export const Card = 3;' },
     }, { root }).allow).toBe(true);
   });
 
