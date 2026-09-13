@@ -1158,8 +1158,15 @@ function syntaxWorker() {
           lines.add(file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1);
         }
       }
-      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && ["xit", "xdescribe"].includes(node.expression.text)) {
-        lines.add(file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1);
+      if (ts.isCallExpression(node) || ts.isTaggedTemplateExpression(node)) {
+        let target = ts.isCallExpression(node) ? node.expression : node.tag;
+        while (ts.isPropertyAccessExpression(target) || ts.isElementAccessExpression(target) || ts.isParenthesizedExpression(target) || ts.isAsExpression(target) || ts.isTypeAssertionExpression(target) || ts.isNonNullExpression(target) || ts.isSatisfiesExpression(target)) {
+          if (++visited > 2e4) throw new Error();
+          target = target.expression;
+        }
+        if (ts.isIdentifier(target) && ["xit", "xdescribe"].includes(target.text)) {
+          lines.add(file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1);
+        }
       }
       ts.forEachChild(node, (child) => {
         pending.push(child);

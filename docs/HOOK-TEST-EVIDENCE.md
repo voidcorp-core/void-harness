@@ -28,6 +28,10 @@ file do not need a compiler. This preserves the inexpensive common paths.
 
 The parser traverses syntax, including template substitutions and JSX expressions.
 Comments, ordinary strings and regular-expression text are not executable calls.
+Skipped `xit` and `xdescribe` aliases remain blocked through parameterized calls,
+tagged tables, computed member access and TypeScript expression wrappers. The
+callee walk shares the existing syntax-operation budget. See the
+[Jest API](https://jestjs.io/docs/api).
 It does not execute the inspected source, resolve its imports, read tsconfig,
 load config plugins or run tests. The compiler package itself is trusted executable
 project tooling, like the compiler used by the project graph; process isolation
