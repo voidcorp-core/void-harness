@@ -1,3 +1,4 @@
+// tdd-cover: e2e test/cli/cheatsheet.test.ts
 import { compare } from './catalog.js';
 import { installationText, type CheatSheet } from './document.js';
 import { enhancement, styles } from './presentation.js';

@@ -1,3 +1,4 @@
+// tdd-cover: e2e test/cli/cheatsheet.test.ts
 // Static enhancement only: catalogue metadata never enters executable JavaScript or CSS.
 export const styles = `
 :root{color-scheme:light;--ink:#192334;--muted:#4b5565;--line:#c9d0dc;--accent:#5635aa;--paper:#fff;--wash:#f3f4f8}

@@ -1,3 +1,4 @@
+// tdd-cover: e2e test/cli/cheatsheet.test.ts
 import { constants } from 'node:fs';
 import { lstat, open, realpath, stat } from 'node:fs/promises';
 import { isAbsolute, relative, resolve } from 'node:path';
