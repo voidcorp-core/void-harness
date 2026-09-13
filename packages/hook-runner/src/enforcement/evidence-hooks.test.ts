@@ -19,6 +19,49 @@ function project() {
 }
 
 describe('evidence-aware hooks', () => {
+  it.each(['page.spec.ts', 'missing.spec.ts'])('discovers partial declaration edits for %s', (spec) => {
+    const root = project();
+    const path = join(root, 'apps/web/src/page.tsx');
+    const original = `// cover: e2e tests/e2e/${spec}\nexport const page = 1;`;
+    writeFileSync(path, original);
+    const write = evaluateRule('tdd-order', { tool_name: 'Write', tool_input: {
+      file_path: path, content: original.replace('cover', 'tdd-cover'),
+    } }, { root });
+    const edit = evaluateRule('tdd-order', { tool_name: 'Edit', tool_input: {
+      file_path: path, old_string: 'cover', new_string: 'tdd-cover',
+    } }, { root });
+    expect(write.code).toBe(spec === 'page.spec.ts' ? 'TDD_DECLARED_TEST' : 'TDD_DECLARATION_INVALID');
+    expect(edit).toEqual(write);
+  });
+
+  it('finds a workspace-only compiler and recovers after installation in the same project', () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'hook-workspace-')));
+    const directory = join(root, 'apps/web/node_modules');
+    mkdirSync(directory, { recursive: true });
+    const check = () => evaluateRule('no-focused-test', { tool_name: 'Write', tool_input: {
+      file_path: join(root, 'apps/web/src/view.test.ts'), content: '// Explain test.skip\ntest("renders", () => {});',
+    } }, { root });
+    expect(check().code).toBe('TEST_SYNTAX_UNVERIFIED');
+    const compiler = createRequire(import.meta.url).resolve('typescript/package.json');
+    symlinkSync(compiler.slice(0, -'/package.json'.length), join(directory, 'typescript'), 'junction');
+    expect(check().code).toBe('OK');
+  });
+
+  it.each(['module.exports = { version: "6.0.0" };', 'throw new Error("PRIVATE_ERROR");'])(
+    'does not fall back from a broken nearest compiler to the root compiler', (code) => {
+      const root = project();
+      const directory = join(root, 'apps/web/node_modules/typescript');
+      mkdirSync(directory, { recursive: true });
+      writeFileSync(join(directory, 'package.json'), JSON.stringify({ main: 'index.cjs' }));
+      writeFileSync(join(directory, 'index.cjs'), code);
+      const result = evaluateRule('no-focused-test', { tool_name: 'Write', tool_input: {
+        file_path: join(root, 'apps/web/src/view.test.ts'), content: '// Explain test.skip',
+      } }, { root });
+      expect(result.code).toBe('TEST_SYNTAX_UNVERIFIED');
+      expect(result.message).not.toContain('PRIVATE_ERROR');
+    },
+  );
+
   it.each([
     '// Explain why test.skip is not used.\ntest("renders", () => {});',
     '/**\n * Avoid test.skip in this suite.\n */\ntest("renders", () => {});',
