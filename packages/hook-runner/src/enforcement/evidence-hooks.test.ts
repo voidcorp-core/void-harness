@@ -19,6 +19,28 @@ function project() {
 }
 
 describe('evidence-aware hooks', () => {
+  it.each([false, true])('ignores declaration prose in a template with header=%s', (header) => {
+    const root = project();
+    const marker = '// tdd-cover: e2e tests/e2e/page.spec.ts';
+    writeFileSync(join(root, 'apps/web/src/page.test.tsx'), 'test("page", () => {});');
+    const content = `${header ? `${marker}\n` : ''}export const example = \`\n${marker}\n\`;`;
+    const verdict = evaluateRule('tdd-order', { tool_name: 'Write', tool_input: {
+      file_path: join(root, 'apps/web/src/page.tsx'), content,
+    } }, { root });
+    expect(verdict.code).toBe(header ? 'TDD_DECLARED_TEST' : 'ALLOW');
+  });
+
+  it.each(['Edit', 'apply_patch'])('keeps removal-only %s updates under the original test floor', (tool) => {
+    const root = project();
+    const path = join(root, 'apps/web/src/page.tsx');
+    writeFileSync(path, 'export const page = 1;\n');
+    const tool_input = tool === 'Edit'
+      ? { file_path: path, old_string: 'export const page = 1;\n', new_string: '' }
+      : { patch: '*** Begin Patch\n*** Update File: apps/web/src/page.tsx\n@@\n-export const page = 1;\n*** End Patch' };
+    expect(evaluateRule('tdd-order', { tool_name: tool, tool_input }, { root }).code)
+      .toBe('TDD_SIBLING_TEST_MISSING');
+  });
+
   it.each(['page.spec.ts', 'missing.spec.ts'])('discovers partial declaration edits for %s', (spec) => {
     const root = project();
     const path = join(root, 'apps/web/src/page.tsx');
