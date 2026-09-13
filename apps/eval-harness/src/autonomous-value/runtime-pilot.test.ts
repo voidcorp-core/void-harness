@@ -1,3 +1,5 @@
+// @test-resource subprocess
+// The consumer workspace adapter clones Git repositories for each execution.
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { mkdtemp, realpath } from 'node:fs/promises';

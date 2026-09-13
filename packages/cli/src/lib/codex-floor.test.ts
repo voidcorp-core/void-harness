@@ -191,7 +191,7 @@ describe('wireCodexFloor', () => {
       input: JSON.stringify({
         tool_name: 'apply_patch',
         tool_input: {
-          patch: '*** Begin Patch\n*** Update File: apps/web/src/Card.tsx\n+export const Card = 2;\n*** End Patch',
+          patch: '*** Begin Patch\n*** Update File: apps/web/src/Card.tsx\n@@\n-export const Card = 1;\n+export const Card = 2;\n*** End Patch',
         },
       }),
       encoding: 'utf8',
