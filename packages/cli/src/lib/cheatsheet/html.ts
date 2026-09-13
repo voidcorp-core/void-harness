@@ -28,7 +28,7 @@ ${entry.relatedIds.length === 0 ? '' : `<p class="meta">Same capability: ${entry
 <p>Explore the catalogue, check availability here, or search by what you want to do.</p>
 <p class="installation">${installationText[document.installation]}</p></header>
 <main><form id="filters" hidden><div class="filter-grid">
-<label for="view">View<select id="view"><option value="catalogue">Complete catalogue</option><option value="here">Availability here</option><option value="intent">Find by intention</option></select></label>
+<label for="view">View<select id="view"><option value="catalogue">Catalogue</option><option value="here">Installed here</option><option value="intent">By intention</option></select></label>
 <label for="search">Search <input id="search" type="search" placeholder="e.g. review, failing test, public API" aria-describedby="search-help"></label>
 <label for="runtime">Runtime<select id="runtime"><option value="">All runtimes</option>${options(['claude', 'codex', 'cli'])}</select></label>
 <label for="pack">Pack<select id="pack"><option value="">All packs</option>${options(document.entries.map(entry => entry.pack))}</select></label>
