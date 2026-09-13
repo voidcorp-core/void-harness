@@ -1,7 +1,7 @@
 ---
 title: Deliver the installed harness cheat sheet
 date: 2026-09-13
-status: in-progress
+status: executing
 spec: docs/specs/2026-09-13-installed-cheatsheet.md
 ticket: DEV-532
 author: Folpe + Codex
@@ -14,7 +14,7 @@ Deliver `void-harness cheatsheet [--format html|markdown|json]` from one
 authoritative projection. The default is a self-contained HTML document on
 stdout, readable offline and without JavaScript. It explains the catalogue,
 local availability and invocation without writing project or machine state.
-Folpe approved the written spec on 2026-09-13. This plan awaits review.
+Folpe approved the written spec on 2026-09-13. Folpe explicitly approved this plan on 2026-09-13.
 
 ## Grounding and boundaries
 
@@ -145,12 +145,61 @@ it in `docs/ARCHITECTURE.md`. Accepted earlier decisions remain immutable.
 
 ## Review checkpoints
 
-Review this written plan before invoking `void-implement`. No additional
+### Preparation review dispositions
+
+The eight independent preparation reviews passed. The two low-severity
+recommendations are accepted as verification criteria for Step 3:
+
+- Measure text/control contrast, 200% text enlargement and 320 px reflow.
+  Inspect accessible names, result/copy announcements and focus preservation
+  with assistive browser evidence; name any unavailable screen-reader evidence.
+- Exercise realistic intent searches against the same catalogue: "failing
+  test" should find debugging/TDD guidance; "public API" should find interface
+  design guidance; "review" should expose relevant review roles and their
+  invocation. These are acceptance examples, never an extra capability registry.
+
+### Source grounding before implementation
+
+Zod resolves to 4.4.3. Its version-pinned
+[schema reference](https://raw.githubusercontent.com/colinhacks/zod/v4.4.3/packages/docs/content/api.mdx)
+governs validation. The Node 22 filesystem contract governs bounded descriptor
+reads; a size check alone does not bound a growing file's subsequent read.
+
+The [Claude skill settings contract](https://code.claude.com/docs/en/skills#override-skill-visibility-from-settings)
+defines `skillOverrides` in project and local settings, including `off` and
+`user-invocable-only`. It excludes plugin skills. Do not infer disabled status
+from a missing file, an inactive pack or manual-only invocation.
+Codex's documented disable setting is in the user's configuration; this command
+does not read home-directory configuration. Effective visibility beyond local
+evidence remains unknown. Installation and runtime verification stay separate.
+
+The [Clipboard contract](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard/writeText)
+requires a fulfilled promise before reporting success. Local-file clipboard
+availability is browser-dependent, so selection and explicit denial feedback
+are part of the required path, not an exceptional untested fallback.
+
+Folpe reviewed and approved this written plan on 2026-09-13. No additional
 intermediate approval is introduced inside these four steps. The review and
 merge policy already authorized for the cluster remains applicable; this plan
 does not grant promotion to `main` or weaken exact-candidate verification.
 
 ## Execution handoff
+
+Implementation and automated consumer proofs are present on the feature branch.
+Observed RED/GREEN cycles cover catalogue/CLI, local evidence, rendering,
+hook-owner syntax, subdirectory discovery and missing specialist sources.
+The packed npm archive exports all formats without a source checkout and fails
+with empty stdout plus a path-free diagnostic when its specialists are missing.
+Whole-inventory tests compare canonical identities in all three formats and
+exercise bidirectional specialist/agent links. Real linked-worktree tests compare
+tree bytes before and after inspection.
+
+Browser verification is pending: the session's browser URL policy explicitly
+refused the local HTML file. No alternate browser or transport was used to
+circumvent that refusal. Mobile/desktop, keyboard, no-JavaScript, print,
+clipboard denial, contrast/zoom and assistive evidence remain unverified.
+Post-implementation team certification, current CI and merge are still required;
+the ticket is not delivered.
 
 | Order | Unit | Dependencies | Estimate | Human gate |
 |---|---|---|---|---|

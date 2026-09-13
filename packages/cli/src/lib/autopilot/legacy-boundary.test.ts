@@ -15,8 +15,10 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { runAutopilotCommand } from '../../commands/autopilot.js';
+import { main } from '../../main.js';
+import { commandName } from '../command-catalog.js';
 
 const ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
 
@@ -54,14 +56,18 @@ describe('the legacy command is gone, not aliased', () => {
     // An alias is the tempting shortcut: it keeps old invocations working and
     // makes the migration invisible, so the next release still has two names
     // for one thing.
-    expect(MAIN).not.toMatch(/case '(backlog|batch)[^']*':/);
+    for (const name of ['backlog-autopilot', 'backlog', 'batch']) {
+      expect(commandName(name)).toBeUndefined();
+    }
   });
 });
 
 describe('the canonical surface is wired', () => {
-  it('routes `autopilot` from the entry point', () => {
-    expect(MAIN).toMatch(/case 'autopilot':/);
-    expect(MAIN).toMatch(/from '\.\/commands\/autopilot\.js'/);
+  it('routes `autopilot` from the entry point', async () => {
+    let output = '';
+    const spy = vi.spyOn(process.stdout, 'write').mockImplementation(chunk => { output += String(chunk); return true; });
+    try { await main(['autopilot', '--help']); } finally { spy.mockRestore(); }
+    expect(output).toContain('void-harness autopilot');
   });
 
   it('answers a bare `autopilot` invocation rather than demanding a subcommand', () => {

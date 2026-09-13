@@ -395,6 +395,29 @@ latencies, but external scheduler contention cannot make the causal feature gate
 existing global cold-start and no-op-versus-Node wall budgets remain owned by
 [DEV-662](https://linear.app/voidcorp/issue/DEV-662/reduire-le-cold-start-du-hook-runner-livre).
 
+### Installed capability discovery
+
+`void-harness cheatsheet` owns the consumer discovery projection in the CLI's
+`lib/cheatsheet/` boundary. The shipped graph and specialist contracts provide
+canonical identities; `lib/command-catalog.ts` supplies the same metadata to
+dispatch, help and discovery. The handler map is exhaustive over its keys.
+The source-only Markdown generator and Linear index are not imported.
+
+Pure catalogue/availability projection feeds JSON schema version 1, Markdown
+and self-contained HTML. The I/O adapter resolves linked installation roots,
+validates local receipts/configuration and performs bounded, contained reads.
+It never calls status, runtime smoke probes, registries or journals. Local
+assets are checked against receipt hashes; configuration is not execution proof.
+Hook events/matchers come from shipped manifests, associated through their
+owner wrapper's declared runner invocation. Unknown wrapper shapes remain
+undeclared. No handwritten hook-name mapping is introduced.
+
+Project Claude skill overrides can establish explicit disabled evidence.
+Home settings and marketplace caches are outside this bounded read, so effective
+runtime visibility stays unverified. The HTML embeds fixed enhancement code;
+metadata is escaped as text and never interpolated into executable JavaScript.
+See [the discovery projection decision](decisions-log/2026-09-13-installed-discovery-projection--00d39aef-2cb8-4809-9545-128295b1c012.md).
+
 ### Source self-host boundary
 
 `void-harness self-host sync` is the only supported dogfood compiler for this

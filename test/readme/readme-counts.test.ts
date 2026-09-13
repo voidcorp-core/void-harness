@@ -14,7 +14,8 @@
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { printHelp } from '../../packages/cli/src/commands/help.js';
 
 const ROOT = resolve(__dirname, '..', '..');
 const README = readFileSync(resolve(ROOT, 'README.md'), 'utf8');
@@ -76,12 +77,13 @@ describe('the README composition table matches the graph model', () => {
 });
 
 describe('the commands the README advertises', () => {
-  const help = readFileSync(resolve(ROOT, 'packages/cli/src/commands/help.ts'), 'utf8');
-
   it.each([['status'], ['doctor'], ['add'], ['runtime'], ['update'], ['init']])(
     '`%s` exists in the CLI help',
     (command) => {
       expect(README).toContain(`voidharness ${command}`);
+      let help = '';
+      const spy = vi.spyOn(process.stdout, 'write').mockImplementation(chunk => { help += String(chunk); return true; });
+      try { printHelp(); } finally { spy.mockRestore(); }
       expect(help).toContain(command);
     },
   );
