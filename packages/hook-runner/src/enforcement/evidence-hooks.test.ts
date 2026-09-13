@@ -57,15 +57,17 @@ describe('evidence-aware hooks', () => {
   });
 
   it.each([
-    'test.only("renders", () => {});',
-    '\n  test.only("renders", () => {});',
-    `const rendered = \`\${test.skip("renders", () => {})}\`;`,
-    'const rendered = <div>{test.only("renders", () => {})}</div>;',
-  ])('continues blocking executable focused calls: %s', (content) => {
+    ['test.only("renders", () => {});', 1],
+    ['\n  test.only("renders", () => {});', 2],
+    [`const rendered = \`\${test.skip("renders", () => {})}\`;`, 1],
+    ['const rendered = <div>{test.only("renders", () => {})}</div>;', 1],
+  ] as const)('detects the executable focused call: %s', (content, line) => {
     const root = project();
-    expect(evaluateRule('no-focused-test', {
+    const result = evaluateRule('no-focused-test', {
       tool_name: 'Write', tool_input: { file_path: join(root, 'view.test.tsx'), content },
-    }, { root }).allow).toBe(false);
+    }, { root });
+    expect(result.code).toBe('FOCUSED_OR_SKIPPED_TEST');
+    expect(result.evidence).toEqual([`view.test.tsx:${line}`]);
   });
 
   it('accepts a declared existing E2E test for a new production component', () => {

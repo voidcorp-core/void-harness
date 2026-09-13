@@ -1,10 +1,21 @@
 import { describe, expect, it } from 'vitest';
+import { constants } from 'node:buffer';
 import { proposedSource } from './proposed-source.js';
 
 const patch = (body: string) => ({ tool_name: 'apply_patch',
   tool_input: { patch: `*** Begin Patch\n${body}\n*** End Patch` } });
 
 describe('proposed file reconstruction', () => {
+  it('refuses replace_all expansion before constructing an unrepresentable string', () => {
+    const existing = 'x'.repeat(65_536);
+    const after = 'y'.repeat(Math.floor(constants.MAX_STRING_LENGTH / existing.length) + 1);
+    const raw = { tool_name: 'Edit', tool_input: {
+      file_path: 'file.test.ts', old_string: 'x', new_string: after, replace_all: true,
+    } };
+    expect(() => proposedSource(raw, '/repo', 'file.test.ts', existing)).not.toThrow();
+    expect(proposedSource(raw, '/repo', 'file.test.ts', existing).kind).toBe('unresolved');
+  });
+
   it('retains unchanged lines between separate patch hunks', () => {
     const result = proposedSource(patch('*** Update File: file.test.ts\n@@\n /*\n-old\n+test.skip prose\n */\n@@\n-const x = 1;\n+const x = 2;'),
       '/repo', 'file.test.ts', '/*\nold\n*/\n\nconst x = 1;\n');
