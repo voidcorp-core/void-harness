@@ -55,9 +55,7 @@ function syntaxWorker(): void {
           ...(ts.getTrailingCommentRanges(input.source, node.end) ?? [])];
         for (const comment of comments) {
           if (!/^\/\/\s*tdd-cover:/.test(input.source.slice(comment.pos, comment.end))) continue;
-          const line = file.getLineAndCharacterOfPosition(comment.pos).line;
-          const start = file.getPositionOfLineAndCharacter(line, 0);
-          if (/^[ \t]*$/.test(input.source.slice(start, comment.pos))) commentPositions.add(comment.pos);
+          commentPositions.add(comment.pos);
         }
         pending.push(...node.getChildren(file));
         continue;

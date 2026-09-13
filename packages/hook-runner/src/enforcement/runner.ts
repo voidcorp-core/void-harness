@@ -294,10 +294,17 @@ function tddVerdict(root: string, edits: readonly NormalizedEdit[], raw: unknown
     if (performance.now() >= deadline) return tddOperationLimit('operation exhausted its one-second work budget');
     if (proposed.kind === 'unresolved') return { allow: false, code: 'TDD_DECLARATION_UNVERIFIED',
       message: `cannot verify E2E declaration: ${proposed.reason}; provide exact context, or a complete Write within 64 KiB (oversized originals require replacement or restructuring)`, evidence: [edit.path] };
-    if (proposed.content.split(/\r?\n/).slice(1).some((line) => /^\s*\/\/\s*tdd-cover:/.test(line))) {
+    const [header = '', ...body] = proposed.content.split(/\r?\n/);
+    const startsWithDeclaration = /^\/\/\s*tdd-cover:/.test(header);
+    if (body.some((line) => line.includes('tdd-cover:'))
+      || (header.includes('tdd-cover:') && !startsWithDeclaration)) {
       const syntax = inspectSourceSyntax(physicalRoot, edit.path, proposed.content,
         deadline - performance.now(), 'declarations');
       if (performance.now() >= deadline) return tddOperationLimit('operation exhausted its one-second work budget');
+      if (syntax.code === 'TDD_DECLARATION_HEADER' && !startsWithDeclaration) {
+        return { allow: false, code: 'TDD_DECLARATION_INVALID',
+          message: 'put the E2E declaration on its own first line before code', evidence: [edit.path] };
+      }
       if (!syntax.allow) return { ...syntax, code: syntax.code === 'TDD_DECLARATION_INVALID'
         ? syntax.code : 'TDD_DECLARATION_UNVERIFIED' };
     }

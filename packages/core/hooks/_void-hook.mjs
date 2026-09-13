@@ -1147,9 +1147,7 @@ function syntaxWorker() {
         ];
         for (const comment of comments) {
           if (!/^\/\/\s*tdd-cover:/.test(input.source.slice(comment.pos, comment.end))) continue;
-          const line = file.getLineAndCharacterOfPosition(comment.pos).line;
-          const start = file.getPositionOfLineAndCharacter(line, 0);
-          if (/^[ \t]*$/.test(input.source.slice(start, comment.pos))) commentPositions.add(comment.pos);
+          commentPositions.add(comment.pos);
         }
         pending.push(...node.getChildren(file));
         continue;
@@ -1413,7 +1411,9 @@ function tddVerdict(root, edits, raw) {
       message: `cannot verify E2E declaration: ${proposed.reason}; provide exact context, or a complete Write within 64 KiB (oversized originals require replacement or restructuring)`,
       evidence: [edit.path]
     };
-    if (proposed.content.split(/\r?\n/).slice(1).some((line) => /^\s*\/\/\s*tdd-cover:/.test(line))) {
+    const [header = "", ...body] = proposed.content.split(/\r?\n/);
+    const startsWithDeclaration = /^\/\/\s*tdd-cover:/.test(header);
+    if (body.some((line) => line.includes("tdd-cover:")) || header.includes("tdd-cover:") && !startsWithDeclaration) {
       const syntax = inspectSourceSyntax(
         physicalRoot,
         edit.path,
@@ -1422,6 +1422,14 @@ function tddVerdict(root, edits, raw) {
         "declarations"
       );
       if (performance.now() >= deadline) return tddOperationLimit("operation exhausted its one-second work budget");
+      if (syntax.code === "TDD_DECLARATION_HEADER" && !startsWithDeclaration) {
+        return {
+          allow: false,
+          code: "TDD_DECLARATION_INVALID",
+          message: "put the E2E declaration on its own first line before code",
+          evidence: [edit.path]
+        };
+      }
       if (!syntax.allow) return { ...syntax, code: syntax.code === "TDD_DECLARATION_INVALID" ? syntax.code : "TDD_DECLARATION_UNVERIFIED" };
     }
     try {

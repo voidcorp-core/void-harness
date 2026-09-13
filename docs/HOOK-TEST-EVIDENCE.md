@@ -66,7 +66,9 @@ into supported files. Exempt paths stay exempt.
 
 Declaration-shaped lines elsewhere require the same bounded project compiler to
 identify actual comments. Template/JSX text and block-comment examples are not
-declarations; actual misplaced or duplicate line comments still refuse. Missing
+declarations; actual misplaced or duplicate line comments still refuse, including
+trailing comments after code. Declaration-token discovery conservatively requests
+the compiler; only its actual comment ranges establish a declaration. Missing
 syntax capability is TDD_DECLARATION_UNVERIFIED. A sole first-line declaration
 needs no compiler. Original source remains separate from proposed declarations:
 the barrel-file exemption requires both known complete original and complete
