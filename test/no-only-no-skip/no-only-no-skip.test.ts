@@ -37,6 +37,23 @@ function runHook(cwd: string, file: string, content: string): { code: number; st
 }
 
 describe('no-only-no-skip.sh', () => {
+  it.each(['xit', 'xdescribe'].flatMap((alias) => [
+    `${alias}.each([1])("case %s", () => {});`,
+    `${alias}.each\`value\n${1}\`("case", () => {});`,
+  ]))('blocks skipped-alias chains through the bundle: %s', (content) => {
+    const dir = setup();
+    try {
+      mkdirSync(join(dir, 'node_modules'));
+      const compiler = createRequire(import.meta.url).resolve('typescript/package.json');
+      symlinkSync(compiler.slice(0, -'/package.json'.length), join(dir, 'node_modules/typescript'), 'junction');
+      const result = runHook(dir, 'view.test.ts', content);
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain('focused or skipped test detected');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('accepts comment prose through the bundled hook and project compiler', () => {
     const dir = setup();
     try {

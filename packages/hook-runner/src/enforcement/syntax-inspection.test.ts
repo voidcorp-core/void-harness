@@ -19,6 +19,25 @@ function project() {
 }
 
 describe('evidence-aware hooks', () => {
+  it.each(['xit', 'xdescribe'].flatMap((alias) => [
+    `${alias}.each([1])("case %s", () => {});`,
+    `${alias}.each\`value\n${1}\`("case", () => {});`,
+    `(${alias}).each([1])("case", () => {});`,
+    `${alias}['each']([1])("case", () => {});`,
+    `(${alias} as Function)("case", () => {});`,
+  ]))('refuses executable skipped-alias chains: %s', (content) => {
+    expect(evaluateRule('no-focused-test', { tool_name: 'Write', tool_input: {
+      file_path: 'page.test.ts', content,
+    } }, { root: project() }).code).toBe('FOCUSED_OR_SKIPPED_TEST');
+  });
+
+  it.each(['// xit.each([1])', 'const prose = "xdescribe.each([1])";'])
+    ('accepts skipped-alias prose: %s', (content) => {
+      expect(evaluateRule('no-focused-test', { tool_name: 'Write', tool_input: {
+        file_path: 'page.test.ts', content,
+      } }, { root: project() }).allow).toBe(true);
+    });
+
   it('does not grant TDD evidence after the aggregate deadline expires during syntax inspection', () => {
     const root = project();
     writeFileSync(join(root, 'apps/web/src/page.test.tsx'), 'test("page", () => {});');
