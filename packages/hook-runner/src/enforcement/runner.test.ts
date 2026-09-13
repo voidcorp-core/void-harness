@@ -6,7 +6,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   configuredStrings,
   evaluateRule,
@@ -20,6 +20,62 @@ function write(root: string, path: string, content: string): void {
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, content);
 }
+
+describe('complete TDD evidence and operation bounds', () => {
+  it.each(['', '\nexport {};'])('requires coverage when an edit activates commented behavior: %s', (suffix) => {
+    const root = mkdtempSync(join(tmpdir(), 'void-tdd-complete-'));
+    write(root, 'apps/web/src/page.ts', `// export const page = 1;${suffix}\n`);
+    const result = evaluateRule('tdd-order', { tool_name: 'Edit', tool_input: {
+      file_path: 'apps/web/src/page.ts', old_string: '// ', new_string: '',
+    } }, { root });
+    expect(result.code).toBe('TDD_SIBLING_TEST_MISSING');
+    expect(result.message).toContain('// tdd-cover: e2e');
+  });
+
+  it.each([32, 33])('bounds %s governed files before reconstructing a marker-free patch', (count) => {
+    const root = mkdtempSync(join(tmpdir(), 'void-tdd-budget-'));
+    const sections: string[] = [];
+    for (let index = 0; index < count; index += 1) {
+      write(root, `apps/web/src/file${index}.test.ts`, 'test("file", () => {});');
+      sections.push(`*** Add File: apps/web/src/file${index}.ts`, '+export const value = 1;');
+      sections.push(`*** Add File: docs/example${index}.ts`, '+// tdd-cover: invalid example');
+    }
+    const result = evaluateRule('tdd-order', { tool_name: 'apply_patch', tool_input: {
+      patch: ['*** Begin Patch', ...sections, '*** End Patch'].join('\n'),
+    } }, { root });
+    expect(result.code).toBe(count === 32 ? 'ALLOW' : 'TDD_DECLARATION_UNVERIFIED');
+    if (count === 33) expect(result.message).toContain('32');
+  });
+
+  it('refuses excessive governed files before trying unavailable original sources', () => {
+    const root = mkdtempSync(join(tmpdir(), 'void-tdd-unread-'));
+    const sections = Array.from({ length: 33 }, (_, index) =>
+      `*** Update File: apps/web/src/file${index}.ts\n@@\n-old\n+new`);
+    const result = evaluateRule('tdd-order', { tool_name: 'apply_patch', tool_input: {
+      patch: ['*** Begin Patch', ...sections, '*** End Patch'].join('\n'),
+    } }, { root });
+    expect(result.code).toBe('TDD_DECLARATION_UNVERIFIED');
+    expect(result.message).toContain('32');
+    expect(result.message).toContain('split');
+  });
+
+  it.each(['before', 'after'])('refuses at the exact aggregate deadline %s reconstruction', (point) => {
+    const root = mkdtempSync(join(tmpdir(), 'void-tdd-clock-'));
+    write(root, 'apps/web/src/page.test.ts', 'test("page", () => {});');
+    const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(0);
+    if (point === 'after') clock.mockReturnValueOnce(0);
+    clock.mockReturnValue(1_000);
+    try {
+      const result = evaluateRule('tdd-order', { tool_name: 'Write', tool_input: {
+        file_path: 'apps/web/src/page.ts', content: 'export const page = 1;',
+      } }, { root });
+      expect(result.code).toBe('TDD_DECLARATION_UNVERIFIED');
+      expect(result.message).toContain('split');
+    } finally {
+      clock.mockRestore();
+    }
+  });
+});
 
 describe('parseHookPayload', () => {
   it('accepts bounded UTF-8 JSON', () => {
