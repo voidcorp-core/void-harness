@@ -7,7 +7,7 @@ test('renders the complete installed catalogue accessibly at the target viewport
   await expect(page.getByRole('article')).toHaveCount(documents.installed.entries.length);
   await expect(page.getByText('Local installation evidence found.', { exact: false })).toBeVisible();
   for (const label of ['View', 'Search', 'Runtime', 'Pack', 'Type']) {
-    await expect(page.getByLabel(label, { exact: true })).toBeVisible();
+    await expect(page.getByRole(label === 'Search' ? 'searchbox' : 'combobox', { name: label, exact: true })).toBeVisible();
   }
   const violations = (await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze()).violations;
@@ -17,9 +17,9 @@ test('renders the complete installed catalogue accessibly at the target viewport
 
 test('combines filters, explains no matches, and resets the complete catalogue', async ({ page }, info) => {
   await page.goto(urls.installed);
-  await page.getByLabel('Runtime', { exact: true }).selectOption('codex');
-  await page.getByLabel('Pack', { exact: true }).selectOption('core');
-  await page.getByLabel('Type', { exact: true }).selectOption('skill');
+  await page.getByRole('combobox', { name: 'Runtime', exact: true }).selectOption('codex');
+  await page.getByRole('combobox', { name: 'Pack', exact: true }).selectOption('core');
+  await page.getByRole('combobox', { name: 'Type', exact: true }).selectOption('skill');
   await page.getByLabel('Search', { exact: true }).fill('tdd');
   await expect(page.getByRole('heading', { name: 'void-tdd', exact: true })).toBeVisible();
   const visible = page.getByRole('article');
@@ -36,12 +36,12 @@ test('combines filters, explains no matches, and resets the complete catalogue',
   await page.getByRole('button', { name: 'Reset filters' }).click();
   await expect(visible).toHaveCount(documents.installed.entries.length);
   await expect(page.getByLabel('Search', { exact: true })).toHaveValue('');
-  await expect(page.getByLabel('Runtime', { exact: true })).toHaveValue('');
+  await expect(page.getByRole('combobox', { name: 'Runtime', exact: true })).toHaveValue('');
 });
 
 test('distinguishes installed availability from an absent consumer installation', async ({ page }, info) => {
   await page.goto(urls.installed);
-  await page.getByLabel('View', { exact: true }).selectOption('here');
+  await page.getByRole('combobox', { name: 'View', exact: true }).selectOption('here');
   const installedCount = documents.installed.entries.filter(entry =>
     entry.availability.some(fact => fact.state === 'installed')).length;
   expect(installedCount).toBeGreaterThan(0);
@@ -51,7 +51,7 @@ test('distinguishes installed availability from an absent consumer installation'
   await page.goto(urls.absent);
   await expect(page.getByText('No local installation was found.', { exact: false })).toBeVisible();
   await expect(page.getByRole('article')).toHaveCount(documents.absent.entries.length);
-  await page.getByLabel('View', { exact: true }).selectOption('here');
+  await page.getByRole('combobox', { name: 'View', exact: true }).selectOption('here');
   const absentCount = documents.absent.entries.filter(entry =>
     entry.availability.some(fact => fact.state === 'installed')).length;
   await expect(page.getByRole('article')).toHaveCount(absentCount);
@@ -59,7 +59,7 @@ test('distinguishes installed availability from an absent consumer installation'
 
 test('finds capabilities from realistic task phrases', async ({ page }) => {
   await page.goto(urls.installed);
-  await page.getByLabel('View', { exact: true }).selectOption('intent');
+  await page.getByRole('combobox', { name: 'View', exact: true }).selectOption('intent');
   await expect(page.getByText('Describe your task in a few words.', { exact: false })).toBeVisible();
   for (const [phrase, heading] of [
     ['failing test', 'void-debug'], ['public API', 'void-api-and-interface-design'],
@@ -82,8 +82,8 @@ test('distinguishes a disabled skill from a pack that was not installed', async 
   expect(inactive).toBeDefined();
   await expect(page.getByRole('article', { name: inactive.name, exact: true })
     .getByText('claude: inactive-pack', { exact: true })).toBeVisible();
-  await page.getByLabel('View', { exact: true }).selectOption('here');
-  await page.getByLabel('Runtime', { exact: true }).selectOption('claude');
+  await page.getByRole('combobox', { name: 'View', exact: true }).selectOption('here');
+  await page.getByRole('combobox', { name: 'Runtime', exact: true }).selectOption('claude');
   await expect(disabled).toHaveCount(0);
   await expect(page.getByRole('article', { name: inactive.name, exact: true })).toHaveCount(0);
 });
@@ -99,7 +99,7 @@ test('supports keyboard entry, skip navigation, and stable focus while filtering
   await page.reload();
   await page.keyboard.press('Tab');
   await page.keyboard.press('Tab');
-  await expect(page.getByLabel('View', { exact: true })).toBeFocused();
+  await expect(page.getByRole('combobox', { name: 'View', exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
   const search = page.getByLabel('Search', { exact: true });
   await expect(search).toBeFocused();
