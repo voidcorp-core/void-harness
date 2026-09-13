@@ -1,3 +1,5 @@
+import { cheatsheet } from './commands/cheatsheet.js';
+import { commandName, type CommandName } from './lib/command-catalog.js';
 // CLI entry — dispatches to init / add / remove / list / doctor / help.
 
 import { install } from './commands/install.js';
@@ -53,90 +55,40 @@ export async function main(argv: readonly string[]): Promise<void> {
     return;
   }
 
-  switch (cmd) {
-    case 'init':
-      await init(rest);
-      return;
-    case 'runtime':
-      await runtime(rest);
-      return;
-    case 'add':
-      await add(rest);
-      return;
-    case 'remove':
-    case 'rm':
-      await remove(rest);
-      return;
-    case 'list':
-    case 'ls':
-      await list(rest);
-      return;
-    case 'hydrate':
-      await hydrate(rest);
-      break;
-    case 'doctor':
-      await doctor(rest);
-      return;
-    case 'check':
-      await check(rest);
-      return;
-    case 'update':
-      await update(rest);
-      return;
-    case 'install':
-      await install(rest);
-      return;
-    case 'autopilot':
-      await autopilot(rest);
-      return;
-    case 'graph':
-      await graph(rest);
-      return;
-    case 'audit':
-      await audit(rest);
-      return;
-    case 'status':
-      await status(rest);
-      return;
-    case 'projects':
-      await projects(rest);
-      return;
-    case 'ui':
-      await ui(rest);
-      return;
-    case 'resume':
-      await resume(rest);
-      return;
-    case 'adoption':
-      await adoption(rest);
-      return;
-    case 'decisions':
-      await decisions(rest);
-      return;
-    case 'security':
-      await security(rest);
-      return;
-    case 'mission':
-      await mission(rest);
-      return;
-    case 'self-host':
-      await selfHost(rest);
-      return;
-    case 'version':
-    case '--version':
-    case '-v':
-      process.stdout.write(`${version}\n`);
-      return;
-    case 'help':
-    case '--help':
-    case '-h':
-    case undefined:
-      printHelp();
-      return;
-    default: {
-      console.error(`unknown command: ${cmd}\n`);
-      printHelp();
-      process.exit(2);
-    }
+  const name = commandName(cmd);
+  if (name === undefined) {
+    process.stderr.write(`unknown command: ${cmd}\n\n`);
+    printHelp();
+    process.exitCode = 2;
+    return;
   }
+  await HANDLERS[name](rest);
 }
+
+const HANDLERS = {
+  'init': init,
+  'runtime': runtime,
+  'add': add,
+  'remove': remove,
+  'list': list,
+  'status': status,
+  'doctor': doctor,
+  'update': update,
+  'hydrate': hydrate,
+  'check': check,
+  'graph': graph,
+  'autopilot': autopilot,
+  'audit': audit,
+  'projects': projects,
+  'resume': resume,
+  'ui': ui,
+  'adoption': adoption,
+  'decisions': decisions,
+  'mission': mission,
+  'security': security,
+  'self-host': selfHost,
+  'install': install,
+  'cheatsheet': cheatsheet,
+  'version': () => { process.stdout.write(`${version}\n`); },
+  'help': () => printHelp(),
+} satisfies Record<CommandName, (args: readonly string[]) => void | Promise<void>>;
