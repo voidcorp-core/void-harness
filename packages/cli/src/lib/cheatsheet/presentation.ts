@@ -52,7 +52,8 @@ export const enhancement = `(() => {
   form.addEventListener('submit', event => event.preventDefault());
   form.addEventListener('input', update);
   form.addEventListener('change', update);
-  form.addEventListener('reset', () => { queueMicrotask(update); });
+  // The reset event precedes native field restoration; read values before the next paint.
+  form.addEventListener('reset', () => { requestAnimationFrame(update); });
   document.querySelectorAll('[data-copy]').forEach(button => {
     button.hidden = false;
     button.addEventListener('click', async () => {
