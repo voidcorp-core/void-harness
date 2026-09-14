@@ -1490,7 +1490,8 @@ function evaluateRule(rule, rawInput, options) {
   }
   if (rule === "protected-file") {
     if (env["VOID_HARNESS_ALLOW_SECRET_EDIT"] === "1") return allow("OVERRIDE", "one-shot override");
-    return protectedFile(call.edits.map((edit) => edit.path), { root: options.root });
+    const ownership = options.source === "checked-out" ? {} : { root: options.root };
+    return protectedFile(call.edits.map((edit) => edit.path), ownership);
   }
   if (rule === "secret-content") return secretContent(call.edits);
   if (rule === "control-character") return controlCharacter(call.edits);
