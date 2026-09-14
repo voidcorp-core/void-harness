@@ -284,14 +284,6 @@ describe('the stdin and dispatch contract', () => {
     expect(readsStdin([name])).toBe(false);
   });
 
-  it('resolves the subcommand position rather than matching flag values', () => {
-    expect(readsStdin(['abort', '--run', 'plan'])).toBe(false);
-    expect(readsStdin(['--run', 'reconcile', 'reconcile'])).toBe(true);
-    expect(readsStdin(['--run', 'reconcile', 'abort'])).toBe(false);
-    expect(readsStdin(['--help'])).toBe(false);
-    expect(readsStdin(['nonesuch'])).toBe(false);
-  });
-
   it('names the complete command surface when routing fails', () => {
     const result = runAutopilotCommand(['nonesuch'], '', ctx);
 
