@@ -53,6 +53,17 @@ function enforce(rule: string, payload: unknown): { code: number; stderr: string
 }
 
 describe('CI TDD source evidence', () => {
+  it('can inspect the real Autopilot command without exceeding the bounded source reader', () => {
+    const root = join(here, '../../..');
+    const result = spawnSync(process.execPath, [hook, 'enforce-ci', 'tdd-order',
+      'packages/cli/src/commands/autopilot.ts'], {
+      input: '', encoding: 'utf8', cwd: root,
+      env: { ...process.env, VOID_PROJECT_ROOT: root },
+    });
+    expect(result.stderr).not.toContain('TDD_DECLARATION_UNVERIFIED');
+    expect(result.status).toBe(0);
+  });
+
   it.each([true, false])('judges the checked-out declaration instead of diff fragments: %s', (declared) => {
     const root = mkdtempSync(join(tmpdir(), 'void-ci-tdd-'));
     mkdirSync(join(root, 'apps/web/src'), { recursive: true });

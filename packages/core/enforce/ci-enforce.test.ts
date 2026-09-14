@@ -83,6 +83,18 @@ describe('ci-enforce — violations become red annotations', () => {
     expect(stdout).toMatch(/::error file=src\/caf/);
   });
 
+  it.each([false, true])('scans committed installed content instead of blocking ownership: leak=%s', (leak) => {
+    const path = '.codex/hooks.json';
+    write(repo, '.void/install-manifest.json', JSON.stringify({ files: [{ path }] }));
+    write(repo, path, JSON.stringify({ command: leak ? AWS_KEY : 'node runner.mjs' }));
+    git(repo, 'add', '-A');
+    git(repo, 'commit', '-q', '-m', 'installed configuration');
+    const result = run(repo, base);
+    expect(result.code).toBe(leak ? 1 : 0);
+    expect(result.stdout).not.toContain('delivered harness asset');
+    if (leak) expect(result.stdout).toContain('leaked secret');
+  });
+
   it('flags a leaked secret in a new source file', () => {
     write(repo, 'src/config.ts', `export const k = "${AWS_KEY}";\n`);
     git(repo, 'add', '-A');

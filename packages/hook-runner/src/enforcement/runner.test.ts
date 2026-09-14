@@ -207,6 +207,27 @@ describe('evaluateRule', () => {
     expect(claude.allow).toBe(false);
   });
 
+  it.each(['.void/hooks/runner.mjs', '.codex/hooks.json', '.void/PROJECT-DOCTRINE.md'])(
+    'distinguishes an attempted installed-asset edit from a committed diff: %s', (path) => {
+      const root = mkdtempSync(join(tmpdir(), 'void-installed-diff-'));
+      write(root, '.void/install-manifest.json', JSON.stringify({ files: [{ path }] }));
+      const payload = { tool_name: 'Write', tool_input: { file_path: path, content: '{}' } };
+      expect(evaluateRule('protected-file', payload, { root }).allow).toBe(false);
+      expect(evaluateRule('protected-file', payload, { root, source: 'checked-out' }).allow).toBe(true);
+    },
+  );
+
+  it.each(['.env', 'private.key', '.git/config', 'pnpm-lock.yaml'])(
+    'retains protected-path refusal in committed evidence even when installed: %s', (path) => {
+      const root = mkdtempSync(join(tmpdir(), 'void-protected-diff-'));
+      write(root, '.void/install-manifest.json', JSON.stringify({ files: [{ path }] }));
+      const payload = { tool_name: 'Write', tool_input: { file_path: path, content: '' } };
+      const verdict = evaluateRule('protected-file', payload, { root, source: 'checked-out' });
+      expect(verdict.allow).toBe(false);
+      expect(verdict.evidence.join(' ')).not.toContain('delivered harness asset');
+    },
+  );
+
   it('normalizes an argv command before dangerous-command enforcement', () => {
     const verdict = evaluateRule('dangerous-command', {
       tool_name: 'shell',
