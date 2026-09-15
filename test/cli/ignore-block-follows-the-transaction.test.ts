@@ -31,6 +31,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { init } from '../../packages/cli/src/commands/init.js';
+import { update } from '../../packages/cli/src/commands/update.js';
 
 let dir: string;
 let cwd: string;
@@ -119,6 +120,33 @@ describe('the ignore block never outlives a transaction that failed', () => {
 
     const absent = claimedAgentPaths().filter((path) => !existsSync(join(dir, ...path.split('/'))));
     expect(absent).toEqual([]);
+  });
+
+  it('explains that prior layout repair remains after update fails', async () => {
+    await init(['--runtime', 'claude', '--no-interactive']);
+    const legacy = join(dir, '.void/state.json');
+    const migrated = join(dir, '.void/machine/status.json');
+    const bytes = Buffer.from('{"score":1}\n');
+    writeFileSync(legacy, bytes);
+    const philosophy = join(dir, '.void/installed/PHILOSOPHY.md');
+    rmSync(philosophy);
+    mkdirSync(philosophy);
+    const printed: string[] = [];
+    vi.spyOn(process.stdout, 'write').mockImplementation((chunk: string | Uint8Array): boolean => {
+      printed.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString());
+      return true;
+    });
+
+    await expect(update([])).rejects.toThrow(/process\.exit\(1\)/);
+
+    expect(existsSync(legacy)).toBe(false);
+    expect(readFileSync(migrated)).toEqual(bytes);
+    const output = printed.join('');
+    expect(output).toContain('PHILOSOPHY.md');
+    expect(output).toContain('unowned');
+    expect(output).toContain('Prior layout repairs remain applied');
+    expect(output).toContain('outside the install transaction');
+    expect(output).not.toContain('rolled back byte-for-byte');
   });
 
   // The reason the block was written before the transaction in the first place.

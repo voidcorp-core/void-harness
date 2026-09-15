@@ -1,3 +1,4 @@
+import type { DeclarationExtraction } from '../declaration-schema.js';
 import { graphEntityId } from '../../model/v3/ids.js';
 
 export type ProjectFileKind = 'source' | 'test' | 'doc' | 'config' | 'file';
@@ -61,6 +62,7 @@ export interface ProjectFileExtraction {
 	 * static analysis that no amount of fixing the file will remove.
 	 */
 	readonly unresolved: readonly string[];
+	readonly declaration?: DeclarationExtraction;
 	readonly workspace?: ProjectWorkspace;
 	readonly typeScriptConfig?: TypeScriptConfig;
 }
@@ -86,6 +88,10 @@ export interface ProjectScannedFile extends ProjectFileIdentityFields {
 }
 
 export type ProjectBuildIssueCode =
+	| 'knowledge-truncated'
+	| 'knowledge-invalid'
+	| 'knowledge-duplicate'
+	| 'knowledge-reference'
 	| 'binary-file'
 	| 'cache-unavailable'
 	| 'compiler-unavailable'

@@ -30,6 +30,7 @@ const IGNORED_DIRECTORY_NAMES = new Set(['.git', '.next', 'coverage', 'dist', 'n
 	* ignored.
 	*/
 export const PROJECT_JOURNAL_ANCHOR_PREFIX = '.void-journal-anchor-';
+const DECLARATION_DIRECTORIES = new Set(['.void/knowledge', '.void/knowledge/invariants']);
 const INDEXED_VOID_FILES = new Set([
 	'.void/project-doctrine.md',
 	'.void/philosophy.md',
@@ -132,7 +133,12 @@ export function projectPathIsIgnored(path: string): boolean {
 	const segments = comparisonPath.split('/');
 	const voidIndex = segments.indexOf('.void');
 	if (voidIndex > 0) return true;
-	if (voidIndex === 0 && comparisonPath !== '.void' && !INDEXED_VOID_FILES.has(comparisonPath)) {
+	if (
+		voidIndex === 0 && comparisonPath !== '.void' &&
+		!INDEXED_VOID_FILES.has(comparisonPath) &&
+		!DECLARATION_DIRECTORIES.has(comparisonPath) &&
+		!/^\.void\/knowledge\/invariants\/[^/]+\.yaml$/.test(normalized)
+	) {
 		return true;
 	}
 	return (
@@ -365,6 +371,7 @@ async function inspectProjectPath(
 			};
 		}
 		if (stats.isDirectory()) return { status: 'directory' };
+		if (DECLARATION_DIRECTORIES.has(normalized.toLowerCase())) return { status: 'missing' };
 		if (!stats.isFile()) return { status: 'missing' };
 		if (stats.size > boundedMax) {
 			return {
@@ -538,7 +545,7 @@ async function visitProjectEntry(
 		await visitProjectDirectory(context, absolute, path, depth + 1);
 		return;
 	}
-	if (!entry.isFile()) return;
+	if (!entry.isFile() || DECLARATION_DIRECTORIES.has(path.toLowerCase())) return;
 	if (context.files.length >= context.limits.maxFiles) {
 		context.issues.push(issue('file-limit', path, `scan exceeds ${context.limits.maxFiles} files`));
 		context.stopped = true;

@@ -234,6 +234,10 @@ Rules:
 - **Doc ownership is per-runtime.** Each adapter's `wire` writes only its own doctrine doc — a Claude-only project has just `CLAUDE.md`, a Codex-only project just `AGENTS.md`. `doctor` checks only the docs of *detected* runtimes, so a Codex-only project is never dinged for a missing `CLAUDE.md`. (`add` / `remove` still patch whichever docs exist, keeping active docs current.)
 - **`init` wires each selected runtime's layer via its adapter**, gated by `--runtime <claude|codex|both>` (default: auto-detected footprint, else both). Claude receives native project-local skills, agents, commands and hooks; Codex receives `.agents/skills`, native `.codex/agents` and `.codex/hooks.json`. The package is bundled with all CLI runtime dependencies, so a tarball installs offline. `--source marketplace` is opt-in and is the only path that checks `gh`/marketplace access.
 - **Publication is transactional.** `init` seeds only shared merge targets into an isolated stage, compiles and executes each selected adapter's doctor smoke there, then atomically publishes a finite mutation set. Every target is snapshotted before the first write; a failure restores bytes and modes and removes only transaction-created paths. `.void/machine/receipts/install-v1.json` hashes files the install created, already owned, or found already identical byte-for-byte to what it compiled — a managed asset matching our own output is ours, and letting it fall out of the receipt is what made a later version meet an asset it could not recognise. Unowned native conflicts fail unless `--force` (all of them named in one message, not the first alone), and even force never grants deletion ownership over a pre-existing file.
+- **Layout repair survives install failure.** `update` migrates legacy layout before invoking
+  `init`. That idempotent repair is outside the install transaction and remains applied if
+  installation fails. The failure message preserves the underlying error and names this boundary;
+  it does not claim that every failure rolled back or that publication never happened.
 - **Failed installs clean before exiting.** The owned compilation stage is removed before the
   failure exit, as well as after success. A test observes staging paths at the exit boundary:
   throwing from a mocked `process.exit` would otherwise run `finally` and hide a real-process leak.
@@ -674,6 +678,33 @@ unchanged builds and committed renames. A partial or concurrently-mutated build
 keeps the last green cache and stays explicitly `partial`, so downstream context
 selection falls back to source instead of trusting incomplete topology. Git
 proof is the only authority for `previous-id` rename continuity.
+Declared intent is compiled into the same ProjectGraph: direct ADR Markdown files under
+`docs/decisions-log/` produce `decision` nodes, and direct YAML files under
+`.void/knowledge/invariants/` produce `invariant` nodes. The scanner admits only that
+specific hidden directory in addition to its existing public configuration paths. The
+existing descriptor, root, file and aggregate bounds still apply. Modern ADRs declare
+`id`, `title`, `status`, optional `supersedes` and `affects`; historical date/title ADRs
+retain the existing `legacy:<basename>` identity and accepted status. An invariant
+requires `id`, `scope`, `severity`, `statement`, `enforced_by`, `verified_by` and
+`decided_by`; references are explicit file paths or decision IDs, never inferred.
+
+Implementation files point to decisions through `decided_by` and to invariants through
+`constrained_by`; invariants point to verification files through `verified_by` and to
+decisions through `decided_by`. These three spellings extend only binary relation kind
+validation. New intent nodes and relations carry `origin: declared`, confidence 1 and
+the declaring source's exact SHA-256. Supersession is preserved as readable data, with no
+arbitration of contradictory decisions. Duplicate identities, malformed declarations
+and unresolved references produce source diagnostics without inventing entities.
+
+The declarative YAML adapter uses the existing yaml dependency and explicit bounded
+validators inside the graph package, never CLI parsing code. Declaration extraction is
+stored in the existing cache and its new extraction version invalidates older entries.
+`void-harness why <file>` always observes that incremental builder, preserving current
+diagnostics even when `.void/knowledge.json` already exists; it never writes that artifact.
+It renders decisions, invariants and declared verification evidence with provenance,
+explicit absence and partial/degraded caveats. Traversal uses the existing 500-node,
+12-level default; terminal output and diagnostics are bounded with announced truncation.
+
 Seven read-only queries answer the impact and targeted-context questions over an extracted
 snapshot: `explain`, `path`, `impact`, `subgraph`, `owners`, `testsFor`, and `staleness`. Each is
 deterministic, takes a node/depth budget, and reports `truncated` rather than returning a silently
