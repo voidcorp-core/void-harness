@@ -2,12 +2,12 @@
 schemaVersion: 1
 status: executing
 program: autonomous-until-develop
-plan: docs/plans/2026-09-10-native-void-machine-pivot-plan.md
-spec: docs/specs/2026-09-10-native-void-machine-pivot.md
+plan: docs/plans/2026-09-15-approved-six-ticket-cluster-plan.md
+spec: docs/specs/2026-09-15-approved-six-ticket-cluster.md
 progress:
   provider: linear
   scope: voidcorp/DEV/void harness
-  order: [DEV-820]
+  order: [DEV-531, DEV-610, DEV-611, DEV-630, DEV-682, DEV-645]
   states:
     ready: [Backlog, Todo]
     started: [In Progress]
@@ -39,70 +39,22 @@ autopilot:
 
 # Program: autonomous until develop
 
-## Reliability sequence approved on 2026-09-05
+## Scope approved on 14 September 2026
 
-The target direction is [Void Machine](../docs/VOID-MACHINE-VISION.md), supplied
-by Folpe on 2026-09-05. DEV-833 must start by confronting it with the repository
-and applicable decisions, then propose a spec and a migration for approval.
-Recording this vision does not authorize an immediate rewrite or replace the
-executing plan. Historical accepted decisions remain intact.
+The active scope is the six-ticket cluster named by the linked spec and plan.
+Its motion, update-proposal, doctrine-routing and bounded rollback choices were
+approved by Folpe. The native-pivot plan remains historical context; it does not
+select a unit in this pool. Mutable state belongs only to Linear.
 
-Folpe places the reliability sequence before expanding the native kernel:
-DEV-831 repairs preparation review progress; DEV-832 proves the real implement,
-autopilot and brainstorm paths, including interruption and cleanup; DEV-822
-carries reliable test guidance into consumers; DEV-395 finishes the GStack
-teardown; DEV-833 is a brainstorm with Folpe about measured product value.
-Notify Folpe when DEV-833 becomes ready and conduct it together. Do not infer
-approval from green CI or complete this discussion autonomously.
+The programme retains its existing non-production merge grant and protection
+requirements. At most two writers run concurrently; declarations containing
+shared generated assets are sequenced by the orchestration plan. No
+reconcileOnly exception is introduced here. Unit plans must remain compatible
+with the complete provider-native ticket and its current blocker relations.
 
-The complete ordered chain is visible on the open epic
-[DEV-807](https://linear.app/voidcorp/issue/DEV-807), not only in the completed
-DEV-666 audit. Native Linear dependencies own readiness and mutable progress.
-The measurement discussion is now closed as a direction decision. The active
-programme uses the native Void Machine pivot spec and plan. VM-01 through VM-06
-are merged; VM-07 (DEV-820) is the current descriptor and does not authorize a
-native cutover beyond the bounded unit currently in progress.
-
-Implement owns one ticket's risk-appropriate quality cycle. Autopilot owns
-dependency selection, isolation, recovery, resource limits, cleanup and exact
-integration. The DEV-833 discussion compares their added value under controlled
-conditions before choosing further mechanisms; it is not a claim that the
-existing layers have already earned their cost.
-
-This file is the stable global context for the executing program. It deliberately names neither a
-current nor a next work unit. The provider declared under `progress` owns claims, dependencies,
-review state and the remote resume trail; this file only locates that state.
-
-On 2026-09-10, the approved native pivot replaced the unadmitted measurement
-chain as the active delivery path. The campaign artefacts remain versioned
-research history; the execution handoff in the pivot plan owns DEV-820.
-
-The pointer now follows the native Void Machine foundation. VM-03 established
-the portable skill package boundary, VM-04 established durable no-effect proof,
-and VM-05 certified the Codex subscription adapter, while VM-06 certified the
-Claude subscription adapter. The only human
-promotion gate remains the branch that deploys.
-
-`progress.order` is a deterministic tie-break among ready units, not mutable
-execution state. The current order starts with VM-07 after VM-06's merged
-handoff.
-
-The measurement discussion was explicitly concluded on 2026-09-10. No
-per-ticket human gate is declared for the native pivot; promotion to the
-deploying branch remains human.
-
-**Corrections land in the artefact being worked on, never in a successor.** Spec drift is the
-documented failure of this whole family of workflows -- the files stop matching what
-implementation revealed -- and it is caused by deferring. Three corrections went into the spec and
-the plan the day they were found rather than into a "v2": the unconstrained argv, the three causes
-absence conflated, and the six unattended hours nobody could read.
-
-**And a correction names what it touches before it lands.** A correction is local and urgent while
-doctrine is global and quiet, so the cheapest move is to solve the immediate problem and not notice
-that a decision forbade it. Honouring a decision, or touching none, is applied in place and said
-out loud. Contradicting one is not a correction at all: it is a supersession, and it goes through
-the decision file that already exists for that. See the decision on correcting in flight unless it
-supersedes.
+Corrections stay in the artefact being worked on. A change contradicting an
+accepted decision requires supersession, never an in-place rewrite. This scope
+was selected by Folpe; completion never selects or repoints a successor pool.
 
 ## Sources of truth
 
@@ -175,6 +127,8 @@ contracts.
 
 ## Program completion
 
-When all scoped implementation units are done and both human gates were explicitly approved, the
-final program change sets this file's `status` to `completed`. It does not repoint itself to a
+When all six scoped implementation units are verified and delivered into `develop`
+under the declared `union-reviewed` merge gate, the final program change sets this
+file's `status` to `completed`. Promotion to `main` is not a completion prerequisite
+and remains a separate human decision. This program never repoints itself to a
 different plan or progress scope.
