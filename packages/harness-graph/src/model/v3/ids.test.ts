@@ -17,3 +17,11 @@ describe('Graph v3 stable IDs', () => {
     expect(() => graphEntityId('../catalog', 'skill', 'tdd')).toThrow(/GRAPH_ID_INVALID/);
   });
 });
+
+it.each(['decided_by', 'constrained_by', 'verified_by'])('admits the declared relation %s without allowing it as a node kind', kind => {
+ expect(graphRelationId('project', kind, ['project:file:a', 'project:decision:b'])).toContain(`:edge:${kind}:`);
+ expect(() => graphEntityId('project', kind, 'a')).toThrow(/GRAPH_ID_INVALID/);
+});
+it.each(['unknown_kind', 'Decided_by', '_decided_by', 'decided_by/escape'])('still refuses undeclared relation grammar %s', kind => {
+ expect(() => graphRelationId('project', kind, ['a', 'b'])).toThrow(/GRAPH_ID_INVALID/);
+});
