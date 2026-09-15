@@ -13,6 +13,7 @@ import { hydrate } from './commands/hydrate.js';
 import { check } from './commands/check.js';
 import { update } from './commands/update.js';
 import { autopilot } from './commands/autopilot.js';
+import { why } from './commands/why.js';
 import { graph } from './commands/graph.js';
 import { audit } from './commands/audit.js';
 import { status } from './commands/status.js';
@@ -77,6 +78,7 @@ const HANDLERS = {
   'hydrate': hydrate,
   'check': check,
   'graph': graph,
+  'why': why,
   'autopilot': autopilot,
   'audit': audit,
   'projects': projects,

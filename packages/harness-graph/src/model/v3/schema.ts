@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { isGraphRelationKind } from './ids.js';
 import { posix } from 'node:path';
 import {
   GRAPH_SCHEMA_VERSION,
@@ -209,11 +210,13 @@ function node(value: unknown, path: string, budget: JsonBudget): GraphNodeV3 {
 
 function edge(value: unknown, path: string, budget: JsonBudget): GraphEdgeV3 {
   const input = record(value, path, ['id', 'from', 'to', 'kind', 'data', 'provenance']);
+  const relationKind = label(input['kind'], `${path}.kind`, 64);
+  if (!isGraphRelationKind(relationKind)) graphError(`${path}.kind must be a lower-case relation kind`);
   return Object.freeze({
     id: id(input['id'], `${path}.id`),
     from: id(input['from'], `${path}.from`),
     to: id(input['to'], `${path}.to`),
-    kind: kind(input['kind'], `${path}.kind`),
+    kind: relationKind,
     data: data(input['data'], `${path}.data`, budget),
     provenance: provenance(input['provenance'], `${path}.provenance`),
   });

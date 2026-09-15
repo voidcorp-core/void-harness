@@ -180,3 +180,14 @@ describe('Graph v3 delta schema', () => {
     })).toThrow(/dangling/);
   });
 });
+
+it.each(['decided_by', 'constrained_by', 'verified_by'])('roundtrips the declared relation %s while preserving node grammar', relation => {
+ const graph = snapshot();
+ const original = first(graph.edges, 'edge');
+ const edge = { ...original, kind: relation, id: `project:edge:${relation}:${'a'.repeat(32)}` };
+ const sealed = sealGraphSnapshot({ ...graph, edges: [edge] });
+ expect(parseGraphSnapshot(sealed).ok).toBe(true);
+ expect(() => sealGraphSnapshot({ ...graph, nodes: [{ ...first(graph.nodes, 'node'), kind: relation }, ...graph.nodes.slice(1)] })).toThrow(/GRAPH_V3_INVALID/);
+ expect(() => sealGraphSnapshot({ ...graph, edges: [{ ...edge, kind: 'unknown_kind' }] })).toThrow(/GRAPH_V3_INVALID/);
+ expect(() => sealGraphSnapshot({ ...graph, edges: [{ ...edge, id: `project:edge:../escape` }] })).toThrow(/GRAPH_V3_INVALID/);
+});

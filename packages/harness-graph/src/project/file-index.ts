@@ -1,3 +1,4 @@
+import { extractProjectDeclaration } from './extractors/declarations.js';
 import { posix } from 'node:path';
 import { readFileIdentity } from './file-identifier.js';
 import type { ProjectGraphCacheEntry } from './cache.js';
@@ -83,11 +84,13 @@ function extractFile(
 	hash: string,
 	kind: ProjectFileKind,
 ): ProjectFileExtraction {
+	const declaration = extractProjectDeclaration(path, content);
 	const extracted = context.extractor.supports(path)
 		? context.extractor.extract({ path, content, hash, kind })
 		: EMPTY_EXTRACTION;
 	return Object.freeze({
 		...extracted,
+        ...(declaration === undefined ? {} : { declaration }),
 		...workspaceExtraction(context.compilerApi, path, content),
 	});
 }

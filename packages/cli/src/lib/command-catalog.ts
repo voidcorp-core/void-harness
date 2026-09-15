@@ -111,6 +111,10 @@ export const COMMAND_CATALOG = {
       }
     ]
   },
+  "why": {
+    "aliases": [],
+    "help": [{ "signature": "why <file>", "description": "Explain declared decisions, invariants and verification references with provenance; report incomplete knowledge and dangling references." }]
+  },
   "autopilot": {
     "aliases": [],
     "help": [
