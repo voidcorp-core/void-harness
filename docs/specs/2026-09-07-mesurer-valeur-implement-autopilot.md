@@ -107,6 +107,11 @@ condition concernée, même si sa moyenne est bonne. Les défauts non critiques,
 les corrections nécessaires, les interventions, la durée, les ressources et le
 coût sont rapportés séparément.
 
+Une cellule dont l'objectif est une livraison doit produire un diff observable.
+Une sortie runtime réussie avec un diff vide échoue au gate `delivery` et reste
+non admissible, même si le nettoyage et les autres preuves techniques sont
+valides.
+
 Un échec de test est diagnostiqué selon sa cause. Aucun retry n'est utilisé pour
 fabriquer une suite verte. Un runtime ou une ressource indisponible donne un
 résultat `inconnu` ou `bloqué`, jamais un succès. Une correction non résolue au

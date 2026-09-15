@@ -24,6 +24,7 @@ const COMPLETED: WorkerResult = {
       { name: 'code-review', context: 'fresh-context-subagent' },
     ],
   },
+  panel: { provider: 'orchestrator', rounds: [] },
   blocker: null,
 };
 

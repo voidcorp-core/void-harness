@@ -403,6 +403,9 @@ export async function init(args: readonly string[]): Promise<void> {
       force: opts.force,
     });
     await commitFileTransaction(projectRoot, prepared.mutations);
+    for (const path of prepared.restored) {
+      line(`${c.yellow('!')}  restored ${path} from the delivered harness`);
+    }
     line(`${c.green(glyph.check)}  ${c.dim('transaction'.padEnd(18))}${prepared.receipt.files.length} owned files committed + receipt written`);
     // Now that the receipt exists, the block may name what it owns. Read from
     // the receipt rather than the stage: the stage is what we meant to write,

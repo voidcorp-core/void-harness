@@ -1,4 +1,5 @@
 import { posix } from 'node:path';
+import { readFileIdentity } from './file-identifier.js';
 import type { ProjectGraphCacheEntry } from './cache.js';
 import { classifyProjectFile, projectPathIsIgnored } from './extractors/filesystem.js';
 import type {
@@ -18,13 +19,13 @@ import {
 } from './project-build-context.js';
 
 /**
- * Scan issues that exclude a named path deterministically, rather than casting
- * doubt on the path set as a whole.
- *
- * The distinction is the whole point: a truncated scan cannot say what it missed,
- * so nothing built on it can be verified. A file the scan deliberately stepped
- * over is fully accounted for, and every later observation steps over it too.
- */
+	* Scan issues that exclude a named path deterministically, rather than casting
+	* doubt on the path set as a whole.
+	*
+	* The distinction is the whole point: a truncated scan cannot say what it missed,
+	* so nothing built on it can be verified. A file the scan deliberately stepped
+	* over is fully accounted for, and every later observation steps over it too.
+	*/
 const STABLE_SCAN_ISSUE_CODES: ReadonlySet<ProjectBuildIssue['code']> = new Set([
 	'oversized-file',
 	'symlink-skipped',
@@ -95,8 +96,10 @@ function refreshedEntry(
 	previous: ProjectGraphCacheEntry,
 	file: ProjectScannedFile,
 ): ProjectGraphCacheEntry {
+	const { identity: _oldIdentity, device: _oldDevice, inode: _oldInode, ...content } = previous;
 	return Object.freeze({
-		...previous,
+		...content,
+		...(file.identity === undefined ? {} : { identity: file.identity }),
 		...(file.device === undefined ? {} : { device: file.device }),
 		...(file.inode === undefined ? {} : { inode: file.inode }),
 		size: file.size,
@@ -112,6 +115,7 @@ function extractedEntry(
 ): ProjectGraphCacheEntry {
 	return Object.freeze({
 		path: file.path,
+		...(file.identity === undefined ? {} : { identity: file.identity }),
 		...(file.device === undefined ? {} : { device: file.device }),
 		...(file.inode === undefined ? {} : { inode: file.inode }),
 		size: file.size,
@@ -218,14 +222,9 @@ function pathRequiresFullIndex(context: ProjectBuildContext, path: string): bool
 }
 
 function sameFileIdentity(previous: ProjectGraphCacheEntry, current: ProjectScannedFile): boolean {
-	return (
-		previous.device !== undefined &&
-		previous.inode !== undefined &&
-		current.device !== undefined &&
-		current.inode !== undefined &&
-		previous.device === current.device &&
-		previous.inode === current.inode
-	);
+	const left = readFileIdentity(previous);
+	const right = readFileIdentity(current);
+	return left !== undefined && right !== undefined && left.device === right.device && left.inode === right.inode;
 }
 
 async function inspectChangedPath(
@@ -308,14 +307,14 @@ function validateIndexBudget(
 }
 
 /**
- * Did the tree move between the two observations?
- *
- * A scanned path that was never indexed is not evidence of a mutation when the
- * read refused it for a stable reason — binary content, a size or permission
- * refusal. Those paths are listed by every scan and indexed by none. Counting
- * them as drift turns one unreadable file into a `concurrent-change` against the
- * whole project, which is both false and alarming.
- */
+	* Did the tree move between the two observations?
+	*
+	* A scanned path that was never indexed is not evidence of a mutation when the
+	* read refused it for a stable reason — binary content, a size or permission
+	* refusal. Those paths are listed by every scan and indexed by none. Counting
+	* them as drift turns one unreadable file into a `concurrent-change` against the
+	* whole project, which is both false and alarming.
+	*/
 function sameIndexedPaths(
 	entriesByPath: ReadonlyMap<string, ProjectGraphCacheEntry>,
 	scanned: readonly ProjectScannedFile[],

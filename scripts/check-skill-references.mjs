@@ -23,8 +23,9 @@
 // Exported: extractReferences, danglingReferences -- pure, unit-tested.
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, resolve, dirname } from 'node:path';
+import { basename, join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { prefixedTokens } from './build-skill-references.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CATALOGUE = resolve(ROOT, 'packages/core/data/model.json');
@@ -51,6 +52,8 @@ const SURFACES = [
   'docs/PHILOSOPHY.md',
   'packages/core/PHILOSOPHY.md',
   'packages/core/PROJECT-DOCTRINE.template.md',
+  'packages/core/.claude-plugin/plugin.json',
+  'packages/cli/core-assets/.claude-plugin/plugin.json',
   'docs/HARNESS_EVOLUTION.md',
   'docs/CHEATSHEET.md',
   'packages/core/skills',
@@ -70,6 +73,17 @@ export function extractReferences(text) {
 }
 
 /**
+ * Live plugin descriptions use the mandatory skill prefix. Ordinary English
+ * words cannot establish a reference: guessing "plan" or "context" would hide
+ * stale names behind false positives. The exact product name is not a skill.
+ * Retired names deliberately remain candidates; only the live catalogue admits.
+ */
+export function extractPluginReferences(description) {
+  return prefixedTokens(typeof description === 'string' ? description : '')
+    .filter((name) => name !== 'void-harness');
+}
+
+/**
  * The references resolving to nothing. `known` holds skills, agents, commands
  * and packs alike: they share one spelling, so splitting them would report every
  * agent as dangling.
@@ -86,7 +100,8 @@ function walk(path, seen = []) {
     return seen;
   }
   if (entry.isFile()) {
-    if (/\.(?:md|source)$/.test(path) && !path.includes('.test.')) seen.push(path);
+    if ((/\.(?:md|source)$/.test(path) || basename(path) === 'plugin.json')
+      && !path.includes('.test.')) seen.push(path);
     return seen;
   }
   for (const child of readdirSync(path)) {
@@ -105,9 +120,18 @@ function main() {
   const known = knownNames();
   const namespaced = [];
   const dangling = [];
+  const pluginMissing = [];
   for (const surface of SURFACES) {
     for (const file of walk(resolve(ROOT, surface))) {
-      const found = extractReferences(readFileSync(file, 'utf8'));
+      const contents = readFileSync(file, 'utf8');
+      const plugin = basename(file) === 'plugin.json';
+      const text = plugin ? JSON.parse(contents)?.description : contents;
+      if (typeof text !== 'string') continue;
+      if (plugin) {
+        const missing = danglingReferences(extractPluginReferences(text), known);
+        if (missing.length > 0) pluginMissing.push({ file: file.slice(ROOT.length + 1), names: missing });
+      }
+      const found = extractReferences(text);
       if (found.length === 0) continue;
       const relative = file.slice(ROOT.length + 1);
       namespaced.push({ file: relative, names: found });
@@ -117,9 +141,9 @@ function main() {
       if (missing.length > 0) dangling.push({ file: relative, names: missing });
     }
   }
-  if (namespaced.length === 0) {
+  if (namespaced.length === 0 && pluginMissing.length === 0) {
     process.stdout.write(
-      `check-skill-references: no namespaced reference in the live surfaces (${String(known.size)} known names).\n`,
+      `check-skill-references: live surfaces and plugin descriptions resolve (${String(known.size)} known names).\n`,
     );
     return;
   }
@@ -129,10 +153,15 @@ function main() {
   for (const { file, names } of dangling) {
     process.stderr.write(`${file}: ${names.join(', ')} names nothing in the catalogue either\n`);
   }
-  process.stderr.write(
-    '\ncheck-skill-references: the names above carry a namespace no local install resolves.\n'
-    + 'Write the bare name; the invocation syntax belongs to the runtime, not to the doctrine.\n',
-  );
+  if (namespaced.length > 0) {
+    process.stderr.write(
+      '\ncheck-skill-references: the names above carry a namespace no local install resolves.\n'
+      + 'Write the bare name; the invocation syntax belongs to the runtime, not to the doctrine.\n',
+    );
+  }
+  for (const { file, names } of pluginMissing) {
+    process.stderr.write(`${file}: ${names.join(', ')} names no live skill; correct the plugin description.\n`);
+  }
   process.exitCode = 1;
 }
 

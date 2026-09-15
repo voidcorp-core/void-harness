@@ -23,3 +23,9 @@ https://github.com/voidcorp-core/void-harness/blob/main/docs/PROJECT-DOCTRINE-FO
     success.
   - **Enforced by**: test architecture, CI inventory gates, `void-testing`, `void-debug`, and code
     review.
+
+## Hard rules
+
+- **Linear outbound reports**: publish only an operational summary and links to the PR or CI; keep implementation details, internal paths, and detailed test results in review artefacts. If the outbound control rejects a detailed payload, reduce the content without attempting a workaround.
+  - **Why**: detailed Linear comments are repeatedly refused when they publish internal repository context; a short status plus linked evidence keeps the tracker useful and safe.
+  - **Enforced by**: `void-learn` and manual outbound review.

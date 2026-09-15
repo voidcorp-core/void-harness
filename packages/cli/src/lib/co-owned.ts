@@ -1,8 +1,8 @@
 // Files the harness and the project both write into.
 //
 // A managed asset is ours alone: `update` recompiles it, and the transaction
-// refuses to overwrite one that was edited by hand, because the edit belongs to
-// somebody. A co-owned file is the opposite arrangement -- the harness owns
+// restores and reports local edits when prior ownership is attested.
+// A co-owned file is the opposite arrangement -- the harness owns
 // exactly its marked block and the project owns every other line, so an edit
 // outside the block is the file being used as intended, not damage.
 //

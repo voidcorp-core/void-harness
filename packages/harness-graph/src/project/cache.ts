@@ -3,6 +3,7 @@ import { realpathSync } from 'node:fs';
 import { normalizeProjectPath } from './extractors/filesystem.js';
 import type {
 	ProjectFileExtraction,
+	ProjectFileIdentityFields,
 	ProjectFileKind,
 	ProjectRootIdentity,
 } from './extractors/types.js';
@@ -14,10 +15,8 @@ const CACHE_SCHEMA_VERSION = 1 as const;
 const DEFAULT_MEMORY_CACHE_ENTRIES = 16;
 const MAX_MEMORY_CACHE_ENTRIES = 1_024;
 
-export interface ProjectGraphCacheEntry {
+export interface ProjectGraphCacheEntry extends ProjectFileIdentityFields {
 	readonly path: string;
-	readonly device?: number;
-	readonly inode?: number;
 	readonly size: number;
 	readonly mtimeMs: number;
 	readonly ctimeMs?: number;

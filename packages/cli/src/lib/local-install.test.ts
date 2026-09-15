@@ -1,8 +1,11 @@
+import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -57,6 +60,21 @@ describe('conflictMessage', () => {
 });
 
 describe('local install staging', () => {
+  it.each(['symlink', 'directory'])('refuses an ambiguous %s before withholding project files', async (kind) => {
+    const root = scratch('void-project-');
+    const stage = scratch('void-stage-');
+    const path = '.claude/skills/void-tdd/SKILL.md';
+    mkdirSync(join(root, '.claude/skills/void-tdd'), { recursive: true });
+    mkdirSync(join(stage, '.claude/skills/void-tdd'), { recursive: true });
+    writeFileSync(join(stage, path), '# shipped');
+    if (kind === 'directory') mkdirSync(join(root, path));
+    else {
+      writeFileSync(join(root, 'target.md'), '# project');
+      symlinkSync(join(root, 'target.md'), join(root, path));
+    }
+    await expect(withholdProjectOwned(root, stage)).rejects.toThrow(/unowned asset conflict/);
+    expect(readFileSync(join(stage, path), 'utf8')).toBe('# shipped');
+  });
   it('seeds only shared files needed for non-destructive merges', async () => {
     const root = scratch('void-project-');
     const stage = scratch('void-stage-');
@@ -282,10 +300,9 @@ describe('a first install onto a project that already has skills', () => {
     expect(withheld).toEqual(['.claude/skills/frontend-design/SKILL.md']);
   });
 
-  it('still refuses when the path IS ours and was edited', async () => {
+  it('restores and reports an edited path that the previous receipt claimed', async () => {
     // The distinction is per path, not per install: a receipt that owns this exact
     // path means the file is our asset, and a difference means someone changed it.
-    // That is DEV-647's question, and its answer must not be pre-empted here.
     const root = scratch('void-project-');
     const stage = scratch('void-stage-');
     const path = '.claude/skills/frontend-design/SKILL.md';
@@ -300,6 +317,56 @@ describe('a first install onto a project that already has skills', () => {
       })),
     );
 
-    await expect(withExistingSkill(root, stage)).rejects.toThrow(/unowned asset conflict/);
+    const prepared = await withExistingSkill(root, stage);
+    await commitFileTransaction(root, prepared.mutations);
+    expect(prepared.restored).toEqual([path]);
+    expect(readFileSync(join(root, path), 'utf8')).toBe('# ours\n');
+    expect(prepared.receipt.files.map((file) => file.path)).toContain(path);
+  });
+
+  it.each([false, true])('reports corrected hook permissions with a rehydrated receipt: %s', async (rehydrated) => {
+    const root = scratch('void-project-');
+    const stage = scratch('void-stage-');
+    const path = '.void/hooks/check.sh';
+    const content = '#!/bin/sh\nexit 0\n';
+    for (const base of [root, stage]) {
+      mkdirSync(join(base, '.void/hooks'), { recursive: true });
+      writeFileSync(join(base, path), content);
+    }
+    chmodSync(join(root, path), 0o644);
+    chmodSync(join(stage, path), 0o755);
+    writeFileSync(join(root, '.void/install-manifest.json'), JSON.stringify({
+      schemaVersion: 1, version: '3.1.1',
+      files: [{ path, sha256: createHash('sha256').update(content).digest('hex') }],
+    }));
+    if (rehydrated) {
+      mkdirSync(join(root, '.void/machine/receipts'), { recursive: true });
+      writeFileSync(join(root, INSTALL_RECEIPT_PATH), encodeReceipt(buildInstallReceipt({
+        version: '3.1.1', source: 'local', runtimes: ['claude'],
+        files: [{ path, content: Buffer.from(content), mode: 0o644 }],
+      })));
+    }
+    const prepared = await prepareInstallCommit({
+      projectRoot: root, stageRoot: stage, version: '3.2.0',
+      source: 'local', runtimes: ['claude'], force: false,
+    });
+    expect(prepared.restored).toEqual([path]);
+    expect(prepared.mutations).toContainEqual({ path, content: Buffer.from(content), mode: 0o755 });
+  });
+
+  it('restores a manifest-owned path even after the local receipt is lost', async () => {
+    const root = scratch('void-project-');
+    const stage = scratch('void-stage-');
+    const path = '.claude/skills/frontend-design/SKILL.md';
+    mkdirSync(join(root, '.void'), { recursive: true });
+    writeFileSync(join(root, '.void/install-manifest.json'), JSON.stringify({
+      schemaVersion: 1, version: '3.1.1',
+      files: [{ path, sha256: 'a'.repeat(64) }],
+    }));
+    const prepared = await withExistingSkill(root, stage);
+    await commitFileTransaction(root, prepared.mutations);
+    expect(prepared.restored).toEqual([path]);
+    expect(readFileSync(join(root, path), 'utf8')).toBe('# ours\n');
+    expect(prepared.receipt.files.map((file) => file.path)).toContain(path);
   });
 });

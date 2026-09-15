@@ -2195,7 +2195,7 @@
         }
       ],
       "id": "skill:void-implement",
-      "lines": 177,
+      "lines": 182,
       "name": "void-implement",
       "owner": "folpe",
       "pack": null,
@@ -2204,7 +2204,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-implement/SKILL.md",
-      "staticTokens": 5255,
+      "staticTokens": 5351,
       "type": "skill"
     },
     {
@@ -2663,7 +2663,7 @@
         }
       ],
       "id": "skill:void-tdd",
-      "lines": 387,
+      "lines": 394,
       "name": "void-tdd",
       "owner": "folpe",
       "pack": null,
@@ -2672,7 +2672,7 @@
         "codex"
       ],
       "source": "packages/core/skills/void-tdd/SKILL.md",
-      "staticTokens": 3655,
+      "staticTokens": 3771,
       "type": "skill"
     },
     {

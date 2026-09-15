@@ -10,6 +10,7 @@ import {
   type HookPhase,
 } from './runtime-input.js';
 import { writeSequencedEvent } from './sequenced-writer.js';
+import { resolveTelemetryRoot } from './project-roots.js';
 
 export interface RecordRuntimeEventOptions {
   readonly root: string;
@@ -103,10 +104,13 @@ export async function recordRuntimeEventFromCli(
   argv: readonly string[],
   env: Readonly<Record<string, string | undefined>>,
 ): Promise<void> {
+  const explicitRoot = env['VOID_PROJECT_ROOT'] ?? env['CLAUDE_PROJECT_DIR'];
+  const destination = explicitRoot === undefined
+    ? resolveTelemetryRoot(process.cwd())
+    : { kind: 'resolved' as const, root: explicitRoot };
+  if (destination.kind === 'unavailable') throw new Error(destination.code);
   await recordRuntimeEvent({
-    root: env['VOID_PROJECT_ROOT']
-      ?? env['CLAUDE_PROJECT_DIR']
-      ?? process.cwd(),
+    root: destination.root,
     runtime: runtime(argv[3] ?? env['VOID_AGENT_RUNTIME']),
     phase: phase(argv[2]),
     rawInput: raw,

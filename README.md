@@ -79,6 +79,12 @@ review in their own fresh context.
 what it is for, with what each hook actually blocks. It is generated from the
 same catalogue these counts come from, so it cannot drift from what ships.
 
+To explore that catalogue alongside your project's installation evidence, run
+`void-harness cheatsheet > cheatsheet.html`. Open the resulting file offline:
+search by intention, filter by runtime, pack or type, and copy invocations.
+`--format markdown` and `--format json` export the same information. Inspection
+writes only to stdout; creating the file is your shell redirection.
+
 For your own project rather than the catalogue, `npx voidharness status` reports
 what is installed, active and actually used.
 
@@ -236,6 +242,13 @@ doctrine floor only; keep your own lint and test CI.
   assets remain the default.
 
 ## Contributing
+
+Source maintainers: consult the [Linear idea index](docs/LINEAR-INDEX.md) before
+revisiting backlog decisions. After a confirmed Linear issue or comment write,
+follow its incremental-refresh procedure; a local failure never replays the
+remote write. The index and `pnpm backlog:index` are private-workspace tooling,
+excluded from consumer installations. Export data stays under the source-only
+ignore rules in `.void/.gitignore`.
 
 ```bash
 pnpm install

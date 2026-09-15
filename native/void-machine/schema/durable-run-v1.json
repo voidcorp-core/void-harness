@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voidcorp.io/void-machine/durable-run-v1.json",
+  "title": "Void Machine durable no-effect run",
+  "type": "object",
+  "required": ["schemaVersion", "runId", "phase", "revision", "leaseToken", "budgetRemaining", "authoritativeEffects"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "runId": { "type": "string", "minLength": 1 },
+    "phase": { "enum": ["reserved", "running", "completed", "aborted"] },
+    "revision": { "type": "integer", "minimum": 0 },
+    "leaseToken": { "type": "string", "minLength": 1 },
+    "budgetRemaining": { "type": "integer", "minimum": 0 },
+    "proofDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "authoritativeEffects": { "const": 0 }
+  },
+  "additionalProperties": false
+}

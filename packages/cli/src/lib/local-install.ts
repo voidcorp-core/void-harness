@@ -15,6 +15,7 @@ import {
   buildInstallManifest,
   INSTALL_MANIFEST_PATH,
   parseInstallManifest,
+  readInstallManifest,
   sha256Of,
 } from './install-manifest.js';
 import {
@@ -81,7 +82,7 @@ export async function seedInstallStage(projectRoot: string, stageRoot: string): 
 
 /**
  * Remove from the stage every managed path the project already fills, and name
- * them — but only on a first install.
+ * them, on first install and subsequent updates alike.
  *
  * A project that already carried skills could not install at all: `init` ran to
  * the end, met a name it shares with one of ours, and rolled everything back.
@@ -92,9 +93,8 @@ export async function seedInstallStage(projectRoot: string, stageRoot: string): 
  * does not list it, the receipt does not own it, and no later update mistakes it
  * for an asset of ours that someone edited.
  *
- * A receipt or a committed manifest means we have installed here before, and the
- * same situation becomes ambiguous — the file may be ours, edited. That question
- * belongs to the update path, which keeps refusing.
+ * Receipt or manifest ownership is checked per path. Previously claimed paths
+ * stay staged so the transaction can restore and report local edits.
  */
 export async function withholdProjectOwned(
   projectRoot: string,
@@ -122,6 +122,9 @@ export async function withholdProjectOwned(
     const target = join(projectRoot, ...file.path.split('/'));
     const info = await infoOrUndefined(target);
     if (info === undefined) continue;
+    if (info.isSymbolicLink() || !info.isFile()) {
+      throw new Error(`unowned asset conflict at non-regular file ${file.path}`);
+    }
     if (info.isFile() && !info.isSymbolicLink()) {
       const current = await readFile(target);
       // Identical bytes are not a collision: it is the same content, so installing
@@ -179,6 +182,8 @@ export interface PrepareInstallInput {
 export interface PreparedInstall {
   readonly mutations: readonly FileMutation[];
   readonly receipt: InstallReceipt;
+  /** Previously claimed managed files whose local edits this transaction restores. */
+  readonly restored: readonly string[];
   /**
    * Assets the previous receipt owned that this install refuses to remove,
    * because their bytes no longer match what we wrote. Kept on purpose, and
@@ -234,10 +239,13 @@ export async function prepareInstallCommit(input: PrepareInstallInput): Promise<
   const staged = await collectStageFiles(input.stageRoot);
   const previous = await readInstallReceipt(input.projectRoot);
   const previousFiles = new Map((previous?.files ?? []).map((file) => [file.path, file]));
+  const manifest = readInstallManifest(input.projectRoot);
+  const manifestFiles = new Map((manifest?.files ?? []).map((file) => [file.path, file]));
   const stagedPaths = new Set(staged.map((file) => file.path));
   const owned: ReceiptFileInput[] = [];
   const mutations: FileMutation[] = [];
   const conflicts: string[] = [];
+  const restored: string[] = [];
 
   for (const file of staged) {
     const target = join(input.projectRoot, ...file.path.split('/'));
@@ -253,12 +261,17 @@ export async function prepareInstallCommit(input: PrepareInstallInput): Promise<
     const changed = current === undefined
       || !current.equals(Buffer.from(file.content))
       || (currentMode & 0o777) !== file.mode;
+    const claimedManaged = isManaged(file.path) && (
+      priorOwnership !== undefined || manifestFiles.has(file.path)
+      || (file.path === INSTALL_MANIFEST_PATH && manifest !== undefined)
+    );
 
     if (
       changed
       && current !== undefined
       && isManaged(file.path)
       && !stillOwned
+      && !claimedManaged
       && !input.force
     ) {
       // Collected rather than thrown on. Rendered one at a time, the operator
@@ -268,13 +281,23 @@ export async function prepareInstallCommit(input: PrepareInstallInput): Promise<
       continue;
     }
     if (changed) mutations.push({ path: file.path, content: file.content, mode: file.mode });
+    if (changed && current !== undefined && claimedManaged) {
+      const attested = manifestFiles.get(file.path);
+      // Rehydration attests current permissions, not delivered ones. Report any
+      // mode correction even when that reconstructed receipt matches the disk.
+      if ((currentMode & 0o777) !== file.mode || (!stillOwned && (
+        priorOwnership !== undefined || (attested !== undefined && digest(current) !== attested.sha256)
+      ))) {
+        restored.push(file.path);
+      }
+    }
     // Bytes and mode identical to what we just compiled are proof enough of
     // ownership for a managed asset: whoever wrote that file wrote ours. Without
     // this, a file the install had nothing to write left the receipt in silence,
     // and the first version to change it met an asset it could not recognise.
     // Managed only -- a shared file is co-owned, and claiming one would licence
     // deleting it at the next update.
-    if (current === undefined || stillOwned || (!changed && isManaged(file.path))) owned.push(file);
+    if (current === undefined || stillOwned || claimedManaged || (!changed && isManaged(file.path))) owned.push(file);
   }
 
   if (conflicts.length > 0) throw new Error(conflictMessage(conflicts));
@@ -313,5 +336,5 @@ export async function prepareInstallCommit(input: PrepareInstallInput): Promise<
     content: Buffer.from(encodeReceipt(receipt)),
     mode: 0o644,
   });
-  return { mutations, receipt, preserved };
+  return { mutations, receipt, preserved, restored };
 }

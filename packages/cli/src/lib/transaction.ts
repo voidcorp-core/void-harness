@@ -126,7 +126,10 @@ export async function commitFileTransaction(
   });
   for (const { mutation } of targets) await rejectSymlinkPath(root, mutation.path);
 
-  const transactionRoot = await mkdtemp(join(dirname(root), `.${basename(root)}.void-tx-`));
+	// Keep the rollback workspace inside the project root. A consumer checkout may
+	// grant write access only to its root, so placing it beside the root makes a
+	// valid transaction fail before its first mutation.
+	const transactionRoot = await mkdtemp(join(root, `.${basename(root)}.void-tx-`));
   const snapshots: Snapshot[] = [];
   const createdDirectories = new Set<string>();
   try {

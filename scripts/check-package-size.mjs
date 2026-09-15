@@ -47,7 +47,9 @@ export const PACKAGE_LIMITS = Object.freeze({
   // was carrying their weight without their value; and the previous ceiling was
   // met exactly, to the byte, which means it had stopped warning anyone and was
   // going to refuse the next commit whatever it contained.
-  voidharness: 900_000,
+  // DEV-738 measured 901.1 kB after adding verified worker journal routing.
+  // Retain a bounded 20 kB margin for this safety behavior; no payload omitted.
+  voidharness: 920_000,
   '@voidcorp/harness-graph': 120_000,
   '@voidcorp/pack-monorepo': 20_000,
   '@voidcorp/pack-nextjs': 20_000,

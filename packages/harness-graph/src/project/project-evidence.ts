@@ -1,3 +1,4 @@
+import { readFileIdentity } from './file-identifier.js';
 import { createHash } from 'node:crypto';
 import type { ProjectGraphCacheEntry, ProjectGraphTombstone } from './cache.js';
 import type {
@@ -77,6 +78,7 @@ function snapshotManifest(entries: readonly ProjectGraphCacheEntry[]): readonly 
 	return entries.map((entry) =>
 		Object.freeze({
 			path: entry.path,
+			identity: readFileIdentity(entry) ?? null,
 			device: entry.device ?? null,
 			inode: entry.inode ?? null,
 			size: entry.size,

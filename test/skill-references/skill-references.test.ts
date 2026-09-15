@@ -1,5 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { danglingReferences, extractReferences } from '../../scripts/check-skill-references.mjs';
+import { danglingReferences, extractPluginReferences, extractReferences } from '../../scripts/check-skill-references.mjs';
+
+describe('plugin description references', () => {
+  it('resolves explicit skill names without guessing the meaning of ordinary words', () => {
+    expect(extractPluginReferences('plan context testing functional harness-react void-harness void-tdd'))
+      .toEqual(['void-tdd']);
+  });
+
+  it('retains unknown and retired explicit names for catalogue validation', () => {
+    expect(extractPluginReferences('void-does-not-exist void-compounding void-does-not-exist'))
+      .toEqual(['void-compounding', 'void-does-not-exist']);
+  });
+
+  it('shares identifier boundaries and exempts only the exact product name', () => {
+    expect(extractPluginReferences('_void-tdd custom-void-tdd void-harness-extra'))
+      .toEqual(['void-harness-extra']);
+  });
+
+  it('accepts empty or missing descriptions', () => {
+    expect(extractPluginReferences('')).toEqual([]);
+    expect(extractPluginReferences(undefined)).toEqual([]);
+  });
+});
 
 // A skill's identity is its directory name, and that name is copied by hand into
 // routing tables, commands, sourcing notes and hooks. Renaming `session-handoff`

@@ -19,13 +19,14 @@ export interface CodexSpecialistInvocationInput extends SpecialistInvocationInpu
 
 export interface CodexAdapterConfig {
   readonly timeoutMs: number;
+  /** Retries are opt-in because a second subscription run is not free evidence. */
   readonly retries: number;
   readonly sandbox: 'read-only' | 'workspace-write';
 }
 
 export const DEFAULT_CODEX_ADAPTER: CodexAdapterConfig = {
   timeoutMs: 180_000,
-  retries: 1,
+  retries: 0,
   sandbox: 'workspace-write',
 };
 

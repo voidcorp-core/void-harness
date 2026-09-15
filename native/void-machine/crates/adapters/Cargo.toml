@@ -1,0 +1,10 @@
+[package]
+name = "void-machine-adapters"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+void-machine-core = { path = "../core" }
+void-machine-host = { path = "../host" }
+

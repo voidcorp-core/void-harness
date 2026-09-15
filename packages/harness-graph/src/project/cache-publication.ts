@@ -4,10 +4,10 @@ import { assembleProjectGraph, exceedsProjectGraphBudget } from './graph-assembl
 import {
 	distinctProjectIssues,
 	NON_DEGRADING_ISSUE_CODES,
+	type ProjectBuildContext,
 	projectBuildIssue,
 	projectPeakHeapDelta,
 	sampleProjectHeap,
-	type ProjectBuildContext,
 	validateProjectRoot,
 } from './project-build-context.js';
 import type { ProjectBuildEvidence } from './project-evidence.js';
@@ -43,10 +43,8 @@ function assembleRendering(
 		renderRootOnly ? [] : evidence.tombstones,
 		evidence.git,
 		state,
-		distinctProjectIssues(context.ledger.issues).length,
 		context.projectRoot.caseSensitive,
 		evidence.configsByPath,
-		evidence.snapshot.id,
 		context.compiler,
 	);
 }

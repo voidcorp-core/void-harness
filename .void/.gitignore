@@ -1,0 +1,3 @@
+# Source-maintainer data, never part of the consumer install.
+/machine/linear-index/
+/machine/linear-export*.json

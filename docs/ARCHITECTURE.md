@@ -111,6 +111,12 @@ held more data in one journal and far less in another, so no rule picks
 correctly. It runs only inside `update`: writing to a project nobody asked to
 have written to is the line this repo does not cross.
 
+The managed ignore block retains both historical journal locations, `.void/runs/`
+and `.void/local/`, alongside `.void/machine/`. Refreshing an installation keeps
+old observed data out of future staging without hiding declared project files.
+Ignore rules do not remove already-tracked journals; history and tracked-file
+cleanup remain explicit project decisions.
+
 ### Two roots: the work tree and the installation
 
 A command reads and writes code in the **work tree**, the directory it ran in. It also reads what
@@ -175,7 +181,30 @@ storage dependency.
 
 The harness assumes **TypeScript + web**. The core is not framework-agnostic across language families. See `docs/PHILOSOPHY.md` § "Stack assumption".
 
-A future Rust/Go/Python flavor lives in a sibling repo, reusing mechanics not skills.
+The Void Machine native track is the bounded exception: `native/void-machine/`
+contains a Rust workspace for the read-only doctor kernel and host adapter. It
+shares no TypeScript runtime code and is exposed through a thin compatibility
+launcher; platform binaries are built by their native lane rather than bundled
+into the universal npm tarball. A future independent Rust/Go/Python product
+could still live in a sibling repo, reusing mechanics not skills.
+
+The native machine's external Git boundary is split the same way: the Rust core
+defines a provider-neutral effect identity, fencing state machine, and immutable
+commit proof, while the host adapter observes commit ranges and hashes shared
+repository state without retaining its contents. The CLI's SQLite ledger is the
+durable outbox for those effects; a claimed effect cannot be replayed under a
+different fence, and an ambiguous command is closed until a human resolves it.
+The Rust core also owns bounded cluster reconciliation: worker reports must cover
+the declared ticket set, completed work must carry review provenance and observed
+files must stay within declared footprints. Parallel collisions are rejected,
+declared sequential collisions are accepted, and the reconciliation ledger makes
+resume idempotent by refusing a ticket that was already accepted.
+The merge boundary follows the same fail-closed rule: the native policy requires
+positive branch protection, green checks and a fresh clean review on the exact
+head, emits one non-forced `gh pr merge --match-head-commit` command, and records
+the merge once. A target that is missing, protected without required checks, equal
+to or indistinguishable from the deploying branch, or subject to a human gate is
+refused before any remote mutation.
 
 ## Stack profile compilation
 
@@ -227,6 +256,12 @@ Rules:
   answers which side a file is on. A skill the harness does not ship is never ignored and never
   written to; a skill it does ship is its alone to modify, so a locally altered copy is restored
   rather than defended. See the harness-owns-its-skills-project-keeps-its-own decision.
+  Install preparation restores changed regular managed files when the previous receipt or
+  committed manifest claims their path, renews their receipt ownership, and names each locally
+  altered file after the transaction succeeds. Unclaimed collisions stay with the project and
+  are reported; symlinks and non-files refuse publication. `--force` remains for explicit recovery
+  of ambiguous legacy ownership/configuration, but is unnecessary for these restorations and
+  does not override collision withholding, non-regular targets, or grant stale-file deletion.
 - **Ownership is the union of the two proofs, never a choice between them.** The receipt is
   machine-local and records what *this machine* wrote; the committed `.void/install-manifest.json`
   names the paths *this version* owns and travels with the repository. `update` completes the
@@ -360,6 +395,29 @@ latencies, but external scheduler contention cannot make the causal feature gate
 existing global cold-start and no-op-versus-Node wall budgets remain owned by
 [DEV-662](https://linear.app/voidcorp/issue/DEV-662/reduire-le-cold-start-du-hook-runner-livre).
 
+### Installed capability discovery
+
+`void-harness cheatsheet` owns the consumer discovery projection in the CLI's
+`lib/cheatsheet/` boundary. The shipped graph and specialist contracts provide
+canonical identities; `lib/command-catalog.ts` supplies the same metadata to
+dispatch, help and discovery. The handler map is exhaustive over its keys.
+The source-only Markdown generator and Linear index are not imported.
+
+Pure catalogue/availability projection feeds JSON schema version 1, Markdown
+and self-contained HTML. The I/O adapter resolves linked installation roots,
+validates local receipts/configuration and performs bounded, contained reads.
+It never calls status, runtime smoke probes, registries or journals. Local
+assets are checked against receipt hashes; configuration is not execution proof.
+Hook events/matchers come from shipped manifests, associated through their
+owner wrapper's declared runner invocation. Unknown wrapper shapes remain
+undeclared. No handwritten hook-name mapping is introduced.
+
+Project Claude skill overrides can establish explicit disabled evidence.
+Home settings and marketplace caches are outside this bounded read, so effective
+runtime visibility stays unverified. The HTML embeds fixed enhancement code;
+metadata is escaped as text and never interpolated into executable JavaScript.
+See [the discovery projection decision](decisions-log/2026-09-13-installed-discovery-projection--00d39aef-2cb8-4809-9545-128295b1c012.md).
+
 ### Source self-host boundary
 
 `void-harness self-host sync` is the only supported dogfood compiler for this
@@ -449,6 +507,16 @@ under `core/hooks/` are compatibility adapters for older installs; v3 manifests,
 receipts and health checks do not depend on them. `_hooklib.sh` and `_checks.sh`
 remain characterization inputs only and are not part of the active runtime.
 The local runtime therefore requires Node only, not `jq` or a POSIX shell.
+
+Context-sensitive focused-test checks reconstruct the complete proposed file
+before inspecting syntax. They use the project's TypeScript 5 compiler in a
+bounded child process; no compiler is bundled or downloaded. Ordinary tests
+without suspicious tokens and an unambiguous prohibited call at the start of a
+file retain their dependency-free paths. Missing context or compiler capability
+is `TEST_SYNTAX_UNVERIFIED`, a refusal rather than an assertion that code was
+checked. This is a quality check over trusted project tooling, not a sandbox for
+hostile compiler packages. See [hook test evidence](HOOK-TEST-EVIDENCE.md) for
+limits, supported edits and the structural E2E declaration contract.
 
 Every active hook records a bounded, redacted `hook.completed` event. Lifecycle
 states distinguish `ok`, `skipped` and `degraded`; enforcement additionally
@@ -627,6 +695,25 @@ so a query regression cannot hide behind extraction cost.
 
 ProjectGraph is exposed from `@voidcorp/harness-graph/project`, keeping its
 TypeScript runtime adapter out of the legacy single-file CatalogGraph bundle.
+The project snapshot can also be materialized as the versioned `.void/knowledge.json` artifact
+with `void-harness graph project-build` and checked against a fresh build with
+`void-harness graph project-check`. The artifact is a validated projection carrying the snapshot
+root hash and build state; project graph queries read it when valid, while missing, corrupt, or
+unknown artifacts trigger a rebuild. It is distinct from `.void/machine/`, whose observation cache
+is disposable and never becomes an authority. The freshness check measures the generated file so
+CI can reject a hand-edited or stale projection.
+Diagnostic counts remain in build reports and do not enter the graph identity:
+an unavailable watcher must not change the hash of otherwise identical partial
+content. Observation state remains part of the graph and artifact. A state
+difference is explicitly refused before content comparison; this does not turn
+degraded observation into a fresh proof or relax cache publication. Existing
+artifacts containing the former root diagnostic count require one regeneration.
+Native file identities use an additive `identity: { device, inode }` pair of
+canonical uint64 decimal strings read through Node's BigInt stats API. Existing
+optional numeric device/inode fields keep their types and are emitted only when
+exact. Valid numeric v1 cache entries remain readable without rewriting their
+checksum. Both representations must agree when present; malformed exact pairs
+cannot fall back to legacy evidence. Snapshot identity includes the exact pair.
 The extractor resolves bounded root-confined string or ordered-array `tsconfig` inheritance with
 official Compiler API option origins, treats `pnpm-workspace.yaml` as authoritative over the package
 workspace fallback, applies pnpm-compatible positive and `!`-excluded patterns before indexing child
@@ -911,6 +998,24 @@ valid fresh receipt yields only a logical finalization action; stale, malformed,
 receipts and partial event streams fail closed. The
 mission engine remains I/O-free, while `mission resume` is the filesystem adapter that appends at
 most one `mission.resumed` event for the current non-resume checkpoint.
+
+Autopilot progress and CI effects use the same boundary. The core classifies an effect as provider
+deduplicated, machine-reconciled, or non-idempotent; adapters report observations without exposing
+provider vocabulary to the core. An exact integration SHA is required for every required check,
+while missing, stale, pending, or failed observations stop the proof rather than becoming green by
+default.
+
+Unanswered human waits use a persisted virtual-time policy. The recovery reducer fixes a 15- or
+20-minute deadline before waiting, accepts at most three distinct reversible hypotheses, and makes
+rollback evidence mandatory for completion. Clock rollback, unsafe permissions, repeated
+hypotheses, and failed rollback are terminal blocked states.
+
+Autopilot specialist panels belong to the orchestrator. The CLI plan marks
+`panelProvider: "orchestrator"` and supplies the selected envelopes; the runtime fans them out in
+fresh contexts before the ticket writer starts. Verdicts retain their `inputHash`, correction
+rounds are bounded at three, and a worker must return the panel record without dispatching one from
+its worktree. Claude's Workflow adapter and Codex's native-subagent adapter consume this same
+contract.
 
 `mission resume` reports `active`, `complete`, `waiting`, `blocked`, or `degraded`. `active` and
 `complete` exit 0; all other recovery states exit 1 because no safe forward action completed.
@@ -1255,7 +1360,14 @@ Implemented today in `.github/workflows/ci.yml` (all block the PR on failure):
 | Certification freshness | `pnpm certification:check` — committed `certification.json` matches the model + eval reports |
 | Consumer bundle freshness | `pnpm graph:check-bundle` — the shipped `void-graph.mjs` embeds the current `model.json` |
 | Skill tests | `pnpm vitest run` |
+| Live skill references | `pnpm skills:check-references`, including plugin descriptions |
 | Typecheck | `pnpm -r typecheck` |
+
+Maintainer reference checks also inspect descriptions in core, mirrored and pack
+`plugin.json` manifests. Explicit `void-` skill names resolve against the live
+catalogue; ordinary English prose, pack names and the exact product name
+`void-harness` are not skill references. Historical decisions and plans remain
+outside this live-description check.
 
 Roadmap (documented intent, not yet wired): skill front-matter schema check,
 per-hook smoke tests on a sample repo, CLI integration tests on a fresh fixture.
@@ -1310,3 +1422,19 @@ committed pattern self-matches the detector/docs/fixtures, a net-negative false
 positive for a floor check (see DECISIONS). The project test gate stays the
 consumer's own CI (this Action enforces the doctrine floor, not general quality —
 it must not double the existing CI).
+
+## Isolated consumer browser verification
+
+The source-only `test/browser/` suite tests regenerated synthetic cheatsheets on
+a GitHub-hosted runner. It consumes the same immutable archive as install
+conformance, verified against the checkout SHA and tarball digest. Playwright
+and axe are pinned QA tooling outside the shipped CLI and pnpm workspace; they
+do not add a consumer runtime dependency. The runner installs the archive
+offline, and browser contexts disable network access. No personal browser,
+developer export or home directory is an input.
+
+`browser conformance` retains SHA-bound reports, document digests, screenshots,
+print output and failure traces for fourteen days. Zero retries and finite
+execution limits keep a failure red. Visual review and real assistive testing
+remain separate from automated assertions; see [the suite contract](../test/browser/README.md)
+and [the decision](decisions-log/2026-09-13-isolated-consumer-browser-ci--392e4254-fb63-4743-af1f-4c99a035170d.md).

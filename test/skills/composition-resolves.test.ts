@@ -25,11 +25,8 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { loadDeclaredEdges } from '../../packages/harness-graph/src/relations/load.js';
-
-const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 
 function read(path: string): string {
   return readFileSync(new URL(path, new URL('../../', import.meta.url)), 'utf8');
@@ -71,7 +68,7 @@ describe('implement reaches what it composes', () => {
     // Guards the test itself: an empty declaration would make the assertion above
     // vacuously true, and the regression would pass unnoticed.
     expect(declaredComposedSkills('void-implement').length).toBeGreaterThan(0);
-    expect(ROOT).toContain('void-harness');
+    expect(JSON.parse(read('package.json'))).toMatchObject({ name: 'void-harness' });
   });
 
   it('dispatches the canonical plan instead of naming a fixed specialist trio or missing workflow', () => {

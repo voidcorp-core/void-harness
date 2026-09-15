@@ -85,6 +85,31 @@ async function rootIdentity(root: string): Promise<ProjectRootIdentity> {
 }
 
 describe('ProjectGraph cache adapter', () => {
+	it('publishes and reloads exact 64-bit file identifiers without rounding adjacent values', async () => {
+		const root = await projectTempDir('void-project-cache-wide-id-');
+		const identity = await rootIdentity(root);
+		const port = createMemoryProjectCachePort();
+		const base = cacheWithNestedConfig(projectCacheRootKey(root), {});
+		const { payloadHash: _previousHash, ...draft } = base;
+		const original = base.entries[0];
+		if (original === undefined) throw new Error('expected fixture entry');
+		const cache = sealProjectGraphCache({
+			...draft,
+			entries: ['9007199254740992', '9007199254740993', '18446744073709551615'].map((inode, index) => ({
+				...original, path: `file-${index}.json`, identity: { device: '18446744073709551615', inode },
+			})),
+		});
+		const publication = await port.prepare(identity, 'cache.json', cache);
+		await publication.commit();
+		expect(await publication.finalize()).toBe(true);
+		const loaded = await port.load(identity, 'cache.json');
+		expect(loaded.status).toBe('ready');
+		if (loaded.status !== 'ready') throw new Error('expected a validated cache');
+		expect(loaded.cache.entries.map((entry) => entry.identity?.inode)).toEqual([
+			'9007199254740992', '9007199254740993', '18446744073709551615',
+		]);
+	});
+
 	it('prepares, atomically commits, and reloads an explicitly trusted memory cache', async () => {
 		const root = await projectTempDir('void-project-cache-');
 		const identity = await rootIdentity(root);

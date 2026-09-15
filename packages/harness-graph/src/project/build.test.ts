@@ -13,6 +13,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import { afterAll, expect, it } from 'vitest';
 import { parseGraphSnapshot } from '../model/v3/schema.js';
 import {
@@ -26,16 +27,16 @@ import {
 	type ProjectGraphCache,
 	sealProjectGraphCache,
 } from './cache.js';
-import ts from 'typescript';
 import { createNodeFileSystemPort } from './extractors/filesystem.js';
-import { projectFileId, type ProjectGitSnapshot } from './extractors/types.js';
+import { type ProjectGitSnapshot, projectFileId } from './extractors/types.js';
 import { createTypeScriptExtractor } from './extractors/typescript.js';
-import { createNodeProjectRootPort } from './root.js';
 import {
 	createNodeProjectChangeJournal,
 	PROJECT_JOURNAL_ANCHOR_PREFIX,
 	type ProjectWatchPort,
 } from './journal.js';
+import { createNodeProjectRootPort } from './root.js';
+import { cleanupProjectTempDirs, createExactProjectChangeJournal, fixtureCompilerLookup, projectTempDir } from './test-support.js';
 
 /**
  * The sentinel half of an injected watch port: a stream that answers.
@@ -55,7 +56,6 @@ function answeringAnchor(deliver: (filename: string) => void): ProjectWatchPort[
 		return Object.freeze({ path, release: () => undefined });
 	};
 }
-import { cleanupProjectTempDirs, createExactProjectChangeJournal, fixtureCompilerLookup, projectTempDir } from './test-support.js';
 
 afterAll(cleanupProjectTempDirs);
 
@@ -159,9 +159,7 @@ function assertFixtureEnvelope(result: ProjectResult): void {
 	expect(result.graph.nodes).toContainEqual(
 		expect.objectContaining({
 			kind: 'root',
-			data: expect.objectContaining({
-				snapshotId: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
-			}),
+			data: expect.objectContaining({ state: 'fresh' }),
 		}),
 	);
 	expect(result.graph.source.rootHash).toMatch(/^sha256:[a-f0-9]{64}$/);
@@ -955,12 +953,13 @@ it('composes bounded rename chains without losing either Git proof', async () =>
 	const first = join(root, 'packages/core/src/secondary.ts');
 	const second = join(root, 'packages/core/src/renamed.ts');
 	const final = join(root, 'packages/core/src/final.ts');
-	await buildProjectGraph({
+	const initial = await buildProjectGraph({
 		root,
 		git: { inspect: async () => availableGit({ head: 'a'.repeat(40) }) },
 	});
+	expect(initial.cachePublished, JSON.stringify(initial.issues)).toBe(true);
 	await rename(first, second);
-	await buildProjectGraph({
+	const intermediate = await buildProjectGraph({
 		root,
 		git: {
 			inspect: async () =>
@@ -976,6 +975,8 @@ it('composes bounded rename chains without losing either Git proof', async () =>
 				}),
 		},
 	});
+	expect(intermediate.cacheStatus, JSON.stringify(intermediate.issues)).toBe('ready');
+	expect(intermediate.cachePublished, JSON.stringify(intermediate.issues)).toBe(true);
 	await rename(second, final);
 	const result = await buildProjectGraph({
 		root,
@@ -998,12 +999,29 @@ it('composes bounded rename chains without losing either Git proof', async () =>
 		(edge) =>
 			edge.kind === 'previous-id' && edge.from === projectFileId('packages/core/src/secondary.ts'),
 	);
-	expect(lineage?.to).toBe(projectFileId('packages/core/src/final.ts'));
+	expect(lineage?.to, JSON.stringify({
+		state: result.state, cacheStatus: result.cacheStatus, issues: result.issues,
+	})).toBe(projectFileId('packages/core/src/final.ts'));
 	expect(lineage?.data).toMatchObject({ hops: 2, similarity: 90 });
 	expect(lineage?.provenance.sources.map((source) => source.hashOrVersion)).toEqual([
 		'b'.repeat(40),
 		'c'.repeat(40),
 	]);
+});
+
+it('keeps the semantic graph hash stable when only the Git HEAD changes', async () => {
+	const firstRoot = await fixtureCopy();
+	const secondRoot = await fixtureCopy();
+	const first = await buildProjectGraph({
+		root: firstRoot,
+		git: { inspect: async () => availableGit({ head: 'a'.repeat(40) }) },
+	});
+	const second = await buildProjectGraph({
+		root: secondRoot,
+		git: { inspect: async () => availableGit({ head: 'b'.repeat(40) }) },
+	});
+
+	expect(second.graph.source.rootHash).toBe(first.graph.source.rootHash);
 });
 
 it('composes a complete rename chain reported by one Git snapshot', async () => {

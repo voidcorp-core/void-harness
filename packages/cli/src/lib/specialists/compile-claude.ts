@@ -19,6 +19,10 @@ import {
  * is printed until it stops being read, and it invites a mechanism built to
  * silence it.
  */
+type NonEmptyReadonlyArray<T> = readonly [T, ...T[]];
+
+const CLAUDE_SPECIALIST_TOOLS = ['Read', 'Grep', 'Glob'] as const satisfies NonEmptyReadonlyArray<string>;
+
 export const CLAUDE_SPECIALIST_SAFETY = Object.freeze({
   readOnly: 'declared' as const,
   isolation: 'fresh-context' as const,
@@ -32,7 +36,7 @@ export function compileClaudeSpecialist(contract: SpecialistContract): CompiledS
     '---',
     `name: ${contract.name}`,
     `description: ${JSON.stringify(contract.description)}`,
-    'tools: Read, Grep, Glob',
+    `tools: ${CLAUDE_SPECIALIST_TOOLS.join(', ')}`,
     'disallowedTools: Write, Edit, NotebookEdit, Bash, Agent, WebFetch, WebSearch',
     `maxTurns: ${contract.budgets.maxTurns}`,
     '---',

@@ -1,4 +1,4 @@
-import { chmod, mkdir, rename, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { chmod, lstat, mkdir, rename, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -115,6 +115,19 @@ describe('ProjectGraph filesystem root failures', () => {
 });
 
 describe('ProjectGraph filesystem reads', () => {
+	it('carries native identifiers as exact decimal strings through scan, inspect and read', async () => {
+		const root = await projectTempDir('void-project-fs-identity-');
+		await writeFile(join(root, 'file.ts'), 'export const value = 1;\n');
+		const native = await lstat(join(root, 'file.ts'), { bigint: true });
+		const port = createNodeFileSystemPort();
+		const scan = await port.scan(root, scanLimits());
+		const file = scan.files[0];
+		expect(file).toMatchObject({ identity: { device: native.dev.toString(), inode: native.ino.toString() } });
+		if (file === undefined) throw new Error('expected indexed file');
+		expect(await port.inspect?.(root, 'file.ts', 1024)).toMatchObject({ status: 'file', file });
+		expect(await port.read(root, file, 1024)).toMatchObject({ ok: true });
+	});
+
 	it('bounds reads, rejects binary data, and reports symlinks without following them', async () => {
 		const root = await projectTempDir('void-project-fs-');
 		await mkdir(join(root, 'src'));

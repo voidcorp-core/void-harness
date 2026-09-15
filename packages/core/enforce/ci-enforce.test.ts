@@ -83,6 +83,18 @@ describe('ci-enforce — violations become red annotations', () => {
     expect(stdout).toMatch(/::error file=src\/caf/);
   });
 
+  it.each([false, true])('scans committed installed content instead of blocking ownership: leak=%s', (leak) => {
+    const path = '.codex/hooks.json';
+    write(repo, '.void/install-manifest.json', JSON.stringify({ files: [{ path }] }));
+    write(repo, path, JSON.stringify({ command: leak ? AWS_KEY : 'node runner.mjs' }));
+    git(repo, 'add', '-A');
+    git(repo, 'commit', '-q', '-m', 'installed configuration');
+    const result = run(repo, base);
+    expect(result.code).toBe(leak ? 1 : 0);
+    expect(result.stdout).not.toContain('delivered harness asset');
+    if (leak) expect(result.stdout).toContain('leaked secret');
+  });
+
   it('flags a leaked secret in a new source file', () => {
     write(repo, 'src/config.ts', `export const k = "${AWS_KEY}";\n`);
     git(repo, 'add', '-A');
@@ -90,6 +102,23 @@ describe('ci-enforce — violations become red annotations', () => {
     const { code, stdout } = run(repo, base);
     expect(code).not.toBe(0);
     expect(stdout).toMatch(/::error file=src\/config\.ts/);
+  });
+
+  it.each([false, true])('checks removal-only declarations with sibling=%s', (sibling) => {
+    const path = 'apps/web/src/page.ts';
+    const body = 'export const page = 1;\n';
+    write(repo, path, '// tdd-cover: e2e tests/page.spec.ts\n' + body);
+    write(repo, 'tests/page.spec.ts', 'test("page", () => {});\n');
+    if (sibling) write(repo, 'apps/web/src/page.test.ts', 'test("page", () => {});\n');
+    git(repo, 'add', '-A');
+    git(repo, 'commit', '-q', '-m', 'covered baseline');
+    const covered = git(repo, 'rev-parse', 'HEAD').trim();
+    write(repo, path, body);
+    git(repo, 'add', '-A');
+    git(repo, 'commit', '-q', '-m', 'remove declaration only');
+    const result = run(repo, covered);
+    expect(result.code).toBe(sibling ? 0 : 1);
+    if (!sibling) expect(result.stdout).toContain('TDD_SIBLING_TEST_MISSING');
   });
 
   it('flags frontend production code with no sibling test', () => {
@@ -217,6 +246,11 @@ describe('ci-enforce — clean diff is green', () => {
     );
     write(
       repo,
+      '.void/knowledge.json',
+      `{"kind":"project-knowledge","snapshot":"${'x'.repeat(1_100_000)}"}\n`,
+    );
+    write(
+      repo,
       'packages/hook-runner/src/rules/secret-content.ts',
       'export const detector = true;\n',
     );
@@ -230,7 +264,7 @@ describe('ci-enforce — clean diff is green', () => {
 
     const { code, stdout } = run(repo, base);
     expect(code).toBe(0);
-    expect(stdout.match(/skipped/g)).toHaveLength(3);
+    expect(stdout.match(/skipped/g)).toHaveLength(4);
   });
 });
 

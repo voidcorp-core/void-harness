@@ -14,6 +14,7 @@
     "url": "https://github.com/voidcorp-core/void-harness/issues"
   },
   "scripts": {
+    "backlog:index": "node scripts/backlog-index.mjs",
     "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || exit 0",
     "build": "pnpm -r --filter '!void-harness' build",
     "build:cli": "pnpm --filter @voidcorp/mission-engine build && pnpm --filter @voidcorp/harness-graph build && pnpm --filter @voidcorp/hook-runner build && pnpm --filter voidharness build",

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { sealCellEvidence, type EvidenceExpectation, type ExecutorEvidenceInput } from './evidence.js';
+import type { RuntimeInvocation } from '../runtime/types.js';
+import { type EvidenceExpectation, type ExecutorEvidenceInput, sealCellEvidence } from './evidence.js';
 import {
+  type AutonomousValueScoreInput,
   MAX_CORRECTION_CYCLES,
   scoreAutonomousValueCell,
-  type AutonomousValueScoreInput,
 } from './scorer.js';
-import type { RuntimeInvocation } from '../runtime/types.js';
 
 const INVOCATION: RuntimeInvocation = { command: 'codex', args: ['exec', 'task'] };
 const SHA = (letter: string): string => letter.repeat(40);
@@ -23,12 +23,12 @@ const expected: EvidenceExpectation = {
   effort: 'high',
 };
 
-function evidence(): NonNullable<AutonomousValueScoreInput['evidence']> {
+function evidence(diff = 'diff'): NonNullable<AutonomousValueScoreInput['evidence']> {
   const input: ExecutorEvidenceInput = {
     source: 'executor',
     ...expected,
     events: ['started', 'finished'],
-    diff: 'diff',
+    diff,
     output: 'done',
     diagnostics: '',
     outcome: {
@@ -96,6 +96,17 @@ describe('scoreAutonomousValueCell', () => {
     const result = scoreAutonomousValueCell(goodInput({ evidence: undefined }));
     expect(result.admissible).toBe(false);
     expect(result.absoluteGates).toContainEqual(expect.objectContaining({ kind: 'evidence', passed: false }));
+  });
+
+  it('rejects a successful runtime with no delivered diff', () => {
+    const result = scoreAutonomousValueCell(goodInput({
+      evidence: evidence(''),
+    }));
+    expect(result.admissible).toBe(false);
+    expect(result.absoluteGates).toContainEqual(expect.objectContaining({
+      kind: 'delivery',
+      passed: false,
+    }));
   });
 
   it('rejects a non-comparable runtime instead of averaging it into a pass', () => {

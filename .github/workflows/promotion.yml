@@ -38,6 +38,9 @@ env:
   EXPECTED_BASE: main
   EXPECTED_HUMAN: folpe
   MAX_PROMOTION_COMMITS: 500
+  PROMOTION_BATCH_SIZE: 40
+  PROMOTION_API_RETRIES: 3
+  PROMOTION_RETRY_DELAY_SECONDS: 1
 
 jobs:
   promotion:
@@ -91,11 +94,14 @@ jobs:
           fi
 
           audit_file=$(mktemp)
-          trap 'rm -f "$audit_file"' EXIT
+          response_file=$(mktemp)
+          error_file=$(mktemp)
+          trap 'rm -f "$audit_file" "$response_file" "$error_file"' EXIT
           # Git first-parent identifies where each nested commit entered develop.
           # https://git-scm.com/docs/git-rev-list#Documentation/git-rev-list.txt---first-parent
           mapfile -t integration_oids < <(git rev-list --first-parent --reverse origin/main..origin/develop)
           mapfile -t commit_oids < <(git rev-list --reverse origin/main..origin/develop)
+          integration_for_commit=()
           for oid in "${commit_oids[@]}"; do
             integration_oid=''
             for entry in "${integration_oids[@]}"; do
@@ -108,95 +114,120 @@ jobs:
               echo "unexplained commit $oid: no first-parent integration into develop." >&2
               exit 1
             fi
-            commit_json=$(gh api graphql \
-              -f owner="$EXPECTED_OWNER" \
-              -f repo="$EXPECTED_NAME" \
-              -f oid="$integration_oid" \
-              -f query='query($owner:String!,$repo:String!,$oid:GitObjectID!){
-                repository(owner:$owner,name:$repo){
-                  object(oid:$oid){
-                    ... on Commit{
-                      oid
-                      associatedPullRequests(first:100){
-                        nodes{
-                          number baseRefName headRefName isCrossRepository mergedAt
-                          mergeCommit{oid}
-                          mergedBy{login}
-                          headRepository{nameWithOwner}
-                          headRepositoryOwner{login}
-                          timelineItems(first:100,itemTypes:[AUTO_MERGE_ENABLED_EVENT]){
-                            nodes{
-                              __typename
-                              ... on AutoMergeEnabledEvent{actor{login} createdAt}
-                            }
-                            pageInfo{hasNextPage}
-                          }
-                        }
-                        pageInfo{hasNextPage}
-                      }
-                    }
-                  }
-                }
-              }')
+            integration_for_commit+=("$integration_oid")
+          done
 
-            jq -e --arg oid "$integration_oid" \
-              '.data.repository.object.oid == $oid' <<<"$commit_json" >/dev/null || {
-              echo "GitHub did not resolve promotion commit $oid." >&2
-              exit 1
-            }
-            if jq -e '.data.repository.object.associatedPullRequests.pageInfo.hasNextPage' \
-              <<<"$commit_json" >/dev/null; then
-              echo "commit $oid has more than 100 associated PRs; refusing an incomplete audit." >&2
-              exit 1
-            fi
+          query_for_batch() {
+            local query='query($owner:String!,$repo:String!){ repository(owner:$owner,name:$repo){ '
+            local index=0
+            for integration_oid in "$@"; do
+              query+="c${index}:object(oid:\"${integration_oid}\"){... on Commit{oid associatedPullRequests(first:100){nodes{number baseRefName headRefName isCrossRepository mergedAt mergeCommit{oid} mergedBy{login} headRepository{nameWithOwner} headRepositoryOwner{login} timelineItems(first:100,itemTypes:[AUTO_MERGE_ENABLED_EVENT]){nodes{__typename ... on AutoMergeEnabledEvent{actor{login} createdAt}} pageInfo{hasNextPage}}} pageInfo{hasNextPage}}}} "
+              index=$((index + 1))
+            done
+            query+='} }'
+            printf '%s' "$query"
+          }
 
-            # https://docs.github.com/en/graphql/reference/pulls#pullrequest
-            candidates=$(jq -c --arg integration_oid "$integration_oid" \
-              '[.data.repository.object.associatedPullRequests.nodes[] |
-                select(.mergedAt != null and .baseRefName == "develop" and
-                  .mergeCommit.oid == $integration_oid)]' \
-              <<<"$commit_json")
-            if [ "$(jq 'length' <<<"$candidates")" -ne 1 ]; then
-              echo "unexplained commit $oid: expected exactly one merged PR targeting develop." >&2
-              exit 1
-            fi
-            pr=$(jq -c '.[0]' <<<"$candidates")
-            number=$(jq -r '.number' <<<"$pr")
+          fetch_batch() {
+            local query="$1"
+            local batch_start="$2"
+            local batch_end="$3"
+            local attempt=1
+            local delay="$PROMOTION_RETRY_DELAY_SECONDS"
+            while [ "$attempt" -le "$PROMOTION_API_RETRIES" ]; do
+              : > "$response_file"
+              : > "$error_file"
+              if gh api graphql \
+                -f owner="$EXPECTED_OWNER" \
+                -f repo="$EXPECTED_NAME" \
+                -f query="$query" >"$response_file" 2>"$error_file" &&
+                jq -e '(.errors // []) | length == 0' "$response_file" >/dev/null &&
+                jq -e '.data.repository != null' "$response_file" >/dev/null; then
+                return 0
+              fi
+              if [ "$attempt" -lt "$PROMOTION_API_RETRIES" ]; then
+                printf 'GitHub GraphQL API failure for batch %s-%s; retry %s/%s after %ss.\n' \
+                  "$batch_start" "$batch_end" "$attempt" "$PROMOTION_API_RETRIES" "$delay" >&2
+                sleep "$delay"
+                delay=$((delay * 2))
+              fi
+              attempt=$((attempt + 1))
+            done
+            printf 'GitHub GraphQL API error for batch %s-%s after %s attempts.\n' \
+              "$batch_start" "$batch_end" "$PROMOTION_API_RETRIES" >&2
+            cat "$error_file" >&2
+            jq -r '.errors[]?.message // empty' "$response_file" >&2
+            return 1
+          }
 
-            if jq -e '.timelineItems.pageInfo.hasNextPage' <<<"$pr" >/dev/null; then
-              printf 'PR #%s has more than 100 auto-merge events; timeline audit is incomplete.\n' \
-                "$number" >&2
-              exit 1
-            fi
+          for ((batch_start=0; batch_start<${#commit_oids[@]}; batch_start+=PROMOTION_BATCH_SIZE)); do
+            batch_end=$((batch_start + PROMOTION_BATCH_SIZE))
+            if [ "$batch_end" -gt "${#commit_oids[@]}" ]; then batch_end=${#commit_oids[@]}; fi
+            query=$(query_for_batch "${integration_for_commit[@]:batch_start:batch_end-batch_start}")
+            fetch_batch "$query" "$batch_start" "$((batch_end - 1))"
 
-            canonical=$(jq -r \
-              --arg repository "$EXPECTED_REPOSITORY" \
-              '.baseRefName == "develop" and .headRefName == "chore/back-merge-main" and
-               .headRepository.nameWithOwner == $repository and
-               .headRepositoryOwner.login == "voidcorp-core" and
-               (.isCrossRepository | not)' <<<"$pr")
-            merged_by=$(jq -r '.mergedBy.login // "missing"' <<<"$pr")
-            auto_events=$(jq \
-              '[.timelineItems.nodes[] |
-                select(.__typename == "AutoMergeEnabledEvent")] | length' <<<"$pr")
-
-            if [ "$canonical" != true ]; then
-              if [ "$merged_by" != "$EXPECTED_HUMAN" ]; then
-                printf 'PR #%s for commit %s was merged by %s, not %s.\n' \
-                  "$number" "$oid" "$merged_by" "$EXPECTED_HUMAN" >&2
+            for ((index=batch_start; index<batch_end; index++)); do
+              oid=${commit_oids[index]}
+              integration_oid=${integration_for_commit[index]}
+              alias="c$((index - batch_start))"
+              commit_json=$(jq -c --arg alias "$alias" '.data.repository[$alias]' "$response_file")
+              jq -e --arg oid "$integration_oid" \
+                '. != null and .oid == $oid' <<<"$commit_json" >/dev/null || {
+                echo "unexplained commit $oid: GitHub returned no matching integration object." >&2
+                exit 1
+              }
+              if jq -e '.associatedPullRequests.pageInfo.hasNextPage' <<<"$commit_json" >/dev/null; then
+                echo "commit $oid has more than 100 associated PRs; refusing an incomplete audit." >&2
                 exit 1
               fi
-              if [ "$auto_events" -ne 0 ]; then
-                echo "PR #$number armed noncanonical auto-merge for commit $oid." >&2
+
+              # https://docs.github.com/en/graphql/reference/pulls#pullrequest
+              candidates=$(jq -c --arg integration_oid "$integration_oid" \
+                '[.associatedPullRequests.nodes[] |
+                  select(.mergedAt != null and .baseRefName == "develop" and
+                    .mergeCommit.oid == $integration_oid)]' <<<"$commit_json")
+              if [ "$(jq 'length' <<<"$candidates")" -ne 1 ]; then
+                echo "unexplained commit $oid: expected exactly one merged PR targeting develop." >&2
                 exit 1
               fi
-            fi
+              pr=$(jq -c '.[0]' <<<"$candidates")
+              number=$(jq -r '.number' <<<"$pr")
 
-            printf -- '- `%s` -> integration `%s` -> PR #%s (`%s` -> `%s`), merged by `%s`, auto-merge events: %s\n' \
-              "${oid:0:12}" "${integration_oid:0:12}" "$number" \
-              "$(jq -r '.headRefName' <<<"$pr")" \
-              "$(jq -r '.baseRefName' <<<"$pr")" \
-              "$merged_by" "$auto_events" | tee -a "$audit_file"
+              if jq -e '.timelineItems.pageInfo.hasNextPage' <<<"$pr" >/dev/null; then
+                printf 'PR #%s has more than 100 auto-merge events; timeline audit is incomplete.\n' \
+                  "$number" >&2
+                exit 1
+              fi
+
+              canonical=$(jq -r \
+                --arg repository "$EXPECTED_REPOSITORY" \
+                '.baseRefName == "develop" and .headRefName == "chore/back-merge-main" and
+                 .headRepository.nameWithOwner == $repository and
+                 .headRepositoryOwner.login == "voidcorp-core" and
+                 (.isCrossRepository | not)' <<<"$pr")
+              merged_by=$(jq -r '.mergedBy.login // "missing"' <<<"$pr")
+              auto_events=$(jq \
+                '[.timelineItems.nodes[] |
+                  select(.__typename == "AutoMergeEnabledEvent")] | length' <<<"$pr")
+
+              if [ "$canonical" != true ]; then
+                if [ "$merged_by" != "$EXPECTED_HUMAN" ]; then
+                  printf 'PR #%s for commit %s was merged by %s, not %s.\n' \
+                    "$number" "$oid" "$merged_by" "$EXPECTED_HUMAN" >&2
+                  exit 1
+                fi
+                if [ "$auto_events" -ne 0 ]; then
+                  echo "PR #$number armed noncanonical auto-merge for commit $oid." >&2
+                  exit 1
+                fi
+              fi
+
+              printf -- '- `%s` -> integration `%s` -> PR #%s (`%s` -> `%s`), merged by `%s`, auto-merge events: %s\n' \
+                "${oid:0:12}" "${integration_oid:0:12}" "$number" \
+                "$(jq -r '.headRefName' <<<"$pr")" \
+                "$(jq -r '.baseRefName' <<<"$pr")" \
+                "$merged_by" "$auto_events" | tee -a "$audit_file"
+            done
           done
 
           body=$(printf '%s %s\n\n%s\n\n%s\n' \

@@ -65,6 +65,12 @@ describe('release automation authority', () => {
     expect(promotion).toContain('mergedBy');
     expect(promotion).toContain('EXPECTED_HUMAN: folpe');
     expect(promotion).toContain('unexplained commit');
+    expect(promotion).toContain('PROMOTION_BATCH_SIZE: 40');
+    expect(promotion).toContain('PROMOTION_API_RETRIES: 3');
+    expect(promotion).toContain('query_for_batch');
+    expect(promotion).toContain('GitHub GraphQL API error for batch');
+    expect(promotion).toContain('PROMOTION_RETRY_DELAY_SECONDS');
+    expect(promotion).not.toContain('-f oid=');
   });
 
   it.each([

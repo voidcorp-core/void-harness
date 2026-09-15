@@ -3,32 +3,30 @@
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { conformanceArtifactFromEnvironment } from './conformance-artifact.mjs';
 import {
   conformanceFixtureEnvironment,
   packageManagerCommand,
-  requireConformanceExit,
-  runConformanceProcess,
+  runConformanceStep,
 } from './conformance-process.mjs';
 
 async function run(label, command, args, cwd, env) {
-  const result = await runConformanceProcess({ command, args, cwd, env });
-  return requireConformanceExit(result, `install conformance ${label}`);
+  return runConformanceStep(`install conformance ${label}`, { command, args, cwd, env });
 }
 
 function requirePath(path, label) {
   if (!existsSync(path)) throw new Error(`conformance missing ${label}: ${path}`);
 }
 
-async function exerciseRuntime(temporary, tarball, runtime) {
-  const fixture = join(temporary, `fixture-${runtime}`);
+async function installPackage(temporary, tarball) {
+  const fixture = join(temporary, 'package');
   await mkdir(join(fixture, 'tmp'), { recursive: true });
   const environment = conformanceFixtureEnvironment(fixture);
   const npm = packageManagerCommand('npm');
-  const started = performance.now();
   await run(
-    `${runtime} install`,
+    'package install',
     npm.executable,
     [
       ...npm.prefixArguments,
@@ -42,7 +40,17 @@ async function exerciseRuntime(temporary, tarball, runtime) {
     fixture,
     environment,
   );
-  const bin = join(fixture, 'node_modules', 'voidharness', 'bin', 'void-harness.mjs');
+  return join(fixture, 'node_modules', 'voidharness', 'bin', 'void-harness.mjs');
+}
+
+async function exerciseRuntime(temporary, bin, runtime) {
+  const fixture = join(temporary, `fixture-${runtime}`);
+  await mkdir(join(fixture, 'tmp'), { recursive: true });
+  await writeFile(join(fixture, 'package.json'), JSON.stringify({
+    name: `conformance-${runtime}`, private: true,
+  }));
+  const environment = conformanceFixtureEnvironment(fixture);
+  const started = performance.now();
   await run(
     `${runtime} init`,
     process.execPath,
@@ -103,18 +111,33 @@ async function exerciseRuntime(temporary, tarball, runtime) {
   return performance.now() - started;
 }
 
-const { manifest, tarball } = await conformanceArtifactFromEnvironment();
-const temporary = await mkdtemp(join(tmpdir(), 'void-install-conformance-'));
-try {
+export async function exerciseInstalledRuntimes(install, exercise) {
+  const bin = await install();
   const durations = [];
   for (const runtime of ['claude', 'codex', 'both']) {
-    durations.push(await exerciseRuntime(temporary, tarball, runtime));
+    durations.push(await exercise(bin, runtime));
   }
-  durations.sort((left, right) => left - right);
-  const medianMs = Math.round(durations[Math.floor(durations.length / 2)] ?? 0);
-  process.stdout.write(
-    `install conformance passed (${process.platform}) for ${manifest.sourceSha}; observed p50 ${medianMs}ms\n`,
-  );
-} finally {
-  await rm(temporary, { recursive: true, force: true });
+  return durations;
+}
+
+async function main() {
+  const { manifest, tarball } = await conformanceArtifactFromEnvironment();
+  const temporary = await mkdtemp(join(tmpdir(), 'void-install-conformance-'));
+  try {
+    const durations = await exerciseInstalledRuntimes(
+      () => installPackage(temporary, tarball),
+      (bin, runtime) => exerciseRuntime(temporary, bin, runtime),
+    );
+    durations.sort((left, right) => left - right);
+    const medianMs = Math.round(durations[Math.floor(durations.length / 2)] ?? 0);
+    process.stdout.write(
+      `install conformance passed (${process.platform}) for ${manifest.sourceSha}; runtime init/update p50 ${medianMs}ms (package install excluded)\n`,
+    );
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+}
+
+if (resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {
+  await main();
 }

@@ -340,7 +340,18 @@ revalidates the source hash before publication, verifies the deterministic
 receipt, executes both hooks, and replays their canonical events. No generated
 self-host file is published or committed. Missing Claude/Codex executables are
 reported as degraded rather than certified. When present, a bounded `--version`
-process smoke receives no ambient credentials. Install conformance and later
+process smoke receives no ambient credentials. Installation steps emit bounded,
+structured start/finish events with their runtime, operation and duration, so an
+outer timeout retains the last active step. Consumer suites stop at the first
+failed proof; later suites are not launched after that failure. These diagnostics
+do not change the 120-second execution limit or authorize a retry.
+The install suite performs one offline npm installation of the verified tarball
+in a suite-local package directory. Its CLI then exercises three independent
+consumer roots (Claude, Codex and both), each with its own environment, receipts
+and user files. Package installation is measured separately; runtime p50 covers
+init and both update paths only. The package directory is never reused across
+runs or operating systems, and all three runtime proofs remain mandatory.
+Install conformance and later
 runtime-invocation certification remain separate gates.
 
 There is no manual release fallback. `scripts/bump-version.mjs` remains a local
@@ -401,3 +412,17 @@ cadence ever splits from marketplace cadence (post-1.0), revisit.
 
 `CHANGELOG.md` is generated and maintained by release-please from the Conventional
 Commit history (grouped Features / Bug Fixes). Do not hand-edit it.
+
+## Enforcement at promotion
+
+The separate `void-enforce` workflow judges the complete committed diff against
+its target branch. Installation-manifest ownership is a pre-write restriction on
+agent tools, not proof that a reviewed installer commit is forbidden. Checked-out
+CI evidence retains protected secret/key/credential/Git paths and content scans;
+local tool writes retain ownership protection. CI does not certify installer
+provenance or human approval of doctrine changes. See the
+[committed-evidence decision](decisions-log/2026-09-14-committed-enforcement-ownership--0ee50693-062d-4eb8-b870-840ef6453879.md).
+
+The bounded source reader still requires complete source within 64 KiB. When a
+command exceeds it, extract a cohesive module and preserve behavior with tests;
+do not raise the ceiling or exempt the command to make promotion green.

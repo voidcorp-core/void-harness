@@ -72,13 +72,17 @@ export interface ProjectExtractor {
 	extract(input: ProjectFileInput): ProjectFileExtraction;
 }
 
-export interface ProjectScannedFile {
+export interface ProjectFileIdentityFields {
+	readonly identity?: ProjectPortableStatIdentity;
+	readonly device?: number;
+	readonly inode?: number;
+}
+
+export interface ProjectScannedFile extends ProjectFileIdentityFields {
 	readonly path: string;
 	readonly size: number;
 	readonly mtimeMs: number;
 	readonly ctimeMs?: number;
-	readonly device?: number;
-	readonly inode?: number;
 }
 
 export type ProjectBuildIssueCode =

@@ -19,6 +19,41 @@ Pack names accept any form: `pack-nextjs`, `harness-nextjs`, or `nextjs`.
 
 ## Commands
 
+### `cheatsheet`
+
+Discover shipped skills, hooks, agents, specialist contracts and CLI commands,
+with local installation evidence and invocation details.
+
+```bash
+void-harness cheatsheet > cheatsheet.html
+void-harness cheatsheet --format markdown > cheatsheet.md
+void-harness cheatsheet --format json
+```
+
+HTML is a self-contained offline document with catalogue, availability and intent
+views, composable filters, selectable/copyable invocations and print styling.
+The catalogue remains readable without JavaScript. No server, browser launch,
+installation, status refresh or network request is performed by the command.
+
+JSON schema version 1 contains `installation` and stable, sorted `entries` with
+canonical `id`, `type`, `name`, `description`, `pack`, `runtimes`, `invocations`,
+`triggers`, `relatedIds` and per-runtime `availability`. Specialist roles link to
+their agent implementations; they are not two independent capabilities.
+Availability distinguishes `installed`, `absent`, `disabled`, `inactive-pack`,
+`unsupported` and `unknown`, always with a reason. Installed means a receipt-owned
+asset matches, not that runtime execution was verified. No consumer content,
+absolute machine paths or journals are exported. User-global settings and
+marketplace caches are outside the snapshot; missing proof stays unknown.
+
+Project Claude `skillOverrides: { "void-tdd": "off" }` is explicit disabled
+evidence; local settings override project settings. Manual-only visibility is
+not disabled. No Codex home configuration is read. Missing hook wiring is
+reported as undeclared rather than inferred from the hook name.
+
+Exit codes: `0` exported, `1` invalid/unavailable bundled catalogue, `2` invalid
+arguments. Diagnostics go to stderr; a corrupt local install still exports the
+global catalogue with unknown local availability.
+
 ### `init`
 
 Sets up the current project:
@@ -48,6 +83,25 @@ Health-check: `.void/config.json` validity, marketplace + plugins registered in 
 
 ```
 npx voidharness doctor [--no-remote]
+```
+
+### `void-machine doctor`
+
+The package also exposes the read-only native doctor compatibility launcher.
+It delegates to a platform binary supplied by the native distribution layer;
+set `VOID_MACHINE_BIN` when running a locally built binary. It never mutates
+the project and supports the stable JSON report contract.
+
+```bash
+VOID_MACHINE_BIN=/path/to/void-machine npx void-machine doctor --json
+```
+
+The same launcher exposes the fail-fast skill package contract. A package must
+contain exactly `SKILL.md` and `harness.yaml` and is checked without executing
+the skill.
+
+```bash
+VOID_MACHINE_BIN=/path/to/void-machine npx void-machine skill check ./skill --json
 ```
 
 ### `list` / `check` / `update`

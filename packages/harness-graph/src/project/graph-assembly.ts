@@ -11,14 +11,14 @@ import {
 	type GraphSnapshotV3,
 } from '../model/v3/types.js';
 import type { ProjectGraphCacheEntry, ProjectGraphTombstone } from './cache.js';
+import type { CompilerResolution, TypeScriptApi } from './extractors/compiler-host.js';
 import {
-	projectFileId,
-	projectSymbolId,
 	type ProjectGitSnapshot,
 	type ProjectWorkspace,
+	projectFileId,
+	projectSymbolId,
 	type TypeScriptConfig,
 } from './extractors/types.js';
-import type { CompilerResolution, TypeScriptApi } from './extractors/compiler-host.js';
 import { createTypeScriptModuleResolver } from './extractors/typescript.js';
 import {
 	findDuplicateWorkspaceNames,
@@ -56,7 +56,6 @@ interface AssemblyContext {
 	readonly entriesByPath: ReadonlyMap<string, ProjectGraphCacheEntry>;
 	readonly workspacesByPath: ReadonlyMap<string, ProjectWorkspace>;
 	readonly filePaths: ReadonlySet<string>;
-	readonly changedPaths: ReadonlySet<string>;
 	/** The analysed project's compiler, absent when it resolves none. */
 	readonly compilerApi: TypeScriptApi | undefined;
 	readonly compilerVersion: string;
@@ -193,12 +192,12 @@ function pathProvenance(entry: ProjectGraphCacheEntry): GraphProvenance {
 	return sourcePathProvenance(entry.path, entry.hash);
 }
 
-function gitProvenance(git: ProjectGitSnapshot, confidence = 1): GraphProvenance {
+function gitProvenance(_git: ProjectGitSnapshot, confidence = 1): GraphProvenance {
 	return extractedProvenance(
 		{
 			kind: 'adapter',
 			ref: 'git',
-			hashOrVersion: git.head ?? 'working-tree',
+			hashOrVersion: 'git-observation-v1',
 		},
 		confidence,
 	);
@@ -272,7 +271,6 @@ function createAssemblyContext(
 		entriesByPath: new Map(entries.map((entry) => [entry.path, entry])),
 		workspacesByPath: new Map(workspaces.map((workspace) => [workspace.path, workspace])),
 		filePaths: new Set(entries.map((entry) => entry.path)),
-		changedPaths: new Set(git.changed),
 		compilerApi: compiler.kind === 'resolved' ? compiler.api : undefined,
 		compilerVersion: compiler.kind === 'resolved' ? compiler.version : 'absent',
 	};
@@ -281,8 +279,6 @@ function createAssemblyContext(
 function addRootNode(
 	context: AssemblyContext,
 	state: ProjectGraphState,
-	issueCount: number,
-	snapshotId: string,
 ): void {
 	context.writer.addNode(
 		Object.freeze({
@@ -291,9 +287,6 @@ function addRootNode(
 			label: 'current project',
 			data: Object.freeze({
 				state,
-				issueCount,
-				changedFiles: context.git.changed.length,
-				snapshotId,
 			}),
 			provenance: declaredProvenance({
 				kind: 'contract',
@@ -364,7 +357,6 @@ function addFileNode(context: AssemblyContext, entry: ProjectGraphCacheEntry): s
 				hash: entry.hash,
 				size: entry.size,
 				diagnostics: entry.extraction.diagnostics.length,
-				changed: context.changedPaths.has(entry.path),
 			}),
 			provenance: pathProvenance(entry),
 		}),
@@ -585,10 +577,8 @@ export function assembleProjectGraph(
 	tombstones: readonly ProjectGraphTombstone[],
 	git: ProjectGitSnapshot,
 	state: ProjectGraphState,
-	issueCount: number,
 	caseSensitive: boolean | 'unknown',
 	configsByPath: ReadonlyMap<string, TypeScriptConfig>,
-	snapshotId: string,
 	compiler: CompilerResolution,
 ): GraphSnapshotV3 {
 	const context = createAssemblyContext(
@@ -599,7 +589,7 @@ export function assembleProjectGraph(
 		configsByPath,
 		compiler,
 	);
-	addRootNode(context, state, issueCount, snapshotId);
+	addRootNode(context, state);
 	addWorkspaceNodes(context);
 	addEntryNodes(context);
 	addImportEdges(context);

@@ -57,6 +57,8 @@ export interface WorkerResult {
   readonly decisions: readonly WorkerDecision[];
   /** Which review passes ran, in which context, or why none did. */
   readonly review: ReviewProvenance;
+  /** Typed at the runtime boundary; the workflow schema validates its provider and rounds. */
+  readonly panel: unknown;
   readonly blocker: string | null;
 }
 
@@ -73,6 +75,10 @@ const BASES: readonly DecisionBasis[] = ['ticket', 'plan', 'doctrine', 'conventi
 
 function invalid(problem: string, cause: string, fix: string): never {
   throw autopilotFailure('AUTOPILOT_CONTRACT', problem, cause, fix);
+}
+
+function isPanelRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
 function requireText(value: unknown, field: string): string {
@@ -225,6 +231,13 @@ export function parseWorkerResult(raw: unknown): WorkerResult {
 
   const proofs = parseProofs(result.proofs);
   const blocker = result.blocker === null ? null : requireText(result.blocker, 'blocker');
+  if (!isPanelRecord(result.panel) || result.panel.provider !== 'orchestrator' || !Array.isArray(result.panel.rounds)) {
+    invalid(
+      'the worker result has no valid panel provider',
+      '`panel.provider` must be orchestrator and `panel.rounds` must be an array',
+      'return the panel record produced by the orchestrator',
+    );
+  }
 
   if (status === 'completed') {
     if (commits.length === 0) {
@@ -268,6 +281,7 @@ export function parseWorkerResult(raw: unknown): WorkerResult {
     proofs,
     decisions: parseDecisions(result.decisions),
     review: parseReviewProvenance(result.review),
+    panel: result.panel,
     blocker,
   };
 }

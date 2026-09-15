@@ -1,0 +1,13 @@
+{
+  "name": "harness-browser-tests",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@playwright/test": "1.63.0",
+    "@axe-core/playwright": "4.13.0"
+  },
+  "overrides": {
+    "axe-core": "4.13.0",
+    "playwright-core": "1.63.0"
+  }
+}

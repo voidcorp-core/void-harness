@@ -5,7 +5,7 @@
   "source": {
     "kind": "adapter",
     "version": "3.0.0-alpha.1",
-    "rootHash": "sha256:b767a6dc91364bac02b523c440d4c37b766b23d539b8e99eb866678f1db045be"
+    "rootHash": "sha256:341949cad40cf41f70976de3eca45449e8ae1aefdd511c66b13a6875baaec7a8"
   },
   "nodes": [
     {
@@ -4331,7 +4331,7 @@
             }
           ],
           "id": "skill:void-implement",
-          "lines": 177,
+          "lines": 182,
           "name": "void-implement",
           "owner": "folpe",
           "pack": null,
@@ -4340,7 +4340,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-implement/SKILL.md",
-          "staticTokens": 5255,
+          "staticTokens": 5351,
           "type": "skill"
         }
       },
@@ -5069,7 +5069,7 @@
             }
           ],
           "id": "skill:void-tdd",
-          "lines": 387,
+          "lines": 394,
           "name": "void-tdd",
           "owner": "folpe",
           "pack": null,
@@ -5078,7 +5078,7 @@
             "codex"
           ],
           "source": "packages/core/skills/void-tdd/SKILL.md",
-          "staticTokens": 3655,
+          "staticTokens": 3771,
           "type": "skill"
         }
       },

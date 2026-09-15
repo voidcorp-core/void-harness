@@ -43,6 +43,7 @@ describe('buildOrchestrationPlan', () => {
     const plan = buildOrchestrationPlan(input());
 
     expect(plan.ticketRunnerSkill).toBe('implement');
+    expect(plan.panelProvider).toBe('orchestrator');
     expect(plan.planPath).toBe('plans/2026-07-25-autopilot-plan.md');
     expect(plan.specPath).toBe('docs/specs/2026-07-25-autopilot.md');
   });

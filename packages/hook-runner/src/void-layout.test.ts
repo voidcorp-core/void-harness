@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { recordRuntimeEvent } from './record.js';
 import {
   classifyMaterialized,
   derivedIgnoreEntries,
@@ -463,6 +464,34 @@ describe('the managed ignore block, as git reads it', () => {
     mkdirSync(dirname(target), { recursive: true });
     writeFileSync(target, 'x');
   }
+
+  it.each([false, true])('keeps real journals out of staging after managed refresh: %s', async (refresh) => {
+    const root = repoWithBlock();
+    const userIgnore = 'user-generated/\n';
+    const previous = `${userIgnore}${gitignoreBlock().replace('.void/runs/\n', '')}\n`;
+    const content = patchGitignore(refresh ? previous : userIgnore);
+    writeFileSync(join(root, '.gitignore'), content);
+    expect(content).toContain(userIgnore);
+    const missionId = 'mis_62000000000000000000000000000001';
+    const event = await recordRuntimeEvent({
+      root, missionId, runtime: 'codex', phase: 'activation',
+      rawInput: { session_id: 'legacy-ignore-proof', tool_name: 'read_file' },
+    });
+    expect(event).toBeDefined();
+    const legacy = `.void/runs/${missionId}/events.jsonl`;
+    mkdirSync(dirname(join(root, legacy)), { recursive: true });
+    writeFileSync(join(root, legacy), `${JSON.stringify(event)}\n`);
+    touch(root, '.void/config.json');
+    touch(root, 'user-generated/cache.txt');
+    expect(ignored(root, legacy)).toBe(true);
+    expect(ignored(root, `.void/machine/runs/${missionId}/events.jsonl`)).toBe(true);
+    expect(ignored(root, '.void/config.json')).toBe(false);
+    expect(ignored(root, 'user-generated/cache.txt')).toBe(true);
+    expect(spawnSync('git', ['add', '.'], { cwd: root }).status).toBe(0);
+    const staged = spawnSync('git', ['diff', '--cached', '--name-only'], { cwd: root, encoding: 'utf8' });
+    expect(staged.status).toBe(0);
+    expect(staged.stdout.trim().split('\n').sort()).toEqual(['.gitignore', '.void/config.json']);
+  });
 
   it('keeps the two files whose absence is an error, not a degradation', () => {
     const root = repoWithBlock();

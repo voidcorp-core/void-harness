@@ -12,7 +12,9 @@ import {
   conformanceFixtureEnvironment,
   safeConformanceDiagnostic,
   runConformanceProcess,
+  runConformanceSuites,
 } from './conformance-process.mjs';
+import { loadLegacyOracle } from './conformance-legacy-oracle.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HERE, '..', '..', '..');
@@ -67,6 +69,8 @@ async function runSuite(name, script, tarball, temporary) {
 }
 
 async function main() {
+  const oracle = loadLegacyOracle();
+  if (!oracle.ok) fail(`legacy oracle: ${oracle.reason}`);
   const options = parseArguments(process.argv.slice(2));
   const temporary = await mkdtemp(join(tmpdir(), 'harness-consumer-conformance-'));
   try {
@@ -76,12 +80,8 @@ async function main() {
     const selected = options.suite === undefined
       ? Object.entries(SUITES)
       : [[options.suite, SUITES[options.suite]]];
-    const failures = [];
-    for (const [name, script] of selected) {
-      const failure = await runSuite(name, script, artifact.tarball, temporary);
-      if (failure !== undefined) failures.push(failure);
-    }
-    if (failures.length > 0) fail(`suite failures:\n${failures.join('\n\n')}`);
+    await runConformanceSuites(selected, ([name, script]) =>
+      runSuite(name, script, artifact.tarball, temporary));
     process.stdout.write(
       `consumer conformance passed for ${artifact.manifest.sourceSha}: ${selected.map(([name]) => name).join(', ')}\n`,
     );

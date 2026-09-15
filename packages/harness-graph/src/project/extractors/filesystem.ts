@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
-import { constants, type Dirent, type Stats } from 'node:fs';
+import { constants, type Dirent, type BigIntStats } from 'node:fs';
 import { lstat, open, opendir, realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, posix, relative, resolve, sep } from 'node:path';
 import { readBoundedHandle } from '../bounded-read.js';
+import { nativeFileIdentity, readFileIdentity, sameProjectFileIdentifier } from '../file-identifier.js';
 import type {
 	ProjectBuildIssue,
 	ProjectFileKind,
@@ -15,19 +16,19 @@ import type {
 
 const IGNORED_DIRECTORY_NAMES = new Set(['.git', '.next', 'coverage', 'dist', 'node_modules']);
 /**
- * Reserved basename prefix for a change-journal sentinel.
- *
- * The journal writes one into the tree it watches so it can recognise its own
- * event and know the stream has caught up with it. It exists for milliseconds,
- * but a scan crossing that window would index it as a project file and the next
- * scan would find it gone — the synchronisation reported as the mutation it was
- * placed to rule out. Reserving the name here, where scanning decides what a
- * project contains, is what keeps that impossible rather than unlikely.
- *
- * It lives in this module and not in the journal because the direction of the
- * dependency runs this way: the journal already asks the filesystem what is
- * ignored.
- */
+	* Reserved basename prefix for a change-journal sentinel.
+	*
+	* The journal writes one into the tree it watches so it can recognise its own
+	* event and know the stream has caught up with it. It exists for milliseconds,
+	* but a scan crossing that window would index it as a project file and the next
+	* scan would find it gone — the synchronisation reported as the mutation it was
+	* placed to rule out. Reserving the name here, where scanning decides what a
+	* project contains, is what keeps that impossible rather than unlikely.
+	*
+	* It lives in this module and not in the journal because the direction of the
+	* dependency runs this way: the journal already asks the filesystem what is
+	* ignored.
+	*/
 export const PROJECT_JOURNAL_ANCHOR_PREFIX = '.void-journal-anchor-';
 const INDEXED_VOID_FILES = new Set([
 	'.void/project-doctrine.md',
@@ -143,19 +144,19 @@ export function projectPathIsIgnored(path: string): boolean {
 
 interface ConfinedProjectRoot {
 	readonly path: string;
-	readonly stats: Stats;
+	readonly stats: BigIntStats;
 }
 
 async function confinedRoot(root: string): Promise<ConfinedProjectRoot> {
 	const canonical = await realpath(root);
-	const stats = await lstat(canonical);
+	const stats = await lstat(canonical, { bigint: true });
 	if (!stats.isDirectory()) throw new Error('PROJECT_ROOT_INVALID: root must be a directory');
 	return Object.freeze({ path: canonical, stats });
 }
 
 function sameIdentity(
-	left: { readonly dev: number; readonly ino: number },
-	right: { readonly dev: number; readonly ino: number },
+	left: { readonly dev: bigint; readonly ino: bigint },
+	right: { readonly dev: bigint; readonly ino: bigint },
 ): boolean {
 	return left.dev === right.dev && left.ino === right.ino;
 }
@@ -173,7 +174,7 @@ async function safeParent(root: string, path: string): Promise<boolean> {
 	const relativeParent = relative(root, parent);
 	if (relativeParent === '..' || relativeParent.startsWith(`..${sep}`)) return false;
 	if (!(await canonicalPathEquals(parent))) return false;
-	const stats = await lstat(parent);
+	const stats = await lstat(parent, { bigint: true });
 	return stats.isDirectory() && !stats.isSymbolicLink();
 }
 
@@ -239,23 +240,31 @@ function readFailure(
 	return { ok: false, issue: issue(code, path, message) };
 }
 
-function matchesScannedFile(file: ProjectScannedFile, stats: Stats): boolean {
+// Preserve the existing millisecond transport while comparing native read times in nanoseconds.
+function milliseconds(nanoseconds: bigint): number {
+	return Number(nanoseconds / 1_000_000_000n) * 1000
+		+ Number(nanoseconds % 1_000_000_000n) / 1_000_000;
+}
+
+function matchesScannedFile(file: ProjectScannedFile, stats: BigIntStats): boolean {
+	const exact = readFileIdentity(file);
+	if (file.identity !== undefined && (exact === undefined || exact.device !== stats.dev.toString() || exact.inode !== stats.ino.toString())) return false;
 	return (
-		stats.size === file.size &&
-		stats.mtimeMs === file.mtimeMs &&
-		(file.ctimeMs === undefined || stats.ctimeMs === file.ctimeMs) &&
-		(file.device === undefined || stats.dev === file.device) &&
-		(file.inode === undefined || stats.ino === file.inode)
+		stats.size === BigInt(file.size) &&
+		milliseconds(stats.mtimeNs) === file.mtimeMs &&
+		(file.ctimeMs === undefined || milliseconds(stats.ctimeNs) === file.ctimeMs) &&
+		(file.device === undefined || sameProjectFileIdentifier(stats.dev.toString(), file.device)) &&
+		(file.inode === undefined || sameProjectFileIdentifier(stats.ino.toString(), file.inode))
 	);
 }
 
-function readIdentityIsStable(before: Stats, opened: Stats, after: Stats, visible: Stats): boolean {
+function readIdentityIsStable(before: BigIntStats, opened: BigIntStats, after: BigIntStats, visible: BigIntStats): boolean {
 	return (
 		sameIdentity(opened, after) &&
 		sameIdentity(after, visible) &&
 		before.size === after.size &&
-		before.mtimeMs === after.mtimeMs &&
-		before.ctimeMs === after.ctimeMs
+		before.mtimeNs === after.mtimeNs &&
+		before.ctimeNs === after.ctimeNs
 	);
 }
 
@@ -274,7 +283,7 @@ async function readProjectFile(
 		if (!(await safeParent(canonical, absolute)) || !(await canonicalPathEquals(absolute))) {
 			return readFailure('symlink-skipped', file.path, 'file parent or target is not canonical');
 		}
-		const before = await lstat(absolute);
+		const before = await lstat(absolute, { bigint: true });
 		if (before.isSymbolicLink() || !before.isFile()) {
 			return readFailure('symlink-skipped', file.path, 'file is not a regular root-confined file');
 		}
@@ -285,7 +294,7 @@ async function readProjectFile(
 			return readFailure('oversized-file', file.path, `file exceeds ${boundedMax} bytes`);
 		}
 		handle = await open(absolute, constants.O_RDONLY | constants.O_NOFOLLOW);
-		const opened = await handle.stat();
+		const opened = await handle.stat({ bigint: true });
 		if (!opened.isFile() || !sameIdentity(before, opened)) {
 			return readFailure(
 				'concurrent-change',
@@ -293,9 +302,9 @@ async function readProjectFile(
 				'file identity changed before it was opened',
 			);
 		}
-		const bytes = await readBoundedHandle(handle, opened.size, boundedMax);
-		const after = await handle.stat();
-		const visible = await lstat(absolute);
+		const bytes = await readBoundedHandle(handle, Number(opened.size), boundedMax);
+		const after = await handle.stat({ bigint: true });
+		const visible = await lstat(absolute, { bigint: true });
 		if (
 			!(await safeParent(canonical, absolute)) ||
 			!(await canonicalPathEquals(absolute)) ||
@@ -342,7 +351,7 @@ async function inspectProjectPath(
 	try {
 		const canonical = confined.path;
 		const absolute = confinedPath(canonical, normalized);
-		const stats = await lstat(absolute);
+		const stats = await lstat(absolute, { bigint: true });
 		if (!(await safeParent(canonical, absolute)) || !(await canonicalPathEquals(absolute))) {
 			return {
 				status: 'issue',
@@ -367,11 +376,10 @@ async function inspectProjectPath(
 			status: 'file',
 			file: Object.freeze({
 				path: normalized,
-				size: stats.size,
-				mtimeMs: stats.mtimeMs,
-				ctimeMs: stats.ctimeMs,
-				device: stats.dev,
-				inode: stats.ino,
+				size: Number(stats.size),
+				mtimeMs: milliseconds(stats.mtimeNs),
+				ctimeMs: milliseconds(stats.ctimeNs),
+				...nativeFileIdentity(stats.dev, stats.ino),
 			}),
 		});
 	} catch (error) {
@@ -404,7 +412,7 @@ type ProjectScanLimits = Parameters<ProjectFileSystemPort['scan']>[1];
 
 interface ProjectScanContext {
 	readonly canonicalRoot: string;
-	readonly rootIdentity: Pick<Stats, 'dev' | 'ino'>;
+	readonly rootIdentity: Pick<BigIntStats, 'dev' | 'ino'>;
 	readonly limits: ProjectScanLimits;
 	readonly maxEntries: number;
 	readonly files: ProjectScannedFile[];
@@ -446,7 +454,7 @@ async function inspectScannedFile(
 	path: string,
 ): Promise<void> {
 	try {
-		const stats = await lstat(absolute);
+		const stats = await lstat(absolute, { bigint: true });
 		if (
 			stats.isSymbolicLink() ||
 			!stats.isFile() ||
@@ -462,22 +470,21 @@ async function inspectScannedFile(
 			);
 			return;
 		}
-		if (context.totalBytes + stats.size > context.limits.maxTotalBytes) {
+		if (context.totalBytes + Number(stats.size) > context.limits.maxTotalBytes) {
 			context.issues.push(
 				issue('byte-limit', path, `scan exceeds ${context.limits.maxTotalBytes} aggregate bytes`),
 			);
 			context.stopped = true;
 			return;
 		}
-		context.totalBytes += stats.size;
+		context.totalBytes += Number(stats.size);
 		context.files.push(
 			Object.freeze({
 				path,
-				size: stats.size,
-				mtimeMs: stats.mtimeMs,
-				ctimeMs: stats.ctimeMs,
-				device: stats.dev,
-				inode: stats.ino,
+				size: Number(stats.size),
+				mtimeMs: milliseconds(stats.mtimeNs),
+				ctimeMs: milliseconds(stats.ctimeNs),
+				...nativeFileIdentity(stats.dev, stats.ino),
 			}),
 		);
 	} catch (error) {
@@ -547,9 +554,9 @@ async function visitProjectDirectory(
 	depth: number,
 ): Promise<void> {
 	if (context.stopped) return;
-	let before: Stats;
+	let before: BigIntStats;
 	try {
-		before = await lstat(directory);
+		before = await lstat(directory, { bigint: true });
 	} catch (error) {
 		addDirectoryFailure(context, prefix, error, 'stat');
 		return;
@@ -580,9 +587,9 @@ async function visitProjectDirectory(
 	}
 	const completed = await readProjectDirectory(context, directory, prefix, depth);
 	if (!completed) return;
-	let afterRead: Stats;
+	let afterRead: BigIntStats;
 	try {
-		afterRead = await lstat(directory);
+		afterRead = await lstat(directory, { bigint: true });
 	} catch (error) {
 		addDirectoryFailure(context, prefix, error, 'validation');
 		return;

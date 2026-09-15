@@ -131,6 +131,13 @@ while IFS= read -r -d '' status; do
     fi
   fi
 
+  # TDD judges final source even when the diff only removes lines.
+  if tdd=$("$NODE_BIN" "$RUNNER" enforce-ci tdd-order "$path" </dev/null 2>&1); then
+    [[ -z "$tdd" ]] || printf 'void-enforce: %s\n' "${tdd//$'\n'/ }"
+  else
+    annotate error "$path" 1 "${tdd//$'\n'/ }"
+  fi
+
   # 2+3) Content checks over the ADDED lines, with real line numbers.
   diff_added=$(added_lines "$path") || fail_closed "git diff failed for '${path}' (cannot scan its content)"
   [[ -z "$diff_added" ]] && continue
@@ -149,12 +156,6 @@ while IFS= read -r -d '' status; do
       annotate error "$path" "${LNOS[rel - 1]:-1}" "leaked secret (see harness:security-guidance)"
     done <<<"$hits"
     [[ "$FOUND" -eq 1 ]] || annotate error "$path" 1 "secret scan failed closed: ${hits//$'\n'/ }"
-  fi
-
-  if tdd=$(printf '%s' "$added_text" | "$NODE_BIN" "$RUNNER" enforce-ci tdd-order "$path" 2>&1); then
-    [[ -z "$tdd" ]] || printf 'void-enforce: %s\n' "${tdd//$'\n'/ }"
-  else
-    annotate error "$path" 1 "${tdd//$'\n'/ }"
   fi
 
   if hits=$(printf '%s' "$added_text" | "$NODE_BIN" "$RUNNER" enforce-ci boundary-direction "$path" 2>&1); then :; else

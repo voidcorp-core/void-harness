@@ -69,7 +69,7 @@ function createFixture(
     relativePath = 'packages/core/agents/example-agent.md';
     write(
       join(root, 'packages', 'core', 'agents', 'example-agent.md'),
-      `---\nname: example-agent\n${descriptionField(descriptionLength, style)}\n---\n\n# Example agent\n`,
+      `---\nname: example-agent\n${descriptionField(descriptionLength, style)}\ntools: Read, Grep, Glob\n---\n\n# Example agent\n`,
     );
   }
 
@@ -141,6 +141,36 @@ describe('discovery description budget', () => {
 
     expect(result.status).toBe(1);
     expect(output).toContain('FAIL: packages/core/agents/example-agent.md description is 501 chars (cap 500)');
+  });
+
+  it('rejects an agent without a tools allowlist', () => {
+    const fixture = createFixture('agent', 10);
+    write(
+      join(fixture.root, fixture.relativePath),
+      `---\nname: example-agent\ndescription: short\n---\n\n# Example agent\n`,
+    );
+    const result = runFixture(fixture);
+    const output = `${result.stdout}${result.stderr}`;
+
+    expect(result.status).toBe(1);
+    expect(output).toContain(
+      `FAIL: ${fixture.relativePath} must declare a non-empty frontmatter 'tools:' allowlist`,
+    );
+  });
+
+  it('rejects an agent with an empty tools allowlist', () => {
+    const fixture = createFixture('agent', 10);
+    write(
+      join(fixture.root, fixture.relativePath),
+      `---\nname: example-agent\ndescription: short\ntools:   \n---\n\n# Example agent\n`,
+    );
+    const result = runFixture(fixture);
+    const output = `${result.stdout}${result.stderr}`;
+
+    expect(result.status).toBe(1);
+    expect(output).toContain(
+      `FAIL: ${fixture.relativePath} must declare a non-empty frontmatter 'tools:' allowlist`,
+    );
   });
 
   it.each([251, 501])('enforces %i characters for a pack skill', (descriptionLength) => {
