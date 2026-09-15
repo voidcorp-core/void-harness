@@ -1,14 +1,17 @@
 export type SyntaxPurpose = 'focused-tests' | 'declarations';
 
-/** Pure, self-contained AST traversal, also serialized into the isolated child. */
-export function analyzeSyntax(ts: typeof import('typescript'), input: {
+interface SyntaxInput {
   readonly path: string;
   readonly source: string;
   readonly purpose: SyntaxPurpose;
-}): { readonly lines: readonly number[] } {
-  // Public Compiler API: createSourceFile + virtual CompilerHost. No config,
-  // project imports, plugins, type checking or inspected-source execution.
-  // https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API
+}
+
+/** Pure, self-contained AST traversal, also serialized into the isolated child.
+ * Public Compiler API: createSourceFile + virtual CompilerHost. No config,
+ * project imports, plugins, type checking or inspected-source execution.
+ * https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API
+ */
+export function analyzeSyntax(ts: typeof import('typescript'), input: SyntaxInput): { readonly lines: readonly number[] } {
   const file = ts.createSourceFile(input.path, input.source, 99, true);
   const host: import('typescript').CompilerHost = {
     getSourceFile: (name) => name === input.path ? file : undefined,

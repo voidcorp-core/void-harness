@@ -1088,7 +1088,77 @@ function readOriginalSource(path) {
 }
 
 import { spawnSync } from "node:child_process";
-function syntaxWorker() {
+
+function analyzeSyntax(ts, input) {
+  const file = ts.createSourceFile(input.path, input.source, 99, true);
+  const host = {
+    getSourceFile: (name) => name === input.path ? file : void 0,
+    getDefaultLibFileName: () => "",
+    writeFile: () => {
+    },
+    getCurrentDirectory: () => "",
+    getCanonicalFileName: (name) => name,
+    useCaseSensitiveFileNames: () => true,
+    getNewLine: () => "\n",
+    fileExists: (name) => name === input.path,
+    readFile: (name) => name === input.path ? input.source : void 0
+  };
+  const program = ts.createProgram([input.path], { noResolve: true, noLib: true }, host);
+  if (program.getSyntacticDiagnostics(file).length > 0) throw new Error();
+  const pending = [file];
+  const lines = /* @__PURE__ */ new Set();
+  const commentPositions = /* @__PURE__ */ new Set();
+  const jsxTextRanges = [];
+  let visited = 0;
+  while (pending.length > 0) {
+    if (++visited > 2e4) throw new Error();
+    const node = pending.pop();
+    if (node === void 0) break;
+    if (input.purpose === "declarations") {
+      if (node.kind === ts.SyntaxKind.JsxText) {
+        jsxTextRanges.push({ start: node.pos, end: node.end });
+        continue;
+      }
+      const comments = [
+        ...ts.getLeadingCommentRanges(input.source, node.pos) ?? [],
+        ...ts.getTrailingCommentRanges(input.source, node.end) ?? []
+      ];
+      for (const comment of comments) {
+        if (!/^\/\/\s*tdd-cover:/.test(input.source.slice(comment.pos, comment.end))) continue;
+        commentPositions.add(comment.pos);
+      }
+      pending.push(...node.getChildren(file));
+      continue;
+    }
+    if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)) {
+      const owner = node.expression.text;
+      if (["it", "test", "describe"].includes(owner) && node.name.text === "only" || ["it", "test"].includes(owner) && node.name.text === "skip") {
+        lines.add(file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1);
+      }
+    }
+    if (ts.isCallExpression(node) || ts.isTaggedTemplateExpression(node)) {
+      let target = ts.isCallExpression(node) ? node.expression : node.tag;
+      while (ts.isPropertyAccessExpression(target) || ts.isElementAccessExpression(target) || ts.isParenthesizedExpression(target) || ts.isAsExpression(target) || ts.isTypeAssertionExpression(target) || ts.isNonNullExpression(target) || ts.isSatisfiesExpression(target)) {
+        if (++visited > 2e4) throw new Error();
+        target = target.expression;
+      }
+      if (ts.isIdentifier(target) && ["xit", "xdescribe"].includes(target.text)) {
+        lines.add(file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1);
+      }
+    }
+    ts.forEachChild(node, (child) => {
+      pending.push(child);
+    });
+  }
+  for (const position of commentPositions) {
+    if (!jsxTextRanges.some((range) => position >= range.start && position < range.end)) {
+      lines.add(file.getLineAndCharacterOfPosition(position).line + 1);
+    }
+  }
+  return { lines: [...lines].sort((a, b) => a - b) };
+}
+
+function syntaxWorker(analyze) {
   const { readFileSync: readFileSync11 } = process.getBuiltinModule("node:fs");
   const { createRequire } = process.getBuiltinModule("node:module");
   const { join: join18 } = process.getBuiltinModule("node:path");
@@ -1112,72 +1182,7 @@ function syntaxWorker() {
     if (typeof members["version"] !== "string" || !/^5\./.test(members["version"]) || methods.some((name) => typeof members[name] !== "function")) throw new Error();
     const ts = loaded;
     reason = "source could not be parsed within the supported limits";
-    const file = ts.createSourceFile(input.path, input.source, 99, true);
-    const host = {
-      getSourceFile: (name) => name === input.path ? file : void 0,
-      getDefaultLibFileName: () => "",
-      writeFile: () => {
-      },
-      getCurrentDirectory: () => "",
-      getCanonicalFileName: (name) => name,
-      useCaseSensitiveFileNames: () => true,
-      getNewLine: () => "\n",
-      fileExists: (name) => name === input.path,
-      readFile: (name) => name === input.path ? input.source : void 0
-    };
-    const program = ts.createProgram([input.path], { noResolve: true, noLib: true }, host);
-    if (program.getSyntacticDiagnostics(file).length > 0) throw new Error();
-    const pending = [file];
-    const lines = /* @__PURE__ */ new Set();
-    const commentPositions = /* @__PURE__ */ new Set();
-    const jsxTextRanges = [];
-    let visited = 0;
-    while (pending.length > 0) {
-      if (++visited > 2e4) throw new Error();
-      const node = pending.pop();
-      if (node === void 0) break;
-      if (input.purpose === "declarations") {
-        if (node.kind === ts.SyntaxKind.JsxText) {
-          jsxTextRanges.push({ start: node.pos, end: node.end });
-          continue;
-        }
-        const comments = [
-          ...ts.getLeadingCommentRanges(input.source, node.pos) ?? [],
-          ...ts.getTrailingCommentRanges(input.source, node.end) ?? []
-        ];
-        for (const comment of comments) {
-          if (!/^\/\/\s*tdd-cover:/.test(input.source.slice(comment.pos, comment.end))) continue;
-          commentPositions.add(comment.pos);
-        }
-        pending.push(...node.getChildren(file));
-        continue;
-      }
-      if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression)) {
-        const owner = node.expression.text;
-        if (["it", "test", "describe"].includes(owner) && node.name.text === "only" || ["it", "test"].includes(owner) && node.name.text === "skip") {
-          lines.add(file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1);
-        }
-      }
-      if (ts.isCallExpression(node) || ts.isTaggedTemplateExpression(node)) {
-        let target = ts.isCallExpression(node) ? node.expression : node.tag;
-        while (ts.isPropertyAccessExpression(target) || ts.isElementAccessExpression(target) || ts.isParenthesizedExpression(target) || ts.isAsExpression(target) || ts.isTypeAssertionExpression(target) || ts.isNonNullExpression(target) || ts.isSatisfiesExpression(target)) {
-          if (++visited > 2e4) throw new Error();
-          target = target.expression;
-        }
-        if (ts.isIdentifier(target) && ["xit", "xdescribe"].includes(target.text)) {
-          lines.add(file.getLineAndCharacterOfPosition(node.getStart(file)).line + 1);
-        }
-      }
-      ts.forEachChild(node, (child) => {
-        pending.push(child);
-      });
-    }
-    for (const position of commentPositions) {
-      if (!jsxTextRanges.some((range) => position >= range.start && position < range.end)) {
-        lines.add(file.getLineAndCharacterOfPosition(position).line + 1);
-      }
-    }
-    process.stdout.write(JSON.stringify({ lines: [...lines].sort((a, b) => a - b) }));
+    process.stdout.write(JSON.stringify(analyze(ts, input)));
   } catch {
     process.stdout.write(JSON.stringify({ unavailable: reason }));
   }
@@ -1193,7 +1198,7 @@ function unavailableSyntax(reason, path, correction = "restore TypeScript 5 reso
 function inspectSourceSyntax(root, path, source2, remainingMs = 1e3, purpose = "focused-tests") {
   if (Buffer.byteLength(source2) > MAX_SOURCE_BYTES) return unavailableSyntax("file exceeds 64 KiB", path);
   if (remainingMs < 1) return unavailableSyntax("operation exhausted its one-second parsing budget", path, "split the operation into smaller edits");
-  const child = spawnSync(process.execPath, ["--max-old-space-size=128", "--eval", `(${syntaxWorker.toString()})()`], {
+  const child = spawnSync(process.execPath, ["--max-old-space-size=128", "--eval", `(${syntaxWorker.toString()})(${analyzeSyntax.toString()})`], {
     cwd: root,
     env: {},
     encoding: "utf8",
@@ -1205,7 +1210,13 @@ function inspectSourceSyntax(root, path, source2, remainingMs = 1e3, purpose = "
   });
   if (child.error !== void 0 || child.status !== 0) return unavailableSyntax("parser process failed or exceeded its resource limit", path);
   try {
-    const result = JSON.parse(child.stdout);
+    return syntaxVerdict(JSON.parse(child.stdout), path, purpose);
+  } catch {
+    return unavailableSyntax("parser returned an invalid result", path);
+  }
+}
+function syntaxVerdict(result, path, purpose) {
+  try {
     if (typeof result !== "object" || result === null) throw new Error();
     const record8 = result;
     if (typeof record8["unavailable"] === "string") {
@@ -1332,7 +1343,7 @@ function readTddConfig(root) {
     spikesGlob: configuredString(paths, "spikes", "apps/*/scripts/spike-*")
   };
 }
-function focusedVerdict(root, edits, raw) {
+function focusedVerdict(root, edits, raw, syntaxInspector) {
   const deadline = performance.now() + 1e3;
   const governed = projectEdits(root, edits).filter((edit) => isTestPath(edit.path) && edit.operation !== "delete");
   const limit = () => unavailableSyntax(
@@ -1358,7 +1369,7 @@ function focusedVerdict(root, edits, raw) {
     if (/^[ \t]*(?:(?:it|test|describe)\.only|(?:it|test)\.skip|xit|xdescribe)[ \t]*\(/.test(proposed.content)) {
       return noFocusedTest([{ path: edit.path, addedContent: proposed.content.split("\n")[0] ?? "" }]);
     }
-    const verdict = inspectSourceSyntax(root, edit.path, proposed.content, deadline - performance.now());
+    const verdict = syntaxInspector(root, edit.path, proposed.content, deadline - performance.now());
     if (performance.now() >= deadline) return limit();
     if (!verdict.allow) return verdict;
   }
@@ -1385,7 +1396,7 @@ function tddOperationLimit(reason) {
     evidence: []
   };
 }
-function tddVerdict(root, edits, raw, checkedOut = false) {
+function tddVerdict(root, edits, raw, checkedOut, syntaxInspector) {
   const physicalRoot = physicalPath(root);
   const projectChanges = projectEdits(physicalRoot, edits);
   const config = readTddConfig(physicalRoot);
@@ -1421,7 +1432,7 @@ function tddVerdict(root, edits, raw, checkedOut = false) {
     const [header = "", ...body] = proposed.content.split(/\r?\n/);
     const startsWithDeclaration = /^\/\/\s*tdd-cover:/.test(header);
     if (body.some((line) => line.includes("tdd-cover:")) || header.includes("tdd-cover:") && !startsWithDeclaration) {
-      const syntax = inspectSourceSyntax(
+      const syntax = syntaxInspector(
         physicalRoot,
         edit.path,
         proposed.content,
@@ -1495,8 +1506,19 @@ function evaluateRule(rule, rawInput, options) {
   }
   if (rule === "secret-content") return secretContent(call.edits);
   if (rule === "control-character") return controlCharacter(call.edits);
-  if (rule === "tdd-order") return tddVerdict(options.root, call.edits, rawInput, options.source === "checked-out");
-  if (rule === "no-focused-test") return focusedVerdict(options.root, call.edits, rawInput);
+  if (rule === "tdd-order") return tddVerdict(
+    options.root,
+    call.edits,
+    rawInput,
+    options.source === "checked-out",
+    options.syntaxInspector ?? inspectSourceSyntax
+  );
+  if (rule === "no-focused-test") return focusedVerdict(
+    options.root,
+    call.edits,
+    rawInput,
+    options.syntaxInspector ?? inspectSourceSyntax
+  );
   const edits = projectEdits(options.root, call.edits);
   if (rule === "no-any") return noAny(edits);
   if (rule === "no-as-cast") return noAsCast(edits);
