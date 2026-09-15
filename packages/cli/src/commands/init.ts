@@ -436,7 +436,7 @@ export async function init(args: readonly string[]): Promise<void> {
     }
   } catch (err) {
     blank();
-    p.log.error(`init failed before publication or rolled back byte-for-byte. ${errorMessage(err)}`);
+    p.log.error(`init failed. Prior layout repairs remain applied: they are outside the install transaction. ${errorMessage(err)}`);
     installFailed = true;
   } finally {
     await rm(stageRoot, { recursive: true, force: true });
