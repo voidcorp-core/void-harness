@@ -21,7 +21,7 @@ describe('why input contract', () => {
   expect(projectWhyTarget('/project', ['src/../src/a.ts'])).toEqual({ ok: true, path: 'src/a.ts' });
   expect(projectWhyTarget('/project', ['/project/src/a.ts'])).toEqual({ ok: true, path: 'src/a.ts' });
  });
- it.each([[], ['a', 'b'], ['--json'], ['--format', 'json'], ['-x'], ['../outside'], ['/outside']])('refuses invalid arguments before reading: %j', args => {
+ it.each([[], ['a', 'b'], ['--json'], ['--format', 'json'], ['-x'], ['../outside'], ['/outside']].map(args => ({ args })))('refuses invalid arguments before reading: %j', ({ args }) => {
   expect(projectWhyTarget('/project', args).ok).toBe(false);
  });
 });
@@ -49,6 +49,6 @@ it('announces traversal and diagnostic truncation and neutralizes terminal contr
  const out = report.lines.join('\n');
  expect(out).toContain('truncated');
  expect(out).toContain('Knowledge diagnostics');
- expect(out).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/u);
+ expect(out).not.toMatch(/[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/u);
  expect(out.length).toBeLessThan(100000);
 });

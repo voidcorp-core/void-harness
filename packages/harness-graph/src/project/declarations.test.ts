@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
@@ -7,6 +8,7 @@ import { projectFileId } from './extractors/types.js';
 import { cleanupProjectTempDirs, createExactProjectChangeJournal, fixtureCompilerLookup, projectTempDir } from './test-support.js';
 
 afterAll(cleanupProjectTempDirs);
+const hash = (content: string) => `sha256:${createHash('sha256').update(content).digest('hex')}`;
 const decisionPath = 'docs/decisions-log/example.md';
 const invariantPath = '.void/knowledge/invariants/example.yaml';
 const adr = (id = 'adr:one', extra = '') => `---\nid: ${id}\ntitle: Keep isolation\nstatus: accepted\nsupersedes: []\n${extra}\n---\nHuman explanation.\n`;
@@ -27,7 +29,7 @@ it('connects implementation, tests and decisions with declared source hashes wit
  const result = await f.build();
  const decision = result.graph.nodes.find(n => n.kind === 'decision');
  const constraint = result.graph.nodes.find(n => n.kind === 'invariant');
- expect(decision).toMatchObject({ label: 'Keep isolation', provenance: { origin: 'declared', confidence: 1, sources: [{ kind: 'path', ref: decisionPath, hashOrVersion: expect.stringMatching(/^sha256:/) }] } });
+ expect(decision).toMatchObject({ label: 'Keep isolation', provenance: { origin: 'declared', confidence: 1, sources: [{ kind: 'path', ref: decisionPath, hashOrVersion: hash(files[decisionPath]) }] } });
  expect(constraint).toMatchObject({ provenance: { origin: 'declared', confidence: 1 } });
  expect(result.graph.edges).toEqual(expect.arrayContaining([
   expect.objectContaining({ kind: 'decided_by', from: projectFileId('src/service.ts'), to: decision?.id }),
@@ -35,6 +37,7 @@ it('connects implementation, tests and decisions with declared source hashes wit
   expect.objectContaining({ kind: 'verified_by', from: constraint?.id, to: projectFileId('tests/service.test.ts') }),
   expect.objectContaining({ kind: 'decided_by', from: constraint?.id, to: decision?.id }),
  ]));
+ expect(result.graph.edges.find(e => e.kind === 'constrained_by')?.provenance.sources).toEqual([{ kind: 'path', ref: invariantPath, hashOrVersion: hash(files[invariantPath]) }]);
  expect(result.graph.edges.filter(e => ['decided_by', 'constrained_by', 'verified_by'].includes(e.kind)).every(e => e.provenance.origin === 'declared' && e.provenance.confidence === 1)).toBe(true);
  for (const [path, content] of Object.entries(files)) expect(await readFile(join(f.root, path), 'utf8')).toBe(content);
 });
@@ -77,9 +80,16 @@ it('observes edited and deleted declarations across cache reuse and excludes oth
  await writeFile(join(f.root, decisionPath), adr('adr:one', 'affects: [gone.ts]'));
  const changed = await f.build();
  expect(changed.graph.source.rootHash).not.toBe(first.graph.source.rootHash);
+ expect(changed.graph.nodes.find(n => n.kind === 'decision')?.provenance.sources[0]?.hashOrVersion).toBe(hash(adr('adr:one', 'affects: [gone.ts]')));
  expect(changed.issues).toContainEqual(expect.objectContaining({ code: 'knowledge-reference', path: decisionPath }));
  await unlink(join(f.root, invariantPath));
  const deleted = await f.build();
  expect(deleted.graph.nodes.filter(n => n.kind === 'invariant')).toHaveLength(0);
  expect(deleted.graph.nodes.some(n => n.data['path'] === '.void/knowledge/intent.yaml')).toBe(false);
+});
+
+it('preserves the existing date/title legacy ADR contract without reading status from prose', async () => {
+ const f = await fixture({ [decisionPath]: '---\ndate: 2026-07-01\ntitle: Old decision\n---\nThis text mentions superseded.\n' });
+ const r = await f.build();
+ expect(r.graph.nodes.find(n => n.kind === 'decision')).toMatchObject({ data: { declarationId: 'legacy:example', status: 'accepted', supersedes: [] }, provenance: { origin: 'declared', confidence: 1 } });
 });
