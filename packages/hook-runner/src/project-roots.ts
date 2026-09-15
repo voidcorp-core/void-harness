@@ -81,13 +81,15 @@ function git(cwd: string, args: readonly string[], deadline?: number): string | 
  * `--separate-git-dir`, or with a git too old to answer. The caller then keeps
  * one root and today's behaviour.
  */
-function mainWorkingTree(cwd: string, deadline?: number, expectedCommon?: string): string | undefined {
+function mainWorkingTree(
+  cwd: string, deadline?: number, expectedCommon?: string, query: typeof git = git,
+): string | undefined {
   // One attribute per line, a blank line closes a record. The first record is
   // the main working tree by contract, and its first attribute is always
   // `worktree`. Without `-z`: it arrived in git 2.36 while `list --porcelain`
   // dates from 2.7, and a repository path carrying a newline is not a case
   // worth raising the floor for.
-  const listing = git(cwd, ['worktree', 'list', '--porcelain'], deadline);
+  const listing = query(cwd, ['worktree', 'list', '--porcelain'], deadline);
   if (listing === undefined) return undefined;
   const [first = ''] = listing.split(/\r?\n\r?\n/);
   const attributes = first.split(/\r?\n/);
@@ -98,7 +100,7 @@ function mainWorkingTree(cwd: string, deadline?: number, expectedCommon?: string
   // header). Its toplevel, as git resolves it, is the working tree or nothing.
   const listed = head.slice('worktree '.length);
   const args = ['rev-parse', '--show-toplevel', ...(expectedCommon === undefined ? [] : ['--git-common-dir'])];
-  const [toplevel, common] = git(listed, args, deadline)?.trim().split(/\r?\n/) ?? [];
+  const [toplevel, common] = query(listed, args, deadline)?.trim().split(/\r?\n/) ?? [];
   if (toplevel === undefined || toplevel === '') return undefined;
   if (expectedCommon !== undefined && (common === undefined || canonical(resolve(listed, common)) !== expectedCommon)) return undefined;
   return canonical(toplevel);
@@ -172,7 +174,7 @@ function ordinaryLinkedMain(tree: string): string | undefined {
 }
 
 /** Advisory events need a proven durable destination; rules still use their work root. */
-export function resolveTelemetryRoot(cwd: string): TelemetryRoot {
+export function resolveTelemetryRoot(cwd: string, query: typeof git = git): TelemetryRoot {
   const refused: TelemetryRoot = { kind: 'unavailable', code: 'TELEMETRY_ROOT_UNRESOLVED' };
   try {
     // A policy file scopes enforcement, not repository ownership. Walk through
@@ -195,14 +197,14 @@ export function resolveTelemetryRoot(cwd: string): TelemetryRoot {
     const ordinary = ordinaryLinkedMain(tree);
     if (ordinary !== undefined) return { kind: 'resolved', root: ordinary };
     const deadline = performance.now() + 100;
-    const [toplevel, directory, common] = git(tree, [
+    const [toplevel, directory, common] = query(tree, [
       'rev-parse', '--show-toplevel', '--absolute-git-dir', '--git-common-dir',
     ], deadline)?.trim().split(/\r?\n/) ?? [];
     if (toplevel === undefined || canonical(toplevel) !== tree) return refused;
     if (directory === undefined || common === undefined) return refused;
     const commonDirectory = canonical(resolve(tree, common));
     if (canonical(directory) === commonDirectory) return { kind: 'resolved', root: tree };
-    const main = mainWorkingTree(tree, deadline, commonDirectory);
+    const main = mainWorkingTree(tree, deadline, commonDirectory, query);
     if (main === undefined) return refused;
     return { kind: 'resolved', root: main };
   } catch {
