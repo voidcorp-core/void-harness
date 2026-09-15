@@ -1,3 +1,4 @@
+// tdd-cover: e2e packages/harness-graph/src/project/declarations.test.ts
 import { posix } from 'node:path';
 import {
 	isAlias,
