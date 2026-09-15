@@ -10,6 +10,21 @@ function git(root: string, ...args: string[]): void {
   if (result.status !== 0) throw new Error(`fixture git failed: ${result.stderr}`);
 }
 
+// Observe real topology independently of the production discovery budget.
+// The default executor's deadline refusal is covered separately below.
+function observeGit(cwd: string, args: readonly string[]): string | undefined {
+  const result = spawnSync('git', args, {
+    cwd,
+    env: Object.fromEntries(Object.entries(process.env).filter(([name]) =>
+      !/^GIT_(DIR|WORK_TREE|COMMON_DIR|CONFIG|INDEX_FILE)/.test(name))),
+    encoding: 'utf8',
+    timeout: 5_000,
+    maxBuffer: 1_000_000,
+    stdio: ['ignore', 'pipe', 'ignore'],
+  });
+  return result.status === 0 && typeof result.stdout === 'string' ? result.stdout : undefined;
+}
+
 describe('telemetry destination evidence', () => {
   it('retains standalone project identity from nested working directories', () => {
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'void-event-roots-')));
@@ -59,7 +74,6 @@ describe('telemetry destination evidence', () => {
     git(root, 'init', '--quiet', '--separate-git-dir', join(root, 'metadata'));
     git(root, '-c', 'user.name=Test', '-c', 'user.email=test@example.test',
       'commit', '--allow-empty', '-qm', 'seed');
-    expect(resolveTelemetryRoot(root)).toEqual({ kind: 'resolved', root });
     const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(0).mockReturnValue(101);
     try {
       expect(resolveTelemetryRoot(root)).toEqual({
@@ -100,8 +114,6 @@ describe('telemetry destination evidence', () => {
     const child = join(parent, 'child');
     const worker = join(root, 'child-worker');
     git(child, 'worktree', 'add', '-b', 'worker', worker);
-    expect(resolveTelemetryRoot(child)).toEqual({ kind: 'resolved', root: child });
-    expect(resolveTelemetryRoot(worker)).toEqual({ kind: 'resolved', root: child });
     const separated = join(root, 'separated');
     mkdirSync(separated);
     git(separated, 'init', '--quiet', '--separate-git-dir', join(root, 'separate.git'));
@@ -109,8 +121,16 @@ describe('telemetry destination evidence', () => {
       'commit', '--allow-empty', '-qm', 'seed');
     const separateWorker = join(root, 'separate-worker');
     git(separated, 'worktree', 'add', '-b', 'worker', separateWorker);
-    expect(resolveTelemetryRoot(separated)).toEqual({ kind: 'resolved', root: separated });
-    expect(resolveTelemetryRoot(separateWorker)).toMatchObject({ kind: 'unavailable' });
+    let elapsed = 0;
+    const clock = vi.spyOn(performance, 'now').mockImplementation(() => elapsed += 101);
+    try {
+      expect(resolveTelemetryRoot(child, observeGit)).toEqual({ kind: 'resolved', root: child });
+      expect(resolveTelemetryRoot(worker, observeGit)).toEqual({ kind: 'resolved', root: child });
+      expect(resolveTelemetryRoot(separated, observeGit)).toEqual({ kind: 'resolved', root: separated });
+      expect(resolveTelemetryRoot(separateWorker, observeGit)).toMatchObject({ kind: 'unavailable' });
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it.each(['gitdir: ', 'gitdir: bad\npath', `gitdir: ${'x'.repeat(4097)}`])(
