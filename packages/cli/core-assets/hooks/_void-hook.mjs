@@ -1534,8 +1534,8 @@ function git(cwd, args, deadline) {
   if (result.status !== 0 || typeof result.stdout !== "string") return void 0;
   return result.stdout;
 }
-function mainWorkingTree(cwd, deadline, expectedCommon) {
-  const listing = git(cwd, ["worktree", "list", "--porcelain"], deadline);
+function mainWorkingTree(cwd, deadline, expectedCommon, query = git) {
+  const listing = query(cwd, ["worktree", "list", "--porcelain"], deadline);
   if (listing === void 0) return void 0;
   const [first = ""] = listing.split(/\r?\n\r?\n/);
   const attributes = first.split(/\r?\n/);
@@ -1544,7 +1544,7 @@ function mainWorkingTree(cwd, deadline, expectedCommon) {
   if (attributes.includes("bare")) return void 0;
   const listed = head.slice("worktree ".length);
   const args = ["rev-parse", "--show-toplevel", ...expectedCommon === void 0 ? [] : ["--git-common-dir"]];
-  const [toplevel, common] = git(listed, args, deadline)?.trim().split(/\r?\n/) ?? [];
+  const [toplevel, common] = query(listed, args, deadline)?.trim().split(/\r?\n/) ?? [];
   if (toplevel === void 0 || toplevel === "") return void 0;
   if (expectedCommon !== void 0 && (common === void 0 || canonical(resolve5(listed, common)) !== expectedCommon)) return void 0;
   return canonical(toplevel);
@@ -1585,7 +1585,7 @@ function ordinaryLinkedMain(tree) {
   if (!lstatSync(candidateMarker, { throwIfNoEntry: false })?.isDirectory() || canonical(candidateMarker) !== common) return void 0;
   return candidate;
 }
-function resolveTelemetryRoot(cwd) {
+function resolveTelemetryRoot(cwd, query = git) {
   const refused = { kind: "unavailable", code: "TELEMETRY_ROOT_UNRESOLVED" };
   try {
     let tree = canonical(cwd);
@@ -1605,7 +1605,7 @@ function resolveTelemetryRoot(cwd) {
     const ordinary = ordinaryLinkedMain(tree);
     if (ordinary !== void 0) return { kind: "resolved", root: ordinary };
     const deadline = performance.now() + 100;
-    const [toplevel, directory, common] = git(tree, [
+    const [toplevel, directory, common] = query(tree, [
       "rev-parse",
       "--show-toplevel",
       "--absolute-git-dir",
@@ -1615,7 +1615,7 @@ function resolveTelemetryRoot(cwd) {
     if (directory === void 0 || common === void 0) return refused;
     const commonDirectory = canonical(resolve5(tree, common));
     if (canonical(directory) === commonDirectory) return { kind: "resolved", root: tree };
-    const main2 = mainWorkingTree(tree, deadline, commonDirectory);
+    const main2 = mainWorkingTree(tree, deadline, commonDirectory, query);
     if (main2 === void 0) return refused;
     return { kind: "resolved", root: main2 };
   } catch {
