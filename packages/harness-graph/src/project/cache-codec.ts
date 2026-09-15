@@ -1,3 +1,4 @@
+import { validateProjectDeclaration } from './declaration-schema.js';
 import { createHash } from 'node:crypto';
 import { isProjectFileIdentifier, readFileIdentity } from './file-identifier.js';
 import { normalizeProjectPath } from './extractors/filesystem.js';
@@ -203,6 +204,21 @@ function parseCachedTypeScriptConfig(value: unknown, path: string): TypeScriptCo
 	});
 }
 
+function parseDeclaration(value: unknown): NonNullable<ProjectFileExtraction['declaration']> {
+	const input = record(value, 'declaration');
+	if (input['ok'] === false) {
+		return Object.freeze({
+			ok: false,
+			message: boundedString(input['message'], 'declaration.message', 256),
+		});
+	}
+	if (input['ok'] !== true) return cacheError('declaration.ok must be boolean');
+	const data = record(input['value'], 'declaration.value');
+	const kind = data['kind'];
+	if (kind !== 'decision' && kind !== 'invariant') return cacheError('invalid declaration kind');
+	return Object.freeze({ ok: true, value: validateProjectDeclaration(data, kind) });
+}
+
 function parseExtraction(value: unknown, path: string): ProjectFileExtraction {
 	const input = record(value, path);
 	const workspace =
@@ -214,6 +230,7 @@ function parseExtraction(value: unknown, path: string): ProjectFileExtraction {
 			? undefined
 			: parseCachedTypeScriptConfig(input['typeScriptConfig'], `${path}.typeScriptConfig`);
 	return Object.freeze({
+		...(input['declaration'] === undefined ? {} : { declaration: parseDeclaration(input['declaration']) }),
 		imports: parseCachedImports(input, path),
 		exports: strings(input['exports'], `${path}.exports`, 10_000),
 		symbols: parseCachedSymbols(input, path),

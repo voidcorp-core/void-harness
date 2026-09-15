@@ -370,7 +370,9 @@ it('bounds aggregate dangling-reference diagnostics and announces the omitted re
 	);
 });
 it('admits the knowledge directory names only as traversal, never as hidden file contents', async () => {
- const f = await fixture({ '.void/knowledge': 'private unrelated data' });
- const r = await f.build();
- expect(r.graph.nodes.some(n => n.data['path'] === '.void/knowledge')).toBe(false);
+	const f = await fixture({ '.void/knowledge': 'private unrelated data' });
+	const r = await f.build();
+	expect(r.graph.nodes.some((n) => n.data['path'] === '.void/knowledge')).toBe(
+		false,
+	);
 });

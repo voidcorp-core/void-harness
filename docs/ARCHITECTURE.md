@@ -674,6 +674,33 @@ unchanged builds and committed renames. A partial or concurrently-mutated build
 keeps the last green cache and stays explicitly `partial`, so downstream context
 selection falls back to source instead of trusting incomplete topology. Git
 proof is the only authority for `previous-id` rename continuity.
+Declared intent is compiled into the same ProjectGraph: direct ADR Markdown files under
+`docs/decisions-log/` produce `decision` nodes, and direct YAML files under
+`.void/knowledge/invariants/` produce `invariant` nodes. The scanner admits only that
+specific hidden directory in addition to its existing public configuration paths. The
+existing descriptor, root, file and aggregate bounds still apply. Modern ADRs declare
+`id`, `title`, `status`, optional `supersedes` and `affects`; historical date/title ADRs
+retain the existing `legacy:<basename>` identity and accepted status. An invariant
+requires `id`, `scope`, `severity`, `statement`, `enforced_by`, `verified_by` and
+`decided_by`; references are explicit file paths or decision IDs, never inferred.
+
+Implementation files point to decisions through `decided_by` and to invariants through
+`constrained_by`; invariants point to verification files through `verified_by` and to
+decisions through `decided_by`. These three spellings extend only binary relation kind
+validation. New intent nodes and relations carry `origin: declared`, confidence 1 and
+the declaring source's exact SHA-256. Supersession is preserved as readable data, with no
+arbitration of contradictory decisions. Duplicate identities, malformed declarations
+and unresolved references produce source diagnostics without inventing entities.
+
+The declarative YAML adapter uses the existing yaml dependency and explicit bounded
+validators inside the graph package, never CLI parsing code. Declaration extraction is
+stored in the existing cache and its new extraction version invalidates older entries.
+`void-harness why <file>` always observes that incremental builder, preserving current
+diagnostics even when `.void/knowledge.json` already exists; it never writes that artifact.
+It renders decisions, invariants and declared verification evidence with provenance,
+explicit absence and partial/degraded caveats. Traversal uses the existing 500-node,
+12-level default; terminal output and diagnostics are bounded with announced truncation.
+
 Seven read-only queries answer the impact and targeted-context questions over an extracted
 snapshot: `explain`, `path`, `impact`, `subgraph`, `owners`, `testsFor`, and `staleness`. Each is
 deterministic, takes a node/depth budget, and reports `truncated` rather than returning a silently
