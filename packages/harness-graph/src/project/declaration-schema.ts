@@ -1,3 +1,4 @@
+// tdd-cover: e2e packages/harness-graph/src/project/declarations.test.ts
 /** Data validation follows this package's existing explicit boundary validators. */
 export type ProjectDeclaration =
 	| {
