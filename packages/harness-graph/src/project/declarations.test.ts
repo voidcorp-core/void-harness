@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, symlink, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { afterAll, expect, it } from 'vitest';
-import { buildProjectGraph } from './build.js';
-import { createMemoryProjectCachePort } from './cache.js';
+import { buildProjectGraph, type ProjectGraphBuildOptions } from './build.js';
+import { createMemoryProjectCachePort, sealProjectGraphCache } from './cache.js';
 import { projectFileId } from './extractors/types.js';
 import { cleanupProjectTempDirs, createExactProjectChangeJournal, fixtureCompilerLookup, projectTempDir } from './test-support.js';
 
@@ -21,7 +21,7 @@ async function fixture(files: Readonly<Record<string, string>>) {
  }
  const cache = createMemoryProjectCachePort();
  const journal = createExactProjectChangeJournal();
- return { root, build: () => buildProjectGraph({ root, cache, journal, compilerLookup: fixtureCompilerLookup(), git: { inspect: async () => ({ head: 'a'.repeat(40), changed: [], deleted: [], renames: [], owners: {}, availability: { head: 'available', changes: 'available', ownership: 'available' }, issues: [] }) } }) };
+ return { root, cache, build: (options: Partial<ProjectGraphBuildOptions> = {}) => buildProjectGraph({ root, cache, journal, compilerLookup: fixtureCompilerLookup(), git: { inspect: async () => ({ head: 'a'.repeat(40), changed: [], deleted: [], renames: [], owners: {}, availability: { head: 'available', changes: 'available', ownership: 'available' }, issues: [] }) }, ...options }) };
 }
 it('connects implementation, tests and decisions with declared source hashes without rewriting sources', async () => {
  const files = { [decisionPath]: adr('adr:one', 'affects: [src/service.ts]'), [invariantPath]: invariant(), 'src/service.ts': 'export const isolated = true;', 'tests/service.test.ts': '' };
@@ -92,4 +92,51 @@ it('preserves the existing date/title legacy ADR contract without reading status
  const f = await fixture({ [decisionPath]: '---\ndate: 2026-07-01\ntitle: Old decision\n---\nThis text mentions superseded.\n' });
  const r = await f.build();
  expect(r.graph.nodes.find(n => n.kind === 'decision')).toMatchObject({ data: { declarationId: 'legacy:example', status: 'accepted', supersedes: [] }, provenance: { origin: 'declared', confidence: 1 } });
+});
+
+it('invalidates a pre-declaration extraction cache even when the authoritative journal is unchanged', async () => {
+ const f = await fixture({ [decisionPath]: adr() });
+ await f.build();
+ const rebuilt = await f.build({ cache: {
+  load: async (root, path) => {
+   const loaded = await f.cache.load(root, path);
+   if (loaded.status !== 'ready') return loaded;
+   const { payloadHash: _hash, ...draft } = loaded.cache;
+   return { status: 'ready', cache: sealProjectGraphCache({ ...draft, extractionKey: draft.extractionKey.replace('v2-declared', 'v1'), entries: draft.entries.map(entry => { const { declaration: _declaration, ...extraction } = entry.extraction; return { ...entry, extraction }; }) }) };
+  }, prepare: f.cache.prepare,
+ } });
+ expect(rebuilt.cacheStatus).toBe('incompatible');
+ expect(rebuilt.metrics.extractedFiles).toBeGreaterThan(0);
+ expect(rebuilt.graph.nodes.filter(n => n.kind === 'decision')).toHaveLength(1);
+});
+it('preserves declaration file-size and symlink boundaries', async () => {
+ const f = await fixture({ [decisionPath]: 'x'.repeat(1024 * 1024 + 1), '.void/knowledge/invariants/regular.yaml': invariant() });
+ const outside = await projectTempDir('void-declaration-outside-');
+ await writeFile(join(outside, 'external.yaml'), invariant());
+ await symlink(join(outside, 'external.yaml'), join(f.root, invariantPath));
+ const r = await f.build();
+ expect(r.issues).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'oversized-file', path: decisionPath }), expect.objectContaining({ code: 'symlink-skipped', path: invariantPath })]));
+ expect(r.graph.nodes.filter(n => n.kind === 'decision')).toHaveLength(0);
+ expect(r.graph.nodes.filter(n => n.kind === 'invariant')).toHaveLength(1);
+});
+it.each([
+ ['invalid field type', 'scope: [tenancy]'],
+ ['unsupported severity', 'severity: imaginary'],
+ ['oversized list', `enforced_by: [${Array.from({ length: 257 }, (_, i) => `file${i}`).join(',')}]`],
+ ['terminal controls', 'statement: "unsafe\\e[2J"'],
+ ['large node set', `extra: [${Array.from({ length: 10001 }, () => 'x').join(',')}]`],
+] as const)('reports %s without emitting a malformed invariant', async (_reason, field) => {
+ const key = field.split(':')[0];
+ const source = invariant().split('\n').filter(line => !line.startsWith(`${key}:`)).join('\n') + field;
+ const f = await fixture({ [invariantPath]: source });
+ const r = await f.build();
+ expect(r.graph.nodes.filter(n => n.kind === 'invariant')).toHaveLength(0);
+ expect(r.issues).toContainEqual(expect.objectContaining({ code: 'knowledge-invalid', path: invariantPath }));
+});
+it('bounds aggregate dangling-reference diagnostics and announces the omitted remainder', async () => {
+ const files = Object.fromEntries(Array.from({ length: 41 }, (_, i) => [`docs/decisions-log/${i}.md`, adr(`adr:${i}`, `affects: [${Array.from({ length: 256 }, (_, n) => `missing-${n}.ts`).join(',')}]`)]));
+ const f = await fixture(files);
+ const r = await f.build();
+ expect(r.issues.filter(i => i.code === 'knowledge-reference').length).toBeLessThanOrEqual(10000);
+ expect(r.issues).toContainEqual(expect.objectContaining({ code: 'knowledge-truncated' }));
 });
