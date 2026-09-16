@@ -1,19 +1,20 @@
-export type SyntaxPurpose = 'focused-tests' | 'declarations';
+import * as ts from '@typescript/typescript6';
 
-interface SyntaxInput {
-  readonly path: string;
-  readonly source: string;
-  readonly purpose: SyntaxPurpose;
-}
+import type { SyntaxInput } from './syntax-contract.js';
+export type { SyntaxPurpose } from './syntax-contract.js';
 
-/** Pure, self-contained AST traversal, also serialized into the isolated child.
+/** Pure official TypeScript 6.0.3 AST adapter, bundled only into the child.
  * Public Compiler API: createSourceFile + virtual CompilerHost. No config,
  * project imports, plugins, type checking or inspected-source execution.
  * https://github.com/microsoft/TypeScript/wiki/Using-the-Compiler-API
  */
-export function analyzeSyntax(ts: typeof import('typescript'), input: SyntaxInput): { readonly lines: readonly number[] } {
-  const file = ts.createSourceFile(input.path, input.source, 99, true);
-  const host: import('typescript').CompilerHost = {
+export function analyzeSyntax(input: SyntaxInput): { readonly lines: readonly number[] } {
+  const kind = /\.tsx$/.test(input.path) ? ts.ScriptKind.TSX
+    : /\.jsx$/.test(input.path) ? ts.ScriptKind.JSX
+    : /\.[cm]?js$/.test(input.path) ? ts.ScriptKind.JS : ts.ScriptKind.TS;
+  // Traversal uses the explicit SourceFile; parent back-references are unused.
+  const file = ts.createSourceFile(input.path, input.source, ts.ScriptTarget.Latest, false, kind);
+  const host: import('@typescript/typescript6').CompilerHost = {
     getSourceFile: (name) => name === input.path ? file : undefined,
     getDefaultLibFileName: () => '', writeFile: () => {},
     getCurrentDirectory: () => '', getCanonicalFileName: (name) => name,
@@ -22,14 +23,14 @@ export function analyzeSyntax(ts: typeof import('typescript'), input: SyntaxInpu
     readFile: (name) => name === input.path ? input.source : undefined,
   };
   const program = ts.createProgram([input.path], { noResolve: true, noLib: true }, host);
-  if (program.getSyntacticDiagnostics(file).length > 0) throw new Error();
-  const pending: import('typescript').Node[] = [file];
+  if (program.getSyntacticDiagnostics(file).length > 0) throw new SyntaxError();
+  const pending: import('@typescript/typescript6').Node[] = [file];
   const lines = new Set<number>();
   const commentPositions = new Set<number>();
   const jsxTextRanges: { start: number; end: number }[] = [];
   let visited = 0;
   while (pending.length > 0) {
-    if (++visited > 20_000) throw new Error();
+    if (++visited > 20_000) throw new RangeError();
     const node = pending.pop();
     if (node === undefined) break;
     if (input.purpose === 'declarations') {
@@ -55,7 +56,7 @@ export function analyzeSyntax(ts: typeof import('typescript'), input: SyntaxInpu
       }
     }
     if (ts.isCallExpression(node) || ts.isTaggedTemplateExpression(node)) {
-      let target: import('typescript').Expression = ts.isCallExpression(node)
+      let target: import('@typescript/typescript6').Expression = ts.isCallExpression(node)
         ? node.expression : node.tag;
       // Jest's skipped aliases also own parameterized calls and tagged tables.
       // https://jestjs.io/docs/api
@@ -63,7 +64,7 @@ export function analyzeSyntax(ts: typeof import('typescript'), input: SyntaxInpu
         || ts.isParenthesizedExpression(target) || ts.isAsExpression(target)
         || ts.isTypeAssertionExpression(target) || ts.isNonNullExpression(target)
         || ts.isSatisfiesExpression(target)) {
-        if (++visited > 20_000) throw new Error();
+        if (++visited > 20_000) throw new RangeError();
         target = target.expression;
       }
       if (ts.isIdentifier(target) && ['xit', 'xdescribe'].includes(target.text)) {

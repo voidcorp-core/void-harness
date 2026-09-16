@@ -1,11 +1,11 @@
 import { RULE_NAMES, withGoverningSkill } from './enforcement/governing-skill.js';
-import { resolveTelemetryRoot, type TelemetryRoot } from './project-roots.js';
 import {
   discoverProjectRoot,
   evaluateRule,
+  MAX_CI_CONTENT_BYTES,
   MAX_HOOK_INPUT_BYTES,
+  parseCiContent,
   parseHookPayload,
-  parseHookText,
   type RuleName,
 } from './enforcement/runner.js';
 import { readFreshnessCache } from './freshness/cache.js';
@@ -23,6 +23,7 @@ import { observeResume } from './lifecycle/resume-observer.js';
 import { checkpointReminderOutput } from './lifecycle/session-close-intent.js';
 import { executeTrim } from './lifecycle/trim-executor.js';
 import { executeTypecheck } from './lifecycle/typecheck-executor.js';
+import { resolveTelemetryRoot, type TelemetryRoot } from './project-roots.js';
 import {
   recordHookEvent,
   recordRuntimeEventFromCli,
@@ -38,13 +39,16 @@ function isRuleName(value: string | undefined): value is RuleName {
   return value !== undefined && RULES.has(value);
 }
 
-async function readStdin(): Promise<Buffer> {
+async function readStdin(ciContent: boolean): Promise<Buffer> {
+  const limit = ciContent ? MAX_CI_CONTENT_BYTES : MAX_HOOK_INPUT_BYTES;
   const chunks: Buffer[] = [];
   let bytes = 0;
   for await (const raw of process.stdin) {
     const chunk = Buffer.isBuffer(raw) ? raw : Buffer.from(String(raw));
     bytes += chunk.byteLength;
-    if (bytes > MAX_HOOK_INPUT_BYTES) throw new Error('HOOK_INPUT_TOO_LARGE');
+    if (bytes > limit) {
+      throw new Error(ciContent ? 'CI_CONTENT_TOO_LARGE' : 'HOOK_INPUT_TOO_LARGE');
+    }
     chunks.push(chunk);
   }
   return Buffer.concat(chunks);
@@ -262,7 +266,7 @@ async function runLifecycle(input: Uint8Array): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const input = await readStdin();
+  const input = await readStdin(process.argv[2] === 'enforce-ci');
   if (process.argv[2] === 'lifecycle') {
     await runLifecycle(input);
     return;
@@ -289,7 +293,7 @@ async function main(): Promise<void> {
           tool_name: 'Write',
           tool_input: {
             file_path: process.argv[4] ?? '',
-            content: parseHookText(input),
+            content: parseCiContent(input),
           },
         }
       : parseHookPayload(input);
@@ -329,5 +333,5 @@ async function main(): Promise<void> {
 main().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : 'UNKNOWN_ENFORCEMENT_ERROR';
   process.stderr.write(`HOOK_RUNNER_FAILED: ${message}\n`);
-  process.exitCode = process.argv[2] === 'enforce' ? 2 : 0;
+  process.exitCode = process.argv[2] === 'enforce' || process.argv[2] === 'enforce-ci' ? 2 : 0;
 });

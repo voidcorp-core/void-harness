@@ -61,6 +61,16 @@ async function exerciseRuntime(temporary, bin, runtime) {
 
   requirePath(join(fixture, '.void', 'machine', 'receipts', 'install-v1.json'), `${runtime} receipt`);
   requirePath(join(fixture, '.void', 'hooks', '_void-hook.mjs'), `${runtime} hook runner`);
+  const syntaxWorker = join(fixture, '.void', 'hooks', '_syntax-worker.cjs');
+  requirePath(syntaxWorker, `${runtime} syntax worker`);
+  if (runtime === 'codex') {
+    const performanceReport = await run(
+      'packed TypeScript worker performance', process.execPath,
+      [fileURLToPath(new URL('../../hook-runner/benchmarks/syntax-worker.mjs', import.meta.url))],
+      fixture, { ...environment, VOID_BENCHMARK_WORKER: syntaxWorker },
+    );
+    process.stdout.write(performanceReport.stdout);
+  }
   if (runtime !== 'codex') {
     requirePath(join(fixture, '.claude', 'skills', 'void-tdd', 'SKILL.md'), `${runtime} Claude skill`);
     requirePath(join(fixture, '.claude', 'agents', 'doctrine-critic.md'), `${runtime} Claude agent`);

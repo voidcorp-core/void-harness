@@ -1,8 +1,10 @@
 import { spawn, spawnSync } from 'node:child_process';
 import {
+  closeSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readdirSync,
   readFileSync,
   renameSync,
@@ -13,8 +15,8 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { build } from 'esbuild';
 import { replayEventLog } from '@voidcorp/mission-engine';
+import { build } from 'esbuild';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 // The entrypoint runs on import, so it is exercised the way a hook actually runs
@@ -53,6 +55,17 @@ function enforce(rule: string, payload: unknown): { code: number; stderr: string
 }
 
 describe('CI TDD source evidence', () => {
+  it('accepts the generated worker identity with its actual syntax inspection coverage', () => {
+    const root = join(here, '../../..');
+    const result = spawnSync(process.execPath, [hook, 'enforce-ci', 'tdd-order',
+      'packages/hook-runner/src/enforcement/syntax-worker-identity.generated.ts'], {
+      input: '', encoding: 'utf8', cwd: root,
+      env: { ...process.env, VOID_PROJECT_ROOT: root },
+    });
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain('TDD_DECLARED_TEST');
+  });
+
   it('can inspect the real Autopilot command without exceeding the bounded source reader', () => {
     const root = join(here, '../../..');
     const result = spawnSync(process.execPath, [hook, 'enforce-ci', 'tdd-order',
@@ -77,6 +90,52 @@ describe('CI TDD source evidence', () => {
     });
     expect(result.status).toBe(declared ? 0 : 2);
     expect(result.stderr).toContain(declared ? 'TDD_DECLARED_TEST' : 'TDD_SIBLING_TEST_MISSING');
+  });
+});
+
+describe('CI content transport', () => {
+  const ci = (input: string | Buffer) => {
+    const path = join(workspace, 'ci-input');
+    writeFileSync(path, input);
+    const fd = openSync(path, 'r');
+    try {
+      return spawnSync(process.execPath,
+        [hook, 'enforce-ci', 'secret-content', 'dist/worker.cjs'], {
+          stdio: [fd, 'pipe', 'pipe'], encoding: 'utf8',
+          env: { ...process.env, VOID_PROJECT_ROOT: workspace },
+        });
+    } finally { closeSync(fd); }
+  };
+
+  it('scans a complete artifact up to the distinct 8 MiB CI limit', () => {
+    const result = ci(' '.repeat(8 * 1024 * 1024));
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe('');
+  });
+
+  it('finds a synthetic secret beyond the hook limit on a single minified line', () => {
+    const result = ci(`${' '.repeat(4 * 1024 * 1024)}${'AKIA'}${'Z'.repeat(16)}`);
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('SECRET_IN_CONTENT');
+    expect(result.stderr).toContain('dist/worker.cjs:1');
+  });
+
+  it('refuses CI content above 8 MiB without truncating it', () => {
+    const result = ci(' '.repeat(8 * 1024 * 1024 + 1));
+    expect(result.status).toBe(2);
+    expect(result.stderr).toContain('CI_CONTENT_TOO_LARGE');
+  });
+
+  it.each([Buffer.from([0xff]), Buffer.from([0])])('refuses non-text CI content %s', (input) => {
+    expect(ci(input).status).toBe(2);
+  });
+
+  it('keeps the runtime hook payload capped at 1 MiB', () => {
+    const result = enforce('secret-content', { tool_name: 'Write', tool_input: {
+      file_path: 'dist/worker.cjs', content: ' '.repeat(1024 * 1024),
+    } });
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain('HOOK_INPUT_TOO_LARGE');
   });
 });
 
