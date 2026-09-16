@@ -34,7 +34,57 @@ function project() {
   return root;
 }
 
+function linkCompiler(root: string, name: string, dependency: string): void {
+  const target = join(root, 'node_modules', name);
+  mkdirSync(join(target, '..'), { recursive: true });
+  const manifest = createRequire(import.meta.url).resolve(`${dependency}/package.json`);
+  symlinkSync(manifest.slice(0, -'/package.json'.length), target, 'junction');
+}
+
 describe('isolated syntax inspection', () => {
+  it.each([
+    ['focused-tests', 'view.test.tsx', 'const view = <div>{test.only("case", () => {})}</div>;', 'FOCUSED_OR_SKIPPED_TEST'],
+    ['focused-tests', 'view.test.ts', '// test.skip is documentation\ntest("case", () => {});', 'OK'],
+    ['declarations', 'view.tsx', 'const view = <div>\n// tdd-cover: example\n</div>;', 'TDD_DECLARATION_NONE'],
+  ] as const)('inspects %s with TypeScript 7 and its official compatibility API', (purpose, path, source, code) => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'hook-native-')));
+    linkCompiler(root, 'typescript', '@typescript/native');
+    linkCompiler(root, '@typescript/typescript6', '@typescript/typescript6');
+    expect(bundledInspect(root, path, source, 1_000, purpose).code).toBe(code);
+  });
+
+  it('supports the official compatibility package aliased as typescript', () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'hook-typescript6-')));
+    linkCompiler(root, 'typescript', '@typescript/typescript6');
+    expect(bundledInspect(root, 'view.test.ts', '// test.skip is prose').code).toBe('OK');
+  });
+
+  it('explains how to retain TypeScript 7 when the compatibility API is absent', () => {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'hook-native-only-')));
+    linkCompiler(root, 'typescript', '@typescript/native');
+    const result = bundledInspect(root, 'view.test.ts', '// test.skip is prose');
+    expect(result.code).toBe('TEST_SYNTAX_UNVERIFIED');
+    expect(result.message).toContain('@typescript/typescript6');
+  });
+
+  it('resolves a workspace compatibility API ahead of the root compiler', () => {
+    const root = project();
+    linkCompiler(join(root, 'apps/web'), '@typescript/typescript6', '@typescript/typescript6');
+    const result = bundledInspect(root, 'apps/web/src/view.test.ts', '// test.skip is prose');
+    expect(result.code).toBe('OK');
+  });
+
+  it('refuses a broken explicit compatibility API instead of falling back to TypeScript', () => {
+    const root = project();
+    const directory = join(root, 'node_modules/@typescript/typescript6');
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(join(directory, 'package.json'), JSON.stringify({ main: 'index.cjs' }));
+    writeFileSync(join(directory, 'index.cjs'), 'throw new Error("PRIVATE_COMPATIBILITY_ERROR");');
+    const result = bundledInspect(root, 'view.test.ts', '// test.skip is prose');
+    expect(result.code).toBe('TEST_SYNTAX_UNVERIFIED');
+    expect(result.message).not.toContain('PRIVATE_COMPATIBILITY_ERROR');
+  });
+
   it.each([
     ['focused-tests', 'view.test.tsx', 'const view = <div>{test.only("case", () => {})}</div>;', 'FOCUSED_OR_SKIPPED_TEST'],
     ['declarations', 'view.tsx', 'const view = 1;\n// tdd-cover: e2e missing.spec.ts', 'TDD_DECLARATION_INVALID'],
