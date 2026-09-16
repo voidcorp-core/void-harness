@@ -48,4 +48,8 @@ current-proof behavioral evals.
 
 DEV-843 preserves v2 in regression fixtures. A fresh native v2 guidance-only replay reproduced
 the false missing-capture blocker before the change. Mechanical version-isolation and selector
-guards are separate from the native v3 fixture replay required before certification.
+guards are separate from native behavior. Nine fresh native v3 fixture evaluations
+matched the independent oracle: two explicit non-UI N/A assessments and seven blocked
+UI or uncertain-scope cases. The existing completion parser validated their outputs;
+fixture and compiled-instruction hashes were checked. These synthetic evaluations
+do not replace a production mission certification or rewrite the original v2 verdict.
