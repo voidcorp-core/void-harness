@@ -12,6 +12,16 @@ no `@import`). In the **harness repo itself** the `scripts/sync-agent-docs.sh`
 gate keeps both in lockstep (section-heading parity in CI + a both-or-neither
 pre-commit check).
 
+The shared agent-doc generator gives both runtimes the same bounded merge-consent
+rule: an authorized merge includes the coordinator's routine local synchronization
+without another confirmation. Verify the branch, remote and merged commit; fetch
+and advance the clean local target branch with `git merge --ff-only` to that
+verified commit. Local changes, divergence or an unexpected remote tip stop this
+follow-through. This grants no additional remote merge, deployment, history rewrite
+or shared Git mutations by commit-only workers. Runtime sandbox and approval
+controls still apply. Installed documents receive the rule through the normal
+harness installation/update path, not direct edits to protected installed assets.
+
 In a **consumer project** the doc is **per-runtime**: each runtime adapter writes
 only its own doc. `void-harness init --runtime claude` emits just `CLAUDE.md`,
 `--runtime codex` just `AGENTS.md`, `--runtime both` (the default when neither is
